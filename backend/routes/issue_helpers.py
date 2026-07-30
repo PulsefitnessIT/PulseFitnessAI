@@ -304,7 +304,7 @@ def _build_engineer_email_html(issue, user: dict, case_result: dict, org_ctx: di
 
     sections = _build_engineer_email_sections(issue, user, reporter, site, org_ctx, job_ref, brand_color, site_name)
 
-    hero = _engineer_email_hero_html(brand_color, company_name, site_name, sections["ref_chip"])
+    hero = _engineer_email_hero_html(brand_color, company_name, site_name, sections["ref_chip"], org_ctx.get("logo_url"))
     kv_table = _engineer_email_kv_table(issue, sections)
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -364,9 +364,20 @@ def _engineer_email_reporter_cell(name: str, email: str, brand_color: str) -> st
             f'style="color:{brand_color};text-decoration:none;font-weight:500;">{email}</a>')
 
 
-def _engineer_email_hero_html(brand: str, company: str, site_name: str, ref_chip: str) -> str:
+def _engineer_email_hero_html(brand: str, company: str, site_name: str, ref_chip: str,
+                              logo_url: str | None = None) -> str:
     meta_sep = '  ·  ' + ref_chip if ref_chip else ''
+    # Customer logo chip (white, so dark logos stay legible on the brand hero).
+    logo_html = (
+        f'<div style="display:inline-block;background:#FFFFFF;border-radius:6px;'
+        f'padding:6px 10px;margin:0 0 12px;">'
+        f'<img src="{logo_url}" alt="{company}" height="34" '
+        f'style="display:block;height:34px;max-height:34px;width:auto;max-width:170px;'
+        f'border:0;outline:none;text-decoration:none;"></div>'
+        if logo_url else ''
+    )
     return (f'<div class="hero" style="background:{brand};">'
+            f'{logo_html}'
             f'<p class="hero-brand">{company}</p>'
             f'<h1 class="hero-title">Engineer Callout Required</h1>'
             f'<p class="hero-meta">{site_name}{meta_sep}</p>'
@@ -523,10 +534,12 @@ def _resolve_org_branding(org: dict | None) -> dict:
     account_type = org.get('account_type')
     is_pulse = account_type in ("pulse_pro", "lite")
     return {
-        "primary_color": branding.get('primary_color', '#0055FF'),
+        "primary_color": org.get('brand_color') or branding.get('primary_color', '#0055FF'),
         "company_name": branding.get('company_name', org_name),
         "platform_name": "Pulse Fitness" if is_pulse else "Pulse Fitness AI",
         "is_pulse": is_pulse,
+        # Customer's imported logo for the email header (org-level or branding-level).
+        "logo_url": org.get('logo_url') or branding.get('logo_url') or None,
     }
 
 

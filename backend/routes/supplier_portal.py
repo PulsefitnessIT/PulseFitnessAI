@@ -42,107 +42,112 @@ async def _resolve_platform_branding(organization_id: str | None) -> dict:
     if organization_id:
         org = await db.organizations.find_one(
             {"id": organization_id},
-            {"_id": 0, "account_type": 1, "name": 1},
+            {"_id": 0, "account_type": 1, "name": 1,
+             "logo_url": 1, "brand_color": 1, "branding": 1},
         )
-    is_pulse = _is_pulse_account_type((org or {}).get("account_type"))
+    org = org or {}
+    branding = org.get("branding") or {}
+    # Customer's imported logo + brand colour (matches the public case page
+    # priority). These drive the header of every outbound supplier email.
+    logo_url = org.get("logo_url") or branding.get("logo_url") or None
+    brand_color = org.get("brand_color") or branding.get("primary_color") or "#0055FF"
+    org_name = org.get("name") or ""
+    is_pulse = _is_pulse_account_type(org.get("account_type"))
     if is_pulse:
         return {
             "platform_name": "Pulse Fitness",
             "platform_footer": "Sent via Pulse Fitness — Equipment Maintenance Platform",
             "via_label": "via Pulse Fitness",
             "is_pulse": True,
+            "logo_url": logo_url,
+            "brand_color": brand_color,
+            "org_name": org_name,
         }
     return {
         "platform_name": "Pulse Fitness AI",
         "platform_footer": "Sent via Pulse Fitness AI — Equipment Management Platform",
         "via_label": "via Pulse Fitness AI",
         "is_pulse": False,
+        "logo_url": logo_url,
+        "brand_color": brand_color,
+        "org_name": org_name,
     }
 
 
 # ── Supplier welcome / onboarding email ─────────────────────────
 
 def _build_supplier_welcome_html(
-    supplier: dict, org_name: str, branding: dict,
+    supplier: dict, org_name: str, branding: dict, summary_html: str = "",
 ) -> str:
     """Onboarding HTML email explaining how faults will flow to the supplier."""
+    from utils import email_templates as et
     contact = supplier.get("contact_person") or supplier.get("name") or "Service Team"
     platform = branding["platform_name"]
-    return f'''
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#fff;border:1px solid #E5E7EB;border-radius:14px;overflow:hidden;">
-  <div style="background:linear-gradient(135deg,#0A0A0A 0%, #1e3a8a 100%);padding:28px 32px;">
-    <h1 style="color:#fff;font-size:20px;margin:0;line-height:1.3;">Welcome to {platform}</h1>
-    <p style="color:#cbd5e1;font-size:13px;margin:6px 0 0;">{org_name} has added you as a service supplier</p>
-  </div>
+    brand_color = branding.get("brand_color") or et.DEFAULT_BRAND
 
-  <div style="padding:28px 32px;">
-    <p style="color:#111;font-size:14px;line-height:1.6;margin:0 0 16px;">
-      Hi {contact},
-    </p>
-    <p style="color:#111;font-size:14px;line-height:1.6;margin:0 0 20px;">
-      <strong>{org_name}</strong> has added your business to {platform} as a service supplier.
-      From now on, any faults they report on equipment linked to you will arrive as a branded
-      email with everything you need to get the job done — photos, serial numbers, severity,
-      and a one-click link to reply or schedule a visit.
-    </p>
+    def _feature(label: str, desc: str) -> str:
+        return et.info_card(
+            f'<p style="font-family:{et.FONT_STACK};font-size:12px;font-weight:bold;'
+            f'letter-spacing:0.04em;text-transform:uppercase;color:{et.TEXT_MUTED};margin:0;">{label}</p>'
+            + et.paragraph(desc, size="14px", margin="6px 0 0"),
+            bg="#FFFFFF",
+        )
 
-    <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:20px;margin:20px 0;">
-      <h3 style="margin:0 0 14px;font-size:14px;color:#111;">What you&rsquo;ll see when a fault is reported</h3>
+    features = "".join([
+        _feature("Fault Details", "Equipment name, serial, severity (Safety Critical &rarr; Minor), description, reporting staff member, and AI triage notes where available."),
+        _feature("Schedule a Visit", "Pick a date and name the engineer attending &mdash; the gym is auto-notified."),
+        _feature("Two-way Chat", "Send questions and photos, see the gym&rsquo;s replies in the same thread. Every message is emailed to both sides."),
+        _feature("Status Tracker", "Pending &rarr; Acknowledged &rarr; Engineer Scheduled &rarr; In Progress &rarr; Parts Ordered &rarr; Completed &mdash; both sides see the same status in real time."),
+        _feature("Satisfaction Rating", "Once the job is done, the gym rates your response 1&ndash;5 stars with feedback. Builds your track record."),
+    ])
 
-      <div style="margin:0 0 12px;padding:12px 14px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;">
-        <p style="margin:0;font-size:12px;color:#6B7280;text-transform:uppercase;letter-spacing:0.04em;font-weight:700;">Fault Details</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#111;">Equipment name, serial, severity (Safety Critical &rarr; Minor), description, reporting staff member, AI triage notes (where available).</p>
-      </div>
+    why_block = et.info_card(
+        f'<h3 style="font-family:{et.FONT_STACK};font-size:15px;font-weight:bold;'
+        f'color:{et.TEXT_PRIMARY};margin:0 0 10px;">Why this is better for you</h3>'
+        f'<ul style="font-family:{et.FONT_STACK};margin:0;padding:0 0 0 18px;'
+        f'color:{et.TEXT_SECONDARY};font-size:14px;line-height:22px;">'
+        '<li><strong>No logins required.</strong> Every email has a secure one-click link straight to the job.</li>'
+        '<li><strong>Photos and context up front.</strong> No more &ldquo;which treadmill, which fault?&rdquo; phone tag.</li>'
+        '<li><strong>Single thread per fault.</strong> Everything lives in one place, searchable by job reference.</li>'
+        '<li><strong>Equipment history.</strong> Repeat faults on the same machine are visible to both sides.</li>'
+        '<li><strong>Faster quoting.</strong> Serial + make/model arrive automatically.</li>'
+        '</ul>',
+        bg="#EFF6FF", border="#BFDBFE",
+    )
 
-      <div style="margin:0 0 12px;padding:12px 14px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;">
-        <p style="margin:0;font-size:12px;color:#6B7280;text-transform:uppercase;letter-spacing:0.04em;font-weight:700;">Schedule a Visit</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#111;">Pick a date and name the engineer attending &mdash; the gym is auto-notified.</p>
-      </div>
-
-      <div style="margin:0 0 12px;padding:12px 14px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;">
-        <p style="margin:0;font-size:12px;color:#6B7280;text-transform:uppercase;letter-spacing:0.04em;font-weight:700;">Two-way Chat</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#111;">Send questions and photos, see the gym&rsquo;s replies in the same thread. Every message is emailed to both sides.</p>
-      </div>
-
-      <div style="margin:0 0 12px;padding:12px 14px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;">
-        <p style="margin:0;font-size:12px;color:#6B7280;text-transform:uppercase;letter-spacing:0.04em;font-weight:700;">Status Tracker</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#111;">Pending &rarr; Acknowledged &rarr; Engineer Scheduled &rarr; In Progress &rarr; Parts Ordered &rarr; Completed. Gym and you see the same status in real time.</p>
-      </div>
-
-      <div style="margin:0;padding:12px 14px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;">
-        <p style="margin:0;font-size:12px;color:#6B7280;text-transform:uppercase;letter-spacing:0.04em;font-weight:700;">Satisfaction Rating</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#111;">Once the job is done, the gym rates your response 1&ndash;5 stars with feedback. Builds your track record.</p>
-      </div>
-    </div>
-
-    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:16px 20px;margin:20px 0;">
-      <h3 style="margin:0 0 10px;font-size:14px;color:#1e3a8a;">Why this is better for you</h3>
-      <ul style="margin:0;padding:0 0 0 18px;color:#111;font-size:13px;line-height:1.7;">
-        <li><strong>No logins required.</strong> Every email has a secure one-click link straight to the job.</li>
-        <li><strong>Photos and context up front.</strong> No more "which treadmill, which fault?" phone tag.</li>
-        <li><strong>Single thread per fault.</strong> Everything about the job lives in one place, searchable by job reference (<code>JOB-XXXXXXXX</code>).</li>
-        <li><strong>Equipment history.</strong> Repeat faults on the same machine are visible to both sides.</li>
-        <li><strong>Faster quoting.</strong> Serial + make/model arrive automatically, so parts pricing is straightforward.</li>
-      </ul>
-    </div>
-
-    <p style="color:#111;font-size:14px;line-height:1.6;margin:24px 0 0;">
-      No action is needed right now &mdash; the next email you get from us will be a live fault report.
-      If you&rsquo;d like to update your contact details or preferred engineers, just reply to this email and {org_name} will sort it.
-    </p>
-
-    <p style="color:#111;font-size:14px;line-height:1.6;margin:16px 0 0;">
-      Thanks,<br>
-      <strong>{org_name}</strong><br>
-      <span style="color:#6B7280;font-size:12px;">via {platform}</span>
-    </p>
-  </div>
-
-  <div style="padding:16px 32px;background:#F9FAFB;border-top:1px solid #E5E7EB;">
-    <p style="margin:0;font-size:11px;color:#6B7280;">{branding["platform_footer"]}</p>
-    <p style="margin:4px 0 0;font-size:11px;color:#9CA3AF;">This is an informational email &mdash; no reply is required.</p>
-  </div>
-</div>'''
+    body = (
+        et.paragraph(f'Hi {et.esc(contact)},')
+        + et.paragraph(
+            f'<strong>{et.esc(org_name)}</strong> has added your business to {et.esc(platform)} '
+            'as a service supplier. From now on, any faults they report on equipment linked to you '
+            'will arrive as a branded email with everything you need to get the job done &mdash; photos, '
+            'serial numbers, severity, and a one-click link to reply or schedule a visit.'
+        )
+        + f'<h3 style="font-family:{et.FONT_STACK};font-size:15px;font-weight:bold;'
+          f'color:{et.TEXT_PRIMARY};margin:24px 0 12px;">What you&rsquo;ll see when a fault is reported</h3>'
+        + features
+        + (summary_html or "")
+        + why_block
+        + et.paragraph(
+            'No action is needed right now &mdash; the next email you get from us will be a live fault report. '
+            f'To update your contact details or preferred engineers, just reply and {et.esc(org_name)} will sort it.'
+        )
+        + et.paragraph(
+            f'Thanks,<br><strong>{et.esc(org_name)}</strong>',
+            color=et.TEXT_SECONDARY, margin="16px 0 0",
+        )
+    )
+    return et.email_shell(
+        title=f"Welcome to {platform}",
+        eyebrow=f"{org_name} has added you as a service supplier",
+        body_html=body,
+        brand_color=brand_color,
+        logo_url=branding.get("logo_url"),
+        org_name=org_name,
+        platform_footer=branding["platform_footer"],
+        footer_note="This is an informational email — no reply is required.",
+        preheader=f"{org_name} has added you as a service supplier on {platform}.",
+    )
 
 
 def _build_equipment_csv(equipment: list[dict]) -> str:
@@ -258,13 +263,7 @@ async def send_supplier_welcome_email(
         equipment = await _enrich_equipment_for_email(equipment, organization_id)
 
     summary_html = _summarise_equipment(equipment)
-    base_html = _build_supplier_welcome_html(supplier, org_name, branding)
-    # Inject the summary just before the "Why this is better for you" block.
-    html = base_html.replace(
-        '<div style="background:#EFF6FF;border:1px solid #BFDBFE;',
-        f'{summary_html}<div style="background:#EFF6FF;border:1px solid #BFDBFE;',
-        1,
-    )
+    html = _build_supplier_welcome_html(supplier, org_name, branding, summary_html)
 
     subject = f"Welcome to {branding['platform_name']} — how faults will reach you from {org_name}"
     payload = {
@@ -362,8 +361,10 @@ def _build_reassignment_email_html(
     Expects each entry to optionally carry `_open_faults`, `_total_faults`,
     `_warranty_label` from _enrich_equipment_for_email.
     """
+    from utils import email_templates as et
     contact = supplier.get("contact_person") or supplier.get("name") or "Service Team"
     platform = branding["platform_name"]
+    brand_color = branding.get("brand_color") or et.DEFAULT_BRAND
 
     def _fault_badge(open_ct: int, total_ct: int) -> str:
         if open_ct:
@@ -381,69 +382,73 @@ def _build_reassignment_email_html(
             return '<span style="color:#9CA3AF;font-size:11px;">—</span>'
         if label == "Expired":
             return '<span style="display:inline-block;padding:2px 6px;background:#FEE2E2;color:#991B1B;border-radius:999px;font-size:11px;font-weight:600;">Expired</span>'
-        return f'<span style="color:#065F46;font-size:11px;">{label}</span>'
+        return f'<span style="color:#065F46;font-size:11px;">{et.esc(label)}</span>'
 
     rows = "".join(f'''
       <tr>
-        <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px;">
-          <div style="color:#111;font-weight:500;">{e.get("name","")}</div>
-          <div style="color:#6B7280;font-size:11px;">{e.get("equipment_type","")}{(" · " + e.get("serial_number","")) if e.get("serial_number") else ""}</div>
+        <td style="padding:10px;border-bottom:1px solid {et.BORDER};font-size:14px;">
+          <div style="color:{et.TEXT_PRIMARY};font-weight:600;">{et.esc(e.get("name",""))}</div>
+          <div style="color:{et.TEXT_MUTED};font-size:12px;">{et.esc(e.get("equipment_type",""))}{(" · " + et.esc(e.get("serial_number",""))) if e.get("serial_number") else ""}</div>
         </td>
-        <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;color:#374151;">{e.get("location","")}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;white-space:nowrap;">{_fault_badge(e.get("_open_faults", 0), e.get("_total_faults", 0))}</td>
-        <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;white-space:nowrap;">{_warranty_badge(e.get("_warranty_label", ""))}</td>
+        <td style="padding:10px;border-bottom:1px solid {et.BORDER};font-size:13px;color:{et.TEXT_SECONDARY};">{et.esc(e.get("location",""))}</td>
+        <td style="padding:10px;border-bottom:1px solid {et.BORDER};font-size:13px;white-space:nowrap;">{_fault_badge(e.get("_open_faults", 0), e.get("_total_faults", 0))}</td>
+        <td style="padding:10px;border-bottom:1px solid {et.BORDER};font-size:13px;white-space:nowrap;">{_warranty_badge(e.get("_warranty_label", ""))}</td>
       </tr>''' for e in equipment[:20])
     extra_note = ""
     if len(equipment) > 20:
-        extra_note = f'<p style="margin:8px 0 0;font-size:11px;color:#666;">…and {len(equipment) - 20} more (see attached CSV).</p>'
+        extra_note = et.paragraph(f'…and {len(equipment) - 20} more (see attached CSV).',
+                                  color=et.TEXT_MUTED, size="12px", margin="8px 0 0")
 
     total_open = sum(e.get("_open_faults", 0) for e in equipment)
-    ack_note = (
-        f'<div style="margin:14px 0;padding:12px 14px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;">'
-        f'<p style="margin:0;font-size:12px;color:#991B1B;font-weight:600;">'
-        f'⚠ {total_open} open fault{"" if total_open == 1 else "s"} already logged across these machines — please review as priority.'
-        f'</p></div>'
+    ack_note = et.info_card(
+        et.paragraph(
+            f'&#9888; {total_open} open fault{"" if total_open == 1 else "s"} already logged across '
+            'these machines — please review as priority.',
+            color="#991B1B", size="14px", margin="0",
+        ),
+        bg="#FEF2F2", border="#FECACA",
     ) if total_open else ""
 
-    return f'''
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:680px;margin:0 auto;background:#fff;border:1px solid #E5E7EB;border-radius:14px;overflow:hidden;">
-  <div style="background:#0A0A0A;padding:22px 28px;">
-    <h1 style="color:#fff;font-size:18px;margin:0;">Machines assigned to you</h1>
-    <p style="color:#cbd5e1;font-size:12px;margin:4px 0 0;">{org_name} has updated their supplier records</p>
-  </div>
-  <div style="padding:24px 28px;">
-    <p style="color:#111;font-size:14px;line-height:1.6;margin:0 0 12px;">Hi {contact},</p>
-    <p style="color:#111;font-size:14px;line-height:1.6;margin:0 0 16px;">
-      <strong>{org_name}</strong> has assigned
-      <strong>{len(equipment)} machine{'' if len(equipment) == 1 else 's'}</strong>
-      to you on {platform}. Any faults reported against these machines will now
-      come directly to you. The table below includes <strong>current open faults</strong>
-      and <strong>warranty status</strong> per machine so you can plan your first visit.
-    </p>
-    {ack_note}
-    <div style="border:1px solid #E5E7EB;border-radius:10px;overflow:hidden;margin:12px 0;">
-      <table style="width:100%;border-collapse:collapse;">
-        <thead>
-          <tr style="background:#F9FAFB;">
-            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#374151;text-transform:uppercase;letter-spacing:0.04em;">Machine</th>
-            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#374151;text-transform:uppercase;letter-spacing:0.04em;">Location</th>
-            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#374151;text-transform:uppercase;letter-spacing:0.04em;">Faults</th>
-            <th style="text-align:left;padding:8px 10px;font-size:11px;color:#374151;text-transform:uppercase;letter-spacing:0.04em;">Warranty</th>
-          </tr>
-        </thead>
-        <tbody>{rows}</tbody>
-      </table>
-    </div>
-    {extra_note}
-    <p style="color:#111;font-size:13px;line-height:1.6;margin:16px 0 0;">
-      Full list attached as <strong>equipment.csv</strong>. No action needed right now —
-      the next email you receive for any of these machines will be a live fault report.
-    </p>
-  </div>
-  <div style="padding:14px 28px;background:#F9FAFB;border-top:1px solid #E5E7EB;">
-    <p style="margin:0;font-size:11px;color:#6B7280;">{branding["platform_footer"]}</p>
-  </div>
-</div>'''
+    th = (f'style="text-align:left;padding:10px;font-size:11px;color:{et.TEXT_MUTED};'
+          f'text-transform:uppercase;letter-spacing:0.04em;border-bottom:2px solid {et.BORDER};"')
+    table_html = (
+        f'<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" '
+        f'style="border:1px solid {et.BORDER};border-radius:8px;border-collapse:separate;'
+        f'overflow:hidden;margin:8px 0 4px;">'
+        f'<tr style="background:#FAFAFA;"><th {th}>Machine</th><th {th}>Location</th>'
+        f'<th {th}>Faults</th><th {th}>Warranty</th></tr>'
+        f'{rows}</table>'
+    )
+
+    body = (
+        et.paragraph(f'Hi {et.esc(contact)},')
+        + et.paragraph(
+            f'<strong>{et.esc(org_name)}</strong> has assigned '
+            f'<strong>{len(equipment)} machine{"" if len(equipment) == 1 else "s"}</strong> '
+            f'to you on {et.esc(platform)}. Any faults reported against these machines will now come '
+            'directly to you. The table below includes <strong>current open faults</strong> and '
+            '<strong>warranty status</strong> per machine so you can plan your first visit.'
+        )
+        + ack_note
+        + table_html
+        + extra_note
+        + et.paragraph(
+            'Full list attached as <strong>equipment.csv</strong>. No action needed right now — '
+            'the next email you receive for any of these machines will be a live fault report.',
+            size="14px", margin="16px 0 0",
+        )
+    )
+    return et.email_shell(
+        title="Machines assigned to you",
+        eyebrow=f"{org_name} has updated their supplier records",
+        body_html=body,
+        brand_color=brand_color,
+        logo_url=branding.get("logo_url"),
+        org_name=org_name,
+        platform_footer=branding["platform_footer"],
+        footer_note="This is an informational email — no reply is required.",
+        preheader=f"{org_name} assigned {len(equipment)} machine(s) to you on {platform}.",
+    )
 
 
 async def send_supplier_reassignment_email(
@@ -1245,20 +1250,57 @@ async def _sicon_note_after_supplier_update(case: dict, new_status: str, data: D
         logger.warning(f"Sicon supplier update note failed (non-blocking): {e}")
 
 
-async def create_supplier_case(issue_id: str, supplier_name: str, supplier_email: str, organization_name: str, base_url: str):
+async def _resolve_site_contact_email(issue: dict | None, org_id: str | None) -> str:
+    """Best-effort customer/site contact email for supplier→gym notifications.
+
+    Priority: the fault reporter's email → the org's primary contact email →
+    the org owner's login email. Without this the two-way chat can't notify the
+    customer when a supplier replies (the case previously stored no
+    site_contact_email on the auto-dispatch / engineer-escalation paths).
+    """
+    try:
+        if issue:
+            reporter = await _resolve_reporter_contact(issue)
+            if reporter.get("email"):
+                return reporter["email"].strip()
+        if org_id:
+            org = await db.organizations.find_one(
+                {"id": org_id}, {"_id": 0, "primary_contact_email": 1, "owner_email": 1},
+            ) or {}
+            if org.get("primary_contact_email"):
+                return org["primary_contact_email"].strip()
+            if org.get("owner_email"):
+                return org["owner_email"].strip()
+            owner = await db.users.find_one(
+                {"organization_id": org_id, "role": "owner"},
+                {"_id": 0, "email": 1},
+            ) or {}
+            if owner.get("email"):
+                return owner["email"].strip()
+    except Exception as e:  # pragma: no cover — non-blocking best-effort
+        logger.warning(f"site_contact_email resolve failed for {org_id}: {e}")
+    return ""
+
+
+async def create_supplier_case(issue_id: str, supplier_name: str, supplier_email: str, organization_name: str, base_url: str, site_contact_email: str = ""):
     """Called internally when an issue is escalated to supplier. Returns case token."""
     # Resolve the org's account_type (gymaxis / pulse) so brand-aware
     # email links can pick the right public domain on every send.
     org_id = None
     org_account_type = None
+    issue = None
     try:
-        issue = await db.issues.find_one({"id": issue_id}, {"_id": 0, "organization_id": 1})
+        issue = await db.issues.find_one({"id": issue_id}, {"_id": 0})
         org_id = (issue or {}).get("organization_id")
         if org_id:
             org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "account_type": 1})
             org_account_type = (org or {}).get("account_type")
     except Exception:
         pass
+
+    # Populate the customer contact email up-front for EVERY creation path so
+    # supplier comments can always notify the gym (fixes the two-way chat gap).
+    contact_email = (site_contact_email or "").strip() or await _resolve_site_contact_email(issue, org_id)
 
     token = str(uuid.uuid4())
     case_doc = {
@@ -1270,6 +1312,7 @@ async def create_supplier_case(issue_id: str, supplier_name: str, supplier_email
         "organization_id": org_id,
         "organization_name": organization_name,
         "organization_account_type": org_account_type,
+        "site_contact_email": contact_email,
         "current_status": "pending",
         "status_history": [],
         "token_expires_at": (datetime.now(timezone.utc) + timedelta(
@@ -1380,52 +1423,79 @@ def _build_reporter_block(reporter: dict) -> str:
 def _build_comment_email_html(case: dict, comment: dict, intro: str, branding: dict,
                               issue: dict | None, case_ref: str,
                               reporter: dict | None = None) -> str:
-    """Build HTML body for a comment notification email."""
+    """Build HTML body for a comment / fault communication notification email."""
     from utils.brand_urls import app_url_for
-    org_name = case.get("organization_name", "Site")
-    # Use the brand-correct domain (pulsefitness.ai / pulsefitness.ai) so
-    # suppliers never see preview.emergentagent.com in real emails.
+    from utils import email_templates as et
+
+    org_name = case.get("organization_name") or branding.get("org_name") or "Site"
+    brand_color = branding.get("brand_color") or et.DEFAULT_BRAND
+    # Use the brand-correct domain so suppliers never see the preview host.
     base_url = app_url_for(case.get("organization_account_type"))
     case_url = f"{base_url}/supplier/case/{case.get('token', '')}"
+
     attachments = comment.get("attachments", [])
-    attachment_note = f'<p style="color:#666;font-size:12px;margin-top:8px;">Includes {len(attachments)} attachment(s)</p>' if attachments else ""
     fault_desc = (issue or {}).get("issue_description", "") or ""
     machine_type = (issue or {}).get("machine_type", "Equipment")
     serial = (issue or {}).get("serial_number", "")
+    severity = (issue or {}).get("severity", "")
 
-    fault_block = f'''
-    <div style="margin:16px 0;padding:12px 16px;background:#FFFBEA;border:1px solid #FDE68A;border-radius:8px;">
-      <p style="margin:0;font-size:11px;color:#92400E;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;">Job {case_ref} · {machine_type}{f" · {serial}" if serial else ""}</p>
-      <p style="margin:6px 0 0;font-size:13px;color:#111;line-height:1.5;"><strong>Fault:</strong> {fault_desc[:500]}</p>
-    </div>''' if fault_desc else f'''
-    <div style="margin:16px 0;padding:12px 16px;background:#FFFBEA;border:1px solid #FDE68A;border-radius:8px;">
-      <p style="margin:0;font-size:11px;color:#92400E;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;">Job {case_ref} · {machine_type}{f" · {serial}" if serial else ""}</p>
-    </div>'''
+    # ── Fault summary card (job ref chip + severity badge + description) ──
+    sev_badge = f'  {et.badge(str(severity).replace("_", " ").title(), severity)}' if severity else ""
+    job_line = (
+        f'<p style="font-family:{et.FONT_STACK};font-size:12px;font-weight:bold;'
+        f'letter-spacing:0.04em;text-transform:uppercase;color:{et.TEXT_MUTED};margin:0;">'
+        f'Job {et.esc(case_ref)} &middot; {et.esc(machine_type)}'
+        f'{(" &middot; " + et.esc(serial)) if serial else ""}{sev_badge}</p>'
+    )
+    fault_inner = job_line
+    if fault_desc:
+        fault_inner += et.paragraph(
+            f'<strong style="color:{et.TEXT_PRIMARY};">Fault:</strong> {et.esc(fault_desc[:500])}',
+            size="14px", margin="8px 0 0",
+        )
+    fault_card = et.info_card(fault_inner, bg="#FFFBEB", border="#FDE68A")
 
+    # ── Reporter contact card (only when going to the supplier) ──
     reporter_block = _build_reporter_block(reporter or {})
 
-    return f'''
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">
-  <div style="background:#0A0A0A;padding:20px 28px;">
-    <h1 style="color:#fff;font-size:16px;margin:0;">{org_name} — Fault Communication</h1>
-    <p style="color:#888;font-size:12px;margin:4px 0 0;">{branding["via_label"]}</p>
-  </div>
-  <div style="padding:28px;">
-    <p style="color:#111;font-size:14px;line-height:1.5;">{intro}</p>
-    {fault_block}
-    {reporter_block}
-    <div style="margin:16px 0;padding:16px;background:#F9FAFB;border-radius:8px;border-left:4px solid #007AFF;">
-      <p style="margin:0;font-size:12px;color:#666;font-weight:600;">{comment.get("author_name", "Unknown")} — {comment.get("author_role", "").replace("_", " ").title()}</p>
-      <p style="margin:8px 0 0;color:#111;font-size:14px;line-height:1.5;">{comment.get("message", "")}</p>
-      {attachment_note}
-    </div>
-    <a href="{case_url}" style="display:inline-block;margin-top:12px;padding:10px 24px;background:#007AFF;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">View & Reply</a>
-  </div>
-  <div style="padding:14px 28px;background:#F9FAFB;border-top:1px solid #E5E7EB;">
-    <p style="margin:0;font-size:11px;color:#999;">{branding["platform_footer"]}</p>
-    <p style="margin:4px 0 0;font-size:11px;color:#c00;">Do not reply to this email — use the View & Reply button above to respond.</p>
-  </div>
-</div>'''
+    # ── The message itself ──
+    author = et.esc(comment.get("author_name", "Unknown"))
+    role = et.esc((comment.get("author_role", "") or "").replace("_", " ").title())
+    attach_note = (
+        et.paragraph(f'Includes {len(attachments)} attachment(s).',
+                     color=et.TEXT_MUTED, size="12px", margin="10px 0 0")
+        if attachments else ""
+    )
+    message_card = et.info_card(
+        (
+            f'<p style="font-family:{et.FONT_STACK};font-size:12px;font-weight:bold;'
+            f'color:{et.TEXT_MUTED};margin:0;">{author}{(" &middot; " + role) if role else ""}</p>'
+            + et.paragraph(et.esc(comment.get("message", "")), color=et.TEXT_PRIMARY,
+                           size="15px", margin="8px 0 0")
+            + attach_note
+        ),
+        bg="#F8FAFC", accent=brand_color,
+    )
+
+    body = (
+        et.paragraph(intro)
+        + fault_card
+        + reporter_block
+        + message_card
+        + et.bulletproof_button(case_url, "View & Reply", brand_color,
+                                testid="supplier-email-view-reply")
+    )
+    return et.email_shell(
+        title=f"{org_name} — Fault Communication",
+        eyebrow=branding.get("via_label", ""),
+        body_html=body,
+        brand_color=brand_color,
+        logo_url=branding.get("logo_url"),
+        org_name=org_name,
+        platform_footer=branding.get("platform_footer", "Sent via Pulse Fitness"),
+        footer_note="Do not reply to this email — use the View & Reply button above to respond.",
+        preheader=fault_desc[:120] or f"New update on {machine_type}",
+    )
 
 
 async def _send_comment_notification(case: dict, comment: dict, to_supplier: bool):
@@ -1438,6 +1508,20 @@ async def _send_comment_notification(case: dict, comment: dict, to_supplier: boo
     machine = issue.get("machine_type", "Equipment") if issue else "Equipment"
     branding = await _resolve_platform_branding((issue or {}).get("organization_id"))
     case_ref = _short_case_ref(case, issue)
+
+    # Legacy heal: older cases (auto-dispatch / engineer-escalation) may have no
+    # stored site_contact_email, which silently dropped supplier→gym replies.
+    # Resolve + persist on demand so the customer is notified from now on.
+    if not to_supplier and not (case.get("site_contact_email") or "").strip():
+        resolved = await _resolve_site_contact_email(issue, (issue or {}).get("organization_id"))
+        if resolved:
+            case["site_contact_email"] = resolved
+            try:
+                await db.supplier_cases.update_one(
+                    {"id": case["id"]}, {"$set": {"site_contact_email": resolved}},
+                )
+            except Exception:  # pragma: no cover — non-blocking
+                pass
 
     params = _build_comment_email_params(case, comment, to_supplier, machine, branding)
     if not params["to_email"]:

@@ -626,12 +626,22 @@ const LiteDashboardPage = () => {
   const handleUpdateIssueStatus = async (issueId, newStatus) => {
     try {
       await axios.patch(`${API}/issues/${issueId}`, { status: newStatus }, { headers });
+      // Optimistic in-place update — mirrors the main dashboard. Do NOT do a
+      // full loadData() refetch here: under a master-admin impersonation
+      // session the refetch could transiently return an empty set and blank
+      // the whole faults list until the user navigated away and back.
+      const nowIso = new Date().toISOString();
+      setIssues(prev => prev.map(issue => issue.id === issueId
+        ? { ...issue, status: newStatus, ...(newStatus === 'resolved' ? { resolved_at: nowIso } : {}) }
+        : issue));
+      setSelectedIssue(prev => (prev && prev.id === issueId
+        ? { ...prev, status: newStatus, ...(newStatus === 'resolved' ? { resolved_at: nowIso } : {}) }
+        : prev));
       showFaultsTabBanner({
         tone: 'success',
         title: `Fault marked as ${newStatus.replace(/_/g, ' ')}`,
         detail: 'Status updated. The timeline has been logged for audit.',
       });
-      loadData();
     } catch (err) {
       showFaultsTabBanner({
         tone: 'error',

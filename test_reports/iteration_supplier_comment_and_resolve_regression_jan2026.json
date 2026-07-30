@@ -1,0 +1,23 @@
+{
+  "summary": "Verified fixes for the three reported PulseFitness.ai issues. Backend pytest (3/3 pass) confirms Issue 2 (supplier public comment saves, is returned by GET, and the supplier case now has a populated site_contact_email) and Issue 1 smoke (contact-supplier + supplier public comment endpoints return 200 exercising the new email builders without 500s). Frontend Playwright test on /pulse (lite.docs@pulsedemo.test → Faults) confirms Issue 3 fix — after clicking In Progress and then Resolved on an open fault (a3c71c02…) the fault card stayed present with status 'Resolved'/'Closed' pill, card count remained 13, and lite-faults-empty-state never appeared across a 5s poll. No transient blanking observed. Backend logs show no exceptions from _build_comment_email_html / _build_supplier_welcome_html / _build_reassignment_email_html during the test run.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_supplier_comment_and_email_jan2026.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "supplier_portal.py:1603 add_supplier_comment — good defense-in-depth override of author_role when a gym JWT is present; consider also asserting file MIME type / size limits centrally (already done via _build_upload_attachment presumably) — no action required.",
+    "LiteDashboardPage.handleUpdateIssueStatus (line ~626) — the switch from loadData() refetch to in-place optimistic state update is the correct fix for Issue 3. Suggest adding a lightweight rollback (revert status on PATCH failure) if not already present; regression test only covers happy path."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_supplier_comment_and_email_jan2026.py (new pytest file)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "lite.docs@pulsedemo.test / LiteDocs123! (pulse_pro org, lands on /pulse). Backend tests also use this account. Master admin only used for reference — not needed for these regressions.",
+  "seed_data_creation": "None; reused existing PRODEMO_* seed (issues) from seed_pulse_pro_dashboard_demo. One TEST_ comment added to a supplier case (safe, invisible to end-users).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_supplier_comment_and_email_jan2026.py exercises POST /issues/{id}/contact-supplier -> supplier case token, then unauthenticated POST /supplier/case/{token}/comments (multipart) then GET verification, and finally that the supplier case document exposes a non-empty site_contact_email via the public GET /supplier/case/{token}. Reuse the lite.docs@pulsedemo.test account (has PRODEMO_ issues and equipment). Frontend regression: on /pulse Faults tab, pick a card whose data-testid=issue-progress-btn-{id} exists, click it, wait for issue-resolve-btn-{id} to appear, click Resolve, poll for 5s that issue-card-{id} stays present and lite-faults-empty-state stays absent.",
+  "rca of the issue": "Issue 3 root cause (confirmed by code review of LiteDashboardPage.handleUpdateIssueStatus): the prior implementation called loadData() after PATCH /issues/{id}; under master-admin impersonation the refetch transiently returned an empty issues array, blanking the whole list. Fix updates the single issue in local React state in place, mirroring the main Dashboard. Verified via Playwright — 5s poll after Resolve shows constant card count (13) and target card present with 'Resolved' status. Issue 2 root cause: create_supplier_case only stored site_contact_email on the gym-initiated /issues/{id}/contact-supplier path; other creation paths (auto-dispatch / engineer escalation) left it empty so _send_comment_notification had no address to email the customer. Fix adds _resolve_site_contact_email fallback chain (reporter → org.primary_contact_email → org owner) both at creation and as a legacy heal in _send_comment_notification. Backend test confirms case doc has non-empty site_contact_email after supplier POST comment."
+}
