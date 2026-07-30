@@ -269,13 +269,13 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
                   <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>MOD Site / Estate</label>
                   <select value={siteId} onChange={e => setSiteId(e.target.value)} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle} data-testid="mod-site-select">
                     <option value="">Select site…</option>
-                    {sites.map(s => <option key={s.id} value={s.id}>{s.name} ({s.equipment_count} items)</option>)}
+                    {sites.map(s => <option key={s.id} value={s.id}>{`${s.name} (${s.equipment_count} items)`}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Contract Year (pricing)</label>
                   <select value={year} onChange={e => setYear(Number(e.target.value))} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle} data-testid="mod-year-select">
-                    {[1, 2, 3, 4].map(y => <option key={y} value={y}>Year {y}</option>)}
+                    {[1, 2, 3, 4].map(y => <option key={y} value={y}>{`Year ${y}`}</option>)}
                   </select>
                 </div>
               </div>

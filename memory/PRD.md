@@ -32476,3 +32476,17 @@ New feature in CRM → Corporate → Quotes (CPQ). Generates MOD PTE Service & R
 
 Tested: testing_agent backend 100% (10/10, `backend/tests/test_crm_mod_quote_jan2026.py`) + frontend 100% (full wizard Type A/B/C, rate-card editor, AI-match, PDF). Two cosmetic notes only (fixed RateCardEditor empty-flash with a self-fetch fallback).
 Test creds: CRM owner owner@isodemo.com / IsoDemo123! (Corporate env → Quotes CPQ). MOD Test Site org id abfdabd9-ae11-4877-a44d-a36fea7f1f4e (8 machines).
+
+---
+## Changelog — 2026-06 (MOD Quote Send & E-Sign)
+Added a secure public e-signature flow to the MOD Automatic Quote Writer.
+
+**Backend** (`routes/crm_mod_quote.py`):
+- `POST /api/crm/mod-quote/{id}/send-esign` (CRM auth): mints an `esign_token` on the crm2_quotes doc (status→sent), emails the customer a branded "View & Sign" link, returns the link (works in preview even if email disabled).
+- Public router `/api/public/mod-quote` (NO auth): `GET /{token}` (redacted quote view + branding), `POST /{token}/sign` (records signature/signer → status='accepted', esign_status='signed'; **activates the linked Type A mod_service_contract**; creates a 'Quote Signed' notification + activity + conversion; 400 missing fields, 409 already-signed, 410 expired), `GET /{token}/pdf`.
+
+**Frontend**:
+- `src/pages/CRM/PublicQuoteSignPage.js` — branded, no-login `/quote/sign/:token` page: quote summary + line items + totals, canvas signature pad, name field, authorisation checkbox, PDF link, and an accepted success state. Route added in `routes/AppRoutes.js`.
+- `CRMCPQ.js` QuoteDetail: "Send for E-Sign" button (`quote-esign-btn`) + dialog to enter recipient and copy the secure link; label flips to "Resend E-Sign"/"Signed".
+
+Tested: testing_agent backend 100% (12/12, `backend/tests/test_crm_mod_quote_esign_jan2026.py`) + frontend 100% (send flow + public sign + contract activation + regression). Fixed the cosmetic `<span>`-in-`<option>` warning in the wizard selects.
