@@ -1,5 +1,24 @@
 # Sicon WebAPI — Import/Migration Readiness Audit (2026-06-29)
 
+## ═══ RE-VERIFIED 2026-06 (pre-Sicon-meeting) — specs UNCHANGED, client-path deltas found ═══
+Re-fetched all 5 published OpenAPI JSON specs. Versions + path counts IDENTICAL to this audit:
+Service R260200c=26 paths, CRM R221200c=405, Contracts R260200c=4 (all POST, still push-only),
+CoreWebAPI R260200c=135, Projects R260200c=86. Equipment/asset list endpoint STILL absent
+(only serial ref = SOP order-line allocation). Auth (Basic + companyId) unchanged. Brief is current.
+
+⚠️ CLIENT-CODE DELTAS (utils/sicon_client.py calls 5 paths that DON'T match the published spec —
+undetected because integration is still mocked/awaiting live creds):
+  1. GET /api/service/priorities (get_priorities) — NO priorities endpoint exists in Service spec.
+  2. GET /api/service/appointments/{id} (get_appointment) — spec is GET /~/api/v2/TEntity/api/service/appointments/{id}
+  3. GET /api/service/appointments?caseid= (get_appointments_for_case) — NO such endpoint; list only via paged GET /~/api/v2/TEntity
+  4. POST /api/Service/Appointments (create_appointment) — spec is POST /~/api/v2/TEntity/api/Service/Appointments
+  5. PUT /api/Service/Appointments/{id} (update_appointment) — spec is PUT /~/api/v2/TEntity/api/Service/Appointments/{appointmentID}
+MATCH OK: TimeBookings, TrackingNotes, Cases, Contracts, all StockItem endpoints. Only Appointment
+create/get/update + priorities lookup are off. Good candidates for Sicon meeting Qs (confirm the
+/~/api/v2/TEntity/ prefix is the real production route; confirm there's no priorities lookup).
+─────────────────────────────────────────────────────────────────────────────
+
+
 Founder asked: is pulsefitness.ai ready to auto-import customers / equipment / contracts
 from Sicon once credentials are entered? Scale: **5,000+ customers, 300,000 equipment.**
 
