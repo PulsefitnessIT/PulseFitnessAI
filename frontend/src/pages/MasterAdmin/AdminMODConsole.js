@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Shield, Building2, Wrench, ChevronRight, ClipboardList, KeyRound, AlertTriangle, Target, Play, CheckCircle2, Clock, ShieldAlert, Save, Loader2 } from 'lucide-react';
+import { Shield, Building2, Wrench, ChevronRight, ClipboardList, KeyRound, AlertTriangle, Target, Play, CheckCircle2, Clock, ShieldAlert, Save, Loader2, FileSignature, CalendarCheck } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 
@@ -140,6 +140,9 @@ export default function AdminMODConsole({ API }) {
  <div className="space-y-6" data-testid="admin-mod-console">
  {/* ASER settings */}
  <AserSettingsPanel API={API} headers={headers} />
+
+ {/* Contract Activation Board — Type A MOD service contracts */}
+ <ContractActivationBoard API={API} headers={headers} />
 
  {/* Header tiles */}
  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -388,6 +391,133 @@ function PasswordChip({ s, onRotate, rotating }) {
  );
 }
 
+
+
+function ContractActivationBoard({ API, headers }) {
+  const [contracts, setContracts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [meta, setMeta] = useState({ pending_confirmation: 0, active_count: 0 });
+  const [busyId, setBusyId] = useState('');
+  const [form, setForm] = useState({}); // per-contract { scheduled_date, engineer, notes }
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await axios.get(`${API}/master-admin/mod-estate/contracts`, { headers });
+      setContracts(data.contracts || []);
+      setMeta({ pending_confirmation: data.pending_confirmation || 0, active_count: data.active_count || 0 });
+    } catch { /* ignore */ }
+    setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [API]);
+  useEffect(() => { load(); }, [load]);
+
+  const money = (n, c = 'GBP') => new Intl.NumberFormat('en-GB', { style: 'currency', currency: c }).format(Number(n) || 0);
+  const setF = (id, k, v) => setForm((f) => ({ ...f, [id]: { ...(f[id] || {}), [k]: v } }));
+
+  const confirm = async (c) => {
+    setBusyId(c.id);
+    try {
+      const body = form[c.id] || {};
+      await axios.post(`${API}/master-admin/mod-estate/contracts/${c.id}/confirm-visit`, {
+        scheduled_date: body.scheduled_date || c.proposed_date,
+        engineer: body.engineer || '',
+        notes: body.notes || '',
+      }, { headers });
+      notify.success('Annual visit confirmed with the MOD Service team');
+      await load();
+    } catch (e) { notifyApiError(e, 'Could not confirm visit'); }
+    setBusyId('');
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden" data-testid="mod-contract-board">
+      <div className="px-5 py-4 border-b border-zinc-200 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <FileSignature size={16} className="text-[var(--color-brand-blue)]" />
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-brand-blue)]">Contract Activation Board</div>
+            <h3 className="text-base font-extrabold text-zinc-800">Type A service contracts</h3>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {meta.pending_confirmation > 0 && (
+            <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200" data-testid="mod-contract-pending-badge">
+              {meta.pending_confirmation} awaiting confirmation
+            </span>
+          )}
+          <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">{meta.active_count} active</span>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-center text-zinc-500 py-8 text-sm">Loading contracts…</div>
+      ) : contracts.length === 0 ? (
+        <div className="text-center text-zinc-500 py-8 text-sm" data-testid="mod-contract-empty">No Type A contracts activated yet. When a site e-signs a Type A quote it will appear here to confirm the annual service.</div>
+      ) : (
+        <div className="divide-y divide-zinc-100">
+          {contracts.map((c) => {
+            const confirmed = c.visit_status === 'confirmed';
+            const f = form[c.id] || {};
+            return (
+              <div key={c.id} className="px-5 py-4" data-testid={`mod-contract-row-${c.id}`}>
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-zinc-800">{c.mod_site_name}</span>
+                      <span className="text-[10px] font-mono text-zinc-500">{c.quote_number}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${confirmed ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                        {confirmed ? 'Visit confirmed' : 'Awaiting confirmation'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-zinc-500 mt-1">
+                      {money(c.annual_value, c.currency)}/yr · {c.equipment_count || 0} machines · term {c.term_months || 12} mo
+                      {c.start_date ? ` · starts ${c.start_date}` : ''}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] uppercase tracking-wider text-zinc-400">{confirmed ? 'Scheduled' : 'Proposed'}</div>
+                    <div className="font-bold text-zinc-800">{confirmed ? c.scheduled_date : c.proposed_date}</div>
+                    {confirmed && c.engineer && <div className="text-[11px] text-zinc-500">Eng: {c.engineer}</div>}
+                  </div>
+                </div>
+
+                {confirmed ? (
+                  <div className="mt-2 text-[11px] text-emerald-700 flex items-center gap-1">
+                    <CheckCircle2 size={12} /> Confirmed by {c.confirmed_by}{c.visit_notes ? ` — ${c.visit_notes}` : ''}
+                  </div>
+                ) : (
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-2 items-end">
+                    <div>
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-0.5">Service date</label>
+                      <input type="date" value={f.scheduled_date || c.proposed_date || ''} onChange={(e) => setF(c.id, 'scheduled_date', e.target.value)}
+                        className="w-full px-2 py-1.5 text-sm rounded-md border border-zinc-300" data-testid={`mod-contract-date-${c.id}`} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-0.5">Engineer</label>
+                      <input type="text" value={f.engineer || ''} onChange={(e) => setF(c.id, 'engineer', e.target.value)} placeholder="Assign engineer"
+                        className="w-full px-2 py-1.5 text-sm rounded-md border border-zinc-300" data-testid={`mod-contract-eng-${c.id}`} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-0.5">Notes</label>
+                      <input type="text" value={f.notes || ''} onChange={(e) => setF(c.id, 'notes', e.target.value)} placeholder="Confirmed with site POC"
+                        className="w-full px-2 py-1.5 text-sm rounded-md border border-zinc-300" data-testid={`mod-contract-notes-${c.id}`} />
+                    </div>
+                    <button onClick={() => confirm(c)} disabled={busyId === c.id}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold rounded-md text-white disabled:opacity-50"
+                      style={{ background: 'var(--color-brand-blue, #0055FF)' }} data-testid={`mod-contract-confirm-${c.id}`}>
+                      {busyId === c.id ? <Loader2 size={13} className="animate-spin" /> : <CalendarCheck size={13} />} Confirm service
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function KpiTile({ icon: Icon, label, value, color = 'indigo' }) {
  const colors = {

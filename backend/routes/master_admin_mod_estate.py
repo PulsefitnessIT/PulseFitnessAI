@@ -1166,4 +1166,91 @@ async def mod_estate_overview(estate_id: str = DEFAULT_ESTATE_ID,
     }
 
 
+# ── Contract Activation Board (Type A service contracts) ───────────
+
+@router.get("/master-admin/mod-estate/contracts")
+async def list_mod_service_contracts(user: dict = Depends(get_current_user)) -> dict:
+    """Live board of Type A MOD service contracts for the Pulse Fitness MOD
+    Service team: shows each activated contract and its auto-scheduled annual
+    visit awaiting the team's confirmation."""
+    require_master_admin(user)
+    rows = await db.mod_service_contracts.find(
+        {}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    contracts = []
+    pending = 0
+    for c in rows:
+        av = c.get("annual_visit") or {}
+        visit_status = av.get("status") or ("pending_confirmation" if c.get("status") == "active" else "none")
+        if c.get("status") == "active" and visit_status == "pending_confirmation":
+            pending += 1
+        contracts.append({
+            "id": c.get("id"),
+            "quote_id": c.get("quote_id"),
+            "quote_number": c.get("quote_number"),
+            "mod_site_id": c.get("mod_site_id"),
+            "mod_site_name": c.get("mod_site_name"),
+            "status": c.get("status"),
+            "annual_value": c.get("annual_value"),
+            "currency": c.get("currency", "GBP"),
+            "term_months": c.get("term_months", 12),
+            "equipment_count": c.get("equipment_count"),
+            "start_date": c.get("start_date"),
+            "activated_at": c.get("activated_at"),
+            "created_at": c.get("created_at"),
+            "visit_status": visit_status,
+            "proposed_date": av.get("proposed_date"),
+            "scheduled_date": av.get("scheduled_date"),
+            "engineer": av.get("engineer"),
+            "visit_notes": av.get("notes"),
+            "confirmed_by": av.get("confirmed_by"),
+            "confirmed_at": av.get("confirmed_at"),
+        })
+    return {"contracts": contracts, "pending_confirmation": pending,
+            "active_count": sum(1 for c in contracts if c["status"] == "active")}
+
+
+@router.post("/master-admin/mod-estate/contracts/{contract_id}/confirm-visit")
+async def confirm_contract_visit(contract_id: str, data: dict = Body(default={}),
+                                 user: dict = Depends(get_current_user)) -> dict:
+    """MOD Service team confirms (or reschedules) a contract's annual visit."""
+    require_master_admin(user)
+    contract = await db.mod_service_contracts.find_one({"id": contract_id}, {"_id": 0})
+    if not contract:
+        raise HTTPException(404, "Contract not found")
+    av = contract.get("annual_visit") or {}
+    scheduled = (data.get("scheduled_date") or av.get("proposed_date"))
+    now = datetime.now(timezone.utc).isoformat()
+    av.update({
+        "status": "confirmed",
+        "scheduled_date": scheduled,
+        "engineer": data.get("engineer") or av.get("engineer"),
+        "notes": data.get("notes") if data.get("notes") is not None else av.get("notes"),
+        "confirmed_by": user.get("full_name") or user.get("email"),
+        "confirmed_at": now,
+    })
+    await db.mod_service_contracts.update_one(
+        {"id": contract_id}, {"$set": {"annual_visit": av, "updated_at": now}})
+    return {"ok": True, "annual_visit": av}
+
+
+@router.post("/master-admin/mod-estate/contracts/{contract_id}/reschedule-visit")
+async def reschedule_contract_visit(contract_id: str, data: dict = Body(...),
+                                    user: dict = Depends(get_current_user)) -> dict:
+    """Move a proposed/confirmed annual visit back to a new proposed date."""
+    require_master_admin(user)
+    contract = await db.mod_service_contracts.find_one({"id": contract_id}, {"_id": 0})
+    if not contract:
+        raise HTTPException(404, "Contract not found")
+    new_date = data.get("proposed_date")
+    if not new_date:
+        raise HTTPException(400, "proposed_date is required")
+    av = contract.get("annual_visit") or {}
+    av.update({"status": "pending_confirmation", "proposed_date": new_date,
+               "scheduled_date": None, "confirmed_by": None, "confirmed_at": None})
+    await db.mod_service_contracts.update_one(
+        {"id": contract_id},
+        {"$set": {"annual_visit": av, "updated_at": datetime.now(timezone.utc).isoformat()}})
+    return {"ok": True, "annual_visit": av}
+
+
 __all__ = ["router"]

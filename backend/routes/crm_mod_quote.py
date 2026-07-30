@@ -537,11 +537,27 @@ async def apply_quote_signature(quote: dict, signer_name: str, signature: str,
         "company_id": quote.get("company_id"), "contact_id": quote.get("contact_id"),
         "created_at": signed_at, "updated_at": signed_at,
     })
-    # If this is a Type A MOD quote, activate its linked service contract.
+    # If this is a Type A MOD quote, activate its linked service contract and
+    # auto-schedule its annual service visit (pending confirmation by the
+    # Pulse Fitness MOD Service team).
     if quote.get("mod_contract_type") == "A":
+        contract = await db.mod_service_contracts.find_one(
+            {"quote_id": quote["id"]}, {"_id": 0, "start_date": 1, "annual_visit": 1})
+        set_fields = {"status": "active", "activated_at": signed_at, "updated_at": signed_at}
+        if contract is not None and not contract.get("annual_visit"):
+            proposed = (contract.get("start_date") or signed_at)[:10]
+            set_fields["annual_visit"] = {
+                "status": "pending_confirmation",
+                "proposed_date": proposed,
+                "scheduled_date": None,
+                "engineer": None,
+                "notes": None,
+                "confirmed_by": None,
+                "confirmed_at": None,
+                "created_at": signed_at,
+            }
         await db.mod_service_contracts.update_one(
-            {"quote_id": quote["id"]},
-            {"$set": {"status": "active", "activated_at": signed_at, "updated_at": signed_at}})
+            {"quote_id": quote["id"]}, {"$set": set_fields})
     try:
         from utils.comms_conversions import record_conversion
         await record_conversion(org_id, quote.get("esign_sent_to"), "quote_accepted",
