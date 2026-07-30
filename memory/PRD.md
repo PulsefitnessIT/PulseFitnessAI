@@ -32448,3 +32448,13 @@ Verified: backend via curl (promote → 200, register_count 3→4, crm_only→li
 ---
 ## Staff Onboarding / Offer / Contract Wizard — Phase 1 DONE (2026-07-20)
 See CHANGELOG.md (2026-07-20) for full detail. Backend `routes/staff_onboarding_wizard.py`; HR UI `StaffOnboarding.js` (Staffing→People→Staff Onboarding); recruit portal `NewStarterPortal.js` at `/new-starter/:token`. Single `staff_members` record; native e-sign; SAMPLE legal wording pending HR/legal upload. Phase 2 backlog: deep RTW/DBS, knowledge-checks, approval matrices, field-level permissions, pre-start task automation, reporting, template admin UIs.
+
+---
+## Changelog — 2026-06 (Supplier emails redesign + two-way chat fix + resolve regression)
+**Issue 1 — Supplier emails redesigned (all types, one branded look):** New shared email shell `backend/utils/email_templates.py` (table-based, inline styles, Outlook ghost tables, bulletproof CTA, severity/warranty badges). Rebuilt `_build_comment_email_html` (fault communication/scheduling — the "very basic" one), `_build_supplier_welcome_html`, `_build_reassignment_email_html` in `supplier_portal.py`, and added the customer's imported logo (`org.logo_url`/`branding.logo_url`) to the engineer-callout hero in `issue_helpers.py`. Header shows customer logo in a white chip with org-name text fallback; brand colour drives the accent. `_resolve_platform_branding` now returns `logo_url`/`brand_color`/`org_name`.
+
+**Issue 2 — Supplier text comment now reaches the customer:** Root cause: `create_supplier_case` only stored `site_contact_email` on the gym-initiated contact-supplier path; auto-dispatch/engineer-escalation cases had it empty, so `_send_comment_notification(to_supplier=False)` had no address. Fix: `_resolve_site_contact_email` (reporter → org.primary_contact_email → org owner) called at case creation for ALL paths + a legacy heal inside `_send_comment_notification`.
+
+**Issue 3 — Resolve no longer blanks the faults list (impersonation):** `LiteDashboardPage.handleUpdateIssueStatus` no longer calls `loadData()` after PATCH (the refetch transiently returned empty under impersonation and blanked the list). Now optimistic in-place status update, mirroring the main Dashboard.
+
+Tested: testing_agent backend 100% (new `backend/tests/test_supplier_comment_and_email_jan2026.py`) + frontend 100% (resolve keeps card visible as Closed). NOTE: Resend email delivery is MOCKED/disabled in preview — builders execute and case fields populate, but no real email is sent in preview (works in production).
