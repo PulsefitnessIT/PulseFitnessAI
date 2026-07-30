@@ -40,6 +40,7 @@ from routes.crm_phase3 import router as crm_phase3_router
 from routes.crm_journey_enrol import router as crm_journey_enrol_router
 from routes.crm_site_surveys import router as crm_site_surveys_router
 from routes.crm_mod_quote import router as crm_mod_quote_router
+from routes.crm_mod_quote import public_router as crm_quote_public_router
 from routes.integration_hub import router as integration_hub_router
 
 
@@ -67,6 +68,7 @@ def register_crm(api_router: APIRouter) -> None:
         crm_journey_enrol_router,
         crm_site_surveys_router,
         crm_mod_quote_router,
+        crm_quote_public_router,
         integration_hub_router,
     ):
         api_router.include_router(r)

@@ -15,17 +15,22 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 
 from utils.database import db
 from routes.crm_auth import get_crm_user
 from routes.crm_core import log_audit
 from routes.crm_cpq import _now
 from utils.mod_sor_data import build_seed_rate_card, price_for, match_equipment
+from utils.brand_urls import app_url_for_org
 
 router = APIRouter(prefix="/crm/mod-quote", tags=["CRM MOD Quote"])
+# Public, token-authenticated e-sign surface (no CRM login required).
+public_router = APIRouter(prefix="/public/mod-quote", tags=["Public Quote E-Sign"])
+
+ESIGN_TTL_DAYS = int(os.environ.get("QUOTE_ESIGN_TTL_DAYS", "30"))
 
 _EDITABLE_PRICE_FIELDS = [
     "type_a_price", "type_b_price",
@@ -349,3 +354,211 @@ async def list_mod_contracts(user=Depends(get_crm_user)):
         {"organization_id": user.get("organization_id")}, {"_id": 0},
     ).sort("created_at", -1)
     return {"contracts": await cur.to_list(length=500)}
+
+
+# ── Send for e-signature (secure public link) ──────────────────────
+
+async def _quote_org_branding(org_id: str | None) -> dict:
+    org = await db.organizations.find_one(
+        {"id": org_id},
+        {"_id": 0, "name": 1, "account_type": 1, "logo_url": 1, "brand_color": 1, "branding": 1},
+    ) if org_id else None
+    org = org or {}
+    branding = org.get("branding") or {}
+    return {
+        "org_name": org.get("name") or "Pulse Fitness",
+        "logo_url": org.get("logo_url") or branding.get("logo_url"),
+        "brand_color": org.get("brand_color") or branding.get("primary_color") or "#0055FF",
+        "account_type": org.get("account_type"),
+        "_org": org,
+    }
+
+
+@router.post("/{quote_id}/send-esign")
+async def send_quote_for_esign(quote_id: str, data: dict, user=Depends(get_crm_user)):
+    """Email the MOD/customer contact a secure link to view and e-sign the
+    quote. Returns the link so it also works in preview (email disabled)."""
+    quote = await db.crm2_quotes.find_one(
+        {"id": quote_id, "organization_id": user.get("organization_id")}, {"_id": 0})
+    if not quote:
+        raise HTTPException(404, "Quote not found")
+
+    to_addr = (data.get("to") or "").strip().lower()
+    if not to_addr and quote.get("contact_id"):
+        contact = await db.crm2_contacts.find_one(
+            {"id": quote["contact_id"], "organization_id": user.get("organization_id")},
+            {"_id": 0, "email": 1})
+        to_addr = ((contact or {}).get("email") or "").strip().lower()
+    if not to_addr:
+        raise HTTPException(400, "No recipient email — pass `to` or link a contact with an email.")
+
+    token = quote.get("esign_token") or uuid.uuid4().hex
+    expires = (datetime.now(timezone.utc) + timedelta(days=ESIGN_TTL_DAYS)).isoformat()
+    await db.crm2_quotes.update_one({"id": quote_id}, {"$set": {
+        "esign_token": token,
+        "esign_status": "sent",
+        "esign_sent_to": to_addr,
+        "esign_sent_at": _now(),
+        "esign_expires_at": expires,
+        "status": "sent" if quote.get("status") in (None, "", "draft", "approved") else quote.get("status"),
+        "updated_at": _now(),
+    }})
+
+    brand = await _quote_org_branding(quote.get("organization_id"))
+    base = app_url_for_org(brand["_org"])
+    link = f"{base}/quote/sign/{token}"
+
+    # Best-effort branded email (Resend disabled in preview → link still returned).
+    emailed = False
+    try:
+        from utils import email_templates as et
+        from utils.email import send_email
+        ct = quote.get("mod_contract_type")
+        eyebrow = f"Quote {quote.get('quote_number', '')}"
+        body = (
+            et.paragraph(f'Hi,')
+            + et.paragraph(
+                f'{et.esc(brand["org_name"])} has sent you a quote'
+                + (f' for a MOD Contract Type {ct}' if ct else '')
+                + f' &mdash; <strong>{et.esc(quote.get("title") or quote.get("quote_number"))}</strong>.')
+            + et.info_card(
+                et.paragraph(f'<strong>Total:</strong> &pound;{float(quote.get("total") or 0):,.2f} '
+                             f'(inc. VAT)', size="15px", margin="0")
+                + et.paragraph(f'Valid until: {et.esc(quote.get("valid_until") or "on request")}',
+                               color=et.TEXT_MUTED, size="13px", margin="6px 0 0"),
+                bg="#F8FAFC", accent=brand["brand_color"])
+            + et.paragraph('Review the full quote and sign it online using the secure button below.')
+            + et.bulletproof_button(link, "View & Sign Quote", brand["brand_color"],
+                                    testid="quote-esign-cta"))
+        html = et.email_shell(
+            title=f"Quote {quote.get('quote_number', '')} — ready to sign",
+            eyebrow=eyebrow, body_html=body, brand_color=brand["brand_color"],
+            logo_url=brand["logo_url"], org_name=brand["org_name"],
+            platform_footer="Sent via Pulse Fitness", preheader="Your quote is ready to view and sign.")
+        await send_email(to=to_addr, subject=f"Quote {quote.get('quote_number', '')} — ready to sign",
+                         html=html, organization_id=quote.get("organization_id"), kind="crm_quote_esign")
+        emailed = True
+    except Exception:
+        emailed = False
+
+    await db.crm2_activities.insert_one({
+        "id": str(uuid.uuid4()), "organization_id": user.get("organization_id"),
+        "type": "system", "subject": f"Quote {quote.get('quote_number', '')} sent for e-signature",
+        "body": f"Secure link sent to {to_addr}", "quote_id": quote_id,
+        "company_id": quote.get("company_id"), "contact_id": quote.get("contact_id"),
+        "owner_id": user.get("id"), "owner_name": user.get("full_name", ""),
+        "created_at": _now(), "updated_at": _now(),
+    })
+    await log_audit(user, "quote", quote_id, "sent_for_esign", {"to": to_addr})
+    return {"ok": True, "to": to_addr, "link": link, "emailed": emailed}
+
+
+# ── Public token endpoints (no auth) ───────────────────────────────
+
+def _public_quote_view(quote: dict, brand: dict) -> dict:
+    return {
+        "id": quote.get("id"),
+        "quote_number": quote.get("quote_number"),
+        "title": quote.get("title"),
+        "status": quote.get("status"),
+        "esign_status": quote.get("esign_status"),
+        "mod_contract_type": quote.get("mod_contract_type"),
+        "mod_site_name": quote.get("mod_site_name"),
+        "company_name": quote.get("company_name"),
+        "currency": quote.get("currency", "GBP"),
+        "lines": [
+            {k: l.get(k) for k in ("description", "product_name", "quantity",
+                                    "unit_price", "discount", "sku", "service_type")}
+            for l in (quote.get("lines") or [])
+        ],
+        "subtotal": quote.get("subtotal"),
+        "vat_rate": quote.get("vat_rate", quote.get("tax_rate", 20)),
+        "vat_amount": quote.get("vat_amount", quote.get("tax_amount", 0)),
+        "total": quote.get("total"),
+        "notes": quote.get("notes"),
+        "valid_until": quote.get("valid_until"),
+        "signer_name": quote.get("signer_name"),
+        "signed_at": quote.get("signed_at"),
+        "org_name": brand["org_name"],
+        "logo_url": brand["logo_url"],
+        "brand_color": brand["brand_color"],
+    }
+
+
+async def _load_quote_by_token(token: str) -> dict:
+    quote = await db.crm2_quotes.find_one({"esign_token": token}, {"_id": 0})
+    if not quote:
+        raise HTTPException(404, "This quote link is invalid or has been withdrawn.")
+    exp = quote.get("esign_expires_at")
+    if exp and exp < datetime.now(timezone.utc).isoformat():
+        raise HTTPException(410, "This quote link has expired. Please request a new one.")
+    return quote
+
+
+@public_router.get("/{token}")
+async def public_view_quote(token: str):
+    quote = await _load_quote_by_token(token)
+    brand = await _quote_org_branding(quote.get("organization_id"))
+    return _public_quote_view(quote, brand)
+
+
+@public_router.post("/{token}/sign")
+async def public_sign_quote(token: str, data: dict, request: Request):
+    quote = await _load_quote_by_token(token)
+    if quote.get("esign_status") == "signed" or quote.get("status") == "accepted":
+        raise HTTPException(409, "This quote has already been signed.")
+    signature = (data.get("signature") or "").strip()
+    signer_name = (data.get("signer_name") or "").strip()
+    if not signature or not signer_name:
+        raise HTTPException(400, "Signature and signer name are required.")
+    signed_at = _now()
+    await db.crm2_quotes.update_one({"id": quote["id"]}, {"$set": {
+        "signature": signature,
+        "signer_name": signer_name,
+        "signed_at": signed_at,
+        "signed_ip": (request.client.host if request.client else None),
+        "status": "accepted",
+        "esign_status": "signed",
+        "updated_at": signed_at,
+    }})
+    org_id = quote.get("organization_id")
+    await db.crm2_notifications.insert_one({
+        "id": str(uuid.uuid4()), "organization_id": org_id,
+        "type": "approval", "title": "Quote Signed",
+        "message": f"Quote {quote.get('quote_number', '')} was e-signed by {signer_name}",
+        "entity_type": "quote", "entity_id": quote["id"], "read": False, "created_at": signed_at,
+    })
+    await db.crm2_activities.insert_one({
+        "id": str(uuid.uuid4()), "organization_id": org_id,
+        "type": "system", "subject": f"Quote {quote.get('quote_number', '')} e-signed & accepted",
+        "body": f"Signed by {signer_name}", "quote_id": quote["id"],
+        "company_id": quote.get("company_id"), "contact_id": quote.get("contact_id"),
+        "created_at": signed_at, "updated_at": signed_at,
+    })
+    # If this is a Type A MOD quote, activate its linked service contract.
+    if quote.get("mod_contract_type") == "A":
+        await db.mod_service_contracts.update_one(
+            {"quote_id": quote["id"]},
+            {"$set": {"status": "active", "activated_at": signed_at, "updated_at": signed_at}})
+    try:
+        from utils.comms_conversions import record_conversion
+        await record_conversion(org_id, quote.get("esign_sent_to"), "quote_accepted",
+                                value_gbp=float(quote.get("total") or 0),
+                                source="crm_quote_esign", meta={"quote_id": quote["id"]})
+    except Exception:
+        pass
+    return {"success": True, "status": "accepted", "signer": signer_name, "signed_at": signed_at}
+
+
+@public_router.get("/{token}/pdf")
+async def public_quote_pdf(token: str):
+    from fastapi.responses import Response
+    quote = await _load_quote_by_token(token)
+    try:
+        from utils.crm_quote_pdf import render_quote_pdf
+        pdf_bytes = await render_quote_pdf(quote, organization_id=quote.get("organization_id"))
+    except Exception as exc:
+        raise HTTPException(500, f"Could not generate PDF: {exc}") from exc
+    filename = (quote.get("quote_number") or "quote") + ".pdf"
+    return Response(content=pdf_bytes, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{filename}"'})

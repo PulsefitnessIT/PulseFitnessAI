@@ -1,0 +1,33 @@
+{
+  "summary": "Full E2E of MOD Quote Send & E-Sign (Jan 2026). Backend: 12/12 pytest PASS covering auth send-esign (link + esign_status='sent'), public view (200 with all required redacted fields; invalid token → 404), public sign (400 on missing name/signature, 200 on success with quote status='accepted' + esign_status='signed', Type A mod_service_contract flips from pending_activation → active, notification 'Quote Signed' created, 409 on double-sign), public PDF (application/pdf, %PDF header). Regression: /crm/v2/quotes list shows the signed quote as 'accepted' and /crm/mod-quote/contracts shows the linked contract as 'active'. Frontend: CRM owner login → Corporate → Quotes (CPQ) → mod-quote-btn → Type A wizard (site abfdabd9…, 8 machines, subtotal £1,057.52) → Generate → QuoteDetail 'Send for E-Sign' (quote-esign-btn) opens dialog (quote-esign-dialog), send returns secure link (quote-esign-link) that is copyable, button label flips to 'Resend E-Sign'. Public /quote/sign/<token> renders branded page with line items, Net £1,057.52 / VAT £211.50 / Total £1,269.02, Full name input (esign-name), signature canvas (esign-pad), authorisation checkbox (esign-agree), PDF link (esign-pdf); submit button (esign-submit) correctly disabled until all three filled; after submit shows success state (esign-done) 'Quote accepted — Signed by …'. Regression: MOD Auto Quote Writer end-to-end still produces the correct subtotal £1,057.52, VAT £211.50, total £1,269.02 and a pending_activation contract that flips to active on sign.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MOD wizard site dropdown", "issues": ["Pre-existing React hydration warning: <span> is rendered inside <option> in CRMMODQuoteWizard.js line ~278 (year select). Cosmetic — carry-over from prior iteration."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_crm_mod_quote_esign_jan2026.py",
+    "/app/test_reports/pytest/esign_jan2026.xml"
+  ],
+  "action_items": [
+    "(Optional/cosmetic) Fix <span>-in-<option> hydration warning in CRMMODQuoteWizard.js year select (already flagged in prior iteration)."
+  ],
+  "critical_code_review_comments": [
+    "routes/crm_mod_quote.py public_router prefix '/public/mod-quote' correctly namespaces away from '/public/quote'. All public endpoints correctly omit auth deps and use $_load_quote_by_token$ helper for 404/410 handling.",
+    "public_sign_quote uses 409 for both status='accepted' OR esign_status='signed' — good idempotency guard. Notification + activity + record_conversion all fire; Type A contract activation is a targeted $set on mod_service_contracts by quote_id.",
+    "send-esign only 400s on missing recipient AND missing linked contact email — this is expected UX (auto-derive from contact). Consider explicit 200 vs 400 in payload doc.",
+    "PublicQuoteSignPage.js SignaturePad correctly disables submit until name+sig+agree; ESIGN_TTL_DAYS enforced via 410; PDF link opens in new tab.",
+    "public view redaction is good (drops owner_id, contact_id, internal ids). Consider also omitting `signature` (data-url) from public view once signed — currently _public_quote_view doesn't include it, so this is already fine."
+  ],
+  "updated_files": ["/app/backend/tests/test_crm_mod_quote_esign_jan2026.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% of tested flows"},
+  "test_credentials": "CRM owner owner@isodemo.com / IsoDemo123!. Public /quote/sign/<token> requires no auth.",
+  "seed_data_creation": "pytest fixture created one Type A MOD quote + contract and cleaned them up in test_cleanup. Frontend E2E created two additional Type A MOD quotes (one signed via browser). Cleanup for the browser-signed quote was skipped (residual — quote_kind='mod_sor', signer_name='Test Signer 2'); safe to leave or run `db.crm2_quotes.delete_many({quote_kind:'mod_sor', signer_name:{$in:['Test Signer','Test Signer 2','E2E Signer']}})` and matching mod_service_contracts.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "E-sign regression file: /app/backend/tests/test_crm_mod_quote_esign_jan2026.py. Run: cd /app/backend && python -m pytest tests/test_crm_mod_quote_esign_jan2026.py -v. Public router prefix is /api/public/mod-quote/<token>. Frontend testids: quote-esign-btn/quote-esign-dialog/quote-esign-to/quote-esign-send/quote-esign-link/quote-esign-copy/quote-esign-done (CRM detail); esign-name/esign-pad/esign-agree/esign-submit/esign-done/esign-pdf/esign-clear (public page). Signature canvas responds to real mouse events with multiple move steps (>=10 moves); if flaky, dispatch synthetic MouseEvents on the canvas with clientX/Y relative to getBoundingClientRect. MOD Test Site id abfdabd9-ae11-4877-a44d-a36fea7f1f4e still has 8 machines and produces subtotal £1,057.52.",
+  "rca of the issue": "No blocking issues. Backend and frontend implementations match the spec end-to-end. Sole pre-existing minor is the React <span>-in-<option> hydration warning in the wizard's year select (cosmetic)."
+}

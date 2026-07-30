@@ -139,6 +139,7 @@ const PartnerApplyPublic = lazy(() => import('@/pages/Marketing/PartnerApplyPubl
 const PublicTrackingPage = lazy(() => import('@/pages/PublicTracking/PublicTrackingPage'));
 // Iter 220e3 — public contract accept (Phase D)
 const PublicContractAcceptPage = lazy(() => import('@/pages/CRM/Contracts/PublicContractAcceptPage'));
+const PublicQuoteSignPage = lazy(() => import('@/pages/CRM/PublicQuoteSignPage'));
 const _ServiceOpsComms = lazy(() => import('@/pages/ServiceOps/CommsHubPage'));
 const IntegrationsConsole = lazy(() => import('@/pages/Admin/IntegrationsConsole'));
 const IntegrationsSiconConnect = lazy(() => import('@/pages/Admin/IntegrationsSiconConnect'));
@@ -368,6 +369,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/track/:token" element={<PublicTrackingPage />} />
       <Route path="/org/:token" element={<PublicOrgChartPage />} />
       <Route path="/contracts/accept/:token" element={<PublicContractAcceptPage />} />
+      <Route path="/quote/sign/:token" element={<PublicQuoteSignPage />} />
       {/* Public email preference centre + one-click unsubscribe (no auth) */}
       <Route path="/preferences/:token" element={<PublicPreferencesPage />} />
       <Route path="/unsubscribe/:token" element={<PublicUnsubscribePage />} />
