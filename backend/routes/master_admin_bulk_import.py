@@ -640,6 +640,16 @@ async def _do_bulk_import_equipment(
                 "imported_via": "bulk_csv",
                 # Iter 216h111 — MOD Force tag (army/raf/navy or "")
                 "mod_force": row_force or None,
+                # MOD equipment onboarding — additional asset-register fields
+                # (Iter — MOD onboarding). All optional; stored as None when
+                # blank so commercial imports are unaffected.
+                "asset_number": _normalize(row, "asset_number", "Asset Number", "nsn", "NSN", "asset_id", "Asset ID") or str(get_pick(row, "asset_number", "")).strip() or None,
+                "sub_location": _normalize(row, "sub_location", "Sub Location", "room", "Room", "zone", "Zone") or str(get_pick(row, "sub_location", "")).strip() or None,
+                "classification": _normalize(row, "classification", "Classification") or str(get_pick(row, "classification", "")).strip() or None,
+                "qr_code": _normalize(row, "qr_code", "QR Code") or str(get_pick(row, "qr_code", "")).strip() or None,
+                "manufacturing_date": parse_date_cell(get_pick(row, "manufacturing_date") or row.get("Manufacturing Date") or row.get("manufacturing_date")) or None,
+                "condition": _normalize(row, "condition", "Condition") or str(get_pick(row, "condition", "")).strip() or None,
+                "quantity": _parse_int(_normalize(row, "quantity", "Quantity", "qty", "Qty") or str(get_pick(row, "quantity", "")).strip()),
             }
             pending.append(doc)
             # Add serial to cache so a duplicate WITHIN the same CSV is also caught.

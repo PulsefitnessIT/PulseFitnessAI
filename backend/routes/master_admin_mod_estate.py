@@ -356,6 +356,188 @@ async def create_mod_estate_site(data: dict = Body(...), user: dict = Depends(ge
     }
 
 
+# ──────────────────── equipment onboarding template + readiness ────────────
+
+# Canonical MOD equipment column spec — drives BOTH the presentable workbook
+# and the machine-readable CSV. Headers match the bulk-import aliases exactly so
+# a completed sheet uploads with zero remapping.
+_MOD_EQUIP_FIELDS = [
+    ("name", "Equipment name / description", "Yes", "Treadmill — Cardio Bay 3", ""),
+    ("equipment_type", "Category", "Yes", "Treadmill", "Treadmill, Bike, Rower, Cross Trainer, Strength, Other"),
+    ("manufacturer", "Make / brand", "Recommended", "Life Fitness", ""),
+    ("model", "Model", "Recommended", "95T Discover SE3", ""),
+    ("serial_number", "Serial number (dedupe key)", "Recommended", "LF-TM-001", ""),
+    ("asset_number", "MOD asset number / NSN", "Optional", "NSN-7830-01-234-5678", ""),
+    ("quantity", "Quantity (if identical & untagged)", "Optional", "1", "Whole number"),
+    ("location", "Area / gym floor", "Recommended", "Main cardio hall", ""),
+    ("sub_location", "Room / zone / rack", "Optional", "Bay 3", ""),
+    ("condition", "Condition on handover", "Optional", "Good", "New, Good, Fair, Poor"),
+    ("classification", "Security classification", "Optional", "OFFICIAL", "OFFICIAL, OFFICIAL-SENSITIVE"),
+    ("purchase_date", "Install / purchase date", "Optional", "2024-01-15", "YYYY-MM-DD"),
+    ("manufacturing_date", "Manufacturing date", "Optional", "2023-11-01", "YYYY-MM-DD"),
+    ("warranty_expiry", "Warranty expiry", "Optional", "2027-01-15", "YYYY-MM-DD"),
+    ("unit_price", "Unit price (£)", "Optional", "3450.00", "Number"),
+    ("replacement_cost", "Replacement cost (£)", "Optional", "3800.00", "Number"),
+    ("supplier", "Service supplier", "Optional", "Pulse Fitness", "Must match a supplier on the site"),
+    ("service_provider", "Service provider notes", "Optional", "Pulse Fitness Service", ""),
+    ("contract_number", "Service contract ref", "Optional", "CON-2024-0142", ""),
+    ("contract_start", "Contract start", "Optional", "2024-01-15", "YYYY-MM-DD"),
+    ("contract_end", "Contract end", "Optional", "2029-01-14", "YYYY-MM-DD"),
+    ("length", "Length (m)", "Optional", "2.20", "Number"),
+    ("width", "Width (m)", "Optional", "0.95", "Number"),
+    ("height", "Height (m)", "Optional", "1.55", "Number"),
+    ("qr_code", "Existing QR / barcode", "Optional", "", ""),
+    ("sicon_equipment_id", "Sicon equipment ID", "Optional", "", "Leave blank if unknown"),
+    ("sage_item_id", "Sage stock item ID", "Optional", "", "Leave blank if unknown"),
+    ("notes", "Notes", "Optional", "First install", ""),
+]
+
+
+@router.get("/master-admin/mod-estate/equipment-template.xlsx")
+async def mod_equipment_template_xlsx(user: dict = Depends(get_current_user)):
+    """Presentable Excel workbook to send to a MOD site to capture its
+    equipment. Sheet 1 (Equipment) is the fillable, directly-uploadable
+    sheet; Sheet 2 (How to complete) is a field-by-field guide."""
+    require_master_admin(user)
+    from fastapi.responses import Response
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    wb = openpyxl.Workbook()
+    brand = "19398D"
+    hdr_fill = PatternFill("solid", fgColor=brand)
+    hdr_font = Font(bold=True, color="FFFFFF", size=11)
+    thin = Side(style="thin", color="D9D9D9")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    ws = wb.active
+    ws.title = "Equipment"
+    headers = [f[0] for f in _MOD_EQUIP_FIELDS]
+    ws.append(headers)
+    for col, f in enumerate(_MOD_EQUIP_FIELDS, start=1):
+        c = ws.cell(row=1, column=col)
+        c.fill = hdr_fill
+        c.font = hdr_font
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        c.border = border
+        ws.column_dimensions[c.column_letter].width = max(14, min(30, len(f[1]) + 4))
+    # Two example rows so the site sees exactly what "good" looks like.
+    ws.append([f[3] for f in _MOD_EQUIP_FIELDS])
+    ws.append([
+        "Upright Bike — Studio 1", "Bike", "Pulse Fitness", "Series 3 Upright",
+        "PF-UB-014", "", "3", "Spin studio", "Studio 1", "Good", "OFFICIAL",
+        "", "", "", "", "", "Pulse Fitness", "", "", "", "", "", "", "", "", "", "", "",
+    ][: len(headers)])
+    ws.freeze_panes = "A2"
+
+    guide = wb.create_sheet("How to complete")
+    guide.append(["Column", "What to enter", "Required?", "Example", "Allowed values / format"])
+    for col in range(1, 6):
+        c = guide.cell(row=1, column=col)
+        c.fill = hdr_fill
+        c.font = hdr_font
+        c.border = border
+    widths = [22, 34, 14, 26, 40]
+    for i, w in enumerate(widths, start=1):
+        guide.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+    for f in _MOD_EQUIP_FIELDS:
+        guide.append([f[0], f[1], f[2], f[3], f[4]])
+    guide.insert_rows(1)
+    guide["A1"] = "Fill in the 'Equipment' sheet — one row per machine. Delete the two example rows before returning."
+    guide["A1"].font = Font(bold=True, italic=True, color="19398D")
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=MOD_Equipment_Capture_Template.xlsx"},
+    )
+
+
+@router.get("/master-admin/mod-estate/equipment-template.csv")
+async def mod_equipment_template_csv(user: dict = Depends(get_current_user)):
+    """Machine-readable CSV variant of the MOD equipment template (all columns)."""
+    require_master_admin(user)
+    from fastapi.responses import Response
+    import csv as _csv
+    import io
+    buf = io.StringIO()
+    w = _csv.writer(buf)
+    w.writerow([f[0] for f in _MOD_EQUIP_FIELDS])
+    w.writerow([f[3] for f in _MOD_EQUIP_FIELDS])
+    return Response(content=buf.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=MOD_Equipment_Capture_Template.csv"})
+
+
+@router.get("/master-admin/mod-estate/site-readiness")
+async def mod_site_readiness(estate_id: str = DEFAULT_ESTATE_ID,
+                             user: dict = Depends(get_current_user)) -> dict:
+    """Per-site onboarding readiness for the MOD estate — the guided
+    checklist. For each site returns counts + ready flags for Equipment,
+    Staff, Suppliers, Documents and Check Sheets so HQ can see, at a glance,
+    what each site still needs before going live."""
+    require_master_admin(user)
+    estate_id = _kebab(estate_id) or DEFAULT_ESTATE_ID
+    # Estate scoping is soft: include sites explicitly on this estate AND legacy
+    # sites with no estate id set (created via the CSV bulk importer / pre-estate)
+    # so HQ can onboard equipment for every MOD site, not just wizard-created ones.
+    sites = await db.organizations.find(
+        {"account_type": "mod_site",
+         "$or": [{"mod_estate_id": estate_id},
+                 {"mod_estate_id": {"$in": [None, ""]}},
+                 {"mod_estate_id": {"$exists": False}}]},
+        {"_id": 0, "id": 1, "name": 1, "mod_force": 1, "site_code": 1,
+         "is_overseas": 1, "region": 1},
+    ).sort("name", 1).to_list(5000)
+
+    async def _count(coll, oid):
+        try:
+            return await coll.count_documents({"organization_id": oid})
+        except Exception:
+            return 0
+
+    out = []
+    for s in sites:
+        oid = s["id"]
+        equipment = await _count(db.equipment, oid)
+        staff = await db.mod_site_staff.count_documents({"site_id": oid, "is_active": {"$ne": False}})
+        suppliers = await _count(db.suppliers, oid)
+        documents = await _count(db.files, oid)
+        checks = 0
+        for c in (db.check_sheet_instances, db.check_sheets, db.checksheets):
+            checks = await _count(c, oid)
+            if checks:
+                break
+        steps = {
+            "equipment": {"count": equipment, "ready": equipment > 0},
+            "staff": {"count": staff, "ready": staff > 0},
+            "suppliers": {"count": suppliers, "ready": suppliers > 0},
+            "documents": {"count": documents, "ready": documents > 0},
+            "checks": {"count": checks, "ready": checks > 0},
+        }
+        ready_count = sum(1 for v in steps.values() if v["ready"])
+        out.append({
+            "id": oid, "name": s.get("name"), "site_code": s.get("site_code"),
+            "force": s.get("mod_force"), "is_overseas": bool(s.get("is_overseas")),
+            "region": s.get("region"),
+            "steps": steps,
+            "ready_count": ready_count, "total_steps": len(steps),
+            "fully_ready": ready_count == len(steps),
+        })
+    return {
+        "estate_id": estate_id,
+        "sites": out,
+        "totals": {
+            "sites": len(out),
+            "fully_ready": sum(1 for s in out if s["fully_ready"]),
+            "no_equipment": sum(1 for s in out if not s["steps"]["equipment"]["ready"]),
+        },
+    }
+
+
 # ──────────────────── whole-of-MOD reporting rollup ────────────────────
 
 

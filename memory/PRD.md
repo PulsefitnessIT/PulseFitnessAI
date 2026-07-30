@@ -1,3 +1,39 @@
+# ═══ 2026-06 · MOD ONBOARDING — EQUIPMENT ONBOARDING + GO-LIVE READINESS (DONE, verified) ═══
+Founder review: MOD sites had NO real equipment onboarding (only single-add in portal + a DEMO seeder in admin).
+The import ENGINE already existed & supported MOD (force, Sicon/Sage ids, 200MB) — gap was purely surfacing it.
+BUILT (Master Admin → Onboarding → "MOD Equipment & Readiness" tab, new component MODSiteOnboarding.js):
+  • Per-MOD-site EQUIPMENT IMPORT (bulk CSV/Excel) reusing POST /api/master-admin/bulk-import/equipment?organization_id=<site>.
+  • Comprehensive + presentable TEMPLATE to send to sites:
+      GET /api/master-admin/mod-estate/equipment-template.xlsx  (2 sheets: Equipment + How-to-complete guide, brand-styled)
+      GET /api/master-admin/mod-estate/equipment-template.csv   (28 cols, machine-readable)
+  • Per-site GO-LIVE CHECKLIST/readiness: GET /api/master-admin/mod-estate/site-readiness
+      counts+ready flags for Equipment/Staff/Suppliers/Documents/Check Sheets; estate scoping is SOFT
+      (includes legacy sites with mod_estate_id=None so ALL 4 preview sites show).
+  • Extended shared importer (master_admin_bulk_import.py _do_bulk_import_equipment) with MOD fields — all OPTIONAL/None-default
+      (commercial unaffected): asset_number/NSN, quantity, sub_location/room, condition, classification, qr_code, manufacturing_date.
+VERIFIED: curl import into a real MOD site (imported ok, all new fields persist in db.equipment); template.xlsx 200 +
+  correct content-type; site-readiness lists 4 sites w/ counts; UI smoke screenshot shows 4 site cards + checklist + import btns.
+User decisions: portal self-serve NOT wanted (single-add fine for sites); HQ/master-admin onboards thousands like commercial;
+  guided checklist YES; template must include ALL fields + a presentable version to send to sites. Target = PRODUCTION (needs redeploy).
+─────────────────────────────────────────────────────────────────────────────
+
+# ═══ 2026-06 · MOD STAFF FLOW-THROUGH + LOGIN SPLIT (code-complete, backend unit-tested; NOT yet e2e-tested) ═══
+1) STAFF FLOW-THROUGH (reported bug): Master-Admin→People users never appeared in MOD portal "Staff at this site"
+   (login accounts in users/crm_users vs roster in mod_site_staff = separate stores). FIX: read-time backfill
+   _backfill_mod_site_staff_from_users in GET /api/mod/site/staff — mirrors real login-users into the roster,
+   skips synthetic/kiosk shared login, idempotent + deletion-safe. Unit-tested (mirrors, skips kiosk, no dup, respects delete).
+2) LOGIN SPLIT (new sites going forward): master_admin_mod_estate create_mod_estate_site now mints TWO logins:
+   generic SHARED login (username=site_code, role=site_staff, is_shared_site_login=True — restricted) + individual OWNER
+   login (real email, full visibility) when owner email supplied. Returns login + owner_login.
+   Restricted shared login is BLOCKED from Reports/figures + Staffing (capabilities.js isRestrictedShared;
+   DashboardTabs gated for commercial; LiteDashboardPage TABS filter + Settings gate for MOD portal).
+3) OWNER HANDOVER: POST /api/mod/site/transfer-owner (owner-only) — mints new owner login (password|invite), demotes+deactivates
+   outgoing owner. UI = "Transfer ownership" button in MOD Staffing→Staff (MODStaffTab, owner-only via can 'transfer_ownership').
+   Backend unit-tested (password mode, non-owner 403, reserved-email reject). MODEstateWizard result panel shows both logins.
+   ⚠️ STILL NEEDS e2e/testing_agent verification (frontend gating + handover UI + provisioning). Flag on next pass.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · i18n ROLLOUT (FR/DE) — MARKETING module BATCH 3 (Group A console COMPLETE, VERIFIED) ═══
 Report: /app/test_reports/iteration_marketing_i18n_4tabs_jan2026.json (0 raw key leaks, 0 console errors, EN/FR/DE).
 DONE: the 4 largest console tabs — CampaignsTab (mkt.cmp_), CampaignWizard (mkt.wz_),

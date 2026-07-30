@@ -8,7 +8,7 @@
  */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Building2, Building, Clipboard, FileSpreadsheet, ShieldCheck, UserPlus, LayoutDashboard, BarChart3, Wrench } from 'lucide-react';
+import { Building2, Building, Clipboard, FileSpreadsheet, ShieldCheck, UserPlus, LayoutDashboard, BarChart3, Wrench, Dumbbell } from 'lucide-react';
 
 import PulseOnboardingWizard from '../PulseOnboardingWizard';
 import HeadOfficeOnboardingWizard from './HeadOfficeOnboardingWizard';
@@ -16,6 +16,7 @@ import AdminOnboardingPackets from './AdminOnboardingPackets';
 import AdminBulkImports from './AdminBulkImports';
 import MODBulkImport from './MODBulkImport';
 import MODEstateWizard from './MODEstateWizard';
+import MODSiteOnboarding from './MODSiteOnboarding';
 import StaffOnboardingWizard from './StaffOnboardingWizard';
 import DealerOnboardingWizard from './DealerOnboardingWizard';
 import OnboardingProjects from './OnboardingProjects';
@@ -32,6 +33,7 @@ const TABS = [
   { id: 'imports',      group: 'Customers', label: 'Bulk Imports',        icon: FileSpreadsheet, description: 'Upload CSV rosters of sites, equipment and customers.' },
   { id: 'mod-estate',   group: 'Customers', label: 'MOD Estate Setup',    icon: ShieldCheck,     description: 'Guided MOD setup — three independent service Head Offices (Army / RAF / Navy), global sites per service, external suppliers for overseas bases, and a whole-of-MOD reporting view.' },
   { id: 'mod-imports',  group: 'Customers', label: 'MOD Sites (CSV bulk)', icon: FileSpreadsheet, description: 'Provision dozens or thousands of MOD child sites under a HQ / branch with auto-generated kiosk logins.' },
+  { id: 'mod-equipment', group: 'Customers', label: 'MOD Equipment & Readiness', icon: Dumbbell, description: 'Onboard each MOD site\'s equipment on their behalf (bulk CSV/Excel, like commercial) and track a per-site go-live checklist — Equipment, Staff, Suppliers, Documents, Check Sheets.' },
   { id: 'dealer',       group: 'Partners',  label: 'Dealer / Engineer',   icon: Wrench,          description: 'Onboard a Pulse Fitness distribution dealer or field engineer — gets Service Desk + Inventory & Distribution. Captures full company detail; owner & engineers set up via invite link or temporary password.' },
   { id: 'staff',        group: 'Team',      label: 'Onboard Staff',       icon: UserPlus,        description: 'Invite a new team member — admin, owner, manager or staff. Five quick steps; they set their own password from a 72 h invite link.' },
 ];
@@ -99,6 +101,7 @@ const AdminOnboardingHub = ({ API: _api, onComplete, isPulseAdmin = false, initi
       {tab === 'imports'     && <AdminBulkImports API={_api} />}
       {tab === 'mod-estate'  && <MODEstateWizard />}
       {tab === 'mod-imports' && <MODBulkImport API={_api} />}
+      {tab === 'mod-equipment' && <MODSiteOnboarding />}
       {tab === 'dealer'      && <DealerOnboardingWizard />}
       {tab === 'staff'       && <StaffOnboardingWizard isPulseAdmin={isPulseAdmin} />}
     </div>
