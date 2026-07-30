@@ -75,6 +75,7 @@ const SupplierCasePage = lazy(() => import('@/pages/SupplierCasePage'));
 const PartsRequestsPage = lazy(() => import('@/pages/PartsRequests/PartsRequestsPage'));
 const PartsCardPage = lazy(() => import('@/pages/PartsRequests/PartsCardPage'));
 const CustomerOnboardingForm = lazy(() => import('@/pages/CustomerOnboardingForm'));
+const MODEquipmentCaptureForm = lazy(() => import('@/pages/MODEquipmentCaptureForm'));
 const QRScanPage = lazy(() => import('@/pages/QRScanPage'));
 const EngineerFaultReportPage = lazy(() => import('@/pages/EngineerFaultReportPage'));
 const EngineerMachineHistory = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerMachineHistory'));
@@ -470,6 +471,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/change-password" element={user ? <ForceChangePasswordPage /> : <Navigate to="/login" replace />} />
       <Route path="/complete-profile" element={user ? <CompleteProfilePage /> : <Navigate to="/" replace />} />
       <Route path="/onboarding/:token" element={<CustomerOnboardingForm />} />
+      <Route path="/mod-capture/:token" element={<MODEquipmentCaptureForm />} />
       <Route path="/payment-success" element={<PaymentSuccessPage />} />
       {/* Trial-ending email destination — login-gated paid checkout, no free-trial offer (iter 221) */}
       <Route path="/choose-plan" element={user ? <ChoosePlanPage /> : <Navigate to="/login?next=/choose-plan" replace />} />

@@ -15,6 +15,7 @@ import axios from 'axios';
 import {
   Download, Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet,
   Dumbbell, Users, Truck, FileText, ClipboardCheck, RefreshCw, ShieldCheck,
+  Link2, Inbox, ThumbsUp, Undo2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -50,15 +51,22 @@ const MODSiteOnboarding = () => {
   const [uploadingId, setUploadingId] = useState(null);
   const [result, setResult] = useState(null);
   const [filter, setFilter] = useState('all'); // all | needs-equipment | ready
+  const [captures, setCaptures] = useState([]);
+  const [linkBusyId, setLinkBusyId] = useState(null);
+  const [reviewBusyId, setReviewBusyId] = useState(null);
   const fileInput = useRef(null);
   const targetSite = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`${API}/master-admin/mod-estate/site-readiness`, { headers });
-      setSites(data?.sites || []);
-      setTotals(data?.totals || null);
+      const [readiness, caps] = await Promise.all([
+        axios.get(`${API}/master-admin/mod-estate/site-readiness`, { headers }),
+        axios.get(`${API}/master-admin/mod-estate/captures`, { headers }),
+      ]);
+      setSites(readiness.data?.sites || []);
+      setTotals(readiness.data?.totals || null);
+      setCaptures(caps.data?.captures || []);
     } catch (e) {
       notify.error('Could not load MOD sites', e?.response?.data?.detail || 'Server error');
     } finally {
@@ -67,6 +75,49 @@ const MODSiteOnboarding = () => {
   }, [headers]);
 
   useEffect(() => { load(); }, [load]);
+
+  const sendCaptureLink = async (site) => {
+    setLinkBusyId(site.id);
+    try {
+      const { data } = await axios.post(`${API}/master-admin/mod-estate/capture-link`, { site_id: site.id }, { headers });
+      try { await navigator.clipboard.writeText(data.share_url); } catch { /* clipboard blocked */ }
+      notify.success('Capture link ready & copied', `Send this to ${site.name}: ${data.share_url}`);
+      load();
+    } catch (e) {
+      notify.error('Could not create link', e?.response?.data?.detail || 'Server error');
+    } finally {
+      setLinkBusyId(null);
+    }
+  };
+
+  const approveCapture = async (c) => {
+    setReviewBusyId(c.id);
+    try {
+      const { data } = await axios.post(`${API}/master-admin/mod-estate/captures/${c.id}/approve`, {}, { headers });
+      const r = data.import_result || {};
+      notify.success(`Imported ${r.imported} machines into ${c.site_name}`, r.skipped ? `${r.skipped} skipped.` : 'Confirmed & imported.');
+      load();
+    } catch (e) {
+      notify.error('Import failed', e?.response?.data?.detail || 'Server error');
+    } finally {
+      setReviewBusyId(null);
+    }
+  };
+
+  const rejectCapture = async (c) => {
+    const reason = window.prompt(`Ask ${c.site_name} to change something (they'll see this note):`, '');
+    if (reason === null) return;
+    setReviewBusyId(c.id);
+    try {
+      await axios.post(`${API}/master-admin/mod-estate/captures/${c.id}/reject`, { reason }, { headers });
+      notify.success('Sent back to the site for changes');
+      load();
+    } catch (e) {
+      notify.error('Could not send back', e?.response?.data?.detail || 'Server error');
+    } finally {
+      setReviewBusyId(null);
+    }
+  };
 
   const pickFileFor = (site) => { targetSite.current = site; fileInput.current?.click(); };
 
@@ -163,6 +214,40 @@ const MODSiteOnboarding = () => {
         </Card>
       )}
 
+      {captures.filter((c) => c.status === 'submitted' || c.status === 'changes_requested').length > 0 && (
+        <Card className="p-4 rounded-xl border-amber-200 bg-amber-50/50" data-testid="mod-capture-review-queue">
+          <div className="flex items-center gap-2 mb-3">
+            <Inbox size={16} className="text-amber-600" />
+            <h4 className="text-sm font-extrabold text-amber-900">Site submissions to review</h4>
+            <span className="text-[11px] text-amber-700">Nothing is imported until you confirm.</span>
+          </div>
+          <div className="space-y-2">
+            {captures.filter((c) => c.status === 'submitted' || c.status === 'changes_requested').map((c) => (
+              <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 bg-white rounded-lg border border-amber-200 px-3 py-2" data-testid={`mod-capture-review-${c.id}`}>
+                <div className="text-sm">
+                  <span className="font-bold text-zinc-800">{c.site_name}</span>
+                  <span className="text-zinc-500"> · {c.row_count} machine{c.row_count === 1 ? '' : 's'}</span>
+                  {c.status === 'changes_requested'
+                    ? <span className="ml-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-500">Awaiting site</span>
+                    : <span className="ml-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Ready to review</span>}
+                </div>
+                {c.status === 'submitted' && (
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => rejectCapture(c)} disabled={reviewBusyId === c.id} data-testid={`mod-capture-reject-${c.id}`}>
+                      <Undo2 size={13} className="mr-1" /> Request changes
+                    </Button>
+                    <Button size="sm" onClick={() => approveCapture(c)} disabled={reviewBusyId === c.id} data-testid={`mod-capture-approve-${c.id}`}>
+                      {reviewBusyId === c.id ? <Loader2 size={13} className="animate-spin mr-1" /> : <ThumbsUp size={13} className="mr-1" />}
+                      Confirm & import
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {loading ? (
         <div className="p-8 text-center text-sm text-zinc-500" data-testid="mod-equip-loading">
           <Loader2 size={16} className="animate-spin inline mr-2" /> Loading MOD sites…
@@ -198,10 +283,16 @@ const MODSiteOnboarding = () => {
                     })}
                   </div>
                 </div>
-                <Button size="sm" onClick={() => pickFileFor(s)} disabled={uploadingId === s.id} data-testid={`mod-equip-import-${s.id}`}>
-                  {uploadingId === s.id ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Upload size={14} className="mr-1.5" />}
-                  {uploadingId === s.id ? 'Importing…' : 'Import equipment'}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => sendCaptureLink(s)} disabled={linkBusyId === s.id} data-testid={`mod-equip-capture-link-${s.id}`}>
+                    {linkBusyId === s.id ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Link2 size={14} className="mr-1.5" />}
+                    Send capture link
+                  </Button>
+                  <Button size="sm" onClick={() => pickFileFor(s)} disabled={uploadingId === s.id} data-testid={`mod-equip-import-${s.id}`}>
+                    {uploadingId === s.id ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Upload size={14} className="mr-1.5" />}
+                    {uploadingId === s.id ? 'Importing…' : 'Import equipment'}
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}

@@ -1,3 +1,23 @@
+# ═══ 2026-06 · MOD SITE SELF-CAPTURE LINKS (equipment) — with review-before-import gate (DONE, verified) ═══
+Instead of emailing spreadsheets back and forth, Pulse Fitness sends each MOD site a secure token link to fill
+their own equipment sheet online. NOTHING enters the platform until Pulse Fitness reviews & CONFIRMS.
+Backend (routes/master_admin_mod_estate.py, collection mod_equipment_captures):
+  Admin: POST /api/master-admin/mod-estate/capture-link {site_id} (create/reuse stable link),
+         GET  /api/master-admin/mod-estate/captures (review queue),
+         POST .../captures/{id}/approve  → builds CSV from captured rows → feeds _do_bulk_import_equipment (reuse
+              dedupe/force/supplier resolution) → imports into the site's equipment; marks approved,
+         POST .../captures/{id}/reject {reason} → status changes_requested (site can amend & resubmit).
+  Public (no-auth, IP rate-limited via rate_limit_async): GET/PUT /api/public/mod-capture/{token} + POST .../submit.
+  Statuses: open → submitted → approved | changes_requested. Link expires 60d. Rows capped at 2000, known cols only.
+Frontend:
+  Public page /mod-capture/:token (pages/MODEquipmentCaptureForm.js, route in routes/AppRoutes.js) — branded card-per-machine
+    form (28 fields incl. NSN/asset, room, condition, classification), Save draft / Submit for review, status banners.
+  Master Admin (MODSiteOnboarding.js): per-site "Send capture link" (creates + copies URL) + "Site submissions to review"
+    queue with "Confirm & import" / "Request changes". FRONTEND_URL drives the share URL (prod URL in production).
+VERIFIED end-to-end via curl: link→public GET(28 fields)→PUT rows→submit→review queue→approve→imported into db.equipment
+  (fields persist); public form screenshot-verified rendering + editable. Preview only — PRODUCTION needs redeploy.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-06 · MOD ONBOARDING — EQUIPMENT ONBOARDING + GO-LIVE READINESS (DONE, verified) ═══
 Founder review: MOD sites had NO real equipment onboarding (only single-add in portal + a DEMO seeder in admin).
 The import ENGINE already existed & supported MOD (force, Sicon/Sage ids, 200MB) — gap was purely surfacing it.

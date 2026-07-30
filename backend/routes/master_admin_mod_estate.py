@@ -20,12 +20,14 @@ This orchestrates — it does NOT replace — the existing CSV bulk importer
 """
 from __future__ import annotations
 
+import os
 import re
+import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 from utils.auth import get_current_user, hash_password
 from utils.database import db
@@ -536,6 +538,195 @@ async def mod_site_readiness(estate_id: str = DEFAULT_ESTATE_ID,
             "no_equipment": sum(1 for s in out if not s["steps"]["equipment"]["ready"]),
         },
     }
+
+
+# ──────────────────── MOD equipment self-capture links ─────────────────
+# A site fills its own equipment sheet online via a secure token link; NOTHING
+# enters the platform until Pulse Fitness reviews and CONFIRMS the submission.
+
+def _capture_field_spec() -> list:
+    """Public field spec the self-capture form renders from."""
+    out = []
+    for key, label, req, example, allowed in _MOD_EQUIP_FIELDS:
+        options = None
+        # Turn short enum hints ("New, Good, Fair, Poor") into a dropdown.
+        if allowed and "," in allowed and "/" not in allowed and len(allowed) < 60 and "YYYY" not in allowed:
+            options = [o.strip() for o in allowed.split(",") if o.strip()]
+        out.append({
+            "key": key, "label": label,
+            "required": req.lower() == "yes",
+            "example": example, "hint": allowed or "", "options": options,
+        })
+    return out
+
+
+def _safe_capture_public(c: dict) -> dict:
+    return {
+        "site_name": c.get("site_name"), "force": c.get("force"),
+        "status": c.get("status"), "rows": c.get("rows") or [],
+        "review_notes": c.get("review_notes") or "",
+        "submitted_at": c.get("submitted_at"), "updated_at": c.get("updated_at"),
+        "fields": _capture_field_spec(),
+    }
+
+
+async def _get_capture_by_token(token: str) -> dict:
+    c = await db.mod_equipment_captures.find_one({"token": token}, {"_id": 0})
+    if not c:
+        raise HTTPException(404, "Capture link not found or expired")
+    exp = c.get("expires_at")
+    if exp:
+        try:
+            if datetime.now(timezone.utc) > datetime.fromisoformat(exp.replace("Z", "+00:00")):
+                raise HTTPException(410, "This capture link has expired")
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+    return c
+
+
+@router.post("/master-admin/mod-estate/capture-link")
+async def create_capture_link(data: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
+    """Create (or reuse) a secure self-capture link for a MOD site."""
+    require_master_admin(user)
+    site_id = (data.get("site_id") or "").strip()
+    site = await db.organizations.find_one(
+        {"id": site_id, "account_type": "mod_site"},
+        {"_id": 0, "id": 1, "name": 1, "mod_force": 1},
+    )
+    if not site:
+        raise HTTPException(404, "MOD site not found")
+    # Reuse an in-flight link so the URL stays stable for the site.
+    existing = await db.mod_equipment_captures.find_one(
+        {"site_id": site_id, "status": {"$in": ["open", "changes_requested", "submitted"]}},
+        {"_id": 0},
+    )
+    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    if existing:
+        token = existing["token"]
+    else:
+        token = secrets.token_urlsafe(32)
+        now = _now()
+        await db.mod_equipment_captures.insert_one({
+            "id": str(uuid.uuid4()), "token": token,
+            "site_id": site_id, "site_name": site.get("name"),
+            "force": site.get("mod_force"),
+            "status": "open", "rows": [], "review_notes": "",
+            "created_by": user.get("email", "system"), "created_at": now, "updated_at": now,
+            "submitted_at": None, "reviewed_at": None,
+            "expires_at": (datetime.now(timezone.utc) + timedelta(days=60)).isoformat(),
+        })
+    share_url = f"{frontend_url}/mod-capture/{token}" if frontend_url else f"/mod-capture/{token}"
+    return {"token": token, "share_url": share_url, "site_id": site_id, "site_name": site.get("name")}
+
+
+@router.get("/master-admin/mod-estate/captures")
+async def list_captures(user: dict = Depends(get_current_user)) -> dict:
+    """List all self-capture submissions for the review queue."""
+    require_master_admin(user)
+    items = await db.mod_equipment_captures.find({}, {"_id": 0}).sort("updated_at", -1).to_list(1000)
+    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    for c in items:
+        c["row_count"] = len(c.get("rows") or [])
+        c["share_url"] = f"{frontend_url}/mod-capture/{c['token']}" if frontend_url else f"/mod-capture/{c['token']}"
+        c.pop("rows", None)
+    return {"captures": items}
+
+
+@router.post("/master-admin/mod-estate/captures/{capture_id}/approve")
+async def approve_capture(capture_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Confirm a submitted capture — import its rows into the site's equipment."""
+    require_master_admin(user)
+    c = await db.mod_equipment_captures.find_one({"id": capture_id}, {"_id": 0})
+    if not c:
+        raise HTTPException(404, "Capture not found")
+    if c.get("status") not in ("submitted", "changes_requested", "open"):
+        raise HTTPException(400, f"Capture is '{c.get('status')}' and cannot be imported")
+    rows = c.get("rows") or []
+    if not rows:
+        raise HTTPException(400, "Nothing to import — the site has not added any equipment")
+
+    # Build a CSV from the captured rows and feed the battle-tested importer
+    # (dedupe, supplier/site/force resolution, batching) via an in-memory upload.
+    import csv as _csv
+    import io as _io
+    from fastapi import UploadFile
+    from routes.master_admin_bulk_import import _do_bulk_import_equipment
+
+    cols = [f[0] for f in _MOD_EQUIP_FIELDS]
+    buf = _io.StringIO()
+    w = _csv.DictWriter(buf, fieldnames=cols, extrasaction="ignore")
+    w.writeheader()
+    for r in rows:
+        w.writerow({k: (r.get(k) if r.get(k) is not None else "") for k in cols})
+    upload = UploadFile(filename="mod_capture.csv", file=_io.BytesIO(buf.getvalue().encode("utf-8")))
+    result = await _do_bulk_import_equipment(upload, c["site_id"], user, validate_org=True)
+
+    await db.mod_equipment_captures.update_one(
+        {"id": capture_id},
+        {"$set": {"status": "approved", "reviewed_at": _now(), "updated_at": _now(),
+                  "reviewed_by": user.get("email", "system"), "import_result": result}},
+    )
+    return {"success": True, "import_result": result}
+
+
+@router.post("/master-admin/mod-estate/captures/{capture_id}/reject")
+async def reject_capture(capture_id: str, data: dict = Body(default={}), user: dict = Depends(get_current_user)) -> dict:
+    """Send a capture back to the site for changes (nothing is imported)."""
+    require_master_admin(user)
+    c = await db.mod_equipment_captures.find_one({"id": capture_id}, {"_id": 0})
+    if not c:
+        raise HTTPException(404, "Capture not found")
+    await db.mod_equipment_captures.update_one(
+        {"id": capture_id},
+        {"$set": {"status": "changes_requested", "updated_at": _now(),
+                  "review_notes": (data.get("reason") or "").strip()}},
+    )
+    return {"success": True}
+
+
+# ── public (no-auth) self-capture form endpoints ──
+@router.get("/public/mod-capture/{token}")
+async def public_get_capture(token: str, request: Request) -> dict:
+    from utils.security_plus import rate_limit_async
+    ip = request.client.host if request.client else "unknown"
+    await rate_limit_async(f"mod_capture_ip:{ip}", max_requests=60, window_seconds=300)
+    return _safe_capture_public(await _get_capture_by_token(token))
+
+
+@router.put("/public/mod-capture/{token}")
+async def public_save_capture(token: str, body: dict = Body(...)) -> dict:
+    c = await _get_capture_by_token(token)
+    if c.get("status") not in ("open", "changes_requested"):
+        raise HTTPException(400, "This sheet has been submitted and can no longer be edited")
+    rows = body.get("rows")
+    if not isinstance(rows, list):
+        raise HTTPException(400, "rows must be a list")
+    # Only persist known columns; cap to protect the doc size.
+    cols = {f[0] for f in _MOD_EQUIP_FIELDS}
+    clean = [{k: str(v) for k, v in r.items() if k in cols and v not in (None, "")} for r in rows[:2000]]
+    await db.mod_equipment_captures.update_one(
+        {"token": token},
+        {"$set": {"rows": clean, "updated_at": _now(),
+                  "status": "open" if c.get("status") == "changes_requested" else c.get("status")}},
+    )
+    return _safe_capture_public(await _get_capture_by_token(token))
+
+
+@router.post("/public/mod-capture/{token}/submit")
+async def public_submit_capture(token: str, body: dict = Body(default={})) -> dict:
+    c = await _get_capture_by_token(token)
+    if c.get("status") not in ("open", "changes_requested"):
+        raise HTTPException(400, "This sheet has already been submitted")
+    rows = c.get("rows") or []
+    if not rows or not any((r.get("name") or "").strip() for r in rows):
+        raise HTTPException(400, "Add at least one machine (with a name) before submitting")
+    await db.mod_equipment_captures.update_one(
+        {"token": token},
+        {"$set": {"status": "submitted", "submitted_at": _now(), "updated_at": _now()}},
+    )
+    return {"success": True, "message": "Submitted to Pulse Fitness for review. Nothing is imported until they confirm."}
 
 
 # ──────────────────── whole-of-MOD reporting rollup ────────────────────
