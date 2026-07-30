@@ -684,6 +684,43 @@ async def send_mod_visit_reminder_email(email: str, site_name: str, booking_url:
     return await send_email(email, f"Reminder: MOD service visit next month — {site_name}", html, category="support")
 
 
+async def send_mod_booking_nudge_email(email: str, site_name: str, booking_url: str,
+                                       visit_date: str = "", sender_name: str = "Pulse Fitness") -> bool:
+    """Gentle nudge when a booking form is still unfilled ~1 week after sending."""
+    date_line = (f'<div style="background:#fff7ed; border-left:4px solid #d97706; padding:16px 20px; '
+                 f'margin:22px 0; border-radius:4px;"><p style="margin:0; color:#b45309; font-weight:600; '
+                 f'font-size:13px;">Proposed visit date: {visit_date}</p></div>') if visit_date else ""
+    html = f"""<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+    <div style="background: #19398D; padding: 36px 30px; text-align: center;">
+        <p style="color:#9fc2ff; margin:0 0 6px; font-size:12px; letter-spacing:1px; text-transform:uppercase;">Pulse Fitness · MOD</p>
+        <h1 style="color: white; margin: 0; font-size: 23px; letter-spacing: -0.5px;">Just a gentle reminder</h1>
+    </div>
+    <div style="padding: 40px 32px;">
+        <h2 style="color:#1a1a1a; margin:0 0 16px; font-size:19px;">{site_name}</h2>
+        <p style="color:#444; line-height:1.7; margin:0 0 20px;">
+            We sent you an Engineer Appointment Booking form a little while ago and it looks like it's not
+            quite finished yet. When you have a moment, please complete it so we can book our engineer onto
+            site and confirm your service visit.
+        </p>
+        {date_line}
+        <div style="text-align:center; margin:32px 0;">
+            <a href="{booking_url}" style="display:inline-block; background:#19398D; color:white; padding:16px 36px;
+               text-decoration:none; border-radius:8px; font-weight:700; font-size:15px;">Finish the booking form &rarr;</a>
+        </div>
+        <hr style="border:none; border-top:1px solid #eee; margin:28px 0;" />
+        <p style="color:#aaa; font-size:12px; line-height:1.6;">
+            If the button doesn't work, copy and paste this URL into your browser:<br/>
+            <a href="{booking_url}" style="color:#19398D; word-break:break-all;">{booking_url}</a>
+        </p>
+    </div>
+    <div style="background:#f5f5f5; padding:18px 30px; text-align:center;">
+        <p style="color:#888; font-size:12px; margin:0;">Pulse Fitness AI · MOD Service</p>
+        <p style="color:#aaa; font-size:11px; margin:4px 0 0;">Sent by {sender_name}</p>
+    </div>
+    </div>"""
+    return await send_email(email, f"Reminder: please finish your MOD booking form — {site_name}", html, category="support")
+
+
 
 
 

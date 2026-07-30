@@ -1,4 +1,16 @@
-# ═══ 2026-07-30 · MOD VISIT CALENDAR + ENGINEER APPOINTMENT BOOKING + 1-MONTH REMINDERS (DONE, testing_agent VERIFIED) ═══
+# ═══ 2026-07-30 · MOD BOOKING FORM — 1-WEEK UNFILLED NUDGE (DONE, verified) ═══
+Follow-up to the Visit Calendar feature. If a MOD site's Engineer Appointment Booking form is still unfilled a week
+after it was sent, gently nudge them once. utils/mod_visit_reminders.run_mod_booking_nudges() (hooked into the poller
+via sicon_poller._run_mod_booking_nudges): finds contracts with annual_visit.booking.status in (sent,draft),
+booking.sent_at >= MOD_BOOKING_NUDGE_DAYS (default 7) ago, and no booking.nudged_at yet → emails the site contact a
+gentle "please finish your booking form" note (utils.email.send_mod_booking_nudge_email, with the booking link), then
+stamps booking.nudged_at (single nudge, idempotent). Submitted/too-recent/already-nudged are skipped.
+VERIFIED (direct sweep, 5 seeded cases): sent-8d + draft-10d nudged; sent-3d, submitted-20d, already-nudged all
+skipped; re-run = 0. Emails SEND only in PRODUCTION (preview Resend key invalid). QATEST data cleaned.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 User feature "Visit Calendar & Reminders" for MOD Type A annual service visits. User choices: calendar lives on the
 SERVICE DESK -> Preventative Maintenance page; shows BOTH confirmed (green) + pending/proposed (amber) colour-coded;
 reminder lead = 1 MONTH (30d, env MOD_VISIT_REMINDER_LEAD_DAYS); recipients = MOD Service team + MOD site contact;

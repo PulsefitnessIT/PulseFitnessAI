@@ -22,12 +22,26 @@ REMINDER_LEAD_DAYS = int(os.environ.get("MOD_VISIT_REMINDER_LEAD_DAYS", "30"))
 _WINDOW_LOW = REMINDER_LEAD_DAYS - 2
 _WINDOW_HIGH = REMINDER_LEAD_DAYS + 1
 
+# Nudge the site if their booking form is still unfilled this many days after
+# it was first sent.
+NUDGE_AFTER_DAYS = int(os.environ.get("MOD_BOOKING_NUDGE_DAYS", "7"))
+
 
 def _parse_date(s: str) -> date | None:
     if not s:
         return None
     try:
         return datetime.fromisoformat(str(s)[:10]).date()
+    except Exception:
+        return None
+
+
+def _parse_dt(s: str):
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(s))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
     except Exception:
         return None
 
@@ -108,4 +122,48 @@ async def run_mod_visit_reminders() -> dict:
 
     if sent:
         logger.info("[mod-visit-reminder] sent %d reminder(s)", sent)
+    return {"sent": sent}
+
+
+
+async def run_mod_booking_nudges() -> dict:
+    """Gently nudge MOD sites whose booking form is still unfilled ~1 week
+    after it was sent. Fires ONCE per booking (idempotent via booking.nudged_at)."""
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+    from utils.email import send_mod_booking_nudge_email
+
+    contracts = await db.mod_service_contracts.find(
+        {"annual_visit.booking.status": {"$in": ["sent", "draft"]},
+         "annual_visit.booking.nudged_at": {"$in": [None, ""]}}, {"_id": 0},
+    ).to_list(5000)
+
+    sent = 0
+    for c in contracts:
+        av = c.get("annual_visit") or {}
+        booking = av.get("booking") or {}
+        sent_at = _parse_dt(booking.get("sent_at"))
+        if not sent_at:
+            continue
+        if (now - sent_at).days < NUDGE_AFTER_DAYS:
+            continue
+
+        site_name = c.get("mod_site_name") or "your site"
+        visit_date = av.get("scheduled_date") or av.get("proposed_date")
+        booking_url = _share_url(booking["token"]) if booking.get("token") else ""
+        site_email = await _resolve_site_email(c.get("mod_site_id"))
+        if site_email:
+            try:
+                await send_mod_booking_nudge_email(site_email, site_name, booking_url, visit_date)
+            except Exception:
+                logger.exception("[mod-booking-nudge] email failed for %s", c.get("id"))
+
+        booking["nudged_at"] = now_iso
+        av["booking"] = booking
+        await db.mod_service_contracts.update_one(
+            {"id": c["id"]}, {"$set": {"annual_visit": av, "updated_at": now_iso}})
+        sent += 1
+
+    if sent:
+        logger.info("[mod-booking-nudge] sent %d nudge(s)", sent)
     return {"sent": sent}
