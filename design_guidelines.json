@@ -1,65 +1,166 @@
 {
+  "project_context": "B2B fitness-equipment service platform (Pulse Fitness). Transactional HTML Emails. Must render on Outlook, Gmail, Apple Mail, Mobile.",
+  "theme": "Light mode priority (credible, clean, safety-oriented)",
   "typography": {
-    "headings": "Inter or system sans (based on existing brand config), font-semibold for active states",
-    "body": "System sans, readable and clear"
+    "font_stack": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'",
+    "hierarchy": {
+      "h1": {
+        "font-size": "24px",
+        "font-weight": "bold",
+        "line-height": "32px",
+        "color": "#18181B",
+        "margin": "0 0 16px 0"
+      },
+      "h2": {
+        "font-size": "20px",
+        "font-weight": "bold",
+        "line-height": "28px",
+        "color": "#18181B",
+        "margin": "0 0 12px 0"
+      },
+      "body": {
+        "font-size": "16px",
+        "font-weight": "normal",
+        "line-height": "24px",
+        "color": "#3F3F46",
+        "margin": "0 0 16px 0"
+      },
+      "small": {
+        "font-size": "14px",
+        "font-weight": "normal",
+        "line-height": "20px",
+        "color": "#71717A",
+        "margin": "0 0 8px 0"
+      }
+    }
   },
   "colors": {
-    "primary": "brandCfg.accent",
-    "border": "c.border",
-    "muted": "c.textMuted",
-    "surface": "Solid backgrounds for overlays; no complete transparent backgrounds."
+    "brand": {
+      "primary_default": "#0055FF",
+      "dynamic_accent": "CUSTOMER_BRAND_HEX (Fallback to #0055FF)"
+    },
+    "backgrounds": {
+      "email_wrapper": "#F4F5F7",
+      "content_card": "#FFFFFF",
+      "logo_chip": "#FFFFFF"
+    },
+    "text": {
+      "primary": "#18181B",
+      "secondary": "#3F3F46",
+      "muted": "#71717A",
+      "inverse": "#FFFFFF"
+    },
+    "severities_and_badges": {
+      "safety_critical": { "text": "#991B1B", "bg": "#FEE2E2", "border": "#FCA5A5" },
+      "out_of_order": { "text": "#9A3412", "bg": "#FFEDD5", "border": "#FDBA74" },
+      "fault": { "text": "#854D0E", "bg": "#FEF9C3", "border": "#FDE047" },
+      "minor": { "text": "#1E40AF", "bg": "#DBEAFE", "border": "#93C5FD" },
+      "warranty": { "text": "#166534", "bg": "#DCFCE7", "border": "#86EFAC" },
+      "neutral_count": { "text": "#3F3F46", "bg": "#F4F5F7", "border": "#E4E4E7" }
+    },
+    "borders": {
+      "divider": "#E4E4E7",
+      "card": "#E4E4E7"
+    }
   },
-  "visual_enhancers": [
-    "Subtle hover states on icon buttons (bg-black/5 or bg-white/10)",
-    "Clean 1px borders for structure (c.border)",
-    "Smooth transition on dropdown open"
-  ],
-  "component_name": "CRMApp.js Toolbar",
   "layouts": {
-    "mobile": "Vertical stack (flex-col). Row 1: Mode Switcher & Primary Actions (Quick Create, Bell, Kebab). Row 2: Module Switcher (horizontal scroll). Row 3: Full-width Global Search.",
-    "desktop": "Horizontal row (flex-row). Left-to-right: Module Switcher, Mode Switcher, Search, Action Buttons (right-aligned)."
+    "email_wrapper": {
+      "width": "100%",
+      "background-color": "#F4F5F7",
+      "padding": "40px 20px"
+    },
+    "container": {
+      "max-width": "600px",
+      "width": "100%",
+      "margin": "0 auto",
+      "background-color": "#FFFFFF",
+      "border-radius": "12px",
+      "border": "1px solid #E4E4E7",
+      "overflow": "hidden"
+    },
+    "spacing": {
+      "section_padding": "32px",
+      "element_gap": "16px",
+      "table_cell_padding": "12px 16px"
+    },
+    "grids": "NO CSS GRIDS OR FLEXBOX ALLOWED. Use standard <table> with width percentages for columns."
   },
-  "instructions_to_main_agent": [
-    "Modify the <div data-testid='crm-toolbar'> to use responsive flex direction: `flex flex-col md:flex-row`.",
-    "Group the CRMModeSwitcher and Action Icons into a top row on mobile using `flex justify-between items-center w-full md:w-auto`.",
-    "Keep Quick Create and Notifications visible on mobile. Move Staff Filter, AI Tools, and Settings into a 'More' kebab menu on mobile (< 768px).",
-    "Use a lucide-react `MoreVertical` icon for the mobile kebab menu trigger.",
-    "The mobile dropdown menu MUST have a solid background (e.g., `bg-white dark:bg-gray-900`) and NOT be completely transparent.",
-    "Wrap the ModuleSwitcher in a `w-full md:w-auto overflow-x-auto no-scrollbar` container so it scrolls horizontally on small screens instead of wrapping and cramping.",
-    "Render the GlobalSearchBar inline on desktop (`md:block md:flex-1`) and full-width below the module switcher on mobile (`w-full`).",
-    "Ensure the overflow dropdown maintains accessibility with z-index (`z-50`) and shadow (`shadow-lg`).",
-    "Preserve all existing data-testids strictly."
-  ],
-  "implementation_blueprint": {
-    "toolbar_container": "flex flex-col md:flex-row items-start md:items-center gap-3 w-full mb-4",
-    "mobile_top_row": "flex items-center justify-between w-full md:w-auto gap-2 order-1",
-    "primary_actions_group": "flex items-center gap-2",
-    "overflow_menu_trigger": "md:hidden w-9 h-9 flex items-center justify-center border c-border rounded-md hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer",
-    "overflow_dropdown": "absolute right-0 top-12 w-48 bg-white dark:bg-gray-900 border c-border rounded-md shadow-lg p-2 flex flex-col gap-2 z-50",
-    "module_switcher_wrapper": "w-full md:w-auto overflow-x-auto hide-scrollbar pb-1 md:pb-0 order-2 md:order-1",
-    "search_bar_wrapper": "w-full md:flex-1 order-3 md:order-2",
-    "desktop_actions_group": "hidden md:flex ml-auto items-center gap-2 order-4"
+  "components": {
+    "header": {
+      "description": "Customer logo container with brand accent bar.",
+      "structure": "Top border (4px solid {{brand.primary_default}}). White background section. Logo placed inside a padded table cell.",
+      "logo_chip": {
+        "max-height": "40px",
+        "background": "#FFFFFF",
+        "border-radius": "6px",
+        "padding": "8px",
+        "fallback_text": "Font: 18px Bold, Color: #18181B (Org Name)"
+      }
+    },
+    "cards": {
+      "description": "Used for feature highlights (Welcome email) or fault summaries.",
+      "structure": "<table width=\"100%\" style=\"background: #FAFAFA; border: 1px solid #E4E4E7; border-radius: 8px; margin-bottom: 16px;\">"
+    },
+    "badges": {
+      "description": "Severity, status, and warranty chips.",
+      "structure": "Inline-block <span> or nested <table>. Padding: 4px 10px. Border-radius: 12px. Font-size: 12px. Font-weight: bold. Border: 1px solid."
+    },
+    "data_table": {
+      "description": "Used in Equipment Reassignment. List of machines.",
+      "structure": "100% width table. Header row text-align: left, font-size: 14px, color: #71717A, border-bottom: 2px solid #E4E4E7. Data rows: padding 12px 8px, border-bottom: 1px solid #E4E4E7."
+    },
+    "bulletproof_button": {
+      "description": "Outlook-safe CTA. Must use table approach, NOT just padding on anchor.",
+      "structure": "<table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\"><tr><td align=\"center\" bgcolor=\"{{brand.primary_default}}\" style=\"border-radius: 6px;\"><a href=\"#\" target=\"_blank\" style=\"font-size: 16px; font-weight: bold; text-decoration: none; color: #FFFFFF; display: inline-block; padding: 14px 24px; border: 1px solid {{brand.primary_default}}; border-radius: 6px;\">View & Reply</a></td></tr></table>"
+    },
+    "message_quote": {
+      "description": "For Fault Communication / Two-way chat.",
+      "structure": "Left border: 4px solid #E4E4E7. Padding-left: 16px. Font-style: italic. Color: #52525B. Margin-bottom: 24px."
+    },
+    "footer": {
+      "description": "Platform sign-off.",
+      "structure": "Background: #F4F5F7. Padding: 24px. Text-align: center. Font-size: 12px. Color: #A1A1AA.",
+      "elements": "Includes 'Powered by Pulse Fitness' and 'Please do not reply directly to this email.'"
+    }
   },
-  "data_testids": [
-    "crm-toolbar",
-    "quick-create-btn",
-    "crm-toolbar-staff-filter",
-    "crm-toolbar-ai",
-    "crm-toolbar-settings"
-  ],
+  "media": {
+    "images": "Use absolute URLs. Must include display: block; on all <img> tags to prevent bottom spacing bugs in email clients.",
+    "logo_constraints": "max-height: 40px; width: auto; max-width: 200px;"
+  },
+  "accessibility": {
+    "tables": "All layout tables MUST include role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\".",
+    "images": "All images MUST include alt=\"\" attributes. Logos must have the organization name as alt text.",
+    "contrast": "Text colors chosen against background to meet WCAG AA standards (4.5:1 minimum)."
+  },
+  "visual_enhancers": {
+    "borders": "Rely heavily on subtle #E4E4E7 borders and specific background color blocks to create hierarchy, since box-shadows do not work reliably in Outlook."
+  },
+  "image_urls": {
+    "placeholder_logo": "https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=200&h=80&fit=crop"
+  },
+  "instructions_to_main_agent": {
+    "critical_rules": [
+      "NO EXTERNAL CSS. NO <style> blocks except for media queries.",
+      "NO FLEXBOX OR CSS GRIDS. Layout must be exclusively <table> based.",
+      "EVERY inline style must be fully qualified (e.g., use padding-top, padding-bottom if shorthand acts up, though standard padding usually works).",
+      "Do NOT use transparent backgrounds for anything containing text; always define solid HEX codes.",
+      "Create vanilla HTML templates (as JS template literals or standard HTML files depending on the codebase setup) for the 5 requested emails.",
+      "Include a 'Ghost Table' pattern (conditional comments <!--[if mso]>...<![endif]-->) if setting max-width on the main container to ensure Outlook respects the 600px boundary.",
+      "Ensure CTA buttons use the bulletproof nested table pattern.",
+      "Inject 'data-testid' on dynamic variables and buttons."
+    ],
+    "email_templates_to_build": [
+      "1. Supplier Welcome / Onboarding",
+      "2. Equipment Reassignment",
+      "3. New Fault Report / Contact Supplier",
+      "4. Fault Communication / New Message",
+      "5. Engineer Visit Scheduled"
+    ]
+  },
   "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight.",
-    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients",
-    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
-    "Create depth through layered design elements with z-index hierarchy",
-    "Use glass-morphism effects with backdrop filters (12-24px blur), but NEVER use completely transparent backgrounds for overlays.",
-    "You MUST NOT apply universal transition. Eg: transition: all. This results in breaking transforms.",
-    "You MUST NOT center align the app container, ie do not add .App { text-align: center; } in the css file.",
-    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style",
-    "NEVER: use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 etc for icons.",
-    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.",
-    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
-    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.",
-    "All interactive and key informational elements MUST include a `data-testid` attribute to facilitate robust automated testing."
+    "Design outputs must feel incredibly premium, intentional, and high-contrast, strictly avoiding the generic AI layout feel.",
+    "Avoid centering large blocks of text; left-align data and paragraphs to preserve natural reading flow.",
+    "For this email task, prioritize raw table structures, bulletproof email rendering techniques, and high-legibility contrasts.",
+    "Use data-testid attribute on all interactive/dynamic tags."
   ]
 }
