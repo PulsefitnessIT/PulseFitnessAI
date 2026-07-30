@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   AlertTriangle, Wrench, Users, Shield, Gauge, ChevronRight,
-  Activity, Clock, LogOut, CheckCircle2, QrCode, CloudOff, ShieldAlert, ShieldCheck, PoundSterling,
+  Activity, Clock, LogOut, CheckCircle2, QrCode, CloudOff, ShieldAlert, ShieldCheck, PoundSterling, FileText,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
@@ -61,6 +61,7 @@ import MODIncidentWizard from './MODIncidentWizard';
 import MODStaffModal from './MODStaffModal';
 import MODASERPortal from './MODASERPortal';
 import MODCapexPortal from './MODCapexPortal';
+import MODQuotesPanel from './MODQuotesPanel';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -74,6 +75,8 @@ export default function MODSiteDashboard() {
   const [incidentOpen, setIncidentOpen] = useState(false);
   const [aserOpen, setAserOpen] = useState(false);
   const [capexOpen, setCapexOpen] = useState(false);
+  const [quotesOpen, setQuotesOpen] = useState(false);
+  const [quotesPending, setQuotesPending] = useState(0);
   const [queuedCount, setQueuedCount] = useState(0);
   const [activeDrill, setActiveDrill] = useState(null);
 
@@ -93,6 +96,8 @@ export default function MODSiteDashboard() {
       setDash(d.data);
       setNudges(n.data.nudges || []);
       setActiveDrill(dr.data?.drill || null);
+      axios.get(`${base}/mod/site/quotes`, { headers: h })
+        .then(q => setQuotesPending(q.data?.pending_count || 0)).catch(() => {});
     } catch (e) {
        
       console.error('MOD dashboard load failed', e?.response?.status, e?.response?.data || e.message);
@@ -195,6 +200,12 @@ export default function MODSiteDashboard() {
               title="Download printable QR labels (12 per A4)"
             >
               <QrCode size={13} /> QR sheet
+            </button>
+            <button onClick={() => setQuotesOpen(true)} className="relative flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border border-white/10 hover:bg-white/5" data-testid="mod-nav-quotes">
+              <FileText size={13} /> Quotes
+              {quotesPending > 0 && (
+                <span className="ml-0.5 min-w-[16px] h-[16px] px-1 grid place-items-center text-[10px] font-extrabold rounded-full bg-amber-400 text-black" data-testid="mod-nav-quotes-badge">{quotesPending}</span>
+              )}
             </button>
             <button onClick={() => setAserOpen(true)} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border border-white/10 hover:bg-white/5" data-testid="mod-nav-aser">
               <ShieldAlert size={13} /> Reports · ASER
@@ -316,6 +327,7 @@ export default function MODSiteDashboard() {
       {staffOpen && <MODStaffModal onClose={() => setStaffOpen(false)} />}
       {aserOpen && <MODASERPortal onClose={() => setAserOpen(false)} />}
       {capexOpen && <MODCapexPortal onClose={() => setCapexOpen(false)} />}
+      {quotesOpen && <MODQuotesPanel API={AUTH_API || API} onClose={() => setQuotesOpen(false)} onSigned={load} />}
       {incidentOpen && (
         <MODIncidentWizard
           onClose={() => setIncidentOpen(false)}

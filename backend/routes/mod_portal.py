@@ -453,6 +453,80 @@ async def mod_site_dashboard(user: dict = Depends(get_current_user)):
     }
 
 
+# ── MOD site quotes (view & sign in-portal — no extra login) ───────
+
+@router.get("/mod/site/quotes")
+async def mod_site_quotes(user: dict = Depends(get_current_user)):
+    """Quotes raised for this MOD site so the owner/manager can review and
+    e-sign them without a separate public link / login."""
+    org = await _require_mod_site(user)
+    rows = await db.crm2_quotes.find(
+        {"mod_site_id": org["id"], "quote_kind": "mod_sor"},
+        {"_id": 0, "signature": 0},
+    ).sort("created_at", -1).to_list(200)
+    quotes = [{
+        "id": q.get("id"),
+        "quote_number": q.get("quote_number"),
+        "title": q.get("title"),
+        "mod_contract_type": q.get("mod_contract_type"),
+        "status": q.get("status"),
+        "esign_status": q.get("esign_status"),
+        "total": q.get("total"),
+        "currency": q.get("currency", "GBP"),
+        "line_count": len(q.get("lines") or []),
+        "valid_until": q.get("valid_until"),
+        "signer_name": q.get("signer_name"),
+        "signed_at": q.get("signed_at"),
+        "created_at": q.get("created_at"),
+    } for q in rows]
+    pending = sum(1 for q in quotes if q["esign_status"] != "signed" and q["status"] != "accepted")
+    return {"quotes": quotes, "pending_count": pending}
+
+
+@router.get("/mod/site/quotes/{quote_id}")
+async def mod_site_quote_detail(quote_id: str, user: dict = Depends(get_current_user)):
+    org = await _require_mod_site(user)
+    from routes.crm_mod_quote import _quote_org_branding, _public_quote_view
+    q = await db.crm2_quotes.find_one(
+        {"id": quote_id, "mod_site_id": org["id"]}, {"_id": 0})
+    if not q:
+        raise HTTPException(404, "Quote not found for this site")
+    brand = await _quote_org_branding(q.get("organization_id"))
+    return _public_quote_view(q, brand)
+
+
+@router.post("/mod/site/quotes/{quote_id}/sign")
+async def mod_site_quote_sign(quote_id: str, payload: dict, request: Request,
+                              user: dict = Depends(get_current_user)):
+    org = await _require_mod_site(user)
+    from routes.crm_mod_quote import apply_quote_signature
+    q = await db.crm2_quotes.find_one(
+        {"id": quote_id, "mod_site_id": org["id"]}, {"_id": 0})
+    if not q:
+        raise HTTPException(404, "Quote not found for this site")
+    signer = (payload.get("signer_name") or user.get("full_name") or user.get("email") or "").strip()
+    return await apply_quote_signature(
+        q, signer, payload.get("signature"),
+        signed_ip=(request.client.host if request.client else None), via="mod_portal")
+
+
+@router.get("/mod/site/quotes/{quote_id}/pdf")
+async def mod_site_quote_pdf(quote_id: str, user: dict = Depends(get_current_user)):
+    org = await _require_mod_site(user)
+    q = await db.crm2_quotes.find_one(
+        {"id": quote_id, "mod_site_id": org["id"]}, {"_id": 0})
+    if not q:
+        raise HTTPException(404, "Quote not found for this site")
+    try:
+        from utils.crm_quote_pdf import render_quote_pdf
+        pdf_bytes = await render_quote_pdf(q, organization_id=q.get("organization_id"))
+    except Exception as exc:
+        raise HTTPException(500, f"Could not generate PDF: {exc}") from exc
+    return Response(content=pdf_bytes, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{q.get("quote_number", "quote")}.pdf"'})
+
+
+
 @router.get("/mod/site/equipment")
 async def mod_site_equipment(user: dict = Depends(get_current_user)):
     org = await _require_mod_site(user)

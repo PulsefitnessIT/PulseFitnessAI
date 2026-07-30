@@ -502,13 +502,14 @@ async def public_view_quote(token: str):
     return _public_quote_view(quote, brand)
 
 
-@public_router.post("/{token}/sign")
-async def public_sign_quote(token: str, data: dict, request: Request):
-    quote = await _load_quote_by_token(token)
+async def apply_quote_signature(quote: dict, signer_name: str, signature: str,
+                                signed_ip: str | None = None, via: str = "public_link") -> dict:
+    """Shared accept/sign logic used by both the public e-sign link and the
+    in-portal (authenticated) MOD signing flow."""
     if quote.get("esign_status") == "signed" or quote.get("status") == "accepted":
         raise HTTPException(409, "This quote has already been signed.")
-    signature = (data.get("signature") or "").strip()
-    signer_name = (data.get("signer_name") or "").strip()
+    signature = (signature or "").strip()
+    signer_name = (signer_name or "").strip()
     if not signature or not signer_name:
         raise HTTPException(400, "Signature and signer name are required.")
     signed_at = _now()
@@ -516,7 +517,8 @@ async def public_sign_quote(token: str, data: dict, request: Request):
         "signature": signature,
         "signer_name": signer_name,
         "signed_at": signed_at,
-        "signed_ip": (request.client.host if request.client else None),
+        "signed_ip": signed_ip,
+        "signed_via": via,
         "status": "accepted",
         "esign_status": "signed",
         "updated_at": signed_at,
@@ -548,6 +550,14 @@ async def public_sign_quote(token: str, data: dict, request: Request):
     except Exception:
         pass
     return {"success": True, "status": "accepted", "signer": signer_name, "signed_at": signed_at}
+
+
+@public_router.post("/{token}/sign")
+async def public_sign_quote(token: str, data: dict, request: Request):
+    quote = await _load_quote_by_token(token)
+    return await apply_quote_signature(
+        quote, data.get("signer_name"), data.get("signature"),
+        signed_ip=(request.client.host if request.client else None), via="public_link")
 
 
 @public_router.get("/{token}/pdf")

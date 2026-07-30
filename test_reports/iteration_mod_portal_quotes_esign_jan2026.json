@@ -1,0 +1,32 @@
+{
+  "summary": "Full backend + frontend E2E of MOD Portal in-portal Quotes tab + inline e-sign (Jan 2026). Backend 7/7 pytest PASS: GET /api/mod/site/quotes returns {quotes[], pending_count} (fresh Type A quote appears), GET /api/mod/site/quotes/{id} returns detail (lines/subtotal/vat_amount/total, no _id), GET /api/mod/site/quotes/{id}/pdf returns application/pdf (%PDF header), POST /api/mod/site/quotes/{id}/sign accepts+signs quote and flips linked mod_service_contract from pending_activation → active, missing signature → 400, double-sign → 409, non-MOD platform user → 403 on all four routes, unknown id → 404. Regression: existing public sign flow (/api/public/mod-quote/{token}/*) — 12/12 tests in test_crm_mod_quote_esign_jan2026.py still PASS (both entry points share apply_quote_signature). Frontend: MOD API-login → /pulse → dashboard tab bar shows 'Quotes (N)' (data-testid lite-tab-quotes with pending count), clicking opens LiteQuotesTab lite-quotes-list, lite-quote-row-<id> opens lite-quote-detail with line items, Net/VAT/Total (£1,057.52/£211.50/£1,269.02) and lite-quote-pdf link. Inline sign: lite-esign-name + lite-esign-pad canvas draw + lite-esign-agree unlock lite-quote-sign-btn; after signing, lite-quote-signed visible and tab count decrements (Quotes (2) → Quotes (1)). MOD portal core (Equipment/Faults) tabs still render — no LiteDashboardPage regression.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_mod_portal_quotes_esign_jan2026.py",
+    "/app/backend/tests/test_crm_mod_quote_esign_jan2026.py",
+    "/app/test_reports/pytest/mod_portal_quotes_esign_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/mod_portal.py mod_site_quotes correctly redacts $_id$ and signature data-url; pending_count logic (esign_status != 'signed' AND status != 'accepted') matches the UI StatusPill expectations.",
+    "mod_site_quote_sign correctly re-uses shared apply_quote_signature (single source of truth for accept + Type A contract activation) — both public and in-portal entry points remain in sync.",
+    "signer_name fallback chain (payload → user.full_name → user.email) is sensible; may want to log the resolved via='mod_portal' vs via='public' distinction to the audit trail for later forensic review.",
+    "Frontend LiteQuotesTab: axios errors on GET /mod/site/quotes and on sign fail silently (empty catch) — consider surfacing a toast for the operator so 5xx/network failures aren't invisible.",
+    "SignPad canvas is fixed height=160 and c.width = c.offsetWidth on mount only — on window resize the canvas would not re-scale (minor)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_mod_portal_quotes_esign_jan2026.py"
+  ],
+  "success_rate": {"backend": "100% (7/7 new + 12/12 regression)", "frontend": "100% of tested flows"},
+  "test_credentials": "MOD portal: test@army.mod.test / ModTest123! (portal='mod'). CRM: owner@isodemo.com / IsoDemo123! — CRM token via /api/crm/auth/login (NOT /api/auth/login → returns platform token which is 401 on /crm/mod-quote routes).",
+  "seed_data_creation": "Backend pytest fixture creates 2 Type A MOD quotes (+ contracts) — signs one (test) and cleans up the second via a proper sign. Frontend E2E signed 1 quote via UI. Residual test data lives in crm2_quotes (quote_kind='mod_sor', signer_name IN ('Maj. Test Signer','Cleanup Signer','Maj. UI Signer')) and matching mod_service_contracts; safe to leave for the demo tenant.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Regression file: /app/backend/tests/test_mod_portal_quotes_esign_jan2026.py. Run: cd /app/backend && REACT_APP_BACKEND_URL=<url> python -m pytest tests/test_mod_portal_quotes_esign_jan2026.py -v. CRM auth is /api/crm/auth/login (returns {token}); MOD auth is /api/auth/login with portal='mod' (returns {token, user}). MOD site id abfdabd9-ae11-4877-a44d-a36fea7f1f4e, 8 machines. Frontend testids: lite-tab-quotes / mobile-pill-quotes (Quotes (N)), lite-quotes-list, lite-quote-row-<id>, lite-quote-detail, lite-quote-pdf, lite-quote-back, lite-esign-name, lite-esign-pad (canvas), lite-esign-agree, lite-quote-sign-btn, lite-quote-signed, lite-esign-clear. For the canvas signature use synthetic MouseEvent dispatch with clientX/Y from getBoundingClientRect + at least ~15 mousemoves before mouseup (page.mouse.move goes through Playwright but sometimes doesn't fire onMouseMove on canvases; dispatchEvent works reliably). Legacy MODSiteDashboard.js also has a Quotes panel but it is unrouted (LiteDashboardPage at /pulse is live).",
+  "rca of the issue": "No issues. Backend fully matches spec; frontend LiteQuotesTab integrates cleanly with the four /mod/site/quotes endpoints and shares the accept/sign engine with the public flow via routes/crm_mod_quote.apply_quote_signature."
+}

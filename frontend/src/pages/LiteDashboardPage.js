@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import axios from 'axios';
 import { useInlineBanner, useConfirm, notify } from '@/components/notifications';
-import { Eye, LayoutDashboard, Dumbbell, AlertTriangle, FileText, ClipboardCheck, ClipboardList, BarChart3, Truck, LayoutGrid, Rocket, Sparkles, Users, Brain } from 'lucide-react';
+import { Eye, LayoutDashboard, Dumbbell, AlertTriangle, FileText, ClipboardCheck, ClipboardList, BarChart3, Truck, LayoutGrid, Rocket, Sparkles, Users, Brain, FileSignature } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/shared/Navbar';
 import MobileBottomNav from '../components/shared/MobileBottomNav';
@@ -28,6 +28,7 @@ import LiteOverviewTab from './LiteDashboard/LiteOverviewTab';
 import LiteEquipmentTab from './LiteDashboard/LiteEquipmentTab';
 import CustomerDeliveriesTab from './Deliveries/CustomerDeliveriesTab';
 import LiteFaultsTab from './LiteDashboard/LiteFaultsTab';
+import LiteQuotesTab from './LiteDashboard/LiteQuotesTab';
 import LiteDocumentsTab from './LiteDashboard/LiteDocumentsTab';
 import LiteDialogs from './LiteDashboard/LiteDialogs';
 import OperationsStartTab from './LiteDashboard/OperationsStartTab';
@@ -182,6 +183,7 @@ const LiteDashboardPage = () => {
   const [showMasterAdmin, setShowMasterAdmin] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showAddEquipment, setShowAddEquipment] = useState(false);
+  const [quotesPending, setQuotesPending] = useState(0);
   const pulseTourRef = React.useRef(null);
   const [faultFilterStatus, setFaultFilterStatus] = useState('all');
   // Tiered notifications — `docBanner` shows inline success/error for document
@@ -222,6 +224,10 @@ const LiteDashboardPage = () => {
       setIssues(issRes.data.issues || []);
       setFiles(fileRes.data.files || []);
       setSuppliers(supRes.data.suppliers || supRes.data || []);
+      if (isMOD) {
+        axios.get(`${API}/mod/site/quotes`, { headers })
+          .then(q => setQuotesPending(q.data?.pending_count || 0)).catch(() => {});
+      }
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: context helpers re-create each render but read the latest token / handler at call time; adding them would invalidate the memo every render and break the optimisation.
   }, [API, activeSite]);
@@ -733,6 +739,7 @@ const LiteDashboardPage = () => {
     if (isMOD) {
       return [
         ...proBase,
+        { id: 'quotes',    label: `${t('dashboard.quotes', 'Quotes')}${quotesPending ? ` (${quotesPending})` : ''}`, icon: FileSignature },
         { id: 'reports',   label: t('dashboard.reports', 'Reports'),   icon: BarChart3 },
         { id: 'suppliers', label: t('dashboard.suppliers_tab', 'Suppliers'), icon: Truck },
       ];
@@ -755,7 +762,7 @@ const LiteDashboardPage = () => {
     // credentials — drop Reports + Staffing for it. (Individuals get their own
     // login via Master Admin.) Its content gates read the same TABS list below,
     // so hiding the pill also blocks the tab body (Iter 241 invariant).
-    .filter((tab) => !(isSharedLogin && (tab.id === 'reports' || tab.id === 'staffing')));
+    .filter((tab) => !(isSharedLogin && (tab.id === 'reports' || tab.id === 'staffing' || tab.id === 'quotes')));
   // Iter 241 — INVARIANT: if a tab pill is offered, its content must
   // render. Content gates derive from the SAME list as the pills so the
   // two can never diverge again (the production blank-tab bug happened
@@ -1039,6 +1046,13 @@ const LiteDashboardPage = () => {
                   isPro={isPro}
                 />
               </TabsContent>
+
+            {/* Quotes Tab — MOD sites review & e-sign quotes in-portal */}
+            {isMOD && (
+              <TabsContent value="quotes" data-testid="quotes-content">
+                <LiteQuotesTab API={API} headers={headers} onChanged={loadData} />
+              </TabsContent>
+            )}
 
             {/* Pro Tabs */}
             {isPro && (
