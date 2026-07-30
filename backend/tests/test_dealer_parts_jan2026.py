@@ -3,7 +3,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/") or "https://platform-doctor.preview.emergentagent.com"
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/") or "https://mod-hq-email.preview.emergentagent.com"
 API = f"{BASE_URL}/api/dealer-parts"
 
 OWNER_EMAIL = "owner@isodemo.com"

@@ -10,7 +10,7 @@ import os
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL") or
-       "https://platform-doctor.preview.emergentagent.com").rstrip("/")
+       "https://mod-hq-email.preview.emergentagent.com").rstrip("/")
 
 JACK_EMAIL = "jack.ottey@thirdspace.london"
 JACK_PASSWORD = "Test123!"

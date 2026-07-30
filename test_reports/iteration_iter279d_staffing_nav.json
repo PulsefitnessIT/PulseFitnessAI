@@ -34,6 +34,6 @@
   "seed_data_creation": "",
   "retest_needed": false,
   "main_agent_can_self_test": true,
-  "context_for_next_testing_agent": "Nav reorg validated end-to-end at https://platform-doctor.preview.emergentagent.com/pulse → Staffing. data-testids in StaffingConsole.js (staffing-tabs, staffing-tab-<id>, staffing-subtabs, staffing-subtab-<leaf>) are stable. Only minor UX nit is the single-child sub-tab bar in Time Clock — not blocking.",
+  "context_for_next_testing_agent": "Nav reorg validated end-to-end at https://mod-hq-email.preview.emergentagent.com/pulse → Staffing. data-testids in StaffingConsole.js (staffing-tabs, staffing-tab-<id>, staffing-subtabs, staffing-subtab-<leaf>) are stable. Only minor UX nit is the single-child sub-tab bar in Time Clock — not blocking.",
   "rca of the issue": "n/a — feature verification only, no bug investigation."
 }

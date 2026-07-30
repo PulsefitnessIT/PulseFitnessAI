@@ -100,7 +100,7 @@
       "detail": "{\"detail\":\"Not Found\"}"
     },
     {
-      "path": "customer-lite login via https://platform-doctor.preview.emergentagent.com/api/auth/login",
+      "path": "customer-lite login via https://mod-hq-email.preview.emergentagent.com/api/auth/login",
       "ok": true,
       "status": 200,
       "detail": ""
@@ -136,7 +136,7 @@
       "detail": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"dealer_name\"],\"msg\":\"Field required\",\"input\":{\"test\":\"x\"}}]}"
     },
     {
-      "path": "dealer login via https://platform-doctor.preview.emergentagent.com/api/auth/login",
+      "path": "dealer login via https://mod-hq-email.preview.emergentagent.com/api/auth/login",
       "ok": true,
       "status": 200,
       "detail": ""
@@ -187,7 +187,7 @@
       "path": "stripe checkout create",
       "ok": false,
       "status": "n/a",
-      "detail": "missing plan/member plan=None member=c92d141d-ec10-4574-b4b3-f2e0fc9933f1"
+      "detail": "missing plan/member plan=None member=mod-hq-email"
     },
     {
       "path": "site isolation Site B \u2192 403",
