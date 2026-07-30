@@ -170,6 +170,15 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
   }, [activeSection, assetsPage]);
 
+  // Keep the inner section in sync with the parent-controlled tab. When this
+  // panel is embedded with hideHeader (e.g. SiconIntegrationPage), its section
+  // nav is hidden and the only driver is the initialSection prop — which useState
+  // reads once on mount. Without this, switching the outer Event Log/Configuration/
+  // Field Mappings tabs left the panel stuck on whichever section mounted first.
+  useEffect(() => {
+    if (initialSection) setActiveSection(initialSection);
+  }, [initialSection]);
+
 
   const handleSave = async () => {
     setSaving(true);
