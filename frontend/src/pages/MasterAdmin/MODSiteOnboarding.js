@@ -56,6 +56,7 @@ const MODSiteOnboarding = () => {
   const [reviewBusyId, setReviewBusyId] = useState(null);
   const [remindBusyId, setRemindBusyId] = useState(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [lastBulkRunId, setLastBulkRunId] = useState(null);
   const [skipDups, setSkipDups] = useState(true);
   const [review, setReview] = useState(null);   // { loading, detail } for the diff modal
   const fileInput = useRef(null);
@@ -137,8 +138,12 @@ const MODSiteOnboarding = () => {
       const { data } = await axios.post(`${API}/master-admin/mod-estate/captures/bulk-approve`, { skip_duplicates: true }, { headers });
       notify.success(
         `Imported ${data.total_imported} machines across ${data.processed} site${data.processed === 1 ? '' : 's'}`,
-        data.total_skipped_duplicates ? `${data.total_skipped_duplicates} flagged duplicate row(s) skipped.` : 'All clean rows imported.',
+        data.total_skipped_duplicates ? `${data.total_skipped_duplicates} flagged duplicate row(s) skipped. Report downloading…` : 'All clean rows imported. Report downloading…',
       );
+      if (data.run_id) {
+        setLastBulkRunId(data.run_id);
+        downloadBlob(`/master-admin/mod-estate/bulk-report/${data.run_id}.xlsx`, `MOD_Bulk_Import_Report.xlsx`, token).catch(() => {});
+      }
       load();
     } catch (e) {
       notify.error('Bulk confirm failed', e?.response?.data?.detail || 'Server error');
@@ -258,6 +263,16 @@ const MODSiteOnboarding = () => {
           <Button variant="outline" onClick={load} data-testid="mod-equip-refresh">
             <RefreshCw size={14} className="mr-1.5" /> Refresh
           </Button>
+          <Button variant="outline" data-testid="mod-readiness-export"
+            onClick={() => downloadBlob('/master-admin/mod-estate/readiness-export.xlsx', 'MOD_Estate_Readiness.xlsx', token).catch((e) => notify.error('Export error', e.message))}>
+            <FileSpreadsheet size={14} className="mr-1.5" /> Readiness checklist (Excel)
+          </Button>
+          {lastBulkRunId && (
+            <Button variant="outline" data-testid="mod-bulk-report-download"
+              onClick={() => downloadBlob(`/master-admin/mod-estate/bulk-report/${lastBulkRunId}.xlsx`, 'MOD_Bulk_Import_Report.xlsx', token).catch((e) => notify.error('Report error', e.message))}>
+              <Download size={14} className="mr-1.5" /> Last bulk report
+            </Button>
+          )}
         </div>
         <input ref={fileInput} type="file" accept=".csv,.xlsx,text/csv" className="hidden" onChange={onFile} data-testid="mod-equip-file-input" />
       </Card>

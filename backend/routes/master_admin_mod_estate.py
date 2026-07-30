@@ -474,14 +474,8 @@ async def mod_equipment_template_csv(user: dict = Depends(get_current_user)):
                     headers={"Content-Disposition": "attachment; filename=MOD_Equipment_Capture_Template.csv"})
 
 
-@router.get("/master-admin/mod-estate/site-readiness")
-async def mod_site_readiness(estate_id: str = DEFAULT_ESTATE_ID,
-                             user: dict = Depends(get_current_user)) -> dict:
-    """Per-site onboarding readiness for the MOD estate — the guided
-    checklist. For each site returns counts + ready flags for Equipment,
-    Staff, Suppliers, Documents and Check Sheets so HQ can see, at a glance,
-    what each site still needs before going live."""
-    require_master_admin(user)
+async def _compute_estate_readiness(estate_id: str) -> dict:
+    """Shared readiness computation used by the JSON endpoint and the Excel export."""
     estate_id = _kebab(estate_id) or DEFAULT_ESTATE_ID
     # Estate scoping is soft: include sites explicitly on this estate AND legacy
     # sites with no estate id set (created via the CSV bulk importer / pre-estate)
@@ -538,6 +532,90 @@ async def mod_site_readiness(estate_id: str = DEFAULT_ESTATE_ID,
             "no_equipment": sum(1 for s in out if not s["steps"]["equipment"]["ready"]),
         },
     }
+
+
+@router.get("/master-admin/mod-estate/site-readiness")
+async def mod_site_readiness(estate_id: str = DEFAULT_ESTATE_ID,
+                             user: dict = Depends(get_current_user)) -> dict:
+    """Per-site onboarding readiness for the MOD estate — the guided
+    checklist. For each site returns counts + ready flags for Equipment,
+    Staff, Suppliers, Documents and Check Sheets so HQ can see, at a glance,
+    what each site still needs before going live."""
+    require_master_admin(user)
+    return await _compute_estate_readiness(estate_id)
+
+
+@router.get("/master-admin/mod-estate/readiness-export.xlsx")
+async def readiness_export_xlsx(estate_id: str = DEFAULT_ESTATE_ID,
+                                user: dict = Depends(get_current_user)):
+    """One-click Excel of the whole estate's go-live checklist."""
+    require_master_admin(user)
+    data = await _compute_estate_readiness(estate_id)
+    from fastapi.responses import Response
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Go-live readiness"
+    hdr_fill = PatternFill("solid", fgColor="19398D")
+    hdr_font = Font(bold=True, color="FFFFFF")
+    ok_fill = PatternFill("solid", fgColor="D9F2E3")
+    bad_fill = PatternFill("solid", fgColor="FBE0E0")
+
+    headers = ["Site", "Site code", "Force", "Location", "Equipment", "Staff",
+               "Suppliers", "Documents", "Check Sheets", "Ready steps", "Go-live ready?"]
+    ws.append(headers)
+    for i, _ in enumerate(headers, start=1):
+        c = ws.cell(row=1, column=i)
+        c.fill = hdr_fill
+        c.font = hdr_font
+        c.alignment = Alignment(horizontal="center")
+    widths = [34, 12, 8, 12, 12, 8, 10, 11, 12, 12, 14]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+
+    def cell_txt(step):
+        return f"{step['count']}" if step["ready"] else f"{step['count']} ✗"
+
+    for s in data["sites"]:
+        st = s["steps"]
+        ws.append([
+            s["name"], s.get("site_code") or "", (s.get("force") or "").upper(),
+            "Overseas" if s.get("is_overseas") else (s.get("region") or "UK"),
+            cell_txt(st["equipment"]), cell_txt(st["staff"]), cell_txt(st["suppliers"]),
+            cell_txt(st["documents"]), cell_txt(st["checks"]),
+            f"{s['ready_count']}/{s['total_steps']}",
+            "READY" if s["fully_ready"] else "Not yet",
+        ])
+        r = ws.max_row
+        for col in range(5, 10):  # per-step cells
+            key = ["equipment", "staff", "suppliers", "documents", "checks"][col - 5]
+            ws.cell(row=r, column=col).fill = ok_fill if st[key]["ready"] else bad_fill
+        ws.cell(row=r, column=11).fill = ok_fill if s["fully_ready"] else bad_fill
+    ws.freeze_panes = "A2"
+
+    # Summary sheet
+    sm = wb.create_sheet("Summary")
+    t = data["totals"]
+    sm.append(["MOD estate go-live readiness"])
+    sm["A1"].font = Font(bold=True, size=13, color="19398D")
+    sm.append([])
+    sm.append(["Total sites", t["sites"]])
+    sm.append(["Fully ready", t["fully_ready"]])
+    sm.append(["Sites still needing equipment", t["no_equipment"]])
+    sm.column_dimensions["A"].width = 32
+    sm.column_dimensions["B"].width = 12
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=MOD_Estate_Readiness.xlsx"},
+    )
 
 
 # ──────────────────── MOD equipment self-capture links ─────────────────
@@ -871,7 +949,64 @@ async def bulk_approve_captures(data: dict = Body(default={}), user: dict = Depe
         "total_imported": total_imported,
         "total_skipped_duplicates": total_skipped_dups,
         "results": results,
+        "run_id": await _save_bulk_run(user, len(subs), total_imported, total_skipped_dups, results),
     }
+
+
+async def _save_bulk_run(user, processed, total_imported, total_skipped, results) -> str:
+    run_id = str(uuid.uuid4())
+    await db.mod_bulk_import_runs.insert_one({
+        "id": run_id, "run_at": _now(), "by": user.get("email", "system"),
+        "processed": processed, "total_imported": total_imported,
+        "total_skipped_duplicates": total_skipped, "results": results,
+    })
+    return run_id
+
+
+@router.get("/master-admin/mod-estate/bulk-report/{run_id}.xlsx")
+async def bulk_report_xlsx(run_id: str, user: dict = Depends(get_current_user)):
+    """Downloadable proof of a bulk confirm — per-site imported vs skipped."""
+    require_master_admin(user)
+    run = await db.mod_bulk_import_runs.find_one({"id": run_id}, {"_id": 0})
+    if not run:
+        raise HTTPException(404, "Report not found")
+    from fastapi.responses import Response
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Bulk import report"
+    hdr_fill = PatternFill("solid", fgColor="19398D")
+    hdr_font = Font(bold=True, color="FFFFFF")
+    ws.append([f"MOD bulk equipment import — {run.get('run_at', '')[:19].replace('T', ' ')} UTC · by {run.get('by')}"])
+    ws["A1"].font = Font(bold=True, size=12, color="19398D")
+    ws.append([f"Sites processed: {run['processed']} · Machines imported: {run['total_imported']} · Duplicate rows skipped: {run['total_skipped_duplicates']}"])
+    ws.append([])
+    headers = ["Site", "Imported", "Duplicates skipped", "Skipped on import", "Notes / errors"]
+    ws.append(headers)
+    hr = ws.max_row
+    for i in range(1, len(headers) + 1):
+        ws.cell(row=hr, column=i).fill = hdr_fill
+        ws.cell(row=hr, column=i).font = hdr_font
+    for r in run.get("results", []):
+        ws.append([
+            r.get("site_name", ""), r.get("imported", 0), r.get("skipped_duplicates", 0),
+            r.get("skipped_import", 0), r.get("error") or r.get("note") or "",
+        ])
+    for i, w in enumerate([36, 10, 18, 16, 40], start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+    ws.freeze_panes = "A5"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=MOD_Bulk_Import_Report_{run_id[:8]}.xlsx"},
+    )
 
 
 @router.post("/master-admin/mod-estate/captures/{capture_id}/reject")

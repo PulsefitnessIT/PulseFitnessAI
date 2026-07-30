@@ -1,3 +1,16 @@
+# ═══ 2026-06 · MOD CAPTURE — READINESS EXCEL EXPORT + BULK CONFIRM REPORT (DONE, verified) ═══
+READINESS EXPORT: GET /api/master-admin/mod-estate/readiness-export.xlsx — one-click Excel of the whole estate's
+  go-live checklist (Sheet "Go-live readiness": row per site, per-step counts colour-coded green/red + Ready? column;
+  Sheet "Summary": totals). Reuses new shared helper _compute_estate_readiness (also powers the JSON endpoint).
+  UI: "Readiness checklist (Excel)" button in MODSiteOnboarding header.
+BULK CONFIRM REPORT: bulk-approve now persists each run to db.mod_bulk_import_runs and returns run_id; new
+  GET /api/master-admin/mod-estate/bulk-report/{run_id}.xlsx builds a per-site proof (Imported / Duplicates skipped /
+  Skipped on import / Notes-errors + run header). UI: report auto-downloads after a bulk confirm, plus a persistent
+  "Last bulk report" button.
+VERIFIED: curl — both endpoints return valid .xlsx (readiness 2 sheets + 4 site rows; bulk report generated from a
+  persisted run). Frontend parses clean. Preview only → PRODUCTION redeploy needed.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-06 · MOD CAPTURE — BULK CONFIRM + SKIP-DUPLICATES TOGGLE (DONE, verified) ═══
 SKIP-DUPLICATES: approve_capture now accepts {skip_duplicates}; when true drops rows flagged
   duplicate_serial/duplicate_in_sheet/possible_duplicate before import; returns skipped_duplicates.
