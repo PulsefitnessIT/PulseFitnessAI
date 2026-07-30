@@ -22,6 +22,7 @@ import { Sparkles, Loader2, Upload, Trash2, Image as ImageIcon, Wand2, Building2
 } from 'lucide-react';
 import { notify, useConfirm } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import { useTranslation } from 'react-i18next';
 
 const TYPES = [
   { id: 'social_post', label: 'Social post' },
@@ -59,6 +60,7 @@ const CATEGORY_META = {
 };
 
 const CreativeStudioTab = ({ API, headers, entitlement }) => {
+  const { t } = useTranslation();
   const confirm = useConfirm();
   const locked = entitlement && !entitlement.features?.ai_creative_studio;
 
@@ -147,7 +149,7 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
 
   const generate = async () => {
     if (!prompt.trim() && !headline.trim()) {
-      notify.error('Add at least a prompt or headline');
+      notify.error(t('mkt.cs_err_prompt', 'Add at least a prompt or headline'));
       return;
     }
     setBusy(true);
@@ -167,21 +169,21 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
       };
       const { data } = await axios.post(`${API}/api/marketing/creative/generate`, payload, { headers });
       if (data.asset?.source === 'fallback_svg') {
-        notify.warning('Using preview fallback', 'AI service is busy — placeholder shown. Try again or contact support if this persists.');
+        notify.warning(t('mkt.cs_fallback_title', 'Using preview fallback'), t('mkt.cs_fallback_body', 'AI service is busy — placeholder shown. Try again or contact support if this persists.'));
       } else {
-        notify.success(`Generated ${n} ${n === 1 ? 'variant' : 'variants'} at ${data.asset?.width}×${data.asset?.height}`);
+        notify.success(t('mkt.cs_generated', 'Generated {{n}} variant(s) at {{w}}×{{h}}', { n, w: data.asset?.width, h: data.asset?.height }));
       }
       setPrompt('');
       load();
     } catch (err) {
-      notifyApiError(notify, err, 'Generation failed');
+      notifyApiError(notify, err, t('mkt.cs_gen_err', 'Generation failed'));
     } finally { setBusy(false); }
   };
 
   const onUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { notify.error('Image too large', 'Max 5 MB.'); return; }
+    if (file.size > 5 * 1024 * 1024) { notify.error(t('mkt.cs_too_large', 'Image too large'), t('mkt.cs_max_5mb', 'Max 5 MB.')); return; }
     setUploading(true);
     try {
       const fd = new FormData();
@@ -190,11 +192,11 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
       await axios.post(`${API}/api/marketing/creative/upload`, fd, {
         headers: { ...headers, 'Content-Type': 'multipart/form-data' },
       });
-      notify.success('Image uploaded', `Added to ${CATEGORY_META[uploadCategory].label.toLowerCase()}.`);
+      notify.success(t('mkt.cs_uploaded', 'Image uploaded'), t('mkt.cs_uploaded_body', 'Added to {{cat}}.', { cat: t('mkt.cs_cat_' + uploadCategory, CATEGORY_META[uploadCategory].label).toLowerCase() }));
       setActiveCategory(uploadCategory);
       load();
     } catch (err) {
-      notifyApiError(notify, err, 'Upload failed');
+      notifyApiError(notify, err, t('mkt.cs_upload_err', 'Upload failed'));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -203,19 +205,19 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
 
   const remove = async (assetId, label) => {
     const ok = await confirm({
-      title: 'Delete this asset?',
-      detail: `"${label}" will be removed from the gallery and from any campaigns referencing it.`,
-      confirmLabel: 'Delete',
+      title: t('mkt.cs_del_title', 'Delete this asset?'),
+      detail: t('mkt.cs_del_detail', '"{{label}}" will be removed from the gallery and from any campaigns referencing it.', { label }),
+      confirmLabel: t('mkt.cs_delete', 'Delete'),
       tone: 'danger',
     });
     if (!ok) return;
     try {
       await axios.delete(`${API}/api/marketing/creative/${assetId}`, { headers });
-      notify.success('Deleted');
+      notify.success(t('mkt.cs_deleted', 'Deleted'));
       setSelectedRefs((s) => s.filter((id) => id !== assetId));
       load();
     } catch (err) {
-      notifyApiError(notify, err, 'Delete failed');
+      notifyApiError(notify, err, t('mkt.cs_del_err', 'Delete failed'));
     }
   };
 
@@ -223,8 +225,8 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
     return (
       <div className="rounded-xl border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 p-6 text-center" data-testid="creative-locked">
         <Sparkles className="mx-auto text-amber-500 mb-2" size={32} />
-        <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">AI Creative Studio is a Pro feature</h2>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">Upgrade to Pro to generate posters, social posts, and email heroes with AI.</p>
+        <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{t('mkt.cs_locked_title', 'AI Creative Studio is a Pro feature')}</h2>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">{t('mkt.cs_locked_body', 'Upgrade to Pro to generate posters, social posts, and email heroes with AI.')}</p>
       </div>
     );
   }
@@ -248,10 +250,10 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
       if (asset?.id) {
         setAssets((prev) => (prev.find((a) => a.id === asset.id) ? prev : [asset, ...prev]));
         setSelectedRefs((s) => (s.includes(asset.id) ? s : [...s, asset.id]));
-        if (!data.reused) notify.success('Pinned to your library', `"${asset.label || libRow.label}" is now selectable as a reference.`);
+        if (!data.reused) notify.success(t('mkt.cs_pinned', 'Pinned to your library'), t('mkt.cs_pinned_body', '"{{label}}" is now selectable as a reference.', { label: asset.label || libRow.label }));
       }
     } catch (e) {
-      notifyApiError(notify, e, 'Could not import brand library image');
+      notifyApiError(notify, e, t('mkt.cs_import_err', 'Could not import brand library image'));
     }
     setImportingBrand(null);
   };
@@ -265,46 +267,46 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
 
           {/* Headline + subheadline + CTA */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Field label="Headline (overlaid on poster)">
+            <Field label={t('mkt.cs_f_headline', 'Headline (overlaid on poster)')}>
               <input value={headline} onChange={(e) => setHeadline(e.target.value)}
-                placeholder="JOIN FREE THIS WEEKEND"
+                placeholder={t('mkt.cs_ph_headline', 'JOIN FREE THIS WEEKEND')}
                 className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 rounded-md text-sm focus:outline-none focus:border-[var(--color-brand-blue)]"
                 data-testid="creative-headline" />
             </Field>
-            <Field label="Sub-headline">
+            <Field label={t('mkt.cs_f_subheadline', 'Sub-headline')}>
               <input value={subheadline} onChange={(e) => setSubheadline(e.target.value)}
-                placeholder="No commitment — just bring trainers"
+                placeholder={t('mkt.cs_ph_subheadline', 'No commitment — just bring trainers')}
                 className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 rounded-md text-sm focus:outline-none focus:border-[var(--color-brand-blue)]"
                 data-testid="creative-subheadline" />
             </Field>
-            <Field label="Call-to-action">
+            <Field label={t('mkt.cs_f_cta', 'Call-to-action')}>
               <input value={cta} onChange={(e) => setCta(e.target.value)}
-                placeholder="Book your trial →"
+                placeholder={t('mkt.cs_ph_cta', 'Book your trial →')}
                 className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 rounded-md text-sm focus:outline-none focus:border-[var(--color-brand-blue)]"
                 data-testid="creative-cta" />
             </Field>
-            <Field label="Asset format">
+            <Field label={t('mkt.cs_f_format', 'Asset format')}>
               <select value={type} onChange={(e) => setType(e.target.value)}
                 className="w-full px-2 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 rounded-md text-sm"
                 data-testid="creative-type-select">
-                {TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                {TYPES.map((ty) => <option key={ty.id} value={ty.id}>{t('mkt.cs_type_' + ty.id, ty.label)}</option>)}
               </select>
             </Field>
           </div>
 
           {/* AI prompt */}
-          <Field label="Describe the look & feel for the AI">
+          <Field label={t('mkt.cs_f_describe', 'Describe the look & feel for the AI')}>
             <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)}
-              placeholder="e.g. dramatic side-lit gym at golden hour, athletes mid-action, deep shadows, brand colours pop"
+              placeholder={t('mkt.cs_ph_prompt', 'e.g. dramatic side-lit gym at golden hour, athletes mid-action, deep shadows, brand colours pop')}
               rows={3}
               className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 rounded-md text-sm focus:outline-none focus:border-[var(--color-brand-blue)]"
               data-testid="creative-prompt-input" />
             <div className="flex flex-wrap gap-1.5 mt-2">
               {PROMPT_IDEAS.map((idea, i) => (
-                <button key={i} onClick={() => setPrompt(idea)}
+                <button key={i} onClick={() => setPrompt(t('mkt.cs_idea_' + i, idea))}
                   className="px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-[10px] font-medium hover:bg-[rgb(var(--rgb-brand-blue)/0.1)] hover:text-[var(--color-brand-blue)] transition"
                   data-testid={`creative-idea-${i}`}>
-                  <Wand2 size={9} className="inline mr-1" /> {idea}
+                  <Wand2 size={9} className="inline mr-1" /> {t('mkt.cs_idea_' + i, idea)}
                 </button>
               ))}
             </div>
@@ -312,24 +314,24 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
 
           {/* Style + mood */}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Visual style">
+            <Field label={t('mkt.cs_f_style', 'Visual style')}>
               <select value={style} onChange={(e) => setStyle(e.target.value)}
                 className="w-full px-2 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 rounded-md text-sm"
                 data-testid="creative-style">
-                {STYLES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                {STYLES.map((s) => <option key={s.id} value={s.id}>{t('mkt.cs_style_' + s.id, s.label)}</option>)}
               </select>
             </Field>
-            <Field label="Mood">
+            <Field label={t('mkt.cs_f_mood', 'Mood')}>
               <select value={mood} onChange={(e) => setMood(e.target.value)}
                 className="w-full px-2 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 rounded-md text-sm"
                 data-testid="creative-mood">
-                {MOODS.map((m) => <option key={m} value={m}>{m}</option>)}
+                {MOODS.map((m, mi) => <option key={m} value={m}>{t('mkt.cs_mood_' + mi, m)}</option>)}
               </select>
             </Field>
           </div>
 
           {/* Resolution */}
-          <Field label="Resolution">
+          <Field label={t('mkt.cs_f_resolution', 'Resolution')}>
             <div className="flex flex-wrap items-center gap-2">
               <select value={useCustomRes ? '__custom' : resolutionPreset}
                 onChange={(e) => {
@@ -341,15 +343,15 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
                 {resolutions.map((r) => (
                   <option key={r.id} value={r.id}>{r.label} · {r.width}×{r.height}</option>
                 ))}
-                <option value="__custom">Custom dimensions…</option>
+                <option value="__custom">{t('mkt.cs_custom_dims', 'Custom dimensions…')}</option>
               </select>
               {useCustomRes && (
                 <div className="flex items-center gap-1.5">
                   <input type="number" min="256" max="4096" value={customW} onChange={(e) => setCustomW(e.target.value)}
-                    placeholder="width" className="w-24 px-2 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 rounded-md text-sm" data-testid="creative-custom-w" />
+                    placeholder={t('mkt.cs_width', 'width')} className="w-24 px-2 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 rounded-md text-sm" data-testid="creative-custom-w" />
                   <span className="text-zinc-400">×</span>
                   <input type="number" min="256" max="4096" value={customH} onChange={(e) => setCustomH(e.target.value)}
-                    placeholder="height" className="w-24 px-2 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 rounded-md text-sm" data-testid="creative-custom-h" />
+                    placeholder={t('mkt.cs_height', 'height')} className="w-24 px-2 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 rounded-md text-sm" data-testid="creative-custom-h" />
                 </div>
               )}
               <span className="text-[11px] text-zinc-500 dark:text-zinc-400 ml-1 inline-flex items-center gap-1">
@@ -372,9 +374,9 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
                 <Sparkles size={16} />
               </div>
               <div>
-                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Brand kit lock</p>
+                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{t('mkt.cs_brand_lock', 'Brand kit lock')}</p>
                 <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                  {brandLock ? 'Every poster will use your logo + palette + brand fonts.' : 'Off — AI is free to interpret palette/typography loosely.'}
+                  {brandLock ? t('mkt.cs_brand_lock_on', 'Every poster will use your logo + palette + brand fonts.') : t('mkt.cs_brand_lock_off', 'Off — AI is free to interpret palette/typography loosely.')}
                 </p>
               </div>
             </div>
@@ -386,7 +388,7 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
           {/* Variants count + Generate */}
           <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">Generate</span>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">{t('mkt.cs_generate_label', 'Generate')}</span>
               {[1, 2, 3, 4].map((v) => (
                 <button key={v} onClick={() => setN(v)}
                   className={`w-7 h-7 rounded-md text-xs font-bold transition ${n === v
@@ -394,17 +396,17 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
                     : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-[rgb(var(--rgb-brand-blue)/0.1)]'}`}
                   data-testid={`creative-n-${v}`}>{v}</button>
               ))}
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">{n === 1 ? 'variant' : 'variants'}</span>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">{n === 1 ? t('mkt.cs_variant', 'variant') : t('mkt.cs_variants', 'variants')}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                {selectedRefs.length} reference{selectedRefs.length === 1 ? '' : 's'}
+                {t('mkt.cs_references', '{{n}} reference(s)', { n: selectedRefs.length })}
               </span>
               <button onClick={generate} disabled={busy || (!prompt.trim() && !headline.trim())}
                 className="px-4 py-2 rounded-md bg-gradient-to-r from-[var(--color-brand-blue)] to-[var(--color-brand-cyan-hover)] text-white text-xs font-semibold disabled:opacity-50 inline-flex items-center gap-1.5 shadow-sm hover:shadow-md transition"
                 data-testid="creative-generate-btn">
                 {busy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                {busy ? 'Generating (~30s)…' : 'Generate poster'}
+                {busy ? t('mkt.cs_generating', 'Generating (~30s)…') : t('mkt.cs_generate_poster', 'Generate poster')}
               </button>
             </div>
           </div>
@@ -413,26 +415,26 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
         {/* Right: Asset library */}
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 space-y-3 shadow-sm">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Asset library</h3>
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{t('mkt.cs_asset_library', 'Asset library')}</h3>
             {!isBrandTab && (
               <div className="flex items-center gap-1">
                 <select value={uploadCategory} onChange={(e) => setUploadCategory(e.target.value)}
                   className="text-[11px] px-2 py-1 rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-700 dark:text-zinc-300"
                   data-testid="creative-upload-category">
-                  {Object.entries(CATEGORY_META).filter(([k]) => k !== 'brand').map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  {Object.entries(CATEGORY_META).filter(([k]) => k !== 'brand').map(([k, v]) => <option key={k} value={k}>{t('mkt.cs_cat_' + k, v.label)}</option>)}
                 </select>
                 <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={onUpload} className="hidden" data-testid="creative-upload-input" />
                 <button onClick={() => fileRef.current?.click()} disabled={uploading}
                   className="px-2 py-1 rounded bg-[var(--color-brand-blue)] text-white text-[11px] font-semibold inline-flex items-center gap-1 disabled:opacity-50"
                   data-testid="creative-upload-btn">
                   {uploading ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
-                  Upload
+                  {t('mkt.cs_upload', 'Upload')}
                 </button>
               </div>
             )}
             {isBrandTab && (
               <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-fuchsia-50 text-fuchsia-700 border border-fuchsia-200" data-testid="creative-brand-readonly-badge">
-                Curated · Read-only
+                {t('mkt.cs_curated', 'Curated · Read-only')}
               </span>
             )}
           </div>
@@ -449,7 +451,7 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
                     ? 'border-[var(--color-brand-blue)] text-[var(--color-brand-blue)]'
                     : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'}`}
                   data-testid={`creative-tab-${k}`}>
-                  <Icon size={11} /> {meta.label}
+                  <Icon size={11} /> {t('mkt.cs_cat_' + k, meta.label)}
                   {count > 0 && <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-zinc-100 dark:bg-zinc-800">{count}</span>}
                 </button>
               );
@@ -462,7 +464,7 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
               <div className="rounded-md border border-dashed border-zinc-200 dark:border-zinc-700 p-6 text-center" data-testid="creative-brand-empty">
                 <Megaphone className="mx-auto text-zinc-300 dark:text-zinc-600 mb-1.5" size={22} />
                 <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                  Master admin hasn't published any shared images yet.
+                  {t('mkt.cs_brand_empty', 'Master admin has not published any shared images yet.')}
                 </p>
               </div>
             ) : (
@@ -509,7 +511,7 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
             <div className="rounded-md border border-dashed border-zinc-200 dark:border-zinc-700 p-6 text-center" data-testid="creative-cat-empty">
               <ActiveIcon className="mx-auto text-zinc-300 dark:text-zinc-600 mb-1.5" size={22} />
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                No {CATEGORY_META[activeCategory].label.toLowerCase()} yet. Upload one to use as a reference.
+                {t('mkt.cs_cat_empty', 'No {{cat}} yet. Upload one to use as a reference.', { cat: t('mkt.cs_cat_' + activeCategory, CATEGORY_META[activeCategory].label).toLowerCase() })}
               </p>
             </div>
           ) : (
@@ -552,12 +554,12 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
       {/* Generated outputs gallery */}
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm">
         <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
-          <Sparkles size={14} className="text-[var(--color-brand-blue)]" /> Generated posters
+          <Sparkles size={14} className="text-[var(--color-brand-blue)]" /> {t('mkt.cs_generated_posters', 'Generated posters')}
         </h3>
         {generatedAssets.length === 0 ? (
           <div className="rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 p-10 text-center bg-zinc-50/50 dark:bg-zinc-900/50" data-testid="creative-empty">
             <ImageIcon className="mx-auto text-zinc-300 dark:text-zinc-600 mb-2" size={32} />
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">No posters yet — fill in the form above and click Generate.</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">{t('mkt.cs_no_posters', 'No posters yet — fill in the form above and click Generate.')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" data-testid="creative-gallery">
@@ -570,9 +572,9 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
                   <p className="text-white/70 text-[9px] mb-2">{a.width}×{a.height}{a.style ? ` · ${a.style}` : ''}</p>
                   <div className="flex gap-1.5">
                     {a.source === 'fallback_svg' && (
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/80 text-white">Preview</span>
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/80 text-white">{t('mkt.cs_preview', 'Preview')}</span>
                     )}
-                    <a href={v.url} download className="ml-auto p-1 rounded hover:bg-white/20 text-white" title="Download" onClick={(e) => e.stopPropagation()}>
+                    <a href={v.url} download className="ml-auto p-1 rounded hover:bg-white/20 text-white" title={t('mkt.cs_download', 'Download')} onClick={(e) => e.stopPropagation()}>
                       <Upload size={11} className="rotate-180" />
                     </a>
                     <button onClick={async (e) => {
@@ -582,17 +584,17 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
                           `${API}/api/marketing/creative/director/expand-from-asset/${a.id}`,
                           {}, { headers, timeout: 90000 }
                         );
-                        notify.success('Expanded to full campaign — switch to AI Director tab to view');
+                        notify.success(t('mkt.cs_expanded', 'Expanded to full campaign — switch to AI Director tab to view'));
                         try {
                           window.dispatchEvent(new CustomEvent('director:open-brief', { detail: { briefId: r.data?.id } }));
                         } catch {}
                       } catch (e2) {
-                        notifyApiError(notify, e2, 'Expand failed');
+                        notifyApiError(notify, e2, t('mkt.cs_expand_err', 'Expand failed'));
                       }
-                    }} className="p-1 rounded hover:bg-white/20 text-white" title="Expand to full campaign" data-testid={`creative-expand-${a.id}`}>
+                    }} className="p-1 rounded hover:bg-white/20 text-white" title={t('mkt.cs_expand_title', 'Expand to full campaign')} data-testid={`creative-expand-${a.id}`}>
                       <Wand2 size={11} />
                     </button>
-                    <button onClick={(e) => { e.stopPropagation(); remove(a.id, a.headline || a.prompt); }} className="p-1 rounded hover:bg-white/20 text-white" data-testid={`creative-delete-${a.id}`} aria-label="Delete">
+                    <button onClick={(e) => { e.stopPropagation(); remove(a.id, a.headline || a.prompt); }} className="p-1 rounded hover:bg-white/20 text-white" data-testid={`creative-delete-${a.id}`} aria-label={t('mkt.cs_delete', 'Delete')}>
                       <Trash2 size={11} />
                     </button>
                   </div>
@@ -612,7 +614,7 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
           <button
             onClick={() => setLightbox(null)}
             className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white grid place-items-center"
-            aria-label="Close"
+            aria-label={t('mkt.cs_close', 'Close')}
             data-testid="creative-lightbox-close"
           >
             <X size={18}/>
@@ -634,7 +636,7 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
                 className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 rounded-md bg-white/10 hover:bg-white/20 text-white text-xs font-bold"
                 onClick={(e) => e.stopPropagation()}
               >
-                <Upload size={11} className="rotate-180"/> Download
+                <Upload size={11} className="rotate-180"/> {t('mkt.cs_download', 'Download')}
               </a>
             </div>
           </div>

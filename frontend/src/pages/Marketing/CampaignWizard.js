@@ -18,6 +18,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import {
   X, ChevronLeft, ChevronRight, Sparkles, Target, Users, ImagePlus, Calendar, Rocket,
   CheckCircle2, Lightbulb, Mail, Clock, Wand2,
@@ -72,6 +73,7 @@ const AI_COPY_BY_GOAL = {
 const clsx = (...parts) => parts.filter(Boolean).join(' ');
 
 function ProgressBar({ current, total }) {
+  const { t } = useTranslation();
   const pct = Math.round(((current + 1) / total) * 100);
   return (
     <div className="w-full">
@@ -94,7 +96,7 @@ function ProgressBar({ current, total }) {
               </div>
               <div className="min-w-0 hidden sm:block">
                 <div className="text-xs font-semibold truncate pulse-font-heading" style={{ color: active || done ? 'var(--theme-text)' : 'var(--theme-text-muted)' }}>
-                  {s.title}
+                  {t('mkt.wz_step_' + s.id + '_title', s.title)}
                 </div>
               </div>
               {i < STEP_DEFS.length - 1 && (
@@ -104,12 +106,13 @@ function ProgressBar({ current, total }) {
           );
         })}
       </div>
-      <div className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>{pct}% complete</div>
+      <div className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>{t('mkt.wz_pct_complete', '{{pct}}% complete', { pct })}</div>
     </div>
   );
 }
 
 function AICopilot({ tip, suggestions = [], onApply, loading = false }) {
+  const { t } = useTranslation();
   return (
     <aside
       className="rounded-2xl p-5 border h-fit pulse-font-body"
@@ -120,7 +123,7 @@ function AICopilot({ tip, suggestions = [], onApply, loading = false }) {
         <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
           <Sparkles size={14} />
         </div>
-        <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>AI copilot</div>
+        <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t('mkt.wz_ai_copilot', 'AI copilot')}</div>
         {loading && (
           <div
             className="ml-auto text-[10px] font-semibold uppercase tracking-[0.14em] inline-flex items-center gap-1.5"
@@ -128,7 +131,7 @@ function AICopilot({ tip, suggestions = [], onApply, loading = false }) {
             data-testid="wizard-ai-loading"
           >
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--color-brand-cyan)' }} />
-            Thinking…
+            {t('mkt.wz_thinking', 'Thinking…')}
           </div>
         )}
       </div>
@@ -163,6 +166,7 @@ function AICopilot({ tip, suggestions = [], onApply, loading = false }) {
 }
 
 export default function CampaignWizard({ open, onClose, preset, templateId, API, headers, toast }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState(templateId || '');
   const [audience, setAudience] = useState(null);
@@ -202,39 +206,40 @@ export default function CampaignWizard({ open, onClose, preset, templateId, API,
     switch (STEP_DEFS[step].id) {
       case 'goal':
         return {
-          tip: 'Based on your recent class attendance, "Fill empty classes" usually performs best mid-week. Pick a goal and we\'ll shape everything else around it.',
+          tip: t('mkt.wz_tip_goal', 'Based on your recent class attendance, "Fill empty classes" usually performs best mid-week. Pick a goal and we will shape everything else around it.'),
           suggestions: [
-            { label: 'Fill empty classes',        detail: 'Recommended — 3 low-book slots this week', applyId: 'fill-classes' },
-            { label: 'Win back inactive members', detail: '32 members went dormant last 30d',          applyId: 'win-back' },
+            { label: t('mkt.wz_sug_fill', 'Fill empty classes'),        detail: t('mkt.wz_sug_fill_d', 'Recommended — 3 low-book slots this week'), applyId: 'fill-classes' },
+            { label: t('mkt.wz_sug_winback', 'Win back inactive members'), detail: t('mkt.wz_sug_winback_d', '32 members went dormant last 30d'),          applyId: 'win-back' },
           ],
         };
       case 'audience':
         return {
-          tip: 'A highly targeted list of 50–200 people usually beats a blast to everyone. We\'ve pre-selected the segment that matches your goal.',
+          tip: t('mkt.wz_tip_audience', 'A highly targeted list of 50–200 people usually beats a blast to everyone. We have pre-selected the segment that matches your goal.'),
           suggestions: goal ? [{
-            label: AUDIENCE_PRESETS[goal]?.label || 'Default segment',
-            detail: `${AUDIENCE_PRESETS[goal]?.approx || ''} of members`,
+            label: AUDIENCE_PRESETS[goal]?.label || t('mkt.wz_default_segment', 'Default segment'),
+            detail: `${AUDIENCE_PRESETS[goal]?.approx || ''} ${t('mkt.wz_of_members', 'of members')}`,
             applyPreset: AUDIENCE_PRESETS[goal],
           }] : [],
         };
       case 'creative':
         return {
-          tip: 'Your brand voice (friendly, direct) is applied automatically. Keep subjects under 45 characters for best open rates.',
+          tip: t('mkt.wz_tip_creative', 'Your brand voice (friendly, direct) is applied automatically. Keep subjects under 45 characters for best open rates.'),
           suggestions: goal ? [{
-            label: 'Apply AI-written draft',
+            label: t('mkt.wz_apply_draft', 'Apply AI-written draft'),
             detail: AI_COPY_BY_GOAL[goal]?.subject || '',
             applyCopy: AI_COPY_BY_GOAL[goal],
           }] : [],
         };
       case 'schedule':
         return {
-          tip: 'Your members open emails most on Tuesdays at 7 AM. We\'ll default to that unless you pick something else.',
-          suggestions: [{ label: 'Best-time send (Tue 7 AM)', detail: 'Predicted +14% open rate', applyTiming: 'best-time' }],
+          tip: t('mkt.wz_tip_schedule', 'Your members open emails most on Tuesdays at 7 AM. We will default to that unless you pick something else.'),
+          suggestions: [{ label: t('mkt.wz_besttime_sug', 'Best-time send (Tue 7 AM)'), detail: t('mkt.wz_besttime_d', 'Predicted +14% open rate'), applyTiming: 'best-time' }],
         };
       case 'review':
-        return { tip: 'Quick pre-flight check — every placeholder is substituted, no spam triggers detected.', suggestions: [] };
+        return { tip: t('mkt.wz_tip_review', 'Quick pre-flight check — every placeholder is substituted, no spam triggers detected.'), suggestions: [] };
       default: return { tip: '', suggestions: [] };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, goal]);
 
   // Live AI state — fetched from /api/marketing/wizard-copilot (Claude Sonnet).
@@ -318,7 +323,7 @@ export default function CampaignWizard({ open, onClose, preset, templateId, API,
     setLaunching(true);
     setLaunchError('');
     try {
-      const goalLabel = GOALS.find((g) => g.id === goal)?.label || 'Campaign';
+      const goalLabel = GOALS.find((g) => g.id === goal)?.label || t('mkt.wz_campaign', 'Campaign');
       const resp = await axios.post(`${API}/api/marketing/campaigns`, {
         name: `${goalLabel} — ${new Date().toLocaleDateString('en-GB')}`,
         goal,
@@ -331,17 +336,17 @@ export default function CampaignWizard({ open, onClose, preset, templateId, API,
       }, { headers, timeout: 30000 });
       const id = resp?.data?.campaign?.id || resp?.data?.id || resp?.data?.campaign_id || null;
       try { window.dispatchEvent(new CustomEvent('gymaxis:campaign-launched', { detail: { id } })); } catch (_) {}
-      toast?.({ title: 'Saved! Your campaign is in the Campaigns tab as a draft.', intent: 'success' });
+      toast?.({ title: t('mkt.wz_saved_toast', 'Saved! Your campaign is in the Campaigns tab as a draft.'), intent: 'success' });
       onClose?.({ launched: true, campaignId: id });
     } catch (e) {
       // Keep the wizard OPEN so the user's inputs are never lost — show a clear
       // error and let them retry. (Previously this closed the modal and the
       // work was gone, and a hung request left the button spinning forever.)
       const msg = e?.code === 'ECONNABORTED'
-        ? 'That took too long to save. Check your connection and try again — your campaign details are still here.'
-        : (e?.response?.data?.detail || "Couldn't save the campaign. Your details are still here — please try again.");
-      setLaunchError(typeof msg === 'string' ? msg : "Couldn't save the campaign. Please try again.");
-      toast?.({ title: 'Campaign not saved — please try again', intent: 'error' });
+        ? t('mkt.wz_save_timeout', 'That took too long to save. Check your connection and try again — your campaign details are still here.')
+        : (e?.response?.data?.detail || t('mkt.wz_save_err', 'Could not save the campaign. Your details are still here — please try again.'));
+      setLaunchError(typeof msg === 'string' ? msg : t('mkt.wz_save_err_short', 'Could not save the campaign. Please try again.'));
+      toast?.({ title: t('mkt.wz_not_saved_toast', 'Campaign not saved — please try again'), intent: 'error' });
     } finally {
       setLaunching(false);
     }
@@ -360,13 +365,13 @@ export default function CampaignWizard({ open, onClose, preset, templateId, API,
         {/* Header + progress */}
         <div className="p-5 border-b flex items-start gap-4" style={{ borderColor: 'var(--theme-border)' }}>
           <div className="flex-1 min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] mb-1" style={{ color: 'var(--color-brand-cyan)' }}>Guided campaign</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] mb-1" style={{ color: 'var(--color-brand-cyan)' }}>{t('mkt.wz_guided', 'Guided campaign')}</div>
             <div className="text-xl font-semibold pulse-font-heading truncate" style={{ color: 'var(--theme-text)' }}>
-              {STEP_DEFS[step].headline}
+              {t('mkt.wz_step_' + STEP_DEFS[step].id + '_headline', STEP_DEFS[step].headline)}
             </div>
-            <div className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>{STEP_DEFS[step].sub}</div>
+            <div className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>{t('mkt.wz_step_' + STEP_DEFS[step].id + '_sub', STEP_DEFS[step].sub)}</div>
           </div>
-          <button type="button" className="btn-icon" onClick={() => onClose?.()} aria-label="Close wizard" data-testid="wizard-close">
+          <button type="button" className="btn-icon" onClick={() => onClose?.()} aria-label={t('mkt.wz_close', 'Close wizard')} data-testid="wizard-close">
             <X size={14} />
           </button>
         </div>
@@ -393,8 +398,8 @@ export default function CampaignWizard({ open, onClose, preset, templateId, API,
                     style={{ background: goal === g.id ? 'var(--color-brand-cyan)15' : 'var(--theme-surface)', borderColor: goal === g.id ? 'var(--color-brand-cyan)' : 'var(--theme-border)' }}
                     data-testid={`wizard-goal-${g.id}`}
                   >
-                    <div className="text-sm font-semibold mb-1 pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{g.label}</div>
-                    <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{g.hint}</div>
+                    <div className="text-sm font-semibold mb-1 pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t('mkt.wz_goal_' + g.id + '_label', g.label)}</div>
+                    <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('mkt.wz_goal_' + g.id + '_hint', g.hint)}</div>
                   </button>
                 ))}
               </div>
@@ -419,8 +424,8 @@ export default function CampaignWizard({ open, onClose, preset, templateId, API,
                       <Users size={13} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{a.label}</div>
-                      <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Approx {a.approx} of members</div>
+                      <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t('mkt.wz_aud_' + a.id + '_label', a.label)}</div>
+                      <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('mkt.wz_approx', 'Approx {{approx}} of members', { approx: a.approx })}</div>
                     </div>
                     {audience?.id === a.id && <CheckCircle2 size={16} style={{ color: 'var(--color-brand-cyan)' }} />}
                   </button>
@@ -432,33 +437,33 @@ export default function CampaignWizard({ open, onClose, preset, templateId, API,
             {STEP_DEFS[step].id === 'creative' && (
               <div className="space-y-4" data-testid="wizard-creative">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--theme-text-muted)' }}>Subject line</label>
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--theme-text-muted)' }}>{t('mkt.wz_subject', 'Subject line')}</label>
                   <input
                     type="text"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    placeholder="e.g. Your class is waiting"
+                    placeholder={t('mkt.wz_subject_ph', 'e.g. Your class is waiting')}
                     className="w-full h-10 rounded-full px-4 text-sm focus:outline-none focus:border-[rgb(var(--rgb-brand-cyan)/0.6)]"
                     style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)', color: 'var(--theme-text)' }}
                     data-testid="wizard-subject-input"
                   />
                   <div className="mt-1 text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>
-                    Shorter subjects (under 45 chars) tend to get the best open rates.
+                    {t('mkt.wz_subject_hint', 'Shorter subjects (under 45 chars) tend to get the best open rates.')}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--theme-text-muted)' }}>Body</label>
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--theme-text-muted)' }}>{t('mkt.wz_body', 'Body')}</label>
                   <textarea
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     rows={6}
-                    placeholder="Write the message, or hit Apply AI-written draft in the copilot."
+                    placeholder={t('mkt.wz_body_ph', 'Write the message, or hit Apply AI-written draft in the copilot.')}
                     className="w-full rounded-2xl p-4 text-sm focus:outline-none focus:border-[rgb(var(--rgb-brand-cyan)/0.6)]"
                     style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)', color: 'var(--theme-text)' }}
                     data-testid="wizard-body-input"
                   />
                   <div className="mt-1 text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>
-                    {`{{first_name}}`} and {`{{company_name}}`} are replaced per-recipient at send time.
+                    {`{{first_name}}`} {t('mkt.wz_and', 'and')} {`{{company_name}}`} {t('mkt.wz_replaced', 'are replaced per-recipient at send time.')}
                   </div>
                 </div>
               </div>
@@ -468,7 +473,7 @@ export default function CampaignWizard({ open, onClose, preset, templateId, API,
             {STEP_DEFS[step].id === 'schedule' && (
               <div className="space-y-5" data-testid="wizard-schedule">
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--theme-text-muted)' }}>Channel</div>
+                  <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--theme-text-muted)' }}>{t('mkt.wz_channel', 'Channel')}</div>
                   <div className="flex gap-2 flex-wrap">
                     {CHANNELS.map((c) => {
                       const Icon = c.icon;
@@ -483,27 +488,27 @@ export default function CampaignWizard({ open, onClose, preset, templateId, API,
                           style={sel ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', borderColor: 'var(--color-brand-cyan)' } : { background: 'var(--theme-surface)', color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}
                           data-testid={`wizard-channel-${c.id}`}
                         >
-                          <Icon size={13} /> {c.label}{c.locked && ' (soon)'}
+                          <Icon size={13} /> {t('mkt.wz_chan_' + c.id, c.label)}{c.locked && ' ' + t('mkt.wz_soon', '(soon)')}
                         </button>
                       );
                     })}
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--theme-text-muted)' }}>Send time</div>
+                  <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--theme-text-muted)' }}>{t('mkt.wz_send_time', 'Send time')}</div>
                   <div className="space-y-2">
-                    {TIME_SLOTS.map((t) => (
+                    {TIME_SLOTS.map((slot) => (
                       <button
-                        key={t.id}
+                        key={slot.id}
                         type="button"
-                        onClick={() => setTiming(t.id)}
+                        onClick={() => setTiming(slot.id)}
                         className={clsx('w-full text-left rounded-xl p-3 border transition-colors flex items-center gap-2')}
-                        style={timing === t.id ? { background: 'var(--color-brand-cyan)15', borderColor: 'var(--color-brand-cyan)' } : { background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}
-                        data-testid={`wizard-time-${t.id}`}
+                        style={timing === slot.id ? { background: 'var(--color-brand-cyan)15', borderColor: 'var(--color-brand-cyan)' } : { background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}
+                        data-testid={`wizard-time-${slot.id}`}
                       >
                         <Clock size={13} style={{ color: 'var(--color-brand-cyan)' }} />
-                        <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t.label}</div>
-                        {timing === t.id && <CheckCircle2 size={14} className="ml-auto" style={{ color: 'var(--color-brand-cyan)' }} />}
+                        <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t('mkt.wz_time_' + slot.id, slot.label)}</div>
+                        {timing === slot.id && <CheckCircle2 size={14} className="ml-auto" style={{ color: 'var(--color-brand-cyan)' }} />}
                       </button>
                     ))}
                     {timing === 'custom' && (
@@ -525,13 +530,13 @@ export default function CampaignWizard({ open, onClose, preset, templateId, API,
             {STEP_DEFS[step].id === 'review' && (
               <div className="space-y-3" data-testid="wizard-review">
                 <div className="rounded-2xl p-4 border" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
-                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: 'var(--color-brand-cyan)' }}>Pre-flight</div>
+                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('mkt.wz_preflight', 'Pre-flight')}</div>
                   <ul className="space-y-2 text-sm" style={{ color: 'var(--theme-text)' }}>
-                    <li className="flex items-center gap-2"><CheckCircle2 size={14} style={{ color: 'var(--color-success)' }} /> Goal: <span className="font-semibold">{GOALS.find(g => g.id === goal)?.label || 'Not set'}</span></li>
-                    <li className="flex items-center gap-2"><CheckCircle2 size={14} style={{ color: 'var(--color-success)' }} /> Audience: <span className="font-semibold">{audience?.label || 'Not set'}</span></li>
-                    <li className="flex items-center gap-2"><CheckCircle2 size={14} style={{ color: 'var(--color-success)' }} /> Channel: <span className="font-semibold">{channel.toUpperCase()}</span></li>
-                    <li className="flex items-center gap-2"><CheckCircle2 size={14} style={{ color: 'var(--color-success)' }} /> Send time: <span className="font-semibold">{TIME_SLOTS.find(t => t.id === timing)?.label || timing}</span></li>
-                    <li className="flex items-center gap-2"><CheckCircle2 size={14} style={{ color: 'var(--color-success)' }} /> Subject: <span className="font-semibold truncate">{subject || '—'}</span></li>
+                    <li className="flex items-center gap-2"><CheckCircle2 size={14} style={{ color: 'var(--color-success)' }} /> {t('mkt.wz_r_goal', 'Goal:')} <span className="font-semibold">{goal ? t('mkt.wz_goal_' + goal + '_label', GOALS.find(g => g.id === goal)?.label || goal) : t('mkt.wz_not_set', 'Not set')}</span></li>
+                    <li className="flex items-center gap-2"><CheckCircle2 size={14} style={{ color: 'var(--color-success)' }} /> {t('mkt.wz_r_audience', 'Audience:')} <span className="font-semibold">{audience ? t('mkt.wz_aud_' + audience.id + '_label', audience.label) : t('mkt.wz_not_set', 'Not set')}</span></li>
+                    <li className="flex items-center gap-2"><CheckCircle2 size={14} style={{ color: 'var(--color-success)' }} /> {t('mkt.wz_r_channel', 'Channel:')} <span className="font-semibold">{channel.toUpperCase()}</span></li>
+                    <li className="flex items-center gap-2"><CheckCircle2 size={14} style={{ color: 'var(--color-success)' }} /> {t('mkt.wz_r_send_time', 'Send time:')} <span className="font-semibold">{t('mkt.wz_time_' + timing, TIME_SLOTS.find(s => s.id === timing)?.label || timing)}</span></li>
+                    <li className="flex items-center gap-2"><CheckCircle2 size={14} style={{ color: 'var(--color-success)' }} /> {t('mkt.wz_r_subject', 'Subject:')} <span className="font-semibold truncate">{subject || '—'}</span></li>
                   </ul>
                 </div>
               </div>
@@ -555,15 +560,15 @@ export default function CampaignWizard({ open, onClose, preset, templateId, API,
           )}
           <div className="p-5 flex items-center justify-between gap-3">
             <button type="button" onClick={back} disabled={step === 0} className="btn-secondary" data-testid="wizard-back">
-              <ChevronLeft size={14} /> Back
+              <ChevronLeft size={14} /> {t('mkt.wz_back', 'Back')}
             </button>
             {step < STEP_DEFS.length - 1 ? (
               <button type="button" onClick={next} disabled={!canNext()} className="btn-primary" data-testid="wizard-next">
-                Next <ChevronRight size={14} />
+                {t('mkt.wz_next', 'Next')} <ChevronRight size={14} />
               </button>
             ) : (
               <button type="button" onClick={launch} disabled={launching} className="btn-primary" data-testid="wizard-launch">
-                <Rocket size={14} /> {launching ? 'Saving…' : 'Launch campaign'}
+                <Rocket size={14} /> {launching ? t('mkt.wz_saving', 'Saving…') : t('mkt.wz_launch', 'Launch campaign')}
               </button>
             )}
           </div>

@@ -1,0 +1,23 @@
+{
+  "summary": "Verified FR/DE i18n for the 4 largest Marketing console tabs (Campaigns, Campaign Wizard, Creative Studio, AI Director). Logged in as owner@isodemo.com, switched EN↔FR↔DE via [data-testid=lang-switcher-btn] and inspected each tab for raw 'mkt.*' key leakage in DOM (text nodes + attributes + full outerHTML regex scan) and for crashes / whitescreens. RESULT: 0 mkt.* leaks in any language on any of the 4 tabs, including inside the CampaignWizard modal (stepped Goal→Audience→Creative→Schedule→Review) and inside Creative Studio + AI Director sub-panels. Director dropdown OPTIONS (goal / tone / resolution) are fully translated in FR & DE (verified textual content: e.g. FR 'Promouvoir un cours', 'Haute énergie', 'Portrait Instagram'; DE 'Kurs bewerben', 'Hochenergetisch', 'Instagram Hochformat'). EN restored cleanly on switch-back (Campaigns/Creative Studio/AI Director all English). No console errors other than CSP-blocked 3rd-party analytics (pre-existing, unrelated).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "No new issues found. Prior t-shadow renames (tplRes/tpl/slot/ty/tn) confirmed working — no ReferenceError or shadowed-var crashes surfaced in console.",
+    "Language switcher persistence works across tab navigation and reloads."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (from review request)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Marketing i18n batch (4 tabs: CampaignsTab, CampaignWizard, CreativeStudioTab, AIDirectorPanel) passes cleanly in EN/FR/DE. Verification method: regex scan `/\\bmkt\\.[a-zA-Z0-9_.]+/g` against document.documentElement.innerHTML while iterating tabs + opening wizard + opening director/creative dropdowns. Zero leaks. Language switcher testids: lang-switcher-btn, lang-option-{en|fr|de}. AI Director lives as a sub-tab (badge 'RECOMMENDED') inside the Creative Studio tab (marketing-tab-creative) alongside 'Quick Poster' and 'Churn Rescue' — there is no separate marketing-tab-ai-director. Live AI generation (Generate Campaign / post-mortem) was NOT triggered per instructions; static input UI + dropdown options were verified translated instead.",
+  "rca of the issue": "N/A — no issues found."
+}
