@@ -1,4 +1,27 @@
-# ═══ 2026-07-30 · PRICING CTA → SIGN-IN → STRIPE (PRODUCTION BUG FIX) + 3-DAY TRIAL COPY (DONE, testing_agent VERIFIED) ═══
+# ═══ 2026-07-31 · ACCOUNT SETTINGS — SUBSCRIPTION DE-DUPLICATION (DONE, testing_agent VERIFIED) ═══
+User: "Manage subscription — look at the account settings and ensure that nothing is repeated." Found the subscription
+info shown twice.
+FIX (frontend-only):
+  • Customer-facing AccountSettingsModal → BillingSection (components/shared/AccountSettings/billing.js): during a TRIAL
+    the trial countdown banner AND the 'Current plan' card both rendered trial text + an 'Upgrade Plan' button. The
+    current-plan card now HIDES its Upgrade button + trial subtext when isTrial (banner is the single Upgrade CTA);
+    when NOT in trial it stays the single place to Upgrade/Change plan. No other section repeats plan info
+    (Organisation shows only the billing CONTACT; Profile has no plan block).
+  • Legacy master-admin AccountPanel.js: removed the duplicate 'Current plan / Subscription' summary card; the
+    SubscriptionManagementPanel (components/shared/SubscriptionManagementPanel.js) is now the single subscription section
+    and was enhanced with price (£X/month via planPrice prop) + a 'Subscribe' CTA when currentPlan==='none'. Removed now-unused
+    CreditCard/Button imports.
+VERIFIED: testing_agent (iteration_manage_subscription_dedupe_jan2026.json) — customer Plan & Billing shows EXACTLY ONE
+  of each: nav entry, Current-plan card, Upgrade button, modules grid, payment-history block; no trial banner for the
+  non-trial account; 'Trial' text count = 0. 0 UI bugs.
+⚠️ SEPARATE PRE-EXISTING PREVIEW CONFIG GAP (NOT caused by this change): the account-settings 'Upgrade Plan' button uses
+  the BUNDLE plan → POST /payments/checkout/flex {plan:'bundle'} returns 501 'Stripe bundle Price IDs not configured' in
+  PREVIEW (MODULE price IDs ARE configured, so module checkout + the pricing-page CTAs work). Configure bundle Stripe
+  Price IDs (or verify they exist in production) to make the all-modules 'Upgrade Plan' CTA reach Stripe.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 Reported (production /pulse-pricing): clicking a plan/module CTA opened a sign-in-ONLY popup that dead-ended customers;
 should route them to Stripe (via sign-in) for the chosen package. Clarified model: ALL customers are pre-provisioned
 Pulse "Lite" users — NO public self-serve signup. Select package → sign in → Stripe checkout, or upgrade in-app.
