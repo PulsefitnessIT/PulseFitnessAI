@@ -689,6 +689,9 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers, canIn
 export default function CRMCPQ() {
   const crm = useCRM();
   const { API, headers, c, isDark, navTarget, setNavTarget } = crm;
+  // MOD Auto Quote is a Pulse Fitness Ltd (operator) capability only — it reads
+  // across MOD site tenants, so it must never surface for customer orgs.
+  const canModQuote = !!(crm.user?.is_pulse_internal || crm.user?.is_master_admin);
   const [quotes, setQuotes] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -870,9 +873,11 @@ export default function CRMCPQ() {
         <button type="button" onClick={() => crm.setActiveTab && crm.setActiveTab('quote-compare')} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="compare-quotes-btn">
           <GitCompareArrows size={14} /> Compare
         </button>
-        <button type="button" onClick={() => setShowMOD(true)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="mod-quote-btn">
-          <ShieldCheck size={14} /> MOD Auto Quote
-        </button>
+        {canModQuote && (
+          <button type="button" onClick={() => setShowMOD(true)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="mod-quote-btn">
+            <ShieldCheck size={14} /> MOD Auto Quote
+          </button>
+        )}
         <button type="button" onClick={openCreate} className="btn-primary" data-testid="create-quote-btn">
           <Plus size={14} /> New Quote
         </button>

@@ -1,3 +1,30 @@
+# ═══ 2026-07-31 · SECURITY — MOD QUOTE WRITER CROSS-TENANT LEAK (GDPR) FIXED, curl-verified ═══
+Reported (PRODUCTION): a customer org ("Penkridge") could see Pulse Fitness's MOD customers via CRM "MOD Auto Quote".
+ROOT CAUSE (NOT a master-admin flaw — master admin cross-org visibility is by-design for the platform owner):
+  the MOD Quote Writer (routes/crm_mod_quote.py) is a Pulse-internal, deliberately cross-tenant tool (it reads across
+  MOD *site* orgs so Pulse can quote the whole estate) but every endpoint was gated only by get_crm_user (ANY CRM
+  login) with NO operator-org check. GET /crm/mod-quote/mod-sites enumerated ALL orgs with account_type mod_site/mod_org
+  platform-wide; GET /crm/mod-quote/equipment?site_id= returned ANY site's equipment (no ownership check). Frontend
+  showed the "MOD Auto Quote" button to every CRM user. → cross-tenant exposure of MOD customer + equipment data.
+FIX:
+  • BACKEND crm_mod_quote.py: new dependency require_operator_crm_user — allows ONLY Pulse platform admins
+    (is_master_admin / is_pulse_admin / role pulse_master_admin) OR a caller whose org has the authoritative
+    is_operator_company flag (Pulse Fitness Ltd, id 3ece2d0c-57ea-4acd-a6b4-d748478ed117). Applied to ALL 9
+    authenticated router endpoints (rate-card get/put/reseed, mod-sites, equipment, ai-match, generate, contracts,
+    send-esign). Public token e-sign router unchanged. Uses is_operator_company (not a name/brand heuristic) for the
+    security boundary.
+  • FRONTEND CRMCPQ.js: "MOD Auto Quote" button (data-testid mod-quote-btn) now renders only when
+    canModQuote = crm.user.is_pulse_internal || is_master_admin (UX layer; backend 403 is the real guard).
+VERIFIED (curl): owner@isodemo.com (non-operator org) → 403 "MOD quoting is restricted to Pulse Fitness." on
+  /mod-sites, /equipment, /rate-card. admin@pulsefitness.com (operator/master) → 200, 7 MOD sites returned. Frontend
+  babel-parse OK.
+⚠️ PREVIEW ONLY — the leak is LIVE on PRODUCTION (fitness-ai-migrate.emergent.host); a REDEPLOY is required to close it
+  there. Only 1 org carries is_operator_company=true (Pulse Fitness Ltd) — confirm the same on production before/after
+  redeploy.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-31 · ASER REPORT — RENDER INSIDE PLATFORM SHELL + THEME MATCH (DONE, testing_agent VERIFIED 6/6) ═══
 User: pressing ASER opened a NEW full-screen that broke out of the platform template; make it look like the rest of the
 platform. Root cause: MODASERPortal.js used React createPortal(document.body) + `fixed inset-0 z-[100]` with a hardcoded
