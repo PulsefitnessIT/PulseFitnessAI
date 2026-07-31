@@ -112,16 +112,16 @@ async def get_equipment_summary_report(
     for equip in equipment_list:
         equip_type = equip.get('equipment_type', 'Unknown')
         summary['by_type'][equip_type] = summary['by_type'].get(equip_type, 0) + 1
-        stats = bulk_stats.get(equip['id'], {})
+        stats = bulk_stats.get(equip.get('id'), {})
         summary['total_issues'] += stats.get('total_issues', 0)
         summary['open_issues'] += stats.get('open_issues', 0)
         summary['total_audits'] += stats.get('total_audits', 0)
         if stats.get('warranty_days_remaining') and stats['warranty_days_remaining'] < 30:
             summary['warranty_expiring_soon'] += 1
         summary['equipment_details'].append({
-            "id": equip['id'],
-            "name": equip['name'],
-            "type": equip['equipment_type'],
+            "id": equip.get('id'),
+            "name": equip.get('name') or equip.get('display_name') or 'Unnamed equipment',
+            "type": equip_type,
             "manufacturer": equip.get('manufacturer'),
             "stats": stats
         })

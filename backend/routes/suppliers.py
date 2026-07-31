@@ -325,6 +325,89 @@ async def supplier_insights(days: int = 90, user: dict = Depends(get_current_use
     }
 
 
+@router.get("/suppliers/insights/faults")
+async def supplier_insight_faults(
+    supplier: str = "", unassigned: bool = False, days: int = 90,
+    user: dict = Depends(get_current_user),
+):
+    """Pro/Full-only — the individual faults behind an insights row. Pass
+    `unassigned=true` for the Unassigned bucket, otherwise `supplier=<name>`.
+    """
+    _require_owner_or_manager(user)
+    org = await db.organizations.find_one(
+        {"id": user.get("organization_id")}, {"_id": 0, "account_type": 1}) or {}
+    if not can_add_extra_suppliers(user, org):
+        raise HTTPException(status_code=403, detail="Supplier insights is a Pulse Pro feature.")
+
+    org_filter = get_organization_filter(user)
+    days = max(1, min(int(days or 90), 365))
+    since = datetime.now(timezone.utc).timestamp() - days * 86400
+
+    def _parse(ts):
+        if not ts:
+            return None
+        try:
+            return datetime.fromisoformat(str(ts).replace("Z", "+00:00")).timestamp()
+        except Exception:
+            return None
+
+    issues = await db.issues.find(
+        org_filter,
+        {"_id": 0, "id": 1, "supplier": 1, "status": 1, "created_at": 1,
+         "resolved_at": 1, "issue_description": 1, "severity": 1,
+         "equipment_id": 1, "serial_number": 1},
+    ).to_list(20000)
+
+    target = (supplier or "").strip().lower()
+    rows = []
+    for iss in issues:
+        name = (iss.get("supplier") or "").strip()
+        if unassigned:
+            if name:
+                continue
+        elif name.lower() != target:
+            continue
+        created = _parse(iss.get("created_at"))
+        if created is None or created < since:
+            continue
+        resolved = _parse(iss.get("resolved_at"))
+        res_hours = round((resolved - created) / 3600.0, 1) if (resolved and resolved >= created) else None
+        rows.append({
+            "id": iss.get("id"),
+            "issue_description": iss.get("issue_description") or "—",
+            "status": iss.get("status"),
+            "severity": iss.get("severity"),
+            "created_at": iss.get("created_at"),
+            "resolved_at": iss.get("resolved_at"),
+            "resolution_hours": res_hours,
+            "equipment_id": iss.get("equipment_id"),
+            "serial_number": iss.get("serial_number"),
+            "machine_name": None,
+        })
+
+    # Resolve machine names in one batch.
+    eq_ids = [r["equipment_id"] for r in rows if r.get("equipment_id")]
+    if eq_ids:
+        eq = await db.equipment.find(
+            {"id": {"$in": eq_ids}}, {"_id": 0, "id": 1, "name": 1}).to_list(5000)
+        names = {e["id"]: e.get("name") for e in eq}
+        for r in rows:
+            r["machine_name"] = names.get(r.get("equipment_id")) or r.get("serial_number") or "Unknown machine"
+    else:
+        for r in rows:
+            r["machine_name"] = r.get("serial_number") or "Unknown machine"
+
+    rows.sort(key=lambda r: r.get("created_at") or "", reverse=True)
+    return {
+        "supplier": "Unassigned" if unassigned else supplier,
+        "is_unassigned": bool(unassigned),
+        "window_days": days,
+        "count": len(rows),
+        "faults": rows[:200],
+    }
+
+
+
 
 @router.put("/suppliers/{supplier_id}")
 async def update_supplier(supplier_id: str, data: Dict[str, Any], user: dict = Depends(get_current_user)):

@@ -18,7 +18,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import {
   Plus, Trash2, Pencil, X, Loader2, Truck, Mail, Phone, User, Tag,
-  AlertTriangle, CheckCircle2, Lock, BarChart3,
+  AlertTriangle, CheckCircle2, Lock, BarChart3, ChevronRight,
 } from 'lucide-react';
 import { API, useAuthHeaders } from './shared';
 
@@ -46,6 +46,25 @@ export default function SuppliersSection() {
   const [readiness, setReadiness] = useState(null);
   const [canAdd, setCanAdd] = useState(true);
   const [insights, setInsights] = useState(null);
+  const [expandedKey, setExpandedKey] = useState(null);
+  const [faultsByKey, setFaultsByKey] = useState({});
+  const [loadingFaults, setLoadingFaults] = useState(false);
+
+  const toggleFaults = useCallback(async (row) => {
+    const key = row.is_unassigned ? '__unassigned__' : row.supplier;
+    if (expandedKey === key) { setExpandedKey(null); return; }
+    setExpandedKey(key);
+    if (faultsByKey[key]) return;
+    setLoadingFaults(true);
+    try {
+      const params = row.is_unassigned
+        ? { unassigned: true }
+        : { supplier: row.supplier };
+      const r = await axios.get(`${API}/suppliers/insights/faults`, { headers: headers(), params });
+      setFaultsByKey((m) => ({ ...m, [key]: r.data?.faults || [] }));
+    } catch { setFaultsByKey((m) => ({ ...m, [key]: [] })); }
+    finally { setLoadingFaults(false); }
+  }, [expandedKey, faultsByKey, headers]);
 
   const loadReadiness = useCallback(async () => {
     try {
@@ -207,26 +226,69 @@ export default function SuppliersSection() {
             </div>
             <span className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>Last {insights.window_days} days · {insights.total_faults} fault{insights.total_faults === 1 ? '' : 's'}</span>
           </div>
-          <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-4 py-2 text-[11px] uppercase tracking-wider font-semibold" style={{ color: 'var(--theme-text-muted)' }}>
-            <span>Supplier</span><span className="text-right">Faults</span><span className="text-right">Avg. resolution</span>
+          <div className="grid grid-cols-[auto_1fr_auto_auto] gap-x-3 px-4 py-2 text-[11px] uppercase tracking-wider font-semibold" style={{ color: 'var(--theme-text-muted)' }}>
+            <span className="w-3.5" /><span>Supplier</span><span className="text-right">Faults</span><span className="text-right">Avg. resolution</span>
           </div>
-          {insights.suppliers.map((r) => (
-            <div key={r.supplier} className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-4 py-2.5 border-t items-center" style={{ borderColor: 'var(--theme-border)' }} data-testid={`supplier-insight-row-${r.is_unassigned ? 'unassigned' : r.supplier}`}>
-              <div className="min-w-0">
-                <div className="text-sm font-medium truncate flex items-center gap-1.5" style={{ color: r.is_unassigned ? 'var(--theme-text-muted)' : 'var(--theme-text)' }}>
-                  {r.is_unassigned ? <><AlertTriangle size={12} style={{ color: '#f59e0b' }} /> Unassigned</> : r.supplier}
+          {insights.suppliers.map((r) => {
+            const key = r.is_unassigned ? '__unassigned__' : r.supplier;
+            const isOpen = expandedKey === key;
+            const faults = faultsByKey[key];
+            return (
+            <div key={r.supplier} className="border-t" style={{ borderColor: 'var(--theme-border)' }}>
+              <button
+                type="button"
+                onClick={() => toggleFaults(r)}
+                className="w-full grid grid-cols-[auto_1fr_auto_auto] gap-x-3 px-4 py-2.5 items-center text-left transition-colors hover:bg-white/[0.03]"
+                data-testid={`supplier-insight-row-${r.is_unassigned ? 'unassigned' : r.supplier}`}
+              >
+                <ChevronRight size={14} className="transition-transform" style={{ color: 'var(--theme-text-muted)', transform: isOpen ? 'rotate(90deg)' : 'none' }} />
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate flex items-center gap-1.5" style={{ color: r.is_unassigned ? 'var(--theme-text-muted)' : 'var(--theme-text)' }}>
+                    {r.is_unassigned ? <><AlertTriangle size={12} style={{ color: '#f59e0b' }} /> Unassigned</> : r.supplier}
+                  </div>
+                  {r.is_unassigned ? (
+                    <div className="text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>No supplier set — assign one so it isn&rsquo;t routed to Pulse by default.</div>
+                  ) : null}
                 </div>
-                {r.is_unassigned ? (
-                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>No supplier set — assign one so it isn&rsquo;t routed to Pulse by default.</div>
-                ) : null}
-              </div>
-              <div className="text-right text-sm" style={{ color: 'var(--theme-text)' }}>
-                {r.total_faults}
-                <span className="text-[11px] ml-1" style={{ color: 'var(--theme-text-muted)' }}>({r.open_faults} open)</span>
-              </div>
-              <div className="text-right text-sm" style={{ color: 'var(--theme-text)' }}>{fmtResolution(r.avg_resolution_hours)}</div>
+                <div className="text-right text-sm" style={{ color: 'var(--theme-text)' }}>
+                  {r.total_faults}
+                  <span className="text-[11px] ml-1" style={{ color: 'var(--theme-text-muted)' }}>({r.open_faults} open)</span>
+                </div>
+                <div className="text-right text-sm tabular-nums" style={{ color: 'var(--theme-text)' }}>{fmtResolution(r.avg_resolution_hours)}</div>
+              </button>
+              {isOpen ? (
+                <div className="px-4 pb-3 pt-1" data-testid={`supplier-insight-faults-${r.is_unassigned ? 'unassigned' : r.supplier}`}>
+                  {loadingFaults && !faults ? (
+                    <div className="flex items-center gap-2 text-xs py-2" style={{ color: 'var(--theme-text-muted)' }}>
+                      <Loader2 size={13} className="animate-spin" /> Loading faults…
+                    </div>
+                  ) : (faults && faults.length > 0) ? (
+                    <ul className="space-y-1.5">
+                      {faults.map((f) => (
+                        <li key={f.id} className="rounded-lg px-3 py-2 flex items-start justify-between gap-3" style={{ background: 'var(--theme-bg, rgba(0,0,0,0.15))' }} data-testid={`insight-fault-${f.id}`}>
+                          <div className="min-w-0">
+                            <div className="text-xs font-medium truncate" style={{ color: 'var(--theme-text)' }}>{f.machine_name}</div>
+                            <div className="text-[11px] truncate" style={{ color: 'var(--theme-text-muted)' }}>{f.issue_description}</div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-[10px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded" style={{ background: (f.status === 'open' || f.status === 'in_progress') ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)', color: (f.status === 'open' || f.status === 'in_progress') ? '#f59e0b' : '#10b981' }}>
+                              {(f.status || '').replace('_', ' ') || '—'}
+                            </span>
+                            <div className="text-[10px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>
+                              {f.resolution_hours != null ? `resolved in ${fmtResolution(f.resolution_hours)}` : 'open'}
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="text-xs py-2" style={{ color: 'var(--theme-text-muted)' }}>No faults in this window.</div>
+                  )}
+                </div>
+              ) : null}
             </div>
-          ))}
+            );
+          })}
         </div>
       ) : null}
 

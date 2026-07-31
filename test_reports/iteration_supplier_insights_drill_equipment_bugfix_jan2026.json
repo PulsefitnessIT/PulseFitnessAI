@@ -1,0 +1,23 @@
+{
+  "summary": "Tested (1) supplier insights drill-down (backend + frontend) and (2) equipment-summary 500 KeyError bugfix. Backend: 3 passed / 1 skipped (named supplier n/a — only Unassigned exists in iso-demo). Frontend: full click-to-expand flow verified with owner@isodemo.com — Unassigned row expands to 8 fault rows (each with machine name, description, and OPEN status pill), collapses on second click. Equipment page loads cleanly with 20 items, no 500 or 'Failed to load equipment'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_supplier_insights_drill_and_equipment_summary.py",
+    "/app/test_reports/pytest/supplier_insights_drill_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "reports.py get_equipment_summary_report correctly uses equip.get('equipment_type','Unknown') — safe.",
+    "suppliers.py /suppliers/insights/faults enforces Pro/Full gating (Lite -> 403 verified) and supports supplier=<name> + unassigned=true modes.",
+    "Frontend suppliers.js drill-down uses proper data-testids (supplier-insight-row-<key>, supplier-insight-faults-<key>, insight-fault-<id>)."
+  ],
+  "updated_files": ["/app/backend/tests/test_supplier_insights_drill_and_equipment_summary.py"],
+  "success_rate": {"backend": "100% (3/3 executed; 1 skipped)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (Pro), lite.suptest@pulsedemo.test / LiteSup123! (Lite)",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "iso-demo insights currently only include one 'Unassigned' row (8 faults) — no named supplier for drill-down test; test skips gracefully. If a named supplier is later added, the parameterized test path will activate.",
+  "rca of the issue": "Prior 500 on GET /api/reports/equipment-summary caused by direct dict access equip['equipment_type'] failing when some equipment docs lacked that field. Fixed via equip.get('equipment_type','Unknown'); verified 200 response with by_type and equipment_details fields present."
+}
