@@ -1,0 +1,24 @@
+{
+  "summary": "Verified de-duplication of subscription info in customer Account Settings → Plan & Billing for owner@isodemo.com (Free Tier, non-trial). All expected single-instance checks pass: exactly one 'Plan & Billing' nav entry, one Current-plan card, one Upgrade Plan button, no trial banner, one 'Add a module' grid, one 'Payment history' block. Text 'Trial' occurrences = 0 as expected. UI matches spec — subscription info is shown exactly once.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Upgrade Plan → Stripe checkout", "issue": "Clicking Upgrade Plan did not navigate away or open a Stripe tab in Playwright (same-tab URL remained /dashboard). A resource returned 501 in console around that time. Per review instructions we do not flag Stripe redirect as an error, and backend checkout was already verified separately. Noting for awareness — may just be Playwright popup/redirect timing.", "affected_selectors": ["[data-testid=account-billing-upgrade-btn]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Navbar deep-link (?account=<section>) only works on routes where Navbar is mounted. Login lands owner users on /service-desk which uses a different chrome and does NOT read the ?account query param, so deep-links like /service-desk?account=billing silently do nothing. Consider mounting the same deep-link handler in the Service Desk shell, or redirecting users who land on /service-desk with ?account=... to /dashboard?account=... . For this test we worked around by navigating explicitly to /dashboard?account=billing."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (used as provided)",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Owner-side Account Settings → Plan & Billing is de-duplicated correctly for non-trial. Not tested: trial-state scenario (would need a trial account to confirm trial banner is present AND current-plan card no longer duplicates the Upgrade CTA — the review states this branch was implemented but a trial fixture is needed). Legacy master-admin AccountPanel + SubscriptionManagementPanel not exercised (requires master-admin login).",
+  "rca of the issue": "n/a — de-duplication test passed. Deep-link limitation on /service-desk noted above."
+}

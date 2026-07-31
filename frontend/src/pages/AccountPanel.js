@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
@@ -15,7 +14,7 @@ import SubscriptionManagementPanel from '../components/shared/SubscriptionManage
 import LocalizationPanel from '../components/shared/AccountSettings/LocalizationPanel';
 import { ActiveSessionsPanel } from '../components/shared/AccountSettings/ActiveSessionsPanel';
 import {
-  CreditCard, Calendar, Building2, ArrowUpRight, Clock, Wrench
+  Calendar, Building2, ArrowUpRight, Clock, Wrench
 } from 'lucide-react';
 
 const AccountPanel = ({ open, onClose }) => {
@@ -81,48 +80,13 @@ const AccountPanel = ({ open, onClose }) => {
               </div>
             </Card>
 
-            {/* Current Plan */}
-            <Card className="bg-[var(--color-ink-alt)] border-white/10 p-5">
-              <h3 className="text-sm font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-3 flex items-center gap-2">
-                <CreditCard size={14} /> Subscription
-              </h3>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-white font-semibold text-lg">{billing.plan_name}</p>
-                  {billing.plan_price > 0 ? (
-                    <p className="text-[var(--color-text-muted)] text-sm">{"\u00A3"}{billing.plan_price}/month</p>
-                  ) : (
-                    <p className="text-[var(--color-text-muted)] text-sm">No active subscription</p>
-                  )}
-                </div>
-                {billing.current_plan === 'none' ? (
-                  // Iter 216o-6 — only send first-time visitors to the
-                  // marketing pricing page. Active subscribers should
-                  // manage their plan via the SubscriptionManagementPanel
-                  // below (which exposes proper "Change plan" + "Cancel
-                  // subscription" workflows hitting the Stripe API).
-                  <Link to="/pricing" onClick={onClose}>
-                    <Button size="sm" className="bg-[var(--color-brand-blue)] text-white" data-testid="account-upgrade-btn">
-                      Subscribe <ArrowUpRight size={14} className="ml-1" />
-                    </Button>
-                  </Link>
-                ) : (
-                  <Button
-                    size="sm"
-                    className="bg-[var(--color-brand-blue)] text-white"
-                    data-testid="account-manage-subscription-btn"
-                    onClick={() => {
-                      // Smooth-scroll the dialog body down to the
-                      // SubscriptionManagementPanel where Change/Cancel live.
-                      const target = document.querySelector('[data-testid="sub-mgmt-panel"]');
-                      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }}
-                  >
-                    Manage <ArrowUpRight size={14} className="ml-1" />
-                  </Button>
-                )}
-              </div>
-            </Card>
+            {/* Subscription — single source of truth (plan, price, trial,
+                status, Subscribe / Change / Cancel). */}
+            <SubscriptionManagementPanel
+              planPrice={billing.plan_price}
+              currentPlan={billing.current_plan}
+              onNavigate={onClose}
+            />
 
             {/* Organization */}
             {billing.organization && (
@@ -197,11 +161,6 @@ const AccountPanel = ({ open, onClose }) => {
         {/* Usage meter (iter 215c0) */}
         <div className="mt-4">
           <UsageMeterCard />
-        </div>
-
-        {/* Subscription management (iter 215c1) */}
-        <div className="mt-4">
-          <SubscriptionManagementPanel />
         </div>
 
         {/* Notification preferences (iter 215c0) */}

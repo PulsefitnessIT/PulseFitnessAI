@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/App';
-import { AlertTriangle, CheckCircle, XCircle, Loader2, RefreshCw, ArrowDownCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, XCircle, Loader2, RefreshCw, ArrowDownCircle, ArrowUpRight } from 'lucide-react';
 
 /**
  * SubscriptionManagementPanel (iter 215c1)
@@ -24,7 +25,7 @@ const DOWNGRADE_TIERS = [
   { id: 'operations',  name: 'Operations only',  price: 59 },
 ];
 
-const SubscriptionManagementPanel = () => {
+const SubscriptionManagementPanel = ({ planPrice, currentPlan, onNavigate }) => {
   const { API } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -137,6 +138,9 @@ const SubscriptionManagementPanel = () => {
             Plan: <span className="font-medium" data-testid="sub-current-plan">{data.plan}</span>
             {data.is_trial && <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] uppercase tracking-wide">Trial</span>}
           </p>
+          {planPrice > 0 && (
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5" data-testid="sub-plan-price">{"\u00A3"}{planPrice}/month</p>
+          )}
         </div>
         <button
           type="button"
@@ -201,25 +205,34 @@ const SubscriptionManagementPanel = () => {
       )}
 
       <div className="flex flex-wrap gap-2 mt-4">
-        {!data.pending_downgrade_to && !data.pending_cancellation && data.plan !== 'trial' && (
-          <button
-            type="button"
-            onClick={() => setShowDowngrade(true)}
-            data-testid="sub-downgrade-btn"
-            className="text-xs px-3 py-1.5 rounded-md border border-[var(--theme-border)] hover:bg-[var(--theme-surface-hover)]"
-          >
-            Change plan
-          </button>
-        )}
-        {!data.pending_cancellation && (
-          <button
-            type="button"
-            onClick={() => setShowCancel(true)}
-            data-testid="sub-cancel-btn"
-            className="text-xs px-3 py-1.5 rounded-md border border-red-200 text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-          >
-            Cancel subscription
-          </button>
+        {currentPlan === 'none' ? (
+          <Link to="/pricing" onClick={onNavigate} data-testid="sub-subscribe-btn"
+            className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-md bg-[var(--color-brand-blue)] text-white font-medium">
+            Subscribe <ArrowUpRight className="w-3 h-3" />
+          </Link>
+        ) : (
+          <>
+            {!data.pending_downgrade_to && !data.pending_cancellation && data.plan !== 'trial' && (
+              <button
+                type="button"
+                onClick={() => setShowDowngrade(true)}
+                data-testid="sub-downgrade-btn"
+                className="text-xs px-3 py-1.5 rounded-md border border-[var(--theme-border)] hover:bg-[var(--theme-surface-hover)]"
+              >
+                Change plan
+              </button>
+            )}
+            {!data.pending_cancellation && (
+              <button
+                type="button"
+                onClick={() => setShowCancel(true)}
+                data-testid="sub-cancel-btn"
+                className="text-xs px-3 py-1.5 rounded-md border border-red-200 text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+              >
+                Cancel subscription
+              </button>
+            )}
+          </>
         )}
       </div>
 

@@ -107,21 +107,27 @@ export default function BillingSection({ billing, _onClose }) {
           <div>
             <div className="text-xl font-extrabold" style={{ color: 'var(--theme-text)' }}>{billing.plan_name}</div>
             <div className="text-sm mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
-              {isTrial ? 'On free trial — payment due before trial ends' :
+              {isTrial ? 'On free trial' :
                billing.plan_price > 0 ? `£${billing.plan_price}/month` : 'No active subscription'}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => startCheckout('bundle', { site_count: 1 })}
-            disabled={moduleBusy === 'bundle'}
-            className="account-btn-primary"
-            data-testid="account-billing-upgrade-btn"
-          >
-            {moduleBusy === 'bundle' ? <Loader2 size={14} className="animate-spin" /> : null}
-            {billing.current_plan === 'none' || isTrial ? 'Upgrade Plan' : 'Change plan'}
-            <ArrowUpRight size={14} />
-          </button>
+          {/* During a trial the countdown card above already carries the
+              primary "Upgrade Plan" call to action, so we don't repeat it
+              here. Once on a paid/free plan this is the single place to
+              upgrade or change the plan. */}
+          {!isTrial && (
+            <button
+              type="button"
+              onClick={() => startCheckout('bundle', { site_count: 1 })}
+              disabled={moduleBusy === 'bundle'}
+              className="account-btn-primary"
+              data-testid="account-billing-upgrade-btn"
+            >
+              {moduleBusy === 'bundle' ? <Loader2 size={14} className="animate-spin" /> : null}
+              {billing.current_plan === 'none' ? 'Upgrade Plan' : 'Change plan'}
+              <ArrowUpRight size={14} />
+            </button>
+          )}
         </div>
       </div>
 
