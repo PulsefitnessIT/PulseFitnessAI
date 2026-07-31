@@ -36,6 +36,8 @@ const EMPTY_FORM = {
   sla_contract_ref: '',
   sla_expiry: '',
   notes: '',
+  supplier: '',
+  supplier_id: '',
   // Iter 216h240 — integration round-trip refs. Optional; surfaced
   // in a collapsible "Integration refs" panel so the standard form
   // stays clean for non-Sicon / non-Orbit 4 customers.
@@ -64,6 +66,8 @@ const AddEquipmentDialog = ({ open, onClose, onCreated }) => {
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [suppliers, setSuppliers] = useState([]);
+  const [canPickSupplier, setCanPickSupplier] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -71,7 +75,27 @@ const AddEquipmentDialog = ({ open, onClose, onCreated }) => {
     setForm(EMPTY_FORM);
     setPhotoFile(null);
     setPhotoPreview(null);
-  }, [open]);
+    // Pro/Full orgs pick the correct supplier up front so third-party kit
+    // isn't wrongly attributed to Pulse Fitness. Lite orgs auto-default to
+    // Pulse on the backend, so we don't show the picker.
+    (async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const r = await axios.get(`${API}/suppliers`, { headers: { Authorization: `Bearer ${token}` } });
+        const list = r.data?.suppliers || [];
+        const can = !!r.data?.can_add_suppliers;
+        setSuppliers(list);
+        setCanPickSupplier(can);
+        if (can) {
+          const def = list.find((s) => s.is_default_pulse) || list[0];
+          if (def) setForm((f) => ({ ...f, supplier: def.name, supplier_id: def.id }));
+        }
+      } catch (_) {
+        setSuppliers([]);
+        setCanPickSupplier(false);
+      }
+    })();
+  }, [open, API]);
 
   const setField = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
@@ -128,6 +152,11 @@ const AddEquipmentDialog = ({ open, onClose, onCreated }) => {
         sla_contract_ref: form.sla_contract_ref.trim() || null,
         sla_expiry: form.sla_expiry || null,
         notes: form.notes.trim() || null,
+        // Supplier — Pro/Full orgs pick it here; sending it prevents the
+        // backend's Pulse-default fallback so third-party kit is attributed
+        // to the right supplier for fault routing + insights.
+        supplier: (form.supplier || '').trim() || null,
+        supplier_id: (form.supplier_id || '').trim() || null,
         // Iter 216h225 — tag the equipment with the active site so
         // the per-site list view shows it after refresh. Multi-site
         // orgs (Pulse Fitness Pro, MOD HQ children) saved equipment
@@ -237,6 +266,30 @@ const AddEquipmentDialog = ({ open, onClose, onCreated }) => {
               />
             </div>
           </div>
+
+          {canPickSupplier && (
+            <div>
+              <Label className="text-[var(--color-text-muted)] text-sm">Supplier (services this machine)</Label>
+              <select
+                value={form.supplier_id || ''}
+                onChange={(e) => {
+                  const sel = suppliers.find((s) => s.id === e.target.value);
+                  setForm((f) => ({ ...f, supplier_id: e.target.value, supplier: sel ? sel.name : '' }));
+                }}
+                className="w-full bg-[var(--color-ink-alt)] border border-white/10 text-white mt-1 rounded-md px-3 py-2 text-sm"
+                data-testid="add-equip-supplier"
+              >
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}{s.is_default_pulse ? ' (default)' : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-[var(--color-text-muted)] mt-1 opacity-70">
+                Faults on this machine notify the chosen supplier. Leave as Pulse Fitness Ltd for Pulse-serviced kit; pick the correct supplier for third-party equipment.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>

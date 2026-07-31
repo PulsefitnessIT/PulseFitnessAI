@@ -1,0 +1,27 @@
+{
+  "summary": "Verified PulseFitness.ai Supplier Insights (Pro/Full only) + equipment supplier picker feature end-to-end. Backend pytest (5/5 passed): Pro GET /api/suppliers/insights returns window_days=90, total_faults, and rows with the required schema (supplier, is_unassigned, total_faults, open_faults, resolved_faults, avg_resolution_hours, all_time_faults); named suppliers sort by total_faults desc and 'Unassigned' row (is_unassigned=true) always sorts LAST; Lite GET returns 403; Pro POST /api/equipment with supplier + supplier_id persists BOTH fields (verified via GET) and cleanup succeeded; Lite POST /api/equipment with no supplier auto-defaults to 'Pulse Fitness' (existing behaviour preserved). Frontend Playwright: PRO (owner@isodemo.com → /dashboard → user menu → Account settings → Suppliers) shows a 'Supplier insights' panel [data-testid=supplier-insights-panel] with header 'Last 90 days · 8 faults' and exactly one insight row [data-testid=supplier-insight-row-unassigned] (iso-demo real data — all 8 faults are on machines with no supplier) showing '8 (5 open)' faults and '19h' avg resolution, plus the amber warning + nudge text 'No supplier set — assign one so it isn't routed to Pulse by default.' The 'Pulse Fitness Ltd' locked default row is still present in the Suppliers list. LITE (lite.suptest@pulsedemo.test → /pulse → Account settings → Suppliers) shows ONLY the locked 'Pulse Fitness Ltd' default row and the 'Supplier insights' panel is NOT present (correctly gated). LITE Add Equipment dialog opened successfully and 'Supplier (services this machine)' dropdown [data-testid=add-equip-supplier] is NOT rendered (correctly gated). PRO Add Equipment supplier dropdown could not be exercised via UI because iso-demo owner is in the 'Demo Head Office' area where the Equipment tab shows no Add equipment button (equipment adds happen at child sites); however AddEquipmentDialog.js gates the dropdown on can_add_suppliers=true and backend POST already accepts and persists supplier + supplier_id (verified).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_supplier_insights_jan2026.py",
+    "/app/test_reports/pytest/supplier_insights_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/suppliers.py supplier_insights: `days` query param is clamped 1..365 correctly; consider caching all_time_faults per key to avoid the extra dict lookup — trivial, non-blocking.",
+    "Equipment GET /api/equipment intermittently returned HTTP 500 for iso-demo owner in the Head Office area during UI testing (console: 'Failed to load equipment: AxiosError'). Not directly related to this feature but worth investigating — MOD HQ resolve_mod_query_filter path might need hardening.",
+    "AddEquipmentDialog gating relies on GET /suppliers can_add_suppliers flag — good pattern; keeps Lite from seeing the picker even if the DOM leaks."
+  ],
+  "updated_files": ["/app/backend/tests/test_supplier_insights_jan2026.py"],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "PRO insights panel ✅ · LITE gating ✅ · PRO add-equip-supplier UI not exercised (HO area, no Add button); backend + code verified"},
+  "test_credentials": "Pro/Full owner: owner@isodemo.com / IsoDemo123!  ·  Lite: lite.suptest@pulsedemo.test / LiteSup123!",
+  "seed_data_creation": "None — the two equipment rows created by the pytest run were deleted in the finally blocks.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "To reach Account Settings → Suppliers for iso-demo Pro owner: log in (lands on /service-desk), navigate to /dashboard, click [data-testid=nav-user-menu-btn], then 'Account settings', then the 'Suppliers' left-nav item. The insights panel [data-testid=supplier-insights-panel] shows the last 90 days with rows [data-testid=supplier-insight-row-<key>]; 'unassigned' key gets an amber warning. For the Pro Add Equipment supplier dropdown, note that iso-demo owner defaults to 'Demo Head Office' area where the Equipment tab has no Add equipment button — switch to a child site area first (via 'Switch area' → a real site). Backend URL and /api prefix are used unchanged. REACT_APP_BACKEND_URL must be exported in the shell env when running the pytest file (backend/tests/conftest.py currently strips it during test session).",
+  "rca of the issue": "N/A — no bugs raised for this feature. The one anomaly (500 on /api/equipment for iso-demo HO area) is unrelated to Supplier Insights / equipment supplier picker and appears to be a pre-existing MOD HQ scope-resolver issue."
+}

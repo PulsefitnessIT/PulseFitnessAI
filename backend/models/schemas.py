@@ -265,6 +265,7 @@ class EquipmentCreate(BaseModel):
     # the list endpoint's lazy backfill heals it on first load.
     site_id: Optional[str] = None
     supplier: Optional[str] = None
+    supplier_id: Optional[str] = None
     supplier_email: Optional[str] = None
     # Iter 216h240 — integration round-trip fields. Captured upfront so
     # Orbit 4 / Sicon syncs don't need a second-pass enrichment step.

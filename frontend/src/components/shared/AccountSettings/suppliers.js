@@ -18,9 +18,16 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import {
   Plus, Trash2, Pencil, X, Loader2, Truck, Mail, Phone, User, Tag,
-  AlertTriangle, CheckCircle2, Lock,
+  AlertTriangle, CheckCircle2, Lock, BarChart3,
 } from 'lucide-react';
 import { API, useAuthHeaders } from './shared';
+
+const fmtResolution = (hours) => {
+  if (hours == null) return '—';
+  if (hours < 1) return `${Math.round(hours * 60)}m`;
+  if (hours < 48) return `${hours < 10 ? hours.toFixed(1) : Math.round(hours)}h`;
+  return `${(hours / 24).toFixed(1)}d`;
+};
 
 const BLANK = {
   name: '', contact_name: '', email: '', phone: '',
@@ -38,12 +45,20 @@ export default function SuppliersSection() {
   // supplier on fault submit (supplier has no email / isn't in directory).
   const [readiness, setReadiness] = useState(null);
   const [canAdd, setCanAdd] = useState(true);
+  const [insights, setInsights] = useState(null);
 
   const loadReadiness = useCallback(async () => {
     try {
       const r = await axios.get(`${API}/suppliers/dispatch-readiness`, { headers: headers() });
       setReadiness(r.data || null);
     } catch { /* non-blocking */ }
+  }, [headers]);
+
+  const loadInsights = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/suppliers/insights`, { headers: headers() });
+      setInsights(r.data || null);
+    } catch { setInsights(null); /* Lite orgs get 403 — panel hidden */ }
   }, [headers]);
 
   const load = useCallback(async () => {
@@ -59,7 +74,7 @@ export default function SuppliersSection() {
     }
   }, [headers]);
 
-  useEffect(() => { load(); loadReadiness(); }, [load, loadReadiness]);
+  useEffect(() => { load(); loadReadiness(); loadInsights(); }, [load, loadReadiness, loadInsights]);
 
   const openNew = () => { setEditing({}); setForm(BLANK); };
   const openEdit = (s) => {
@@ -179,6 +194,39 @@ export default function SuppliersSection() {
             <strong style={{ color: 'var(--theme-text)' }}>{readiness.machines_ready} machine{readiness.machines_ready === 1 ? '' : 's'}</strong> will auto-email their supplier on fault submit.
             {readiness.machines_no_supplier > 0 && ` ${readiness.machines_no_supplier} with no supplier of their own route to Pulse Fitness Ltd.`}
           </p>
+        </div>
+      ) : null}
+
+      {/* Supplier Insights (Pro/Full only) — fault load + responsiveness. */}
+      {insights && (insights.suppliers || []).length > 0 ? (
+        <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }} data-testid="supplier-insights-panel">
+          <div className="px-4 py-3 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--theme-border)' }}>
+            <div className="flex items-center gap-2">
+              <BarChart3 size={15} style={{ color: 'var(--color-brand-blue)' }} />
+              <span className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>Supplier insights</span>
+            </div>
+            <span className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>Last {insights.window_days} days · {insights.total_faults} fault{insights.total_faults === 1 ? '' : 's'}</span>
+          </div>
+          <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-4 py-2 text-[11px] uppercase tracking-wider font-semibold" style={{ color: 'var(--theme-text-muted)' }}>
+            <span>Supplier</span><span className="text-right">Faults</span><span className="text-right">Avg. resolution</span>
+          </div>
+          {insights.suppliers.map((r) => (
+            <div key={r.supplier} className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-4 py-2.5 border-t items-center" style={{ borderColor: 'var(--theme-border)' }} data-testid={`supplier-insight-row-${r.is_unassigned ? 'unassigned' : r.supplier}`}>
+              <div className="min-w-0">
+                <div className="text-sm font-medium truncate flex items-center gap-1.5" style={{ color: r.is_unassigned ? 'var(--theme-text-muted)' : 'var(--theme-text)' }}>
+                  {r.is_unassigned ? <><AlertTriangle size={12} style={{ color: '#f59e0b' }} /> Unassigned</> : r.supplier}
+                </div>
+                {r.is_unassigned ? (
+                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>No supplier set — assign one so it isn&rsquo;t routed to Pulse by default.</div>
+                ) : null}
+              </div>
+              <div className="text-right text-sm" style={{ color: 'var(--theme-text)' }}>
+                {r.total_faults}
+                <span className="text-[11px] ml-1" style={{ color: 'var(--theme-text-muted)' }}>({r.open_faults} open)</span>
+              </div>
+              <div className="text-right text-sm" style={{ color: 'var(--theme-text)' }}>{fmtResolution(r.avg_resolution_hours)}</div>
+            </div>
+          ))}
         </div>
       ) : null}
 

@@ -248,6 +248,84 @@ async def supplier_dispatch_readiness(user: dict = Depends(get_current_user)):
     }
 
 
+@router.get("/suppliers/insights")
+async def supplier_insights(days: int = 90, user: dict = Depends(get_current_user)):
+    """Pro/Full-only — per-supplier fault load & responsiveness over the last
+    `days` (default 90). Faults are attributed by the supplier assigned to the
+    machine/fault; faults on machines with NO supplier are bucketed separately
+    as 'Unassigned' (they route to Pulse by default but are NOT counted against
+    any supplier's performance). 'Responsiveness' = avg resolution time
+    (logged → resolved); first-response tracking is not yet captured.
+    """
+    _require_owner_or_manager(user)
+    org = await db.organizations.find_one(
+        {"id": user.get("organization_id")}, {"_id": 0, "account_type": 1}) or {}
+    if not can_add_extra_suppliers(user, org):
+        raise HTTPException(
+            status_code=403,
+            detail="Supplier insights is a Pulse Pro feature.",
+        )
+
+    org_filter = get_organization_filter(user)
+    days = max(1, min(int(days or 90), 365))
+    since = datetime.now(timezone.utc).timestamp() - days * 86400
+
+    issues = await db.issues.find(
+        org_filter,
+        {"_id": 0, "supplier": 1, "status": 1, "created_at": 1, "resolved_at": 1},
+    ).to_list(20000)
+
+    OPEN = {"open", "in_progress"}
+
+    def _parse(ts):
+        if not ts:
+            return None
+        try:
+            return datetime.fromisoformat(str(ts).replace("Z", "+00:00")).timestamp()
+        except Exception:
+            return None
+
+    buckets: Dict[str, dict] = {}
+    all_time_totals: Dict[str, int] = {}
+    for iss in issues:
+        name = (iss.get("supplier") or "").strip()
+        key = name or "__unassigned__"
+        all_time_totals[key] = all_time_totals.get(key, 0) + 1
+        created = _parse(iss.get("created_at"))
+        if created is None or created < since:
+            continue
+        b = buckets.setdefault(key, {
+            "supplier": "Unassigned" if key == "__unassigned__" else name,
+            "is_unassigned": key == "__unassigned__",
+            "total_faults": 0, "open_faults": 0, "resolved_faults": 0,
+            "_res_hours": [],
+        })
+        b["total_faults"] += 1
+        if (iss.get("status") or "").lower() in OPEN:
+            b["open_faults"] += 1
+        else:
+            b["resolved_faults"] += 1
+        resolved = _parse(iss.get("resolved_at"))
+        if resolved and created and resolved >= created:
+            b["_res_hours"].append((resolved - created) / 3600.0)
+
+    rows = []
+    for key, b in buckets.items():
+        res = b.pop("_res_hours")
+        b["avg_resolution_hours"] = round(sum(res) / len(res), 1) if res else None
+        b["all_time_faults"] = all_time_totals.get(key, b["total_faults"])
+        rows.append(b)
+
+    # Unassigned last; real suppliers by fault volume desc.
+    rows.sort(key=lambda r: (r["is_unassigned"], -r["total_faults"]))
+    return {
+        "window_days": days,
+        "total_faults": sum(r["total_faults"] for r in rows),
+        "suppliers": rows,
+    }
+
+
+
 @router.put("/suppliers/{supplier_id}")
 async def update_supplier(supplier_id: str, data: Dict[str, Any], user: dict = Depends(get_current_user)):
     _require_owner_or_manager(user)
