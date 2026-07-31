@@ -1,3 +1,36 @@
+# ═══ 2026-07-31 · DEFAULT SUPPLIER = PULSE FITNESS LTD for every org (fault routing guarantee) — backend curl-verified ═══
+User: every org on pulsefitness.ai must have Pulse Fitness Ltd as its DEFAULT supplier for logging faults; Pro orgs can
+add more suppliers; Lite orgs keep only the default. Commercial default email = service.dept@pulsefitness.com, MOD =
+MODService@pulsefitness.com. User approved all 5 recommendations (locked visible default; email locked; Lite can't add;
+count fallback machines as auto-emailing; backfill existing orgs).
+IMPLEMENTATION:
+  • NEW utils/default_supplier.py — ensure_default_supplier(org_id) idempotently creates/repairs a locked
+    "Pulse Fitness Ltd" supplier (is_default_pulse=True, locked=True) with email by org type (is_mod_org → MODService@,
+    else service.dept@). get_default_pulse_supplier() + can_add_extra_suppliers(user,org) (False when account_type=='lite'
+    unless master/pulse admin).
+  • routes/suppliers.py: GET /suppliers ensures the default, pins it to the top, and returns can_add_suppliers.
+    POST /suppliers now 403s for Lite orgs ("Adding suppliers is a Pulse Pro feature…"). PUT/DELETE of the default → 403
+    ("locked"). dispatch-readiness: machines with NO supplier now count as machines_ready (they fall back to Pulse) and
+    are surfaced separately as machines_no_supplier.
+  • routes/issues.py _resolve_fault_supplier: added TIER 4 — the locked Pulse default as the final fallback so a fault
+    ALWAYS reaches Pulse when no machine/fault/auto_dispatch supplier resolves.
+  • routes/issue_helpers.py _resolve_email_context (commercial engineer email): falls back to the Pulse default email
+    when the machine has no supplier / the named one has no email.
+  • scripts/backfill_default_supplier.py — RAN once: 94 orgs → 94 defaults created (8 MOD→MODService@, 86 commercial→
+    service.dept@). Idempotent. New orgs self-heal on first GET /suppliers or first fault (ensure* is called on both paths).
+  • FRONTEND components/shared/AccountSettings/suppliers.js: hides "Add supplier" when can_add_suppliers=false (Lite);
+    renders the default row with a locked "Default" badge (data-testid supplier-default-badge-<id>), a lock icon instead
+    of edit/delete (account-supplier-locked-<id>), and an explainer; readiness copy now reads "N with no supplier of their
+    own route to Pulse Fitness Ltd".
+VERIFIED (curl + direct): GET /suppliers (owner@isodemo, full) → Pulse Fitness Ltd default service.dept@ locked + can_add=True;
+  DELETE/PUT default → 403; POST add (full) → 200; readiness ready=16/blocked=4/no_supplier=16/total=20. Helper: lite→can_add
+  False, full/pulse_pro→True, master-admin override True; lite org default = service.dept@ locked. Frontend babel-parse OK.
+  ⚠️ NOT yet screenshot/testing_agent verified for the Suppliers-tab UI (locked row + hidden Add on Lite) — conditional
+  render only. ⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY + run the backfill script on prod (or rely on read-time ensure).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-31 · SECURITY — FEATURE LOCKDOWN AUDIT (Pulse-only features cross-tenant sweep) — READ-ONLY, NO CODE CHANGE ═══
 Follow-up to the MOD Quote Writer leak fix. Swept the other Pulse-only / cross-org features for the SAME class of bug
 (an intentionally cross-org read exposed on ordinary user/CRM auth with no operator/admin gate). RESULT: the MOD Quote

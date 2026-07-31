@@ -502,6 +502,17 @@ async def _resolve_email_context(issue, user: dict) -> dict:
         {"name": issue.supplier, "organization_id": org_id},
         {"_id": 0, "email": 1, "contact_person": 1}
     )
+    # Guarantee delivery — if the machine has no supplier (or the named one has
+    # no email), fall back to the org's locked Pulse Fitness default supplier so
+    # the fault always reaches Pulse (service.dept@ / MODService@).
+    if not supplier_doc or not (supplier_doc.get("email") or "").strip():
+        from utils.default_supplier import get_default_pulse_supplier
+        default_pulse = await get_default_pulse_supplier(org_id)
+        if default_pulse and (default_pulse.get("email") or "").strip():
+            supplier_doc = {
+                "email": default_pulse["email"],
+                "contact_person": default_pulse.get("contact_person") or "Pulse Fitness Service Team",
+            }
     supplier_email = (supplier_doc or {}).get('email', '')
     recipient, test_mode = _resolve_email_recipient(supplier_email, user['email'])
 

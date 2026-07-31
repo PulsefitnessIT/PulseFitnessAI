@@ -642,10 +642,20 @@ async def _resolve_fault_supplier(issue_doc: dict, org_id: str) -> Optional[dict
             return s
 
     # 3) Org's primary auto-dispatch supplier (partner-referral default).
-    return await db.suppliers.find_one(
+    primary = await db.suppliers.find_one(
         {"organization_id": org_id, "auto_dispatch": True, "email": {"$ne": ""}},
         proj, sort=[("is_primary_supplier", -1), ("created_at", 1)],
     )
+    if primary:
+        return primary
+
+    # 4) Final guarantee — the locked Pulse Fitness Ltd default supplier, so a
+    #    logged fault ALWAYS reaches Pulse even when no other supplier resolves.
+    from utils.default_supplier import get_default_pulse_supplier
+    default_pulse = await get_default_pulse_supplier(org_id)
+    if default_pulse and (default_pulse.get("email") or "").strip():
+        return {k: default_pulse.get(k) for k in ("id", "name", "email", "partner_engineer_id")}
+    return None
 
 
 async def _auto_dispatch_to_primary_supplier(issue_doc: dict, user: dict) -> None:

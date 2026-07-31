@@ -18,7 +18,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import {
   Plus, Trash2, Pencil, X, Loader2, Truck, Mail, Phone, User, Tag,
-  AlertTriangle, CheckCircle2,
+  AlertTriangle, CheckCircle2, Lock,
 } from 'lucide-react';
 import { API, useAuthHeaders } from './shared';
 
@@ -37,6 +37,7 @@ export default function SuppliersSection() {
   // Iter 220ea·40 — dispatch readiness: which machines won't auto-email a
   // supplier on fault submit (supplier has no email / isn't in directory).
   const [readiness, setReadiness] = useState(null);
+  const [canAdd, setCanAdd] = useState(true);
 
   const loadReadiness = useCallback(async () => {
     try {
@@ -50,6 +51,7 @@ export default function SuppliersSection() {
     try {
       const r = await axios.get(`${API}/suppliers`, { headers: headers() });
       setList(r.data?.suppliers || r.data || []);
+      if (typeof r.data?.can_add_suppliers === 'boolean') setCanAdd(r.data.can_add_suppliers);
     } catch (e) {
       toast.error('Could not load suppliers');
     } finally {
@@ -131,12 +133,15 @@ export default function SuppliersSection() {
           <p className="text-sm mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
             Manage equipment suppliers — fault notifications route to the
             matching supplier automatically when a machine's manufacturer
-            matches one of their keywords.
+            matches one of their keywords. Any machine without its own supplier
+            is handled by <strong>Pulse Fitness Ltd</strong> by default.
           </p>
         </div>
-        <button type="button" onClick={openNew} className="account-btn-primary inline-flex items-center gap-1.5" data-testid="account-suppliers-add">
-          <Plus size={14} /> Add supplier
-        </button>
+        {canAdd ? (
+          <button type="button" onClick={openNew} className="account-btn-primary inline-flex items-center gap-1.5" data-testid="account-suppliers-add">
+            <Plus size={14} /> Add supplier
+          </button>
+        ) : null}
       </header>
 
       {/* Iter 220ea·40 — fault auto-dispatch readiness. */}
@@ -172,7 +177,7 @@ export default function SuppliersSection() {
           <CheckCircle2 size={16} className="shrink-0" style={{ color: '#10b981' }} />
           <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
             <strong style={{ color: 'var(--theme-text)' }}>{readiness.machines_ready} machine{readiness.machines_ready === 1 ? '' : 's'}</strong> will auto-email their supplier on fault submit.
-            {readiness.machines_no_supplier > 0 && ` ${readiness.machines_no_supplier} have no supplier set.`}
+            {readiness.machines_no_supplier > 0 && ` ${readiness.machines_no_supplier} with no supplier of their own route to Pulse Fitness Ltd.`}
           </p>
         </div>
       ) : null}
@@ -195,12 +200,24 @@ export default function SuppliersSection() {
                   <Truck size={16} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm" style={{ color: 'var(--theme-text)' }}>{s.name}</div>
+                  <div className="font-semibold text-sm flex items-center gap-2 flex-wrap" style={{ color: 'var(--theme-text)' }}>
+                    {s.name}
+                    {s.is_default_pulse ? (
+                      <span className="text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded inline-flex items-center gap-1" style={{ background: 'rgba(102,204,255,0.14)', color: 'var(--color-brand-blue)' }} data-testid={`supplier-default-badge-${s.id}`}>
+                        <Lock size={9} /> Default
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>
                     {s.contact_name && <span className="inline-flex items-center gap-1"><User size={11} /> {s.contact_name}</span>}
                     {s.email && <span className="inline-flex items-center gap-1"><Mail size={11} /> {s.email}</span>}
                     {s.phone && <span className="inline-flex items-center gap-1"><Phone size={11} /> {s.phone}</span>}
                   </div>
+                  {s.is_default_pulse ? (
+                    <p className="text-[11px] mt-1.5" style={{ color: 'var(--theme-text-muted)' }}>
+                      Built-in Pulse Fitness service contact — every fault on a machine with no other supplier is emailed here automatically.
+                    </p>
+                  ) : null}
                   {Array.isArray(s.manufacturer_keywords) && s.manufacturer_keywords.length > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5 mt-2">
                       <Tag size={11} style={{ color: 'var(--theme-text-muted)' }} />
@@ -213,12 +230,20 @@ export default function SuppliersSection() {
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <button type="button" onClick={() => openEdit(s)} className="p-1.5 rounded-md" style={{ color: 'var(--theme-text-muted)' }} data-testid={`account-supplier-edit-${s.id}`} aria-label="Edit">
-                    <Pencil size={14} />
-                  </button>
-                  <button type="button" onClick={() => remove(s)} className="p-1.5 rounded-md" style={{ color: 'var(--color-status-error, #DC2626)' }} data-testid={`account-supplier-delete-${s.id}`} aria-label="Remove">
-                    <Trash2 size={14} />
-                  </button>
+                  {s.is_default_pulse ? (
+                    <span className="p-1.5 rounded-md" style={{ color: 'var(--theme-text-muted)', opacity: 0.6 }} title="Locked default supplier" data-testid={`account-supplier-locked-${s.id}`}>
+                      <Lock size={14} />
+                    </span>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => openEdit(s)} className="p-1.5 rounded-md" style={{ color: 'var(--theme-text-muted)' }} data-testid={`account-supplier-edit-${s.id}`} aria-label="Edit">
+                        <Pencil size={14} />
+                      </button>
+                      <button type="button" onClick={() => remove(s)} className="p-1.5 rounded-md" style={{ color: 'var(--color-status-error, #DC2626)' }} data-testid={`account-supplier-delete-${s.id}`} aria-label="Remove">
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  )}
                 </div>
               </li>
             ))}

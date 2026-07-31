@@ -8,6 +8,7 @@ import logging
 
 from utils.database import db
 from utils.auth import get_current_user, get_organization_filter
+from utils.default_supplier import ensure_default_supplier, can_add_extra_suppliers
 from routes.supplier_portal import send_supplier_welcome_email, send_supplier_reassignment_email
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,15 @@ async def _load_supplier_or_404(supplier_id: str, user: dict) -> dict:
 
 @router.post("/suppliers")
 async def add_supplier(data: Dict[str, Any], user: dict = Depends(get_current_user)):
+    # Lite orgs keep only the locked Pulse Fitness default supplier; Pro/Full
+    # (and Pulse admins) may add unlimited extra suppliers.
+    org = await db.organizations.find_one(
+        {"id": user.get("organization_id")}, {"_id": 0, "account_type": 1}) or {}
+    if not can_add_extra_suppliers(user, org):
+        raise HTTPException(
+            status_code=403,
+            detail="Adding suppliers is a Pulse Pro feature. Your account uses Pulse Fitness Ltd as its default supplier; upgrade to Pro to add your own.",
+        )
     # Iter 216o-7 — accept multi-select supplier_types array. Default to the
     # singular `supplier_type` string for legacy callers.
     supplier_types_raw = data.get('supplier_types') or []
@@ -136,6 +146,11 @@ async def get_suppliers(
     to supplier_name for legacy equipment rows that pre-date the
     supplier-directory pivot."""
     org_filter = get_organization_filter(user)
+    org = await db.organizations.find_one(
+        {"id": user.get("organization_id")}, {"_id": 0, "account_type": 1, "is_mod": 1}) or {}
+    # Guarantee every org has the locked Pulse Fitness Ltd default supplier.
+    await ensure_default_supplier(user.get("organization_id"), org)
+    can_add = can_add_extra_suppliers(user, org)
     if site_id:
         # Pull the set of supplier ids + names attached to equipment at
         # the requested site, then return only the supplier directory
@@ -146,19 +161,22 @@ async def get_suppliers(
         ).to_list(2000)
         ids = {r["supplier_id"] for r in eq_rows if r.get("supplier_id")}
         names = {(r.get("supplier") or "").strip() for r in eq_rows if (r.get("supplier") or "").strip()}
-        if not ids and not names:
-            return {"suppliers": []}
-        supplier_filter = {"$or": []}
+        # Always include the locked Pulse default (it's the fallback for any
+        # machine at the site with no specific supplier).
+        supplier_filter = {"$or": [{"is_default_pulse": True}]}
         if ids:
             supplier_filter["$or"].append({"id": {"$in": list(ids)}})
         if names:
             supplier_filter["$or"].append({"name": {"$in": list(names)}})
         suppliers = await db.suppliers.find(
             {**org_filter, **supplier_filter}, {"_id": 0},
-        ).sort("name", 1).to_list(200)
-        return {"suppliers": suppliers}
-    suppliers = await db.suppliers.find(org_filter, {"_id": 0}).sort("name", 1).to_list(100)
-    return {"suppliers": suppliers}
+        ).to_list(200)
+        suppliers.sort(key=lambda s: (not s.get("is_default_pulse"), (s.get("name") or "").lower()))
+        return {"suppliers": suppliers, "can_add_suppliers": can_add}
+    suppliers = await db.suppliers.find(org_filter, {"_id": 0}).to_list(100)
+    # Pin the Pulse Fitness default to the top, then alphabetical.
+    suppliers.sort(key=lambda s: (not s.get("is_default_pulse"), (s.get("name") or "").lower()))
+    return {"suppliers": suppliers, "can_add_suppliers": can_add}
 
 
 @router.get("/suppliers/dispatch-readiness")
@@ -191,7 +209,10 @@ async def supplier_dispatch_readiness(user: dict = Depends(get_current_user)):
     for eq in equipment:
         has_link = bool((eq.get("supplier_id") or "").strip() or (eq.get("supplier") or "").strip())
         if not has_link:
+            # No specific supplier → routes to the locked Pulse Fitness default,
+            # which always has an email, so the fault WILL auto-dispatch.
             machines_no_supplier += 1
+            machines_ready += 1
             continue
         sup = _resolve(eq)
         if sup and (sup.get("email") or "").strip():
@@ -229,6 +250,13 @@ async def supplier_dispatch_readiness(user: dict = Depends(get_current_user)):
 @router.put("/suppliers/{supplier_id}")
 async def update_supplier(supplier_id: str, data: Dict[str, Any], user: dict = Depends(get_current_user)):
     org_filter = get_organization_filter(user)
+    locked = await db.suppliers.find_one(
+        {"id": supplier_id, **org_filter}, {"_id": 0, "is_default_pulse": 1})
+    if locked and locked.get("is_default_pulse"):
+        raise HTTPException(
+            status_code=403,
+            detail="The Pulse Fitness Ltd default supplier is locked and can't be edited.",
+        )
     update_fields = {}
     for field in ['name', 'email', 'phone', 'contact_person', 'address', 'notes', 'custom_items']:
         if field in data:
@@ -266,6 +294,13 @@ async def get_supplier_pricing(supplier_id: str, user: dict = Depends(get_curren
 @router.delete("/suppliers/{supplier_id}")
 async def delete_supplier(supplier_id: str, user: dict = Depends(get_current_user)):
     org_filter = get_organization_filter(user)
+    locked = await db.suppliers.find_one(
+        {"id": supplier_id, **org_filter}, {"_id": 0, "is_default_pulse": 1})
+    if locked and locked.get("is_default_pulse"):
+        raise HTTPException(
+            status_code=403,
+            detail="The Pulse Fitness Ltd default supplier is locked and can't be removed.",
+        )
     result = await db.suppliers.delete_one({"id": supplier_id, **org_filter})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Supplier not found")
