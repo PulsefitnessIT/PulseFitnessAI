@@ -48,6 +48,7 @@ async def _load_supplier_or_404(supplier_id: str, user: dict) -> dict:
 
 @router.post("/suppliers")
 async def add_supplier(data: Dict[str, Any], user: dict = Depends(get_current_user)):
+    _require_owner_or_manager(user)
     # Lite orgs keep only the locked Pulse Fitness default supplier; Pro/Full
     # (and Pulse admins) may add unlimited extra suppliers.
     org = await db.organizations.find_one(
@@ -249,6 +250,7 @@ async def supplier_dispatch_readiness(user: dict = Depends(get_current_user)):
 
 @router.put("/suppliers/{supplier_id}")
 async def update_supplier(supplier_id: str, data: Dict[str, Any], user: dict = Depends(get_current_user)):
+    _require_owner_or_manager(user)
     org_filter = get_organization_filter(user)
     locked = await db.suppliers.find_one(
         {"id": supplier_id, **org_filter}, {"_id": 0, "is_default_pulse": 1})
@@ -293,6 +295,7 @@ async def get_supplier_pricing(supplier_id: str, user: dict = Depends(get_curren
 
 @router.delete("/suppliers/{supplier_id}")
 async def delete_supplier(supplier_id: str, user: dict = Depends(get_current_user)):
+    _require_owner_or_manager(user)
     org_filter = get_organization_filter(user)
     locked = await db.suppliers.find_one(
         {"id": supplier_id, **org_filter}, {"_id": 0, "is_default_pulse": 1})

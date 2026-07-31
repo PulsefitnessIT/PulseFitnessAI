@@ -24,9 +24,12 @@ IMPLEMENTATION:
     own route to Pulse Fitness Ltd".
 VERIFIED (curl + direct): GET /suppliers (owner@isodemo, full) → Pulse Fitness Ltd default service.dept@ locked + can_add=True;
   DELETE/PUT default → 403; POST add (full) → 200; readiness ready=16/blocked=4/no_supplier=16/total=20. Helper: lite→can_add
-  False, full/pulse_pro→True, master-admin override True; lite org default = service.dept@ locked. Frontend babel-parse OK.
-  ⚠️ NOT yet screenshot/testing_agent verified for the Suppliers-tab UI (locked row + hidden Add on Lite) — conditional
-  render only. ⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY + run the backfill script on prod (or rely on read-time ensure).
+  False, full/pulse_pro→True, master-admin override True; lite org default = service.dept@ locked.
+  TESTING_AGENT (iteration_pulse_default_supplier_jan2026.json): backend 7/7 PASS, frontend PASS (Pro shows locked default +
+  Add button; Lite shows only locked default, no Add). NO bugs. HARDENING added post-review: POST/PUT/DELETE /suppliers now
+  also call _require_owner_or_manager (defense in depth) — re-verified Pro add 200 / Lite add 403.
+  TEST LOGINS: Pro owner@isodemo.com/IsoDemo123!  ·  Lite lite.suptest@pulsedemo.test/LiteSup123! (seeded).
+  ⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY + run scripts/backfill_default_supplier.py on prod (or rely on read-time ensure).
 ─────────────────────────────────────────────────────────────────────────────
 
 
