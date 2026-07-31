@@ -1,3 +1,35 @@
+# ═══ 2026-07-31 · SUPPLIER INSIGHTS (Pro/Full) + Add-Equipment supplier picker — testing_agent PASS ═══
+User: give Pro orgs a small dashboard of which suppliers get the most faults & how fast they respond (inside existing
+Suppliers tab). Also raised: unassigned equipment shouldn't be blamed on Pulse — and asked whether users can pick a
+supplier when adding equipment (they couldn't). User decisions: 1a add picker for Pro/Full (default Pulse Fitness Ltd),
+2a separate "Unassigned" bucket (NOT counted as Pulse), 3 metrics last 90 days = total faults / open vs resolved / avg
+resolution time (first-response not tracked — first_response_at never set; resolved_at is).
+IMPLEMENTATION:
+  • BACKEND GET /api/suppliers/insights (routes/suppliers.py): _require_owner_or_manager + can_add_extra_suppliers gate
+    (Lite → 403). 90-day window (days param clamped 1..365). Groups db.issues by supplier name; empty supplier →
+    "Unassigned" bucket (is_unassigned=true, sorts LAST). Per row: total_faults, open_faults (open/in_progress),
+    resolved_faults, avg_resolution_hours (mean created_at→resolved_at), all_time_faults. Named suppliers sort by volume.
+  • BACKEND EquipmentCreate (models/schemas.py) now has supplier_id so the picker's exact id persists (equipment.py
+    create_equipment already auto-defaults supplier='Pulse Fitness' ONLY for lite/pulse_pro when none supplied).
+  • FRONTEND suppliers.js: loadInsights + "Supplier insights" panel (data-testid supplier-insights-panel; rows
+    supplier-insight-row-<key>; fmtResolution → m/h/d). Unassigned row shows amber warning + nudge. Panel hidden for Lite
+    (403 → null).
+  • FRONTEND AddEquipmentDialog.js: fetches /suppliers on open; if can_add_suppliers (Pro/Full) shows
+    "Supplier (services this machine)" dropdown (data-testid add-equip-supplier) defaulting to the is_default_pulse
+    supplier; sends supplier + supplier_id. Lite → no dropdown (auto Pulse default on backend).
+VERIFIED: testing_agent report iteration_supplier_insights_and_equipment_picker_jan2026.json — backend 5/5 PASS
+  (Pro insights 200 w/ correct schema + Unassigned sorts last; Lite 403; equipment persists supplier+supplier_id; Lite
+  auto-default preserved). Frontend: Pro insights panel visible ✅, Lite insights hidden ✅, Lite equipment picker absent ✅.
+  Pro add-equip-supplier dropdown NOT UI-exercised (iso-demo owner defaults to Head Office area where Equipment tab has no
+  Add button — adds happen at child sites) but gating+persistence verified via code+API.
+  NOTE (unrelated, non-blocking): tester saw an intermittent 500 on GET /api/equipment in the iso-demo Head Office area;
+  main agent re-tested GET /api/equipment → 200 OK with valid token (earlier failures were login 429 rate-limits). Flagged
+  as a possible pre-existing MOD HQ scope-resolver edge case, NOT caused by this feature.
+  ⚠️ PREVIEW ONLY — production needs REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-31 · DEFAULT SUPPLIER = PULSE FITNESS LTD for every org (fault routing guarantee) — backend curl-verified ═══
 User: every org on pulsefitness.ai must have Pulse Fitness Ltd as its DEFAULT supplier for logging faults; Pro orgs can
 add more suppliers; Lite orgs keep only the default. Commercial default email = service.dept@pulsefitness.com, MOD =
