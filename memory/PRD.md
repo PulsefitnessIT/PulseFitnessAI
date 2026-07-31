@@ -1,3 +1,27 @@
+# ═══ 2026-07-31 · SECURITY — FEATURE LOCKDOWN AUDIT (Pulse-only features cross-tenant sweep) — READ-ONLY, NO CODE CHANGE ═══
+Follow-up to the MOD Quote Writer leak fix. Swept the other Pulse-only / cross-org features for the SAME class of bug
+(an intentionally cross-org read exposed on ordinary user/CRM auth with no operator/admin gate). RESULT: the MOD Quote
+Writer was the ONLY instance; everything else is correctly isolated. No code changes required.
+Findings (all SAFE):
+  • Tenders (crm_v2.py /tenders*) — org-scoped via _of(user) (organization_id = caller's org); nav is feature-flag
+    gated (crm_tenders). A customer sees only its OWN tenders, never the operator's.
+  • MOD Estate (master_admin_mod_estate.py) — all 22 admin endpoints call require_master_admin. The 3 UNGUARDED
+    endpoints are the PUBLIC /public/mod-capture/{token}(/submit) equipment-capture forms — no-auth BY DESIGN,
+    gated by a secure random token + IP rate-limit (same pattern as booking forms).
+  • Estate modules rollup (master_admin_estate_rollup.py) — local _require_master (is_master_admin/is_pulse_admin).
+  • Sicon (sicon.py) — config is per-org (get_sicon_config(org_id)=caller's org), owner/manager gated; every
+    sync-by-id endpoint re-checks the issue/contract belongs to the caller's org via get_organization_filter.
+  • MOD visits/booking (svc/mod_visits.py) — list/booking-link org-scoped; public booking forms secure-token gated.
+  • MOD drill (mod_portal.py /master-admin/mod/sites/{id}/drill/*) — require_master_admin + equipment ownership check.
+  • CAPEX cross-org (capex.py /capex/master-admin/overview) — is_master_admin check before the broad org read.
+  • Admin analytics (admin_analytics.py) — local require_admin (is_master_admin) in all 5 endpoints.
+  • Platform integrity (platform_integrity.py) — admin-gated (10 guards / 6 endpoints).
+Method: grep for (a) db.organizations enumeration (find({}) / account_type mod filters) and (b) equipment/data reads
+by an arbitrary request-param org/site id, on non-admin auth; then read each hit's guard. No new leak found.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-31 · SECURITY — MOD QUOTE WRITER CROSS-TENANT LEAK (GDPR) FIXED, curl-verified ═══
 Reported (PRODUCTION): a customer org ("Penkridge") could see Pulse Fitness's MOD customers via CRM "MOD Auto Quote".
 ROOT CAUSE (NOT a master-admin flaw — master admin cross-org visibility is by-design for the platform owner):
