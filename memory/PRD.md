@@ -1,4 +1,24 @@
-# ═══ 2026-07-31 · ACCOUNT SETTINGS — SUBSCRIPTION DE-DUPLICATION (DONE, testing_agent VERIFIED) ═══
+# ═══ 2026-07-31 · ASER REPORT — RENDER INSIDE PLATFORM SHELL + THEME MATCH (DONE, testing_agent VERIFIED 6/6) ═══
+User: pressing ASER opened a NEW full-screen that broke out of the platform template; make it look like the rest of the
+platform. Root cause: MODASERPortal.js used React createPortal(document.body) + `fixed inset-0 z-[100]` with a hardcoded
+DARK palette (text-white, bg-white/[0.03], border-white/10, --color-ink-deep) — escaped the shell and ignored the
+platform's themeable design system.
+FIX (design_agent blueprint → design_guidelines.json; frontend-only, no logic/API change):
+  • MODASERPortal.js: removed createPortal + fixed overlay → renders INLINE; migrated ALL hardcoded dark utilities to
+    platform tokens (var(--theme-text|-muted|-surface|-surface-hover|-border)); themed recharts axes/tooltip/grid, the
+    .input style block, and the email modal inner; preserved semantic colors (red/amber/emerald/cyan badges) and white
+    text on strong red badges.
+  • PulseReportsTab.js: ASER now REPLACES the reports content when open (ternary) instead of overlaying; sub-tab pill
+    active/switch logic updated (aser pill active when open; picking another sub-tab closes ASER).
+  • MODProDashboard.js (secondary entry point): same replace-when-open pattern inside <main>.
+  • Polished a low-contrast amber privacy banner (text-amber-700 in light theme).
+VERIFIED: testing_agent (iteration_mod_aser_platform_shell_theme_jan2026.json) 6/6 PASS — ASER renders inside the portal
+  shell (nav + Reports sub-tab bar remain), light theme matches siblings, Register/Analytics toggle + charts readable,
+  New Entry wizard themed, Close returns to Reports. 0 bugs.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 User: "Manage subscription — look at the account settings and ensure that nothing is repeated." Found the subscription
 info shown twice.
 FIX (frontend-only):

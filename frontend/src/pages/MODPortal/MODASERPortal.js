@@ -523,7 +523,7 @@ function NewEntryWizard({ config, API, headers, onCancel, onDone }) {
   return (
     <div className="max-w-3xl mx-auto space-y-5" data-testid="aser-wizard">
       {/* Privacy guidance */}
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200" data-testid="aser-privacy-note">
+      <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-200" data-testid="aser-privacy-note">
         Do not enter patient-identifiable medical information unless your organisation has explicitly authorised this. ASER records equipment safety &amp; activity-delivery impact — not clinical records.
       </div>
 
