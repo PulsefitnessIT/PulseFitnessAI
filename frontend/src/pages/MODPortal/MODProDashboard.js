@@ -79,6 +79,10 @@ export default function MODProDashboard() {
       </header>
 
       <main className="max-w-6xl mx-auto px-5 pt-6 space-y-5">
+        {aserOpen ? (
+          <MODASERPortal onClose={() => setAserOpen(false)} />
+        ) : (
+        <>
         {/* Iter 216h110 — Operations · CAPEX · Reports pillar nav */}
         <nav className="flex items-center gap-2 border-b border-white/10 -mb-3" data-testid="mod-pro-pillars">
           {[
@@ -231,8 +235,9 @@ export default function MODProDashboard() {
             <ReportsPanel reports={reports} />
           </>
         )}
+        </>
+        )}
       </main>
-      {aserOpen && <MODASERPortal onClose={() => setAserOpen(false)} />}
     </div>
   );
 }

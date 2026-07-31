@@ -111,13 +111,13 @@ const PulseReportsTab = () => {
           ...(['owner', 'manager', 'master_admin'].includes(user?.role) ? [{ id: 'capex', label: 'CAPEX Intelligence', icon: PoundSterling }] : []),
           ...(['owner', 'manager', 'master_admin'].includes(user?.role) ? [{ id: 'weekly-digest', label: 'Weekly Digest', icon: Mail }] : []),
         ].map(tab => {
-          const isActive = subTab === tab.id;
+          const isActive = tab.action ? aserOpen : (subTab === tab.id && !aserOpen);
           return (
             <button
               key={tab.id}
               type="button"
               className={`subtab-pill ${isActive ? 'is-active' : ''}`}
-              onClick={() => (tab.action ? setAserOpen(true) : setSubTab(tab.id))}
+              onClick={() => { if (tab.action) { setAserOpen(true); } else { setAserOpen(false); setSubTab(tab.id); } }}
               data-testid={`pulse-report-sub-${tab.id}`}
             >
               <tab.icon size={14} /> {tab.label}
@@ -126,6 +126,10 @@ const PulseReportsTab = () => {
         })}
       </div>
 
+      {aserOpen ? (
+        <MODASERPortal onClose={() => setAserOpen(false)} />
+      ) : (
+      <>
       {subTab === 'performance' && <KPIPerformanceDashboard />}
       {subTab === 'risk' && <RiskAssessmentTab />}
       {subTab === 'incidents' && <IncidentsTab />}
@@ -293,7 +297,8 @@ const PulseReportsTab = () => {
       )}
       </>
       )}
-      {aserOpen && <MODASERPortal onClose={() => setAserOpen(false)} />}
+      </>
+      )}
     </div>
   );
 };

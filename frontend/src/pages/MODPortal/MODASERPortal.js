@@ -17,7 +17,6 @@ import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, Cell, PieChart, Pie,
 } from 'recharts';
-import { createPortal } from 'react-dom';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
 
@@ -89,13 +88,13 @@ export default function MODASERPortal({ onClose }) {
   useEffect(() => { loadConfig(); }, [loadConfig]);
   useEffect(() => { if (view === 'register') loadRegister(); }, [view, loadRegister]);
 
-  return createPortal((
-    <div className="mod-report-overlay fixed inset-0 z-[100] bg-[var(--color-ink-deep)] text-white overflow-y-auto" data-testid="mod-aser-portal">
-      <header className="border-b border-white/10 bg-[var(--color-surface-darker)] sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between gap-3">
+  return (
+    <div className="mod-aser-inline w-full text-[var(--theme-text)]" data-testid="mod-aser-portal">
+      <header className="border-b border-[var(--theme-border)]">
+        <div className="px-1 py-3 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 min-w-0">
             {view !== 'register' && (
-              <button onClick={() => { setView('register'); setActiveId(null); }} className="text-white/60 hover:text-white" data-testid="aser-back">
+              <button onClick={() => { setView('register'); setActiveId(null); }} className="text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]" data-testid="aser-back">
                 <ArrowLeft size={20} />
               </button>
             )}
@@ -103,18 +102,18 @@ export default function MODASERPortal({ onClose }) {
               <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)]">
                 MOD Service Portal · Reports
               </div>
-              <h1 className="text-white text-lg sm:text-xl font-extrabold tracking-tight" data-testid="aser-title">
+              <h1 className="text-[var(--theme-text)] text-lg sm:text-xl font-extrabold tracking-tight" data-testid="aser-title">
                 ASER — Activity Safety Events Register
               </h1>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {(view === 'register' || view === 'analytics') && (
-              <div className="hidden sm:flex items-center rounded-lg border border-white/10 overflow-hidden mr-1" data-testid="aser-view-toggle">
-                <button onClick={() => setView('register')} className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold ${view === 'register' ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white'}`} data-testid="aser-view-register">
+              <div className="hidden sm:flex items-center rounded-lg border border-[var(--theme-border)] overflow-hidden mr-1" data-testid="aser-view-toggle">
+                <button onClick={() => setView('register')} className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold ${view === 'register' ? 'bg-[var(--theme-surface-hover)] text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`} data-testid="aser-view-register">
                   <LayoutList size={14} /> Register
                 </button>
-                <button onClick={() => setView('analytics')} className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold ${view === 'analytics' ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white'}`} data-testid="aser-view-analytics">
+                <button onClick={() => setView('analytics')} className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold ${view === 'analytics' ? 'bg-[var(--theme-surface-hover)] text-[var(--theme-text)]' : 'text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]'}`} data-testid="aser-view-analytics">
                   <BarChart3 size={14} /> Analytics
                 </button>
               </div>
@@ -124,14 +123,14 @@ export default function MODASERPortal({ onClose }) {
                 <Plus size={14} /> New ASER Entry
               </button>
             )}
-            <button onClick={onClose} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border border-white/10 hover:bg-white/5" data-testid="aser-close">
+            <button onClick={onClose} className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border border-[var(--theme-border)] hover:bg-[var(--theme-surface-hover)]" data-testid="aser-close">
               <X size={14} /> Close
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-5 py-6">
+      <main className="px-1 py-6">
         {view === 'register' && (
           <RegisterView
             config={config} dash={dash} entries={entries} loading={loading}
@@ -167,7 +166,7 @@ export default function MODASERPortal({ onClose }) {
         />
       )}
     </div>
-  ), document.body);
+  );
 }
 
 // ── Register + dashboard ────────────────────────────────────────────
@@ -183,9 +182,9 @@ function RegisterView({ config, dash, entries, loading, filters, setFilters, onO
   };
   const stamp = new Date().toISOString().slice(0, 10);
   const card = (label, value, testid, tone = 'neutral') => (
-    <div className={`rounded-xl border p-3.5 ${tone === 'red' ? 'border-red-500/40 bg-red-500/10' : 'border-white/10 bg-white/[0.03]'}`} data-testid={testid}>
-      <div className="text-[10px] uppercase tracking-wider font-bold text-white/50">{label}</div>
-      <div className="text-2xl font-extrabold text-white tracking-tight">{value ?? 0}</div>
+    <div className={`rounded-xl border p-3.5 ${tone === 'red' ? 'border-red-500/40 bg-red-500/10' : 'border-[var(--theme-border)] bg-[var(--theme-surface-hover)]'}`} data-testid={testid}>
+      <div className="text-[10px] uppercase tracking-wider font-bold text-[var(--theme-text-muted)]">{label}</div>
+      <div className="text-2xl font-extrabold text-[var(--theme-text)] tracking-tight">{value ?? 0}</div>
     </div>
   );
   return (
@@ -207,34 +206,34 @@ function RegisterView({ config, dash, entries, loading, filters, setFilters, onO
       {/* Filters */}
       <div className="flex flex-wrap gap-2 items-center">
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
           <input value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })}
-            placeholder="Search ref, title, asset, serial…" className="w-full pl-9 pr-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/30" data-testid="aser-filter-q" />
+            placeholder="Search ref, title, asset, serial…" className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--theme-surface-hover)] border border-[var(--theme-border)] text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)]" data-testid="aser-filter-q" />
         </div>
-        <select value={filters.risk} onChange={(e) => setFilters({ ...filters, risk: e.target.value })} className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white" data-testid="aser-filter-risk">
+        <select value={filters.risk} onChange={(e) => setFilters({ ...filters, risk: e.target.value })} className="px-3 py-2 rounded-lg bg-[var(--theme-surface-hover)] border border-[var(--theme-border)] text-sm text-[var(--theme-text)]" data-testid="aser-filter-risk">
           <option value="">All risk</option>
           {(config?.risk_rating || ['low', 'medium', 'high', 'critical']).map((r) => <option key={r} value={r}>{titleCase(r)}</option>)}
         </select>
-        <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white" data-testid="aser-filter-status">
+        <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="px-3 py-2 rounded-lg bg-[var(--theme-surface-hover)] border border-[var(--theme-border)] text-sm text-[var(--theme-text)]" data-testid="aser-filter-status">
           <option value="">All status</option>
           {(config?.entry_statuses || []).map((s) => <option key={s} value={s}>{titleCase(s)}</option>)}
         </select>
         <div className="flex items-center gap-1 ml-auto" data-testid="aser-export-group">
-          <button onClick={() => downloadBlob(API, token, `/mod/aser/export/csv${exportQuery()}`, `ASER_Register_${stamp}.csv`)} className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-white/10 text-xs font-bold text-white/80 hover:bg-white/5" data-testid="aser-export-csv" title="Export CSV"><Download size={13} /> CSV</button>
-          <button onClick={() => downloadBlob(API, token, `/mod/aser/export/xlsx${exportQuery()}`, `ASER_Register_${stamp}.xlsx`)} className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-white/10 text-xs font-bold text-white/80 hover:bg-white/5" data-testid="aser-export-xlsx" title="Export Excel"><FileSpreadsheet size={13} /> Excel</button>
-          <button onClick={() => downloadBlob(API, token, `/mod/aser/export/pdf${exportQuery()}`, `ASER_Summary_${stamp}.pdf`)} className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-white/10 text-xs font-bold text-white/80 hover:bg-white/5" data-testid="aser-export-pdf" title="Export PDF summary"><FileText size={13} /> PDF</button>
+          <button onClick={() => downloadBlob(API, token, `/mod/aser/export/csv${exportQuery()}`, `ASER_Register_${stamp}.csv`)} className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-[var(--theme-border)] text-xs font-bold text-[var(--theme-text)] hover:bg-[var(--theme-surface-hover)]" data-testid="aser-export-csv" title="Export CSV"><Download size={13} /> CSV</button>
+          <button onClick={() => downloadBlob(API, token, `/mod/aser/export/xlsx${exportQuery()}`, `ASER_Register_${stamp}.xlsx`)} className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-[var(--theme-border)] text-xs font-bold text-[var(--theme-text)] hover:bg-[var(--theme-surface-hover)]" data-testid="aser-export-xlsx" title="Export Excel"><FileSpreadsheet size={13} /> Excel</button>
+          <button onClick={() => downloadBlob(API, token, `/mod/aser/export/pdf${exportQuery()}`, `ASER_Summary_${stamp}.pdf`)} className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-[var(--theme-border)] text-xs font-bold text-[var(--theme-text)] hover:bg-[var(--theme-surface-hover)]" data-testid="aser-export-pdf" title="Export PDF summary"><FileText size={13} /> PDF</button>
           <button onClick={onEmailSummary} className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-[var(--color-brand-cyan)]/40 bg-[var(--color-brand-cyan)]/10 text-[var(--color-brand-cyan)] text-xs font-bold hover:bg-[var(--color-brand-cyan)]/20" data-testid="aser-email-summary" title="Email the summary report"><Mail size={13} /> Email</button>
         </div>
       </div>
 
       {/* Register list */}
       {loading ? (
-        <div className="py-16 text-center text-white/50"><Loader2 className="animate-spin inline" /></div>
+        <div className="py-16 text-center text-[var(--theme-text-muted)]"><Loader2 className="animate-spin inline" /></div>
       ) : entries.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-white/15 py-16 text-center" data-testid="aser-empty">
-          <ClipboardList className="mx-auto text-white/40 mb-3" size={40} />
-          <p className="text-white/60 font-medium">No ASER entries yet</p>
-          <p className="text-sm text-white/40">Log the first equipment safety event impacting rehab / activity delivery.</p>
+        <div className="rounded-xl border border-dashed border-[var(--theme-border)] py-16 text-center" data-testid="aser-empty">
+          <ClipboardList className="mx-auto text-[var(--theme-text-muted)] mb-3" size={40} />
+          <p className="text-[var(--theme-text-muted)] font-medium">No ASER entries yet</p>
+          <p className="text-sm text-[var(--theme-text-muted)]">Log the first equipment safety event impacting rehab / activity delivery.</p>
         </div>
       ) : (
         <div className="space-y-2" data-testid="aser-register-list">
@@ -242,23 +241,23 @@ function RegisterView({ config, dash, entries, loading, filters, setFilters, onO
             const removal = REMOVAL_STATUSES.includes(e.equipment_status);
             return (
               <button key={e.id} onClick={() => onOpen(e.id)}
-                className={`w-full text-left rounded-xl border p-4 transition-colors ${removal ? 'border-red-500/60 bg-red-500/10 hover:bg-red-500/15' : 'border-white/10 bg-white/[0.03] hover:border-white/25'}`}
+                className={`w-full text-left rounded-xl border p-4 transition-colors ${removal ? 'border-red-500/60 bg-red-500/10 hover:bg-red-500/15' : 'border-[var(--theme-border)] bg-[var(--theme-surface-hover)] hover:border-[var(--theme-border)]'}`}
                 data-testid={`aser-row-${e.id}`}>
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-white text-sm font-mono">{e.aser_ref}</span>
+                      <span className="font-bold text-[var(--theme-text)] text-sm font-mono">{e.aser_ref}</span>
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${RISK_STYLES[e.risk?.rating] || RISK_STYLES.low}`}>{titleCase(e.risk?.rating)}</span>
                       {removal && <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-red-600 text-white inline-flex items-center gap-1"><Ban size={9} /> {titleCase(e.equipment_status)}</span>}
                       {e.capex_flagged && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 inline-flex items-center gap-1"><PoundSterling size={9} /> CAPEX</span>}
                     </div>
-                    <div className="text-sm text-white mt-1 font-semibold truncate">{e.title}</div>
-                    <div className="text-xs text-white/50 mt-0.5 truncate">
+                    <div className="text-sm text-[var(--theme-text)] mt-1 font-semibold truncate">{e.title}</div>
+                    <div className="text-xs text-[var(--theme-text-muted)] mt-0.5 truncate">
                       {e.equipment_snapshot?.name} · {e.equipment_snapshot?.serial_number || '—'} · {titleCase(e.event_type)}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-white/70">{titleCase(e.status)}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--theme-surface-hover)] text-[var(--theme-text-muted)]">{titleCase(e.status)}</span>
                     {e.repeated_issue?.label && e.repeated_issue.label !== 'monitor' && (
                       <div className="text-[10px] text-amber-300 mt-1">{REPEATED_LABELS[e.repeated_issue.label]}</div>
                     )}
@@ -293,13 +292,13 @@ function AnalyticsView({ API, headers }) {
     })();
   }, [API, headers]);
 
-  if (loading) return <div className="py-16 text-center text-white/50"><Loader2 className="animate-spin inline" /></div>;
+  if (loading) return <div className="py-16 text-center text-[var(--theme-text-muted)]"><Loader2 className="animate-spin inline" /></div>;
   if (!data || data.total_entries === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-white/15 py-16 text-center" data-testid="aser-analytics-empty">
-        <BarChart3 className="mx-auto text-white/40 mb-3" size={40} />
-        <p className="text-white/60 font-medium">No data to chart yet</p>
-        <p className="text-sm text-white/40">Analytics appear once ASER entries are logged.</p>
+      <div className="rounded-xl border border-dashed border-[var(--theme-border)] py-16 text-center" data-testid="aser-analytics-empty">
+        <BarChart3 className="mx-auto text-[var(--theme-text-muted)] mb-3" size={40} />
+        <p className="text-[var(--theme-text-muted)] font-medium">No data to chart yet</p>
+        <p className="text-sm text-[var(--theme-text-muted)]">Analytics appear once ASER entries are logged.</p>
       </div>
     );
   }
@@ -307,7 +306,7 @@ function AnalyticsView({ API, headers }) {
   const eventTypeData = (data.by_event_type || []).map((d) => ({ ...d, name: titleCase(d.name) }));
   const equipTypeData = (data.by_equipment_type || []).filter((d) => d.name);
   const riskData = (data.by_risk || []).map((d) => ({ ...d, key: d.name, name: titleCase(d.name) }));
-  const tooltipStyle = { background: '#0b1220', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#fff', fontSize: 12 };
+  const tooltipStyle = { background: 'var(--theme-surface)', border: '1px solid var(--theme-border)', borderRadius: 8, color: 'var(--theme-text)', fontSize: 12 };
 
   return (
     <div className="space-y-4" data-testid="aser-analytics">
@@ -315,9 +314,9 @@ function AnalyticsView({ API, headers }) {
       <ChartCard title="ASER trend over time (last 12 months)" testid="aser-chart-trend">
         <ResponsiveContainer width="100%" height={260}>
           <LineChart data={data.trend} margin={{ top: 5, right: 12, left: -18, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-            <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
-            <YAxis allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--theme-border)" />
+            <XAxis dataKey="month" tick={{ fill: 'var(--theme-text-muted)', fontSize: 11 }} />
+            <YAxis allowDecimals={false} tick={{ fill: 'var(--theme-text-muted)', fontSize: 11 }} />
             <Tooltip contentStyle={tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <Line type="monotone" dataKey="entries" name="Entries" stroke="#22d3ee" strokeWidth={2} dot={false} />
@@ -331,9 +330,9 @@ function AnalyticsView({ API, headers }) {
       <ChartCard title="Rehab delivery impact over time" testid="aser-chart-rehab-impact">
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={data.trend} margin={{ top: 5, right: 12, left: -18, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-            <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
-            <YAxis allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--theme-border)" />
+            <XAxis dataKey="month" tick={{ fill: 'var(--theme-text-muted)', fontSize: 11 }} />
+            <YAxis allowDecimals={false} tick={{ fill: 'var(--theme-text-muted)', fontSize: 11 }} />
             <Tooltip contentStyle={tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <Bar dataKey="sessions_impacted" name="Rehab sessions impacted" fill="#818cf8" radius={[3, 3, 0, 0]} />
@@ -347,10 +346,10 @@ function AnalyticsView({ API, headers }) {
         <ChartCard title="Events by type" testid="aser-chart-event-type">
           <ResponsiveContainer width="100%" height={Math.max(180, eventTypeData.length * 30)}>
             <BarChart data={eventTypeData} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" horizontal={false} />
-              <XAxis type="number" allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
-              <YAxis type="category" dataKey="name" width={150} tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 10 }} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--theme-border)" horizontal={false} />
+              <XAxis type="number" allowDecimals={false} tick={{ fill: 'var(--theme-text-muted)', fontSize: 11 }} />
+              <YAxis type="category" dataKey="name" width={150} tick={{ fill: 'var(--theme-text-muted)', fontSize: 10 }} />
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'var(--theme-surface-hover)' }} />
               <Bar dataKey="value" name="Entries" radius={[0, 3, 3, 0]}>
                 {eventTypeData.map((_, i) => <Cell key={i} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />)}
               </Bar>
@@ -375,10 +374,10 @@ function AnalyticsView({ API, headers }) {
           <ChartCard title="Events by equipment type" testid="aser-chart-equip-type">
             <ResponsiveContainer width="100%" height={Math.max(180, equipTypeData.length * 30)}>
               <BarChart data={equipTypeData} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" horizontal={false} />
-                <XAxis type="number" allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
-                <YAxis type="category" dataKey="name" width={120} tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 10 }} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--theme-border)" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fill: 'var(--theme-text-muted)', fontSize: 11 }} />
+                <YAxis type="category" dataKey="name" width={120} tick={{ fill: 'var(--theme-text-muted)', fontSize: 10 }} />
+                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'var(--theme-surface-hover)' }} />
                 <Bar dataKey="value" name="Entries" fill="#22d3ee" radius={[0, 3, 3, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -390,10 +389,10 @@ function AnalyticsView({ API, headers }) {
           <ChartCard title="Events by site" testid="aser-chart-site">
             <ResponsiveContainer width="100%" height={Math.max(180, data.by_site.length * 30)}>
               <BarChart data={data.by_site} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" horizontal={false} />
-                <XAxis type="number" allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
-                <YAxis type="category" dataKey="name" width={140} tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 10 }} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--theme-border)" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fill: 'var(--theme-text-muted)', fontSize: 11 }} />
+                <YAxis type="category" dataKey="name" width={140} tick={{ fill: 'var(--theme-text-muted)', fontSize: 10 }} />
+                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'var(--theme-surface-hover)' }} />
                 <Bar dataKey="value" name="Entries" fill="#a78bfa" radius={[0, 3, 3, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -404,19 +403,19 @@ function AnalyticsView({ API, headers }) {
       {/* Repeated / rundown equipment evidence */}
       <ChartCard title="Repeated-issue equipment (replacement evidence)" testid="aser-chart-top-assets">
         {(data.top_assets || []).length === 0 ? (
-          <p className="text-sm text-white/40 py-4">No repeated-issue equipment yet.</p>
+          <p className="text-sm text-[var(--theme-text-muted)] py-4">No repeated-issue equipment yet.</p>
         ) : (
           <div className="space-y-1.5">
             {data.top_assets.map((a) => {
               const rep = ['escalation_recommended', 'replacement_evidence_building', 'replacement_strongly_recommended'].includes(a.label);
               return (
-                <div key={a.equipment_id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${rep ? 'border-red-500/40 bg-red-500/10' : 'border-white/10 bg-white/[0.03]'}`} data-testid={`aser-asset-${a.equipment_id}`}>
+                <div key={a.equipment_id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${rep ? 'border-red-500/40 bg-red-500/10' : 'border-[var(--theme-border)] bg-[var(--theme-surface-hover)]'}`} data-testid={`aser-asset-${a.equipment_id}`}>
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold text-white truncate">{a.name} <span className="text-white/40 text-xs">· {a.serial_number || 'no serial'}</span></div>
-                    <div className="text-[11px] text-white/50">{a.equipment_type || '—'}</div>
+                    <div className="text-sm font-semibold text-[var(--theme-text)] truncate">{a.name} <span className="text-[var(--theme-text-muted)] text-xs">· {a.serial_number || 'no serial'}</span></div>
+                    <div className="text-[11px] text-[var(--theme-text-muted)]">{a.equipment_type || '—'}</div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 text-[11px]">
-                    <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/70">{a.aser_count} ASER</span>
+                    <span className="px-2 py-0.5 rounded-full bg-[var(--theme-surface-hover)] text-[var(--theme-text-muted)]">{a.aser_count} ASER</span>
                     {a.high_risk > 0 && <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300">{a.high_risk} high</span>}
                     {a.capex > 0 && <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">CAPEX</span>}
                     {a.label && a.label !== 'monitor' && <span className={`px-2 py-0.5 rounded-full ${rep ? 'bg-red-600 text-white font-bold' : 'bg-amber-500/20 text-amber-300'}`}>{REP_LABELS[a.label]}</span>}
@@ -433,8 +432,8 @@ function AnalyticsView({ API, headers }) {
 
 function ChartCard({ title, testid, children }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4" data-testid={testid}>
-      <h3 className="text-xs font-extrabold uppercase tracking-wider text-white/60 mb-3">{title}</h3>
+    <div className="rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-hover)] p-4" data-testid={testid}>
+      <h3 className="text-xs font-extrabold uppercase tracking-wider text-[var(--theme-text-muted)] mb-3">{title}</h3>
       {children}
     </div>
   );
@@ -514,8 +513,8 @@ function NewEntryWizard({ config, API, headers, onCancel, onDone }) {
   };
 
   const Toggle = ({ label, value, onChange, testid }) => (
-    <label className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 cursor-pointer">
-      <span className="text-xs text-white/80">{label}</span>
+    <label className="flex items-center justify-between gap-2 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-surface-hover)] px-3 py-2 cursor-pointer">
+      <span className="text-xs text-[var(--theme-text)]">{label}</span>
       <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} className="accent-[var(--color-brand-cyan)]" data-testid={testid} />
     </label>
   );
@@ -539,12 +538,12 @@ function NewEntryWizard({ config, API, headers, onCancel, onDone }) {
           </Field>
         )}
         <div className="relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--theme-text-muted)]" />
           <input value={eqQuery} onChange={(e) => setEqQuery(e.target.value)} placeholder="Search asset no., serial, model, type…" className="input pl-9" data-testid="aser-equipment-search" disabled={!form.site_id} />
         </div>
         <div className="max-h-56 overflow-auto space-y-1.5 mt-2">
           {equipment.length === 0 ? (
-            <p className="text-xs text-white/40 py-4 text-center">
+            <p className="text-xs text-[var(--theme-text-muted)] py-4 text-center">
               {form.site_id ? 'No equipment found. Equipment not listed? Contact Pulse Fitness / your site administrator to update the site equipment list.' : 'Select a site to load equipment.'}
             </p>
           ) : equipment.map((e) => {
@@ -552,14 +551,14 @@ function NewEntryWizard({ config, API, headers, onCancel, onDone }) {
             const on = form.equipment_id === e.id;
             return (
               <button key={e.id} onClick={() => setForm({ ...form, equipment_id: e.id })}
-                className={`w-full text-left rounded-lg border px-3 py-2 transition-colors ${removed ? 'border-red-500/60 bg-red-500/10' : on ? 'border-[var(--color-brand-cyan)] bg-[var(--color-brand-cyan)]/10' : 'border-white/10 bg-white/[0.03] hover:border-white/25'}`}
+                className={`w-full text-left rounded-lg border px-3 py-2 transition-colors ${removed ? 'border-red-500/60 bg-red-500/10' : on ? 'border-[var(--color-brand-cyan)] bg-[var(--color-brand-cyan)]/10' : 'border-[var(--theme-border)] bg-[var(--theme-surface-hover)] hover:border-[var(--theme-border)]'}`}
                 data-testid={`aser-eq-${e.id}`}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold text-white truncate">{e.name} {removed && <span className="text-[10px] font-extrabold text-red-300">· FLAGGED FOR REMOVAL</span>}</div>
-                    <div className="text-[11px] text-white/50 truncate">{e.equipment_type} · {e.serial_number || 'no serial'} · {e.location || '—'}</div>
+                    <div className="text-sm font-semibold text-[var(--theme-text)] truncate">{e.name} {removed && <span className="text-[10px] font-extrabold text-red-300">· FLAGGED FOR REMOVAL</span>}</div>
+                    <div className="text-[11px] text-[var(--theme-text-muted)] truncate">{e.equipment_type} · {e.serial_number || 'no serial'} · {e.location || '—'}</div>
                   </div>
-                  <div className="text-right text-[10px] text-white/50 shrink-0">
+                  <div className="text-right text-[10px] text-[var(--theme-text-muted)] shrink-0">
                     {e.open_faults > 0 && <div className="text-amber-300">{e.open_faults} open fault(s)</div>}
                     {e.previous_aser_count > 0 && <div>{e.previous_aser_count} prior ASER</div>}
                   </div>
@@ -569,8 +568,8 @@ function NewEntryWizard({ config, API, headers, onCancel, onDone }) {
           })}
         </div>
         {selectedEq && (
-          <div className="mt-2 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-xs text-white/70" data-testid="aser-eq-confirm">
-            <span className="font-semibold text-white">{selectedEq.name}</span> · Asset {selectedEq.asset_number || '—'} · {selectedEq.model || '—'} · {selectedEq.equipment_type}
+          <div className="mt-2 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-surface-hover)] p-3 text-xs text-[var(--theme-text-muted)]" data-testid="aser-eq-confirm">
+            <span className="font-semibold text-[var(--theme-text)]">{selectedEq.name}</span> · Asset {selectedEq.asset_number || '—'} · {selectedEq.model || '—'} · {selectedEq.equipment_type}
           </div>
         )}
       </Section>
@@ -649,7 +648,7 @@ function NewEntryWizard({ config, API, headers, onCancel, onDone }) {
           <Field label="Due date"><input type="date" value={form.due_date || ''} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="input" data-testid="aser-due-date" /></Field>
         </div>
         <Field label="Follow-up actions"><textarea value={form.follow_up_actions} onChange={(e) => setForm({ ...form, follow_up_actions: e.target.value })} rows={2} className="input" data-testid="aser-followup" /></Field>
-        <label className="flex items-center gap-2 mt-1 text-sm text-white/80">
+        <label className="flex items-center gap-2 mt-1 text-sm text-[var(--theme-text)]">
           <input type="checkbox" checked={form.capex_flagged} onChange={(e) => setForm({ ...form, capex_flagged: e.target.checked })} className="accent-emerald-500" data-testid="aser-capex-flag" />
           Flag this equipment for CAPEX / replacement review
         </label>
@@ -661,9 +660,9 @@ function NewEntryWizard({ config, API, headers, onCancel, onDone }) {
           {form.attachment_urls.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
               {form.attachment_urls.map((p, i) => (
-                <span key={i} className="inline-flex items-center gap-1 text-[11px] bg-white/5 border border-white/10 rounded px-2 py-1" data-testid={`aser-attach-${i}`}>
+                <span key={i} className="inline-flex items-center gap-1 text-[11px] bg-[var(--theme-surface-hover)] border border-[var(--theme-border)] rounded px-2 py-1" data-testid={`aser-attach-${i}`}>
                   Evidence {i + 1}
-                  <button onClick={() => setForm({ ...form, attachment_urls: form.attachment_urls.filter((_, j) => j !== i) })} className="text-white/40 hover:text-rose-400"><Trash2 size={11} /></button>
+                  <button onClick={() => setForm({ ...form, attachment_urls: form.attachment_urls.filter((_, j) => j !== i) })} className="text-[var(--theme-text-muted)] hover:text-rose-400"><Trash2 size={11} /></button>
                 </span>
               ))}
             </div>
@@ -672,21 +671,21 @@ function NewEntryWizard({ config, API, headers, onCancel, onDone }) {
       </Section>
 
       <div className="flex justify-end gap-2 pb-10">
-        <button onClick={onCancel} className="px-4 py-2 rounded-lg border border-white/10 text-sm text-white/80 hover:bg-white/5" data-testid="aser-cancel">Cancel</button>
-        <button onClick={() => submit(true)} disabled={submitting} className="px-4 py-2 rounded-lg border border-white/10 text-sm text-white/80 hover:bg-white/5" data-testid="aser-save-draft">Save draft</button>
+        <button onClick={onCancel} className="px-4 py-2 rounded-lg border border-[var(--theme-border)] text-sm text-[var(--theme-text)] hover:bg-[var(--theme-surface-hover)]" data-testid="aser-cancel">Cancel</button>
+        <button onClick={() => submit(true)} disabled={submitting} className="px-4 py-2 rounded-lg border border-[var(--theme-border)] text-sm text-[var(--theme-text)] hover:bg-[var(--theme-surface-hover)]" data-testid="aser-save-draft">Save draft</button>
         <button onClick={() => submit(false)} disabled={submitting} className="px-5 py-2 rounded-lg bg-[var(--color-brand-cyan)] text-black text-sm font-extrabold inline-flex items-center gap-2 disabled:opacity-60" data-testid="aser-submit">
           {submitting ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />} Submit ASER entry
         </button>
       </div>
 
-      <style>{`.input{width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px;font-size:14px;color:#fff}.input::placeholder{color:rgba(255,255,255,0.3)}`}</style>
+      <style>{`.input{width:100%;background:var(--theme-surface-hover);border:1px solid var(--theme-border);border-radius:8px;padding:8px 12px;font-size:14px;color:var(--theme-text)}.input::placeholder{color:var(--theme-text-muted)}`}</style>
     </div>
   );
 }
 
 function Section({ title, children }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-2">
+    <div className="rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-hover)] p-4 space-y-2">
       <h3 className="text-xs font-extrabold uppercase tracking-wider text-[var(--color-brand-cyan)]">{title}</h3>
       {children}
     </div>
@@ -695,7 +694,7 @@ function Section({ title, children }) {
 function Field({ label, children }) {
   return (
     <div>
-      <label className="block text-[11px] font-bold uppercase tracking-wider text-white/50 mb-1">{label}</label>
+      <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--theme-text-muted)] mb-1">{label}</label>
       {children}
     </div>
   );
@@ -737,22 +736,22 @@ function DetailView({ entryId, config, API, headers, onBack, onChanged, onEmailE
     finally { setAiBusy(false); }
   };
 
-  if (!entry) return <div className="py-16 text-center text-white/50"><Loader2 className="animate-spin inline" /></div>;
+  if (!entry) return <div className="py-16 text-center text-[var(--theme-text-muted)]"><Loader2 className="animate-spin inline" /></div>;
   const removal = REMOVAL_STATUSES.includes(entry.equipment_status);
   const ai = entry.activity_impact || {}; const si = entry.safety_impact || {};
 
   return (
     <div className="max-w-3xl mx-auto space-y-4" data-testid="aser-detail">
-      <div className={`rounded-xl border p-4 ${removal ? 'border-red-500/60 bg-red-500/10' : 'border-white/10 bg-white/[0.03]'}`}>
+      <div className={`rounded-xl border p-4 ${removal ? 'border-red-500/60 bg-red-500/10' : 'border-[var(--theme-border)] bg-[var(--theme-surface-hover)]'}`}>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-mono font-bold text-white">{entry.aser_ref}</span>
+          <span className="font-mono font-bold text-[var(--theme-text)]">{entry.aser_ref}</span>
           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${RISK_STYLES[entry.risk?.rating] || RISK_STYLES.low}`}>{titleCase(entry.risk?.rating)} risk</span>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-white/70">{titleCase(entry.status)}</span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--theme-surface-hover)] text-[var(--theme-text-muted)]">{titleCase(entry.status)}</span>
           {removal && <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-red-600 text-white inline-flex items-center gap-1"><Ban size={9} /> {titleCase(entry.equipment_status)}</span>}
           {entry.capex_flagged && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">CAPEX flagged</span>}
         </div>
-        <h2 className="text-lg font-extrabold text-white mt-2">{entry.title}</h2>
-        <p className="text-sm text-white/70 mt-1">{titleCase(entry.event_type)} · {entry.equipment_snapshot?.name} · {entry.equipment_snapshot?.serial_number || '—'} · {entry.site_name}</p>
+        <h2 className="text-lg font-extrabold text-[var(--theme-text)] mt-2">{entry.title}</h2>
+        <p className="text-sm text-[var(--theme-text-muted)] mt-1">{titleCase(entry.event_type)} · {entry.equipment_snapshot?.name} · {entry.equipment_snapshot?.serial_number || '—'} · {entry.site_name}</p>
         {entry.repeated_issue?.label && entry.repeated_issue.label !== 'monitor' && (
           <div className="mt-2 text-xs text-amber-300 flex items-center gap-1"><AlertTriangle size={12} /> {REPEATED_LABELS[entry.repeated_issue.label]} — {(entry.repeated_issue.triggers || []).join(', ')}</div>
         )}
@@ -775,16 +774,16 @@ function DetailView({ entryId, config, API, headers, onBack, onChanged, onEmailE
           <div className="flex items-center gap-2 mb-2">
             <Sparkles size={14} className="text-violet-300" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-violet-200">{aiTitle}</h3>
-            <span className="text-[10px] text-white/40">AI-generated for review</span>
+            <span className="text-[10px] text-[var(--theme-text-muted)]">AI-generated for review</span>
           </div>
-          <p className="text-sm text-white/80 whitespace-pre-line">{aiText}</p>
+          <p className="text-sm text-[var(--theme-text)] whitespace-pre-line">{aiText}</p>
         </div>
       )}
 
       <div className="grid sm:grid-cols-2 gap-3">
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-white/50 mb-2">Rehab / activity impact</h3>
-          <ul className="text-sm text-white/80 space-y-0.5">
+        <div className="rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-hover)] p-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--theme-text-muted)] mb-2">Rehab / activity impact</h3>
+          <ul className="text-sm text-[var(--theme-text)] space-y-0.5">
             {ai.impacted_rehab && <li>· Impacted rehab delivery</li>}
             {ai.impacted_group && <li>· Impacted group programme</li>}
             {ai.impacted_individual && <li>· Impacted individual programme</li>}
@@ -793,9 +792,9 @@ function DetailView({ entryId, config, API, headers, onBack, onChanged, onEmailE
             <li>· Patients affected: <b>{ai.patients_affected || 0}</b></li>
           </ul>
         </div>
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-white/50 mb-2">Safety</h3>
-          <ul className="text-sm text-white/80 space-y-0.5">
+        <div className="rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-hover)] p-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--theme-text-muted)] mb-2">Safety</h3>
+          <ul className="text-sm text-[var(--theme-text)] space-y-0.5">
             <li>· Injured: <b>{si.anyone_injured ? 'Yes' : 'No'}</b></li>
             <li>· Near miss: <b>{si.near_miss ? 'Yes' : 'No'}</b></li>
             <li>· Equipment removed: <b>{si.equipment_removed ? 'Yes' : 'No'}</b></li>
@@ -807,7 +806,7 @@ function DetailView({ entryId, config, API, headers, onBack, onChanged, onEmailE
       {/* Actions */}
       <div className="flex flex-wrap gap-2">
         {!entry.linked_fault_id && (
-          <button onClick={() => act('create-fault', 'Fault created & linked')} disabled={busy} className="px-3 py-2 rounded-lg border border-white/10 text-sm text-white hover:bg-white/5 inline-flex items-center gap-1.5" data-testid="aser-create-fault"><Wrench size={14} /> Create fault</button>
+          <button onClick={() => act('create-fault', 'Fault created & linked')} disabled={busy} className="px-3 py-2 rounded-lg border border-[var(--theme-border)] text-sm text-[var(--theme-text)] hover:bg-[var(--theme-surface-hover)] inline-flex items-center gap-1.5" data-testid="aser-create-fault"><Wrench size={14} /> Create fault</button>
         )}
         {entry.linked_fault_id && (
           <span className="px-3 py-2 rounded-lg bg-cyan-500/15 border border-cyan-500/40 text-cyan-200 text-sm inline-flex items-center gap-1.5" data-testid="aser-linked-fault"><Link2 size={14} /> Linked to fault {entry.linked_fault_ref || ''}</span>
@@ -816,7 +815,7 @@ function DetailView({ entryId, config, API, headers, onBack, onChanged, onEmailE
           <button onClick={() => act('flag-capex', 'Flagged for CAPEX review')} disabled={busy} className="px-3 py-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 text-emerald-200 text-sm hover:bg-emerald-500/20 inline-flex items-center gap-1.5" data-testid="aser-flag-capex"><PoundSterling size={14} /> Flag CAPEX</button>
         )}
         {isManager && entry.status !== 'closed' && (
-          <button onClick={() => act('close', 'ASER entry closed', { manager_override: true })} disabled={busy} className="px-3 py-2 rounded-lg border border-white/10 text-sm text-white hover:bg-white/5 inline-flex items-center gap-1.5" data-testid="aser-close-entry"><CheckCircle2 size={14} /> Close entry</button>
+          <button onClick={() => act('close', 'ASER entry closed', { manager_override: true })} disabled={busy} className="px-3 py-2 rounded-lg border border-[var(--theme-border)] text-sm text-[var(--theme-text)] hover:bg-[var(--theme-surface-hover)] inline-flex items-center gap-1.5" data-testid="aser-close-entry"><CheckCircle2 size={14} /> Close entry</button>
         )}
         {isManager && removal && !entry.disposed && (
           <button onClick={() => { if (window.confirm('Dispose of this machine? It will be marked disposed and removed from the active register.')) act('dispose', 'Equipment disposed'); }} disabled={busy} className="px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 inline-flex items-center gap-1.5" data-testid="aser-dispose"><Ban size={14} /> Dispose machine</button>
@@ -830,9 +829,9 @@ function DetailView({ entryId, config, API, headers, onBack, onChanged, onEmailE
 
 function InfoBlock({ title, children }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-      <h3 className="text-xs font-bold uppercase tracking-wider text-white/50 mb-2">{title}</h3>
-      <p className="text-sm text-white/80 whitespace-pre-line">{children}</p>
+    <div className="rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-hover)] p-4">
+      <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--theme-text-muted)] mb-2">{title}</h3>
+      <p className="text-sm text-[var(--theme-text)] whitespace-pre-line">{children}</p>
     </div>
   );
 }
@@ -875,37 +874,37 @@ function EmailReportModal({ API, token, mode, equipmentId, siteId, label, onClos
 
   return (
     <div className="fixed inset-0 z-[110] bg-black/60 grid place-items-center p-4" onClick={onClose} data-testid="aser-email-modal">
-      <div className="w-full max-w-md bg-[var(--color-surface-darker)] border border-white/10 rounded-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2">
+      <div className="w-full max-w-md bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-[var(--theme-border)] flex items-center gap-2">
           <Mail size={16} className="text-[var(--color-brand-cyan)]" />
-          <h3 className="text-white font-extrabold text-sm">{label || 'Email report'}</h3>
+          <h3 className="text-[var(--theme-text)] font-extrabold text-sm">{label || 'Email report'}</h3>
         </div>
         <div className="p-5 space-y-3">
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-white/50 mb-1">Recipients</label>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-[var(--theme-text-muted)] mb-1">Recipients</label>
             <div className="flex gap-2">
               <input value={emailInput} onChange={(e) => setEmailInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addEmail())}
-                placeholder="email@example.mod.uk" className="flex-1 rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30" data-testid="aser-email-input" />
-              <button onClick={addEmail} className="px-3 py-2 rounded-lg border border-white/10 text-white/80 text-sm hover:bg-white/5" data-testid="aser-email-add">Add</button>
+                placeholder="email@example.mod.uk" className="flex-1 rounded-lg bg-[var(--theme-surface-hover)] border border-[var(--theme-border)] px-3 py-2 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)]" data-testid="aser-email-input" />
+              <button onClick={addEmail} className="px-3 py-2 rounded-lg border border-[var(--theme-border)] text-[var(--theme-text)] text-sm hover:bg-[var(--theme-surface-hover)]" data-testid="aser-email-add">Add</button>
             </div>
             {emails.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {emails.map((e) => (
-                  <span key={e} className="inline-flex items-center gap-1 text-[11px] bg-white/10 rounded-full px-2 py-0.5 text-white/80">
-                    {e}<button onClick={() => setEmails(emails.filter((x) => x !== e))} className="text-white/40 hover:text-rose-400">×</button>
+                  <span key={e} className="inline-flex items-center gap-1 text-[11px] bg-[var(--theme-surface-hover)] rounded-full px-2 py-0.5 text-[var(--theme-text)]">
+                    {e}<button onClick={() => setEmails(emails.filter((x) => x !== e))} className="text-[var(--theme-text-muted)] hover:text-rose-400">×</button>
                   </span>
                 ))}
               </div>
             )}
           </div>
           <div className="space-y-1">
-            <label className="flex items-center gap-2 text-sm text-white/80"><input type="checkbox" checked={toManagers} onChange={(e) => setToManagers(e.target.checked)} className="accent-[var(--color-brand-cyan)]" data-testid="aser-email-to-managers" /> Site managers</label>
-            <label className="flex items-center gap-2 text-sm text-white/80"><input type="checkbox" checked={toServiceDesk} onChange={(e) => setToServiceDesk(e.target.checked)} className="accent-[var(--color-brand-cyan)]" data-testid="aser-email-to-desk" /> Service desk (configured email)</label>
-            <label className="flex items-center gap-2 text-sm text-white/80"><input type="checkbox" checked={toAccountManager} onChange={(e) => setToAccountManager(e.target.checked)} className="accent-[var(--color-brand-cyan)]" data-testid="aser-email-to-am" /> Account manager (configured email)</label>
+            <label className="flex items-center gap-2 text-sm text-[var(--theme-text)]"><input type="checkbox" checked={toManagers} onChange={(e) => setToManagers(e.target.checked)} className="accent-[var(--color-brand-cyan)]" data-testid="aser-email-to-managers" /> Site managers</label>
+            <label className="flex items-center gap-2 text-sm text-[var(--theme-text)]"><input type="checkbox" checked={toServiceDesk} onChange={(e) => setToServiceDesk(e.target.checked)} className="accent-[var(--color-brand-cyan)]" data-testid="aser-email-to-desk" /> Service desk (configured email)</label>
+            <label className="flex items-center gap-2 text-sm text-[var(--theme-text)]"><input type="checkbox" checked={toAccountManager} onChange={(e) => setToAccountManager(e.target.checked)} className="accent-[var(--color-brand-cyan)]" data-testid="aser-email-to-am" /> Account manager (configured email)</label>
           </div>
-          <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={2} placeholder="Optional message…" className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30" data-testid="aser-email-message" />
+          <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={2} placeholder="Optional message…" className="w-full rounded-lg bg-[var(--theme-surface-hover)] border border-[var(--theme-border)] px-3 py-2 text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)]" data-testid="aser-email-message" />
           <div className="flex justify-end gap-2 pt-1">
-            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-white/10 text-sm text-white/80 hover:bg-white/5">Cancel</button>
+            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-[var(--theme-border)] text-sm text-[var(--theme-text)] hover:bg-[var(--theme-surface-hover)]">Cancel</button>
             <button onClick={send} disabled={sending} className="px-4 py-2 rounded-lg bg-[var(--color-brand-cyan)] text-black text-sm font-extrabold inline-flex items-center gap-2 disabled:opacity-60" data-testid="aser-email-send">
               {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Send report
             </button>
