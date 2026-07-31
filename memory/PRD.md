@@ -1,3 +1,21 @@
+# ═══ 2026-07-31 · Insights DRILL-DOWN + Head Office equipment-summary 500 FIX — testing_agent PASS ═══
+1) BUGFIX — Head Office "Equipment" area 500: root cause GET /api/reports/equipment-summary raised KeyError
+   'equipment_type' for equipment docs missing that field (dealer-distribution / legacy rows). FIX routes/reports.py
+   get_equipment_summary_report: use equip.get('equipment_type','Unknown') and safe .get for id/name/stats. Verified 200
+   (was 500); testing_agent confirmed HO equipment page loads 20 items, no error.
+2) FEATURE — Supplier Insights drill-down: NEW GET /api/suppliers/insights/faults?supplier=<name>|unassigned=true&days=90
+   (routes/suppliers.py) — same Pro/Full + owner/manager gate (Lite→403). Returns the faults behind an insights number
+   (machine_name resolved from equipment_id, issue_description, status, severity, created_at/resolved_at, resolution_hours).
+   FRONTEND suppliers.js: insight rows are now buttons (ChevronRight rotates); toggleFaults fetches + caches per key and
+   expands an inline fault list (data-testid supplier-insight-faults-<key>, rows insight-fault-<id>).
+VERIFIED: testing_agent iteration_supplier_insights_drill_equipment_bugfix_jan2026.json — backend 3/3 (1 skipped: no named
+   supplier in iso-demo, only Unassigned), frontend 100% (Unassigned row expands to 8 fault rows w/ status pills, collapses
+   on re-click; equipment page no 500). curl also confirmed named-supplier drill-down (Technogym UK → 1 fault, 24h) + Lite 403.
+   ⚠️ PREVIEW ONLY — production needs REDEPLOY (the HO 500 fix in particular affects live users).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-31 · SUPPLIER INSIGHTS (Pro/Full) + Add-Equipment supplier picker — testing_agent PASS ═══
 User: give Pro orgs a small dashboard of which suppliers get the most faults & how fast they respond (inside existing
 Suppliers tab). Also raised: unassigned equipment shouldn't be blamed on Pulse — and asked whether users can pick a
