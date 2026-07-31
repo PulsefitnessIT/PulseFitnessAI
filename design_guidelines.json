@@ -1,166 +1,55 @@
 {
-  "project_context": "B2B fitness-equipment service platform (Pulse Fitness). Transactional HTML Emails. Must render on Outlook, Gmail, Apple Mail, Mobile.",
-  "theme": "Light mode priority (credible, clean, safety-oriented)",
+  "project_context": {
+    "description": "Integration of the ASER (Activity Safety Events Register) panel into the MOD Service Portal template.",
+    "goal": "Remove the full-screen createPortal implementation. Render the ASER component inline within the existing shell. Migrate all hardcoded dark theme utility classes to the platform's theme CSS variables."
+  },
   "typography": {
-    "font_stack": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'",
-    "hierarchy": {
-      "h1": {
-        "font-size": "24px",
-        "font-weight": "bold",
-        "line-height": "32px",
-        "color": "#18181B",
-        "margin": "0 0 16px 0"
-      },
-      "h2": {
-        "font-size": "20px",
-        "font-weight": "bold",
-        "line-height": "28px",
-        "color": "#18181B",
-        "margin": "0 0 12px 0"
-      },
-      "body": {
-        "font-size": "16px",
-        "font-weight": "normal",
-        "line-height": "24px",
-        "color": "#3F3F46",
-        "margin": "0 0 16px 0"
-      },
-      "small": {
-        "font-size": "14px",
-        "font-weight": "normal",
-        "line-height": "20px",
-        "color": "#71717A",
-        "margin": "0 0 8px 0"
-      }
-    }
+    "strategy": "Inherit platform typography. Do not enforce custom fonts to maintain absolute consistency with the MOD Service Portal."
   },
   "colors": {
-    "brand": {
-      "primary_default": "#0055FF",
-      "dynamic_accent": "CUSTOMER_BRAND_HEX (Fallback to #0055FF)"
-    },
-    "backgrounds": {
-      "email_wrapper": "#F4F5F7",
-      "content_card": "#FFFFFF",
-      "logo_chip": "#FFFFFF"
-    },
-    "text": {
-      "primary": "#18181B",
-      "secondary": "#3F3F46",
-      "muted": "#71717A",
-      "inverse": "#FFFFFF"
-    },
-    "severities_and_badges": {
-      "safety_critical": { "text": "#991B1B", "bg": "#FEE2E2", "border": "#FCA5A5" },
-      "out_of_order": { "text": "#9A3412", "bg": "#FFEDD5", "border": "#FDBA74" },
-      "fault": { "text": "#854D0E", "bg": "#FEF9C3", "border": "#FDE047" },
-      "minor": { "text": "#1E40AF", "bg": "#DBEAFE", "border": "#93C5FD" },
-      "warranty": { "text": "#166534", "bg": "#DCFCE7", "border": "#86EFAC" },
-      "neutral_count": { "text": "#3F3F46", "bg": "#F4F5F7", "border": "#E4E4E7" }
-    },
-    "borders": {
-      "divider": "#E4E4E7",
-      "card": "#E4E4E7"
+    "mapping_rules": {
+      "primary_background": "bg-[var(--theme-surface)] (replaces bg-[var(--color-ink-deep)])",
+      "secondary_background": "bg-[var(--theme-surface-hover)] (replaces bg-white/[0.03], bg-white/5)",
+      "primary_text": "text-[var(--theme-text)] (replaces text-white)",
+      "secondary_text": "text-[var(--theme-text-muted)] (replaces text-white/40, text-white/50, text-white/60)",
+      "borders": "border-[var(--theme-border)] (replaces border-white/10, border-white/20)",
+      "brand_accents": "var(--color-brand-cyan), var(--color-brand-blue)"
     }
   },
   "layouts": {
-    "email_wrapper": {
-      "width": "100%",
-      "background-color": "#F4F5F7",
-      "padding": "40px 20px"
-    },
-    "container": {
-      "max-width": "600px",
-      "width": "100%",
-      "margin": "0 auto",
-      "background-color": "#FFFFFF",
-      "border-radius": "12px",
-      "border": "1px solid #E4E4E7",
-      "overflow": "hidden"
-    },
-    "spacing": {
-      "section_padding": "32px",
-      "element_gap": "16px",
-      "table_cell_padding": "12px 16px"
-    },
-    "grids": "NO CSS GRIDS OR FLEXBOX ALLOWED. Use standard <table> with width percentages for columns."
+    "shell_integration": "Remove `createPortal(..., document.body)` and the `fixed inset-0 z-[100]` wrapper. Render ASER as a direct child of the portal content area (`relative flex flex-col w-full h-full`).",
+    "header": "Transform the top header to match sibling tabs. Ensure spacing aligns with existing portal views.",
+    "kpi_grid": "Maintain the 10-card grid but update card surfaces to use `--theme-surface` and `--theme-border`.",
+    "charts": "Update recharts tooltip and axis colors to use `--theme-text-muted` and `--theme-surface`."
   },
-  "components": {
-    "header": {
-      "description": "Customer logo container with brand accent bar.",
-      "structure": "Top border (4px solid {{brand.primary_default}}). White background section. Logo placed inside a padded table cell.",
-      "logo_chip": {
-        "max-height": "40px",
-        "background": "#FFFFFF",
-        "border-radius": "6px",
-        "padding": "8px",
-        "fallback_text": "Font: 18px Bold, Color: #18181B (Org Name)"
-      }
-    },
-    "cards": {
-      "description": "Used for feature highlights (Welcome email) or fault summaries.",
-      "structure": "<table width=\"100%\" style=\"background: #FAFAFA; border: 1px solid #E4E4E7; border-radius: 8px; margin-bottom: 16px;\">"
-    },
-    "badges": {
-      "description": "Severity, status, and warranty chips.",
-      "structure": "Inline-block <span> or nested <table>. Padding: 4px 10px. Border-radius: 12px. Font-size: 12px. Font-weight: bold. Border: 1px solid."
-    },
-    "data_table": {
-      "description": "Used in Equipment Reassignment. List of machines.",
-      "structure": "100% width table. Header row text-align: left, font-size: 14px, color: #71717A, border-bottom: 2px solid #E4E4E7. Data rows: padding 12px 8px, border-bottom: 1px solid #E4E4E7."
-    },
-    "bulletproof_button": {
-      "description": "Outlook-safe CTA. Must use table approach, NOT just padding on anchor.",
-      "structure": "<table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\"><tr><td align=\"center\" bgcolor=\"{{brand.primary_default}}\" style=\"border-radius: 6px;\"><a href=\"#\" target=\"_blank\" style=\"font-size: 16px; font-weight: bold; text-decoration: none; color: #FFFFFF; display: inline-block; padding: 14px 24px; border: 1px solid {{brand.primary_default}}; border-radius: 6px;\">View & Reply</a></td></tr></table>"
-    },
-    "message_quote": {
-      "description": "For Fault Communication / Two-way chat.",
-      "structure": "Left border: 4px solid #E4E4E7. Padding-left: 16px. Font-style: italic. Color: #52525B. Margin-bottom: 24px."
-    },
-    "footer": {
-      "description": "Platform sign-off.",
-      "structure": "Background: #F4F5F7. Padding: 24px. Text-align: center. Font-size: 12px. Color: #A1A1AA.",
-      "elements": "Includes 'Powered by Pulse Fitness' and 'Please do not reply directly to this email.'"
-    }
+  "component_guidelines": {
+    "register_analytics_toggle": "Refactor to use existing platform classes: `.subtab-bar` for the container, `.subtab-pill` for the buttons, and `.is-active` for the selected state.",
+    "buttons": "Map custom white/dark buttons to platform-standard styles utilizing `--theme-surface-hover` or brand variables.",
+    "modals": "Keep the Email report modal as a centered dialog (`fixed inset-0 z-50 flex items-center justify-center bg-black/50`) but the inner modal card must use `bg-[var(--theme-surface)]` and `border-[var(--theme-border)]`.",
+    "wizard": "Apply standard thematic inputs and selects. Remove dark-mode specific focus rings."
   },
-  "media": {
-    "images": "Use absolute URLs. Must include display: block; on all <img> tags to prevent bottom spacing bugs in email clients.",
-    "logo_constraints": "max-height: 40px; width: auto; max-width: 200px;"
-  },
+  "instructions_to_main_agent": [
+    "1. Open `/app/frontend/src/pages/MODPortal/MODASERPortal.js`.",
+    "2. Locate the default export function returning `createPortal(...)` and rewrite it to return standard JSX elements inline without the React portal.",
+    "3. Strip all `fixed inset-0 z-[100]` and `bg-[var(--color-ink-deep)]` classes from the top-level wrapper, replacing them with a relative flex container: `relative flex flex-col w-full h-full bg-[var(--theme-surface)] text-[var(--theme-text)]`.",
+    "4. Perform a systematic replacement of `text-white` with `text-[var(--theme-text)]`.",
+    "5. Replace translucent white text (`text-white/40`, `text-white/50`, `text-white/60`) with `text-[var(--theme-text-muted)]`.",
+    "6. Replace `border-white/10` and `border-white/20` with `border-[var(--theme-border)]`.",
+    "7. Replace `bg-white/[0.03]` and `bg-white/5` with `bg-[var(--theme-surface-hover)]`.",
+    "8. Convert the Register/Analytics switch in the header to use `.subtab-bar` and `.subtab-pill` to match sibling tabs.",
+    "9. Remove the 'Close' button from the ASER header if it's no longer a full-screen overlay, or rewire it to correctly return to the parent view state (e.g. `setAserOpen(false)`).",
+    "10. For Recharts components, ensure the grid lines, axis text, and tooltips use CSS variables instead of hardcoded white/grey.",
+    "11. Add `data-testid` to all toggles, buttons, and form inputs."
+  ],
   "accessibility": {
-    "tables": "All layout tables MUST include role=\"presentation\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\".",
-    "images": "All images MUST include alt=\"\" attributes. Logos must have the organization name as alt text.",
-    "contrast": "Text colors chosen against background to meet WCAG AA standards (4.5:1 minimum)."
-  },
-  "visual_enhancers": {
-    "borders": "Rely heavily on subtle #E4E4E7 borders and specific background color blocks to create hierarchy, since box-shadows do not work reliably in Outlook."
-  },
-  "image_urls": {
-    "placeholder_logo": "https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=200&h=80&fit=crop"
-  },
-  "instructions_to_main_agent": {
-    "critical_rules": [
-      "NO EXTERNAL CSS. NO <style> blocks except for media queries.",
-      "NO FLEXBOX OR CSS GRIDS. Layout must be exclusively <table> based.",
-      "EVERY inline style must be fully qualified (e.g., use padding-top, padding-bottom if shorthand acts up, though standard padding usually works).",
-      "Do NOT use transparent backgrounds for anything containing text; always define solid HEX codes.",
-      "Create vanilla HTML templates (as JS template literals or standard HTML files depending on the codebase setup) for the 5 requested emails.",
-      "Include a 'Ghost Table' pattern (conditional comments <!--[if mso]>...<![endif]-->) if setting max-width on the main container to ensure Outlook respects the 600px boundary.",
-      "Ensure CTA buttons use the bulletproof nested table pattern.",
-      "Inject 'data-testid' on dynamic variables and buttons."
-    ],
-    "email_templates_to_build": [
-      "1. Supplier Welcome / Onboarding",
-      "2. Equipment Reassignment",
-      "3. New Fault Report / Contact Supplier",
-      "4. Fault Communication / New Message",
-      "5. Engineer Visit Scheduled"
-    ]
+    "testing_attributes": "All interactive elements MUST include `data-testid` (e.g., `data-testid='aser-tab-analytics'`, `data-testid='aser-export-csv'`)."
   },
   "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "Design outputs must feel incredibly premium, intentional, and high-contrast, strictly avoiding the generic AI layout feel.",
-    "Avoid centering large blocks of text; left-align data and paragraphs to preserve natural reading flow.",
-    "For this email task, prioritize raw table structures, bulletproof email rendering techniques, and high-legibility contrasts.",
-    "Use data-testid attribute on all interactive/dynamic tags."
+    "Follow optical alignment over geometrical alignment.",
+    "Prioritize using pre-existing components from the platform over creating new custom ones.",
+    "Ensure no transparent backgrounds are used on dropdowns or modals where content scrolls underneath.",
+    "Never use AI assistant Emoji characters for icons.",
+    "Use modern button styles with interaction animations (hover states, transitions).",
+    "All changes must preserve the existing component structure and business logic (filters, API calls, state). ONLY the styling and DOM placement are altered."
   ]
 }
