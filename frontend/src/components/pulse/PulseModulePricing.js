@@ -10,7 +10,8 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Check, Loader2, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuth } from '@/App';
 
 const CCY = { gbp: '£', eur: '€', usd: '$' };
@@ -24,10 +25,11 @@ const MODULE_META = {
 const ORDER = ['operations', 'crm', 'marketing', 'memberships'];
 
 export default function PulseModulePricing({ onStart }) {
-  const { API, user } = useAuth();
+  const { API, user, token } = useAuth();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [live, setLive] = useState(null);
+  const [trialBusy, setTrialBusy] = useState(false);
   // Language nudges the currency (FR/DE → €), so the price matches the words a
   // visitor sees. IP-detected currency disambiguates GBP vs USD for English.
   const langCcy = (l, detected) => {
@@ -69,6 +71,34 @@ export default function PulseModulePricing({ onStart }) {
     if (user) navigate(dest);
     else if (onStart) onStart(dest);
     else navigate(`/login?next=${encodeURIComponent(dest)}`);
+  };
+
+  // Lite is included free with a Pulse Fitness equipment agreement — the CTA
+  // just takes the customer into their existing portal (or sign-in first).
+  const goToPortal = () => {
+    if (user) navigate('/dashboard');
+    else if (onStart) onStart('/dashboard');
+    else navigate('/login?next=/dashboard');
+  };
+
+  // Start a free 3-day trial with ALL modules unlocked (owners/managers only).
+  const startTrial = async () => {
+    if (!user) { if (onStart) onStart('/dashboard'); else navigate('/login?next=/dashboard'); return; }
+    setTrialBusy(true);
+    try {
+      const r = await axios.post(
+        `${API}/me/upgrade-to-pro`,
+        { start_trials: ['crm', 'marketing', 'memberships'] },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (r.data?.already_pro) toast.info("You're already on Pulse Pro — all modules are available.");
+      else toast.success('Your free 3-day trial is live — all modules unlocked.');
+      navigate('/dashboard');
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Could not start the trial. Please try again.');
+    } finally {
+      setTrialBusy(false);
+    }
   };
 
   const pillBase = 'px-3.5 h-8 rounded-full text-sm font-semibold transition-colors';
@@ -153,9 +183,52 @@ export default function PulseModulePricing({ onStart }) {
             );
           })}
         </div>
-        <p className="mt-5 text-center text-xs text-[var(--color-text-slate)]">
-          {t('pulse_pricing.trial_footer', '3-day free trial · all modules unlocked for owners & managers · cancel anytime')}
-        </p>
+
+        {/* Lite — free, included with a Pulse Fitness equipment agreement */}
+        <div
+          className="mt-6 rounded-2xl border border-[var(--color-border-subtle,#d4d4d8)] bg-[var(--color-surface-dark-panel-alt,#0f172a)] text-white p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          data-testid="pulse-module-lite-tile"
+        >
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 inline-flex items-center justify-center w-9 h-9 rounded-xl bg-[var(--pulse-primary)]/15 text-[var(--pulse-primary)]">
+              <Sparkles size={18} />
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold">Lite</h3>
+                <span className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[var(--pulse-primary)] text-[#0A0C10]">Free</span>
+              </div>
+              <p className="text-sm text-white/70 mt-0.5 max-w-md">
+                {t('pulse_pricing.lite_blurb', 'Included free with your Pulse Fitness equipment agreement — asset register, fault logging and your service portal.')}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={goToPortal}
+            className="shrink-0 h-11 px-5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 border border-white/25 text-white hover:border-[var(--pulse-primary)] hover:text-[var(--pulse-primary)] transition-colors"
+            data-testid="pulse-module-lite-cta"
+          >
+            {user ? t('pulse_pricing.lite_open', 'Open your portal') : t('pulse_pricing.lite_signin', 'Sign in to your portal')} <ArrowRight size={15} />
+          </button>
+        </div>
+
+        {/* Free 3-day all-module trial (owners / managers) */}
+        <div className="mt-5 flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={startTrial}
+            disabled={trialBusy}
+            className="h-12 px-7 rounded-full font-bold text-sm flex items-center justify-center gap-2 bg-[var(--pulse-primary)] text-[#0A0C10] hover:brightness-95 transition disabled:opacity-60"
+            data-testid="pulse-start-trial-btn"
+          >
+            {trialBusy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+            {t('pulse_pricing.start_trial', 'Start your free 3-day trial (all modules)')}
+          </button>
+          <p className="text-center text-xs text-[var(--color-text-slate)]">
+            {t('pulse_pricing.trial_footer', '3-day free trial · all modules unlocked for owners & managers · cancel anytime')}
+          </p>
+        </div>
       </div>
     </section>
   );

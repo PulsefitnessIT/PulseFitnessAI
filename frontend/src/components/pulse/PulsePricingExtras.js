@@ -66,7 +66,7 @@ export default function PulsePricingExtras({ onStart }) {
               <div className="inline-flex items-center gap-2 text-[var(--pulse-primary)] text-sm font-semibold">
                 <TrendingDown size={16} /> {t('pulse_pricing.roi_saving_label', 'Estimated saving')}
               </div>
-              <div className="mt-3 text-5xl font-extrabold tracking-tight" data-testid="roi-annual-saving">{money(annualSaved)}<span className="text-lg font-semibold text-white/60">{t('pulse_pricing.per_year', '/yr')}</span></div>
+              <div className="mt-3 text-5xl font-extrabold tracking-tight text-[var(--pulse-primary)]" data-testid="roi-annual-saving">{money(annualSaved)}<span className="text-lg font-semibold text-white/60">{t('pulse_pricing.per_year', '/yr')}</span></div>
               <div className="mt-1 text-sm text-white/70">{t('pulse_pricing.roi_per_month_note', '≈ {{amount}} every month in avoided callouts', { amount: money(monthlySaved) })}</div>
               <p className="mt-4 text-xs text-white/50">{t('pulse_pricing.roi_disclaimer', 'Illustrative — assumes AI triage resolves ~40% of callouts remotely plus proactive monitoring across your estate. Your results will vary.')}</p>
               <button type="button" onClick={onStart} className="mt-6 h-11 rounded-full bg-[var(--pulse-primary)] text-[#0A0C10] font-semibold text-sm inline-flex items-center justify-center gap-2 hover:brightness-95 transition" data-testid="roi-cta">

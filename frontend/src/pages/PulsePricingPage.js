@@ -21,7 +21,6 @@ import {
   PulseHeader,
   PulseFooter,
   LoginModal,
-  PlansLitePro,
   PULSE_LANDING_CSS,
 } from './PulseLandingPage';
 
@@ -111,11 +110,9 @@ export default function PulsePricingPage({ onLogin }) {
           </div>
         </section>
 
-        {/* Modules — the product (public, multi-currency) */}
+        {/* Modules — the product (public, multi-currency). Includes the free
+            Lite tile for existing Pulse Fitness equipment customers. */}
         <PulseModulePricing onStart={openLogin} />
-
-        {/* Lite tier for existing Pulse Fitness equipment customers */}
-        <PlansLitePro onSignIn={openLogin} onUpgrade={openUpgrade} />
 
         {/* ROI calculator · service-provider tiers · FAQ */}
         <PulsePricingExtras onStart={openLogin} />

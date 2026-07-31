@@ -1,0 +1,46 @@
+{
+  "summary": "Frontend-only UI verification of the /pulse-pricing changes: new compact Lite FREE tile, removal of the large PlansLitePro (£0 Lite + Talk to us/Managed) block, ROI 'See what Pulse pays back' annual saving figure visibility/colour, and the new 'Start your free 3-day trial (all modules)' button (logged-out sign-in flow). 4/5 acceptance criteria pass. 1 CRITICAL contrast bug on the new Lite tile (heading + CTA text are near-black on the tile's near-black background, effectively invisible).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "PulseModulePricing — Lite FREE tile",
+        "issue": "Contrast failure: on /pulse-pricing the pulse-module-lite-tile renders with background rgb(27,29,29) (near-black dark card) but the 'Lite' heading (H3) computed color is rgb(24,24,27) and the pulse-module-lite-cta 'Sign in to your portal' text is also rgb(24,24,27). Both are effectively invisible on the dark tile (see screenshot pulse_lite_tile_zoom.png — only the FREE badge, blurb and CTA border render; the title 'Lite' and the CTA label are missing to the eye). This is the same dark-on-dark issue the request asked us to fix for the ROI number, but it now exists on the Lite tile itself. Fix: force heading + CTA label to a light/white (or Pulse cyan for the title) colour when the tile is on the dark surface.",
+        "selector": "[data-testid=\"pulse-module-lite-tile\"] h3, [data-testid=\"pulse-module-lite-cta\"]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      { "screen": "/pulse-pricing Lite tile", "issues": ["Heading 'Lite' invisible (black on near-black)", "CTA button label 'Sign in to your portal' invisible (black on near-black); only the pill outline is visible"] }
+    ]
+  },
+  "acceptance_criteria_results": {
+    "lite_free_tile_rendered": "PASS - tile present with data-testid pulse-module-lite-tile, FREE badge visible, blurb 'Included free with your Pulse Fitness equipment agreement — asset register, fault logging and your service portal.' present, CTA data-testid pulse-module-lite-cta present with textContent 'Sign in to your portal'.",
+    "lite_cta_opens_signin_when_logged_out": "PASS - clicking pulse-module-lite-cta opens pulse-login-dialog.",
+    "planslitepro_removed": "PASS - No £0 Lite card and no large Talk to us / Managed request-a-callback tile present on the page ('£0' occurrences = 0). Two lowercase 'talk to us' string matches remain but they are unrelated (support/footer copy), NOT a PlansLitePro card. Compact Lite tile is the only Lite element as required.",
+    "roi_annual_saving_visible_and_cyan": "PASS - [data-testid=roi-annual-saving] renders '£9,792/yr' with computed color rgb(102, 204, 255) (Pulse cyan/blue) on ancestor bg rgb(27, 29, 29). Clearly visible on the dark ROI panel. Value remains cyan after adjusting range sliders.",
+    "start_trial_button_logged_out_opens_signin": "PASS - [data-testid=pulse-start-trial-btn] labelled 'Start your free 3-day trial (all modules)' is prominently visible below the modules grid. Clicking it while logged out opens pulse-login-dialog (no error toast).",
+    "page_integrity": "PASS - Hero + module cards (Operations/CRM/Marketing/Memberships all found), ROI calculator, FAQ, footer all render end-to-end; no blank/broken sections after PlansLitePro removal."
+  },
+  "test_report_links": [
+    "/app/test_reports/pulse_lite_and_trial.png",
+    "/app/test_reports/pulse_roi_calc.png",
+    "/app/test_reports/pulse_lite_tile_zoom.png"
+  ],
+  "action_items": [
+    "Fix Lite tile contrast: change the 'Lite' H3 heading colour and the pulse-module-lite-cta text colour so they read on the dark rgb(27,29,29) tile background (e.g. text-white for the button label and text-white or var(--pulse-primary) for the heading). Currently both compute to rgb(24,24,27) which is nearly identical to the tile bg and is invisible."
+  ],
+  "critical_code_review_comments": [
+    "PulseModulePricing Lite tile likely inherits a dark text colour from a light-theme class while sitting on a dark card wrapper — verify the tile's inner text nodes use theme-aware/inverted foreground classes (e.g. text-white or text-[var(--pulse-primary)]) rather than a default text-zinc-900.",
+    "This mirrors the ROI issue that was just fixed — the same audit pattern (invisible text on dark cards) should be swept across the pricing page dark surfaces."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A", "frontend": "80% (4/5 acceptance criteria fully pass; Lite tile visual contrast fails)" },
+  "test_credentials": "Not required — only tested logged-out flows as instructed.",
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Only the Lite tile contrast issue needs re-verification after fix. All other pricing page changes (PlansLitePro removal, ROI cyan, trial button, sign-in dialog flows) are verified working. Use data-testid pulse-module-lite-tile / pulse-module-lite-cta / roi-annual-saving / pulse-start-trial-btn / pulse-login-dialog. Base URL from frontend/.env REACT_APP_BACKEND_URL, page /pulse-pricing, dismiss cookie banner first.",
+  "rca_of_the_issue": "The Lite tile was added in /app/frontend/src/components/pulse/PulseModulePricing.js as a dark-card wrapper (bg-zinc-900-ish → computed rgb(27,29,29)) but the heading and CTA button inherited the page's default dark foreground colour (computed rgb(24,24,27)), producing dark-on-dark. Reproduction: open /pulse-pricing logged out, scroll to the 'Lite / FREE' tile beneath the four £/mo module cards — only the FREE badge, sparkle icon, blurb (light grey) and CTA pill outline render; 'Lite' title and 'Sign in to your portal' label are invisible. Mitigation: apply text-white (or text-[var(--pulse-primary)] for the title) to the h3 heading and the CTA label inside pulse-module-lite-tile."
+}
