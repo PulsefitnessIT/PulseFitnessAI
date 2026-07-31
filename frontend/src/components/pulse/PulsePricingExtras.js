@@ -1,12 +1,11 @@
 /**
- * Richer marketing sections for /pulse-pricing: an ROI/savings calculator,
- * service-provider tiers (Service Desk / Engineer App), and an FAQ accordion.
- * On-brand (Pulse cyan). Illustrative figures only. Fully i18n (EN/FR/DE).
+ * Richer marketing sections for /pulse-pricing: an ROI/savings calculator
+ * and an FAQ accordion. On-brand (Pulse cyan). Illustrative figures only.
+ * Fully i18n (EN/FR/DE).
  */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
-import { ChevronDown, Headset, Wrench, ArrowRight, TrendingDown } from 'lucide-react';
+import { ChevronDown, ArrowRight, TrendingDown } from 'lucide-react';
 
 const money = (n) => '£' + Math.round(n).toLocaleString();
 
@@ -26,11 +25,6 @@ function RoiSlider({ label, testid, value, set, min, max, step, prefix }) {
     </div>
   );
 }
-
-const SP_TIERS = [
-  { key: 'service-desk', icon: Headset, nameKey: 'pulse_pricing.sp_desk_name', blurbKey: 'pulse_pricing.sp_desk_blurb', featureKeys: ['pulse_pricing.sp_desk_f1', 'pulse_pricing.sp_desk_f2', 'pulse_pricing.sp_desk_f3'] },
-  { key: 'engineer-app', icon: Wrench, nameKey: 'pulse_pricing.sp_eng_name', blurbKey: 'pulse_pricing.sp_eng_blurb', featureKeys: ['pulse_pricing.sp_eng_f1', 'pulse_pricing.sp_eng_f2', 'pulse_pricing.sp_eng_f3'] },
-];
 
 const FAQ_KEYS = [1, 2, 3, 4, 5, 6];
 
@@ -73,38 +67,6 @@ export default function PulsePricingExtras({ onStart }) {
                 {t('pulse_pricing.roi_cta', 'Start your free trial')} <ArrowRight size={15} />
               </button>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Service provider tiers ── */}
-      <section className="py-12" data-testid="pulse-service-provider">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center max-w-2xl mx-auto mb-8">
-            <div className="text-xs uppercase tracking-[0.18em] text-[var(--pulse-primary)] font-semibold mb-3">{t('pulse_pricing.sp_eyebrow', 'For service providers')}</div>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-[-0.02em] text-[var(--color-surface-dark-panel-alt)]">{t('pulse_pricing.sp_heading', 'Run service & field teams on Pulse.')}</h2>
-          </div>
-          <div className="grid gap-5 sm:grid-cols-2">
-            {SP_TIERS.map((tier) => (
-              <motion.div key={tier.key} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}
-                className="rounded-2xl border border-[var(--color-border-subtle,#e5e7eb)] bg-white p-7" data-testid={`sp-card-${tier.key}`}>
-                <div className="w-11 h-11 rounded-xl bg-[color-mix(in_srgb,var(--pulse-primary)_18%,white)] flex items-center justify-center">
-                  <tier.icon size={20} className="text-[var(--pulse-primary)]" />
-                </div>
-                <div className="mt-4 font-bold text-lg text-[var(--color-surface-dark-panel-alt)]">{t(tier.nameKey)}</div>
-                <p className="text-sm text-[var(--color-text-slate)] mt-2 leading-relaxed">{t(tier.blurbKey)}</p>
-                <ul className="mt-4 space-y-2">
-                  {tier.featureKeys.map((fk) => (
-                    <li key={fk} className="flex items-start gap-2 text-sm text-[var(--color-surface-dark-panel-alt)]">
-                      <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[var(--pulse-primary)] flex-shrink-0" />{t(fk)}
-                    </li>
-                  ))}
-                </ul>
-                <button type="button" onClick={onStart} className="mt-6 w-full h-10 rounded-full border border-[var(--color-border-subtle,#d4d4d8)] text-[var(--color-surface-dark-panel-alt)] font-medium text-sm inline-flex items-center justify-center gap-2 hover:border-[var(--pulse-primary)] transition" data-testid={`sp-cta-${tier.key}`}>
-                  {t('pulse_pricing.sp_cta', 'Talk to us')} <ArrowRight size={14} />
-                </button>
-              </motion.div>
-            ))}
           </div>
         </div>
       </section>
