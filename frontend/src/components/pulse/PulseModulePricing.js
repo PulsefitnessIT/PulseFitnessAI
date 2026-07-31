@@ -184,9 +184,10 @@ export default function PulseModulePricing({ onStart }) {
           })}
         </div>
 
-        {/* Lite — free, included with a Pulse Fitness equipment agreement */}
+        {/* Lite — free, included with a Pulse Fitness equipment agreement.
+            Light styling to match the module cards on the light pricing page. */}
         <div
-          className="mt-6 rounded-2xl border border-[var(--color-border-subtle,#d4d4d8)] bg-[var(--color-surface-dark-panel-alt,#0f172a)] text-white p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          className="mt-6 rounded-2xl border border-[var(--color-border-subtle,#d4d4d8)] bg-white p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
           data-testid="pulse-module-lite-tile"
         >
           <div className="flex items-start gap-3">
@@ -195,10 +196,10 @@ export default function PulseModulePricing({ onStart }) {
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold">Lite</h3>
+                <h3 className="text-lg font-bold text-[var(--color-surface-dark-panel-alt,#0f172a)]">Lite</h3>
                 <span className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[var(--pulse-primary)] text-[#0A0C10]">Free</span>
               </div>
-              <p className="text-sm text-white/70 mt-0.5 max-w-md">
+              <p className="text-sm text-[var(--color-text-slate,#475569)] mt-0.5 max-w-md">
                 {t('pulse_pricing.lite_blurb', 'Included free with your Pulse Fitness equipment agreement — asset register, fault logging and your service portal.')}
               </p>
             </div>
@@ -206,7 +207,7 @@ export default function PulseModulePricing({ onStart }) {
           <button
             type="button"
             onClick={goToPortal}
-            className="shrink-0 h-11 px-5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 border border-white/25 text-white hover:border-[var(--pulse-primary)] hover:text-[var(--pulse-primary)] transition-colors"
+            className="shrink-0 h-11 px-5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 border border-[var(--color-border-subtle,#d4d4d8)] text-[var(--color-surface-dark-panel-alt,#0f172a)] hover:border-[var(--pulse-primary)] hover:text-[var(--pulse-primary)] transition-colors"
             data-testid="pulse-module-lite-cta"
           >
             {user ? t('pulse_pricing.lite_open', 'Open your portal') : t('pulse_pricing.lite_signin', 'Sign in to your portal')} <ArrowRight size={15} />
