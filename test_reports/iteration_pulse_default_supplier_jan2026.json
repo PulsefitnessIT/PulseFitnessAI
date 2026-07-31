@@ -1,0 +1,20 @@
+{
+  "summary": "Verified PulseFitness.ai 'Pulse Fitness Ltd' locked default supplier feature end-to-end. Backend pytest suite (7/7 passed) covers: Pro/Full GET returns locked default pinned first with can_add_suppliers=true; PUT and DELETE on default → 403; Pro POST create + cleanup succeeds; dispatch-readiness returns coherent counts (ready+blocked==total, no_supplier<=ready); Lite GET returns only the locked default with can_add_suppliers=false; Lite POST → 403. Frontend Playwright verification against production URL: LITE (lite.suptest@pulsedemo.test → /pulse → user menu → Account Settings → Suppliers) shows exactly one row 'Pulse Fitness Ltd' with DEFAULT badge + lock icon, NO edit/delete buttons, and NO 'Add supplier' button. PRO (owner@isodemo.com → /dashboard → Account Settings → Suppliers) shows the locked default row (DEFAULT badge + lock, no edit/delete), the 'Add supplier' button is visible and opens the Add supplier modal correctly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_pulse_default_supplier.py",
+    "/app/test_reports/pytest/pulse_default_supplier.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "suppliers.py POST endpoint currently allows any authenticated user (owner/manager check not enforced on POST — only on send-welcome / assign-equipment). Consider gating POST/PUT/DELETE consistently through _require_owner_or_manager for defense in depth, though role-based UI hiding is already in place."
+  ],
+  "updated_files": ["/app/backend/tests/test_pulse_default_supplier.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Pro: owner@isodemo.com / IsoDemo123!  ·  Lite: lite.suptest@pulsedemo.test / LiteSup123!",
+  "seed_data_creation": "None (test-created supplier was deleted in test_pro_can_add_and_cleanup).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The Pro owner (owner@isodemo.com) lands on /service-desk by default (multi-area account). To reach Account Settings modal, navigate to /dashboard first, then click [data-testid=nav-user-menu-btn] and the 'Account settings' menu item. Lite user lands on /pulse and the same user menu works there. Suppliers section testids: account-suppliers-section, account-suppliers-add, account-supplier-row-<id>, supplier-default-badge-<id>, account-supplier-locked-<id>, account-supplier-edit-<id>, account-supplier-delete-<id>."
+}
