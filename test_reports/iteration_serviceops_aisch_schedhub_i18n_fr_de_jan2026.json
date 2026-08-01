@@ -1,0 +1,53 @@
+{
+  "summary": "Verified i18n rollout of AIScheduling.js (service.aisch_*) and SchedulerHub.js (service.schedhub_*) tab labels in EN and DE, plus regression check for <span>-inside-<option> DOM-nesting console warning on the disruption engineer dropdown. All checks PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "login": "owner@isodemo.com logged in and reached /service-desk successfully.",
+    "navigation": "Left nav 'Scheduler' -> sub-tab data-testid='scheduler-hub-tab-ai' opened data-testid='ai-scheduling-page' with no blank screen, no console crash.",
+    "english_render": {
+      "raw_key_leaks": 0,
+      "hub_tabs_visible": ["AI Scheduling", "Diary board"],
+      "hero": "AI Scheduling + 'The AI recommends. Your planner decides.'",
+      "action_buttons_present": ["Refresh", "Re-plan Remaining Day", "Reduce Travel", "SLA Rescue", "Add Priority Job", "Full Day", "Tomorrow", "Weekly", "Insights", "Settings"],
+      "stat_cards_present": ["Engineers working", "Jobs at SLA risk", "Safe to move", "Locked & protected", "Unassigned"],
+      "disruptions_panel": ["Engineer", "Select engineer…", "Delay (min)", "Engineer Delayed", "Engineer Unavailable", "What-if: off sick (simulate)"],
+      "empty_states": ["No scheduled jobs for this day.", "Run a re-plan to see recommended changes. Nothing moves until you approve."],
+      "settings_panel": ["Scheduling Settings", "Work start (hr)", "Work end (hr)", "Proactive P1 suggestions", "Notify customers on reschedule", "Approval is always required..."],
+      "insights_panel": ["Scheduling insights (30 days)", "Proposals", "Changes applied", "AI acceptance", "Travel saved (min)"]
+    },
+    "german_render": {
+      "raw_key_leaks": 0,
+      "hub_tabs_visible": ["AI Planung", "Terminübersicht"],
+      "spot_checks_confirmed": {
+        "Restlichen Tag neu planen": true,
+        "Störungen & Was-wäre-wenn": true,
+        "Terminübersicht": true,
+        "Im Plan (SLA badge)": "not visible on screen because no scheduled jobs are present (badge is per-job); key exists in de.json - not a bug"
+      },
+      "translated_labels_seen": ["AI Planung", "Die AI empfiehlt. Ihr Planer entscheidet.", "Aktualisieren", "Restlichen Tag neu planen", "Fahrzeit reduzieren", "SLA Rettung", "Prioritätsauftrag hinzufügen", "Ganzer Tag", "Morgen", "Wöchentlich", "Einblicke", "Einstellungen", "Techniker im Einsatz", "Aufträge mit SLA-Risiko", "Sicher verschiebbar", "Gesperrt & geschützt", "Nicht zugewiesen", "Störungen & Was-wäre-wenn", "Techniker auswählen…", "Verzögerung (Min)", "Techniker verspätet", "Techniker nicht verfügbar", "Planungseinstellungen", "Arbeitsbeginn (Std)", "Arbeitsende (Std)", "Proaktive P1-Vorschläge", "Kunden bei Umplanung benachrichtigen", "Planungs-Insights (30 Tage)", "Vorschläge", "Änderungen angewendet", "AI-Akzeptanz", "Fahrzeit gespart (Min)", "Heutiger Zeitplan", "Keine geplanten Aufträge für diesen Tag.", "AI-Vorschlag"]
+    },
+    "console_nesting_check": {
+      "engineer_dropdown_opened": true,
+      "options_rendered": ["Select engineer… / Techniker auswählen…", "Jordan Blake (0)"],
+      "validateDOMNesting_span_in_option_warnings": 0,
+      "note": "Confirmed <option> is text-only (single interpolated string) in AIScheduling.js lines 448/450. Zero DOM-nesting warnings captured on EN and DE."
+    },
+    "locale_key_parity": {"en_aisch": 108, "fr_aisch": 108, "de_aisch": 108, "en_schedhub": 3, "fr_schedhub": 3, "de_schedhub": 3},
+    "cleanup": "PATCH /api/account/profile {language:'en'} returned 200 - demo account reverted to English."
+  },
+  "critical_code_review_comments": [],
+  "test_report_links": [],
+  "action_items": [],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "AI Scheduling screen (AIScheduling.js) and SchedulerHub tab labels are fully i18n'd for EN and DE. Locale key parity verified across en/fr/de (108 aisch_* keys, 3 schedhub_* keys). FR was not exercised in browser this pass (task only required EN + DE verification) but files have full key coverage. Empty-state text is translated. No <span>-in-<option> nesting warnings on the disruption engineer dropdown."
+}

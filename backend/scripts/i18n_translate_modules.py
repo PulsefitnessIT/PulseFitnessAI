@@ -202,6 +202,21 @@ async def main():
         "service.parts_tab_stock": "Stock & reorder",
         "service.parts_tab_pos": "Purchase orders",
     })
+    # AIScheduling SLA + change-type badges rendered via template-literal keys.
+    pairs.update({
+        "service.aisch_sla_on_track": "On Track",
+        "service.aisch_sla_at_risk": "At Risk",
+        "service.aisch_sla_breached": "Breached",
+        "service.aisch_sla_saved": "Saved by Re-plan",
+        "service.aisch_sla_worsened": "Worsened",
+        "service.aisch_sla_none": "No SLA",
+        "service.aisch_change_move": "Moved",
+        "service.aisch_change_insert": "Inserted",
+        "service.aisch_change_reassign": "Reassigned",
+        "service.aisch_change_defer": "Deferred",
+        "service.aisch_change_unchanged": "Unchanged",
+        "service.aisch_change_protected": "Protected",
+    })
     # Events: kind labels + costume statuses (rendered via template-literal keys).
     pairs.update({
         "memberships_console.evt_kind_recital": "Recital",

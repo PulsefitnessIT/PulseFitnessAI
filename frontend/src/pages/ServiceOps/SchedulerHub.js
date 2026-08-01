@@ -6,6 +6,7 @@
  * Replaces the two separate tabs so planners have one home for scheduling.
  */
 import { lazy, Suspense, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Sparkles, CalendarDays, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { ServiceOpsEmbeddedContext } from './ServiceOpsShell';
@@ -18,13 +19,17 @@ const VIEWS = [
   { id: 'diary', label: 'Diary board', icon: CalendarDays },
 ];
 
-const Fallback = () => (
-  <div className="flex items-center justify-center py-20 text-slate-500 text-sm">
-    <Loader2 size={16} className="mr-2 animate-spin" /> Loading…
-  </div>
-);
+const Fallback = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center justify-center py-20 text-slate-500 text-sm">
+      <Loader2 size={16} className="mr-2 animate-spin" /> {t('service.schedhub_loading', 'Loading…')}
+    </div>
+  );
+};
 
 export default function SchedulerHub() {
+  const { t } = useTranslation();
   const [view, setView] = useState('ai');
   const [pendingCount, setPendingCount] = useState(0);
 
@@ -37,8 +42,8 @@ export default function SchedulerHub() {
       } catch { /* silent */ }
     };
     load();
-    const t = setInterval(load, 60000);
-    return () => { alive = false; clearInterval(t); };
+    const timer = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(timer); };
   }, [view]);
 
   return (
@@ -56,7 +61,7 @@ export default function SchedulerHub() {
               }`}
               data-testid={`scheduler-hub-tab-${v.id}`}
             >
-              <Icon size={15} /> {v.label}
+              <Icon size={15} /> {v.id === 'ai' ? t('service.schedhub_ai', 'AI Scheduling') : t('service.schedhub_diary', 'Diary board')}
               {v.id === 'ai' && pendingCount > 0 && (
                 <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-teal-600 text-white text-[10px] font-semibold" data-testid="ai-pending-badge">
                   {pendingCount}
