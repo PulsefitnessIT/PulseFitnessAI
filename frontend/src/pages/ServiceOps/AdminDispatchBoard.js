@@ -9,6 +9,7 @@
  * engineer-side `/svc/engineer/diary` view untouched.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import {
   AlertTriangle, Calendar, ChevronLeft, Loader2, RefreshCw,
@@ -43,6 +44,7 @@ const fmtTime = (iso) =>
 
 // ── Assign modal ─────────────────────────────────────────────
 const AssignModal = ({ job, engineers, onClose, onAssign, suggestedAt }) => {
+  const { t } = useTranslation();
   const [engineerId, setEngineerId] = useState('');
   const [scheduledAt, setScheduledAt] = useState(suggestedAt || '');
   const [minutes, setMinutes] = useState(job?.estimated_minutes || 60);
@@ -140,14 +142,14 @@ const AssignModal = ({ job, engineers, onClose, onAssign, suggestedAt }) => {
               onClick={onClose}
               className="flex-1 border border-slate-300 rounded-lg py-2 text-sm font-semibold"
             >
-              Cancel
+              {t('service.disp_cancel', 'Cancel')}
             </button>
             <button
               type="submit"
               className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg py-2 text-sm font-semibold"
               data-testid="assign-submit"
             >
-              Assign
+              {t('service.disp_assign', 'Assign')}
             </button>
           </div>
         </form>
@@ -158,6 +160,7 @@ const AssignModal = ({ job, engineers, onClose, onAssign, suggestedAt }) => {
 
 // ── Engineer column (today's slots preview) ─────────────────
 const EngineerColumn = ({ engineer, slots, onPick }) => {
+  const { t } = useTranslation();
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const todays = (slots || []).filter((s) => (s.start_at || '').startsWith(today));
   return (
@@ -166,7 +169,7 @@ const EngineerColumn = ({ engineer, slots, onPick }) => {
         <div className="min-w-0">
           <p className="text-sm font-bold text-slate-900 truncate">{engineer.full_name}</p>
           <p className="text-[10px] uppercase tracking-wider text-slate-500">
-            {engineer.open_jobs || 0} open · {todays.length} today
+            {t('service.disp_open_today', '{{open}} open · {{today}} today', { open: engineer.open_jobs || 0, today: todays.length })}
           </p>
         </div>
         <button
@@ -175,12 +178,12 @@ const EngineerColumn = ({ engineer, slots, onPick }) => {
           className="text-xs font-semibold text-cyan-700 hover:underline"
           data-testid={`pick-engineer-${engineer.id}`}
         >
-          Pick
+          {t('service.disp_pick', 'Pick')}
         </button>
       </div>
       <div className="space-y-1 max-h-44 overflow-y-auto">
         {todays.length === 0 ? (
-          <p className="text-xs text-slate-400 italic">No jobs today</p>
+          <p className="text-xs text-slate-400 italic">{t('service.disp_no_jobs_today', 'No jobs today')}</p>
         ) : (
           todays.map((s) => (
             <div
@@ -203,6 +206,7 @@ const EngineerColumn = ({ engineer, slots, onPick }) => {
 
 // ── Main page ─────────────────────────────────────────────
 export default function AdminDispatchBoard() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [engineers, setEngineers] = useState([]);
   const [jobs, setJobs] = useState([]);
@@ -244,7 +248,7 @@ export default function AdminDispatchBoard() {
       for (const [k, v] of slotsResults) map[k] = v;
       setSlotsByEng(map);
     } catch (e) {
-      notify.error('Failed to load dispatch board', e?.response?.data?.detail || e.message);
+      notify.error(t('service.disp_load_failed', 'Failed to load dispatch board'), e?.response?.data?.detail || e.message);
     } finally {
       setLoading(false);
     }
@@ -269,12 +273,12 @@ export default function AdminDispatchBoard() {
         payload,
         auth(),
       );
-      notify.success(`Assigned ${assignFor.reference} ✓`);
+      notify.success(t('service.disp_assigned', 'Assigned {{ref}} ✓', { ref: assignFor.reference }));
       setAssignFor(null);
       setPickedEngineer(null);
       load();
     } catch (e) {
-      notify.error('Assign failed', e?.response?.data?.detail || e.message);
+      notify.error(t('service.disp_assign_failed', 'Assign failed'), e?.response?.data?.detail || e.message);
     }
   };
 
@@ -296,7 +300,7 @@ export default function AdminDispatchBoard() {
                 Pulse Fitness · Service Ops
               </p>
               <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-                <Calendar size={20} /> Dispatch Board
+                <Calendar size={20} /> {t('service.disp_board_title', 'Dispatch Board')}
               </h1>
             </div>
           </div>
@@ -305,7 +309,7 @@ export default function AdminDispatchBoard() {
             onClick={load}
             className="p-2 rounded-lg hover:bg-slate-100 text-slate-500"
             data-testid="dispatch-refresh"
-            aria-label="Refresh"
+            aria-label={t('service.disp_refresh', 'Refresh')}
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
           </button>
@@ -319,10 +323,10 @@ export default function AdminDispatchBoard() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <AlertTriangle size={16} className="text-amber-500" />
-                Needs dispatch ({jobs.length})
+                {t('service.disp_needs_dispatch', 'Needs dispatch ({{n}})', { n: jobs.length })}
               </h2>
               <span className="text-[10px] uppercase tracking-wider text-slate-500">
-                Sorted by priority · SLA
+                {t('service.disp_sorted', 'Sorted by priority · SLA')}
               </span>
             </div>
             {jobs.length === 0 && !loading ? (
@@ -332,7 +336,7 @@ export default function AdminDispatchBoard() {
               >
                 <CheckCircle2 size={24} className="mx-auto text-emerald-500 mb-2" />
                 <p className="text-sm font-semibold text-slate-700">
-                  All caught up — every open job has an engineer.
+                  {t('service.disp_all_caught_up', 'All caught up — every open job has an engineer.')}
                 </p>
               </div>
             ) : (
@@ -349,8 +353,8 @@ export default function AdminDispatchBoard() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-slate-900 truncate">{j.title}</p>
                       <p className="text-xs text-slate-500 truncate">
-                        {j.reference} · {j.site_name || j.customer_name || 'Unknown site'}
-                        {j.sla_resolve_at ? ` · SLA ${fmtTime(j.sla_resolve_at)}` : ''}
+                        {j.reference} · {j.site_name || j.customer_name || t('service.disp_unknown_site', 'Unknown site')}
+                        {j.sla_resolve_at ? ` · ${t('service.disp_sla', 'SLA')} ${fmtTime(j.sla_resolve_at)}` : ''}
                       </p>
                     </div>
                     <button
@@ -359,7 +363,7 @@ export default function AdminDispatchBoard() {
                       className="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1"
                       data-testid={`dispatch-assign-btn-${j.reference}`}
                     >
-                      <Users size={12} /> Assign
+                      <Users size={12} /> {t('service.disp_assign', 'Assign')}
                     </button>
                   </li>
                 ))}
@@ -372,7 +376,7 @@ export default function AdminDispatchBoard() {
         <aside className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Wrench size={16} /> Engineers ({engineers.length})
+              <Wrench size={16} /> {t('service.disp_engineers', 'Engineers ({{n}})', { n: engineers.length })}
             </h2>
             {pickedEngineer ? (
               <button
@@ -380,13 +384,13 @@ export default function AdminDispatchBoard() {
                 onClick={() => setPickedEngineer(null)}
                 className="text-xs font-semibold text-slate-500 hover:underline"
               >
-                Clear pick
+                {t('service.disp_clear_pick', 'Clear pick')}
               </button>
             ) : null}
           </div>
           {engineers.length === 0 ? (
             <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-6 text-center text-sm text-slate-500">
-              No active engineers yet
+              {t('service.disp_no_engineers', 'No active engineers yet')}
             </div>
           ) : (
             engineers.map((e) => (

@@ -9,6 +9,7 @@
  *   • Activity — recent send log with status pills (sent / failed)
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import {
   Mail, History, Save, RotateCcw, RefreshCw, Loader2,
@@ -33,30 +34,31 @@ const PLACEHOLDER_HINT = {
 };
 
 export default function CommsHubPage() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState('templates');
   return (
     <ServiceOpsShell
       icon={Mail}
-      title="Customer comms hub"
+      title={t('service.comms_title', 'Customer comms hub')}
       subtitle={
-        <>Branded email templates for case status updates and supplier purchase orders. Use <code>{'{{var}}'}</code> placeholders — the merge engine pulls case &amp; PO data automatically.</>
+        <>{t('service.comms_subtitle_1', 'Branded email templates for case status updates and supplier purchase orders. Use')} <code>{'{{var}}'}</code> {t('service.comms_subtitle_2', 'placeholders — the merge engine pulls case & PO data automatically.')}</>
       }
       active="comms"
       pageTestId="comms-page"
     >
       <nav className="svc-tabs">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const active = tab === t.id;
+        {TABS.map((tb) => {
+          const Icon = tb.icon;
+          const active = tab === tb.id;
           return (
             <button
-              key={t.id}
+              key={tb.id}
               type="button"
-              onClick={() => setTab(t.id)}
+              onClick={() => setTab(tb.id)}
               className={`svc-tab ${active ? 'svc-tab--active' : ''}`}
-              data-testid={`comms-tab-${t.id}`}
+              data-testid={`comms-tab-${tb.id}`}
             >
-              <Icon size={13} /> {t.label}
+              <Icon size={13} /> {t(`service.comms_tab_${tb.id}`, tb.label)}
             </button>
           );
         })}
@@ -68,6 +70,7 @@ export default function CommsHubPage() {
 }
 
 function TemplatesTab() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState([]);
   const [active, setActive] = useState(null);
   const [draft, setDraft] = useState(null);
@@ -78,7 +81,7 @@ function TemplatesTab() {
       const r = await axios.get(`${API}/svc/comms/templates`, auth());
       setRows(r.data.templates || []);
       if (!active && r.data.templates?.length) setActive(r.data.templates[0].key);
-    } catch (e) { notify.error('Failed to load templates', e?.response?.data?.detail || e.message); }
+    } catch (e) { notify.error(t('service.comms_load_tpl_failed', 'Failed to load templates'), e?.response?.data?.detail || e.message); }
   }, [active]);
   useEffect(() => { load(); }, [load]);
 
@@ -93,8 +96,8 @@ function TemplatesTab() {
     try {
       const r = await axios.put(`${API}/svc/comms/templates/${current.key}`, draft, auth());
       setRows(rows.map((row) => row.key === current.key ? r.data : row));
-      notify.success('Template saved');
-    } catch (e) { notify.error('Save failed', e?.response?.data?.detail || e.message); }
+      notify.success(t('service.comms_tpl_saved', 'Template saved'));
+    } catch (e) { notify.error(t('service.comms_save_failed', 'Save failed'), e?.response?.data?.detail || e.message); }
     finally { setBusy(''); }
   };
 
@@ -104,8 +107,8 @@ function TemplatesTab() {
     try {
       const r = await axios.post(`${API}/svc/comms/templates/${current.key}/reset`, {}, auth());
       setRows(rows.map((row) => row.key === current.key ? r.data : row));
-      notify.success('Reset to default');
-    } catch (e) { notify.error('Reset failed', e?.response?.data?.detail || e.message); }
+      notify.success(t('service.comms_reset_done', 'Reset to default'));
+    } catch (e) { notify.error(t('service.comms_reset_failed', 'Reset failed'), e?.response?.data?.detail || e.message); }
     finally { setBusy(''); }
   };
 
@@ -127,7 +130,7 @@ function TemplatesTab() {
                 data-testid={`comms-template-pick-${r.key}`}
               >
                 <div>{r.key}</div>
-                <div className="text-[10px] svc-muted uppercase tracking-wider">{r.audience}{r.is_default ? ' · default' : ''}</div>
+                <div className="text-[10px] svc-muted uppercase tracking-wider">{r.audience}{r.is_default ? ` · ${t('service.comms_default', 'default')}` : ''}</div>
               </button>
             </li>
           ))}
@@ -137,28 +140,28 @@ function TemplatesTab() {
       <section className="col-span-12 lg:col-span-9 svc-section" data-testid="comms-template-editor">
         <div className="svc-section-body space-y-4">
         {!current ? (
-          <p className="text-xs svc-muted italic">Select a template on the left.</p>
+          <p className="text-xs svc-muted italic">{t('service.comms_select_tpl', 'Select a template on the left.')}</p>
         ) : (
           <>
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div>
-                <p className="svc-label">Template</p>
+                <p className="svc-label">{t('service.comms_template', 'Template')}</p>
                 <p className="font-extrabold text-base" style={{ color: 'var(--svc-text)' }}>{current.key}</p>
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={reset} disabled={busy === 'reset'} className="svc-btn svc-btn-secondary svc-btn-sm" data-testid="comms-template-reset">
-                  <RotateCcw size={11} /> {busy === 'reset' ? '…' : 'Reset to default'}
+                  <RotateCcw size={11} /> {busy === 'reset' ? '…' : t('service.comms_reset_btn', 'Reset to default')}
                 </button>
                 <button type="button" onClick={save} disabled={busy === 'save'} className="svc-btn svc-btn-primary svc-btn-sm" data-testid="comms-template-save">
-                  <Save size={11} /> {busy === 'save' ? 'Saving…' : 'Save'}
+                  <Save size={11} /> {busy === 'save' ? t('service.comms_saving', 'Saving…') : t('service.comms_save', 'Save')}
                 </button>
               </div>
             </div>
 
-            <p className="text-[11px] svc-muted">{PLACEHOLDER_HINT[current.key] || 'Use {{var}} placeholders'}</p>
+            <p className="text-[11px] svc-muted">{PLACEHOLDER_HINT[current.key] || t('service.comms_use_placeholders', 'Use {{var}} placeholders')}</p>
 
             <label className="block">
-              <span className="svc-label">Audience</span>
+              <span className="svc-label">{t('service.comms_audience', 'Audience')}</span>
               <select value={draft?.audience || 'customer'} onChange={(e) => setDraft({ ...draft, audience: e.target.value })} className="svc-select" data-testid="comms-template-audience">
                 <option value="customer">customer</option>
                 <option value="supplier">supplier</option>
@@ -167,17 +170,17 @@ function TemplatesTab() {
             </label>
 
             <label className="block">
-              <span className="svc-label">Subject</span>
+              <span className="svc-label">{t('service.comms_subject', 'Subject')}</span>
               <input value={draft?.subject || ''} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} className="svc-input" data-testid="comms-template-subject" />
             </label>
 
             <label className="block">
-              <span className="svc-label">HTML body</span>
+              <span className="svc-label">{t('service.comms_html_body', 'HTML body')}</span>
               <textarea value={draft?.body_html || ''} onChange={(e) => setDraft({ ...draft, body_html: e.target.value })} rows={12} className="svc-textarea" data-testid="comms-template-body" />
             </label>
 
             <details className="svc-card-base p-3">
-              <summary className="text-xs font-bold cursor-pointer" style={{ color: 'var(--svc-text)' }}>Preview (sample data)</summary>
+              <summary className="text-xs font-bold cursor-pointer" style={{ color: 'var(--svc-text)' }}>{t('service.comms_preview', 'Preview (sample data)')}</summary>
               <div className="mt-3 text-sm" data-testid="comms-template-preview"
                 dangerouslySetInnerHTML={{ __html: previewBody(current.key, draft?.body_html || '') }}
               />
@@ -191,6 +194,7 @@ function TemplatesTab() {
 }
 
 function ActivityTab() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -199,26 +203,26 @@ function ActivityTab() {
     try {
       const r = await axios.get(`${API}/svc/comms/log`, { ...auth(), params: { limit: 100 } });
       setRows(r.data.events || []);
-    } catch (e) { notify.error('Could not load comms log', e?.response?.data?.detail || e.message); }
+    } catch (e) { notify.error(t('service.comms_load_log_failed', 'Could not load comms log'), e?.response?.data?.detail || e.message); }
     finally { setLoading(false); }
-  }, []);
+  }, [t]);
   useEffect(() => { load(); }, [load]);
 
   return (
     <div className="space-y-3" data-testid="comms-activity-tab">
       <div className="flex justify-end">
         <button type="button" onClick={load} className="svc-btn svc-btn-secondary svc-btn-sm" data-testid="comms-activity-refresh">
-          <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> Refresh
+          <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> {t('service.comms_refresh', 'Refresh')}
         </button>
       </div>
       <div className="svc-table-wrap">
         <table className="svc-table">
-          <thead><tr><th>When</th><th>Kind</th><th>Template</th><th>To</th><th>Subject</th><th>Status</th></tr></thead>
+          <thead><tr><th>{t('service.comms_col_when', 'When')}</th><th>{t('service.comms_col_kind', 'Kind')}</th><th>{t('service.comms_col_template', 'Template')}</th><th>{t('service.comms_col_to', 'To')}</th><th>{t('service.comms_col_subject', 'Subject')}</th><th>{t('service.comms_col_status', 'Status')}</th></tr></thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="6"><div className="svc-empty"><Loader2 size={14} className="animate-spin" /> Loading…</div></td></tr>
+              <tr><td colSpan="6"><div className="svc-empty"><Loader2 size={14} className="animate-spin" /> {t('service.comms_loading', 'Loading…')}</div></td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan="6"><div className="svc-empty"><Mail size={20} /><div>No comms sent yet.</div></div></td></tr>
+              <tr><td colSpan="6"><div className="svc-empty"><Mail size={20} /><div>{t('service.comms_none_sent', 'No comms sent yet.')}</div></div></td></tr>
             ) : rows.map((r) => (
               <tr key={r.id} data-testid={`comms-log-row-${r.id}`}>
                 <td className="text-[11px] tabular-nums svc-muted">{new Date(r.at).toLocaleString()}</td>
@@ -229,11 +233,11 @@ function ActivityTab() {
                 <td>
                   {r.ok ? (
                     <span className="svc-pill svc-pill--good" data-testid={`comms-log-status-${r.id}`}>
-                      <CheckCircle2 size={10} /> sent
+                      <CheckCircle2 size={10} /> {t('service.comms_sent', 'sent')}
                     </span>
                   ) : (
                     <span className="svc-pill svc-pill--danger" title={r.error} data-testid={`comms-log-status-${r.id}`}>
-                      <AlertTriangle size={10} /> {r.error?.includes('api_key') ? 'no API key' : 'failed'}
+                      <AlertTriangle size={10} /> {r.error?.includes('api_key') ? t('service.comms_no_api_key', 'no API key') : t('service.comms_failed', 'failed')}
                     </span>
                   )}
                 </td>

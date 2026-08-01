@@ -1,0 +1,31 @@
+{
+  "summary": "i18n verification of AdminDispatchBoard (service.disp_*) and CommsHubPage (service.comms_*) in EN and DE. Dispatch Board works perfectly - renders fully translated in both EN and DE with zero raw-key leaks (verified header 'Dispatch Board', 'Needs dispatch (2)' / 'Benötigt Zuweisung (2)', 'Sorted by priority · SLA', 'Engineers (1)' / 'Techniker (1)', 'X open · Y today' / 'X OFFEN · Y HEUTE', 'Pick' / 'Auswählen', 'Assign' / 'Zuweisen'; assign modal labels Engineer, '— select engineer —', Start time, Est. minutes, Cancel/Abbrechen, Assign/Zuweisen). All 52 keys under service.disp_* and service.comms_* exist in en/fr/de locale files with proper translations (verified via JSON diff). HOWEVER: The CommsHubPage component is orphaned in the UI — no live route mounts it, and there is no 'Comms' nav item in the Service Desk sidebar, so the page cannot be reached by an end user.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "CommsHubPage / AppRoutes",
+        "issue": "Comms Hub page is unreachable. /app/frontend/src/routes/AppRoutes.js line 534 redirects /service-ops/comms -> /service-desk. The CommsHubPage import at line 144 is prefixed with an underscore (`_ServiceOpsComms`) indicating unused. There is no 'Comms' nav item in the Service Desk sidebar (Dashboard, Cases, Scheduler, Customers, Equipment, Maintenance, Stores, Billing, Inventory & Distribution, Analytics, Expenses, H&S checklist, Compliance, Options — no Comms). i18n keys under service.comms_* exist and are correct in en/fr/de.json, but cannot be visually verified in a running UI until the route is restored or the sidebar link is added.",
+        "selector": "[data-testid=\"comms-page\"]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Main agent: Restore a live route for CommsHubPage (e.g., mount it at /service-desk/comms or /service-ops/comms) and add a 'Comms' / 'Customer comms' nav entry in the Service Desk sidebar so the localized page is reachable. Once reachable, re-verify EN + DE + assign-modal-equivalent (both tabs 'Templates'/'Vorlagen' and 'Activity'/'Aktivität') with status pills 'sent'/'gesendet', 'failed'/'fehlgeschlagen', 'no API key'/'kein API-Schlüssel'."
+  ],
+  "critical_code_review_comments": [
+    "AppRoutes.js line 534 redirect + underscored import strongly suggests the /service-ops/comms route was intentionally hidden or forgotten during a refactor. Localization work under service.comms_* is currently dead code from a UI-visibility perspective.",
+    "ServiceOpsShell.js line 44 still lists a 'comms' nav item pointing to /service-ops/comms — but the Service Desk (which is what owner@isodemo.com lands in) uses a different shell without any Comms link. Nav configuration inconsistency."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "Dispatch Board: 100% (EN+DE+modal, no leaks); Comms Hub: strings verified in locale files but page unreachable in UI (0% visual)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None — used pre-existing SVC-00001 / SVC-00002 dispatch jobs.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Language reverted to 'en' at end of run (PATCH /api/account/profile status 200). Dispatch Board fully validated (EN 'Dispatch Board / Needs dispatch (2) / Sorted by priority · SLA / Engineers (1) / 0 open · 0 today / Pick / Assign' + modal Cancel/Assign; DE 'Benötigt Zuweisung (2) / Sortiert nach Priorität · SLA / Techniker (1) / 0 OFFEN · 0 HEUTE / Auswählen / Zuweisen' + modal 'Abbrechen/Zuweisen'). All 52 service.disp_*/service.comms_* keys exist in en/fr/de.json. When main agent fixes the Comms Hub route/nav, next tester should verify: templates tab labels (Template/Reset to default/Save/Audience/Subject/HTML body/Preview), activity tab (When/Kind/Template/To/Subject/Status headers, refresh, 'No comms sent yet.', status pills sent/failed/no API key) — DE equivalents include 'Kundenkommunikations-Hub', 'Vorlagen', 'Aktivität', 'gesendet'."
+}

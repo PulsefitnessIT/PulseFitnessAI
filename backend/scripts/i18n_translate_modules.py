@@ -217,6 +217,11 @@ async def main():
         "service.aisch_change_unchanged": "Unchanged",
         "service.aisch_change_protected": "Protected",
     })
+    # CommsHubPage tabs rendered via t(`service.comms_tab_${tb.id}`, tb.label).
+    pairs.update({
+        "service.comms_tab_templates": "Templates",
+        "service.comms_tab_activity": "Activity",
+    })
     # Events: kind labels + costume statuses (rendered via template-literal keys).
     pairs.update({
         "memberships_console.evt_kind_recital": "Recital",
