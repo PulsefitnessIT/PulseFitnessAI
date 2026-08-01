@@ -1,3 +1,22 @@
+# ═══ 2026-08-01 · COMPLIANCE P1/P2: erasure↔financial-retention reconcile + tenant-isolation regression suite ═══
+1) ERASURE vs STATUTORY FINANCIAL RETENTION (utils/archive_lifecycle.py): org hard-delete (GDPR right-to-erasure)
+   previously purged ALL org-scoped collections incl. financial records. Added FINANCIAL_RETENTION_COLLECTIONS
+   (invoices, payments, stripe_charges, payment_transactions, purchase_orders, po_defaults, revenue_distributions,
+   reserve_transactions) which are now SKIPPED (retained) under GDPR Art.17(3)(b) legal-obligation (UK ~6yr/HMRC).
+   The erasure audit log records financial_records_retained + retention_basis. NOTE: the per-user
+   /compliance/delete-account path already only anonymised user+issue names (never touched financials) — safe.
+   VERIFIED: throwaway-org test — payment_transactions + invoices RETAINED; notifications + issues PURGED.
+2) TENANT-ISOLATION REGRESSION SUITE: backend/tests/test_tenant_isolation_regression_jan2026.py (6 tests, ALL PASS)
+   — MOD Quote Writer 403 for non-operator CRM tenant (+ best-effort operator 200), Supplier Insights 403 for Lite /
+   200 for Pro, Lite cannot add suppliers (403), Pulse default supplier locked (PUT/DELETE 403). Run:
+   REACT_APP_BACKEND_URL=<url> python -m pytest tests/test_tenant_isolation_regression_jan2026.py -q  (wire into CI).
+Compliance_Gap_Register.md updated: gaps #5 and #11 → Done.
+⚠️ PREVIEW ONLY — REDEPLOY needed. Remaining founder/DPO items: MFA rollout env, data residency, sub-processor/RoPA,
+   breach runbook, backup RPO/RTO, pen test, CSP nonce project.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-01 · COMPLIANCE follow-ups: HIBP breach check + password-hint sweep + P1 gap register ═══
 Continued the founder-review action items:
 1) LIVE BREACHED-PASSWORD CHECK (utils/security.py assert_password_not_breached): HaveIBeenPwned k-anonymity range API

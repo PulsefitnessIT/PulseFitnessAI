@@ -29,6 +29,16 @@ logger = logging.getLogger(__name__)
 RETENTION_DAYS = 365          # 1 year
 WARNING_LEAD_DAYS = 7         # Email users 7 days before permanent deletion
 
+# Statutory financial/tax records. Under GDPR Art. 17(3)(b) the right to
+# erasure does NOT override a legal obligation to retain data — UK financial
+# records must be kept ~6 years (HMRC). These collections are therefore
+# RETAINED (skipped) on org hard-delete rather than purged.
+FINANCIAL_RETENTION_COLLECTIONS = frozenset({
+    "invoices", "payments", "stripe_charges", "payment_transactions",
+    "purchase_orders", "po_defaults", "revenue_distributions",
+    "reserve_transactions",
+})
+
 # Collections that are strictly org-scoped (field: organization_id).
 # Deleting these on hard-delete implements the GDPR right-to-erasure.
 ORG_SCOPED_COLLECTIONS = (
@@ -101,7 +111,12 @@ async def hard_delete_organization(org_id: str, actor_email: str) -> Dict[str, i
         return {"deleted": 0}
 
     counts: Dict[str, int] = {}
+    retained: List[str] = []
     for coll in ORG_SCOPED_COLLECTIONS:
+        if coll in FINANCIAL_RETENTION_COLLECTIONS:
+            # Retained for statutory financial retention (UK 6-year / HMRC).
+            retained.append(coll)
+            continue
         try:
             res = await db[coll].delete_many({"organization_id": org_id})
             if res.deleted_count:
@@ -122,11 +137,13 @@ async def hard_delete_organization(org_id: str, actor_email: str) -> Dict[str, i
             "by": actor_email,
             "at": _now().isoformat(),
             "collections_purged": counts,
+            "financial_records_retained": retained,
+            "retention_basis": "GDPR Art. 17(3)(b) — legal obligation (UK financial records, ~6 years)",
         })
     except Exception as e:
         logger.warning(f"[archive_hard_delete] audit insert failed: {e}")
 
-    logger.info(f"[archive_hard_delete] org={org_id} by={actor_email} counts={counts}")
+    logger.info(f"[archive_hard_delete] org={org_id} by={actor_email} counts={counts} retained_financial={retained}")
     return counts
 
 

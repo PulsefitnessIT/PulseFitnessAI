@@ -42,13 +42,13 @@ Legend — **Status:** ✅ Done · 🟡 Open · 🔵 In progress. **Priority:** 
 | 2 | P0 | MFA only mandatory for master-admin | Privileged-account compromise | Role-based enforcement via `MFA_REQUIRED_ROLES` env (built; **flip on in prod** after briefing staff) | Founder | 🟡 Ready — enable in prod |
 | 3 | P0 | CSP `script-src 'unsafe-inline'` | Weakens XSS defence | Prod CSP already excludes `unsafe-eval`; removing `unsafe-inline` needs nonce/hash injection = **scoped project** (CRA static limitation) | Eng | 🟡 Scoped separately |
 | 4 | P1 | **Data residency unconfirmed** | MOD contracts likely require UK-only data sovereignty | Confirm hosting region with Emergent in writing; document in DPA & pen-test scope | Founder/DPO | 🟡 Open |
-| 5 | P1 | Erasure vs statutory financial retention | Deleting invoice/tax data breaches HMRC 6-yr retention | Document that erasure anonymises PII but **retains financial records (Stripe invoices) for 6 years**; verify code path excludes them | DPO/Eng | 🟡 Open |
+| 5 | P1 | Erasure vs statutory financial retention | Deleting invoice/tax data breaches HMRC 6-yr retention | Org hard-delete now **excludes** financial collections (invoices, payments, stripe_charges, payment_transactions, purchase_orders, po_defaults, revenue_distributions, reserve_transactions); retained under Art.17(3)(b) + logged | DPO/Eng | ✅ Done 2026-08-01 |
 | 6 | P1 | Sub-processor list completeness | Undisclosed processors = GDPR Art. 28 gap | Confirm Sub-Processors page lists **Emergent (hosting), Stripe (payments), Resend (email), and LLM providers (OpenAI/Anthropic/Google via Emergent)** with DPAs referenced; note AI processing of PII | DPO | 🟡 Open |
 | 7 | P1 | AI processing of personal data | Special-category/defence data sent to LLMs without record | Confirm guardrails redact PII before prompts where applicable; add LLM processing to RoPA & DPIA | DPO/Eng | 🟡 Open |
 | 8 | P2 | Breach-notification runbook | Miss 72-hour GDPR notification deadline | Document an incident-response runbook (detect → assess → notify ICO within 72h → notify subjects) | DPO | 🟡 Open |
 | 9 | P2 | Backup / DR RPO/RTO undocumented | Unclear recovery guarantees | Obtain Mongo backup cadence & restore RPO/RTO from Emergent; document | Founder | 🟡 Open |
 | 10 | P2 | Consent version bump process | Stale consent when policies change | Process to increment `CURRENT_TERMS_VERSION`/`CURRENT_PRIVACY_VERSION` and force re-consent | Eng/DPO | 🟡 Open |
-| 11 | P2 | Tenant-isolation regression guard | Future feature reintroduces a cross-org leak | Standing automated tenant-isolation test suite in CI | Eng | 🟡 Open |
+| 11 | P2 | Tenant-isolation regression guard | Future feature reintroduces a cross-org leak | Standing tenant-isolation test suite added (`tests/test_tenant_isolation_regression_jan2026.py`, 6 checks); wire into CI | Eng | ✅ Done 2026-08-01 |
 | 12 | P2 | Frontend password-hint copy | Minor UX inconsistency (fixed) | Signup/reset hints updated to "12 characters" | Eng | ✅ Done 2026-08-01 |
 | 13 | 🔵 | Independent penetration test | External assurance | Stripe OLT pen test being scoped (scoping doc prepared) | Founder | 🔵 In progress |
 
