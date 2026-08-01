@@ -7,6 +7,7 @@
  * cases automatically — no Pulse Fitness admin involvement required.
  */
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +25,7 @@ import Orbit4Wizard from './Orbit4Wizard';
 const BACKEND = process.env.REACT_APP_BACKEND_URL || '';
 
 export default function DeskIntegrations() {
+  const { t } = useTranslation();
   const [conn, setConn] = useState(null);
   const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,7 @@ export default function DeskIntegrations() {
         setWizardOpen(true);
       }
     } catch (e) {
-      toast.error('Could not load the Orbit 4 connection');
+      toast.error(t('service.o4_load_err', 'Could not load the Orbit 4 connection'));
     } finally {
       setLoading(false);
     }
@@ -70,9 +72,9 @@ export default function DeskIntegrations() {
       await api.put(`/svc/orbit4/engineers/${engineerId}`, { orbit4_user_id: orbit4UserId || null });
       setEngineers((prev) => prev.map((x) => x.id === engineerId
         ? { ...x, orbit4_user_id: orbit4UserId ? Number(orbit4UserId) : null } : x));
-      toast.success('Engineer mapping updated');
+      toast.success(t('service.o4_mapping_updated', 'Engineer mapping updated'));
     } catch {
-      toast.error('Could not update mapping');
+      toast.error(t('service.o4_mapping_err', 'Could not update mapping'));
     }
   };
 
@@ -85,7 +87,7 @@ export default function DeskIntegrations() {
       setConn(r.data);
       return r.data;
     } catch (e) {
-      toast.error('Save failed');
+      toast.error(t('service.o4_save_failed', 'Save failed'));
       throw e;
     } finally {
       setSaving(false);
@@ -97,7 +99,7 @@ export default function DeskIntegrations() {
       // allow enabling for inbound-only, but warn outbound needs a token
     }
     await save({ enabled: next });
-    toast.success(next ? 'Orbit 4 connection is live' : 'Orbit 4 connection paused');
+    toast.success(next ? t('service.o4_now_live', 'Orbit 4 connection is live') : t('service.o4_now_paused', 'Orbit 4 connection paused'));
   };
 
   const handleSaveCreds = async () => {
@@ -107,7 +109,7 @@ export default function DeskIntegrations() {
     await save(patch);
     setApiToken('');
     setWebhookSecret('');
-    toast.success('Settings saved');
+    toast.success(t('service.o4_settings_saved', 'Settings saved'));
   };
 
   const handleRotate = async () => {
@@ -115,9 +117,9 @@ export default function DeskIntegrations() {
     try {
       const r = await api.post('/svc/orbit4/connection/rotate-key');
       setConn(r.data);
-      toast.success('Webhook URL regenerated — update it in Orbit 4');
+      toast.success(t('service.o4_url_regenerated', 'Webhook URL regenerated — update it in Orbit 4'));
     } catch {
-      toast.error('Could not rotate the key');
+      toast.error(t('service.o4_rotate_err', 'Could not rotate the key'));
     } finally {
       setSaving(false);
     }
@@ -127,10 +129,10 @@ export default function DeskIntegrations() {
     setTesting(true);
     try {
       const r = await api.post('/svc/orbit4/connection/test');
-      if (r.data.ok) toast.success(r.data.message || 'Connected');
-      else toast.error(r.data.message || 'Could not connect');
+      if (r.data.ok) toast.success(r.data.message || t('service.o4_connected', 'Connected'));
+      else toast.error(r.data.message || t('service.o4_could_not_connect', 'Could not connect'));
     } catch {
-      toast.error('Test failed');
+      toast.error(t('service.o4_test_failed', 'Test failed'));
     } finally {
       setTesting(false);
     }
@@ -140,13 +142,13 @@ export default function DeskIntegrations() {
     navigator.clipboard.writeText(fullWebhookUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
-    toast.success('Webhook URL copied');
+    toast.success(t('service.o4_url_copied', 'Webhook URL copied'));
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-slate-500 text-sm" data-testid="desk-integrations-loading">
-        <Loader2 size={16} className="mr-2 animate-spin" /> Loading…
+        <Loader2 size={16} className="mr-2 animate-spin" /> {t('service.o4_loading', 'Loading…')}
       </div>
     );
   }
@@ -163,14 +165,14 @@ export default function DeskIntegrations() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Plug size={22} className="text-indigo-600" /> Integrations
+            <Plug size={22} className="text-indigo-600" /> {t('service.o4_title', 'Integrations')}
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Connect Orbit 4 so faults logged by your customers flow straight into your Service Desk.
+            {t('service.o4_subtitle', 'Connect Orbit 4 so faults logged by your customers flow straight into your Service Desk.')}
           </p>
         </div>
         <Button onClick={() => setWizardOpen(true)} data-testid="orbit4-launch-wizard-btn">
-          <Rocket size={15} className="mr-2" /> Setup wizard
+          <Rocket size={15} className="mr-2" /> {t('service.o4_setup_wizard', 'Setup wizard')}
         </Button>
       </div>
 
@@ -180,11 +182,11 @@ export default function DeskIntegrations() {
           <CardTitle className="text-base flex items-center gap-2">
             Orbit 4
             {conn?.enabled
-              ? <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100" data-testid="orbit4-status-live">Live</Badge>
-              : <Badge variant="secondary" data-testid="orbit4-status-paused">Paused</Badge>}
+              ? <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100" data-testid="orbit4-status-live">{t('service.o4_live', 'Live')}</Badge>
+              : <Badge variant="secondary" data-testid="orbit4-status-paused">{t('service.o4_paused', 'Paused')}</Badge>}
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Label htmlFor="orbit4-enabled" className="text-sm text-slate-600">Enabled</Label>
+            <Label htmlFor="orbit4-enabled" className="text-sm text-slate-600">{t('service.o4_enabled', 'Enabled')}</Label>
             <Switch
               id="orbit4-enabled"
               checked={!!conn?.enabled}
@@ -197,9 +199,9 @@ export default function DeskIntegrations() {
         <CardContent className="space-y-5">
           {/* Webhook URL */}
           <div>
-            <Label className="text-sm font-medium text-slate-700">1. Your unique webhook URL</Label>
+            <Label className="text-sm font-medium text-slate-700">{t('service.o4_step1', '1. Your unique webhook URL')}</Label>
             <p className="text-xs text-slate-500 mb-2">
-              Paste this into Orbit 4 → Settings → Webhooks. Orbit 4 will POST ticket, note, photo and asset events here.
+              {t('service.o4_step1_hint', 'Paste this into Orbit 4 → Settings → Webhooks. Orbit 4 will POST ticket, note, photo and asset events here.')}
             </p>
             <div className="flex items-center gap-2">
               <code className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded px-3 py-2 break-all" data-testid="orbit4-webhook-url">
@@ -208,7 +210,7 @@ export default function DeskIntegrations() {
               <Button variant="outline" size="sm" onClick={copyUrl} data-testid="orbit4-copy-url-btn">
                 {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleRotate} disabled={saving} title="Regenerate URL" data-testid="orbit4-rotate-key-btn">
+              <Button variant="ghost" size="sm" onClick={handleRotate} disabled={saving} title={t('service.o4_regen_url', 'Regenerate URL')} data-testid="orbit4-rotate-key-btn">
                 <RefreshCw size={14} />
               </Button>
             </div>
@@ -217,24 +219,24 @@ export default function DeskIntegrations() {
           {/* Credentials */}
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="orbit4-secret" className="text-sm font-medium text-slate-700">2. Webhook secret</Label>
-              <p className="text-xs text-slate-500 mb-2">Optional. If set, we verify the signature on every webhook.</p>
+              <Label htmlFor="orbit4-secret" className="text-sm font-medium text-slate-700">{t('service.o4_step2', '2. Webhook secret')}</Label>
+              <p className="text-xs text-slate-500 mb-2">{t('service.o4_step2_hint', 'Optional. If set, we verify the signature on every webhook.')}</p>
               <Input
                 id="orbit4-secret"
                 type="password"
-                placeholder={conn?.webhook_secret ? '•••••• (set)' : 'Paste secret'}
+                placeholder={conn?.webhook_secret ? t('service.o4_set', '•••••• (set)') : t('service.o4_paste_secret', 'Paste secret')}
                 value={webhookSecret}
                 onChange={(e) => setWebhookSecret(e.target.value)}
                 data-testid="orbit4-webhook-secret-input"
               />
             </div>
             <div>
-              <Label htmlFor="orbit4-token" className="text-sm font-medium text-slate-700">3. API token</Label>
-              <p className="text-xs text-slate-500 mb-2">Lets us push case progress (status, notes, photos) back to Orbit 4.</p>
+              <Label htmlFor="orbit4-token" className="text-sm font-medium text-slate-700">{t('service.o4_step3', '3. API token')}</Label>
+              <p className="text-xs text-slate-500 mb-2">{t('service.o4_step3_hint', 'Lets us push case progress (status, notes, photos) back to Orbit 4.')}</p>
               <Input
                 id="orbit4-token"
                 type="password"
-                placeholder={conn?.api_token ? '•••••• (set)' : 'Paste API token'}
+                placeholder={conn?.api_token ? t('service.o4_set', '•••••• (set)') : t('service.o4_paste_token', 'Paste API token')}
                 value={apiToken}
                 onChange={(e) => setApiToken(e.target.value)}
                 data-testid="orbit4-api-token-input"
@@ -243,8 +245,8 @@ export default function DeskIntegrations() {
           </div>
 
           <div>
-            <Label htmlFor="orbit4-web-url" className="text-sm font-medium text-slate-700">4. Orbit 4 ticket URL (optional)</Label>
-            <p className="text-xs text-slate-500 mb-2">Base URL for "View in Orbit 4" links on cases, e.g. https://app.orbit4.org/tickets — we append the ticket id.</p>
+            <Label htmlFor="orbit4-web-url" className="text-sm font-medium text-slate-700">{t('service.o4_step4', '4. Orbit 4 ticket URL (optional)')}</Label>
+            <p className="text-xs text-slate-500 mb-2">{t('service.o4_step4_hint', 'Base URL for "View in Orbit 4" links on cases, e.g. https://app.orbit4.org/tickets — we append the ticket id.')}</p>
             <Input
               id="orbit4-web-url"
               placeholder="https://app.orbit4.org/tickets"
@@ -257,17 +259,17 @@ export default function DeskIntegrations() {
           <div className="flex items-center gap-2">
             <Button onClick={handleSaveCreds} disabled={saving} data-testid="orbit4-save-creds-btn">
               {saving ? <Loader2 size={14} className="mr-2 animate-spin" /> : null}
-              Save settings
+              {t('service.o4_save_settings', 'Save settings')}
             </Button>
             <Button variant="outline" onClick={handleTest} disabled={testing} data-testid="orbit4-test-btn">
               {testing ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Zap size={14} className="mr-2" />}
-              Test connection
+              {t('service.o4_test_connection', 'Test connection')}
             </Button>
           </div>
 
           <div className="text-xs text-slate-400 flex items-center gap-1">
             <ExternalLink size={12} />
-            Last event: {conn?.last_event_at ? new Date(conn.last_event_at).toLocaleString() : 'none yet'} · {conn?.stats?.events_total || 0} total
+            {t('service.o4_last_event', 'Last event:')} {conn?.last_event_at ? new Date(conn.last_event_at).toLocaleString() : t('service.o4_none_yet', 'none yet')} · {t('service.o4_total', '{{n}} total', { n: conn?.stats?.events_total || 0 })}
           </div>
         </CardContent>
       </Card>
@@ -277,19 +279,19 @@ export default function DeskIntegrations() {
         <CardContent className="py-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="rounded-lg bg-slate-50 px-3 py-2">
-              <div className="text-[11px] uppercase tracking-wide text-slate-400">Status</div>
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">{t('service.o4_status', 'Status')}</div>
               <div className={`text-sm font-semibold ${activity?.enabled ? 'text-emerald-600' : 'text-slate-500'}`} data-testid="health-status">
-                {activity?.enabled ? 'Live' : 'Paused'}
+                {activity?.enabled ? t('service.o4_live', 'Live') : t('service.o4_paused', 'Paused')}
               </div>
             </div>
             <div className="rounded-lg bg-slate-50 px-3 py-2">
-              <div className="text-[11px] uppercase tracking-wide text-slate-400">Last inbound</div>
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">{t('service.o4_last_inbound', 'Last inbound')}</div>
               <div className="text-sm font-semibold text-slate-700" data-testid="health-last-inbound">
                 {activity?.last_inbound_at ? new Date(activity.last_inbound_at).toLocaleString() : '—'}
               </div>
             </div>
             <div className="rounded-lg bg-slate-50 px-3 py-2">
-              <div className="text-[11px] uppercase tracking-wide text-slate-400">Last sync out</div>
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">{t('service.o4_last_sync_out', 'Last sync out')}</div>
               <div className={`text-sm font-semibold ${activity?.last_outbound?.status === 'error' ? 'text-red-600' : 'text-slate-700'}`} data-testid="health-last-outbound">
                 {activity?.last_outbound?.at
                   ? `${activity.last_outbound.status === 'error' ? '⚠ ' : '✓ '}${new Date(activity.last_outbound.at).toLocaleString()}`
@@ -297,11 +299,11 @@ export default function DeskIntegrations() {
               </div>
             </div>
             <div className="rounded-lg bg-slate-50 px-3 py-2">
-              <div className="text-[11px] uppercase tracking-wide text-slate-400">Cases this week</div>
+              <div className="text-[11px] uppercase tracking-wide text-slate-400">{t('service.o4_cases_week', 'Cases this week')}</div>
               <div className="text-sm font-semibold text-slate-700" data-testid="health-cases-week">
                 {activity?.cases_this_week ?? 0}
                 {activity?.error_count > 0 && (
-                  <span className="text-red-600 text-xs ml-2" data-testid="health-errors">{activity.error_count} sync error(s)</span>
+                  <span className="text-red-600 text-xs ml-2" data-testid="health-errors">{t('service.o4_sync_errors', '{{n}} sync error(s)', { n: activity.error_count })}</span>
                 )}
               </div>
             </div>
@@ -313,14 +315,14 @@ export default function DeskIntegrations() {
       <Card data-testid="orbit4-activity-card">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <ListChecks size={18} className="text-slate-500" /> Cases from Orbit 4
+            <ListChecks size={18} className="text-slate-500" /> {t('service.o4_cases_from', 'Cases from Orbit 4')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-6 mb-4">
             <div>
               <div className="text-2xl font-bold text-slate-900" data-testid="orbit4-cases-total">{activity?.cases_total ?? 0}</div>
-              <div className="text-xs text-slate-500">Total cases created</div>
+              <div className="text-xs text-slate-500">{t('service.o4_total_cases_created', 'Total cases created')}</div>
             </div>
           </div>
           {activity?.recent_cases?.length ? (
@@ -339,7 +341,7 @@ export default function DeskIntegrations() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-400">No Orbit 4 cases yet. Once connected, new faults appear here.</p>
+            <p className="text-sm text-slate-400">{t('service.o4_no_cases', 'No Orbit 4 cases yet. Once connected, new faults appear here.')}</p>
           )}
         </CardContent>
       </Card>
@@ -348,15 +350,15 @@ export default function DeskIntegrations() {
       <Card data-testid="orbit4-engineer-mapping-card">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Users size={18} className="text-slate-500" /> Engineer mapping
+            <Users size={18} className="text-slate-500" /> {t('service.o4_engineer_mapping', 'Engineer mapping')}
           </CardTitle>
           <p className="text-xs text-slate-500">
-            Link your engineers to their Orbit 4 user so notes posted back to Orbit 4 are attributed correctly. Auto-matched by email when possible.
+            {t('service.o4_engineer_mapping_hint', 'Link your engineers to their Orbit 4 user so notes posted back to Orbit 4 are attributed correctly. Auto-matched by email when possible.')}
           </p>
         </CardHeader>
         <CardContent>
           {engineers.length === 0 ? (
-            <p className="text-sm text-slate-400">No engineers in this Service Desk yet.</p>
+            <p className="text-sm text-slate-400">{t('service.o4_no_engineers', 'No engineers in this Service Desk yet.')}</p>
           ) : (
             <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
               {engineers.map((eng) => (
@@ -371,10 +373,10 @@ export default function DeskIntegrations() {
                     onChange={(e) => mapEngineer(eng.id, e.target.value)}
                     data-testid={`orbit4-engineer-select-${eng.id}`}
                   >
-                    <option value="">Not linked</option>
+                    <option value="">{t('service.o4_not_linked', 'Not linked')}</option>
                     {o4Users.map((u) => (
                       <option key={u.orbit4_user_id} value={u.orbit4_user_id}>
-                        {`${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || `User ${u.orbit4_user_id}`}
+                        {`${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email || t('service.o4_user_n', 'User {{n}}', { n: u.orbit4_user_id })}
                       </option>
                     ))}
                   </select>
@@ -384,7 +386,7 @@ export default function DeskIntegrations() {
           )}
           {o4Users.length === 0 && engineers.length > 0 && (
             <p className="text-xs text-slate-400 mt-3">
-              No Orbit 4 users synced yet — they appear automatically once Orbit 4 sends user events. Mapping then auto-matches by email.
+              {t('service.o4_no_users_synced', 'No Orbit 4 users synced yet — they appear automatically once Orbit 4 sends user events. Mapping then auto-matches by email.')}
             </p>
           )}
         </CardContent>

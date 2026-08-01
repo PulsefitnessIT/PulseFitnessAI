@@ -312,3 +312,21 @@ REMAINING ServiceDesk/ServiceOps (next batches, still EN via fallback = function
     EquipmentMultiSelect, ServiceOpsShell, Engineer/* (large), Inventory/*.
 THEN: Settings module.
 Pipeline: `cd /app/backend && python scripts/i18n_translate_modules.py` (guard: `--check`).
+
+## ═══ 2026-06 · ServiceDesk tab bodies FR/DE — BATCH 2 (VERIFIED DE render, 0 leaks) ═══
+Localised 6 more ServiceDesk/ tabs (namespace `service`, full rewrites, babel-parse OK, guard OK):
+  - DeskAuditLog.js (service.aud_*) — audit log header/filter/refresh/empty/Master Admin badge.
+  - DeskCustomerDetail.js (service.cd_*) — back/impersonate, stat cards (added stable `tid`), editable
+    Customer Details fields, Sites/Staff/Suppliers sections w/ interpolated counts, notify strings.
+  - DeskAnalytics.js (service.anl_*) — range presets (via `{{n}} days`), 6 KPIs, weekly trend (Recharts
+    Bar/Line names), SLA-by-priority, Revenue, Engineer utilisation. PRESETS kept module-level (label→key).
+  - DeskExpenses.js (service.exp_*) — Approvals/Reports/Settings sub-views; each inner component wired its own
+    useTranslation; renamed queue-map `t`->`tItem` shadow; GROUPS moved to {id,label} w/ stable data-testid.
+  - DeskImports.js (service.imp_*) — 4-step migration wizard; moved TYPES + STEP_LABELS inside component to use t().
+  - DeskIntegrations.js (service.o4_*) — Orbit 4 self-serve connection: status/creds/health/activity/engineer map + toasts.
+Pipeline: +221 new `service` keys (aud7/cd33/anl33/exp54/imp43/o4 51) × en/fr/de (345 FR + 338 DE translated total run).
+VERIFIED: babel-parse all 6 OK; i18n guard passes; keys present in en/fr/de. Live German smoke of the Analytics tab
+  (Analysen / KPIs / Wöchentliche Fälle & SLA-Pünktlichkeit % / SLA-Einhaltung nach Priorität / Umsatz / Technikerauslastung)
+  — renders fully in German, 0 raw-key leaks. Demo account (owner@isodemo.com) language reverted to 'en'.
+ServiceDesk/ FR/DE is now COMPLETE except MODVisitCalendar (MOD-skip), DeskPreventativeMaintenance, DeskProviderCustomers, Orbit4Wizard.
+NEXT: ServiceOps/ tab bodies (ServiceCaseDrawer, ServiceOpsReportsPage, EngineersAdminPage, etc.), then Settings.

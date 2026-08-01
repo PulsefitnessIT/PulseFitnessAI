@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,7 @@ function formatTimestamp(iso) {
 }
 
 export default function DeskAuditLog({ API }) {
+  const { t } = useTranslation();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -46,15 +48,15 @@ export default function DeskAuditLog({ API }) {
   return (
     <div className="space-y-4" data-testid="desk-audit-log">
       <div>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">Audit Log</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">{t('service.aud_title', 'Audit Log')}</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          Immutable record of every Service Desk action. {total.toLocaleString()} rows.
+          {t('service.aud_subtitle', 'Immutable record of every Service Desk action. {{count}} rows.', { count: total.toLocaleString() })}
         </p>
       </div>
 
       <div className="flex gap-2">
         <Input
-          placeholder="Filter by action (e.g. org.update)"
+          placeholder={t('service.aud_filter_ph', 'Filter by action (e.g. org.update)')}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           className="max-w-xs"
@@ -65,14 +67,14 @@ export default function DeskAuditLog({ API }) {
           className="px-3 py-2 border border-zinc-200 rounded-md text-sm hover:bg-zinc-50 flex items-center gap-1 dark:bg-zinc-900 dark:border-zinc-800"
           data-testid="desk-audit-refresh"
         >
-          <RefreshCw className="w-3 h-3" /> Refresh
+          <RefreshCw className="w-3 h-3" /> {t('service.aud_refresh', 'Refresh')}
         </button>
       </div>
 
       {loading ? (
-        <div className="text-zinc-500 py-8 text-center">Loading…</div>
+        <div className="text-zinc-500 py-8 text-center">{t('service.aud_loading', 'Loading…')}</div>
       ) : rows.length === 0 ? (
-        <div className="text-zinc-500 py-8 text-center">No audit entries yet.</div>
+        <div className="text-zinc-500 py-8 text-center">{t('service.aud_empty', 'No audit entries yet.')}</div>
       ) : (
         <Card className="divide-y divide-zinc-100">
           {rows.map((r) => (
@@ -84,7 +86,7 @@ export default function DeskAuditLog({ API }) {
                       {r.action}
                     </Badge>
                     {r.actor_role === 'master_admin' && (
-                      <Badge variant="outline" className="text-[10px] bg-teal-50 text-teal-700 border-teal-200">Master Admin</Badge>
+                      <Badge variant="outline" className="text-[10px] bg-teal-50 text-teal-700 border-teal-200">{t('service.aud_master_admin', 'Master Admin')}</Badge>
                     )}
                   </div>
                   <div className="text-sm text-zinc-900 mt-1 dark:text-zinc-100">{r.summary}</div>

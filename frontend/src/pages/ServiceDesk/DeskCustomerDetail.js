@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -23,6 +24,7 @@ function Section({ title, icon: Icon, children, id }) {
 }
 
 export default function DeskCustomerDetail({ API, orgId, onBack }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -42,11 +44,11 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
         notes: r.data.organization.notes || '',
       });
     } catch (e) {
-      notify.error('Failed to load customer');
+      notify.error(t('service.cd_load_failed', 'Failed to load customer'));
     } finally {
       setLoading(false);
     }
-  }, [API, orgId]);
+  }, [API, orgId, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -54,10 +56,10 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
     setSaving(true);
     try {
       await axios.patch(`${API}/service-desk/customers/${orgId}`, form, authConfig());
-      notify.success('Customer updated');
+      notify.success(t('service.cd_updated', 'Customer updated'));
       await load();
     } catch (e) {
-      notifyApiError(notify, e, 'Save failed');
+      notifyApiError(notify, e, t('service.cd_save_failed', 'Save failed'));
     } finally {
       setSaving(false);
     }
@@ -69,14 +71,14 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
       const url = new URL(window.location.origin + '/dashboard');
       url.searchParams.set('impersonation_token', r.data.token);
       window.open(url.toString(), '_blank');
-      notify.success('Impersonation session opened in new tab (1h)');
+      notify.success(t('service.cd_impersonation_opened', 'Impersonation session opened in new tab (1h)'));
     } catch (e) {
-      notifyApiError(notify, e, 'Impersonation failed');
+      notifyApiError(notify, e, t('service.cd_impersonation_failed', 'Impersonation failed'));
     }
   };
 
-  if (loading) return <div className="text-zinc-500">Loading…</div>;
-  if (!data) return <div className="text-red-500">Customer not found</div>;
+  if (loading) return <div className="text-zinc-500">{t('service.cd_loading', 'Loading…')}</div>;
+  if (!data) return <div className="text-red-500">{t('service.cd_not_found', 'Customer not found')}</div>;
 
   const { organization: org, sites, staff, suppliers, equipment_count } = data;
 
@@ -84,7 +86,7 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
     <div className="space-y-4" data-testid="desk-customer-detail">
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={onBack} data-testid="desk-back-to-list">
-          <ArrowLeft className="w-4 h-4 mr-1" /> Back to customers
+          <ArrowLeft className="w-4 h-4 mr-1" /> {t('service.cd_back', 'Back to customers')}
         </Button>
         <Button
           variant="outline" size="sm"
@@ -92,7 +94,7 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
           data-testid="desk-impersonate-btn"
           className="border-red-200 text-red-700 hover:bg-red-50"
         >
-          <Eye className="w-4 h-4 mr-1" /> View as customer
+          <Eye className="w-4 h-4 mr-1" /> {t('service.cd_view_as', 'View as customer')}
         </Button>
       </div>
 
@@ -100,27 +102,27 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">{org.name}</h1>
         <div className="text-sm text-zinc-500 mt-1 flex items-center gap-3 flex-wrap">
           <Badge variant="outline">{org.account_type || '—'}</Badge>
-          {org.sicon_customer_ref && <span>Sicon Ref: {org.sicon_customer_ref}</span>}
-          {org.status && <span>Status: {org.status}</span>}
+          {org.sicon_customer_ref && <span>{t('service.cd_sicon_ref', 'Sicon Ref')}: {org.sicon_customer_ref}</span>}
+          {org.status && <span>{t('service.cd_status', 'Status')}: {org.status}</span>}
         </div>
       </div>
 
       {/* Iter 262 — 2-up on mobile; cards scroll to their section below. */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Sites', value: sites.length, target: 'desk-section-sites' },
-          { label: 'Staff', value: staff.length, target: 'desk-section-staff' },
-          { label: 'Suppliers', value: suppliers.length, target: 'desk-section-suppliers' },
-          { label: 'Equipment', value: equipment_count, target: null },
-        ].map(({ label, value, target }) => (
+          { label: t('service.cd_sites', 'Sites'), tid: 'sites', value: sites.length, target: 'desk-section-sites' },
+          { label: t('service.cd_staff', 'Staff'), tid: 'staff', value: staff.length, target: 'desk-section-staff' },
+          { label: t('service.cd_suppliers', 'Suppliers'), tid: 'suppliers', value: suppliers.length, target: 'desk-section-suppliers' },
+          { label: t('service.cd_equipment', 'Equipment'), tid: 'equipment', value: equipment_count, target: null },
+        ].map(({ label, tid, value, target }) => (
           <div
-            key={label}
+            key={tid}
             role={target ? 'button' : undefined}
             tabIndex={target ? 0 : undefined}
             onClick={() => target && document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             onKeyDown={(e) => { if (target && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }}
             className={`p-3 bg-white border border-zinc-200 rounded dark:bg-zinc-900 dark:border-zinc-800 ${target ? 'cursor-pointer transition-all hover:shadow-sm hover:border-orange-200 active:scale-[0.98]' : ''}`}
-            data-testid={`desk-customer-stat-${label.toLowerCase()}`}
+            data-testid={`desk-customer-stat-${tid}`}
           >
             <div className="text-xs text-zinc-500">{label}</div>
             <div className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{value}</div>
@@ -128,14 +130,14 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
         ))}
       </div>
 
-      <Section title="Customer Details" icon={Building2}>
+      <Section title={t('service.cd_details', 'Customer Details')} icon={Building2}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
-            { k: 'name', label: 'Company name' },
-            { k: 'head_office_ref', label: 'Head Office Ref' },
-            { k: 'primary_contact_name', label: 'Primary contact name' },
-            { k: 'primary_contact_email', label: 'Primary contact email', type: 'email' },
-            { k: 'primary_contact_phone', label: 'Primary contact phone' },
+            { k: 'name', label: t('service.cd_company_name', 'Company name') },
+            { k: 'head_office_ref', label: t('service.cd_ho_ref', 'Head Office Ref') },
+            { k: 'primary_contact_name', label: t('service.cd_contact_name', 'Primary contact name') },
+            { k: 'primary_contact_email', label: t('service.cd_contact_email', 'Primary contact email'), type: 'email' },
+            { k: 'primary_contact_phone', label: t('service.cd_contact_phone', 'Primary contact phone') },
           ].map(({ k, label, type }) => (
             <div key={k}>
               <Label htmlFor={`f-${k}`} className="text-xs text-zinc-600">{label}</Label>
@@ -148,7 +150,7 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
             </div>
           ))}
           <div className="sm:col-span-2">
-            <Label htmlFor="f-notes" className="text-xs text-zinc-600">Internal notes (Service Desk only)</Label>
+            <Label htmlFor="f-notes" className="text-xs text-zinc-600">{t('service.cd_internal_notes', 'Internal notes (Service Desk only)')}</Label>
             <textarea
               id="f-notes" rows={3}
               value={form.notes || ''}
@@ -164,21 +166,21 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
             className="bg-orange-600 hover:bg-orange-700"
             data-testid="desk-save-customer"
           >
-            <Save className="w-4 h-4 mr-1" /> {saving ? 'Saving…' : 'Save changes'}
+            <Save className="w-4 h-4 mr-1" /> {saving ? t('service.cd_saving', 'Saving…') : t('service.cd_save', 'Save changes')}
           </Button>
         </div>
       </Section>
 
-      <Section title={`Sites (${sites.length})`} icon={Building2} id="desk-section-sites">
+      <Section title={t('service.cd_sites_n', 'Sites ({{n}})', { n: sites.length })} icon={Building2} id="desk-section-sites">
         {sites.length === 0 ? (
-          <div className="text-xs text-zinc-500">No sites recorded yet.</div>
+          <div className="text-xs text-zinc-500">{t('service.cd_no_sites', 'No sites recorded yet.')}</div>
         ) : (
           <div className="space-y-2">
             {sites.map((s) => (
               <div key={s.id} className="p-3 border border-zinc-200 rounded text-sm dark:border-zinc-800" data-testid={`desk-site-${s.id}`}>
                 <div className="font-medium text-zinc-900 dark:text-zinc-100">{s.name}</div>
                 <div className="text-xs text-zinc-500 mt-1">
-                  {[s.address_line1, s.city, s.postcode].filter(Boolean).join(', ') || <em>No address</em>}
+                  {[s.address_line1, s.city, s.postcode].filter(Boolean).join(', ') || <em>{t('service.cd_no_address', 'No address')}</em>}
                   {s.phone && <span className="ml-3">📞 {s.phone}</span>}
                 </div>
               </div>
@@ -187,9 +189,9 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
         )}
       </Section>
 
-      <Section title={`Staff (${staff.length})`} icon={Users} id="desk-section-staff">
+      <Section title={t('service.cd_staff_n', 'Staff ({{n}})', { n: staff.length })} icon={Users} id="desk-section-staff">
         {staff.length === 0 ? (
-          <div className="text-xs text-zinc-500">No staff users yet.</div>
+          <div className="text-xs text-zinc-500">{t('service.cd_no_staff', 'No staff users yet.')}</div>
         ) : (
           <div className="space-y-1">
             {staff.map((u) => (
@@ -200,7 +202,7 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-[10px]">{u.role}</Badge>
-                  {u.disabled && <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200">Disabled</Badge>}
+                  {u.disabled && <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200">{t('service.cd_disabled', 'Disabled')}</Badge>}
                 </div>
               </div>
             ))}
@@ -208,9 +210,9 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
         )}
       </Section>
 
-      <Section title={`Suppliers (${suppliers.length})`} icon={Truck} id="desk-section-suppliers">
+      <Section title={t('service.cd_suppliers_n', 'Suppliers ({{n}})', { n: suppliers.length })} icon={Truck} id="desk-section-suppliers">
         {suppliers.length === 0 ? (
-          <div className="text-xs text-zinc-500">No suppliers — Pulse Fitness default will be seeded on first import.</div>
+          <div className="text-xs text-zinc-500">{t('service.cd_no_suppliers', 'No suppliers — Pulse Fitness default will be seeded on first import.')}</div>
         ) : (
           <div className="space-y-1">
             {suppliers.map((s) => (
@@ -220,7 +222,7 @@ export default function DeskCustomerDetail({ API, orgId, onBack }) {
                   <span className="ml-2 text-xs text-zinc-500">{s.email}</span>
                 </div>
                 {s.is_default_supplier && (
-                  <Badge variant="outline" className="text-[10px] bg-orange-50 text-orange-700 border-orange-200">Default</Badge>
+                  <Badge variant="outline" className="text-[10px] bg-orange-50 text-orange-700 border-orange-200">{t('service.cd_default', 'Default')}</Badge>
                 )}
               </div>
             ))}

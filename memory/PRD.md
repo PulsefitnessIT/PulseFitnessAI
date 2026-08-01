@@ -1,3 +1,13 @@
+# ═══ 2026-06 · i18n FR/DE — ServiceDesk tab bodies BATCH 2 (verified DE render) ═══
+Localised 6 more ServiceDesk tabs (DeskAuditLog/CustomerDetail/Analytics/Expenses/Imports/Integrations) under the
+`service` namespace — +221 keys × en/fr/de via the Claude pipeline. Full rewrites (babel-parse OK, guard OK); stable
+data-testids preserved (added `tid`/{id,label}). VERIFIED: live German render of the Analytics tab, 0 raw-key leaks;
+demo account language reverted to en. ServiceDesk/ FR/DE now largely complete (remaining: PreventativeMaintenance,
+ProviderCustomers, Orbit4Wizard; MODVisitCalendar intentionally skipped as MOD/UK-only).
+⚠️ PREVIEW ONLY — production needs a REDEPLOY. NEXT: ServiceOps/ tab bodies, then Settings.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · i18n FR/DE — ServiceDesk tab bodies BATCH 1 (verified DE render) ═══
 User continued the FR/DE localisation rollout ("C": ServiceOps/Staffing/Settings). Staffing already complete;
 started ServiceDesk/ServiceOps TAB BODIES. Localised 5 ServiceDesk tabs (DeskSummary/Customers/Equipment/
