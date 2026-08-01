@@ -260,15 +260,40 @@ async def verify_login_code(user_id: str, code: str) -> bool:
 
 # ─── Policy helpers ──────────────────────────────────────────────
 
+def _mfa_required_roles() -> set[str]:
+    """Roles for which MFA is mandatory, from env ``MFA_REQUIRED_ROLES``
+    (comma-separated). Empty by default so enforcement is switched on
+    deliberately (per-role) once privileged users have been briefed —
+    avoids surprise lockouts. Example: ``MFA_REQUIRED_ROLES=admin,logistics``.
+    """
+    raw = os.environ.get("MFA_REQUIRED_ROLES", "")
+    return {r.strip().lower() for r in raw.split(",") if r.strip()}
+
+
 def user_requires_mfa(user: dict) -> bool:
     """Return True if the user's role/flag demands MFA on login.
 
     Master admins ALWAYS require MFA once enabled. MOD HQ users
     (account_type=mod_org or mod_branch) are mandated to enrol —
-    iter 216h116. Other roles opt-in via ``mfa_required: true``.
+    iter 216h116. Privileged roles listed in ``MFA_REQUIRED_ROLES`` are
+    mandated too. Other roles opt-in via ``mfa_required: true``.
     """
     if user.get("is_master_admin"):
         return True
     if (user.get("account_type") or "").lower() in ("mod_org", "mod_branch"):
         return True
+    if (user.get("role") or "").lower() in _mfa_required_roles():
+        return True
     return bool(user.get("mfa_required"))
+
+
+def user_mfa_enrolment_forced(user: dict) -> bool:
+    """True when the user MUST enrol MFA before completing login (not just
+    verify an existing enrolment). Applies to MOD HQ tiers and any role in
+    ``MFA_REQUIRED_ROLES``. Master admins keep the historical opt-in so
+    existing dev/test logins aren't broken."""
+    if (user.get("account_type") or "").lower() in ("mod_org", "mod_branch"):
+        return True
+    if (user.get("role") or "").lower() in _mfa_required_roles():
+        return True
+    return False

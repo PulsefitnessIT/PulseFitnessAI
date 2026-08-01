@@ -140,22 +140,50 @@ def get_failed_login_count(email: str) -> int:
 
 # ── Password Strength ─────────────────────────────────────────────
 
+PASSWORD_MIN_LENGTH = int(os.environ.get("PASSWORD_MIN_LENGTH", "12"))
+
+# Small local blocklist of the most common breached/weak passwords. Cheap,
+# deterministic, no external dependency (a full HIBP k-anonymity check can be
+# layered on later behind PASSWORD_HIBP_CHECK without changing callers).
+_COMMON_PASSWORDS = {
+    "password", "password1", "password123", "passw0rd", "123456", "1234567",
+    "12345678", "123456789", "1234567890", "qwerty", "qwerty123", "111111",
+    "letmein", "welcome", "welcome1", "admin", "admin123", "iloveyou",
+    "monkey", "dragon", "football", "abc123", "111111111", "000000",
+    "changeme", "pulsefitness", "pulse123", "gymaxis", "sunshine", "master",
+}
+
+
 def validate_password_strength(password: str) -> None:
-    """Enforce minimum password requirements. Raises 400 if weak."""
+    """Enforce minimum password requirements. Raises 400 if weak.
+
+    Policy (hardened): >= PASSWORD_MIN_LENGTH (default 12) chars, upper + lower
+    + digit + symbol, and not a well-known breached/common password.
+    """
     errors = []
-    if len(password) < 8:
-        errors.append("at least 8 characters")
-    if not re.search(r"[A-Z]", password):
+    if len(password or "") < PASSWORD_MIN_LENGTH:
+        errors.append(f"at least {PASSWORD_MIN_LENGTH} characters")
+    if not re.search(r"[A-Z]", password or ""):
         errors.append("one uppercase letter")
-    if not re.search(r"[a-z]", password):
+    if not re.search(r"[a-z]", password or ""):
         errors.append("one lowercase letter")
-    if not re.search(r"\d", password):
+    if not re.search(r"\d", password or ""):
         errors.append("one number")
+    if not re.search(r"[^A-Za-z0-9]", password or ""):
+        errors.append("one symbol")
 
     if errors:
         raise HTTPException(
             status_code=400,
             detail=f"Password must contain {', '.join(errors)}.",
+        )
+
+    # Reject known-breached / trivially-guessable passwords.
+    normalised = re.sub(r"[^a-z0-9]", "", (password or "").lower())
+    if normalised in _COMMON_PASSWORDS or (password or "").lower() in _COMMON_PASSWORDS:
+        raise HTTPException(
+            status_code=400,
+            detail="This password is too common or has appeared in a data breach. Please choose a stronger, unique password.",
         )
 
 

@@ -495,7 +495,7 @@ async def _maybe_issue_mfa_step1(user: dict) -> dict | None:
     instead. The temp_token then only permits ``/auth/mfa/setup`` and
     ``/auth/mfa/enable`` (gated via ``get_current_user_mfa_enrol``).
     """
-    from utils.mfa import user_requires_mfa, user_mfa_state
+    from utils.mfa import user_requires_mfa, user_mfa_state, user_mfa_enrolment_forced
     requires = user_requires_mfa(user)
     if not requires:
         return None
@@ -503,11 +503,10 @@ async def _maybe_issue_mfa_step1(user: dict) -> dict | None:
     import jwt as _jwt
     from utils.database import JWT_SECRET, JWT_ALGORITHM
     if not state["enabled"]:
-        # Iter 216h116 — MFA mandatory but not enrolled. Only force the
-        # MOD HQ tier through the in-line enrolment flow (master admins
-        # retain the historical opt-in behaviour so as not to break
-        # existing dev/test logins).
-        if (user.get("account_type") or "").lower() not in ("mod_org", "mod_branch"):
+        # MFA mandatory but not enrolled. Force the in-line enrolment flow for
+        # MOD HQ tiers AND any role in MFA_REQUIRED_ROLES. Master admins retain
+        # the historical opt-in behaviour so existing dev/test logins still work.
+        if not user_mfa_enrolment_forced(user):
             return None
         enrol_payload = {
             "user_id": user["id"],
@@ -766,8 +765,7 @@ async def admin_recovery(body: dict, request: Request) -> dict:
     new_password = body.get("password") or ""
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Valid email is required")
-    if len(new_password) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 chars")
+    validate_password_strength(new_password)
 
     now_iso = datetime.now(timezone.utc).isoformat()
     set_doc = {

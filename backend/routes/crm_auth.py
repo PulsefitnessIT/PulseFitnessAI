@@ -163,8 +163,8 @@ async def crm_register(data: dict):
 
     if not email or not password or not full_name:
         raise HTTPException(status_code=400, detail="Email, password and full name required")
-    if len(password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    from utils.security import validate_password_strength
+    validate_password_strength(password)
     if plan not in CRM_PLANS:
         raise HTTPException(status_code=400, detail="Invalid plan")
 
