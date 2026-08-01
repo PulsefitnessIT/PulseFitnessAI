@@ -386,3 +386,24 @@ REMAINING ServiceOps/ (still EN via fallback, functional): ServiceOpsReportsPage
   (done earlier), AIScheduling, ComplianceAdmin, PartsInventoryPage, AdminDispatchBoard, ServiceCaseLifecycleTab,
   CommsHubPage, SafetyTemplateAdmin, PartsAllocator, EngineerRosterPanel, FindEngineerPanel, EquipmentMultiSelect,
   ServiceOpsShell chrome, Engineer/* (large), Inventory/*. THEN nested Settings shared cards (MFASetupCard etc).
+
+## ═══ 2026-06 (fork) · ServiceOps FR/DE — BATCH 4 (Compliance + Parts, VERIFIED EN/DE, 0 leaks) ═══
+User: "Bring ComplianceAdmin and PartsInventoryPage into the French/German rollout."
+DONE (namespace `service`, full create_file rewrites, babel OK, guard OK, FR+DE translated):
+  - ComplianceAdmin.js (comp_*, 48 keys) — PTW templates + COSHH register tabs. PtwAdmin/CoshhAdmin/ConfirmModal
+    each got their own useTranslation. DraftListEditor now takes a `singular` prop (was slicing the label to get
+    the singular — broke for DE), used for placeholder + "+ Add {item}".
+  - PartsInventoryPage.js (parts_*, 93 keys) — Catalogue / Stock & reorder / Purchase orders tabs. CatalogueTab/
+    StockTab/POTab each got useTranslation. Renamed the module-level TABS.map((t)) shadow -> (tb); tab labels
+    render via t(`service.parts_tab_${tb.id}`, tb.label) — TEMPLATE-LITERAL keys, so seeded parts_tab_catalogue/
+    stock/pos in the pipeline pairs.update() block (they are NOT statically scannable). Low-stock banner + on-hand
+    line use interpolation.
+Pipeline: run in BACKGROUND (foreground times out before merge). parts_tab_* were missing on the first run
+  until added to the explicit dict — re-ran and confirmed present.
+VERIFIED: testing_agent iteration_serviceops_comp_parts_i18n_fr_de_jan2026.json — 100% FE, 0 raw-key leaks in
+  EN/DE on both screens + all tabs. FR key-parity confirmed (48 comp_ + 93 parts_ in en/fr/de). Demo account
+  language reset to 'en'. Nav paths: Compliance = /service-desk left nav 'Compliance' (compliance-admin);
+  Parts = left nav 'Stores'/'Lager' → subtab 'Pulse Warehouse' (desk-stores-sub-warehouse).
+REMAINING ServiceOps/ (still EN via fallback, functional): AIScheduling, AdminDispatchBoard, ServiceCaseLifecycleTab,
+  CommsHubPage, SafetyTemplateAdmin, PartsAllocator, EngineerRosterPanel, FindEngineerPanel, EquipmentMultiSelect,
+  ServiceOpsShell chrome, Engineer/*, Inventory/*. Then nested Settings shared cards.

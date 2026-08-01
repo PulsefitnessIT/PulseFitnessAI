@@ -32957,3 +32957,22 @@ hydration console warning). Not fixed — flagged for when AIScheduling is local
 AdminDispatchBoard, ServiceCaseLifecycleTab, CommsHubPage, SafetyTemplateAdmin, PartsAllocator, EngineerRosterPanel,
 FindEngineerPanel, EquipmentMultiSelect, ServiceOpsShell chrome, Engineer/*, Inventory/*. Then nested Settings shared
 cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, InvoiceImportWizard).
+
+---
+## Changelog — 2026-06 (fork) · ServiceOps i18n FR/DE — Batch 4 (Compliance + Parts)
+Localized two more ServiceOps screens under the `service` namespace, completing the operator-facing safety
+and inventory consoles.
+
+**Files localized (frontend):**
+- `pages/ServiceOps/ComplianceAdmin.js` (comp_*, 48 keys) — PTW templates + COSHH register.
+- `pages/ServiceOps/PartsInventoryPage.js` (parts_*, 93 keys) — Catalogue, Stock & reorder, Purchase orders.
+- `scripts/i18n_translate_modules.py` — seeded `service.parts_tab_{catalogue,stock,pos}` (template-literal keys).
+- `i18n/locales/{en,fr,de}.json` — new keys auto-translated + merged.
+
+**Verification:** testing_agent iteration_serviceops_comp_parts_i18n_fr_de_jan2026.json — 100% FE, 0 raw-key
+leaks in EN/DE on both screens + all tabs; FR key-parity confirmed. Demo account reset to 'en'.
+
+**ServiceOps i18n still remaining (functional via EN fallback):** AIScheduling, AdminDispatchBoard,
+ServiceCaseLifecycleTab, CommsHubPage, SafetyTemplateAdmin, PartsAllocator, EngineerRosterPanel,
+FindEngineerPanel, EquipmentMultiSelect, ServiceOpsShell chrome, Engineer/*, Inventory/*. Then nested
+Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, InvoiceImportWizard).
