@@ -32976,3 +32976,14 @@ leaks in EN/DE on both screens + all tabs; FR key-parity confirmed. Demo account
 ServiceCaseLifecycleTab, CommsHubPage, SafetyTemplateAdmin, PartsAllocator, EngineerRosterPanel,
 FindEngineerPanel, EquipmentMultiSelect, ServiceOpsShell chrome, Engineer/*, Inventory/*. Then nested
 Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, InvoiceImportWizard).
+
+---
+## Changelog — 2026-06 (fork) · ServiceOps i18n FR/DE — Batch 5 (AI Scheduling)
+- `pages/ServiceOps/AIScheduling.js` (aisch_*, 108 keys) + `SchedulerHub.js` (schedhub_*, 3 keys) localized FR/DE.
+- SLA/change-type + parts-tab template-literal keys seeded in `scripts/i18n_translate_modules.py`.
+- Investigated the reported <span>-inside-<option> warning: not present (options were text-only); collapsed the
+  engineer option to a single interpolated string as a defensive tidy. testing_agent confirmed 0 nesting warnings.
+- Verified: iteration_serviceops_aisch_schedhub_i18n_fr_de_jan2026.json — 100% FE, 0 leaks EN/DE, key parity ok.
+- Remaining ServiceOps i18n: AdminDispatchBoard, ServiceCaseLifecycleTab, CommsHubPage, SafetyTemplateAdmin,
+  PartsAllocator, EngineerRosterPanel, FindEngineerPanel, EquipmentMultiSelect, ServiceOpsShell chrome,
+  Engineer/*, Inventory/*; then nested Settings shared cards.

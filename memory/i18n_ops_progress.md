@@ -407,3 +407,25 @@ VERIFIED: testing_agent iteration_serviceops_comp_parts_i18n_fr_de_jan2026.json 
 REMAINING ServiceOps/ (still EN via fallback, functional): AIScheduling, AdminDispatchBoard, ServiceCaseLifecycleTab,
   CommsHubPage, SafetyTemplateAdmin, PartsAllocator, EngineerRosterPanel, FindEngineerPanel, EquipmentMultiSelect,
   ServiceOpsShell chrome, Engineer/*, Inventory/*. Then nested Settings shared cards.
+
+## ═══ 2026-06 (fork) · ServiceOps FR/DE — BATCH 5 (AI Scheduling, VERIFIED EN/DE, 0 leaks) ═══
+User: "Translate the AI Scheduling screen into FR/DE and fix its <span>-inside-<option> console warning."
+DONE (namespace `service`, full create_file rewrite of AIScheduling, targeted edits on SchedulerHub, babel OK):
+  - AIScheduling.js (aisch_*, 108 keys) — hero, replan/travel/SLA/priority buttons, 5 stat cards, pending-inbox,
+    Settings + Insights panels, Disruptions & What-if, priority picker, today's schedule, AI-proposal panel,
+    approval bar, ALL notify toasts. SLA_STYLE/CHANGE_STYLE kept `cls` only; labels resolved via slaLabel(t,key)/
+    changeLabel(t,key) helpers → template-literal keys aisch_sla_*/aisch_change_* SEEDED in the pipeline dict.
+  - SchedulerHub.js (schedhub_*, 3 keys) — tab labels 'AI Scheduling'/'Diary board' + Fallback 'Loading…'.
+    Renamed the `const t = setInterval(...)` timer var to `timer` to avoid shadowing the translation hook.
+  - <span>-in-<option> WARNING: investigated — there is NO span-in-option anywhere in AIScheduling (both options
+    were already text-only). The batch-3 report was misattributed. Defensively collapsed the engineer option to a
+    single interpolated string `{`${name} (${count})`}`. testing_agent confirmed ZERO validateDOMNesting warnings
+    on the disruption dropdown in EN and DE.
+Pipeline: aisch_sla_*/aisch_change_* (12 template-literal keys) + parts_tab_* were seeded in
+  scripts/i18n_translate_modules.py pairs.update() so the static extractor picks them up.
+VERIFIED: testing_agent iteration_serviceops_aisch_schedhub_i18n_fr_de_jan2026.json — 100% FE, 0 raw-key leaks
+  EN/DE, 0 option-nesting warnings, key parity 108 aisch_ + 3 schedhub_ across en/fr/de. Account reset to 'en'.
+Nav path: /service-desk → left nav 'Scheduler' → sub-tab 'AI Scheduling' (scheduler-hub-tab-ai).
+REMAINING ServiceOps/ (functional via EN fallback): AdminDispatchBoard, ServiceCaseLifecycleTab, CommsHubPage,
+  SafetyTemplateAdmin, PartsAllocator, EngineerRosterPanel, FindEngineerPanel, EquipmentMultiSelect,
+  ServiceOpsShell chrome, Engineer/*, Inventory/*. Then nested Settings shared cards.
