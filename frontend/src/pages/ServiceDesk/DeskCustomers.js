@@ -1,18 +1,19 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, ChevronRight } from 'lucide-react';
 import { authConfig } from './authConfig';
 
-const ACCOUNT_TYPE_LABELS = {
-  full: { label: 'Pulse Fitness', className: 'bg-teal-50 text-teal-700 border-teal-200' },
-  pulse_pro: { label: 'Pulse Pro', className: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
-  lite: { label: 'Pulse Lite', className: 'bg-sky-50 text-sky-700 border-sky-200' },
-  gymaxis: { label: 'Pulse Fitness', className: 'bg-teal-50 text-teal-700 border-teal-200' },
-};
-
 function OrgRow({ org, onSelect }) {
+  const { t } = useTranslation();
+  const ACCOUNT_TYPE_LABELS = {
+    full: { label: t('service.cust_acct_full', 'Pulse Fitness'), className: 'bg-teal-50 text-teal-700 border-teal-200' },
+    pulse_pro: { label: t('service.cust_acct_pulse_pro', 'Pulse Pro'), className: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
+    lite: { label: t('service.cust_acct_lite', 'Pulse Lite'), className: 'bg-sky-50 text-sky-700 border-sky-200' },
+    gymaxis: { label: t('service.cust_acct_full', 'Pulse Fitness'), className: 'bg-teal-50 text-teal-700 border-teal-200' },
+  };
   const acct = ACCOUNT_TYPE_LABELS[org.account_type] || { label: org.account_type || '—', className: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:border-zinc-800' };
   return (
     <button
@@ -25,18 +26,18 @@ function OrgRow({ org, onSelect }) {
           <div className="text-sm font-semibold text-zinc-900 truncate dark:text-zinc-100">{org.name}</div>
           <Badge variant="outline" className={`text-[10px] ${acct.className}`}>{acct.label}</Badge>
           {org.is_multi_site && (
-            <Badge variant="outline" className="text-[10px] bg-teal-50 text-teal-700 border-teal-200">Multi-site</Badge>
+            <Badge variant="outline" className="text-[10px] bg-teal-50 text-teal-700 border-teal-200">{t('service.cust_multi_site', 'Multi-site')}</Badge>
           )}
           {org.status === 'archived' && (
-            <Badge variant="outline" className="text-[10px] bg-zinc-100 text-zinc-600 dark:bg-zinc-800">Archived</Badge>
+            <Badge variant="outline" className="text-[10px] bg-zinc-100 text-zinc-600 dark:bg-zinc-800">{t('service.cust_archived', 'Archived')}</Badge>
           )}
           {org.status === 'pending_invite' && (
-            <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">Pending Invite</Badge>
+            <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">{t('service.cust_pending_invite', 'Pending Invite')}</Badge>
           )}
         </div>
         <div className="text-xs text-zinc-500 mt-1 flex items-center gap-3">
-          {org.sicon_customer_ref && <span>Ref: {org.sicon_customer_ref}</span>}
-          {org.head_office_ref && <span>HO: {org.head_office_ref}</span>}
+          {org.sicon_customer_ref && <span>{t('service.cust_ref', 'Ref')}: {org.sicon_customer_ref}</span>}
+          {org.head_office_ref && <span>{t('service.cust_ho', 'HO')}: {org.head_office_ref}</span>}
           {org.primary_contact_email && <span className="truncate">{org.primary_contact_email}</span>}
         </div>
       </div>
@@ -46,6 +47,7 @@ function OrgRow({ org, onSelect }) {
 }
 
 export default function DeskCustomers({ API, onSelect, initialStatus = '' }) {
+  const { t } = useTranslation();
   const [orgs, setOrgs] = useState([]);
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState('');
@@ -79,12 +81,12 @@ export default function DeskCustomers({ API, onSelect, initialStatus = '' }) {
   return (
     <div className="space-y-4" data-testid="desk-customers">
       <div>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">Customers</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">{t('service.cust_title', 'Customers')}</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          {total.toLocaleString()} organisations. Search by name, Sicon ref, or head-office ref.
+          {t('service.cust_subtitle', '{{count}} organisations. Search by name, Sicon ref, or head-office ref.', { count: total.toLocaleString() })}
           {scopedToPulse && (
             <Badge variant="outline" className="ml-2 text-[10px] bg-cyan-50 text-cyan-700 border-cyan-200" data-testid="desk-scope-pulse-badge">
-              Pulse customers only
+              {t('service.cust_scope_pulse', 'Pulse customers only')}
             </Badge>
           )}
         </p>
@@ -94,7 +96,7 @@ export default function DeskCustomers({ API, onSelect, initialStatus = '' }) {
         <div className="flex-1 min-w-[220px] relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
           <Input
-            placeholder="Search customers…"
+            placeholder={t('service.cust_search_ph', 'Search customers…')}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="pl-9"
@@ -107,10 +109,10 @@ export default function DeskCustomers({ API, onSelect, initialStatus = '' }) {
           data-testid="desk-filter-account-type"
           className="px-3 py-2 border border-zinc-200 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-800"
         >
-          <option value="">All account types</option>
-          <option value="full">Pulse Fitness (full)</option>
-          <option value="pulse_pro">Pulse Pro</option>
-          <option value="lite">Pulse Lite</option>
+          <option value="">{t('service.cust_all_account_types', 'All account types')}</option>
+          <option value="full">{t('service.cust_opt_full', 'Pulse Fitness (full)')}</option>
+          <option value="pulse_pro">{t('service.cust_acct_pulse_pro', 'Pulse Pro')}</option>
+          <option value="lite">{t('service.cust_acct_lite', 'Pulse Lite')}</option>
         </select>
         <select
           value={status}
@@ -118,17 +120,17 @@ export default function DeskCustomers({ API, onSelect, initialStatus = '' }) {
           data-testid="desk-filter-status"
           className="px-3 py-2 border border-zinc-200 rounded-md text-sm bg-white dark:bg-zinc-900 dark:border-zinc-800"
         >
-          <option value="">All statuses</option>
-          <option value="active">Active</option>
-          <option value="pending_invite">Pending Invite</option>
-          <option value="archived">Archived</option>
+          <option value="">{t('service.cust_all_statuses', 'All statuses')}</option>
+          <option value="active">{t('service.cust_status_active', 'Active')}</option>
+          <option value="pending_invite">{t('service.cust_pending_invite', 'Pending Invite')}</option>
+          <option value="archived">{t('service.cust_archived', 'Archived')}</option>
         </select>
       </div>
 
       {loading ? (
-        <div className="text-zinc-500 py-8 text-center">Loading…</div>
+        <div className="text-zinc-500 py-8 text-center">{t('service.cust_loading', 'Loading…')}</div>
       ) : orgs.length === 0 ? (
-        <div className="text-zinc-500 py-8 text-center">No customers match these filters.</div>
+        <div className="text-zinc-500 py-8 text-center">{t('service.cust_empty', 'No customers match these filters.')}</div>
       ) : (
         <div className="space-y-2">
           {orgs.map((o) => <OrgRow key={o.id} org={o} onSelect={onSelect} />)}

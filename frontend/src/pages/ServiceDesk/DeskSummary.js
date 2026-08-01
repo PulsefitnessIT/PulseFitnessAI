@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import DeskPerformance from './DeskPerformance';
 /** Iter 258b — subscription status card for provider dashboards:
  *  trial → upgrade CTA; active → plan + renewal + Stripe billing portal. */
 function SubscriptionCard({ API }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [sub, setSub] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -34,27 +36,27 @@ function SubscriptionCard({ API }) {
     <Card className={`p-5 ${isTrial ? 'border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 dark:border-amber-900/40' : 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 dark:border-emerald-900/40'}`} data-testid="desk-subscription-card">
       <div className="flex items-center gap-2 mb-2">
         <CreditCard className={`w-4 h-4 ${isTrial ? 'text-amber-600' : 'text-emerald-600'}`} />
-        <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Subscription</div>
+        <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t('service.sum_subscription', 'Subscription')}</div>
         <span className={`ml-auto text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${isTrial ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`} data-testid="desk-subscription-badge">
-          {isTrial ? 'Trial' : 'Pro'}
+          {isTrial ? t('service.sum_trial', 'Trial') : t('service.sum_pro', 'Pro')}
         </span>
       </div>
       <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100" data-testid="desk-subscription-plan">{sub.plan_name}</div>
       <div className="text-xs text-zinc-500 mt-0.5">
         {isTrial
-          ? `${sub.days_left ?? '—'} day${sub.days_left === 1 ? '' : 's'} left · ${sub.price_display}`
-          : `${sub.price_display}${sub.renewal_at ? ` · renews ${sub.renewal_at.slice(0, 10)}` : ''}`}
+          ? `${sub.days_left ?? '—'} ${sub.days_left === 1 ? t('service.sum_day', 'day') : t('service.sum_days', 'days')} ${t('service.sum_left', 'left')} · ${sub.price_display}`
+          : `${sub.price_display}${sub.renewal_at ? ` · ${t('service.sum_renews', 'renews')} ${sub.renewal_at.slice(0, 10)}` : ''}`}
       </div>
       <div className="mt-3">
         {isTrial ? (
           <Button size="sm" onClick={() => navigate('/service-desk/upgrade')}
             className="bg-orange-600 hover:bg-orange-700 text-white" data-testid="desk-subscription-upgrade">
-            Upgrade to Pro
+            {t('service.sum_upgrade_to_pro', 'Upgrade to Pro')}
           </Button>
         ) : sub.can_manage ? (
           <Button size="sm" variant="outline" onClick={managePortal} disabled={busy}
             className="border-emerald-300 text-emerald-700 hover:bg-emerald-100" data-testid="desk-subscription-manage">
-            {busy ? <Loader2 size={13} className="animate-spin" /> : 'Manage billing'}
+            {busy ? <Loader2 size={13} className="animate-spin" /> : t('service.sum_manage_billing', 'Manage billing')}
           </Button>
         ) : null}
       </div>
@@ -63,6 +65,7 @@ function SubscriptionCard({ API }) {
 }
 
 export default function DeskSummary({ API, onNavigate }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -80,8 +83,8 @@ export default function DeskSummary({ API, onNavigate }) {
     run();
   }, [API]);
 
-  if (loading) return <div className="text-zinc-500">Loading…</div>;
-  if (!data) return <div className="text-red-500">Failed to load summary</div>;
+  if (loading) return <div className="text-zinc-500">{t('service.sum_loading', 'Loading…')}</div>;
+  if (!data) return <div className="text-red-500">{t('service.sum_load_failed', 'Failed to load summary')}</div>;
 
   const { organizations, recent_actions_7d } = data;
   // Iter 253 — self-serve providers see their OWN desk's numbers, not the
@@ -90,41 +93,41 @@ export default function DeskSummary({ API, onNavigate }) {
   // Iter 262 — every stat card navigates to the tab holding its detail.
   const stats = isProvider
     ? [
-        { label: 'Open Cases', value: data.provider.open_cases, icon: Clock, colour: 'bg-orange-50 text-orange-700', goto: 'cases', nav: { status: 'open' } },
-        { label: 'Total Cases', value: data.provider.total_cases, icon: ScrollText, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800', goto: 'cases', nav: { status: '' } },
-        { label: 'Engineers', value: data.provider.engineers, icon: Users, colour: 'bg-emerald-50 text-emerald-700', goto: 'engineers' },
-        { label: 'Customers', value: data.provider.customers, icon: Building2, colour: 'bg-cyan-50 text-cyan-700', goto: 'customers' },
+        { label: t('service.sum_open_cases', 'Open Cases'), tid: 'open-cases', value: data.provider.open_cases, icon: Clock, colour: 'bg-orange-50 text-orange-700', goto: 'cases', nav: { status: 'open' } },
+        { label: t('service.sum_total_cases', 'Total Cases'), tid: 'total-cases', value: data.provider.total_cases, icon: ScrollText, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800', goto: 'cases', nav: { status: '' } },
+        { label: t('service.sum_engineers', 'Engineers'), tid: 'engineers', value: data.provider.engineers, icon: Users, colour: 'bg-emerald-50 text-emerald-700', goto: 'engineers' },
+        { label: t('service.sum_customers', 'Customers'), tid: 'customers', value: data.provider.customers, icon: Building2, colour: 'bg-cyan-50 text-cyan-700', goto: 'customers' },
       ]
     : [
-        { label: 'Total Customers', value: organizations.total, icon: Building2, colour: 'bg-orange-50 text-orange-700', goto: 'customers', status: '' },
-        { label: 'Active', value: organizations.active, icon: Users, colour: 'bg-emerald-50 text-emerald-700', goto: 'customers', status: 'active' },
-        { label: 'Pending Invite', value: organizations.pending_invite, icon: Clock, colour: 'bg-amber-50 text-amber-700', goto: 'customers', status: 'pending_invite' },
-        { label: 'Archived', value: organizations.archived, icon: Archive, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800', goto: 'customers', status: 'archived' },
+        { label: t('service.sum_total_customers', 'Total Customers'), tid: 'total-customers', value: organizations.total, icon: Building2, colour: 'bg-orange-50 text-orange-700', goto: 'customers', status: '' },
+        { label: t('service.sum_active', 'Active'), tid: 'active', value: organizations.active, icon: Users, colour: 'bg-emerald-50 text-emerald-700', goto: 'customers', status: 'active' },
+        { label: t('service.sum_pending_invite', 'Pending Invite'), tid: 'pending-invite', value: organizations.pending_invite, icon: Clock, colour: 'bg-amber-50 text-amber-700', goto: 'customers', status: 'pending_invite' },
+        { label: t('service.sum_archived', 'Archived'), tid: 'archived', value: organizations.archived, icon: Archive, colour: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800', goto: 'customers', status: 'archived' },
       ];
 
   return (
     <div className="space-y-6" data-testid="desk-summary">
       <div>
-        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">Service Desk</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">{t('service.sum_title', 'Service Desk')}</h1>
         <p className="text-sm text-zinc-500 mt-1">
           {isProvider
-            ? 'Cases, engineers and customers for your service operation.'
-            : 'Customer operations, imports, and staff management for Pulse Fitness.'}
+            ? t('service.sum_subtitle_provider', 'Cases, engineers and customers for your service operation.')
+            : t('service.sum_subtitle_pulse', 'Customer operations, imports, and staff management for Pulse Fitness.')}
         </p>
       </div>
 
       {/* Iter 262 — 2-up on mobile, 4-up on desktop; every card is a
           button that jumps to the tab holding the underlying records. */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {stats.map(({ label, value, icon: Icon, colour, goto, status, nav }) => (
+        {stats.map(({ label, tid, value, icon: Icon, colour, goto, status, nav }) => (
           <Card
-            key={label}
+            key={tid}
             role="button"
             tabIndex={0}
             onClick={() => onNavigate && onNavigate(goto, nav ?? status)}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate && onNavigate(goto, nav ?? status); } }}
             className="p-4 sm:p-5 cursor-pointer transition-all hover:shadow-md hover:border-orange-200 active:scale-[0.98]"
-            data-testid={`desk-stat-${label.toLowerCase().replace(/\s+/g, '-')}`}
+            data-testid={`desk-stat-${tid}`}
           >
             <div className={`w-8 h-8 rounded ${colour} flex items-center justify-center mb-3`}>
               <Icon className="w-4 h-4" />
@@ -147,10 +150,10 @@ export default function DeskSummary({ API, onNavigate }) {
         >
           <div className="flex items-center gap-2 mb-3">
             <ScrollText className="w-4 h-4 text-zinc-500" />
-            <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Recent Activity</div>
+            <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t('service.sum_recent_activity', 'Recent Activity')}</div>
           </div>
           <div className="text-3xl font-semibold text-zinc-900 dark:text-zinc-100">{recent_actions_7d}</div>
-          <div className="text-xs text-zinc-500 mt-1">Service Desk actions in the last 7 days · tap to open the audit log</div>
+          <div className="text-xs text-zinc-500 mt-1">{t('service.sum_recent_activity_hint', 'Service Desk actions in the last 7 days · tap to open the audit log')}</div>
         </Card>
       </div>
 

@@ -284,3 +284,31 @@ NOTE (from tester): AI Director & Churn Rescue live as SUB-tabs inside the Creat
 - [ ] PricingMarketingPage hero, Blog, Compare, Landing, module/security public pages.
 ### Next module areas after Marketing: ServiceOps, Staffing, Settings.
 
+
+## ═══ 2026-06 · ServiceDesk tab bodies FR/DE — BATCH 1 (VERIFIED DE render, 0 leaks) ═══
+User picked "C" (continue i18n: ServiceOps/Staffing/Settings). Staffing (Phase 3) already COMPLETE, so
+started on the ServiceDesk/ServiceOps tab BODIES (only the shell + Cases queue were done before).
+DONE this batch (namespace `service`, per-file prefixes; full rewrites via create_file; babel-parse OK; guard OK):
+  - ServiceDesk/DeskSummary.js (service.sum_*) — Dashboard KPIs + Recent Activity + SubscriptionCard.
+    Added stable `tid` field to stat objects so data-testid `desk-stat-<tid>` stays language-stable (was derived
+    from the translated label → would have broken tests).
+  - ServiceDesk/DeskCustomers.js (service.cust_*) — header, filters, OrgRow account-type labels, empty/loading.
+  - ServiceDesk/DeskEquipment.js (service.eq_*) — global kit search, empty states, warranty label. Renamed
+    debounce setTimeout `const t`->`timer` (shadow).
+  - ServiceDesk/DeskPerformance.js (service.perf_*) — FTF ring, MiniStats, 6 KPI tiles, engineer leaderboard.
+  - ServiceDesk/DeskSuppliers.js (service.sup_*) — supplier-health rollup. Moved SORTS inside component to use t();
+    renamed supplier_types `.map((t))`->`(st)` shadow; WINDOW_OPTIONS labels (7d/30d/90d/1y) left as-is (universal).
+Pipeline run: 113 new `service` batch keys × en/fr/de (229 FR + 222 DE translated). i18n guard passes.
+VERIFIED: EN render clean; profile language→de (PATCH /api/account/profile {language:'de'}) → Service Desk
+  dashboard + Team Performance render fully in German (Kunden gesamt/Aktiv/Letzte Aktivitäten/Team-Leistung/
+  SOFORTLÖSUNG/Offene Fälle/SLA überschritten); 0 raw-key leaks on any tab. Demo account language reverted to 'en'.
+NOTE: owner@isodemo.com is a Pulse OPERATOR desk so Equipment/Suppliers tabs are visible (provider desks hide them).
+REMAINING ServiceDesk/ServiceOps (next batches, still EN via fallback = functional):
+  ServiceDesk/: DeskAnalytics, DeskExpenses, DeskImports, DeskIntegrations, DeskProviderCustomers, DeskCustomerDetail,
+    DeskAuditLog, DeskPreventativeMaintenance, Orbit4Wizard. (MODVisitCalendar = MOD, skip.)
+  ServiceOps/: ServiceCaseDrawer (1125), ServiceOpsReportsPage (749), ServiceDeskIntakeForm (702), EngineersAdminPage,
+    AIScheduling, ComplianceAdmin, PartsInventoryPage, AdminDispatchBoard, BillingPage, ServiceScheduler,
+    ServiceCaseLifecycleTab, CommsHubPage, SafetyTemplateAdmin, PartsAllocator, EngineerRosterPanel, FindEngineerPanel,
+    EquipmentMultiSelect, ServiceOpsShell, Engineer/* (large), Inventory/*.
+THEN: Settings module.
+Pipeline: `cd /app/backend && python scripts/i18n_translate_modules.py` (guard: `--check`).

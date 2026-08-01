@@ -12,6 +12,7 @@
  * across customer accounts collapses into one row.
  */
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import {
   Search, Wrench, Building2, AlertTriangle, Mail, Phone, ChevronDown, ChevronRight, ListChecks,
@@ -19,13 +20,6 @@ import {
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-
-const SORTS = [
-  { id: 'open_issues',  label: 'Open issues' },
-  { id: 'sla_breaches', label: 'SLA breaches' },
-  { id: 'equipment',    label: 'Kit serviced' },
-  { id: 'name',         label: 'A → Z' },
-];
 
 const WINDOW_OPTIONS = [
   { id: 7,   label: '7d' },
@@ -50,6 +44,13 @@ const StatPill = ({ label, value, tone = 'slate' }) => {
 };
 
 const DeskSuppliers = ({ API }) => {
+  const { t } = useTranslation();
+  const SORTS = [
+    { id: 'open_issues',  label: t('service.sup_sort_open_issues', 'Open issues') },
+    { id: 'sla_breaches', label: t('service.sup_sort_sla_breaches', 'SLA breaches') },
+    { id: 'equipment',    label: t('service.sup_sort_equipment', 'Kit serviced') },
+    { id: 'name',         label: t('service.sup_sort_name', 'A → Z') },
+  ];
   const [suppliers, setSuppliers] = useState([]);
   const [totals, setTotals] = useState({ supplier_count: 0, equipment_total: 0, open_issues_total: 0, sla_breaches_total: 0, window_days: 30 });
   const [q, setQ] = useState('');
@@ -87,19 +88,18 @@ const DeskSuppliers = ({ API }) => {
   return (
     <div className="space-y-6" data-testid="desk-suppliers">
       <header>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-zinc-100">Supplier health</h2>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-zinc-100">{t('service.sup_title', 'Supplier health')}</h2>
         <p className="text-sm text-slate-500 mt-1">
-          Cross-customer rollup. Suppliers grouped by normalised name — same vendor
-          across multiple customers shows up once with totals you can drill into.
+          {t('service.sup_subtitle', 'Cross-customer rollup. Suppliers grouped by normalised name — same vendor across multiple customers shows up once with totals you can drill into.')}
         </p>
       </header>
 
       {/* Top-level rollup */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatPill label="Suppliers tracked" value={totals.supplier_count} />
-        <StatPill label="Kit serviced" value={totals.equipment_total} />
-        <StatPill label="Open issues" value={totals.open_issues_total} tone={totals.open_issues_total > 0 ? 'amber' : 'emerald'} />
-        <StatPill label={`SLA breaches · ${totals.window_days}d`} value={totals.sla_breaches_total} tone={totals.sla_breaches_total > 0 ? 'red' : 'emerald'} />
+        <StatPill label={t('service.sup_tracked', 'Suppliers tracked')} value={totals.supplier_count} />
+        <StatPill label={t('service.sup_kit_serviced', 'Kit serviced')} value={totals.equipment_total} />
+        <StatPill label={t('service.sup_open_issues', 'Open issues')} value={totals.open_issues_total} tone={totals.open_issues_total > 0 ? 'amber' : 'emerald'} />
+        <StatPill label={t('service.sup_sla_breaches_win', 'SLA breaches · {{n}}d', { n: totals.window_days })} value={totals.sla_breaches_total} tone={totals.sla_breaches_total > 0 ? 'red' : 'emerald'} />
       </div>
 
       {/* Controls */}
@@ -109,13 +109,13 @@ const DeskSuppliers = ({ API }) => {
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search suppliers or customer orgs…"
+            placeholder={t('service.sup_search_ph', 'Search suppliers or customer orgs…')}
             className="pl-10 h-10 bg-white dark:bg-zinc-900"
             data-testid="desk-suppliers-search"
           />
         </div>
         <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-200 dark:bg-zinc-900 dark:border-zinc-800">
-          <span className="text-[10px] uppercase tracking-wider text-slate-500 px-2">Window</span>
+          <span className="text-[10px] uppercase tracking-wider text-slate-500 px-2">{t('service.sup_window', 'Window')}</span>
           {WINDOW_OPTIONS.map((w) => (
             <button
               key={w.id}
@@ -128,7 +128,7 @@ const DeskSuppliers = ({ API }) => {
           ))}
         </div>
         <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-200 dark:bg-zinc-900 dark:border-zinc-800">
-          <span className="text-[10px] uppercase tracking-wider text-slate-500 px-2">Sort</span>
+          <span className="text-[10px] uppercase tracking-wider text-slate-500 px-2">{t('service.sup_sort', 'Sort')}</span>
           {SORTS.map((s) => (
             <button
               key={s.id}
@@ -143,17 +143,17 @@ const DeskSuppliers = ({ API }) => {
       </div>
 
       {loading && (
-        <p className="text-sm text-slate-500" data-testid="desk-suppliers-loading">Loading…</p>
+        <p className="text-sm text-slate-500" data-testid="desk-suppliers-loading">{t('service.sup_loading', 'Loading…')}</p>
       )}
 
       {!loading && filtered.length === 0 && (
         <Card className="p-12 text-center bg-white border-slate-200 dark:bg-zinc-900 dark:border-zinc-800" data-testid="desk-suppliers-empty">
           <Wrench size={36} className="mx-auto mb-3 text-slate-300" />
           <p className="text-sm font-medium text-slate-600">
-            {q ? 'No matching suppliers' : 'No suppliers tracked yet'}
+            {q ? t('service.sup_no_match', 'No matching suppliers') : t('service.sup_none_yet', 'No suppliers tracked yet')}
           </p>
           <p className="text-xs text-slate-400 mt-1">
-            {q ? 'Try a different name or org.' : 'Suppliers will appear here once customers add kit linked to them.'}
+            {q ? t('service.sup_try_diff', 'Try a different name or org.') : t('service.sup_appear_hint', 'Suppliers will appear here once customers add kit linked to them.')}
           </p>
         </Card>
       )}
@@ -179,15 +179,15 @@ const DeskSuppliers = ({ API }) => {
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-slate-900 truncate dark:text-zinc-100">{s.name}</p>
                     {s.aliases && s.aliases.length > 0 && (
-                      <span className="text-[10px] text-slate-400" title={s.aliases.join(', ')}>+{s.aliases.length} alias{s.aliases.length === 1 ? '' : 'es'}</span>
+                      <span className="text-[10px] text-slate-400" title={s.aliases.join(', ')}>{t('service.sup_aliases', '+{{n}} alias', { n: s.aliases.length, count: s.aliases.length })}{s.aliases.length === 1 ? '' : 'es'}</span>
                     )}
-                    {(s.supplier_types || []).slice(0, 3).map((t) => (
-                      <Badge key={t} variant="outline" className="text-[9px] border-slate-200 text-slate-500 uppercase tracking-wider dark:border-zinc-800">{t}</Badge>
+                    {(s.supplier_types || []).slice(0, 3).map((st) => (
+                      <Badge key={st} variant="outline" className="text-[9px] border-slate-200 text-slate-500 uppercase tracking-wider dark:border-zinc-800">{st}</Badge>
                     ))}
                   </div>
                   <div className="flex items-center gap-4 flex-wrap mt-1 text-xs text-slate-500">
-                    <span className="flex items-center gap-1"><Building2 size={11} className="text-slate-400" />{s.customer_org_count} customer{s.customer_org_count === 1 ? '' : 's'}</span>
-                    <span className="flex items-center gap-1"><ListChecks size={11} className="text-slate-400" />{s.equipment_count} kit</span>
+                    <span className="flex items-center gap-1"><Building2 size={11} className="text-slate-400" />{t('service.sup_customers_count', '{{n}} customers', { n: s.customer_org_count, count: s.customer_org_count })}</span>
+                    <span className="flex items-center gap-1"><ListChecks size={11} className="text-slate-400" />{t('service.sup_kit_count', '{{n}} kit', { n: s.equipment_count })}</span>
                     {s.email && (
                       <span className="flex items-center gap-1 truncate"><Mail size={11} className="text-slate-400" />{s.email}</span>
                     )}
@@ -198,15 +198,15 @@ const DeskSuppliers = ({ API }) => {
                 </div>
                 <div className="flex items-center gap-3 shrink-0 text-right">
                   <div className="text-xs">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400">Open</p>
+                    <p className="text-[10px] uppercase tracking-wider text-slate-400">{t('service.sup_open', 'Open')}</p>
                     <p className={`text-base font-semibold tabular-nums ${s.open_issues_count >= 5 ? 'text-red-600' : s.open_issues_count > 0 ? 'text-amber-600' : 'text-slate-700'}`}>{s.open_issues_count}</p>
                   </div>
                   <div className="text-xs">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400">SLA breach</p>
+                    <p className="text-[10px] uppercase tracking-wider text-slate-400">{t('service.sup_sla_breach', 'SLA breach')}</p>
                     <p className={`text-base font-semibold tabular-nums ${s.sla_breaches_window > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{s.sla_breaches_window}</p>
                   </div>
                   <div className="text-xs">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400">Avg resp</p>
+                    <p className="text-[10px] uppercase tracking-wider text-slate-400">{t('service.sup_avg_resp', 'Avg resp')}</p>
                     <p className="text-base font-semibold tabular-nums text-slate-700">{s.avg_response_hours != null ? `${s.avg_response_hours}h` : '—'}</p>
                   </div>
                   {isOpen ? <ChevronDown size={16} className="text-slate-400" /> : <ChevronRight size={16} className="text-slate-400" />}
@@ -217,7 +217,7 @@ const DeskSuppliers = ({ API }) => {
                 <div className="border-t border-slate-100 bg-slate-50/40 p-4 space-y-3 dark:border-zinc-800" data-testid={`desk-supplier-detail-${s.normalised_name}`}>
                   {/* Drill-down: per-customer breakdown */}
                   <div>
-                    <p className="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-2">Per customer</p>
+                    <p className="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-2">{t('service.sup_per_customer', 'Per customer')}</p>
                     <div className="space-y-1">
                       {(s.orgs || []).map((o) => (
                         <div
@@ -230,15 +230,15 @@ const DeskSuppliers = ({ API }) => {
                             {o.name}
                           </span>
                           <span className="flex items-center gap-3 text-xs">
-                            <span className="text-slate-500">{o.equipment_count} kit</span>
+                            <span className="text-slate-500">{t('service.sup_kit_count', '{{n}} kit', { n: o.equipment_count })}</span>
                             <span className={`tabular-nums font-medium ${o.open_issues_count > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                              {o.open_issues_count} open
+                              {t('service.sup_n_open', '{{n}} open', { n: o.open_issues_count })}
                             </span>
                           </span>
                         </div>
                       ))}
                       {(s.orgs || []).length === 0 && (
-                        <p className="text-xs text-slate-400 italic">No customer linkage data.</p>
+                        <p className="text-xs text-slate-400 italic">{t('service.sup_no_linkage', 'No customer linkage data.')}</p>
                       )}
                     </div>
                   </div>
@@ -246,19 +246,19 @@ const DeskSuppliers = ({ API }) => {
                   {/* Window metrics */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2">
                     <div className="text-xs">
-                      <span className="text-slate-400 uppercase tracking-wider text-[10px]">Resolved · {totals.window_days}d</span>
+                      <span className="text-slate-400 uppercase tracking-wider text-[10px]">{t('service.sup_resolved_win', 'Resolved · {{n}}d', { n: totals.window_days })}</span>
                       <p className="tabular-nums font-semibold text-slate-700">{s.resolved_issues_window}</p>
                     </div>
                     <div className="text-xs">
-                      <span className="text-slate-400 uppercase tracking-wider text-[10px]">Avg resolution</span>
+                      <span className="text-slate-400 uppercase tracking-wider text-[10px]">{t('service.sup_avg_resolution', 'Avg resolution')}</span>
                       <p className="tabular-nums font-semibold text-slate-700">{s.avg_resolution_hours != null ? `${s.avg_resolution_hours}h` : '—'}</p>
                     </div>
                     <div className="text-xs">
-                      <span className="text-slate-400 uppercase tracking-wider text-[10px]">Avg first response</span>
+                      <span className="text-slate-400 uppercase tracking-wider text-[10px]">{t('service.sup_avg_first_resp', 'Avg first response')}</span>
                       <p className="tabular-nums font-semibold text-slate-700">{s.avg_response_hours != null ? `${s.avg_response_hours}h` : '—'}</p>
                     </div>
                     <div className="text-xs">
-                      <span className="text-slate-400 uppercase tracking-wider text-[10px]">Breach rate</span>
+                      <span className="text-slate-400 uppercase tracking-wider text-[10px]">{t('service.sup_breach_rate', 'Breach rate')}</span>
                       <p className={`tabular-nums font-semibold ${s.resolved_issues_window > 0 && (s.sla_breaches_window / s.resolved_issues_window) > 0.25 ? 'text-red-600' : 'text-slate-700'}`}>
                         {s.resolved_issues_window > 0 ? `${Math.round(100 * s.sla_breaches_window / s.resolved_issues_window)}%` : '—'}
                       </p>
@@ -267,7 +267,7 @@ const DeskSuppliers = ({ API }) => {
 
                   {s.aliases && s.aliases.length > 0 && (
                     <p className="text-[10px] text-slate-400 pt-1">
-                      Also entered as: {s.aliases.join(' · ')}
+                      {t('service.sup_also_entered', 'Also entered as:')} {s.aliases.join(' · ')}
                     </p>
                   )}
                 </div>

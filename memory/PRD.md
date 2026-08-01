@@ -1,3 +1,14 @@
+# ═══ 2026-06 · i18n FR/DE — ServiceDesk tab bodies BATCH 1 (verified DE render) ═══
+User continued the FR/DE localisation rollout ("C": ServiceOps/Staffing/Settings). Staffing already complete;
+started ServiceDesk/ServiceOps TAB BODIES. Localised 5 ServiceDesk tabs (DeskSummary/Customers/Equipment/
+Performance/Suppliers) under the `service` namespace — 113 new keys × en/fr/de via the Claude pipeline
+(scripts/i18n_translate_modules.py). Full rewrites (babel-parse OK, i18n guard OK). Added stable `tid`/`testId`
+so data-testids stay language-independent. VERIFIED: EN render clean + German render across dashboard/Team
+Performance with 0 raw-key leaks (set profile language via PATCH /api/account/profile then reverted to en).
+⚠️ PREVIEW ONLY — production needs a REDEPLOY. Remaining: rest of ServiceDesk/ServiceOps tab bodies + Settings.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-01 · COMPLIANCE DPO deliverables drafted (RoPA + Sub-Processors, Breach Runbook) ═══
 Created two DPO/board-ready working docs under /app/docs/compliance/ (repo files, not web-served; push via Save to Github):
 1) RoPA_and_SubProcessors.md — Art.30 Records of Processing (9 activities: accounts, orgs, equipment/faults, MOD data,

@@ -12,6 +12,7 @@
  * customer's own owner/manager via the Pulse Equipment tab.
  */
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { Search, Wrench, Building2, MapPin, Calendar, Hash } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -19,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 
 const DeskEquipment = ({ API }) => {
+  const { t } = useTranslation();
   const [q, setQ] = useState('');
   const [equipment, setEquipment] = useState([]);
   const [total, setTotal] = useState(0);
@@ -43,17 +45,16 @@ const DeskEquipment = ({ API }) => {
 
   // Debounce 300ms so per-keystroke requests don't flood the API.
   useEffect(() => {
-    const t = setTimeout(() => { search(q); }, q ? 300 : 0);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => { search(q); }, q ? 300 : 0);
+    return () => clearTimeout(timer);
   }, [q, search]);
 
   return (
     <div className="space-y-5" data-testid="desk-equipment">
       <header>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-zinc-100">Equipment</h2>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-zinc-100">{t('service.eq_title', 'Equipment')}</h2>
         <p className="text-sm text-slate-500 mt-1">
-          Search every customer's kit by name, model, manufacturer or serial number.
-          Read-only view — use the customer's own console to make changes.
+          {t('service.eq_subtitle', "Search every customer's kit by name, model, manufacturer or serial number. Read-only view — use the customer's own console to make changes.")}
         </p>
       </header>
 
@@ -62,30 +63,30 @@ const DeskEquipment = ({ API }) => {
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search equipment across all customers (e.g. Matrix T75, 12345-A, treadmill)…"
+          placeholder={t('service.eq_search_ph', 'Search equipment across all customers (e.g. Matrix T75, 12345-A, treadmill)…')}
           className="pl-10 h-11 bg-white dark:bg-zinc-900"
           data-testid="desk-equipment-search"
         />
       </div>
 
       {loading && (
-        <p className="text-sm text-slate-500" data-testid="desk-equipment-loading">Searching…</p>
+        <p className="text-sm text-slate-500" data-testid="desk-equipment-loading">{t('service.eq_searching', 'Searching…')}</p>
       )}
 
       {!loading && equipment.length === 0 && (
         <Card className="p-12 text-center bg-white border-slate-200 dark:bg-zinc-900 dark:border-zinc-800" data-testid="desk-equipment-empty">
           <Wrench size={36} className="mx-auto mb-3 text-slate-300" />
           <p className="text-sm font-medium text-slate-600">
-            {q ? 'No matching equipment' : 'Start typing to search every customer\'s kit'}
+            {q ? t('service.eq_no_match', 'No matching equipment') : t('service.eq_start_typing', "Start typing to search every customer's kit")}
           </p>
           <p className="text-xs text-slate-400 mt-1">
-            {q ? 'Try a different model name or serial number.' : 'Org and site context appear inline on every result.'}
+            {q ? t('service.eq_try_diff', 'Try a different model name or serial number.') : t('service.eq_context_hint', 'Org and site context appear inline on every result.')}
           </p>
         </Card>
       )}
 
       {!loading && equipment.length > 0 && (
-        <p className="text-xs text-slate-500">Showing {equipment.length} of {total} matching items</p>
+        <p className="text-xs text-slate-500">{t('service.eq_showing', 'Showing {{n}} of {{total}} matching items', { n: equipment.length, total })}</p>
       )}
 
       <div className="space-y-2">
@@ -101,7 +102,7 @@ const DeskEquipment = ({ API }) => {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-semibold text-slate-900 truncate dark:text-zinc-100">{eq.name || 'Unnamed equipment'}</p>
+                  <p className="text-sm font-semibold text-slate-900 truncate dark:text-zinc-100">{eq.name || t('service.eq_unnamed', 'Unnamed equipment')}</p>
                   {eq.equipment_type && (
                     <Badge variant="outline" className="text-[10px] border-slate-200 text-slate-500 dark:border-zinc-800">
                       {eq.equipment_type}
@@ -135,7 +136,7 @@ const DeskEquipment = ({ API }) => {
                   {eq.warranty_expiry && (
                     <span className="flex items-center gap-1">
                       <Calendar size={11} className="text-slate-400" />
-                      Warranty {new Date(eq.warranty_expiry).toLocaleDateString('en-GB')}
+                      {t('service.eq_warranty', 'Warranty')} {new Date(eq.warranty_expiry).toLocaleDateString('en-GB')}
                     </span>
                   )}
                 </div>

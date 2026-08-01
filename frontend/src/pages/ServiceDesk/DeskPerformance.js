@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import {
@@ -20,6 +21,7 @@ const initials = (name) => (name || '?').trim().split(/\s+/).slice(0, 2).map((p)
 
 /** Circular First-Time-Fix gauge. Colour shifts green→amber→red by rate. */
 function FtfRing({ rate, trend }) {
+  const { t } = useTranslation();
   const R = 54;
   const C = 2 * Math.PI * R;
   const pct = Math.max(0, Math.min(100, rate));
@@ -39,10 +41,10 @@ function FtfRing({ rate, trend }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
         <div className="text-3xl font-bold leading-none tracking-tight" data-testid="desk-ftf-rate">{rate}%</div>
-        <div className="text-[10px] uppercase tracking-[0.14em] text-white/70 mt-1">First-time fix</div>
+        <div className="text-[10px] uppercase tracking-[0.14em] text-white/70 mt-1">{t('service.perf_ftf', 'First-time fix')}</div>
         <div className={`flex items-center gap-0.5 mt-1.5 text-[11px] font-semibold ${trendColour}`} data-testid="desk-ftf-trend">
           <TrendIcon className="w-3 h-3" />
-          {hasTrend ? `${trend > 0 ? '+' : ''}${trend} pts` : 'flat'}
+          {hasTrend ? `${trend > 0 ? '+' : ''}${trend} ${t('service.perf_pts', 'pts')}` : t('service.perf_flat', 'flat')}
         </div>
       </div>
     </div>
@@ -64,6 +66,7 @@ function MiniStat({ icon: Icon, value, label }) {
 }
 
 export default function DeskPerformance({ API, onNavigate }) {
+  const { t } = useTranslation();
   const [d, setD] = useState(null);
   const [err, setErr] = useState(false);
 
@@ -77,18 +80,18 @@ export default function DeskPerformance({ API, onNavigate }) {
   if (!d) {
     return (
       <div className="flex items-center gap-2 text-sm text-zinc-400 py-6" data-testid="desk-performance-loading">
-        <Loader2 size={15} className="animate-spin" /> Loading team performance…
+        <Loader2 size={15} className="animate-spin" /> {t('service.perf_loading', 'Loading team performance…')}
       </div>
     );
   }
 
   const tiles = [
-    { key: 'open_cases', label: 'Open Cases', sub: 'In flight now', icon: ClipboardList, accent: 'blue', goto: 'cases' },
-    { key: 'rtf_open', label: 'Return to Fix', sub: 'Need a repeat visit', icon: RotateCcw, accent: 'orange', goto: 'cases', nav: { rtf: '1' } },
-    { key: 'sla_breached', label: 'SLA Breached', sub: 'Resolve target passed', icon: AlertTriangle, accent: 'red', goto: 'cases', nav: { sla: 'breached' } },
-    { key: 'sla_at_risk', label: 'SLA At-Risk', sub: 'Due within 24h', icon: Timer, accent: 'amber', goto: 'cases', nav: { sla: 'at_risk' } },
-    { key: 'unassigned', label: 'Unassigned', sub: 'Awaiting an engineer', icon: UserX, accent: 'violet', goto: 'cases', nav: { assigned: 'unassigned' } },
-    { key: 'active_engineers', label: 'Active Engineers', sub: 'On the team', icon: HardHat, accent: 'emerald', goto: 'engineers' },
+    { key: 'open_cases', label: t('service.perf_open_cases', 'Open Cases'), sub: t('service.perf_open_cases_sub', 'In flight now'), icon: ClipboardList, accent: 'blue', goto: 'cases' },
+    { key: 'rtf_open', label: t('service.perf_rtf', 'Return to Fix'), sub: t('service.perf_rtf_sub', 'Need a repeat visit'), icon: RotateCcw, accent: 'orange', goto: 'cases', nav: { rtf: '1' } },
+    { key: 'sla_breached', label: t('service.perf_sla_breached', 'SLA Breached'), sub: t('service.perf_sla_breached_sub', 'Resolve target passed'), icon: AlertTriangle, accent: 'red', goto: 'cases', nav: { sla: 'breached' } },
+    { key: 'sla_at_risk', label: t('service.perf_sla_at_risk', 'SLA At-Risk'), sub: t('service.perf_sla_at_risk_sub', 'Due within 24h'), icon: Timer, accent: 'amber', goto: 'cases', nav: { sla: 'at_risk' } },
+    { key: 'unassigned', label: t('service.perf_unassigned', 'Unassigned'), sub: t('service.perf_unassigned_sub', 'Awaiting an engineer'), icon: UserX, accent: 'violet', goto: 'cases', nav: { assigned: 'unassigned' } },
+    { key: 'active_engineers', label: t('service.perf_active_engineers', 'Active Engineers'), sub: t('service.perf_active_engineers_sub', 'On the team'), icon: HardHat, accent: 'emerald', goto: 'engineers' },
   ];
 
   const maxClosed = Math.max(1, ...(d.leaderboard || []).map((r) => r.closed));
@@ -98,9 +101,9 @@ export default function DeskPerformance({ API, onNavigate }) {
     <div className="space-y-4" data-testid="desk-performance">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-          <Gauge className="w-4 h-4 text-[var(--gx-brand-from,#ea580c)]" /> Team Performance
+          <Gauge className="w-4 h-4 text-[var(--gx-brand-from,#ea580c)]" /> {t('service.perf_title', 'Team Performance')}
         </h2>
-        <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Last {d.window_days} days</span>
+        <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">{t('service.perf_last_days', 'Last {{n}} days', { n: d.window_days })}</span>
       </div>
 
       {/* Hero — FTF gauge + headline throughput */}
@@ -120,13 +123,13 @@ export default function DeskPerformance({ API, onNavigate }) {
           <FtfRing rate={d.ftf_rate} trend={d.ftf_trend} />
           <div className="flex-1">
             <div className="text-white/90 text-sm font-medium">
-              {d.ftf_count} of {d.total_closed_30d} jobs fixed first time
+              {t('service.perf_ftf_headline', '{{count}} of {{total}} jobs fixed first time', { count: d.ftf_count, total: d.total_closed_30d })}
             </div>
-            <div className="text-white/55 text-xs mb-4">Higher is better · fewer repeat visits for your engineers</div>
+            <div className="text-white/55 text-xs mb-4">{t('service.perf_ftf_hint', 'Higher is better · fewer repeat visits for your engineers')}</div>
             <div className="grid grid-cols-1 xs:grid-cols-3 gap-4">
-              <MiniStat icon={RotateCcw} value={d.rtf_open} label="Return to Fix open" />
-              <MiniStat icon={Clock} value={`${d.avg_resolution_hours}h`} label="Avg resolution" />
-              <MiniStat icon={ClipboardList} value={d.closed_7d} label="Closed last 7 days" />
+              <MiniStat icon={RotateCcw} value={d.rtf_open} label={t('service.perf_rtf_open', 'Return to Fix open')} />
+              <MiniStat icon={Clock} value={`${d.avg_resolution_hours}h`} label={t('service.perf_avg_resolution', 'Avg resolution')} />
+              <MiniStat icon={ClipboardList} value={d.closed_7d} label={t('service.perf_closed_7d', 'Closed last 7 days')} />
             </div>
           </div>
         </div>
@@ -148,7 +151,7 @@ export default function DeskPerformance({ API, onNavigate }) {
                 <Icon className="w-4 h-4" />
               </div>
               {(key === 'sla_breached' && d[key] > 0) && (
-                <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-600">Action</span>
+                <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-600">{t('service.perf_action', 'Action')}</span>
               )}
             </div>
             <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mt-3 tabular-nums">{(d[key] ?? 0).toLocaleString()}</div>
@@ -162,11 +165,11 @@ export default function DeskPerformance({ API, onNavigate }) {
       <Card className="p-5" data-testid="desk-leaderboard">
         <div className="flex items-center gap-2 mb-4">
           <Trophy className="w-4 h-4 text-amber-500" />
-          <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Engineer Leaderboard</div>
-          <span className="ml-auto text-[11px] text-zinc-400">by jobs closed</span>
+          <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t('service.perf_leaderboard', 'Engineer Leaderboard')}</div>
+          <span className="ml-auto text-[11px] text-zinc-400">{t('service.perf_by_jobs_closed', 'by jobs closed')}</span>
         </div>
         {(!d.leaderboard || d.leaderboard.length === 0) ? (
-          <div className="text-sm text-zinc-400 py-4 text-center" data-testid="desk-leaderboard-empty">No closed jobs in this window yet.</div>
+          <div className="text-sm text-zinc-400 py-4 text-center" data-testid="desk-leaderboard-empty">{t('service.perf_leaderboard_empty', 'No closed jobs in this window yet.')}</div>
         ) : (
           <div className="space-y-3">
             {d.leaderboard.map((r, i) => (
@@ -195,7 +198,7 @@ export default function DeskPerformance({ API, onNavigate }) {
                         style={{ width: `${(r.closed / maxClosed) * 100}%`, transition: 'width 700ms ease' }}
                       />
                     </div>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${r.ftf_rate >= 80 ? 'bg-emerald-50 text-emerald-600' : r.ftf_rate >= 60 ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'}`}>{r.ftf_rate}% FTF</span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${r.ftf_rate >= 80 ? 'bg-emerald-50 text-emerald-600' : r.ftf_rate >= 60 ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'}`}>{t('service.perf_ftf_badge', '{{n}}% FTF', { n: r.ftf_rate })}</span>
                   </div>
                 </div>
               </button>
