@@ -18,7 +18,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import {
   Plus, Trash2, Pencil, X, Loader2, Truck, Mail, Phone, User, Tag,
-  AlertTriangle, CheckCircle2, Lock, BarChart3, ChevronRight,
+  AlertTriangle, CheckCircle2, Lock, BarChart3, ChevronRight, TrendingUp,
 } from 'lucide-react';
 import { API, useAuthHeaders } from './shared';
 
@@ -27,6 +27,26 @@ const fmtResolution = (hours) => {
   if (hours < 1) return `${Math.round(hours * 60)}m`;
   if (hours < 48) return `${hours < 10 ? hours.toFixed(1) : Math.round(hours)}h`;
   return `${(hours / 24).toFixed(1)}d`;
+};
+
+const Sparkline = ({ data = [], rising = false, width = 76, height = 20 }) => {
+  if (!data.length) return null;
+  const max = Math.max(...data, 1);
+  const stroke = rising ? '#f59e0b' : 'var(--color-brand-blue)';
+  const stepX = data.length > 1 ? width / (data.length - 1) : 0;
+  const pts = data.map((v, i) => {
+    const x = i * stepX;
+    const y = height - 2 - (v / max) * (height - 4);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const areaPath = `M0,${height} L${pts.join(' L')} L${(width).toFixed(1)},${height} Z`;
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible" aria-hidden="true">
+      <path d={areaPath} fill={stroke} opacity="0.12" />
+      <polyline points={pts.join(' ')} fill="none" stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={(data.length - 1) * stepX} cy={height - 2 - (data[data.length - 1] / max) * (height - 4)} r="1.8" fill={stroke} />
+    </svg>
+  );
 };
 
 const BLANK = {
@@ -226,8 +246,8 @@ export default function SuppliersSection() {
             </div>
             <span className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>Last {insights.window_days} days · {insights.total_faults} fault{insights.total_faults === 1 ? '' : 's'}</span>
           </div>
-          <div className="grid grid-cols-[auto_1fr_auto_auto] gap-x-3 px-4 py-2 text-[11px] uppercase tracking-wider font-semibold" style={{ color: 'var(--theme-text-muted)' }}>
-            <span className="w-3.5" /><span>Supplier</span><span className="text-right">Faults</span><span className="text-right">Avg. resolution</span>
+          <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-3 px-4 py-2 text-[11px] uppercase tracking-wider font-semibold" style={{ color: 'var(--theme-text-muted)' }}>
+            <span className="w-3.5" /><span>Supplier</span><span className="text-center">90-day trend</span><span className="text-right">Faults</span><span className="text-right">Avg. resolution</span>
           </div>
           {insights.suppliers.map((r) => {
             const key = r.is_unassigned ? '__unassigned__' : r.supplier;
@@ -238,7 +258,7 @@ export default function SuppliersSection() {
               <button
                 type="button"
                 onClick={() => toggleFaults(r)}
-                className="w-full grid grid-cols-[auto_1fr_auto_auto] gap-x-3 px-4 py-2.5 items-center text-left transition-colors hover:bg-white/[0.03]"
+                className="w-full grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-3 px-4 py-2.5 items-center text-left transition-colors hover:bg-white/[0.03]"
                 data-testid={`supplier-insight-row-${r.is_unassigned ? 'unassigned' : r.supplier}`}
               >
                 <ChevronRight size={14} className="transition-transform" style={{ color: 'var(--theme-text-muted)', transform: isOpen ? 'rotate(90deg)' : 'none' }} />
@@ -249,6 +269,10 @@ export default function SuppliersSection() {
                   {r.is_unassigned ? (
                     <div className="text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>No supplier set — assign one so it isn&rsquo;t routed to Pulse by default.</div>
                   ) : null}
+                </div>
+                <div className="flex items-center justify-center gap-1.5" data-testid={`supplier-insight-trend-${r.is_unassigned ? 'unassigned' : r.supplier}`}>
+                  <Sparkline data={r.trend || []} rising={r.rising} />
+                  {r.rising ? <TrendingUp size={12} style={{ color: '#f59e0b' }} title="Rising fault volume" /> : null}
                 </div>
                 <div className="text-right text-sm" style={{ color: 'var(--theme-text)' }}>
                   {r.total_faults}

@@ -268,7 +268,11 @@ async def supplier_insights(days: int = 90, user: dict = Depends(get_current_use
 
     org_filter = get_organization_filter(user)
     days = max(1, min(int(days or 90), 365))
-    since = datetime.now(timezone.utc).timestamp() - days * 86400
+    now_ts = datetime.now(timezone.utc).timestamp()
+    since = now_ts - days * 86400
+    import math
+    n_buckets = max(1, math.ceil(days / 7))  # weekly buckets for the sparkline
+    bucket_secs = days * 86400 / n_buckets
 
     issues = await db.issues.find(
         org_filter,
@@ -299,12 +303,16 @@ async def supplier_insights(days: int = 90, user: dict = Depends(get_current_use
             "is_unassigned": key == "__unassigned__",
             "total_faults": 0, "open_faults": 0, "resolved_faults": 0,
             "_res_hours": [],
+            "trend": [0] * n_buckets,
         })
         b["total_faults"] += 1
         if (iss.get("status") or "").lower() in OPEN:
             b["open_faults"] += 1
         else:
             b["resolved_faults"] += 1
+        idx = int((created - since) // bucket_secs)
+        idx = min(max(idx, 0), n_buckets - 1)
+        b["trend"][idx] += 1
         resolved = _parse(iss.get("resolved_at"))
         if resolved and created and resolved >= created:
             b["_res_hours"].append((resolved - created) / 3600.0)
@@ -314,12 +322,16 @@ async def supplier_insights(days: int = 90, user: dict = Depends(get_current_use
         res = b.pop("_res_hours")
         b["avg_resolution_hours"] = round(sum(res) / len(res), 1) if res else None
         b["all_time_faults"] = all_time_totals.get(key, b["total_faults"])
+        # Rising if the most recent half has more faults than the earlier half.
+        half = n_buckets // 2
+        b["rising"] = bool(half and sum(b["trend"][half:]) > sum(b["trend"][:half]))
         rows.append(b)
 
     # Unassigned last; real suppliers by fault volume desc.
     rows.sort(key=lambda r: (r["is_unassigned"], -r["total_faults"]))
     return {
         "window_days": days,
+        "trend_buckets": n_buckets,
         "total_faults": sum(r["total_faults"] for r in rows),
         "suppliers": rows,
     }

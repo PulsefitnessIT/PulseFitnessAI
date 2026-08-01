@@ -1,0 +1,20 @@
+{
+  "summary": "Frontend-only verification of the new 90-day fault-trend sparkline in the Supplier Insights panel (Account Settings → Suppliers) for Pro/Full org owner@isodemo.com. Cookie banner dismissed; logged in and navigated to /dashboard → user menu → Account settings → Suppliers. The Supplier Insights panel renders correctly with a new '90-day trend' column between Supplier and Faults. The Unassigned row exposes [data-testid=supplier-insight-trend-unassigned] containing an inline <svg><polyline points=\"...\"/></svg> with 13 points (weekly buckets for 90 days) confirming the trend renders. An amber TrendingUp icon is visible next to the sparkline (rising=true for this row). Clicking the row expands the faults list [data-testid=supplier-insight-faults-unassigned] and a second click collapses it. Clicking directly on the sparkline cell also toggles the expansion, confirming the sparkline is inside the clickable row button and does not block the expand/collapse. Layout is clean at 1440px — no overflow; panel bounding box fits the modal (670px wide).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (Pro/Full)",
+  "seed_data_creation": "None. No test data created; nothing to clean up.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Only the 'Unassigned' aggregate row is present in iso-demo's insights panel (single supplier bucket for currently unassigned faults). Its sparkline rendered as expected with 13 points and amber TrendingUp (rising). If future data adds more supplier rows they will each get their own [data-testid=supplier-insight-trend-<key>]. Cookie 'Accept All' banner appears on login page; login is rate-limited (429) on rapid retries — space them out. Login lands on /service-desk, then navigate to /dashboard for the nav-user-menu-btn.",
+  "rca of the issue": "N/A — feature works as specified."
+}
