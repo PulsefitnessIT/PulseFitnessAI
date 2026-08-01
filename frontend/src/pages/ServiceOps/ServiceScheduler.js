@@ -12,6 +12,7 @@
  * via the `dragstart` event firing on touch.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -55,6 +56,7 @@ function slotIsoFor(dayStart, dayIndex, hourSlot) {
 }
 
 function CaseCard({ c, onDragStart, onClick, compact = false }) {
+  const { t } = useTranslation();
   const colour = PRIORITY_COLOUR[c.priority] || '#0891b2';
   const slaMs = c.sla_resolve_at ? new Date(c.sla_resolve_at).getTime() - Date.now() : 0;
   const breached = c.sla_resolve_at && slaMs < 0;
@@ -79,7 +81,7 @@ function CaseCard({ c, onDragStart, onClick, compact = false }) {
         <span className="text-[10px] font-extrabold tabular-nums" style={{ color: colour }}>{(c.priority || 'p3').toUpperCase()}</span>
         {c.sla_resolve_at ? (
           <span className="inline-flex items-center gap-0.5 text-[9px] font-bold" style={{ color: slaColour }}>
-            {breached ? <AlertTriangle size={9} /> : <Clock size={9} />} {breached ? 'breach' : atRisk ? 'risk' : 'ok'}
+            {breached ? <AlertTriangle size={9} /> : <Clock size={9} />} {breached ? t('service.sched_breach', 'breach') : atRisk ? t('service.sched_risk', 'risk') : t('service.sched_ok', 'ok')}
           </span>
         ) : null}
       </div>
@@ -93,6 +95,7 @@ function CaseCard({ c, onDragStart, onClick, compact = false }) {
 }
 
 export default function ServiceScheduler() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [diary, setDiary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -112,7 +115,7 @@ export default function ServiceScheduler() {
       });
       setDiary(r.data);
     } catch (e) {
-      notify.error('Failed to load diary', e?.response?.data?.detail || e.message);
+      notify.error(t('service.sched_load_failed', 'Failed to load diary'), e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
   }, [windowStart, days]);
 
@@ -153,7 +156,7 @@ export default function ServiceScheduler() {
       notify.success(`${c.reference} → ${engineer.full_name}`);
       load();
     } catch (e) {
-      notify.error('Assign failed', e?.response?.data?.detail || e.message);
+      notify.error(t('service.sched_assign_failed', 'Assign failed'), e?.response?.data?.detail || e.message);
     }
   };
 
@@ -166,26 +169,26 @@ export default function ServiceScheduler() {
         { ...auth(), params: { case_id: c.id, commit } },
       );
       if (commit && r.data?.assigned_engineer_name) {
-        notify.success(`${c.reference} → ${r.data.assigned_engineer_name} (score ${r.data.score})`);
+        notify.success(t('service.sched_assigned_score', '{{ref}} → {{name}} (score {{score}})', { ref: c.reference, name: r.data.assigned_engineer_name, score: r.data.score }));
         load();
       } else if (!commit) {
         const top = (r.data?.rankings || [])[0];
         if (top) {
-          notify.info(`Top suggestion: ${top.engineer_name} · score ${top.score}`, `Drive ${top.breakdown.drive_minutes}m · skill mismatch ${top.breakdown.skill_mismatch}`);
+          notify.info(t('service.sched_top_suggestion', 'Top suggestion: {{name}} · score {{score}}', { name: top.engineer_name, score: top.score }), t('service.sched_top_breakdown', 'Drive {{drive}}m · skill mismatch {{mismatch}}', { drive: top.breakdown.drive_minutes, mismatch: top.breakdown.skill_mismatch }));
         } else {
-          notify.error('No engineers available');
+          notify.error(t('service.sched_no_engineers', 'No engineers available'));
         }
       }
     } catch (e) {
-      notify.error('Auto-assign failed', e?.response?.data?.detail || e.message);
+      notify.error(t('service.sched_auto_failed', 'Auto-assign failed'), e?.response?.data?.detail || e.message);
     } finally { setAutoFor(null); }
   };
 
   return (
     <ServiceOpsShell
       icon={Calendar}
-      title="Scheduler"
-      subtitle="Drag unassigned cases onto an engineer's slot. AI auto-assign suggests the best match using drive time, skills, van stock and SLA risk."
+      title={t('service.sched_title', 'Scheduler')}
+      subtitle={t('service.sched_subtitle', "Drag unassigned cases onto an engineer's slot. AI auto-assign suggests the best match using drive time, skills, van stock and SLA risk.")}
       actions={(
         <>
           <button
@@ -194,7 +197,7 @@ export default function ServiceScheduler() {
             className="svc-btn svc-btn-secondary svc-btn-sm"
             data-testid="scheduler-prev"
           >
-            <ChevronLeft size={11} /> Prev
+            <ChevronLeft size={11} /> {t('service.sched_prev', 'Prev')}
           </button>
           <button
             type="button"
@@ -202,7 +205,7 @@ export default function ServiceScheduler() {
             className="svc-btn svc-btn-secondary svc-btn-sm"
             data-testid="scheduler-today"
           >
-            Today
+            {t('service.sched_today', 'Today')}
           </button>
           <button
             type="button"
@@ -210,7 +213,7 @@ export default function ServiceScheduler() {
             className="svc-btn svc-btn-secondary svc-btn-sm"
             data-testid="scheduler-next"
           >
-            Next <ChevronRight size={11} />
+            {t('service.sched_next', 'Next')} <ChevronRight size={11} />
           </button>
           <select
             value={days}
@@ -219,9 +222,9 @@ export default function ServiceScheduler() {
             style={{ width: 'auto' }}
             data-testid="scheduler-days-select"
           >
-            <option value={1}>1 day</option>
-            <option value={3}>3 days</option>
-            <option value={7}>7 days</option>
+            <option value={1}>{t('service.sched_1_day', '1 day')}</option>
+            <option value={3}>{t('service.sched_3_days', '3 days')}</option>
+            <option value={7}>{t('service.sched_7_days', '7 days')}</option>
           </select>
           <button
             type="button"
@@ -229,7 +232,7 @@ export default function ServiceScheduler() {
             className="svc-btn svc-btn-secondary svc-btn-sm"
             data-testid="scheduler-refresh"
           >
-            <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> Refresh
+            <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> {t('service.sched_refresh', 'Refresh')}
           </button>
         </>
       )}
@@ -240,10 +243,10 @@ export default function ServiceScheduler() {
         {/* Unassigned queue */}
         <aside className="col-span-12 lg:col-span-3 svc-card-base p-3 space-y-2 max-h-[80vh] overflow-y-auto" data-testid="scheduler-unassigned">
           <div className="flex items-center justify-between">
-            <p className="svc-label" style={{ marginBottom: 0 }}>Unassigned ({unassigned.length})</p>
+            <p className="svc-label" style={{ marginBottom: 0 }}>{t('service.sched_unassigned', 'Unassigned')} ({unassigned.length})</p>
           </div>
           {unassigned.length === 0 ? (
-            <p className="text-xs opacity-60 italic">Nothing in the queue 🎉</p>
+            <p className="text-xs opacity-60 italic">{t('service.sched_queue_empty', 'Nothing in the queue 🎉')}</p>
           ) : unassigned.map((c) => (
             <div key={c.id} className="space-y-1">
               <CaseCard c={c} onDragStart={onDragStart} onClick={() => navigate('/service-ops')} />
@@ -255,7 +258,7 @@ export default function ServiceScheduler() {
                 style={{ background: '#0891b2' }}
                 data-testid={`scheduler-auto-${c.reference}`}
               >
-                {autoFor === c.id ? <Loader2 size={10} className="animate-spin" /> : <Wand2 size={10} />} Auto-assign
+                {autoFor === c.id ? <Loader2 size={10} className="animate-spin" /> : <Wand2 size={10} />} {t('service.sched_auto_assign', 'Auto-assign')}
               </button>
             </div>
           ))}
@@ -267,7 +270,7 @@ export default function ServiceScheduler() {
             <div style={{ minWidth: `${(slotsPerDay * SLOT_PX * days) + 200}px` }}>
               {/* Day header */}
               <div className="flex border-b sticky top-0 z-10" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
-                <div style={{ width: 200, flex: '0 0 200px' }} className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider opacity-70">Engineer</div>
+                <div style={{ width: 200, flex: '0 0 200px' }} className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider opacity-70">{t('service.sched_engineer', 'Engineer')}</div>
                 {Array.from({ length: days }).map((_, dayIndex) => {
                   const d = new Date(windowStart);
                   d.setDate(d.getDate() + dayIndex);
@@ -296,16 +299,16 @@ export default function ServiceScheduler() {
 
               {/* Engineer rows */}
               {loading ? (
-                <div className="p-6 text-center opacity-70 text-sm inline-flex items-center justify-center gap-1.5 w-full"><Loader2 size={14} className="animate-spin" /> Loading diary…</div>
+                <div className="p-6 text-center opacity-70 text-sm inline-flex items-center justify-center gap-1.5 w-full"><Loader2 size={14} className="animate-spin" /> {t('service.sched_loading_diary', 'Loading diary…')}</div>
               ) : engineers.length === 0 ? (
-                <div className="p-8 text-center opacity-60 text-sm">No engineers configured. Assign someone to a case first to seed the roster.</div>
+                <div className="p-8 text-center opacity-60 text-sm">{t('service.sched_no_engineers_configured', 'No engineers configured. Assign someone to a case first to seed the roster.')}</div>
               ) : engineers.map((eng) => {
                 const engCases = casesByEngineer.get(eng.id) || [];
                 return (
                   <div key={eng.id} className="flex border-b" style={{ borderColor: 'var(--theme-border)', minHeight: ROW_PX }} data-testid={`scheduler-row-${eng.id}`}>
                     <div className="px-3 py-2 text-xs font-bold flex-shrink-0" style={{ width: 200 }}>
                       <div className="truncate">{eng.full_name}</div>
-                      <div className="text-[10px] opacity-60">{engCases.length} jobs · {eng.skills?.length || 0} skills</div>
+                      <div className="text-[10px] opacity-60">{t('service.sched_jobs_skills', '{{jobs}} jobs · {{skills}} skills', { jobs: engCases.length, skills: eng.skills?.length || 0 })}</div>
                     </div>
                     {Array.from({ length: days }).map((_, dayIndex) => (
                       <div

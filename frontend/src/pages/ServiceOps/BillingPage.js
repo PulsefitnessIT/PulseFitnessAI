@@ -9,6 +9,7 @@
  *  auto-fill button, totals (subtotal/discount/VAT/gross), Approve & Finalise.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import {
   FileText, Wand2, RefreshCw, Plus, Trash2, X, Save,
@@ -24,6 +25,7 @@ const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('
 function gbp(n) { return formatMoneySync(n); }
 
 export default function BillingPage() {
+  const { t } = useTranslation();
   useLocalization();  // warm currency cache
   const [rows, setRows] = useState([]);
   const [filter, setFilter] = useState('ready');
@@ -35,7 +37,7 @@ export default function BillingPage() {
     try {
       const r = await axios.get(`${API}/svc/billing`, { ...auth(), params: { status: filter } });
       setRows(r.data.rows || []);
-    } catch (e) { notify.error('Failed to load billing queue', e?.response?.data?.detail || e.message); }
+    } catch (e) { notify.error(t('service.svcbill_load_failed', 'Failed to load billing queue'), e?.response?.data?.detail || e.message); }
     finally { setLoading(false); }
   }, [filter]);
 
@@ -44,18 +46,18 @@ export default function BillingPage() {
   return (
     <ServiceOpsShell
       icon={FileText}
-      title="Quoting & billing"
-      subtitle="Build a quote from labour and parts, approve it, and push the line-priced draft straight into the Sage 200 invoice outbox."
+      title={t('service.svcbill_title', 'Quoting & billing')}
+      subtitle={t('service.svcbill_subtitle', 'Build a quote from labour and parts, approve it, and push the line-priced draft straight into the Sage 200 invoice outbox.')}
       actions={(
         <>
           <select value={filter} onChange={(e) => setFilter(e.target.value)} className="svc-select svc-select-sm" style={{ width: 'auto' }} data-testid="billing-filter">
-            <option value="ready">Ready to quote</option>
-            <option value="quoted">Quoted (awaiting finalise)</option>
-            <option value="invoiced">Invoiced</option>
-            <option value="all">All</option>
+            <option value="ready">{t('service.svcbill_f_ready', 'Ready to quote')}</option>
+            <option value="quoted">{t('service.svcbill_f_quoted', 'Quoted (awaiting finalise)')}</option>
+            <option value="invoiced">{t('service.svcbill_f_invoiced', 'Invoiced')}</option>
+            <option value="all">{t('service.svcbill_f_all', 'All')}</option>
           </select>
           <button type="button" onClick={load} className="svc-btn svc-btn-secondary svc-btn-sm" data-testid="billing-refresh">
-            <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> Refresh
+            <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> {t('service.svcbill_refresh', 'Refresh')}
           </button>
         </>
       )}
@@ -66,19 +68,19 @@ export default function BillingPage() {
         <table className="svc-table">
           <thead>
             <tr>
-              <th>Case</th>
-              <th>Title</th>
-              <th>Customer</th>
-              <th>State</th>
-              <th className="num">Quote total</th>
+              <th>{t('service.svcbill_col_case', 'Case')}</th>
+              <th>{t('service.svcbill_col_title', 'Title')}</th>
+              <th>{t('service.svcbill_col_customer', 'Customer')}</th>
+              <th>{t('service.svcbill_col_state', 'State')}</th>
+              <th className="num">{t('service.svcbill_col_total', 'Quote total')}</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="6"><div className="svc-empty"><span className="svc-spinner" /> Loading…</div></td></tr>
+              <tr><td colSpan="6"><div className="svc-empty"><span className="svc-spinner" /> {t('service.svcbill_loading', 'Loading…')}</div></td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan="6"><div className="svc-empty"><FileText size={20} /><div>No cases in this state.</div></div></td></tr>
+              <tr><td colSpan="6"><div className="svc-empty"><FileText size={20} /><div>{t('service.svcbill_empty', 'No cases in this state.')}</div></div></td></tr>
             ) : rows.map((r) => {
               const stateTone = r.billing_state === 'invoiced' ? 'good' : r.billing_state === 'quoted' ? 'info' : 'warn';
               return (
@@ -113,6 +115,7 @@ export default function BillingPage() {
 
 // ── Quote editor drawer ──────────────────────────────────────────
 function QuoteEditor({ caseRow, onClose, onChanged }) {
+  const { t } = useTranslation();
   const [quote, setQuote] = useState(caseRow.quote || null);
   const [lines, setLines] = useState((caseRow.quote?.lines) || []);
   const [vatRate, setVatRate] = useState(caseRow.quote?.vat_rate ?? 0.20);
@@ -137,7 +140,7 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
       const r = await axios.post(`${API}/svc/billing/${caseRow.id}/quote/auto-fill`, {}, auth());
       const proposed = r.data?.proposed_lines || [];
       if (proposed.length === 0) {
-        notify.info('Nothing to auto-fill', 'No chargeable time entries or parts movements yet — add lines manually.');
+        notify.info(t('service.svcbill_nothing_autofill', 'Nothing to auto-fill'), t('service.svcbill_nothing_autofill_hint', 'No chargeable time entries or parts movements yet — add lines manually.'));
       } else {
         // Merge: keep any existing manual lines, append proposed lines that
         // we don't already have (matched by part_sku or kind+description).
@@ -148,10 +151,10 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
           if (!seen.has(key)) { merged.push(p); seen.add(key); }
         }
         setLines(merged);
-        notify.success('Auto-fill applied', `${proposed.length} line(s) added`);
+        notify.success(t('service.svcbill_autofill_applied', 'Auto-fill applied'), t('service.svcbill_lines_added', '{{n}} line(s) added', { n: proposed.length }));
       }
     } catch (e) {
-      notify.error('Auto-fill failed', e?.response?.data?.detail || e.message);
+      notify.error(t('service.svcbill_autofill_failed', 'Auto-fill failed'), e?.response?.data?.detail || e.message);
     } finally { setBusy(''); }
   };
 
@@ -172,10 +175,10 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
         { lines, vat_rate: vatRate, discount_pct: discountPct, notes }, auth());
       setQuote(r.data);
       setLines(r.data.lines || []);
-      notify.success(quote ? 'Quote updated' : 'Draft quote saved', r.data.reference);
+      notify.success(quote ? t('service.svcbill_quote_updated', 'Quote updated') : t('service.svcbill_draft_saved', 'Draft quote saved'), r.data.reference);
       onChanged?.();
     } catch (e) {
-      notify.error('Save failed', e?.response?.data?.detail || e.message);
+      notify.error(t('service.svcbill_save_failed', 'Save failed'), e?.response?.data?.detail || e.message);
     } finally { setBusy(''); }
   };
 
@@ -184,10 +187,10 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
     try {
       const r = await axios.post(`${API}/svc/billing/${caseRow.id}/quote/approve`, {}, auth());
       setQuote(r.data);
-      notify.success('Quote approved');
+      notify.success(t('service.svcbill_quote_approved', 'Quote approved'));
       onChanged?.();
     } catch (e) {
-      notify.error('Approve failed', e?.response?.data?.detail || e.message);
+      notify.error(t('service.svcbill_approve_failed', 'Approve failed'), e?.response?.data?.detail || e.message);
     } finally { setBusy(''); }
   };
 
@@ -196,27 +199,27 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
     try {
       const r = await axios.post(`${API}/svc/billing/${caseRow.id}/invoice/finalise`, {}, auth());
       if (r.data?.ok) {
-        notify.success('Invoice queued for Sage', `Outbox status: ${r.data.outbox?.status || 'ready'}`);
+        notify.success(t('service.svcbill_invoice_queued', 'Invoice queued for Sage'), t('service.svcbill_outbox_status', 'Outbox status: {{status}}', { status: r.data.outbox?.status || 'ready' }));
         setQuote(r.data.quote);
         onChanged?.();
         onClose?.();
       }
     } catch (e) {
-      notify.error('Finalise failed', e?.response?.data?.detail || e.message);
+      notify.error(t('service.svcbill_finalise_failed', 'Finalise failed'), e?.response?.data?.detail || e.message);
     } finally { setBusy(''); }
   };
 
   const voidQuote = async () => {
-    if (!window.confirm('Void this quote? You can create a new draft after.')) return;
+    if (!window.confirm(t('service.svcbill_void_confirm', 'Void this quote? You can create a new draft after.'))) return;
     setBusy('void');
     try {
       await axios.post(`${API}/svc/billing/${caseRow.id}/quote/void`, {}, auth());
       setQuote(null);
       setLines([]);
-      notify.success('Quote voided');
+      notify.success(t('service.svcbill_quote_voided', 'Quote voided'));
       onChanged?.();
     } catch (e) {
-      notify.error('Void failed', e?.response?.data?.detail || e.message);
+      notify.error(t('service.svcbill_void_failed', 'Void failed'), e?.response?.data?.detail || e.message);
     } finally { setBusy(''); }
   };
 
@@ -226,7 +229,7 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
       <aside className="w-full max-w-3xl h-full overflow-hidden flex flex-col shadow-2xl border-l" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
         <header className="px-5 py-4 border-b flex items-start justify-between gap-3" style={{ borderColor: 'var(--theme-border)' }}>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: '#0891b2' }}>{caseRow.reference} · {quote?.reference || 'No quote yet'}</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: '#0891b2' }}>{caseRow.reference} · {quote?.reference || t('service.svcbill_no_quote_yet', 'No quote yet')}</p>
             <h2 className="text-lg font-extrabold truncate" data-testid="quote-title">{caseRow.title}</h2>
             <p className="text-xs opacity-70">{caseRow.customer_name || '—'}{caseRow.site_name ? ` · ${caseRow.site_name}` : ''}</p>
             {quote ? (
@@ -236,14 +239,14 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
               }} data-testid="quote-status-pill">{quote.status} · v{quote.version}</span>
             ) : null}
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" data-testid="quote-close" className="p-1.5 rounded hover:bg-black/10"><X size={16} /></button>
+          <button type="button" onClick={onClose} aria-label={t('service.svcbill_close', 'Close')} data-testid="quote-close" className="p-1.5 rounded hover:bg-black/10"><X size={16} /></button>
         </header>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-3" data-testid="quote-body">
           {!isLocked ? (
             <button type="button" onClick={autoFill} disabled={busy === 'autofill'} className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-60" style={{ background: '#0891b2' }} data-testid="quote-autofill">
               {busy === 'autofill' ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}
-              Auto-fill from labour &amp; parts
+              {t('service.svcbill_autofill_btn', 'Auto-fill from labour & parts')}
             </button>
           ) : null}
 
@@ -251,31 +254,31 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
             <table className="w-full text-sm">
               <thead style={{ background: 'var(--theme-surface)' }}>
                 <tr className="text-left text-[10px] uppercase tracking-wider opacity-70">
-                  <th className="px-2 py-1.5">Kind</th>
-                  <th className="px-2 py-1.5">Description</th>
-                  <th className="px-2 py-1.5 text-right">Qty</th>
-                  <th className="px-2 py-1.5 text-right">Unit {getCachedLocalization().currency_symbol}</th>
-                  <th className="px-2 py-1.5 text-right">Line {getCachedLocalization().currency_symbol}</th>
+                  <th className="px-2 py-1.5">{t('service.svcbill_th_kind', 'Kind')}</th>
+                  <th className="px-2 py-1.5">{t('service.svcbill_th_desc', 'Description')}</th>
+                  <th className="px-2 py-1.5 text-right">{t('service.svcbill_th_qty', 'Qty')}</th>
+                  <th className="px-2 py-1.5 text-right">{t('service.svcbill_th_unit', 'Unit')} {getCachedLocalization().currency_symbol}</th>
+                  <th className="px-2 py-1.5 text-right">{t('service.svcbill_th_line', 'Line')} {getCachedLocalization().currency_symbol}</th>
                   <th className="px-2 py-1.5"></th>
                 </tr>
               </thead>
               <tbody>
                 {lines.length === 0 ? (
-                  <tr><td colSpan="6" className="px-3 py-6 text-center opacity-60 text-xs">No lines yet — click Auto-fill, or add a line below.</td></tr>
+                  <tr><td colSpan="6" className="px-3 py-6 text-center opacity-60 text-xs">{t('service.svcbill_no_lines', 'No lines yet — click Auto-fill, or add a line below.')}</td></tr>
                 ) : lines.map((l, i) => {
                   const total = (Number(l.qty) || 0) * (Number(l.unit_amount) || 0);
                   return (
                     <tr key={l.id || i} className="border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`quote-line-${i}`}>
                       <td className="px-2 py-1">
                         <select value={l.kind} disabled={isLocked} onChange={(e) => setLine(i, 'kind', e.target.value)} className="ip" data-testid={`quote-line-kind-${i}`}>
-                          <option value="labour">Labour</option>
-                          <option value="part">Part</option>
-                          <option value="adjustment">Adjustment</option>
+                          <option value="labour">{t('service.svcbill_kind_labour', 'Labour')}</option>
+                          <option value="part">{t('service.svcbill_kind_part', 'Part')}</option>
+                          <option value="adjustment">{t('service.svcbill_kind_adjustment', 'Adjustment')}</option>
                         </select>
                       </td>
                       <td className="px-2 py-1">
                         <input value={l.description || ''} disabled={isLocked} onChange={(e) => setLine(i, 'description', e.target.value)} className="ip" data-testid={`quote-line-desc-${i}`} />
-                        {l.part_sku ? <span className="block text-[10px] opacity-60 mt-0.5">SKU {l.part_sku}</span> : null}
+                        {l.part_sku ? <span className="block text-[10px] opacity-60 mt-0.5">{t('service.svcbill_sku', 'SKU {{sku}}', { sku: l.part_sku })}</span> : null}
                       </td>
                       <td className="px-2 py-1 text-right">
                         <input type="number" step="0.01" value={l.qty} disabled={isLocked} onChange={(e) => setLine(i, 'qty', Number(e.target.value))} className="ip text-right tabular-nums" data-testid={`quote-line-qty-${i}`} />
@@ -285,7 +288,7 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
                       </td>
                       <td className="px-2 py-1 text-right tabular-nums" data-testid={`quote-line-total-${i}`}>{gbp(total)}</td>
                       <td className="px-2 py-1 text-right">
-                        {!isLocked ? <button type="button" aria-label="Remove" onClick={() => removeLine(i)} className="opacity-60 hover:opacity-100" data-testid={`quote-line-remove-${i}`}><Trash2 size={11} /></button> : null}
+                        {!isLocked ? <button type="button" aria-label={t('service.svcbill_remove', 'Remove')} onClick={() => removeLine(i)} className="opacity-60 hover:opacity-100" data-testid={`quote-line-remove-${i}`}><Trash2 size={11} /></button> : null}
                       </td>
                     </tr>
                   );
@@ -296,40 +299,40 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
 
           {!isLocked ? (
             <div className="flex gap-1.5">
-              <button type="button" onClick={() => addLine('labour')} className="px-2 py-1 rounded text-[11px] font-bold border inline-flex items-center gap-1" style={{ borderColor: 'var(--theme-border)' }} data-testid="quote-add-labour"><Plus size={10} /> Labour</button>
-              <button type="button" onClick={() => addLine('part')} className="px-2 py-1 rounded text-[11px] font-bold border inline-flex items-center gap-1" style={{ borderColor: 'var(--theme-border)' }} data-testid="quote-add-part"><Plus size={10} /> Part</button>
-              <button type="button" onClick={() => addLine('adjustment')} className="px-2 py-1 rounded text-[11px] font-bold border inline-flex items-center gap-1" style={{ borderColor: 'var(--theme-border)' }} data-testid="quote-add-adjustment"><Plus size={10} /> Adjustment</button>
+              <button type="button" onClick={() => addLine('labour')} className="px-2 py-1 rounded text-[11px] font-bold border inline-flex items-center gap-1" style={{ borderColor: 'var(--theme-border)' }} data-testid="quote-add-labour"><Plus size={10} /> {t('service.svcbill_kind_labour', 'Labour')}</button>
+              <button type="button" onClick={() => addLine('part')} className="px-2 py-1 rounded text-[11px] font-bold border inline-flex items-center gap-1" style={{ borderColor: 'var(--theme-border)' }} data-testid="quote-add-part"><Plus size={10} /> {t('service.svcbill_kind_part', 'Part')}</button>
+              <button type="button" onClick={() => addLine('adjustment')} className="px-2 py-1 rounded text-[11px] font-bold border inline-flex items-center gap-1" style={{ borderColor: 'var(--theme-border)' }} data-testid="quote-add-adjustment"><Plus size={10} /> {t('service.svcbill_kind_adjustment', 'Adjustment')}</button>
             </div>
           ) : null}
 
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">VAT rate</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">{t('service.svcbill_vat_rate', 'VAT rate')}</span>
               <input type="number" step="0.01" value={vatRate} disabled={isLocked} onChange={(e) => setVatRate(Number(e.target.value))} className="ip mt-1 tabular-nums" data-testid="quote-vat" />
             </label>
             <label className="block">
-              <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Discount %</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">{t('service.svcbill_discount_pct', 'Discount %')}</span>
               <input type="number" step="0.5" value={discountPct} disabled={isLocked} onChange={(e) => setDiscountPct(Number(e.target.value))} className="ip mt-1 tabular-nums" data-testid="quote-discount" />
             </label>
           </div>
 
           <div className="rounded-md border p-3 space-y-1" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="quote-totals">
-            <div className="flex justify-between text-xs"><span className="opacity-70">Subtotal</span><span className="tabular-nums" data-testid="quote-subtotal">{gbp(totals.subtotal)}</span></div>
-            <div className="flex justify-between text-xs"><span className="opacity-70">Discount ({discountPct}%)</span><span className="tabular-nums">−{gbp(totals.discount)}</span></div>
-            <div className="flex justify-between text-xs"><span className="opacity-70">Net</span><span className="tabular-nums" data-testid="quote-net">{gbp(totals.net)}</span></div>
-            <div className="flex justify-between text-xs"><span className="opacity-70">VAT ({(vatRate * 100).toFixed(0)}%)</span><span className="tabular-nums">{gbp(totals.vat)}</span></div>
-            <div className="flex justify-between text-base font-extrabold pt-1 border-t" style={{ borderColor: 'var(--theme-border)' }}><span>Gross</span><span className="tabular-nums" data-testid="quote-gross">{gbp(totals.gross)}</span></div>
+            <div className="flex justify-between text-xs"><span className="opacity-70">{t('service.svcbill_subtotal', 'Subtotal')}</span><span className="tabular-nums" data-testid="quote-subtotal">{gbp(totals.subtotal)}</span></div>
+            <div className="flex justify-between text-xs"><span className="opacity-70">{t('service.svcbill_discount', 'Discount')} ({discountPct}%)</span><span className="tabular-nums">−{gbp(totals.discount)}</span></div>
+            <div className="flex justify-between text-xs"><span className="opacity-70">{t('service.svcbill_net', 'Net')}</span><span className="tabular-nums" data-testid="quote-net">{gbp(totals.net)}</span></div>
+            <div className="flex justify-between text-xs"><span className="opacity-70">{t('service.svcbill_vat', 'VAT')} ({(vatRate * 100).toFixed(0)}%)</span><span className="tabular-nums">{gbp(totals.vat)}</span></div>
+            <div className="flex justify-between text-base font-extrabold pt-1 border-t" style={{ borderColor: 'var(--theme-border)' }}><span>{t('service.svcbill_gross', 'Gross')}</span><span className="tabular-nums" data-testid="quote-gross">{gbp(totals.gross)}</span></div>
           </div>
 
           <label className="block">
-            <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Operator notes (internal)</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">{t('service.svcbill_notes', 'Operator notes (internal)')}</span>
             <textarea value={notes} disabled={isLocked} onChange={(e) => setNotes(e.target.value)} rows={2} className="ip mt-1" data-testid="quote-notes" />
           </label>
         </div>
 
         <footer className="border-t px-5 py-3 flex flex-wrap gap-2 justify-end" style={{ borderColor: 'var(--theme-border)' }}>
           {quote && quote.status === 'approved' ? (
-            <button type="button" onClick={voidQuote} disabled={busy === 'void'} className="px-3 py-1.5 rounded-md border text-xs font-bold disabled:opacity-60" style={{ borderColor: 'var(--theme-border)', color: '#b91c1c' }} data-testid="quote-void">Void quote</button>
+            <button type="button" onClick={voidQuote} disabled={busy === 'void'} className="px-3 py-1.5 rounded-md border text-xs font-bold disabled:opacity-60" style={{ borderColor: 'var(--theme-border)', color: '#b91c1c' }} data-testid="quote-void">{t('service.svcbill_void', 'Void quote')}</button>
           ) : null}
           {quote ? (
             <button
@@ -351,36 +354,36 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
                   a.remove();
                   URL.revokeObjectURL(url);
                 } catch (e) {
-                  notify.error('PDF download failed');
+                  notify.error(t('service.svcbill_pdf_failed', 'PDF download failed'));
                 }
               }}
               className="px-3 py-1.5 rounded-md border text-xs font-bold inline-flex items-center gap-1"
               style={{ borderColor: 'var(--theme-border)' }}
               data-testid="quote-download-pdf"
             >
-              <FileText size={11} /> Customer PDF
+              <FileText size={11} /> {t('service.svcbill_customer_pdf', 'Customer PDF')}
             </button>
           ) : null}
           {!isLocked ? (
             <>
               <button type="button" onClick={saveDraft} disabled={busy === 'save'} className="px-3 py-1.5 rounded-md border text-xs font-bold inline-flex items-center gap-1 disabled:opacity-60" style={{ borderColor: 'var(--theme-border)' }} data-testid="quote-save">
-                <Save size={11} /> {busy === 'save' ? 'Saving…' : quote ? 'Update draft' : 'Save draft'}
+                <Save size={11} /> {busy === 'save' ? t('service.svcbill_saving', 'Saving…') : quote ? t('service.svcbill_update_draft', 'Update draft') : t('service.svcbill_save_draft', 'Save draft')}
               </button>
               {quote ? (
                 <button type="button" onClick={approve} disabled={busy === 'approve'} className="px-3 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center gap-1 disabled:opacity-60" style={{ background: '#0891b2' }} data-testid="quote-approve">
-                  <CheckCircle size={11} /> {busy === 'approve' ? 'Approving…' : 'Approve quote'}
+                  <CheckCircle size={11} /> {busy === 'approve' ? t('service.svcbill_approving', 'Approving…') : t('service.svcbill_approve_quote', 'Approve quote')}
                 </button>
               ) : null}
             </>
           ) : null}
           {quote && quote.status === 'approved' ? (
             <button type="button" onClick={finalise} disabled={busy === 'finalise'} className="px-3 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center gap-1 disabled:opacity-60" style={{ background: 'var(--color-success-green,#10b981)' }} data-testid="quote-finalise">
-              <Send size={11} /> {busy === 'finalise' ? 'Sending…' : 'Finalise → Sage'}
+              <Send size={11} /> {busy === 'finalise' ? t('service.svcbill_sending', 'Sending…') : t('service.svcbill_finalise_sage', 'Finalise → Sage')}
             </button>
           ) : null}
           {quote && quote.status === 'invoiced' ? (
             <span className="text-xs font-bold inline-flex items-center gap-1" style={{ color: '#10b981' }} data-testid="quote-invoiced-badge">
-              <Sparkles size={11} /> Invoice queued — workers will dispatch to Sage
+              <Sparkles size={11} /> {t('service.svcbill_invoice_queued_badge', 'Invoice queued — workers will dispatch to Sage')}
             </span>
           ) : null}
         </footer>

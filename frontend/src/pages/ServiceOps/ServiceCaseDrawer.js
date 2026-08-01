@@ -504,7 +504,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
             <div className="min-w-0">
               <p className="svc-eyebrow">{merged?.reference || t('service.cd_loading', 'Loading…')}</p>
               <h2 className="svc-h1" style={{ fontSize: 19, marginTop: 2 }} data-testid="drawer-title">
-                {merged?.title || (loading ? '…' : 'Untitled case')}
+                {merged?.title || (loading ? '…' : t('service.cd_untitled', 'Untitled case'))}
               </h2>
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <span className={`svc-pill svc-pill--${pri.tone === 'p1' ? 'danger' : pri.tone === 'p2' ? 'warn' : pri.tone === 'p3' ? 'info' : ''}`} data-testid="drawer-priority">
@@ -527,14 +527,14 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                   <span
                     className="svc-pill inline-flex items-center gap-0.5"
                     style={{ background: '#fef3c7', color: '#92400e', fontWeight: 700 }}
-                    title={merged?.customer_rating_comment || `Customer rated this case ${existingRating}/5`}
+                    title={merged?.customer_rating_comment || t('service.cd_rated_title', 'Customer rated this case {{n}}/5', { n: existingRating })}
                     data-testid="drawer-customer-rating">
                     <span style={{ color: '#f59e0b' }}>★</span> {existingRating}/5
                   </span>
                 ) : null}
               </div>
             </div>
-            <button type="button" onClick={onClose} aria-label="Close" data-testid="drawer-close" className="svc-icon-btn">
+            <button type="button" onClick={onClose} aria-label={t('service.cd_close', 'Close')} data-testid="drawer-close" className="svc-icon-btn">
               <X size={16} />
             </button>
           </div>
@@ -567,7 +567,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                     data-testid="drawer-ai-summary-run"
                   >
                     {aiBusy ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
-                    {aiBusy ? '…' : aiSummary ? 'Refresh' : 'Generate'}
+                    {aiBusy ? '…' : aiSummary ? t('service.cd_refresh', 'Refresh') : t('service.cd_generate', 'Generate')}
                   </button>
                 </div>
                 {aiSummary ? (
@@ -700,7 +700,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                   data-testid="drawer-edit-engineer"
                 />
               </Field>
-              <Field label="Estimated minutes">
+              <Field label={t('service.cd_f_est_minutes', 'Estimated minutes')}>
                 <input
                   type="number"
                   value={merged.estimated_minutes || 0}
@@ -710,7 +710,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                 />
               </Field>
               <div className="sm:col-span-2">
-                <Field label="Description">
+                <Field label={t('service.cd_f_description', 'Description')}>
                   <textarea
                     value={merged.description || ''}
                     onChange={(e) => setEdit('description', e.target.value)}
@@ -722,30 +722,30 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                 </Field>
               </div>
               <div className="sm:col-span-2 grid grid-cols-2 gap-3 text-xs svc-muted">
-                <p>Logged: {fmtDate(doc?.created_at)}{doc?.logged_by_name ? ` · ${doc.logged_by_name}` : ''}</p>
-                <p>SLA respond by: {fmtDate(doc?.sla_response_at)}</p>
-                <p>Source: {doc?.source || '—'}</p>
-                <p>SLA resolve by: {fmtDate(doc?.sla_resolve_at)}</p>
+                <p>{t('service.cd_logged', 'Logged:')} {fmtDate(doc?.created_at)}{doc?.logged_by_name ? ` · ${doc.logged_by_name}` : ''}</p>
+                <p>{t('service.cd_sla_respond_by', 'SLA respond by:')} {fmtDate(doc?.sla_response_at)}</p>
+                <p>{t('service.cd_source', 'Source:')} {doc?.source || '—'}</p>
+                <p>{t('service.cd_sla_resolve_by', 'SLA resolve by:')} {fmtDate(doc?.sla_resolve_at)}</p>
               </div>
             </div>
             </>
           ) : tab === 'customer' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Customer name">
+              <Field label={t('service.cd_f_customer_name', 'Customer name')}>
                 <input value={merged.customer_name || ''} onChange={(e) => setEdit('customer_name', e.target.value)} className="svc-input" data-testid="drawer-edit-customer-name" />
               </Field>
-              <Field label="Phone">
+              <Field label={t('service.cd_f_phone', 'Phone')}>
                 <input value={merged.customer_phone || ''} onChange={(e) => setEdit('customer_phone', e.target.value)} className="svc-input" data-testid="drawer-edit-customer-phone" />
               </Field>
-              <Field label="Email">
+              <Field label={t('service.cd_f_email', 'Email')}>
                 <input value={merged.customer_email || ''} onChange={(e) => setEdit('customer_email', e.target.value)} className="svc-input" data-testid="drawer-edit-customer-email" />
               </Field>
-              <Field label="Site">
+              <Field label={t('service.cd_f_site', 'Site')}>
                 <input value={merged.site_name || ''} onChange={(e) => setEdit('site_name', e.target.value)} className="svc-input" data-testid="drawer-edit-customer-site" />
               </Field>
               <div className="sm:col-span-2 flex flex-wrap gap-3 text-xs pt-1">
-                {merged.customer_phone ? <a href={`tel:${merged.customer_phone}`} className="svc-link inline-flex items-center gap-1"><Phone size={11} /> Call</a> : null}
-                {merged.customer_email ? <a href={`mailto:${merged.customer_email}`} className="svc-link inline-flex items-center gap-1"><Mail size={11} /> Email</a> : null}
+                {merged.customer_phone ? <a href={`tel:${merged.customer_phone}`} className="svc-link inline-flex items-center gap-1"><Phone size={11} /> {t('service.cd_call', 'Call')}</a> : null}
+                {merged.customer_email ? <a href={`mailto:${merged.customer_email}`} className="svc-link inline-flex items-center gap-1"><Mail size={11} /> {t('service.cd_email', 'Email')}</a> : null}
                 {merged.site_name ? <span className="inline-flex items-center gap-1 svc-muted"><MapPin size={11} /> {merged.site_name}</span> : null}
               </div>
               <div className="sm:col-span-2"><CrmContextCard caseId={caseId} /></div>
@@ -780,7 +780,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                 className="svc-btn svc-btn-primary svc-btn-sm"
                 data-testid="drawer-save"
               >
-                <Save size={11} /> Save changes
+                <Save size={11} /> {t('service.cd_save_changes', 'Save changes')}
               </button>
             </div>
           ) : null}
@@ -791,7 +791,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
             data-testid="drawer-tracking-link-row"
           >
             <LinkIcon size={13} className="opacity-70" />
-            <span className="text-[11.5px] font-semibold">Customer tracking</span>
+            <span className="text-[11.5px] font-semibold">{t('service.cd_customer_tracking', 'Customer tracking')}</span>
             {trackingUrl ? (
               <span
                 className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
@@ -808,17 +808,17 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                 className="svc-btn svc-btn-primary svc-btn-sm"
                 data-testid="drawer-tracking-link-copy"
               >
-                <LinkIcon size={11} /> {trackingUrl ? 'Copy again' : 'Get link'}
+                <LinkIcon size={11} /> {trackingUrl ? t('service.cd_copy_again', 'Copy again') : t('service.cd_get_link', 'Get link')}
               </button>
               {trackingUrl ? (
                 <button
                   type="button"
                   onClick={regenerateTrackingLink}
                   className="svc-btn svc-btn-secondary svc-btn-sm"
-                  title="Invalidate the old link and mint a fresh one"
+                  title={t('service.cd_regen_title', 'Invalidate the old link and mint a fresh one')}
                   data-testid="drawer-tracking-link-regenerate"
                 >
-                  <RefreshCw size={11} /> Regenerate
+                  <RefreshCw size={11} /> {t('service.cd_regenerate', 'Regenerate')}
                 </button>
               ) : null}
             </div>
@@ -831,14 +831,14 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
               data-testid="drawer-service-report"
             >
               <FileText size={13} className="opacity-70" />
-              <span className="text-[11.5px] font-semibold">Service report</span>
+              <span className="text-[11.5px] font-semibold">{t('service.cd_service_report', 'Service report')}</span>
               {doc?.service_report_sent_at ? (
                 <span
                   className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
                   style={{ background: '#dcfce7', color: '#166534' }}
                   data-testid="drawer-service-report-sent"
                 >
-                  Sent to {doc.service_report_sent_to || 'customer'}
+                  {t('service.cd_report_sent_to', 'Sent to {{who}}', { who: doc.service_report_sent_to || t('service.cd_the_customer', 'customer') })}
                 </span>
               ) : null}
               <div className="ml-auto flex gap-1.5">
@@ -848,7 +848,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                   className="svc-btn svc-btn-secondary svc-btn-sm"
                   data-testid="drawer-service-report-view"
                 >
-                  View
+                  {t('service.cd_view', 'View')}
                 </button>
                 <button
                   type="button"
@@ -857,7 +857,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                   className="svc-btn svc-btn-primary svc-btn-sm"
                   data-testid="drawer-service-report-email"
                 >
-                  <Send size={11} /> {reportBusy === 'email' ? 'Sending…' : (doc?.service_report_sent_at ? 'Resend' : 'Email customer')}
+                  <Send size={11} /> {reportBusy === 'email' ? t('service.cd_sending', 'Sending…') : (doc?.service_report_sent_at ? t('service.cd_resend', 'Resend') : t('service.cd_email_customer', 'Email customer'))}
                 </button>
               </div>
             </div>
@@ -867,7 +867,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
               <input
                 value={transitionReason}
                 onChange={(e) => setTransitionReason(e.target.value)}
-                placeholder="Reason / note (optional)"
+                placeholder={t('service.cd_reason_ph', 'Reason / note (optional)')}
                 className="svc-input svc-input-sm"
                 data-testid="drawer-transition-reason"
               />
@@ -885,7 +885,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                       data-testid={`drawer-transition-${s}`}
                     >
                       {isPositive ? <CheckCircle2 size={11} /> : null}
-                      {STATUS_LABEL[s] || s}
+                      {STATUS_LABEL[s] ? statusLabel(t, s) : s}
                       {!isPositive && !isDanger ? <ChevronRight size={11} /> : null}
                     </button>
                   );
@@ -893,7 +893,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
               </div>
             </div>
           ) : (
-            <p className="text-[11.5px] svc-muted">No further transitions available from this state.</p>
+            <p className="text-[11.5px] svc-muted">{t('service.cd_no_transitions', 'No further transitions available from this state.')}</p>
           )}
         </footer>
       </aside>
@@ -906,7 +906,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
           comment={ratingComment}
           setComment={setRatingComment}
           busy={ratingSubmitting}
-          targetLabel={STATUS_LABEL[ratingTarget] || ratingTarget}
+          targetLabel={statusLabel(t, ratingTarget)}
           onSubmit={submitRatingAndTransition}
           onSkip={skipRatingAndTransition}
           onCancel={() => { setRatingTarget(null); setRating(0); setRatingComment(''); }}
@@ -920,6 +920,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
 
 
 function RatingPromptModal({ rating, setRating, comment, setComment, busy, targetLabel, onSubmit, onSkip, onCancel }) {
+  const { t } = useTranslation();
   return (
     <div
       className="svc-drawer-overlay"
@@ -929,9 +930,9 @@ function RatingPromptModal({ rating, setRating, comment, setComment, busy, targe
     >
       <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl max-w-md w-full p-6"
         style={{ margin: 'auto' }}>
-        <h2 className="text-lg font-black mb-1">Rate this engineer's work</h2>
+        <h2 className="text-lg font-black mb-1">{t('service.cd_rate_title', "Rate this engineer's work")}</h2>
         <p className="text-xs svc-muted mb-4">
-          Your rating feeds the partner performance score and helps Pulse Fitness recognise the best engineers. Optional — you can skip.
+          {t('service.cd_rate_blurb', 'Your rating feeds the partner performance score and helps Pulse Fitness recognise the best engineers. Optional — you can skip.')}
         </p>
         <div className="flex gap-1.5 justify-center my-4" data-testid="rating-stars">
           {[1, 2, 3, 4, 5].map((n) => (
@@ -945,15 +946,15 @@ function RatingPromptModal({ rating, setRating, comment, setComment, busy, targe
         </div>
         {rating > 0 && (
           <div className="text-center text-xs font-bold svc-muted mb-3" data-testid="rating-summary">
-            {['', 'Poor', 'Could be better', 'Solid', 'Great', 'Excellent'][rating]}
+            {['', t('service.cd_rate_1', 'Poor'), t('service.cd_rate_2', 'Could be better'), t('service.cd_rate_3', 'Solid'), t('service.cd_rate_4', 'Great'), t('service.cd_rate_5', 'Excellent')][rating]}
           </div>
         )}
         <label className="block">
-          <span className="text-[10px] uppercase tracking-wider font-bold svc-muted">Comment (optional)</span>
+          <span className="text-[10px] uppercase tracking-wider font-bold svc-muted">{t('service.cd_comment_optional', 'Comment (optional)')}</span>
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value.slice(0, 500))}
-            placeholder="Anything you'd like to flag to Pulse Fitness or the engineer?"
+            placeholder={t('service.cd_comment_ph', "Anything you'd like to flag to Pulse Fitness or the engineer?")}
             rows={3}
             className="svc-input w-full mt-1"
             data-testid="rating-comment"
@@ -963,7 +964,7 @@ function RatingPromptModal({ rating, setRating, comment, setComment, busy, targe
           <button onClick={onSkip} disabled={busy}
             className="svc-btn-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 disabled:opacity-50"
             data-testid="rating-skip">
-            Skip & {targetLabel.toLowerCase()}
+            {t('service.cd_skip_and', 'Skip & {{action}}', { action: targetLabel.toLowerCase() })}
           </button>
           <div className="flex gap-2">
             <button onClick={onCancel} disabled={busy}
@@ -974,7 +975,8 @@ function RatingPromptModal({ rating, setRating, comment, setComment, busy, targe
             <button onClick={onSubmit} disabled={busy || rating === 0}
               className="svc-btn-sm svc-btn-primary disabled:opacity-50"
               data-testid="rating-submit">
-              {busy ? 'Saving…' : `Submit & ${targetLabel.toLowerCase()}`}
+              {busy ? t('service.cd_saving', 'Saving…') : t('service.cd_submit_and', 'Submit & {{action}}', { action: targetLabel.toLowerCase() })}
+
             </button>
           </div>
         </div>
@@ -996,6 +998,7 @@ function CommsTab({
   doc, commsLog, commsLoading, templates, templateKey, setTemplateKey,
   onSend, sending, autoNotify, onToggleAutoNotify, onRefresh,
 }) {
+  const { t } = useTranslation();
   const customerEmail = doc?.customer_email || '';
   const customerName = doc?.customer_name || '';
   return (
@@ -1005,11 +1008,9 @@ function CommsTab({
         <div className="flex items-start gap-3">
           <Bell size={14} className="mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-sm">Auto-notify customer on key events</p>
+            <p className="font-bold text-sm">{t('service.cd_auto_notify_title', 'Auto-notify customer on key events')}</p>
             <p className="text-[11.5px] svc-muted mt-0.5">
-              When enabled, Pulse Fitness automatically emails {customerEmail || 'the customer'} as the engineer
-              moves to <em>en route</em>, arrives <em>on site</em>, and the case is <em>completed</em>.
-              Each event sends at most once per case.
+              {t('service.cd_auto_notify_desc', 'When enabled, Pulse Fitness automatically emails {{email}} as the engineer moves to en route, arrives on site, and the case is completed. Each event sends at most once per case.', { email: customerEmail || t('service.cd_the_customer_lc', 'the customer') })}
             </p>
           </div>
           <label className="inline-flex items-center gap-2 cursor-pointer text-xs">
@@ -1019,21 +1020,21 @@ function CommsTab({
               onChange={onToggleAutoNotify}
               data-testid="drawer-comms-auto-toggle"
             />
-            <span className="font-bold">{autoNotify ? 'On' : 'Off'}</span>
+            <span className="font-bold">{autoNotify ? t('service.cd_on', 'On') : t('service.cd_off', 'Off')}</span>
           </label>
         </div>
       </div>
 
       {/* Manual send */}
       <div className="svc-card-base p-3" data-testid="drawer-comms-send-card">
-        <p className="svc-label">Send customer email now</p>
+        <p className="svc-label">{t('service.cd_send_email_now', 'Send customer email now')}</p>
         {!customerEmail ? (
           <p className="text-[11.5px] svc-muted mt-1">
-            No customer email on this case. Add one on the <strong>Customer</strong> tab to enable sends.
+            {t('service.cd_no_email_send', 'No customer email on this case. Add one on the Customer tab to enable sends.')}
           </p>
         ) : (
           <p className="text-[11.5px] svc-muted mt-1">
-            To: <strong>{customerName ? `${customerName} <${customerEmail}>` : customerEmail}</strong>
+            {t('service.cd_to_label', 'To:')} <strong>{customerName ? `${customerName} <${customerEmail}>` : customerEmail}</strong>
           </p>
         )}
         <div className="flex flex-wrap gap-2 mt-2 items-center">
@@ -1052,8 +1053,8 @@ function CommsTab({
                 <option value="engineer_arrived">engineer_arrived</option>
                 <option value="case_completed">case_completed</option>
               </>
-            ) : templates.map((t) => (
-              <option key={t.key} value={t.key}>{t.key}</option>
+            ) : templates.map((tpl) => (
+              <option key={tpl.key} value={tpl.key}>{tpl.key}</option>
             ))}
           </select>
           <button
@@ -1064,7 +1065,7 @@ function CommsTab({
             data-testid="drawer-comms-send-btn"
           >
             {sending ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
-            {sending ? 'Sending…' : 'Send now'}
+            {sending ? t('service.cd_sending', 'Sending…') : t('service.cd_send_now', 'Send now')}
           </button>
           <button
             type="button"
@@ -1072,7 +1073,7 @@ function CommsTab({
             className="svc-btn svc-btn-secondary svc-btn-sm"
             data-testid="drawer-comms-refresh"
           >
-            <History size={11} /> Refresh log
+            <History size={11} /> {t('service.cd_refresh_log', 'Refresh log')}
           </button>
         </div>
       </div>
@@ -1081,15 +1082,15 @@ function CommsTab({
       <div className="svc-section" data-testid="drawer-comms-log-section">
         <div className="svc-section-head">
           <div className="svc-section-title inline-flex items-center gap-1.5">
-            <History size={13} /> Email history
+            <History size={13} /> {t('service.cd_email_history', 'Email history')}
             <span className="svc-muted text-xs">({commsLog.length})</span>
           </div>
         </div>
         <div className="svc-section-body">
           {commsLoading ? (
-            <div className="svc-empty"><Loader2 size={14} className="animate-spin" /> Loading…</div>
+            <div className="svc-empty"><Loader2 size={14} className="animate-spin" /> {t('service.cd_loading', 'Loading…')}</div>
           ) : commsLog.length === 0 ? (
-            <p className="text-[11.5px] svc-muted italic">No emails have been sent for this case yet.</p>
+            <p className="text-[11.5px] svc-muted italic">{t('service.cd_no_emails', 'No emails have been sent for this case yet.')}</p>
           ) : (
             <ul className="space-y-2" data-testid="drawer-comms-log-list">
               {commsLog.map((row) => (
@@ -1106,14 +1107,14 @@ function CommsTab({
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <span className="font-bold text-sm truncate">{row.subject || '(no subject)'}</span>
+                      <span className="font-bold text-sm truncate">{row.subject || t('service.cd_no_subject', '(no subject)')}</span>
                       <span className="text-[10px] svc-muted tabular-nums">
                         {new Date(row.at).toLocaleString()}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                       <span className="svc-pill" data-testid={`drawer-comms-log-kind-${row.id}`}>
-                        {row.kind === 'case_notify_auto' ? 'auto' : 'manual'}
+                        {row.kind === 'case_notify_auto' ? t('service.cd_auto', 'auto') : t('service.cd_manual', 'manual')}
                       </span>
                       <span className="text-[11px] svc-muted">{row.template_key} · {row.to}</span>
                       {!row.ok && row.error ? (

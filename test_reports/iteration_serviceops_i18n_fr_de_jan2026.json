@@ -1,0 +1,22 @@
+{
+  "summary": "i18n verification for 4 ServiceOps screens (ServiceScheduler, BillingPage, ServiceDeskIntakeForm, ServiceCaseDrawer) across EN/DE/FR. Logged in as owner@isodemo.com, navigated to /service-desk, opened Scheduler tab, Billing tab, Intake modal, and Case Drawer (Timeline/Details/Comms/Lifecycle tabs). Scanned document.body.innerText on each screen for raw key leaks matching /service\\.[a-zA-Z0-9_\\.]+/. Repeated the full sweep after PATCH /api/account/profile language=de, then again with language=fr, and finally reverted the demo account language back to 'en'. All four screens rendered fully translated in DE and FR — 0 leaks found on every pass. DE spot-check confirmed 'Planer' title present. Sidebar and shell chrome also render translated (Fälle, Planer, Kunden, Ausrüstung, Wartung, Lager, Abrechnung, Inventar & Vertrieb, Analysen, Ausgaben, Compliance). Intake modal DE header 'Neuen Servicefall protokollieren' with all 9 step legends localized (Niederlassung, Kontakt vor Ort, Ausrüstung, Seriennummer, Vertragsart & SLA, Beschreibung des Problems, Fotos / Videos anhängen). Billing DE renders 'Bereit für Angebot' filter, Fall/Titel/Kunde/Status/Angebotssumme headers, and 'Keine Fälle in diesem Status' empty state. No console errors related to i18n; only pre-existing CSP warnings for third-party scripts (posthog/cloudflare) and one unrelated React hydration warning (<span> child of <option>) from AIScheduling.js line 436 — not related to this i18n task.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Pre-existing (not part of this task): React hydration warning in /app/frontend/src/pages/ServiceOps/AIScheduling.js line 436 — <span> rendered as child of <option>. Should be plain text inside <option>. Low-priority console noise."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (Pulse operator, Service Desk enabled)",
+  "seed_data_creation": "None. Only PATCH /api/account/profile language toggles (en/de/fr/en). Reverted to 'en' at end.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The service namespace i18n across ServiceScheduler (sched_), BillingPage (svcbill_), ServiceDeskIntakeForm (intake_), ServiceCaseDrawer (cd_) is complete for EN/DE/FR — verified via full body-text leak scan across all four screens in three languages. Demo account language reset to 'en'. If further ServiceOps localization is added, extend the same scan approach.",
+  "rca of the issue": "n/a — no i18n issues found."
+}
