@@ -1,3 +1,18 @@
+# ═══ 2026-08-01 · Supplier Insights — 90-day fault-trend SPARKLINE per row — testing_agent PASS ═══
+Feature: tiny 90-day trend line per supplier in the insights panel so rising fault volumes stand out.
+  • BACKEND routes/suppliers.py GET /suppliers/insights: now returns trend_buckets (weekly, =ceil(days/7)=13 for 90d) and
+    per supplier row a trend[] weekly fault-count array + a `rising` bool (true when recent-half faults > earlier-half).
+  • FRONTEND suppliers.js: new Sparkline component (inline SVG polyline + faint area + end dot; amber when rising, else
+    brand-blue) in a new "90-day trend" column (grid grid-cols-[auto_1fr_auto_auto_auto]); amber TrendingUp icon shown
+    when rising. data-testid supplier-insight-trend-<key>. Sparkline sits inside the existing clickable row button so
+    drill-down expand/collapse still works.
+VERIFIED: testing_agent iteration_supplier_insights_sparkline_jan2026.json — frontend 100% (Unassigned row sparkline = 13
+  points + amber TrendingUp rising; layout clean in modal; click-to-expand still works). Backend curl: trend_buckets=13,
+  rising detection correct, Lite 403. ⚠️ PREVIEW ONLY — needs REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-07-31 · Insights DRILL-DOWN + Head Office equipment-summary 500 FIX — testing_agent PASS ═══
 1) BUGFIX — Head Office "Equipment" area 500: root cause GET /api/reports/equipment-summary raised KeyError
    'equipment_type' for equipment docs missing that field (dealer-distribution / legacy rows). FIX routes/reports.py
