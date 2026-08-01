@@ -17,6 +17,7 @@
  *   POST   /api/svc/ai/summarise/{id}
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
@@ -54,6 +55,8 @@ const STATUS_LABEL = {
   repaired: 'Repaired', awaiting_sign_off: 'Awaiting sign-off', closed: 'Closed',
   invoiced: 'Invoiced', rejected: 'Rejected',
 };
+// i18n: translated status label (falls back to English map)
+const statusLabel = (t, s) => t(`service.cd_status_${s}`, STATUS_LABEL[s] || s);
 
 const PRIORITY_META = {
   p1: { label: 'P1 · Critical', tone: 'p1' },
@@ -61,6 +64,7 @@ const PRIORITY_META = {
   p3: { label: 'P3 · Standard', tone: 'p3' },
   p4: { label: 'P4 · Low', tone: 'p4' },
 };
+const priorityLabel = (t, p) => t(`service.cd_prio_${p}`, PRIORITY_META[p]?.label || p);
 
 function fmtDate(iso) {
   if (!iso) return '—';
@@ -71,30 +75,31 @@ function fmtDate(iso) {
   } catch { return iso; }
 }
 
-function relativeFromNow(iso) {
+function relativeFromNow(iso, t) {
   if (!iso) return '';
   const ms = new Date(iso).getTime() - Date.now();
   const abs = Math.abs(ms);
   const mins = Math.floor(abs / 60000);
   const hours = Math.floor(mins / 60);
   const days = Math.floor(hours / 24);
-  const sign = ms < 0 ? 'overdue ' : '';
+  const sign = ms < 0 ? (t ? `${t('service.cd_overdue', 'overdue')} ` : 'overdue ') : '';
   if (days >= 1) return `${sign}${days}d ${hours % 24}h`;
   if (hours >= 1) return `${sign}${hours}h ${mins % 60}m`;
   return `${sign}${mins}m`;
 }
 
 function SLABadge({ resolveAt }) {
+  const { t } = useTranslation();
   if (!resolveAt) return null;
   const ms = new Date(resolveAt).getTime() - Date.now();
   const breached = ms < 0;
   const atRisk = !breached && ms < 2 * 3600 * 1000;
   const tone = breached ? 'danger' : atRisk ? 'warn' : 'good';
-  const label = breached ? 'SLA breached' : atRisk ? 'SLA at risk' : 'SLA on track';
+  const label = breached ? t('service.cd_sla_breached', 'SLA breached') : atRisk ? t('service.cd_sla_at_risk', 'SLA at risk') : t('service.cd_sla_on_track', 'SLA on track');
   const Icon = breached ? AlertTriangle : tone === 'warn' ? AlertTriangle : Clock;
   return (
     <span className={`svc-pill svc-pill--${tone}`} data-testid="drawer-sla-badge">
-      <Icon size={11} /> {label} · {relativeFromNow(resolveAt)}
+      <Icon size={11} /> {label} · {relativeFromNow(resolveAt, t)}
     </span>
   );
 }
@@ -115,6 +120,7 @@ function TabButton({ id, label, icon: Icon, active, onClick, count }) {
 }
 
 function CrmContextCard({ caseId }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -134,7 +140,7 @@ function CrmContextCard({ caseId }) {
   if (!data || !data.linked) {
     return (
       <div className="svc-card" style={{ padding: 12 }} data-testid="drawer-crm-context-unlinked">
-        <div className="inline-flex items-center gap-1.5 svc-muted text-xs"><Briefcase size={12} /> Not linked to a CRM account yet.</div>
+        <div className="inline-flex items-center gap-1.5 svc-muted text-xs"><Briefcase size={12} /> {t('service.cd_crm_unlinked', 'Not linked to a CRM account yet.')}</div>
       </div>
     );
   }
@@ -142,17 +148,17 @@ function CrmContextCard({ caseId }) {
   return (
     <div className="svc-card" style={{ padding: 14 }} data-testid="drawer-crm-context">
       <div className="flex items-center justify-between mb-2">
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold"><Briefcase size={13} /> Sales context (CRM)</span>
-        <a href={`/crm`} className="svc-link text-[11px]" data-testid="drawer-crm-open">Open in CRM</a>
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold"><Briefcase size={13} /> {t('service.cd_sales_context', 'Sales context (CRM)')}</span>
+        <a href={`/crm`} className="svc-link text-[11px]" data-testid="drawer-crm-open">{t('service.cd_open_crm', 'Open in CRM')}</a>
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs">
-        <div><span className="svc-muted">Account owner</span><div className="font-medium" data-testid="drawer-crm-owner">{data.account_owner || '—'}</div></div>
-        <div><span className="svc-muted">Contract tier</span><div className="font-medium inline-flex items-center gap-1" data-testid="drawer-crm-tier"><Award size={11} />{data.contract_tier || '—'}</div></div>
-        <div><span className="svc-muted">Open deals</span><div className="font-medium" data-testid="drawer-crm-open-deals">{data.open_deal_count} · {gbp(data.open_pipeline_value)}</div></div>
-        <div><span className="svc-muted">Won revenue</span><div className="font-medium inline-flex items-center gap-1"><TrendingUp size={11} />{gbp(data.won_revenue)}</div></div>
+        <div><span className="svc-muted">{t('service.cd_account_owner', 'Account owner')}</span><div className="font-medium" data-testid="drawer-crm-owner">{data.account_owner || '—'}</div></div>
+        <div><span className="svc-muted">{t('service.cd_contract_tier', 'Contract tier')}</span><div className="font-medium inline-flex items-center gap-1" data-testid="drawer-crm-tier"><Award size={11} />{data.contract_tier || '—'}</div></div>
+        <div><span className="svc-muted">{t('service.cd_open_deals', 'Open deals')}</span><div className="font-medium" data-testid="drawer-crm-open-deals">{data.open_deal_count} · {gbp(data.open_pipeline_value)}</div></div>
+        <div><span className="svc-muted">{t('service.cd_won_revenue', 'Won revenue')}</span><div className="font-medium inline-flex items-center gap-1"><TrendingUp size={11} />{gbp(data.won_revenue)}</div></div>
       </div>
       {data.active_contract?.contract_number ? (
-        <div className="text-[11px] svc-muted mt-2">Active contract {data.active_contract.contract_number}{data.active_contract.end_date ? ` · ends ${new Date(data.active_contract.end_date).toLocaleDateString('en-GB')}` : ''}</div>
+        <div className="text-[11px] svc-muted mt-2">{t('service.cd_active_contract', 'Active contract {{num}}', { num: data.active_contract.contract_number })}{data.active_contract.end_date ? ` · ${t('service.cd_ends', 'ends')} ${new Date(data.active_contract.end_date).toLocaleDateString('en-GB')}` : ''}</div>
       ) : null}
       {(data.open_deals || []).length > 0 ? (
         <div className="mt-2 space-y-1" data-testid="drawer-crm-deal-list">
@@ -177,6 +183,7 @@ const TIMELINE_KIND = (type) => {
 };
 
 export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
+  const { t } = useTranslation();
   const [doc, setDoc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -198,9 +205,9 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
     try {
       const r = await axios.post(`${API}/svc/ai/summarise/${caseId}`, {}, auth());
       if (r.data?.ok) setAiSummary(r.data);
-      else notify.error('AI summary unavailable', r.data?.error || 'Try again');
+      else notify.error(t('service.cd_ai_unavailable', 'AI summary unavailable'), r.data?.error || t('service.cd_try_again', 'Try again'));
     } catch (e) {
-      notify.error('AI summary failed', e?.response?.data?.detail || e.message);
+      notify.error(t('service.cd_ai_failed', 'AI summary failed'), e?.response?.data?.detail || e.message);
     } finally { setAiBusy(false); }
   };
 
@@ -212,7 +219,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
       setDoc(r.data);
       setEdits({});
     } catch (e) {
-      notify.error('Failed to load case', e?.response?.data?.detail || e.message);
+      notify.error(t('service.cd_load_case_failed', 'Failed to load case'), e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
   }, [caseId]);
 
@@ -240,11 +247,11 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
       const r = await axios.put(`${API}/svc/cases/${caseId}`, edits, auth());
       setDoc((d) => ({ ...d, ...r.data, events: d?.events || [] }));
       setEdits({});
-      notify.success('Case updated');
+      notify.success(t('service.cd_case_updated', 'Case updated'));
       await load();
       onChanged?.();
     } catch (e) {
-      notify.error('Failed to save', e?.response?.data?.detail || e.message);
+      notify.error(t('service.cd_save_failed', 'Failed to save'), e?.response?.data?.detail || e.message);
     } finally { setSaving(false); }
   };
 
@@ -256,9 +263,9 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
       await axios.post(`${API}/svc/cases/${caseId}/notes`, { body, visibility: 'internal' }, auth());
       setNote('');
       await load();
-      notify.success('Note added');
+      notify.success(t('service.cd_note_added', 'Note added'));
     } catch (e) {
-      notify.error('Failed to add note', e?.response?.data?.detail || e.message);
+      notify.error(t('service.cd_note_failed', 'Failed to add note'), e?.response?.data?.detail || e.message);
     } finally { setSaving(false); }
   };
 
@@ -278,7 +285,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
         setCommsTemplates(tpl.filter((t) => t.audience === 'customer'));
       }
     } catch (e) {
-      notify.error('Failed to load comms', e?.response?.data?.detail || e.message);
+      notify.error(t('service.cd_comms_failed', 'Failed to load comms'), e?.response?.data?.detail || e.message);
     } finally { setCommsLoading(false); }
   }, [caseId, commsTemplates]);
 
@@ -289,7 +296,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
   const sendCustomerEmail = async () => {
     if (!caseId || !commsTemplateKey) return;
     if (!doc?.customer_email) {
-      notify.error('No customer email', 'Set a customer email on the Customer tab first.');
+      notify.error(t('service.cd_no_email', 'No customer email'), t('service.cd_no_email_hint', 'Set a customer email on the Customer tab first.'));
       return;
     }
     setCommsSending(true);
@@ -300,14 +307,14 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
         auth(),
       );
       if (r.data?.ok) {
-        notify.success('Email sent', `${doc.customer_email}`);
+        notify.success(t('service.cd_email_sent', 'Email sent'), `${doc.customer_email}`);
       } else {
-        notify.error('Email send failed', r.data?.log?.error || 'Provider rejected the request');
+        notify.error(t('service.cd_email_failed', 'Email send failed'), r.data?.log?.error || t('service.cd_provider_rejected', 'Provider rejected the request'));
       }
       await loadComms();
       await load();
     } catch (e) {
-      notify.error('Send failed', e?.response?.data?.detail || e.message);
+      notify.error(t('service.cd_send_failed', 'Send failed'), e?.response?.data?.detail || e.message);
     } finally { setCommsSending(false); }
   };
 
@@ -317,7 +324,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
       await axios.put(`${API}/svc/cases/${caseId}`, { comms_auto_notify: next }, auth());
       await load();
     } catch (e) {
-      notify.error('Failed to update', e?.response?.data?.detail || e.message);
+      notify.error(t('service.cd_update_failed', 'Failed to update'), e?.response?.data?.detail || e.message);
     }
   };
 
@@ -332,14 +339,14 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
         window.open(blobUrl, '_blank', 'noopener');
         setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
       })
-      .catch((e) => notify.error('Could not open report', e.message || String(e)));
+      .catch((e) => notify.error(t('service.cd_open_report_failed', 'Could not open report'), e.message || String(e)));
   };
   const emailServiceReport = async () => {
     if (!caseId || reportBusy) return;
     const defaultTo = doc?.customer_email || '';
-    const to = window.prompt('Send the service report to which email?', defaultTo);
+    const to = window.prompt(t('service.cd_report_to', 'Send the service report to which email?'), defaultTo);
     if (!to) return;
-    const note = window.prompt('Add a short note (optional)', '') || '';
+    const note = window.prompt(t('service.cd_short_note', 'Add a short note (optional)'), '') || '';
     setReportBusy('email');
     try {
       const r = await axios.post(
@@ -347,10 +354,10 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
         { to, note },
         auth(),
       );
-      notify.success('Report emailed', `Sent to ${r.data?.to || to}`);
+      notify.success(t('service.cd_report_emailed', 'Report emailed'), t('service.cd_sent_to', 'Sent to {{to}}', { to: r.data?.to || to }));
       await load();
     } catch (e) {
-      notify.error('Could not send report', e?.response?.data?.detail || e.message);
+      notify.error(t('service.cd_report_send_failed', 'Could not send report'), e?.response?.data?.detail || e.message);
     } finally { setReportBusy(''); }
   };
 
@@ -364,29 +371,29 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
       setTrackingUrl(url);
       try {
         await navigator.clipboard.writeText(url);
-        notify.success('Tracking link copied', 'Paste into SMS / WhatsApp / email for the customer.');
+        notify.success(t('service.cd_track_copied', 'Tracking link copied'), t('service.cd_track_copied_hint', 'Paste into SMS / WhatsApp / email for the customer.'));
       } catch {
-        window.prompt('Copy the link below and share with the customer:', url);
+        window.prompt(t('service.cd_copy_link', 'Copy the link below and share with the customer:'), url);
       }
     } catch (e) {
-      notify.error('Could not generate tracking link', e?.response?.data?.detail || e.message);
+      notify.error(t('service.cd_track_gen_failed', 'Could not generate tracking link'), e?.response?.data?.detail || e.message);
     }
   };
   const regenerateTrackingLink = async () => {
     if (!caseId) return;
-    if (!window.confirm('Regenerate the tracking link? The previous link will stop working.')) return;
+    if (!window.confirm(t('service.cd_regen_confirm', 'Regenerate the tracking link? The previous link will stop working.'))) return;
     try {
       const r = await axios.post(`${API}/svc/cases/${caseId}/tracking-link/regenerate`, {}, auth());
       const url = r.data?.url || '';
       setTrackingUrl(url);
       try {
         await navigator.clipboard.writeText(url);
-        notify.success('New tracking link copied', 'Old link is now invalid.');
+        notify.success(t('service.cd_new_track_copied', 'New tracking link copied'), t('service.cd_old_link_invalid', 'Old link is now invalid.'));
       } catch {
-        window.prompt('Copy the new link:', url);
+        window.prompt(t('service.cd_copy_new_link', 'Copy the new link:'), url);
       }
     } catch (e) {
-      notify.error('Could not regenerate', e?.response?.data?.detail || e.message);
+      notify.error(t('service.cd_regen_failed', 'Could not regenerate'), e?.response?.data?.detail || e.message);
     }
   };
 
@@ -420,11 +427,11 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
         auth(),
       );
       setTransitionReason('');
-      notify.success(`Moved to ${STATUS_LABEL[target] || target}`);
+      notify.success(t('service.cd_moved_to', 'Moved to {{status}}', { status: statusLabel(t, target) }));
       await load();
       onChanged?.();
     } catch (e) {
-      notify.error('Transition rejected', e?.response?.data?.detail || e.message);
+      notify.error(t('service.cd_transition_rejected', 'Transition rejected'), e?.response?.data?.detail || e.message);
     } finally { setSaving(false); }
   };
 
@@ -448,11 +455,11 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
       setTransitionReason('');
       const tgt = ratingTarget;
       setRatingTarget(null); setRating(0); setRatingComment('');
-      notify.success(rating > 0 ? `Closed · thanks for rating ${rating} stars` : `Moved to ${STATUS_LABEL[tgt] || tgt}`);
+      notify.success(rating > 0 ? t('service.cd_closed_rating', 'Closed · thanks for rating {{n}} stars', { n: rating }) : t('service.cd_moved_to', 'Moved to {{status}}', { status: statusLabel(t, tgt) }));
       await load();
       onChanged?.();
     } catch (e) {
-      notify.error('Could not close', e?.response?.data?.detail || e.message);
+      notify.error(t('service.cd_close_failed', 'Could not close'), e?.response?.data?.detail || e.message);
     } finally { setRatingSubmitting(false); }
   };
 
@@ -471,11 +478,11 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
         auth(),
       );
       setTransitionReason('');
-      notify.success(`Moved to ${STATUS_LABEL[tgt] || tgt}`);
+      notify.success(t('service.cd_moved_to', 'Moved to {{status}}', { status: statusLabel(t, tgt) }));
       await load();
       onChanged?.();
     } catch (e) {
-      notify.error('Transition rejected', e?.response?.data?.detail || e.message);
+      notify.error(t('service.cd_transition_rejected', 'Transition rejected'), e?.response?.data?.detail || e.message);
     } finally { setSaving(false); }
   };
 
@@ -488,30 +495,30 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
       <aside
         className="svc-drawer"
         role="dialog"
-        aria-label="Service case detail"
+        aria-label={t('service.cd_case_detail', 'Service case detail')}
         style={{ maxWidth: 720 }}
       >
         {/* Header */}
         <header className="svc-drawer-head">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="svc-eyebrow">{merged?.reference || 'Loading…'}</p>
+              <p className="svc-eyebrow">{merged?.reference || t('service.cd_loading', 'Loading…')}</p>
               <h2 className="svc-h1" style={{ fontSize: 19, marginTop: 2 }} data-testid="drawer-title">
                 {merged?.title || (loading ? '…' : 'Untitled case')}
               </h2>
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <span className={`svc-pill svc-pill--${pri.tone === 'p1' ? 'danger' : pri.tone === 'p2' ? 'warn' : pri.tone === 'p3' ? 'info' : ''}`} data-testid="drawer-priority">
-                  {pri.label}
+                  {priorityLabel(t, merged?.priority)}
                 </span>
                 <span className="svc-pill" data-testid="drawer-status">
-                  {STATUS_LABEL[merged?.status] || merged?.status || '—'}
+                  {statusLabel(t, merged?.status) || merged?.status || '—'}
                 </span>
                 <SLABadge resolveAt={merged?.sla_resolve_at} />
                 {merged?.customer_po_number ? (
                   <span
                     className="svc-pill inline-flex items-center gap-1"
                     style={{ background: '#ecfeff', color: '#0e7490', fontWeight: 700 }}
-                    title="Customer PO / reference — links this chargeable job to the customer's purchase order"
+                    title={t('service.cd_po_title', "Customer PO / reference — links this chargeable job to the customer's purchase order")}
                     data-testid="drawer-customer-po">
                     PO / Ref: {merged.customer_po_number}
                   </span>
@@ -535,17 +542,17 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
 
         {/* Tabs */}
         <div className="svc-tabs" style={{ margin: 0, padding: '0 18px' }}>
-          <TabButton id="timeline" label="Timeline" icon={Activity} active={tab === 'timeline'} onClick={() => setTab('timeline')} count={events.length} />
-          <TabButton id="details" label="Details" icon={Wrench} active={tab === 'details'} onClick={() => setTab('details')} />
-          <TabButton id="customer" label="Customer" icon={UserIcon} active={tab === 'customer'} onClick={() => setTab('customer')} />
-          <TabButton id="comms" label="Comms" icon={Bell} active={tab === 'comms'} onClick={() => setTab('comms')} />
-          <TabButton id="lifecycle" label="Lifecycle" icon={Route} active={tab === 'lifecycle'} onClick={() => setTab('lifecycle')} />
+          <TabButton id="timeline" label={t('service.cd_tab_timeline', 'Timeline')} icon={Activity} active={tab === 'timeline'} onClick={() => setTab('timeline')} count={events.length} />
+          <TabButton id="details" label={t('service.cd_tab_details', 'Details')} icon={Wrench} active={tab === 'details'} onClick={() => setTab('details')} />
+          <TabButton id="customer" label={t('service.cd_tab_customer', 'Customer')} icon={UserIcon} active={tab === 'customer'} onClick={() => setTab('customer')} />
+          <TabButton id="comms" label={t('service.cd_tab_comms', 'Comms')} icon={Bell} active={tab === 'comms'} onClick={() => setTab('comms')} />
+          <TabButton id="lifecycle" label={t('service.cd_tab_lifecycle', 'Lifecycle')} icon={Route} active={tab === 'lifecycle'} onClick={() => setTab('lifecycle')} />
         </div>
 
         {/* Body */}
         <div className="svc-drawer-body space-y-4">
           {loading ? (
-            <div className="flex items-center gap-2 text-sm svc-muted"><Loader2 size={14} className="animate-spin" /> Loading case…</div>
+            <div className="flex items-center gap-2 text-sm svc-muted"><Loader2 size={14} className="animate-spin" /> {t('service.cd_loading_case', 'Loading case…')}</div>
           ) : tab === 'timeline' ? (
             <>
               {/* AI summary */}
@@ -566,29 +573,29 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                 {aiSummary ? (
                   <div className="space-y-2 text-xs mt-2">
                     <div>
-                      <p className="svc-label" style={{ marginBottom: 2 }}>For the customer</p>
+                      <p className="svc-label" style={{ marginBottom: 2 }}>{t('service.cd_for_customer', 'For the customer')}</p>
                       <p data-testid="drawer-ai-customer-summary" style={{ lineHeight: 1.55 }}>{aiSummary.customer_summary}</p>
                     </div>
                     {aiSummary.engineer_summary ? (
                       <div>
-                        <p className="svc-label" style={{ marginBottom: 2 }}>For the engineer</p>
+                        <p className="svc-label" style={{ marginBottom: 2 }}>{t('service.cd_for_engineer', 'For the engineer')}</p>
                         <p data-testid="drawer-ai-engineer-summary" style={{ lineHeight: 1.55 }}>{aiSummary.engineer_summary}</p>
                       </div>
                     ) : null}
                   </div>
                 ) : (
-                  <p className="text-[11.5px] svc-muted mt-2">One-click summary of every event so far — one for the customer, one for the engineer.</p>
+                  <p className="text-[11.5px] svc-muted mt-2">{t('service.cd_ai_summary_hint', 'One-click summary of every event so far — one for the customer, one for the engineer.')}</p>
                 )}
               </div>
 
               {/* Add note */}
               <div className="svc-card-base p-3">
-                <p className="svc-label">Add internal note</p>
+                <p className="svc-label">{t('service.cd_add_note', 'Add internal note')}</p>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   rows={2}
-                  placeholder="Customer called back to confirm engineer access…"
+                  placeholder={t('service.cd_note_ph', 'Customer called back to confirm engineer access…')}
                   className="svc-textarea"
                   style={{ fontFamily: 'inherit', fontSize: 13 }}
                   data-testid="drawer-note-input"
@@ -601,7 +608,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                     className="svc-btn svc-btn-primary svc-btn-sm"
                     data-testid="drawer-note-submit"
                   >
-                    <Send size={11} /> Add note
+                    <Send size={11} /> {t('service.cd_add_note_btn', 'Add note')}
                   </button>
                 </div>
               </div>
@@ -609,19 +616,19 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
               {/* Timeline */}
               <ol className="svc-timeline" data-testid="drawer-timeline">
                 {events.length === 0 ? (
-                  <li className="text-sm svc-muted">No timeline events yet.</li>
+                  <li className="text-sm svc-muted">{t('service.cd_no_events', 'No timeline events yet.')}</li>
                 ) : events.map((ev) => {
                   const kind = TIMELINE_KIND(ev.type);
                   return (
                     <li key={ev.id} className={kind ? `svc-tl--${kind}` : ''}>
                       <p className="svc-tl-meta">
                         {ev.type === 'state_change'
-                          ? `${STATUS_LABEL[ev.from_state] || ev.from_state} → ${STATUS_LABEL[ev.to_state] || ev.to_state}`
+                          ? `${statusLabel(t, ev.from_state)} → ${statusLabel(t, ev.to_state)}`
                           : ev.type}
                         <span className="svc-tl-meta-time"> · {fmtDate(ev.at)}{ev.actor_name ? ` · ${ev.actor_name}` : ''}</span>
                       </p>
                       {ev.body ? <p className="svc-tl-body">{ev.body}</p> : null}
-                      {ev.reason ? <p className="svc-tl-reason">Reason: {ev.reason}</p> : null}
+                      {ev.reason ? <p className="svc-tl-reason">{t('service.cd_reason', 'Reason:')} {ev.reason}</p> : null}
                     </li>
                   );
                 })}
@@ -648,47 +655,47 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                 </div>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label="Title">
+                <Field label={t('service.cd_f_title', 'Title')}>
                   <input value={merged.title || ''} onChange={(e) => setEdit('title', e.target.value)} className="svc-input" data-testid="drawer-edit-title" />
                 </Field>
-                <Field label="Priority">
+                <Field label={t('service.cd_f_priority', 'Priority')}>
                   <select value={merged.priority || 'p3'} onChange={(e) => setEdit('priority', e.target.value)} className="svc-select" data-testid="drawer-edit-priority">
-                    <option value="p1">P1 — Critical</option>
-                    <option value="p2">P2 — High</option>
-                    <option value="p3">P3 — Standard</option>
-                    <option value="p4">P4 — Low</option>
+                    <option value="p1">{t('service.cd_prio_p1', 'P1 · Critical')}</option>
+                    <option value="p2">{t('service.cd_prio_p2', 'P2 · High')}</option>
+                    <option value="p3">{t('service.cd_prio_p3', 'P3 · Standard')}</option>
+                    <option value="p4">{t('service.cd_prio_p4', 'P4 · Low')}</option>
                   </select>
                 </Field>
-                <Field label="Site">
+                <Field label={t('service.cd_f_site', 'Site')}>
                   <input value={merged.site_name || ''} onChange={(e) => setEdit('site_name', e.target.value)} className="svc-input" data-testid="drawer-edit-site" />
               </Field>
-              <Field label="Asset">
+              <Field label={t('service.cd_f_asset', 'Asset')}>
                 <input value={merged.asset_name || ''} onChange={(e) => setEdit('asset_name', e.target.value)} className="svc-input" data-testid="drawer-edit-asset" />
               </Field>
-              <Field label="Fault code">
+              <Field label={t('service.cd_f_fault', 'Fault code')}>
                 <input value={merged.fault_code || ''} onChange={(e) => setEdit('fault_code', e.target.value)} className="svc-input" data-testid="drawer-edit-fault" />
               </Field>
-              <Field label="Case type">
+              <Field label={t('service.cd_f_case_type', 'Case type')}>
                 <select value={merged.case_type || ''} onChange={(e) => setEdit('case_type', e.target.value)} className="svc-select" data-testid="drawer-edit-case-type">
                   <option value="">—</option>
-                  <option value="repair">Repair</option>
-                  <option value="ppm">PPM</option>
-                  <option value="install">Install</option>
+                  <option value="repair">{t('service.cd_type_repair', 'Repair')}</option>
+                  <option value="ppm">{t('service.cd_type_ppm', 'PPM')}</option>
+                  <option value="install">{t('service.cd_type_install', 'Install')}</option>
                 </select>
               </Field>
-              <Field label="Cover type">
+              <Field label={t('service.cd_f_cover', 'Cover type')}>
                 <select value={merged.cover_type || ''} onChange={(e) => setEdit('cover_type', e.target.value)} className="svc-select" data-testid="drawer-edit-cover">
                   <option value="">—</option>
-                  <option value="contract">Contract</option>
-                  <option value="warranty">Warranty</option>
-                  <option value="chargeable">Chargeable</option>
+                  <option value="contract">{t('service.cd_cover_contract', 'Contract')}</option>
+                  <option value="warranty">{t('service.cd_cover_warranty', 'Warranty')}</option>
+                  <option value="chargeable">{t('service.cd_cover_chargeable', 'Chargeable')}</option>
                 </select>
               </Field>
-              <Field label="Engineer">
+              <Field label={t('service.cd_f_engineer', 'Engineer')}>
                 <input
                   value={merged.assigned_engineer_name || ''}
                   onChange={(e) => setEdit('assigned_engineer_name', e.target.value)}
-                  placeholder="Unassigned"
+                  placeholder={t('service.cd_unassigned', 'Unassigned')}
                   className="svc-input"
                   data-testid="drawer-edit-engineer"
                 />

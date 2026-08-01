@@ -9,6 +9,7 @@
  * Iter 216v (Phase 3).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { HardHat, Plus, Loader2, Trash2, Save, BadgeCheck, X, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
@@ -28,6 +29,7 @@ const QUAL_SUGGESTIONS = [
 ];
 
 export default function EngineersAdminPage() {
+  const { t } = useTranslation();
   const [engineers, setEngineers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -53,7 +55,7 @@ export default function EngineersAdminPage() {
       setEngineers(engRes.data.engineers || []);
       setRequests(reqRes.data.requests || []);
     } catch {
-      toast.error('Could not load engineers');
+      toast.error(t('service.eng_load_failed', 'Could not load engineers'));
     }
     setLoading(false);
   }, []);
@@ -64,10 +66,10 @@ export default function EngineersAdminPage() {
     setReqBusy(id);
     try {
       await axios.post(`${API}/svc/access-requests/${id}/${action}`, {}, auth());
-      toast.success(action === 'approve' ? 'Access granted' : 'Request declined');
+      toast.success(action === 'approve' ? t('service.eng_access_granted', 'Access granted') : t('service.eng_request_declined', 'Request declined'));
       await load();
     } catch (e) {
-      toast.error(e?.response?.data?.detail || 'Could not update request');
+      toast.error(e?.response?.data?.detail || t('service.eng_request_update_failed', 'Could not update request'));
     } finally {
       setReqBusy('');
     }
@@ -75,7 +77,7 @@ export default function EngineersAdminPage() {
 
   const create = async () => {
     if (!addForm.email || !addForm.full_name) {
-      toast.error('Email and name are required');
+      toast.error(t('service.eng_email_name_required', 'Email and name are required'));
       return;
     }
     setAddBusy(true);
@@ -87,7 +89,7 @@ export default function EngineersAdminPage() {
         payload.years_experience = Math.max(0, parseInt(payload.years_experience, 10) || 0);
       }
       await axios.post(`${API}/svc/engineers`, payload, auth());
-      toast.success('Engineer added');
+      toast.success(t('service.eng_added', 'Engineer added'));
       setShowAdd(false);
       setAddForm({
         email: '', full_name: '', mobile: '', vehicle_reg: '', sage_user_id: '', skills: [],
@@ -95,7 +97,7 @@ export default function EngineersAdminPage() {
       });
       await load();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Could not add engineer');
+      toast.error(e.response?.data?.detail || t('service.eng_add_failed', 'Could not add engineer'));
     }
     setAddBusy(false);
   };
@@ -110,23 +112,23 @@ export default function EngineersAdminPage() {
         payload.years_experience = Math.max(0, parseInt(payload.years_experience, 10) || 0);
       }
       await axios.patch(`${API}/svc/engineers/${id}`, payload, auth());
-      toast.success('Saved');
+      toast.success(t('service.eng_saved', 'Saved'));
       setEditingId(null);
       setEditDraft({});
       await load();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Save failed');
+      toast.error(e.response?.data?.detail || t('service.eng_save_failed', 'Save failed'));
     }
   };
 
   const deactivate = async (id) => {
-    if (!window.confirm('Deactivate this engineer? They won’t receive new assignments.')) return;
+    if (!window.confirm(t('service.eng_deactivate_confirm', 'Deactivate this engineer? They won’t receive new assignments.'))) return;
     try {
       await axios.delete(`${API}/svc/engineers/${id}`, auth());
-      toast.success('Deactivated');
+      toast.success(t('service.eng_deactivated', 'Deactivated'));
       await load();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Failed');
+      toast.error(e.response?.data?.detail || t('service.eng_failed', 'Failed'));
     }
   };
 
@@ -181,7 +183,7 @@ export default function EngineersAdminPage() {
       window.open(url, '_blank', 'noopener');
     } catch (e) {
       const msg = e?.response?.data?.detail || e.message;
-      toast.error(`Cannot preview ${engineerName}`, { description: msg });
+      toast.error(t('service.eng_cannot_preview', 'Cannot preview {{name}}', { name: engineerName }), { description: msg });
     }
   };
 
@@ -204,15 +206,15 @@ export default function EngineersAdminPage() {
       className="svc-btn svc-btn-primary"
       data-testid="engineers-add-btn"
     >
-      <Plus size={14} /> Add engineer
+      <Plus size={14} /> {t('service.eng_add', 'Add engineer')}
     </button>
   ), []);
 
   return (
     <ServiceOpsShell
       active="engineers"
-      title="Engineers"
-      subtitle="Profiles, skills, vehicles & Sage links — drives AI auto-assign."
+      title={t('service.eng_title', 'Engineers')}
+      subtitle={t('service.eng_subtitle', 'Profiles, skills, vehicles & Sage links — drives AI auto-assign.')}
       icon={HardHat}
       actions={actions}
     >
@@ -223,7 +225,7 @@ export default function EngineersAdminPage() {
           data-testid="access-requests-panel"
         >
           <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)', marginBottom: 10 }}>
-            Machine access requests ({requests.length})
+            {t('service.eng_access_requests', 'Machine access requests ({{n}})', { n: requests.length })}
           </p>
           <div className="space-y-2">
             {requests.map((r) => (
@@ -239,7 +241,7 @@ export default function EngineersAdminPage() {
                     {r.engineer_company ? <span style={{ color: 'var(--theme-text-muted)', fontWeight: 400 }}> · {r.engineer_company}</span> : null}
                   </p>
                   <p className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>
-                    wants access to <b>{r.equipment_name || 'a machine'}</b>
+                    {t('service.eng_wants_access', 'wants access to')} <b>{r.equipment_name || t('service.eng_a_machine', 'a machine')}</b>
                     {r.message ? ` — "${r.message}"` : ''}
                   </p>
                 </div>
@@ -252,7 +254,7 @@ export default function EngineersAdminPage() {
                     style={{ background: '#059669' }}
                     data-testid={`access-request-approve-${r.id}`}
                   >
-                    {reqBusy === r.id ? '…' : 'Approve'}
+                    {reqBusy === r.id ? '…' : t('service.eng_approve', 'Approve')}
                   </button>
                   <button
                     type="button"
@@ -262,7 +264,7 @@ export default function EngineersAdminPage() {
                     style={{ border: '1px solid var(--theme-border)', color: 'var(--theme-text-muted)' }}
                     data-testid={`access-request-decline-${r.id}`}
                   >
-                    Decline
+                    {t('service.eng_decline', 'Decline')}
                   </button>
                 </div>
               </div>
@@ -277,27 +279,27 @@ export default function EngineersAdminPage() {
           data-testid="engineers-add-form"
         >
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <Field label="Email (existing teammate)">
+            <Field label={t('service.eng_email_existing', 'Email (existing teammate)')}>
               <input className="svc-input" data-testid="engineers-add-email"
                 value={addForm.email}
                 onChange={(e) => setAddForm({ ...addForm, email: e.target.value })} />
             </Field>
-            <Field label="Full name">
+            <Field label={t('service.eng_full_name', 'Full name')}>
               <input className="svc-input" data-testid="engineers-add-name"
                 value={addForm.full_name}
                 onChange={(e) => setAddForm({ ...addForm, full_name: e.target.value })} />
             </Field>
-            <Field label="Mobile">
+            <Field label={t('service.eng_mobile', 'Mobile')}>
               <input className="svc-input" data-testid="engineers-add-mobile"
                 value={addForm.mobile}
                 onChange={(e) => setAddForm({ ...addForm, mobile: e.target.value })} />
             </Field>
-            <Field label="Vehicle reg">
+            <Field label={t('service.eng_vehicle_reg', 'Vehicle reg')}>
               <input className="svc-input" data-testid="engineers-add-vehicle"
                 value={addForm.vehicle_reg}
                 onChange={(e) => setAddForm({ ...addForm, vehicle_reg: e.target.value })} />
             </Field>
-            <Field label="Sage user ID">
+            <Field label={t('service.eng_sage_user_id', 'Sage user ID')}>
               <input className="svc-input" data-testid="engineers-add-sage"
                 value={addForm.sage_user_id}
                 onChange={(e) => setAddForm({ ...addForm, sage_user_id: e.target.value })} />
@@ -312,11 +314,11 @@ export default function EngineersAdminPage() {
             data-testid="engineers-add-trust-panel"
           >
             <div className="text-xs svc-muted mb-2" style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Trust profile · shown to customers on the live-tracking page
+              {t('service.eng_trust_profile', 'Trust profile · shown to customers on the live-tracking page')}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <Field label="Photo URL (optional)">
+                <Field label={t('service.eng_photo_url_opt', 'Photo URL (optional)')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {addForm.photo_url ? (
                       <img
@@ -328,7 +330,7 @@ export default function EngineersAdminPage() {
                     ) : null}
                     <input
                       className="svc-input"
-                      placeholder="https://… (square image works best)"
+                      placeholder={t('service.eng_photo_ph', 'https://… (square image works best)')}
                       value={addForm.photo_url}
                       onChange={(e) => setAddForm({ ...addForm, photo_url: e.target.value })}
                       data-testid="engineers-add-photo"
@@ -336,13 +338,13 @@ export default function EngineersAdminPage() {
                     />
                   </div>
                 </Field>
-                <Field label="Years of experience">
+                <Field label={t('service.eng_years_exp', 'Years of experience')}>
                   <input
                     type="number"
                     min={0}
                     max={60}
                     className="svc-input"
-                    placeholder="e.g. 8"
+                    placeholder={t('service.eng_years_ph', 'e.g. 8')}
                     value={addForm.years_experience}
                     onChange={(e) => setAddForm({ ...addForm, years_experience: e.target.value })}
                     data-testid="engineers-add-years"
@@ -360,11 +362,11 @@ export default function EngineersAdminPage() {
                     data-testid="engineers-add-verified-checkbox"
                   />
                   <BadgeCheck size={14} color={addForm.verified ? '#10b981' : '#94a3b8'} />
-                  <span style={{ fontWeight: 600 }}>Verified engineer</span>
+                  <span style={{ fontWeight: 600 }}>{t('service.eng_verified', 'Verified engineer')}</span>
                 </label>
               </div>
               <div>
-                <div className="svc-field-label">Qualifications</div>
+                <div className="svc-field-label">{t('service.eng_qualifications', 'Qualifications')}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
                   {(addForm.qualifications || []).map((q) => (
                     <span
@@ -385,7 +387,7 @@ export default function EngineersAdminPage() {
                     </span>
                   ))}
                   {(addForm.qualifications || []).length === 0 ? (
-                    <span className="svc-muted text-xs">Pick from below or type your own</span>
+                    <span className="svc-muted text-xs">{t('service.eng_pick_or_type', 'Pick from below or type your own')}</span>
                   ) : null}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
@@ -406,7 +408,7 @@ export default function EngineersAdminPage() {
                 </div>
                 <input
                   className="svc-input"
-                  placeholder="Add custom qualification & press Enter"
+                  placeholder={t('service.eng_add_custom_qual', 'Add custom qualification & press Enter')}
                   data-testid="engineers-add-qual-custom"
                   onKeyDown={(ev) => {
                     if (ev.key === 'Enter') {
@@ -422,9 +424,9 @@ export default function EngineersAdminPage() {
 
           <div className="flex gap-2 mt-3">
             <button type="button" className="svc-btn svc-btn-primary" onClick={create} disabled={addBusy} data-testid="engineers-add-submit">
-              {addBusy ? <Loader2 size={14} className="animate-spin" /> : null} Add engineer
+              {addBusy ? <Loader2 size={14} className="animate-spin" /> : null} {t('service.eng_add', 'Add engineer')}
             </button>
-            <button type="button" className="svc-btn-secondary" onClick={() => setShowAdd(false)}>Cancel</button>
+            <button type="button" className="svc-btn-secondary" onClick={() => setShowAdd(false)}>{t('service.eng_cancel', 'Cancel')}</button>
           </div>
         </section>
       ) : null}
@@ -433,21 +435,21 @@ export default function EngineersAdminPage() {
         <table className="svc-table" data-testid="engineers-table" style={{ minWidth: '52rem' }}>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Mobile</th>
-              <th>Vehicle</th>
-              <th>Skills</th>
-              <th>Sage</th>
-              <th style={{ textAlign: 'right' }}>Open jobs</th>
-              <th>Status</th>
+              <th>{t('service.eng_col_name', 'Name')}</th>
+              <th>{t('service.eng_col_mobile', 'Mobile')}</th>
+              <th>{t('service.eng_col_vehicle', 'Vehicle')}</th>
+              <th>{t('service.eng_col_skills', 'Skills')}</th>
+              <th>{t('service.eng_col_sage', 'Sage')}</th>
+              <th style={{ textAlign: 'right' }}>{t('service.eng_col_open_jobs', 'Open jobs')}</th>
+              <th>{t('service.eng_col_status', 'Status')}</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ padding: 16, opacity: 0.6 }}>Loading…</td></tr>
+              <tr><td colSpan={8} style={{ padding: 16, opacity: 0.6 }}>{t('service.eng_loading', 'Loading…')}</td></tr>
             ) : engineers.length === 0 ? (
-              <tr><td colSpan={8} style={{ padding: 16, opacity: 0.6 }}>No engineers yet — add one above.</td></tr>
+              <tr><td colSpan={8} style={{ padding: 16, opacity: 0.6 }}>{t('service.eng_empty', 'No engineers yet — add one above.')}</td></tr>
             ) : engineers.map((e) => {
               const editing = editingId === e.id;
               return (
@@ -467,7 +469,7 @@ export default function EngineersAdminPage() {
                         <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                           {e.full_name}
                           {e.verified ? (
-                            <BadgeCheck size={13} color="#10b981" data-testid={`engineer-verified-${e.id}`} title="Verified — shown on customer tracking page" />
+                            <BadgeCheck size={13} color="#10b981" data-testid={`engineer-verified-${e.id}`} title={t('service.eng_verified_title', 'Verified — shown on customer tracking page')} />
                           ) : null}
                         </div>
                         <div className="text-xs svc-muted">{e.email}</div>
@@ -511,26 +513,26 @@ export default function EngineersAdminPage() {
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{e.open_jobs ?? 0}</td>
                   <td>
                     <span className={`svc-pill ${e.active === false ? 'svc-pill-muted' : 'svc-pill-success'}`}>
-                      {e.active === false ? 'Inactive' : 'Active'}
+                      {e.active === false ? t('service.eng_inactive', 'Inactive') : t('service.eng_active', 'Active')}
                     </span>
                   </td>
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                     {editing ? (
                       <>
                         <button type="button" className="svc-btn-primary svc-btn-sm" onClick={() => save(e.id)} data-testid={`engineer-save-${e.id}`}>
-                          <Save size={12} /> Save
+                          <Save size={12} /> {t('service.eng_save', 'Save')}
                         </button>
                         <button type="button" className="svc-btn-secondary svc-btn-sm" onClick={() => { setEditingId(null); setEditDraft({}); }}>
-                          Cancel
+                          {t('service.eng_cancel', 'Cancel')}
                         </button>
                       </>
                     ) : (
                       <>
-                        <button type="button" className="svc-btn-secondary svc-btn-sm" onClick={() => previewTracking(e.id, e.full_name)} data-testid={`engineer-preview-${e.id}`} title="Preview customer-facing tracking page">
-                          <ExternalLink size={11} /> Preview
+                        <button type="button" className="svc-btn-secondary svc-btn-sm" onClick={() => previewTracking(e.id, e.full_name)} data-testid={`engineer-preview-${e.id}`} title={t('service.eng_preview_title', 'Preview customer-facing tracking page')}>
+                          <ExternalLink size={11} /> {t('service.eng_preview', 'Preview')}
                         </button>
                         <button type="button" className="svc-btn-secondary svc-btn-sm" onClick={() => beginEdit(e)} data-testid={`engineer-edit-${e.id}`}>
-                          Edit
+                          {t('service.eng_edit', 'Edit')}
                         </button>
                         {e.active !== false ? (
                           <button type="button" className="svc-btn-secondary svc-btn-sm" onClick={() => deactivate(e.id)} data-testid={`engineer-deactivate-${e.id}`}>
@@ -546,7 +548,7 @@ export default function EngineersAdminPage() {
                     <td colSpan={8} style={{ padding: 12 }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
                         <div>
-                          <div className="svc-field-label">Photo URL</div>
+                          <div className="svc-field-label">{t('service.eng_photo_url', 'Photo URL')}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             {editDraft.photo_url ? (
                               <img
@@ -558,20 +560,20 @@ export default function EngineersAdminPage() {
                             ) : null}
                             <input
                               className="svc-input svc-input-sm"
-                              placeholder="https://… (square image works best)"
+                              placeholder={t('service.eng_photo_ph', 'https://… (square image works best)')}
                               value={editDraft.photo_url || ''}
                               onChange={(ev) => setEditDraft({ ...editDraft, photo_url: ev.target.value })}
                               data-testid={`engineer-photo-input-${e.id}`}
                               style={{ flex: 1 }}
                             />
                           </div>
-                          <div className="svc-field-label" style={{ marginTop: 10 }}>Years of experience</div>
+                          <div className="svc-field-label" style={{ marginTop: 10 }}>{t('service.eng_years_exp', 'Years of experience')}</div>
                           <input
                             type="number"
                             min={0}
                             max={60}
                             className="svc-input svc-input-sm"
-                            placeholder="e.g. 8"
+                            placeholder={t('service.eng_years_ph', 'e.g. 8')}
                             value={editDraft.years_experience}
                             onChange={(ev) => setEditDraft({ ...editDraft, years_experience: ev.target.value })}
                             data-testid={`engineer-years-input-${e.id}`}
@@ -588,14 +590,14 @@ export default function EngineersAdminPage() {
                               data-testid={`engineer-verified-checkbox-${e.id}`}
                             />
                             <BadgeCheck size={14} color={editDraft.verified ? '#10b981' : '#94a3b8'} />
-                            <span style={{ fontWeight: 600 }}>Verified engineer</span>
+                            <span style={{ fontWeight: 600 }}>{t('service.eng_verified', 'Verified engineer')}</span>
                             <span className="svc-muted text-xs" style={{ marginLeft: 4 }}>
-                              shown to customers on the live-tracking page
+                              {t('service.eng_shown_customers', 'shown to customers on the live-tracking page')}
                             </span>
                           </label>
                         </div>
                         <div>
-                          <div className="svc-field-label">Qualifications</div>
+                          <div className="svc-field-label">{t('service.eng_qualifications', 'Qualifications')}</div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
                             {(editDraft.qualifications || []).map((q) => (
                               <span
@@ -609,14 +611,14 @@ export default function EngineersAdminPage() {
                                   type="button"
                                   onClick={() => toggleQual(q)}
                                   style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}
-                                  aria-label={`Remove ${q}`}
+                                  aria-label={t('service.eng_remove_qual', 'Remove {{q}}', { q })}
                                 >
                                   <X size={11} />
                                 </button>
                               </span>
                             ))}
                             {(editDraft.qualifications || []).length === 0 ? (
-                              <span className="svc-muted text-xs">None — pick from below or type your own</span>
+                              <span className="svc-muted text-xs">{t('service.eng_none_pick', 'None — pick from below or type your own')}</span>
                             ) : null}
                           </div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
@@ -637,7 +639,7 @@ export default function EngineersAdminPage() {
                           </div>
                           <input
                             className="svc-input svc-input-sm"
-                            placeholder="Add custom qualification & press Enter"
+                            placeholder={t('service.eng_add_custom_qual', 'Add custom qualification & press Enter')}
                             data-testid={`engineer-qual-custom-${e.id}`}
                             onKeyDown={(ev) => {
                               if (ev.key === 'Enter') {

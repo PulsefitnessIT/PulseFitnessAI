@@ -12,6 +12,7 @@
  *  • Audit feed (filterable timeline)
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import {
   BarChart3, RefreshCw, Sparkles, Activity, Gauge,
@@ -28,9 +29,9 @@ const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
 
 const RANGES = [
-  { id: '7', label: 'Last 7 days', days: 7 },
-  { id: '30', label: 'Last 30 days', days: 30 },
-  { id: '90', label: 'Last 90 days', days: 90 },
+  { id: '7', labelKey: 'service.rep_range_7', label: 'Last 7 days', days: 7 },
+  { id: '30', labelKey: 'service.rep_range_30', label: 'Last 30 days', days: 30 },
+  { id: '90', labelKey: 'service.rep_range_90', label: 'Last 90 days', days: 90 },
 ];
 
 function gbp(n) { return formatMoneySync(n, { minimumFractionDigits: 0 }); }
@@ -64,6 +65,7 @@ function KPI({ label, value, sub, testid }) {
 }
 
 export default function ServiceOpsReportsPage() {
+  const { t } = useTranslation();
   useLocalization();  // warm currency cache
   const [rangeId, setRangeId] = useState('30');
   const range = RANGES.find((r) => r.id === rangeId) || RANGES[1];
@@ -91,11 +93,11 @@ export default function ServiceOpsReportsPage() {
   const applyView = (view) => {
     if (view?.range_id) setRangeId(view.range_id);
     if (view?.filters) setFilters(view.filters);
-    notify.success('Loaded view', view.name);
+    notify.success(t('service.rep_loaded_view', 'Loaded view'), view.name);
   };
 
   const saveView = async () => {
-    const name = window.prompt('Name this view (e.g. "Weekly exec summary")');
+    const name = window.prompt(t('service.rep_name_view', 'Name this view (e.g. "Weekly exec summary")'));
     if (!name) return;
     try {
       await axios.post(`${API}/svc/views`, {
@@ -104,20 +106,20 @@ export default function ServiceOpsReportsPage() {
         route: '/service-ops/reports',
       }, auth());
       await loadSavedViews();
-      notify.success('View saved', name);
+      notify.success(t('service.rep_view_saved', 'View saved'), name);
     } catch (e) {
-      notify.error('Save failed', e?.response?.data?.detail || e.message);
+      notify.error(t('service.rep_save_failed', 'Save failed'), e?.response?.data?.detail || e.message);
     }
   };
 
   const deleteView = async (view) => {
-    if (!window.confirm(`Delete saved view "${view.name}"?`)) return;
+    if (!window.confirm(t('service.rep_delete_view_confirm', 'Delete saved view "{{name}}"?', { name: view.name }))) return;
     try {
       await axios.delete(`${API}/svc/views/${view.id}`, auth());
       await loadSavedViews();
-      notify.success('View deleted');
+      notify.success(t('service.rep_view_deleted', 'View deleted'));
     } catch (e) {
-      notify.error('Delete failed', e?.response?.data?.detail || e.message);
+      notify.error(t('service.rep_delete_failed', 'Delete failed'), e?.response?.data?.detail || e.message);
     }
   };
 
@@ -140,9 +142,9 @@ export default function ServiceOpsReportsPage() {
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-      notify.success('Export ready', filename);
+      notify.success(t('service.rep_export_ready', 'Export ready'), filename);
     } catch (e) {
-      notify.error('Export failed', e?.response?.data?.detail || e.message);
+      notify.error(t('service.rep_export_failed', 'Export failed'), e?.response?.data?.detail || e.message);
     } finally { setExporting(''); }
   };
 
@@ -167,7 +169,7 @@ export default function ServiceOpsReportsPage() {
         ai: ai.data, audit: a.data, downtime: dt.data, channels: ch.data,
       });
     } catch (e) {
-      notify.error('Failed to load reports', e?.response?.data?.detail || e.message);
+      notify.error(t('service.rep_load_failed', 'Failed to load reports'), e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
   }, [fromIso, range.days]);
 
@@ -193,12 +195,12 @@ export default function ServiceOpsReportsPage() {
   return (
     <ServiceOpsShell
       icon={BarChart3}
-      title="Reports & audit"
-      subtitle="Revenue per engineer, first-time-fix rate, SLA compliance, and AI observability — all live from the operational data."
+      title={t('service.rep_title', 'Reports & audit')}
+      subtitle={t('service.rep_subtitle', 'Revenue per engineer, first-time-fix rate, SLA compliance, and AI observability — all live from the operational data.')}
       actions={(
         <>
           <select value={rangeId} onChange={(e) => setRangeId(e.target.value)} className="svc-select svc-select-sm" style={{ width: 'auto' }} data-testid="reports-range">
-            {RANGES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+            {RANGES.map((r) => <option key={r.id} value={r.id}>{t(r.labelKey, r.label)}</option>)}
           </select>
           <ExportMenu exporting={exporting} onExport={exportFile} />
           <button
@@ -206,9 +208,9 @@ export default function ServiceOpsReportsPage() {
             onClick={saveView}
             className="svc-btn svc-btn-secondary svc-btn-sm"
             data-testid="reports-save-view"
-            title="Save the current range / filters as a reusable view"
+            title={t('service.rep_save_view_title', 'Save the current range / filters as a reusable view')}
           >
-            <Bookmark size={11} /> Save view
+            <Bookmark size={11} /> {t('service.rep_save_view', 'Save view')}
           </button>
           <button
             type="button"
@@ -216,10 +218,10 @@ export default function ServiceOpsReportsPage() {
             className="svc-btn svc-btn-secondary svc-btn-sm"
             data-testid="reports-digest-open"
           >
-            <Mail size={11} /> Email digest
+            <Mail size={11} /> {t('service.rep_email_digest', 'Email digest')}
           </button>
           <button type="button" onClick={load} className="svc-btn svc-btn-secondary svc-btn-sm" data-testid="reports-refresh">
-            <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> Refresh
+            <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> {t('service.rep_refresh', 'Refresh')}
           </button>
         </>
       )}
@@ -230,7 +232,7 @@ export default function ServiceOpsReportsPage() {
       {savedViews.length > 0 ? (
         <div className="flex items-center gap-2 flex-wrap" data-testid="reports-saved-views">
           <span className="text-[11px] uppercase tracking-wider svc-muted font-bold inline-flex items-center gap-1">
-            <Bookmark size={11} /> Saved views
+            <Bookmark size={11} /> {t('service.rep_saved_views', 'Saved views')}
           </span>
           {savedViews.map((v) => (
             <span
@@ -251,7 +253,7 @@ export default function ServiceOpsReportsPage() {
               <button
                 type="button"
                 onClick={() => deleteView(v)}
-                aria-label={`Delete ${v.name}`}
+                aria-label={t('service.rep_delete_named', 'Delete {{name}}', { name: v.name })}
                 style={{
                   background: 'none', border: 0, cursor: 'pointer', color: 'inherit',
                   padding: '0 2px', marginLeft: 2, opacity: 0.6,
@@ -266,34 +268,34 @@ export default function ServiceOpsReportsPage() {
       ) : null}
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3" data-testid="reports-kpis">
-        <KPI label="Open cases" value={kpis.open_cases ?? '—'} testid="kpi-open-cases" />
-        <KPI label="Closed in window" value={kpis.cases_closed ?? '—'} testid="kpi-cases-closed" />
-        <KPI label="Chargeable invoiced" value={kpis.chargeable_invoiced ?? '—'} testid="kpi-chargeable-invoiced" />
-        <KPI label="Revenue (gross)" value={gbp(kpis.revenue_gross)} sub={kpis.revenue_net ? `Net ${gbp(kpis.revenue_net)}` : null} testid="kpi-revenue" />
-        <KPI label="FTFR" value={pct(ftfrRate)} sub={`${data.ftfr?.ftf ?? 0} / ${data.ftfr?.total_closed ?? 0}`} testid="kpi-ftfr" />
+        <KPI label={t('service.rep_kpi_open', 'Open cases')} value={kpis.open_cases ?? '—'} testid="kpi-open-cases" />
+        <KPI label={t('service.rep_kpi_closed', 'Closed in window')} value={kpis.cases_closed ?? '—'} testid="kpi-cases-closed" />
+        <KPI label={t('service.rep_kpi_invoiced', 'Chargeable invoiced')} value={kpis.chargeable_invoiced ?? '—'} testid="kpi-chargeable-invoiced" />
+        <KPI label={t('service.rep_kpi_revenue', 'Revenue (gross)')} value={gbp(kpis.revenue_gross)} sub={kpis.revenue_net ? t('service.rep_net', 'Net {{v}}', { v: gbp(kpis.revenue_net) }) : null} testid="kpi-revenue" />
+        <KPI label={t('service.rep_kpi_ftfr', 'FTFR')} value={pct(ftfrRate)} sub={`${data.ftfr?.ftf ?? 0} / ${data.ftfr?.total_closed ?? 0}`} testid="kpi-ftfr" />
         <KPI
-          label="Downtime"
+          label={t('service.rep_kpi_downtime', 'Downtime')}
           value={(downtime.total_hours ?? 0) >= 1000
             ? `${Math.round((downtime.total_hours ?? 0) / 24).toLocaleString()}d`
             : `${(downtime.total_hours ?? 0).toLocaleString()}h`}
-          sub={`${downtime.case_count ?? 0} cases${(downtime.total_hours ?? 0) >= 1000 ? ` · ${Math.round(downtime.total_hours).toLocaleString()}h` : ''}`}
+          sub={t('service.rep_downtime_cases', '{{n}} cases', { n: downtime.case_count ?? 0 }) + ((downtime.total_hours ?? 0) >= 1000 ? ` · ${Math.round(downtime.total_hours).toLocaleString()}h` : '')}
           testid="kpi-downtime"
         />
-        <KPI label="AI calls" value={kpis.ai_calls ?? 0} testid="kpi-ai-calls" />
+        <KPI label={t('service.rep_kpi_ai', 'AI calls')} value={kpis.ai_calls ?? 0} testid="kpi-ai-calls" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Revenue per engineer */}
-        <Section icon={Wrench} title="Revenue per engineer" testid="reports-revenue">
+        <Section icon={Wrench} title={t('service.rep_revenue_per_eng', 'Revenue per engineer')} testid="reports-revenue">
           {revenueRows.length === 0 ? (
-            <p className="text-xs opacity-60 italic">No invoiced labour in this window.</p>
+            <p className="text-xs opacity-60 italic">{t('service.rep_no_labour', 'No invoiced labour in this window.')}</p>
           ) : (
             <ul className="space-y-2" data-testid="revenue-rows">
               {revenueRows.map((r) => (
                 <li key={`${r.engineer_id || 'x'}-${r.engineer_name}`} data-testid={`revenue-row-${r.engineer_id || r.engineer_name}`}>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold truncate">{r.engineer_name || 'Unattributed'}</span>
-                    <span className="tabular-nums">{gbp(r.revenue)} · {r.hours}h · {r.cases} case{r.cases === 1 ? '' : 's'}</span>
+                    <span className="font-bold truncate">{r.engineer_name || t('service.rep_unattributed', 'Unattributed')}</span>
+                    <span className="tabular-nums">{gbp(r.revenue)} · {r.hours}h · {t('service.rep_cases', '{{n}} cases', { n: r.cases })}</span>
                   </div>
                   <div className="h-1.5 rounded-full mt-1 overflow-hidden" style={{ background: 'var(--theme-border)' }}>
                     <div
@@ -311,10 +313,10 @@ export default function ServiceOpsReportsPage() {
         </Section>
 
         {/* SLA compliance */}
-        <Section icon={ShieldCheck} title="SLA compliance" testid="reports-sla">
+        <Section icon={ShieldCheck} title={t('service.rep_sla', 'SLA compliance')} testid="reports-sla">
           <div className="flex items-baseline gap-3">
             <span className="text-3xl font-extrabold tabular-nums" data-testid="sla-rate">{pct(slaRate)}</span>
-            <span className="text-xs opacity-70">{data.sla?.on_time ?? 0} on-time / {data.sla?.breached ?? 0} breached</span>
+            <span className="text-xs opacity-70">{t('service.rep_sla_split', '{{ontime}} on-time / {{breached}} breached', { ontime: data.sla?.on_time ?? 0, breached: data.sla?.breached ?? 0 })}</span>
           </div>
           <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: 'var(--theme-border)' }}>
             <div className="h-full" style={{ width: `${Math.round(slaRate * 100)}%`, background: slaRate >= 0.95 ? '#10b981' : slaRate >= 0.85 ? '#f59e0b' : '#ef4444' }} />
@@ -323,36 +325,36 @@ export default function ServiceOpsReportsPage() {
             {Object.entries(data.sla?.by_priority || {}).map(([p, b]) => (
               <li key={p} className="text-xs px-2 py-1.5 rounded border flex items-center justify-between" style={{ borderColor: 'var(--theme-border)' }} data-testid={`sla-priority-${p}`}>
                 <span><strong>{p.toUpperCase()}</strong> · {b.total}</span>
-                <span className="tabular-nums">{b.total ? Math.round((b.on_time / b.total) * 100) : 0}% on-time</span>
+                <span className="tabular-nums">{b.total ? Math.round((b.on_time / b.total) * 100) : 0}{t('service.rep_pct_ontime', '% on-time')}</span>
               </li>
             ))}
           </ul>
         </Section>
 
         {/* FTFR detail */}
-        <Section icon={Gauge} title="First-time-fix rate" testid="reports-ftfr">
+        <Section icon={Gauge} title={t('service.rep_ftfr_title', 'First-time-fix rate')} testid="reports-ftfr">
           <div className="flex items-baseline gap-3">
             <span className="text-3xl font-extrabold tabular-nums" data-testid="ftfr-rate">{pct(ftfrRate)}</span>
-            <span className="text-xs opacity-70">{data.ftfr?.ftf ?? 0} / {data.ftfr?.total_closed ?? 0} closed</span>
+            <span className="text-xs opacity-70">{t('service.rep_ftfr_split', '{{ftf}} / {{total}} closed', { ftf: data.ftfr?.ftf ?? 0, total: data.ftfr?.total_closed ?? 0 })}</span>
           </div>
           <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: 'var(--theme-border)' }}>
             <div className="h-full" style={{ width: `${Math.round(ftfrRate * 100)}%`, background: ftfrRate >= 0.8 ? '#10b981' : ftfrRate >= 0.6 ? '#f59e0b' : '#ef4444' }} />
           </div>
-          <p className="text-[11px] opacity-60 mt-2">A fix is &ldquo;first-time&rdquo; if the case never entered <code>paused_parts</code>. Lift this metric by improving van-stock accuracy and AI triage of likely parts.</p>
+          <p className="text-[11px] opacity-60 mt-2">{t('service.rep_ftfr_hint', 'A fix is "first-time" if the case never entered paused_parts. Lift this metric by improving van-stock accuracy and AI triage of likely parts.')}</p>
         </Section>
 
         {/* Asset downtime */}
-        <Section icon={Timer} title="Top assets by downtime" testid="reports-downtime-assets">
+        <Section icon={Timer} title={t('service.rep_top_assets', 'Top assets by downtime')} testid="reports-downtime-assets">
           {topAssets.length === 0 ? (
-            <p className="text-xs opacity-60 italic">No downtime recorded in this window.</p>
+            <p className="text-xs opacity-60 italic">{t('service.rep_no_downtime', 'No downtime recorded in this window.')}</p>
           ) : (
             <ul className="space-y-2" data-testid="downtime-asset-rows">
               {topAssets.map((r, idx) => (
                 <li key={`${r.asset_id || r.asset_name}-${idx}`} data-testid={`downtime-asset-row-${idx}`}>
                   <div className="flex items-center justify-between text-xs gap-2">
-                    <span className="font-bold truncate">{r.asset_name || 'Unknown asset'}</span>
+                    <span className="font-bold truncate">{r.asset_name || t('service.rep_unknown_asset', 'Unknown asset')}</span>
                     <span className="tabular-nums whitespace-nowrap">
-                      {r.downtime_hours.toLocaleString()}h · {r.case_count} case{r.case_count === 1 ? '' : 's'}
+                      {r.downtime_hours.toLocaleString()}h · {t('service.rep_cases', '{{n}} cases', { n: r.case_count })}
                     </span>
                   </div>
                   <div className="h-1.5 rounded-full mt-1 overflow-hidden" style={{ background: 'var(--theme-border)' }}>
@@ -368,21 +370,21 @@ export default function ServiceOpsReportsPage() {
               ))}
             </ul>
           )}
-          <p className="text-[11px] opacity-60 mt-2">Total fleet downtime: <strong>{(downtime.total_hours ?? 0).toLocaleString()}h</strong> across {downtime.case_count ?? 0} cases. Use this to prioritise PPM frequency and replacement cycles.</p>
+          <p className="text-[11px] opacity-60 mt-2">{t('service.rep_total_downtime', 'Total fleet downtime:')} <strong>{(downtime.total_hours ?? 0).toLocaleString()}h</strong> {t('service.rep_across_cases', 'across {{n}} cases. Use this to prioritise PPM frequency and replacement cycles.', { n: downtime.case_count ?? 0 })}</p>
         </Section>
 
         {/* Site downtime */}
-        <Section icon={MapPin} title="Top sites by downtime" testid="reports-downtime-sites">
+        <Section icon={MapPin} title={t('service.rep_top_sites', 'Top sites by downtime')} testid="reports-downtime-sites">
           {topSites.length === 0 ? (
-            <p className="text-xs opacity-60 italic">No site downtime in this window.</p>
+            <p className="text-xs opacity-60 italic">{t('service.rep_no_site_downtime', 'No site downtime in this window.')}</p>
           ) : (
             <ul className="space-y-2" data-testid="downtime-site-rows">
               {topSites.map((r, idx) => (
                 <li key={`${r.site_id || r.site_name}-${idx}`} data-testid={`downtime-site-row-${idx}`}>
                   <div className="flex items-center justify-between text-xs gap-2">
-                    <span className="font-bold truncate">{r.site_name || 'Unknown site'}</span>
+                    <span className="font-bold truncate">{r.site_name || t('service.rep_unknown_site', 'Unknown site')}</span>
                     <span className="tabular-nums whitespace-nowrap">
-                      {r.downtime_hours.toLocaleString()}h · {r.case_count} case{r.case_count === 1 ? '' : 's'}
+                      {r.downtime_hours.toLocaleString()}h · {t('service.rep_cases', '{{n}} cases', { n: r.case_count })}
                     </span>
                   </div>
                   <div className="h-1.5 rounded-full mt-1 overflow-hidden" style={{ background: 'var(--theme-border)' }}>
@@ -401,9 +403,9 @@ export default function ServiceOpsReportsPage() {
         </Section>
 
         {/* Iter 220cq — Channel performance (where work comes from) */}
-        <Section icon={Inbox} title="Where work comes from" testid="reports-channels">
+        <Section icon={Inbox} title={t('service.rep_work_from', 'Where work comes from')} testid="reports-channels">
           {channelRows.length === 0 ? (
-            <p className="text-xs opacity-60 italic">No cases logged in this window.</p>
+            <p className="text-xs opacity-60 italic">{t('service.rep_no_cases_window', 'No cases logged in this window.')}</p>
           ) : (
             <ul className="space-y-2" data-testid="channel-rows">
               {channelRows.map((r) => {
@@ -414,9 +416,9 @@ export default function ServiceOpsReportsPage() {
                     <div className="flex items-center justify-between text-xs gap-2">
                       <span className="font-bold truncate">{label}</span>
                       <span className="tabular-nums whitespace-nowrap">
-                        {r.count} case{r.count === 1 ? '' : 's'} ·{' '}
-                        {pct(r.close_rate)} closed
-                        {r.avg_hours != null ? ` · ${r.avg_hours}h avg` : ''}
+                        {t('service.rep_cases', '{{n}} cases', { n: r.count })} ·{' '}
+                        {t('service.rep_closed_pct', '{{p}} closed', { p: pct(r.close_rate) })}
+                        {r.avg_hours != null ? ` · ${t('service.rep_avg_hours', '{{h}}h avg', { h: r.avg_hours })}` : ''}
                         {r.revenue_gbp > 0 ? ` · ${gbp(r.revenue_gbp)}` : ''}
                       </span>
                     </div>
@@ -459,26 +461,24 @@ export default function ServiceOpsReportsPage() {
               data-testid="channel-totals"
             >
               <Activity size={11} />
-              {channelData.totals.case_count} total ·{' '}
-              {channelData.totals.closed_count} closed ·{' '}
-              {gbp(channelData.totals.revenue_gbp)} revenue
+              {t('service.rep_channel_totals', '{{total}} total · {{closed}} closed · {{rev}} revenue', { total: channelData.totals.case_count, closed: channelData.totals.closed_count, rev: gbp(channelData.totals.revenue_gbp) })}
             </p>
           )}
         </Section>
 
         {/* AI observability */}
-        <Section icon={Sparkles} title="AI observability" testid="reports-ai">
+        <Section icon={Sparkles} title={t('service.rep_ai_obs', 'AI observability')} testid="reports-ai">
           {aiRows.length === 0 ? (
-            <p className="text-xs opacity-60 italic">No AI calls in this window.</p>
+            <p className="text-xs opacity-60 italic">{t('service.rep_no_ai', 'No AI calls in this window.')}</p>
           ) : (
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-left text-[10px] uppercase tracking-wider opacity-70">
-                  <th className="py-1">Kind</th>
-                  <th className="py-1 text-right">Calls</th>
-                  <th className="py-1 text-right">OK</th>
-                  <th className="py-1 text-right">p50 ms</th>
-                  <th className="py-1 text-right">p95 ms</th>
+                  <th className="py-1">{t('service.rep_ai_kind', 'Kind')}</th>
+                  <th className="py-1 text-right">{t('service.rep_ai_calls', 'Calls')}</th>
+                  <th className="py-1 text-right">{t('service.rep_ai_ok', 'OK')}</th>
+                  <th className="py-1 text-right">{t('service.rep_ai_p50', 'p50 ms')}</th>
+                  <th className="py-1 text-right">{t('service.rep_ai_p95', 'p95 ms')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -495,15 +495,15 @@ export default function ServiceOpsReportsPage() {
             </table>
           )}
           {data.ai?.totals ? (
-            <p className="text-[11px] opacity-70 mt-2 inline-flex items-center gap-1.5"><Activity size={11} /> {data.ai.totals.calls} total · {pct(data.ai.totals.ok_rate)} success</p>
+            <p className="text-[11px] opacity-70 mt-2 inline-flex items-center gap-1.5"><Activity size={11} /> {t('service.rep_ai_totals', '{{n}} total · {{p}} success', { n: data.ai.totals.calls, p: pct(data.ai.totals.ok_rate) })}</p>
           ) : null}
         </Section>
       </div>
 
       {/* Audit log */}
-      <Section icon={ClipboardList} title="Audit feed" testid="reports-audit">
+      <Section icon={ClipboardList} title={t('service.rep_audit_feed', 'Audit feed')} testid="reports-audit">
         {audit.length === 0 ? (
-          <p className="text-xs opacity-60 italic">No events in this window.</p>
+          <p className="text-xs opacity-60 italic">{t('service.rep_no_events', 'No events in this window.')}</p>
         ) : (
           <ol className="space-y-1.5 text-xs max-h-96 overflow-y-auto pr-2" data-testid="audit-list">
             {audit.map((ev) => (
@@ -529,15 +529,16 @@ export default function ServiceOpsReportsPage() {
 }
 
 function ExportMenu({ exporting, onExport }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const items = [
-    { id: 'pdf',      label: 'Branded PDF report', icon: FileText },
-    { id: 'summary',  label: 'Summary KPIs (CSV)', icon: Download },
-    { id: 'revenue',  label: 'Revenue per engineer (CSV)', icon: Download },
-    { id: 'sla',      label: 'SLA compliance (CSV)', icon: Download },
-    { id: 'ftfr',     label: 'First-time-fix (CSV)', icon: Download },
-    { id: 'downtime', label: 'Downtime (CSV)', icon: Download },
-    { id: 'ai',       label: 'AI observability (CSV)', icon: Download },
+    { id: 'pdf',      label: t('service.rep_exp_pdf', 'Branded PDF report'), icon: FileText },
+    { id: 'summary',  label: t('service.rep_exp_summary', 'Summary KPIs (CSV)'), icon: Download },
+    { id: 'revenue',  label: t('service.rep_exp_revenue', 'Revenue per engineer (CSV)'), icon: Download },
+    { id: 'sla',      label: t('service.rep_exp_sla', 'SLA compliance (CSV)'), icon: Download },
+    { id: 'ftfr',     label: t('service.rep_exp_ftfr', 'First-time-fix (CSV)'), icon: Download },
+    { id: 'downtime', label: t('service.rep_exp_downtime', 'Downtime (CSV)'), icon: Download },
+    { id: 'ai',       label: t('service.rep_exp_ai', 'AI observability (CSV)'), icon: Download },
   ];
   return (
     <div style={{ position: 'relative', display: 'inline-flex' }} data-testid="reports-export-menu">
@@ -549,7 +550,7 @@ function ExportMenu({ exporting, onExport }) {
         data-testid="reports-export-btn"
       >
         {exporting ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
-        {exporting ? `Exporting ${exporting}…` : 'Export'}
+        {exporting ? t('service.rep_exporting', 'Exporting {{kind}}…', { kind: exporting }) : t('service.rep_export', 'Export')}
       </button>
       {open ? (
         <>
@@ -589,6 +590,7 @@ function ExportMenu({ exporting, onExport }) {
 }
 
 function DigestSettingsModal({ onClose }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
@@ -606,7 +608,7 @@ function DigestSettingsModal({ onClose }) {
       setRecipients((r.data?.recipients || []).join(', '));
       setLastSentAt(r.data?.last_sent_at || null);
     } catch (e) {
-      notify.error('Failed to load digest settings', e?.response?.data?.detail || e.message);
+      notify.error(t('service.rep_dg_load_failed', 'Failed to load digest settings'), e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -621,9 +623,9 @@ function DigestSettingsModal({ onClose }) {
       setEnabled(!!r.data?.enabled);
       setCadence(r.data?.cadence || cadence);
       setRecipients((r.data?.recipients || []).join(', '));
-      notify.success('Digest settings saved');
+      notify.success(t('service.rep_dg_saved', 'Digest settings saved'));
     } catch (e) {
-      notify.error('Save failed', e?.response?.data?.detail || e.message);
+      notify.error(t('service.rep_save_failed', 'Save failed'), e?.response?.data?.detail || e.message);
     } finally { setSaving(false); }
   };
 
@@ -631,10 +633,10 @@ function DigestSettingsModal({ onClose }) {
     setSending(true);
     try {
       const r = await axios.post(`${API}/svc/reports/digest/send-test`, {}, auth());
-      notify.success('Test digest dispatched', `${r.data?.sent ?? 0} email(s) sent`);
+      notify.success(t('service.rep_dg_dispatched', 'Test digest dispatched'), t('service.rep_dg_sent_n', '{{n}} email(s) sent', { n: r.data?.sent ?? 0 }));
       await load();
     } catch (e) {
-      notify.error('Send failed', e?.response?.data?.detail || e.message);
+      notify.error(t('service.rep_send_failed', 'Send failed'), e?.response?.data?.detail || e.message);
     } finally { setSending(false); }
   };
 
@@ -647,29 +649,27 @@ function DigestSettingsModal({ onClose }) {
       <aside
         className="svc-drawer"
         role="dialog"
-        aria-label="Email digest settings"
+        aria-label={t('service.rep_dg_aria', 'Email digest settings')}
         style={{ maxWidth: 520 }}
       >
         <header className="svc-drawer-head">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="svc-eyebrow">Email digest</p>
-              <h2 className="svc-h1" style={{ fontSize: 19, marginTop: 2 }}>Service Operations summary</h2>
+              <p className="svc-eyebrow">{t('service.rep_email_digest', 'Email digest')}</p>
+              <h2 className="svc-h1" style={{ fontSize: 19, marginTop: 2 }}>{t('service.rep_dg_title', 'Service Operations summary')}</h2>
             </div>
-            <button type="button" onClick={onClose} className="svc-icon-btn" aria-label="Close" data-testid="reports-digest-close">
+            <button type="button" onClick={onClose} className="svc-icon-btn" aria-label={t('service.rep_close', 'Close')} data-testid="reports-digest-close">
               <X size={16} />
             </button>
           </div>
         </header>
         <div className="svc-drawer-body space-y-3">
           {loading ? (
-            <div className="svc-empty"><Loader2 size={14} className="animate-spin" /> Loading…</div>
+            <div className="svc-empty"><Loader2 size={14} className="animate-spin" /> {t('service.rep_loading', 'Loading…')}</div>
           ) : (
             <>
               <p className="text-[11.5px] svc-muted">
-                Send a digest to your team with open cases, breached SLAs and recently
-                closed work. The dispatcher runs on the platform daily cron — recipients only
-                receive a fresh digest when one is due.
+                {t('service.rep_dg_intro', 'Send a digest to your team with open cases, breached SLAs and recently closed work. The dispatcher runs on the platform daily cron — recipients only receive a fresh digest when one is due.')}
               </p>
 
               <label className="svc-card-base p-3 flex items-start gap-3 cursor-pointer" data-testid="reports-digest-enable-row">
@@ -680,26 +680,26 @@ function DigestSettingsModal({ onClose }) {
                   data-testid="reports-digest-enabled"
                 />
                 <div>
-                  <p className="font-bold text-sm">Enable digest emails</p>
-                  <p className="text-[11.5px] svc-muted">Switch off to pause delivery without losing the recipient list.</p>
+                  <p className="font-bold text-sm">{t('service.rep_dg_enable', 'Enable digest emails')}</p>
+                  <p className="text-[11.5px] svc-muted">{t('service.rep_dg_enable_hint', 'Switch off to pause delivery without losing the recipient list.')}</p>
                 </div>
               </label>
 
               <label className="block">
-                <span className="svc-label">Cadence</span>
+                <span className="svc-label">{t('service.rep_dg_cadence', 'Cadence')}</span>
                 <select
                   value={cadence}
                   onChange={(e) => setCadence(e.target.value)}
                   className="svc-select"
                   data-testid="reports-digest-cadence"
                 >
-                  <option value="daily">Daily — every morning</option>
-                  <option value="weekly">Weekly — every 7 days</option>
+                  <option value="daily">{t('service.rep_dg_daily', 'Daily — every morning')}</option>
+                  <option value="weekly">{t('service.rep_dg_weekly', 'Weekly — every 7 days')}</option>
                 </select>
               </label>
 
               <label className="block">
-                <span className="svc-label">Recipients (comma-separated)</span>
+                <span className="svc-label">{t('service.rep_dg_recipients', 'Recipients (comma-separated)')}</span>
                 <input
                   value={recipients}
                   onChange={(e) => setRecipients(e.target.value)}
@@ -707,15 +707,15 @@ function DigestSettingsModal({ onClose }) {
                   className="svc-input"
                   data-testid="reports-digest-recipients"
                 />
-                <span className="text-[11px] svc-muted block mt-1">Up to 20 valid email addresses.</span>
+                <span className="text-[11px] svc-muted block mt-1">{t('service.rep_dg_recipients_hint', 'Up to 20 valid email addresses.')}</span>
               </label>
 
               {lastSentAt ? (
                 <p className="text-[11px] svc-muted" data-testid="reports-digest-last-sent">
-                  Last sent: <strong>{new Date(lastSentAt).toLocaleString()}</strong>
+                  {t('service.rep_dg_last_sent', 'Last sent:')} <strong>{new Date(lastSentAt).toLocaleString()}</strong>
                 </p>
               ) : (
-                <p className="text-[11px] svc-muted">No digest has been sent yet.</p>
+                <p className="text-[11px] svc-muted">{t('service.rep_dg_none_sent', 'No digest has been sent yet.')}</p>
               )}
             </>
           )}
@@ -730,7 +730,7 @@ function DigestSettingsModal({ onClose }) {
               data-testid="reports-digest-send-test"
             >
               {sending ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
-              {sending ? 'Sending…' : 'Send test now'}
+              {sending ? t('service.rep_dg_sending', 'Sending…') : t('service.rep_dg_send_test', 'Send test now')}
             </button>
             <button
               type="button"
@@ -739,7 +739,7 @@ function DigestSettingsModal({ onClose }) {
               className="svc-btn svc-btn-primary svc-btn-sm"
               data-testid="reports-digest-save"
             >
-              <Save size={11} /> {saving ? 'Saving…' : 'Save'}
+              <Save size={11} /> {saving ? t('service.rep_dg_saving', 'Saving…') : t('service.rep_save', 'Save')}
             </button>
           </div>
         </footer>
