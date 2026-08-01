@@ -22,6 +22,7 @@
  * Owner / Manager / Master Admin only (server-side enforced).
  */
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import {
   ShieldCheck, FlaskConical, Plus, Trash2, Loader2, X, AlertTriangle,
@@ -32,19 +33,17 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
 
 export default function ComplianceAdmin() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState('ptw'); // 'ptw' | 'coshh'
 
   return (
     <div className="p-6 max-w-6xl space-y-5" data-testid="compliance-admin">
       <header>
         <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <ShieldCheck size={22} className="text-cyan-600" /> Compliance register
+          <ShieldCheck size={22} className="text-cyan-600" /> {t('service.comp_title', 'Compliance register')}
         </h1>
         <p className="text-sm text-slate-500 max-w-2xl">
-          Permit-to-Work templates and COSHH chemicals used by every
-          engineer on every visit. Defaults are seeded the first time
-          you load — edit, add or retire to match your contracts (MOD,
-          NHS, national chains).
+          {t('service.comp_subtitle', 'Permit-to-Work templates and COSHH chemicals used by every engineer on every visit. Defaults are seeded the first time you load — edit, add or retire to match your contracts (MOD, NHS, national chains).')}
         </p>
       </header>
 
@@ -53,14 +52,14 @@ export default function ComplianceAdmin() {
           active={tab === 'ptw'}
           onClick={() => setTab('ptw')}
           icon={ShieldCheck}
-          label="Permit to Work"
+          label={t('service.comp_tab_ptw', 'Permit to Work')}
           testId="compliance-admin-tab-ptw"
         />
         <TabButton
           active={tab === 'coshh'}
           onClick={() => setTab('coshh')}
           icon={FlaskConical}
-          label="COSHH register"
+          label={t('service.comp_tab_coshh', 'COSHH register')}
           testId="compliance-admin-tab-coshh"
         />
       </div>
@@ -90,6 +89,7 @@ function TabButton({ active, onClick, icon: Icon, label, testId }) {
 // ═══ PTW templates ═══════════════════════════════════════════════
 
 function PtwAdmin() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -104,9 +104,9 @@ function PtwAdmin() {
       setRows(r.data?.items || []);
       setCategories(r.data?.categories || []);
     } catch (e) {
-      toast.error('Could not load PTW templates', { description: e?.response?.data?.detail || e.message });
+      toast.error(t('service.comp_ptw_load_failed', 'Could not load PTW templates'), { description: e?.response?.data?.detail || e.message });
     } finally { setLoading(false); }
-  }, []);
+  }, [t]);
   useEffect(() => { load(); }, [load]);
 
   const addDraftHazard = () => setDraft({ ...draft, hazards: [...draft.hazards, ''] });
@@ -118,11 +118,11 @@ function PtwAdmin() {
 
   const submit = async () => {
     if (!draft.name.trim()) {
-      toast.error('Name required');
+      toast.error(t('service.comp_name_required', 'Name required'));
       return;
     }
     if (!draft.hazard_category) {
-      toast.error('Pick a hazard category');
+      toast.error(t('service.comp_pick_category', 'Pick a hazard category'));
       return;
     }
     setSaving(true);
@@ -136,11 +136,11 @@ function PtwAdmin() {
         active: true,
       };
       await axios.post(`${API}/svc/compliance/ptw/templates`, body, auth());
-      toast.success('Template added');
+      toast.success(t('service.comp_template_added', 'Template added'));
       setDraft(emptyPtwDraft());
       await load();
     } catch (e) {
-      toast.error('Save failed', { description: e?.response?.data?.detail || e.message });
+      toast.error(t('service.comp_save_failed', 'Save failed'), { description: e?.response?.data?.detail || e.message });
     } finally { setSaving(false); }
   };
 
@@ -148,24 +148,24 @@ function PtwAdmin() {
     setSaving(true);
     try {
       await axios.delete(`${API}/svc/compliance/ptw/templates/${row.id}`, auth());
-      toast.success('Template removed');
+      toast.success(t('service.comp_template_removed', 'Template removed'));
       setConfirmDelete(null);
       await load();
     } catch (e) {
-      toast.error('Delete failed', { description: e?.response?.data?.detail || e.message });
+      toast.error(t('service.comp_delete_failed', 'Delete failed'), { description: e?.response?.data?.detail || e.message });
     } finally { setSaving(false); }
   };
 
   return (
     <div className="space-y-5" data-testid="ptw-admin">
       <section className="rounded-2xl border border-slate-200 bg-white p-4">
-        <p className="text-sm font-bold text-slate-900 mb-2">Add a template</p>
+        <p className="text-sm font-bold text-slate-900 mb-2">{t('service.comp_add_template', 'Add a template')}</p>
         <div className="grid sm:grid-cols-3 gap-2">
           <input
             type="text"
             value={draft.name}
             onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            placeholder="Template name (e.g. Confined Space)"
+            placeholder={t('service.comp_ph_template_name', 'Template name (e.g. Confined Space)')}
             className="px-3 py-2 rounded-lg border border-slate-200 text-sm"
             data-testid="ptw-draft-name"
           />
@@ -175,7 +175,7 @@ function PtwAdmin() {
             className="px-3 py-2 rounded-lg border border-slate-200 text-sm"
             data-testid="ptw-draft-category"
           >
-            <option value="">Hazard category…</option>
+            <option value="">{t('service.comp_hazard_category', 'Hazard category…')}</option>
             {categories.map((c) => <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>)}
           </select>
           <input
@@ -184,14 +184,15 @@ function PtwAdmin() {
             max={72}
             value={draft.validity_hours}
             onChange={(e) => setDraft({ ...draft, validity_hours: e.target.value })}
-            placeholder="Validity (hours)"
+            placeholder={t('service.comp_ph_validity', 'Validity (hours)')}
             className="px-3 py-2 rounded-lg border border-slate-200 text-sm"
             data-testid="ptw-draft-validity"
           />
         </div>
         <div className="grid sm:grid-cols-2 gap-3 mt-3">
           <DraftListEditor
-            label="Hazards"
+            label={t('service.comp_hazards', 'Hazards')}
+            singular={t('service.comp_hazard_singular', 'Hazard')}
             items={draft.hazards}
             setItem={setDraftHazard}
             addItem={addDraftHazard}
@@ -199,7 +200,8 @@ function PtwAdmin() {
             testIdPrefix="ptw-draft-hazard"
           />
           <DraftListEditor
-            label="Controls"
+            label={t('service.comp_controls', 'Controls')}
+            singular={t('service.comp_control_singular', 'Control')}
             items={draft.controls}
             setItem={setDraftControl}
             addItem={addDraftControl}
@@ -216,18 +218,18 @@ function PtwAdmin() {
             data-testid="ptw-draft-submit"
           >
             {saving ? <Loader2 size={14} className="animate-spin inline mr-1" /> : <Plus size={14} className="inline mr-1" />}
-            Add template
+            {t('service.comp_add_template_btn', 'Add template')}
           </button>
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white">
         <header className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-          <p className="text-sm font-bold text-slate-900">Templates ({rows.length})</p>
+          <p className="text-sm font-bold text-slate-900">{t('service.comp_templates', 'Templates')} ({rows.length})</p>
           {loading && <Loader2 size={14} className="animate-spin text-slate-400" />}
         </header>
         {rows.length === 0 ? (
-          <div className="p-6 text-sm text-slate-500" data-testid="ptw-empty">No templates yet.</div>
+          <div className="p-6 text-sm text-slate-500" data-testid="ptw-empty">{t('service.comp_no_templates', 'No templates yet.')}</div>
         ) : (
           <ul className="divide-y divide-slate-100" data-testid="ptw-list">
             {rows.map((r) => (
@@ -236,8 +238,7 @@ function PtwAdmin() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-slate-900">{r.name}</p>
                   <p className="text-xs text-slate-500">
-                    {(r.hazard_category || '').replace(/_/g, ' ')} · valid {r.validity_hours}h ·{' '}
-                    {(r.hazards || []).length} hazards · {(r.controls || []).length} controls
+                    {(r.hazard_category || '').replace(/_/g, ' ')} · {t('service.comp_ptw_meta', 'valid {{h}}h · {{hz}} hazards · {{ct}} controls', { h: r.validity_hours, hz: (r.hazards || []).length, ct: (r.controls || []).length })}
                   </p>
                 </div>
                 <button
@@ -245,7 +246,7 @@ function PtwAdmin() {
                   onClick={() => setConfirmDelete(r)}
                   className="p-1.5 rounded text-rose-600 hover:bg-rose-50"
                   data-testid={`ptw-delete-${r.id}`}
-                  aria-label="Delete template"
+                  aria-label={t('service.comp_delete_template_aria', 'Delete template')}
                 >
                   <Trash2 size={13} />
                 </button>
@@ -257,9 +258,9 @@ function PtwAdmin() {
 
       {confirmDelete && (
         <ConfirmModal
-          title="Remove template?"
+          title={t('service.comp_remove_template', 'Remove template?')}
           subtitle={confirmDelete.name}
-          warning="Existing PTW requests using this template are unaffected; only future requests can no longer pick it."
+          warning={t('service.comp_ptw_delete_warn', 'Existing PTW requests using this template are unaffected; only future requests can no longer pick it.')}
           onClose={() => setConfirmDelete(null)}
           onConfirm={() => doDelete(confirmDelete)}
           testId="ptw-confirm-delete"
@@ -273,7 +274,8 @@ function emptyPtwDraft() {
   return { name: '', hazard_category: '', validity_hours: 8, hazards: [''], controls: [''] };
 }
 
-function DraftListEditor({ label, items, setItem, addItem, removeItem, testIdPrefix }) {
+function DraftListEditor({ label, singular, items, setItem, addItem, removeItem, testIdPrefix }) {
+  const { t } = useTranslation();
   return (
     <div>
       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1">{label}</p>
@@ -284,7 +286,7 @@ function DraftListEditor({ label, items, setItem, addItem, removeItem, testIdPre
               type="text"
               value={v}
               onChange={(e) => setItem(i, e.target.value)}
-              placeholder={`${label.slice(0, -1)} ${i + 1}`}
+              placeholder={`${singular} ${i + 1}`}
               className="flex-1 px-2 py-1 rounded border border-slate-200 text-xs"
               data-testid={`${testIdPrefix}-${i}`}
             />
@@ -293,7 +295,7 @@ function DraftListEditor({ label, items, setItem, addItem, removeItem, testIdPre
               onClick={() => removeItem(i)}
               className="p-1 text-slate-400 hover:text-rose-600"
               data-testid={`${testIdPrefix}-remove-${i}`}
-              aria-label={`Remove ${label.slice(0, -1)}`}
+              aria-label={t('service.comp_remove_item', 'Remove {{item}}', { item: singular })}
             >
               <X size={12} />
             </button>
@@ -306,7 +308,7 @@ function DraftListEditor({ label, items, setItem, addItem, removeItem, testIdPre
         className="mt-1 text-[10px] font-bold uppercase tracking-wide text-cyan-600 hover:text-cyan-800"
         data-testid={`${testIdPrefix}-add`}
       >
-        + Add {label.slice(0, -1).toLowerCase()}
+        {t('service.comp_add_item', '+ Add {{item}}', { item: (singular || '').toLowerCase() })}
       </button>
     </div>
   );
@@ -315,6 +317,7 @@ function DraftListEditor({ label, items, setItem, addItem, removeItem, testIdPre
 // ═══ COSHH register ══════════════════════════════════════════════
 
 function CoshhAdmin() {
+  const { t } = useTranslation();
   const [rows, setRows] = useState([]);
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -329,18 +332,18 @@ function CoshhAdmin() {
       setRows(r.data?.items || []);
       setClasses(r.data?.hazard_classes || []);
     } catch (e) {
-      toast.error('Could not load COSHH register', { description: e?.response?.data?.detail || e.message });
+      toast.error(t('service.comp_coshh_load_failed', 'Could not load COSHH register'), { description: e?.response?.data?.detail || e.message });
     } finally { setLoading(false); }
-  }, []);
+  }, [t]);
   useEffect(() => { load(); }, [load]);
 
   const submit = async () => {
     if (!draft.name.trim()) {
-      toast.error('Name required');
+      toast.error(t('service.comp_name_required', 'Name required'));
       return;
     }
     if (!draft.hazard_class) {
-      toast.error('Pick a hazard class');
+      toast.error(t('service.comp_pick_class', 'Pick a hazard class'));
       return;
     }
     setSaving(true);
@@ -353,11 +356,11 @@ function CoshhAdmin() {
         sds_url: draft.sds_url.trim() || null,
         active: true,
       }, auth());
-      toast.success('COSHH entry added');
+      toast.success(t('service.comp_coshh_added', 'COSHH entry added'));
       setDraft(emptyCoshhDraft());
       await load();
     } catch (e) {
-      toast.error('Save failed', { description: e?.response?.data?.detail || e.message });
+      toast.error(t('service.comp_save_failed', 'Save failed'), { description: e?.response?.data?.detail || e.message });
     } finally { setSaving(false); }
   };
 
@@ -365,11 +368,11 @@ function CoshhAdmin() {
     setSaving(true);
     try {
       await axios.delete(`${API}/svc/compliance/coshh/${row.id}`, auth());
-      toast.success('Entry retired');
+      toast.success(t('service.comp_entry_retired', 'Entry retired'));
       setConfirmDelete(null);
       await load();
     } catch (e) {
-      toast.error('Delete failed', { description: e?.response?.data?.detail || e.message });
+      toast.error(t('service.comp_delete_failed', 'Delete failed'), { description: e?.response?.data?.detail || e.message });
     } finally { setSaving(false); }
   };
 
@@ -378,13 +381,13 @@ function CoshhAdmin() {
   return (
     <div className="space-y-5" data-testid="coshh-admin">
       <section className="rounded-2xl border border-slate-200 bg-white p-4">
-        <p className="text-sm font-bold text-slate-900 mb-2">Add a chemical</p>
+        <p className="text-sm font-bold text-slate-900 mb-2">{t('service.comp_add_chemical', 'Add a chemical')}</p>
         <div className="grid sm:grid-cols-2 gap-2">
           <input
             type="text"
             value={draft.name}
             onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            placeholder="Name (e.g. Brake cleaner)"
+            placeholder={t('service.comp_ph_chem_name', 'Name (e.g. Brake cleaner)')}
             className="px-3 py-2 rounded-lg border border-slate-200 text-sm"
             data-testid="coshh-draft-name"
           />
@@ -392,7 +395,7 @@ function CoshhAdmin() {
             type="text"
             value={draft.supplier}
             onChange={(e) => setDraft({ ...draft, supplier: e.target.value })}
-            placeholder="Supplier"
+            placeholder={t('service.comp_ph_supplier', 'Supplier')}
             className="px-3 py-2 rounded-lg border border-slate-200 text-sm"
             data-testid="coshh-draft-supplier"
           />
@@ -402,14 +405,14 @@ function CoshhAdmin() {
             className="px-3 py-2 rounded-lg border border-slate-200 text-sm"
             data-testid="coshh-draft-class"
           >
-            <option value="">Hazard class…</option>
+            <option value="">{t('service.comp_hazard_class', 'Hazard class…')}</option>
             {classes.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
           <input
             type="url"
             value={draft.sds_url}
             onChange={(e) => setDraft({ ...draft, sds_url: e.target.value })}
-            placeholder="SDS URL (optional)"
+            placeholder={t('service.comp_ph_sds', 'SDS URL (optional)')}
             className="px-3 py-2 rounded-lg border border-slate-200 text-sm"
             data-testid="coshh-draft-sds"
           />
@@ -418,7 +421,7 @@ function CoshhAdmin() {
           value={draft.controls}
           onChange={(e) => setDraft({ ...draft, controls: e.target.value })}
           rows={2}
-          placeholder="Controls (PPE, ventilation, exposure limits)"
+          placeholder={t('service.comp_ph_coshh_controls', 'Controls (PPE, ventilation, exposure limits)')}
           className="w-full mt-2 px-3 py-2 rounded-lg border border-slate-200 text-sm"
           data-testid="coshh-draft-controls"
         />
@@ -431,7 +434,7 @@ function CoshhAdmin() {
             data-testid="coshh-draft-submit"
           >
             {saving ? <Loader2 size={14} className="animate-spin inline mr-1" /> : <Plus size={14} className="inline mr-1" />}
-            Add chemical
+            {t('service.comp_add_chemical_btn', 'Add chemical')}
           </button>
         </div>
       </section>
@@ -439,12 +442,12 @@ function CoshhAdmin() {
       <section className="rounded-2xl border border-slate-200 bg-white">
         <header className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
           <p className="text-sm font-bold text-slate-900">
-            Register ({activeRows.length} active / {rows.length} total)
+            {t('service.comp_register', 'Register ({{active}} active / {{total}} total)', { active: activeRows.length, total: rows.length })}
           </p>
           {loading && <Loader2 size={14} className="animate-spin text-slate-400" />}
         </header>
         {rows.length === 0 ? (
-          <div className="p-6 text-sm text-slate-500" data-testid="coshh-empty">No entries yet.</div>
+          <div className="p-6 text-sm text-slate-500" data-testid="coshh-empty">{t('service.comp_no_entries', 'No entries yet.')}</div>
         ) : (
           <ul className="divide-y divide-slate-100" data-testid="coshh-list">
             {rows.map((r) => (
@@ -458,7 +461,7 @@ function CoshhAdmin() {
                   <p className="text-sm font-bold text-slate-900">
                     {r.name}
                     {r.active === false && (
-                      <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Retired</span>
+                      <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">{t('service.comp_retired', 'Retired')}</span>
                     )}
                   </p>
                   <p className="text-xs text-slate-500">
@@ -474,7 +477,7 @@ function CoshhAdmin() {
                       className="text-[11px] text-cyan-600 underline"
                       data-testid={`coshh-sds-${r.id}`}
                     >
-                      View SDS
+                      {t('service.comp_view_sds', 'View SDS')}
                     </a>
                   ) : null}
                 </div>
@@ -484,7 +487,7 @@ function CoshhAdmin() {
                     onClick={() => setConfirmDelete(r)}
                     className="p-1.5 rounded text-rose-600 hover:bg-rose-50"
                     data-testid={`coshh-delete-${r.id}`}
-                    aria-label="Retire entry"
+                    aria-label={t('service.comp_retire_aria', 'Retire entry')}
                   >
                     <Trash2 size={13} />
                   </button>
@@ -497,9 +500,9 @@ function CoshhAdmin() {
 
       {confirmDelete && (
         <ConfirmModal
-          title="Retire chemical?"
+          title={t('service.comp_retire_chemical', 'Retire chemical?')}
           subtitle={confirmDelete.name}
-          warning="Engineers won't see this in the COSHH picker on new jobs. Past usage records remain unchanged."
+          warning={t('service.comp_coshh_delete_warn', "Engineers won't see this in the COSHH picker on new jobs. Past usage records remain unchanged.")}
           onClose={() => setConfirmDelete(null)}
           onConfirm={() => doDelete(confirmDelete)}
           testId="coshh-confirm-delete"
@@ -516,6 +519,7 @@ function emptyCoshhDraft() {
 // ═══ shared modal ════════════════════════════════════════════════
 
 function ConfirmModal({ title, subtitle, warning, onClose, onConfirm, testId }) {
+  const { t } = useTranslation();
   return (
     <div
       className="fixed inset-0 z-50 bg-slate-900/60 flex items-end sm:items-center justify-center p-4"
@@ -533,10 +537,10 @@ function ConfirmModal({ title, subtitle, warning, onClose, onConfirm, testId }) 
         <p className="text-xs text-slate-600 mb-3">{warning}</p>
         <div className="flex items-center justify-end gap-2">
           <button onClick={onClose} className="px-3 py-1.5 text-xs font-bold rounded bg-slate-100 text-slate-700 hover:bg-slate-200" data-testid={`${testId}-cancel`}>
-            Cancel
+            {t('service.comp_cancel', 'Cancel')}
           </button>
           <button onClick={onConfirm} className="px-3 py-1.5 text-xs font-bold rounded bg-rose-600 hover:bg-rose-700 text-white" data-testid={`${testId}-confirm`}>
-            Confirm
+            {t('service.comp_confirm', 'Confirm')}
           </button>
         </div>
       </div>

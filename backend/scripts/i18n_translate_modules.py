@@ -196,6 +196,12 @@ async def main():
         "memberships_console.inv_status_paid": "paid",
         "memberships_console.inv_status_void": "void",
     })
+    # PartsInventoryPage tabs rendered via t(`service.parts_tab_${tb.id}`, tb.label).
+    pairs.update({
+        "service.parts_tab_catalogue": "Catalogue",
+        "service.parts_tab_stock": "Stock & reorder",
+        "service.parts_tab_pos": "Purchase orders",
+    })
     # Events: kind labels + costume statuses (rendered via template-literal keys).
     pairs.update({
         "memberships_console.evt_kind_recital": "Recital",

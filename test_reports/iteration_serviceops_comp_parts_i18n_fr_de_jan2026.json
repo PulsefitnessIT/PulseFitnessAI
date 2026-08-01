@@ -1,0 +1,20 @@
+{
+  "summary": "i18n verification for ComplianceAdmin (service.comp_*) and PartsInventoryPage (service.parts_*) in EN and DE. Logged in as owner@isodemo.com / IsoDemo123!, navigated to /service-desk. Compliance reached via left nav 'Compliance'; Parts Inventory reached via left nav 'Stores' (DE: 'Lager') then subtab 'Pulse Warehouse'. Scanned document.body.innerText for /service\\.(comp_|parts_)[\\w\\.]+/ and generic /service\\.[\\w\\.]+/ on: EN Compliance (Permit tab + COSHH tab), EN Parts (Catalogue + Stock & reorder + Purchase orders), then PATCH /api/account/profile {language:'de'}, reloaded, and re-ran the same sweep. Then reverted PATCH to {language:'en'}. Both locale files audited: en/de/fr each contain 48 comp_* keys and 93 parts_* keys with zero missing keys. Zero raw-key leaks in EN or DE on either screen or any tab. DE spot-checks confirmed: Compliance title 'Compliance-Register', subtitle 'Arbeitserlaubnisvorlagen und COSHH-Chemikalien...'; Parts tabs 'Katalog' / 'Lager & Nachbestellung' / 'Bestellungen', import button 'Von Sicon importieren', column headers 'SKU/NAME/HERSTELLER/LIEFERANT/KOSTEN', empty state 'Leerer Katalog. Fügen Sie oben ein Teil hinzu oder klicken Sie auf Von Sicon importieren.' Sidebar in DE also fully localized (Fälle/Planer/Kunden/Ausrüstung/Wartung/Lager/Abrechnung/Compliance/etc.). Language reverted to 'en' at end (PATCH 200).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (Pulse operator, Service Desk enabled)",
+  "seed_data_creation": "None. Only PATCH /api/account/profile language toggles (de then en revert).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "ComplianceAdmin (comp_*) and PartsInventoryPage (parts_*) i18n verified for EN/DE with zero leaks. FR was not exercised in-browser this pass but locale-key parity confirmed (48 comp_* + 93 parts_* in all three locales, no missing keys). PartsInventoryPage is reached from /service-desk → left nav 'Stores'/'Lager' → subtab 'Pulse Warehouse' (data-testid=desk-stores-sub-warehouse). ComplianceAdmin is reached from /service-desk → left nav 'Compliance' (data-testid=compliance-admin container).",
+  "rca of the issue": "n/a — no i18n issues found."
+}
