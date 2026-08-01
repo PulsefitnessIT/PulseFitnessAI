@@ -33,7 +33,7 @@ from PIL import Image
 
 from utils.auth import get_current_user, hash_password, verify_password
 from utils.database import APP_NAME, db, put_object, get_object
-from utils.security import validate_password_strength
+from utils.security import validate_password_strength, assert_password_not_breached
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -442,6 +442,7 @@ async def change_password(body: dict, user: dict = Depends(get_current_user)) ->
     if current == new_password:
         raise HTTPException(status_code=400, detail="New password must differ from the current one")
     validate_password_strength(new_password)
+    await assert_password_not_breached(new_password)
     await db.users.update_one(
         {"id": user["id"]},
         {"$set": {

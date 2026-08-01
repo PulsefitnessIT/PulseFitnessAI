@@ -37,7 +37,7 @@ export default function MemberClaimPage() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
+    if (password.length < 12) { setError('Password must be at least 12 characters'); return; }
     if (password !== confirm) { setError('Passwords do not match'); return; }
     setError(null);
     setBusy(true);
@@ -79,9 +79,9 @@ export default function MemberClaimPage() {
             <div className="relative">
               <Lock size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                autoFocus minLength={8} required
+                autoFocus minLength={12} required
                 className="w-full pl-8 pr-3 py-2.5 text-sm rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-[var(--color-brand-cyan)]"
-                placeholder="At least 8 characters"
+                placeholder="At least 12 characters"
                 data-testid="member-claim-password" />
             </div>
           </label>

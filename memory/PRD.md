@@ -1,3 +1,24 @@
+# ═══ 2026-08-01 · COMPLIANCE follow-ups: HIBP breach check + password-hint sweep + P1 gap register ═══
+Continued the founder-review action items:
+1) LIVE BREACHED-PASSWORD CHECK (utils/security.py assert_password_not_breached): HaveIBeenPwned k-anonymity range API
+   (only first 5 SHA-1 chars sent; Add-Padding), env PASSWORD_HIBP_CHECK (default true), FAIL-OPEN on timeout/error.
+   Wired (await) after validate_password_strength in: auth.py register + reset/force-change, account.py change,
+   crm_auth.py signup. VERIFIED: 'Password1!' blocked via live API (unit); register endpoint rejects weak/breached with
+   no user created; strong unique allowed; backend health 200 + login regression 200.
+2) PASSWORD-HINT SWEEP (frontend): updated "8 characters" → "12 characters" (+ complexity wording) across
+   ForceChangePasswordPage.js (checklist 12), Marketing/TrialSignupModal.js (msg+minLength+placeholder),
+   ServiceProviderSignup.js, AccountSettings/security.js, PartnerEngineer/PartnerEngineerActivate.js (msg+minLength+ph),
+   Memberships/MemberClaimPage.js (msg+minLength+ph), NewStarterPortal.js. All babel-parse OK.
+3) P1 COMPLIANCE GAP REGISTER created: /app/docs/compliance/Compliance_Gap_Register.md (DPO/board-ready: controls in
+   place, 13-row gap register w/ priority+owner+status, DSR matrix, next actions). Repo doc (goes to GitHub via Save to
+   Github); NOT web-served.
+STILL FOR FOUNDER: enable MFA_REQUIRED_ROLES in prod; confirm data residency; reconcile erasure vs 6-yr financial
+   retention; complete sub-processor/RoPA incl. LLM providers; breach runbook + backup RPO/RTO; pen test.
+⚠️ PREVIEW ONLY — REDEPLOY needed; PASSWORD_HIBP_CHECK/MFA_REQUIRED_ROLES/PASSWORD_MIN_LENGTH configurable via prod env.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-01 · COMPLIANCE P0 HARDENING (founder review) — auth changes, curl-verified ═══
 Founder-review P0 items actioned (integration_expert consulted first — auth changes).
 1) PASSWORD POLICY (utils/security.py validate_password_strength — single source used by register, reset,

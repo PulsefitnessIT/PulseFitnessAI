@@ -71,7 +71,7 @@ export default function SecuritySection() {
               data-testid="account-new-password-input"
             />
             <p className="text-[10px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-              At least 8 characters. Use a mix of letters, numbers, and symbols.
+              At least 12 characters. Use a mix of upper/lowercase letters, numbers, and symbols.
             </p>
           </FieldRow>
           <FieldRow label="Confirm new password">

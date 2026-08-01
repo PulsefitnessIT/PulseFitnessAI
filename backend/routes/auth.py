@@ -13,6 +13,7 @@ from utils.refresh_tokens import issue_refresh_token, clear_refresh_cookie, rene
 from utils.email import send_welcome_email, send_password_reset_email
 from utils.security import (
     rate_limit_login, rate_limit_password_reset, validate_password_strength,
+    assert_password_not_breached,
     check_account_lockout, record_failed_login, clear_failed_logins,
     sanitise_string, rate_limit, _client_ip,
 )
@@ -190,6 +191,7 @@ async def register(user: UserRegister, request: Request, response: Response) -> 
 
     # Password strength
     validate_password_strength(user.password)
+    await assert_password_not_breached(user.password)
 
     existing = await db.users.find_one({"email": user.email}, {"_id": 0})
     if existing:
@@ -766,6 +768,7 @@ async def admin_recovery(body: dict, request: Request) -> dict:
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Valid email is required")
     validate_password_strength(new_password)
+    await assert_password_not_breached(new_password)
 
     now_iso = datetime.now(timezone.utc).isoformat()
     set_doc = {
@@ -892,6 +895,7 @@ async def reset_password(body: dict, request: Request) -> dict:
 
     # Enforce password strength on reset too
     validate_password_strength(new_password)
+    await assert_password_not_breached(new_password)
 
     reset_doc = await db.password_reset_tokens.find_one({"token": token, "used": False}, {"_id": 0})
     if not reset_doc:

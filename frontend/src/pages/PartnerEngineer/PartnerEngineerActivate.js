@@ -79,7 +79,7 @@ export default function PartnerEngineerActivate() {
   const submit = async (e) => {
     e?.preventDefault?.();
     if (!password || password.length < 8) {
-      setError('Choose a password of at least 8 characters.');
+      setError('Choose a password of at least 12 characters (with an uppercase letter, number and symbol).');
       return;
     }
     setSubmitting(true);
@@ -207,11 +207,11 @@ export default function PartnerEngineerActivate() {
                     type={showPwd ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    minLength={8}
+                    minLength={12}
                     required
                     autoFocus
                     autoComplete="new-password"
-                    placeholder="At least 8 characters"
+                    placeholder="At least 12 characters"
                     className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-sm focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
                     data-testid="activate-password"
                   />

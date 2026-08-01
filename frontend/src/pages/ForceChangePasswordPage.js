@@ -48,7 +48,7 @@ export default function ForceChangePasswordPage() {
   }
 
   const passwordRules = [
-    { label: 'At least 8 characters', ok: newPwd.length >= 8 },
+    { label: 'At least 12 characters', ok: newPwd.length >= 12 },
     { label: 'Contains an uppercase letter', ok: /[A-Z]/.test(newPwd) },
     { label: 'Contains a lowercase letter', ok: /[a-z]/.test(newPwd) },
     { label: 'Contains a number', ok: /\d/.test(newPwd) },

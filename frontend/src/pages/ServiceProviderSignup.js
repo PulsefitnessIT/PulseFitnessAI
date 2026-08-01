@@ -113,7 +113,7 @@ export default function ServiceProviderSignup() {
               <div className="relative">
                 <input
                   required type={showPass ? 'text' : 'password'} value={form.password} onChange={set('password')}
-                  placeholder="At least 8 characters"
+                  placeholder="At least 12 characters"
                   className="w-full px-3 py-2.5 pr-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
                   data-testid="sp-signup-password"
                 />

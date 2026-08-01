@@ -163,8 +163,9 @@ async def crm_register(data: dict):
 
     if not email or not password or not full_name:
         raise HTTPException(status_code=400, detail="Email, password and full name required")
-    from utils.security import validate_password_strength
+    from utils.security import validate_password_strength, assert_password_not_breached
     validate_password_strength(password)
+    await assert_password_not_breached(password)
     if plan not in CRM_PLANS:
         raise HTTPException(status_code=400, detail="Invalid plan")
 

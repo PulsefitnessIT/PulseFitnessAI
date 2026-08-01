@@ -151,7 +151,7 @@ export default function TrialSignupModal() {
     e.preventDefault();
     setError('');
     if (!form.phone.trim())       { setError(t('mkt.ts_err_phone', 'Please enter your contact phone number.')); return; }
-    if (form.password.length < 8) { setError(t('mkt.ts_err_pass', 'Choose a password of at least 8 characters.')); return; }
+    if (form.password.length < 12) { setError(t('mkt.ts_err_pass', 'Choose a password of at least 12 characters (with an uppercase letter, number and symbol).')); return; }
     if (selectedModules.length === 0) { setError(t('mkt.ts_err_module', 'Please choose at least one module to trial.')); return; }
     if (!captchaToken)            { setError(t('mkt.ts_err_captcha', 'Please complete the verification check before continuing.')); return; }
 
@@ -400,11 +400,11 @@ export default function TrialSignupModal() {
                   <input
                     type={showPass ? 'text' : 'password'}
                     required
-                    minLength={8}
+                    minLength={12}
                     value={form.password}
                     onChange={update('password')}
                     className="w-full h-11 px-3 pr-14 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-800"
-                    placeholder={t('mkt.ts_pass_ph', 'At least 8 characters')}
+                    placeholder={t('mkt.ts_pass_ph', 'At least 12 characters')}
                     data-testid="trial-password"
                   />
                   <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-[11px] font-semibold text-slate-500 hover:text-slate-900 dark:text-zinc-100" tabIndex={-1}>

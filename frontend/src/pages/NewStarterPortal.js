@@ -74,7 +74,7 @@ export default function NewStarterPortal({ staffMode = false }) {
           <label className="block mt-5 text-sm font-medium text-slate-700">{returning ? 'Your password' : 'Create a password'}</label>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} data-testid="nsp-password"
             onKeyDown={(e) => { if (e.key === 'Enter' && password.length >= 8) acceptInvite(); }}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder={returning ? 'Enter your password' : 'At least 8 characters'} />
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder={returning ? 'Enter your password' : 'At least 12 characters'} />
           {err && <div className="text-red-500 text-sm mt-2" data-testid="nsp-error">{err}</div>}
           <button onClick={acceptInvite} disabled={busy || password.length < 8} data-testid="nsp-signin-btn"
             className="mt-4 w-full rounded-lg py-2.5 font-semibold text-slate-900 disabled:opacity-40" style={{ background: CORE }}>

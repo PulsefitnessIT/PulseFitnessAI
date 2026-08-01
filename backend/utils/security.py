@@ -187,6 +187,47 @@ def validate_password_strength(password: str) -> None:
         )
 
 
+# Live breached-password check via the HaveIBeenPwned k-anonymity range API.
+# Privacy-safe: only the first 5 chars of the SHA-1 hash ever leave the server.
+# Fail-OPEN: if the check is disabled or the API is unreachable we allow the
+# password (the local policy above still applies) so HIBP downtime never blocks
+# a legitimate user. Enable/disable with PASSWORD_HIBP_CHECK (default: enabled).
+PASSWORD_HIBP_CHECK = os.environ.get("PASSWORD_HIBP_CHECK", "true").lower() in ("1", "true", "yes")
+
+
+async def assert_password_not_breached(password: str) -> None:
+    """Raise 400 if the password appears in the HIBP breach corpus.
+
+    Safe to call after validate_password_strength() in async endpoints.
+    Silently returns (fail-open) when disabled or on any network/timeout error.
+    """
+    if not PASSWORD_HIBP_CHECK or not password:
+        return
+    import hashlib
+    sha1 = hashlib.sha1(password.encode("utf-8")).hexdigest().upper()
+    prefix, suffix = sha1[:5], sha1[5:]
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=2.5) as client:
+            resp = await client.get(
+                f"https://api.pwnedpasswords.com/range/{prefix}",
+                headers={"Add-Padding": "true"},
+            )
+        if resp.status_code != 200:
+            return  # fail-open
+        for line in resp.text.splitlines():
+            parts = line.strip().split(":")
+            if len(parts) == 2 and parts[0].upper() == suffix and parts[1].strip() not in ("", "0"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="This password has appeared in a known data breach. Please choose a different, unique password.",
+                )
+    except HTTPException:
+        raise
+    except Exception:
+        return  # network/timeout — fail-open, local policy still enforced
+
+
 # ── Input Sanitisation (XSS prevention) ──────────────────────────
 #
 # React already escapes text inside ``{value}`` JSX expressions, so
