@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Camera, Loader2, Trash2 } from 'lucide-react';
@@ -6,6 +7,7 @@ import { API, useAuthHeaders, FieldRow } from './shared';
 
 
 export default function ProfileSection({ profile, onProfileUpdate }) {
+  const { t } = useTranslation();
   const headers = useAuthHeaders();
   const [fullName, setFullName] = useState(profile?.full_name || '');
   const [phone, setPhone] = useState(profile?.phone || '');
@@ -26,9 +28,9 @@ export default function ProfileSection({ profile, onProfileUpdate }) {
       const { data } = await axios.patch(`${API}/account/profile`,
         { full_name: fullName, phone }, { headers: headers() });
       onProfileUpdate(data);
-      toast.success('Profile updated');
+      toast.success(t('settings.prof_updated', 'Profile updated'));
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Could not update profile');
+      toast.error(e.response?.data?.detail || t('settings.prof_update_failed', 'Could not update profile'));
     }
     setSaving(false);
   };
@@ -44,9 +46,9 @@ export default function ProfileSection({ profile, onProfileUpdate }) {
         headers: { ...headers(), 'Content-Type': 'multipart/form-data' },
       });
       onProfileUpdate({ ...profile, avatar_url: data.avatar_url });
-      toast.success('Avatar updated');
+      toast.success(t('settings.prof_avatar_updated', 'Avatar updated'));
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Upload failed');
+      toast.error(err.response?.data?.detail || t('settings.prof_upload_failed', 'Upload failed'));
     }
     setUploading(false);
     if (fileRef.current) fileRef.current.value = '';
@@ -57,9 +59,9 @@ export default function ProfileSection({ profile, onProfileUpdate }) {
     try {
       await axios.delete(`${API}/account/avatar`, { headers: headers() });
       onProfileUpdate({ ...profile, avatar_url: null });
-      toast.success('Avatar removed');
+      toast.success(t('settings.prof_avatar_removed', 'Avatar removed'));
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Remove failed');
+      toast.error(err.response?.data?.detail || t('settings.prof_remove_failed', 'Remove failed'));
     }
     setUploading(false);
   };
@@ -98,7 +100,7 @@ export default function ProfileSection({ profile, onProfileUpdate }) {
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
             data-testid="account-avatar-upload-btn"
           >
-            <Camera size={13} /> Upload photo
+            <Camera size={13} /> {t('settings.prof_upload_photo', 'Upload photo')}
           </button>
           {profile?.avatar_url && (
             <button
@@ -109,16 +111,16 @@ export default function ProfileSection({ profile, onProfileUpdate }) {
               style={{ color: 'var(--theme-text-muted)' }}
               data-testid="account-avatar-remove-btn"
             >
-              <Trash2 size={13} /> Remove
+              <Trash2 size={13} /> {t('settings.prof_remove', 'Remove')}
             </button>
           )}
           <p className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
-            JPG / PNG. Auto-cropped to a 256×256 thumbnail.
+            {t('settings.prof_avatar_hint', 'JPG / PNG. Auto-cropped to a 256×256 thumbnail.')}
           </p>
         </div>
       </div>
 
-      <FieldRow label="Full name">
+      <FieldRow label={t('settings.prof_full_name', 'Full name')}>
         <input
           type="text"
           value={fullName}
@@ -127,7 +129,7 @@ export default function ProfileSection({ profile, onProfileUpdate }) {
           data-testid="account-full-name-input"
         />
       </FieldRow>
-      <FieldRow label="Email">
+      <FieldRow label={t('settings.prof_email', 'Email')}>
         <input
           type="email"
           value={profile?.email || ''}
@@ -137,10 +139,10 @@ export default function ProfileSection({ profile, onProfileUpdate }) {
           data-testid="account-email-input"
         />
         <p className="text-[10px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-          Contact your team admin or support to change this.
+          {t('settings.prof_email_hint', 'Contact your team admin or support to change this.')}
         </p>
       </FieldRow>
-      <FieldRow label="Phone">
+      <FieldRow label={t('settings.prof_phone', 'Phone')}>
         <input
           type="tel"
           value={phone}
@@ -160,10 +162,9 @@ export default function ProfileSection({ profile, onProfileUpdate }) {
           data-testid="account-profile-save-btn"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-          Save changes
+          {t('settings.prof_save', 'Save changes')}
         </button>
       </div>
     </div>
   );
 }
-

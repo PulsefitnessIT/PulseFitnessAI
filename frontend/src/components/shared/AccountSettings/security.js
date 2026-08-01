@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -7,6 +8,7 @@ import MFASetupCard from '../MFASetupCard';
 import { ActiveSessionsPanel } from './ActiveSessionsPanel';
 
 export default function SecuritySection() {
+  const { t } = useTranslation();
   const headers = useAuthHeaders();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -15,7 +17,7 @@ export default function SecuritySection() {
 
   const submit = async () => {
     if (next !== confirm) {
-      toast.error('New passwords do not match');
+      toast.error(t('settings.sec_mismatch', 'New passwords do not match'));
       return;
     }
     setBusy(true);
@@ -23,10 +25,10 @@ export default function SecuritySection() {
       await axios.post(`${API}/account/change-password`,
         { current_password: current, new_password: next },
         { headers: headers() });
-      toast.success('Password updated');
+      toast.success(t('settings.sec_pw_updated', 'Password updated'));
       setCurrent(''); setNext(''); setConfirm('');
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Could not change password');
+      toast.error(e.response?.data?.detail || t('settings.sec_pw_failed', 'Could not change password'));
     }
     setBusy(false);
   };
@@ -34,26 +36,26 @@ export default function SecuritySection() {
   return (
     <div className="space-y-8" data-testid="account-section-security">
       <div>
-        <h3 className="account-section-title">Two-factor authentication</h3>
-        <p className="account-section-sub">Protect your account with a 6-digit code on every sign-in.</p>
+        <h3 className="account-section-title">{t('settings.sec_2fa_title', 'Two-factor authentication')}</h3>
+        <p className="account-section-sub">{t('settings.sec_2fa_sub', 'Protect your account with a 6-digit code on every sign-in.')}</p>
         <div className="mt-3">
           <MFASetupCard />
         </div>
       </div>
 
       <div>
-        <h3 className="account-section-title">Active sessions</h3>
-        <p className="account-section-sub">See every device signed in to your account — and sign out the ones you don't recognise.</p>
+        <h3 className="account-section-title">{t('settings.sec_sessions_title', 'Active sessions')}</h3>
+        <p className="account-section-sub">{t('settings.sec_sessions_sub', "See every device signed in to your account — and sign out the ones you don't recognise.")}</p>
         <div className="mt-3">
           <ActiveSessionsPanel API={API} variant="light" />
         </div>
       </div>
 
       <div>
-        <h3 className="account-section-title">Reset password</h3>
-        <p className="account-section-sub">Change your password without leaving the app.</p>
+        <h3 className="account-section-title">{t('settings.sec_reset_title', 'Reset password')}</h3>
+        <p className="account-section-sub">{t('settings.sec_reset_sub', 'Change your password without leaving the app.')}</p>
         <div className="mt-3 space-y-3">
-          <FieldRow label="Current password">
+          <FieldRow label={t('settings.sec_current_pw', 'Current password')}>
             <input
               type="password"
               value={current}
@@ -62,7 +64,7 @@ export default function SecuritySection() {
               data-testid="account-current-password-input"
             />
           </FieldRow>
-          <FieldRow label="New password">
+          <FieldRow label={t('settings.sec_new_pw', 'New password')}>
             <input
               type="password"
               value={next}
@@ -71,10 +73,10 @@ export default function SecuritySection() {
               data-testid="account-new-password-input"
             />
             <p className="text-[10px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-              At least 12 characters. Use a mix of upper/lowercase letters, numbers, and symbols.
+              {t('settings.sec_pw_hint', 'At least 12 characters. Use a mix of upper/lowercase letters, numbers, and symbols.')}
             </p>
           </FieldRow>
-          <FieldRow label="Confirm new password">
+          <FieldRow label={t('settings.sec_confirm_pw', 'Confirm new password')}>
             <input
               type="password"
               value={confirm}
@@ -92,7 +94,7 @@ export default function SecuritySection() {
               data-testid="account-password-save-btn"
             >
               {busy ? <Loader2 size={14} className="animate-spin" /> : null}
-              Update password
+              {t('settings.sec_update_pw', 'Update password')}
             </button>
           </div>
         </div>
@@ -100,4 +102,3 @@ export default function SecuritySection() {
     </div>
   );
 }
-

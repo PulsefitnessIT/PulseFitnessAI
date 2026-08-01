@@ -19,6 +19,7 @@
  *   • The shared style block (`account-input`, `account-btn-*`, etc.)
  */
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { X } from 'lucide-react';
 import { useAuth } from '@/App';
@@ -36,6 +37,21 @@ import DataExportSection from './AccountSettings/data_export';
 import DocumentBrandingSettings from '@/pages/DocumentBrandingSettings';
 
 export default function AccountSettingsModal({ open, onClose, initialSection }) {
+  const { t } = useTranslation();
+  // Static t() calls so the i18n extractor picks up the nav labels
+  // (SECTIONS uses a dynamic labelKey the scanner can't see statically).
+  const NAV_LABELS = {
+    profile: t('settings.nav_profile', 'Profile'),
+    onboarding: t('settings.nav_onboarding', 'Onboarding'),
+    security: t('settings.nav_security', 'Security'),
+    preferences: t('settings.nav_preferences', 'Preferences'),
+    billing: t('settings.nav_billing', 'Plan & Billing'),
+    organisation: t('settings.nav_organisation', 'Organisation'),
+    documents: t('settings.nav_documents', 'Document Branding'),
+    suppliers: t('settings.nav_suppliers', 'Suppliers'),
+    team: t('settings.nav_team', 'Team & Roles'),
+    'data-export': t('settings.nav_data_export', 'Data export'),
+  };
   const { user, API: ctxAPI } = useAuth();
   const headers = useAuthHeaders();
   const [section, setSection] = useState('profile');
@@ -159,8 +175,8 @@ export default function AccountSettingsModal({ open, onClose, initialSection }) 
       >
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b account-modal-divider">
           <div className="min-w-0">
-            <h2 className="text-base font-bold truncate" style={{ color: 'var(--theme-text)' }}>Account Settings</h2>
-            <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--theme-text-muted)' }}>Manage your profile, security, plan and team.</p>
+            <h2 className="text-base font-bold truncate" style={{ color: 'var(--theme-text)' }}>{t('settings.modal_title', 'Account Settings')}</h2>
+            <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.modal_subtitle', 'Manage your profile, security, plan and team.')}</p>
           </div>
           <button
             type="button"
@@ -181,9 +197,9 @@ export default function AccountSettingsModal({ open, onClose, initialSection }) 
         <div className="flex-1 flex flex-col sm:grid sm:grid-cols-[200px_1fr] min-h-0">
           <nav
             className="account-sidebar flex-shrink-0 border-b sm:border-b-0 sm:border-r account-modal-divider p-2 sm:p-3 flex flex-row sm:flex-col gap-1 overflow-x-auto sm:overflow-y-auto sm:overflow-x-hidden"
-            aria-label="Account sections"
+            aria-label={t('settings.modal_sections_aria', 'Account sections')}
           >
-            {sections.map(({ id, label, icon: Icon }) => (
+            {sections.map(({ id, labelKey, label, icon: Icon }) => (
               <button
                 key={id}
                 type="button"
@@ -194,7 +210,7 @@ export default function AccountSettingsModal({ open, onClose, initialSection }) 
                 data-testid={`account-nav-${id}`}
               >
                 <Icon size={15} />
-                {label}
+                {NAV_LABELS[id] || t(labelKey, label)}
               </button>
             ))}
           </nav>

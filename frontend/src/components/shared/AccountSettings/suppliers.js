@@ -14,6 +14,7 @@
  * Hits `/api/suppliers` (existing routes — POST, GET, PUT, DELETE).
  */
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { toast } from 'sonner';
 import {
@@ -55,6 +56,7 @@ const BLANK = {
 };
 
 export default function SuppliersSection() {
+  const { t } = useTranslation();
   const headers = useAuthHeaders();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +109,7 @@ export default function SuppliersSection() {
       setList(r.data?.suppliers || r.data || []);
       if (typeof r.data?.can_add_suppliers === 'boolean') setCanAdd(r.data.can_add_suppliers);
     } catch (e) {
-      toast.error('Could not load suppliers');
+      toast.error(t('settings.sup_load_failed', 'Could not load suppliers'));
     } finally {
       setLoading(false);
     }
@@ -132,7 +134,7 @@ export default function SuppliersSection() {
 
   const submit = async (e) => {
     e?.preventDefault?.();
-    if (!form.name?.trim()) { toast.error('Name is required'); return; }
+    if (!form.name?.trim()) { toast.error(t('settings.sup_name_required', 'Name is required')); return; }
     setSubmitting(true);
     try {
       const body = {
@@ -146,15 +148,15 @@ export default function SuppliersSection() {
       };
       if (editing && editing.id) {
         await axios.put(`${API}/suppliers/${editing.id}`, body, { headers: headers() });
-        toast.success('Supplier updated');
+        toast.success(t('settings.sup_updated', 'Supplier updated'));
       } else {
         await axios.post(`${API}/suppliers`, body, { headers: headers() });
-        toast.success('Supplier added');
+        toast.success(t('settings.sup_added', 'Supplier added'));
       }
       close(); load(); loadReadiness();
     } catch (e) {
-      const msg = e?.response?.data?.detail || 'Save failed';
-      toast.error(typeof msg === 'string' ? msg : 'Save failed');
+      const msg = e?.response?.data?.detail || t('settings.sup_save_failed', 'Save failed');
+      toast.error(typeof msg === 'string' ? msg : t('settings.sup_save_failed', 'Save failed'));
     } finally { setSubmitting(false); }
   };
 
@@ -169,13 +171,13 @@ export default function SuppliersSection() {
   };
 
   const remove = async (s) => {
-    if (!window.confirm(`Remove supplier "${s.name}"?\n\nEquipment currently linked to this supplier will be left unassigned.`)) return;
+    if (!window.confirm(t('settings.sup_remove_confirm', 'Remove supplier "{{name}}"?\n\nEquipment currently linked to this supplier will be left unassigned.', { name: s.name }))) return;
     try {
       await axios.delete(`${API}/suppliers/${s.id}`, { headers: headers() });
-      toast.success('Supplier removed');
+      toast.success(t('settings.sup_removed', 'Supplier removed'));
       load(); loadReadiness();
     } catch (e) {
-      toast.error(e?.response?.data?.detail || 'Could not remove');
+      toast.error(e?.response?.data?.detail || t('settings.sup_remove_failed', 'Could not remove'));
     }
   };
 
@@ -183,17 +185,14 @@ export default function SuppliersSection() {
     <section className="space-y-4" data-testid="account-suppliers-section">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-bold" style={{ color: 'var(--theme-text)' }}>Suppliers</h3>
+          <h3 className="text-lg font-bold" style={{ color: 'var(--theme-text)' }}>{t('settings.sup_title', 'Suppliers')}</h3>
           <p className="text-sm mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
-            Manage equipment suppliers — fault notifications route to the
-            matching supplier automatically when a machine's manufacturer
-            matches one of their keywords. Any machine without its own supplier
-            is handled by <strong>Pulse Fitness Ltd</strong> by default.
+            {t('settings.sup_sub', "Manage equipment suppliers — fault notifications route to the matching supplier automatically when a machine's manufacturer matches one of their keywords. Any machine without its own supplier is handled by Pulse Fitness Ltd by default.")}
           </p>
         </div>
         {canAdd ? (
           <button type="button" onClick={openNew} className="account-btn-primary inline-flex items-center gap-1.5" data-testid="account-suppliers-add">
-            <Plus size={14} /> Add supplier
+            <Plus size={14} /> {t('settings.sup_add', 'Add supplier')}
           </button>
         ) : null}
       </header>
@@ -205,20 +204,20 @@ export default function SuppliersSection() {
             <AlertTriangle size={18} className="shrink-0 mt-0.5" style={{ color: '#f59e0b' }} />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>
-                {readiness.machines_blocked} machine{readiness.machines_blocked === 1 ? '' : 's'} won&rsquo;t auto-dispatch faults
+                {t('settings.sup_wont_dispatch', "{{n}} machine(s) won't auto-dispatch faults", { n: readiness.machines_blocked, count: readiness.machines_blocked })}
               </p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>
-                When a fault is logged on these machines, no supplier is emailed because the linked supplier has no email address (or isn&rsquo;t in your directory). Add an email to fix it.
+                {t('settings.sup_wont_dispatch_hint', "When a fault is logged on these machines, no supplier is emailed because the linked supplier has no email address (or isn't in your directory). Add an email to fix it.")}
               </p>
               <ul className="mt-3 space-y-1.5">
                 {(readiness.blocked_suppliers || []).map((b) => (
                   <li key={`${b.supplier_id || b.name}`} className="flex items-center justify-between gap-3 text-xs rounded-lg px-3 py-2" style={{ background: 'var(--theme-surface)' }} data-testid={`blocked-supplier-${b.supplier_id || b.name}`}>
                     <span className="min-w-0 truncate" style={{ color: 'var(--theme-text)' }}>
                       <strong>{b.name}</strong>
-                      <span style={{ color: 'var(--theme-text-muted)' }}> · {b.machine_count} machine{b.machine_count === 1 ? '' : 's'} · {b.reason === 'not_in_directory' ? 'not in directory' : 'no email'}</span>
+                      <span style={{ color: 'var(--theme-text-muted)' }}> · {t('settings.sup_machine_count', '{{n}} machine(s)', { n: b.machine_count, count: b.machine_count })} · {b.reason === 'not_in_directory' ? t('settings.sup_not_in_directory', 'not in directory') : t('settings.sup_no_email', 'no email')}</span>
                     </span>
                     <button type="button" onClick={() => fixBlocked(b)} className="account-btn-secondary inline-flex items-center gap-1 shrink-0 text-xs" data-testid={`fix-blocked-supplier-${b.supplier_id || b.name}`}>
-                      <Mail size={11} /> {b.reason === 'not_in_directory' ? 'Add supplier' : 'Add email'}
+                      <Mail size={11} /> {b.reason === 'not_in_directory' ? t('settings.sup_add_supplier', 'Add supplier') : t('settings.sup_add_email', 'Add email')}
                     </button>
                   </li>
                 ))}
@@ -230,8 +229,8 @@ export default function SuppliersSection() {
         <div className="rounded-xl border p-3 flex items-center gap-2.5" style={{ background: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.25)' }} data-testid="supplier-dispatch-readiness-ok">
           <CheckCircle2 size={16} className="shrink-0" style={{ color: '#10b981' }} />
           <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-            <strong style={{ color: 'var(--theme-text)' }}>{readiness.machines_ready} machine{readiness.machines_ready === 1 ? '' : 's'}</strong> will auto-email their supplier on fault submit.
-            {readiness.machines_no_supplier > 0 && ` ${readiness.machines_no_supplier} with no supplier of their own route to Pulse Fitness Ltd.`}
+            <strong style={{ color: 'var(--theme-text)' }}>{t('settings.sup_machines_ready', '{{n}} machine(s)', { n: readiness.machines_ready, count: readiness.machines_ready })}</strong> {t('settings.sup_will_auto_email', 'will auto-email their supplier on fault submit.')}
+            {readiness.machines_no_supplier > 0 && ` ${t('settings.sup_no_supplier_route', '{{n}} with no supplier of their own route to Pulse Fitness Ltd.', { n: readiness.machines_no_supplier })}`}
           </p>
         </div>
       ) : null}
@@ -242,12 +241,12 @@ export default function SuppliersSection() {
           <div className="px-4 py-3 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--theme-border)' }}>
             <div className="flex items-center gap-2">
               <BarChart3 size={15} style={{ color: 'var(--color-brand-blue)' }} />
-              <span className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>Supplier insights</span>
+              <span className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>{t('settings.sup_insights', 'Supplier insights')}</span>
             </div>
-            <span className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>Last {insights.window_days} days · {insights.total_faults} fault{insights.total_faults === 1 ? '' : 's'}</span>
+            <span className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.sup_window_faults', 'Last {{d}} days · {{n}} fault(s)', { d: insights.window_days, n: insights.total_faults })}</span>
           </div>
           <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-3 px-4 py-2 text-[11px] uppercase tracking-wider font-semibold" style={{ color: 'var(--theme-text-muted)' }}>
-            <span className="w-3.5" /><span>Supplier</span><span className="text-center">90-day trend</span><span className="text-right">Faults</span><span className="text-right">Avg. resolution</span>
+            <span className="w-3.5" /><span>{t('settings.sup_col_supplier', 'Supplier')}</span><span className="text-center">{t('settings.sup_col_trend', '90-day trend')}</span><span className="text-right">{t('settings.sup_col_faults', 'Faults')}</span><span className="text-right">{t('settings.sup_col_resolution', 'Avg. resolution')}</span>
           </div>
           {insights.suppliers.map((r) => {
             const key = r.is_unassigned ? '__unassigned__' : r.supplier;
@@ -264,19 +263,19 @@ export default function SuppliersSection() {
                 <ChevronRight size={14} className="transition-transform" style={{ color: 'var(--theme-text-muted)', transform: isOpen ? 'rotate(90deg)' : 'none' }} />
                 <div className="min-w-0">
                   <div className="text-sm font-medium truncate flex items-center gap-1.5" style={{ color: r.is_unassigned ? 'var(--theme-text-muted)' : 'var(--theme-text)' }}>
-                    {r.is_unassigned ? <><AlertTriangle size={12} style={{ color: '#f59e0b' }} /> Unassigned</> : r.supplier}
+                    {r.is_unassigned ? <><AlertTriangle size={12} style={{ color: '#f59e0b' }} /> {t('settings.sup_unassigned', 'Unassigned')}</> : r.supplier}
                   </div>
                   {r.is_unassigned ? (
-                    <div className="text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>No supplier set — assign one so it isn&rsquo;t routed to Pulse by default.</div>
+                    <div className="text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.sup_unassigned_hint', "No supplier set — assign one so it isn't routed to Pulse by default.")}</div>
                   ) : null}
                 </div>
                 <div className="flex items-center justify-center gap-1.5" data-testid={`supplier-insight-trend-${r.is_unassigned ? 'unassigned' : r.supplier}`}>
                   <Sparkline data={r.trend || []} rising={r.rising} />
-                  {r.rising ? <TrendingUp size={12} style={{ color: '#f59e0b' }} title="Rising fault volume" /> : null}
+                  {r.rising ? <TrendingUp size={12} style={{ color: '#f59e0b' }} title={t('settings.sup_rising', 'Rising fault volume')} /> : null}
                 </div>
                 <div className="text-right text-sm" style={{ color: 'var(--theme-text)' }}>
                   {r.total_faults}
-                  <span className="text-[11px] ml-1" style={{ color: 'var(--theme-text-muted)' }}>({r.open_faults} open)</span>
+                  <span className="text-[11px] ml-1" style={{ color: 'var(--theme-text-muted)' }}>({t('settings.sup_n_open', '{{n}} open', { n: r.open_faults })})</span>
                 </div>
                 <div className="text-right text-sm tabular-nums" style={{ color: 'var(--theme-text)' }}>{fmtResolution(r.avg_resolution_hours)}</div>
               </button>
@@ -284,7 +283,7 @@ export default function SuppliersSection() {
                 <div className="px-4 pb-3 pt-1" data-testid={`supplier-insight-faults-${r.is_unassigned ? 'unassigned' : r.supplier}`}>
                   {loadingFaults && !faults ? (
                     <div className="flex items-center gap-2 text-xs py-2" style={{ color: 'var(--theme-text-muted)' }}>
-                      <Loader2 size={13} className="animate-spin" /> Loading faults…
+                      <Loader2 size={13} className="animate-spin" /> {t('settings.sup_loading_faults', 'Loading faults…')}
                     </div>
                   ) : (faults && faults.length > 0) ? (
                     <ul className="space-y-1.5">
@@ -299,14 +298,14 @@ export default function SuppliersSection() {
                               {(f.status || '').replace('_', ' ') || '—'}
                             </span>
                             <div className="text-[10px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-                              {f.resolution_hours != null ? `resolved in ${fmtResolution(f.resolution_hours)}` : 'open'}
+                              {f.resolution_hours != null ? t('settings.sup_resolved_in', 'resolved in {{time}}', { time: fmtResolution(f.resolution_hours) }) : t('settings.sup_open', 'open')}
                             </div>
                           </div>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <div className="text-xs py-2" style={{ color: 'var(--theme-text-muted)' }}>No faults in this window.</div>
+                    <div className="text-xs py-2" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.sup_no_faults_window', 'No faults in this window.')}</div>
                   )}
                 </div>
               ) : null}
@@ -319,12 +318,12 @@ export default function SuppliersSection() {
       <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
         {loading ? (
           <div className="p-8 text-center text-sm" style={{ color: 'var(--theme-text-muted)' }}>
-            <Loader2 size={16} className="animate-spin inline mr-2" /> Loading suppliers…
+            <Loader2 size={16} className="animate-spin inline mr-2" /> {t('settings.sup_loading', 'Loading suppliers…')}
           </div>
         ) : list.length === 0 ? (
           <div className="p-8 text-center text-sm" style={{ color: 'var(--theme-text-muted)' }} data-testid="account-suppliers-empty">
             <Truck size={28} className="mx-auto mb-2 opacity-50" />
-            No suppliers yet. Click <strong>Add supplier</strong> above.
+            {t('settings.sup_empty', 'No suppliers yet. Click Add supplier above.')}
           </div>
         ) : (
           <ul className="divide-y" style={{ borderColor: 'var(--theme-border)' }}>
@@ -338,7 +337,7 @@ export default function SuppliersSection() {
                     {s.name}
                     {s.is_default_pulse ? (
                       <span className="text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded inline-flex items-center gap-1" style={{ background: 'rgba(102,204,255,0.14)', color: 'var(--color-brand-blue)' }} data-testid={`supplier-default-badge-${s.id}`}>
-                        <Lock size={9} /> Default
+                        <Lock size={9} /> {t('settings.sup_default', 'Default')}
                       </span>
                     ) : null}
                   </div>
@@ -349,7 +348,7 @@ export default function SuppliersSection() {
                   </div>
                   {s.is_default_pulse ? (
                     <p className="text-[11px] mt-1.5" style={{ color: 'var(--theme-text-muted)' }}>
-                      Built-in Pulse Fitness service contact — every fault on a machine with no other supplier is emailed here automatically.
+                      {t('settings.sup_builtin', 'Built-in Pulse Fitness service contact — every fault on a machine with no other supplier is emailed here automatically.')}
                     </p>
                   ) : null}
                   {Array.isArray(s.manufacturer_keywords) && s.manufacturer_keywords.length > 0 && (
@@ -365,15 +364,15 @@ export default function SuppliersSection() {
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {s.is_default_pulse ? (
-                    <span className="p-1.5 rounded-md" style={{ color: 'var(--theme-text-muted)', opacity: 0.6 }} title="Locked default supplier" data-testid={`account-supplier-locked-${s.id}`}>
+                    <span className="p-1.5 rounded-md" style={{ color: 'var(--theme-text-muted)', opacity: 0.6 }} title={t('settings.sup_locked_default', 'Locked default supplier')} data-testid={`account-supplier-locked-${s.id}`}>
                       <Lock size={14} />
                     </span>
                   ) : (
                     <>
-                      <button type="button" onClick={() => openEdit(s)} className="p-1.5 rounded-md" style={{ color: 'var(--theme-text-muted)' }} data-testid={`account-supplier-edit-${s.id}`} aria-label="Edit">
+                      <button type="button" onClick={() => openEdit(s)} className="p-1.5 rounded-md" style={{ color: 'var(--theme-text-muted)' }} data-testid={`account-supplier-edit-${s.id}`} aria-label={t('settings.sup_edit', 'Edit')}>
                         <Pencil size={14} />
                       </button>
-                      <button type="button" onClick={() => remove(s)} className="p-1.5 rounded-md" style={{ color: 'var(--color-status-error, #DC2626)' }} data-testid={`account-supplier-delete-${s.id}`} aria-label="Remove">
+                      <button type="button" onClick={() => remove(s)} className="p-1.5 rounded-md" style={{ color: 'var(--color-status-error, #DC2626)' }} data-testid={`account-supplier-delete-${s.id}`} aria-label={t('settings.sup_remove', 'Remove')}>
                         <Trash2 size={14} />
                       </button>
                     </>
@@ -392,35 +391,35 @@ export default function SuppliersSection() {
               <X size={16} />
             </button>
             <h4 className="text-base font-bold mb-4" style={{ color: 'var(--theme-text)' }}>
-              {editing.id ? `Edit ${editing.name}` : 'Add supplier'}
+              {editing.id ? t('settings.sup_edit_name', 'Edit {{name}}', { name: editing.name }) : t('settings.sup_add', 'Add supplier')}
             </h4>
             <div className="space-y-3">
-              <SupField label="Supplier name *" testid="supplier-field-name">
+              <SupField label={t('settings.sup_name_label', 'Supplier name *')} testid="supplier-field-name">
                 <input className="account-input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Technogym UK" />
               </SupField>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <SupField label="Primary contact" testid="supplier-field-contact-name">
+                <SupField label={t('settings.sup_contact_label', 'Primary contact')} testid="supplier-field-contact-name">
                   <input className="account-input" value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} placeholder="John Smith" />
                 </SupField>
-                <SupField label="Phone" testid="supplier-field-phone">
+                <SupField label={t('settings.sup_phone_label', 'Phone')} testid="supplier-field-phone">
                   <input className="account-input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+44 …" />
                 </SupField>
               </div>
-              <SupField label="Email" testid="supplier-field-email">
+              <SupField label={t('settings.sup_email_label', 'Email')} testid="supplier-field-email">
                 <input className="account-input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="service@…" />
               </SupField>
-              <SupField label="Manufacturer keywords (auto-match equipment)" testid="supplier-field-keywords">
+              <SupField label={t('settings.sup_keywords_label', 'Manufacturer keywords (auto-match equipment)')} testid="supplier-field-keywords">
                 <input className="account-input" value={form.manufacturer_keywords} onChange={(e) => setForm({ ...form, manufacturer_keywords: e.target.value })} placeholder="Technogym, Skill Line, Selection" />
                 <p className="text-[11px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-                  Comma-separated. Any equipment whose manufacturer matches one of these keywords (case-insensitive) will route its fault notifications to this supplier.
+                  {t('settings.sup_keywords_hint', 'Comma-separated. Any equipment whose manufacturer matches one of these keywords (case-insensitive) will route its fault notifications to this supplier.')}
                 </p>
               </SupField>
             </div>
             <div className="mt-5 flex items-center justify-end gap-2">
-              <button type="button" onClick={close} className="account-btn-secondary" data-testid="account-supplier-cancel">Cancel</button>
+              <button type="button" onClick={close} className="account-btn-secondary" data-testid="account-supplier-cancel">{t('settings.sup_cancel', 'Cancel')}</button>
               <button type="submit" disabled={submitting} className="account-btn-primary inline-flex items-center gap-2 disabled:opacity-50" data-testid="account-supplier-save">
                 {submitting ? <Loader2 size={14} className="animate-spin" /> : null}
-                {editing.id ? 'Save changes' : 'Add supplier'}
+                {editing.id ? t('settings.sup_save_changes', 'Save changes') : t('settings.sup_add', 'Add supplier')}
               </button>
             </div>
           </form>

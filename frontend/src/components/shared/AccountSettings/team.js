@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Check, Copy, Loader2, Plus, Trash2 } from 'lucide-react';
@@ -6,6 +7,7 @@ import { API, useAuthHeaders, FieldRow } from './shared';
 
 
 export default function TeamSection({ profile, inviteCode }) {
+  const { t } = useTranslation();
   const headers = useAuthHeaders();
   const [members, setMembers] = useState([]);
   const [sitesList, setSitesList] = useState([]);
@@ -52,15 +54,15 @@ export default function TeamSection({ profile, inviteCode }) {
       const { data } = await axios.post(`${API}/account/team/invite`, form, { headers: headers() });
       if (data.delivery === 'reset_link') {
         setInviteUrl(data.invite_url || '');
-        toast.success('Reset link issued — copy it or it will also be emailed when Resend is wired.');
+        toast.success(t('settings.team_reset_issued', 'Reset link issued — copy it or it will also be emailed when Resend is wired.'));
       } else {
         setTempPwd(data.temp_password || '');
-        toast.success('Invite created');
+        toast.success(t('settings.team_invite_created', 'Invite created'));
       }
       setForm({ email: '', full_name: '', role: 'staff', delivery: 'reset_link', allowed_site_ids: [] });
       await load();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Invite failed');
+      toast.error(e.response?.data?.detail || t('settings.team_invite_failed', 'Invite failed'));
     }
     setBusy(false);
   };
@@ -70,18 +72,18 @@ export default function TeamSection({ profile, inviteCode }) {
       await axios.patch(`${API}/account/team/${id}`, { role }, { headers: headers() });
       await load();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Update failed');
+      toast.error(e.response?.data?.detail || t('settings.team_update_failed', 'Update failed'));
     }
   };
 
   const remove = async (id) => {
-    if (!window.confirm('Remove this teammate? They will lose access immediately.')) return;
+    if (!window.confirm(t('settings.team_remove_confirm', 'Remove this teammate? They will lose access immediately.'))) return;
     try {
       await axios.delete(`${API}/account/team/${id}`, { headers: headers() });
       await load();
-      toast.success('Teammate removed');
+      toast.success(t('settings.team_removed', 'Teammate removed'));
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Remove failed');
+      toast.error(e.response?.data?.detail || t('settings.team_remove_failed', 'Remove failed'));
     }
   };
 
@@ -104,31 +106,31 @@ export default function TeamSection({ profile, inviteCode }) {
         { allowed_site_ids: pendingSites },
         { headers: headers() },
       );
-      toast.success(pendingSites.length === 0 ? 'Site access cleared (full access)' : `Pinned to ${pendingSites.length} site(s)`);
+      toast.success(pendingSites.length === 0 ? t('settings.team_sites_cleared', 'Site access cleared (full access)') : t('settings.team_sites_pinned', 'Pinned to {{n}} site(s)', { n: pendingSites.length, count: pendingSites.length }));
       setEditingSitesFor(null);
       setPendingSites([]);
       await load();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Site allocation failed');
+      toast.error(e.response?.data?.detail || t('settings.team_sites_failed', 'Site allocation failed'));
     }
   };
 
   /** Iter 216h15 — send a fresh reset link to an existing teammate. */
   const sendResetLink = async (member) => {
-    if (!window.confirm(`Send a password reset link to ${member.email}? This invalidates any previous reset link for this user.`)) return;
+    if (!window.confirm(t('settings.team_reset_confirm', 'Send a password reset link to {{email}}? This invalidates any previous reset link for this user.', { email: member.email }))) return;
     try {
       const { data } = await axios.post(
         `${API}/account/team/${member.id}/send-reset-link`, {}, { headers: headers() },
       );
       if (data.invite_url) {
         try { await navigator.clipboard.writeText(data.invite_url); } catch { /* ignore */ }
-        toast.success('Reset link copied to clipboard (expires in 72 h).');
+        toast.success(t('settings.team_reset_copied', 'Reset link copied to clipboard (expires in 72 h).'));
       } else {
-        toast.success('Reset link issued.');
+        toast.success(t('settings.team_reset_issued2', 'Reset link issued.'));
       }
       await load();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Could not send reset link');
+      toast.error(e.response?.data?.detail || t('settings.team_reset_failed', 'Could not send reset link'));
     }
   };
 
@@ -136,8 +138,8 @@ export default function TeamSection({ profile, inviteCode }) {
     <div className="space-y-4" data-testid="account-section-team">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="account-section-title">Team & roles</h3>
-          <p className="account-section-sub">{members.length} teammate{members.length === 1 ? '' : 's'} in this organisation.</p>
+          <h3 className="account-section-title">{t('settings.team_title', 'Team & roles')}</h3>
+          <p className="account-section-sub">{t('settings.team_count', '{{n}} teammate(s) in this organisation.', { n: members.length, count: members.length })}</p>
         </div>
         {canManage && (
           <button
@@ -146,7 +148,7 @@ export default function TeamSection({ profile, inviteCode }) {
             className="account-btn-primary"
             data-testid="account-team-invite-toggle"
           >
-            <Plus size={14} /> Invite
+            <Plus size={14} /> {t('settings.team_invite', 'Invite')}
           </button>
         )}
       </div>
@@ -162,7 +164,7 @@ export default function TeamSection({ profile, inviteCode }) {
         >
           {inviteCode && (
             <div className="rounded-md p-3" style={{ background: 'var(--theme-bg)', border: '1px solid var(--theme-border)' }}>
-              <div className="text-[10px] uppercase tracking-wider font-semibold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Self-join invite code</div>
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-1" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.team_selfjoin_code', 'Self-join invite code')}</div>
               <div className="flex items-center gap-2">
                 <code className="text-base font-mono" style={{ color: 'var(--brand-color, var(--color-brand-blue))' }} data-testid="account-team-invite-code">{inviteCode}</code>
                 <button
@@ -176,16 +178,16 @@ export default function TeamSection({ profile, inviteCode }) {
                   style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
                   data-testid="account-team-invite-code-copy"
                 >
-                  {codeCopied ? <Check size={12} /> : <Copy size={12} />} {codeCopied ? 'Copied' : 'Copy'}
+                  {codeCopied ? <Check size={12} /> : <Copy size={12} />} {codeCopied ? t('settings.team_copied', 'Copied') : t('settings.team_copy', 'Copy')}
                 </button>
               </div>
               <p className="text-[11px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-                Share this code so a new teammate can self-join your organisation, or fill in the form below to send a direct invite.
+                {t('settings.team_selfjoin_hint', 'Share this code so a new teammate can self-join your organisation, or fill in the form below to send a direct invite.')}
               </p>
             </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FieldRow label="Full name">
+            <FieldRow label={t('settings.team_full_name', 'Full name')}>
               <input
                 type="text"
                 value={form.full_name}
@@ -194,7 +196,7 @@ export default function TeamSection({ profile, inviteCode }) {
                 data-testid="account-team-invite-name"
               />
             </FieldRow>
-            <FieldRow label="Email">
+            <FieldRow label={t('settings.team_email', 'Email')}>
               <input
                 type="email"
                 value={form.email}
@@ -203,27 +205,27 @@ export default function TeamSection({ profile, inviteCode }) {
                 data-testid="account-team-invite-email"
               />
             </FieldRow>
-            <FieldRow label="Role">
+            <FieldRow label={t('settings.team_role', 'Role')}>
               <select
                 value={form.role}
                 onChange={(e) => setForm({ ...form, role: e.target.value })}
                 className="account-input"
                 data-testid="account-team-invite-role"
               >
-                <option value="staff">Staff</option>
-                {isOwner && <option value="manager">Manager</option>}
-                {isOwner && <option value="engineer">Engineer</option>}
+                <option value="staff">{t('settings.team_role_staff', 'Staff')}</option>
+                {isOwner && <option value="manager">{t('settings.team_role_manager', 'Manager')}</option>}
+                {isOwner && <option value="engineer">{t('settings.team_role_engineer', 'Engineer')}</option>}
               </select>
             </FieldRow>
-            <FieldRow label="Delivery">
+            <FieldRow label={t('settings.team_delivery', 'Delivery')}>
               <select
                 value={form.delivery}
                 onChange={(e) => setForm({ ...form, delivery: e.target.value })}
                 className="account-input"
                 data-testid="account-team-invite-delivery"
               >
-                <option value="reset_link">Email password reset link (recommended)</option>
-                <option value="temp_password">Show temporary password inline</option>
+                <option value="reset_link">{t('settings.team_delivery_reset', 'Email password reset link (recommended)')}</option>
+                <option value="temp_password">{t('settings.team_delivery_temp', 'Show temporary password inline')}</option>
               </select>
             </FieldRow>
           </div>
@@ -233,7 +235,7 @@ export default function TeamSection({ profile, inviteCode }) {
           {sitesList.length >= 2 && (
             <div className="rounded-md p-3 mt-2" style={{ background: 'var(--theme-bg)', border: '1px solid var(--theme-border)' }} data-testid="account-team-invite-sites">
               <div className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--theme-text-muted)' }}>
-                Pin to sites (optional)
+                {t('settings.team_pin_sites', 'Pin to sites (optional)')}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {sitesList.map((s) => {
@@ -263,12 +265,12 @@ export default function TeamSection({ profile, inviteCode }) {
                 })}
               </div>
               <p className="text-[10px] mt-2" style={{ color: 'var(--theme-text-muted)' }}>
-                Leave empty for full org-wide access. Selecting sites locks the teammate to those sites only.
+                {t('settings.team_pin_hint', 'Leave empty for full org-wide access. Selecting sites locks the teammate to those sites only.')}
               </p>
             </div>
           )}
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setShowInvite(false)} className="account-btn-secondary">Cancel</button>
+            <button type="button" onClick={() => setShowInvite(false)} className="account-btn-secondary">{t('settings.team_cancel', 'Cancel')}</button>
             <button
               type="button"
               onClick={invite}
@@ -277,19 +279,19 @@ export default function TeamSection({ profile, inviteCode }) {
               data-testid="account-team-invite-submit"
             >
               {busy ? <Loader2 size={14} className="animate-spin" /> : null}
-              Send invite
+              {t('settings.team_send_invite', 'Send invite')}
             </button>
           </div>
           {tempPwd && (
             <div className="rounded border border-amber-400/40 bg-amber-400/10 p-3 text-xs" style={{ color: 'var(--theme-text)' }} data-testid="account-team-invite-temp-pwd">
-              Temporary password: <code className="font-mono">{tempPwd}</code> — share this with the new teammate.
+              {t('settings.team_temp_pwd', 'Temporary password:')} <code className="font-mono">{tempPwd}</code> — {t('settings.team_temp_pwd_share', 'share this with the new teammate.')}
             </div>
           )}
           {inviteUrl && (
             <div className="rounded border border-emerald-400/40 bg-emerald-400/10 p-3 text-xs space-y-1.5" style={{ color: 'var(--theme-text)' }} data-testid="account-team-invite-url">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="font-semibold mb-0.5">Password reset link issued · expires in 72 h</div>
+                  <div className="font-semibold mb-0.5">{t('settings.team_reset_link_issued', 'Password reset link issued · expires in 72 h')}</div>
                   <code className="font-mono text-[10px] break-all" style={{ color: 'var(--theme-text-muted)' }}>{inviteUrl}</code>
                 </div>
                 <button
@@ -303,11 +305,11 @@ export default function TeamSection({ profile, inviteCode }) {
                   style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
                   data-testid="account-team-invite-url-copy"
                 >
-                  {urlCopied ? <Check size={12} /> : <Copy size={12} />} {urlCopied ? 'Copied' : 'Copy'}
+                  {urlCopied ? <Check size={12} /> : <Copy size={12} />} {urlCopied ? t('settings.team_copied', 'Copied') : t('settings.team_copy', 'Copy')}
                 </button>
               </div>
               <p style={{ color: 'var(--theme-text-muted)' }}>
-                Share this with the new teammate. They&apos;ll set their own password — you never see it.
+                {t('settings.team_reset_link_share', "Share this with the new teammate. They'll set their own password — you never see it.")}
               </p>
             </div>
           )}
@@ -315,7 +317,7 @@ export default function TeamSection({ profile, inviteCode }) {
       )}
 
       <div className="account-card rounded-xl divide-y" style={{ borderColor: 'var(--theme-border)' }}>
-        {loading && <div className="px-4 py-6 text-sm text-center" style={{ color: 'var(--theme-text-muted)' }}>Loading…</div>}
+        {loading && <div className="px-4 py-6 text-sm text-center" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.team_loading', 'Loading…')}</div>}
         {!loading && members.map((m) => {
           const me = m.id === profile?.id;
           const editable = canManage && !me && m.role !== 'owner';
@@ -335,7 +337,7 @@ export default function TeamSection({ profile, inviteCode }) {
                     </div>
                   )}
                   <div className="min-w-0">
-                    <div className="text-sm font-medium truncate" style={{ color: 'var(--theme-text)' }}>{m.full_name || '—'} {me && <span className="text-[10px] font-normal ml-1" style={{ color: 'var(--theme-text-muted)' }}>(you)</span>}</div>
+                    <div className="text-sm font-medium truncate" style={{ color: 'var(--theme-text)' }}>{m.full_name || '—'} {me && <span className="text-[10px] font-normal ml-1" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.team_you', '(you)')}</span>}</div>
                     <div className="text-[11px] truncate" style={{ color: 'var(--theme-text-muted)' }}>{m.email}</div>
                   </div>
                 </div>
@@ -347,9 +349,9 @@ export default function TeamSection({ profile, inviteCode }) {
                       className="account-input account-input-sm"
                       data-testid={`account-team-role-${m.id}`}
                     >
-                      <option value="staff">Staff</option>
-                      {isOwner && <option value="manager">Manager</option>}
-                      {(isOwner || m.role === 'engineer') && <option value="engineer">Engineer</option>}
+                      <option value="staff">{t('settings.team_role_staff', 'Staff')}</option>
+                      {isOwner && <option value="manager">{t('settings.team_role_manager', 'Manager')}</option>}
+                      {(isOwner || m.role === 'engineer') && <option value="engineer">{t('settings.team_role_engineer', 'Engineer')}</option>}
                     </select>
                   ) : (
                     <span className="text-[11px] uppercase tracking-wider px-2 py-1 rounded border capitalize" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{m.role}</span>
@@ -361,10 +363,10 @@ export default function TeamSection({ profile, inviteCode }) {
                       onClick={() => sendResetLink(m)}
                       className="text-[11px] px-2 py-1 rounded border hover:bg-[var(--theme-hover-bg)] transition-colors"
                       style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
-                      title="Issue a 72 h password reset link"
+                      title={t('settings.team_reset_title', 'Issue a 72 h password reset link')}
                       data-testid={`account-team-reset-${m.id}`}
                     >
-                      Send reset link
+                      {t('settings.team_send_reset', 'Send reset link')}
                     </button>
                   )}
                   {editable && (
@@ -373,7 +375,7 @@ export default function TeamSection({ profile, inviteCode }) {
                       onClick={() => remove(m.id)}
                       className="hover:text-red-400 transition"
                       style={{ color: 'var(--theme-text-muted)' }}
-                      title="Remove teammate"
+                      title={t('settings.team_remove_title', 'Remove teammate')}
                       data-testid={`account-team-remove-${m.id}`}
                     >
                       <Trash2 size={14} />
@@ -386,10 +388,10 @@ export default function TeamSection({ profile, inviteCode }) {
                 <div className="pl-11">
                   {!editingSites ? (
                     <div className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--theme-text-muted)' }} data-testid={`account-team-sites-summary-${m.id}`}>
-                      <span className="font-semibold uppercase tracking-wider">Sites:</span>
+                      <span className="font-semibold uppercase tracking-wider">{t('settings.team_sites', 'Sites:')}</span>
                       <span>
                         {pinnedNames.length === 0
-                          ? <em>All sites in org</em>
+                          ? <em>{t('settings.team_all_sites', 'All sites in org')}</em>
                           : pinnedNames.join(' · ')}
                       </span>
                       <button
@@ -398,13 +400,13 @@ export default function TeamSection({ profile, inviteCode }) {
                         className="ml-auto text-[10px] underline hover:text-[var(--brand-color)]"
                         data-testid={`account-team-sites-edit-${m.id}`}
                       >
-                        Edit sites
+                        {t('settings.team_edit_sites', 'Edit sites')}
                       </button>
                     </div>
                   ) : (
                     <div className="rounded-md p-3" style={{ background: 'var(--theme-bg)', border: '1px solid var(--theme-border)' }} data-testid={`account-team-sites-editor-${m.id}`}>
                       <div className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--theme-text-muted)' }}>
-                        Pin {m.full_name || m.email} to sites
+                        {t('settings.team_pin_to_sites', 'Pin {{name}} to sites', { name: m.full_name || m.email })}
                       </div>
                       <div className="flex flex-wrap gap-1.5 mb-2">
                         {sitesList.map((s) => {
@@ -429,7 +431,7 @@ export default function TeamSection({ profile, inviteCode }) {
                         })}
                       </div>
                       <div className="flex justify-end gap-2">
-                        <button type="button" onClick={() => { setEditingSitesFor(null); setPendingSites([]); }} className="text-xs px-2.5 py-1 rounded border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>Cancel</button>
+                        <button type="button" onClick={() => { setEditingSitesFor(null); setPendingSites([]); }} className="text-xs px-2.5 py-1 rounded border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{t('settings.team_cancel', 'Cancel')}</button>
                         <button
                           type="button"
                           onClick={() => saveSiteAccess(m.id)}
@@ -437,7 +439,7 @@ export default function TeamSection({ profile, inviteCode }) {
                           style={{ background: 'var(--brand-color, var(--color-brand-blue))', color: 'white' }}
                           data-testid={`account-team-sites-save-${m.id}`}
                         >
-                          Save site access
+                          {t('settings.team_save_sites', 'Save site access')}
                         </button>
                       </div>
                     </div>
@@ -445,8 +447,8 @@ export default function TeamSection({ profile, inviteCode }) {
                   {/* Iter 216h15 — audit trail of the last reset link */}
                   {m.password_reset_sent_at && (
                     <div className="text-[10px] mt-1" style={{ color: 'var(--theme-text-muted)' }} data-testid={`account-team-reset-audit-${m.id}`}>
-                      Last reset link sent {new Date(m.password_reset_sent_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      {m.password_reset_sent_by ? ` by ${m.password_reset_sent_by}` : ''}
+                      {t('settings.team_last_reset', 'Last reset link sent')} {new Date(m.password_reset_sent_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {m.password_reset_sent_by ? ` ${t('settings.team_by', 'by')} ${m.password_reset_sent_by}` : ''}
                     </div>
                   )}
                 </div>
@@ -455,7 +457,7 @@ export default function TeamSection({ profile, inviteCode }) {
           );
         })}
         {!loading && members.length === 0 && (
-          <div className="px-4 py-6 text-sm text-center" style={{ color: 'var(--theme-text-muted)' }}>No teammates yet.</div>
+          <div className="px-4 py-6 text-sm text-center" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.team_empty', 'No teammates yet.')}</div>
         )}
       </div>
     </div>

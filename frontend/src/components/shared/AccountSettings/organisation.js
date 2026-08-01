@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Camera, Loader2, Trash2 } from 'lucide-react';
@@ -7,6 +8,7 @@ import LocalizationPanel from './LocalizationPanel';
 
 
 export default function OrganisationSection({ billing, profile }) {
+  const { t } = useTranslation();
   const headers = useAuthHeaders();
   const [org, setOrg] = useState(null);
   const [form, setForm] = useState({
@@ -58,15 +60,15 @@ export default function OrganisationSection({ billing, profile }) {
     try {
       const { data } = await axios.patch(`${API}/account/organisation`, form, { headers: headers() });
       setOrg(data);
-      toast.success('Organisation details updated');
+      toast.success(t('settings.org_updated', 'Organisation details updated'));
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Update failed');
+      toast.error(e.response?.data?.detail || t('settings.org_update_failed', 'Update failed'));
     }
     setSaving(false);
   };
 
   if (!org && !billing?.organization) {
-    return <div className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>No organisation linked to this account.</div>;
+    return <div className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.org_none', 'No organisation linked to this account.')}</div>;
   }
 
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -89,11 +91,11 @@ export default function OrganisationSection({ billing, profile }) {
       setOrg((o) => ({ ...(o || {}), logo_url: data.logo_url, brand_palette: data.brand_palette || [] }));
       toast.success(
         data.brand_palette?.length
-          ? `Logo uploaded — ${data.brand_palette.length} brand colour${data.brand_palette.length === 1 ? '' : 's'} detected`
-          : 'Logo uploaded',
+          ? t('settings.org_logo_uploaded_colors', 'Logo uploaded — {{n}} brand colour(s) detected', { n: data.brand_palette.length, count: data.brand_palette.length })
+          : t('settings.org_logo_uploaded', 'Logo uploaded'),
       );
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Logo upload failed');
+      toast.error(err.response?.data?.detail || t('settings.org_logo_failed', 'Logo upload failed'));
     }
     setLogoUploading(false);
   };
@@ -104,13 +106,13 @@ export default function OrganisationSection({ billing, profile }) {
     e.stopPropagation();
     setDragOver(false);
     if (!canEditLogo) {
-      toast.error('Only the Owner or a Manager can change the logo.');
+      toast.error(t('settings.org_logo_perm', 'Only the Owner or a Manager can change the logo.'));
       return;
     }
     const f = e.dataTransfer?.files?.[0];
     if (!f) return;
     if (!/^image\//.test(f.type)) {
-      toast.error('Please drop an image file (PNG, JPG, or WebP).');
+      toast.error(t('settings.org_drop_image', 'Please drop an image file (PNG, JPG, or WebP).'));
       return;
     }
     await uploadLogo(f);
@@ -121,9 +123,9 @@ export default function OrganisationSection({ billing, profile }) {
     try {
       await axios.post(`${API}/account/branding/apply`, { primary_color: hex }, { headers: headers() });
       setOrg((o) => ({ ...(o || {}), primary_color: hex }));
-      toast.success(`Brand colour set to ${hex}`);
+      toast.success(t('settings.org_color_set', 'Brand colour set to {{hex}}', { hex }));
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Could not apply brand colour');
+      toast.error(err.response?.data?.detail || t('settings.org_color_failed', 'Could not apply brand colour'));
     }
     setApplyingColor('');
   };
@@ -133,9 +135,9 @@ export default function OrganisationSection({ billing, profile }) {
     try {
       await axios.delete(`${API}/account/logo`, { headers: headers() });
       setOrg((o) => ({ ...(o || {}), logo_url: null }));
-      toast.success('Logo removed');
+      toast.success(t('settings.org_logo_removed', 'Logo removed'));
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Remove failed');
+      toast.error(err.response?.data?.detail || t('settings.org_remove_failed', 'Remove failed'));
     }
     setLogoUploading(false);
   };
@@ -143,12 +145,12 @@ export default function OrganisationSection({ billing, profile }) {
   return (
     <div className="space-y-5" data-testid="account-section-organisation">
       <div className="account-card rounded-xl p-5">
-        <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: 'var(--theme-text-muted)' }}>Organisation</div>
+        <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.org_organisation', 'Organisation')}</div>
         <div className="text-xl font-extrabold" style={{ color: 'var(--theme-text)' }} data-testid="account-org-name">
           {org?.name || billing?.organization}
         </div>
         <div className="text-sm mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-          Joined {billing?.member_since ? new Date(billing.member_since).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}
+          {t('settings.org_joined', 'Joined')} {billing?.member_since ? new Date(billing.member_since).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}
         </div>
       </div>
 
@@ -160,8 +162,8 @@ export default function OrganisationSection({ billing, profile }) {
           instantly see the dominant colours pulled from the image,
           one-click apply to set the org-wide primary brand colour. */}
       <div data-testid="account-section-logo">
-        <h3 className="account-section-title">Organisation logo & brand colour</h3>
-        <p className="account-section-sub">Drop a PNG / JPG. Brand colours are auto-extracted — one click applies them across invoices, member emails, and supplier case pages.</p>
+        <h3 className="account-section-title">{t('settings.org_logo_title', 'Organisation logo & brand colour')}</h3>
+        <p className="account-section-sub">{t('settings.org_logo_sub', 'Drop a PNG / JPG. Brand colours are auto-extracted — one click applies them across invoices, member emails, and supplier case pages.')}</p>
 
         <div
           onDragOver={(e) => { if (canEditLogo) { e.preventDefault(); setDragOver(true); } }}
@@ -175,7 +177,7 @@ export default function OrganisationSection({ billing, profile }) {
             {org?.logo_url ? (
               <img src={org.logo_url} alt={`${org?.name || 'Organisation'} logo`} className="max-w-full max-h-full object-contain" data-testid="account-org-logo-img" />
             ) : (
-              <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>No logo</span>
+              <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.org_no_logo', 'No logo')}</span>
             )}
             {logoUploading && (
               <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -186,10 +188,10 @@ export default function OrganisationSection({ billing, profile }) {
 
           <div className="flex-1 flex flex-col gap-2 min-w-0">
             <p className="text-xs font-semibold" style={{ color: 'var(--theme-text)' }}>
-              {dragOver ? 'Drop to upload' : 'Drag & drop a logo here, or click the button.'}
+              {dragOver ? t('settings.org_drop_upload', 'Drop to upload') : t('settings.org_drag_drop', 'Drag & drop a logo here, or click the button.')}
             </p>
             <p className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
-              PNG (transparent preferred), JPG or WebP — up to 8 MB. Auto-resized to 512px.
+              {t('settings.org_logo_formats', 'PNG (transparent preferred), JPG or WebP — up to 8 MB. Auto-resized to 512px.')}
             </p>
 
             <input
@@ -205,7 +207,7 @@ export default function OrganisationSection({ billing, profile }) {
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
                 data-testid="account-org-logo-upload-btn"
               >
-                <Camera size={13} /> {org?.logo_url ? 'Replace logo' : 'Upload logo'}
+                <Camera size={13} /> {org?.logo_url ? t('settings.org_replace_logo', 'Replace logo') : t('settings.org_upload_logo', 'Upload logo')}
               </button>
               {org?.logo_url && canEditLogo && (
                 <button
@@ -216,11 +218,11 @@ export default function OrganisationSection({ billing, profile }) {
                   style={{ color: 'var(--theme-text-muted)' }}
                   data-testid="account-org-logo-remove-btn"
                 >
-                  <Trash2 size={13} /> Remove
+                  <Trash2 size={13} /> {t('settings.org_remove', 'Remove')}
                 </button>
               )}
               {!canEditLogo && (
-                <p className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>Only the Owner or a Manager can change the logo.</p>
+                <p className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.org_logo_perm', 'Only the Owner or a Manager can change the logo.')}</p>
               )}
             </div>
           </div>
@@ -230,7 +232,7 @@ export default function OrganisationSection({ billing, profile }) {
         {(org?.brand_palette?.length || org?.primary_color) ? (
           <div className="mt-4" data-testid="account-org-palette">
             <p className="text-[11px] uppercase tracking-wider font-semibold mb-2" style={{ color: 'var(--theme-text-muted)' }}>
-              Extracted brand palette {org?.primary_color ? <span className="ml-2 normal-case text-[10px]" style={{ color: 'var(--theme-text)' }}>· active: <span className="font-mono">{org.primary_color}</span></span> : null}
+              {t('settings.org_extracted_palette', 'Extracted brand palette')} {org?.primary_color ? <span className="ml-2 normal-case text-[10px]" style={{ color: 'var(--theme-text)' }}>· {t('settings.org_active', 'active')}: <span className="font-mono">{org.primary_color}</span></span> : null}
             </p>
             <div className="flex flex-wrap gap-2">
               {(org.brand_palette || []).map((hex) => {
@@ -244,7 +246,7 @@ export default function OrganisationSection({ billing, profile }) {
                     className={`group relative w-16 h-16 rounded-lg border-2 transition flex flex-col items-center justify-end overflow-hidden disabled:opacity-50 ${active ? 'ring-2 ring-offset-2 ring-[var(--theme-accent)]' : 'hover:scale-[1.04]'}`}
                     style={{ background: hex, borderColor: active ? 'var(--theme-accent)' : 'var(--theme-border)' }}
                     data-testid={`account-org-palette-swatch-${hex.replace('#','').toLowerCase()}`}
-                    title={active ? `${hex} — current brand colour` : `Apply ${hex} as brand colour`}
+                    title={active ? t('settings.org_current_color', '{{hex}} — current brand colour', { hex }) : t('settings.org_apply_color', 'Apply {{hex}} as brand colour', { hex })}
                   >
                     <span className="w-full bg-black/40 text-white text-[9px] font-mono py-0.5 backdrop-blur-sm">
                       {applyingColor === hex ? '…' : hex}
@@ -265,7 +267,7 @@ export default function OrganisationSection({ billing, profile }) {
             </div>
             {canEditLogo && org?.brand_palette?.length > 0 && (
               <p className="mt-2 text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>
-                Click a swatch to set it as the organisation’s primary brand colour.
+                {t('settings.org_swatch_hint', 'Click a swatch to set it as the organisation’s primary brand colour.')}
               </p>
             )}
           </div>
@@ -273,10 +275,10 @@ export default function OrganisationSection({ billing, profile }) {
       </div>
 
       <div>
-        <h3 className="account-section-title">Registered address</h3>
-        <p className="account-section-sub">Used on invoices, official emails, and admin records.</p>
+        <h3 className="account-section-title">{t('settings.org_reg_address', 'Registered address')}</h3>
+        <p className="account-section-sub">{t('settings.org_reg_address_sub', 'Used on invoices, official emails, and admin records.')}</p>
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <FieldRow label="Address line 1">
+          <FieldRow label={t('settings.org_addr1', 'Address line 1')}>
             <input
               type="text" value={form.address_line1}
               onChange={(e) => update('address_line1', e.target.value)}
@@ -284,7 +286,7 @@ export default function OrganisationSection({ billing, profile }) {
               className="account-input" data-testid="account-org-address1"
             />
           </FieldRow>
-          <FieldRow label="Address line 2">
+          <FieldRow label={t('settings.org_addr2', 'Address line 2')}>
             <input
               type="text" value={form.address_line2}
               onChange={(e) => update('address_line2', e.target.value)}
@@ -292,7 +294,7 @@ export default function OrganisationSection({ billing, profile }) {
               className="account-input" data-testid="account-org-address2"
             />
           </FieldRow>
-          <FieldRow label="City">
+          <FieldRow label={t('settings.org_city', 'City')}>
             <input
               type="text" value={form.city}
               onChange={(e) => update('city', e.target.value)}
@@ -300,7 +302,7 @@ export default function OrganisationSection({ billing, profile }) {
               className="account-input" data-testid="account-org-city"
             />
           </FieldRow>
-          <FieldRow label="Postcode">
+          <FieldRow label={t('settings.org_postcode', 'Postcode')}>
             <input
               type="text" value={form.postcode}
               onChange={(e) => update('postcode', e.target.value)}
@@ -308,7 +310,7 @@ export default function OrganisationSection({ billing, profile }) {
               className="account-input" data-testid="account-org-postcode"
             />
           </FieldRow>
-          <FieldRow label="Country">
+          <FieldRow label={t('settings.org_country', 'Country')}>
             <input
               type="text" value={form.country}
               onChange={(e) => update('country', e.target.value)}
@@ -316,7 +318,7 @@ export default function OrganisationSection({ billing, profile }) {
               className="account-input" data-testid="account-org-country"
             />
           </FieldRow>
-          <FieldRow label="Website">
+          <FieldRow label={t('settings.org_website', 'Website')}>
             <input
               type="url" placeholder="https://" value={form.website}
               onChange={(e) => update('website', e.target.value)}
@@ -328,10 +330,10 @@ export default function OrganisationSection({ billing, profile }) {
       </div>
 
       <div>
-        <h3 className="account-section-title">Primary contact</h3>
-        <p className="account-section-sub">The point person we email about billing, downtime, and account issues.</p>
+        <h3 className="account-section-title">{t('settings.org_primary_contact', 'Primary contact')}</h3>
+        <p className="account-section-sub">{t('settings.org_primary_contact_sub', 'The point person we email about billing, downtime, and account issues.')}</p>
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <FieldRow label="Contact email">
+          <FieldRow label={t('settings.org_contact_email', 'Contact email')}>
             <input
               type="email" value={form.primary_contact_email}
               onChange={(e) => update('primary_contact_email', e.target.value)}
@@ -339,7 +341,7 @@ export default function OrganisationSection({ billing, profile }) {
               className="account-input" data-testid="account-org-contact-email"
             />
           </FieldRow>
-          <FieldRow label="Contact phone">
+          <FieldRow label={t('settings.org_contact_phone', 'Contact phone')}>
             <input
               type="tel" value={form.primary_contact_phone}
               onChange={(e) => update('primary_contact_phone', e.target.value)}
@@ -347,7 +349,7 @@ export default function OrganisationSection({ billing, profile }) {
               className="account-input" data-testid="account-org-contact-phone"
             />
           </FieldRow>
-          <FieldRow label="Main switchboard">
+          <FieldRow label={t('settings.org_switchboard', 'Main switchboard')}>
             <input
               type="tel" value={form.phone}
               onChange={(e) => update('phone', e.target.value)}
@@ -368,13 +370,13 @@ export default function OrganisationSection({ billing, profile }) {
             data-testid="account-org-save-btn"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-            Save organisation
+            {t('settings.org_save', 'Save organisation')}
           </button>
         </div>
       )}
       {!isOwner && (
         <p className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>
-          Only the organisation Owner can edit these details.
+          {t('settings.org_owner_only', 'Only the organisation Owner can edit these details.')}
         </p>
       )}
     </div>

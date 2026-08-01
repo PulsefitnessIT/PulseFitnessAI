@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Globe, Loader2 } from 'lucide-react';
@@ -12,6 +13,7 @@ import { invalidateLocalization } from '@/utils/localization';
  * existing customers.
  */
 export default function LocalizationPanel() {
+  const { t } = useTranslation();
   const headers = useAuthHeaders();
   const [data, setData] = useState(null);
   const [form, setForm] = useState({ country_code: '', currency: '', timezone: '' });
@@ -59,9 +61,9 @@ export default function LocalizationPanel() {
       invalidateLocalization();
       const loc = res.localization || {};
       setData((d) => ({ ...d, localization: loc }));
-      toast.success(`Market set to ${loc.country_name} · ${loc.currency}`);
+      toast.success(t('settings.loc_market_set', 'Market set to {{country}} · {{currency}}', { country: loc.country_name, currency: loc.currency }));
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Could not update localization');
+      toast.error(e.response?.data?.detail || t('settings.loc_update_failed', 'Could not update localization'));
     }
     setSaving(false);
   };
@@ -70,14 +72,14 @@ export default function LocalizationPanel() {
 
   return (
     <div data-testid="account-section-localization">
-      <h3 className="account-section-title flex items-center gap-2"><Globe size={15} /> Region & currency</h3>
+      <h3 className="account-section-title flex items-center gap-2"><Globe size={15} /> {t('settings.loc_title', 'Region & currency')}</h3>
       <p className="account-section-sub">
-        Your market drives the currency, timezone and tax wording shown on invoices, quotes and dashboards.
+        {t('settings.loc_sub', 'Your market drives the currency, timezone and tax wording shown on invoices, quotes and dashboards.')}
       </p>
 
       <div className="account-card rounded-xl p-5 mt-3 grid sm:grid-cols-3 gap-4">
         <div>
-          <label className="text-[11px] uppercase tracking-wider font-semibold block mb-1.5" style={{ color: 'var(--theme-text-muted)' }}>Country</label>
+          <label className="text-[11px] uppercase tracking-wider font-semibold block mb-1.5" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.loc_country', 'Country')}</label>
           <select
             value={form.country_code}
             disabled={!canEdit}
@@ -91,7 +93,7 @@ export default function LocalizationPanel() {
         </div>
 
         <div>
-          <label className="text-[11px] uppercase tracking-wider font-semibold block mb-1.5" style={{ color: 'var(--theme-text-muted)' }}>Currency</label>
+          <label className="text-[11px] uppercase tracking-wider font-semibold block mb-1.5" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.loc_currency', 'Currency')}</label>
           <select
             value={form.currency}
             disabled={!canEdit}
@@ -107,7 +109,7 @@ export default function LocalizationPanel() {
         </div>
 
         <div>
-          <label className="text-[11px] uppercase tracking-wider font-semibold block mb-1.5" style={{ color: 'var(--theme-text-muted)' }}>Timezone</label>
+          <label className="text-[11px] uppercase tracking-wider font-semibold block mb-1.5" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.loc_timezone', 'Timezone')}</label>
           <select
             value={form.timezone}
             disabled={!canEdit}
@@ -122,8 +124,8 @@ export default function LocalizationPanel() {
 
         <div className="sm:col-span-3 flex items-center justify-between flex-wrap gap-2">
           <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-            Tax is shown as <span className="font-semibold" style={{ color: 'var(--theme-text)' }}>{taxLabel}</span> for this market.
-            {!canEdit && ' Only the Owner can change this.'}
+            {t('settings.loc_tax_shown', 'Tax is shown as')} <span className="font-semibold" style={{ color: 'var(--theme-text)' }}>{taxLabel}</span> {t('settings.loc_for_market', 'for this market.')}
+            {!canEdit && ` ${t('settings.loc_owner_only', 'Only the Owner can change this.')}`}
           </p>
           {canEdit && (
             <button
@@ -134,7 +136,7 @@ export default function LocalizationPanel() {
               style={{ background: 'var(--theme-accent, #2563eb)' }}
               data-testid="localization-save-btn"
             >
-              {saving ? <Loader2 size={13} className="animate-spin" /> : null} Save market
+              {saving ? <Loader2 size={13} className="animate-spin" /> : null} {t('settings.loc_save', 'Save market')}
             </button>
           )}
         </div>

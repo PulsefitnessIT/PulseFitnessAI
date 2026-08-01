@@ -1,3 +1,16 @@
+# ═══ 2026-06 · i18n FR/DE — SETTINGS MODULE (verified DE render) ═══
+Brought the whole Account Settings module into the French/German rollout under a NEW `settings` namespace
+(pipeline now also scans components/shared). Localised the modal + all panels: Profile, Onboarding, Security,
+Preferences, Localization, Organisation, Billing, Team & Roles, Suppliers, Active Sessions, QR print, Equipment
+import — 377 keys × en/fr/de. All 13 files babel-parse clean; i18n guard passes. VERIFIED live: modal + 5 panels
+render fully in German with 0 raw-key leaks (demo account reverted to en afterwards).
+⚠️ PREVIEW ONLY — production needs a REDEPLOY.
+Remaining (nested shared components inside panels, still English): MFASetupCard, DigestPreferencesCard,
+StripeConnectErrorBanner, AddEquipmentDialog, InvoiceImportWizard, DocumentBrandingSettings & SiteDataExportPanel pages.
+NEXT FRONTIER: ServiceOps/ tab bodies (ServiceCaseDrawer, ServiceOpsReportsPage, EngineersAdminPage, etc.).
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · i18n FR/DE — ServiceDesk tab bodies BATCH 2 (verified DE render) ═══
 Localised 6 more ServiceDesk tabs (DeskAuditLog/CustomerDetail/Analytics/Expenses/Imports/Integrations) under the
 `service` namespace — +221 keys × en/fr/de via the Claude pipeline. Full rewrites (babel-parse OK, guard OK); stable

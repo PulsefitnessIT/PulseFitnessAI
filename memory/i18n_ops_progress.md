@@ -330,3 +330,25 @@ VERIFIED: babel-parse all 6 OK; i18n guard passes; keys present in en/fr/de. Liv
   — renders fully in German, 0 raw-key leaks. Demo account (owner@isodemo.com) language reverted to 'en'.
 ServiceDesk/ FR/DE is now COMPLETE except MODVisitCalendar (MOD-skip), DeskPreventativeMaintenance, DeskProviderCustomers, Orbit4Wizard.
 NEXT: ServiceOps/ tab bodies (ServiceCaseDrawer, ServiceOpsReportsPage, EngineersAdminPage, etc.), then Settings.
+
+## ═══ 2026-06 · SETTINGS MODULE FR/DE — (VERIFIED DE render across 5 panels, 0 leaks) ═══
+User: "Bring the Settings module into the FR/DE rollout." Added a NEW `settings` namespace and wired the pipeline
+to also scan `frontend/src/components/shared` (SCAN_DIRS + NAMESPACES in scripts/i18n_translate_modules.py).
+Localised the entire Account Settings module (377 settings keys × en/fr/de):
+  - AccountSettingsModal.js — title/subtitle + nav labels. NOTE: SECTIONS in shared.js uses a dynamic `labelKey`
+    the extractor can't see statically, so nav labels are ALSO declared as static t() calls in a NAV_LABELS map
+    inside the modal (settings.nav_*) so the pipeline picks them up. Keep that pattern for any new nav item.
+  - AccountSettings/shared.js — SECTIONS now carries {labelKey, label} (label = English fallback).
+  - profile.js (prof_*), security.js (sec_*), preferences.js (pref_*), LocalizationPanel.js (loc_*),
+    organisation.js (org_*), billing.js (bill_*), team.js (team_*), onboarding.js (ob_*), suppliers.js (sup_*),
+    ActiveSessionsPanel.js (sess_*), QrPrintInline.js (qr_*), EquipmentImportInline.js (eqimp_*).
+  - Shadows fixed: PortalField `const t`->`inputType` (onboarding); boolean testid made language-stable (yes/no).
+  - relTime(iso) in ActiveSessionsPanel now takes (iso, t).
+Pipeline: guard passes; all 13 files babel-parse OK. VERIFIED live (profile lang→de via PATCH /api/account/profile,
+  open modal via ServiceDesk Optionen→Kontoeinstellungen): modal + Profile/Security/Billing/Team/Suppliers panels all
+  render in German, 0 raw-key leaks. Demo account (owner@isodemo.com) reverted to 'en'.
+REMAINING (nested shared components rendered INSIDE settings panels, still English — NOT the AccountSettings files):
+  MFASetupCard ("Two-factor authentication"/"Enable MFA"), DigestPreferencesCard, StripeConnectErrorBanner,
+  AddEquipmentDialog, InvoiceImportWizard, and the separate DocumentBrandingSettings + SiteDataExportPanel pages.
+  Also role-value display "Owner"/plan names come from backend data (dynamic).
+NEXT FRONTIER: ServiceOps/ tab bodies (ServiceCaseDrawer, ServiceOpsReportsPage, EngineersAdminPage, etc.).

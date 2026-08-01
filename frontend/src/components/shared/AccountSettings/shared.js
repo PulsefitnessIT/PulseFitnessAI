@@ -15,16 +15,16 @@ import {
 export const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const SECTIONS = [
-  { id: 'profile',      label: 'Profile',         icon: User },
-  { id: 'onboarding',   label: 'Onboarding',      icon: ListChecks },
-  { id: 'security',     label: 'Security',        icon: ShieldCheck },
-  { id: 'preferences',  label: 'Preferences',     icon: Sliders },
-  { id: 'billing',      label: 'Plan & Billing',  icon: CreditCard },
-  { id: 'organisation', label: 'Organisation',    icon: Building2 },
-  { id: 'documents',    label: 'Document Branding', icon: FileText },
-  { id: 'suppliers',    label: 'Suppliers',       icon: Truck },
-  { id: 'team',         label: 'Team & Roles',    icon: Users },
-  { id: 'data-export',  label: 'Data export',     icon: Database },
+  { id: 'profile',      labelKey: 'settings.nav_profile',      label: 'Profile',          icon: User },
+  { id: 'onboarding',   labelKey: 'settings.nav_onboarding',   label: 'Onboarding',       icon: ListChecks },
+  { id: 'security',     labelKey: 'settings.nav_security',     label: 'Security',         icon: ShieldCheck },
+  { id: 'preferences',  labelKey: 'settings.nav_preferences',  label: 'Preferences',      icon: Sliders },
+  { id: 'billing',      labelKey: 'settings.nav_billing',      label: 'Plan & Billing',   icon: CreditCard },
+  { id: 'organisation', labelKey: 'settings.nav_organisation', label: 'Organisation',     icon: Building2 },
+  { id: 'documents',    labelKey: 'settings.nav_documents',    label: 'Document Branding', icon: FileText },
+  { id: 'suppliers',    labelKey: 'settings.nav_suppliers',    label: 'Suppliers',        icon: Truck },
+  { id: 'team',         labelKey: 'settings.nav_team',         label: 'Team & Roles',     icon: Users },
+  { id: 'data-export',  labelKey: 'settings.nav_data_export',  label: 'Data export',      icon: Database },
 ];
 
 export const useAuthHeaders = () =>

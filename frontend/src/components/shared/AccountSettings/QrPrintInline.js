@@ -10,12 +10,14 @@
  * same wherever they're triggered.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Printer, Loader2, CheckSquare, Square, Search } from 'lucide-react';
 import { API, useAuthHeaders } from './shared';
 
 export default function QrPrintInline({ onClose }) {
+  const { t } = useTranslation();
   const headers = useAuthHeaders();
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +31,7 @@ export default function QrPrintInline({ onClose }) {
         const r = await axios.get(`${API}/equipment`, { headers: headers() });
         if (alive) setEquipment(r.data?.equipment || []);
       } catch {
-        if (alive) toast.error('Could not load equipment');
+        if (alive) toast.error(t('settings.qr_load_failed', 'Could not load equipment'));
       } finally { if (alive) setLoading(false); }
     })();
     return () => { alive = false; };
@@ -57,9 +59,9 @@ export default function QrPrintInline({ onClose }) {
 
   const printSelected = () => {
     const items = equipment.filter((e) => selected.has(e.id));
-    if (!items.length) { toast.error('Select at least one machine'); return; }
+    if (!items.length) { toast.error(t('settings.qr_select_one', 'Select at least one machine')); return; }
     const printWindow = window.open('', '_blank');
-    if (!printWindow) { toast.error('Pop-up blocked — please allow pop-ups to print'); return; }
+    if (!printWindow) { toast.error(t('settings.qr_popup_blocked', 'Pop-up blocked — please allow pop-ups to print')); return; }
     const origin = window.location.origin;
     // Pulse Fitness logo CDN — same asset used by PulseSettingsTab so
     // labels look identical wherever they're triggered.
@@ -87,16 +89,15 @@ export default function QrPrintInline({ onClose }) {
   };
 
   if (loading) {
-    return <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> Loading equipment…</div>;
+    return <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> {t('settings.qr_loading', 'Loading equipment…')}</div>;
   }
 
   return (
     <div className="space-y-3" data-testid="account-qr-print-inline">
       <div>
-        <h3 className="text-base font-semibold" style={{ color: 'var(--theme-text)' }}>Print QR codes</h3>
+        <h3 className="text-base font-semibold" style={{ color: 'var(--theme-text)' }}>{t('settings.qr_title', 'Print QR codes')}</h3>
         <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>
-          Select the machines you want labels for, then click <strong>Print</strong>. Each label includes a unique scan URL,
-          your brand logo, the model, serial number, and asset name.
+          {t('settings.qr_sub', 'Select the machines you want labels for, then click Print. Each label includes a unique scan URL, your brand logo, the model, serial number, and asset name.')}
         </p>
       </div>
 
@@ -106,7 +107,7 @@ export default function QrPrintInline({ onClose }) {
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder="Search machines…"
+            placeholder={t('settings.qr_search_ph', 'Search machines…')}
             className="w-full pl-7 pr-3 py-1.5 text-xs rounded-md border focus:outline-none"
             style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)', color: 'var(--theme-text)' }}
             data-testid="account-qr-search"
@@ -119,13 +120,13 @@ export default function QrPrintInline({ onClose }) {
           data-testid="account-qr-select-all"
         >
           {allSelected ? <CheckSquare size={13} /> : <Square size={13} />}
-          {allSelected ? 'Deselect all' : 'Select all'}
+          {allSelected ? t('settings.qr_deselect_all', 'Deselect all') : t('settings.qr_select_all', 'Select all')}
         </button>
       </div>
 
       <div className="max-h-64 overflow-auto rounded-lg border" style={{ borderColor: 'var(--theme-border)' }} data-testid="account-qr-list">
         {filtered.length === 0 ? (
-          <p className="p-4 text-xs text-center" style={{ color: 'var(--theme-text-muted)' }}>No equipment matches.</p>
+          <p className="p-4 text-xs text-center" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.qr_no_match', 'No equipment matches.')}</p>
         ) : filtered.map((eq) => (
           <label
             key={eq.id}
@@ -151,11 +152,11 @@ export default function QrPrintInline({ onClose }) {
 
       <div className="flex items-center justify-between pt-2">
         <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-          {selected.size} of {equipment.length} selected
+          {t('settings.qr_selected_count', '{{sel}} of {{total}} selected', { sel: selected.size, total: equipment.length })}
         </span>
         <div className="flex gap-2">
           <button type="button" onClick={onClose} className="account-btn-secondary" data-testid="account-qr-close">
-            Back
+            {t('settings.qr_back', 'Back')}
           </button>
           <button
             type="button"
@@ -164,7 +165,7 @@ export default function QrPrintInline({ onClose }) {
             className="account-btn-primary inline-flex items-center gap-2 disabled:opacity-50"
             data-testid="account-qr-print-btn"
           >
-            <Printer size={14} /> Print {selected.size || ''} QR{selected.size === 1 ? '' : 's'}
+            <Printer size={14} /> {t('settings.qr_print_n', 'Print {{n}} QR', { n: selected.size || '', count: selected.size })}
           </button>
         </div>
       </div>

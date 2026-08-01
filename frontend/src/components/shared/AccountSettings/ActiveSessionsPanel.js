@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,15 +7,15 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { MonitorSmartphone, Smartphone, Monitor, LogOut, ShieldCheck, Loader2 } from 'lucide-react';
 
-const relTime = (iso) => {
+const relTime = (iso, t) => {
   if (!iso) return '—';
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t('settings.sess_just_now', 'Just now');
+  if (mins < 60) return t('settings.sess_mins_ago', '{{n}}m ago', { n: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (hrs < 24) return t('settings.sess_hrs_ago', '{{n}}h ago', { n: hrs });
+  return t('settings.sess_days_ago', '{{n}}d ago', { n: Math.floor(hrs / 24) });
 };
 
 const DeviceIcon = ({ device }) => {
@@ -32,6 +33,7 @@ const DeviceIcon = ({ device }) => {
  * "light" (theme-aware AccountSettingsModal Security section).
  */
 export const ActiveSessionsPanel = ({ API, variant = 'dark' }) => {
+  const { t } = useTranslation();
   const light = variant === 'light';
   const [sessions, setSessions] = useState(null);
   const [busy, setBusy] = useState('');
@@ -51,10 +53,10 @@ export const ActiveSessionsPanel = ({ API, variant = 'dark' }) => {
     setBusy(id);
     try {
       await axios.post(`${API}/auth/sessions/${id}/revoke`);
-      toast.success('Device signed out');
+      toast.success(t('settings.sess_signed_out', 'Device signed out'));
       await load();
     } catch {
-      toast.error('Could not sign out that device');
+      toast.error(t('settings.sess_signout_failed', 'Could not sign out that device'));
     } finally {
       setBusy('');
     }
@@ -65,10 +67,10 @@ export const ActiveSessionsPanel = ({ API, variant = 'dark' }) => {
     try {
       const res = await axios.post(`${API}/auth/sessions/revoke-others`);
       const n = res.data?.revoked ?? 0;
-      toast.success(n > 0 ? `Signed out ${n} other ${n === 1 ? 'device' : 'devices'}` : 'No other devices were signed in');
+      toast.success(n > 0 ? t('settings.sess_signed_out_n', 'Signed out {{n}} other device(s)', { n, count: n }) : t('settings.sess_no_others', 'No other devices were signed in'));
       await load();
     } catch {
-      toast.error('Could not sign out other devices');
+      toast.error(t('settings.sess_others_failed', 'Could not sign out other devices'));
     } finally {
       setBusy('');
     }
@@ -92,7 +94,7 @@ export const ActiveSessionsPanel = ({ API, variant = 'dark' }) => {
     >
       <div className="flex items-center justify-between mb-3">
         <p className={`text-xs uppercase tracking-wider flex items-center gap-2 ${mutedCls}`} style={mutedStyle}>
-          <MonitorSmartphone size={14} /> Active sessions
+          <MonitorSmartphone size={14} /> {t('settings.sess_title', 'Active sessions')}
         </p>
         {others > 0 && (
           <Button
@@ -104,18 +106,18 @@ export const ActiveSessionsPanel = ({ API, variant = 'dark' }) => {
             data-testid="sign-out-everywhere-btn"
           >
             {busy === 'all' ? <Loader2 size={12} className="animate-spin mr-1" /> : <LogOut size={12} className="mr-1" />}
-            Sign out everywhere else
+            {t('settings.sess_signout_everywhere', 'Sign out everywhere else')}
           </Button>
         )}
       </div>
 
       {sessions === null && (
-        <p className={`text-sm ${mutedCls}`} style={mutedStyle} data-testid="sessions-loading">Loading sessions…</p>
+        <p className={`text-sm ${mutedCls}`} style={mutedStyle} data-testid="sessions-loading">{t('settings.sess_loading', 'Loading sessions…')}</p>
       )}
 
       {sessions !== null && sessions.length === 0 && (
         <p className={`text-sm ${mutedCls}`} style={mutedStyle} data-testid="sessions-empty">
-          No tracked sessions yet — devices appear here the next time they sign in.
+          {t('settings.sess_empty', 'No tracked sessions yet — devices appear here the next time they sign in.')}
         </p>
       )}
 
@@ -133,12 +135,12 @@ export const ActiveSessionsPanel = ({ API, variant = 'dark' }) => {
                 <p className={`text-sm font-medium truncate ${titleCls}`} style={titleStyle}>{s.device}</p>
                 {s.current && (
                   <Badge className="bg-emerald-500/15 text-emerald-400 text-[10px] px-1.5 py-0 flex items-center gap-1" data-testid="session-current-badge">
-                    <ShieldCheck size={10} /> This device
+                    <ShieldCheck size={10} /> {t('settings.sess_this_device', 'This device')}
                   </Badge>
                 )}
               </div>
               <p className={`text-xs truncate ${mutedCls}`} style={mutedStyle}>
-                {s.ip ? `${s.ip} · ` : ''}Last active {relTime(s.last_seen_at)}
+                {s.ip ? `${s.ip} · ` : ''}{t('settings.sess_last_active', 'Last active')} {relTime(s.last_seen_at, t)}
               </p>
             </div>
             {!s.current && (
@@ -151,7 +153,7 @@ export const ActiveSessionsPanel = ({ API, variant = 'dark' }) => {
                 disabled={busy === s.id}
                 data-testid={`session-revoke-${s.id}`}
               >
-                {busy === s.id ? <Loader2 size={12} className="animate-spin" /> : 'Sign out'}
+                {busy === s.id ? <Loader2 size={12} className="animate-spin" /> : t('settings.sess_sign_out', 'Sign out')}
               </Button>
             )}
           </div>

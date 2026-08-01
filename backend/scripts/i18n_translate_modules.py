@@ -22,8 +22,9 @@ SCAN_DIRS = [
     os.path.join(FE, "pages", "Marketing"),
     os.path.join(FE, "pages", "ServiceOps"),
     os.path.join(FE, "pages", "ServiceDesk"),
+    os.path.join(FE, "components", "shared"),
 ]
-NAMESPACES = ("memberships_console", "mkt", "service", "sicon")
+NAMESPACES = ("memberships_console", "mkt", "service", "sicon", "settings")
 
 
 def read_quoted(s, i):
