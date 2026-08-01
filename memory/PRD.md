@@ -1,3 +1,18 @@
+# ═══ 2026-08-01 · COMPLIANCE DPO deliverables drafted (RoPA + Sub-Processors, Breach Runbook) ═══
+Created two DPO/board-ready working docs under /app/docs/compliance/ (repo files, not web-served; push via Save to Github):
+1) RoPA_and_SubProcessors.md — Art.30 Records of Processing (9 activities: accounts, orgs, equipment/faults, MOD data,
+   payments, email, AI features, consent/audit, cookies) + Art.28 Sub-Processor register (Emergent, Stripe, Resend, LLM
+   providers via Emergent key, analytics). [CONFIRM] markers where founder/DPO must verify contracts/residency/DPAs.
+2) Breach_Notification_Runbook.md — UK GDPR Art.33/34 runbook: roles, 6-step process (detect→contain→assess→notify ICO
+   within 72h of AWARENESS→remediate→record), breach register template, decision-aid flowchart; references the isolation
+   regression test + preview→prod redeploy note.
+Compliance_Gap_Register.md updated: gaps #6, #7, #8 → Drafted (pending DPO confirmation of [CONFIRM] items).
+Remaining founder/DPO actions: enable MFA_REQUIRED_ROLES in prod, confirm UK data residency w/ Emergent, finalise
+   [CONFIRM] items, wire isolation tests to CI, CSP-nonce project, complete pen test.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-01 · COMPLIANCE P1/P2: erasure↔financial-retention reconcile + tenant-isolation regression suite ═══
 1) ERASURE vs STATUTORY FINANCIAL RETENTION (utils/archive_lifecycle.py): org hard-delete (GDPR right-to-erasure)
    previously purged ALL org-scoped collections incl. financial records. Added FINANCIAL_RETENTION_COLLECTIONS
