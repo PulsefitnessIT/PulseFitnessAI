@@ -352,3 +352,37 @@ REMAINING (nested shared components rendered INSIDE settings panels, still Engli
   AddEquipmentDialog, InvoiceImportWizard, and the separate DocumentBrandingSettings + SiteDataExportPanel pages.
   Also role-value display "Owner"/plan names come from backend data (dynamic).
 NEXT FRONTIER: ServiceOps/ tab bodies (ServiceCaseDrawer, ServiceOpsReportsPage, EngineersAdminPage, etc.).
+
+## ═══ 2026-06 (fork) · ServiceOps tab bodies FR/DE — BATCH 3 (VERIFIED EN/DE/FR via testing_agent, 0 leaks) ═══
+User picked "B": finish ServiceCaseDrawer THEN continue into more ServiceOps files.
+DONE this session (namespace `service`, babel-parse OK, guard OK, FR+DE translated, testing_agent 100% FE):
+  - ServiceCaseDrawer.js (cd_*) — COMPLETED the remaining raw strings the prior fork left: Details tab
+    (Estimated minutes/Description/Logged/Source/SLA meta), Customer tab, footer (Save changes/tracking/
+    service report/transitions/No further transitions), RatingPromptModal (added own useTranslation),
+    CommsTab (added own useTranslation; RENAMED templates.map((t)) shadow -> (tpl)). 144 unique cd_ keys.
+  - ServiceDeskIntakeForm.js (intake_*) — FULL REWRITE via create_file. Moved PRIORITY_OPTIONS inside the
+    component to use t(); CoveragePanel got its own useTranslation. 9 step legends, all selects/placeholders,
+    AI triage block, coverage panels, notify messages. (NOTE: did NOT add case_type to payload — kept scope.)
+  - BillingPage.js (svcbill_*) — added useTranslation to BillingPage + QuoteEditor. Shell title/subtitle/
+    filters, table headers, quote editor line table, totals (Subtotal/Net/VAT/Gross), footer buttons, notifies.
+  - ServiceScheduler.js (sched_*) — added useTranslation to CaseCard + ServiceScheduler. title/subtitle,
+    Prev/Today/Next/day-select/Refresh, Unassigned queue, Auto-assign, engineer header, diary empty/loading,
+    breach/risk/ok pills, notify messages. (const t = new Date() locals in callbacks are harmless shadows.)
+⚠️ RECURRING TOOL HAZARDS HIT THIS BATCH (all fixed + re-verified):
+  - Tail-corruption on EOF edits: BillingPage got a stray `}` at EOF; ServiceScheduler got a duplicated
+    ServiceOpsShell tail. Fixed both, babel-parse OK.
+  - PHANTOM-SUCCESS: several ServiceScheduler edits (main useTranslation hook, title/subtitle, breach/risk/ok,
+    Unassigned/queue/Auto-assign) + BillingPage line-40 notify reported "Edit was successful" but did NOT apply.
+    Caught via a post-edit grep of every key against the source, then re-applied one at a time. ALWAYS grep
+    each key in the source after a batch, not just babel-parse.
+Pipeline run TWICE (must run in BACKGROUND — foreground 120s timeout aborts before the final merge, losing
+  all FR/DE work). `cd /app/backend && nohup python scripts/i18n_translate_modules.py > /tmp/x.log 2>&1 &`.
+  Total this batch: ~490 FR + ~456 DE keys translated across the two runs. service ns fully populated EN/FR/DE.
+VERIFIED: testing_agent iteration_serviceops_i18n_fr_de_jan2026.json — 100% FE, 0 raw-key leaks across all 4
+  screens in EN/DE/FR. Demo account (owner@isodemo.com) language reset to 'en'.
+PRE-EXISTING (out of scope, noted by tester): AIScheduling.js line 436 renders <span> child of <option>
+  (React hydration warning). Low-priority console noise — fix when localizing AIScheduling.
+REMAINING ServiceOps/ (still EN via fallback, functional): ServiceOpsReportsPage (done earlier), EngineersAdminPage
+  (done earlier), AIScheduling, ComplianceAdmin, PartsInventoryPage, AdminDispatchBoard, ServiceCaseLifecycleTab,
+  CommsHubPage, SafetyTemplateAdmin, PartsAllocator, EngineerRosterPanel, FindEngineerPanel, EquipmentMultiSelect,
+  ServiceOpsShell chrome, Engineer/* (large), Inventory/*. THEN nested Settings shared cards (MFASetupCard etc).

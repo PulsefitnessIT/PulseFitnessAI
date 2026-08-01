@@ -32933,3 +32933,27 @@ When a Type A MOD quote is e-signed, its service contract activates AND an annua
 - `MasterAdmin/AdminMODConsole.js` — new `ContractActivationBoard` card (Master Admin → Overview → MoD → 'MOD Console & ASER'): lists Type A contracts with an "awaiting confirmation" badge; each pending row has date + engineer + notes inputs and a "Confirm service" button; confirmed rows show the scheduled date + who confirmed. Added a Refresh button.
 
 Tested: testing_agent backend 100% (4/4, `tests/test_mod_contract_board_jan2026.py`) + frontend 100% (board renders, confirm flips row to 'Visit confirmed', pending badge decrements; regression of console + quote gen/e-sign intact). Board test-IDs: mod-contract-board, mod-contract-pending-badge, mod-contract-row/date/eng/notes/confirm-<id>.
+
+---
+## Changelog — 2026-06 (fork) · ServiceOps i18n FR/DE — Batch 3 (ServiceCaseDrawer completed + 3 more screens)
+Continued the FR/DE localization rollout. Finished the ServiceCaseDrawer the prior fork left partial, then
+localized three more ServiceOps screens. All under the `service` i18n namespace.
+
+**Files localized (frontend):**
+- `pages/ServiceOps/ServiceCaseDrawer.js` (cd_*) — COMPLETED remaining raw strings (Details/Customer/Comms tabs,
+  footer transitions, RatingPromptModal + CommsTab now have their own useTranslation; renamed a templates.map((t)) shadow).
+- `pages/ServiceOps/ServiceDeskIntakeForm.js` (intake_*) — full 9-step intake modal + CoveragePanel.
+- `pages/ServiceOps/BillingPage.js` (svcbill_*) — Quoting & billing console + QuoteEditor drawer.
+- `pages/ServiceOps/ServiceScheduler.js` (sched_*) — drag/drop diary + CaseCard + auto-assign.
+- `i18n/locales/{en,fr,de}.json` — new service keys auto-translated via `scripts/i18n_translate_modules.py`.
+
+**Verification:** testing_agent iteration_serviceops_i18n_fr_de_jan2026.json — 100% FE, 0 raw-key leaks across
+all 4 screens in EN/DE/FR. Demo account (owner@isodemo.com / IsoDemo123!) language reset to 'en'.
+
+**Known pre-existing (out of scope):** AIScheduling.js line 436 renders a <span> inside <option> (React
+hydration console warning). Not fixed — flagged for when AIScheduling is localized.
+
+**ServiceOps i18n still remaining (functional via EN fallback):** AIScheduling, ComplianceAdmin, PartsInventoryPage,
+AdminDispatchBoard, ServiceCaseLifecycleTab, CommsHubPage, SafetyTemplateAdmin, PartsAllocator, EngineerRosterPanel,
+FindEngineerPanel, EquipmentMultiSelect, ServiceOpsShell chrome, Engineer/*, Inventory/*. Then nested Settings shared
+cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, InvoiceImportWizard).
