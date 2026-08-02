@@ -33036,3 +33036,20 @@ Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, 
 - Verified: iteration_digest_i18n_retest_jan2026.json — 100% FE across EN/DE/FR, 0 raw-key leaks, no regression to
   theme/language-suggestions sections. Account reverted to 'en'.
 - Note for pipeline: values containing ⋯ / embedded quotes can break the LLM's JSON chunk — prefer manual fill for those.
+
+---
+## Changelog — 2026-06 (fork) · Engineer App i18n Batch 1 (FR/DE)
+- Localized the highest-traffic field Engineer App screens under `pages/ServiceOps/Engineer/`:
+  `EngineerSpeedDial.js`, `EngineerHome.js`, `EngineerHomeV2.js` (primary /svc/engineer home), `EngineerAccountSettings.js`.
+- Keys under `service.eng_*` namespace (~249 keys) auto-translated FR/DE via `scripts/i18n_translate_modules.py`.
+- REGRESSION FIX: `EngineerSpeedDial.js` was crashing all /svc/engineer routes — it called `useTranslation()` with no
+  import. Restored `import { useTranslation } from 'react-i18next'`. (Handoff's "EngineerEmergency/EngineerProfile" files
+  do not exist; actual Batch 1 = the 4 files above per user approval.)
+- HAZARDS hit (as warned): (1) tail-duplication in EngineerHome.js closing tags → fixed; (2) several phantom
+  search_replace successes (Change password, PwField labels, Today's-jobs "View all", "Today's jobs" header) — caught by
+  babel check + testing agent, re-applied individually. (3) One DE pipeline chunk returned malformed JSON on run #1
+  (~33 keys) → filled manually in de.json; footer 'Engineer' → 'Techniker' also set manually for DE.
+- Verified: iteration_engineer_i18n_fr_de_jan2026.json — ~98%→100% FE across EN/FR/DE (all fixed). SpeedDial FAB no
+  longer crashes; drawer + home fully translate. Tested via master-admin account (linked to an svc_engineer record).
+- PENDING (future Engineer batches, ~47 files remain): EngineerJobDetailV2, EngineerNotifications, BarcodeScanModal,
+  EngineerQuotes, EngineerCustomers, EngineerQuoteBuilder, AdminStock, EngineerInvoiceBuilder, EngineerDiary, etc.

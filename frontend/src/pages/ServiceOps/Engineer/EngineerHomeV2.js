@@ -524,7 +524,7 @@ export default function EngineerHomeV2() {
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-bold text-slate-900">{t('service.eng_home_todays_jobs', "Today's jobs")}</p>
                   <button onClick={() => navigate('/svc/engineer')} className="text-xs font-semibold text-cyan-600 hover:text-cyan-700" data-testid="today-jobs-view-all">
-                    View all →
+                    {t('service.eng_home_view_all', 'View all →')}
                   </button>
                 </div>
                 {data?.today_jobs?.length ? (
