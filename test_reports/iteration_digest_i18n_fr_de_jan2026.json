@@ -1,0 +1,32 @@
+{
+  "summary": "Verified i18n FR/DE rollout of the Digest email card + full Preferences panel in Account Settings for owner@isodemo.com. Logged in, opened Options → Account settings → Preferences, enabled the master digest switch, then re-scraped the panel in EN, DE, and FR after PATCH /api/account/profile {language:...}. Cleanup PATCH {language:'en'} performed. NO raw 'settings.*' key leaks in any of the 3 locales — all i18n keys resolve. However, three labels in DigestPreferencesCard.js are NOT wrapped in t() and remain English regardless of locale.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DigestPreferencesCard", "issue": "Hard-coded English 'Frequency' label (line 154) — not wrapped in t(). Renders as 'Frequency' in DE and FR panels.", "selector": "digest-frequency (label above)", "priority": "MEDIUM"},
+      {"component": "DigestPreferencesCard", "issue": "Hard-coded English 'Email delivery' section header (line 236) — not wrapped in t(). Renders as 'Email delivery' in DE and FR.", "selector": "section above digest-email-switch", "priority": "MEDIUM"},
+      {"component": "DigestPreferencesCard", "issue": "Hard-coded English 'Send to my email' / 'Send to {email}' text (line 239) — not wrapped in t(). Renders as 'Send to my email' in DE and FR.", "selector": "row containing digest-email-switch", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/digest_en.png", "/app/test_reports/digest_de.png", "/app/test_reports/digest_fr.png"],
+  "action_items": [
+    "In /app/frontend/src/components/shared/DigestPreferencesCard.js, wrap the three remaining English literals in t(): line 154 'Frequency' → t('settings.digest_frequency','Frequency'); line 236 'Email delivery' → t('settings.digest_email_delivery','Email delivery'); line 239 'Send to {prefs.email_override || \\'my email\\'}' → t('settings.digest_send_to_email',{email: prefs.email_override || 'my email'}) with a suitable interpolated key.",
+    "Add the corresponding keys ('digest_frequency', 'digest_email_delivery', 'digest_send_to' or similar with {{email}} placeholder) to en.json, fr.json, de.json under the settings namespace. Suggested translations: FR 'Fréquence' / 'Livraison par e-mail' / 'Envoyer à {{email}}'; DE 'Häufigkeit' / 'E-Mail-Zustellung' / 'An {{email}} senden'.",
+    "Optional polish: fr.json 'pref_digest_title' currently = 'Digest email' and 'digest_title' = 'Email digest' — these look like leftover EN strings (both branded English). Consider translating to 'Résumé par e-mail' if desired."
+  ],
+  "critical_code_review_comments": [
+    "DigestPreferencesCard.js has 3 untranslated literals (Frequency, Email delivery, Send to my email) despite the file's other 40+ strings being translated. Easy miss to slip through.",
+    "The task claimed '43 digest_ keys' but locale files contain 50 digest_ keys per language — no missing key on the JSON side. The gap is on the component side (no t() call).",
+    "No raw 'settings.*' leaks anywhere in the Preferences panel across all 3 locales — good coverage."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "85%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! — reverted to language=en at the end",
+  "seed_data_creation": "None. Enabled digest via UI toggle; did NOT persist any test emails or Teams webhooks. Send-test buttons were not clicked (per instructions).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "After main agent wraps the 3 literals and adds keys to en/fr/de.json, retest by logging in as owner@isodemo.com, PATCHing language to de and fr, and confirming the Digest card shows fully localized 'Frequency/Email delivery/Send to my email' strings. Also confirm no regression on the existing localized items. Revert PATCH language to en at end.",
+  "rca of the issue": "During the digest card i18n pass, three inner labels ('Frequency' plain-text label, 'Email delivery' inner section header, and 'Send to {email}' row text) were left as raw JSX text without t() calls even though sibling labels ('Day of week', 'Hour (UTC)', 'Microsoft Teams delivery', 'Post to Teams channel') were properly wrapped. Since these strings don't include the 'settings.' prefix, the standard raw-key leak check does not flag them; they simply render in English in every locale. Fix: wrap the three literals with t() using new/appropriate keys and provide FR+DE translations."
+}

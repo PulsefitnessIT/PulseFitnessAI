@@ -8,6 +8,7 @@
  * + "Send me a test" button.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -35,6 +36,17 @@ const CHANNELS = [
 ];
 
 export default function DigestPreferencesCard() {
+  const { t } = useTranslation();
+  const DAY_LABELS = [
+    t('settings.digest_mon', 'Monday'), t('settings.digest_tue', 'Tuesday'), t('settings.digest_wed', 'Wednesday'),
+    t('settings.digest_thu', 'Thursday'), t('settings.digest_fri', 'Friday'), t('settings.digest_sat', 'Saturday'), t('settings.digest_sun', 'Sunday'),
+  ];
+  const CHANNEL_T = {
+    warranty_expiring: { label: t('settings.digest_ch_warranty', 'Warranty expiring'), desc: t('settings.digest_ch_warranty_desc', 'Equipment with warranty inside 30 days') },
+    ppm_overdue: { label: t('settings.digest_ch_ppm', 'Planned maintenance overdue'), desc: t('settings.digest_ch_ppm_desc', 'Any scheduled PPM task past due') },
+    supplier_sla_drift: { label: t('settings.digest_ch_supplier', 'Supplier performance drift'), desc: t('settings.digest_ch_supplier_desc', 'Suppliers trending below 3.0 / 5') },
+    health_safety_incidents: { label: t('settings.digest_ch_hs', 'H&S incidents (RIDDOR + accidents)'), desc: t('settings.digest_ch_hs_desc', 'Recent accidents, dangerous occurrences, and RIDDOR-flagged items') },
+  };
   const [prefs, setPrefs] = useState(null);
   const [busy, setBusy] = useState(false);
   const [sending, setSending] = useState(false);
@@ -61,7 +73,7 @@ export default function DigestPreferencesCard() {
     try {
       const res = await axios.put(`${API}/digest/preferences`, next, { headers: headers() });
       setPrefs(res.data);
-      notify.success('Digest preferences saved');
+      notify.success(t('settings.digest_saved', 'Digest preferences saved'));
     } catch (e) {
       notifyApiError(notify, e, 'Failed to save');
     }
@@ -74,12 +86,12 @@ export default function DigestPreferencesCard() {
       const res = await axios.post(`${API}/digest/send-now`, null, { headers: headers() });
       if (res.data?.sent) {
         const channels = [res.data.email && 'email', res.data.teams && 'Teams'].filter(Boolean).join(' + ');
-        notify.success(`Test digest sent via ${channels}`);
+        notify.success(t('settings.digest_test_sent', 'Test digest sent via {{channels}}', { channels }));
       } else {
-        notify.info('No open nudges to include — nothing was sent');
+        notify.info(t('settings.digest_no_nudges', 'No open nudges to include — nothing was sent'));
       }
     } catch (e) {
-      notifyApiError(notify, e, 'Failed to send test');
+      notifyApiError(notify, e, t('settings.digest_test_failed', 'Failed to send test'));
     }
     setSending(false);
   };
@@ -92,9 +104,9 @@ export default function DigestPreferencesCard() {
         { headers: headers() },
       );
       setPrefs(res.data);
-      notify.success(teamsUrlInput.trim() ? 'Teams webhook saved' : 'Teams webhook cleared');
+      notify.success(teamsUrlInput.trim() ? t('settings.digest_teams_saved', 'Teams webhook saved') : t('settings.digest_teams_cleared', 'Teams webhook cleared'));
     } catch (e) {
-      notifyApiError(notify, e, 'Invalid Teams webhook URL');
+      notifyApiError(notify, e, t('settings.digest_teams_invalid', 'Invalid Teams webhook URL'));
     }
   };
 
@@ -103,12 +115,12 @@ export default function DigestPreferencesCard() {
     try {
       const res = await axios.post(`${API}/digest/test-teams`, null, { headers: headers() });
       if (res.data?.delivered) {
-        notify.success('Test card delivered to Teams — check the channel!');
+        notify.success(t('settings.digest_teams_delivered', 'Test card delivered to Teams — check the channel!'));
       } else {
-        notify.error('Teams rejected the card. Check the webhook URL is still active.');
+        notify.error(t('settings.digest_teams_rejected', 'Teams rejected the card. Check the webhook URL is still active.'));
       }
     } catch (e) {
-      notifyApiError(notify, e, 'Test failed');
+      notifyApiError(notify, e, t('settings.digest_teams_test_failed', 'Test failed'));
     }
     setTestingTeams(false);
   };
@@ -122,9 +134,9 @@ export default function DigestPreferencesCard() {
       <div className="flex items-start gap-3 mb-4">
         <Mail className="text-sky-400 flex-shrink-0 mt-0.5" size={20} />
         <div className="flex-1">
-          <h3 className="text-base font-semibold text-white">Digest email</h3>
+          <h3 className="text-base font-semibold text-white">{t('settings.digest_title', 'Digest email')}</h3>
           <p className="text-xs text-white/60">
-            Roll up open proactive nudges into a tidy inbox-ready summary. Off by default.
+            {t('settings.digest_sub', 'Roll up open proactive nudges into a tidy inbox-ready summary. Off by default.')}
           </p>
         </div>
         <Switch
@@ -149,15 +161,15 @@ export default function DigestPreferencesCard() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly (1st of each)</SelectItem>
+                  <SelectItem value="daily">{t('settings.digest_daily', 'Daily')}</SelectItem>
+                  <SelectItem value="weekly">{t('settings.digest_weekly', 'Weekly')}</SelectItem>
+                  <SelectItem value="monthly">{t('settings.digest_monthly', 'Monthly (1st of each)')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             {prefs.frequency === 'weekly' && (
               <div>
-                <label className="text-xs text-white/50 mb-1 block">Day of week</label>
+                <label className="text-xs text-white/50 mb-1 block">{t('settings.digest_day_of_week', 'Day of week')}</label>
                 <Select
                   value={String(prefs.day_of_week)}
                   onValueChange={(v) => save({ day_of_week: parseInt(v, 10) })}
@@ -168,14 +180,14 @@ export default function DigestPreferencesCard() {
                   </SelectTrigger>
                   <SelectContent>
                     {DAYS.map((d) => (
-                      <SelectItem key={d.v} value={String(d.v)}>{d.label}</SelectItem>
+                      <SelectItem key={d.v} value={String(d.v)}>{DAY_LABELS[d.v]}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
             <div>
-              <label className="text-xs text-white/50 mb-1 block">Hour (UTC)</label>
+              <label className="text-xs text-white/50 mb-1 block">{t('settings.digest_hour_utc', 'Hour (UTC)')}</label>
               <Select
                 value={String(prefs.hour_of_day)}
                 onValueChange={(v) => save({ hour_of_day: parseInt(v, 10) })}
@@ -195,7 +207,7 @@ export default function DigestPreferencesCard() {
 
           <div>
             <div className="flex items-center gap-2 mb-2 text-xs text-white/50">
-              <Bell size={12} /> Include these alert types
+              <Bell size={12} /> {t('settings.digest_include_types', 'Include these alert types')}
             </div>
             <div className="space-y-2">
               {CHANNELS.map((ch) => (
@@ -211,8 +223,8 @@ export default function DigestPreferencesCard() {
                     className="mt-0.5"
                   />
                   <div className="flex-1 text-sm">
-                    <div className="text-white">{ch.label}</div>
-                    <div className="text-xs text-white/50">{ch.desc}</div>
+                    <div className="text-white">{CHANNEL_T[ch.key]?.label || ch.label}</div>
+                    <div className="text-xs text-white/50">{CHANNEL_T[ch.key]?.desc || ch.desc}</div>
                   </div>
                 </label>
               ))}
@@ -236,10 +248,10 @@ export default function DigestPreferencesCard() {
 
           <div className="space-y-3 border-t border-white/5 pt-4">
             <div className="flex items-center gap-2 text-xs text-white/50">
-              <MessageSquare size={12} /> Microsoft Teams delivery
+              <MessageSquare size={12} /> {t('settings.digest_teams_delivery', 'Microsoft Teams delivery')}
             </div>
             <div className="flex items-center justify-between pl-1">
-              <span className="text-sm text-white/80">Post to Teams channel</span>
+              <span className="text-sm text-white/80">{t('settings.digest_post_teams', 'Post to Teams channel')}</span>
               <Switch
                 checked={!!prefs.teams_enabled}
                 onCheckedChange={(v) => save({ teams_enabled: v })}
@@ -249,10 +261,9 @@ export default function DigestPreferencesCard() {
             </div>
             <div className="space-y-2 pl-1">
               <label className="text-xs text-white/50 block">
-                Teams incoming-webhook URL
+                {t('settings.digest_teams_url_label', 'Teams incoming-webhook URL')}
                 <span className="block text-[11px] text-white/40 mt-0.5">
-                  Teams → channel → ⋯ → Workflows → "Post to a channel when a webhook request is received".
-                  Copy the generated URL.
+                  {t('settings.digest_teams_url_hint', 'Teams → channel → ⋯ → Workflows → "Post to a channel when a webhook request is received". Copy the generated URL.')}
                 </span>
               </label>
               <div className="flex gap-2">
@@ -269,7 +280,7 @@ export default function DigestPreferencesCard() {
                   onClick={saveTeamsUrl}
                   data-testid="digest-teams-save-btn"
                 >
-                  Save
+                  {t('settings.digest_save', 'Save')}
                 </Button>
               </div>
               {prefs.teams_webhook_url && (
@@ -280,7 +291,7 @@ export default function DigestPreferencesCard() {
                   disabled={testingTeams}
                   data-testid="digest-teams-test-btn"
                 >
-                  {testingTeams ? 'Sending…' : 'Send test card to Teams'}
+                  {testingTeams ? t('settings.digest_sending', 'Sending…') : t('settings.digest_send_teams_test', 'Send test card to Teams')}
                 </Button>
               )}
             </div>
@@ -289,8 +300,8 @@ export default function DigestPreferencesCard() {
           <div className="flex items-center justify-between pt-2 border-t border-white/5">
             <div className="text-xs text-white/50">
               {prefs.last_sent_at ? (
-                <>Last sent: {new Date(prefs.last_sent_at).toLocaleString()}</>
-              ) : 'Never sent yet'}
+                <>{t('settings.digest_last_sent', 'Last sent: {{when}}', { when: new Date(prefs.last_sent_at).toLocaleString() })}</>
+              ) : t('settings.digest_never_sent', 'Never sent yet')}
             </div>
             <Button
               size="sm"
@@ -299,7 +310,7 @@ export default function DigestPreferencesCard() {
               disabled={sending}
               data-testid="digest-send-test-btn"
             >
-              {sending ? 'Sending…' : 'Send me a test'}
+              {sending ? t('settings.digest_sending', 'Sending…') : t('settings.digest_send_me_test', 'Send me a test')}
             </Button>
           </div>
         </div>
