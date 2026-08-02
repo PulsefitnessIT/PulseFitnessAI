@@ -5478,7 +5478,10 @@
     "eng_sec_current_pw": "Aktuelles Passwort",
     "eng_sec_new_pw": "Neues Passwort",
     "eng_sec_confirm_pw": "Neues Passwort bestätigen",
-    "eng_home_offline": "OFFLINE"
+    "eng_home_offline": "OFFLINE",
+    "eng_set_language": "Sprache",
+    "eng_set_language_title": "App-Sprache",
+    "eng_set_language_sub": "Änderungen werden sofort angewendet und bleiben auch offline gespeichert."
   },
   "settings": {
     "add_custom_item": "Position hinzufügen",

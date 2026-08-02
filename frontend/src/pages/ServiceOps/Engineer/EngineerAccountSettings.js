@@ -23,11 +23,12 @@ import {
   X, CreditCard, Upload, Download, LifeBuoy, LogOut,
   Loader2, ChevronRight, CheckCircle2, AlertTriangle, FileSpreadsheet,
   Sliders, Palette, Sparkles, Star, Percent, PoundSterling, Bell, ShieldCheck,
-  Boxes, Warehouse, Wand2, Tags, KeyRound, Mail,
+  Boxes, Warehouse, Wand2, Tags, KeyRound, Mail, Globe, Check,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { useLocalization } from '@/utils/localization';
 import { useTranslation } from 'react-i18next';
+import { setLanguagePreference } from '@/utils/languagePref';
 // Iter 220e7 — Web Push subscribe + per-kind notification prefs.
 import NotificationSettings from './NotificationSettings';
 import useEngineerOrgBrand from './hooks/useEngineerOrgBrand';
@@ -68,7 +69,7 @@ const Row = ({ icon: Icon, title, subtitle, onClick, accent = '#0891b2', testid,
 );
 
 export default function EngineerAccountSettings({ open, onClose, payouts, attention, onChanged }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [importing, setImporting] = useState(false);
@@ -538,6 +539,47 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
           </section>
           </>
           )}
+
+          {/* Language — offline-safe quick-switch (EN/FR/DE). Shown to every
+              engineer, including internal Pulse engineers. Uses
+              setLanguagePreference so the choice sticks even with no signal
+              and syncs to the account when back online. */}
+          <section data-testid="engineer-settings-section-language">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_language', 'Language')}</p>
+            <div className="rounded-2xl border border-slate-200 bg-white p-3">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#0891b215' }}>
+                  <Globe size={18} style={{ color: '#0891b2' }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-slate-900">{t('service.eng_set_language_title', 'App language')}</p>
+                  <p className="text-xs text-slate-500">{t('service.eng_set_language_sub', 'Changes apply instantly and stay set even offline.')}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2" data-testid="engineer-language-switch">
+                {[{ code: 'en', label: 'English' }, { code: 'fr', label: 'Français' }, { code: 'de', label: 'Deutsch' }].map((l) => {
+                  const active = (i18n.language || 'en').split('-')[0] === l.code;
+                  return (
+                    <button
+                      key={l.code}
+                      type="button"
+                      onClick={() => setLanguagePreference(l.code)}
+                      aria-pressed={active}
+                      className={`inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border text-xs font-bold transition-colors ${
+                        active
+                          ? 'bg-cyan-600 text-white border-cyan-600'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                      data-testid={`engineer-language-${l.code}`}
+                    >
+                      {active ? <Check size={13} /> : null}
+                      {l.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
 
           {/* Iter 288 — Security (login details). Shown to every engineer;
               for internal Pulse engineers this is the primary section. */}

@@ -5478,7 +5478,10 @@
     "eng_sec_change_pw": "Changer le mot de passe",
     "eng_sec_current_pw": "Mot de passe actuel",
     "eng_sec_new_pw": "Nouveau mot de passe",
-    "eng_sec_confirm_pw": "Confirmer le nouveau mot de passe"
+    "eng_sec_confirm_pw": "Confirmer le nouveau mot de passe",
+    "eng_set_language": "Langue",
+    "eng_set_language_title": "Langue de l'application",
+    "eng_set_language_sub": "Les modifications s'appliquent instantanément et restent définies même hors ligne."
   },
   "settings": {
     "add_custom_item": "Ajouter un élément",

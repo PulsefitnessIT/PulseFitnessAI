@@ -5479,7 +5479,10 @@
     "eng_sec_change_pw": "Change password",
     "eng_sec_current_pw": "Current password",
     "eng_sec_new_pw": "New password",
-    "eng_sec_confirm_pw": "Confirm new password"
+    "eng_sec_confirm_pw": "Confirm new password",
+    "eng_set_language": "Language",
+    "eng_set_language_title": "App language",
+    "eng_set_language_sub": "Changes apply instantly and stay set even offline."
   },
   "settings": {
     "add_custom_item": "Add Custom Item",

@@ -33070,3 +33070,15 @@ Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, 
 - Verified (Playwright, deterministic route-mocking): Phase A — reload with stale server lang 'de' keeps offline pick
   'fr', clears pending, PATCHes {language:'fr'}. Phase B — offline change queues pf_lang_pending='de', firing 'online'
   flushes it and PATCHes {language:'de'}. UI confirmed rendering French.
+
+---
+## Changelog — 2026-06 (fork) · Engineer Language Quick-Switch (Account Settings drawer)
+- Added a "Language" section to `EngineerAccountSettings.js` — a compact EN / Français / Deutsch segmented control
+  (data-testid engineer-language-switch + engineer-language-{en,fr,de}), shown to EVERY engineer (internal + partner),
+  placed just above the always-visible Security section. Active language highlighted (cyan + check).
+- Routes through `setLanguagePreference()` (utils/languagePref.js) so the switch is instant, offline-safe (localStorage),
+  and syncs to the account when online — matching the offline-resilience work from the previous item.
+- Keys service.eng_set_language / _title / _sub auto-translated FR/DE (pipeline clean run).
+- Verified (Playwright + screenshot): opening the drawer as EN shows the switcher; clicking Français re-renders the whole
+  drawer + engineer home into French instantly (Paramètres du compte / Se déconnecter / Bonjour, Master / ACTIONS
+  RAPIDES), FR button active, localStorage i18nextLng='fr'. No console errors.
