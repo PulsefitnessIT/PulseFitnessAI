@@ -25,6 +25,7 @@
  * Mounted by `AppRoutes.js` on any `/svc/engineer*` path.
  */
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Mic, Sparkles, MessageSquarePlus, X } from 'lucide-react';
 
 const ACTIONS = [

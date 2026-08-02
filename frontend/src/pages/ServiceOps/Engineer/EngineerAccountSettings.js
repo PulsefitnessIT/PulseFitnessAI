@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { useLocalization } from '@/utils/localization';
+import { useTranslation } from 'react-i18next';
 // Iter 220e7 — Web Push subscribe + per-kind notification prefs.
 import NotificationSettings from './NotificationSettings';
 import useEngineerOrgBrand from './hooks/useEngineerOrgBrand';
@@ -67,6 +68,7 @@ const Row = ({ icon: Icon, title, subtitle, onClick, accent = '#0891b2', testid,
 );
 
 export default function EngineerAccountSettings({ open, onClose, payouts, attention, onChanged }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [importing, setImporting] = useState(false);
@@ -125,7 +127,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      notify.error('Could not download template', err?.response?.data?.detail || err?.message);
+      notify.error(t('service.eng_set_template_failed', 'Could not download template'), err?.response?.data?.detail || err?.message);
     }
   };
 
@@ -143,17 +145,17 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
         headers: { ...auth().headers, 'Content-Type': 'multipart/form-data' },
       });
       const d = r.data || {};
-      const summary = `${d.imported || 0} new · ${d.merged || 0} merged · ${(d.skipped || []).length} skipped`;
-      notify.success('Import complete', summary);
+      const summary = t('service.eng_set_import_summary', '{{imported}} new · {{merged}} merged · {{skipped}} skipped', { imported: d.imported || 0, merged: d.merged || 0, skipped: (d.skipped || []).length });
+      notify.success(t('service.eng_set_import_complete', 'Import complete'), summary);
       if ((d.errors || []).length) {
         notify.error(
-          `${d.errors.length} row(s) failed`,
+          t('service.eng_set_import_rows_failed', '{{count}} row(s) failed', { count: d.errors.length }),
           d.errors.slice(0, 3).map((er) => `Row ${er.row}: ${er.error}`).join('\n')
         );
       }
       if (onChanged) onChanged();
     } catch (err) {
-      notify.error('Import failed', err?.response?.data?.detail || err?.message);
+      notify.error(t('service.eng_set_import_failed', 'Import failed'), err?.response?.data?.detail || err?.message);
     } finally {
       setImporting(false);
       if (importRef.current) importRef.current.value = '';
@@ -189,13 +191,13 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700" data-testid="engineer-settings-brand">
               {orgBrand.label}
             </p>
-            <h2 className="text-base font-extrabold text-slate-900">Account settings</h2>
+            <h2 className="text-base font-extrabold text-slate-900">{t('service.eng_set_title', 'Account settings')}</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="p-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50"
-            aria-label="Close settings"
+            aria-label={t('service.eng_set_close', 'Close settings')}
             data-testid="engineer-settings-close"
           >
             <X size={16} />
@@ -208,7 +210,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
           {attentionItems.length > 0 && (
             <section data-testid="engineer-settings-section-attention">
               <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">
-                Needs your attention
+                {t('service.eng_set_needs_attention', 'Needs your attention')}
               </p>
               <div className="space-y-2">
                 {attentionItems.map((it) => {
@@ -258,32 +260,32 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
               engineers can see compliance, referral code + plan from
               inside the Engineer App. */}
           <section data-testid="engineer-settings-section-partner">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Partner Engineer</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_partner', 'Partner Engineer')}</p>
             <Row
               icon={Sparkles}
               accent="#0e7490"
               title={
                 partnerLoading
-                  ? 'Loading your plan…'
+                  ? t('service.eng_set_partner_loading', 'Loading your plan…')
                   : partner
-                    ? 'Plan, referrals & compliance'
-                    : 'Partner Engineer Network'
+                    ? t('service.eng_set_partner_plan', 'Plan, referrals & compliance')
+                    : t('service.eng_set_partner_network', 'Partner Engineer Network')
               }
               subtitle={(() => {
-                if (partnerLoading) return 'Pulling latest status…';
-                if (!partner) return 'Apply to take paid jobs through the Engineer App.';
+                if (partnerLoading) return t('service.eng_set_partner_pulling', 'Pulling latest status…');
+                if (!partner) return t('service.eng_set_partner_apply', 'Apply to take paid jobs through the Engineer App.');
                 const subStatus = subscription?.status;
                 const partnerStatus = partner.status;
                 const tierLabel = partner.app_fee_tier?.label || '£30/mo';
-                if (partnerStatus === 'pending') return 'Application under review · view referral link + upload compliance docs.';
-                if (partnerStatus === 'rejected') return 'Application not approved · tap to update & resubmit.';
-                if (partnerStatus === 'suspended') return 'Access suspended · contact Pulse Fitness support.';
+                if (partnerStatus === 'pending') return t('service.eng_set_partner_pending', 'Application under review · view referral link + upload compliance docs.');
+                if (partnerStatus === 'rejected') return t('service.eng_set_partner_rejected', 'Application not approved · tap to update & resubmit.');
+                if (partnerStatus === 'suspended') return t('service.eng_set_partner_suspended', 'Access suspended · contact Pulse Fitness support.');
                 if (subStatus === 'active' || subStatus === 'trialing') {
-                  return `Plan: Active · ${tierLabel} · view referrals & compliance.`;
+                  return t('service.eng_set_partner_active', 'Plan: Active · {{tier}} · view referrals & compliance.', { tier: tierLabel });
                 }
-                if (subStatus === 'past_due') return 'Plan: Payment failed · tap to resolve.';
-                if (subStatus === 'canceled') return 'Plan: Cancelled · tap to reactivate.';
-                return `Activate the ${tierLabel} Partner Plan to unlock the Engineer App.`;
+                if (subStatus === 'past_due') return t('service.eng_set_partner_past_due', 'Plan: Payment failed · tap to resolve.');
+                if (subStatus === 'canceled') return t('service.eng_set_partner_canceled', 'Plan: Cancelled · tap to reactivate.');
+                return t('service.eng_set_partner_activate', 'Activate the {{tier}} Partner Plan to unlock the Engineer App.', { tier: tierLabel });
               })()}
               onClick={() => { onClose(); navigate('/partner-engineer'); }}
               testid="engineer-settings-partner-row"
@@ -301,23 +303,23 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
 
           {/* Payouts / Stripe */}
           <section data-testid="engineer-settings-section-payouts">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Payouts</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_payouts', 'Payouts')}</p>
             <Row
               icon={CreditCard}
               accent="#0e7490"
               title={
                 stripeReady
-                  ? 'Stripe connected'
+                  ? t('service.eng_set_stripe_connected', 'Stripe connected')
                   : stripeConnected
-                    ? 'Finish Stripe onboarding'
-                    : 'Connect Stripe to take card payments'
+                    ? t('service.eng_set_stripe_finish', 'Finish Stripe onboarding')
+                    : t('service.eng_set_stripe_connect', 'Connect Stripe to take card payments')
               }
               subtitle={
                 stripeReady
-                  ? 'Payouts are enabled on your invoices.'
+                  ? t('service.eng_set_stripe_enabled', 'Payouts are enabled on your invoices.')
                   : stripeConnected
-                    ? 'A few details still needed — usually ID or bank account.'
-                    : 'Connect your Stripe (≈3 min) so customers can pay invoices by card.'
+                    ? t('service.eng_set_stripe_needed', 'A few details still needed — usually ID or bank account.')
+                    : t('service.eng_set_stripe_blurb', 'Connect your Stripe (≈3 min) so customers can pay invoices by card.')
               }
               onClick={() => { onClose(); navigate('/svc/engineer/payouts'); }}
               testid="engineer-settings-stripe-row"
@@ -331,13 +333,13 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
 
           {/* Customers — import */}
           <section data-testid="engineer-settings-section-customers">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Customers</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_customers', 'Customers')}</p>
             <div className="space-y-2">
               <Row
                 icon={Upload}
                 accent="#0891b2"
-                title={importing ? 'Importing customers…' : 'Import customers from CSV'}
-                subtitle="Bulk-add or merge customer records from a CSV file."
+                title={importing ? t('service.eng_set_importing', 'Importing customers…') : t('service.eng_set_import_customers', 'Import customers from CSV')}
+                subtitle={t('service.eng_set_import_customers_sub', 'Bulk-add or merge customer records from a CSV file.')}
                 onClick={handleImportClick}
                 disabled={importing}
                 testid="engineer-settings-import-row"
@@ -366,8 +368,8 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
               <Row
                 icon={FileSpreadsheet}
                 accent="#0f766e"
-                title="Open my customers"
-                subtitle="View and edit saved customer records."
+                title={t('service.eng_set_open_customers', 'Open my customers')}
+                subtitle={t('service.eng_set_open_customers_sub', 'View and edit saved customer records.')}
                 onClick={() => { onClose(); navigate('/svc/engineer/customers'); }}
                 testid="engineer-settings-customers-row"
               />
@@ -379,7 +381,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
           {partner && (
             <section data-testid="engineer-settings-section-pricing">
               <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">
-                Pricing defaults
+                {t('service.eng_set_pricing_defaults', 'Pricing defaults')}
               </p>
               <RatesEditor
                 partner={partner}
@@ -395,29 +397,29 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
               (off the main catalogue screen) so bulk-import options live
               only in settings. */}
           <section data-testid="engineer-settings-section-stock">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Stock</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_stock', 'Stock')}</p>
             <div className="space-y-2">
               <Row
                 icon={Boxes}
                 accent="#0f766e"
-                title="Parts catalogue"
-                subtitle="Browse, search and edit your parts catalogue."
+                title={t('service.eng_set_parts_catalogue', 'Parts catalogue')}
+                subtitle={t('service.eng_set_parts_catalogue_sub', 'Browse, search and edit your parts catalogue.')}
                 onClick={() => { onClose(); navigate('/svc/engineer/catalogue'); }}
                 testid="engineer-settings-catalogue-row"
               />
               <Row
                 icon={Warehouse}
                 accent="#4f46e5"
-                title="Stock management"
-                subtitle="Office overview — all van stock, transfers, stock-take."
+                title={t('service.eng_set_stock_mgmt', 'Stock management')}
+                subtitle={t('service.eng_set_stock_mgmt_sub', 'Office overview — all van stock, transfers, stock-take.')}
                 onClick={() => { onClose(); navigate('/svc/engineer/stock-admin'); }}
                 testid="engineer-settings-stock-admin-row"
               />
               <Row
                 icon={Upload}
                 accent="#0891b2"
-                title="Import parts"
-                subtitle="Bulk-add or update parts from a CSV / Excel spreadsheet."
+                title={t('service.eng_set_import_parts', 'Import parts')}
+                subtitle={t('service.eng_set_import_parts_sub', 'Bulk-add or update parts from a CSV / Excel spreadsheet.')}
                 onClick={() => { onClose(); navigate('/svc/engineer/catalogue?import=1'); }}
                 testid="engineer-settings-parts-import-row"
               />
@@ -430,12 +432,12 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
               imports historical reports via Settings instead. */}
           {!orgBrand.internal && (
           <section data-testid="engineer-settings-section-tools">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Tools</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_tools', 'Tools')}</p>
             <Row
               icon={Wand2}
               accent="#0e7490"
-              title="Import legacy reports"
-              subtitle="Turn old PDFs/spreadsheets into branded service reports with AI."
+              title={t('service.eng_set_legacy_import', 'Import legacy reports')}
+              subtitle={t('service.eng_set_legacy_import_sub', 'Turn old PDFs/spreadsheets into branded service reports with AI.')}
               onClick={() => { onClose(); navigate('/svc/engineer/legacy-import'); }}
               testid="engineer-settings-legacy-import-row"
             />
@@ -444,20 +446,20 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
 
           {/* Iter 220 — Work-report custom fields */}
           <section data-testid="engineer-settings-section-work-reports">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Work reports</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_work_reports', 'Work reports')}</p>
             <Row
               icon={Tags}
               accent="#0891b2"
-              title="Case types"
-              subtitle="Repair, PPM & your own job types — each with its own report questions."
+              title={t('service.eng_set_case_types', 'Case types')}
+              subtitle={t('service.eng_set_case_types_sub', 'Repair, PPM & your own job types — each with its own report questions.')}
               onClick={() => { onClose(); navigate('/svc/engineer/case-types'); }}
               testid="engineer-settings-case-types-row"
             />
             <Row
               icon={Sliders}
               accent="#0e7490"
-              title="Custom report fields"
-              subtitle="Add machine-specific questions (e.g. Drag Factor, Current Software)."
+              title={t('service.eng_set_custom_fields', 'Custom report fields')}
+              subtitle={t('service.eng_set_custom_fields_sub', 'Add machine-specific questions (e.g. Drag Factor, Current Software).')}
               onClick={() => { onClose(); navigate('/svc/engineer/work-report-fields'); }}
               testid="engineer-settings-work-report-fields-row"
             />
@@ -465,12 +467,12 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
 
           {/* Iter 220i — Branding (logo + colours for PDFs + portal) */}
           <section data-testid="engineer-settings-section-branding">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Brand</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_brand', 'Brand')}</p>
             <Row
               icon={Palette}
               accent="#db2777"
-              title="Logo & colours"
-              subtitle="Used on every PDF you email and across your engineer portal."
+              title={t('service.eng_set_logo_colours', 'Logo & colours')}
+              subtitle={t('service.eng_set_logo_colours_sub', 'Used on every PDF you email and across your engineer portal.')}
               onClick={() => { onClose(); navigate('/svc/engineer/branding'); }}
               testid="engineer-settings-branding-row"
             />
@@ -482,13 +484,13 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
               configure rates + branding in. */}
           <section data-testid="engineer-settings-section-safety">
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">
-              Health &amp; Safety
+              {t('service.eng_set_health_safety', 'Health & Safety')}
             </p>
             <Row
               icon={ShieldCheck}
               accent="#f59e0b"
-              title="Pre-job H&S checklist"
-              subtitle="Edit the tickable items engineers see on Summary before starting work."
+              title={t('service.eng_set_hs_checklist', 'Pre-job H&S checklist')}
+              subtitle={t('service.eng_set_hs_checklist_sub', 'Edit the tickable items engineers see on Summary before starting work.')}
               onClick={() => { onClose(); navigate('/svc/engineer/h-s-checklist'); }}
               testid="engineer-settings-safety-row"
             />
@@ -496,12 +498,12 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
 
           {/* Iter 220l — Reputation: customer ratings */}
           <section data-testid="engineer-settings-section-ratings">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Reputation</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_reputation', 'Reputation')}</p>
             <Row
               icon={Star}
               accent="#f59e0b"
-              title="My ratings"
-              subtitle="See every star + comment customers have left."
+              title={t('service.eng_set_my_ratings', 'My ratings')}
+              subtitle={t('service.eng_set_my_ratings_sub', 'See every star + comment customers have left.')}
               onClick={() => { onClose(); navigate('/svc/engineer/ratings'); }}
               testid="engineer-settings-ratings-row"
             />
@@ -510,7 +512,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
           {/* Iter 220l — Tax / VAT toggle */}
           {partner && (
             <section data-testid="engineer-settings-section-tax">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Tax</p>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_tax', 'Tax')}</p>
               <VatToggle
                 partner={partner}
                 onSaved={(updatedPartner) => {
@@ -523,12 +525,12 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
 
           {/* Iter 220e7 — Notifications */}
           <section data-testid="engineer-settings-section-notifications">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Alerts</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_alerts', 'Alerts')}</p>
             <Row
               icon={Bell}
               accent="#059669"
-              title="Notifications"
-              subtitle="Enable push for new jobs and customer responses, snooze, and per-type toggles."
+              title={t('service.eng_set_notifications', 'Notifications')}
+              subtitle={t('service.eng_set_notifications_sub', 'Enable push for new jobs and customer responses, snooze, and per-type toggles.')}
               onClick={() => setNotificationOpen(true)}
               testid="engineer-settings-notifications-row"
               right={<ChevronRight size={16} className="text-slate-300 flex-shrink-0" />}
@@ -540,18 +542,18 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
           {/* Iter 288 — Security (login details). Shown to every engineer;
               for internal Pulse engineers this is the primary section. */}
           <section data-testid="engineer-settings-section-security">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Security</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_security', 'Security')}</p>
             <SecurityEditor email={user?.email} />
           </section>
 
           {/* Support */}
           <section data-testid="engineer-settings-section-support">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Help</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_help', 'Help')}</p>
             <Row
               icon={LifeBuoy}
               accent="#0284c7"
-              title="Support"
-              subtitle="Chat with the Pulse Fitness team or browse the help centre."
+              title={t('service.eng_set_support', 'Support')}
+              subtitle={t('service.eng_set_support_sub', 'Chat with the Pulse Fitness team or browse the help centre.')}
               onClick={() => { onClose(); navigate('/support'); }}
               testid="engineer-settings-support-row"
             />
@@ -559,12 +561,12 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
 
           {/* Account */}
           <section data-testid="engineer-settings-section-account">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">Account</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_account', 'Account')}</p>
             <Row
               icon={LogOut}
               danger
-              title="Sign out"
-              subtitle="End your session on this device."
+              title={t('service.eng_set_sign_out', 'Sign out')}
+              subtitle={t('service.eng_set_sign_out_sub', 'End your session on this device.')}
               onClick={handleSignOut}
               testid="engineer-settings-signout-row"
               right={<ChevronRight size={16} className="text-rose-400 flex-shrink-0" />}
@@ -573,7 +575,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
         </div>
 
         <footer className="px-4 py-3 border-t border-slate-200 text-[11px] text-slate-400 text-center">
-          Pulse Fitness Engineer · v2
+          {t('service.eng_set_footer', 'Pulse Fitness Engineer · v2')}
         </footer>
       </aside>
 
@@ -591,6 +593,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
 // change-password form (reuses the existing /account/change-password
 // endpoint — no auth logic changed here).
 function SecurityEditor({ email }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -598,16 +601,16 @@ function SecurityEditor({ email }) {
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
-    if (!current || !next) { notify.error('Enter your current and new password'); return; }
-    if (next !== confirm) { notify.error('New passwords do not match'); return; }
+    if (!current || !next) { notify.error(t('service.eng_sec_enter_pw', 'Enter your current and new password')); return; }
+    if (next !== confirm) { notify.error(t('service.eng_sec_pw_mismatch', 'New passwords do not match')); return; }
     setSaving(true);
     try {
       await axios.post(`${API}/account/change-password`,
         { current_password: current, new_password: next }, auth());
-      notify.success('Password updated', 'Use your new password next time you sign in.');
+      notify.success(t('service.eng_sec_pw_updated', 'Password updated'), t('service.eng_sec_pw_updated_sub', 'Use your new password next time you sign in.'));
       setCurrent(''); setNext(''); setConfirm(''); setOpen(false);
     } catch (e) {
-      notify.error('Could not update password', e?.response?.data?.detail || e?.message);
+      notify.error(t('service.eng_sec_pw_failed', 'Could not update password'), e?.response?.data?.detail || e?.message);
     } finally {
       setSaving(false);
     }
@@ -620,7 +623,7 @@ function SecurityEditor({ email }) {
           <Mail size={18} style={{ color: '#0891b2' }} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Login email</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{t('service.eng_sec_login_email', 'Login email')}</p>
           <p className="text-sm font-bold text-slate-900 truncate" data-testid="engineer-security-email">{email || '—'}</p>
         </div>
       </div>
@@ -632,13 +635,13 @@ function SecurityEditor({ email }) {
           className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-sm font-bold text-slate-900"
           data-testid="engineer-security-change-toggle"
         >
-          <KeyRound size={15} className="text-cyan-700" /> Change password
+          <KeyRound size={15} className="text-cyan-700" /> {t('service.eng_sec_change_pw', 'Change password')}
         </button>
       ) : (
         <div className="space-y-2" data-testid="engineer-security-form">
-          <PwField label="Current password" value={current} onChange={setCurrent} testid="engineer-security-current" />
-          <PwField label="New password" value={next} onChange={setNext} testid="engineer-security-new" />
-          <PwField label="Confirm new password" value={confirm} onChange={setConfirm} testid="engineer-security-confirm" />
+          <PwField label={t('service.eng_sec_current_pw', 'Current password')} value={current} onChange={setCurrent} testid="engineer-security-current" />
+          <PwField label={t('service.eng_sec_new_pw', 'New password')} value={next} onChange={setNext} testid="engineer-security-new" />
+          <PwField label={t('service.eng_sec_confirm_pw', 'Confirm new password')} value={confirm} onChange={setConfirm} testid="engineer-security-confirm" />
           <div className="flex gap-2 pt-1">
             <button
               type="button"
@@ -646,7 +649,7 @@ function SecurityEditor({ email }) {
               className="flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700"
               data-testid="engineer-security-cancel"
             >
-              Cancel
+              {t('service.eng_sec_cancel', 'Cancel')}
             </button>
             <button
               type="button"
@@ -656,7 +659,7 @@ function SecurityEditor({ email }) {
               data-testid="engineer-security-save"
             >
               {saving ? <Loader2 size={12} className="animate-spin" /> : null}
-              {saving ? 'Saving…' : 'Update password'}
+              {saving ? t('service.eng_sec_saving', 'Saving…') : t('service.eng_sec_update_pw', 'Update password')}
             </button>
           </div>
         </div>
@@ -687,6 +690,7 @@ function PwField({ label, value, onChange, testid }) {
 // labour rate + mileage rate + parts markup ONCE, so every new
 // quote/invoice line auto-fills with the right number.
 function RatesEditor({ partner, onSaved }) {
+  const { t } = useTranslation();
   const sym = useLocalization().currency_symbol || '£';
   const initial = partner?.rates || {};
   const [callout, setCallout] = useState(initial.callout_fee ?? '');
@@ -712,10 +716,10 @@ function RatesEditor({ partner, onSaved }) {
       if (mileage !== '') payload.mileage_rate = Number(mileage);
       if (markup !== '')  payload.parts_markup_pct = Number(markup);
       const r = await axios.put(`${API}/partners/me/rates`, payload, auth());
-      notify.success('Pricing saved', 'New quotes will use these defaults.');
+      notify.success(t('service.eng_rates_saved', 'Pricing saved'), t('service.eng_rates_saved_sub', 'New quotes will use these defaults.'));
       onSaved?.(r.data?.partner || null);
     } catch (e) {
-      notify.error('Save failed', e?.response?.data?.detail || e?.message);
+      notify.error(t('service.eng_rates_save_failed', 'Save failed'), e?.response?.data?.detail || e?.message);
     } finally {
       setSaving(false);
     }
@@ -727,13 +731,12 @@ function RatesEditor({ partner, onSaved }) {
       data-testid="engineer-rates-editor"
     >
       <p className="text-[11px] text-slate-500 leading-snug">
-        Auto-populate every new quote/invoice with your standard rates.
-        Leave a field blank to skip — you can still override per line.
+        {t('service.eng_rates_blurb', 'Auto-populate every new quote/invoice with your standard rates. Leave a field blank to skip — you can still override per line.')}
       </p>
       <div className="grid grid-cols-2 gap-2">
         <RateField
           icon={PoundSterling}
-          label="Callout fee"
+          label={t('service.eng_rates_callout', 'Callout fee')}
           unit={sym}
           value={callout}
           onChange={setCallout}
@@ -741,7 +744,7 @@ function RatesEditor({ partner, onSaved }) {
         />
         <RateField
           icon={PoundSterling}
-          label="Hourly labour"
+          label={t('service.eng_rates_hourly', 'Hourly labour')}
           unit={`${sym}/hr`}
           value={hourly}
           onChange={setHourly}
@@ -749,7 +752,7 @@ function RatesEditor({ partner, onSaved }) {
         />
         <RateField
           icon={PoundSterling}
-          label="Mileage"
+          label={t('service.eng_rates_mileage', 'Mileage')}
           unit={`${sym}/mi`}
           value={mileage}
           onChange={setMileage}
@@ -757,7 +760,7 @@ function RatesEditor({ partner, onSaved }) {
         />
         <RateField
           icon={Percent}
-          label="Parts markup"
+          label={t('service.eng_rates_markup', 'Parts markup')}
           unit="%"
           value={markup}
           onChange={setMarkup}
@@ -773,7 +776,7 @@ function RatesEditor({ partner, onSaved }) {
           data-testid="engineer-rates-save"
         >
           {saving ? <Loader2 size={12} className="animate-spin" /> : null}
-          {saving ? 'Saving…' : 'Save pricing defaults'}
+          {saving ? t('service.eng_sec_saving', 'Saving…') : t('service.eng_rates_save', 'Save pricing defaults')}
         </button>
       )}
     </div>
@@ -812,6 +815,7 @@ function RateField({ icon: Icon, label, unit, value, onChange, testid }) {
 // flag themselves as not-VAT-registered so every invoice + quote PDF
 // from them hides the VAT line. One-time tick → everything Just Works.
 function VatToggle({ partner, onSaved }) {
+  const { t } = useTranslation();
   const initialReg = partner?.vat_registered !== false; // default True
   const [registered, setRegistered] = useState(initialReg);
   const [vatNumber, setVatNumber] = useState(partner?.vat_number || '');
@@ -828,10 +832,10 @@ function VatToggle({ partner, onSaved }) {
         vat_registered: registered,
         vat_number: registered ? vatNumber : null,
       }, auth());
-      notify.success('Tax settings saved', 'Your future invoices will use this.');
+      notify.success(t('service.eng_vat_saved', 'Tax settings saved'), t('service.eng_vat_saved_sub', 'Your future invoices will use this.'));
       onSaved?.(r.data?.partner || null);
     } catch (e) {
-      notify.error('Save failed', e?.response?.data?.detail || e?.message);
+      notify.error(t('service.eng_rates_save_failed', 'Save failed'), e?.response?.data?.detail || e?.message);
     } finally {
       setSaving(false);
     }
@@ -848,10 +852,9 @@ function VatToggle({ partner, onSaved }) {
           data-testid="engineer-vat-registered-checkbox"
         />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold text-slate-900">I am VAT-registered</p>
+          <p className="text-xs font-bold text-slate-900">{t('service.eng_vat_registered', 'I am VAT-registered')}</p>
           <p className="text-[11px] text-slate-500 leading-snug mt-0.5">
-            Uncheck if you trade below the £85k VAT threshold — your invoice PDFs
-            will hide VAT and read "Not chargeable".
+            {t('service.eng_vat_blurb', 'Uncheck if you trade below the £85k VAT threshold — your invoice PDFs will hide VAT and read "Not chargeable".')}
           </p>
         </div>
         <Percent size={14} className="text-slate-400 mt-1" />
@@ -859,7 +862,7 @@ function VatToggle({ partner, onSaved }) {
       {registered && (
         <div data-testid="engineer-vat-number-block">
           <label htmlFor="vat-num" className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-            VAT registration number
+            {t('service.eng_vat_number', 'VAT registration number')}
           </label>
           <input
             id="vat-num"
@@ -881,7 +884,7 @@ function VatToggle({ partner, onSaved }) {
           data-testid="engineer-vat-save"
         >
           {saving ? <Loader2 size={12} className="animate-spin" /> : null}
-          {saving ? 'Saving…' : 'Save tax settings'}
+          {saving ? t('service.eng_sec_saving', 'Saving…') : t('service.eng_vat_save', 'Save tax settings')}
         </button>
       )}
     </div>

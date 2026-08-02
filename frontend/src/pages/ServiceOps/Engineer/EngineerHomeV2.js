@@ -38,6 +38,7 @@ import useEngineerOrgBrand from './hooks/useEngineerOrgBrand';
 import EngineerAppShellNudge from './EngineerAppShellNudge';
 import EngineerAccessGate from './EngineerAccessGate';
 import { useLocalization, formatMoney } from '@/utils/localization';
+import { useTranslation } from 'react-i18next';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -89,6 +90,7 @@ const QuickAction = ({ icon: Icon, label, onClick, primary, testid }) => (
 );
 
 const ActiveTimerCard = ({ timer, onView }) => {
+  const { t } = useTranslation();
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -110,10 +112,10 @@ const ActiveTimerCard = ({ timer, onView }) => {
         <PlayCircle size={28} />
         <div>
           <p className="text-[10px] uppercase tracking-[0.18em] font-bold opacity-90">
-            On the clock · {timer.category}
+            {t('service.eng_home_on_the_clock', 'On the clock')} · {timer.category}
           </p>
           <p className="text-2xl font-extrabold tabular-nums">{m}m {s}s</p>
-          <p className="text-xs opacity-90">Case {timer.case_reference || timer.case_id}</p>
+          <p className="text-xs opacity-90">{t('service.eng_home_case', 'Case')} {timer.case_reference || timer.case_id}</p>
         </div>
       </div>
       <ChevronRight size={22} />
@@ -121,7 +123,9 @@ const ActiveTimerCard = ({ timer, onView }) => {
   );
 };
 
-const JobRow = ({ job, onClick }) => (
+const JobRow = ({ job, onClick }) => {
+  const { t } = useTranslation();
+  return (
   <button
     type="button"
     onClick={onClick}
@@ -134,21 +138,23 @@ const JobRow = ({ job, onClick }) => (
     <div className="flex-1 min-w-0">
       <p className="text-sm font-semibold text-slate-900 truncate">{job.title}</p>
       <p className="text-xs text-slate-500 truncate">
-        {job.site_name || 'Unknown site'}
+        {job.site_name || t('service.eng_home_unknown_site', 'Unknown site')}
         {job.asset_name ? ` · ${job.asset_name}` : ''}
       </p>
     </div>
     <div className="text-right flex-shrink-0">
       <p className="text-xs font-semibold text-slate-700 tabular-nums">{job.reference}</p>
       {job.sla_resolve_at ? (
-        <p className="text-[10px] text-slate-400">SLA {fmtRelative(job.sla_resolve_at)}</p>
+        <p className="text-[10px] text-slate-400">{t('service.eng_home_sla_prefix', 'SLA')} {fmtRelative(job.sla_resolve_at)}</p>
       ) : null}
     </div>
   </button>
-);
+  );
+};
 
 const QuoteRow = ({ quote, onClick }) => {
   const loc = useLocalization();
+  const { t } = useTranslation();
   return (
   <button
     type="button"
@@ -161,7 +167,7 @@ const QuoteRow = ({ quote, onClick }) => {
     </div>
     <div className="flex-1 min-w-0">
       <p className="text-sm font-semibold text-slate-900 truncate">{quote.quote_number}</p>
-      <p className="text-xs text-slate-500 truncate">{quote.customer_name || 'Unknown customer'}</p>
+      <p className="text-xs text-slate-500 truncate">{quote.customer_name || t('service.eng_home_unknown_customer', 'Unknown customer')}</p>
     </div>
     <div className="text-right flex-shrink-0">
       <p className="text-sm font-bold text-slate-900 tabular-nums">{formatMoney(quote.total, loc, { nullDisplay: '—', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
@@ -172,6 +178,7 @@ const QuoteRow = ({ quote, onClick }) => {
 };
 
 export default function EngineerHomeV2() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [me, setMe] = useState(null);
@@ -188,7 +195,7 @@ export default function EngineerHomeV2() {
   const hideLegacyTile = () => {
     try { localStorage.setItem('gx_engineer_legacy_tile_hidden', '1'); } catch { /* ignore */ }
     setLegacyTileHidden(true);
-    notify.success('Hidden from Home', 'Find it again in Settings → Tools.');
+    notify.success(t('service.eng_home_hidden_title', 'Hidden from Home'), t('service.eng_home_hidden_body', 'Find it again in Settings → Tools.'));
   };
   // Iter 220cu — one-glance "My day" briefing (next stop, miles,
   // pending parts, pending quotes, unread inbox).
@@ -224,7 +231,7 @@ export default function EngineerHomeV2() {
       if (e?.response?.status === 402 && e?.response?.data?.detail?.code === 'engineer_app_blocked') {
         setAccessBlock(e.response.data.detail);
       } else {
-        notify.error('Failed to load home', e?.response?.data?.detail || e.message);
+        notify.error(t('service.eng_home_load_home_failed', 'Failed to load home'), e?.response?.data?.detail || e.message);
       }
     } finally {
       setLoading(false);
@@ -252,10 +259,10 @@ export default function EngineerHomeV2() {
               {orgBrand.label}
             </p>
             <h1 className="text-xl font-extrabold text-slate-900 truncate" data-testid="engineer-home-greeting">
-              {me?.engineer?.full_name ? `Hi, ${me.engineer.full_name.split(' ')[0]}` : 'Field engineer'}
+              {me?.engineer?.full_name ? t('service.eng_home_hi', 'Hi, {{name}}', { name: me.engineer.full_name.split(' ')[0] }) : t('service.eng_home_field_engineer', 'Field engineer')}
             </h1>
             <p className="text-xs text-slate-500">
-              {kpis.today_jobs || 0} today · {kpis.upcoming_jobs || 0} upcoming · {kpis.notifications_unread || 0} new
+              {t('service.eng_home_v2_stats', '{{today}} today · {{upcoming}} upcoming · {{new}} new', { today: kpis.today_jobs || 0, upcoming: kpis.upcoming_jobs || 0, new: kpis.notifications_unread || 0 })}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -274,9 +281,9 @@ export default function EngineerHomeV2() {
               onClick={() => navigate('/svc/engineer/workspace')}
               className="hidden lg:inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700"
               data-testid="engineer-home-open-workspace"
-              title="Open desktop workspace"
+              title={t('service.eng_home_workspace_title', 'Open desktop workspace')}
             >
-              <PlayCircle size={14} className="text-cyan-600" /> Workspace
+              <PlayCircle size={14} className="text-cyan-600" /> {t('service.eng_home_workspace', 'Workspace')}
             </button>
             <button
               type="button"
@@ -294,7 +301,7 @@ export default function EngineerHomeV2() {
             <button
               type="button"
               onClick={load}
-              aria-label="Refresh"
+              aria-label={t('service.eng_home_refresh', 'Refresh')}
               className="p-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50"
               data-testid="engineer-home-refresh"
             >
@@ -305,8 +312,8 @@ export default function EngineerHomeV2() {
               onClick={() => setSettingsOpen(true)}
               className="relative p-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50"
               data-testid="engineer-home-menu-btn"
-              aria-label="Open account settings"
-              title="Account settings"
+              aria-label={t('service.eng_home_open_settings', 'Open account settings')}
+              title={t('service.eng_home_account_settings', 'Account settings')}
             >
               <Menu size={16} />
               {(() => {
@@ -343,7 +350,7 @@ export default function EngineerHomeV2() {
         {loading && !data ? (
           <div className="text-center py-16 text-slate-400">
             <Loader2 className="animate-spin mx-auto mb-2" size={20} />
-            Loading your control centre…
+            {t('service.eng_home_loading_centre', 'Loading your control centre…')}
           </div>
         ) : (
           <>
@@ -393,22 +400,22 @@ export default function EngineerHomeV2() {
 
             {/* KPI Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="engineer-home-kpi-grid">
-              <KPITile icon={Calendar} label="Today" value={kpis.today_jobs} accent="#0891b2"
+              <KPITile icon={Calendar} label={t('service.eng_home_kpi_today', 'Today')} value={kpis.today_jobs} accent="#0891b2"
                        testid="kpi-today" onClick={() => navigate('/svc/engineer/jobs?when=today')} />
-              <KPITile icon={Clock} label="Upcoming" value={kpis.upcoming_jobs} accent="#0e7490"
+              <KPITile icon={Clock} label={t('service.eng_home_kpi_upcoming', 'Upcoming')} value={kpis.upcoming_jobs} accent="#0e7490"
                        testid="kpi-upcoming" onClick={() => navigate('/svc/engineer/upcoming')} />
-              <KPITile icon={AlertTriangle} label="Overdue" value={kpis.overdue_jobs} accent="#dc2626"
+              <KPITile icon={AlertTriangle} label={t('service.eng_home_kpi_overdue', 'Overdue')} value={kpis.overdue_jobs} accent="#dc2626"
                        testid="kpi-overdue" onClick={() => navigate('/svc/engineer/jobs?when=overdue')} />
-              <KPITile icon={RotateCcw} label="Return to Fix" value={kpis.return_to_fix ?? kpis.awaiting_parts} accent="#f59e0b"
+              <KPITile icon={RotateCcw} label={t('service.eng_home_kpi_return_to_fix', 'Return to Fix')} value={kpis.return_to_fix ?? kpis.awaiting_parts} accent="#f59e0b"
                        testid="kpi-return-to-fix" onClick={() => navigate('/svc/engineer/jobs?when=return_to_fix')} />
-              <KPITile icon={FileText} label="Pending quotes" value={kpis.quote_pending} accent="#0891b2"
+              <KPITile icon={FileText} label={t('service.eng_home_kpi_pending_quotes', 'Pending quotes')} value={kpis.quote_pending} accent="#0891b2"
                        testid="kpi-pending-quotes" onClick={() => navigate('/svc/engineer/quotes')} />
-              <KPITile icon={CheckCircle2} label="Accepted" value={kpis.quote_accepted} accent="#059669"
+              <KPITile icon={CheckCircle2} label={t('service.eng_home_kpi_accepted', 'Accepted')} value={kpis.quote_accepted} accent="#059669"
                        testid="kpi-accepted-quotes" onClick={() => navigate('/svc/engineer/quotes?status=accepted')} />
-              <KPITile icon={MessageCircle} label="Awaiting customer" value={kpis.awaiting_customer} accent="#0e7490"
+              <KPITile icon={MessageCircle} label={t('service.eng_home_kpi_awaiting_customer', 'Awaiting customer')} value={kpis.awaiting_customer} accent="#0e7490"
                        testid="kpi-awaiting-customer"
                        onClick={() => navigate('/svc/engineer/quotes?status=sent')} />
-              <KPITile icon={Receipt} label="Invoiced" value={kpis.quote_invoiced} accent="#16a34a"
+              <KPITile icon={Receipt} label={t('service.eng_home_kpi_invoiced', 'Invoiced')} value={kpis.quote_invoiced} accent="#16a34a"
                        testid="kpi-invoiced"
                        onClick={() => navigate('/svc/engineer/invoices?status=all')} />
             </div>
@@ -431,9 +438,9 @@ export default function EngineerHomeV2() {
                     <Wand2 size={18} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-700">New</p>
-                    <p className="text-sm font-bold text-slate-900 truncate">Import legacy reports</p>
-                    <p className="text-xs text-slate-500 truncate">Old PDFs &amp; spreadsheets → branded Pulse Fitness PDFs.</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-700">{t('service.eng_home_legacy_new', 'New')}</p>
+                    <p className="text-sm font-bold text-slate-900 truncate">{t('service.eng_home_legacy_title', 'Import legacy reports')}</p>
+                    <p className="text-xs text-slate-500 truncate">{t('service.eng_home_legacy_blurb', 'Old PDFs & spreadsheets → branded Pulse Fitness PDFs.')}</p>
                   </div>
                 </button>
                 <button
@@ -441,8 +448,8 @@ export default function EngineerHomeV2() {
                   onClick={hideLegacyTile}
                   className="p-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex-shrink-0"
                   data-testid="engineer-home-legacy-hide"
-                  aria-label="Hide legacy import tile"
-                  title="Hide from Home"
+                  aria-label={t('service.eng_home_legacy_hide', 'Hide legacy import tile')}
+                  title={t('service.eng_home_legacy_hide_title', 'Hide from Home')}
                 >
                   <X size={14} className="text-slate-400" />
                 </button>
@@ -453,59 +460,59 @@ export default function EngineerHomeV2() {
                 (jobs → quotes → invoices → records → other) so the
                 most-used actions cluster naturally. */}
             <div className="bg-white rounded-2xl border border-slate-200 p-5" data-testid="engineer-home-quick-actions">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-3">Quick actions</p>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-3">{t('service.eng_home_quick_actions', 'Quick actions')}</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {/* — Jobs — */}
-                <QuickAction icon={Wrench} primary label="New job"
+                <QuickAction icon={Wrench} primary label={t('service.eng_home_qa_new_job', 'New job')}
                              testid="qa-new-job"
                              onClick={() => navigate('/svc/engineer/jobs/new')} />
-                <QuickAction icon={Hand} label="Territory jobs"
+                <QuickAction icon={Hand} label={t('service.eng_home_qa_territory', 'Territory jobs')}
                              testid="qa-queue"
                              onClick={() => navigate('/svc/engineer/queue')} />
-                <QuickAction icon={Calendar} label="View diary"
+                <QuickAction icon={Calendar} label={t('service.eng_home_qa_diary', 'View diary')}
                              testid="qa-diary"
                              onClick={() => navigate('/svc/engineer/diary')} />
                 {/* — Quotes — */}
-                <QuickAction icon={Plus} label="New quote"
+                <QuickAction icon={Plus} label={t('service.eng_home_qa_new_quote', 'New quote')}
                              testid="qa-new-quote"
                              onClick={() => navigate('/svc/engineer/quotes/new')} />
-                <QuickAction icon={FileText} label="My quotes"
+                <QuickAction icon={FileText} label={t('service.eng_home_qa_my_quotes', 'My quotes')}
                              testid="qa-quotes"
                              onClick={() => navigate('/svc/engineer/quotes')} />
                 {/* — Invoices — */}
-                <QuickAction icon={Receipt} label="New invoice"
+                <QuickAction icon={Receipt} label={t('service.eng_home_qa_new_invoice', 'New invoice')}
                              testid="qa-new-invoice"
                              onClick={() => navigate('/svc/engineer/invoices/new')} />
-                <QuickAction icon={Receipt} label="My invoices"
+                <QuickAction icon={Receipt} label={t('service.eng_home_qa_my_invoices', 'My invoices')}
                              testid="qa-invoices"
                              onClick={() => navigate('/svc/engineer/invoices')} />
                 {/* — Records — */}
-                <QuickAction icon={Users} label="My customers"
+                <QuickAction icon={Users} label={t('service.eng_home_qa_customers', 'My customers')}
                              testid="qa-customers"
                              onClick={() => navigate('/svc/engineer/customers')} />
-                <QuickAction icon={Package} label="Equipment"
+                <QuickAction icon={Package} label={t('service.eng_home_qa_equipment', 'Equipment')}
                              testid="qa-equipment"
                              onClick={() => navigate('/svc/engineer/equipment')} />
-                <QuickAction icon={Boxes} label="Stock"
+                <QuickAction icon={Boxes} label={t('service.eng_home_qa_stock', 'Stock')}
                              testid="qa-parts"
                              onClick={() => navigate('/svc/engineer/stock')} />
-                <QuickAction icon={Wallet} label="Expenses"
+                <QuickAction icon={Wallet} label={t('service.eng_home_qa_expenses', 'Expenses')}
                              testid="qa-expenses"
                              onClick={() => navigate('/svc/engineer/expenses')} />
                 {/* — Other — */}
-                <QuickAction icon={FileSignature} label="Send report"
+                <QuickAction icon={FileSignature} label={t('service.eng_home_qa_report', 'Send report')}
                              testid="qa-report"
                              onClick={() => navigate('/svc/engineer/jobs')} />
-                <QuickAction icon={Sun} label="End of day"
+                <QuickAction icon={Sun} label={t('service.eng_home_qa_end_of_day', 'End of day')}
                              testid="qa-end-of-day"
                              onClick={() => navigate('/svc/engineer/end-of-day')} />
                 {payouts?.ready ? (
-                  <QuickAction icon={CreditCard} label="Payouts"
+                  <QuickAction icon={CreditCard} label={t('service.eng_home_qa_payouts', 'Payouts')}
                                testid="qa-payouts"
                                onClick={() => navigate('/svc/engineer/payouts')} />
                 ) : null}
                 {/* Iter 216h257 — Analytics surface with filtered KPI breakdowns. */}
-                <QuickAction icon={TrendingUp} label="Analytics"
+                <QuickAction icon={TrendingUp} label={t('service.eng_home_qa_analytics', 'Analytics')}
                              testid="qa-analytics"
                              onClick={() => navigate('/svc/engineer/analytics')} />
               </div>
@@ -515,7 +522,7 @@ export default function EngineerHomeV2() {
             <div className="grid md:grid-cols-2 gap-4">
               <div className="bg-white rounded-2xl border border-slate-200 p-5" data-testid="engineer-home-today-list">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-bold text-slate-900">Today's jobs</p>
+                  <p className="text-sm font-bold text-slate-900">{t('service.eng_home_todays_jobs', "Today's jobs")}</p>
                   <button onClick={() => navigate('/svc/engineer')} className="text-xs font-semibold text-cyan-600 hover:text-cyan-700" data-testid="today-jobs-view-all">
                     View all →
                   </button>
@@ -530,16 +537,16 @@ export default function EngineerHomeV2() {
                 ) : (
                   <div className="text-center py-8 text-sm text-slate-400">
                     <CheckCircle2 size={20} className="mx-auto mb-2 opacity-50" />
-                    Nothing on the diary today.
+                    {t('service.eng_home_nothing_today', 'Nothing on the diary today.')}
                   </div>
                 )}
               </div>
 
               <div className="bg-white rounded-2xl border border-slate-200 p-5" data-testid="engineer-home-pending-quotes-list">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-bold text-slate-900">Pending quotes</p>
+                  <p className="text-sm font-bold text-slate-900">{t('service.eng_home_pending_quotes', 'Pending quotes')}</p>
                   <button onClick={() => navigate('/svc/engineer/quotes')} className="text-xs font-semibold text-cyan-600 hover:text-cyan-700" data-testid="pending-quotes-view-all">
-                    View all →
+                    {t('service.eng_home_view_all', 'View all →')}
                   </button>
                 </div>
                 {data?.pending_quotes?.length ? (
@@ -552,7 +559,7 @@ export default function EngineerHomeV2() {
                 ) : (
                   <div className="text-center py-8 text-sm text-slate-400">
                     <FileText size={20} className="mx-auto mb-2 opacity-50" />
-                    No quotes awaiting customer response.
+                    {t('service.eng_home_no_pending_quotes', 'No quotes awaiting customer response.')}
                   </div>
                 )}
               </div>
@@ -580,13 +587,14 @@ export default function EngineerHomeV2() {
 // nearest open assignment with distance + ETA → tap the chip to
 // open the job.
 function NearestJobChip({ navigate }) {
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
 
   const find = () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setError('Location not available in this browser.');
+      setError(t('service.eng_home_geo_unavailable', 'Location not available in this browser.'));
       return;
     }
     setBusy(true);
@@ -604,15 +612,15 @@ function NearestJobChip({ navigate }) {
           if (r.data?.nearest) {
             setResult(r.data.nearest);
           } else {
-            setError('No open jobs to route to.');
+            setError(t('service.eng_home_no_route_jobs', 'No open jobs to route to.'));
           }
         } catch (e) {
-          setError(e?.response?.data?.detail || e?.message || 'Lookup failed.');
+          setError(e?.response?.data?.detail || e?.message || t('service.eng_home_lookup_failed', 'Lookup failed.'));
         } finally { setBusy(false); }
       },
       (geoErr) => {
         setBusy(false);
-        setError(geoErr.message || 'Location permission denied.');
+        setError(geoErr.message || t('service.eng_home_geo_denied', 'Location permission denied.'));
       },
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
     );
@@ -638,14 +646,14 @@ function NearestJobChip({ navigate }) {
           data-testid="nearest-job-open"
         >
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700">
-            Nearest stop
+            {t('service.eng_home_nearest_stop', 'Nearest stop')}
           </p>
           <p className="text-sm font-bold text-slate-900 truncate">
-            {result.reference || 'Job'}
+            {result.reference || t('service.eng_home_job', 'Job')}
             {result.site_name ? ` · ${result.site_name}` : ''}
           </p>
           <p className="text-xs text-slate-500">
-            {result.distance_km != null ? `${result.distance_km} km` : 'distance unknown'}
+            {result.distance_km != null ? `${result.distance_km} km` : t('service.eng_home_distance_unknown', 'distance unknown')}
             {result.eta_minutes != null ? ` · ~${result.eta_minutes} min` : ''}
           </p>
         </button>
@@ -657,7 +665,7 @@ function NearestJobChip({ navigate }) {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold whitespace-nowrap"
             data-testid="nearest-job-navigate"
           >
-            <Navigation size={12} /> Go
+            <Navigation size={12} /> {t('service.eng_home_go', 'Go')}
           </a>
         )}
       </div>
@@ -677,7 +685,7 @@ function NearestJobChip({ navigate }) {
         data-testid="nearest-job-find"
       >
         {busy ? <Loader2 size={12} className="animate-spin" /> : <Navigation size={12} />}
-        Find nearest stop
+        {t('service.eng_home_find_nearest', 'Find nearest stop')}
       </button>
       {error && (
         <p className="text-[11px] text-amber-700" data-testid="nearest-job-error">{error}</p>
@@ -691,6 +699,7 @@ function NearestJobChip({ navigate }) {
 // Iter 220cu. Single-line summary of the engineer's day. Falls
 // quietly silent when there's nothing to highlight.
 function MyDayBriefing({ briefing, navigate }) {
+  const { t } = useTranslation();
   const ns = briefing.next_stop;
   const address = ns ? [ns.site_address, ns.site_postcode].filter(Boolean).join(' ') : '';
   const mapsHref = address
@@ -728,7 +737,7 @@ function MyDayBriefing({ briefing, navigate }) {
           >
             <ListChecks size={11} className="text-emerald-700 mt-0.5" />
             <span className="text-xs text-slate-700 leading-snug">
-              <span className="font-bold">Next: {ns.reference || 'Job'}</span>
+              <span className="font-bold">{t('service.eng_home_next', 'Next:')} {ns.reference || t('service.eng_home_job', 'Job')}</span>
               {ns.site_name ? ` · ${ns.site_name}` : ''}
               {ns.title ? ` — ${ns.title}` : ''}
             </span>
@@ -742,7 +751,7 @@ function MyDayBriefing({ briefing, navigate }) {
               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold uppercase tracking-wide"
               data-testid="my-day-pending-parts"
             >
-              <Package size={9} /> {briefing.pending_parts_count} part{briefing.pending_parts_count === 1 ? '' : 's'} pending
+              <Package size={9} /> {t('service.eng_home_parts_pending', '{{count}} parts pending', { count: briefing.pending_parts_count })}
             </button>
           )}
           {briefing.pending_quotes_count > 0 && (
@@ -752,7 +761,7 @@ function MyDayBriefing({ briefing, navigate }) {
               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200 text-[10px] font-bold uppercase tracking-wide"
               data-testid="my-day-pending-quotes"
             >
-              <FileText size={9} /> {briefing.pending_quotes_count} quote{briefing.pending_quotes_count === 1 ? '' : 's'} pending
+              <FileText size={9} /> {t('service.eng_home_quotes_pending', '{{count}} quotes pending', { count: briefing.pending_quotes_count })}
             </button>
           )}
         </div>
@@ -765,7 +774,7 @@ function MyDayBriefing({ briefing, navigate }) {
           className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold whitespace-nowrap"
           data-testid="my-day-navigate"
         >
-          <Navigation size={12} /> Navigate
+          <Navigation size={12} /> {t('service.eng_home_navigate', 'Navigate')}
         </a>
       )}
     </div>
@@ -779,6 +788,7 @@ function MyDayBriefing({ briefing, navigate }) {
 // failure mode where the fast-path close-out closes the job but
 // the invoice-draft step errors (e.g. no chargeable lines yet).
 function NotInvoicedAlert({ cases, navigate }) {
+  const { t } = useTranslation();
   if (!cases || cases.length === 0) return null;
   const fmtDate = (iso) => {
     try {
@@ -798,13 +808,13 @@ function NotInvoicedAlert({ cases, navigate }) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-800">
-            Closed but not invoiced
+            {t('service.eng_home_closed_not_invoiced', 'Closed but not invoiced')}
           </p>
           <p className="text-sm font-bold text-slate-900 mt-1">
-            {cases.length} job{cases.length === 1 ? '' : 's'} from the last 7 days have no invoice yet.
+            {t('service.eng_home_not_invoiced_count', '{{count}} jobs from the last 7 days have no invoice yet.', { count: cases.length })}
           </p>
           <p className="text-[11px] text-amber-900 mt-0.5">
-            Tap one to generate an invoice draft — your fast-path close-out probably failed silently.
+            {t('service.eng_home_not_invoiced_hint', 'Tap one to generate an invoice draft — your fast-path close-out probably failed silently.')}
           </p>
           <ul className="mt-2 space-y-1" data-testid="not-invoiced-list">
             {cases.map((c) => (
@@ -819,7 +829,7 @@ function NotInvoicedAlert({ cases, navigate }) {
                     {c.reference || c.id?.slice(0, 8)}
                   </span>
                   <span className="flex-1 truncate text-slate-700">
-                    {c.title || '(untitled)'}
+                    {c.title || t('service.eng_home_untitled', '(untitled)')}
                   </span>
                   {c.customer_name && (
                     <span className="text-[10px] text-slate-500 truncate hidden sm:inline">

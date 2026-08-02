@@ -19,6 +19,7 @@ import {
   Wrench, MapPin, Clock, AlertTriangle, ChevronRight, Loader2, RefreshCw,
   PlayCircle, WifiOff, ArrowLeft, X, RotateCcw,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { notify } from '@/components/notifications';
 import EngineerAccessGate from './EngineerAccessGate';
 
@@ -41,6 +42,7 @@ function fmtRelative(iso) {
 }
 
 function SLAChip({ resolveAt }) {
+  const { t } = useTranslation();
   if (!resolveAt) return null;
   const ms = new Date(resolveAt).getTime() - Date.now();
   const breached = ms < 0;
@@ -53,7 +55,7 @@ function SLAChip({ resolveAt }) {
       data-testid="job-sla-chip"
     >
       {breached ? <AlertTriangle size={10} /> : <Clock size={10} />}
-      {breached ? 'BREACHED' : atRisk ? 'AT RISK' : fmtRelative(resolveAt)}
+      {breached ? t('service.eng_home_sla_breached', 'BREACHED') : atRisk ? t('service.eng_home_sla_at_risk', 'AT RISK') : fmtRelative(resolveAt)}
     </span>
   );
 }
@@ -79,9 +81,9 @@ function ActiveTimerBanner({ timer, onView }) {
       <div className="flex items-center gap-3">
         <PlayCircle size={28} />
         <div>
-          <p className="text-[10px] uppercase tracking-[0.18em] font-bold opacity-90">On the clock · {timer.category}</p>
+          <p className="text-[10px] uppercase tracking-[0.18em] font-bold opacity-90">{t('service.eng_home_on_the_clock', 'On the clock')} · {timer.category}</p>
           <p className="text-xl font-extrabold tabular-nums">{m}m {s}s</p>
-          <p className="text-xs opacity-90">Case {timer.case_reference || timer.case_id}</p>
+          <p className="text-xs opacity-90">{t('service.eng_home_case', 'Case')} {timer.case_reference || timer.case_id}</p>
         </div>
       </div>
       <ChevronRight size={20} />
@@ -90,6 +92,7 @@ function ActiveTimerBanner({ timer, onView }) {
 }
 
 export default function EngineerHome() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   // Iter 220ec — honour the ?when= filter passed by the home KPI tiles
@@ -151,7 +154,7 @@ export default function EngineerHome() {
             <button
               type="button"
               onClick={() => navigate('/svc/engineer')}
-              aria-label="Back to home"
+              aria-label={t('service.eng_home_back', 'Back to home')}
               className="p-2 rounded-full border shrink-0"
               style={{ borderColor: 'var(--theme-border)' }}
               data-testid="engineer-jobs-back"
@@ -159,12 +162,12 @@ export default function EngineerHome() {
               <ArrowLeft size={16} />
             </button>
             <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: '#0891b2' }}>Service Ops · Engineer</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: '#0891b2' }}>{t('service.eng_home_eyebrow', 'Service Ops · Engineer')}</p>
             <h1 className="text-xl font-extrabold truncate" style={{ color: 'var(--theme-text)' }} data-testid="engineer-greeting">
-              {me?.engineer?.full_name ? `Hi, ${me.engineer.full_name.split(' ')[0]}` : 'Field engineer'}
+              {me?.engineer?.full_name ? t('service.eng_home_hi', 'Hi, {{name}}', { name: me.engineer.full_name.split(' ')[0] }) : t('service.eng_home_field_engineer', 'Field engineer')}
             </h1>
             <p className="text-xs opacity-70">
-              {me ? `${me.stats?.today_jobs || 0} today · ${me.stats?.open_jobs || 0} open` : ' '}
+              {me ? t('service.eng_home_stats', '{{today}} today · {{open}} open', { today: me.stats?.today_jobs || 0, open: me.stats?.open_jobs || 0 }) : ' '}
             </p>
           </div>
           </div>
@@ -175,13 +178,13 @@ export default function EngineerHome() {
                 style={{ background: '#fef3c7', color: '#92400e' }}
                 data-testid="offline-pill"
               >
-                <WifiOff size={11} /> OFFLINE
+                <WifiOff size={11} /> {t('service.eng_home_offline', 'OFFLINE')}
               </span>
             ) : null}
             <button
               type="button"
               onClick={load}
-              aria-label="Refresh"
+              aria-label={t('service.eng_home_refresh', 'Refresh')}
               className="p-2 rounded-full border"
               style={{ borderColor: 'var(--theme-border)' }}
               data-testid="engineer-refresh"
@@ -193,10 +196,10 @@ export default function EngineerHome() {
 
         <div className="mt-3 flex gap-2" data-testid="engineer-tab-bar">
           {[
-            { id: 'today', label: 'Today' },
-            { id: 'upcoming', label: 'Upcoming' },
-            { id: 'open', label: 'All open' },
-            { id: 'closed', label: 'Closed' },
+            { id: 'today', label: t('service.eng_home_tab_today', 'Today') },
+            { id: 'upcoming', label: t('service.eng_home_tab_upcoming', 'Upcoming') },
+            { id: 'open', label: t('service.eng_home_tab_open', 'All open') },
+            { id: 'closed', label: t('service.eng_home_tab_closed', 'Closed') },
           ].map((t) => (
             <button
               key={t.id}
@@ -233,7 +236,7 @@ export default function EngineerHome() {
               className="inline-flex items-center gap-1 text-[11px] font-semibold opacity-70"
               data-testid="engineer-jobs-clear-filter"
             >
-              <X size={11} /> Show all open
+              <X size={11} /> {t('service.eng_home_show_all_open', 'Show all open')}
             </button>
           </div>
         )}
@@ -249,13 +252,13 @@ export default function EngineerHome() {
 
         {loading ? (
           <div className="flex items-center gap-2 text-sm opacity-70 py-8 justify-center">
-            <Loader2 size={16} className="animate-spin" /> Loading…
+            <Loader2 size={16} className="animate-spin" /> {t('service.eng_home_loading', 'Loading…')}
           </div>
         ) : jobs.length === 0 ? (
           <div className="text-center py-12 px-6 rounded-2xl border" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="engineer-empty">
             <Wrench size={28} className="mx-auto opacity-40 mb-2" />
-            <p className="font-bold" style={{ color: 'var(--theme-text)' }}>No {tab === 'today' ? "jobs scheduled today" : tab === 'upcoming' ? 'upcoming jobs' : tab === 'closed' ? 'closed jobs yet' : 'open jobs'}</p>
-            <p className="text-xs opacity-70 mt-1">Pull down to refresh, or check back later.</p>
+            <p className="font-bold" style={{ color: 'var(--theme-text)' }}>{tab === 'today' ? t('service.eng_home_empty_today', 'No jobs scheduled today') : tab === 'upcoming' ? t('service.eng_home_empty_upcoming', 'No upcoming jobs') : tab === 'closed' ? t('service.eng_home_empty_closed', 'No closed jobs yet') : t('service.eng_home_empty_open', 'No open jobs')}</p>
+            <p className="text-xs opacity-70 mt-1">{t('service.eng_home_empty_hint', 'Pull down to refresh, or check back later.')}</p>
           </div>
         ) : jobs.map((j) => {
           const colour = PRIORITY_COLOUR[j.priority] || '#6b7280';
@@ -289,7 +292,7 @@ export default function EngineerHome() {
                         <span className="absolute inset-0 rounded-full bg-emerald-500" />
                         <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75" />
                       </span>
-                      In progress
+                      {t('service.eng_home_in_progress', 'In progress')}
                     </span>
                   )}
                 </div>
@@ -305,9 +308,9 @@ export default function EngineerHome() {
                 ) : null}
               </div>
               <div className="mt-3 flex items-center justify-between text-[11px] opacity-60">
-                <span>{j.estimated_minutes ? `~${j.estimated_minutes} min` : 'unsized'}</span>
+                <span>{j.estimated_minutes ? t('service.eng_home_mins', '~{{min}} min', { min: j.estimated_minutes }) : t('service.eng_home_unsized', 'unsized')}</span>
                 <span className="inline-flex items-center gap-1 font-bold" style={{ color: '#0891b2' }}>
-                  Open <ChevronRight size={12} />
+                  {t('service.eng_home_open_cta', 'Open')} <ChevronRight size={12} />
                 </span>
               </div>
             </button>
