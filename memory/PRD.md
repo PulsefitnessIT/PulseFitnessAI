@@ -33013,3 +33013,14 @@ Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, 
 - Verified: iteration_language_prompt_fr_de_jan2026.json — 100% FE (6/6 scenarios: FR/DE appear, one-tap switch,
   no-nag on reload, dismiss keeps EN, no prompt when already matched). Signed-in persistence path relies on the
   same PATCH endpoint (guarded/non-blocking) — not exercised to avoid mutating the demo account.
+
+---
+## Changelog — 2026-06 (fork) · Language Suggestions re-enable toggle (Settings)
+- Added a 'Language suggestions' section to `components/shared/AccountSettings/preferences.js` with a client-side
+  toggle (data-testid account-lang-suggestions-toggle + account-lang-suggestions-state).
+- Reads/writes the same flag the prompt uses: exported `LANG_PROMPT_SEEN_KEY` ('pf_lang_prompt_seen') from
+  LanguagePrompt.jsx (absent=on, '1'=off). Re-enabling lets the prompt reappear.
+- Keys under settings.pref_lang_sugg_* (title/sub/enable/disable/on/off) auto-translated FR/DE.
+- Verified: iteration_lang_prompt_reenable_toggle_jan2026.json — 100% FE (render, off→on flag round-trip, prompt
+  reappears in FR after re-enable, DE UI translated). Account language reverted to 'en'.
+- Follow-up noted by tester (pre-existing, out of scope): DigestPreferencesCard in this same panel is still English.
