@@ -728,10 +728,10 @@ function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToTa
           <div className="flex items-start justify-between gap-3 pt-2">
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Customer
+                {t('service.eng_jd_customer', 'Customer')}
               </p>
               <p className="text-sm font-bold text-slate-900 truncate" data-testid="jaag-customer-name">
-                {job.customer_name || 'Unknown customer'}
+                {job.customer_name || t('service.eng_jd_unknown_customer', 'Unknown customer')}
               </p>
               {job.site_name && (
                 <p className="text-xs text-slate-500 truncate">

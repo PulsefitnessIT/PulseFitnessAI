@@ -5615,7 +5615,9 @@
     "eng_jd_prof_chargeable": "{{hours}}h chargeable",
     "eng_jd_prof_parts": "Parts",
     "eng_jd_prof_lines": "{{count}} lines",
-    "eng_jd_prof_no_invoice": "No invoice raised yet — margin appears once this job is invoiced."
+    "eng_jd_prof_no_invoice": "No invoice raised yet — margin appears once this job is invoiced.",
+    "eng_jd_customer": "Customer",
+    "eng_jd_unknown_customer": "Unknown customer"
   },
   "settings": {
     "add_custom_item": "Add Custom Item",

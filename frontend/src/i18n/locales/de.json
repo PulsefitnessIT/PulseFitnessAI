@@ -5614,7 +5614,9 @@
     "eng_jd_prof_chargeable": "{{hours}}h abrechenbar",
     "eng_jd_prof_parts": "Teile",
     "eng_jd_prof_lines": "{{count}} Positionen",
-    "eng_jd_prof_no_invoice": "Noch keine Rechnung erstellt — Marge erscheint, sobald dieser Auftrag in Rechnung gestellt wurde."
+    "eng_jd_prof_no_invoice": "Noch keine Rechnung erstellt — Marge erscheint, sobald dieser Auftrag in Rechnung gestellt wurde.",
+    "eng_jd_customer": "Kunde",
+    "eng_jd_unknown_customer": "Unbekannter Kunde"
   },
   "settings": {
     "add_custom_item": "Position hinzufügen",

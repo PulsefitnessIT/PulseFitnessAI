@@ -33105,3 +33105,20 @@ Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, 
   agent with proper engineer context.
 - REMAINING tabs for next batches: Travel, Time, Equipment, Parts, Complete (+ conditional Summary panels:
   SafetyChecklistInline internals, HandoffNotesPanel, EtaUpdateChip, JobOverrunBanner, SiblingJobsBanner).
+
+---
+## Changelog — 2026-06 (fork) · Seed demo Engineer job + FULL FR/DE verification of Job Detail Summary
+- Root-caused why the Engineer Job Detail wouldn't load for tests: GET /api/svc/engineer/jobs/{id} looks up by the
+  case `id` UUID (NOT Mongo _id) scoped to the caller's organization_id, and the MASTER ADMIN bypasses the
+  assigned-engineer check. Earlier attempts 404'd because they passed the Mongo _id and used cases outside the admin org.
+- Enriched the one case already in the admin org (id dca2dfb9-…, SVC-00001) with rich display fields (customer/site/
+  asset, fault code E-217, PO-88231, P2, repair, expiring manufacturer warranty ~60d, future SLA, ai_triage) so the
+  whole Summary tab is exercised. Documented in test_credentials.md.
+- Fixed a PHANTOM search_replace from the previous batch: the JobAtAGlance "Customer"/"Unknown customer" labels had
+  not actually been wrapped (key eng_jd_customer was never extracted). Re-applied + re-ran pipeline (Client/Kunde).
+- VERIFIED END-TO-END (live screenshots, real loaded job): Summary tab renders fully in BOTH French and German,
+  including interpolations — "3h 34m bis SLA / avant le SLA", cover "Deckung endet in 60 Tagen / La couverture se
+  termine dans 60 jours", H&S "8 Punkte / 8 éléments", KUNDE/Client, Fehlercode/Code défaut, Auftragskosten & Marge,
+  SYNCHRONISIERT. Tabs, status pill, action row, all 6 stat tiles, cover banner, fault context all localised.
+- Out of scope residuals (later batches): the shared machine-condition "Out Of Order" chip (CSS-class key only in this
+  file), and "PO / Ref:" DE deliberately kept as the standard abbreviation. Admin user.language reset to 'en' after test.

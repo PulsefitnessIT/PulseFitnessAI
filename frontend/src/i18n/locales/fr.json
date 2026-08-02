@@ -5614,7 +5614,9 @@
     "eng_jd_prof_chargeable": "{{hours}}h facturable",
     "eng_jd_prof_parts": "Pièces",
     "eng_jd_prof_lines": "{{count}} lignes",
-    "eng_jd_prof_no_invoice": "Aucune facture émise pour l'instant — la marge apparaît une fois ce travail facturé."
+    "eng_jd_prof_no_invoice": "Aucune facture émise pour l'instant — la marge apparaît une fois ce travail facturé.",
+    "eng_jd_customer": "Client",
+    "eng_jd_unknown_customer": "Client inconnu"
   },
   "settings": {
     "add_custom_item": "Ajouter un élément",
