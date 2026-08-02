@@ -5284,7 +5284,8 @@
     "disp_no_engineers": "Noch keine aktiven Techniker",
     "comms_tab_templates": "Vorlagen",
     "comms_tab_activity": "Aktivität",
-    "disp_board_title": "Dispatch Board"
+    "disp_board_title": "Dispatch Board",
+    "nav_comms": "Comms"
   },
   "settings": {
     "add_custom_item": "Position hinzufügen",
@@ -5389,7 +5390,7 @@
     "org_city": "Stadt",
     "org_postcode": "Postleitzahl",
     "org_country": "Land",
-    "org_website": "Website",
+    "org_website": "Webseite",
     "org_primary_contact": "Hauptansprechpartner",
     "org_primary_contact_sub": "Die Kontaktperson, die wir per E-Mail über Abrechnung, Ausfallzeiten und Kontoprobleme informieren.",
     "org_contact_email": "Kontakt-E-Mail",

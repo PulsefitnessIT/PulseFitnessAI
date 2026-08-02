@@ -184,6 +184,7 @@ async def main():
         "service.nav_reports": "Reports", "service.nav_imports": "Import data",
         "service.nav_integrations": "Integrations", "service.nav_audit": "Audit log",
         "service.nav_account": "Account settings", "service.nav_engineers": "Engineers",
+        "service.nav_comms": "Comms",
         "service.nav_brand": "Service Desk", "service.nav_brand_sub": "Field service ops",
         "service.nav_inventory_distribution": "Inventory & Distribution",
         "service.nav_insights_group": "Insights", "service.nav_options": "Options",

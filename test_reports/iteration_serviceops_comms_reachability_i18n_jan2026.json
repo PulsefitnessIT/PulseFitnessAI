@@ -1,0 +1,49 @@
+{
+  "summary": "Frontend-only verification that CommsHubPage is re-surfaced under Service Desk → Options → Comms and is fully translated in EN and DE. Logged in as owner@isodemo.com, navigated to /service-desk, expanded Options in the left sidebar, clicked the Comms item (data-testid=desk-option-comms), and confirmed the Comms Hub mounts (data-testid=comms-page) with both Templates and Activity tabs. Verified no raw i18n key leaks (service.comms_*, service.nav_comms) in EN and after PATCH /api/account/profile {language:'de'} and reload. Verified regression: all other Options items (Imports, Integrations, Audit, Account settings, Engineers) still present. Language reverted to 'en' at cleanup.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "de.json has TWO nav_comms keys (line 5288 = 'Comms', line 6779 = 'Kommunikation'). JSON parsers keep the LAST occurrence, so the effective DE value is 'Kommunikation' — however the sidebar rendered 'Comms'. Investigate whether the second occurrence lives under a different namespace and confirm intended DE label. If 'Comms' is the desired brand label, remove the duplicate to avoid confusion; if 'Kommunikation' is intended, ensure the sidebar label picks it up.",
+    "In embedded mode the CommsHubPage does not render the localized page title 'Kundenkommunikations-Hub' (comms_title). This appears to be by design because ServiceOpsEmbeddedContext collapses the hero, but the title/subtitle strings become unused inside the Desk shell. Consider surfacing a compact translated heading inside the embed for parity with Compliance/Parts/Billing tabs."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Comms Hub is embedded inside Service Desk via Options menu (data-testid=desk-option-comms). Options item ids are: imports, integrations, comms, audit, account, engineers (note it's 'imports' not 'import'). PATCH /api/account/profile with {language:'de'|'en'} + reload switches UI language. Empty Activity state DE = 'Noch keine Kommunikation gesendet.'. de.json has a duplicate nav_comms key worth cleaning up.",
+  "detailed_results": {
+    "EN": {
+      "desk-option-comms_present": true,
+      "comms-page_mounted": true,
+      "tabs_visible": ["Templates", "Activity"],
+      "template_editor_labels": ["Template", "Reset to default", "Save", "Audience", "Subject", "HTML body", "Preview (sample data)"],
+      "activity_headers": ["When", "Kind", "Template", "To", "Subject", "Status", "Refresh"],
+      "raw_key_leaks": []
+    },
+    "DE": {
+      "PATCH_language_de_status": 200,
+      "sidebar_label": "Comms (brand string via nav_comms)",
+      "comms-page_mounted": true,
+      "tabs_visible": ["Vorlagen", "Aktivität"],
+      "template_editor_labels": ["Vorlage", "Auf Standard zurücksetzen", "Speichern", "Zielgruppe", "Betreff", "HTML-Body", "Vorschau (Beispieldaten)"],
+      "raw_key_leaks": []
+    },
+    "regression_options_present": {
+      "desk-option-imports": true,
+      "desk-option-integrations": true,
+      "desk-option-comms": true,
+      "desk-option-audit": true,
+      "desk-option-account": true,
+      "desk-option-engineers": true
+    },
+    "cleanup": "PATCH /api/account/profile {language:'en'} -> 200"
+  }
+}

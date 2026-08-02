@@ -5285,7 +5285,8 @@
     "disp_no_engineers": "No active engineers yet",
     "comms_tab_templates": "Templates",
     "comms_tab_activity": "Activity",
-    "disp_board_title": "Dispatch Board"
+    "disp_board_title": "Dispatch Board",
+    "nav_comms": "Comms"
   },
   "settings": {
     "add_custom_item": "Add Custom Item",

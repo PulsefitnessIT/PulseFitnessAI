@@ -5284,7 +5284,8 @@
     "disp_no_engineers": "Aucun technicien actif pour le moment",
     "comms_tab_templates": "Modèles",
     "comms_tab_activity": "Activité",
-    "disp_board_title": "Tableau de dispatch"
+    "disp_board_title": "Tableau de dispatch",
+    "nav_comms": "Comms"
   },
   "settings": {
     "add_custom_item": "Ajouter un élément",

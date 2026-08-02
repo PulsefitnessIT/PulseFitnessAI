@@ -23,7 +23,7 @@ import {
   LayoutDashboard, Users, ClipboardList, Calendar, Package, FileText,
   HardHat, LogOut, ArrowLeft, Wrench, ScrollText, Loader2,
   ShieldCheck, Menu, X, BarChart3, UploadCloud, Wallet, CalendarClock, Cable,
-  SlidersHorizontal, Settings, ChevronDown, Globe,
+  SlidersHorizontal, Settings, ChevronDown, Globe, Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +61,7 @@ const OpsEngineers = lazy(() => import('./ServiceOps/EngineersAdminPage'));
 const OpsReports   = lazy(() => import('./ServiceOps/ServiceOpsReportsPage'));
 const OpsSafety    = lazy(() => import('./ServiceOps/SafetyTemplateAdmin'));
 const OpsCompliance = lazy(() => import('./ServiceOps/ComplianceAdmin'));
+const OpsComms = lazy(() => import('./ServiceOps/CommsHubPage'));
 
 // Sidebar order — Engineers now lives under the Options menu.
 const TABS = [
@@ -88,6 +89,7 @@ const INSIGHTS_TABS = [
 const OPTIONS_ITEMS = [
   { id: 'imports',      label: 'Import data',      icon: UploadCloud, kind: 'tab' },
   { id: 'integrations', label: 'Integrations',     icon: Cable,       kind: 'tab' },
+  { id: 'comms',        label: 'Comms',            icon: Mail,        kind: 'tab' },
   { id: 'audit',        label: 'Audit log',        icon: ScrollText,  kind: 'tab' },
   { id: 'account',      label: 'Account settings', icon: Settings,    kind: 'modal' },
   { id: 'engineers',    label: 'Engineers',        icon: HardHat,     kind: 'tab' },
@@ -299,6 +301,12 @@ export default function ServiceDeskPage() {
         return (
           <ServiceOpsEmbeddedContext.Provider value={true}>
             <Suspense fallback={<EmbedFallback />}><OpsCompliance /></Suspense>
+          </ServiceOpsEmbeddedContext.Provider>
+        );
+      case 'comms':
+        return (
+          <ServiceOpsEmbeddedContext.Provider value={true}>
+            <Suspense fallback={<EmbedFallback />}><OpsComms /></Suspense>
           </ServiceOpsEmbeddedContext.Provider>
         );
       default:
