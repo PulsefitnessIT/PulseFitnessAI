@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend-only verification of the new 'Language suggestions' re-enable toggle in Account Settings → Preferences. All acceptance criteria pass: initial state on with 'Turn off language suggestions' button and no localStorage flag; turning off writes pf_lang_prompt_seen='1' and updates copy to 'Language suggestions are off.' / 'Show language suggestions again'; re-enabling removes the flag (null) and restores original copy. Round-trip verified with fr-FR navigator override: after re-enable + reload, the LanguagePrompt reappears with French copy ('Continuer en français ?'). German UI check passed: PATCH /api/account/profile language=de returns 200 and the Preferences panel renders 'Sprachvorschläge', 'Sprachvorschläge wieder anzeigen', and 'Sprachvorschläge sind deaktiviert.'. Language reverted to 'en' via PATCH (status 200) as cleanup.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "preferences.js correctly uses the exported LANG_PROMPT_SEEN_KEY constant from LanguagePrompt.jsx — good single-source-of-truth for the flag name.",
+    "Toggle is purely client-side (no API call); state read on mount from localStorage is fine because the modal is remounted each time it opens.",
+    "Minor: the DigestPreferencesCard title/body inside this section is not translated (still English) in the DE UI screenshot ('Digest email'). Not part of this feature but worth a follow-up if E1 owns that card."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a", "frontend": "100%" },
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Toggle located under account-nav-preferences → account-section-preferences with data-testids account-lang-suggestions-toggle and account-lang-suggestions-state. Flag key: 'pf_lang_prompt_seen' (absent=on, '1'=off). To re-produce prompt round-trip, use add_init_script to override navigator.language to fr-FR before load, then localStorage.setItem('i18nextLng','en') and reload — prompt appears after ~1.2s.",
+  "rca of the issue": "n/a — no issues found."
+}

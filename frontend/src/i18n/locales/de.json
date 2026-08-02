@@ -5674,7 +5674,13 @@
     "nav_documents": "Dokument-Branding",
     "nav_suppliers": "Lieferanten",
     "nav_team": "Team & Rollen",
-    "nav_data_export": "Datenexport"
+    "nav_data_export": "Datenexport",
+    "pref_lang_sugg_title": "Sprachvorschläge",
+    "pref_lang_sugg_sub": "Wenn Ihr Browser auf Französisch oder Deutsch eingestellt ist, bieten wir Ihnen einen Wechsel zu dieser Sprache mit einem Tippen an. Schalten Sie dies wieder ein, wenn Sie es zuvor abgelehnt haben.",
+    "pref_lang_sugg_disable": "Sprachvorschläge ausschalten",
+    "pref_lang_sugg_enable": "Sprachvorschläge wieder anzeigen",
+    "pref_lang_sugg_on": "Sprachvorschläge sind aktiviert.",
+    "pref_lang_sugg_off": "Sprachvorschläge sind deaktiviert."
   },
   "severity": {
     "limited_use": "Eingeschränkt nutzbar",

@@ -5674,7 +5674,13 @@
     "nav_documents": "Image de marque des documents",
     "nav_suppliers": "Fournisseurs",
     "nav_team": "Équipe et rôles",
-    "nav_data_export": "Exportation de données"
+    "nav_data_export": "Exportation de données",
+    "pref_lang_sugg_title": "Suggestions de langue",
+    "pref_lang_sugg_sub": "Lorsque votre navigateur est réglé sur le français ou l'allemand, nous proposons un changement de langue en un seul clic. Réactivez cette option si vous l'avez désactivée précédemment.",
+    "pref_lang_sugg_disable": "Désactiver les suggestions de langue",
+    "pref_lang_sugg_enable": "Afficher à nouveau les suggestions de langue",
+    "pref_lang_sugg_on": "Les suggestions de langue sont activées.",
+    "pref_lang_sugg_off": "Les suggestions de langue sont désactivées."
   },
   "severity": {
     "limited_use": "Usage limité",

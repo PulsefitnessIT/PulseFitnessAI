@@ -5675,7 +5675,13 @@
     "nav_documents": "Document Branding",
     "nav_suppliers": "Suppliers",
     "nav_team": "Team & Roles",
-    "nav_data_export": "Data export"
+    "nav_data_export": "Data export",
+    "pref_lang_sugg_title": "Language suggestions",
+    "pref_lang_sugg_sub": "When your browser is set to French or German, we offer a one-tap switch to that language. Turn this back on if you dismissed it earlier.",
+    "pref_lang_sugg_disable": "Turn off language suggestions",
+    "pref_lang_sugg_enable": "Show language suggestions again",
+    "pref_lang_sugg_on": "Language suggestions are on.",
+    "pref_lang_sugg_off": "Language suggestions are off."
   },
   "severity": {
     "limited_use": "Limited Use",

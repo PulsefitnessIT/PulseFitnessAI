@@ -19,6 +19,7 @@ import i18n from '@/i18n';
 import { useAuth } from '@/App';
 
 const SEEN_KEY = 'pf_lang_prompt_seen';
+export const LANG_PROMPT_SEEN_KEY = SEEN_KEY;
 
 const COPY = {
   fr: {
