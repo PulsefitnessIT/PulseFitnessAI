@@ -33024,3 +33024,15 @@ Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, 
 - Verified: iteration_lang_prompt_reenable_toggle_jan2026.json — 100% FE (render, off→on flag round-trip, prompt
   reappears in FR after re-enable, DE UI translated). Account language reverted to 'en'.
 - Follow-up noted by tester (pre-existing, out of scope): DigestPreferencesCard in this same panel is still English.
+
+---
+## Changelog — 2026-06 (fork) · Email Digest card localized (Settings → Preferences)
+- `components/shared/DigestPreferencesCard.js` (settings.digest_*, 47 keys) fully localized FR/DE — frequency/day/hour,
+  4 channel labels+descs, email + Teams delivery, webhook label/hint, all toasts. The whole Preferences panel is now FR/DE.
+- HAZARD hit twice: 3 JSX label edits (Frequency / Email delivery / Send to) phantom-succeeded (reported OK but didn't
+  land) and were caught by the testing agent, then re-applied individually. Also the DE translation pipeline chunk
+  containing digest_teams_url_hint (has ⋯ + quotes) repeatedly returned malformed JSON, so 25 DE keys + the 4 late keys
+  were written manually into de.json (and 3 FR/EN keys), with a couple of French titles polished (Résumé par e-mail).
+- Verified: iteration_digest_i18n_retest_jan2026.json — 100% FE across EN/DE/FR, 0 raw-key leaks, no regression to
+  theme/language-suggestions sections. Account reverted to 'en'.
+- Note for pipeline: values containing ⋯ / embedded quotes can break the LLM's JSON chunk — prefer manual fill for those.
