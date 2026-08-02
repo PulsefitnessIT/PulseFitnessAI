@@ -1630,6 +1630,7 @@ function SiblingJobsBanner({ cases }) {
 //   * ``mode="compose"`` — full composer + list. Lives on the
 //     **Complete** tab so leaving handoff is part of wrapping up.
 function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentUserId }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1660,13 +1661,13 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
       setText('');
       setOpen(false);
       if (r.offline) {
-        notify.success('Handoff note queued', 'It will sync automatically when you reconnect.');
+        notify.success(t('service.eng_jd_ho_queued', 'Handoff note queued'), t('service.eng_jd_ho_queued_sub', 'It will sync automatically when you reconnect.'));
       } else {
-        notify.success('Handoff note saved', 'The next engineer will see this on Job-at-a-Glance.');
+        notify.success(t('service.eng_jd_ho_saved', 'Handoff note saved'), t('service.eng_jd_ho_saved_sub', 'The next engineer will see this on Job-at-a-Glance.'));
       }
       await onChange();
     } catch (e) {
-      notify.error('Could not save note', e?.response?.data?.detail || e?.message || 'Try again.');
+      notify.error(t('service.eng_jd_ho_save_failed', 'Could not save note'), e?.response?.data?.detail || e?.message || t('service.eng_jd_try_again', 'Try again.'));
     } finally {
       setBusy(false);
     }
@@ -1683,7 +1684,7 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
         <div className="flex items-center gap-2 mb-1">
           <MessageSquare size={14} className="text-cyan-700" />
           <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-800">
-            From the previous engineer
+            {t('service.eng_jd_ho_from_previous', 'From the previous engineer')}
           </p>
         </div>
         <ul className="space-y-1" data-testid="jaag-handoff-list">
@@ -1714,7 +1715,7 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
           className="text-[10px] font-bold uppercase tracking-wide text-slate-500 hover:text-slate-700 inline-flex items-center gap-1"
           data-testid="jaag-handoff-add"
         >
-          <MessageSquare size={11} /> Leave a handoff note
+          <MessageSquare size={11} /> {t('service.eng_jd_ho_leave', 'Leave a handoff note')}
         </button>
       </div>
     );
@@ -1727,7 +1728,7 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
       <div className="flex items-center gap-2 mb-1">
         <MessageSquare size={14} className="text-cyan-700" />
         <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-800">
-          Handoff notes
+          {t('service.eng_jd_ho_notes', 'Handoff notes')}
         </p>
       </div>
       {list.length > 0 && (
@@ -1753,7 +1754,7 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={2}
-            placeholder="What does the next engineer need to know?"
+            placeholder={t('service.eng_jd_ho_placeholder', 'What does the next engineer need to know?')}
             className="w-full text-xs px-2 py-1 rounded border border-cyan-200 bg-white focus:outline-none focus:ring-1 focus:ring-cyan-300"
             data-testid="jaag-handoff-input"
             maxLength={2000}
@@ -1765,7 +1766,7 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
               className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded text-slate-600 hover:bg-slate-100"
               data-testid="jaag-handoff-cancel"
             >
-              Cancel
+              {t('service.eng_jd_cancel', 'Cancel')}
             </button>
             <button
               type="button"
@@ -1774,7 +1775,7 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
               className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-50"
               data-testid="jaag-handoff-submit"
             >
-              {busy ? 'Saving…' : 'Save note'}
+              {busy ? t('service.eng_jd_saving', 'Saving…') : t('service.eng_jd_ho_save_note', 'Save note')}
             </button>
           </div>
         </div>
@@ -1785,7 +1786,7 @@ function HandoffNotesPanel({ caseId, notes, onChange, mode = 'compose', currentU
           className="text-[10px] font-bold uppercase tracking-wide text-cyan-700 hover:text-cyan-900 inline-flex items-center gap-1"
           data-testid="jaag-handoff-add"
         >
-          <Plus size={11} /> Add another handoff note
+          <Plus size={11} /> {t('service.eng_jd_ho_add_another', 'Add another handoff note')}
         </button>
       )}
     </div>
@@ -3343,6 +3344,7 @@ function PartsRequestModal({ sku, name, machines = [], onCancel, onSubmit, busy 
 // expands into a date picker + reason + customer-notify toggle and
 // posts to the new ``return-to-fix`` endpoint.
 function ReturnToFixCard({ job, onRescheduled }) {
+  const { t } = useTranslation();
   const existing = job.return_to_fix || null;
   const [mode, setMode] = useState(existing ? 'no' : null);
   const [busy, setBusy] = useState(false);
@@ -3361,7 +3363,7 @@ function ReturnToFixCard({ job, onRescheduled }) {
   const [notifyCustomer, setNotifyCustomer] = useState(true);
 
   const submit = async () => {
-    if (!returnAt) { notify.error('Pick a return date'); return; }
+    if (!returnAt) { notify.error(t('service.eng_jd_rtf_pick_date', 'Pick a return date')); return; }
     setBusy(true);
     try {
       const iso = new Date(returnAt).toISOString();
@@ -3376,7 +3378,7 @@ function ReturnToFixCard({ job, onRescheduled }) {
       );
       await onRescheduled?.();
     } catch (e) {
-      notify.error(e?.response?.data?.detail || 'Could not schedule return');
+      notify.error(e?.response?.data?.detail || t('service.eng_jd_rtf_failed', 'Could not schedule return'));
     } finally {
       setBusy(false);
     }
@@ -3388,7 +3390,7 @@ function ReturnToFixCard({ job, onRescheduled }) {
       data-testid="complete-return-to-fix"
     >
       <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">
-        Did you fix it on this visit?
+        {t('service.eng_jd_rtf_question', 'Did you fix it on this visit?')}
       </p>
       <div className="flex gap-2">
         <button
@@ -3401,7 +3403,7 @@ function ReturnToFixCard({ job, onRescheduled }) {
           }`}
           data-testid="rtf-yes"
         >
-          Yes — closing today
+          {t('service.eng_jd_rtf_yes', 'Yes — closing today')}
         </button>
         <button
           type="button"
@@ -3413,7 +3415,7 @@ function ReturnToFixCard({ job, onRescheduled }) {
           }`}
           data-testid="rtf-no"
         >
-          No — need a return visit
+          {t('service.eng_jd_rtf_no', 'No — need a return visit')}
         </button>
       </div>
 
@@ -3421,7 +3423,7 @@ function ReturnToFixCard({ job, onRescheduled }) {
         <div className="mt-3 space-y-2" data-testid="rtf-form">
           <label className="block">
             <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-              Return date
+              {t('service.eng_jd_rtf_return_date', 'Return date')}
             </span>
             <input
               type="datetime-local"
@@ -3433,13 +3435,13 @@ function ReturnToFixCard({ job, onRescheduled }) {
           </label>
           <label className="block">
             <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-              Why a return visit?
+              {t('service.eng_jd_rtf_why', 'Why a return visit?')}
             </span>
             <textarea
               rows={2}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Parts on order · waiting on spec · need 2-person lift…"
+              placeholder={t('service.eng_jd_rtf_reason_ph', 'Parts on order · waiting on spec · need 2-person lift…')}
               className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
               data-testid="rtf-reason"
             />
@@ -3451,7 +3453,7 @@ function ReturnToFixCard({ job, onRescheduled }) {
               onChange={(e) => setNotifyCustomer(e.target.checked)}
               data-testid="rtf-notify-customer"
             />
-            Notify the customer of the new return time
+            {t('service.eng_jd_rtf_notify', 'Notify the customer of the new return time')}
           </label>
           <button
             type="button"
@@ -3461,12 +3463,11 @@ function ReturnToFixCard({ job, onRescheduled }) {
             data-testid="rtf-submit"
           >
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-            Reschedule + notify customer
+            {t('service.eng_jd_rtf_submit', 'Reschedule + notify customer')}
           </button>
           {existing && (
             <p className="text-[11px] text-slate-500" data-testid="rtf-existing">
-              A return is already booked — submitting again will refresh
-              the date and re-notify the customer.
+              {t('service.eng_jd_rtf_existing', 'A return is already booked — submitting again will refresh the date and re-notify the customer.')}
             </p>
           )}
         </div>
@@ -3477,6 +3478,7 @@ function ReturnToFixCard({ job, onRescheduled }) {
 
 
 function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDraft }) {
+  const { t } = useTranslation();
   // Iter 220c — Use the parent's lifted draft so tab switches NEVER
   // lose typed text. Falls back to the case's stored values on first
   // open so engineers see what was previously persisted.
@@ -3527,7 +3529,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
   const willGenerateInvoice = coverState.covered ? misuseOverride : autoInvoice;
 
   const complete = async () => {
-    if (!summary.trim()) { notify.error('Add a work summary'); return; }
+    if (!summary.trim()) { notify.error(t('service.eng_jd_add_summary', 'Add a work summary')); return; }
     setBusy(true);
     try {
       if (signatureData) {
@@ -3550,10 +3552,10 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
       }, { headers: auth().headers, kind: 'job_complete',
           label: `Complete · ${job.reference || job.id}` });
       if (completeRes?.queued) {
-        notify.success('Saved offline — will sync when back online',
-                       `Queued: Complete ${job.reference || job.id}`);
+        notify.success(t('service.eng_jd_saved_offline_sync', 'Saved offline — will sync when back online'),
+                       t('service.eng_jd_queued_complete', 'Queued: Complete {{ref}}', { ref: job.reference || job.id }));
       } else {
-        notify.success('Job completed');
+        notify.success(t('service.eng_jd_job_completed', 'Job completed'));
       }
       if (willGenerateInvoice) {
         try {
@@ -3561,17 +3563,17 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
             `${API}/svc/engineer/jobs/${job.id}/generate-invoice-draft`, {}, auth(),
           );
           setDraftResult(r.data);
-          notify.success(`Draft ${r.data.invoice_number} created`);
+          notify.success(t('service.eng_jd_draft_created', 'Draft {{num}} created', { num: r.data.invoice_number }));
         } catch (e) {
-          const m = e?.response?.data?.detail || 'No chargeable lines yet';
-          notify.error(`Invoice draft skipped: ${m}`);
+          const m = e?.response?.data?.detail || t('service.eng_jd_no_chargeable', 'No chargeable lines yet');
+          notify.error(t('service.eng_jd_draft_skipped_msg', 'Invoice draft skipped: {{msg}}', { msg: m }));
         }
       }
       // Iter 220c — flush the autosave draft now that the job is wrapped.
       await clearDraft?.();
       await onChange();
     } catch (e) {
-      notify.error(e?.response?.data?.detail || 'Could not complete job');
+      notify.error(e?.response?.data?.detail || t('service.eng_jd_complete_failed', 'Could not complete job'));
     } finally { setBusy(false); }
   };
 
@@ -3582,7 +3584,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
   // customer. Each step is wrapped in its own try so a single
   // failure (e.g. no parts allocated yet) doesn't break the chain.
   const completeAndSendInvoice = async () => {
-    if (!summary.trim()) { notify.error('Add a work summary first'); return; }
+    if (!summary.trim()) { notify.error(t('service.eng_jd_add_summary_first', 'Add a work summary first')); return; }
     setBusy(true);
     try {
       // 1. Stop any active on-site timer.
@@ -3601,7 +3603,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
       }
       // 2. Capture signature if the engineer drew one.
       if (signatureData) {
-        const sigName = signatureName.trim() || job.customer_name || 'Customer';
+        const sigName = signatureName.trim() || job.customer_name || t('service.eng_jd_customer', 'Customer');
         try {
           await axios.post(`${API}/svc/engineer/signature`, {
             case_id: job.id, signed_by_name: sigName,
@@ -3629,7 +3631,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
           inv = r.data;
           setDraftResult(inv);
         } catch (e) {
-          notify.error('Invoice draft skipped', e?.response?.data?.detail || e?.message);
+          notify.error(t('service.eng_jd_draft_skipped', 'Invoice draft skipped'), e?.response?.data?.detail || e?.message);
         }
       }
       // 5. Email the branded service report (matches the "Email report"
@@ -3637,14 +3639,14 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
       try {
         await axios.post(`${API}/svc/cases/${job.id}/service-report/email`, {}, auth());
         notify.success(
-          'Sent to customer',
-          inv ? `Invoice ${inv.invoice_number} created · service report emailed.`
+          t('service.eng_jd_sent_customer', 'Sent to customer'),
+          inv ? t('service.eng_jd_sent_invoice', 'Invoice {{num}} created · service report emailed.', { num: inv.invoice_number })
               : (coverState.covered && !misuseOverride
-                  ? 'Service report emailed · no charge (under cover).'
-                  : 'Service report emailed.'),
+                  ? t('service.eng_jd_sent_no_charge', 'Service report emailed · no charge (under cover).')
+                  : t('service.eng_jd_sent_report', 'Service report emailed.')),
         );
       } catch (e) {
-        notify.error('Report email failed', e?.response?.data?.detail || e?.message);
+        notify.error(t('service.eng_jd_report_email_failed', 'Report email failed'), e?.response?.data?.detail || e?.message);
       }
       // 6. Iter 220cy — Fire the NPS feedback request. Lands the
       // customer on the public tracking page where the 5-star + NPS
@@ -3656,7 +3658,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
       await clearDraft?.();
       await onChange();
     } catch (e) {
-      notify.error(e?.response?.data?.detail || 'Could not close the job');
+      notify.error(e?.response?.data?.detail || t('service.eng_jd_close_failed', 'Could not close the job'));
     } finally { setBusy(false); }
   };
 
@@ -3671,32 +3673,32 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
           <div className="flex items-center gap-2">
             <CheckCircle2 size={20} className="text-emerald-500" />
             <p className="text-sm font-bold text-slate-900 capitalize">{job.status.replace(/_/g, ' ')}</p>
-            <span className="ml-auto text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Read-only</span>
+            <span className="ml-auto text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{t('service.eng_jd_read_only', 'Read-only')}</span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">This job is wrapped up — the details below are locked.</p>
+          <p className="text-xs text-slate-500 mt-1">{t('service.eng_jd_wrapped_up', 'This job is wrapped up — the details below are locked.')}</p>
         </div>
 
         {summaryText ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-locked-summary">
-            <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Work summary</p>
+            <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">{t('service.eng_jd_work_summary', 'Work summary')}</p>
             <p className="text-sm text-slate-800 whitespace-pre-wrap">{summaryText}</p>
           </div>
         ) : null}
 
         {sig && sig.image_data ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-locked-signature">
-            <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Customer sign-off</p>
+            <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">{t('service.eng_jd_customer_signoff', 'Customer sign-off')}</p>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 inline-block">
-              <img src={sig.image_data} alt="Customer signature" className="max-h-28" />
+              <img src={sig.image_data} alt={t('service.eng_jd_customer_signature', 'Customer signature')} className="max-h-28" />
             </div>
             <p className="text-xs text-slate-600 mt-2">
-              Signed by <span className="font-bold">{sig.signed_by_name || 'Customer'}</span>
+              {t('service.eng_jd_signed_by', 'Signed by')} <span className="font-bold">{sig.signed_by_name || t('service.eng_jd_customer', 'Customer')}</span>
               {sig.signed_at ? ` · ${new Date(sig.signed_at).toLocaleString()}` : ''}
             </p>
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-slate-200 p-4 text-xs text-slate-500" data-testid="complete-locked-no-signature">
-            No customer signature was captured on this job.
+            {t('service.eng_jd_no_signature', 'No customer signature was captured on this job.')}
           </div>
         )}
 
@@ -3704,7 +3706,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
 
         {job.invoice_draft_id ? (
           <button onClick={() => navigate(`/svc/engineer/invoices/${job.invoice_draft_id}`)} className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-cyan-600 text-white text-sm font-bold" data-testid="complete-open-invoice">
-            <Receipt size={14} /> Open invoice {job.invoice_draft_number}
+            <Receipt size={14} /> {t('service.eng_jd_open_invoice', 'Open invoice {{num}}', { num: job.invoice_draft_number })}
           </button>
         ) : null}
       </div>
@@ -3721,15 +3723,15 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
       <ReturnToFixCard
         job={job}
         onRescheduled={async () => {
-          notify.success('Return visit booked', 'Customer notified — the job is back in the diary.');
+          notify.success(t('service.eng_jd_return_booked', 'Return visit booked'), t('service.eng_jd_return_booked_sub', 'Customer notified — the job is back in the diary.'));
           await clearDraft?.();
           await onChange();
         }}
       />
 
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-summary-card">
-        <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Work summary *</p>
-        <textarea rows={4} value={summary} onChange={e => setSummary(e.target.value)} placeholder="What was repaired / replaced / advised…" className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white" data-testid="complete-summary" />
+        <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">{t('service.eng_jd_work_summary_req', 'Work summary *')}</p>
+        <textarea rows={4} value={summary} onChange={e => setSummary(e.target.value)} placeholder={t('service.eng_jd_summary_ph', 'What was repaired / replaced / advised…')} className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white" data-testid="complete-summary" />
       </div>
 
       <EngineerDictationButton
@@ -3750,7 +3752,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
         data-testid="complete-handoff-card"
       >
         <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">
-          Handoff for the next engineer
+          {t('service.eng_jd_handoff_for_next', 'Handoff for the next engineer')}
         </p>
         <HandoffNotesPanel
           caseId={job.id}
@@ -3774,10 +3776,10 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
           Equipment / Parts / Complete). */}
 
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-signature-card">
-        <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Customer signature (optional)</p>
-        <Input label="Signed by" v={signatureName} on={setSignatureName} testid="complete-signed-by" fullWidth />
+        <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">{t('service.eng_jd_signature_optional', 'Customer signature (optional)')}</p>
+        <Input label={t('service.eng_jd_signed_by', 'Signed by')} v={signatureName} on={setSignatureName} testid="complete-signed-by" fullWidth />
         <button type="button" onClick={() => setShowSignature(true)} className="mt-2 w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-bold" data-testid="complete-open-signature">
-          {signatureData ? <><Check size={14} className="text-emerald-600" /> Signature captured · re-sign</> : <><ImageIcon size={14} /> Capture signature</>}
+          {signatureData ? <><Check size={14} className="text-emerald-600" /> {t('service.eng_jd_sig_captured', 'Signature captured · re-sign')}</> : <><ImageIcon size={14} /> {t('service.eng_jd_capture_sig', 'Capture signature')}</>}
         </button>
         {showSignature && (
           <SignatureCanvas
@@ -3788,7 +3790,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-options-card">
-        <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">Outcome</p>
+        <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">{t('service.eng_jd_outcome', 'Outcome')}</p>
         {/* Iter 220e0 — Cover-aware banner. When the gym has an active
             contract or warranty we surface that fact + change the
             default close-out to "no invoice". */}
@@ -3801,10 +3803,10 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
               <ShieldCheck size={16} className="text-emerald-700 mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-extrabold text-emerald-900" data-testid="complete-cover-label">
-                  {coverState.label}
+                  {coverState.kind === 'warranty' ? t('service.eng_jd_cover_warranty_label', 'Under manufacturer warranty') : coverState.kind === 'contract' ? t('service.eng_jd_cover_contract_label', 'Under service contract') : coverState.label}
                 </p>
                 {coverState.detail && (
-                  <p className="text-[11px] text-emerald-800 mt-0.5">{coverState.detail}</p>
+                  <p className="text-[11px] text-emerald-800 mt-0.5">{coverState.expiringSoon ? t('service.eng_jd_cover_expiring_detail', 'Cover ends in {{days}} days — flag renewal to ops after this visit.', { days: coverState.daysRemaining }) : coverState.kind === 'contract' ? t('service.eng_jd_cover_contract_detail', 'Parts + labour covered by the contract. Proceed without spend approval.') : t('service.eng_jd_cover_warranty_detail', 'Parts + labour are warranty-funded. Proceed without spend approval.')}</p>
                 )}
               </div>
             </div>
@@ -3815,17 +3817,17 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
                 onChange={(e) => setMisuseOverride(e.target.checked)}
                 data-testid="complete-misuse-override"
               />
-              Mis-use / chargeable — bill anyway
+              {t('service.eng_jd_misuse_bill', 'Mis-use / chargeable — bill anyway')}
             </label>
           </div>
         ) : null}
         <div className="flex gap-2 flex-wrap">
           {[
-            { id: 'awaiting_sign_off', label: 'Awaiting sign-off' },
-            { id: 'repaired',          label: 'Repaired' },
+            { id: 'awaiting_sign_off', label: t('service.eng_jd_status_awaiting_sign_off', 'Awaiting sign-off') },
+            { id: 'repaired',          label: t('service.eng_jd_status_repaired', 'Repaired') },
             {
               id: 'closed',
-              label: coverState.covered && !misuseOverride ? 'Close (no invoice)' : 'Close & invoice',
+              label: coverState.covered && !misuseOverride ? t('service.eng_jd_close_no_invoice', 'Close (no invoice)') : t('service.eng_jd_close_invoice', 'Close & invoice'),
             },
           ].map(o => (
             <button key={o.id} type="button" onClick={() => setTarget(o.id)}
@@ -3841,7 +3843,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
         {!coverState.covered && (
           <label className="mt-3 flex items-center gap-2 text-xs text-slate-700 select-none">
             <input type="checkbox" checked={autoInvoice} onChange={e => setAutoInvoice(e.target.checked)} data-testid="complete-auto-invoice" />
-            Generate invoice draft from time + mileage + parts
+            {t('service.eng_jd_gen_invoice_draft', 'Generate invoice draft from time + mileage + parts')}
           </label>
         )}
       </div>
@@ -3850,11 +3852,11 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3" data-testid="complete-draft-banner">
           <CheckCircle2 size={20} className="text-emerald-600" />
           <div className="flex-1">
-            <p className="text-sm font-bold text-emerald-900">Invoice draft {draftResult.invoice_number} created</p>
-            <p className="text-[11px] text-emerald-800">{(draftResult.lines || []).length} line(s) · total {fmtGBP(draftResult.total)}</p>
+            <p className="text-sm font-bold text-emerald-900">{t('service.eng_jd_draft_created_banner', 'Invoice draft {{num}} created', { num: draftResult.invoice_number })}</p>
+            <p className="text-[11px] text-emerald-800">{t('service.eng_jd_draft_lines', '{{count}} line(s) · total {{total}}', { count: (draftResult.lines || []).length, total: fmtGBP(draftResult.total) })}</p>
           </div>
           <button onClick={() => navigate(`/svc/engineer/invoices/${draftResult.id}`)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-bold" data-testid="complete-open-draft">
-            <ChevronRight size={12} /> Open
+            <ChevronRight size={12} /> {t('service.eng_jd_open', 'Open')}
           </button>
         </div>
       )}
@@ -3879,8 +3881,8 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
         >
           {busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           {coverState.covered && !misuseOverride
-            ? "I'm done — close & send the report"
-            : "I'm done — close & send the invoice"}
+            ? t('service.eng_jd_done_send_report', "I'm done — close & send the report")
+            : t('service.eng_jd_done_send_invoice', "I'm done — close & send the invoice")}
         </button>
         <button
           onClick={complete}
@@ -3889,7 +3891,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
           data-testid="complete-submit"
         >
           {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-          Or set status manually
+          {t('service.eng_jd_set_status_manually', 'Or set status manually')}
         </button>
       </div>
     </div>
@@ -3955,6 +3957,7 @@ function ClosedJobBanner({ job, onGoComplete }) {
 // endpoints into the Complete screen so the engineer can hand the
 // customer a PDF the moment the job is done.
 function ReportActionsCard({ job }) {
+  const { t } = useTranslation();
   const [emailing, setEmailing] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [overrideEmail, setOverrideEmail] = useState('');
@@ -3976,9 +3979,9 @@ function ReportActionsCard({ job }) {
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      notify.success('Report downloaded');
+      notify.success(t('service.eng_jd_report_downloaded', 'Report downloaded'));
     } catch (err) {
-      notify.error('Download failed', err?.response?.data?.detail || err?.message || '');
+      notify.error(t('service.eng_jd_download_failed', 'Download failed'), err?.response?.data?.detail || err?.message || '');
     } finally { setDownloading(false); }
   };
 
@@ -3989,31 +3992,31 @@ function ReportActionsCard({ job }) {
       if (overrideEmail.trim()) body.to = overrideEmail.trim();
       if (note.trim()) body.note = note.trim();
       await axios.post(`${API}/svc/cases/${job.id}/service-report/email`, body, auth());
-      notify.success('Report emailed to customer');
+      notify.success(t('service.eng_jd_report_emailed_customer', 'Report emailed to customer'));
       setNote('');
     } catch (err) {
-      notify.error('Email failed', err?.response?.data?.detail || err?.message || '');
+      notify.error(t('service.eng_jd_email_failed', 'Email failed'), err?.response?.data?.detail || err?.message || '');
     } finally { setEmailing(false); }
   };
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3" data-testid="complete-report-card">
-      <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500">Service report</p>
+      <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500">{t('service.eng_jd_service_report', 'Service report')}</p>
       <p className="text-xs text-slate-600">
-        Send the branded PDF straight to {job.customer_email || 'the customer'} — or download it for your records.
+        {t('service.eng_jd_report_blurb', 'Send the branded PDF straight to {{who}} — or download it for your records.', { who: job.customer_email || t('service.eng_jd_the_customer', 'the customer') })}
       </p>
       <input
         type="email"
         value={overrideEmail}
         onChange={(e) => setOverrideEmail(e.target.value)}
-        placeholder={`Customer email (default: ${job.customer_email || '—'})`}
+        placeholder={t('service.eng_jd_report_email_ph', 'Customer email (default: {{email}})', { email: job.customer_email || '—' })}
         className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-cyan-400"
         data-testid="complete-report-email-to"
       />
       <textarea
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        placeholder="Optional cover note for the customer…"
+        placeholder={t('service.eng_jd_report_note_ph', 'Optional cover note for the customer…')}
         rows={2}
         className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-cyan-400"
         data-testid="complete-report-note"
@@ -4027,7 +4030,7 @@ function ReportActionsCard({ job }) {
           data-testid="complete-report-download"
         >
           {downloading ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-          Download PDF
+          {t('service.eng_jd_download_pdf', 'Download PDF')}
         </button>
         <button
           type="button"
@@ -4037,7 +4040,7 @@ function ReportActionsCard({ job }) {
           data-testid="complete-report-email"
         >
           {emailing ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-          Email report
+          {t('service.eng_jd_email_report', 'Email report')}
         </button>
       </div>
     </div>

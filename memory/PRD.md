@@ -33122,3 +33122,21 @@ Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, 
   SYNCHRONISIERT. Tabs, status pill, action row, all 6 stat tiles, cover banner, fault context all localised.
 - Out of scope residuals (later batches): the shared machine-condition "Out Of Order" chip (CSS-class key only in this
   file), and "PO / Ref:" DE deliberately kept as the standard abbreviation. Admin user.language reset to 'en' after test.
+
+---
+## Changelog — 2026-06 (fork) · EngineerJobDetailV2 i18n — Batch 2 (Complete tab)
+- Localized the full close-out/sign-off flow (FR/DE): ReturnToFixCard (did-you-fix-it gate, return date/reason,
+  notify toggle), CompleteTab (work summary, handoff composer, customer signature, outcome buttons + cover-state
+  text, auto-invoice toggle, invoice-draft banner, fast-path "I'm done" button, manual-status, locked read-only
+  recap), HandoffNotesPanel (compose + read views), ReportActionsCard (download/email report). ~90 new eng_jd_* keys,
+  auto-translated (clean pipeline runs).
+- FIXED tail corruption AGAIN (garbage after JobProfitabilityCard, lines 4115-4122) — recurring hazard of large
+  search_replace on this file. Also fixed 2 phantom successes (eng_jd_handoff_for_next, second copy of the
+  "Sent to customer" notify block) and a parallel-edit collision that had dropped a `)}` in the auto-invoice toggle.
+- VERIFIED live (screenshot, real loaded demo job, DE): Complete tab renders fully in German — ReturnToFixCard,
+  ARBEITSZUSAMMENFASSUNG, ÜBERGABE FÜR DEN NÄCHSTEN TECHNIKER, KUNDENUNTERSCHRIFT, ERGEBNIS + outcome buttons
+  (Warte auf Abnahme / Repariert / Schließen (keine Rechnung)), Servicebericht/PDF herunterladen. babel OK; compiles.
+- KNOWN leftover on Complete tab: the SHARED EngineerDictationButton widget ("Tap mic to dictate…") is a separate
+  component/file — not localized here; queued as its own item. Admin user.language reset to 'en' after test.
+- REMAINING Job Detail tabs: Time, Travel, Equipment, Parts (+ Summary conditional panels: SafetyChecklistInline
+  internals, EtaUpdateChip, JobOverrunBanner, SiblingJobsBanner).
