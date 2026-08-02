@@ -32999,3 +32999,17 @@ Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, 
   iteration_serviceops_comms_reachability_i18n_jan2026.json (Comms reachable + EN/DE 100%, no regression).
 - Remaining ServiceOps i18n: ServiceCaseLifecycleTab, SafetyTemplateAdmin, PartsAllocator, EngineerRosterPanel,
   FindEngineerPanel, EquipmentMultiSelect, ServiceOpsShell chrome, Engineer/*, Inventory/*; then Settings shared cards.
+
+---
+## Changelog — 2026-06 (fork) · Language Auto-Detect Prompt (new feature)
+- New `components/shared/LanguagePrompt.jsx`, mounted globally in `App.js` near `<CookieConsent/>`.
+- Offers (never forces) a one-tap switch to FR/DE when the browser language differs from the active UI language
+  (fills the gap where a signed-in user's account language='en' but their browser is FR/DE — the i18n detector
+  already auto-selects FR/DE for brand-new anonymous visitors).
+- Card copy is shown in the TARGET language; one tap calls i18n.changeLanguage + sets localStorage 'i18nextLng',
+  and (when signed in) PATCHes /api/account/profile {language}. Shown at most once per browser via
+  localStorage 'pf_lang_prompt_seen'. 1.2s delay so it doesn't fight the initial paint.
+- data-testids: language-prompt, language-prompt-accept, language-prompt-dismiss, language-prompt-decline.
+- Verified: iteration_language_prompt_fr_de_jan2026.json — 100% FE (6/6 scenarios: FR/DE appear, one-tap switch,
+  no-nag on reload, dismiss keeps EN, no prompt when already matched). Signed-in persistence path relies on the
+  same PATCH endpoint (guarded/non-blocking) — not exercised to avoid mutating the demo account.
