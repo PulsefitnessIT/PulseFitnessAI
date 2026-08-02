@@ -5432,7 +5432,7 @@
     "pref_theme_sub": "Affecte uniquement les surfaces de l'application — basculez pour changer toute l'expérience, y compris ce panneau.",
     "pref_switch_light": "Passer en Clair",
     "pref_switch_dark": "Passer en Sombre",
-    "pref_digest_title": "Digest email",
+    "pref_digest_title": "Résumé par e-mail",
     "pref_digest_sub": "Choisissez quels récapitulatifs hebdomadaires et quotidiens arrivent dans votre boîte de réception.",
     "eqimp_template_failed": "Impossible de télécharger le modèle",
     "eqimp_exported": "Équipement exporté",
@@ -5706,7 +5706,7 @@
     "digest_teams_delivered": "Carte de test livrée à Teams — vérifiez le canal !",
     "digest_teams_rejected": "Teams a rejeté la carte. Vérifiez que l'URL du webhook est toujours active.",
     "digest_teams_test_failed": "Échec du test",
-    "digest_title": "Email digest",
+    "digest_title": "Résumé par e-mail",
     "digest_sub": "Regroupez les alertes proactives ouvertes dans un résumé soigné prêt pour la boîte de réception. Désactivé par défaut.",
     "digest_daily": "Quotidien",
     "digest_weekly": "Hebdomadaire",
@@ -5723,7 +5723,11 @@
     "digest_send_teams_test": "Envoyer une carte de test à Teams",
     "digest_last_sent": "Dernier envoi : {{when}}",
     "digest_never_sent": "Jamais envoyé encore",
-    "digest_send_me_test": "M'envoyer un test"
+    "digest_send_me_test": "M'envoyer un test",
+    "digest_frequency": "Fréquence",
+    "digest_email_delivery": "Livraison par e-mail",
+    "digest_send_to": "Envoyer à {{target}}",
+    "digest_my_email": "mon e-mail"
   },
   "severity": {
     "limited_use": "Usage limité",

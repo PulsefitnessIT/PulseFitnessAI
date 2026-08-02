@@ -5723,7 +5723,11 @@
     "digest_send_teams_test": "Testkarte an Teams senden",
     "digest_last_sent": "Zuletzt gesendet: {{when}}",
     "digest_never_sent": "Noch nie gesendet",
-    "digest_send_me_test": "Mir einen Test senden"
+    "digest_send_me_test": "Mir einen Test senden",
+    "digest_frequency": "Häufigkeit",
+    "digest_email_delivery": "E-Mail-Zustellung",
+    "digest_send_to": "An {{target}} senden",
+    "digest_my_email": "meine E-Mail"
   },
   "severity": {
     "limited_use": "Eingeschränkt nutzbar",

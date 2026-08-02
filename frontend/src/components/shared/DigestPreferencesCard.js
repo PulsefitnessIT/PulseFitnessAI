@@ -151,7 +151,7 @@ export default function DigestPreferencesCard() {
         <div className="space-y-5 mt-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-xs text-white/50 mb-1 block">Frequency</label>
+              <label className="text-xs text-white/50 mb-1 block">{t('settings.digest_frequency', 'Frequency')}</label>
               <Select
                 value={prefs.frequency}
                 onValueChange={(v) => save({ frequency: v })}
@@ -233,10 +233,10 @@ export default function DigestPreferencesCard() {
 
           <div className="space-y-3 border-t border-white/5 pt-4">
             <div className="flex items-center gap-2 text-xs text-white/50">
-              <Mail size={12} /> Email delivery
+              <Mail size={12} /> {t('settings.digest_email_delivery', 'Email delivery')}
             </div>
             <div className="flex items-center justify-between pl-1">
-              <span className="text-sm text-white/80">Send to {prefs.email_override || 'my email'}</span>
+              <span className="text-sm text-white/80">{t('settings.digest_send_to', 'Send to {{target}}', { target: prefs.email_override || t('settings.digest_my_email', 'my email') })}</span>
               <Switch
                 checked={prefs.email_enabled !== false}
                 onCheckedChange={(v) => save({ email_enabled: v })}

@@ -1,0 +1,23 @@
+{
+  "summary": "Retest of the 3 previously-unwrapped English labels in DigestPreferencesCard (Frequency / Email delivery / Send to my email) after main agent wrapped them in t() and added FR/DE keys. Logged in as owner@isodemo.com, PATCHed /api/account/profile language to DE, FR, then EN. For each locale, opened Service Desk → Options (desk-options-btn) → Account settings (desk-option-account) → Preferences (account-nav-preferences), enabled the digest master toggle to reveal inner controls, then scraped the [data-testid=digest-card] text and the whole modal for raw settings.* leaks. ALL CHECKS PASS: DE shows 'Häufigkeit / E-Mail-Zustellung / An meine E-Mail senden / Digest-E-Mail'; FR shows 'Fréquence / Livraison par e-mail / Envoyer à mon e-mail / Résumé par e-mail'; EN retained. Zero raw 'settings.*' leaks in any locale. Theme section + Language suggestions toggle in the same Preferences panel render correctly in DE ('App-Design / Sprachvorschläge') and FR ('Thème de l'application / Suggestions de langue'). Cleanup PATCH language='en' performed (HTTP 200).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/test_reports/digest_final_de.png",
+    "/app/test_reports/digest_final_fr.png",
+    "/app/test_reports/digest_final_en.png"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fix landed cleanly: line 154 → t('settings.digest_frequency','Frequency'); line 236 → t('settings.digest_email_delivery','Email delivery'); line 239 → t('settings.digest_send_to','Send to {{target}}', { target: prefs.email_override || t('settings.digest_my_email','my email') }). All 5 new keys present in en/fr/de.json with proper native translations.",
+    "digest_send_to correctly uses interpolation ({{target}}) so a real email_override would flow through; sanity-checked with default 'my email' path only (no override set). Consider adding a small unit test that mounts DigestPreferencesCard with prefs.email_override='foo@bar.com' to guard against future regression."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! — account reverted to language='en' at end (PATCH 200)",
+  "seed_data_creation": "None. Digest master toggle was enabled via UI to reveal inner controls (already enabled from prior iteration, remained checked). No test emails/webhooks sent.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "DigestPreferencesCard i18n is fully resolved across EN/DE/FR — no further retest needed for this scope. All 3 previously-flagged labels + card title translate correctly; no raw-key leaks anywhere in the Account Settings > Preferences panel. Cleanup already done (language=en).",
+  "rca of the issue": "N/A — original 3-label bug now fixed. Verified end-to-end via live UI scrape in all 3 locales."
+}
