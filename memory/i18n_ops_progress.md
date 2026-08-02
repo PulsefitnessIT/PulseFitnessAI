@@ -429,3 +429,29 @@ Nav path: /service-desk → left nav 'Scheduler' → sub-tab 'AI Scheduling' (sc
 REMAINING ServiceOps/ (functional via EN fallback): AdminDispatchBoard, ServiceCaseLifecycleTab, CommsHubPage,
   SafetyTemplateAdmin, PartsAllocator, EngineerRosterPanel, FindEngineerPanel, EquipmentMultiSelect,
   ServiceOpsShell chrome, Engineer/*, Inventory/*. Then nested Settings shared cards.
+
+## ═══ 2026-06 (fork) · ServiceOps FR/DE — BATCH 6 (Dispatch + Comms, VERIFIED EN/DE) ═══
+User: "Bring AdminDispatchBoard and CommsHubPage into the FR/DE rollout." → then chose (a) re-surface Comms Hub.
+DONE:
+  - AdminDispatchBoard.js (disp_*) — AssignModal/EngineerColumn/main each got useTranslation. Header, needs-dispatch
+    queue, engineer columns, assign modal, all toasts. Hit tail-corruption (dup fragment at EOF) + a phantom-fail on
+    the 'Dispatch Board' title — both caught by grep + fixed. VERIFIED 100% EN/DE (report
+    iteration_serviceops_disp_comms_i18n_fr_de_jan2026.json).
+  - CommsHubPage.js (comms_*) — main/TemplatesTab/ActivityTab each got useTranslation; renamed TABS.map((t))->(tb).
+    Tab labels via template-literal comms_tab_* (seeded in pipeline). PLACEHOLDER_HINT kept English (merge-var refs).
+  - RE-SURFACED Comms Hub (was orphaned: /service-ops/comms redirected to /service-desk, no nav entry). Mounted in
+    the Service Desk shell ServiceDeskPage.js: added `Mail` icon import, `const OpsComms = lazy(...)`, an OPTIONS_ITEMS
+    entry {id:'comms',label:'Comms',icon:Mail,kind:'tab'}, and a switch case 'comms' rendering <OpsComms/> embedded via
+    ServiceOpsEmbeddedContext. Nav label via t(`service.nav_comms`) → seeded in service_nav dict.
+  - Fixed nav_comms locale polish: pipeline kept DE/FR = "Comms"; manually set de.json→"Kommunikation",
+    fr.json→"Communication" to match the sibling `nav` namespace. (The line-6779 nav_comms the tester flagged is in a
+    DIFFERENT namespace — not an in-object duplicate, both valid.)
+VERIFIED: testing_agent iteration_serviceops_comms_reachability_i18n_jan2026.json — 100% FE. Comms reachable via
+  Service Desk → Options → Comms (desk-option-comms), renders EN/DE, 0 raw-key leaks, no Options regression. Account
+  reset to 'en'.
+NOTE (by design, low pri): embedded CommsHubPage doesn't show its comms_title hero (ServiceOpsEmbeddedContext collapses
+  the shell hero — same as Compliance/Parts/Billing). Options item ids: imports, integrations, comms, audit, account,
+  engineers.
+Nav paths: Dispatch = /service-desk/dispatch (admin-dispatch-board). Comms = Service Desk → Options → Comms.
+REMAINING ServiceOps/ (EN fallback): ServiceCaseLifecycleTab, SafetyTemplateAdmin, PartsAllocator, EngineerRosterPanel,
+  FindEngineerPanel, EquipmentMultiSelect, ServiceOpsShell chrome, Engineer/*, Inventory/*. Then Settings shared cards.

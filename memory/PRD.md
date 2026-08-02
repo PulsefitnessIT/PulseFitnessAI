@@ -32987,3 +32987,15 @@ Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, 
 - Remaining ServiceOps i18n: AdminDispatchBoard, ServiceCaseLifecycleTab, CommsHubPage, SafetyTemplateAdmin,
   PartsAllocator, EngineerRosterPanel, FindEngineerPanel, EquipmentMultiSelect, ServiceOpsShell chrome,
   Engineer/*, Inventory/*; then nested Settings shared cards.
+
+---
+## Changelog — 2026-06 (fork) · ServiceOps i18n FR/DE — Batch 6 (Dispatch + Comms + re-surface)
+- `pages/ServiceOps/AdminDispatchBoard.js` (disp_*) + `pages/ServiceOps/CommsHubPage.js` (comms_*) localized FR/DE.
+- Re-surfaced the orphaned Comms Hub: mounted inside `pages/ServiceDeskPage.js` as an Options-menu tab (id 'comms',
+  lazy OpsComms, embedded), nav label t(`service.nav_comms`). Comms was previously unreachable (route redirected, no nav).
+- Seeded template-literal keys (comms_tab_*, nav_comms) in `scripts/i18n_translate_modules.py`; manually set
+  DE/FR nav_comms to Kommunikation/Communication.
+- Verified: iteration_serviceops_disp_comms_i18n_fr_de_jan2026.json (Dispatch 100%) +
+  iteration_serviceops_comms_reachability_i18n_jan2026.json (Comms reachable + EN/DE 100%, no regression).
+- Remaining ServiceOps i18n: ServiceCaseLifecycleTab, SafetyTemplateAdmin, PartsAllocator, EngineerRosterPanel,
+  FindEngineerPanel, EquipmentMultiSelect, ServiceOpsShell chrome, Engineer/*, Inventory/*; then Settings shared cards.
