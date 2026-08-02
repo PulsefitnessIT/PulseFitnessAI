@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only e2e test of new LanguagePrompt component on PulseFitness.ai login page. Verified all 6 core scenarios pass: French prompt appears with correct copy, one-tap switch flips i18nextLng to 'fr' and sets pf_lang_prompt_seen='1' and dismisses card, does-not-nag on reload, German path shows German copy and switches to 'de', dismiss/decline path closes card and keeps English while setting seen flag, and no prompt appears when browser locale already matches the active UI language.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "LanguagePrompt.jsx correctly uses SEEN_KEY='pf_lang_prompt_seen', target-language copy for FR/DE, 1.2s delay useEffect, data-testids: language-prompt, language-prompt-accept, language-prompt-dismiss, language-prompt-decline — all present and functional.",
+    "accept() persists to /api/account/profile only when user+token present, non-blocking (try/catch swallowed) — acceptable; UI switch happens first via i18n.changeLanguage + localStorage set.",
+    "Guard `if (active === browser) return;` correctly prevents nagging when already matched.",
+    "Minor: The prompt sits at z-[300] bottom-left; the CookieConsent banner sits bottom-center and does not overlap. Verified visually — no z-index conflict."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100% (6/6 core scenarios)"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "LanguagePrompt covered by anonymous flows only. Signed-in persistence path (owner@isodemo.com PATCH /api/account/profile language=fr) not executed in this iteration to avoid mutating the demo account; the network call is wrapped in try/catch and non-blocking so failure would not surface visibly. If needed, wire a request assertion via page.wait_for_request and always revert with PATCH language='en' cleanup.",
+  "test_results_detail": {
+    "test1_french_prompt_shown": "PASS - title 'Continuer en français ?', accept 'Passer en français', decline 'Non, merci'",
+    "test2_one_tap_switch": "PASS - i18nextLng='fr', pf_lang_prompt_seen='1', prompt dismissed",
+    "test3_no_nag_on_reload": "PASS - after accept and reload, prompt does not reappear",
+    "test4_german_path": "PASS - 'Auf Deutsch fortfahren?' + 'Auf Deutsch wechseln', accept sets i18nextLng='de'",
+    "test5_dismiss_path": "PASS - decline closes prompt, seen='1', lng stays 'en'",
+    "test6_no_prompt_when_matched": "PASS - locale fr-FR with i18nextLng='fr' shows no prompt",
+    "test7_signed_in_persistence": "SKIPPED (optional) - to avoid mutating owner@isodemo.com; guarded by try/catch in code"
+  }
+}

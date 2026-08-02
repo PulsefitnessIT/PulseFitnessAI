@@ -172,6 +172,7 @@ import { UploadQueueProvider } from './components/shared/UploadQueue';
 import { UnifiedAuthProvider } from './components/shared/UnifiedAuthProvider';
 import TrialLockedPage from './components/TrialLockedPage';
 import CookieConsent from './components/shared/CookieConsent';
+import LanguagePrompt from './components/shared/LanguagePrompt';
 import OfflineBanner from './components/shared/OfflineBanner';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import AskPulseFitness from './components/AskPulseFitness';
@@ -905,6 +906,7 @@ function App() {
  </BrowserRouter>
  <Toaster position="top-right" theme={theme} />
  <CookieConsent />
+ <LanguagePrompt />
  <OfflineBanner />
  <PWAInstallPrompt />
  <SessionResumedBanner />
