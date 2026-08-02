@@ -31,6 +31,7 @@ import {
   Wifi, WifiOff, CloudUpload, Users, MessageSquare, Timer, ShieldCheck, QrCode,
   Sparkles, FileText,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { notify } from '@/components/notifications';
 import { engineerSendOrQueue, useEngineerOfflineQueue } from '@/utils/engineerOfflineQueue';
 import { useLocalization, formatMoneySync, getCachedLocalization } from '@/utils/localization';
@@ -85,6 +86,7 @@ function parseTriage(raw) {
 }
 
 const TriageBody = ({ triage }) => {
+  const { t } = useTranslation();
   if (!triage) return null;
   const steps = triage.repair_steps || triage.steps || [];
   const parts = triage.parts || triage.parts_needed || [];
@@ -92,15 +94,15 @@ const TriageBody = ({ triage }) => {
   return (
     <>
       {triage.diagnosis && (
-        <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Diagnosis</p><p className="leading-snug whitespace-pre-wrap" data-testid="jaag-triage-diagnosis">{triage.diagnosis}</p></div>
+        <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{t('service.eng_jd_diagnosis', 'Diagnosis')}</p><p className="leading-snug whitespace-pre-wrap" data-testid="jaag-triage-diagnosis">{triage.diagnosis}</p></div>
       )}
       {Array.isArray(steps) && steps.length > 0 && (
-        <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Suggested repair steps</p><ol className="list-decimal ml-4 space-y-1">{steps.map((s, i) => <li key={i} className="leading-snug">{typeof s === 'string' ? s : (s.step || s.text || JSON.stringify(s))}</li>)}</ol></div>
+        <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{t('service.eng_jd_repair_steps', 'Suggested repair steps')}</p><ol className="list-decimal ml-4 space-y-1">{steps.map((s, i) => <li key={i} className="leading-snug">{typeof s === 'string' ? s : (s.step || s.text || JSON.stringify(s))}</li>)}</ol></div>
       )}
       {Array.isArray(parts) && parts.length > 0 && (
-        <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Likely parts</p><ul className="list-disc ml-4 space-y-1">{parts.map((p, i) => <li key={i}>{typeof p === 'string' ? p : (p.name || JSON.stringify(p))}</li>)}</ul></div>
+        <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{t('service.eng_jd_likely_parts', 'Likely parts')}</p><ul className="list-disc ml-4 space-y-1">{parts.map((p, i) => <li key={i}>{typeof p === 'string' ? p : (p.name || JSON.stringify(p))}</li>)}</ul></div>
       )}
-      {triage.estimated_time && <p className="text-xs text-slate-500">Est. time: {triage.estimated_time}</p>}
+      {triage.estimated_time && <p className="text-xs text-slate-500">{t('service.eng_jd_est_time', 'Est. time:')} {triage.estimated_time}</p>}
       {!hasStructure && (
         <p className="whitespace-pre-wrap leading-snug">{typeof triage === 'string' ? triage : JSON.stringify(triage, null, 2)}</p>
       )}
@@ -109,6 +111,7 @@ const TriageBody = ({ triage }) => {
 };
 
 const FaultContextCard = ({ job }) => {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const po = (job.customer_po_number || '').trim();
   const code = (job.fault_code || '').trim();
@@ -121,12 +124,12 @@ const FaultContextCard = ({ job }) => {
       <div className="flex flex-wrap items-center gap-2">
         {po && (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full bg-cyan-50 text-cyan-700" data-testid="jaag-customer-po">
-            <FileText size={11} /> PO / Ref: {po}
+            <FileText size={11} /> {t('service.eng_jd_po_ref', 'PO / Ref:')} {po}
           </span>
         )}
         {code && (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-700" data-testid="jaag-fault-code">
-            Fault code: {code}
+            {t('service.eng_jd_fault_code', 'Fault code:')} {code}
           </span>
         )}
         {sev && (
@@ -143,7 +146,7 @@ const FaultContextCard = ({ job }) => {
             </p>
           )}
           <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 text-xs font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition-colors" data-testid="jaag-view-triage-btn">
-            <Sparkles size={13} /> View AI Triage
+            <Sparkles size={13} /> {t('service.eng_jd_view_triage', 'View AI Triage')}
           </button>
         </>
       )}
@@ -151,7 +154,7 @@ const FaultContextCard = ({ job }) => {
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50" onClick={() => setOpen(false)} data-testid="jaag-triage-modal">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-lg max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white border-b border-slate-100 px-5 py-3 flex items-center justify-between">
-              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2"><Sparkles size={15} className="text-violet-500" /> AI Triage — logged at fault</h3>
+              <h3 className="text-sm font-black text-slate-900 flex items-center gap-2"><Sparkles size={15} className="text-violet-500" /> {t('service.eng_jd_triage_title', 'AI Triage — logged at fault')}</h3>
               <button onClick={() => setOpen(false)} className="p-1 rounded-lg hover:bg-slate-100" data-testid="jaag-triage-close"><X size={18} /></button>
             </div>
             <div className="px-5 py-4 space-y-4 text-sm text-slate-700">
@@ -284,6 +287,7 @@ const TABS = [
 ];
 
 export default function EngineerJobDetailV2() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   useLocalization();  // warm currency cache + re-render subtree on load
   const { caseId } = useParams();
@@ -314,7 +318,7 @@ export default function EngineerJobDetailV2() {
 
   const goBack = useCallback(() => {
     if (draftDirty) {
-      const ok = window.confirm('You have unsaved work on this job. The draft is saved locally and will still be here when you return — leave anyway?');
+      const ok = window.confirm(t('service.eng_jd_unsaved_confirm', 'You have unsaved work on this job. The draft is saved locally and will still be here when you return — leave anyway?'));
       if (!ok) return;
     }
     navigate(backHref);
@@ -331,9 +335,9 @@ export default function EngineerJobDetailV2() {
       setMileage(m.data);
     } catch (e) {
       const status = e?.response?.status;
-      if (status === 404) notify.error('Job not found');
-      else if (status === 403) notify.error('Not assigned to this job');
-      else notify.error('Failed to load job');
+      if (status === 404) notify.error(t('service.eng_jd_not_found', 'Job not found'));
+      else if (status === 403) notify.error(t('service.eng_jd_not_assigned', 'Not assigned to this job'));
+      else notify.error(t('service.eng_jd_load_failed', 'Failed to load job'));
     } finally {
       setLoading(false);
     }
@@ -346,12 +350,12 @@ export default function EngineerJobDetailV2() {
   if (loading && !job) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400">
-        <Loader2 className="animate-spin mr-2" size={18} /> Loading job…
+        <Loader2 className="animate-spin mr-2" size={18} /> {t('service.eng_jd_loading', 'Loading job…')}
       </div>
     );
   }
   if (!job) {
-    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-500">Job unavailable.</div>;
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-500">{t('service.eng_jd_unavailable', 'Job unavailable.')}</div>;
   }
 
   const lockedComplete = ['closed', 'invoiced', 'awaiting_sign_off', 'repaired'].includes(job.status);
@@ -360,7 +364,7 @@ export default function EngineerJobDetailV2() {
     <div className="min-h-screen bg-slate-50" data-testid="engineer-job-detail-v2">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={goBack} className="p-2 rounded-full hover:bg-slate-100" aria-label="Back" data-testid="job-back">
+          <button onClick={goBack} className="p-2 rounded-full hover:bg-slate-100" aria-label={t('service.eng_jd_back', 'Back')} data-testid="job-back">
             <ArrowLeft size={18} />
           </button>
           <div className="flex-1 min-w-0">
@@ -368,7 +372,7 @@ export default function EngineerJobDetailV2() {
             <h1 className="text-base font-extrabold text-slate-900 truncate">{job.title}</h1>
             <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
               <p className="text-xs text-slate-500 truncate" data-testid="job-meta">
-                {job.site_name || 'Unknown site'}{job.asset_name ? ` · ${job.asset_name}` : ''} · <span className="capitalize">{job.status}</span>
+                {job.site_name || t('service.eng_jd_unknown_site', 'Unknown site')}{job.asset_name ? ` · ${job.asset_name}` : ''} · <span className="capitalize">{job.status}</span>
               </p>
               {(() => {
                 const ch = resolveChannel(job);
@@ -376,7 +380,7 @@ export default function EngineerJobDetailV2() {
                 return (
                   <span
                     className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide ${ch.cls}`}
-                    title={`Logged via ${ch.label}`}
+                    title={t('service.eng_jd_logged_via', 'Logged via {{channel}}', { channel: ch.label })}
                     data-testid={`job-channel-pill-${ch.code}`}
                   >
                     {ch.label}
@@ -390,7 +394,7 @@ export default function EngineerJobDetailV2() {
           {/* Iter 220ct — sync status chip. Turns the IndexedDB offline queue
               from an invisible safety net into a visible reassurance. */}
           <SyncStatusChip />
-          <button onClick={load} aria-label="Refresh" className="p-2 rounded-full border border-slate-200 bg-white" data-testid="job-refresh">
+          <button onClick={load} aria-label={t('service.eng_jd_refresh', 'Refresh')} className="p-2 rounded-full border border-slate-200 bg-white" data-testid="job-refresh">
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
@@ -404,27 +408,35 @@ export default function EngineerJobDetailV2() {
               label: 'Stop timer',
             });
             if (r.ok) {
-              notify.success('Timer stopped');
+              notify.success(t('service.eng_jd_timer_stopped', 'Timer stopped'));
             } else if (r.offline) {
-              notify.success('Saved offline — will sync when you reconnect');
+              notify.success(t('service.eng_jd_saved_offline', 'Saved offline — will sync when you reconnect'));
             } else {
-              notify.error('Could not stop timer');
+              notify.error(t('service.eng_jd_stop_timer_failed', 'Could not stop timer'));
             }
             await load();
           } catch (e) {
-            notify.error('Could not stop timer');
+            notify.error(t('service.eng_jd_stop_timer_failed', 'Could not stop timer'));
           } finally { setBusy(false); }
         }} />
         <nav className="max-w-4xl mx-auto px-2 flex items-center gap-0.5 overflow-x-auto" data-testid="job-tabs">
-          {TABS.map(t => {
-            const Icon = t.icon;
-            const active = activeTab === t.id;
+          {TABS.map(tab => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            const tabLabel = {
+              summary: t('service.eng_jd_tab_summary', 'Summary'),
+              travel: t('service.eng_jd_tab_travel', 'Travel'),
+              time: t('service.eng_jd_tab_time', 'Time'),
+              equipment: t('service.eng_jd_tab_equipment', 'Equipment'),
+              parts: t('service.eng_jd_tab_parts', 'Parts'),
+              complete: t('service.eng_jd_tab_complete', 'Complete'),
+            }[tab.id] || tab.label;
             return (
-              <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
+              <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
                 className={`relative flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-wide ${active ? 'text-cyan-700' : 'text-slate-500 hover:text-slate-700'}`}
-                data-testid={`job-tab-${t.id}`}>
+                data-testid={`job-tab-${tab.id}`}>
                 <Icon size={14} />
-                {t.label}
+                {tabLabel}
                 {active && <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-cyan-700 rounded-t" />}
               </button>
             );
@@ -489,6 +501,7 @@ export default function EngineerJobDetailV2() {
 // context block + chip row remain below so the surface stays
 // information-dense without being noisy.
 function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToTab }) {
+  const { t } = useTranslation();
   const phone = job.customer_phone;
   const email = job.customer_email;
   const address = [job.site_address, job.site_postcode].filter(Boolean).join(' ');
@@ -500,6 +513,31 @@ function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToTa
   // engineer know up-front whether to crack on or wait for spend
   // authorisation.
   const cover = computeCoverState(job);
+  // Localised cover label/detail derived from the structured cover
+  // state (kind + expiry flags) so the banner reads in the engineer's
+  // language without duplicating computeCoverState's date maths.
+  const coverText = (() => {
+    if (cover.kind === 'warranty') {
+      return {
+        label: t('service.eng_jd_cover_warranty_label', 'Under manufacturer warranty'),
+        detail: cover.expiringSoon
+          ? t('service.eng_jd_cover_expiring_detail', 'Cover ends in {{days}} days — flag renewal to ops after this visit.', { days: cover.daysRemaining })
+          : t('service.eng_jd_cover_warranty_detail', 'Parts + labour are warranty-funded. Proceed without spend approval.'),
+      };
+    }
+    if (cover.kind === 'contract') {
+      return {
+        label: t('service.eng_jd_cover_contract_label', 'Under service contract'),
+        detail: cover.expiringSoon
+          ? t('service.eng_jd_cover_expiring_detail', 'Cover ends in {{days}} days — flag renewal to ops after this visit.', { days: cover.daysRemaining })
+          : t('service.eng_jd_cover_contract_detail', 'Parts + labour covered by the contract. Proceed without spend approval.'),
+      };
+    }
+    return {
+      label: t('service.eng_jd_cover_chargeable_label', 'Chargeable visit'),
+      detail: t('service.eng_jd_cover_chargeable_detail', 'Confirm any spend with the customer before fitting parts.'),
+    };
+  })();
 
   // Iter 220ea·5 — Pre-job H&S signoff state. Surfacing this on the
   // Summary tab (not just Time) means the engineer sees the form
@@ -577,12 +615,12 @@ function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToTa
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-extrabold uppercase tracking-wider text-amber-900">
-                Pre-job H&amp;S checklist
+                {t('service.eng_jd_hs_banner_title', 'Pre-job H&S checklist')}
               </p>
               <p className="text-xs text-amber-900 leading-snug">
                 {safetyItemCount > 0
-                  ? <>Tap to {safetyOpen ? 'collapse' : 'complete'} <b>{safetyItemCount} item{safetyItemCount === 1 ? '' : 's'}</b> before starting work.</>
-                  : <>Tap to {safetyOpen ? 'collapse the' : 'complete the'} checklist before starting work.</>}
+                  ? <>{t('service.eng_jd_hs_tap_items', 'Tap to {{action}}', { action: safetyOpen ? t('service.eng_jd_collapse', 'collapse') : t('service.eng_jd_complete_word', 'complete') })} <b>{t('service.eng_jd_hs_items_count', '{{count}} items', { count: safetyItemCount })}</b> {t('service.eng_jd_before_work', 'before starting work.')}</>
+                  : <>{t('service.eng_jd_hs_tap_checklist', 'Tap to {{action}} checklist before starting work.', { action: safetyOpen ? t('service.eng_jd_collapse_the', 'collapse the') : t('service.eng_jd_complete_the', 'complete the') })}</>}
               </p>
             </div>
             <ChevronRight
@@ -643,7 +681,7 @@ function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToTa
                 }`}
                 data-testid="jaag-cover-banner-label"
               >
-                {cover.label}
+                {coverText.label}
               </p>
               {cover.detail && (
                 <p
@@ -656,7 +694,7 @@ function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToTa
                   }`}
                   data-testid="jaag-cover-banner-detail"
                 >
-                  {cover.detail}
+                  {coverText.detail}
                 </p>
               )}
             </div>
@@ -714,7 +752,7 @@ function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToTa
         {fault && (
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-2">
-              What we're here for
+              {t('service.eng_jd_here_for', "What we're here for")}
             </p>
             <p className="text-xs text-slate-700 leading-snug" data-testid="jaag-fault">
               {fault}
@@ -785,7 +823,7 @@ function JobAtAGlance({ job, mileage, busy: _busy, setBusy, onChange, onJumpToTa
             className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm font-bold"
             data-testid="jaag-on-site-now"
           >
-            <CheckCircle2 size={14} /> On site — timer running
+            <CheckCircle2 size={14} /> {t('service.eng_jd_on_site_running', 'On site — timer running')}
           </div>
         </div>
       )}
@@ -843,6 +881,7 @@ const PRIORITY_KEY = [
 ];
 
 function SummaryStatusPill({ job, cover }) {
+  const { t } = useTranslation();
   const [showKey, setShowKey] = useState(false);
   // Iter 220ea·8 — Close the legend on outside-tap so it doesn't
   // get stuck open if the engineer scrolls away.
@@ -874,6 +913,32 @@ function SummaryStatusPill({ job, cover }) {
   })();
   const isHighPriority = priorityCode === 'P1' || priorityCode === 'P2';
   const caseTypeLabel = job?.case_type ? labelForCaseType(job.case_type) : null;
+  const statusLabel = {
+    new: t('service.eng_jd_status_new', 'New'),
+    scheduled: t('service.eng_jd_status_scheduled', 'Scheduled'),
+    en_route: t('service.eng_jd_status_en_route', 'En route'),
+    in_progress: t('service.eng_jd_status_in_progress', 'In progress'),
+    on_hold: t('service.eng_jd_status_on_hold', 'On hold'),
+    awaiting_parts: t('service.eng_jd_status_awaiting_parts', 'Awaiting parts'),
+    awaiting_sign_off: t('service.eng_jd_status_awaiting_sign_off', 'Awaiting sign-off'),
+    repaired: t('service.eng_jd_status_repaired', 'Repaired'),
+    closed: t('service.eng_jd_status_closed', 'Closed'),
+    invoiced: t('service.eng_jd_status_invoiced', 'Invoiced'),
+  }[status] || tone.label;
+  const caseTypeText = job?.case_type ? ({
+    repair: t('service.eng_jd_ctype_repair', 'Repair'),
+    ppm: t('service.eng_jd_ctype_ppm', 'PPM Service'),
+    install: t('service.eng_jd_ctype_install', 'Installation'),
+    inspection: t('service.eng_jd_ctype_inspection', 'Inspection'),
+    callout: t('service.eng_jd_ctype_callout', 'Emergency callout'),
+    audit: t('service.eng_jd_ctype_audit', 'Asset audit'),
+  }[String(job.case_type).toLowerCase()] || caseTypeLabel) : null;
+  const prioText = {
+    P1: { label: t('service.eng_jd_prio_p1', 'Critical'), detail: t('service.eng_jd_prio_p1_d', 'Equipment down or safety risk — respond within 4 hours.') },
+    P2: { label: t('service.eng_jd_prio_p2', 'High'), detail: t('service.eng_jd_prio_p2_d', 'Major service impact — respond same day (within 24 hours).') },
+    P3: { label: t('service.eng_jd_prio_p3', 'Standard'), detail: t('service.eng_jd_prio_p3_d', 'Routine fault — respond within 3 working days.') },
+    P4: { label: t('service.eng_jd_prio_p4', 'Low'), detail: t('service.eng_jd_prio_p4_d', 'Cosmetic or scheduled work — respond within 7 working days.') },
+  };
   return (
     <div
       ref={wrapRef}
@@ -886,7 +951,7 @@ function SummaryStatusPill({ job, cover }) {
         data-status={status}
       >
         <span className={`w-1.5 h-1.5 rounded-full ${tone.dot}`} />
-        {tone.label}
+        {statusLabel}
       </span>
       {sla && (
         <span
@@ -902,7 +967,7 @@ function SummaryStatusPill({ job, cover }) {
           title={`SLA target: ${new Date(job.sla_resolve_at).toLocaleString('en-GB')}`}
         >
           <Timer size={11} />
-          {sla.overdue ? `${sla.label} over SLA` : `${sla.label} to SLA`}
+          {sla.overdue ? t('service.eng_jd_over_sla', '{{time}} over SLA', { time: sla.label }) : t('service.eng_jd_to_sla', '{{time}} to SLA', { time: sla.label })}
         </span>
       )}
       {priorityCode && (
@@ -918,7 +983,7 @@ function SummaryStatusPill({ job, cover }) {
           data-expanded={showKey ? 'true' : 'false'}
           aria-expanded={showKey}
           aria-haspopup="dialog"
-          title="Tap for priority key"
+          title={t('service.eng_jd_tap_priority', 'Tap for priority key')}
         >
           {priorityCode}
           <ChevronRight
@@ -935,9 +1000,9 @@ function SummaryStatusPill({ job, cover }) {
         <span
           className="inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] font-extrabold uppercase tracking-wider bg-teal-50 text-teal-700 border-teal-200"
           data-testid="summary-case-type-pill"
-          title={`Job type · ${caseTypeLabel}`}
+          title={t('service.eng_jd_job_type', 'Job type · {{type}}', { type: caseTypeText })}
         >
-          <Wrench size={10} /> {caseTypeLabel}
+          <Wrench size={10} /> {caseTypeText}
         </span>
       )}
       {cover?.tone === 'red' && (
@@ -946,7 +1011,7 @@ function SummaryStatusPill({ job, cover }) {
           data-testid="summary-chargeable-pill"
           title={cover.detail}
         >
-          <ShieldCheck size={10} /> Chargeable
+          <ShieldCheck size={10} /> {t('service.eng_jd_chargeable', 'Chargeable')}
         </span>
       )}
       {showKey && (
@@ -957,13 +1022,13 @@ function SummaryStatusPill({ job, cover }) {
         >
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-              Priority key
+              {t('service.eng_jd_priority_key', 'Priority key')}
             </p>
             <button
               type="button"
               onClick={() => setShowKey(false)}
               className="text-slate-400 hover:text-slate-700"
-              aria-label="Close priority key"
+              aria-label={t('service.eng_jd_close_priority_key', 'Close priority key')}
               data-testid="summary-priority-key-close"
             >
               <X size={12} />
@@ -983,10 +1048,10 @@ function SummaryStatusPill({ job, cover }) {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-extrabold text-slate-900 leading-tight">
-                    {p.label}
+                    {prioText[p.code]?.label || p.label}
                   </p>
                   <p className="text-[10px] text-slate-600 leading-snug">
-                    {p.detail}
+                    {prioText[p.code]?.detail || p.detail}
                   </p>
                 </div>
               </li>
@@ -999,13 +1064,14 @@ function SummaryStatusPill({ job, cover }) {
 }
 
 function SummaryActionRow({ job: _job, phone, email, mapsHref, onJumpToTab: _onJumpToTab }) {
+  const { t } = useTranslation();
   // Iter 220ea·7 — Photo action removed (Equipment tab owns
   // per-machine capture). The row is now a 3-column grid:
   // Call · Navigate · Email.
   const actions = [
     {
       key: 'call',
-      label: 'Call',
+      label: t('service.eng_jd_call', 'Call'),
       icon: Phone,
       href: phone ? `tel:${String(phone).replace(/\s+/g, '')}` : null,
       tone: 'bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100',
@@ -1013,7 +1079,7 @@ function SummaryActionRow({ job: _job, phone, email, mapsHref, onJumpToTab: _onJ
     },
     {
       key: 'navigate',
-      label: 'Navigate',
+      label: t('service.eng_jd_navigate', 'Navigate'),
       icon: Navigation,
       href: mapsHref,
       external: true,
@@ -1022,7 +1088,7 @@ function SummaryActionRow({ job: _job, phone, email, mapsHref, onJumpToTab: _onJ
     },
     {
       key: 'email',
-      label: 'Email',
+      label: t('service.eng_jd_email', 'Email'),
       icon: Send,
       href: email ? `mailto:${email}` : null,
       tone: 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100',
@@ -1082,6 +1148,7 @@ function SummaryActionRow({ job: _job, phone, email, mapsHref, onJumpToTab: _onJ
 }
 
 function SummaryStatsGrid({ job, mileage }) {
+  const { t } = useTranslation();
   // On-site minutes — accumulate completed + currently-running entry.
   const entries = Array.isArray(job?.time_entries) ? job.time_entries : [];
   let onSiteMins = 0;
@@ -1108,7 +1175,7 @@ function SummaryStatsGrid({ job, mileage }) {
     ? job.safety_signoff.ticked_item_ids.length : 0;
   const safetyTotal = job?.safety_template?.items?.length ?? ticked;
   const safetyLabel = job?.safety_signoff
-    ? 'Signed off'
+    ? t('service.eng_jd_stat_signed_off', 'Signed off')
     : safetyTotal > 0 ? `${ticked}/${safetyTotal}` : '—';
   // Handoff notes count (from any engineer) — visible context the
   // engineer should be aware of before/after this visit.
@@ -1118,49 +1185,49 @@ function SummaryStatsGrid({ job, mileage }) {
   const stats = [
     {
       key: 'time',
-      label: 'On site',
+      label: t('service.eng_jd_stat_on_site', 'On site'),
       value: fmtMins(onSiteMins),
-      sub: activeOnSiteStart ? 'Running' : (onSiteMins > 0 ? 'Logged' : 'Not started'),
+      sub: activeOnSiteStart ? t('service.eng_jd_stat_running', 'Running') : (onSiteMins > 0 ? t('service.eng_jd_stat_logged', 'Logged') : t('service.eng_jd_stat_not_started', 'Not started')),
       tone: activeOnSiteStart ? 'text-emerald-700' : 'text-slate-900',
       testid: 'summary-stat-time',
     },
     {
       key: 'photos',
-      label: 'Photos',
+      label: t('service.eng_jd_stat_photos', 'Photos'),
       value: String(photoCount),
-      sub: photoCount === 0 ? 'None yet' : (photoCount === 1 ? '1 captured' : `${photoCount} captured`),
+      sub: photoCount === 0 ? t('service.eng_jd_stat_none_yet', 'None yet') : t('service.eng_jd_stat_captured', '{{count}} captured', { count: photoCount }),
       tone: 'text-slate-900',
       testid: 'summary-stat-photos',
     },
     {
       key: 'parts',
-      label: 'Parts',
+      label: t('service.eng_jd_stat_parts', 'Parts'),
       value: partsTotal > 0 ? `${partsConsumed}/${partsTotal}` : '0',
-      sub: partsTotal === 0 ? 'None allocated' : (partsConsumed === partsTotal ? 'All fitted' : 'In progress'),
+      sub: partsTotal === 0 ? t('service.eng_jd_stat_none_allocated', 'None allocated') : (partsConsumed === partsTotal ? t('service.eng_jd_stat_all_fitted', 'All fitted') : t('service.eng_jd_stat_in_progress', 'In progress')),
       tone: partsTotal > 0 && partsConsumed === partsTotal ? 'text-emerald-700' : 'text-slate-900',
       testid: 'summary-stat-parts',
     },
     {
       key: 'machines',
-      label: 'Machines',
+      label: t('service.eng_jd_stat_machines', 'Machines'),
       value: String(machineCount),
-      sub: machineCount === 0 ? 'Not set' : (machineCount === 1 ? '1 asset' : `${machineCount} assets`),
+      sub: machineCount === 0 ? t('service.eng_jd_stat_not_set', 'Not set') : t('service.eng_jd_stat_assets', '{{count}} assets', { count: machineCount }),
       tone: 'text-slate-900',
       testid: 'summary-stat-machines',
     },
     {
       key: 'safety',
-      label: 'H&S',
+      label: t('service.eng_jd_stat_hs', 'H&S'),
       value: safetyLabel,
-      sub: job?.safety_signoff ? 'Cleared' : (safetyTotal > 0 ? 'Required' : 'No checklist'),
+      sub: job?.safety_signoff ? t('service.eng_jd_stat_cleared', 'Cleared') : (safetyTotal > 0 ? t('service.eng_jd_stat_required', 'Required') : t('service.eng_jd_stat_no_checklist', 'No checklist')),
       tone: job?.safety_signoff ? 'text-emerald-700' : (safetyTotal > 0 ? 'text-amber-700' : 'text-slate-900'),
       testid: 'summary-stat-safety',
     },
     {
       key: 'mileage',
-      label: 'Mileage',
+      label: t('service.eng_jd_stat_mileage', 'Mileage'),
       value: miles > 0 ? `${miles.toFixed(1)} mi` : (handoffCount > 0 ? String(handoffCount) : '0'),
-      sub: miles > 0 ? 'Logged' : (handoffCount > 0 ? `${handoffCount} handoff${handoffCount === 1 ? '' : 's'}` : 'Not yet'),
+      sub: miles > 0 ? t('service.eng_jd_stat_logged', 'Logged') : (handoffCount > 0 ? t('service.eng_jd_stat_handoffs', '{{count}} handoffs', { count: handoffCount }) : t('service.eng_jd_stat_not_yet', 'Not yet')),
       tone: 'text-slate-900',
       testid: 'summary-stat-mileage',
     },
@@ -1858,24 +1925,25 @@ function EtaUpdateChip({ caseId, lastSentAt, lastMinutes, onChange }) {
 }
 
 function DraftStatusPill({ saving, lastSavedAt, dirty }) {
+  const { t } = useTranslation();
   if (saving) {
     return (
       <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-cyan-700" data-testid="draft-status-saving">
-        <Loader2 size={10} className="animate-spin" /> Saving…
+        <Loader2 size={10} className="animate-spin" /> {t('service.eng_jd_draft_saving', 'Saving…')}
       </span>
     );
   }
   if (dirty) {
     return (
       <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-amber-600" data-testid="draft-status-dirty">
-        ● Unsaved
+        ● {t('service.eng_jd_draft_unsaved', 'Unsaved')}
       </span>
     );
   }
   if (lastSavedAt) {
     return (
       <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-emerald-600" data-testid="draft-status-saved">
-        ✓ Saved
+        ✓ {t('service.eng_jd_draft_saved', 'Saved')}
       </span>
     );
   }
@@ -1888,6 +1956,7 @@ function DraftStatusPill({ saving, lastSavedAt, dirty }) {
 //   • Online + N queued (replay) → blue cloud + "Syncing N"
 //   • Offline                  →   amber WiFi-off + "Offline N queued"
 function SyncStatusChip() {
+  const { t } = useTranslation();
   const { online, pending } = useEngineerOfflineQueue();
   let cls;
   let icon;
@@ -1896,23 +1965,23 @@ function SyncStatusChip() {
   if (!online) {
     cls   = 'bg-amber-50 text-amber-800 border-amber-200';
     icon  = <WifiOff size={11} />;
-    label = pending > 0 ? `Offline · ${pending} queued` : 'Offline';
+    label = pending > 0 ? t('service.eng_jd_sync_offline_queued', 'Offline · {{count}} queued', { count: pending }) : t('service.eng_jd_sync_offline', 'Offline');
     testid = 'sync-status-offline';
   } else if (pending > 0) {
     cls   = 'bg-cyan-50 text-cyan-800 border-cyan-200';
     icon  = <CloudUpload size={11} className="animate-pulse" />;
-    label = `Syncing · ${pending}`;
+    label = t('service.eng_jd_sync_syncing', 'Syncing · {{count}}', { count: pending });
     testid = 'sync-status-syncing';
   } else {
     cls   = 'bg-emerald-50 text-emerald-700 border-emerald-200';
     icon  = <Wifi size={11} />;
-    label = 'Synced';
+    label = t('service.eng_jd_sync_synced', 'Synced');
     testid = 'sync-status-synced';
   }
   return (
     <span
       className={`hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wide ${cls}`}
-      title={pending > 0 ? `${pending} pending write${pending === 1 ? '' : 's'} in the offline queue` : (online ? 'All changes synced' : 'No connection — your work is being saved locally')}
+      title={pending > 0 ? t('service.eng_jd_sync_pending_title', '{{count}} pending writes in the offline queue', { count: pending }) : (online ? t('service.eng_jd_sync_all_title', 'All changes synced') : t('service.eng_jd_sync_offline_title', 'No connection — your work is being saved locally'))}
       data-testid={testid}
     >
       {icon} {label}
@@ -1924,6 +1993,7 @@ function SyncStatusChip() {
 // ─────────────────────────── Active timer bar ───────────────────────────
 
 function ActiveTimerBar({ timer, onStop }) {
+  const { t } = useTranslation();
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (!timer) return;
@@ -1940,12 +2010,12 @@ function ActiveTimerBar({ timer, onStop }) {
         <Clock size={16} className="text-emerald-600" />
         <div className="flex-1 min-w-0">
           <p className="text-[10px] uppercase font-bold tracking-wide text-emerald-700">
-            On the clock · {timer.category}
+            {t('service.eng_jd_on_the_clock', 'On the clock')} · {timer.category}
           </p>
           <p className="text-base font-extrabold tabular-nums text-emerald-900">{mins}m {secs}s</p>
         </div>
         <button onClick={onStop} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700" data-testid="job-active-timer-stop">
-          <Square size={12} /> Stop
+          <Square size={12} /> {t('service.eng_jd_stop', 'Stop')}
         </button>
       </div>
     </div>
@@ -3832,21 +3902,22 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
 // Complete tab. If no customer email is on file, it jumps to Complete
 // where the engineer can type one.
 function ClosedJobBanner({ job, onGoComplete }) {
+  const { t } = useTranslation();
   const [emailing, setEmailing] = useState(false);
   const hasEmail = !!(job.customer_email && job.customer_email.trim());
 
   const emailReport = async () => {
     if (!hasEmail) {
-      notify.info('No customer email on file', 'Add one on the Complete tab to send the report.');
+      notify.info(t('service.eng_jd_no_email', 'No customer email on file'), t('service.eng_jd_no_email_sub', 'Add one on the Complete tab to send the report.'));
       onGoComplete?.();
       return;
     }
     setEmailing(true);
     try {
       await axios.post(`${API}/svc/cases/${job.id}/service-report/email`, {}, auth());
-      notify.success('Report emailed', `Sent to ${job.customer_email}`);
+      notify.success(t('service.eng_jd_report_emailed', 'Report emailed'), t('service.eng_jd_report_sent_to', 'Sent to {{email}}', { email: job.customer_email }));
     } catch (err) {
-      notify.error('Email failed', err?.response?.data?.detail || err?.message || '');
+      notify.error(t('service.eng_jd_email_failed', 'Email failed'), err?.response?.data?.detail || err?.message || '');
     } finally { setEmailing(false); }
   };
 
@@ -3858,10 +3929,10 @@ function ClosedJobBanner({ job, onGoComplete }) {
       <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-bold text-emerald-900">
-          This job is <span className="capitalize">{job.status.replace(/_/g, ' ')}</span> — read-only
+          {t('service.eng_jd_closed_readonly', 'This job is {{status}} — read-only', { status: job.status.replace(/_/g, ' ') })}
         </p>
         <p className="text-xs text-emerald-700">
-          Notes &amp; signatures are locked. Open the <span className="font-semibold">Complete</span> tab to view the sign-off.
+          {t('service.eng_jd_closed_locked', 'Notes & signatures are locked. Open the Complete tab to view the sign-off.')}
         </p>
       </div>
       <button
@@ -3870,10 +3941,10 @@ function ClosedJobBanner({ job, onGoComplete }) {
         disabled={emailing}
         className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50"
         data-testid="closed-banner-email-report"
-        title={hasEmail ? `Email the report to ${job.customer_email}` : 'Add a customer email to send the report'}
+        title={hasEmail ? t('service.eng_jd_email_report_to', 'Email the report to {{email}}', { email: job.customer_email }) : t('service.eng_jd_add_email_title', 'Add a customer email to send the report')}
       >
         {emailing ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-        Email report
+        {t('service.eng_jd_email_report', 'Email report')}
       </button>
     </div>
   );
@@ -3978,6 +4049,7 @@ function ReportActionsCard({ job }) {
 // Iter 278 — margin view per job: invoiced revenue vs linked expenses,
 // plus labour hours + parts allocated. Reads /api/expenses/job/{id}/profitability.
 function JobProfitabilityCard({ caseId }) {
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -4002,7 +4074,7 @@ function JobProfitabilityCard({ caseId }) {
   return (
     <div className="mt-3 rounded-xl bg-white border border-slate-200 p-4" data-testid="job-profitability-card">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-extrabold text-slate-900">Job costs &amp; margin</h3>
+        <h3 className="text-sm font-extrabold text-slate-900">{t('service.eng_jd_prof_title', 'Job costs & margin')}</h3>
         {has_revenue && (
           <span className={`text-xs font-bold ${marginTone}`} data-testid="job-prof-margin">
             {cur(margin)}{margin_pct != null ? ` · ${margin_pct}%` : ''}
@@ -4011,28 +4083,28 @@ function JobProfitabilityCard({ caseId }) {
       </div>
       <div className="grid grid-cols-2 gap-2 text-sm">
         <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5" data-testid="job-prof-revenue">
-          <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Invoiced</p>
+          <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t('service.eng_jd_prof_invoiced', 'Invoiced')}</p>
           <p className="font-bold text-slate-900">{cur(revenue.invoiced)}</p>
-          <p className="text-[11px] text-slate-400">{cur(revenue.paid)} paid</p>
+          <p className="text-[11px] text-slate-400">{t('service.eng_jd_prof_paid', '{{amount}} paid', { amount: cur(revenue.paid) })}</p>
         </div>
         <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5" data-testid="job-prof-expenses">
-          <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Expenses</p>
+          <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t('service.eng_jd_prof_expenses', 'Expenses')}</p>
           <p className="font-bold text-slate-900">{cur(expenses.total)}</p>
-          <p className="text-[11px] text-slate-400">{cur(expenses.billable)} billable · {expenses.count}</p>
+          <p className="text-[11px] text-slate-400">{t('service.eng_jd_prof_billable', '{{amount}} billable · {{count}}', { amount: cur(expenses.billable), count: expenses.count })}</p>
         </div>
         <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5" data-testid="job-prof-labour">
-          <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Labour</p>
+          <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t('service.eng_jd_prof_labour', 'Labour')}</p>
           <p className="font-bold text-slate-900">{labour.hours}h</p>
-          <p className="text-[11px] text-slate-400">{labour.chargeable_hours}h chargeable</p>
+          <p className="text-[11px] text-slate-400">{t('service.eng_jd_prof_chargeable', '{{hours}}h chargeable', { hours: labour.chargeable_hours })}</p>
         </div>
         <div className="rounded-lg bg-slate-50 border border-slate-100 p-2.5" data-testid="job-prof-parts">
-          <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Parts</p>
+          <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{t('service.eng_jd_prof_parts', 'Parts')}</p>
           <p className="font-bold text-slate-900">{parts.qty}</p>
-          <p className="text-[11px] text-slate-400">{parts.lines} line{parts.lines === 1 ? '' : 's'}</p>
+          <p className="text-[11px] text-slate-400">{t('service.eng_jd_prof_lines', '{{count}} lines', { count: parts.lines })}</p>
         </div>
       </div>
       {!has_revenue && (
-        <p className="text-[11px] text-slate-400 mt-2">No invoice raised yet — margin appears once this job is invoiced.</p>
+        <p className="text-[11px] text-slate-400 mt-2">{t('service.eng_jd_prof_no_invoice', 'No invoice raised yet — margin appears once this job is invoiced.')}</p>
       )}
     </div>
   );

@@ -33082,3 +33082,26 @@ Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, 
 - Verified (Playwright + screenshot): opening the drawer as EN shows the switcher; clicking Français re-renders the whole
   drawer + engineer home into French instantly (Paramètres du compte / Se déconnecter / Bonjour, Master / ACTIONS
   RAPIDES), FR button active, localStorage i18nextLng='fr'. No console errors.
+
+---
+## Changelog — 2026-06 (fork) · EngineerJobDetailV2 i18n — Batch 1 of N (Nav + Summary tab)
+- Began localizing the biggest Engineer screen (EngineerJobDetailV2.js, ~4,110 lines, 35 components). User chose
+  tab-by-tab (option A). THIS batch = shared chrome + the Summary landing tab (always-shippable, no half-translated view).
+- Localized: main component (back/refresh aria, Loading job…, Job unavailable, unsaved-work confirm, load/timer toasts,
+  TABS labels via id-lookup — renamed map param off `t` to avoid shadowing), TriageBody, FaultContextCard,
+  JobAtAGlance (cover banner via new localised `coverText` derived from cover.kind/expiry, H&S banner, arrival toasts,
+  customer/fault text, on-site badge), SummaryStatusPill (status/SLA/priority-key/case-type/chargeable via in-component
+  static-key lookups so the pipeline can extract them), SummaryActionRow (Call/Navigate/Email), SummaryStatsGrid
+  (all 6 tiles + subs), DraftStatusPill, SyncStatusChip, ActiveTimerBar, ClosedJobBanner, JobProfitabilityCard.
+  ~133 `service.eng_jd_*` keys, auto-translated FR/DE (clean pipeline run, JSON valid).
+- FIXED pre-existing/edit-induced TAIL CORRUPTION: ~15 lines of duplicated garbage after JobProfitabilityCard were
+  breaking the parse — removed; babel now passes for the whole file.
+- module-level constants computeCoverState/CASE_TYPE_LABELS/STATUS_TONE/PRIORITY_KEY can't use the t() hook, so their
+  English values are kept as fallbacks and translated at the render site via in-component static-key lookups.
+- VERIFICATION: babel OK; frontend compiles; translated strings PROVEN live (screenshot showed FR "Travail introuvable"
+  / "Travail indisponible" on the load path). NOT fully visually verified: the full Summary tab with a loaded job —
+  no available test account is served a job by GET /api/svc/engineer/jobs (returns 0 for the admin engineer; the 13
+  DB-assigned cases 404 via the engineer endpoint due to org scoping). Needs a seeded dealer+engineer+job or testing
+  agent with proper engineer context.
+- REMAINING tabs for next batches: Travel, Time, Equipment, Parts, Complete (+ conditional Summary panels:
+  SafetyChecklistInline internals, HandoffNotesPanel, EtaUpdateChip, JobOverrunBanner, SiblingJobsBanner).
