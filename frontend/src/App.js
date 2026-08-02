@@ -3,6 +3,7 @@ import { BrowserRouter, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import '@/App.css';
 import i18n from './i18n';
+import { flushPendingLanguageSync } from '@/utils/languagePref';
 import { ConfirmProvider as NotificationConfirmProvider } from '@/components/notifications';
 
 // ═══ Cookie-based session support ═══
@@ -283,9 +284,26 @@ function App() {
  // whose saved `language` differs from the active UI language, apply it so
  // the preference follows the user across browsers/devices.
  useEffect(() => {
-   const lang = user?.language;
-   if (lang && !i18n.language?.startsWith(lang)) i18n.changeLanguage(lang);
+   const serverLang = user?.language;
+   if (!serverLang) return;
+   // Offline-resilience: a language chosen on THIS device that hasn't synced
+   // yet (engineer was offline) is authoritative — keep it and (re)push it up
+   // now, so a stale server value never reverts their offline pick on reconnect.
+   let pending = null;
+   try { pending = localStorage.getItem('pf_lang_pending'); } catch { /* ignore */ }
+   if (pending) {
+     if (!i18n.language?.startsWith(pending)) i18n.changeLanguage(pending);
+     flushPendingLanguageSync();
+     return;
+   }
+   if (!i18n.language?.startsWith(serverLang)) i18n.changeLanguage(serverLang);
  }, [user?.language]);
+ // Flush any offline language change the moment connectivity returns.
+ useEffect(() => {
+   const onOnline = () => flushPendingLanguageSync();
+   window.addEventListener('online', onOnline);
+   return () => window.removeEventListener('online', onOnline);
+ }, []);
  const [loading, setLoading] = useState(true);
  const [branding, setBranding] = useState(null);
  // Iter 215be (Phase 6) — flipped default theme from `dark` → `light`.

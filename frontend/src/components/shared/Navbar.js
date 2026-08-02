@@ -14,6 +14,7 @@ import CaptchaWidget from './CaptchaWidget';
 import axios from 'axios';
 import { useInlineBanner, notify } from '@/components/notifications';
 import { useTranslation } from 'react-i18next';
+import { setLanguagePreference } from '@/utils/languagePref';
 
 const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }) => {
  const { user, login, logout, API, branding, theme, toggleTheme, sites, _activeSite, _setActiveSite } = useAuth();
@@ -419,15 +420,11 @@ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
  <button
  key={lang.code}
  onClick={() => {
-   i18n.changeLanguage(lang.code);
    setShowLangMenu(false);
    // Iter 239 — persist per-user so the language follows them across
-   // devices (and localizes the emails the platform sends them).
-   if (user) {
-     const tk = localStorage.getItem('token');
-     axios.patch(`${API}/account/profile`, { language: lang.code },
-       tk ? { headers: { Authorization: `Bearer ${tk}` } } : {}).catch(() => {});
-   }
+   // devices. Offline-safe: switches + persists locally now, queues the
+   // account sync for retry if there's no signal (field engineers).
+   setLanguagePreference(lang.code);
  }}
  className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
  i18n.language?.startsWith(lang.code)

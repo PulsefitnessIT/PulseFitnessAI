@@ -13,10 +13,10 @@
  * Shown at most once per browser (localStorage flag), so it never nags.
  */
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import { Globe, X } from 'lucide-react';
 import i18n from '@/i18n';
 import { useAuth } from '@/App';
+import { setLanguagePreference } from '@/utils/languagePref';
 
 const SEEN_KEY = 'pf_lang_prompt_seen';
 export const LANG_PROMPT_SEEN_KEY = SEEN_KEY;
@@ -44,7 +44,7 @@ function detectBrowserLang() {
 }
 
 export default function LanguagePrompt() {
-  const { user, token, API, refreshUser } = useAuth();
+  const { user, token, refreshUser } = useAuth();
   const [lang, setLang] = useState(null);
   const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -69,14 +69,10 @@ export default function LanguagePrompt() {
   const accept = async () => {
     setBusy(true);
     try {
-      i18n.changeLanguage(lang);
-      localStorage.setItem('i18nextLng', lang);
-      if (user && token) {
-        try {
-          await axios.patch(`${API}/account/profile`, { language: lang }, { headers: { Authorization: `Bearer ${token}` } });
-          refreshUser?.();
-        } catch { /* non-blocking — UI already switched */ }
-      }
+      // Offline-safe: switches + persists locally now, syncs to the account
+      // when possible (queued for retry if offline).
+      await setLanguagePreference(lang);
+      if (user && token) refreshUser?.();
     } finally {
       setBusy(false);
       finish();

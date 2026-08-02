@@ -33053,3 +33053,20 @@ Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, 
   longer crashes; drawer + home fully translate. Tested via master-admin account (linked to an svc_engineer record).
 - PENDING (future Engineer batches, ~47 files remain): EngineerJobDetailV2, EngineerNotifications, BarcodeScanModal,
   EngineerQuotes, EngineerCustomers, EngineerQuoteBuilder, AdminStock, EngineerInvoiceBuilder, EngineerDiary, etc.
+
+---
+## Changelog — 2026-06 (fork) · Offline-resilient language preference
+- Problem: i18next already caches the active language to localStorage (offline-safe), BUT `App.js` re-applied the
+  server-side `user.language` on every hydrate — so a language a field engineer picked WHILE OFFLINE (whose profile
+  PATCH failed and was swallowed) got reverted to the stale server value on reconnect.
+- New helper `utils/languagePref.js`: `setLanguagePreference(lang)` switches UI + writes localStorage immediately, then
+  best-effort PATCHes `/account/profile`; on failure it queues the choice under `pf_lang_pending`.
+  `flushPendingLanguageSync()` retries the queued sync. `hasPendingLanguageSync()` exposes the marker.
+- `App.js`: hydrate effect now treats a `pf_lang_pending` value as AUTHORITATIVE (keeps it, re-pushes to server) so a
+  stale server language never reverts an offline pick; added a `window 'online'` listener that flushes the queue on
+  reconnect.
+- Wired all 3 authenticated language switchers through the helper: `LanguagePrompt.jsx`, `LanguageSwitcher.js`,
+  `Navbar.js` (public/anonymous switchers on LoginPage/PulseLanding/MarketingShell left as-is — they don't sync).
+- Verified (Playwright, deterministic route-mocking): Phase A — reload with stale server lang 'de' keeps offline pick
+  'fr', clears pending, PATCHes {language:'fr'}. Phase B — offline change queues pf_lang_pending='de', firing 'online'
+  flushes it and PATCHes {language:'de'}. UI confirmed rendering French.

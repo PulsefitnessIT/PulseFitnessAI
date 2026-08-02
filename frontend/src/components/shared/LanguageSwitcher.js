@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Globe, Check } from 'lucide-react';
-import axios from 'axios';
+import { setLanguagePreference } from '@/utils/languagePref';
 
 const LANGS = [
   { code: 'en', label: 'English', flag: '🇬🇧' },
@@ -16,21 +16,15 @@ const LANGS = [
   { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
 ];
 
-const API = process.env.REACT_APP_BACKEND_URL;
-
 export const LanguageSwitcher = ({ className = '' }) => {
   const { i18n } = useTranslation();
   const [open, setOpen] = useState(false);
   const current = i18n.language?.substring(0, 2) || 'en';
 
   const choose = (code) => {
-    i18n.changeLanguage(code);
     setOpen(false);
-    const tk = localStorage.getItem('token');
-    if (tk && API) {
-      axios.patch(`${API}/api/account/profile`, { language: code },
-        { headers: { Authorization: `Bearer ${tk}` } }).catch(() => {});
-    }
+    // Offline-safe switch + persist + best-effort account sync.
+    setLanguagePreference(code);
   };
 
   return (
