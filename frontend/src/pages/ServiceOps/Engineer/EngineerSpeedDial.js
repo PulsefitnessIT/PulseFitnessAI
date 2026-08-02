@@ -57,6 +57,12 @@ const ACTIONS = [
 ];
 
 export default function EngineerSpeedDial() {
+  const { t } = useTranslation();
+  const LABELS = {
+    voice: t('service.eng_sd_voice', 'Voice-to-job'),
+    ask: t('service.eng_sd_ask', 'Ask Pulse Fitness'),
+    feedback: t('service.eng_sd_feedback', 'Send feedback'),
+  };
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
 
@@ -97,13 +103,13 @@ export default function EngineerSpeedDial() {
                 className="text-[11px] font-bold text-white bg-slate-900/85 dark:bg-slate-100/95 dark:text-slate-900 px-2.5 py-1 rounded-md shadow-sm"
                 aria-hidden="true"
               >
-                {label}
+                {LABELS[id] || label}
               </span>
               <button
                 type="button"
                 onClick={() => fire(event)}
                 data-testid={testid}
-                aria-label={label}
+                aria-label={LABELS[id] || label}
                 className="w-11 h-11 rounded-full shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
                 style={{ background: bg, color: fg || '#fff', border: border || 'none' }}
               >
@@ -118,7 +124,7 @@ export default function EngineerSpeedDial() {
         type="button"
         onClick={() => setOpen(v => !v)}
         data-testid="engineer-speed-dial-launcher"
-        aria-label={open ? 'Close engineer actions' : 'Open engineer actions'}
+        aria-label={open ? t('service.eng_sd_close', 'Close engineer actions') : t('service.eng_sd_open', 'Open engineer actions')}
         aria-expanded={open}
         className="w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
         style={{ background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)' }}
