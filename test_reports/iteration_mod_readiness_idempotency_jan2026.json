@@ -1,0 +1,34 @@
+{
+  "summary": "Backend-only verification of the MOD Estate Readiness weekly digest idempotency fix (utils/mod_readiness_digest.py). Root cause of the 48 duplicate emails: the previous per-ISO-week claim used update_one({'job':JOB_KEY,'week_tag':{'$ne':week_tag}}, upsert=True) whose filter could never match the current-week doc, so upsert inserted a fresh system_jobs doc every poller tick and the skip condition (modified_count==0 AND upserted_id is None) was never true. The fix replaces the claim with an atomic upsert on {job, week_tag} using $setOnInsert; skip when upserted_id is None. Wrote 7 pytest cases against the live db (utils.database.db) driving send_mod_readiness_email() and run_mod_readiness_weekly() directly — all 7 PASSED. Verified: (1) first call sends & second call returns {'skipped':'already_sent_this_week'}, (2) 10 rapid calls => exactly 1 send + 9 skips, (3) no leak (system_jobs doc count remains exactly 1 for current week, no accumulation for other weeks), (4) force=True bypasses lock and always returns a sent result, (5) run_mod_readiness_weekly never double-sends across 6 invocations, (6) when lock already claimed the weekly cron returns a skipped result (never re-sends). Final DB state: exactly one {job:'mod_readiness_weekly_email', week_tag:'2026-W32'} doc left in place, so the live poller will not resend this week.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_mod_readiness_idempotency.py",
+    "/app/test_reports/pytest/mod_readiness_idempotency_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "send_mod_readiness_email idempotency claim is now correct ($setOnInsert on {job, week_tag}, skip when upserted_id is None) — this is the standard MongoDB single-writer idempotency pattern and is safe against the sicon_poller cadence.",
+    "Consider adding a unique index on system_jobs(job, week_tag) as defence-in-depth in case future code paths ever re-introduce a non-atomic write; currently correctness relies solely on this single call site.",
+    "The post-send status update at lines 186-192 upserts on {'job': JOB_KEY} only (not scoped to week_tag). This is fine for the current single-week-at-a-time flow (it updates the same doc that was just claimed), but it means historical week claims will be silently mutated if the current send happens before a new week's claim. Minor — not a correctness issue for the reported bug — but noting for future clarity.",
+    "run_mod_readiness_weekly() gating is coarse: any poller tick during Monday >= 09 UTC that finds the lock missing will send. The atomic claim protects against duplicates within a single week; but ensure the seed/migration path doesn't accidentally delete the current-week claim in production.",
+    "Duplicate-emails root cause is now fixed and covered by regression tests; recommend keeping test_mod_readiness_idempotency.py in CI."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_mod_readiness_idempotency.py (new)"
+  ],
+  "success_rate": {"backend": "100% (7/7 pytest cases passed)", "frontend": "not tested (per request)"},
+  "test_credentials": "N/A — tests import send_mod_readiness_email/run_mod_readiness_weekly directly and drive db.system_jobs. Email transport is mocked in preview (Resend key invalid) so tests assert on return values + db state, not on delivered mail.",
+  "seed_data_creation": "Tests transiently delete the current-week {job:'mod_readiness_weekly_email', week_tag:'2026-W32'} doc to reproduce first-send behaviour, then re-run send to re-claim. Final state left with EXACTLY ONE doc for 2026-W32 (verified via manual query) so the live poller will not resend this week.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The 48-duplicates bug was a broken per-ISO-week upsert filter in utils/mod_readiness_digest.py:send_mod_readiness_email(). Fix verified with /app/backend/tests/test_mod_readiness_idempotency.py — run: pytest tests/test_mod_readiness_idempotency.py -v. Tests are safe to re-run; they preserve the current-week claim on exit. Email transport is mocked (Resend invalid key) so 'sent':False in returned dict is expected; the important assertion is 'skipped' key absence on first call and presence on subsequent calls.",
+  "rca of the issue": "RCA: send_mod_readiness_email used db.system_jobs.update_one({'job':JOB_KEY,'week_tag':{'$ne':week_tag}}, {'$set':{...}}, upsert=True). Semantics: 'find a doc with job=X AND week_tag != current_week; if none matches, upsert'. Because a current-week doc satisfies week_tag != current_week == false, the filter cannot match the current-week doc. But — and this is the bug — when the collection contains ONLY a current-week doc, the filter also matches no document (there is no doc with week_tag != current), so upsert triggers and inserts a NEW doc with the current week_tag. Every subsequent tick repeats: no matching doc for the filter (because all existing docs are current-week and thus excluded by $ne), so a fresh doc is inserted each time. The skip condition (modified_count==0 and upserted_id is None) NEVER becomes true because upserted_id is always set. Consequence: on Monday >= 09 UTC, the sicon_poller (every ~2-3 min) fires an email every tick — 48 emails in one hour matches ~1 email per 75s poller cadence. FIX: replace filter with {'job': JOB_KEY, 'week_tag': week_tag} and use $setOnInsert so an existing current-week doc IS matched (no insert, upserted_id is None → skip). Additionally deduped legacy system_jobs docs. Verified in preview DB: after test run, exactly one {job:'mod_readiness_weekly_email', week_tag:'2026-W32'} doc remains; 10 rapid calls produced exactly 1 send + 9 skips; force=True still sends unconditionally."
+}

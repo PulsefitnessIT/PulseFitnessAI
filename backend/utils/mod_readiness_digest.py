@@ -148,13 +148,19 @@ async def send_mod_readiness_email(estate_id: str = DEFAULT_ESTATE_ID,
     recipient = to or _hq_recipient()
 
     if not force:
-        # Idempotent per ISO week: claim the lock atomically.
+        # Idempotent per ISO week: atomically CLAIM the (job, week) slot.
+        # A brand-new insert (upserted_id set) means we're the first this week
+        # and should send; if the slot already exists we've already sent → skip.
+        # NOTE: the previous `{"week_tag": {"$ne": week_tag}}` + upsert filter
+        # could never match the current-week doc, so it re-inserted a fresh doc
+        # every run and NEVER skipped — causing runaway duplicate emails.
         res = await db.system_jobs.update_one(
-            {"job": JOB_KEY, "week_tag": {"$ne": week_tag}},
-            {"$set": {"job": JOB_KEY, "week_tag": week_tag, "claimed_at": now.isoformat()}},
+            {"job": JOB_KEY, "week_tag": week_tag},
+            {"$setOnInsert": {"job": JOB_KEY, "week_tag": week_tag,
+                              "claimed_at": now.isoformat()}},
             upsert=True,
         )
-        if res.modified_count == 0 and res.upserted_id is None:
+        if res.upserted_id is None:
             return {"skipped": "already_sent_this_week", "week_tag": week_tag}
 
     data = await _compute_estate_readiness(estate_id)

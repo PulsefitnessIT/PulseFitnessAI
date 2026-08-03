@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="8" time="7.412" timestamp="2026-08-03T11:11:55.458632+00:00" hostname="agent-env-fc83cc06-a35a-4501-928c-1c092b645c5f"><testcase classname="tests.test_mod_readiness_idempotency.TestIdempotency" name="test_first_call_sends_second_call_skips" time="5.414" /><testcase classname="tests.test_mod_readiness_idempotency.TestIdempotency" name="test_ten_rapid_calls_only_one_send" time="0.137" /><testcase classname="tests.test_mod_readiness_idempotency.TestIdempotency" name="test_no_leak_of_system_jobs_docs" time="0.154" /><testcase classname="tests.test_mod_readiness_idempotency.TestForcePath" name="test_force_true_bypasses_lock" time="0.150" /><testcase classname="tests.test_mod_readiness_idempotency.TestForcePath" name="test_force_multiple_calls_all_send" time="0.975" /><testcase classname="tests.test_mod_readiness_idempotency.TestWeeklyCron" name="test_weekly_cron_never_double_sends" time="0.135" /><testcase classname="tests.test_mod_readiness_idempotency.TestWeeklyCron" name="test_weekly_cron_when_already_claimed_does_not_resend" time="0.009"><error message="failed on teardown with &quot;RuntimeError: Task &lt;Task pending name='Task-31' coro=&lt;_reclaim_lock_if_missing() running at /app/backend/tests/test_mod_readiness_idempotency.py:50&gt; cb=[_run_until_complete_cb() at /usr/local/lib/python3.11/asyncio/base_events.py:181]&gt; got Future &lt;Future pending cb=[_chain_future.&lt;locals&gt;._call_check_cancel() at /usr/local/lib/python3.11/asyncio/futures.py:387]&gt; attached to a different loop&quot;">tests/test_mod_readiness_idempotency.py:235: in _ensure_lock_after_all_tests
+    asyncio.run(_reclaim_lock_if_missing())
+/usr/local/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests/test_mod_readiness_idempotency.py:50: in _reclaim_lock_if_missing
+    exists = await _count_current_week_docs()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_mod_readiness_idempotency.py:34: in _count_current_week_docs
+    return await db.system_jobs.count_documents(
+E   RuntimeError: Task &lt;Task pending name='Task-31' coro=&lt;_reclaim_lock_if_missing() running at /app/backend/tests/test_mod_readiness_idempotency.py:50&gt; cb=[_run_until_complete_cb() at /usr/local/lib/python3.11/asyncio/base_events.py:181]&gt; got Future &lt;Future pending cb=[_chain_future.&lt;locals&gt;._call_check_cancel() at /usr/local/lib/python3.11/asyncio/futures.py:387]&gt; attached to a different loop</error></testcase></testsuite></testsuites>
