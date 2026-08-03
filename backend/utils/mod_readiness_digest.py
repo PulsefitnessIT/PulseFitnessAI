@@ -184,7 +184,7 @@ async def send_mod_readiness_email(estate_id: str = DEFAULT_ESTATE_ID,
     )
 
     await db.system_jobs.update_one(
-        {"job": JOB_KEY},
+        {"job": JOB_KEY, "week_tag": week_tag},
         {"$set": {"job": JOB_KEY, "week_tag": week_tag,
                   "last_sent_at": now.isoformat(), "last_recipient": recipient,
                   "last_ok": bool(ok), "last_totals": totals}},

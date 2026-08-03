@@ -33140,3 +33140,20 @@ Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, 
   component/file — not localized here; queued as its own item. Admin user.language reset to 'en' after test.
 - REMAINING Job Detail tabs: Time, Travel, Equipment, Parts (+ Summary conditional panels: SafetyChecklistInline
   internals, EtaUpdateChip, JobOverrunBanner, SiblingJobsBanner).
+
+---
+## Bug Fix — 2026-08-03 · Runaway duplicate "MOD Estate readiness" emails (48/hour)
+- SYMPTOM: service@service.pulsefitness.ai sent 48 identical "MOD Estate readiness — 0/1 sites go-live ready"
+  emails in an hour (~every 2-3 min).
+- ROOT CAUSE: broken per-ISO-week idempotency lock in utils/mod_readiness_digest.py::send_mod_readiness_email.
+  It claimed the week with update_one({'job':JOB_KEY,'week_tag':{'$ne':week_tag}}, {'$set':...}, upsert=True). That
+  filter can never match the current-week doc, so upsert INSERTED a fresh system_jobs doc every run and the skip
+  condition (modified_count==0 AND upserted_id is None) was never true → emailed on EVERY poller tick. Today being
+  Monday (ISO 2026-W32), the sicon_poller weekly gate (Monday & hour>=9 UTC) passed on every cycle.
+- FIX: atomic once-per-week claim — update_one({'job':JOB_KEY,'week_tag':week_tag}, {'$setOnInsert':{...}},
+  upsert=True); skip when upserted_id is None. Post-send status update also scoped to (job, week_tag). Deduped leaked
+  system_jobs docs; left exactly one 2026-W32 claim in place so the poller won't resend this week.
+- VERIFIED by testing_agent: 7/7 pytest passed (100%). First call sends, subsequent calls skip; 10 rapid calls → 1
+  send + 9 skips; no doc leak; force=True still sends; weekly cron never double-sends. Regression suite at
+  /app/backend/tests/test_mod_readiness_idempotency.py.
+- Defence-in-depth suggestion (not done): add a unique index on system_jobs(job, week_tag).
