@@ -33157,3 +33157,13 @@ Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, 
   send + 9 skips; no doc leak; force=True still sends; weekly cron never double-sends. Regression suite at
   /app/backend/tests/test_mod_readiness_idempotency.py.
 - Defence-in-depth suggestion (not done): add a unique index on system_jobs(job, week_tag).
+
+
+---
+## Changelog — 2026-06 (Tender Insert)
+- Produced MOD Service tender presentation insert as an editable .docx at `/app/artifacts/MODService_Portal_Tender_Insert_Final_Editable.docx`.
+- Rewrote body copy (fresh, higher-impact capability presentation) + added new sections ("At a glance" summary box, "One platform. Three Services." framing) while embedding the 11 real platform screenshots inline.
+- Preserved the original MOD document furniture exactly: header (top Pulse logo + "2.4.1 Service Delivery"), footer ("… Detailed Plan · Page X of Y · LSL/DC/0223"), the vertical left-side Pulse Fitness logo, A4 page size and 1-inch margins.
+- Root-cause fix during build: template's `Normal`/`List` styles used `lineRule="exact"` (280 twips) which clipped inline images to a thin band; switched base styles to single/auto line spacing. Verified via LibreOffice PDF render (11 pages, all images full-size, no overlap with header/footer/left logo).
+- This was a document-generation task; no application code changed.
+
