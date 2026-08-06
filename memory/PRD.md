@@ -1,3 +1,36 @@
+# ═══ 2026-08-06 · CRM TENDER WRITER — SUBMISSION PACK WIZARD (.docx) frontend COMPLETE — testing_agent ~85% + curl 100% ═══
+Completed the last missing piece of the CRM Tender Writer DOCX upgrade: the frontend `SubmissionPackWizard`
+popup in /app/frontend/src/pages/CRM/CRMTenders.js. Previously the "Submission pack (.docx)" button
+(data-testid export-pack-btn) rendered `<SubmissionPackWizard>` which was NEVER defined (prior agent's
+insert_text failed) → clicking crashed the Tenders page. Now defined (~line 1228, file 1749 lines, babel-parse OK).
+FEATURES (per user choices — all three modes):
+  • Mode selector (pack-mode-templated / -itt / -traceability):
+    (1) Templated pack → POST /api/crm/v2/tenders/{id}/export/submission-docx {template_id, logo_b64?, tokens[]}
+    (2) ITT-direct → GET .../export/itt-docx (clean, template-free answers doc)
+    (3) Evidence Traceability matrix → GET .../export/traceability-docx
+  • In-wizard ORG TEMPLATE LIBRARY: list/upload/delete .docx templates (GET/POST/DELETE /tender-docx-templates).
+    Upload sends label as QUERY param + multipart file. (pack-upload-btn, pack-template-<id>, pack-template-delete-<id>)
+  • Bid focus selector (pack-bid-focus): General / New Equipment Install / Service & Maintenance / Design & Build →
+    injects a {{SCOPE}} find/replace token.
+  • Find & replace token editor (pack-token-add/find-N/replace-N/remove-N) + optional customer logo (pack-logo-*).
+  • Auth: reads crm_token from localStorage at export time; fetch() for blob downloads.
+NOTE ON TOKENS: {{SCOPE}}/tokens apply to the GENERATED tender content + template headers/footers (the template
+  supplies layout/styles), NOT the template body verbatim — by design.
+VERIFIED: testing_agent (iteration_submission_pack_wizard_frontend_jan2026.json) — wizard mounts no crash, all 3
+  modes render/toggle, bid-focus + tokens + logo controls work, template upload+delete 200, ITT export GET 200,
+  cancel/close work. Traceability + templated UI-click exports inconclusive in Playwright (PWA-banner/timing
+  artifact — same code path as ITT). Main agent curl-verified ALL THREE endpoints 200 (ITT 36KB, trace 37KB,
+  templated submission with upload+delete). Backend was already verified in a prior session.
+KNOWN / NEXT:
+  • iso-demo-org does NOT have crm_tenders module enabled → Tenders left-nav tab hidden for owner@isodemo.com;
+    reach it via deep-link /crm?tab=tenders. Enable modules.crm_tenders.enabled=true on the demo org to surface it.
+  • Cosmetic: tender issuer field showed double-encoded 'MOD DE&Amp;S' (pre-existing sanitisation, not this feature).
+  • Smoke tender left in place: 'MOD Gym Estate Framework 2026' (iso-demo-org) for future UI testing.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · i18n FR/DE — SETTINGS MODULE (verified DE render) ═══
 Brought the whole Account Settings module into the French/German rollout under a NEW `settings` namespace
 (pipeline now also scans components/shared). Localised the modal + all panels: Profile, Onboarding, Security,
