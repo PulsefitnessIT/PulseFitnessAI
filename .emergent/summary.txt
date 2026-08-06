@@ -1,132 +1,175 @@
-<analysis>**original_problem_statement**: PRODUCT REQUIREMENTS: Build a complete Global Dealer Distribution, Inventory and Asset Deployment System inside PulseFitness.ai. The system securely handles order data from Sage 200 and manages the operational journey of fitness machines. Execute a full-scale readiness test. Add French and German language support. Address MOD Portal routing, activation milestones, MOD Site onboarding, and auth bug fixes.
+<analysis>**original_problem_statement**: PRODUCT REQUIREMENTS: Build a complete Global Dealer Distribution, Inventory and Asset Deployment System inside PulseFitness.ai. Add French and German language support. Address MOD Portal routing, activation milestones, MOD Site onboarding, and auth bug fixes. Implement MOD Automatic Quote Writer with e-signing via the MOD Service Portal. Upgrade the CRM Tender Writer in the platform to generate editable submission-ready Word documents matching the 2022 template logic, bypassing AI tells. Include an org-level template library, DOCX export engine, and evidence traceability matrix. Build MOD Equipment import AI to read any kit list format without relying on rigid columns. 
 
 **User's preferred language**: English (INSTRUCT next agent to respond in English only)
 
-**what currently exists?**: A mature, live full-stack CRM, Staffing, and Distribution platform. The French/German i18n rollout for Marketing modules is complete. The MOD Portal supports isolated login models, seamless staff flow-through, and a comprehensive MOD Equipment Onboarding suite featuring Bulk Imports, Excel Readiness Exports, and public Site Self-Capture Links with duplicate-detection diff views. Sicon/Sage 200 integration is audited and mocked awaiting live credentials. A scheduled background job and manual trigger have just been added to email the Estate Readiness Sheet (Excel) to HQ every Monday morning.
+**what currently exists?**: A mature, live full-stack CRM and MOD portal with AI-assisted features. The CRM Tender Writer DOCX exports and template library are completely built, now featuring live cover-page and multi-page previews, Smart Prefill for tokens, and template-based token mapping. The MOD AI Kit-List Importer is fully functional, capable of dragging-and-dropping multi-tab messy Excel files, automatically assigning Categories/MOD-Codes, and retargeting individual tabs to distinct MOD sites. 
 
 **Last working item**:
-    - Last item agent was working: Building the scheduled background job and frontend manual trigger button to automatically email the Estate Readiness Sheet (Excel) along with an HTML summary to HQ every Monday at 09:00 UTC.
-    - Status: USER VERIFICATION PENDING
+    - Last item agent was working: Extracting  and  from messy Kit Lists via the new AI Kit Importer and mapping them onto the finalized Equipment documents.
+    - Status: FINISHED
     - Agent Testing Done: Y
-    - Which testing method agent to use?: NA (Testing already done via backend curl and frontend compilation check)
-    - User Testing Done: N
+    - Which testing method agent to use?: NA (already done via testing agent and curl validation)
+    - User Testing Done: Y
 
 **All Pending/In progress Issue list**:
   Issue 1: Live Sage 200 / Sicon Integrations (P1)
-     - Attempted fixes: Client paths aligned to spec; awaiting user to provide live credentials. Currently mocked.
-     - Next debug checklist: Once live credentials (Base URL + username/password + companyId) are provided, run a live Ping test. 
+     - Attempted fixes: Client paths aligned to spec; currently mocked awaiting live credentials.
+     - Next debug checklist: Once live credentials are provided, run a live Ping test.
      - Why fix this issue and what will be achieved with the fix?: Unblocks live sync of Sicon equipment, customers, and cases.
      - Status: BLOCKED (on live credentials)
      - Is recurring issue? N
      - Should Test frontend/backend/both after fix?: Backend
      - Blocked on other issue: Missing live credentials.
 
+  Issue 2: Stripe Bundle Price IDs not configured (Preview Environment) (P2)
+     - Attempted fixes: N/A - environment config issue.
+     - Next debug checklist: Add Stripe bundle price IDs in the preview .
+     - Why fix this issue and what will be achieved with the fix?: Fixes checkout/payment workflows in the preview environment.
+     - Status: BLOCKED
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix: Backend
+     - Blocked on other issue: None.
+
 **In progress Task List**:
-  None
+  Task 1: CRM Tender Writer Upgrade - Phase 2 (P1)
+     - Where to resume: Address figure management, library UI polish, and deep evidence traceability UI mapping (now that Phase 1 wizard UI is fully complete).
+     - What will be achieved with this?: Complete parity with the manual MOD Tender creation process directly inside the CRM.
+     - Status: NOT STARTED
+     - Should Test frontend/backend/both after fix?: Both
+     - Blocked on something: None
 
 **Upcoming and Future Tasks**:
     Upcoming Tasks:
-    - Task 1: Import History - Create a browsable log of every bulk equipment import run so past Excel reports can be re-downloaded (P1).
-    - Task 2: Complete i18n localization for the rest of the platform modules (ServiceOps, Staffing, Settings) (P1).
+    - Task 1: Complete i18n localization for remaining EngineerJobDetailV2.js tabs (P1): Parts, Time, Travel, Equipment, and remaining Summary conditional panels.
+    - Task 2: Dictation Widget Locale (P1): Localize the shared .
+    - Task 3: Complete i18n localization for remaining Engineer App files (P1): , , , , etc.
+    - Task 4: Unique Index Guard (P2): Add a unique index on  in MongoDB.
+    - Task 5: Digest Send Log (P2): Add a last sent UI line per scheduled email in the master admin panel.
+    - Task 6: Complete i18n localization for remaining Settings/ServiceDesk files (P2): , , etc.
+    - Task 7: SMS currently mocked safety banner (P2).
+    - Task 8: Import History - Excel report log (P2).
     
     Future Tasks:
-    - Task 3: Print / export shift log (PDF) button on each MOD Handover thread (P2).
-    - Task 4: Weekly System Health digest email summary (P2).
-    - Task 5: Sicon Equipment API Auto-Import & Write-back for Service Cases/Customers (Blocked on live creds) (P2).
-    - Task 6: Interactive-hotspot version for exploded drawings (P2).
+    - Print / export shift log (PDF) button on MOD Handover thread.
+    - Sicon Equipment API Auto-Import & Write-back.
+    - Interactive-hotspot version for exploded drawings.
+    - Suggested Enhancements (Awaiting User Reply): Kit by category summary on MOD site cards, or a new site on the fly dropdown option for the Kit-List importer.
 
 **Completed work in this session**:
-- Created  to handle the email generation (Excel attachment + HTML summary table) for HQ.
-- Refactored  inside  to make the Excel builder reusable for the email utility.
-- Wired the email digest task into the existing  loop to trigger every Monday at 09:00 UTC.
-- Created manual trigger  and status endpoint .
-- Updated frontend  to include a manual trigger button (Send Now) and display the schedule/last sent status for the Readiness Email.
+- Implemented  in  restoring broken frontend logic (DONE).
+- Added Template Token Presets logic for automatically mapping uploaded template tokens (DONE).
+- Added Smart Prefill functionality to auto-inject  and  tokens from linked Opportunity/Company (DONE).
+- Implemented DOCX Live Cover-Page and Multi-Page previews using  (LibreOffice) and PyMuPDF integration (DONE).
+- Turned on the CRM Tenders module tab in the UI for the demo org (DONE).
+- Seeded default DOCX House Templates into the demo org's library and fixed an XML escaping bug ( symbol) in the DOCX exporter (DONE).
+- Built a brand new MOD AI Kit-List Importer ( and ), handling messy Excel uploads, parsing multi-tab mapping, identifying Categories/MOD-Codes, and grouping/importing assets to distinct MOD sites (DONE).
 
 **Earlier issues found/mentioned but not fixed**:
-   - None
+   Issue 1: Content Security Policy (CSP) uses  for scripts.
+   - Debug checklist: Move to nonce-based or hash-based scripts for React build.
+   - Why to solve this issue and what will be achieved with this?: Materially strengthens XSS protection. 
+   - Should Test frontend/backend/both after fix: Frontend
+   - Is recurring issue? N
 
 **Known issue recurrence from previous fork**:
-  - Issue recurrence in previous fork: SEO Audit Subagent Timeout (12 recurrences)
-  - Workflow Hazard Noted: When running multiple  edits on JS files (specifically replacing  wrappers), the  tool occasionally duplicates the tail of the file causing  syntax errors. Run babel parse checks () after batch replacements.
-  - Recurrence count: 12
-  - Status: RESOLVED (temporary mitigation active).
+  - Issue recurrence in previous fork: 
+    1. **Babel JS string duplication (Tail Corruption)**: Heavy  commands on large files (like ) frequently duplicate lines at the bottom. ALWAYS run  after large UI edits.
+    2. **Tool Syntax Errors**: Dropping required arguments in  or  (like the missing  param). 
+  - Recurrence count: 21+
+  - Status: IN PROGRESS (Manual mitigation continually required)
 
 **Code Architecture**:
 /app
-├── backend/
-│   ├── routes/
-│   │   ├── master_admin_mod_estate.py (Equipment capture logic, exports, logins, manual trigger)
-│   │   ├── mod_portal.py (Owner handover)
-│   │   ├── sicon.py
-│   ├── utils/
-│   │   ├── mod_readiness_digest.py (New: constructs and sends readiness email)
-│   │   ├── sicon_poller.py (Scheduler checking for 09:00 UTC Mondays)
-│   │   ├── email.py (Resend helpers)
-│   │   ├── sicon_client.py
 ├── frontend/
-│   ├── src/pages/
-│   │   ├── LiteDashboard/ (MOD Portal)
-│   │   ├── MasterAdmin/
-│   │   │   ├── MODSiteOnboarding.js (Equipment & Readiness UI with manual trigger)
-│   │   ├── MODEquipmentCaptureForm.js (Public self-capture view)
+│   ├── src/pages/CRM/CRMTenders.js (CRM Tender UI - Added SubmissionPackWizard)
+│   ├── src/pages/MasterAdmin/MODSiteOnboarding.js (Wired with AI Importer Modal)
+│   ├── src/pages/MasterAdmin/AIKitImportModal.js (NEW - AI Equipment Importer UI)
+├── backend/
+│   ├── routes/crm_v2.py (Tender API endpoints)
+│   ├── routes/master_admin_mod_estate.py (AI Kit-List import endpoints)
+│   ├── utils/tender_docx_exporter.py (DOCX generator engine - patched for XML escaping)
+│   ├── utils/docx_preview.py (NEW - Renders DOCX to PNG preview via LibreOffice)
+│   ├── utils/kit_list_ai.py (NEW - AI engine for MOD Equipment Lists)
+│   ├── scripts/seed_tender_house_templates.py (NEW - seed script for demo org)
 
 **Key Technical Concepts**:
-React, FastAPI, openpyxl (Excel export), Resend (Email), Webhooks/Cron, Auth/Role gating, Scheduler Loops.
+React, FastAPI, MongoDB,  for document generation, LibreOffice () and  for DOCX to PNG rendering, Claude Sonnet 4.5/4.6 via Emergent LLM Key.
 
 **key DB schema**:
-  - : Tracks 
-  - : Site-level roster. Syncs automatically with .
-  - : Temp holding table for self-capture equipment data before Master Admin approves/imports.
+  - : Tracks scheduled events to prevent duplicates.
+  - : Natively manages DOCX templates.
+  - : Now includes natively mapped  and .
 
 **changes in tech stack**:
-  -  utilized for Excel workbook generation (added to scheduled email workflow).
+  - Implementation of a document rendering pipeline combining LibreOffice () and PyMuPDF to convert  to  to  for live UI previews.
 
 **All files of reference**: 
-  -  (Created for email functionality)
-  -  (Updated to add weekly schedule)
-  -  (Refactored Excel logic, added trigger endpoints)
-  -  (Updated UI with trigger and status)
+  -  
+  - 
+  -  (New feature API)
+  -  (New parsing engine)
+  -  (New UI)
   - 
 
 **Areas that need refactoring**: 
-  - None currently. 
+  -  (over 1,800 lines) and . Both files are dense and highly susceptible to babel-tail corruption on search-and-replace calls.
 
 **key api endpoints**:
-  -  (Checks schedule/last sent status)
-  -  (Manually triggers the MOD readiness email to HQ)
-  -  (Excel generation download)
+  - 
+  - 
+  - 
+  - 
 
 **Critical Info for New Agent**: 
-  - **PRODUCTION DEPLOYMENT ALERT**: The user has deployed the app to a live production URL (). You do NOT have access to the production environment; you are working in PREVIEW. Production fixes require the user to redeploy.
-  - **Resend API Key in Preview**: The  in the preview environment is intentionally invalid for safety/spam reasons. The code gracefully falls back to copying links or logging standard success if email fails. Do not attempt to debug or fix the email failing to send in Preview; it works in Production.
-  - **MOD Site Dual-Logins**: Future MOD sites have two logins. The generic login (, ) is heavily restricted. The  login has full access.
+  - The missing  is fully complete and operational. 
+  - The XML escape bug in  was fixed: if you ever modify docx tokens or raw XML injection, you MUST use standard XML escape (e.g. ).
+  - Kit List Import does NOT use standard column mappings anymore. It routes through  utilizing the LLM integration to build normalized equipment arrays. 
 
 **documents and test reports created in this job**: 
+  - 
+  - 
+  - 
+  - 
+  - 
+  -  (Updated)
   -  (Updated)
 
 **Last 10 User Messages and any pending HUMAN messages**: 
- 1. *[User]*: Who is HQ — the recipient(s)?: **for MOD - modservice@pulsefitness.com**
-What time Monday morning (server runs on UTC)?: **09:00 UTC**
-Email content — attach the same readiness Excel we generate today, plus:: **Excel attachment + an HTML summary table in the body**
-Should I also add a Master Admin Send readiness email now button so you can trigger/test it on demand (works in prod where Resend is live)?: **Yes, add the manual trigger button** (Completed)
+ 1. *[User]*: Category Capture: Carry the kit list's Category / MOD-Code through onto each asset so you can report by category (COMPLETED)
+ 2. *[User]*: Tabs as Sites: Let a tab map to a separate MOD site (not just a room) when a kit list actually spans multiple bases (COMPLETED)
+ 3. *[User]*: Uploaded . MOD Equipment import - I have just tried to import equipment into an MOD site but the import didn't work because there was no Name... As with the MOD Quote, we need to be able to upload any kind of kit list and AI read the kit list... (COMPLETED)
+ 4. *[User]*: Answered ask_human detailing how tabs map, Title-case behavior, UI location, and summary tab auto-skip behaviors (COMPLETED)
+ 5. *[User]*: Seed House Templates: Add a couple of ready-made cover/section templates with / tokens... (COMPLETED)
+ 6. *[User]*: Multi-Page Preview: Let bidders flip through the first few pages in the preview, not just the cover (COMPLETED)
+ 7. *[User]*: Tenders Access: Turn on the CRM Tenders module for the demo org so the Tenders tab shows in the left nav (COMPLETED)
+ 8. *[User]*: DOCX Preview: Show a live cover-page thumbnail in the wizard so bidders can eyeball formatting before downloading (COMPLETED)
+ 9. *[User]*: Smart Prefill: Auto-populate  and  from the tender's linked company and reference (COMPLETED)
+ 10. *[User]*: Token Presets: Give each template saved find/replace tokens so common fields like client name and reference auto-fill (COMPLETED)
 
-**Project Health Check**:
+**Project Health Check:**
   - Broken: None
-  - Mocked: Sicon / Sage 200 Integration (awaiting creds)
+  - Mocked: Sicon / Sage 200 Integration, Twilio, DocuSign
 
-**3rd Party Integrations**: 
-  - Stripe (Payments) — requires User API Key
-  - Resend (Emails) — requires User API Key
-  - Claude Sonnet / OpenAI (Translations/Parsing) — uses Emergent LLM Key
+**3rd Party Integrations** 
+	 •	OpenAI GPT-4o / Claude Sonnet 4.6 (Kit List and Quotes parsing) — uses Emergent LLM Key
+	 •	Stripe (Payments) — requires User API Key
+     •	Resend (Emails) — requires User API Key
 
-**Testing status**:
-  - Testing agent used after significant changes: NO (Self-tested via curl and manual checks)
+**Testing status**
+  - Testing agent used after significant changes: YES (Heavily utilized for verifying Preview panels and AI Kit-list UI flows)
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: None
+  - Test files created: [
+      , 
+      , 
+      , 
+      , 
+      
+    ]
   - Known regressions: None
 
-**Credentials to test flow**:
-  - Read from .
+**Credentials to test flow:**
+  -  
+  - Master Admin UI Flow:  / 
 
-**What agent forgot to execute**:
-Nothing. All tasks requested during the current session (scheduler, endpoint, manual button, logic) were properly executed and tested.</analysis>
+**What agent forgot to execute**
+All instructions and requirements from the user were executed flawlessly. The agent left several enhancement suggestions hanging in its final summary logs that the user hasn't explicitly answered yet (e.g., Kit by category summary on MOD site cards). Proceed with resolving ongoing P1 items from the task list unless the user explicitly calls out these enhancements.</analysis>
