@@ -1,3 +1,42 @@
+# ═══ 2026-08-06 · FIX: Master Admin 'Pulse Fitness Portal' → Pulse Fitness Ltd operator (not platform org) — 100% ═══
+Bug: sidebar SWITCH PORTAL → 'Pulse Fitness Portal' opened the master admin's OWN platform org 'Pulse Fitness AI Admin'
+(via /dashboard?as=operator). Should open the real operator company 'Pulse Fitness Ltd' (is_operator_company=true,
+id 3ece2d0c-57ea-4acd-a6b4-d748478ed117).
+FIX:
+  • BACKEND routes/master_admin_users.py — NEW POST /master-admin/operator-portal-login (require_master_admin) resolves
+    db.organizations{is_operator_company:true} and issues an impersonation token via shared _issue_org_portal_token
+    (audit-logged, impersonated_by the admin).
+  • FRONTEND MasterAdminPage.js — handlePulseSwitch() now POSTs that endpoint and redirects to
+    /dashboard?impersonation_token=<token> (app then lands on the operator /pulse shell); falls back to legacy
+    /dashboard?as=operator on error.
+VERIFIED: testing_agent iteration_pulse_operator_portal_login_jan2026.json 100% BE+FE (org=Pulse Fitness Ltd, JWT org
+  matches, non-admin 401/403, impersonation banner 'viewing as portal@pulsefitness.ltd', Global Dashboard regression OK).
+  pytest test_operator_portal_login.py. NOTE: the Operations subtitle 'Pulse Fitness AI Head Office' is a SITE label
+  within the Pulse Fitness Ltd org (expected, not a bug). ⚠️ PREVIEW ONLY — redeploy for prod.
+─────────────────────────────────────────────────────────────────────────────
+
+# ═══ 2026-08-06 · CRM: MOD Auto-Quote fixes + 'Quotes' nav label + Master-Admin delete Companies — 100% ═══
+(A) MOD Auto-Quote bugs — (a1) could import a kit list without choosing a MOD site; (a2) MOD-coded rows still asked to
+    confirm Wattbike/Shoulder Press/Dual pulley/Row; (a3) 'Row' mis-classed as a rower vs a strength machine.
+  • BACKEND utils/mod_sor_data.py — NEW MOD_CODE_TO_ITEM_NO map + normalise_mod_code() + match_by_mod_code() (MOD code →
+    SOR service line by item_no). routes/crm_mod_quote.py — _recognise_items now extracts `mod_code`; _match_recognised
+    trusts MOD code FIRST (source='mod_code', conf 0.98, needs_review=false) over pulse-code/keyword. Verified on
+    /tmp/lease.xlsx: 21/21 matched via mod_code, 0 needs_review; 'Row'(MOD-STRENGTH)→SingleStation Strength Machine,
+    genuine Concept II Rower→Rowing Machine.
+  • FRONTEND CRMMODQuoteWizard.js — importSpreadsheet/importPaste guard on siteId; dropzone disabled + notice
+    (mod-import-site-required) until a MOD site is chosen.
+(B) i18n en/fr/de crm.quotes: removed '(CPQ)' → 'Quotes'/'Devis'/'Angebote'.
+(C) Master-Admin delete Companies — CRMApp.js exposes isMasterAdmin via CRM context; CRMCompanies.js CompanyDetail adds
+    deleteCompany() (DELETE /crm/v2/companies/{id}) + red company-delete-btn gated on isMasterAdmin (hidden for non-admins
+    e.g. craig manager).
+VERIFIED: testing_agent iteration_mod_autoquote_delete_jan2026.json 100% BE+FE (site gating, mod_code matching incl. Row,
+  nav label, delete visible+works for master admin, hidden for craig).
+TEST LOGINS (see test_credentials.md): master admin admin@pulsefitness.com (platform→/crm, sees delete + MOD quote);
+  operator craig.henshall@pulsefitness.com / PulseMOD123! (MOD quote, no delete).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-06 · Flag Missing For Follow-up (stock-take → manager task list) — testing_agent 100% ═══
 Turns a stock-take's MISSING machines into a lightweight follow-up task list for the site manager (deliberately NOT a
 supplier fault — no dispatch/SLA/emails).
