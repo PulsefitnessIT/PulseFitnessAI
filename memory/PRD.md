@@ -1,3 +1,27 @@
+# ═══ 2026-08-06 · Flag Missing For Follow-up (stock-take → manager task list) — testing_agent 100% ═══
+Turns a stock-take's MISSING machines into a lightweight follow-up task list for the site manager (deliberately NOT a
+supplier fault — no dispatch/SLA/emails).
+BACKEND (routes/equipment.py):
+  • POST /api/equipment/stocktakes/{id}/flag-missing — idempotent; builds follow_ups[] on the stock-take from missing[]
+    ({equipment_id,name,serial_number,location,status:'open',note,flagged_at,flagged_by,resolved_at}); sets
+    follow_up_flagged=true; re-flagging only adds newly-missing (added count returned).
+  • PUT /api/equipment/stocktakes/{id}/follow-ups/{equipment_id} {status:'resolved'|'open', note?} — sets resolved_at.
+  • GET /api/equipment/follow-ups?site_id=&status=open — consolidated task list across stock-takes (+ open_count),
+    each item enriched with stocktake_id/location/at.
+FRONTEND:
+  • StockTakeHistoryModal.js — NEW 'History' | 'Follow-ups (N)' tabs (stocktake-tab-history / stocktake-tab-followups);
+    report detail Missing section has 'Flag for follow-up' (stocktake-flag-missing → becomes 'Flagged for follow-up',
+    disabled); Follow-ups tab lists open tasks (stocktake-followups-list / followup-item-<eid>) with a resolve control
+    (followup-resolve-<eid>) that removes the item ONLY after the PUT succeeds; empty state stocktake-followups-empty.
+  • StockTakeModal.js — done-step 'Flag for follow-up' button (stocktake-flag-missing) posts flag-missing for the just-
+    saved report.
+VERIFIED: curl (flag→18 follow-ups, list open_count 18, resolve→17) + testing_agent iteration_flag_missing_followup_jan2026.json
+  100% BE+FE, 0 bugs (tabs, flag idempotency, resolve decrement, fresh-stock-take done-step flag). Pytest
+  /app/backend/tests/test_followups.py. ⚠️ PREVIEW ONLY — needs redeploy.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-06 · BUG FIX: MOD kit-list import (CSV crash + consolidated to 1 AI button) — testing_agent 100% ═══
 Two linked bug reports on Master Admin → MOD Equipment & Readiness onboarding import:
   (1) Standard 'Import equipment' bulk path failed every row with "missing required column 'name'" (Name meant to be
