@@ -217,7 +217,7 @@ export default function StockTakeModal({ open, onClose, equipment, locations, si
                   <div className="flex items-center gap-2">
                     <div className="relative flex-1">
                       <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input value={manualValue} onChange={(e) => setManualValue(e.target.value)} placeholder="Serial number" className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm" data-testid="stocktake-manual-input"
+                      <input value={manualValue} onChange={(e) => setManualValue(e.target.value)} placeholder="Serial number" aria-label="Serial number" className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm" data-testid="stocktake-manual-input"
                         onKeyDown={(e) => { if (e.key === 'Enter' && manualValue.trim()) { process(manualValue.trim()); setManualValue(''); } }} />
                     </div>
                     <button type="button" onClick={() => { if (manualValue.trim()) { process(manualValue.trim()); setManualValue(''); } }} className="px-3 py-2 rounded-xl bg-cyan-600 text-white text-xs font-bold" data-testid="stocktake-manual-add">Add</button>
