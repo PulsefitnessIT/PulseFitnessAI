@@ -1,3 +1,23 @@
+# ═══ 2026-08-06 · CRM TENDER WRITER — HOUSE TEMPLATES seeded + XML-ESCAPE BUGFIX — curl-verified ═══
+1) HOUSE TEMPLATES: scripts/seed_tender_house_templates.py (idempotent, tag seed_house=true; env ORG_ID default
+   iso-demo-org) builds 2 branded Pulse .docx templates and inserts them into db.crm2_tender_docx_templates with the
+   SAME record shape as the upload endpoint (styles/header_text/tokens auto-seeded via detect_template_styles):
+     • "Pulse Fitness — MOD Submission (House Style)"  • "Pulse Fitness — Commercial Tender (House Style)"
+   Tokens {{CLIENT}}/{{REFERENCE}}/{{SCOPE}}/{{DATE}} live in the HEADER/FOOTER (the only template-authored text the
+   exporter keeps + token-patches; body is regenerated from the tender). Seeded 2 into iso-demo-org.
+2) BUGFIX (utils/tender_docx_exporter._merge_runs_and_patch) — the header/footer token patch did a NAIVE string
+   replace on serialised XML, so a replace value containing & / < / > (e.g. {{SCOPE}}→"Service & Maintenance", or
+   smart-prefill {{CLIENT}}→"MOD DE&S") injected an unescaped char and CORRUPTED the .docx (Word/parse failure).
+   FIX: xml.sax.saxutils.escape() the replacement before insertion. Affects ALL templated exports, not just house
+   templates. (Body/cover path was already safe — python-docx escapes on save.)
+VERIFIED (curl): templated export with tokens incl. "&" → HTTP 200, docx OPENS CLEANLY, header "Prepared for
+   Portsmouth City Council", footer "Reference LSL/DC/0223 · Service & Maintenance · 06/08/2026", no raw {{tokens}};
+   templated multi-page preview page_count=4. Templates list shows both with their 4 tokens.
+   ⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY + run the seed script on prod for the demo org (or upload via UI).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-06 · CRM TENDER WRITER — MULTI-PAGE PREVIEW (page flipper) — testing_agent 100% ═══
 Extended the Submission Pack Wizard preview from cover-only to the first several pages.
 BACKEND:

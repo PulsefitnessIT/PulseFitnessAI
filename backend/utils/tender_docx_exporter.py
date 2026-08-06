@@ -87,10 +87,13 @@ def _merge_runs_and_patch(xml_bytes: bytes, tokens: list[dict]) -> bytes:
             else:
                 i += 1
     s = etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True).decode('utf-8')
+    from xml.sax.saxutils import escape as _xml_escape
     for t in tokens or []:
         f = (t.get("find") or "").strip()
         if f:
-            s = s.replace(f, t.get("replace") or "")
+            # Replacement lands inside XML text nodes, so it MUST be XML-escaped
+            # (a raw & / < / > from e.g. "Service & Maintenance" corrupts the docx).
+            s = s.replace(f, _xml_escape(t.get("replace") or ""))
     return s.encode('utf-8')
 
 
