@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import {
   X, ShieldCheck, Loader2, Sparkles, Plus, Trash2, ChevronRight, ChevronLeft,
-  CheckCircle2, AlertTriangle, Settings2, FileText, MapPin,
+  CheckCircle2, AlertTriangle, Settings2, FileText, MapPin, Upload, FileSpreadsheet,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -112,6 +112,11 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
   const [notes, setNotes] = useState('');
   const [generating, setGenerating] = useState(false);
   const [showRateCard, setShowRateCard] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [pasteMode, setPasteMode] = useState(false);
+  const [pastedText, setPastedText] = useState('');
+  const [importNote, setImportNote] = useState('');
+  const [dragOver, setDragOver] = useState(false);
   const [aiBusyId, setAiBusyId] = useState('');
 
   const inputStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text };
@@ -191,6 +196,56 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
   const total = subtotal + vat;
   const unmatchedCount = activeLines.filter(l => !l.rate_card_id).length;
 
+  const applyImport = (data) => {
+    const mapped = (data.lines || []).map((l, i) => ({
+      key: `imp-${i}-${Math.random().toString(36).slice(2)}`,
+      name: l.description,
+      equipment_type: l.source_code ? `Code: ${l.source_code}` : (l.rate_card_label || ''),
+      serial_number: '',
+      rate_card_id: l.rate_card_id,
+      matched: l.matched,
+      confidence: l.confidence,
+      needs_review: l.needs_review,
+      quantity: l.quantity || 1,
+      unit_price: l.unit_price || 0,
+      custom: !l.rate_card_id,
+      included: true,
+      imported: true,
+    }));
+    setLines(mapped);
+    setImportNote(data.note || '');
+    notify.success(`Recognised ${data.recognised_count} item(s) — ${data.matched_count} matched, ${data.needs_review_count} to review`);
+    setStep(2);
+  };
+
+  const importSpreadsheet = async (file) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('contract_type', contractType);
+      fd.append('year', String(year));
+      const r = await axios.post(`${API}/crm/mod-quote/import-spreadsheet`, fd, { headers: headers() });
+      applyImport(r.data);
+    } catch (e) { notify.error(e.response?.data?.detail || 'Could not read that file'); }
+    setImporting(false);
+  };
+
+  const importPaste = async () => {
+    if (!pastedText.trim()) { notify.error('Paste some rows first'); return; }
+    setImporting(true);
+    try {
+      const fd = new FormData();
+      fd.append('pasted_text', pastedText);
+      fd.append('contract_type', contractType);
+      fd.append('year', String(year));
+      const r = await axios.post(`${API}/crm/mod-quote/import-spreadsheet`, fd, { headers: headers() });
+      applyImport(r.data);
+    } catch (e) { notify.error(e.response?.data?.detail || 'Could not read that text'); }
+    setImporting(false);
+  };
+
   const generate = async () => {
     setGenerating(true);
     try {
@@ -198,11 +253,11 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
         site_id: siteId, site_name: site?.name || '', contract_type: contractType, year,
         call_out_count: contractType === 'B' ? Number(callOutCount) || 0 : 0,
         notes,
-        lines: activeLines.filter(l => l.rate_card_id).map(l => ({
+        lines: activeLines.filter(l => l.rate_card_id || l.custom || l.needs_review).map(l => ({
           equipment_id: l.equipment_id, rate_card_id: l.rate_card_id,
           quantity: Number(l.quantity) || 1, serial_number: l.serial_number,
           unit_price: Number(l.unit_price) || 0,
-          description: l.custom ? l.name : undefined,
+          description: (l.custom || l.imported) ? l.name : undefined,
         })),
       };
       const r = await axios.post(`${API}/crm/mod-quote/generate`, payload, { headers: headers() });
@@ -284,12 +339,67 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
                   <AlertTriangle size={12} /> This site has no equipment on record — you can still add POA/custom lines in the next step.
                 </p>
               )}
+
+              {/* Drag & drop spreadsheet import */}
+              <div className="mt-5 pt-4 border-t" style={{ borderColor: c.border }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <FileSpreadsheet size={14} style={{ color: 'var(--color-info-ios)' }} />
+                  <p className="text-[11px] font-semibold" style={{ color: c.text }}>Or import from a spreadsheet</p>
+                  <span className="text-[10px]" style={{ color: c.textDim }}>· MOD asset registers have no fixed layout — AI reads it for you</span>
+                </div>
+                <div
+                  className="rounded-lg border-2 border-dashed p-5 text-center transition-all"
+                  style={{ borderColor: dragOver ? 'var(--color-info-ios)' : c.border, background: dragOver ? 'var(--color-info-ios)10' : 'transparent' }}
+                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) importSpreadsheet(f); }}
+                  data-testid="mod-import-dropzone">
+                  {importing ? (
+                    <div className="flex items-center justify-center gap-2 py-2" style={{ color: c.textMuted }}>
+                      <Loader2 size={16} className="animate-spin" /> <span className="text-xs">Recognising machines, codes &amp; quantities…</span>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload size={20} className="mx-auto mb-1.5" style={{ color: 'var(--color-info-ios)' }} />
+                      <p className="text-xs font-medium" style={{ color: c.text }}>Drag &amp; drop your asset spreadsheet here</p>
+                      <p className="text-[10px] mt-0.5" style={{ color: c.textDim }}>.xlsx, .xls or .csv · will be read as Contract Type {contractType}, Year {year}</p>
+                      <div className="flex items-center justify-center gap-3 mt-2.5">
+                        <label className="cursor-pointer px-3 py-1.5 text-[11px] rounded-md border inline-flex items-center gap-1"
+                          style={{ borderColor: c.border, color: c.textMuted }} data-testid="mod-import-browse">
+                          <input type="file" accept=".xlsx,.xls,.csv" className="hidden"
+                            onChange={e => { const f = e.target.files?.[0]; if (f) importSpreadsheet(f); e.target.value = ''; }} />
+                          Browse…
+                        </label>
+                        <button type="button" onClick={() => setPasteMode(v => !v)} className="text-[11px] underline" style={{ color: 'var(--color-info-ios)' }} data-testid="mod-import-paste-toggle">
+                          or paste from Excel
+                        </button>
+                      </div>
+                      {pasteMode && (
+                        <div className="mt-3 text-left">
+                          <textarea value={pastedText} onChange={e => setPastedText(e.target.value)} rows={4}
+                            placeholder="Paste rows copied from Excel (Tab or comma separated)…"
+                            className="w-full px-2 py-1.5 text-[11px] rounded-md" style={inputStyle} data-testid="mod-import-paste-text" />
+                          <button type="button" onClick={importPaste} className="mt-2 btn-primary text-[11px]" data-testid="mod-import-paste-go">
+                            <Sparkles size={12} /> Recognise &amp; Review
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
           {/* STEP 2 */}
           {step === 2 && (
             <div data-testid="mod-step-2">
+              {importNote && (
+                <div className="mb-2 px-2.5 py-1.5 rounded-md text-[10px] flex items-start gap-1.5" style={{ background: 'var(--color-info-ios)10', color: c.textMuted }}>
+                  <Sparkles size={11} className="mt-0.5 shrink-0" style={{ color: 'var(--color-info-ios)' }} />
+                  <span><span className="font-semibold" style={{ color: c.text }}>AI import:</span> {importNote}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs" style={{ color: c.textDim }}>
                   <MapPin size={11} className="inline mr-0.5" />{site?.name} · Type {contractType} · Year {year}
@@ -315,8 +425,9 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
                           <div className="font-medium" style={{ color: c.text }}>{l.name}</div>
                           <div className="text-[10px]" style={{ color: c.textDim }}>
                             {l.equipment_type}{l.serial_number ? ` · ${l.serial_number}` : ''}
-                            {l.matched ? <span className="ml-1"><CheckCircle2 size={10} className="inline" style={{ color: 'var(--color-success-alt)' }} /></span>
-                              : <span className="ml-1" style={{ color: 'var(--color-warning)' }}>unmatched</span>}
+                            {l.matched
+                              ? <span className="ml-1"><CheckCircle2 size={10} className="inline" style={{ color: 'var(--color-success-alt)' }} />{l.imported && l.confidence ? ` ${Math.round(l.confidence * 100)}% match` : ''}</span>
+                              : <span className="ml-1" style={{ color: 'var(--color-warning)' }}>{l.imported ? 'needs review' : 'unmatched'}</span>}
                           </div>
                         </td>
                         <td>
@@ -399,7 +510,7 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
             </button>
           )}
           {step === 2 && (
-            <button onClick={() => setStep(3)} disabled={activeLines.filter(l => l.rate_card_id).length === 0} className="btn-primary" data-testid="mod-next-2">
+            <button onClick={() => setStep(3)} disabled={activeLines.length === 0} className="btn-primary" data-testid="mod-next-2">
               Review <ChevronRight size={14} />
             </button>
           )}

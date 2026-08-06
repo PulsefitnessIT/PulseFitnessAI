@@ -1,0 +1,23 @@
+{
+  "summary": "Full backend + frontend E2E validation of the new MOD Auto Quote spreadsheet-import feature. Backend endpoint POST /api/crm/mod-quote/import-spreadsheet passed 5/5 pytest cases (paste text, CSV upload, missing input → 400, no-auth → 401/403, bad contract_type → 400). Frontend E2E: logged into CRM via UI (admin@pulsefitness.com), switched to Corporate mode, opened Quotes (CPQ), clicked MOD Auto Quote (data-testid mod-quote-btn) → wizard opened with dropzone visible; selected Contract A, used paste path with the sample rows; wizard advanced to Step 2 (toast: 'Recognised 4 item(s) — 3 matched, 1 to review'), AI-import note surfaced ('TOTALS row ignored as subtotal…'), 3 matched lines showed green '% match' badges (62%/60%/78%), Widget XYZ 9000 flagged 'needs review' with £0 price and no rate-card mapping, TOTALS/header rows correctly ignored. Clicked Review (mod-next-2) → Step 3 → Generate Quote (mod-generate-btn) → MOD quote MOD-20260806-7E87 created (subtotal £837.73, VAT £167.55, total £1,005.28) with the Widget line preserved at £0 as a needs-review line. Regression: existing 'Select MOD site + Load Equipment' path still present in Step 1 (mod-site-select + mod-next-1 rendered).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_mod_quote_import.py",
+    "/app/test_reports/pytest/mod_quote_import.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backend/routes/crm_mod_quote.py _match_recognised(): 'suggestions' is referenced before assignment in the else-branch (line 315 defines it only when rc is not None from code match; when rc becomes non-None via keyword match the earlier branch never ran, so suggestions is undefined). In practice Python resolves it because Python uses function-scope binding and the else clause covers only the 'code hit' path, but the control flow reads awkwardly — recommend initialising `suggestions = []` at the top of the function.",
+    "backend/routes/crm_mod_quote.py import_spreadsheet(): no maximum size/row cap on the uploaded file before shipping the whole grid to the LLM. Consider capping content length to avoid runaway token spend on adversarial uploads.",
+    "Frontend CRMMODQuoteWizard.js (~532 lines) is approaching the 700-line guideline — RateCardEditor could be split into its own file for readability."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_quote_import.py"],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% (all requested flows pass)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (CRM login via UI at /crm).",
+  "seed_data_creation": "None. Test created one draft MOD quote MOD-20260806-7E87 in crm2_quotes and one pending_activation contract in mod_service_contracts (Type A).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Master-admin CRM only shows the 'Quotes (CPQ)' tab in Corporate mode — switch from Members to Corporate first. mod-quote-btn is at the top of that tab. Paste flow uses testids: mod-import-paste-toggle → mod-import-paste-text → mod-import-paste-go. AI recognition takes ~5-8s.",
+  "rca of the issue": "No bug found — feature works as specified."
+}

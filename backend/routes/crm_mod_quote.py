@@ -17,13 +17,14 @@ import os
 import uuid
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, UploadFile, File, Form
 
 from utils.database import db
 from routes.crm_auth import get_crm_user
 from routes.crm_core import log_audit
 from routes.crm_cpq import _now
 from utils.mod_sor_data import build_seed_rate_card, price_for, match_equipment
+from utils.dealer_parts_ai import spreadsheet_rows
 from utils.brand_urls import app_url_for_org
 
 router = APIRouter(prefix="/crm/mod-quote", tags=["CRM MOD Quote"])
@@ -221,6 +222,177 @@ async def ai_match_equipment(data: dict, user=Depends(require_operator_crm_user)
         return {"rate_card_id": match["id"], "label": match["label"], "source": "ai"}
     except Exception as e:
         raise HTTPException(502, f"AI matching unavailable: {e}")
+
+
+# ── Spreadsheet import → AI recognition ────────────────────────────
+
+def _norm_code(v) -> str:
+    return "".join(ch for ch in str(v or "").upper() if ch.isalnum())
+
+
+def _grid_to_text(rows: list[list], max_rows: int = 80, max_cols: int = 12) -> str:
+    out = []
+    for r in rows:
+        cells = [("" if c is None else str(c)).strip()[:60] for c in list(r)[:max_cols]]
+        if any(cells):
+            out.append(" | ".join(cells))
+        if len(out) >= max_rows:
+            break
+    return "\n".join(out)
+
+
+async def _recognise_items(grid_text: str) -> dict:
+    """Ask the LLM to read an arbitrary MOD asset-register grid and return
+    normalised equipment items {description, code, quantity}."""
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    key = os.environ["EMERGENT_LLM_KEY"]
+    chat = LlmChat(
+        api_key=key,
+        session_id=f"mod-import-{uuid.uuid4().hex[:8]}",
+        system_message=(
+            "You read raw spreadsheets exported from MOD site gym asset registers. "
+            "There is NO fixed template: column order and headings vary, some files "
+            "have no headings, and rows may include totals, notes or blanks. "
+            "Identify every row that represents a single physical training equipment "
+            "ITEM. For each, extract: description (the machine name/type/model exactly "
+            "as written), code (any asset/product/SOR code shown for that row, else ''), "
+            "and quantity (a whole number; if a quantity column exists use it, otherwise "
+            "1 per asset row). Ignore header rows, subtotals, totals, section titles and "
+            "blank rows. Never invent machines, codes or quantities. "
+            "Respond with STRICT JSON only: "
+            '{"items":[{"description":"","code":"","quantity":1}],"note":""}'
+        ),
+    ).with_model("anthropic", "claude-sonnet-4-6")
+    prompt = f"Spreadsheet contents (row by row, cells separated by ' | '):\n\n{grid_text}\n\nReturn the JSON now."
+    raw = (await chat.send_message(UserMessage(text=prompt))).strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        raw = raw[raw.find("{"):]
+    import json as _json
+    try:
+        start, end = raw.find("{"), raw.rfind("}")
+        data = _json.loads(raw[start:end + 1])
+    except Exception:
+        data = {"items": [], "note": "Could not interpret the file automatically."}
+    items = data.get("items") or []
+    clean = []
+    for it in items:
+        desc = str(it.get("description", "")).strip()
+        if not desc:
+            continue
+        try:
+            qty = int(float(it.get("quantity", 1) or 1))
+        except Exception:
+            qty = 1
+        clean.append({"description": desc, "code": str(it.get("code", "")).strip(), "quantity": max(qty, 1)})
+    return {"items": clean, "note": str(data.get("note", "")).strip()}
+
+
+def _match_recognised(item: dict, rate_card: list[dict], ct: str, year: int) -> dict:
+    """Match a recognised item to a rate-card line: direct code hit first,
+    then keyword/description matching. Never drops the row."""
+    services = [e for e in rate_card if e.get("kind") == "service"]
+    code_n = _norm_code(item.get("code"))
+    rc = None
+    confidence = 0.0
+    source = "unmatched"
+    if code_n:
+        for e in services:
+            if code_n in (_norm_code(e.get("code_a")), _norm_code(e.get("code_b"))):
+                rc, confidence, source = e, 0.99, "code"
+                break
+    if rc is None:
+        m = match_equipment(
+            {"name": item.get("description", ""), "equipment_type": item.get("description", "")},
+            rate_card, ct,
+        )
+        suggestions = m.get("suggestions") or []
+        if m.get("rate_card_id"):
+            rc = next((e for e in services if e["id"] == m["rate_card_id"]), None)
+            confidence = float(m.get("confidence") or 0.0)
+            source = "keyword"
+    else:
+        suggestions = []
+    unit_price = None
+    if rc and ct != "C" and not rc.get("is_poa"):
+        unit_price = price_for(rc, ct, year)
+    matched = rc is not None and confidence >= 0.5
+    return {
+        "description": item.get("description", ""),
+        "source_code": item.get("code", ""),
+        "quantity": item.get("quantity", 1),
+        "rate_card_id": rc["id"] if rc else None,
+        "rate_card_label": rc["label"] if rc else None,
+        "matched_code": (rc.get("code_a") if ct == "A" else rc.get("code_b")) if rc else None,
+        "unit_price": unit_price,
+        "confidence": round(confidence, 2),
+        "matched": matched,
+        "needs_review": (rc is None) or (confidence < 0.5),
+        "source": source,
+        "suggestions": suggestions,
+    }
+
+
+@router.post("/import-spreadsheet")
+async def import_spreadsheet(
+    file: UploadFile | None = File(None),
+    pasted_text: str = Form(""),
+    contract_type: str = Form("A"),
+    year: int = Form(1),
+    user=Depends(require_operator_crm_user),
+):
+    """Drag-and-drop a MOD asset spreadsheet (or paste from Excel). The AI reads
+    the arbitrary layout, recognises machines / codes / quantities, matches them
+    to the SOR rate card and returns proposed lines for operator review."""
+    ct = (contract_type or "A").upper()
+    if ct not in ("A", "B", "C"):
+        raise HTTPException(400, "contract_type must be A, B or C")
+    year = int(year or 1)
+
+    rows: list[list] = []
+    if file is not None:
+        content = await file.read()
+        name = (file.filename or "").lower()
+        if not name.endswith((".xlsx", ".xls", ".csv")):
+            raise HTTPException(400, "Please upload a .xlsx, .xls or .csv file (or paste the rows).")
+        try:
+            rows = list(spreadsheet_rows(content, file.filename or ""))
+        except Exception as exc:
+            raise HTTPException(
+                400,
+                f"Could not read that file ({exc}). If it is an older .xls, please re-save as .xlsx or CSV, or paste the rows instead.",
+            )
+    elif pasted_text.strip():
+        import csv as _csv
+        delim = "\t" if "\t" in pasted_text else ","
+        rows = [r for r in _csv.reader(pasted_text.splitlines(), delimiter=delim)]
+    else:
+        raise HTTPException(400, "Attach a spreadsheet file or paste the rows to import.")
+
+    grid_text = _grid_to_text(rows)
+    if not grid_text.strip():
+        raise HTTPException(400, "The file/paste appears to be empty.")
+
+    try:
+        recognised = await _recognise_items(grid_text)
+    except Exception as exc:
+        raise HTTPException(502, f"AI recognition unavailable: {exc}")
+
+    rate_card = await _rate_card_list()
+    lines = [_match_recognised(it, rate_card, ct, year) for it in recognised["items"]]
+
+    await log_audit(user, "mod_quote_import", file.filename if file else "pasted",
+                    "recognised", {"rows": len(rows), "items": len(lines), "contract_type": ct})
+    return {
+        "contract_type": ct,
+        "year": year,
+        "source_rows": len(rows),
+        "recognised_count": len(lines),
+        "matched_count": sum(1 for l in lines if l["matched"]),
+        "needs_review_count": sum(1 for l in lines if l["needs_review"]),
+        "note": recognised.get("note", ""),
+        "lines": lines,
+    }
 
 
 # ── Generate quote ─────────────────────────────────────────────────
