@@ -1246,6 +1246,9 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
   const [logoName, setLogoName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [previewImg, setPreviewImg] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewErr, setPreviewErr] = useState('');
   const fileRef = useRef(null);
   const logoRef = useRef(null);
 
@@ -1368,6 +1371,30 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
     a.download = `${(tender?.title || 'tender').replace(/[^a-z0-9]+/gi, '_')}-${suffix}.docx`;
     document.body.appendChild(a); a.click(); a.remove();
   };
+
+  const fetchPreview = useCallback(async () => {
+    if (mode === 'templated' && !selectedTpl) { setPreviewErr('Pick a template to preview.'); return; }
+    setPreviewLoading(true); setPreviewErr('');
+    try {
+      const effTokens = tokens.filter((t) => (t.find || '').trim());
+      if (mode === 'templated' && bidFocus) effTokens.push({ find: '{{SCOPE}}', replace: bidFocus });
+      const body = mode === 'templated'
+        ? { mode, template_id: selectedTpl, logo_b64: logoB64 || null, tokens: effTokens }
+        : { mode };
+      const r = await axios.post(`${API}/crm/v2/tenders/${tenderId}/export/preview`, body, { headers: headers() });
+      setPreviewImg(r.data?.image_b64 || '');
+    } catch (e) {
+      setPreviewErr(e.response?.data?.detail || 'Preview failed');
+    }
+    setPreviewLoading(false);
+  }, [API, headers, tenderId, mode, selectedTpl, tokens, bidFocus, logoB64]);
+
+  // Debounced live refresh once a preview is on screen (edits to tokens / logo / bid focus / mode).
+  useEffect(() => {
+    if (!previewImg && !previewErr) return; // only after the user opts into preview
+    const id = setTimeout(() => { fetchPreview(); }, 1300);
+    return () => clearTimeout(id);
+  }, [mode, selectedTpl, tokens, bidFocus, logoB64]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const runExport = async () => {
     setBusy(true); setError('');
@@ -1530,6 +1557,29 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
                 : 'Generates an evidence traceability matrix mapping each answer to its supporting knowledge-base sources.'}
             </p>
           )}
+
+          {/* Live cover-page preview */}
+          <div data-testid="pack-preview-section">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold" style={{ color: c.text }}>Cover preview</label>
+              <button onClick={fetchPreview} disabled={previewLoading} className="text-[11px] font-semibold inline-flex items-center gap-1 disabled:opacity-50" style={{ color: 'var(--color-info-ios)' }} data-testid="pack-preview-btn">
+                {previewLoading ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />} {previewImg ? 'Refresh preview' : 'Preview cover page'}
+              </button>
+            </div>
+            {previewErr && <p className="text-[11px] mb-1.5" style={{ color: 'var(--color-danger-alt)' }} data-testid="pack-preview-error">{previewErr}</p>}
+            <div className="rounded-md border flex items-center justify-center overflow-hidden" style={{ borderColor: c.border, minHeight: 180, background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)' }}>
+              {previewLoading ? (
+                <div className="flex flex-col items-center gap-2 py-8" style={{ color: c.textDim }}>
+                  <Loader2 size={20} className="animate-spin" />
+                  <span className="text-[11px]">Rendering cover…</span>
+                </div>
+              ) : previewImg ? (
+                <img src={previewImg} alt="Cover page preview" className="w-full h-auto max-h-[360px] object-contain" data-testid="pack-preview-image" />
+              ) : (
+                <p className="text-[11px] py-10 text-center px-4" style={{ color: c.textDim }}>Click <strong>Preview cover page</strong> to render page 1 with the real template formatting — updates live as you edit.</p>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Footer */}

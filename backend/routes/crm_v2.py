@@ -3663,6 +3663,44 @@ async def export_traceability_docx(tender_id: str, user=Depends(get_crm_user)):
     return _docx_response(out, f"{safe}-traceability.docx")
 
 
+@router.post("/tenders/{tender_id}/export/preview")
+async def export_cover_preview(tender_id: str, data: dict, user=Depends(get_crm_user)):
+    """Render a PNG thumbnail of page 1 of the chosen export so bidders can
+    eyeball the cover/formatting before downloading. Reuses the same builders
+    as the real exports, then LibreOffice → PDF → PNG."""
+    import asyncio
+    from utils.tender_docx_exporter import (
+        build_templated_submission, build_itt_plain, build_traceability,
+    )
+    tender, questions = await _load_tender_and_questions(tender_id, user)
+    mode = (data.get("mode") or "templated").lower()
+    if mode == "templated":
+        tpl = await db.crm2_tender_docx_templates.find_one(
+            {"id": data.get("template_id"), **_of(user)})
+        if not tpl:
+            raise HTTPException(404, "Template not found — pick one from the library.")
+        template_bytes = base64.b64decode(tpl["data_b64"])
+        logo_bytes = None
+        if data.get("logo_b64"):
+            try:
+                logo_bytes = base64.b64decode(str(data["logo_b64"]).split(",")[-1])
+            except Exception:
+                logo_bytes = None
+        out = build_templated_submission(
+            template_bytes, tender, questions, data.get("tokens") or [], logo_bytes)
+    elif mode == "itt":
+        out = build_itt_plain(tender, questions, await _resolve_crm_brand(user))
+    else:
+        out = build_traceability(tender, questions, await _resolve_crm_brand(user))
+    try:
+        from utils.docx_preview import render_docx_first_page_png
+        png = await asyncio.get_event_loop().run_in_executor(
+            None, render_docx_first_page_png, out)
+    except Exception as e:
+        raise HTTPException(500, f"Preview render failed: {e}")
+    return {"image_b64": "data:image/png;base64," + base64.b64encode(png).decode("utf-8")}
+
+
 
 _PULSE_BID_LIBRARY_SEEDS = [
     {"title": "Company Overview — Pulse Fitness", "category": "company", "tags": ["overview"], "win_score": 90,

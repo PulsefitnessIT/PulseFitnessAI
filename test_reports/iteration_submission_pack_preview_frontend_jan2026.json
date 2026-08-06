@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend-only verification of the NEW live cover-page preview panel inside SubmissionPackWizard for tender 'MOD Gym Estate Framework 2026' (Iso Demo Fitness CRM). All required preview behaviours pass: section renders, button toggles label to 'Refresh preview' once an image is shown, ITT & traceability modes return HTTP 200 image_b64 data URLs and paint <img data-testid=pack-preview-image>, templated mode without a template shows the 'Pick a template to preview.' error, and switching modes triggers a debounced auto-refresh (network call fired ~1.3s after each mode switch).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "SubmissionPackWizard: token editor (pack-token-find-0/pack-token-replace-0) is only mounted when mode==='templated' with a template selected. The review request asked to verify that editing tokens auto-refreshes preview; this is unreachable without first uploading/selecting a template. Not a bug — expected — but worth main agent's awareness that this scenario cannot be exercised on the seeded tender without adding a template upload step to the flow."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (CRM login at /crm)",
+  "seed_data_creation": "None. Used existing tender 'MOD Gym Estate Framework 2026' (id e4cee641-4430-466d-b126-9cc88c96f074).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Preview panel verified end-to-end. Access path: login at /crm as owner@isodemo.com, set localStorage.crm_active_mode='business', navigate to /crm?tab=tenders, open 'MOD Gym Estate Framework 2026', click data-testid=export-pack-btn to open wizard. Preview render latency ~3-6s (LibreOffice). Observed image sizes: ITT ~32.5KB, traceability ~42.5KB (both b64 data URLs). Templated-without-template correctly surfaces error via data-testid=pack-preview-error. Button label toggles Preview cover page → Refresh preview once image is present. Debounced auto-refresh (~1.3s) fires POST /api/crm/v2/tenders/{id}/export/preview on mode change (verified 3x 200 responses across ITT/traceability/templated switches).",
+  "test_observations": {
+    "pack_preview_section_present": true,
+    "default_mode_on_open": "templated (shows 'Pick a template to preview.' error when preview clicked with no template)",
+    "itt_preview_bytes": 32506,
+    "traceability_preview_bytes": 42470,
+    "images_differ_across_modes": true,
+    "templated_no_template_error_text": "Pick a template to preview.",
+    "button_label_after_image": "Refresh preview (auto-updated from 'Preview cover page')",
+    "auto_refresh_on_mode_switch": "confirmed — network call POST /export/preview fired within ~1.3s debounce after each pack-mode-* click",
+    "preview_api_calls_observed": 3,
+    "all_calls_status": 200
+  }
+}
