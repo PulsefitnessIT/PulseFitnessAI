@@ -18,6 +18,8 @@ import ManufacturerCombobox from '@/components/equipment/ManufacturerCombobox';
 import EquipmentPlaceholder from '@/components/equipment/EquipmentPlaceholder';
 import EquipmentCoveragePanel from '@/components/equipment/EquipmentCoveragePanel';
 import AddEquipmentDialog from '@/components/equipment/AddEquipmentDialog';
+import EquipmentScanModal from '@/components/equipment/EquipmentScanModal';
+import { ScanLine } from 'lucide-react';
 import DatePicker from '@/components/shared/DatePicker';
 import { SLA_RESPONSE_TIME_OPTIONS, EQUIPMENT_LOCATION_PRESETS } from '@/utils/operationsDropdowns';
 
@@ -55,6 +57,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  // Import (multi-machine) or the Onboarding wizard, neither of
  // which is right for "I just bought one new piece of kit".
  const [showAddEquipment, setShowAddEquipment] = useState(false);
+ const [showScanModal, setShowScanModal] = useState(false);
  const [suppliers, setSuppliers] = useState([]);
  const [viewingManual, setViewingManual] = useState(null); // {equipmentId, manual}
  const [manualBlobUrl, setManualBlobUrl] = useState(null);
@@ -509,6 +512,16 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
 
  {/* Search & Filters */}
  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+ {/* Mobile-only barcode scanner — phones can't auto-open the app from the
+     linear factory barcodes the way they do for QR, so give staff an
+     in-app scanner that lands on the same options page as the QR. */}
+ <Button
+   onClick={() => setShowScanModal(true)}
+   className="sm:hidden w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold"
+   data-testid="scan-barcode-btn"
+ >
+   <ScanLine size={16} className="mr-2" /> Scan barcode
+ </Button>
  <div className="flex-1 relative">
  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--color-text-muted)]" size={20} />
  <Input
@@ -979,6 +992,11 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  open={showAddEquipment}
  onClose={() => setShowAddEquipment(false)}
  onCreated={() => { setShowAddEquipment(false); loadData(); }}
+ />
+ <EquipmentScanModal
+ open={showScanModal}
+ onClose={() => setShowScanModal(false)}
+ siteId={user?.active_site_id}
  />
  </div>
  );

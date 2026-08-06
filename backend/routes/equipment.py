@@ -9,7 +9,7 @@ import logging
 
 import os
 from utils.database import db, EMERGENT_LLM_KEY, APP_NAME, put_object, get_object
-from utils.auth import get_current_user, get_organization_filter
+from utils.auth import get_current_user, get_organization_filter, apply_site_lock
 from utils.ai_access import require_ai_access
 
 # Backend-side base URL for building absolute, browser-loadable public URLs.
@@ -558,6 +558,72 @@ async def get_lifecycle_alerts(user: dict = Depends(get_current_user)) -> dict:
         "critical_count": len([a for a in alerts if a['alert_level'] == 'critical']),
         "warning_count": len([a for a in alerts if a['alert_level'] == 'warning']),
     }
+
+
+@router.get("/equipment/scan/resolve")
+async def resolve_equipment_by_scan(
+    code: str,
+    site_id: str = None,
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Resolve a scanned factory barcode to an equipment row so gym staff
+    can be dropped onto the same options page the QR opens.
+
+    Match order (org-scoped, site-locked for restricted staff):
+      1. Exact unique per-machine identifiers: serial_number / asset_tag /
+         sticker_code / barcode / id  → single machine.
+      2. Model code (e.g. '510H-AAA') exact (case-insensitive) → may hit
+         several machines; when a site is pre-determined and one matches we
+         return it, otherwise a chooser list.
+      3. Fuzzy contains on serial / name / model as a last resort.
+    """
+    from re import escape as _re_escape
+    needle = (code or "").strip()
+    if not needle:
+        raise HTTPException(400, "Empty code")
+    if len(needle) > 200:
+        raise HTTPException(400, "Code too long")
+    base = get_organization_filter(user)
+    scope = apply_site_lock(user, (site_id or "").strip() or None, base)
+    projection = {
+        "_id": 0, "id": 1, "name": 1, "equipment_type": 1, "manufacturer": 1,
+        "model": 1, "serial_number": 1, "asset_tag": 1, "location": 1,
+        "status": 1, "site_id": 1, "photo_url": 1,
+    }
+    # 1 — exact unique identifier
+    exact = await db.equipment.find_one(
+        {**scope, "$or": [
+            {"serial_number": needle}, {"asset_tag": needle},
+            {"sticker_code": needle}, {"barcode": needle}, {"id": needle},
+        ]},
+        projection,
+    )
+    if exact:
+        return {"match": "exact", "equipment": exact}
+    # 2 — model code (case-insensitive exact)
+    model_rgx = {"$regex": f"^{_re_escape(needle)}$", "$options": "i"}
+    model_hits = await db.equipment.find(
+        {**scope, "$or": [{"model": model_rgx}, {"model_code": model_rgx}]},
+        projection,
+    ).limit(25).to_list(25)
+    if len(model_hits) == 1:
+        return {"match": "exact", "equipment": model_hits[0], "matched_on": "model"}
+    if len(model_hits) > 1:
+        return {"match": "multiple", "options": model_hits, "matched_on": "model"}
+    # 3 — fuzzy contains fallback
+    rgx = {"$regex": _re_escape(needle), "$options": "i"}
+    fuzzy = await db.equipment.find(
+        {**scope, "$or": [
+            {"serial_number": rgx}, {"asset_tag": rgx},
+            {"barcode": rgx}, {"model": rgx}, {"name": rgx},
+        ]},
+        projection,
+    ).limit(10).to_list(10)
+    if not fuzzy:
+        raise HTTPException(404, "No equipment matched this barcode")
+    if len(fuzzy) == 1:
+        return {"match": "exact", "equipment": fuzzy[0], "matched_on": "fuzzy"}
+    return {"match": "multiple", "options": fuzzy, "matched_on": "fuzzy"}
 
 
 @router.get("/equipment/{equipment_id}")

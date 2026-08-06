@@ -311,6 +311,7 @@ async def engineer_equipment_by_code(
                 {"serial_number": needle},
                 {"asset_tag": needle},
                 {"sticker_code": needle},
+                {"barcode": needle},
                 {"id": needle},
             ],
         },
@@ -318,6 +319,17 @@ async def engineer_equipment_by_code(
     )
     if exact:
         return {"match": "exact", "equipment": exact}
+    # Model-code label (e.g. '510H-AAA') — case-insensitive exact. May hit
+    # several units so we return them as options for the engineer to pick.
+    model_rgx = {"$regex": f"^{_re_escape(needle)}$", "$options": "i"}
+    model_hits = await db.equipment.find(
+        {**of, "$or": [{"model": model_rgx}, {"model_code": model_rgx}]},
+        projection,
+    ).limit(10).to_list(10)
+    if len(model_hits) == 1:
+        return {"match": "exact", "equipment": model_hits[0]}
+    if len(model_hits) > 1:
+        return {"match": "multiple", "options": model_hits}
     rgx = {"$regex": _re_escape(needle), "$options": "i"}
     fuzzy = (
         await db.equipment.find(
@@ -327,6 +339,7 @@ async def engineer_equipment_by_code(
                     {"serial_number": rgx},
                     {"asset_tag": rgx},
                     {"sticker_code": rgx},
+                    {"barcode": rgx},
                     {"name": rgx},
                 ],
             },

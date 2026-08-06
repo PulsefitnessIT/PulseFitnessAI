@@ -1,3 +1,37 @@
+# ═══ 2026-08-06 · EQUIPMENT FACTORY-BARCODE SCANNER (gym staff + engineers) — E2E verified ═══
+Machines leave the Pulse factory with LINEAR barcodes (numeric serial e.g. 17150704760 = unique per-machine
+identifier, already stored as equipment.serial_number; model code e.g. 510H-AAA = the model). Phones auto-open the
+app from a QR but NOT from linear barcodes, so gym staff needed an in-app scanner that lands on the SAME options page
+the QR opens (/scan/{id} → Complete Maintenance Check / Report a Fault / Update Equipment Photo).
+BACKEND:
+  • NEW GET /api/equipment/scan/resolve?code=&site_id= (routes/equipment.py, authed get_current_user, org-scoped via
+    get_organization_filter + apply_site_lock for site-locked staff). Match order: (1) exact unique
+    serial_number/asset_tag/sticker_code/barcode/id → {match:"exact",equipment}; (2) model / model_code case-insensitive
+    exact → single = exact, several = {match:"multiple",options[]} (the '510H-AAA can hit multiple machines, pick one'
+    case); (3) fuzzy contains fallback. 404 when nothing matches.
+  • Engineer lookup routes/svc/engineer_equipment.py GET /svc/engineer/equipment/by-code/{code} EXTENDED to also match
+    `barcode` + `model`/`model_code` (returns multiple options on a model hit) so both factory labels work for engineers
+    (history / log parts flows already hang off the resolved machine).
+FRONTEND:
+  • NEW components/equipment/EquipmentScanModal.js — camera scanner via native BarcodeDetector
+    (qr_code, code_128, code_39, ean_13/8, upc_a/e, itf, codabar) + manual-entry fallback (iOS Safari). A scanned QR
+    (/scan/{id} URL) jumps straight in; a linear code calls the resolver → exact navigates to /scan/{id}, multiple shows
+    a 1-tap chooser, 404 shows a friendly retry. Uses react-router navigate.
+  • pages/EquipmentInfoTab.js (Operations → Equipment): NEW MOBILE-ONLY "Scan barcode" button (data-testid
+    scan-barcode-btn, class sm:hidden so it only shows on phones) in the search/filters row; renders <EquipmentScanModal
+    siteId={user.active_site_id}>.
+  data-testids: scan-barcode-btn, equipment-scan-modal, equipment-scan-video, equipment-scan-manual-input/-submit,
+    equipment-scan-switch-manual, equipment-scan-error, equipment-scan-options, equipment-scan-option-<id>, equipment-scan-close.
+VERIFIED: curl (serial PF-TM-260-01 → exact 1 machine; model 260G → multiple=2; unknown → 404) + mobile-viewport
+  screenshot E2E (owner@isodemo.com): Scan button present in DOM & correctly hidden at desktop width; modal opens;
+  manual lookup 'PF-TM-260-01' → navigated to /scan/2bcb45df-… → the SAME options page (Maintenance Check / Report Fault /
+  Update Photo). Camera path not headless-testable but mirrors the production BarcodeScanModal. Babel + webpack clean.
+NOTE: serial already IS the stored identifier so no new data-entry needed; resolver also matches an optional `barcode`
+  field for future-proofing. ⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-06 · CRM TENDER WRITER — PHASE 2 (Figures + Deep Evidence + Library polish) — testing_agent 100% FE ═══
 Completed Phase 2 of the CRM Tender Writer (Figure management, deep Evidence Traceability mapping, template-library polish).
 BACKEND (routes/crm_v2.py):
