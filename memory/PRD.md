@@ -33167,3 +33167,14 @@ Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, 
 - Root-cause fix during build: template's `Normal`/`List` styles used `lineRule="exact"` (280 twips) which clipped inline images to a thin band; switched base styles to single/auto line spacing. Verified via LibreOffice PDF render (11 pages, all images full-size, no overlap with header/footer/left logo).
 - This was a document-generation task; no application code changed.
 
+
+---
+## Changelog — 2026-06 (2026 MOD Tender Submission Pack, LSL/DC/0223)
+- Produced the full evaluator-ready 2026 tender pack for "Supply of PTE – Service & Repair" (LSL/DC/0223), rebuilt into the 2022 Pulse Fitness template.
+- Built a generic engine (/tmp/tender_work/engine.py) that transplants each validated 2026 draft into the 2022 template: preserves vertical logo/header/footer/styles, merges fragmented header runs, patches question number + tender ref (0117->0223), adds an individual TOC contents page (two-pass real page numbers), and maps draft styles/tables to the 2022 look (Arial 11, Pulse blue/dark-blue, IntenseQuote leads, cyan-header tables, stat strips, navy assurance boxes, captioned inline figures).
+- Deliverables in /app/tender_out/ and zipped as "Pulse Fitness - LSLDC0223 - 2026 Tender Submission Pack.zip":
+  - Clean submission: 00 Submission Index + 2.1, 2.2A, 2.2B, 2.3A, 2.3B, 2.4 (all editable DOCX) + Supporting Evidence (carried through unaltered; certificates submitted separately).
+  - Working docs (not for submission): Director Review Report, Evidence Traceability Matrix.
+  - QA PDFs for all seven submission documents.
+- QA: every document rendered to PDF and inspected; scan confirms no residual 0117/2.4.1/2.5.x/2.6.x, no "Director Review Edition", no banned superlatives; LSL/DC/0223 present throughout. Figures verified against Two_Year_Evidence_Reconciliation_FINAL.xlsx.
+- Director-log flags: QP149 artwork issue/date (Iss.01, Nov 2022) vs earlier draft claim; Nepal PPM evidence sits outside the 113 reconciliation case set; confirm live-vs-mobilisation MODService features; priced/authority returns left to the commercial team.
