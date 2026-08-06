@@ -1,3 +1,23 @@
+# ═══ 2026-08-06 · CRM TENDER WRITER — MULTI-PAGE PREVIEW (page flipper) — testing_agent 100% ═══
+Extended the Submission Pack Wizard preview from cover-only to the first several pages.
+BACKEND:
+  • utils/docx_preview.py: NEW render_docx_pages_png(docx_bytes, max_pages=6) — one LibreOffice convert, then
+    PyMuPDF renders each of the first N PDF pages → list[PNG]. render_docx_first_page_png now delegates to it.
+  • POST /tenders/{id}/export/preview now returns {images:[dataurl…], image_b64:first, page_count:N}.
+FRONTEND (pages/CRM/CRMTenders.js SubmissionPackWizard):
+  • previewImgs[] + previewPage state. Preview panel retitled "Document preview" (button "Preview pages").
+  • NEW page flipper (data-testid pack-preview-pager / pack-preview-prev / pack-preview-next /
+    pack-preview-page-label "Page X of Y"), shown only when >1 page; Prev disabled on p1, Next on last page.
+    Added ChevronLeft import. Debounced live refresh + clamp preserved.
+VERIFIED: curl (ITT page_count=2, 2 images) + testing_agent (iteration_submission_pack_multipage_pager_jan2026.json)
+  100% for testable scope, 0 bugs — ITT pager flips Page 1↔2 with correct disable states + image swap; single-page
+  traceability correctly hides the pager; templated needs an uploaded template (unchanged). retest_needed=false.
+NOTE (expected, not a bug): CRM Tenders tab shows in Corporate mode; Members/leisure mode hides it (MEMBERS_HIDDEN_TABS).
+  ⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY (prod image must include LibreOffice).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-06 · CRM TENDERS NAV — enabled for iso-demo-org (no more deep-link) — curl-verified ═══
 The CRM "Tenders" left-nav tab is gated by featureOn('crm_tenders') (CRMApp.js visibleNavItems): explicit
 org override features.crm_tenders wins, else modules.crm_tenders.enabled, else is_pulse_internal/master.
