@@ -18,7 +18,7 @@ import { useTranslation } from 'react-i18next';
 import {
   User, FileText, ShieldAlert, GraduationCap, Loader2, Plus, Pencil,
   Trash2, X, Check, Search, AlertTriangle,
-  ExternalLink, Briefcase, UserPlus,
+  ExternalLink, Briefcase, UserPlus, KeyRound, Copy,
 } from 'lucide-react';
 import { RELATIONSHIP_OPTIONS } from '@/utils/crmDropdowns';
 import DatePicker, { formatDDMMYYYY } from '@/components/shared/DatePicker';
@@ -150,9 +150,80 @@ function humanizeRole(role) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// One-shot copyable field for the portal-credentials dialog.
+function CopyableField({ value, mono, testid }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(value || ''); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* clipboard blocked */ }
+  };
+  return (
+    <div className="flex items-center gap-2 rounded-md border px-2 py-1.5" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-bg)' }}>
+      <span className={`flex-1 text-sm truncate ${mono ? 'font-mono' : ''}`} style={{ color: 'var(--theme-text)' }} data-testid={testid}>{value || '—'}</span>
+      <button type="button" onClick={copy} className="text-[11px] font-semibold inline-flex items-center gap-1 shrink-0" style={{ color: 'var(--color-brand-cyan)' }} data-testid={`${testid}-copy`}>
+        {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? t('staffing.hr_copied', 'Copied') : t('staffing.hr_copy', 'Copy')}
+      </button>
+    </div>
+  );
+}
+
+// Portal-credentials result dialog (invite link OR temp password).
+function CredsDialog({ creds, onClose }) {
+  const { t } = useTranslation();
+  return createPortal((
+    <div className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" data-testid="staff-creds-dialog">
+      <div className="w-full max-w-md rounded-2xl p-5 shadow-2xl" style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }}>
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.hr_portal_creds', 'Portal credentials')}</p>
+            <h4 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{creds.staffName}</h4>
+          </div>
+          <button type="button" onClick={onClose} className="opacity-60 hover:opacity-100" data-testid="staff-creds-close" aria-label="Close"><X size={16} /></button>
+        </div>
+        <p className="text-xs mb-3" style={{ color: 'var(--theme-text-muted)' }}>
+          {creds.invite_url
+            ? t('staffing.hr_creds_msg_link', 'Share this “set your password” link with the staff member so they can activate their platform login.')
+            : creds.email_sent
+              ? t('staffing.hr_creds_msg_sent', 'We\u2019ve emailed the temporary password to the staff member. You can also share it below.')
+              : t('staffing.hr_creds_msg_share', 'Share the temporary password below with the staff member.')}
+          {' '}{t('staffing.hr_creds_msg_change', "They'll be asked to change it on first login.")}
+        </p>
+        <div className="space-y-2">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_login_email', 'Login email')}</p>
+            <CopyableField value={creds.email} testid="staff-creds-email" />
+          </div>
+          {creds.role && (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_platform_role', 'Platform role')}</p>
+              <p className="text-sm font-semibold capitalize" style={{ color: 'var(--theme-text)' }} data-testid="staff-creds-role">{creds.role}</p>
+            </div>
+          )}
+          {creds.invite_url ? (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_set_pw_link', 'Set-password link')}</p>
+              <CopyableField value={creds.invite_url} testid="staff-creds-invite-url" />
+            </div>
+          ) : (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_temp_password', 'Temporary password')}</p>
+              <CopyableField value={creds.temp_password} mono testid="staff-creds-temp-password" />
+            </div>
+          )}
+        </div>
+        <div className="flex justify-end mt-4">
+          <button type="button" onClick={onClose} className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="staff-creds-done">
+            <Check size={11} className="inline-block mr-1" /> {t('staffing.hr_done', 'Done')}
+          </button>
+        </div>
+      </div>
+    </div>
+  ), document.body);
+}
+
 // ─────────────────────── Profile panel ───────────────────────────
 
-function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
+function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, inviteBusy }) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -288,11 +359,23 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated }) {
           <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(profile.primary_role)} · {profile.email || t('staffing.hr_no_email', 'no email on file')}</p>
         </div>
         {isManager && !editing && (
-          <button type="button" onClick={() => setEditing(true)}
-            className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5 border"
-            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-profile-edit">
-            <Pencil size={11} /> {t('staffing.hr_edit', 'Edit')}
-          </button>
+          <div className="flex gap-2">
+            <button type="button"
+              onClick={() => onInvite && onInvite({ id: staffId, full_name: profile.full_name, email: profile.email, primary_role: profile.primary_role, portal_credentials_issued_at: profile.portal_credentials_issued_at })}
+              disabled={!!inviteBusy}
+              className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5 border disabled:opacity-50"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)', background: 'var(--theme-surface)' }}
+              data-testid="staff-issue-creds-btn"
+              title={profile.portal_credentials_issued_at ? t('staffing.hr_reissue_login', 'Re-issue platform login') : t('staffing.hr_invite_platform', 'Invite this person to the platform login')}>
+              {inviteBusy ? <Loader2 size={11} className="animate-spin" /> : <KeyRound size={11} />}
+              {profile.portal_credentials_issued_at ? t('staffing.hr_reissue_login_short', 'Re-issue login') : t('staffing.hr_invite_platform_short', 'Invite to platform')}
+            </button>
+            <button type="button" onClick={() => setEditing(true)}
+              className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5 border"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-profile-edit">
+              <Pencil size={11} /> {t('staffing.hr_edit', 'Edit')}
+            </button>
+          </div>
         )}
         {editing && (
           <div className="flex gap-2">
@@ -892,6 +975,9 @@ export default function HRTab({ headers, isManager }) {
   const [loading, setLoading] = useState(true);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [credsDialog, setCredsDialog] = useState(null);
+  const [credsBusy, setCredsBusy] = useState(null);
+  const [reconciling, setReconciling] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -907,6 +993,42 @@ export default function HRTab({ headers, isManager }) {
 
   useEffect(() => { localStorage.setItem('staffing.hr.sub', sub); }, [sub]);
 
+  // Invite a staff member to the platform login (issues an invite link if they
+  // have an email, otherwise a one-shot temp password). Their Staffing job role
+  // is cross-synced to the platform login role by the backend.
+  const issueCredentials = useCallback(async (s) => {
+    if (!s) return;
+    if (!window.confirm(t('staffing.hr_invite_confirm', `Invite ${s.full_name} to the platform as "${humanizeRole(s.primary_role || 'staff')}"?`))) return;
+    const useLink = s.email
+      ? window.confirm(t('staffing.hr_invite_link_q', `Send a "set your password" link to ${s.email}?\n\nOK = email a set-password link\nCancel = generate a temporary password instead`))
+      : false;
+    setCredsBusy(s.id);
+    try {
+      const { data } = await axios.post(`${API}/staffing/staff/${s.id}/issue-credentials`,
+        { delivery: useLink ? 'reset_link' : 'temp_password' }, { headers });
+      setCredsDialog({ ...data, staffName: s.full_name });
+      load();
+    } catch (err) {
+      window.alert(err.response?.data?.detail || t('staffing.hr_creds_failed', 'Could not issue credentials'));
+    } finally {
+      setCredsBusy(null);
+    }
+  }, [headers, load, t]);
+
+  const reconcileRoles = useCallback(async () => {
+    if (!window.confirm(t('staffing.hr_reconcile_confirm', 'Align every staff login role with their Staffing job role? This fixes mismatches (e.g. an Engineer showing as a sales rep in Master Admin).'))) return;
+    setReconciling(true);
+    try {
+      const { data } = await axios.post(`${API}/staffing/reconcile-roles`, {}, { headers });
+      window.alert(t('staffing.hr_reconcile_done', `Done — ${data.updated} of ${data.checked} logins updated to match their job role.`));
+      load();
+    } catch (e) {
+      window.alert(e.response?.data?.detail || t('staffing.hr_reconcile_failed', 'Reconcile failed'));
+    } finally {
+      setReconciling(false);
+    }
+  }, [headers, load, t]);
+
   const filtered = useMemo(() => {
     if (!search.trim()) return staffList;
     const q = search.toLowerCase();
@@ -919,21 +1041,35 @@ export default function HRTab({ headers, isManager }) {
     <div className="space-y-3" data-testid="hr-tab">
 
       {isManager && (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
             {t('staffing.hr_roles_note', 'Roles set in Master Admin pull through automatically — managers can override them per person below.')}
           </p>
-          <button type="button" onClick={() => setRolesOpen(true)}
-            className="h-8 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1.5 border shrink-0"
-            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
-            data-testid="hr-manage-roles-btn">
-            <Briefcase size={13} /> {t('staffing.hr_manage_roles', 'Manage job roles')}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button type="button" onClick={reconcileRoles} disabled={reconciling}
+              className="h-8 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1.5 border disabled:opacity-50"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+              data-testid="staff-reconcile-roles-btn"
+              title={t('staffing.hr_reconcile_title', 'Align every staff login role with their Staffing job role')}>
+              {reconciling ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+              {reconciling ? t('staffing.hr_fixing', 'Fixing…') : t('staffing.hr_fix_login_roles', 'Fix login roles')}
+            </button>
+            <button type="button" onClick={() => setRolesOpen(true)}
+              className="h-8 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1.5 border shrink-0"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+              data-testid="hr-manage-roles-btn">
+              <Briefcase size={13} /> {t('staffing.hr_manage_roles', 'Manage job roles')}
+            </button>
+          </div>
         </div>
       )}
 
       {rolesOpen && (
         <JobRolesModal headers={headers} onClose={() => setRolesOpen(false)} onChanged={load} />
+      )}
+
+      {credsDialog && (
+        <CredsDialog creds={credsDialog} onClose={() => setCredsDialog(null)} />
       )}
 
       {showAdd && (
@@ -1016,7 +1152,7 @@ export default function HRTab({ headers, isManager }) {
                   );
                 })}
               </div>
-              {sub === 'profile'      && <ProfilePanel      staffId={active.id} headers={headers} isManager={isManager} onUpdated={load} />}
+              {sub === 'profile'      && <ProfilePanel      staffId={active.id} headers={headers} isManager={isManager} onUpdated={load} onInvite={issueCredentials} inviteBusy={credsBusy === active.id} />}
               {sub === 'documents'    && <DocumentsPanel    staffId={active.id} headers={headers} isManager={isManager} />}
               {sub === 'disciplinary' && <DisciplinaryPanel staffId={active.id} headers={headers} isManager={isManager} />}
               {sub === 'training'     && <TrainingPanel     staffId={active.id} headers={headers} isManager={isManager} />}

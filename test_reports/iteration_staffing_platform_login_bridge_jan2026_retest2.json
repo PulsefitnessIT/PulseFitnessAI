@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend re-verification of identity-bridge UI (reconcile roles + per-staff invite/creds dialog) inside the reachable HRTab for gym tenants. All flows PASS as owner@isodemo.com.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "HRTab.js is ~1160 lines — approaching the 700-line guideline; consider splitting CredsDialog, ProfilePanel, and hooks into separate modules for maintainability.",
+    "issueCredentials uses window.confirm chains (2 sequential confirms) — works but suboptimal UX; consider migrating to a shadcn dialog with radio choice link/temp-password.",
+    "reconcileRoles alert uses window.alert — could use toast for consistency with the rest of the app."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "not tested (frontend-only request)", "frontend": "100%" },
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (verified working)",
+  "seed_data_creation": "None — used seeded staff Alex Rivera (portal.staff@pulsedemo.test)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "verified_flows": [
+    "Login owner@isodemo.com → lands on /service-desk, /dashboard reachable",
+    "Operations → Staffing tab → People group → HR sub-tab reachable (URL stays /dashboard, tabs render correctly)",
+    "data-testid=staff-reconcile-roles-btn visible in HR header ('Fix login roles' button)",
+    "Click → confirm() dialog shown → POST /api/staffing/reconcile-roles returned 200 with body {ok:true, checked:9, updated:0, changes:[]} → alert 'Done — 0 of 9 logins updated to match their job role.'",
+    "Selecting a staff member (Alex Rivera) opened ProfilePanel showing 'Invite to platform' button (data-testid=staff-issue-creds-btn)",
+    "Click → confirm() 'Invite Alex Rivera as Fitness Instructor?' → second confirm() 'Send set-password link vs temp password' → POST /api/staffing/staff/{id}/issue-credentials returned 200 with keys [ok, email, role, delivery, temp_password, invite_url, created, email_sent]",
+    "Credentials dialog (data-testid=staff-creds-dialog) rendered without crash; email portal.staff@pulsedemo.test and role 'Staff' shown; staff-creds-invite-url present (temp_password not rendered because user chose link path — expected)",
+    "Copy buttons (staff-creds-email-copy) exist; 'Done' button (staff-creds-done) dismisses dialog (dialog count 0 after click); close button (staff-creds-close) present"
+  ],
+  "notes_for_next_agent": "HR identity-bridge UI is fully reachable and functional for gym tenant owner@isodemo.com. The reconcile call returned updated=0 because seeded logins already match — this is expected on repeat runs. temp_password field is only rendered when user picks that path in the second confirm; link path (OK) renders invite_url instead — verified correct branching in CredsDialog."
+}
