@@ -1,3 +1,34 @@
+# ═══ 2026-08-06 · MOD 'Kit by category' site-card summary + Staffing identity-bridge UI reachability fix — testing_agent 100% ═══
+Two items this session (user: re-test the staffing bridge first, then build the missed P0 kit-by-category card).
+
+(A) KIT BY CATEGORY on MOD site cards (P0 — was requested in msg 356, previously missed):
+  • BACKEND routes/master_admin_mod_estate.py _compute_estate_readiness: one aggregation over db.equipment across all
+    site oids (archived excluded) coalescing category → equipment_type → 'Uncategorised'; each site now returns
+    kit_by_category:[{category,count}] sorted by count desc. Exposed on GET /master-admin/mod-estate/site-readiness.
+  • FRONTEND MODSiteOnboarding.js: each site card renders a 'KIT BY CATEGORY' chip row (cyan pills) below the checklist,
+    only when kit_by_category is non-empty. data-testid mod-equip-kit-cat-<siteId> (container) +
+    mod-equip-kit-cat-<siteId>-<category-slug> per chip.
+  • VERIFIED: curl (Kifaru → Cardio 39/Bench 5/Free Weight 5/Rack 4/Strength 4; MOD Test Site → Strength 2/Bike 2/…) +
+    live screenshot (chips render, empty-kit sites correctly omit the row). Babel + py OK.
+
+(B) STAFFING ↔ MASTER ADMIN identity-bridge UI now REACHABLE for gym tenants (regression fix):
+  • Re-test found backend 7/7 PASS but the reconcile + per-staff invite UI lived in an ORPHANED StaffTab
+    (StaffingConsole.js) — gym tenants auto-redirect tab 'staff'→'hr' so it never rendered.
+  • FIX (frontend-only) src/pages/LiteDashboard/staffing/HRTab.js: added CopyableField + CredsDialog components,
+    issueCredentials()/reconcileRoles() handlers in the HRTab hub, a 'Fix login roles' button in the HR header
+    (data-testid staff-reconcile-roles-btn → POST /api/staffing/reconcile-roles), and an 'Invite to platform' /
+    'Re-issue login' button in ProfilePanel header (data-testid staff-issue-creds-btn →
+    POST /api/staffing/staff/{id}/issue-credentials) opening the creds dialog (staff-creds-dialog / -email / -role /
+    -invite-url / -temp-password / -done / -close). Reuses existing backend endpoints untouched.
+  • VERIFIED: testing_agent iteration_staffing_platform_login_bridge_jan2026_retest2.json 100% FE, 0 bugs — reconcile
+    (200, checked:9/updated:0), invite link path renders invite_url, temp-password path renders temp_password, dialog
+    dismiss works. Backend previously 7/7 (retest json).
+  • NOTE (code-review, non-blocking): HRTab.js now ~1160 lines (past the 700 guideline) — candidate for a future split
+    (CredsDialog/ProfilePanel into modules). confirm()/alert() chains work but a shadcn dialog + toast would be nicer UX.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-06 · FIX: Master Admin 'Pulse Fitness Portal' → Pulse Fitness Ltd operator (not platform org) — 100% ═══
 Bug: sidebar SWITCH PORTAL → 'Pulse Fitness Portal' opened the master admin's OWN platform org 'Pulse Fitness AI Admin'
 (via /dashboard?as=operator). Should open the real operator company 'Pulse Fitness Ltd' (is_operator_company=true,
