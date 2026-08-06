@@ -1,3 +1,23 @@
+# ═══ 2026-08-06 · MOD AI KIT-LIST IMPORT — CATEGORY & MOD-CODE CAPTURE — curl-verified ═══
+Enhancement: carry the kit list's Category and MOD-Code onto each imported asset so estate can report by category.
+BACKEND:
+  • utils/kit_list_ai.py: _analyse_sheet now also captures mod_code (header hints already had 'mod-code'/'mod code');
+    output rows include category (now title-cased WITHOUT acronym preservation → 'Bench','Rack','Free Weight' not
+    'BENCH') and mod_code (raw code). _title_case gained preserve_acronyms flag (kept True for sub_location tabs so
+    FMB/PCRF stay upper; False for category words).
+  • routes/master_admin_mod_estate.py commit CSV now includes category + mod_code columns.
+  • routes/master_admin_bulk_import.py equipment doc now stores category + mod_code (via _normalize literal keys —
+    no clash with the 'category'→equipment_type alias, which only affects get_pick fallback). Aligns with existing
+    reporting that already reads equipment.category (utils/mod_sor_data.py, utils/mod_seed.py).
+FRONTEND (AIKitImportModal.js): review table gained a Category column showing 'Category · MOD-Code'. buildRows
+  already spreads ...r so category/mod_code pass through to commit automatically.
+VERIFIED (curl+db): commit imported 107; ALL 107 assets have category (distinct: Bench, Cardio, Free Weight, Rack,
+  Strength), 55 have mod_code (MOD-Bench, MOD-Spin, MOD-Squat…). Casing correct; sub-location acronyms preserved.
+  Babel OK. ⚠️ PREVIEW ONLY — needs REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-06 · MOD AI KIT-LIST IMPORT — MULTI-SITE (tabs → separate bases) — testing_agent 100% ═══
 Enhancement: a kit list's tabs can be rooms in ONE base OR separate bases. Each tab on the review screen now
 has an 'Import into' MOD-site dropdown AND a sub-location field; commit groups rows per target site.

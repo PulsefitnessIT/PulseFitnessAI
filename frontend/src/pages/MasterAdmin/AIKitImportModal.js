@@ -206,6 +206,7 @@ export default function AIKitImportModal({ site, headers, onClose, onImported })
                             <th className="text-left px-2 py-1.5">Name</th>
                             <th className="text-left px-2 py-1.5">Type</th>
                             <th className="text-left px-2 py-1.5">Manufacturer</th>
+                            <th className="text-left px-2 py-1.5">Category</th>
                             <th className="text-left px-2 py-1.5">Serial</th>
                             <th className="text-left px-2 py-1.5">Asset #</th>
                             <th className="text-left px-2 py-1.5 w-10">Qty</th>
@@ -221,6 +222,7 @@ export default function AIKitImportModal({ site, headers, onClose, onImported })
                               </td>
                               <td className="px-2 py-1 text-zinc-600">{r.equipment_type}</td>
                               <td className="px-2 py-1 text-zinc-600">{r.manufacturer}</td>
+                              <td className="px-2 py-1 text-zinc-600">{r.category}{r.mod_code ? <span className="text-zinc-400"> · {r.mod_code}</span> : ''}</td>
                               <td className="px-2 py-1 text-zinc-500 font-mono">{r.serial_number}</td>
                               <td className="px-2 py-1 text-zinc-500 font-mono">{r.asset_number}</td>
                               <td className="px-2 py-1 text-zinc-600">{r.quantity}</td>

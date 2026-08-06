@@ -645,6 +645,8 @@ async def _do_bulk_import_equipment(
                 # blank so commercial imports are unaffected.
                 "asset_number": _normalize(row, "asset_number", "Asset Number", "nsn", "NSN", "asset_id", "Asset ID") or str(get_pick(row, "asset_number", "")).strip() or None,
                 "sub_location": _normalize(row, "sub_location", "Sub Location", "room", "Room", "zone", "Zone") or str(get_pick(row, "sub_location", "")).strip() or None,
+                "category": _normalize(row, "category", "Category") or str(get_pick(row, "category", "")).strip() or None,
+                "mod_code": _normalize(row, "mod_code", "MOD Code", "MOD-Code") or str(get_pick(row, "mod_code", "")).strip() or None,
                 "classification": _normalize(row, "classification", "Classification") or str(get_pick(row, "classification", "")).strip() or None,
                 "qr_code": _normalize(row, "qr_code", "QR Code") or str(get_pick(row, "qr_code", "")).strip() or None,
                 "manufacturing_date": parse_date_cell(get_pick(row, "manufacturing_date") or row.get("Manufacturing Date") or row.get("manufacturing_date")) or None,

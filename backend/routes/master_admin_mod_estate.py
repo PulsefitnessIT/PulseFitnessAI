@@ -1356,7 +1356,8 @@ async def ai_kit_import_commit(
             return self._data
 
     headers = ["name", "equipment_type", "manufacturer", "model",
-               "serial_number", "asset_number", "sub_location", "quantity"]
+               "serial_number", "asset_number", "sub_location", "quantity",
+               "category", "mod_code"]
     totals = {"imported": 0, "skipped": 0, "errors": []}
     per_site = []
     site_names = {s["id"]: s.get("name") for s in await db.organizations.find(
@@ -1377,6 +1378,8 @@ async def ai_kit_import_commit(
                 (r.get("asset_number") or "").strip(),
                 (r.get("sub_location") or "").strip(),
                 r.get("quantity") or 1,
+                (r.get("category") or "").strip(),
+                (r.get("mod_code") or "").strip(),
             ])
             written += 1
         shim = _MemUpload(buf.getvalue().encode("utf-8"), f"ai-kit-{target}.csv")

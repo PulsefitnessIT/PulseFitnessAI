@@ -60,7 +60,7 @@ def _clean(v) -> str:
     return "" if s.lower() in ("none", "nan", "na", "n/a", "-") else s
 
 
-def _title_case(s: str) -> str:
+def _title_case(s: str, preserve_acronyms: bool = True) -> str:
     s = _clean(s)
     if not s:
         return ""
@@ -76,7 +76,7 @@ def _title_case(s: str) -> str:
         if re.search(r"\d", w) and re.search(r"[A-Za-z]", w) and len(w) <= 8:
             words.append(w.upper())
         # preserve all-caps acronyms (all letters, 2-5 chars) e.g. FMB, PCRF, RAF
-        elif w.isupper() and w.isalpha() and 2 <= len(w) <= 5:
+        elif preserve_acronyms and w.isupper() and w.isalpha() and 2 <= len(w) <= 5:
             words.append(w)
         else:
             words.append(w[:1].upper() + w[1:].lower())
@@ -139,7 +139,8 @@ def _analyse_sheet(ws):
                 qty = 1
             data_rows.append({
                 "type": typ, "model": model, "manufacturer": g("manufacturer"),
-                "category": g("category"), "serial_number": serial,
+                "category": g("category"), "mod_code": g("mod_code"),
+                "serial_number": serial,
                 "asset_number": asset, "quantity": max(1, qty),
             })
     return {
@@ -241,7 +242,8 @@ async def analyse_kit_workbook(content: bytes, filename: str) -> dict:
                 "serial_number": r["serial_number"],
                 "asset_number": r["asset_number"],
                 "quantity": r["quantity"],
-                "category": _title_case(r["category"]),
+                "category": _title_case(r["category"], preserve_acronyms=False),
+                "mod_code": r.get("mod_code", ""),
                 "sub_location": _title_case(sh["tab"]),
             })
         out_sheets.append({
