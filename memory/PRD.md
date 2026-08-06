@@ -1,3 +1,22 @@
+# ═══ 2026-08-06 · CRM TENDER WRITER — SMART PREFILL ({{CLIENT}}/{{REFERENCE}}) — logic unit-verified ═══
+Enhancement on the Submission Pack Wizard token editor: empty find/replace token replacements now AUTO-POPULATE
+from the tender's linked data so bidders rarely type common fields.
+FRONTEND-ONLY (pages/CRM/CRMTenders.js SubmissionPackWizard):
+  • NEW smartPrefill(rows) — fills EMPTY replace values by matching the token's find key (normalised: strip
+    {{ }}, upper, spaces→_ , also spaceless variant) against a map derived from the `tender` prop:
+      {{CLIENT}}/{{CUSTOMER}} → tender.company.name || tender.issuer
+      {{REFERENCE}}/{{REF}}/{{TENDER_REF}} → tender.reference || tender.ref
+      {{ISSUER}}/{{AUTHORITY}} → tender.issuer ; {{TITLE}}/{{TENDER_TITLE}} → tender.title ; {{DATE}} → today (en-GB)
+    NEVER overwrites a value already saved on the template; unknown tokens left blank.
+  • Applied on template select, upload+auto-select, and library auto-select. Helper copy updated.
+  • Data path: tender GET (crm_v2.py get_tender) already enriches t["company"]={id,name,…} when company_id set.
+VERIFIED: Node unit test of the exact logic — {{CLIENT}}→company name, {{ REFERENCE }} (spaced)→ref, {{ISSUER}}→issuer,
+  pre-set value NOT overwritten, {{UNKNOWN}} blank, issuer fallback when no company. Babel-parse OK, webpack compiled.
+  ⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-06 · CRM TENDER WRITER — TEMPLATE TOKEN PRESETS (auto-fill) — curl-verified 100% ═══
 Enhancement on the Submission Pack Wizard: each .docx template now carries its OWN saved find/replace tokens
 so common fields (client name, reference, scope…) auto-fill on every export using that template.

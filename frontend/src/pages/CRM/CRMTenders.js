@@ -1253,6 +1253,27 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
   const panelStyle = { background: isDark ? 'var(--color-surface-dark-1, #12151c)' : '#fff', border: `1px solid ${c.border}` };
   const inputStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${isDark ? 'var(--color-surface-dark-3)' : 'var(--color-border-alt)'}`, color: c.text };
 
+  // Smart prefill — fill EMPTY token replacements from this tender's linked
+  // company + reference so a bidder rarely types common fields. Never
+  // overwrites a value already saved on the template.
+  function smartPrefill(rows) {
+    const client = tender?.company?.name || tender?.issuer || '';
+    const reference = tender?.reference || tender?.ref || '';
+    const map = {
+      CLIENT: client, CUSTOMER: client,
+      REFERENCE: reference, REF: reference, TENDER_REF: reference,
+      ISSUER: tender?.issuer || '', AUTHORITY: tender?.issuer || '',
+      TITLE: tender?.title || '', TENDER_TITLE: tender?.title || '',
+      DATE: new Date().toLocaleDateString('en-GB'),
+    };
+    return (rows || []).map((t) => {
+      if ((t.replace || '').trim()) return t;
+      const norm = (t.find || '').replace(/[{}]/g, '').trim().replace(/\s+/g, '_').toUpperCase();
+      const val = map[norm] || map[norm.replace(/_/g, '')];
+      return val ? { ...t, replace: val } : t;
+    });
+  }
+
   const loadTemplates = useCallback(async () => {
     setLoadingTpls(true);
     try {
@@ -1262,7 +1283,7 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
       if (list.length && !selectedTpl) {
         setSelectedTpl(list[0].id);
         const saved = (list[0].tokens || []).map((t) => ({ find: t.find || '', replace: t.replace || '' }));
-        if (saved.length) setTokens(saved);
+        setTokens(smartPrefill(saved.length ? saved : [{ find: '', replace: '' }]));
       }
     } catch (e) {
       setError(e.response?.data?.detail || 'Failed to load templates');
@@ -1279,7 +1300,7 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
     setSelectedTpl(id);
     const tpl = templates.find((t) => t.id === id);
     const saved = (tpl?.tokens || []).map((t) => ({ find: t.find || '', replace: t.replace || '' }));
-    setTokens(saved.length ? saved : [{ find: '', replace: '' }]);
+    setTokens(smartPrefill(saved.length ? saved : [{ find: '', replace: '' }]));
     setTokensSaved(false);
   };
 
@@ -1313,7 +1334,7 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
       if (r.data?.id) {
         setSelectedTpl(r.data.id);
         const saved = (r.data.tokens || []).map((t) => ({ find: t.find || '', replace: t.replace || '' }));
-        if (saved.length) setTokens(saved);
+        setTokens(smartPrefill(saved.length ? saved : [{ find: '', replace: '' }]));
       }
     } catch (e) {
       setError(e.response?.data?.detail || 'Template upload failed');
@@ -1477,7 +1498,7 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
                     <button onClick={addTokenRow} className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--color-info-ios)' }} data-testid="pack-token-add"><Plus size={12} /> Add token</button>
                   </div>
                 </div>
-                <p className="text-[10px] mb-1.5" style={{ color: c.textDim }}>Saved tokens auto-fill whenever you pick this template — set common fields like client name and reference once.</p>
+                <p className="text-[10px] mb-1.5" style={{ color: c.textDim }}>{'{{CLIENT}}'} and {'{{REFERENCE}}'} auto-fill from this tender's linked company &amp; reference. Save tokens to a template to reuse them on every export.</p>
                 <div className="space-y-1.5" data-testid="pack-token-list">
                   {tokens.map((t, i) => (
                     <div key={i} className="flex items-center gap-2">
