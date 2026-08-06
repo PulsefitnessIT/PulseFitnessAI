@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { formatMoneySync } from '@/utils/localization';
 import { useCRM } from './CRMApp';
 import {
-  Plus, FileText, Upload, Trash2, ChevronRight, ArrowLeft, Award,
+  Plus, FileText, Upload, Trash2, ChevronRight, ChevronLeft, ArrowLeft, Award,
   Sparkles, Edit3, Eye, Copy, BookOpen, Loader2, X, TrendingUp,
   Download, Presentation, Lightbulb, Building2, Target, Link as LinkIcon
 } from 'lucide-react';
@@ -1247,6 +1247,8 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [previewImg, setPreviewImg] = useState('');
+  const [previewImgs, setPreviewImgs] = useState([]);
+  const [previewPage, setPreviewPage] = useState(0);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewErr, setPreviewErr] = useState('');
   const fileRef = useRef(null);
@@ -1382,7 +1384,10 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
         ? { mode, template_id: selectedTpl, logo_b64: logoB64 || null, tokens: effTokens }
         : { mode };
       const r = await axios.post(`${API}/crm/v2/tenders/${tenderId}/export/preview`, body, { headers: headers() });
-      setPreviewImg(r.data?.image_b64 || '');
+      const imgs = r.data?.images || (r.data?.image_b64 ? [r.data.image_b64] : []);
+      setPreviewImgs(imgs);
+      setPreviewImg(imgs[0] || '');
+      setPreviewPage((p) => Math.min(p, Math.max(0, imgs.length - 1)));
     } catch (e) {
       setPreviewErr(e.response?.data?.detail || 'Preview failed');
     }
@@ -1558,12 +1563,12 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
             </p>
           )}
 
-          {/* Live cover-page preview */}
+          {/* Live document preview (first few pages) */}
           <div data-testid="pack-preview-section">
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold" style={{ color: c.text }}>Cover preview</label>
+              <label className="text-xs font-semibold" style={{ color: c.text }}>Document preview</label>
               <button onClick={fetchPreview} disabled={previewLoading} className="text-[11px] font-semibold inline-flex items-center gap-1 disabled:opacity-50" style={{ color: 'var(--color-info-ios)' }} data-testid="pack-preview-btn">
-                {previewLoading ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />} {previewImg ? 'Refresh preview' : 'Preview cover page'}
+                {previewLoading ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />} {previewImgs.length ? 'Refresh preview' : 'Preview pages'}
               </button>
             </div>
             {previewErr && <p className="text-[11px] mb-1.5" style={{ color: 'var(--color-danger-alt)' }} data-testid="pack-preview-error">{previewErr}</p>}
@@ -1571,14 +1576,21 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
               {previewLoading ? (
                 <div className="flex flex-col items-center gap-2 py-8" style={{ color: c.textDim }}>
                   <Loader2 size={20} className="animate-spin" />
-                  <span className="text-[11px]">Rendering cover…</span>
+                  <span className="text-[11px]">Rendering pages…</span>
                 </div>
-              ) : previewImg ? (
-                <img src={previewImg} alt="Cover page preview" className="w-full h-auto max-h-[360px] object-contain" data-testid="pack-preview-image" />
+              ) : previewImgs.length ? (
+                <img src={previewImgs[Math.min(previewPage, previewImgs.length - 1)]} alt={`Preview page ${previewPage + 1}`} className="w-full h-auto max-h-[360px] object-contain" data-testid="pack-preview-image" />
               ) : (
-                <p className="text-[11px] py-10 text-center px-4" style={{ color: c.textDim }}>Click <strong>Preview cover page</strong> to render page 1 with the real template formatting — updates live as you edit.</p>
+                <p className="text-[11px] py-10 text-center px-4" style={{ color: c.textDim }}>Click <strong>Preview pages</strong> to render the first pages with the real template formatting — updates live as you edit.</p>
               )}
             </div>
+            {previewImgs.length > 1 && !previewLoading && (
+              <div className="flex items-center justify-center gap-3 mt-2" data-testid="pack-preview-pager">
+                <button onClick={() => setPreviewPage((p) => Math.max(0, p - 1))} disabled={previewPage === 0} className="p-1.5 rounded-md border disabled:opacity-40" style={{ borderColor: c.border, color: c.textMuted }} data-testid="pack-preview-prev"><ChevronLeft size={14} /></button>
+                <span className="text-[11px] font-medium tabular-nums" style={{ color: c.textDim }} data-testid="pack-preview-page-label">Page {Math.min(previewPage, previewImgs.length - 1) + 1} of {previewImgs.length}</span>
+                <button onClick={() => setPreviewPage((p) => Math.min(previewImgs.length - 1, p + 1))} disabled={previewPage >= previewImgs.length - 1} className="p-1.5 rounded-md border disabled:opacity-40" style={{ borderColor: c.border, color: c.textMuted }} data-testid="pack-preview-next"><ChevronRight size={14} /></button>
+              </div>
+            )}
           </div>
         </div>
 

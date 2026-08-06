@@ -1,0 +1,22 @@
+{
+  "summary": "Verified the NEW multi-page pager in the Submission Pack Wizard preview for tender 'MOD Gym Estate Framework 2026'. Tenders tab is visible in the CRM left nav ONLY when the CRM area is in Corporate mode (Members mode hides it, expected). ITT-direct mode returned page_count=2 and the pager (pack-preview-pager) rendered correctly: label='Page 1 of 2', Prev disabled on p1, Next enabled; clicking Next -> 'Page 2 of 2', Prev enabled, Next disabled, and pack-preview-image src changed. Clicking Prev returned to 'Page 1 of 2' with the original src restored. Traceability mode rendered a single-page matrix for this tender (page_count=1) so the pager correctly did NOT render (image still visible). Templated-pack mode was not exercised because the org has 0 saved templates (UI shows 'Pick a template to preview.'); this pre-existing behavior was already covered in the prior iteration and is out of scope for the new pager work.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Task description says 'Tenders tab is now enabled in the CRM left nav (no deep link needed) - click it', but in Members mode the tab is still hidden (MEMBERS_HIDDEN_TABS in CRMApp.js includes 'tenders'). Tester had to switch the CRM area to Corporate to see the Tenders tab. If the intent is to expose Tenders regardless of mode for this org, remove 'tenders' from MEMBERS_HIDDEN_TABS or override when features.crm_tenders=true. Otherwise the task copy should note 'switch to Corporate mode first'.",
+    "Console shows repeated 401s from /api on initial CRM load (before crm_token is issued) and a React 'unique key prop' warning inside StagnatingDeals - unrelated to this task but worth noting."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100% for testable scope (ITT pager: full pass; Traceability single-page: pager hidden as expected; Templated mode not testable without an uploaded template)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! at /crm (Corporate mode required to see Tenders tab)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Multi-page pager (pack-preview-pager / prev / next / page-label) is fully functional in ITT-direct for tender 'MOD Gym Estate Framework 2026' (page_count=2). Traceability matrix currently renders as 1 page for this tender so pager is hidden - if future changes are expected to make it multi-page, re-verify. Templated pack preview still requires uploading a .docx template (0 templates in org). Note: CRM 'Tenders' left-nav tab only appears in Corporate mode - Members mode hides it."
+}

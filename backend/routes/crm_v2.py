@@ -3693,12 +3693,13 @@ async def export_cover_preview(tender_id: str, data: dict, user=Depends(get_crm_
     else:
         out = build_traceability(tender, questions, await _resolve_crm_brand(user))
     try:
-        from utils.docx_preview import render_docx_first_page_png
-        png = await asyncio.get_event_loop().run_in_executor(
-            None, render_docx_first_page_png, out)
+        from utils.docx_preview import render_docx_pages_png
+        pages = await asyncio.get_event_loop().run_in_executor(
+            None, render_docx_pages_png, out)
     except Exception as e:
         raise HTTPException(500, f"Preview render failed: {e}")
-    return {"image_b64": "data:image/png;base64," + base64.b64encode(png).decode("utf-8")}
+    images = ["data:image/png;base64," + base64.b64encode(p).decode("utf-8") for p in pages]
+    return {"images": images, "image_b64": images[0] if images else "", "page_count": len(images)}
 
 
 
