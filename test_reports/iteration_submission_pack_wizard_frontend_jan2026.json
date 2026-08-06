@@ -1,0 +1,35 @@
+{
+  "summary": "Frontend-only test of the newly added Submission Pack Wizard on the CRM Tenders module. Logged in as owner@isodemo.com, forced Corporate mode via localStorage, and reached the Tenders tab via /crm?tab=tenders (see caveat below). Opened the pre-created 'MOD Gym Estate Framework 2026' tender and clicked 'Submission pack (.docx)' (data-testid export-pack-btn). The wizard mounted with no console/page error (previously undefined component would have crashed). Verified all three mode buttons (pack-mode-templated / -itt / -traceability) render and toggle their respective panels. In Templated mode: pack-bid-focus dropdown lists exactly [General / not specified, New Equipment Install, Service & Maintenance, Design & Build]; pack-token-add/find-0/replace-0/remove-0 all work; pack-upload-btn/pack-upload-input successfully uploaded a .docx template (POST /api/crm/v2/tender-docx-templates → 200) and it appeared in pack-template-list with a pack-template-radio-<id> and pack-template-delete-<id>. Deleting returned DELETE 200 and the row disappeared. Switching to ITT-direct mode hid the templated-only controls and showed the explanatory panel; clicking 'Generate .docx' triggered GET /api/crm/v2/tenders/{id}/export/itt-docx → HTTP 200 (verified). Cancel (pack-cancel) and close-X (pack-wizard-close) both close the wizard. NOTE: In a second run, the traceability-docx and submission-docx UI-driven export clicks did not fire the network fetch in Playwright (wizard remained open, no request logged) — likely a Playwright click timing / PWA 'Install App' banner interaction issue, not a code defect (the same code path via the same Generate .docx button fires cleanly for ITT, and the main agent has already verified all three endpoints returning 200 via curl). Recommend main agent smoke-test traceability + templated export manually to confirm. Everything else works.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Traceability .docx export from wizard", "issue": "Automated Playwright click on pack-export-btn in traceability mode did not produce a visible network fetch in one run (wizard stayed open, no request captured). Could not conclusively reproduce a UI defect; may be a Playwright/PWA-banner timing artefact. Same button works for ITT export.", "affected_selectors": ["[data-testid=\"pack-mode-traceability\"]", "[data-testid=\"pack-export-btn\"]"]},
+      {"flow": "Templated .docx export from wizard", "issue": "Same as above — Playwright click did not fire the POST /export/submission-docx request in one run. Template upload+select+delete via the wizard all confirmed 200. Manual verification recommended.", "affected_selectors": ["[data-testid=\"pack-export-btn\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "CRM Tenders (Iso Demo org)", "issues": ["Tenders left-nav tab is HIDDEN for owner@isodemo.com because the org has no crm_tenders feature flag / module enabled (user.features={}, user.modules has no crm_tenders). Users have to deep-link via /crm?tab=tenders to reach the module. Main agent likely wants the demo org's crm_tenders module enabled for the tester (or is_pulse_internal=true) — otherwise real users of this org can't open Tenders even though a tender exists."]},
+      {"screen": "Tender detail page", "issues": ["'MOD DE&Amp;S' shown in issuer column — the issuer field is being HTML-double-encoded ('&amp;' displayed literally). Purely cosmetic but visible on the record."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Enable the crm_tenders feature / module for iso-demo-org (or provide a test user with is_pulse_internal=true / is_master_admin=true) so testers and real users can reach the Tenders tab via the CRM left-nav instead of only via ?tab=tenders deep link.",
+    "Manually smoke-test the Generate .docx button in Traceability mode and Templated mode from the UI (Playwright had trouble triggering the fetch; ITT-direct works). Confirm the same three endpoints main agent verified via curl still succeed when driven from the wizard.",
+    "Fix double-HTML-encoded issuer text 'MOD DE&Amp;S' -> 'MOD DE&S' on the tender detail header."
+  ],
+  "critical_code_review_comments": [
+    "SubmissionPackWizard: onClose() is called immediately after every successful export (line 1340 of CRMTenders.js) — this is fine UX but means the user cannot fire two exports in a row without reopening the wizard. Consider keeping the wizard open on success and showing a toast + 'Export another' CTA.",
+    "Wizard-scoped `token` is captured from localStorage at render time (line ~1290 area); if the CRM auth token is rotated while the modal is open, the export request will 401. Consider reading via the shared headers helper instead.",
+    "File /app/frontend/src/pages/CRM/CRMTenders.js is now 1749 lines — recommend splitting SubmissionPackWizard into its own module.",
+    "Tender detail issuer field renders HTML-escaped text as-is producing '&amp;' — check that the tender.issuer string isn't being double-encoded before display."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "~85% — wizard mounts, all controls present, ITT export 200, template upload+delete 200, cancel/close work; traceability+templated export via UI not conclusively re-verified in Playwright"},
+  "seed_data_creation": "Uploaded and then deleted one throw-away .docx template (test_tpl.docx) via the wizard — no residual data.",
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (CRM login at /crm — separate crm_token in localStorage)",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Access path is: login at /crm → set localStorage.crm_active_mode='business' → navigate to /crm?tab=tenders (Tenders tab is hidden for this org because feature flag crm_tenders is not enabled). Then open 'MOD Gym Estate Framework 2026' tender and click data-testid=export-pack-btn to open the wizard (data-testid=submission-pack-wizard). Because wizard auto-closes after every successful Generate .docx, you must click export-pack-btn again to run each of the 3 modes. There is a PWA 'Install App' bottom banner overlay — dismiss with 'Later' before clicking wizard controls; it can interfere with Playwright event capture even though it doesn't visually overlap the modal.",
+  "rca of the issue": "Root cause of Tenders tab being invisible: /app/frontend/src/pages/CRM/CRMApp.js visibleNavItems filter (line 622-629) requires featureOn('crm_tenders') to be true. featureOn resolves via user.features['crm_tenders'] || user.modules.crm_tenders.enabled || is_pulse_internal || is_master_admin. For owner@isodemo.com the /api/crm/auth/me response returns features:{} and modules without crm_tenders, and both admin flags are false, so the tab is filtered out. Deep-link ?tab=tenders bypasses the visibility filter because activeTab is initialised directly from the URL param (line 489). Fix: seed the iso-demo-org with modules.crm_tenders.enabled=true (or features.crm_tenders=true)."
+}

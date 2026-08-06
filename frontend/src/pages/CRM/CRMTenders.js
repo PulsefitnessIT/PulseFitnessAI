@@ -1225,6 +1225,262 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers, navigateTo })
   );
 }
 
+/* ═══ Submission Pack Wizard — DOCX export + org template library (Iter 216h230) ═══ */
+const BID_FOCUS_OPTIONS = [
+  { id: '', label: 'General / not specified' },
+  { id: 'New Equipment Install', label: 'New Equipment Install' },
+  { id: 'Service & Maintenance', label: 'Service & Maintenance' },
+  { id: 'Design & Build', label: 'Design & Build' },
+];
+
+function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClose }) {
+  const [mode, setMode] = useState('templated'); // templated | itt | traceability
+  const [templates, setTemplates] = useState([]);
+  const [loadingTpls, setLoadingTpls] = useState(true);
+  const [selectedTpl, setSelectedTpl] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadLabel, setUploadLabel] = useState('');
+  const [bidFocus, setBidFocus] = useState('');
+  const [tokens, setTokens] = useState([{ find: '', replace: '' }]);
+  const [logoB64, setLogoB64] = useState('');
+  const [logoName, setLogoName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const fileRef = useRef(null);
+  const logoRef = useRef(null);
+
+  const overlayStyle = { background: 'rgba(0,0,0,0.55)' };
+  const panelStyle = { background: isDark ? 'var(--color-surface-dark-1, #12151c)' : '#fff', border: `1px solid ${c.border}` };
+  const inputStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${isDark ? 'var(--color-surface-dark-3)' : 'var(--color-border-alt)'}`, color: c.text };
+
+  const loadTemplates = useCallback(async () => {
+    setLoadingTpls(true);
+    try {
+      const r = await axios.get(`${API}/crm/v2/tender-docx-templates`, { headers: headers() });
+      const list = r.data?.templates || [];
+      setTemplates(list);
+      if (list.length && !selectedTpl) setSelectedTpl(list[0].id);
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Failed to load templates');
+    }
+    setLoadingTpls(false);
+  }, [API, headers]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { loadTemplates(); }, [loadTemplates]);
+
+  const uploadTemplate = async (file) => {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.docx')) { setError('Please choose a .docx file.'); return; }
+    setUploading(true); setError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const label = encodeURIComponent(uploadLabel || file.name);
+      const r = await axios.post(`${API}/crm/v2/tender-docx-templates?label=${label}`, fd, { headers: { ...headers() } });
+      setUploadLabel('');
+      if (fileRef.current) fileRef.current.value = '';
+      await loadTemplates();
+      if (r.data?.id) setSelectedTpl(r.data.id);
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Template upload failed');
+    }
+    setUploading(false);
+  };
+
+  const deleteTemplate = async (id) => {
+    if (!window.confirm('Delete this template from the library?')) return;
+    try {
+      await axios.delete(`${API}/crm/v2/tender-docx-templates/${id}`, { headers: headers() });
+      if (selectedTpl === id) setSelectedTpl('');
+      loadTemplates();
+    } catch (e) { setError(e.response?.data?.detail || 'Delete failed'); }
+  };
+
+  const pickLogo = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { setLogoB64(String(reader.result)); setLogoName(file.name); };
+    reader.readAsDataURL(file);
+  };
+
+  const setToken = (i, key, val) => setTokens((ts) => ts.map((t, idx) => idx === i ? { ...t, [key]: val } : t));
+  const addTokenRow = () => setTokens((ts) => [...ts, { find: '', replace: '' }]);
+  const removeTokenRow = (i) => setTokens((ts) => ts.filter((_, idx) => idx !== i));
+
+  const download = (blob, suffix) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${(tender?.title || 'tender').replace(/[^a-z0-9]+/gi, '_')}-${suffix}.docx`;
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+
+  const runExport = async () => {
+    setBusy(true); setError('');
+    const token = localStorage.getItem('crm_token');
+    try {
+      if (mode === 'templated') {
+        if (!selectedTpl) { setError('Pick a template from the library (or upload one).'); setBusy(false); return; }
+        const effTokens = tokens.filter((t) => (t.find || '').trim());
+        if (bidFocus) effTokens.push({ find: '{{SCOPE}}', replace: bidFocus });
+        const r = await fetch(`${API}/crm/v2/tenders/${tenderId}/export/submission-docx`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ template_id: selectedTpl, logo_b64: logoB64 || null, tokens: effTokens }),
+        });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || 'Export failed');
+        download(await r.blob(), 'submission');
+      } else {
+        const path = mode === 'itt' ? 'itt-docx' : 'traceability-docx';
+        const r = await fetch(`${API}/crm/v2/tenders/${tenderId}/export/${path}?_t=${Date.now()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!r.ok) throw new Error('Export failed');
+        download(await r.blob(), mode === 'itt' ? 'answers' : 'traceability');
+      }
+      onClose();
+    } catch (e) {
+      setError(e.message || 'Export failed');
+    }
+    setBusy(false);
+  };
+
+  const MODES = [
+    { id: 'templated', label: 'Templated pack', desc: 'Your .docx template + tokens + logo' },
+    { id: 'itt', label: 'ITT-direct', desc: 'Clean, template-free answers doc' },
+    { id: 'traceability', label: 'Traceability matrix', desc: 'Answer → supporting evidence sources' },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={overlayStyle} data-testid="submission-pack-wizard">
+      <div className="w-full max-w-2xl max-h-[88vh] overflow-y-auto rounded-xl shadow-2xl" style={panelStyle}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: c.border }}>
+          <div className="flex items-center gap-2">
+            <FileText size={18} style={{ color: 'var(--color-success-alt, #16a34a)' }} />
+            <h2 className="text-sm font-bold" style={{ color: c.text }}>Submission pack (.docx)</h2>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-md" style={{ color: c.textMuted }} data-testid="pack-wizard-close"><X size={16} /></button>
+        </div>
+
+        <div className="p-5 space-y-5">
+          {error && <div className="px-3 py-2 rounded-md text-xs" style={{ background: 'var(--color-danger-alt)15', color: 'var(--color-danger-alt)' }} data-testid="pack-wizard-error">{error}</div>}
+
+          {/* Mode selector */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" data-testid="pack-mode-selector">
+            {MODES.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setMode(m.id)}
+                className="text-left p-3 rounded-lg border transition-colors"
+                style={{ borderColor: mode === m.id ? 'var(--color-info-ios)' : c.border, background: mode === m.id ? 'var(--color-info-ios)12' : 'transparent' }}
+                data-testid={`pack-mode-${m.id}`}
+              >
+                <p className="text-xs font-bold mb-0.5" style={{ color: mode === m.id ? 'var(--color-info-ios)' : c.text }}>{m.label}</p>
+                <p className="text-[10px] leading-tight" style={{ color: c.textDim }}>{m.desc}</p>
+              </button>
+            ))}
+          </div>
+
+          {mode === 'templated' && (
+            <>
+              {/* Template library */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold" style={{ color: c.text }}>Template library</p>
+                  <span className="text-[10px]" style={{ color: c.textDim }}>{templates.length} saved</span>
+                </div>
+                {loadingTpls ? (
+                  <div className="flex items-center gap-2 text-xs py-2" style={{ color: c.textDim }}><Loader2 size={14} className="animate-spin" /> Loading…</div>
+                ) : templates.length === 0 ? (
+                  <p className="text-xs py-2" style={{ color: c.textDim }} data-testid="pack-no-templates">No templates yet — upload a .docx layout below.</p>
+                ) : (
+                  <div className="space-y-1.5 mb-3" data-testid="pack-template-list">
+                    {templates.map((t) => (
+                      <label
+                        key={t.id}
+                        className="flex items-center gap-2 p-2 rounded-md border cursor-pointer"
+                        style={{ borderColor: selectedTpl === t.id ? 'var(--color-info-ios)' : c.border, background: selectedTpl === t.id ? 'var(--color-info-ios)10' : 'transparent' }}
+                        data-testid={`pack-template-${t.id}`}
+                      >
+                        <input type="radio" name="pack-tpl" checked={selectedTpl === t.id} onChange={() => setSelectedTpl(t.id)} data-testid={`pack-template-radio-${t.id}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate" style={{ color: c.text }}>{t.label}</p>
+                          <p className="text-[10px]" style={{ color: c.textDim }}>{t.original_filename} · {(t.size / 1024).toFixed(0)}KB</p>
+                        </div>
+                        <button type="button" onClick={(e) => { e.preventDefault(); deleteTemplate(t.id); }} className="p-1 rounded" style={{ color: 'var(--color-danger-alt)' }} data-testid={`pack-template-delete-${t.id}`}><Trash2 size={13} /></button>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {/* Upload */}
+                <div className="flex items-center gap-2 flex-wrap p-2.5 rounded-md border border-dashed" style={{ borderColor: c.border }}>
+                  <input value={uploadLabel} onChange={(e) => setUploadLabel(e.target.value)} placeholder="Label (optional)" className="flex-1 min-w-[120px] px-2 py-1.5 text-xs rounded-md" style={inputStyle} data-testid="pack-upload-label" />
+                  <input ref={fileRef} type="file" accept=".docx" onChange={(e) => uploadTemplate(e.target.files?.[0])} className="hidden" data-testid="pack-upload-input" />
+                  <button onClick={() => fileRef.current?.click()} disabled={uploading} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md disabled:opacity-50" style={{ background: 'var(--color-info-ios)', color: '#fff' }} data-testid="pack-upload-btn">
+                    {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />} Upload .docx template
+                  </button>
+                </div>
+              </div>
+
+              {/* Bid focus */}
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: c.text }}>Bid focus <span className="font-normal" style={{ color: c.textDim }}>(fills <code>{'{{SCOPE}}'}</code> in your template)</span></label>
+                <select value={bidFocus} onChange={(e) => setBidFocus(e.target.value)} className="w-full px-3 py-2 text-sm rounded-md" style={inputStyle} data-testid="pack-bid-focus">
+                  {BID_FOCUS_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                </select>
+              </div>
+
+              {/* Find & replace tokens */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold" style={{ color: c.text }}>Find &amp; replace tokens</label>
+                  <button onClick={addTokenRow} className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--color-info-ios)' }} data-testid="pack-token-add"><Plus size={12} /> Add token</button>
+                </div>
+                <div className="space-y-1.5" data-testid="pack-token-list">
+                  {tokens.map((t, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input value={t.find} onChange={(e) => setToken(i, 'find', e.target.value)} placeholder="Find e.g. {{CLIENT}}" className="flex-1 px-2 py-1.5 text-xs rounded-md" style={inputStyle} data-testid={`pack-token-find-${i}`} />
+                      <ChevronRight size={12} style={{ color: c.textDim }} />
+                      <input value={t.replace} onChange={(e) => setToken(i, 'replace', e.target.value)} placeholder="Replace with…" className="flex-1 px-2 py-1.5 text-xs rounded-md" style={inputStyle} data-testid={`pack-token-replace-${i}`} />
+                      <button onClick={() => removeTokenRow(i)} className="p-1 rounded" style={{ color: 'var(--color-danger-alt)' }} data-testid={`pack-token-remove-${i}`}><X size={13} /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Logo */}
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: c.text }}>Customer logo <span className="font-normal" style={{ color: c.textDim }}>(optional, on the cover)</span></label>
+                <div className="flex items-center gap-2">
+                  <input ref={logoRef} type="file" accept="image/*" onChange={(e) => pickLogo(e.target.files?.[0])} className="hidden" data-testid="pack-logo-input" />
+                  <button onClick={() => logoRef.current?.click()} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border" style={{ borderColor: c.border, color: c.textMuted }} data-testid="pack-logo-btn"><Upload size={12} /> Choose logo</button>
+                  {logoName && <span className="text-[11px] inline-flex items-center gap-1.5" style={{ color: c.textDim }}>{logoName}<button onClick={() => { setLogoB64(''); setLogoName(''); }} style={{ color: 'var(--color-danger-alt)' }}><X size={12} /></button></span>}
+                </div>
+              </div>
+            </>
+          )}
+
+          {mode !== 'templated' && (
+            <p className="text-xs px-3 py-3 rounded-md" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textDim }}>
+              {mode === 'itt'
+                ? 'Generates a clean, template-free Word document of every answered question — ideal for pasting straight into an ITT portal.'
+                : 'Generates an evidence traceability matrix mapping each answer to its supporting knowledge-base sources.'}
+            </p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t" style={{ borderColor: c.border }}>
+          <button onClick={onClose} className="px-3 py-1.5 text-xs font-medium rounded-md border" style={{ borderColor: c.border, color: c.textMuted }} data-testid="pack-cancel">Cancel</button>
+          <button onClick={runExport} disabled={busy} className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-md disabled:opacity-50" style={{ background: 'var(--color-success-alt, #16a34a)', color: '#fff' }} data-testid="pack-export-btn">
+            {busy ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Generate .docx
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ═══ Slide manager with drag-and-drop reorder (Iter 216h102) ═══ */
 function SlideManager({ tenderId, API, headers, onClose, c, inputStyle }) {
   const [slides, setSlides] = useState([]);
