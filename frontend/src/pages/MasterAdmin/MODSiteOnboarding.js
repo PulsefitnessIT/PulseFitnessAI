@@ -453,6 +453,21 @@ const MODSiteOnboarding = () => {
                       );
                     })}
                   </div>
+                  {/* Kit by category — equipment mix at a glance */}
+                  {(s.kit_by_category || []).length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2.5" data-testid={`mod-equip-kit-cat-${s.id}`}>
+                      <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold tracking-wide text-zinc-400">
+                        <Dumbbell size={11} /> Kit by category
+                      </span>
+                      {s.kit_by_category.map((c) => (
+                        <span key={c.category}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-800 border border-cyan-100"
+                          data-testid={`mod-equip-kit-cat-${s.id}-${String(c.category).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>
+                          {c.category} <strong className="text-cyan-900">{c.count}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="outline" onClick={() => sendCaptureLink(s)} disabled={linkBusyId === s.id} data-testid={`mod-equip-capture-link-${s.id}`}>

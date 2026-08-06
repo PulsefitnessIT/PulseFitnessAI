@@ -497,6 +497,40 @@ async def _compute_estate_readiness(estate_id: str) -> dict:
         except Exception:
             return 0
 
+    # Equipment mix by category per site (one aggregation across all sites), so
+    # HQ sees the kit mix at a glance on each site card. Coalesce category →
+    # equipment_type → "Uncategorised" and ignore archived rows.
+    oids = [s["id"] for s in sites]
+    cat_map: dict = {}
+    if oids:
+        try:
+            pipeline = [
+                {"$match": {"organization_id": {"$in": oids},
+                            "archived": {"$ne": True}}},
+                {"$group": {
+                    "_id": {
+                        "oid": "$organization_id",
+                        "cat": {"$let": {
+                            "vars": {
+                                "c": {"$ifNull": ["$category", ""]},
+                                "t": {"$ifNull": ["$equipment_type", ""]},
+                            },
+                            "in": {"$cond": [
+                                {"$ne": ["$$c", ""]}, "$$c",
+                                {"$cond": [{"$ne": ["$$t", ""]}, "$$t", "Uncategorised"]},
+                            ]},
+                        }},
+                    },
+                    "count": {"$sum": 1},
+                }},
+            ]
+            async for row in db.equipment.aggregate(pipeline):
+                oid_ = row["_id"]["oid"]
+                cat_ = (row["_id"]["cat"] or "Uncategorised")
+                cat_map.setdefault(oid_, {})[cat_] = cat_map.get(oid_, {}).get(cat_, 0) + row["count"]
+        except Exception:
+            cat_map = {}
+
     out = []
     for s in sites:
         oid = s["id"]
@@ -517,11 +551,16 @@ async def _compute_estate_readiness(estate_id: str) -> dict:
             "checks": {"count": checks, "ready": checks > 0},
         }
         ready_count = sum(1 for v in steps.values() if v["ready"])
+        kit_by_category = sorted(
+            [{"category": k, "count": v} for k, v in cat_map.get(oid, {}).items()],
+            key=lambda x: (-x["count"], x["category"].lower()),
+        )
         out.append({
             "id": oid, "name": s.get("name"), "site_code": s.get("site_code"),
             "force": s.get("mod_force"), "is_overseas": bool(s.get("is_overseas")),
             "region": s.get("region"),
             "steps": steps,
+            "kit_by_category": kit_by_category,
             "ready_count": ready_count, "total_steps": len(steps),
             "fully_ready": ready_count == len(steps),
         })

@@ -1,0 +1,40 @@
+{
+  "summary": "RE-TEST of Staffing↔Platform login bridge. Backend 7/7 pytest PASS (unchanged from previous iteration). Frontend REGRESSION UNRESOLVED: the previously flagged UI gap is still present — HRTab (Operations → Staffing → People → HR, which is the only staff roster visible to non-MOD owner/manager tenants) still does NOT expose (a) the Fix-login-roles / reconcile button (data-testid staff-reconcile-roles-btn) nor (b) any per-staff 'Invite to platform / Issue credentials' action (data-testids staff-creds-dialog / staff-creds-role / staff-creds-done / staff-creds-close). Those elements remain orphaned inside StaffingConsole.js → StaffTab which is only rendered when isMOD (tab==='staff'); for gym tenants line 195 auto-redirects staff→hr. Verified live on owner@isodemo.com — the HR staff list, its row detail panel, and the Edit drawer contain zero invite/credentials/reconcile buttons. Add-staff DOES work but under a different testid family (hr-add-staff-btn / hr-add-staff-dialog / hr-add-staff-name / hr-add-staff-email / hr-add-staff-role / hr-add-staff-save) rather than the spec'd staff-add-* family. Backend Master-Admin no-login-staff merge and role propagation continue to work end-to-end via API.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "StaffingConsole → HRTab (People)", "issue": "No 'Fix login roles' / reconcile button visible for owner/manager tenants. staff-reconcile-roles-btn is only rendered inside orphaned StaffTab (StaffingConsole.js line 750), which is unreachable because GROUPS_ALL no longer has a 'staff' leaf for non-MOD tenants (line 194 redirects saved 'staff' tab → 'hr').", "selector": "[data-testid=\"staff-reconcile-roles-btn\"]", "priority": "HIGH"},
+      {"component": "StaffingConsole → HRTab row / Edit drawer", "issue": "No per-staff 'Invite to platform' / 'Issue credentials' button. The whole staff-creds-dialog flow (StaffingConsole.js 692-940) is unreachable for gym tenants — HRTab has zero references to issueCredentials, staff-creds-*, reconcile.", "selector": "[data-testid=\"staff-creds-dialog\"]", "priority": "HIGH"},
+      {"component": "Add-staff testid mismatch (minor)", "issue": "Spec / prior playbook expected data-testid=staff-add-btn / staff-add-dialog / staff-add-name / staff-add-email / staff-add-role / staff-add-save, but the HR flow actually renders hr-add-staff-* (functionally equivalent and POSTs to /api/staffing/staff correctly). Either rename to the canonical staff-add-* or update docs/tests.", "selector": "[data-testid=\"staff-add-btn\"]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Issue credentials (invite link / temp password) from Staffing UI", "issue": "Backend POST /api/staffing/staff/{id}/issue-credentials continues to return {role, invite_url|temp_password} correctly (verified by test_issue_credentials_engineer_maps_to_engineer / _manager_maps_to_manager / _reset_link_returns_invite_url — all PASS). But there is still no UI entry point in HR / People for commercial tenants to trigger it.", "affected_selectors": ["staff-creds-role", "staff-creds-done", "staff-creds-close"]},
+      {"flow": "Reconcile login roles", "issue": "Backend POST /api/staffing/reconcile-roles returns {checked, updated} correctly (test_reconcile_roles_returns_counts PASS), but the button is unreachable in the operator UI.", "affected_selectors": ["staff-reconcile-roles-btn"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_staffing_platform_login_bridge_jan2026.py",
+    "/app/test_reports/pytest/staffing_bridge_retest.xml"
+  ],
+  "action_items": [
+    "Wire the Fix-login-roles / reconcile button into HRTab header (or into StaffingConsole People-group header) using the same data-testid=staff-reconcile-roles-btn — the handler already exists at StaffingConsole.js:711.",
+    "Add a per-row 'Invite to platform' action inside HRTab (row menu or Edit drawer) that opens the existing staff-creds-dialog flow (StaffingConsole.js 898-940). Reuse handler issueCredentials() at line 692 rather than reimplementing.",
+    "Optionally rename hr-add-staff-* testids to staff-add-* to match the spec / previous playbook, or update the spec — either way document the canonical set.",
+    "Once wired, retest UI: click Fix-login-roles → verify toast/summary; click Invite on a row without a login → verify staff-creds-dialog opens with role + temp_password OR invite_url; verify role propagation by editing primary_role and re-checking user role in Master Admin."
+  ],
+  "critical_code_review_comments": [
+    "StaffingConsole.js still ships ~300 lines of dead code (StaffTab function lines 643-940 including issueCredentials/reconcileRoles and the staff-creds-dialog markup) that is not reachable for non-MOD tenants. Either move it into HRTab / a shared component, or delete it.",
+    "_propagate_role_to_login (routes/staffing.py L182) only guards owner/master_admin/pulse_master_admin. If a PATCH sets primary_role away from 'manager' on a linked manager account, they will be downgraded (e.g. to 'staff'/'other'). If manager should also be protected, extend the guard.",
+    "issueCredentials in StaffingConsole.js uses window.confirm twice back-to-back for delivery choice — poor UX; consolidate into the existing dialog with a radio.",
+    "Master-Admin users listing correctly merges no-login staff (backend verified) — good."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (7/7 pytest)", "frontend": "~40% — Add-staff works (under hr-add-staff-* testids); reconcile and issue-credentials UI entry points are still missing for gym tenants"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (verified via UI + API); admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (Master Admin, verified via backend test).",
+  "seed_data_creation": "Backend test file creates 5 TEST_staff_*@example.com throwaway records; test_zzz_cleanup deletes them at end of run.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend is stable — no need to re-run pytest unless routes/staffing.py or master_admin_users.py changes. This is the SECOND consecutive iteration flagging the same UI gap (reconcile + per-row issue-credentials missing from HRTab). If E1 has claimed to fix it, verify by loading owner@isodemo → /dashboard → Staffing → People → HR and checking for data-testid staff-reconcile-roles-btn and a per-row invite/credentials action. The Add-staff dialog exists but with hr-add-staff-* testids (functionally OK, spec mismatch only).",
+  "rca of the issue": "GROUPS_ALL in StaffingConsole.js (line 67-108) removed the standalone 'Staff' leaf for gym tenants ('merged into HR' comment at 69-72). The reconcile button + per-row issueCredentials + staff-creds-dialog live inside StaffTab (line 643+), which is only mounted when tab==='staff'. For non-MOD, line 195 auto-redirects staff→hr, so StaffTab never renders and none of the identity-bridge UI ships to owners/managers. HRTab (in staffing/HRTab.js) never had these actions added — grep for issueCredentials/reconcile/staff-creds returns 0 hits. Same RCA as the prior iteration; no code change has been made since."
+}
