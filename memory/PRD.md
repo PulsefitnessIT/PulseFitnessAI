@@ -1,3 +1,25 @@
+# ═══ 2026-08-06 · MOD AI KIT-LIST IMPORT — MULTI-SITE (tabs → separate bases) — testing_agent 100% ═══
+Enhancement: a kit list's tabs can be rooms in ONE base OR separate bases. Each tab on the review screen now
+has an 'Import into' MOD-site dropdown AND a sub-location field; commit groups rows per target site.
+BACKEND (routes/master_admin_mod_estate.py):
+  • analyse response now includes mod_sites:[{id,name}] (all account_type=mod_site orgs) for per-tab retargeting.
+  • commit: each row may carry target_site_id; rows are grouped by target (default payload.site_id) and each group
+    imported via _do_bulk_import_equipment (per-site serial de-dupe preserved). Returns aggregate {imported, skipped,
+    errors, per_site:[{site_id, site_name, rows_submitted, imported, skipped}], rows_submitted}.
+FRONTEND (pages/MasterAdmin/AIKitImportModal.js):
+  • Per-tab dest_site_id (default current site) via <select> data-testid ai-kit-site-<ti>; buildRows attaches
+    target_site_id per row. Done screen shows a per-site breakdown block (data-testid ai-kit-per-site) when >1 site.
+    Also shows client-filtered duplicate count on Done.
+VERIFIED: curl (retarget Kifaru Gym tab → split 90 Nyati + 17 Kifaru = 107; DB confirmed) + testing_agent
+  iteration_280_ai_kit_multi_site.json 100% FE+BE, 0 bugs, retest_needed=false (dropdown lists 6 sites, defaults to
+  current base, retarget + commit → per_site Nyati 90 / Kifaru 17, breakdown rendered).
+TEST SITES: mod-site-test-nyati, mod-site-test-kifaru (equipment cleared post-test). File /app/test_data/kitlist.xlsx.
+NOTE: /master-admin/onboarding is not a direct route — enter Master Admin console then set section=onboarding →
+  'MOD Equipment & Readiness' tab (see iteration_280 context for the nav recipe). ⚠️ PREVIEW ONLY — needs REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-06 · MOD AI KIT-LIST IMPORT — testing_agent 100% ═══
 PROBLEM: MOD equipment bulk import failed because 'Name' was mandatory and real kit lists have no Name column,
 spread kit across worksheet TABS (each tab = a room/location), use ALL CAPS, and include a 'Total' pivot tab.
