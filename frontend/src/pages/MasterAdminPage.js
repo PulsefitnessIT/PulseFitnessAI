@@ -217,11 +217,21 @@ const MasterAdminPage = ({ _onBack }) => {
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
-  // Iter 285 — "Pulse Fitness Portal" opens the operator dashboard AS THE
-  // MASTER ADMIN (no impersonation). Previously it impersonated the org owner
-  // (Lee Somers), which the master admin should not have to do just to view
-  // the portal. `?as=operator` renders the operator surface for the admin.
-  const handlePulseSwitch = () => { window.location.href = '/dashboard?as=operator'; };
+  // Iter (Aug 2026) — "Pulse Fitness Portal" opens the Pulse Fitness Ltd
+  // OPERATOR COMPANY portal (the is_operator_company org), not the master
+  // admin's own "Pulse Fitness AI Admin" platform org. Falls back to the
+  // legacy self-view if no operator company is configured.
+  const handlePulseSwitch = async () => {
+    try {
+      const res = await axios.post(`${API}/master-admin/operator-portal-login`, {}, { headers, withCredentials: true });
+      const impToken = res.data?.token;
+      if (!impToken) throw new Error('no token');
+      localStorage.setItem('impersonation_return', '/master-admin');
+      window.location.href = '/dashboard?impersonation_token=' + encodeURIComponent(impToken);
+    } catch (e) {
+      window.location.href = '/dashboard?as=operator';
+    }
+  };
   const handleOrgSwitch = async (orgId, area = 'operator') => {
     const res = await axios.post(`${API}/master-admin/org-portal-login/${orgId}`, {}, { headers, withCredentials: true, params: { area } });
     const impToken = res.data?.token;

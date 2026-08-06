@@ -1516,6 +1516,19 @@ async def org_portal_login(org_id: str, request: Request, area: str = "operator"
     return {"token": token, "organization_id": org["id"], "organization_name": org.get("name"), "area": area}
 
 
+@router.post("/master-admin/operator-portal-login")
+async def operator_portal_login(request: Request, user: dict = Depends(get_current_user)):
+    """Log a Pulse master admin into the Pulse Fitness OPERATOR COMPANY's portal
+    (the org flagged is_operator_company — 'Pulse Fitness Ltd'), NOT the admin's
+    own platform org. Backs the sidebar 'Pulse Fitness Portal' switch."""
+    require_master_admin(user)
+    org = await db.organizations.find_one({"is_operator_company": True}, {"_id": 0})
+    if not org:
+        raise HTTPException(status_code=404, detail="No Pulse Fitness operator company is configured.")
+    token = await _issue_org_portal_token(org, user, request, grants=None)
+    return {"token": token, "organization_id": org["id"], "organization_name": org.get("name"), "area": "operator"}
+
+
 @router.post("/master-admin/inventory-access/grant")
 async def grant_inventory_access(body: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
     """Grant the additive Inventory & Distribution right to an existing user."""

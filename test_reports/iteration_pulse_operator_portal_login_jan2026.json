@@ -1,0 +1,34 @@
+{
+  "summary": "Verified fix for the Master Admin sidebar 'Pulse Fitness Portal' bug. Both backend and frontend confirm the switch now impersonates the Pulse Fitness Ltd operator company (is_operator_company=true, id 3ece2d0c-57ea-4acd-a6b4-d748478ed117) instead of the master admin's own 'Pulse Fitness AI Admin' platform org.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "backend_tests": {
+    "file": "/app/backend/tests/test_operator_portal_login.py",
+    "results": {
+      "test_operator_portal_login_as_master_admin": "PASS — 200, organization_id=3ece2d0c-57ea-4acd-a6b4-d748478ed117, organization_name='Pulse Fitness Ltd', area='operator', JWT payload organization_id matches and impersonated_by=admin@pulsefitness.com",
+      "test_operator_portal_login_forbidden_for_non_master_admin": "PASS — owner@isodemo.com receives 401/403",
+      "test_operator_portal_login_unauthenticated": "PASS — 401/403 without auth"
+    },
+    "junit_xml": "/app/test_reports/pytest/operator_portal_login.xml"
+  },
+  "frontend_tests": {
+    "pulse_portal_switch": "PASS — Clicked 'Pulse Fitness Portal' as master admin. Redirected to /dashboard?impersonation_token=… which further redirected to /pulse. Impersonation banner shows 'Impersonation Session Active — You are viewing as portal@pulsefitness.ltd. Every action is logged.' Brand header shows 'Pulse Fitness Pro · Pulse Fitness AI Head Office' (site subtitle expected per agent note). NOT landing on 'Pulse Fitness AI Admin' platform org.",
+    "global_dashboard_regression": "PASS — 'Global Dashboard' sidebar button navigates to /dashboard?as=global; shows the Global Dashboard with 'Pulse Fitness AI Admin' brand (master admin's platform org), no impersonation banner. Unaffected by the fix."
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_operator_portal_login.py",
+    "/app/test_reports/pytest/operator_portal_login.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Endpoint correctly guarded by require_master_admin and queries db.organizations {is_operator_company:true} — clean.",
+    "Frontend falls back to /dashboard?as=operator on axios error which is a safe legacy path.",
+    "Impersonation JWT issued via shared _issue_org_portal_token with audit logging — matches org portal login pattern."
+  ],
+  "updated_files": ["/app/backend/tests/test_operator_portal_login.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Sidebar 'Pulse Fitness Portal' now POSTs /api/master-admin/operator-portal-login and impersonates the operator company (Pulse Fitness Ltd, portal@pulsefitness.ltd). The URL after redirect resolves to /pulse (operator portal shell), NOT /dashboard — the app internally redirects from /dashboard?impersonation_token to /pulse. Site subtitle 'Pulse Fitness AI Head Office' is a SITE label within Pulse Fitness Ltd org and is EXPECTED per main agent note."
+}
