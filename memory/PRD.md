@@ -1,3 +1,29 @@
+# ═══ 2026-08-06 · SECURITY AUDIT — FIX SEC-001 credentialed CORS origin reflection (HIGH) — verified ═══
+security_audit_agent flagged ONE HIGH (SEC-001): with allow_credentials=True the CORS allow-list resolved to ["*"]
+whenever APP_ENV/ENVIRONMENT were unset (they are unset in preview AND prod), so Starlette reflected ANY request
+origin + ACAC:true → any website a logged-in user visited could read their (cross-tenant) data. Confirmed live.
+FIX (utils/security_plus.py — env-agnostic, no reliance on APP_ENV):
+  • resolve_cors_origins() NEVER returns "*" anymore (unsafe with credentials). It always returns an explicit
+    allow-list: _BRAND_DEFAULT_ORIGINS (pulsefitness.ai, www, fitness-ai-migrate.emergent.host) + localhost in non-prod.
+    A literal CORS_ORIGINS='*' is now ignored in EVERY environment (logged), not just prod.
+  • resolve_cors_origin_regex() now ALWAYS returns the Emergent platform regex (preview.emergentagent.com|emergent.host)
+    so preview redeploys + the deployed host keep working without a wildcard.
+VERIFIED (curl direct to :8001 = app CORS layer): attacker origin → NO Access-Control-Allow-Origin header (was
+  reflected before); prod host + preview subdomain → exact-origin echoed + ACAC:true (allowed). Login 200 + health ok
+  (same-origin app flow unaffected). Backend log: "CORS_ORIGINS='*' ignored (unsafe with credentials)".
+  NOTE: the preview/prod INGRESS separately returns ACAO:* (without exact-origin reflection) on OPTIONS — that variant
+  is NOT browser-exploitable for credentialed reads (browsers reject '*'+credentials); it's a platform-layer header
+  outside our code.
+STILL OPEN (lower priority, flagged to user — NOT changed):
+  • SEC-002 (LOW/P3): _client_ip() trusts left-most X-Forwarded-For (utils/security.py:18) → per-IP throttle +
+    master-admin IP allow-list spoofable. Correct fix needs the trusted proxy hop count (CF→ingress); a blind change
+    risks breaking rate-limits, so left as a recommendation. Per-account lockout (5/15min) still applies.
+  • Hardening (P3): in-memory rate-limit resets per deploy; SameSite=None cookie w/o CSRF tokens; plaintext
+    onboarding password at rest; MasterAdmin123! fallback when env unset; CSP script-src 'unsafe-inline' (CRA build).
+⚠️ PREVIEW ONLY — PRODUCTION still has the CORS hole until a REDEPLOY ships this fix.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-06 · MOD Kit-by-category CHIP DRILL-DOWN (click a chip → machine list) — verified ═══
 Follow-on to the kit-by-category site-card summary: HQ can now click a category chip to see the exact machines.
   • BACKEND routes/master_admin_mod_estate.py — NEW GET /master-admin/mod-estate/site/{site_id}/equipment-by-category

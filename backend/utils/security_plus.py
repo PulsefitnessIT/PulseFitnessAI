@@ -435,30 +435,34 @@ def _is_prod() -> bool:
 def resolve_cors_origins() -> list[str]:
     """Resolve the CORS allow-list.
 
+    SECURITY (SEC-001): the app sends credentials (``allow_credentials=True``),
+    so we MUST NOT return ``*`` — reflecting an arbitrary origin together with
+    credentials lets any website read a logged-in user's data cross-origin.
+    We therefore ALWAYS return an explicit allow-list. Emergent preview/host
+    subdomains are covered by :func:`resolve_cors_origin_regex` so preview
+    redeploys keep working without a wildcard.
+
     Order of precedence:
-      1. ``CORS_ORIGINS`` env var (comma-separated). Always wins when set.
-      2. Production: the two customer brand domains.
-      3. Anything else: permissive ``*`` for dev convenience (logged).
+      1. ``CORS_ORIGINS`` env var (comma-separated, non-``*``). Always wins.
+      2. The customer brand domains, plus localhost in non-prod for local dev.
     """
     raw = os.environ.get("CORS_ORIGINS", "").strip()
     if raw and raw != "*":
         return [o.strip() for o in raw.split(",") if o.strip()]
-    if raw == "*" and _is_prod():
-        # Never honour a wildcard in production — fall back to the known
-        # brand domains (platform subdomains are covered by the regex below).
-        logger.warning("[security] CORS_ORIGINS='*' ignored in production — using brand defaults")
-        return list(_BRAND_DEFAULT_ORIGINS)
     if raw == "*":
-        logger.warning("[security] CORS_ORIGINS='*' — permissive (dev only)")
-        return ["*"]
-    if _is_prod():
-        # Production deployment without explicit CORS_ORIGINS → fall back
-        # to the two known brand domains. Better than crashing the app on
-        # boot or, worse, defaulting to ``*``.
-        logger.warning("[security] CORS_ORIGINS not set in production — using brand defaults")
-        return list(_BRAND_DEFAULT_ORIGINS)
-    logger.warning("[security] CORS_ORIGINS not set — defaulting to permissive for dev")
-    return ["*"]
+        # A literal wildcard is unsafe with credentials — ignore it in EVERY
+        # environment and fall back to the explicit brand allow-list.
+        logger.warning("[security] CORS_ORIGINS='*' ignored (unsafe with credentials) — using brand defaults + platform regex")
+    else:
+        logger.warning("[security] CORS_ORIGINS not set — using brand defaults + platform regex")
+    origins = list(_BRAND_DEFAULT_ORIGINS)
+    if not _is_prod():
+        # Local-dev convenience — a running React dev server on the host.
+        origins += [
+            "http://localhost:3000", "http://127.0.0.1:3000",
+            "http://localhost:5173", "http://127.0.0.1:5173",
+        ]
+    return origins
 
 
 # Emergent platform preview/host subdomains. Allowing these via regex means
@@ -470,17 +474,15 @@ _PLATFORM_ORIGIN_REGEX = r"https://([a-z0-9-]+\.)*(preview\.emergentagent\.com|e
 def resolve_cors_origin_regex():
     """Regex of trusted platform origins, or None to disable.
 
-    ``CORS_ORIGIN_REGEX`` env var overrides. A literal ``CORS_ORIGINS='*'``
-    or an explicit allow-list with no platform domains still benefits from
-    this so the Emergent preview/host always works.
+    ``CORS_ORIGIN_REGEX`` env var overrides. Otherwise we ALWAYS return the
+    Emergent preview/host regex so the platform's own preview + deployed
+    subdomains are permitted (the explicit brand allow-list from
+    :func:`resolve_cors_origins` covers the customer domains). This never
+    matches arbitrary third-party origins.
     """
     raw = os.environ.get("CORS_ORIGIN_REGEX", "").strip()
     if raw:
         return raw
-    # When the allow-list is the open wildcard in dev there's no need for a
-    # regex (everything is allowed already).
-    if (os.environ.get("CORS_ORIGINS", "").strip() == "*") and not _is_prod():
-        return None
     return _PLATFORM_ORIGIN_REGEX
 
 
