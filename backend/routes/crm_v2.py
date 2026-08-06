@@ -3537,6 +3537,9 @@ async def upload_docx_template(
     meta = detect_template_styles(content)
     if meta.get("error"):
         raise HTTPException(400, f"Could not read that .docx ({meta['error']}).")
+    # Auto-seed find/replace token rows from detected {{PLACEHOLDER}} markers so
+    # common fields (client, reference, scope…) are pre-populated for every export.
+    seeded_tokens = [{"find": k, "replace": ""} for k in meta.get("detected_tokens", [])]
     rec = {
         "id": _id(), "organization_id": user.get("organization_id"),
         "label": (label or file.filename or "Template").strip()[:120],
@@ -3545,11 +3548,40 @@ async def upload_docx_template(
         "data_b64": base64.b64encode(content).decode("utf-8"),
         "styles": meta.get("styles", []),
         "header_text": meta.get("header_text", ""),
+        "tokens": seeded_tokens,
         "created_by": user.get("full_name", ""),
         "created_at": _now(),
     }
     await db.crm2_tender_docx_templates.insert_one(rec)
     return {k: v for k, v in rec.items() if k not in ("_id", "data_b64")}
+
+
+@router.put("/tender-docx-templates/{tpl_id}")
+async def update_docx_template(tpl_id: str, data: dict, user=Depends(get_crm_user)):
+    """Save a template's default find/replace tokens (and optional label) so
+    common fields auto-fill on every export using that template."""
+    updates: dict = {}
+    if "tokens" in data:
+        toks = []
+        for t in (data.get("tokens") or []):
+            find = (t.get("find") or "").strip()
+            if find:
+                toks.append({"find": find[:200], "replace": (t.get("replace") or "")[:1000]})
+        updates["tokens"] = toks
+    if data.get("label"):
+        updates["label"] = str(data["label"]).strip()[:120]
+    if not updates:
+        raise HTTPException(400, "Nothing to update.")
+    updates["updated_at"] = _now()
+    res = await db.crm2_tender_docx_templates.update_one(
+        {"id": tpl_id, **_of(user)}, {"$set": updates},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "Template not found")
+    row = await db.crm2_tender_docx_templates.find_one(
+        {"id": tpl_id, **_of(user)}, {"_id": 0, "data_b64": 0},
+    )
+    return row
 
 
 @router.delete("/tender-docx-templates/{tpl_id}")

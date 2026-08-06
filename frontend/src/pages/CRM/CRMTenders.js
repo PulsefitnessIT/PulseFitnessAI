@@ -1259,7 +1259,11 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
       const r = await axios.get(`${API}/crm/v2/tender-docx-templates`, { headers: headers() });
       const list = r.data?.templates || [];
       setTemplates(list);
-      if (list.length && !selectedTpl) setSelectedTpl(list[0].id);
+      if (list.length && !selectedTpl) {
+        setSelectedTpl(list[0].id);
+        const saved = (list[0].tokens || []).map((t) => ({ find: t.find || '', replace: t.replace || '' }));
+        if (saved.length) setTokens(saved);
+      }
     } catch (e) {
       setError(e.response?.data?.detail || 'Failed to load templates');
     }
@@ -1267,6 +1271,32 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
   }, [API, headers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { loadTemplates(); }, [loadTemplates]);
+
+  const [savingTokens, setSavingTokens] = useState(false);
+  const [tokensSaved, setTokensSaved] = useState(false);
+
+  const selectTemplate = (id) => {
+    setSelectedTpl(id);
+    const tpl = templates.find((t) => t.id === id);
+    const saved = (tpl?.tokens || []).map((t) => ({ find: t.find || '', replace: t.replace || '' }));
+    setTokens(saved.length ? saved : [{ find: '', replace: '' }]);
+    setTokensSaved(false);
+  };
+
+  const saveTokensToTemplate = async () => {
+    if (!selectedTpl) return;
+    setSavingTokens(true); setError('');
+    try {
+      const effTokens = tokens.filter((t) => (t.find || '').trim());
+      const r = await axios.put(`${API}/crm/v2/tender-docx-templates/${selectedTpl}`, { tokens: effTokens }, { headers: headers() });
+      setTemplates((list) => list.map((t) => t.id === selectedTpl ? { ...t, tokens: r.data?.tokens || effTokens } : t));
+      setTokensSaved(true);
+      setTimeout(() => setTokensSaved(false), 2500);
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Could not save tokens to template');
+    }
+    setSavingTokens(false);
+  };
 
   const uploadTemplate = async (file) => {
     if (!file) return;
@@ -1280,7 +1310,11 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
       setUploadLabel('');
       if (fileRef.current) fileRef.current.value = '';
       await loadTemplates();
-      if (r.data?.id) setSelectedTpl(r.data.id);
+      if (r.data?.id) {
+        setSelectedTpl(r.data.id);
+        const saved = (r.data.tokens || []).map((t) => ({ find: t.find || '', replace: t.replace || '' }));
+        if (saved.length) setTokens(saved);
+      }
     } catch (e) {
       setError(e.response?.data?.detail || 'Template upload failed');
     }
@@ -1402,10 +1436,10 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
                         style={{ borderColor: selectedTpl === t.id ? 'var(--color-info-ios)' : c.border, background: selectedTpl === t.id ? 'var(--color-info-ios)10' : 'transparent' }}
                         data-testid={`pack-template-${t.id}`}
                       >
-                        <input type="radio" name="pack-tpl" checked={selectedTpl === t.id} onChange={() => setSelectedTpl(t.id)} data-testid={`pack-template-radio-${t.id}`} />
+                        <input type="radio" name="pack-tpl" checked={selectedTpl === t.id} onChange={() => selectTemplate(t.id)} data-testid={`pack-template-radio-${t.id}`} />
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-medium truncate" style={{ color: c.text }}>{t.label}</p>
-                          <p className="text-[10px]" style={{ color: c.textDim }}>{t.original_filename} · {(t.size / 1024).toFixed(0)}KB</p>
+                          <p className="text-[10px]" style={{ color: c.textDim }}>{t.original_filename} · {(t.size / 1024).toFixed(0)}KB{t.tokens?.length ? ` · ${t.tokens.length} saved token${t.tokens.length > 1 ? 's' : ''}` : ''}</p>
                         </div>
                         <button type="button" onClick={(e) => { e.preventDefault(); deleteTemplate(t.id); }} className="p-1 rounded" style={{ color: 'var(--color-danger-alt)' }} data-testid={`pack-template-delete-${t.id}`}><Trash2 size={13} /></button>
                       </label>
@@ -1434,8 +1468,16 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-semibold" style={{ color: c.text }}>Find &amp; replace tokens</label>
-                  <button onClick={addTokenRow} className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--color-info-ios)' }} data-testid="pack-token-add"><Plus size={12} /> Add token</button>
+                  <div className="flex items-center gap-3">
+                    {selectedTpl && (
+                      <button onClick={saveTokensToTemplate} disabled={savingTokens} className="text-[11px] font-semibold inline-flex items-center gap-1 disabled:opacity-50" style={{ color: tokensSaved ? 'var(--color-success-alt, #16a34a)' : c.textMuted }} data-testid="pack-token-save-to-template" title="Save these tokens as defaults for this template">
+                        {savingTokens ? <Loader2 size={12} className="animate-spin" /> : <BookOpen size={12} />} {tokensSaved ? 'Saved to template' : 'Save to template'}
+                      </button>
+                    )}
+                    <button onClick={addTokenRow} className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--color-info-ios)' }} data-testid="pack-token-add"><Plus size={12} /> Add token</button>
+                  </div>
                 </div>
+                <p className="text-[10px] mb-1.5" style={{ color: c.textDim }}>Saved tokens auto-fill whenever you pick this template — set common fields like client name and reference once.</p>
                 <div className="space-y-1.5" data-testid="pack-token-list">
                   {tokens.map((t, i) => (
                     <div key={i} className="flex items-center gap-2">

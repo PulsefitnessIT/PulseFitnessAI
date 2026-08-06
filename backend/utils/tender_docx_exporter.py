@@ -347,6 +347,37 @@ def build_traceability(tender: dict, questions: list, brand: dict | None = None,
     buf = io.BytesIO(); doc.save(buf); return buf.getvalue()
 
 
+_TOKEN_RE = re.compile(r"\{\{\s*[A-Za-z0-9_ .\-]+\s*\}\}")
+
+
+def detect_template_tokens(template_bytes: bytes) -> list[str]:
+    """Scan the whole .docx (body + headers + footers) for {{PLACEHOLDER}}
+    tokens so the library can pre-seed find/replace rows for the user."""
+    found: list[str] = []
+    seen: set = set()
+    try:
+        with zipfile.ZipFile(io.BytesIO(template_bytes)) as z:
+            for name in z.namelist():
+                if not (name.endswith(".xml") and (
+                    name.startswith("word/document")
+                    or "header" in name or "footer" in name)):
+                    continue
+                try:
+                    text = z.read(name).decode("utf-8", "ignore")
+                except Exception:
+                    continue
+                # strip XML tags so tokens split across runs still match
+                stripped = re.sub(r"<[^>]+>", "", text)
+                for m in _TOKEN_RE.findall(stripped):
+                    key = re.sub(r"\s+", " ", m).strip()
+                    if key not in seen:
+                        seen.add(key)
+                        found.append(key)
+    except Exception:
+        pass
+    return found
+
+
 def detect_template_styles(template_bytes: bytes) -> dict:
     try:
         doc = Document(io.BytesIO(template_bytes))
@@ -365,6 +396,7 @@ def detect_template_styles(template_bytes: bytes) -> dict:
             "styles": sorted([n for n in names if n.startswith(('Heading', 'Title', 'Normal'))]),
             "header_text": " | ".join(headers[:3]),
             "has_title": 'Title' in names,
+            "detected_tokens": detect_template_tokens(template_bytes),
         }
     except Exception as e:
         return {"styles": [], "header_text": "", "error": str(e)}

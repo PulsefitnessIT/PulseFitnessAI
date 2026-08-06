@@ -1,3 +1,26 @@
+# ═══ 2026-08-06 · CRM TENDER WRITER — TEMPLATE TOKEN PRESETS (auto-fill) — curl-verified 100% ═══
+Enhancement on the Submission Pack Wizard: each .docx template now carries its OWN saved find/replace tokens
+so common fields (client name, reference, scope…) auto-fill on every export using that template.
+BACKEND (routes/crm_v2.py + utils/tender_docx_exporter.py):
+  • NEW utils/tender_docx_exporter.detect_template_tokens() scans body+headers+footers for {{PLACEHOLDER}}
+    markers (tag-stripped so tokens split across runs still match). Wired into detect_template_styles →
+    returns detected_tokens.
+  • POST /tender-docx-templates now AUTO-SEEDS token rows from detected placeholders ({find:'{{X}}', replace:''})
+    and stores them on the template record (field `tokens`).
+  • NEW PUT /tender-docx-templates/{id} {tokens?, label?} — saves a template's default find/replace tokens
+    (org-scoped; validates/trims find≤200/replace≤1000). GET list already returns `tokens`.
+FRONTEND (pages/CRM/CRMTenders.js SubmissionPackWizard):
+  • Selecting a template (selectTemplate) auto-loads its saved tokens into the find/replace editor; upload &
+    auto-select also load seeded tokens. Template row shows "N saved tokens".
+  • NEW "Save to template" button (data-testid pack-token-save-to-template) PUTs current tokens as the
+    template default (shows "Saved to template" confirmation). Helper copy explains auto-fill.
+VERIFIED (curl): upload auto-seeds [{{SCOPE}},{{CLIENT}},{{REFERENCE}}] empty; PUT saves replace values
+  (MOD DE&S / LSL/DC/0223 / Service & Maintenance); GET list persists them; delete OK. Babel-parse OK, webpack
+  compiled successfully. ⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-06 · CRM TENDER WRITER — SUBMISSION PACK WIZARD (.docx) frontend COMPLETE — testing_agent ~85% + curl 100% ═══
 Completed the last missing piece of the CRM Tender Writer DOCX upgrade: the frontend `SubmissionPackWizard`
 popup in /app/frontend/src/pages/CRM/CRMTenders.js. Previously the "Submission pack (.docx)" button
