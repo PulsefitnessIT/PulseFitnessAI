@@ -28,7 +28,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, File, Query, UploadFile
 
 from utils.auth import get_current_user, hash_password
 from utils.database import db
@@ -1262,6 +1262,113 @@ async def reschedule_contract_visit(contract_id: str, data: dict = Body(...),
         {"id": contract_id},
         {"$set": {"annual_visit": av, "updated_at": datetime.now(timezone.utc).isoformat()}})
     return {"ok": True, "annual_visit": av}
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# AI Kit-List Import (Iter 216h240) — read ANY equipment spreadsheet, AI-clean
+# it (derive Name, title-case, tabs → sub-locations), review, then import via
+# the SAME bulk-import engine so there is one import path and serial de-dupe.
+# ─────────────────────────────────────────────────────────────────────────
+@router.post("/master-admin/mod-estate/ai-kit-import/analyse")
+async def ai_kit_import_analyse(
+    file: UploadFile = File(...),
+    site_id: Optional[str] = Query(None),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    require_master_admin(user)
+    from utils.file_validation import MIME_SPREADSHEETS, validate_upload
+    contents = await file.read()
+    validate_upload(file_bytes=contents, filename=file.filename,
+                    allowed=MIME_SPREADSHEETS, max_size=50 * 1024 * 1024)
+    from utils.kit_list_ai import analyse_kit_workbook
+    try:
+        preview = await analyse_kit_workbook(contents, file.filename or "kit-list.xlsx")
+    except Exception as exc:
+        raise HTTPException(400, f"Could not read that spreadsheet: {exc}")
+
+    # Flag duplicate serials — against the target site's existing kit and
+    # within the uploaded file itself — so nothing is double-imported.
+    existing: set = set()
+    if site_id:
+        cursor = db.equipment.find(
+            {"organization_id": site_id, "serial_number": {"$exists": True, "$ne": ""}},
+            {"_id": 0, "serial_number": 1})
+        existing = {d["serial_number"] async for d in cursor if d.get("serial_number")}
+    seen: set = set()
+    dupes = 0
+    for sh in preview["sheets"]:
+        if sh["is_summary"]:
+            continue
+        for r in sh["rows"]:
+            s = (r.get("serial_number") or "").strip()
+            dup = bool(s) and (s in existing or s in seen)
+            r["duplicate"] = dup
+            if s:
+                seen.add(s)
+            if dup:
+                dupes += 1
+    preview["duplicate_serials"] = dupes
+    preview["site_id"] = site_id
+    return preview
+
+
+@router.post("/master-admin/mod-estate/ai-kit-import/commit")
+async def ai_kit_import_commit(
+    payload: dict = Body(...),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    require_master_admin(user)
+    site_id = (payload.get("site_id") or "").strip()
+    rows = payload.get("rows") or []
+    if not site_id:
+        raise HTTPException(400, "site_id is required.")
+    if not rows:
+        raise HTTPException(400, "No equipment rows to import.")
+    skip_duplicates = bool(payload.get("skip_duplicates", True))
+
+    import csv as _csv
+    import io as _io
+    headers = ["name", "equipment_type", "manufacturer", "model",
+               "serial_number", "asset_number", "sub_location", "quantity"]
+    buf = _io.StringIO()
+    w = _csv.writer(buf)
+    w.writerow(headers)
+    written = 0
+    for r in rows:
+        if skip_duplicates and r.get("duplicate"):
+            continue
+        name = (r.get("name") or "").strip()
+        if not name:
+            continue
+        w.writerow([
+            name,
+            (r.get("equipment_type") or "").strip(),
+            (r.get("manufacturer") or "").strip(),
+            (r.get("model") or "").strip(),
+            (r.get("serial_number") or "").strip(),
+            (r.get("asset_number") or "").strip(),
+            (r.get("sub_location") or "").strip(),
+            r.get("quantity") or 1,
+        ])
+        written += 1
+    if not written:
+        raise HTTPException(400, "Nothing to import after de-duplication.")
+
+    csv_bytes = buf.getvalue().encode("utf-8")
+
+    class _MemUpload:
+        def __init__(self, data: bytes, filename: str):
+            self._data, self.filename = data, filename
+            self.content_type = "text/csv"
+
+        async def read(self):
+            return self._data
+
+    from routes.master_admin_bulk_import import _do_bulk_import_equipment
+    shim = _MemUpload(csv_bytes, f"ai-kit-{site_id}.csv")
+    result = await _do_bulk_import_equipment(shim, site_id, user, validate_org=True)
+    result["rows_submitted"] = written
+    return result
 
 
 __all__ = ["router"]

@@ -1,0 +1,27 @@
+{
+  "summary": "Frontend E2E test of PulseFitness MOD AI Kit-List Import modal. All UI + integration flows pass: auth (admin@pulsefitness.com), navigate /master-admin?section=onboarding → 'mod-equipment' subtab, Nyati Base (AI Import Test) card shows 'AI Import (any kit list)' button (data-testid mod-ai-kit-import-mod-site-test-nyati). Clicking opens AIKitImportModal (ai-kit-import-modal). Uploading /app/test_data/kitlist.xlsx returned analyse=200 in ~8s and rendered the review step with EXACT expected values: '108 items across 4 tabs · 62 distinct products · 1 duplicate serial'. Five tabs rendered (ai-kit-tab-0..4) — 'Nyati Gym', 'FMB Nyati', 'Med Centre & PCRF', 'Kifaru Gym' (all included) and 'Total' with summary badge + include unchecked by default. Sub-location inputs pre-filled from tab names; editing them and the name inputs (ai-kit-name-<ti>-<ri>) updates state. Names are cleaned/grammatical ('Upright Bike — Pro', 'Spinner — D91 Group Cycle'), manufacturers title-cased ('Wattbike', 'Technogym'). Skip-duplicate-serials checkbox checked by default; 1 DUP badge highlighted amber. Toggling tab-1 include off changed footer from 'Import 107 item(s)' → 'Import 88 item(s)' and back. Commit posted /commit=200 and Done step showed 'Imported 107 items into Nyati Base (AI Import Test)'. Site card equipment count updated to 107 after modal closed (onImported callback works).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MOD Equipment site cards", "issues": ["The 'AI Import (any kit list)' button is on the far right edge of the site row and can be partially covered by the PWA 'Install App / Later' banner in the bottom-right; first Playwright click missed and required a JS click retry. Consider higher z-index on the site card action row or dismiss the install banner earlier for master-admin routes."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "None blocking. Optional UX: the Done step shows '0 skipped' because the 1 duplicate is filtered client-side before the commit payload is built (skipDuplicates default true). If the intent is to surface skipped duplicates in the summary the way the review step advertised '1 duplicate serial(s)', consider sending duplicates to the backend and letting it report them as skipped, or add a '(1 duplicate filtered before send)' line on the Done screen."
+  ],
+  "critical_code_review_comments": [
+    "AIKitImportModal.js is clean (~245 lines, single responsibility, uses REACT_APP_BACKEND_URL, has data-testid on every interactive element, handles error state).",
+    "willImport is recomputed on every render via buildRows() — fine for this scale (~108 rows) but could be memoised if row counts grow into thousands."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (worked; token stored in localStorage 'token')",
+  "seed_data_creation": "None — used existing seeded site 'mod-site-test-nyati' and /app/test_data/kitlist.xlsx. Import persisted 107 rows onto this site; re-runs will start reporting more duplicates as expected.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Re-running the same import against mod-site-test-nyati will now flag ~107 duplicates because equipment persists on the site. To re-test cleanly, either delete existing equipment on the site or use a different site/file. All ai-kit-* data-testids are stable and correctly exposed.",
+  "rca of the issue": "n/a — no functional bugs found."
+}

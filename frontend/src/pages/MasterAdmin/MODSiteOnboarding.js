@@ -15,11 +15,12 @@ import axios from 'axios';
 import {
   Download, Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet,
   Dumbbell, Users, Truck, FileText, ClipboardCheck, RefreshCw, ShieldCheck,
-  Link2, Inbox, ThumbsUp, Undo2, Bell, Eye, X, AlertTriangle, Copy, Mail,
+  Link2, Inbox, ThumbsUp, Undo2, Bell, Eye, X, AlertTriangle, Copy, Mail, Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { notify } from '@/components/notifications';
+import AIKitImportModal from './AIKitImportModal';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
@@ -49,6 +50,7 @@ const MODSiteOnboarding = () => {
   const [totals, setTotals] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploadingId, setUploadingId] = useState(null);
+  const [aiKitSite, setAiKitSite] = useState(null);
   const [result, setResult] = useState(null);
   const [filter, setFilter] = useState('all'); // all | needs-equipment | ready
   const [captures, setCaptures] = useState([]);
@@ -461,6 +463,9 @@ const MODSiteOnboarding = () => {
                     {uploadingId === s.id ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Upload size={14} className="mr-1.5" />}
                     {uploadingId === s.id ? 'Importing…' : 'Import equipment'}
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => setAiKitSite(s)} data-testid={`mod-ai-kit-import-${s.id}`}>
+                    <Sparkles size={14} className="mr-1.5 text-cyan-600" /> AI Import (any kit list)
+                  </Button>
                 </div>
               </div>
             </Card>
@@ -550,6 +555,15 @@ const MODSiteOnboarding = () => {
             )}
           </div>
         </div>
+      )}
+
+      {aiKitSite && (
+        <AIKitImportModal
+          site={aiKitSite}
+          headers={headers}
+          onClose={() => setAiKitSite(null)}
+          onImported={() => load()}
+        />
       )}
     </div>
   );
