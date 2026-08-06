@@ -1,3 +1,14 @@
+# ═══ 2026-08-06 · CRM TENDERS NAV — enabled for iso-demo-org (no more deep-link) — curl-verified ═══
+The CRM "Tenders" left-nav tab is gated by featureOn('crm_tenders') (CRMApp.js visibleNavItems): explicit
+org override features.crm_tenders wins, else modules.crm_tenders.enabled, else is_pulse_internal/master.
+iso-demo-org previously had features:{} → tab hidden → only reachable via /crm?tab=tenders deep-link.
+FIX (data only, no code): set db.organizations {id:'iso-demo-org'} features.crm_tenders=true.
+VERIFIED: GET /api/crm/auth/me for owner@isodemo.com now returns features:{crm_tenders:true} → Tenders tab
+  renders in the CRM left nav. (Master-admin org-modules toggle is the prod path for other orgs.)
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-06 · CRM TENDER WRITER — LIVE COVER-PAGE PREVIEW — testing_agent 100% ═══
 Enhancement on the Submission Pack Wizard: a true page-1 thumbnail so bidders can eyeball formatting before download.
 BACKEND:
