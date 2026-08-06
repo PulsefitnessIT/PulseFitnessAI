@@ -21,6 +21,7 @@ export default function AIKitImportModal({ site, headers, onClose, onImported })
   const [preview, setPreview] = useState(null);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
   const [result, setResult] = useState(null);
+  const [filteredDupes, setFilteredDupes] = useState(0);
   const [error, setError] = useState('');
 
   const analyse = useCallback(async (f) => {
@@ -80,6 +81,10 @@ export default function AIKitImportModal({ site, headers, onClose, onImported })
   const commit = async () => {
     const rows = buildRows();
     if (!rows.length) { notify.error('Nothing to import', 'All rows are excluded or duplicates.'); return; }
+    const dropped = skipDuplicates
+      ? (preview?.sheets || []).reduce((n, sh) => n + (sh.include ? sh.rows.filter((r) => r.keep && r.duplicate).length : 0), 0)
+      : 0;
+    setFilteredDupes(dropped);
     setBusy(true); setError('');
     try {
       const { data } = await axios.post(
@@ -216,6 +221,7 @@ export default function AIKitImportModal({ site, headers, onClose, onImported })
               <div className="mx-auto w-14 h-14 rounded-full bg-green-50 flex items-center justify-center mb-4"><CheckCircle2 size={28} className="text-green-600" /></div>
               <p className="text-sm font-bold text-zinc-900 mb-1">Imported {result.imported} items into {site.name}</p>
               <p className="text-xs text-zinc-500">{result.skipped || 0} skipped{result.errors?.length ? ` · ${result.errors.length} error(s)` : ''}.</p>
+              {filteredDupes > 0 && <p className="text-[11px] text-amber-700 mt-1">{filteredDupes} duplicate serial(s) filtered out before import.</p>}
               {result.errors?.length > 0 && (
                 <div className="mt-4 mx-auto max-w-lg text-left text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3 max-h-40 overflow-y-auto">
                   {result.errors.slice(0, 30).map((e, i) => <div key={i}>{e}</div>)}

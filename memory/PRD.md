@@ -1,3 +1,36 @@
+# ═══ 2026-08-06 · MOD AI KIT-LIST IMPORT — testing_agent 100% ═══
+PROBLEM: MOD equipment bulk import failed because 'Name' was mandatory and real kit lists have no Name column,
+spread kit across worksheet TABS (each tab = a room/location), use ALL CAPS, and include a 'Total' pivot tab.
+SOLUTION (like the MOD Auto Quote): AI reads ANY kit list → review → imports via the SAME single engine.
+BACKEND:
+  • NEW utils/kit_list_ai.py analyse_kit_workbook(bytes, filename): openpyxl reads ALL sheets, auto-detects the
+    header row + column map (Type/Model/Manufacturer/Serial(Frame)/Asset(ServiceSport)/Qty/Category), flags
+    summary/pivot sheets (name in {total,summary,pivot…} or cells with 'Row Labels'/'Sum of'). Collects DISTINCT
+    (type,model,manufacturer) tuples and asks Claude/gpt-5.2 ONCE (emergentintegrations, EMERGENT_LLM_KEY) to
+    return a clean grammatical {name,equipment_type,manufacturer} per tuple (e.g. 'BIKE - (UPRIGHT)'+'PRO' →
+    'Upright Bike — Pro'; 'SPINNER'+'D91 GROUP CYCLE' → 'Spinner — D91 Group Cycle'). Deterministic fallback
+    (_title_case with brand map + acronym/code preservation: keeps FMB/PCRF/RAF and D91/DAC73L). Tabs → sub_location.
+  • NEW endpoints in routes/master_admin_mod_estate.py (require_master_admin):
+      POST /master-admin/mod-estate/ai-kit-import/analyse (multipart file + ?site_id) → preview {sheets[], rows[],
+        importable_rows, distinct_items, duplicate_serials}; flags dup serials vs the site's existing kit AND intra-file.
+      POST /master-admin/mod-estate/ai-kit-import/commit {site_id, rows[], skip_duplicates} → builds a CSV and calls
+        the SAME routes/master_admin_bulk_import._do_bulk_import_equipment (ONE import path + serial de-dupe).
+FRONTEND:
+  • NEW pages/MasterAdmin/AIKitImportModal.js — upload → review → done. Per-tab include toggle (summary tabs off by
+    default), editable per-tab sub_location override, editable row Name, per-row keep, 'Skip duplicate serials'
+    (default on), amber DUP badges, live 'N item(s) will be imported', Done screen shows imported/skipped + filtered dupes.
+  • Wired into pages/MasterAdmin/MODSiteOnboarding.js — new per-site 'AI Import (any kit list)' button
+    (data-testid mod-ai-kit-import-<siteId>) next to the existing 'Import equipment' (single import place preserved).
+    Reached: /master-admin/onboarding → 'MOD Equipment & Readiness' tab (id mod-equipment).
+VERIFIED: main-agent curl+integration (108 parsed / 62 distinct / 1 dup; commit imported 107, skipped 1 dup, clean
+  names+brands+sub_locations) + testing_agent iteration_279.json 100% FE, 0 bugs, retest_needed=false (upload→analyse
+  200 ~8s → review exact 108/62/1, Total auto-skipped, tab toggle 107↔88, commit 200 → 'Imported 107', card updated).
+TEST DATA: seeded MOD site org id 'mod-site-test-nyati' name 'Nyati Base (AI Import Test)'; file /app/test_data/kitlist.xlsx.
+  ⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-06 · CRM TENDER WRITER — HOUSE TEMPLATES seeded + XML-ESCAPE BUGFIX — curl-verified ═══
 1) HOUSE TEMPLATES: scripts/seed_tender_house_templates.py (idempotent, tag seed_house=true; env ORG_ID default
    iso-demo-org) builds 2 branded Pulse .docx templates and inserts them into db.crm2_tender_docx_templates with the
