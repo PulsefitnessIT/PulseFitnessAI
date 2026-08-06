@@ -1,3 +1,50 @@
+# ═══ 2026-08-06 · BUG FIX: MOD kit-list import (CSV crash + consolidated to 1 AI button) — testing_agent 100% ═══
+Two linked bug reports on Master Admin → MOD Equipment & Readiness onboarding import:
+  (1) Standard 'Import equipment' bulk path failed every row with "missing required column 'name'" (Name meant to be
+      optional).  (2) The 'AI Import (any kit list)' modal crashed on a .CSV upload with
+      "Could not read that spreadsheet: File is not a zip file" (openpyxl can't open non-zip files).
+USER DECISION: "just have 1 import button and AI runs through the import as a standard."
+FIX:
+  • BACKEND utils/kit_list_ai.py — NEW _looks_like_zip() (PK magic bytes), _csv_to_workbook() (csv/tsv→openpyxl
+    Workbook with delimiter sniff, utf-8-sig), and rewritten _read_workbook(content, filename) that routes
+    .csv/.tsv/.txt or ANY non-zip payload through the CSV path so the existing sheet pipeline is unchanged;
+    analyse_kit_workbook now passes the filename through. .xlsx path untouched.
+  • FRONTEND MODSiteOnboarding.js (~line 462) — the two buttons (standard 'Import equipment' + 'AI Import (any kit
+    list)') were CONSOLIDATED into ONE 'Import equipment' button (Sparkles icon, data-testid mod-equip-import-<siteId>)
+    that opens <AIKitImportModal> via setAiKitSite(s). Old testid mod-ai-kit-import-<siteId> removed. Modal already
+    accepts .xlsx,.xls,.csv.
+VERIFIED (testing_agent iteration_ai_kit_csv_single_button_jan2026.json, 100% BE+FE + curl):
+  CSV /tmp/nyati.csv → 55 importable rows; XLSX /tmp/kitlist.xlsx → 5 tabs / 108 rows with 'Total' tab is_summary=true
+  (skipped); commit imported 55 into a MOD site; readiness overview equipment count correctly updates
+  (Kifaru test site shows 57 — the testing agent's transient '0' was a timing artifact, re-confirmed live). Single-button
+  UI confirmed; no 'not a zip' error. Pytest: /app/backend/tests/test_ai_kit_import_csv_jan2026.py.
+NOTE: derive-name safety net was NOT needed for the AI path (AI/​fallback always produces a name); the standard bulk
+  importer's hard name-requirement is now bypassed for MOD onboarding because that button uses the AI importer.
+─────────────────────────────────────────────────────────────────────────────
+
+# ═══ 2026-08-06 · Bulk Stock-Take (rapid-scan equipment audit) — BACKEND verified; FRONTEND built, UI test pending ═══
+Staff rapid-scan a zone to tick off an equipment audit in one pass (builds on the barcode scanner).
+BACKEND (routes/equipment.py) — verified via curl (save→expected/found/missing computed, list returns rows):
+  • POST /api/equipment/stocktakes {site_id?, location?, found:[{id}], unexpected:[{code,id?,name?,reason}],
+    duration_seconds} → recomputes EXPECTED (org+site+location scoped, excludes archived) + MISSING server-side and
+    persists to db.equipment_stocktakes with found/missing/unexpected snapshots + started_by.
+  • GET /api/equipment/stocktakes?site_id= (history list, heavy arrays stripped).
+  • GET /api/equipment/stocktakes/{id} (full report).
+FRONTEND (built + wired, webpack clean; full UI flow NOT yet run through testing_agent):
+  • NEW components/equipment/StockTakeModal.js — setup (pick zone/All, shows expected count) → continuous camera scan
+    (BarcodeDetector, on-device match vs loaded site list, beep+vibrate, dup debounce 2.5s, live X/Y + remaining list,
+    manual-entry fallback) → finish → saves report → summary (found/missing/unexpected).
+  • NEW components/equipment/StockTakeHistoryModal.js — list past stock-takes + drill into found/missing (any device).
+  • pages/EquipmentInfoTab.js — mobile-only 'Stock-take' button (data-testid stocktake-btn, sm:hidden) next to
+    'Scan barcode', + all-device 'Stock-takes' history button (data-testid stocktake-history-btn); both modals rendered
+    with equipment={equipment} locations={equipmentLocations} siteId={user.active_site_id}.
+  key data-testids: stocktake-modal, stocktake-location, stocktake-start, stocktake-video, stocktake-progress,
+    stocktake-remaining, stocktake-finish, stocktake-missing-count, stocktake-history-modal, stocktake-history-row-<id>.
+⚠️ TODO: run testing_agent on the Stock-take UI (manual-entry path; camera not headless-testable). PREVIEW ONLY — needs redeploy.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-06 · EQUIPMENT FACTORY-BARCODE SCANNER (gym staff + engineers) — E2E verified ═══
 Machines leave the Pulse factory with LINEAR barcodes (numeric serial e.g. 17150704760 = unique per-machine
 identifier, already stored as equipment.serial_number; model code e.g. 510H-AAA = the model). Phones auto-open the
