@@ -716,6 +716,90 @@ async def get_stocktake(stocktake_id: str, user: dict = Depends(get_current_user
     return row
 
 
+@router.post("/equipment/stocktakes/{stocktake_id}/flag-missing")
+async def flag_missing_for_followup(stocktake_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Turn a stock-take's MISSING machines into a follow-up task list for
+    the site manager. Idempotent — re-flagging keeps any statuses/notes
+    already set and only adds newly-missing machines."""
+    row = await db.equipment_stocktakes.find_one(
+        {"id": stocktake_id, **get_organization_filter(user)}, {"_id": 0})
+    if not row:
+        raise HTTPException(404, "Stock-take not found")
+    existing = {f.get("equipment_id"): f for f in (row.get("follow_ups") or [])}
+    now = datetime.now(timezone.utc).isoformat()
+    follow_ups = list(row.get("follow_ups") or [])
+    added = 0
+    for m in (row.get("missing") or []):
+        eid = m.get("id")
+        if eid in existing:
+            continue
+        follow_ups.append({
+            "equipment_id": eid,
+            "name": m.get("name") or m.get("serial_number") or "Equipment",
+            "serial_number": m.get("serial_number"),
+            "location": m.get("location"),
+            "status": "open",
+            "note": "",
+            "flagged_at": now,
+            "flagged_by": user.get("full_name") or user.get("email") or "",
+            "resolved_at": None,
+        })
+        added += 1
+    await db.equipment_stocktakes.update_one(
+        {"id": stocktake_id},
+        {"$set": {"follow_ups": follow_ups, "follow_up_flagged": True, "updated_at": now}})
+    return {"success": True, "added": added, "follow_ups": follow_ups}
+
+
+@router.put("/equipment/stocktakes/{stocktake_id}/follow-ups/{equipment_id}")
+async def update_followup(stocktake_id: str, equipment_id: str, data: dict, user: dict = Depends(get_current_user)) -> dict:
+    row = await db.equipment_stocktakes.find_one(
+        {"id": stocktake_id, **get_organization_filter(user)}, {"_id": 0})
+    if not row:
+        raise HTTPException(404, "Stock-take not found")
+    follow_ups = row.get("follow_ups") or []
+    now = datetime.now(timezone.utc).isoformat()
+    found = False
+    for f in follow_ups:
+        if f.get("equipment_id") == equipment_id:
+            if "status" in data:
+                f["status"] = "resolved" if data["status"] == "resolved" else "open"
+                f["resolved_at"] = now if f["status"] == "resolved" else None
+            if "note" in data:
+                f["note"] = (data.get("note") or "")[:500]
+            found = True
+    if not found:
+        raise HTTPException(404, "Follow-up item not found")
+    await db.equipment_stocktakes.update_one(
+        {"id": stocktake_id}, {"$set": {"follow_ups": follow_ups, "updated_at": now}})
+    return {"success": True}
+
+
+@router.get("/equipment/follow-ups")
+async def list_equipment_followups(site_id: str = None, status: str = "open", user: dict = Depends(get_current_user)) -> dict:
+    """Consolidated follow-up task list for the site manager — every flagged
+    missing machine across stock-takes, newest first."""
+    q = get_organization_filter(user)
+    if (site_id or "").strip():
+        q = {**q, "site_id": site_id.strip()}
+    q["follow_ups"] = {"$exists": True, "$ne": []}
+    rows = await db.equipment_stocktakes.find(
+        q, {"_id": 0, "id": 1, "location": 1, "site_id": 1, "created_at": 1, "follow_ups": 1},
+    ).sort("created_at", -1).limit(100).to_list(100)
+    items = []
+    for r in rows:
+        for f in (r.get("follow_ups") or []):
+            if status != "all" and f.get("status") != status:
+                continue
+            items.append({
+                **f,
+                "stocktake_id": r["id"],
+                "stocktake_location": r.get("location"),
+                "stocktake_at": r.get("created_at"),
+            })
+    return {"follow_ups": items, "open_count": sum(1 for i in items if i.get("status") == "open")}
+
+
 @router.get("/equipment/{equipment_id}")
 async def get_equipment(equipment_id: str, user: dict = Depends(get_current_user)) -> dict:
     org_filter = get_organization_filter(user)

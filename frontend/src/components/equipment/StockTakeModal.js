@@ -10,7 +10,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { Camera, Loader2, X, CheckCircle, AlertTriangle, Search, ClipboardList } from 'lucide-react';
+import { Camera, Loader2, X, CheckCircle, AlertTriangle, Search, ClipboardList, Flag } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -42,6 +42,8 @@ export default function StockTakeModal({ open, onClose, equipment, locations, si
   const [toast, setToast] = useState(null);
   const [saving, setSaving] = useState(false);
   const [report, setReport] = useState(null);
+  const [flagging, setFlagging] = useState(false);
+  const [flagged, setFlagged] = useState(false);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -64,6 +66,7 @@ export default function StockTakeModal({ open, onClose, equipment, locations, si
     stopCamera();
     setStep('setup'); setLocation('all'); setFoundIds([]); setUnexpected([]);
     setToast(null); setReport(null); setManualValue(''); seenRef.current = {};
+    setFlagged(false); setFlagging(false);
   };
 
   const handleClose = () => { reset(); onClose?.(); };
@@ -168,6 +171,16 @@ export default function StockTakeModal({ open, onClose, equipment, locations, si
     setSaving(false);
   };
 
+  const flagMissing = async () => {
+    if (!report?.id) return;
+    setFlagging(true);
+    try {
+      await axios.post(`${API}/equipment/stocktakes/${report.id}/flag-missing`, {}, auth());
+      setFlagged(true);
+    } catch (_e) { /* noop */ }
+    setFlagging(false);
+  };
+
   if (!open) return null;
 
   const remaining = expected.filter((e) => !foundIds.includes(e.id));
@@ -263,7 +276,12 @@ export default function StockTakeModal({ open, onClose, equipment, locations, si
               </div>
               {report.missing?.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-red-600 mb-1 flex items-center gap-1"><AlertTriangle size={11} /> Missing — not scanned</p>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-red-600 flex items-center gap-1"><AlertTriangle size={11} /> Missing — not scanned</p>
+                    <button type="button" onClick={flagMissing} disabled={flagging || flagged} className="text-[11px] font-bold inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500 text-white disabled:opacity-50" data-testid="stocktake-flag-missing">
+                      {flagging ? <Loader2 size={11} className="animate-spin" /> : <Flag size={11} />} {flagged ? 'Flagged for follow-up' : 'Flag for follow-up'}
+                    </button>
+                  </div>
                   <div className="space-y-1 max-h-40 overflow-y-auto" data-testid="stocktake-missing-list">
                     {report.missing.map((e) => <div key={e.id} className="text-xs text-slate-700">{e.name || e.serial_number} <span className="text-slate-400">· {e.serial_number}{e.location ? ` · ${e.location}` : ''}</span></div>)}
                   </div>
