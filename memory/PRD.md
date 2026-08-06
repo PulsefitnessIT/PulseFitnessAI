@@ -1,3 +1,17 @@
+# ═══ 2026-08-06 · MOD Kit-by-category CHIP DRILL-DOWN (click a chip → machine list) — verified ═══
+Follow-on to the kit-by-category site-card summary: HQ can now click a category chip to see the exact machines.
+  • BACKEND routes/master_admin_mod_estate.py — NEW GET /master-admin/mod-estate/site/{site_id}/equipment-by-category
+    ?category=<name> (require_master_admin). Reads db.equipment for the site (archived excluded), coalesces category the
+    SAME way as the readiness aggregation (category → equipment_type → 'Uncategorised'), filters case-insensitively, and
+    returns {site_id, category, count, items:[{id,name,manufacturer,model,serial_number,asset_number,location,mod_code}]}.
+  • FRONTEND MODSiteOnboarding.js — kit chips are now <button>s (hover state) that call openKitDrill(site,category) →
+    opens a drill-down modal (data-testid mod-kit-drill-modal) with a table of machines (mod-kit-drill-table /
+    mod-kit-drill-row-<id>), a loading + empty state (mod-kit-drill-empty), and close (mod-kit-drill-close). State kitDrill.
+  • VERIFIED: curl (Kifaru 'Cardio' → 39 items w/ manufacturer+serial) + live screenshot (chip 'Cardio 39' → modal lists
+    all 39 machines: Name/Manufacturer/Model/Serial/Asset #/Location). Babel + py OK. ⚠️ PREVIEW ONLY — needs REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-06 · MOD 'Kit by category' site-card summary + Staffing identity-bridge UI reachability fix — testing_agent 100% ═══
 Two items this session (user: re-test the staffing bridge first, then build the missed P0 kit-by-category card).
 

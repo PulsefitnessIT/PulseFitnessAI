@@ -586,6 +586,46 @@ async def mod_site_readiness(estate_id: str = DEFAULT_ESTATE_ID,
     return await _compute_estate_readiness(estate_id)
 
 
+@router.get("/master-admin/mod-estate/site/{site_id}/equipment-by-category")
+async def mod_site_equipment_by_category(site_id: str, category: str = Query(...),
+                                         user: dict = Depends(get_current_user)) -> dict:
+    """Drill-down for the 'Kit by category' chip on a MOD site card: the actual
+    machines that make up a category count. Category is coalesced the same way
+    the readiness aggregation does (category → equipment_type → 'Uncategorised')."""
+    require_master_admin(user)
+    want = (category or "").strip().lower()
+    docs = await db.equipment.find(
+        {"organization_id": site_id, "archived": {"$ne": True}},
+        {"_id": 0, "id": 1, "name": 1, "manufacturer": 1, "model": 1,
+         "model_code": 1, "serial_number": 1, "asset_number": 1, "asset_tag": 1,
+         "location": 1, "sub_location": 1, "category": 1, "equipment_type": 1,
+         "mod_code": 1},
+    ).sort("name", 1).to_list(5000)
+
+    def _cat(d: dict) -> str:
+        c = (d.get("category") or "").strip()
+        if c:
+            return c
+        t = (d.get("equipment_type") or "").strip()
+        return t or "Uncategorised"
+
+    items = []
+    for d in docs:
+        if _cat(d).lower() != want:
+            continue
+        items.append({
+            "id": d.get("id"),
+            "name": d.get("name") or "—",
+            "manufacturer": d.get("manufacturer") or "",
+            "model": d.get("model") or d.get("model_code") or "",
+            "serial_number": d.get("serial_number") or "",
+            "asset_number": d.get("asset_number") or d.get("asset_tag") or "",
+            "location": d.get("location") or d.get("sub_location") or "",
+            "mod_code": d.get("mod_code") or "",
+        })
+    return {"site_id": site_id, "category": category, "count": len(items), "items": items}
+
+
 def build_readiness_xlsx_bytes(data: dict) -> bytes:
     """Build the whole-of-MOD go-live readiness workbook from a readiness
     payload (see `_compute_estate_readiness`) and return the raw .xlsx bytes.

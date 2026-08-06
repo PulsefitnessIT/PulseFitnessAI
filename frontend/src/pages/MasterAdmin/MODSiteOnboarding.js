@@ -63,6 +63,7 @@ const MODSiteOnboarding = () => {
   const [review, setReview] = useState(null);   // { loading, detail } for the diff modal
   const [emailStatus, setEmailStatus] = useState(null);
   const [emailBusy, setEmailBusy] = useState(false);
+  const [kitDrill, setKitDrill] = useState(null);   // { site, category, loading, items }
   const fileInput = useRef(null);
   const targetSite = useRef(null);
 
@@ -233,6 +234,19 @@ const MODSiteOnboarding = () => {
 
   const pickFileFor = (site) => { targetSite.current = site; fileInput.current?.click(); };
 
+  const openKitDrill = async (site, category) => {
+    setKitDrill({ site, category, loading: true, items: [] });
+    try {
+      const { data } = await axios.get(
+        `${API}/master-admin/mod-estate/site/${encodeURIComponent(site.id)}/equipment-by-category`,
+        { headers, params: { category } },
+      );
+      setKitDrill({ site, category, loading: false, items: data.items || [] });
+    } catch (e) {
+      notify.error('Could not load machines', e?.response?.data?.detail || 'Server error');
+      setKitDrill(null);
+    }
+  };
   const onFile = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -460,11 +474,13 @@ const MODSiteOnboarding = () => {
                         <Dumbbell size={11} /> Kit by category
                       </span>
                       {s.kit_by_category.map((c) => (
-                        <span key={c.category}
-                          className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-800 border border-cyan-100"
+                        <button key={c.category} type="button"
+                          onClick={() => openKitDrill(s, c.category)}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-800 border border-cyan-100 hover:bg-cyan-100 hover:border-cyan-300 transition-colors cursor-pointer"
+                          title={`View the ${c.count} ${c.category} machine${c.count === 1 ? '' : 's'}`}
                           data-testid={`mod-equip-kit-cat-${s.id}-${String(c.category).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>
                           {c.category} <strong className="text-cyan-900">{c.count}</strong>
-                        </span>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -575,6 +591,58 @@ const MODSiteOnboarding = () => {
           onClose={() => setAiKitSite(null)}
           onImported={() => load()}
         />
+      )}
+
+      {kitDrill && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }} data-testid="mod-kit-drill-modal" onClick={() => setKitDrill(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 p-5 border-b border-zinc-200">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Dumbbell size={16} className="text-cyan-600" />
+                  <h3 className="text-base font-extrabold text-zinc-900">{kitDrill.category}</h3>
+                  <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700">{kitDrill.items.length} machine{kitDrill.items.length === 1 ? '' : 's'}</span>
+                </div>
+                <p className="text-xs text-zinc-500 mt-1">{kitDrill.site.name}</p>
+              </div>
+              <button onClick={() => setKitDrill(null)} className="p-1.5 rounded-full hover:bg-zinc-100" aria-label="Close" data-testid="mod-kit-drill-close"><X size={16} /></button>
+            </div>
+            <div className="overflow-auto p-5 flex-1">
+              {kitDrill.loading ? (
+                <div className="py-10 text-center text-sm text-zinc-500"><Loader2 size={16} className="animate-spin inline mr-2" /> Loading machines…</div>
+              ) : kitDrill.items.length === 0 ? (
+                <div className="py-10 text-center text-sm text-zinc-500" data-testid="mod-kit-drill-empty">No machines found in this category.</div>
+              ) : (
+                <table className="w-full text-xs border-collapse" data-testid="mod-kit-drill-table">
+                  <thead>
+                    <tr className="text-left text-zinc-500 border-b border-zinc-200">
+                      <th className="py-2 pr-3">#</th>
+                      <th className="py-2 pr-3 font-semibold">Name</th>
+                      <th className="py-2 pr-3 font-semibold">Manufacturer</th>
+                      <th className="py-2 pr-3 font-semibold">Model</th>
+                      <th className="py-2 pr-3 font-semibold whitespace-nowrap">Serial</th>
+                      <th className="py-2 pr-3 font-semibold whitespace-nowrap">Asset #</th>
+                      <th className="py-2 pr-3 font-semibold">Location</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {kitDrill.items.map((m, i) => (
+                      <tr key={m.id || i} className="border-b border-zinc-100" data-testid={`mod-kit-drill-row-${m.id || i}`}>
+                        <td className="py-2 pr-3 text-zinc-400">{i + 1}</td>
+                        <td className="py-2 pr-3 text-zinc-800 font-medium">{m.name}</td>
+                        <td className="py-2 pr-3 text-zinc-700">{m.manufacturer || <span className="text-zinc-300">—</span>}</td>
+                        <td className="py-2 pr-3 text-zinc-700">{m.model || <span className="text-zinc-300">—</span>}</td>
+                        <td className="py-2 pr-3 text-zinc-700 whitespace-nowrap">{m.serial_number || <span className="text-zinc-300">—</span>}</td>
+                        <td className="py-2 pr-3 text-zinc-700 whitespace-nowrap">{m.asset_number || <span className="text-zinc-300">—</span>}</td>
+                        <td className="py-2 pr-3 text-zinc-700">{m.location || <span className="text-zinc-300">—</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
