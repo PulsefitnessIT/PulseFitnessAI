@@ -676,6 +676,7 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers, navigateTo })
     setAiLoading('');
   };
   const [showSlides, setShowSlides] = useState(false);
+  const [showPackWizard, setShowPackWizard] = useState(false);
 
   if (!tender) return <div className="flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-[var(--color-info-ios)] border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -724,6 +725,14 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers, navigateTo })
           data-testid="export-submission-btn"
         >
           <Download size={12} /> Export submission PDF
+        </button>
+        <button
+          onClick={() => setShowPackWizard(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md"
+          style={{ background: 'var(--color-success-alt, #16a34a)', color: '#fff' }}
+          data-testid="export-pack-btn"
+        >
+          <FileText size={12} /> Submission pack (.docx)
         </button>
         <button
           onClick={() => exportPdf('pitch')}
@@ -1190,6 +1199,18 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers, navigateTo })
         </div>
       )}
       {/* Slide manager modal (Iter 216h102) */}
+      {showPackWizard && (
+        <SubmissionPackWizard
+          API={API}
+          headers={headers}
+          tenderId={tenderId}
+          tender={tender}
+          c={c}
+          isDark={isDark}
+          onClose={() => setShowPackWizard(false)}
+        />
+      )}
+
       {showSlides && (
         <SlideManager
           tenderId={tenderId}

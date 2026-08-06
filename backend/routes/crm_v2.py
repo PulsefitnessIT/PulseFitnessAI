@@ -3510,6 +3510,128 @@ async def export_pitch_pdf(tender_id: str, user=Depends(get_crm_user)):
     )
 
 
+# ── Submission-ready DOCX packs: template library + exports ────────
+
+@router.get("/tender-docx-templates")
+async def list_docx_templates(user=Depends(get_crm_user)):
+    """Org-level library of uploaded .docx layout templates."""
+    rows = await db.crm2_tender_docx_templates.find(
+        {**_of(user)}, {"_id": 0, "data_b64": 0},
+    ).sort("created_at", -1).to_list(100)
+    return {"templates": rows}
+
+
+@router.post("/tender-docx-templates")
+async def upload_docx_template(
+    label: str = "",
+    file: UploadFile = FastAPIFile(...),
+    user=Depends(get_crm_user),
+):
+    name = (file.filename or "").lower()
+    if not name.endswith(".docx"):
+        raise HTTPException(400, "Please upload a .docx template.")
+    content = await file.read()
+    if len(content) > 25 * 1024 * 1024:
+        raise HTTPException(400, "Template too large (max 25MB).")
+    from utils.tender_docx_exporter import detect_template_styles
+    meta = detect_template_styles(content)
+    if meta.get("error"):
+        raise HTTPException(400, f"Could not read that .docx ({meta['error']}).")
+    rec = {
+        "id": _id(), "organization_id": user.get("organization_id"),
+        "label": (label or file.filename or "Template").strip()[:120],
+        "original_filename": file.filename,
+        "size": len(content),
+        "data_b64": base64.b64encode(content).decode("utf-8"),
+        "styles": meta.get("styles", []),
+        "header_text": meta.get("header_text", ""),
+        "created_by": user.get("full_name", ""),
+        "created_at": _now(),
+    }
+    await db.crm2_tender_docx_templates.insert_one(rec)
+    return {k: v for k, v in rec.items() if k not in ("_id", "data_b64")}
+
+
+@router.delete("/tender-docx-templates/{tpl_id}")
+async def delete_docx_template(tpl_id: str, user=Depends(get_crm_user)):
+    res = await db.crm2_tender_docx_templates.delete_one({"id": tpl_id, **_of(user)})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Template not found")
+    return {"deleted": True}
+
+
+async def _load_tender_and_questions(tender_id: str, user):
+    tender = await db.crm2_tenders.find_one({"id": tender_id, **_of(user)}, {"_id": 0})
+    if not tender:
+        raise HTTPException(404, "Tender not found")
+    questions = await db.crm2_tender_questions.find(
+        {"tender_id": tender_id, **_of(user)}, {"_id": 0},
+    ).sort("order", 1).to_list(500)
+    return tender, questions
+
+
+def _docx_response(data: bytes, filename: str):
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    return StreamingResponse(
+        BytesIO(data),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/tenders/{tender_id}/export/submission-docx")
+@audit_export("tender.submission.docx", resource_kwarg="tender_id")
+async def export_submission_docx(tender_id: str, data: dict, user=Depends(get_crm_user)):
+    """Build a submission-ready DOCX using an uploaded template, with
+    find-&-replace tokens and an optional customer logo."""
+    from utils.tender_docx_exporter import build_templated_submission
+    tender, questions = await _load_tender_and_questions(tender_id, user)
+    tpl_id = data.get("template_id")
+    tpl = await db.crm2_tender_docx_templates.find_one({"id": tpl_id, **_of(user)})
+    if not tpl:
+        raise HTTPException(404, "Template not found — pick one from the library.")
+    template_bytes = base64.b64decode(tpl["data_b64"])
+    logo_bytes = None
+    if data.get("logo_b64"):
+        try:
+            logo_bytes = base64.b64decode(str(data["logo_b64"]).split(",")[-1])
+        except Exception:
+            logo_bytes = None
+    tokens = data.get("tokens") or []
+    try:
+        out = build_templated_submission(template_bytes, tender, questions, tokens, logo_bytes)
+    except Exception as e:
+        raise HTTPException(500, f"Export failed: {e}")
+    safe = (tender.get("title") or "tender").replace(" ", "_")[:60]
+    return _docx_response(out, f"{safe}-submission.docx")
+
+
+@router.get("/tenders/{tender_id}/export/itt-docx")
+@audit_export("tender.itt.docx", resource_kwarg="tender_id")
+async def export_itt_docx(tender_id: str, user=Depends(get_crm_user)):
+    """Clean, template-free answers document for pasting into a portal / ITT."""
+    from utils.tender_docx_exporter import build_itt_plain
+    tender, questions = await _load_tender_and_questions(tender_id, user)
+    brand = await _resolve_crm_brand(user)
+    out = build_itt_plain(tender, questions, brand)
+    safe = (tender.get("title") or "tender").replace(" ", "_")[:60]
+    return _docx_response(out, f"{safe}-answers.docx")
+
+
+@router.get("/tenders/{tender_id}/export/traceability-docx")
+@audit_export("tender.traceability.docx", resource_kwarg="tender_id")
+async def export_traceability_docx(tender_id: str, user=Depends(get_crm_user)):
+    """Evidence traceability matrix (answer → supporting KB sources)."""
+    from utils.tender_docx_exporter import build_traceability
+    tender, questions = await _load_tender_and_questions(tender_id, user)
+    brand = await _resolve_crm_brand(user)
+    out = build_traceability(tender, questions, brand)
+    safe = (tender.get("title") or "tender").replace(" ", "_")[:60]
+    return _docx_response(out, f"{safe}-traceability.docx")
+
+
+
 _PULSE_BID_LIBRARY_SEEDS = [
     {"title": "Company Overview — Pulse Fitness", "category": "company", "tags": ["overview"], "win_score": 90,
      "content": "Pulse Fitness has been designing, supplying and maintaining commercial gym and leisure facilities across the UK for over 30 years. We work with local authority leisure trusts, education, hotels, MOD, prisons and corporate wellness clients — handling everything from initial floor design through manufacture, installation, training and lifetime servicing. Directly-employed engineers, UK-stocked parts, and a 4-hour critical-response SLA mean our clients see uptime north of 99% across multi-site rollouts."},
@@ -3948,11 +4070,15 @@ async def ai_generate_response(tender_id: str, q_id: str, data: dict, user=Depen
         kb_context = "\n".join([f"- {item.get('title','')}: {item.get('content','')[:300]}" for item in kb_items[:5] if item.get("content")])
         citations = []
 
-    system = f"""You are a world-class Bid Writer for Pulse Fitness, a leading gym and fitness equipment company.
-Write {tone}, compelling tender responses that WIN contracts.
-Structure: Direct answer first → Evidence → Differentiation → Client benefit → Risk mitigation → Summary.
-Be specific, outcome-focused, and evidence-based. Never be generic.
-When you draw on the COMPANY KNOWLEDGE BASE, cite the relevant snippet by writing the matching [CITE-N] tag at the end of the supporting sentence — these citation markers will be rendered as references in the operator's review screen."""
+    system = f"""You are an experienced UK bid author writing a tender response for Pulse Fitness, a British commercial fitness-equipment manufacturer and national/overseas service provider.
+Write in confident, natural UK English with a {tone} register. Vary sentence structure so the writing reads as a human specialist, not a template.
+Structure every answer as: a direct answer to exactly what is asked → how the service/solution actually works → the evidence that proves it → the benefit to the client/authority → how risk is controlled → a closing commitment or assurance.
+Rules that MUST be followed:
+- Sell through specifics, operational detail, evidence and risk reduction — never through adjectives.
+- Do NOT use unsupported superlatives ("best", "industry-leading", "world-class", "market-leading", "unrivalled") or say anything about "winning" the tender.
+- Do not invent figures, dates, names, certifications or results. Only state facts supported by the knowledge base; where a number is not evidenced, describe the capability qualitatively instead.
+- No drafting notes, no meta-commentary, no "as an AI", no headings like "Direct answer:" — write it as finished prose the evaluator will read.
+- When you draw on the COMPANY KNOWLEDGE BASE, cite the relevant snippet by writing the matching [CITE-N] tag at the end of the supporting sentence — these markers render as references in the review screen."""
 
     prompt = _build_tender_prompt(action, question, kb_context)
 
