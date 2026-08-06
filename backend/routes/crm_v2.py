@@ -2780,7 +2780,7 @@ async def _quick_create_task(data: dict, org_id: str, user_id: str, user_name: s
 # COMPANY FILES (Drawings / Surveys / Invoices)
 # ═══════════════════════════════════════════
 
-from fastapi import UploadFile, File as FastAPIFile
+from fastapi import UploadFile, File as FastAPIFile, Form
 import base64
 
 
@@ -3087,7 +3087,7 @@ async def get_tender(tender_id: str, user=Depends(get_crm_user)):
     if not t:
         raise HTTPException(404, "Tender not found")
     questions = await db.crm2_tender_questions.find(
-        {"tender_id": tender_id, **_of(user)}, {"_id": 0}
+        {"tender_id": tender_id, **_of(user)}, {"_id": 0, "figures.data_b64": 0}
     ).sort("order", 1).to_list(200)
     t["questions"] = questions
     docs = await db.crm2_tender_docs.find(
@@ -3256,6 +3256,127 @@ async def update_tender_question(tender_id: str, q_id: str, data: dict, user=Dep
     )
     await db.crm2_tenders.update_one({"id": tender_id}, {"$set": {"answered_questions": answered}})
     return {"success": True}
+
+
+# ── Tender Question Figures (Phase 2 — figure management) ──
+@router.post("/tenders/{tender_id}/questions/{q_id}/figures")
+async def add_question_figure(
+    tender_id: str, q_id: str,
+    caption: str = Form(""),
+    file: UploadFile = FastAPIFile(...),
+    user=Depends(get_crm_user),
+):
+    q = await db.crm2_tender_questions.find_one({"id": q_id, "tender_id": tender_id, **_of(user)})
+    if not q:
+        raise HTTPException(404, "Question not found")
+    ctype = (file.content_type or "").lower()
+    if not ctype.startswith("image/"):
+        raise HTTPException(400, "Please upload an image file (PNG or JPG).")
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(400, "Image too large (max 5MB).")
+    figs = q.get("figures") or []
+    fig = {
+        "id": _id(),
+        "caption": (caption or "").strip()[:300],
+        "content_type": file.content_type,
+        "original_filename": file.filename,
+        "size": len(content),
+        "data_b64": base64.b64encode(content).decode("utf-8"),
+        "order": len(figs),
+        "created_at": _now(),
+    }
+    figs.append(fig)
+    await db.crm2_tender_questions.update_one(
+        {"id": q_id, "tender_id": tender_id}, {"$set": {"figures": figs, "updated_at": _now()}})
+    return {k: v for k, v in fig.items() if k != "data_b64"}
+
+
+@router.get("/tenders/{tender_id}/questions/{q_id}/figures/{fig_id}/data")
+async def get_question_figure_data(tender_id: str, q_id: str, fig_id: str, user=Depends(get_crm_user)):
+    q = await db.crm2_tender_questions.find_one({"id": q_id, "tender_id": tender_id, **_of(user)})
+    if not q:
+        raise HTTPException(404, "Question not found")
+    for f in (q.get("figures") or []):
+        if f.get("id") == fig_id:
+            return {"data_url": f"data:{f.get('content_type', 'image/png')};base64,{f.get('data_b64', '')}"}
+    raise HTTPException(404, "Figure not found")
+
+
+@router.put("/tenders/{tender_id}/questions/{q_id}/figures/{fig_id}")
+async def update_question_figure(tender_id: str, q_id: str, fig_id: str, data: dict, user=Depends(get_crm_user)):
+    q = await db.crm2_tender_questions.find_one({"id": q_id, "tender_id": tender_id, **_of(user)})
+    if not q:
+        raise HTTPException(404, "Question not found")
+    figs = q.get("figures") or []
+    found = False
+    for f in figs:
+        if f.get("id") == fig_id:
+            f["caption"] = (data.get("caption") or "").strip()[:300]
+            found = True
+    if not found:
+        raise HTTPException(404, "Figure not found")
+    await db.crm2_tender_questions.update_one(
+        {"id": q_id, "tender_id": tender_id}, {"$set": {"figures": figs, "updated_at": _now()}})
+    return {"success": True}
+
+
+@router.put("/tenders/{tender_id}/questions/{q_id}/figures/reorder")
+async def reorder_question_figures(tender_id: str, q_id: str, data: dict, user=Depends(get_crm_user)):
+    q = await db.crm2_tender_questions.find_one({"id": q_id, "tender_id": tender_id, **_of(user)})
+    if not q:
+        raise HTTPException(404, "Question not found")
+    order_ids = data.get("order") or []
+    figs = q.get("figures") or []
+    by_id = {f.get("id"): f for f in figs}
+    reordered = [by_id[i] for i in order_ids if i in by_id]
+    # append any missing (defensive)
+    for f in figs:
+        if f not in reordered:
+            reordered.append(f)
+    for i, f in enumerate(reordered):
+        f["order"] = i
+    await db.crm2_tender_questions.update_one(
+        {"id": q_id, "tender_id": tender_id}, {"$set": {"figures": reordered, "updated_at": _now()}})
+    return {"success": True}
+
+
+@router.delete("/tenders/{tender_id}/questions/{q_id}/figures/{fig_id}")
+async def delete_question_figure(tender_id: str, q_id: str, fig_id: str, user=Depends(get_crm_user)):
+    q = await db.crm2_tender_questions.find_one({"id": q_id, "tender_id": tender_id, **_of(user)})
+    if not q:
+        raise HTTPException(404, "Question not found")
+    figs = [f for f in (q.get("figures") or []) if f.get("id") != fig_id]
+    for i, f in enumerate(figs):
+        f["order"] = i
+    await db.crm2_tender_questions.update_one(
+        {"id": q_id, "tender_id": tender_id}, {"$set": {"figures": figs, "updated_at": _now()}})
+    return {"deleted": True}
+
+
+@router.put("/tenders/{tender_id}/questions/{q_id}/evidence")
+async def set_question_evidence(tender_id: str, q_id: str, data: dict, user=Depends(get_crm_user)):
+    """Save the bid writer's manually-mapped supporting evidence sources for a
+    question (Phase 2 — deep evidence traceability). Feeds the Traceability Matrix."""
+    q = await db.crm2_tender_questions.find_one({"id": q_id, "tender_id": tender_id, **_of(user)})
+    if not q:
+        raise HTTPException(404, "Question not found")
+    sources = []
+    for s in (data.get("evidence_sources") or [])[:40]:
+        title = (s.get("title") or "").strip()[:200]
+        reference = (s.get("reference") or "").strip()[:200]
+        if not (title or reference):
+            continue
+        sources.append({
+            "id": s.get("id") or _id(),
+            "title": title,
+            "reference": reference,
+            "kb_id": (s.get("kb_id") or "") or None,
+        })
+    await db.crm2_tender_questions.update_one(
+        {"id": q_id, "tender_id": tender_id},
+        {"$set": {"evidence_sources": sources, "updated_at": _now()}})
+    return {"success": True, "evidence_sources": sources}
 
 
 # Knowledge Base
@@ -3518,6 +3639,8 @@ async def list_docx_templates(user=Depends(get_crm_user)):
     rows = await db.crm2_tender_docx_templates.find(
         {**_of(user)}, {"_id": 0, "data_b64": 0},
     ).sort("created_at", -1).to_list(100)
+    # Default template floats to the top so the wizard pre-selects it.
+    rows.sort(key=lambda r: 0 if r.get("is_default") else 1)
     return {"templates": rows}
 
 
@@ -3570,6 +3693,8 @@ async def update_docx_template(tpl_id: str, data: dict, user=Depends(get_crm_use
         updates["tokens"] = toks
     if data.get("label"):
         updates["label"] = str(data["label"]).strip()[:120]
+    if "is_default" in data:
+        updates["is_default"] = bool(data["is_default"])
     if not updates:
         raise HTTPException(400, "Nothing to update.")
     updates["updated_at"] = _now()
@@ -3578,6 +3703,10 @@ async def update_docx_template(tpl_id: str, data: dict, user=Depends(get_crm_use
     )
     if res.matched_count == 0:
         raise HTTPException(404, "Template not found")
+    # Only one default per org.
+    if updates.get("is_default"):
+        await db.crm2_tender_docx_templates.update_many(
+            {**_of(user), "id": {"$ne": tpl_id}}, {"$set": {"is_default": False}})
     row = await db.crm2_tender_docx_templates.find_one(
         {"id": tpl_id, **_of(user)}, {"_id": 0, "data_b64": 0},
     )

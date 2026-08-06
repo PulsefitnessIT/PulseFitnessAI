@@ -4,7 +4,8 @@ import { useCRM } from './CRMApp';
 import {
   Plus, FileText, Upload, Trash2, ChevronRight, ChevronLeft, ArrowLeft, Award,
   Sparkles, Edit3, Eye, Copy, BookOpen, Loader2, X, TrendingUp,
-  Download, Presentation, Lightbulb, Building2, Target, Link as LinkIcon
+  Download, Presentation, Lightbulb, Building2, Target, Link as LinkIcon,
+  Image as ImageIcon, Star, FileCheck2
 } from 'lucide-react';
 import axios from 'axios';
 import ListPanel from '@/components/shared/ListPanel';
@@ -677,6 +678,15 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers, navigateTo })
   };
   const [showSlides, setShowSlides] = useState(false);
   const [showPackWizard, setShowPackWizard] = useState(false);
+  const [kbItems, setKbItems] = useState([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await axios.get(`${API}/crm/v2/knowledge-base?limit=100`, { headers: headers() });
+        setKbItems(r.data?.items || []);
+      } catch (_) { /* KB optional */ }
+    })();
+  }, [tenderId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!tender) return <div className="flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-[var(--color-info-ios)] border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -946,6 +956,8 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers, navigateTo })
                               ))}
                             </div>
                           )}
+                          <QuestionFigures API={API} headers={headers} tenderId={tenderId} qId={q.id} figures={q.figures} onChange={load} c={c} isDark={isDark} inputStyle={inputStyle} />
+                          <QuestionEvidence API={API} headers={headers} tenderId={tenderId} qId={q.id} evidence={q.evidence_sources} kbItems={kbItems} onChange={load} c={c} isDark={isDark} inputStyle={inputStyle} />
                           <div className="flex items-center justify-between flex-wrap gap-2">
                             <div className="flex items-center gap-1 flex-wrap">
                               {['not_started', 'draft', 'reviewed', 'final'].map(s => (
@@ -1356,6 +1368,22 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
     } catch (e) { setError(e.response?.data?.detail || 'Delete failed'); }
   };
 
+  const setDefaultTemplate = async (id) => {
+    try {
+      await axios.put(`${API}/crm/v2/tender-docx-templates/${id}`, { is_default: true }, { headers: headers() });
+      setTemplates((list) => list.map((t) => ({ ...t, is_default: t.id === id })));
+    } catch (e) { setError(e.response?.data?.detail || 'Could not set default'); }
+  };
+
+  const renameTemplate = async (id, current) => {
+    const label = window.prompt('Rename template', current || '');
+    if (label == null || !label.trim() || label.trim() === current) return;
+    try {
+      const r = await axios.put(`${API}/crm/v2/tender-docx-templates/${id}`, { label: label.trim() }, { headers: headers() });
+      setTemplates((list) => list.map((t) => t.id === id ? { ...t, label: r.data?.label || label.trim() } : t));
+    } catch (e) { setError(e.response?.data?.detail || 'Rename failed'); }
+  };
+
   const pickLogo = (file) => {
     if (!file) return;
     const reader = new FileReader();
@@ -1491,9 +1519,14 @@ function SubmissionPackWizard({ API, headers, tenderId, tender, c, isDark, onClo
                       >
                         <input type="radio" name="pack-tpl" checked={selectedTpl === t.id} onChange={() => selectTemplate(t.id)} data-testid={`pack-template-radio-${t.id}`} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium truncate" style={{ color: c.text }}>{t.label}</p>
-                          <p className="text-[10px]" style={{ color: c.textDim }}>{t.original_filename} · {(t.size / 1024).toFixed(0)}KB{t.tokens?.length ? ` · ${t.tokens.length} saved token${t.tokens.length > 1 ? 's' : ''}` : ''}</p>
+                          <p className="text-xs font-medium truncate flex items-center gap-1.5" style={{ color: c.text }}>
+                            {t.label}
+                            {t.is_default && <span className="text-[8px] font-bold uppercase px-1 py-0.5 rounded" style={{ background: 'var(--color-warning)20', color: 'var(--color-warning)' }} data-testid={`pack-template-default-badge-${t.id}`}>Default</span>}
+                          </p>
+                          <p className="text-[10px]" style={{ color: c.textDim }}>{t.original_filename} · {(t.size / 1024).toFixed(0)}KB{t.tokens?.length ? ` · ${t.tokens.length} saved token${t.tokens.length > 1 ? 's' : ''}` : ''}{t.created_by ? ` · ${t.created_by}` : ''}</p>
                         </div>
+                        <button type="button" onClick={(e) => { e.preventDefault(); setDefaultTemplate(t.id); }} className="p-1 rounded" style={{ color: t.is_default ? 'var(--color-warning)' : c.textDim }} title={t.is_default ? 'Default template' : 'Set as default'} data-testid={`pack-template-default-${t.id}`}><Star size={13} fill={t.is_default ? 'var(--color-warning)' : 'none'} /></button>
+                        <button type="button" onClick={(e) => { e.preventDefault(); renameTemplate(t.id, t.label); }} className="p-1 rounded" style={{ color: c.textMuted }} title="Rename" data-testid={`pack-template-rename-${t.id}`}><Edit3 size={13} /></button>
                         <button type="button" onClick={(e) => { e.preventDefault(); deleteTemplate(t.id); }} className="p-1 rounded" style={{ color: 'var(--color-danger-alt)' }} data-testid={`pack-template-delete-${t.id}`}><Trash2 size={13} /></button>
                       </label>
                     ))}
@@ -1744,6 +1777,151 @@ function LiveResponseEditor({ initial, wordLimit, onSave, inputStyle, color, tes
           {overLimit && ` · ${words - wordLimit} over`}
         </span>
       </div>
+    </div>
+  );
+}
+
+
+/* ═══ Phase 2 — Figure management per tender answer ═══ */
+function QuestionFigures({ API, headers, tenderId, qId, figures, onChange, c, isDark, inputStyle }) {
+  const [thumbs, setThumbs] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const inputRef = useRef(null);
+  const figs = figures || [];
+  const figKey = figs.map((f) => f.id).join(',');
+
+  useEffect(() => {
+    figs.forEach((f) => {
+      setThumbs((prev) => {
+        if (prev[f.id]) return prev;
+        axios.get(`${API}/crm/v2/tenders/${tenderId}/questions/${qId}/figures/${f.id}/data`, { headers: headers() })
+          .then((r) => setThumbs((t) => ({ ...t, [f.id]: r.data?.data_url })))
+          .catch(() => {});
+        return prev;
+      });
+    });
+  }, [figKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const upload = async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setErr('Please choose an image (PNG or JPG).'); return; }
+    setBusy(true); setErr('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('caption', '');
+      await axios.post(`${API}/crm/v2/tenders/${tenderId}/questions/${qId}/figures`, fd, { headers: headers() });
+      onChange();
+    } catch (e) { setErr(e.response?.data?.detail || 'Upload failed'); }
+    setBusy(false);
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const saveCaption = async (figId, caption) => {
+    try { await axios.put(`${API}/crm/v2/tenders/${tenderId}/questions/${qId}/figures/${figId}`, { caption }, { headers: headers() }); onChange(); } catch (_) { /* noop */ }
+  };
+  const remove = async (figId) => {
+    if (!window.confirm('Remove this figure?')) return;
+    try { await axios.delete(`${API}/crm/v2/tenders/${tenderId}/questions/${qId}/figures/${figId}`, { headers: headers() }); onChange(); } catch (_) { /* noop */ }
+  };
+  const move = async (idx, dir) => {
+    const next = [...figs];
+    const j = idx + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[idx], next[j]] = [next[j], next[idx]];
+    try { await axios.put(`${API}/crm/v2/tenders/${tenderId}/questions/${qId}/figures/reorder`, { order: next.map((f) => f.id) }, { headers: headers() }); onChange(); } catch (_) { /* noop */ }
+  };
+
+  return (
+    <div className="mb-3 mt-2 p-2.5 rounded-md border" style={{ borderColor: c.border }} data-testid={`figures-${qId}`}>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: c.text }}><ImageIcon size={12} /> Figures {figs.length ? `(${figs.length})` : ''}</span>
+        <input ref={inputRef} type="file" accept="image/*" onChange={(e) => upload(e.target.files?.[0])} className="hidden" data-testid={`figure-upload-input-${qId}`} />
+        <button onClick={() => inputRef.current?.click()} disabled={busy} className="text-[11px] font-semibold inline-flex items-center gap-1 disabled:opacity-50" style={{ color: 'var(--color-info-ios)' }} data-testid={`figure-upload-btn-${qId}`}>
+          {busy ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />} Add figure
+        </button>
+      </div>
+      {err && <p className="text-[10px] mb-1" style={{ color: 'var(--color-danger-alt)' }} data-testid={`figure-error-${qId}`}>{err}</p>}
+      {figs.length === 0 ? (
+        <p className="text-[10px]" style={{ color: c.textDim }}>Attach floor plans, charts, or accreditation images — they embed under this answer in the .docx pack.</p>
+      ) : (
+        <div className="space-y-1.5" data-testid={`figure-list-${qId}`}>
+          {figs.map((f, idx) => (
+            <div key={f.id} className="flex items-center gap-2 p-1.5 rounded-md" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)' }} data-testid={`figure-row-${f.id}`}>
+              <div className="w-12 h-12 rounded overflow-hidden shrink-0 flex items-center justify-center" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}` }}>
+                {thumbs[f.id] ? <img src={thumbs[f.id]} alt="figure" className="w-full h-full object-cover" /> : <ImageIcon size={16} style={{ color: c.textDim }} />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <input defaultValue={f.caption || ''} onBlur={(e) => { if (e.target.value !== (f.caption || '')) saveCaption(f.id, e.target.value); }} placeholder={`Caption for Figure ${idx + 1}`} className="w-full px-2 py-1 text-[11px] rounded" style={inputStyle} data-testid={`figure-caption-${f.id}`} />
+                <p className="text-[9px] mt-0.5 truncate" style={{ color: c.textDim }}>{f.original_filename} · {(f.size / 1024).toFixed(0)}KB</p>
+              </div>
+              <div className="flex flex-col">
+                <button onClick={() => move(idx, -1)} disabled={idx === 0} className="p-0.5 disabled:opacity-30" style={{ color: c.textMuted }} title="Move up" data-testid={`figure-up-${f.id}`}><ChevronRight size={12} className="-rotate-90" /></button>
+                <button onClick={() => move(idx, 1)} disabled={idx === figs.length - 1} className="p-0.5 disabled:opacity-30" style={{ color: c.textMuted }} title="Move down" data-testid={`figure-down-${f.id}`}><ChevronRight size={12} className="rotate-90" /></button>
+              </div>
+              <button onClick={() => remove(f.id)} className="p-1 rounded" style={{ color: 'var(--color-danger-alt)' }} data-testid={`figure-remove-${f.id}`}><Trash2 size={12} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══ Phase 2 — Deep evidence traceability mapping per answer ═══ */
+function QuestionEvidence({ API, headers, tenderId, qId, evidence, kbItems, onChange, c, isDark, inputStyle }) {
+  const [rows, setRows] = useState(evidence || []);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => { setRows(evidence || []); }, [qId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const persist = async (next) => {
+    try {
+      await axios.put(`${API}/crm/v2/tenders/${tenderId}/questions/${qId}/evidence`, { evidence_sources: next }, { headers: headers() });
+      setSaved(true); setTimeout(() => setSaved(false), 2000);
+      onChange();
+    } catch (_) { /* noop */ }
+  };
+  const addFromKb = (kbId) => {
+    if (!kbId) return;
+    const item = (kbItems || []).find((k) => k.id === kbId);
+    if (!item) return;
+    const next = [...rows, { title: item.title, reference: '', kb_id: item.id }];
+    setRows(next); persist(next);
+  };
+  const addManual = () => setRows([...rows, { title: '', reference: '', kb_id: null }]);
+  const setField = (i, key, val) => setRows(rows.map((r, idx) => idx === i ? { ...r, [key]: val } : r));
+  const removeRow = (i) => { const next = rows.filter((_, idx) => idx !== i); setRows(next); persist(next); };
+
+  return (
+    <div className="mb-3 p-2.5 rounded-md border" style={{ borderColor: c.border }} data-testid={`evidence-${qId}`}>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: c.text }}><FileCheck2 size={12} /> Supporting evidence {rows.length ? `(${rows.length})` : ''}</span>
+        <div className="flex items-center gap-2">
+          {saved && <span className="text-[10px]" style={{ color: 'var(--color-success-alt, #16a34a)' }} data-testid={`evidence-saved-${qId}`}>Saved</span>}
+          {(kbItems || []).length > 0 && (
+            <select onChange={(e) => { addFromKb(e.target.value); e.target.value = ''; }} defaultValue="" className="px-2 py-1 text-[10px] rounded-md border" style={{ background: isDark ? 'var(--color-ink-alt)' : 'var(--color-neutral-50)', color: c.textMuted, borderColor: c.border }} data-testid={`evidence-kb-picker-${qId}`} title="Add from knowledge base">
+              <option value="">From KB…</option>
+              {(kbItems || []).map((k) => <option key={k.id} value={k.id}>{k.title}</option>)}
+            </select>
+          )}
+          <button onClick={addManual} className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--color-info-ios)' }} data-testid={`evidence-add-${qId}`}><Plus size={11} /> Source</button>
+        </div>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-[10px]" style={{ color: c.textDim }}>Map this answer to its proof (e.g. "ISO 9001 certificate — p.2"). Feeds the Evidence Traceability Matrix export.</p>
+      ) : (
+        <div className="space-y-1.5" data-testid={`evidence-list-${qId}`}>
+          {rows.map((r, i) => (
+            <div key={i} className="flex items-center gap-2" data-testid={`evidence-row-${qId}-${i}`}>
+              {r.kb_id ? <BookOpen size={12} style={{ color: 'var(--color-accent-magenta)' }} title="From knowledge base" /> : <FileText size={12} style={{ color: c.textDim }} />}
+              <input value={r.title} onChange={(e) => setField(i, 'title', e.target.value)} onBlur={() => persist(rows)} placeholder="Source / document title" className="flex-1 px-2 py-1 text-[11px] rounded" style={inputStyle} data-testid={`evidence-title-${qId}-${i}`} />
+              <input value={r.reference || ''} onChange={(e) => setField(i, 'reference', e.target.value)} onBlur={() => persist(rows)} placeholder="Ref / page" className="w-24 px-2 py-1 text-[11px] rounded" style={inputStyle} data-testid={`evidence-ref-${qId}-${i}`} />
+              <button onClick={() => removeRow(i)} className="p-1 rounded" style={{ color: 'var(--color-danger-alt)' }} data-testid={`evidence-remove-${qId}-${i}`}><X size={12} /></button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

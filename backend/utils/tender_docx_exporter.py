@@ -21,6 +21,7 @@ import copy
 import re
 import zipfile
 import io
+import base64 as _base64
 from docx import Document
 from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
@@ -191,6 +192,36 @@ def _add_body_text(doc, text, body_style, tokens):
                     r.font.name = 'Arial'; r.font.size = Pt(11); r.font.color.rgb = INK
 
 
+def _add_question_figures(doc, figures, fig_ctr, tokens):
+    """Embed a question's attached figures (base64 images) under its answer,
+    centered at ~14cm with an auto-numbered 'Figure N: caption' below each."""
+    for fig in sorted(figures or [], key=lambda f: f.get("order", 0)):
+        b64 = fig.get("data_b64")
+        if not b64:
+            continue
+        try:
+            raw = _base64.b64decode(str(b64).split(",")[-1])
+        except Exception:
+            continue
+        try:
+            doc.add_picture(io.BytesIO(raw), width=Cm(14))
+        except Exception:
+            continue
+        pic_p = doc.paragraphs[-1]
+        pic_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        pic_p.paragraph_format.line_spacing = 1.0
+        pic_p.paragraph_format.space_before = Pt(6)
+        fig_ctr[0] += 1
+        cap = doc.add_paragraph()
+        cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        caption_text = _apply_tokens((fig.get("caption") or "").strip(), tokens)
+        label = f"Figure {fig_ctr[0]}" + (f": {caption_text}" if caption_text else "")
+        r = cap.add_run(label)
+        r.font.name = 'Arial'; r.italic = True; r.font.size = Pt(9)
+        r.font.color.rgb = RGBColor(0x55, 0x5B, 0x66)
+        cap.paragraph_format.space_after = Pt(10)
+
+
 # ───────────────────────── templated pack ─────────────────────────
 
 def build_templated_submission(template_bytes: bytes, tender: dict, questions: list,
@@ -256,6 +287,7 @@ def build_templated_submission(template_bytes: bytes, tender: dict, questions: l
 
     # ---- answers ----
     answered = _answered(questions)
+    fig_ctr = [0]
     for idx, (q, ans) in enumerate(answered, start=1):
         hp = doc.add_paragraph(style=h_section) if h_section else doc.add_paragraph()
         _no_number(hp)
@@ -263,6 +295,7 @@ def build_templated_submission(template_bytes: bytes, tender: dict, questions: l
         if not h_section:
             hr.font.name = 'Arial'; hr.bold = True; hr.font.size = Pt(14); hr.font.color.rgb = INK
         _add_body_text(doc, ans, body_style, tokens)
+        _add_question_figures(doc, q.get("figures"), fig_ctr, tokens)
 
     body.remove(sectPr)
     body.append(sectPr)
@@ -299,6 +332,7 @@ def build_itt_plain(tender: dict, questions: list, brand: dict | None = None,
         r.font.name = 'Arial'; r.font.size = Pt(10); r.font.color.rgb = RGBColor(0x55, 0x5B, 0x66)
     doc.add_paragraph()
 
+    fig_ctr = [0]
     for idx, (q, ans) in enumerate(_answered(questions), start=1):
         hp = doc.add_paragraph()
         hr = hp.add_run(_apply_tokens(_q_heading(q, idx), tokens))
@@ -309,6 +343,7 @@ def build_itt_plain(tender: dict, questions: list, brand: dict | None = None,
             wr = wp.add_run(f"Weighting: {q.get('weighting')}%")
             wr.font.name = 'Arial'; wr.italic = True; wr.font.size = Pt(9); wr.font.color.rgb = RGBColor(0x55, 0x5B, 0x66)
         _add_body_text(doc, ans, 'Normal', tokens)
+        _add_question_figures(doc, q.get("figures"), fig_ctr, tokens)
     buf = io.BytesIO(); doc.save(buf); return buf.getvalue()
 
 
@@ -338,8 +373,21 @@ def build_traceability(tender: dict, questions: list, brand: dict | None = None,
         cells[0].text = _apply_tokens(_q_heading(q, idx), tokens)
         summary = re.sub(r'\s+', ' ', ans).strip()
         cells[1].text = (summary[:240] + "…") if len(summary) > 240 else summary
+        parts = []
+        for ev in (q.get("evidence_sources") or []):
+            t = (ev.get("title") or "").strip()
+            ref = (ev.get("reference") or "").strip()
+            if t or ref:
+                parts.append(f"{t}{(' — ' + ref) if (t and ref) else ref}".strip())
         cites = q.get("ai_citations") or []
-        src = "; ".join([f"[{c.get('index')}] {c.get('title', '')}" for c in cites]) if cites else "Author knowledge / to be cited"
+        for c in cites:
+            parts.append(f"[{c.get('index')}] {c.get('title', '')}".strip())
+        # de-dupe while preserving order
+        seen = set(); uniq = []
+        for p in parts:
+            if p and p not in seen:
+                seen.add(p); uniq.append(p)
+        src = "; ".join(uniq) if uniq else "Author knowledge / to be cited"
         cells[2].text = src
         for cc in cells:
             for pp in cc.paragraphs:
