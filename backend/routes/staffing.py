@@ -164,6 +164,46 @@ def _staff_role_from_platform_role(role, allowed: set) -> str:
     if r and r in allowed_lc:
         return r
     return "other"
+
+
+def _platform_role_from_staff_role(primary_role) -> str:
+    """Reverse of _staff_role_from_platform_role: map a Staffing job role to a
+    platform login role (platform set = owner/manager/staff/engineer). Owner is
+    never auto-assigned. Makes an 'Engineer' in Staffing become an 'engineer'
+    login (Engineer App access) instead of a generic 'staff'/sales role."""
+    r = (primary_role or "").strip().lower()
+    if r in {"engineer", "technician", "maintenance"}:
+        return "engineer"
+    if r in {"manager", "supervisor", "director", "duty_manager", "administrator", "sales_manager"}:
+        return "manager"
+    return "staff"
+
+
+async def _propagate_role_to_login(org_id: str, staff: dict) -> bool:
+    """Keep a staff member's linked platform login role in sync with their
+    Staffing job role. Never downgrades an owner / master admin. Returns True
+    if a login role was changed."""
+    target = _platform_role_from_staff_role(staff.get("primary_role"))
+    q = None
+    if staff.get("user_id"):
+        q = {"id": staff["user_id"]}
+    elif (staff.get("email") or "").strip():
+        q = {"email": staff["email"].strip().lower()}
+    if not q:
+        return False
+    u = await db.users.find_one(q, {"_id": 0, "id": 1, "role": 1})
+    if not u:
+        return False
+    cur = (u.get("role") or "").lower()
+    if cur in {"owner", "master_admin", "pulse_master_admin"}:
+        return False  # elevated — managed only in Master Admin
+    if cur == target:
+        return False
+    await db.users.update_one({"id": u["id"]},
+                              {"$set": {"role": target, "updated_at": _now().isoformat()}})
+    return True
+
+
 VALID_SHIFT_STATUS = {"scheduled", "confirmed", "completed", "cancelled", "open"}
 VALID_LEAVE_TYPE = {"holiday", "sick", "unpaid", "training", "other"}
 VALID_LEAVE_STATUS = {"pending", "approved", "rejected", "cancelled"}
@@ -459,6 +499,13 @@ async def update_staff(staff_id: str, body: StaffUpdate, user: dict = Depends(ge
     if res.matched_count == 0:
         raise HTTPException(404, "staff not found")
     doc = await db.staff_members.find_one({"id": staff_id}, {"_id": 0})
+    # Iter (Aug 2026) — a job-role change flows through to the person's platform
+    # login so Master Admin never disagrees with Staffing.
+    if "primary_role" in patch and doc:
+        try:
+            await _propagate_role_to_login(org_id, doc)
+        except Exception:
+            pass
     return doc
 
 
@@ -498,6 +545,7 @@ from pydantic import EmailStr
 class StaffCredentialsRequest(BaseModel):
     email: EmailStr | None = None  # falls back to staff_member.email
     send_email: bool = True
+    delivery: str = "temp_password"  # "temp_password" | "reset_link"
 
 
 @router.post("/staffing/staff/{staff_id}/issue-credentials")
@@ -527,17 +575,22 @@ async def issue_staff_credentials(
             "profile (or pass one in the body) before issuing credentials.",
         )
 
+    now_iso = _now().isoformat()
+    # The login's platform role is DERIVED from the staff member's job role,
+    # so an Engineer in Staffing becomes an 'engineer' login (not generic staff).
+    mapped_role = _platform_role_from_staff_role(staff.get("primary_role"))
+    use_link = (body.delivery or "").lower() == "reset_link"
+
     # Generate a friendly temp password — 10 url-safe chars, easy to
-    # type without ambiguous glyphs.
+    # type without ambiguous glyphs. (Unused text is fine when using a link.)
     temp_password = secrets.token_urlsafe(8).replace("_", "x").replace("-", "y")[:10]
 
-    now_iso = _now().isoformat()
     user_doc_seed = {
         "id": str(uuid4()),
         "email": email,
         "full_name": staff.get("full_name") or email,
         "organization_id": org_id,
-        "role": "staff",
+        "role": mapped_role,
         "staff_member_id": staff_id,
         "must_change_password": True,
         "created_at": now_iso,
@@ -545,30 +598,58 @@ async def issue_staff_credentials(
     existing = await db.users.find_one({"email": email}, {"_id": 0})
     if existing:
         # Reset rather than fail — managers often re-issue when staff
-        # lose their password.
+        # lose their password. Never downgrade an elevated role.
+        keep_elevated = existing.get("role") in {"owner", "manager", "master_admin", "pulse_master_admin"}
         update = {
-            "password": hash_password(temp_password),
-            "password_updated_at": now_iso,
             "must_change_password": True,
             "staff_member_id": staff_id,
             "organization_id": existing.get("organization_id") or org_id,
-            # Don't downgrade an existing owner/manager to staff.
-            "role": existing.get("role") if existing.get("role") in {"owner", "manager", "master_admin"} else "staff",
+            "role": existing.get("role") if keep_elevated else mapped_role,
         }
+        if not use_link:
+            update["password"] = hash_password(temp_password)
+            update["password_updated_at"] = now_iso
         await db.users.update_one({"email": email}, {"$set": update})
+        user_id = existing["id"]
         created = False
     else:
-        user_doc_seed["password"] = hash_password(temp_password)
+        if use_link:
+            # Placeholder password so the account is disabled until the
+            # invitee sets one via the link.
+            user_doc_seed["password"] = hash_password(secrets.token_urlsafe(16))
+        else:
+            user_doc_seed["password"] = hash_password(temp_password)
         user_doc_seed["password_updated_at"] = now_iso
         await db.users.insert_one(user_doc_seed.copy())
+        user_id = user_doc_seed["id"]
         created = True
 
-    # Mirror the email back onto staff_members so subsequent UI reads
-    # stay in sync.
+    # Link the staff record to its login so Master Admin + role-sync agree.
     await db.staff_members.update_one(
         {"id": staff_id, "organization_id": org_id},
-        {"$set": {"email": email, "portal_credentials_issued_at": now_iso}},
+        {"$set": {"email": email, "user_id": user_id, "portal_role": mapped_role,
+                  "portal_credentials_issued_at": now_iso}},
     )
+
+    # Best-effort engineer app provisioning when the role warrants it.
+    if mapped_role == "engineer":
+        try:
+            from routes.account import _sync_engineer_provisioning
+            await _sync_engineer_provisioning({
+                "id": user_id, "role": "engineer", "organization_id": org_id,
+                "email": email, "full_name": staff.get("full_name") or email,
+            })
+        except Exception:
+            logger.exception("[staff-credentials] engineer provisioning failed")
+
+    invite_url = None
+    if use_link:
+        try:
+            from routes.account import _issue_reset_token
+            tok = await _issue_reset_token({"id": user_id, "email": email}, user.get("email", ""))
+            invite_url = tok.get("invite_url")
+        except Exception:
+            logger.exception("[staff-credentials] invite link mint failed")
 
     sent = False
     if body.send_email:
@@ -581,15 +662,25 @@ async def issue_staff_credentials(
             ).rstrip("/")
             org_name = org.get("name") or "your team"
             subject = f"Your {org_name} staff portal login"
-            html = (
-                f"<p>Hi {staff.get('full_name') or 'there'},</p>"
-                f"<p>{user.get('full_name') or 'Your manager'} has created a "
-                f"staff portal account for you on <b>{org_name}</b>.</p>"
-                f"<p><b>Email:</b> {email}<br>"
-                f"<b>Temporary password:</b> <code>{temp_password}</code></p>"
-                f"<p>Log in here: <a href=\"{site_url}/login\">{site_url}/login</a></p>"
-                f"<p>You&rsquo;ll be asked to change your password on first login.</p>"
-            )
+            if use_link and invite_url:
+                html = (
+                    f"<p>Hi {staff.get('full_name') or 'there'},</p>"
+                    f"<p>{user.get('full_name') or 'Your manager'} has invited you to the "
+                    f"<b>{org_name}</b> staff portal.</p>"
+                    f"<p>Set your password to get started:</p>"
+                    f"<p><a href=\"{invite_url}\">{invite_url}</a></p>"
+                    f"<p>This link expires in 72 hours.</p>"
+                )
+            else:
+                html = (
+                    f"<p>Hi {staff.get('full_name') or 'there'},</p>"
+                    f"<p>{user.get('full_name') or 'Your manager'} has created a "
+                    f"staff portal account for you on <b>{org_name}</b>.</p>"
+                    f"<p><b>Email:</b> {email}<br>"
+                    f"<b>Temporary password:</b> <code>{temp_password}</code></p>"
+                    f"<p>Log in here: <a href=\"{site_url}/login\">{site_url}/login</a></p>"
+                    f"<p>You&rsquo;ll be asked to change your password on first login.</p>"
+                )
             await send_email(to=email, subject=subject, html=html)
             sent = True
         except Exception:
@@ -598,10 +689,38 @@ async def issue_staff_credentials(
     return {
         "ok": True,
         "email": email,
-        "temp_password": temp_password,
+        "role": mapped_role,
+        "delivery": "reset_link" if use_link else "temp_password",
+        "temp_password": None if use_link else temp_password,
+        "invite_url": invite_url,
         "created": created,
         "email_sent": sent,
     }
+
+
+@router.post("/staffing/reconcile-roles")
+async def reconcile_staff_login_roles(user: dict = Depends(get_current_user)):
+    """One-off reconcile: align every staff member's linked platform login role
+    with their Staffing job role (fixes historic mismatches like an Engineer
+    showing as sales_rep/staff in Master Admin). Never downgrades an elevated
+    role. Returns how many logins were changed."""
+    _require_manager(user)
+    org_id = _org(user)
+    staff = await db.staff_members.find(
+        {"organization_id": org_id, "active": {"$ne": False}}, {"_id": 0}
+    ).to_list(2000)
+    checked = 0
+    updated = 0
+    changes = []
+    for s in staff:
+        if not (s.get("user_id") or (s.get("email") or "").strip()):
+            continue
+        checked += 1
+        if await _propagate_role_to_login(org_id, s):
+            updated += 1
+            changes.append({"staff_id": s["id"], "name": s.get("full_name"),
+                            "role": _platform_role_from_staff_role(s.get("primary_role"))})
+    return {"ok": True, "checked": checked, "updated": updated, "changes": changes}
 
 
 # ───────────────────────── Rota / shifts ─────────────────────────

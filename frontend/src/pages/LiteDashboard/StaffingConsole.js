@@ -688,19 +688,37 @@ function StaffTab({ headers }) {
   // emails it to the staff member).
   const [credsBusy, setCredsBusy] = useState(null);
   const [credsDialog, setCredsDialog] = useState(null);
+  const [reconciling, setReconciling] = useState(false);
   const issueCredentials = async (s) => {
-    const ok = window.confirm(
-      `Issue portal login for ${s.full_name}? A temporary password will be ${s.email ? 'emailed to them and ' : ''}shown to you once.`,
-    );
-    if (!ok) return;
+    if (!window.confirm(`Invite ${s.full_name} to the platform as "${s.primary_role || 'staff'}"?`)) return;
+    // Delivery choice — a "set your password" link (recommended if they have
+    // an email) or a temporary password you hand over.
+    const useLink = s.email
+      ? window.confirm(`Send a "set your password" link to ${s.email}?\n\nOK = email a set-password link\nCancel = generate a temporary password instead`)
+      : false;
     setCredsBusy(s.id);
     try {
-      const r = await axios.post(`${API}/staffing/staff/${s.id}/issue-credentials`, {}, { headers });
+      const r = await axios.post(`${API}/staffing/staff/${s.id}/issue-credentials`,
+        { delivery: useLink ? 'reset_link' : 'temp_password' }, { headers });
       setCredsDialog({ ...r.data, staffName: s.full_name });
+      load();
     } catch (err) {
       window.alert(err.response?.data?.detail || 'Could not issue credentials');
     } finally {
       setCredsBusy(null);
+    }
+  };
+  const reconcileRoles = async () => {
+    if (!window.confirm('Align every staff login role with their Staffing job role? This fixes mismatches (e.g. an Engineer showing as a sales rep in Master Admin).')) return;
+    setReconciling(true);
+    try {
+      const r = await axios.post(`${API}/staffing/reconcile-roles`, {}, { headers });
+      window.alert(`Done — ${r.data.updated} of ${r.data.checked} logins updated to match their job role.`);
+      load();
+    } catch (e) {
+      window.alert(e.response?.data?.detail || 'Reconcile failed');
+    } finally {
+      setReconciling(false);
     }
   };
 
@@ -728,6 +746,9 @@ function StaffTab({ headers }) {
             title={t('staffing.sc_preview_portal_title', 'Open the staff portal in a new tab as if you were a staff member')}
           >
             <ExternalLink size={12} /> {t('staffing.sc_preview_portal', 'Preview staff portal')}
+          </button>
+          <button type="button" onClick={reconcileRoles} disabled={reconciling} className="text-xs font-semibold inline-flex items-center gap-1 rounded-full px-3 py-1.5 border disabled:opacity-50" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)', background: 'var(--theme-surface)' }} data-testid="staff-reconcile-roles-btn" title="Align every staff login role with their Staffing job role">
+            <Check size={12} /> {reconciling ? 'Fixing…' : 'Fix login roles'}
           </button>
           <button type="button" onClick={() => setShowAdd(true)} className="text-xs font-semibold inline-flex items-center gap-1 rounded-full px-3 py-1.5" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="staff-add-btn">
             <UserPlus size={12} /> {t('staffing.sc_add_staff', 'Add staff')}
@@ -896,10 +917,23 @@ function StaffTab({ headers }) {
                 <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_login_email', 'Login email')}</p>
                 <CopyableField value={credsDialog.email} testid="staff-creds-email" />
               </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_temp_password', 'Temporary password')}</p>
-                <CopyableField value={credsDialog.temp_password} mono testid="staff-creds-temp-password" />
-              </div>
+              {credsDialog.role && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Platform role</p>
+                  <p className="text-sm font-semibold capitalize" style={{ color: 'var(--theme-text)' }} data-testid="staff-creds-role">{credsDialog.role}</p>
+                </div>
+              )}
+              {credsDialog.invite_url ? (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Set-password link</p>
+                  <CopyableField value={credsDialog.invite_url} testid="staff-creds-invite-url" />
+                </div>
+              ) : (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.sc_temp_password', 'Temporary password')}</p>
+                  <CopyableField value={credsDialog.temp_password} mono testid="staff-creds-temp-password" />
+                </div>
+              )}
             </div>
             <div className="flex justify-end mt-4">
               <button type="button" onClick={() => setCredsDialog(null)} className="text-xs font-semibold px-3 py-1.5 rounded-full" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="staff-creds-done">

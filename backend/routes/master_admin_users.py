@@ -812,6 +812,48 @@ async def _enrich_with_pending_invite(all_users: list) -> None:
         }
 
 
+async def _append_no_login_staff(all_users: list) -> list:
+    """Surface Staffing staff who have no platform/CRM login yet, so Master
+    Admin shows the WHOLE team with a 'No login' status + invite affordance.
+    Also tags every existing row with login_status='active'."""
+    for u in all_users:
+        u.setdefault("login_status", "active")
+        u.setdefault("is_staff_record", False)
+    known_emails = {(u.get("email") or "").lower() for u in all_users if u.get("email")}
+    known_ids = {u.get("id") for u in all_users}
+    org_ids = {u.get("organization_id") for u in all_users if u.get("organization_id")}
+    if not org_ids:
+        return all_users
+    try:
+        from routes.staffing import _platform_role_from_staff_role
+    except Exception:
+        def _platform_role_from_staff_role(_r):
+            return "staff"
+    staff = await db.staff_members.find(
+        {"organization_id": {"$in": list(org_ids)}, "active": {"$ne": False}},
+        {"_id": 0, "id": 1, "full_name": 1, "email": 1, "organization_id": 1,
+         "primary_role": 1, "job_title": 1, "user_id": 1},
+    ).to_list(3000)
+    for s in staff:
+        em = (s.get("email") or "").lower()
+        if (em and em in known_emails) or (s.get("user_id") and s.get("user_id") in known_ids):
+            continue
+        all_users.append({
+            "id": f"staff:{s['id']}",
+            "staff_id": s["id"],
+            "full_name": s.get("full_name") or em or "Unnamed",
+            "email": s.get("email") or "",
+            "organization_id": s.get("organization_id"),
+            "role": _platform_role_from_staff_role(s.get("primary_role")),
+            "job_title": s.get("job_title") or s.get("primary_role") or "",
+            "login_status": "none",
+            "is_staff_record": True,
+            "disabled": False,
+        })
+    return all_users
+
+
+
 @router.get("/master-admin/users")
 async def get_all_users(user: dict = Depends(get_current_user), brand: str = "all"):
     require_master_admin(user)
@@ -822,6 +864,7 @@ async def get_all_users(user: dict = Depends(get_current_user), brand: str = "al
 
     all_users = _merge_users_by_email(sp_users, crm_list)
     all_users = await _fan_pulse_platform_admins(all_users)
+    all_users = await _append_no_login_staff(all_users)
     await _enrich_with_orgs(all_users)
     await _enrich_with_module_access(all_users)
     await _enrich_job_titles(all_users)
