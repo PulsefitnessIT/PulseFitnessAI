@@ -1,3 +1,27 @@
+# ═══ 2026-08-06 · CRM TENDER WRITER — LIVE COVER-PAGE PREVIEW — testing_agent 100% ═══
+Enhancement on the Submission Pack Wizard: a true page-1 thumbnail so bidders can eyeball formatting before download.
+BACKEND:
+  • NEW utils/docx_preview.py render_docx_first_page_png(docx_bytes) — LibreOffice (soffice --headless --convert-to pdf,
+    isolated per-call UserInstallation profile) → PyMuPDF (fitz) renders page 1 → PNG. Temp dir cleaned each call.
+    (soffice + pdftoppm + PyMuPDF 1.27 already present in the image — no requirements.txt change.)
+  • NEW POST /api/crm/v2/tenders/{id}/export/preview {mode, template_id?, tokens?, logo_b64?} — reuses the SAME builders
+    as the real exports (build_templated_submission / build_itt_plain / build_traceability), runs the render in a thread
+    executor (run_in_executor so soffice doesn't block the event loop), returns {image_b64: "data:image/png;base64,…"}.
+    Templated mode 404s on missing template.
+FRONTEND (pages/CRM/CRMTenders.js SubmissionPackWizard):
+  • NEW "Cover preview" section (data-testid pack-preview-section) + Preview/Refresh button (pack-preview-btn) →
+    fetchPreview() POSTs and shows the PNG (pack-preview-image) with a 'Rendering cover…' spinner; error via
+    pack-preview-error ('Pick a template to preview.' when templated + no template).
+  • DEBOUNCED live refresh (~1.3s) once a preview is on screen: re-renders on mode / template / tokens / bidFocus / logo
+    changes. Button label flips 'Preview cover page' → 'Refresh preview' once an image is shown.
+VERIFIED: main-agent curl (ITT ~32KB PNG, traceability ~42KB, templated ~27KB, missing-template 404) + testing_agent
+  (iteration_submission_pack_preview_frontend_jan2026.json) 100% FE, 0 bugs, retest_needed=false — image paints for
+  ITT/traceability, images differ across modes, templated-no-template error, mode-switch auto-refresh fired 3× 200.
+  Render latency ~3-6s (LibreOffice). ⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY (ensure soffice present in prod image).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-06 · CRM TENDER WRITER — SMART PREFILL ({{CLIENT}}/{{REFERENCE}}) — logic unit-verified ═══
 Enhancement on the Submission Pack Wizard token editor: empty find/replace token replacements now AUTO-POPULATE
 from the tender's linked data so bidders rarely type common fields.
