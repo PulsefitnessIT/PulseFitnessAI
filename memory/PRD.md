@@ -1,3 +1,43 @@
+# ═══ 2026-08-06 · CRM TENDER WRITER — PHASE 2 (Figures + Deep Evidence + Library polish) — testing_agent 100% FE ═══
+Completed Phase 2 of the CRM Tender Writer (Figure management, deep Evidence Traceability mapping, template-library polish).
+BACKEND (routes/crm_v2.py):
+  • FIGURES: POST /tenders/{tid}/questions/{qid}/figures (multipart file + caption Form, image/* only, max 5MB) →
+    stores {id,caption,content_type,original_filename,size,data_b64,order,created_at} on the question's `figures[]`.
+    GET .../figures/{fid}/data → {data_url} (auth'd thumbnail source). PUT .../figures/{fid} {caption}.
+    PUT .../figures/reorder {order:[ids]}. DELETE .../figures/{fid} (re-indexes order). get_tender projection now
+    strips `figures.data_b64` so the payload stays light (thumbs lazy-loaded via the /data endpoint).
+  • EVIDENCE: PUT /tenders/{tid}/questions/{qid}/evidence {evidence_sources:[{title,reference,kb_id?}]} (max 40,
+    trimmed) → stored on question.evidence_sources.
+  • TEMPLATE LIBRARY: PUT /tender-docx-templates/{id} now supports is_default (only one default per org; others unset).
+    list_docx_templates floats the default to the top so the wizard pre-selects it.
+DOCX EXPORTER (utils/tender_docx_exporter.py):
+  • NEW _add_question_figures() embeds each figure (base64 img) at 14cm centered with an auto-numbered
+    'Figure N: caption' below. Wired into build_templated_submission AND build_itt_plain (single doc-wide counter).
+  • build_traceability() now merges manual evidence_sources (title — reference) with ai_citations, de-duped.
+FRONTEND (pages/CRM/CRMTenders.js):
+  • NEW QuestionFigures component (upload/caption-on-blur/reorder up-down/delete + lazy thumbnail) and
+    QuestionEvidence component (add manual source, 'From KB…' picker when KB non-empty, ref/page field, save-on-blur,
+    'Saved' flash, delete). Both wired into the TenderDetail question editor after the citations block. kbItems loaded
+    from GET /crm/v2/knowledge-base.
+  • SubmissionPackWizard template rows gained: Star = set-as-default (+ 'Default' badge), pencil = inline rename,
+    plus created_by in the subtitle.
+  data-testids: figures-<qId>, figure-upload-btn/-input-<qId>, figure-row/-caption/-remove/-up/-down-<figId>,
+    evidence-<qId>, evidence-add-<qId>, evidence-kb-picker-<qId>, evidence-title/-ref/-remove-<qId>-<i>, evidence-saved-<qId>,
+    pack-template-default/-rename/-delete-<id>, pack-template-default-badge-<id>.
+VERIFIED: curl (figure upload→word/media/image1.png + 'Figure 1: <caption>' in ITT; get_tender strips data_b64 keeps
+  original_filename/size; evidence PUT persists; traceability docx contains manual evidence 'ISO 9001 Certificate / p.2 /
+  App. B'; preview renders 3 modes) + testing_agent iteration_phase2_figures_evidence_templates_jan2026.json 100% of
+  requested FE flows, 0 UI bugs (rename→persisted, star→is_default+badge, figure upload+caption persist, evidence add/edit/
+  delete persist, previews paint). Delete-via-confirm() flagged as an automation-timing artifact only (works via API + for
+  real users). Demo tender test figures cleaned; 2 realistic evidence rows left on Q1 as a demo.
+ENV NOTE: LibreOffice (soffice) was MISSING in this fork's preview env — installed `libreoffice-writer` so DOCX previews
+  render. ⚠️ PREVIEW ONLY — PRODUCTION image must include soffice (already noted) + REDEPLOY.
+UI ACCESS NOTE: Tenders tab requires CRM 'business'/corporate mode (localStorage crm_active_mode) — leisure mode hides it.
+NEXT (per user): Equipment barcode scanner.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-06 · MOD AI KIT-LIST IMPORT — CATEGORY & MOD-CODE CAPTURE — curl-verified ═══
 Enhancement: carry the kit list's Category and MOD-Code onto each imported asset so estate can report by category.
 BACKEND:
