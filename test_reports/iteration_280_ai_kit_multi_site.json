@@ -1,0 +1,23 @@
+{
+  "summary": "Verified NEW multi-site behaviour of MOD AI Kit-List Import review screen. Uploaded /app/test_data/kitlist.xlsx via Nyati card AI Import; analyse returned 200 (~10s). All 4 gym tabs displayed the new per-tab 'Import into' MOD-site dropdown (data-testid ai-kit-site-<ti>) alongside the sub-location input (ai-kit-subloc-<ti>). Dropdown listed 6 MOD sites including 'Kifaru Base (AI Import Test)' and defaulted to 'Nyati Base (AI Import Test) (this base)' on every tab. Changed the Kifaru Gym tab (idx=3) to Kifaru Base, kept the other 3 gyms on Nyati, and committed. POST /api/master-admin/mod-estate/ai-kit-import/analyse and /commit both returned 200. Commit response per_site = [{Nyati: submitted=90 imported=90}, {Kifaru: submitted=17 imported=17}], total imported=107. Done step rendered the per-site breakdown block (data-testid ai-kit-per-site) listing both sites with their counts (Nyati 90 imported / Kifaru 17 imported). Fully matches the enhancement spec.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/aikit_done_final.png"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: commit response returns 'imported' (107) but no 'total' field; the toast summary and per-site block already provide the info, so acceptable.",
+    "One duplicate serial was filtered before import (as noted 'Import persists equipment; a re-run will flag duplicates') — expected due to prior partial state; a full pre-test purge would keep numbers exact."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg",
+  "seed_data_creation": "None — used pre-seeded mod-site-test-nyati and mod-site-test-kifaru plus /app/test_data/kitlist.xlsx.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Navigation tip: /master-admin/onboarding is NOT a real route (404). Auth-then-navigate: POST /api/auth/login -> store token in localStorage, load /dashboard, click top-right 'Master Admin' avatar to open menu, click the 'Master Admin' menuitem (locator: page.get_by_text('Master Admin', exact=True).nth(2)) to enter Master Admin console, then push ?section=onboarding via history.pushState and dispatch CustomEvent('gymaxis:set-section', {detail:'onboarding'}). Then click the 'MOD Equipment & Readiness' tab. All AI Kit-List Import selectors work as documented.",
+  "rca of the issue": "N/A — feature working as designed. Multi-site grouping split rows correctly (90 Nyati + 17 Kifaru) and per-site UI breakdown rendered."
+}

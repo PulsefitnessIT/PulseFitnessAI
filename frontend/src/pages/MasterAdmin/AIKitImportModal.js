@@ -39,6 +39,7 @@ export default function AIKitImportModal({ site, headers, onClose, onImported })
       data.sheets = (data.sheets || []).map((sh) => ({
         ...sh,
         include: !sh.is_summary,
+        dest_site_id: site.id,
         rows: (sh.rows || []).map((r) => ({ ...r, keep: true })),
       }));
       setPreview(data);
@@ -69,10 +70,11 @@ export default function AIKitImportModal({ site, headers, onClose, onImported })
     (preview?.sheets || []).forEach((sh) => {
       if (!sh.include) return;
       const subloc = (sh.suggested_sub_location || sh.tab || '').trim();
+      const target = sh.dest_site_id || site.id;
       sh.rows.forEach((r) => {
         if (!r.keep) return;
         if (skipDuplicates && r.duplicate) return;
-        out.push({ ...r, sub_location: subloc });
+        out.push({ ...r, sub_location: subloc, target_site_id: target });
       });
     });
     return out;
@@ -166,14 +168,32 @@ export default function AIKitImportModal({ site, headers, onClose, onImported })
                     {sh.is_summary && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-semibold">summary tab — skipped by default</span>}
                     <span className="text-[11px] text-zinc-500">{sh.rows.length} rows</span>
                     {sh.include && (
-                      <div className="flex items-center gap-1.5 ml-auto">
-                        <span className="text-[11px] text-zinc-500">Sub-location:</span>
-                        <input
-                          value={sh.suggested_sub_location || ''}
-                          onChange={(e) => setSheet(ti, { suggested_sub_location: e.target.value })}
-                          className="text-xs px-2 py-1 border border-zinc-300 rounded-md w-44"
-                          data-testid={`ai-kit-subloc-${ti}`}
-                        />
+                      <div className="flex items-center gap-2 ml-auto flex-wrap">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] text-zinc-500">Import into:</span>
+                          <select
+                            value={sh.dest_site_id || site.id}
+                            onChange={(e) => setSheet(ti, { dest_site_id: e.target.value })}
+                            className="text-xs px-2 py-1 border border-zinc-300 rounded-md max-w-[200px]"
+                            data-testid={`ai-kit-site-${ti}`}
+                          >
+                            {(preview.mod_sites && preview.mod_sites.length
+                              ? preview.mod_sites
+                              : [{ id: site.id, name: site.name }]
+                            ).map((s) => (
+                              <option key={s.id} value={s.id}>{s.id === site.id ? `${s.name} (this base)` : s.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] text-zinc-500">Sub-location:</span>
+                          <input
+                            value={sh.suggested_sub_location || ''}
+                            onChange={(e) => setSheet(ti, { suggested_sub_location: e.target.value })}
+                            className="text-xs px-2 py-1 border border-zinc-300 rounded-md w-40"
+                            data-testid={`ai-kit-subloc-${ti}`}
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -222,6 +242,14 @@ export default function AIKitImportModal({ site, headers, onClose, onImported })
               <p className="text-sm font-bold text-zinc-900 mb-1">Imported {result.imported} items into {site.name}</p>
               <p className="text-xs text-zinc-500">{result.skipped || 0} skipped{result.errors?.length ? ` · ${result.errors.length} error(s)` : ''}.</p>
               {filteredDupes > 0 && <p className="text-[11px] text-amber-700 mt-1">{filteredDupes} duplicate serial(s) filtered out before import.</p>}
+              {result.per_site && result.per_site.length > 1 && (
+                <div className="mt-4 mx-auto max-w-md text-left text-[11px] text-zinc-600 bg-zinc-50 border border-zinc-200 rounded-md p-3" data-testid="ai-kit-per-site">
+                  <p className="font-semibold text-zinc-700 mb-1.5">Imported across {result.per_site.length} MOD sites:</p>
+                  {result.per_site.map((p) => (
+                    <div key={p.site_id} className="flex justify-between"><span>{p.site_name}</span><span className="font-medium text-zinc-800">{p.imported} imported{p.skipped ? ` · ${p.skipped} skipped` : ''}</span></div>
+                  ))}
+                </div>
+              )}
               {result.errors?.length > 0 && (
                 <div className="mt-4 mx-auto max-w-lg text-left text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3 max-h-40 overflow-y-auto">
                   {result.errors.slice(0, 30).map((e, i) => <div key={i}>{e}</div>)}

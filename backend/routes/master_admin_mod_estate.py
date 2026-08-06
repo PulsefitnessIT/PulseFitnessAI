@@ -1309,6 +1309,11 @@ async def ai_kit_import_analyse(
                 dupes += 1
     preview["duplicate_serials"] = dupes
     preview["site_id"] = site_id
+    # MOD sites the operator can retarget individual tabs to (multi-base kit lists).
+    site_rows = await db.organizations.find(
+        {"account_type": "mod_site"}, {"_id": 0, "id": 1, "name": 1},
+    ).sort("name", 1).to_list(5000)
+    preview["mod_sites"] = site_rows
     return preview
 
 
@@ -1318,9 +1323,9 @@ async def ai_kit_import_commit(
     user: dict = Depends(get_current_user),
 ) -> dict:
     require_master_admin(user)
-    site_id = (payload.get("site_id") or "").strip()
+    default_site = (payload.get("site_id") or "").strip()
     rows = payload.get("rows") or []
-    if not site_id:
+    if not default_site:
         raise HTTPException(400, "site_id is required.")
     if not rows:
         raise HTTPException(400, "No equipment rows to import.")
@@ -1328,33 +1333,19 @@ async def ai_kit_import_commit(
 
     import csv as _csv
     import io as _io
-    headers = ["name", "equipment_type", "manufacturer", "model",
-               "serial_number", "asset_number", "sub_location", "quantity"]
-    buf = _io.StringIO()
-    w = _csv.writer(buf)
-    w.writerow(headers)
-    written = 0
+    from routes.master_admin_bulk_import import _do_bulk_import_equipment
+
+    # Group rows by their target MOD site (a tab may target another base).
+    groups: dict = {}
     for r in rows:
         if skip_duplicates and r.get("duplicate"):
             continue
-        name = (r.get("name") or "").strip()
-        if not name:
+        if not (r.get("name") or "").strip():
             continue
-        w.writerow([
-            name,
-            (r.get("equipment_type") or "").strip(),
-            (r.get("manufacturer") or "").strip(),
-            (r.get("model") or "").strip(),
-            (r.get("serial_number") or "").strip(),
-            (r.get("asset_number") or "").strip(),
-            (r.get("sub_location") or "").strip(),
-            r.get("quantity") or 1,
-        ])
-        written += 1
-    if not written:
+        target = (r.get("target_site_id") or "").strip() or default_site
+        groups.setdefault(target, []).append(r)
+    if not groups:
         raise HTTPException(400, "Nothing to import after de-duplication.")
-
-    csv_bytes = buf.getvalue().encode("utf-8")
 
     class _MemUpload:
         def __init__(self, data: bytes, filename: str):
@@ -1364,11 +1355,44 @@ async def ai_kit_import_commit(
         async def read(self):
             return self._data
 
-    from routes.master_admin_bulk_import import _do_bulk_import_equipment
-    shim = _MemUpload(csv_bytes, f"ai-kit-{site_id}.csv")
-    result = await _do_bulk_import_equipment(shim, site_id, user, validate_org=True)
-    result["rows_submitted"] = written
-    return result
+    headers = ["name", "equipment_type", "manufacturer", "model",
+               "serial_number", "asset_number", "sub_location", "quantity"]
+    totals = {"imported": 0, "skipped": 0, "errors": []}
+    per_site = []
+    site_names = {s["id"]: s.get("name") for s in await db.organizations.find(
+        {"account_type": "mod_site"}, {"_id": 0, "id": 1, "name": 1}).to_list(5000)}
+
+    for target, grp in groups.items():
+        buf = _io.StringIO()
+        w = _csv.writer(buf)
+        w.writerow(headers)
+        written = 0
+        for r in grp:
+            w.writerow([
+                (r.get("name") or "").strip(),
+                (r.get("equipment_type") or "").strip(),
+                (r.get("manufacturer") or "").strip(),
+                (r.get("model") or "").strip(),
+                (r.get("serial_number") or "").strip(),
+                (r.get("asset_number") or "").strip(),
+                (r.get("sub_location") or "").strip(),
+                r.get("quantity") or 1,
+            ])
+            written += 1
+        shim = _MemUpload(buf.getvalue().encode("utf-8"), f"ai-kit-{target}.csv")
+        res = await _do_bulk_import_equipment(shim, target, user, validate_org=True)
+        totals["imported"] += res.get("imported", 0)
+        totals["skipped"] += res.get("skipped", 0)
+        totals["errors"].extend(res.get("errors", []) or [])
+        per_site.append({
+            "site_id": target, "site_name": site_names.get(target, target),
+            "rows_submitted": written,
+            "imported": res.get("imported", 0), "skipped": res.get("skipped", 0),
+        })
+
+    totals["per_site"] = per_site
+    totals["rows_submitted"] = sum(p["rows_submitted"] for p in per_site)
+    return totals
 
 
 __all__ = ["router"]
