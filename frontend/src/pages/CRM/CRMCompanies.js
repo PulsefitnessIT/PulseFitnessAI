@@ -1064,6 +1064,7 @@ function AddCoverageModal({ companyId, state, onClose, onSaved, API, headers, c,
 
 /* ═══ COMPANY DETAIL ═══ */
 function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveTab, navigateTo }) {
+  const { isMasterAdmin } = useCRM();
   const [company, setCompany] = useState(null);
   const [activeSection, setActiveSection] = useState('overview');
   const [showAddNote, setShowAddNote] = useState(false);
@@ -1303,6 +1304,14 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
     setSavingEdit(false);
   };
 
+  const deleteCompany = async () => {
+    if (!window.confirm(`Delete "${company.name}"? This permanently removes the company and cannot be undone.`)) return;
+    try {
+      await axios.delete(`${API}/crm/v2/companies/${companyId}`, { headers: headers() });
+      onBack();
+    } catch (e) { window.alert(e?.response?.data?.detail || 'Could not delete company'); }
+  };
+
   // Iter (Jul 2026) — company tabs consolidated to a single source of truth.
   // Support Cases → Service & Engineers; Sites+Portal Equipment+CRM Assets →
   // "Equipment & Assets"; Drawings → Site Surveys; Activity+Timeline+Audit →
@@ -1391,6 +1400,11 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
           <button onClick={openEdit} className="px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="company-edit-btn">
             <Edit2 size={12} className="inline mr-1" /> Edit
           </button>
+          {isMasterAdmin && (
+            <button onClick={deleteCompany} className="px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-red-500/10" style={{ borderColor: 'var(--color-danger-alt)', color: 'var(--color-danger-alt)' }} data-testid="company-delete-btn">
+              <Trash2 size={12} className="inline mr-1" /> Delete
+            </button>
+          )}
           <button onClick={() => setShowAddNote(true)} className="px-3 py-1.5 bg-[var(--color-info-ios)] text-white text-xs font-medium rounded-md hover:bg-[var(--color-brand-blue-deep)]" data-testid="add-activity-btn">
             <Plus size={12} className="inline mr-1" /> Log Activity
           </button>

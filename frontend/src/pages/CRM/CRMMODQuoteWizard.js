@@ -220,6 +220,7 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
 
   const importSpreadsheet = async (file) => {
     if (!file) return;
+    if (!siteId) { notify.error('Pick a MOD site first, then drop your kit list'); return; }
     setImporting(true);
     try {
       const fd = new FormData();
@@ -233,6 +234,7 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
   };
 
   const importPaste = async () => {
+    if (!siteId) { notify.error('Pick a MOD site first, then paste your kit list'); return; }
     if (!pastedText.trim()) { notify.error('Paste some rows first'); return; }
     setImporting(true);
     try {
@@ -347,12 +349,18 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
                   <p className="text-[11px] font-semibold" style={{ color: c.text }}>Or import from a spreadsheet</p>
                   <span className="text-[10px]" style={{ color: c.textDim }}>· MOD asset registers have no fixed layout — AI reads it for you</span>
                 </div>
+                {!siteId && (
+                  <div className="mb-2 flex items-center gap-1.5 text-[10px] px-2 py-1.5 rounded-md" style={{ color: 'var(--color-warning)', background: 'var(--color-warning)12' }} data-testid="mod-import-site-required">
+                    <AlertTriangle size={12} /> Choose a MOD site above before importing a kit list.
+                  </div>
+                )}
                 <div
                   className="rounded-lg border-2 border-dashed p-5 text-center transition-all"
-                  style={{ borderColor: dragOver ? 'var(--color-info-ios)' : c.border, background: dragOver ? 'var(--color-info-ios)10' : 'transparent' }}
-                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                  style={{ borderColor: dragOver && siteId ? 'var(--color-info-ios)' : c.border, background: dragOver && siteId ? 'var(--color-info-ios)10' : 'transparent', opacity: siteId ? 1 : 0.5, pointerEvents: siteId ? 'auto' : 'none' }}
+                  aria-disabled={!siteId}
+                  onDragOver={e => { e.preventDefault(); if (siteId) setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
-                  onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) importSpreadsheet(f); }}
+                  onDrop={e => { e.preventDefault(); setDragOver(false); if (!siteId) { notify.error('Pick a MOD site first, then drop your kit list'); return; } const f = e.dataTransfer.files?.[0]; if (f) importSpreadsheet(f); }}
                   data-testid="mod-import-dropzone">
                   {importing ? (
                     <div className="flex items-center justify-center gap-2 py-2" style={{ color: c.textMuted }}>

@@ -220,3 +220,60 @@ def match_equipment(equip: dict, rate_card: list[dict], contract_type: str = "A"
             "suggestions": suggestions,
         }
     return {"rate_card_id": None, "matched": False, "confidence": 0.0, "suggestions": []}
+
+
+
+# ── MOD-code → SOR service line ─────────────────────────────────────
+# Pulse kit lists / lease plans carry a "MOD Code" column (e.g. MOD-UBIKE,
+# MOD-STRENGTH) that deterministically identifies the SOR service line. When
+# present it should be trusted over fuzzy description matching — otherwise a
+# strength "Row" gets mis-read as a CV rower, etc.
+MOD_CODE_TO_ITEM_NO: dict[str, str] = {
+    "MOD-TREAD": "2",
+    "MOD-SPIN": "3",
+    "MOD-ROW": "4",
+    "MOD-BENCH": "5",
+    "MOD-CARDIOWAVE": "6",
+    "MOD-WAVE": "6",
+    "MOD-CLIMBER": "7",
+    "MOD-XT": "8",
+    "MOD-XTP": "9",
+    "MOD-GRAPPLER": "10",
+    "MOD-HANDBIKE": "11",
+    "MOD-RBIKE": "12",
+    "MOD-RBIKEP": "13",
+    "MOD-SQUAT": "15",
+    "MOD-STEPPER": "16",
+    "MOD-STEPPERP": "17",
+    "MOD-UBIKE": "18",
+    "MOD-UBIKEP": "19",
+    "MOD-STRENGTH": "20",
+    "MOD-BODYLIFT": "21",
+    "MOD-CHINDIP": "22",
+    "MOD-MULTI2": "23",
+    "MOD-MULTI3": "24",
+    "MOD-MULTI": "25",
+    "MOD-FREEDOM": "26",
+    "MOD-RADIANT": "27",
+}
+
+
+def normalise_mod_code(v) -> str:
+    """Uppercase, strip whitespace, and ensure a leading 'MOD-' so lookups are
+    tolerant of 'MOD-Spin', ' mod ubike ', 'MOD UBIKE' etc."""
+    import re as _re
+    s = _re.sub(r"\s+", "", str(v or "")).upper()
+    if not s:
+        return ""
+    if not s.startswith("MOD-"):
+        s = _re.sub(r"^MOD", "MOD-", s) if s.startswith("MOD") else "MOD-" + s
+    return s
+
+
+def match_by_mod_code(mod_code, rate_card: list[dict]) -> dict | None:
+    """Return the rate-card service line for a MOD code, or None."""
+    item_no = MOD_CODE_TO_ITEM_NO.get(normalise_mod_code(mod_code))
+    if not item_no:
+        return None
+    return next((e for e in rate_card
+                 if e.get("kind") == "service" and str(e.get("item_no")) == item_no), None)

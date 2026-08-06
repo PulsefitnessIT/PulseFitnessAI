@@ -23,7 +23,7 @@ from utils.database import db
 from routes.crm_auth import get_crm_user
 from routes.crm_core import log_audit
 from routes.crm_cpq import _now
-from utils.mod_sor_data import build_seed_rate_card, price_for, match_equipment
+from utils.mod_sor_data import build_seed_rate_card, price_for, match_equipment, match_by_mod_code, normalise_mod_code
 from utils.dealer_parts_ai import spreadsheet_rows
 from utils.brand_urls import app_url_for_org
 
@@ -255,12 +255,14 @@ async def _recognise_items(grid_text: str) -> dict:
             "have no headings, and rows may include totals, notes or blanks. "
             "Identify every row that represents a single physical training equipment "
             "ITEM. For each, extract: description (the machine name/type/model exactly "
-            "as written), code (any asset/product/SOR code shown for that row, else ''), "
+            "as written), code (any Pulse/asset/product/SOR code shown for that row, else ''), "
+            "mod_code (the value in a column headed 'MOD Code'/'MOD-Code', or ANY token on "
+            "the row that starts with 'MOD-' such as MOD-UBIKE or MOD-STRENGTH; else ''), "
             "and quantity (a whole number; if a quantity column exists use it, otherwise "
             "1 per asset row). Ignore header rows, subtotals, totals, section titles and "
             "blank rows. Never invent machines, codes or quantities. "
             "Respond with STRICT JSON only: "
-            '{"items":[{"description":"","code":"","quantity":1}],"note":""}'
+            '{"items":[{"description":"","code":"","mod_code":"","quantity":1}],"note":""}'
         ),
     ).with_model("anthropic", "claude-sonnet-4-6")
     prompt = f"Spreadsheet contents (row by row, cells separated by ' | '):\n\n{grid_text}\n\nReturn the JSON now."
@@ -284,23 +286,47 @@ async def _recognise_items(grid_text: str) -> dict:
             qty = int(float(it.get("quantity", 1) or 1))
         except Exception:
             qty = 1
-        clean.append({"description": desc, "code": str(it.get("code", "")).strip(), "quantity": max(qty, 1)})
+        clean.append({"description": desc, "code": str(it.get("code", "")).strip(),
+                      "mod_code": str(it.get("mod_code", "")).strip(),
+                      "quantity": max(qty, 1)})
     return {"items": clean, "note": str(data.get("note", "")).strip()}
 
 
 def _match_recognised(item: dict, rate_card: list[dict], ct: str, year: int) -> dict:
-    """Match a recognised item to a rate-card line: direct code hit first,
-    then keyword/description matching. Never drops the row."""
+    """Match a recognised item to a rate-card line. Priority:
+    1. Explicit MOD Code on the row (deterministic — trust it).
+    2. Direct Pulse/SOR code hit.
+    3. Keyword/description matching. Never drops the row."""
+    import re as _re
     services = [e for e in rate_card if e.get("kind") == "service"]
-    code_n = _norm_code(item.get("code"))
     rc = None
     confidence = 0.0
     source = "unmatched"
-    if code_n:
-        for e in services:
-            if code_n in (_norm_code(e.get("code_a")), _norm_code(e.get("code_b"))):
-                rc, confidence, source = e, 0.99, "code"
-                break
+    suggestions = []
+
+    # 1 — MOD Code (from its own column, or any MOD- token on the row).
+    mod_raw = (item.get("mod_code") or "").strip()
+    if not mod_raw:
+        blob = f"{item.get('code', '')} {item.get('description', '')}".upper()
+        m = _re.search(r"MOD[-\s]?[A-Z0-9]+", blob)
+        if m:
+            mod_raw = m.group(0)
+    mod_code = normalise_mod_code(mod_raw)
+    if mod_code:
+        rc_mod = match_by_mod_code(mod_code, rate_card)
+        if rc_mod is not None:
+            rc, confidence, source = rc_mod, 0.98, "mod_code"
+
+    # 2 — direct Pulse/SOR code hit.
+    if rc is None:
+        code_n = _norm_code(item.get("code"))
+        if code_n:
+            for e in services:
+                if code_n in (_norm_code(e.get("code_a")), _norm_code(e.get("code_b"))):
+                    rc, confidence, source = e, 0.99, "code"
+                    break
+
+    # 3 — keyword/description matching.
     if rc is None:
         m = match_equipment(
             {"name": item.get("description", ""), "equipment_type": item.get("description", "")},
@@ -311,8 +337,7 @@ def _match_recognised(item: dict, rate_card: list[dict], ct: str, year: int) -> 
             rc = next((e for e in services if e["id"] == m["rate_card_id"]), None)
             confidence = float(m.get("confidence") or 0.0)
             source = "keyword"
-    else:
-        suggestions = []
+
     unit_price = None
     if rc and ct != "C" and not rc.get("is_poa"):
         unit_price = price_for(rc, ct, year)
@@ -320,6 +345,7 @@ def _match_recognised(item: dict, rate_card: list[dict], ct: str, year: int) -> 
     return {
         "description": item.get("description", ""),
         "source_code": item.get("code", ""),
+        "mod_code": mod_code or item.get("mod_code", ""),
         "quantity": item.get("quantity", 1),
         "rate_card_id": rc["id"] if rc else None,
         "rate_card_label": rc["label"] if rc else None,

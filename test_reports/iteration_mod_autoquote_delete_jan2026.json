@@ -1,0 +1,33 @@
+{
+  "summary": "Verified all 5 items in the review request: MOD auto-quote site gating in wizard step 1, backend MOD-code trust import (Row → SingleStation Strength Machine, needs_review=0, source=mod_code), CRM nav Quotes label without (CPQ), master admin sees company-delete-btn, and craig (non-admin) does NOT. Backend 3/3 pytest passing; Frontend UI checks all PASS.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_mod_quote_and_company_delete_jan2026.py",
+    "/app/test_reports/pytest/mod_quote_delete.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Non-critical: field name inconsistency across MOD-quote line objects vs docstring — line returns 'rate_card_label' (kept), no 'sor_service_line' key. If frontend/consumers expect a service-line key, ensure they read rate_card_label. This test asserts on rate_card_label."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_quote_and_company_delete_jan2026.py"],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "Master admin admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (platform login); CRM operator non-admin craig.henshall@pulsefitness.com / PulseMOD123! (POST /api/crm/auth/login).",
+  "seed_data_creation": "Temporary company TEST_CraigUI_* created and deleted; TEST_DeleteMe_* created via API by master and deleted. No residue.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend endpoints validated: POST /api/crm/mod-quote/import-spreadsheet (form-data: file /tmp/lease.xlsx, contract_type=A, year=1) → 200 with lines where each line has source=='mod_code', needs_review==false, rate_card_label populated (Row → 'SingleStation Strength Machine'). DELETE /api/crm/v2/companies/{id} works for master admin. Frontend: mod-site-select, mod-import-dropzone, mod-import-site-required present in MOD Auto Quote Writer modal (CRM → Corporate → Quotes → MOD Auto Quote). company-delete-btn is gated on isMasterAdmin via useCRM() context in CRMCompanies.js. Craig (manager) correctly does not see it.",
+  "verified_flows": [
+    "Backend import trusts MOD Code → Row=Strength (assertion on rate_card_label)",
+    "Backend rejects import with no file (400/422)",
+    "Master admin can DELETE /api/crm/v2/companies/{id} and subsequent GET returns 404",
+    "Nav 'Quotes' label — no (CPQ)",
+    "MOD wizard step 1 shows mod-site-select + mod-import-site-required notice + mod-import-dropzone",
+    "company-delete-btn visible for master admin on company detail",
+    "company-delete-btn NOT visible for craig (non-admin) — only Edit shown"
+  ]
+}

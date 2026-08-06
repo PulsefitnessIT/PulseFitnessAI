@@ -835,7 +835,7 @@ export default function CRMApp() {
   const modesResolved = !crmModesData.loading && !crmModesData.error;
   if (modesResolved && !crmModesData.any_enabled && !isMasterAdmin) {
     return (
-      <CRMContext.Provider value={{ user, API, headers, logout, activeTab, setActiveTab, navigateTo: () => {}, navTarget: null, setNavTarget: () => {}, theme, isDark, c, t, staffFilter, setStaffFilter, activeMode, modes: crmModesData.modes }}>
+      <CRMContext.Provider value={{ user, isMasterAdmin, API, headers, logout, activeTab, setActiveTab, navigateTo: () => {}, navTarget: null, setNavTarget: () => {}, theme, isDark, c, t, staffFilter, setStaffFilter, activeMode, modes: crmModesData.modes }}>
         <div className="min-h-screen overflow-x-hidden pulse-font-body" style={{ background: c.bg }}>
           <Navbar user={mainAuth?.user || user} logout={() => { (mainAuth?.logout || logout)(); }} theme={theme} toggleTheme={toggleTheme} />
           <div className="pt-24">
@@ -899,7 +899,7 @@ export default function CRMApp() {
   const showShell = !!platformUser;
 
   return (
-    <CRMContext.Provider value={{ user, API, headers, logout, activeTab, setActiveTab, navigateTo, navTarget, setNavTarget, theme, isDark, c, t, staffFilter, setStaffFilter, activeMode, modes: crmModesData.modes, canInventory: canCapability(platformUser, 'view_inventory') }}>
+    <CRMContext.Provider value={{ user, isMasterAdmin, API, headers, logout, activeTab, setActiveTab, navigateTo, navTarget, setNavTarget, theme, isDark, c, t, staffFilter, setStaffFilter, activeMode, modes: crmModesData.modes, canInventory: canCapability(platformUser, 'view_inventory') }}>
       <div
         className={`min-h-screen overflow-x-hidden pulse-font-body module-fade-in ${!isPulseBrandedCRM && !isDark ? 'theme-gymaxis' : ''}`}
         style={{ background: c.bg }}
