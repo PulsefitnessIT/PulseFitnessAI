@@ -1,0 +1,90 @@
+/**
+ * StockTakeHistoryModal — review saved bulk stock-take reports.
+ * Managers open this (any device) to see past audits: who ran it, when, and
+ * the found / missing / unexpected breakdown. Missing machines are listed so
+ * they can follow up.
+ */
+import { useEffect, useState } from 'react';
+import axios from 'axios';
+import { X, Loader2, ClipboardList, ChevronRight, AlertTriangle } from 'lucide-react';
+
+const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
+const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
+const fmt = (iso) => { try { return new Date(iso).toLocaleString(); } catch (_e) { return iso || ''; } };
+
+export default function StockTakeHistoryModal({ open, onClose, siteId }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true); setDetail(null);
+    axios.get(`${API}/equipment/stocktakes`, { ...auth(), params: { site_id: siteId || undefined } })
+      .then((r) => setRows(r.data?.stocktakes || []))
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false));
+  }, [open, siteId]);
+
+  const openDetail = async (id) => {
+    setDetailLoading(true);
+    try { const r = await axios.get(`${API}/equipment/stocktakes/${id}`, auth()); setDetail(r.data); }
+    catch (_e) { /* noop */ }
+    setDetailLoading(false);
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[90] bg-slate-900/70 flex items-end sm:items-center justify-center" data-testid="stocktake-history-modal" role="dialog" aria-modal="true">
+      <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-xl overflow-hidden max-h-[92vh] flex flex-col">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 shrink-0">
+          <ClipboardList size={16} className="text-cyan-600" />
+          <p className="text-sm font-bold text-slate-900 flex-1">{detail ? 'Stock-take report' : 'Stock-take history'}</p>
+          {detail && <button type="button" onClick={() => setDetail(null)} className="text-xs font-bold text-cyan-600 mr-2" data-testid="stocktake-history-back">Back</button>}
+          <button type="button" onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-500" data-testid="stocktake-history-close" aria-label="Close"><X size={16} /></button>
+        </div>
+
+        <div className="p-4 overflow-y-auto">
+          {loading ? (
+            <div className="py-10 text-center text-slate-400"><Loader2 size={20} className="animate-spin inline" /></div>
+          ) : detail ? (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-500">{detail.location} · {fmt(detail.created_at)} · by {detail.started_by || 'staff'}</p>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="p-2 rounded-xl bg-green-50 border border-green-100"><p className="text-lg font-bold text-green-700">{detail.found_count}</p><p className="text-[10px] uppercase text-green-700/70">Found</p></div>
+                <div className="p-2 rounded-xl bg-red-50 border border-red-100"><p className="text-lg font-bold text-red-700">{detail.missing_count}</p><p className="text-[10px] uppercase text-red-700/70">Missing</p></div>
+                <div className="p-2 rounded-xl bg-amber-50 border border-amber-100"><p className="text-lg font-bold text-amber-700">{detail.unexpected_count}</p><p className="text-[10px] uppercase text-amber-700/70">Unexpected</p></div>
+              </div>
+              {detail.missing?.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-red-600 mb-1 flex items-center gap-1"><AlertTriangle size={11} /> Missing</p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {detail.missing.map((e) => <div key={e.id} className="text-xs text-slate-700">{e.name || e.serial_number} <span className="text-slate-400">· {e.serial_number}{e.location ? ` · ${e.location}` : ''}</span></div>)}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : rows.length === 0 ? (
+            <p className="py-10 text-center text-sm text-slate-400" data-testid="stocktake-history-empty">No stock-takes yet.</p>
+          ) : (
+            <div className="space-y-2" data-testid="stocktake-history-list">
+              {rows.map((s) => (
+                <button key={s.id} type="button" onClick={() => openDetail(s.id)} disabled={detailLoading} className="w-full text-left px-3 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 flex items-center gap-2" data-testid={`stocktake-history-row-${s.id}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-slate-900 truncate">{s.location}</p>
+                    <p className="text-[11px] text-slate-500">{fmt(s.created_at)} · {s.started_by || 'staff'}</p>
+                  </div>
+                  <span className="text-xs font-bold text-green-600">{s.found_count}/{s.expected_count}</span>
+                  {s.missing_count > 0 && <span className="text-xs font-bold text-red-600">{s.missing_count} missing</span>}
+                  <ChevronRight size={14} className="text-slate-400" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

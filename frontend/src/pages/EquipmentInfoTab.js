@@ -19,7 +19,9 @@ import EquipmentPlaceholder from '@/components/equipment/EquipmentPlaceholder';
 import EquipmentCoveragePanel from '@/components/equipment/EquipmentCoveragePanel';
 import AddEquipmentDialog from '@/components/equipment/AddEquipmentDialog';
 import EquipmentScanModal from '@/components/equipment/EquipmentScanModal';
-import { ScanLine } from 'lucide-react';
+import StockTakeModal from '@/components/equipment/StockTakeModal';
+import StockTakeHistoryModal from '@/components/equipment/StockTakeHistoryModal';
+import { ScanLine, ClipboardList } from 'lucide-react';
 import DatePicker from '@/components/shared/DatePicker';
 import { SLA_RESPONSE_TIME_OPTIONS, EQUIPMENT_LOCATION_PRESETS } from '@/utils/operationsDropdowns';
 
@@ -58,6 +60,8 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  // which is right for "I just bought one new piece of kit".
  const [showAddEquipment, setShowAddEquipment] = useState(false);
  const [showScanModal, setShowScanModal] = useState(false);
+ const [showStockTake, setShowStockTake] = useState(false);
+ const [showStockHistory, setShowStockHistory] = useState(false);
  const [suppliers, setSuppliers] = useState([]);
  const [viewingManual, setViewingManual] = useState(null); // {equipmentId, manual}
  const [manualBlobUrl, setManualBlobUrl] = useState(null);
@@ -521,6 +525,22 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
    data-testid="scan-barcode-btn"
  >
    <ScanLine size={16} className="mr-2" /> Scan barcode
+ </Button>
+ <Button
+   onClick={() => setShowStockTake(true)}
+   className="sm:hidden w-full bg-slate-800 hover:bg-slate-700 text-white font-semibold"
+   data-testid="stocktake-btn"
+ >
+   <ClipboardList size={16} className="mr-2" /> Stock-take
+ </Button>
+ <Button
+   variant="outline"
+   onClick={() => setShowStockHistory(true)}
+   className="border-white/10 text-white shrink-0"
+   data-testid="stocktake-history-btn"
+   title="Stock-take history"
+ >
+   <ClipboardList size={16} className="mr-2" /> Stock-takes
  </Button>
  <div className="flex-1 relative">
  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--color-text-muted)]" size={20} />
@@ -996,6 +1016,19 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  <EquipmentScanModal
  open={showScanModal}
  onClose={() => setShowScanModal(false)}
+ siteId={user?.active_site_id}
+ />
+ <StockTakeModal
+ open={showStockTake}
+ onClose={() => setShowStockTake(false)}
+ equipment={equipment}
+ locations={equipmentLocations}
+ siteId={user?.active_site_id}
+ onSaved={() => {}}
+ />
+ <StockTakeHistoryModal
+ open={showStockHistory}
+ onClose={() => setShowStockHistory(false)}
  siteId={user?.active_site_id}
  />
  </div>

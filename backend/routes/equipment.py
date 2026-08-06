@@ -626,6 +626,96 @@ async def resolve_equipment_by_scan(
     return {"match": "multiple", "options": fuzzy, "matched_on": "fuzzy"}
 
 
+# ─────────────────────────────────────────────────────────────────
+# Bulk Stock-Take — rapid-scan an equipment audit in one pass.
+# Scanning/matching happens on-device (instant); the finished report
+# is POSTed here so the backend is the source of truth for the
+# EXPECTED list + computed MISSING, and it's saved for managers.
+# ─────────────────────────────────────────────────────────────────
+def _stocktake_scope(user: dict, site_id: str, location: str) -> dict:
+    base = get_organization_filter(user)
+    scope = apply_site_lock(user, (site_id or "").strip() or None, base)
+    scope["status"] = {"$ne": "archived"}
+    loc = (location or "").strip()
+    if loc and loc.lower() != "all":
+        scope["location"] = loc
+    return scope
+
+
+@router.post("/equipment/stocktakes")
+async def save_stocktake(data: Dict[str, Any], user: dict = Depends(get_current_user)) -> dict:
+    """Persist a completed stock-take. The client sends the machines it
+    confirmed present (found) + any unexpected scans; we recompute the
+    expected set + missing server-side so the saved report is authoritative."""
+    site_id = (data.get("site_id") or "").strip()
+    location = (data.get("location") or "").strip()
+    scope = _stocktake_scope(user, site_id, location)
+    proj = {"_id": 0, "id": 1, "name": 1, "serial_number": 1, "model": 1,
+            "equipment_type": 1, "location": 1, "site_id": 1}
+    expected = await db.equipment.find(scope, proj).to_list(2000)
+    expected_by_id = {e["id"]: e for e in expected}
+
+    found_ids = []
+    for f in (data.get("found") or []):
+        fid = f.get("id") if isinstance(f, dict) else f
+        if fid in expected_by_id and fid not in found_ids:
+            found_ids.append(fid)
+    found = [expected_by_id[i] for i in found_ids]
+    missing = [e for e in expected if e["id"] not in set(found_ids)]
+
+    unexpected = []
+    for u in (data.get("unexpected") or [])[:500]:
+        if not isinstance(u, dict):
+            u = {"code": str(u)}
+        unexpected.append({
+            "code": (u.get("code") or "")[:200],
+            "id": u.get("id"),
+            "name": (u.get("name") or "")[:200],
+            "reason": (u.get("reason") or "unknown")[:40],
+        })
+
+    rec = {
+        "id": str(uuid.uuid4()),
+        "organization_id": user.get("organization_id"),
+        "site_id": site_id or None,
+        "location": location or "All",
+        "expected_count": len(expected),
+        "found_count": len(found),
+        "missing_count": len(missing),
+        "unexpected_count": len(unexpected),
+        "found": found,
+        "missing": missing,
+        "unexpected": unexpected,
+        "duration_seconds": int(data.get("duration_seconds") or 0),
+        "started_by_id": user.get("id"),
+        "started_by": user.get("full_name") or user.get("email") or "",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.equipment_stocktakes.insert_one(dict(rec))
+    rec.pop("_id", None)
+    return rec
+
+
+@router.get("/equipment/stocktakes")
+async def list_stocktakes(site_id: str = None, user: dict = Depends(get_current_user)) -> dict:
+    q = get_organization_filter(user)
+    if (site_id or "").strip():
+        q = {**q, "site_id": site_id.strip()}
+    rows = await db.equipment_stocktakes.find(
+        q, {"_id": 0, "found": 0, "missing": 0, "unexpected": 0},
+    ).sort("created_at", -1).limit(100).to_list(100)
+    return {"stocktakes": rows}
+
+
+@router.get("/equipment/stocktakes/{stocktake_id}")
+async def get_stocktake(stocktake_id: str, user: dict = Depends(get_current_user)) -> dict:
+    row = await db.equipment_stocktakes.find_one(
+        {"id": stocktake_id, **get_organization_filter(user)}, {"_id": 0})
+    if not row:
+        raise HTTPException(404, "Stock-take not found")
+    return row
+
+
 @router.get("/equipment/{equipment_id}")
 async def get_equipment(equipment_id: str, user: dict = Depends(get_current_user)) -> dict:
     org_filter = get_organization_filter(user)

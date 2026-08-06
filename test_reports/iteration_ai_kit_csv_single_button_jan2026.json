@@ -1,0 +1,35 @@
+{
+  "summary": "Verified the AI-kit import consolidation fix: CSV uploads now analyse successfully (55 rows from /tmp/nyati.csv), multi-tab XLSX regression still works (5 tabs, 108 importable rows, 'Total' tab correctly flagged is_summary=true), commit endpoint imports rows into a MOD site and persists to db.equipment, and the frontend now shows a SINGLE 'Import equipment' button per MOD site with the old 'AI Import (any kit list)' button fully removed. Modal opens as 'AI Import — any kit list', accepts CSV via <input type=file data-testid=ai-kit-file-input>, and the commit button imported 55 items with no 'not a zip file' error.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/master-admin/mod-estate/overview", "issue": "Overview site.equipment_count reports 0 for 'Kifaru Base (AI Import Test)' even after successful commit that inserted 55 docs into db.equipment (verified via direct Mongo query). Overview aggregation may be filtering out AI-import docs (missing a required field?) or caching. Not blocking, but the readiness dashboard will look wrong to master admins after a successful import."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ai_kit_import_csv_jan2026.py",
+    "/app/test_reports/pytest/ai_kit_csv.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: create a real MOD site named 'British Army Training Unit Kenya' — the review request specified it but it does not exist in the organizations collection (only test sites 'Kifaru Base (AI Import Test)', 'Nyati Base (AI Import Test)', 'MOD Test Site' exist under account_type=mod_site). Backend commit path was validated against 'Kifaru Base (AI Import Test)' as a fallback (55/55 imported).",
+    "Investigate overview equipment_count not reflecting newly imported equipment for the target site."
+  ],
+  "critical_code_review_comments": [
+    "utils/kit_list_ai.py — _looks_like_zip / _csv_to_workbook / _read_workbook rewrite is clean and correctly routes CSV/TSV/TXT through openpyxl. Filename is now passed through analyse_kit_workbook. Good.",
+    "MODSiteOnboarding.js line ~462 — consolidation to a single 'Import equipment' button (Sparkles icon) that calls setAiKitSite(s) is exactly as spec'd; the previous separate testid mod-ai-kit-import-<siteId> is gone."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ai_kit_import_csv_jan2026.py"
+  ],
+  "success_rate": {"backend": "100% (3/3 pytest)", "frontend": "100% (single-button UI + CSV upload + preview + commit all verified)"},
+  "test_credentials": "Master admin admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from review request; matches /app/memory/test_credentials.md if present)",
+  "seed_data_creation": "During commit test, 55 equipment docs were inserted under organization_id='mod-site-test-kifaru' (Kifaru Base (AI Import Test)). Names such as 'Upright Bike — Pro' / 'Spinner — D91 Group Cycle' show the LLM name-tidying pipeline is working.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest at /app/backend/tests/test_ai_kit_import_csv_jan2026.py exercises: (1) POST /api/master-admin/mod-estate/ai-kit-import/analyse with CSV (nyati.csv, 55 rows), (2) same endpoint with multi-tab XLSX (kitlist.xlsx) verifying Total tab is_summary flag, (3) POST /api/master-admin/mod-estate/ai-kit-import/commit flattening non-summary sheet rows into {site_id, rows[]}. Sheet objects use fields: tab (name), is_summary, has_header, rows[]. commit response shape: {imported, skipped, errors, per_site:[{site_id,site_name,rows_submitted,imported,skipped}], rows_submitted}. Target site 'British Army Training Unit Kenya' does not exist in DB — used Kifaru fallback."
+}

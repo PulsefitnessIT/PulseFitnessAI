@@ -93,9 +93,45 @@ def _match_header(cell: str) -> str | None:
     return None
 
 
-def _read_workbook(content: bytes):
+def _looks_like_zip(content: bytes) -> bool:
+    # xlsx/xlsm are OOXML zip archives — they start with the local file header 'PK'.
+    return len(content) >= 2 and content[:2] == b"PK"
+
+
+def _csv_to_workbook(content: bytes, filename: str = ""):
+    """Build an in-memory workbook from a CSV/TSV so the rest of the pipeline
+    (which expects openpyxl worksheets) works unchanged."""
+    import csv
     import openpyxl
-    return openpyxl.load_workbook(io.BytesIO(content), data_only=True, read_only=True)
+    text = content.decode("utf-8-sig", errors="replace")
+    name = (filename or "").lower()
+    if name.endswith(".tsv"):
+        delim = "\t"
+    else:
+        try:
+            delim = csv.Sniffer().sniff(text[:4096], delimiters=",;\t|").delimiter
+        except Exception:
+            delim = ","
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+    for row in csv.reader(io.StringIO(text), delimiter=delim):
+        ws.append(list(row))
+    return wb
+
+
+def _read_workbook(content: bytes, filename: str = ""):
+    """Read an uploaded kit list. Handles .xlsx/.xlsm (zip-based) AND plain
+    .csv/.tsv (which are NOT zip files, so openpyxl can't open them directly)."""
+    import openpyxl
+    name = (filename or "").lower()
+    if name.endswith((".csv", ".tsv", ".txt")) or not _looks_like_zip(content):
+        return _csv_to_workbook(content, name)
+    try:
+        return openpyxl.load_workbook(io.BytesIO(content), data_only=True, read_only=True)
+    except Exception:
+        # Mislabeled or odd file — last-ditch attempt to read it as delimited text.
+        return _csv_to_workbook(content, name)
 
 
 def _analyse_sheet(ws):
@@ -213,7 +249,7 @@ async def _ai_clean_tuples(tuples: list[dict]) -> dict:
 
 async def analyse_kit_workbook(content: bytes, filename: str) -> dict:
     """Parse a kit-list workbook into clean, review-ready rows grouped by tab."""
-    wb = _read_workbook(content)
+    wb = _read_workbook(content, filename)
     sheets = [_analyse_sheet(ws) for ws in wb.worksheets]
 
     # distinct (type, model, manufacturer) across DATA sheets → AI clean once

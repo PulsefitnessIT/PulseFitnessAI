@@ -459,12 +459,8 @@ const MODSiteOnboarding = () => {
                     {linkBusyId === s.id ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Link2 size={14} className="mr-1.5" />}
                     Send capture link
                   </Button>
-                  <Button size="sm" onClick={() => pickFileFor(s)} disabled={uploadingId === s.id} data-testid={`mod-equip-import-${s.id}`}>
-                    {uploadingId === s.id ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Upload size={14} className="mr-1.5" />}
-                    {uploadingId === s.id ? 'Importing…' : 'Import equipment'}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setAiKitSite(s)} data-testid={`mod-ai-kit-import-${s.id}`}>
-                    <Sparkles size={14} className="mr-1.5 text-cyan-600" /> AI Import (any kit list)
+                  <Button size="sm" onClick={() => setAiKitSite(s)} data-testid={`mod-equip-import-${s.id}`}>
+                    <Sparkles size={14} className="mr-1.5" /> Import equipment
                   </Button>
                 </div>
               </div>
