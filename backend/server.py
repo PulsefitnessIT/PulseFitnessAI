@@ -127,7 +127,7 @@ async def security_headers_middleware(request, call_next):
             "https://static.cloudflareinsights.com; "
             "font-src 'self' data: https://fonts.gstatic.com https://cdn.fontshare.com; "
             "connect-src 'self' https: wss:; "
-            "frame-src 'self' https://challenges.cloudflare.com https://hcaptcha.com https://js.stripe.com; "
+            "frame-src 'self' blob: https://challenges.cloudflare.com https://hcaptcha.com https://js.stripe.com; "
             "frame-ancestors 'self' https://app.emergent.sh https://*.emergent.sh https://*.emergentagent.com; "
             "base-uri 'self'; "
             "form-action 'self'; "

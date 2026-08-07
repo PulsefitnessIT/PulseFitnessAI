@@ -1,3 +1,24 @@
+# ═══ 2026-08-07 · MOD Quote wizard — live PDF Preview (TL numbers) before send + CSP frame-src blob: fix — verified ═══
+The MOD Service Quote wizard now previews the real generated PDF (with the TL Number column) BEFORE sending to Leidos.
+  • BACKEND routes/crm_mod_quote.py: NEW GET /crm/mod-quote/{quote_id}/pdf (require_operator_crm_user) → render_quote_pdf,
+    scoped to the caller's organization_id, returns inline application/pdf. (Registered/auth-gated — confirmed 401 w/o CRM token.)
+  • FRONTEND CRMMODQuoteWizard.js: generate() no longer calls onCreated immediately (both callers close the modal on
+    onCreated); instead sets createdQuoteId, advances to NEW step 4 'Preview & Send' (data-testid mod-step-4) and
+    loadPdf() fetches the PDF as a blob (axios responseType blob) into an <iframe> (mod-pdf-preview) with a Download PDF
+    link (mod-pdf-download). Footer 'Done — open quote' (mod-finish-btn) → finishWizard() → onCreated(createdQuoteId).
+    Stepper now 4 items. Object URL revoked on unmount.
+  • CSP FIX: iframe blob: PDFs were blocked by frame-src. Added `blob:` to frame-src in ALL three CSP sources:
+    frontend/craco.config.js (preview dev-server — the active one), backend/server.py, frontend/public/_headers (deploy).
+  • VERIFIED: testing_agent iteration_mod_quote_wizard_pdf_preview_jan2026.json — flow reached step 4, PDF GET 200
+    application/pdf, Download link = blob URL, Done opens the quote (only failure was CSP frame-src, now fixed). Re-verified:
+    curl shows frontend CSP frame-src now includes blob:; screenshot shows step 4 'Preview & Send' with iframe present +
+    'TL numbers are included' banner (iframe blank only under headless Chromium's PDF limitation — renders in real browsers;
+    Download PDF is the fallback). Babel + py OK. Frontend restarted for craco change.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY. STILL PENDING from the 4-item batch: CRM MOD-sites surface (Delete +
+Import-more reachable inside CRM, not just Master Admin).
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-07 · CRM Tenders — dummy-proof GUIDED create wizard (default) + quick-form escape — testing_agent 100% ═══
 Replaced the plain 'New Tender' pop-up with a friendly 5-step wizard that feeds the SAME full editor (no capability lost).
   • FRONTEND CRMTenders.js (TenderList): wizardMode state (default 'wizard', toggle 'quick' via data-testid
