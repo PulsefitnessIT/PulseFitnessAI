@@ -519,11 +519,11 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
                             className="w-12 px-1 py-1 rounded text-center" style={inputStyle} />
                         </td>
                         <td className="text-right pr-2">
-                          {(contractType === 'C' || (l.custom && !l.rate_card_id)) ? (
-                            <input type="number" step="0.01" value={l.unit_price} onChange={e => updateLine(l.key, { unit_price: Number(e.target.value) || 0 })}
+                          {(lineCt(l) === 'C' || (l.custom && !l.rate_card_id)) ? (
+                            <input type="number" step="0.01" placeholder="POA" value={l.unit_price ?? ''} onChange={e => updateLine(l.key, { unit_price: Number(e.target.value) || 0 })}
                               className="w-16 px-1 py-1 rounded text-right" style={inputStyle} data-testid={`mod-line-price-${l.key}`} />
                           ) : (
-                            <span style={{ color: c.text }}>{l.rate_card_id ? fmt(priceFor(l.rate_card_id)) : '—'}</span>
+                            <span style={{ color: c.text }}>{l.rate_card_id ? fmt(priceFor(l.rate_card_id, lineCt(l))) : '—'}</span>
                           )}
                         </td>
                         <td className="text-center">

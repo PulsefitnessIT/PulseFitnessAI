@@ -599,6 +599,10 @@ def _build_supplier_map(equipment: list) -> dict[str, dict]:
         sup = (eq.get("supplier_name") or eq.get("supplier") or "").strip()
         if not sup:
             continue
+        # Normalise any "Pulse Fitness" / "Pulse Fitness Ltd" variant to the one
+        # canonical service-supplier name so the tab shows a single entry.
+        if re.sub(r"[^a-z0-9]+", "", sup.lower()).startswith("pulsefitness"):
+            sup = "Pulse Fitness Ltd"
         if sup not in supplier_map:
             supplier_map[sup] = {
                 "name": sup, "equipment_count": 0,

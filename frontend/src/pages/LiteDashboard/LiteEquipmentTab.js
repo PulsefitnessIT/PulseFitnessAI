@@ -230,7 +230,7 @@ const LiteEquipmentTab = ({
                   )}
                   {eq.supplier && (
                     <p className="text-[10px] text-indigo-400 truncate mt-0.5" data-testid={`lite-equip-supplier-${eq.id}`}>
-                      {t('equip.supplier', 'Supplier')}: {eq.supplier}
+                      {t('equip.service_provider', 'Service Provider')}: {eq.supplier}
                     </p>
                   )}
                 </div>
