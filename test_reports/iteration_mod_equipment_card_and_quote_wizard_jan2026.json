@@ -1,0 +1,55 @@
+{
+  "summary": "Frontend-only verification of MOD portal recent changes: equipment cover pills, equipment detail card labels (Service Provider vs Supplier purchased-from), Suppliers/Service-Providers tab filtering, and CRM MOD Service Quote wizard per-line Type badges. Also verified 'Replace existing kit' testid presence in AIKitImportModal.js via code inspection. Nearly all requirements PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "MOD Service Quote wizard - Type C pricing",
+        "issue": "QA Rower (Type C Overseas) row shows per-line Type C badge and empty TL (\"MOD-ROW → TL —\") but the unit price column still displays a numeric £43.53 (Rowing Machine SOR default) instead of a POA/empty indicator. Review spec says Type C should show POA with no fixed price. TL is correctly blank; only the £ column contradicts.",
+        "affected_selectors": ["mod-line-type-QAUI-C"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "MOD Equipment list (Equipment tab rows)",
+        "issues": ["List-view row subtitle still says 'Supplier: Pulse Fitness Ltd' (via testid lite-equip-supplier-<id>). Detail drawer correctly uses 'Service Provider'. If consistency was desired, update the list-row label prefix to 'Service Provider:'. Not blocking — task spec focused on detail card."]
+      },
+      {
+        "screen": "Suppliers/Service Providers tab",
+        "issues": ["Two entries appear: 'Pulse Fitness Ltd' (Grade B) and 'Pulse Fitness' (Grade C). Both are service suppliers (no manufacturer names), but the two very similar names may indicate a dedup / name-normalisation gap. Worth confirming these are truly two distinct orgs."]
+      }
+    ]
+  },
+  "verified_pass": [
+    "MOD sign-in via /MODService with test@army.mod.test lands on /pulse dashboard.",
+    "Equipment tab pills: QAUI-A='Type A Contract', QAUI-B='Type B Contract', QAUI-C='Type C Contract', QAUI-W='Warranty', QAUI-N='No cover' — all under data-testid lite-equip-pill-<id>.",
+    "Type A/B/C pills carry title (tooltip) with MOD SOR definitions (verified via title attribute).",
+    "QA Treadmill (Type A) detail drawer: SERVICE PROVIDER = 'Pulse Fitness Ltd' (data-testid lite-equip-supplier), SUPPLIER (PURCHASED FROM) = 'Acme Gym Supplies Ltd' (lite-equip-purchased-from), Service Contract with 'Type A Contract' badge (lite-equip-contract-type) + Start 23/09/2025 / End 22/09/2026, 'CHANGE SERVICE PROVIDER' button (lite-equip-supplier-edit-btn) present.",
+    "QA Cross Trainer (Warranty) detail drawer: SERVICE PROVIDER = 'Pulse Fitness Ltd', NO purchased-from field present, Warranty panel shows '1y 35d remaining' with End 11/09/2027, Service Contract 'Not set'.",
+    "Suppliers/Service-Providers tab lists ONLY 'Pulse Fitness Ltd' + 'Pulse Fitness'. Does NOT list Technogym, Wattbike, Life Fitness, Concept2, Hammer Strength.",
+    "CRM MOD Service Quote wizard opens (Corporate → Quotes → MOD Service Quote), MOD Test Site (13 items) selectable.",
+    "Step 2 (Equipment & Pricing) renders 13 per-line Type badges with data-testid mod-line-type-<key>. QAUI-A='Type A •', QAUI-B='Type B •', QAUI-C='Type C •', QAUI-W='Type A' (fallback), QAUI-N='Type A' (fallback).",
+    "TL badges: QA Treadmill Type A → 'MOD-TREAD → TL 2A' £56.73; QA Bike Type B → 'MOD-UBIKEP → TL 19B' £145.12; QA Rower Type C → 'MOD-ROW → TL —' (TL blank).",
+    "mod-permachine-summary reads '3 priced at their own Type A/B/C'.",
+    "'Replace existing kit' toggle (data-testid ai-kit-replace-existing) exists in /app/frontend/src/pages/MasterAdmin/AIKitImportModal.js line 218 (verified via code inspection)."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Optional: For QA Rower (Type C) line in the MOD Quote wizard, display 'POA' (or leave unit £ blank) instead of the Rowing Machine £43.53 SOR fallback so the price column matches spec (TL is already blank).",
+    "Optional: Deduplicate/normalise Supplier tab entries ('Pulse Fitness Ltd' vs 'Pulse Fitness') if they should be a single service supplier.",
+    "Optional: Align Equipment list row label to 'Service Provider:' for consistency with the detail card (currently 'Supplier:')."
+  ],
+  "critical_code_review_comments": [
+    "Cover pill logic in LiteEquipmentTab.js correctly enforces warranty-wins-over-contract-type mutual exclusivity.",
+    "LiteDialogs.js correctly conditionally renders lite-equip-purchased-from only when selectedEquipment.purchased_from is set.",
+    "CRMMODQuoteWizard.js renders mod-line-type-<key> per line; TL badge already handled; price column should be gated by contract_type === 'C' to show POA instead of numeric SOR default."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "~95% (all data-testids and labels present; 1 minor spec deviation on Type C £ column)"},
+  "test_credentials": "MOD portal: test@army.mod.test / ModTest123!  |  Platform: admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg",
+  "seed_data_creation": "None - used existing seeded QA equipment on MOD Test Site.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "MOD Quote wizard site select is the 2nd <select> on page. To reach step 2: Corporate mode → Quotes tab → 'MOD Service Quote' button → select 'MOD Test Site' from MOD SITE dropdown → Load Equipment. All required data-testids (lite-equip-pill-*, lite-equip-supplier, lite-equip-purchased-from, lite-equip-contract-type, lite-equip-supplier-edit-btn, mod-line-type-*, mod-permachine-summary, ai-kit-replace-existing) are in place."
+}
