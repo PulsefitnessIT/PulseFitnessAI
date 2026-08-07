@@ -261,7 +261,6 @@ MOD_CODE_TO_ITEM_NO: dict[str, str] = {
     "MOD-SPINNING": "3", "MOD-SPINBIKE": "3", "MOD-CYCLE": "3", "MOD-GROUPCYCLE": "3",
     "MOD-ROWING": "4", "MOD-ROWER": "4",
     "MOD-BENCHES": "5",
-    "MOD-CARDIOWAVE": "6",
     "MOD-CLIMBERS": "7", "MOD-CLIMB": "7",
     "MOD-CROSSTRAINER": "8", "MOD-CROSS": "8", "MOD-ELLIPTICAL": "8",
     "MOD-CROSSTRAINERP": "9",

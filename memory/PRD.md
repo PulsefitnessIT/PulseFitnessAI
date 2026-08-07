@@ -1,3 +1,24 @@
+# ═══ 2026-08-07 · MOD Code → TL auto-fill (Service Quotes pre-fill, zero manual matching) — testing_agent 100% ═══
+When a site's kit was imported with a 'MOD Code', the MOD Service Quote now auto-maps every item to its SOR/TL line —
+no manual matching. (Previously the quote's equipment endpoint used only fuzzy keyword matching and ignored mod_code.)
+  • BACKEND routes/crm_mod_quote.py get_site_equipment: now projects `mod_code` and, per item, tries match_by_mod_code
+    FIRST (authoritative) → source='mod_code', matched=True, confidence=1.0; falls back to match_equipment (source
+    'keyword') only when there's no recognised code. Each line now also returns mod_code, tl_number (rc.code_a for
+    Type A / code_b for B) and the response adds mod_code_matched_count.
+  • BACKEND utils/mod_sor_data.py: added human-friendly aliases to MOD_CODE_TO_ITEM_NO (MOD-Treadmill/Rowing/Spinning/
+    Bike/Recumbent/Crosstrainer/Step/Benches/etc.) so codes people actually type resolve; removed a duplicate
+    MOD-CARDIOWAVE key. match_by_mod_code + normalise_mod_code unchanged.
+  • FRONTEND CRMMODQuoteWizard.js: loadEquipment shows a toast 'N item(s) auto-mapped from their MOD Code'; header
+    summary 'N auto-matched by MOD Code' (data-testid mod-autocode-summary); each auto-mapped row shows a cyan badge
+    'MOD-XXX → TL <code>' (data-testid mod-line-autocode-<key>); SOR dropdown pre-selected with price filled.
+  • VERIFIED: testing_agent iteration_mod_code_tl_autofill_jan2026.json — 100% (13/13 backend unit + FE flow): Kifaru
+    (57 items, all coded) → mod_code_matched_count=57, every line source='mod_code' with TL numbers (MOD-Spin→3A,
+    MOD-Stepper→16A, MOD-XTP→9A, MOD-Bench→5A, MOD-UBIKE→18A, MOD-Multi2→23A, MOD-Strength→20A); PDF TL column populated,
+    no 'No line items'. Also direct DB check: 57/57 Kifaru items carry mod_codes.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-07 · Fix batch: staffing role, CRM add-company scroll, MOD site via CRM, MOD quote TL numbers — testing_agent 100% ═══
 Four user-reported items (screenshots + attachments: desired Pulse quote PDF + Leidos SOR with TL numbers):
 (1) STAFFING INVITE ROLE BUG (June Wright 'Administrator' invited as 'Manager'). FIX routes/staffing.py
