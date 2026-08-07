@@ -4606,12 +4606,13 @@ async def send_quote_email(quote_id: str, data: dict, user=Depends(get_crm_user)
         f"<p>Reply to this email with any questions.</p>"
     )
     try:
+        import base64 as _b64
         from utils.crm_quote_pdf import render_quote_pdf
         from utils.email import send_email
         pdf_bytes = await render_quote_pdf(quote, organization_id=user.get("organization_id"))
         attachment = {
             "filename": (quote.get("quote_number") or quote_id) + ".pdf",
-            "content": pdf_bytes,
+            "content": _b64.b64encode(pdf_bytes).decode("ascii"),
             "content_type": "application/pdf",
         }
         await send_email(

@@ -1,3 +1,21 @@
+# ═══ 2026-08-07 · Email diagnosis: gymaxisai.com sender (prod env) + FIX bytes-attachment crash ═══
+User (PRODUCTION): emails failing — From = support@gymaxisai.com (old "Gym Axis" brand) → Resend "domain not verified";
+plus one attempt errored TypeError('Object of type bytes is not JSON serializable').
+  • ROOT CAUSE (gymaxisai.com): the code + PREVIEW .env use pulsefitness.ai sender domains (SENDER_EMAIL="Pulse Fitness
+    <noreply@pulsefitness.ai>", SENDER_EMAIL_SUPPORT=...@support.pulsefitness.ai, etc.). send_email() derives the From
+    STRICTLY from these env vars (utils/email.py _category_sender / SENDER_EMAIL); org branding only swaps the display
+    NAME, never the domain. So support@gymaxisai.com can ONLY come from PRODUCTION env vars still holding the old
+    Gym Axis domain. Resetting the Resend API key 4 days ago pointed sends at a Resend account where gymaxisai.com is
+    NOT a verified domain → every send rejected. FIX is production config (not code): set prod SENDER_EMAIL* to the
+    verified pulsefitness.ai values (match preview) AND verify those domains on the Resend account for the current key.
+    I cannot edit production env — user updates deploy env vars or contacts Emergent support.
+  • CODE FIX (bytes crash): routes/crm_v2.py quote_send_email (kind crm_quote) attached the PDF as raw bytes
+    ("content": pdf_bytes) → Resend SDK JSON-serialization raised TypeError. Now base64.b64encode(...).decode('ascii')
+    like every other attachment call site. py parse OK. Swept for other raw-bytes attachments — none found.
+⚠️ Code fix is PREVIEW ONLY — needs REDEPLOY. The gymaxisai.com issue is a PRODUCTION ENV/Resend-domain config the user
+  must action.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-08-07 · Seed/test scripts — production DB safety guard (fail-safe) — unit + e2e verified ═══
 Prevents demo/test seed scripts from ever populating the PRODUCTION database (the preview→prod data-leak concern).
   • NEW utils/seed_guard.py (stdlib-only): assert_seeding_allowed(script) hard-exits (SystemExit) UNLESS the target
