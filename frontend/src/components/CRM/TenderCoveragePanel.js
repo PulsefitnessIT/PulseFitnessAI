@@ -24,6 +24,13 @@ const ROLE_ICONS = { sales_manager: UserCog, engineer: Hammer, both: UserCog };
 
 const fmt = (n) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }).format(n || 0);
 
+const winRateTone = (r) => {
+  if (r == null) return 'bg-zinc-100 text-zinc-500';
+  if (r >= 60) return 'bg-emerald-100 text-emerald-700';
+  if (r >= 30) return 'bg-amber-100 text-amber-700';
+  return 'bg-rose-100 text-rose-700';
+};
+
 export default function TenderCoveragePanel() {
   const [data, setData] = useState(null);
   const [open, setOpen] = useState(true);
@@ -87,6 +94,22 @@ export default function TenderCoveragePanel() {
                       <TrendingUp size={11} className="text-emerald-600" /> {fmt(r.tender_value)}
                     </p>
                     <p className="text-[10px] text-zinc-500">{r.tender_count} tenders · pipeline {fmt(r.pipeline_value)}</p>
+                    <div className="mt-0.5 flex items-center justify-end gap-1.5" data-testid={`tender-coverage-metrics-${r.user_id}`}>
+                      <span
+                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${winRateTone(r.win_rate)}`}
+                        data-testid={`tender-coverage-winrate-${r.user_id}`}
+                        title={r.win_rate == null ? 'No decided tenders yet' : `${r.won || 0} won / ${r.lost || 0} lost`}
+                      >
+                        {r.win_rate == null ? 'Win rate —' : `Win ${r.win_rate}%`}
+                      </span>
+                      <span
+                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600"
+                        data-testid={`tender-coverage-avgvalue-${r.user_id}`}
+                        title="Average tender value in this rep's patch"
+                      >
+                        Avg {fmt(r.avg_tender_value)}
+                      </span>
+                    </div>
                   </div>
                   {isExpanded ? <ChevronDown size={12} className="text-zinc-400" /> : <ChevronRight size={12} className="text-zinc-400" />}
                 </button>

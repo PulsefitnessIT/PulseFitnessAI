@@ -1,3 +1,20 @@
+# ═══ 2026-08-07 · CRM Tenders — Coverage Insights (win-rate + avg tender value per rep) + collection bugfix — curl-verified ═══
+Added each Sales Manager's win-rate and average tender value to the Tenders "Territory Coverage" panel.
+  • ROOT-CAUSE BUGFIX: coverage_report() queried db.crm_v2_tenders (EMPTY — real tenders live in crm2_tenders) with a
+    territory_id filter tenders don't carry → panel always showed "0 tenders · £0". Tenders link to a territory THROUGH
+    their company_id, so we now map covered territory → companies (crm2_companies.territory_id) → tenders (crm2_tenders).
+  • BACKEND routes/crm_territories.py coverage_report(): per rep now also returns won, lost, win_rate (won/decided%,
+    null when none decided), avg_tender_value, and tender_value = in-flight (non won/lost) value. Tender £ resolves from
+    the linked opportunity value, else the best linked quote total (crm_quotes.total by tender_id). Engineer exclusion kept.
+  • FRONTEND components/CRM/TenderCoveragePanel.js: each rep row now shows a "Win N%" chip (green ≥60 / amber ≥30 /
+    rose <30 / grey when none decided, tooltip "X won / Y lost") + an "Avg £…" chip. data-testids
+    tender-coverage-metrics-<id>, tender-coverage-winrate-<id>, tender-coverage-avgvalue-<id>.
+  • VERIFIED (curl, iso-demo-org): seeded 1 won (opp £50k) + 1 lost + 1 in-flight (quote £30k) tender on a company in a
+    Sales Manager's territory → win_rate 50, avg_tender_value £40k, tender_value(in-flight) £30k, pipeline £50k. Engineer
+    rep still excluded. Test data cleaned + territory assignment restored. Babel + py parse OK.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-08-07 · CRM Tenders — Territory Coverage now excludes Engineers (Sales only) — curl-verified ═══
 User: the Tenders → "Territory Coverage" panel listed Engineers (e.g. "Aidan Greig · Engineer"), but engineers
 are never involved in tenders — only Sales Managers should appear.

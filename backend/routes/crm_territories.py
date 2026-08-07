@@ -626,7 +626,24 @@ async def coverage_report(user=Depends(get_crm_user)):
                 "role": _normalise_role(r.get("territory_role")),
             }
 
-    # Tender + opportunity counts per territory.
+    # Tenders are linked to a territory THROUGH their company (crm2_tenders has
+    # no territory_id of its own), so map every covered territory → its companies
+    # in one pass, then pull the tenders for those companies.
+    covered_tids = {r["id"] for regions in rep_to_regions.values() for r in regions}
+    terr_to_companies: dict[str, list[str]] = {}
+    if covered_tids:
+        async for co in db.crm2_companies.find(
+            {"organization_id": org_id, "territory_id": {"$in": list(covered_tids)}},
+            {"_id": 0, "id": 1, "territory_id": 1},
+        ):
+            terr_to_companies.setdefault(co["territory_id"], []).append(co["id"])
+
+    def _tender_value(t: dict, opp_val: dict, quote_val: dict) -> float:
+        """Tender £ = its linked opportunity value, else best linked quote total."""
+        if t.get("opportunity_id") and opp_val.get(t["opportunity_id"]):
+            return float(opp_val[t["opportunity_id"]])
+        return float(quote_val.get(t["id"]) or 0)
+
     rows = []
     total_tenders = 0
     total_value = 0.0
@@ -637,31 +654,72 @@ async def coverage_report(user=Depends(get_crm_user)):
         # (Managers and "both" reps stay.)
         if meta.get("role") == "engineer":
             continue
-        tender_count = 0
-        tender_value = 0.0
+
+        # Companies + tenders inside this rep's patch.
+        rep_company_ids: set[str] = set()
+        for r in regions:
+            rep_company_ids.update(terr_to_companies.get(r["id"], []))
+        tenders = []
+        if rep_company_ids:
+            tenders = await db.crm2_tenders.find(
+                {"organization_id": org_id, "company_id": {"$in": list(rep_company_ids)}},
+                {"_id": 0, "id": 1, "status": 1, "opportunity_id": 1},
+            ).to_list(1000)
+
+        # Resolve tender values (opportunity value, else best linked quote total).
+        opp_ids = [t["opportunity_id"] for t in tenders if t.get("opportunity_id")]
+        opp_val: dict = {}
+        if opp_ids:
+            async for o in db.crm2_opportunities.find(
+                {"id": {"$in": opp_ids}, "organization_id": org_id},
+                {"_id": 0, "id": 1, "value": 1},
+            ):
+                opp_val[o["id"]] = o.get("value") or 0
+        tender_ids = [t["id"] for t in tenders]
+        quote_val: dict = {}
+        if tender_ids:
+            async for q in db.crm_quotes.find(
+                {"tender_id": {"$in": tender_ids}, "organization_id": org_id},
+                {"_id": 0, "tender_id": 1, "total": 1},
+            ):
+                quote_val[q["tender_id"]] = max(quote_val.get(q["tender_id"], 0), q.get("total") or 0)
+
+        won = sum(1 for t in tenders if t.get("status") == "won")
+        lost = sum(1 for t in tenders if t.get("status") == "lost")
+        decided = won + lost
+        win_rate = round(won / decided * 100) if decided else None
+        priced = [v for v in (_tender_value(t, opp_val, quote_val) for t in tenders) if v > 0]
+        avg_tender_value = round(sum(priced) / len(priced), 2) if priced else 0.0
+        tender_value = round(
+            sum(_tender_value(t, opp_val, quote_val) for t in tenders
+                if t.get("status") not in ("won", "lost")),
+            2,
+        )
+
+        # Open pipeline (opportunities) still keyed by territory_id, which
+        # opportunities DO carry (written by the auto-assign engine).
         opp_value = 0.0
         for r in regions:
-            tenders = await db.crm_v2_tenders.find(
-                {"organization_id": org_id, "territory_id": r["id"]},
-                {"_id": 0, "value": 1},
-            ).to_list(500)
-            tender_count += len(tenders)
-            tender_value += sum(t.get("value") or 0 for t in tenders)
             opps = await db.crm2_opportunities.find(
                 {"organization_id": org_id, "territory_id": r["id"], "stage": {"$nin": ["closed_won", "closed_lost"]}},
                 {"_id": 0, "value": 1},
             ).to_list(500)
             opp_value += sum(o.get("value") or 0 for o in opps)
+
         rows.append({
             "user_id": rep_id,
             **meta,
             "region_count": len(regions),
             "regions": regions,
-            "tender_count": tender_count,
-            "tender_value": round(tender_value, 2),
+            "tender_count": len(tenders),
+            "tender_value": tender_value,
             "pipeline_value": round(opp_value, 2),
+            "won": won,
+            "lost": lost,
+            "win_rate": win_rate,
+            "avg_tender_value": avg_tender_value,
         })
-        total_tenders += tender_count
+        total_tenders += len(tenders)
         total_value += tender_value
     rows.sort(key=lambda r: r["tender_value"], reverse=True)
     return {
