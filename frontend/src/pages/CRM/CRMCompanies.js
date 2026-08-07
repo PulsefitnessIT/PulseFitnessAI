@@ -5,7 +5,7 @@ import {
   Building2, Plus, ChevronRight, Users, Target, AlertTriangle,
   Shield, Phone, Mail, Globe, MapPin, Tag, ArrowLeft,
   FileText, Calendar, Activity, CheckCircle, Edit2, Trash2, X,
-  Upload, Download, Sparkles, Loader2, Hash, Award, Wrench, Navigation, Clock, Send
+  Upload, Download, Sparkles, Loader2, Hash, Award, Wrench, Navigation, Clock, Send, ShieldCheck,
 } from 'lucide-react';
 import axios from 'axios';
 import CRMAuditTrail from './CRMAuditTrail';
@@ -178,6 +178,46 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
     setWebsiteLookup(false);
   };
 
+  // CRM MOD Sites management surface (list + Import-more + Remove).
+  const [showModSites, setShowModSites] = useState(false);
+  const [modSites, setModSites] = useState([]);
+  const [modSitesLoading, setModSitesLoading] = useState(false);
+  const [modErr, setModErr] = useState('');
+  const [canManageMod, setCanManageMod] = useState(false);
+  const [delSite, setDelSite] = useState(null);
+  const [delConfirm, setDelConfirm] = useState('');
+  const [deletingSite, setDeletingSite] = useState(false);
+
+  const openModSites = async () => {
+    setShowModSites(true); setModSitesLoading(true); setModErr('');
+    try {
+      const r = await axios.get(`${API}/master-admin/mod-estate/site-readiness`, { headers: headers() });
+      setModSites(r.data?.sites || []);
+      // Loading the estate already requires owner/manager/admin access; the
+      // DELETE endpoint re-checks server-side, so surfacing Remove here is safe.
+      setCanManageMod(true);
+    } catch (e) {
+      setCanManageMod(false);
+      setModErr(e?.response?.status === 403 ? 'Only owners, managers or an admin can manage MOD sites.' : 'Could not load MOD sites.');
+    }
+    setModSitesLoading(false);
+  };
+
+  const doDeleteModSite = async () => {
+    if (!delSite) return;
+    setDeletingSite(true);
+    try {
+      const { data } = await axios.delete(
+        `${API}/master-admin/mod-estate/sites/${encodeURIComponent(delSite.id)}`,
+        { headers: headers(), params: { confirm_name: delConfirm } });
+      toast.success(`Removed "${data.name}" (+${data.equipment_removed} items).`);
+      setDelSite(null); setDelConfirm('');
+      openModSites();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Could not remove site.');
+    } finally { setDeletingSite(false); }
+  };
+
   return (
     <>
       <ListPanel
@@ -193,7 +233,7 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
         testId: 'crm-companies-empty',
       }}
       toolbarRight={(
-        <div className="flex gap-1">
+        <div className="flex gap-1 items-center">
           {TYPES.map(t => (
             <button key={t} onClick={() => setTypeFilter(t)} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${typeFilter === t ? 'bg-[var(--color-info-ios)] text-white' : ''}`}
               style={typeFilter !== t ? { background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textMuted } : {}}
@@ -201,6 +241,10 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
               {t === 'all' ? 'All' : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
+          <button onClick={openModSites} className="ml-1 px-3 py-1.5 text-xs font-semibold rounded-md inline-flex items-center gap-1.5 border"
+            style={{ borderColor: c.border, color: c.text }} data-testid="crm-mod-sites-btn">
+            <ShieldCheck size={13} /> MOD Sites
+          </button>
         </div>
       )}
     >
@@ -483,8 +527,68 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
           headers={headers()}
           guided
           onClose={() => setModImportSite(null)}
-          onImported={() => {}}
+          onImported={() => { if (showModSites) openModSites(); }}
         />
+      )}
+
+      {showModSites && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} data-testid="crm-mod-sites-modal" onClick={() => setShowModSites(false)}>
+          <div className="w-full max-w-2xl rounded-2xl shadow-2xl max-h-[85vh] flex flex-col" style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: c.border }}>
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={18} style={{ color: 'var(--color-info-ios)' }} />
+                <h3 className="text-base font-bold" style={{ color: c.text }}>MOD Sites</h3>
+              </div>
+              <button onClick={() => setShowModSites(false)} className="p-1.5 rounded-md" style={{ color: c.textDim }} data-testid="crm-mod-sites-close"><X size={16} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {modSitesLoading ? (
+                <div className="py-10 text-center text-sm" style={{ color: c.textDim }}><Loader2 size={16} className="animate-spin inline mr-2" /> Loading sites…</div>
+              ) : modErr ? (
+                <div className="py-10 text-center text-sm" style={{ color: 'var(--color-warning)' }} data-testid="crm-mod-sites-error">{modErr}</div>
+              ) : modSites.length === 0 ? (
+                <div className="py-10 text-center text-sm" style={{ color: c.textDim }}>No MOD sites yet. Create one via New Company → MOD Site.</div>
+              ) : modSites.map(s => (
+                <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg border" style={{ borderColor: c.border, background: isDark ? 'var(--color-surface-dark-1)' : 'var(--color-neutral-50)' }} data-testid={`crm-mod-site-row-${s.id}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{s.name}</p>
+                    <p className="text-[11px]" style={{ color: c.textDim }}>
+                      {(s.force || '').toUpperCase() || '—'} · {s.steps?.equipment?.count ?? 0} items{s.fully_ready ? ' · ready' : ''}
+                    </p>
+                  </div>
+                  <button onClick={() => setModImportSite(s)} className="px-2.5 py-1.5 text-xs font-semibold rounded-md inline-flex items-center gap-1.5 border" style={{ borderColor: c.border, color: c.text }} data-testid={`crm-mod-site-import-${s.id}`}>
+                    <Upload size={12} /> Import more
+                  </button>
+                  {canManageMod && (
+                    <button onClick={() => { setDelSite(s); setDelConfirm(''); }} className="px-2.5 py-1.5 text-xs font-semibold rounded-md inline-flex items-center gap-1.5 border text-red-600 border-red-200 hover:bg-red-50" data-testid={`crm-mod-site-delete-${s.id}`}>
+                      <Trash2 size={12} /> Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {delSite && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }} data-testid="crm-mod-site-delete-modal" onClick={() => !deletingSite && setDelSite(null)}>
+          <div className="w-full max-w-md rounded-2xl p-5 shadow-2xl" style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }} onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-extrabold mb-2" style={{ color: c.text }}>Remove MOD site</h3>
+            <p className="text-xs mb-3" style={{ color: c.textDim }}>Permanently removes <b>{delSite.name}</b> and all its equipment, staff logins and suppliers. This can’t be undone.</p>
+            <label className="text-[11px] font-semibold" style={{ color: c.textDim }}>Type the site name to confirm</label>
+            <input value={delConfirm} onChange={e => setDelConfirm(e.target.value)} placeholder={delSite.name} autoFocus
+              className="w-full mt-1 px-3 py-2 text-sm rounded-md border" style={{ borderColor: c.border, background: isDark ? 'var(--color-ink-alt)' : '#fff', color: c.text }}
+              data-testid="crm-mod-site-delete-input" />
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setDelSite(null)} disabled={deletingSite} className="px-3 py-1.5 text-xs font-semibold" style={{ color: c.textMuted }}>Cancel</button>
+              <button onClick={doDeleteModSite} disabled={deletingSite || delConfirm.trim().toLowerCase() !== (delSite.name || '').trim().toLowerCase()}
+                className="px-3 py-1.5 text-xs font-bold rounded-md bg-red-600 text-white disabled:opacity-40 inline-flex items-center gap-1.5" data-testid="crm-mod-site-delete-confirm">
+                {deletingSite ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />} Remove site
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
