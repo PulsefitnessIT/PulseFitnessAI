@@ -1,3 +1,31 @@
+# ═══ 2026-08-07 · Fix batch: staffing role, CRM add-company scroll, MOD site via CRM, MOD quote TL numbers — testing_agent 100% ═══
+Four user-reported items (screenshots + attachments: desired Pulse quote PDF + Leidos SOR with TL numbers):
+(1) STAFFING INVITE ROLE BUG (June Wright 'Administrator' invited as 'Manager'). FIX routes/staffing.py
+    _platform_role_from_staff_role: removed 'administrator' from the manager set → Administrator now maps to platform
+    'staff' (office/admin, not a people-manager). engineer→engineer, manager/director/supervisor→manager, else staff.
+(2) CRM 'ADD A COMPANY' CAN'T SCROLL. FIX CRMCompanies.js create-company-dialog: added max-h-[90vh] overflow-y-auto
+    (it was the only dialog missing it) so the whole form + Create button are reachable.
+(3) ADD MOD SITES VIA CRM (Commercial / MOD tab, ARMY/RAF/NAVY). CRMCompanies.js New Company dialog now has a
+    Commercial|MOD Site segmented tab (data-testid company-kind-tabs / -commercial / -mod). MOD shows a Service branch
+    select (Army/RAF/Navy, company-mod-branch) and submit reads 'Create MOD Site' (company-create-submit). handleCreate
+    branches: MOD → POST /master-admin/mod-estate/sites {site_name, force, address…} provisioning a REAL mod_site in the
+    estate (same engine as Onboarding); Commercial → POST /crm/v2/companies (unchanged). NOTE: create requires master
+    admin + the force HQ to exist. FOLLOW-UP the user flagged: "bring equipment import into CRM too" (reuse AIKitImportModal
+    from the CRM MOD site) — NOT yet built.
+(4) MOD QUOTE PRINT 'No line items' + TL NUMBERS + Pulse template. ROOT CAUSE: MOD quotes save rows under quote['lines']
+    (crm_mod_quote.generate) but utils/crm_quote_pdf.build_crm_quote_pdf read quote['line_items'] → always "No line items".
+    FIX build_crm_quote_pdf: items = line_items OR lines; _line_net() computes net (subtotal else qty*price*(1-disc%));
+    when quote_kind=='mod_sor' render a MOD table with a 'TL No.' column (line.sku = SOR code_a/code_b e.g. 5A/23A),
+    the SER code (line.sicon_ref e.g. PAT SER100078) under the description, and Qty/Unit/Unit Price/Net — matching the
+    Pulse Fitness quote shell (already the shared pulse_doc_template). Generic CRM quotes unchanged.
+VERIFIED: testing_agent iteration_pulsefitness_fixes_batch_jan2026.json — 9/9 backend + all FE checks, 0 bugs. Also
+  curl (role map, MOD site RAF create+cleanup) + pdfminer text extract (TL No/5A/23A/SER100078 present, 'No line items'
+  absent) + screenshots (scrollable dialog, MOD tab + branch select).
+Minor (non-blocking, from review): transient CRM-token warmup can 401 the first POST (UI retries, pre-existing).
+⚠️ ALL PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-07 · Pulse Portal self-switch (non-impersonation) + MOD import (MOD Code col, h-scroll, template) + CRM button rename — testing_agent 100% ═══
 (1) 'PULSE FITNESS PORTAL' IS NO LONGER IMPERSONATION. A Pulse master admin is a Pulse employee, so entering their OWN
     operator company (Pulse Fitness Ltd, is_operator_company) is now a context switch AS THEMSELVES (no red banner).
