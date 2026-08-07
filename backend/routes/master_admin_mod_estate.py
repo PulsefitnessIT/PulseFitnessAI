@@ -386,6 +386,7 @@ _MOD_EQUIP_FIELDS = [
     ("supplier", "Service supplier", "Optional", "Pulse Fitness", "Must match a supplier on the site"),
     ("service_provider", "Service provider notes", "Optional", "Pulse Fitness Service", ""),
     ("contract_number", "Service contract ref", "Optional", "CON-2024-0142", ""),
+    ("contract_type", "Contract type (Type A/B/C)", "Optional", "A", "A, B or C — MOD SOR service tier. Leave blank if the machine is still under warranty"),
     ("contract_start", "Contract start", "Optional", "2024-01-15", "YYYY-MM-DD"),
     ("contract_end", "Contract end", "Optional", "2029-01-14", "YYYY-MM-DD"),
     ("length", "Length (m)", "Optional", "2.20", "Number"),

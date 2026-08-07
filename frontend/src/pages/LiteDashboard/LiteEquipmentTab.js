@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, ChevronRight, Shield, Sparkles, Loader2, Plus, ArrowRightLeft, Trash2, MapPin } from 'lucide-react';
+import { Search, ChevronRight, Shield, Sparkles, Loader2, Plus, ArrowRightLeft, Trash2, MapPin, FileText } from 'lucide-react';
 import { useAuth } from '@/App';
 import { useTranslation } from 'react-i18next';
 import { useInlineBanner, InlineProgress, notify, useConfirm } from '@/components/notifications';
@@ -228,31 +228,39 @@ const LiteEquipmentTab = ({
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {openFaults > 0 && <Badge className="bg-red-500/15 text-red-400 border-0 text-xs">{openFaults} {openFaults > 1 ? t('faults.plural', 'faults') : t('faults.singular', 'fault')}</Badge>}
-                  {/* Iter 216h126 — warranty / contract / chargeable pill (Jack feedback).
-                      Order of precedence: explicit service-contract → in-warranty → chargeable. */}
+                  {/* Cover pill. Warranty and contract are mutually exclusive:
+                      new kit ships with 1–4y warranty, then moves onto a
+                      Type A/B/C service contract once the warranty ends. */}
                   {(() => {
                     const today = new Date();
-                    const warrantyDate = eq.warranty_expiry ? new Date(eq.warranty_expiry) : null;
-                    const contractDate = eq.service_contract_end ? new Date(eq.service_contract_end) : null;
-                    const inContract = contractDate && contractDate > today;
-                    const inWarranty = warrantyDate && warrantyDate > today;
-                    if (inContract) {
+                    const warrantyActive = eq.warranty_expiry && new Date(eq.warranty_expiry) > today;
+                    const ctype = (eq.contract_type || '').toUpperCase();
+                    const contractEnd = eq.contract_end_date || eq.sla_expiry || eq.service_contract_end;
+                    const contractActive = !!ctype || (contractEnd && new Date(contractEnd) > today);
+                    if (warrantyActive) {
                       return (
                         <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`}>
-                          <Shield size={10} /> {t('equip.under_contract', 'Under contract')}
+                          <Shield size={10} /> {t('equip.warranty', 'Warranty')}
                         </Badge>
                       );
                     }
-                    if (inWarranty) {
+                    if (ctype && ['A', 'B', 'C'].includes(ctype)) {
                       return (
-                        <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`}>
-                          <Shield size={10} /> {t('equip.under_warranty', 'Under warranty')}
+                        <Badge className="bg-blue-500/15 text-blue-300 border border-blue-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`}>
+                          <FileText size={10} /> {t(`equip.contract_type_${ctype.toLowerCase()}`, `Type ${ctype} Contract`)}
+                        </Badge>
+                      );
+                    }
+                    if (contractActive) {
+                      return (
+                        <Badge className="bg-blue-500/15 text-blue-300 border border-blue-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`}>
+                          <FileText size={10} /> {t('equip.under_contract', 'Under contract')}
                         </Badge>
                       );
                     }
                     return (
-                      <Badge className="bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold" data-testid={`lite-equip-pill-${eq.id}`}>
-                        {t('equip.chargeable', 'Chargeable')}
+                      <Badge className="bg-zinc-500/15 text-zinc-300 border border-zinc-500/30 text-[10px] font-bold" data-testid={`lite-equip-pill-${eq.id}`}>
+                        {t('equip.no_cover', 'No cover')}
                       </Badge>
                     );
                   })()}

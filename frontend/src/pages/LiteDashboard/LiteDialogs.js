@@ -94,7 +94,10 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
   const eqFaults = getEquipmentFaults(selectedEquipment);
   const eqFiles = getEquipmentFiles(selectedEquipment);
   const warrantyActive = selectedEquipment.warranty_expiry && new Date(selectedEquipment.warranty_expiry) > new Date();
-  const contractActive = selectedEquipment.sla_expiry && new Date(selectedEquipment.sla_expiry) > new Date();
+  const contractEndRaw = selectedEquipment.sla_expiry || selectedEquipment.contract_end_date || selectedEquipment.service_contract_end;
+  const contractStartRaw = selectedEquipment.contract_start_date || selectedEquipment.sla_start;
+  const contractType = (selectedEquipment.contract_type || '').toUpperCase();
+  const contractActive = !!contractType || (contractEndRaw && new Date(contractEndRaw) > new Date());
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB') : null;
 
   return (
@@ -324,8 +327,20 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
               <div className={`p-3 rounded-lg border text-sm ${contractActive ? 'bg-blue-500/10 border-blue-500/20' : 'bg-[var(--theme-surface)] border-[var(--theme-border)]'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2"><FileText size={14} className={contractActive ? 'text-blue-400' : 'text-[var(--color-text-muted)]'} /><span className={contractActive ? 'text-blue-400 font-medium' : 'text-[var(--color-text-muted)]'}>Service Contract</span></div>
-                  {selectedEquipment.sla_expiry ? <span className={`text-xs ${contractActive ? 'text-blue-400' : 'text-[var(--color-text-muted)]'}`}>{contractActive ? (() => { const d = Math.ceil((new Date(selectedEquipment.sla_expiry) - new Date()) / 86400000); const y = Math.floor(d/365); const r = d%365; return y > 0 ? (r > 0 ? `${y}y ${r}d remaining` : `${y}y remaining`) : `${d}d remaining`; })() : 'Expired'}</span> : <span className="text-xs text-[var(--color-text-muted)]">Not set</span>}
+                  {contractType && ['A', 'B', 'C'].includes(contractType) ? (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300" data-testid="lite-equip-contract-type">Type {contractType} Contract</span>
+                  ) : contractEndRaw ? (
+                    <span className={`text-xs ${contractActive ? 'text-blue-400' : 'text-[var(--color-text-muted)]'}`}>{contractActive ? 'Active' : 'Expired'}</span>
+                  ) : (
+                    <span className="text-xs text-[var(--color-text-muted)]">Not set</span>
+                  )}
                 </div>
+                {(contractStartRaw || contractEndRaw) && (
+                  <div className="flex items-center gap-4 mt-2 text-xs text-[var(--color-text-muted)]">
+                    {contractStartRaw && <span>Start: <span className="text-[var(--theme-text)]">{formatDate(contractStartRaw)}</span></span>}
+                    {contractEndRaw && <span>End: <span className="text-[var(--theme-text)]">{formatDate(contractEndRaw)}</span></span>}
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -591,7 +591,12 @@ def _build_supplier_map(equipment: list) -> dict[str, dict]:
     """
     supplier_map: dict[str, dict] = {}
     for eq in equipment:
-        sup = eq.get("supplier_name") or eq.get("manufacturer") or ""
+        # Only the ASSIGNED SERVICE supplier — never the manufacturer. The
+        # supplier is stored on `supplier` (canonical) with `supplier_name`
+        # kept for legacy rows. Machines with no service supplier are dropped
+        # here (they route to Pulse by default and surface as "Unassigned"
+        # in the fault views, not as a manufacturer masquerading as a supplier).
+        sup = (eq.get("supplier_name") or eq.get("supplier") or "").strip()
         if not sup:
             continue
         if sup not in supplier_map:
@@ -791,7 +796,7 @@ async def get_supplier_dashboard(
     for c in enriched:
         status_counts[c["current_status"]] = status_counts.get(c["current_status"], 0) + 1
 
-    eq_fields = {"_id": 0, "id": 1, "supplier_name": 1, "manufacturer": 1, "equipment_type": 1, "name": 1, "serial_number": 1}
+    eq_fields = {"_id": 0, "id": 1, "supplier_name": 1, "supplier": 1, "manufacturer": 1, "equipment_type": 1, "name": 1, "serial_number": 1}
     equipment = await db.equipment.find(org_filter, eq_fields).to_list(5000)
     supplier_map = _build_supplier_map(equipment)
     # Iter 220n — surface explicit `db.suppliers` rows too so a freshly

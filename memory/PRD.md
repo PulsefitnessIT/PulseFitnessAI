@@ -1,3 +1,31 @@
+# ═══ 2026-08-07 · MOD equipment import fixes: supplier default, contract_type, cover pills, Suppliers tab ═══
+User (PRODUCTION, Kenya MOD import): supplier came in as the MANUFACTURER, contract dates/type not shown, needed
+contract_type on the template, cover pills should read Warranty / Type A/B/C Contract, and the Suppliers tab must show
+only real service suppliers (not manufacturers). Path used = structured MOD capture template → _do_bulk_import_equipment.
+  • TEMPLATE: master_admin_mod_estate.py _MOD_EQUIP_FIELDS — added `contract_type` (Type A/B/C) column after
+    contract_number. Flows into both xlsx + csv templates and the DictWriter commit automatically.
+  • IMPORTER: master_admin_bulk_import.py _do_bulk_import_equipment —
+      (a) supplier no longer falls back to manufacturer. Blank supplier on a MOD org → "Pulse Fitness Ltd" (canonical
+          PULSE_DEFAULT_SUPPLIER_NAME); non-MOD keeps manufacturer fallback. Any "Pulse Fitness…" text canonicalises
+          to the locked "Pulse Fitness Ltd" record (supplier_id linked).
+      (b) persists `contract_type` via new _normalize_contract_type() → 'A'|'B'|'C' (accepts "A","Type B","c contract").
+      (c) contract_start/end already map to sla_expiry + contract_start_date/contract_end_date.
+  • SUPPLIERS TAB: supplier_portal.py _build_supplier_map — now groups by the assigned SERVICE supplier
+    (supplier_name→supplier), NEVER manufacturer; machines with no supplier are dropped (not shown as a fake supplier).
+    Added `supplier` to the eq projection.
+  • COVER PILL (LiteEquipmentTab.js): warranty & contract are mutually exclusive → warranty active ⇒ "Warranty";
+    else contract_type ⇒ "Type A/B/C Contract"; else generic "Under contract"; else grey "No cover".
+  • DETAIL (LiteDialogs.js): Service Contract panel now shows the Type A/B/C badge + Start/End dates (reads
+    sla_expiry/contract_end_date/contract_start_date/contract_type).
+  • VERIFIED (harness on MOD org): blank→Pulse Fitness Ltd (+supplier_id), "Pulse Fitness"→Pulse Fitness Ltd (+id),
+    manufacturer-only row→Pulse Fitness Ltd (not Technogym), contract_type A/B/C normalised, dd/mm/yyyy dates→ISO
+    sla_expiry/contract dates. Backend py + frontend babel parse OK. Harness rows cleaned.
+⚠️ RE-IMPORT CAVEAT: _do_bulk_import_equipment SKIPS duplicate serials → re-importing the corrected Kenya sheet over the
+  existing 107 items will SKIP them (no update). User must clear the site's current kit first (remove/re-add site or
+  delete equipment) before re-importing. Flagged to user.
+⚠️ PREVIEW ONLY — needs REDEPLOY; then re-import on production.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-08-07 · Email diagnosis: gymaxisai.com sender (prod env) + FIX bytes-attachment crash ═══
 User (PRODUCTION): emails failing — From = support@gymaxisai.com (old "Gym Axis" brand) → Resend "domain not verified";
 plus one attempt errored TypeError('Object of type bytes is not JSON serializable').

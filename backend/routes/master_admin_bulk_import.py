@@ -33,6 +33,7 @@ from fastapi.responses import Response
 
 from utils.auth import get_current_user
 from utils.database import db
+from utils.default_supplier import PULSE_DEFAULT_SUPPLIER_NAME
 from utils.file_validation import MIME_SPREADSHEETS, validate_upload
 
 from routes.pulse_master_admin import _require_pulse_or_master, PULSE_VISIBLE_ACCOUNT_TYPES
@@ -214,6 +215,21 @@ def _parse_int(s: str) -> Optional[int]:
         return int(float(str(s).replace(",", "").strip()))
     except (ValueError, TypeError):
         return None
+
+
+def _normalize_contract_type(value: str) -> Optional[str]:
+    """Coerce a free-text contract-type cell to a canonical 'A' | 'B' | 'C'.
+
+    Accepts 'A', 'Type A', 'Contract A', 'type_a', 'A Contract' etc. (any case).
+    MOD SOR defines three service tiers (Type A/B/C). Returns None when blank
+    or unrecognised (e.g. the machine is still under warranty)."""
+    s = (value or "").strip().upper()
+    if not s:
+        return None
+    import re as _re
+    m = _re.search(r"\b([ABC])\b", s) or _re.search(r"([ABC])", s)
+    return m.group(1) if m else None
+
 
 
 def _normalize(row: dict, *keys: str) -> str:
@@ -550,16 +566,35 @@ async def _do_bulk_import_equipment(
             unit_price = _parse_decimal(unit_price_raw)
             replacement_cost_raw = _normalize(row, "replacement_cost", "Replacement Cost") or str(get_pick(row, "replacement_cost", "")).strip()
             replacement_cost = _parse_decimal(replacement_cost_raw)
-            # Iter 216h51 — resolve supplier so fault-emails route to
-            # the right inbox. Falls back to the manufacturer column
-            # when the supplier column is blank (common when the
-            # supplier IS the manufacturer, e.g. Pulse Fitness).
+            # ── Resolve target org (is_mod) BEFORE supplier so MOD imports
+            # can default a blank supplier to the locked Pulse Fitness service
+            # supplier (never the manufacturer). ──
+            if target_org not in org_doc_cache:
+                org_doc_cache[target_org] = await db.organizations.find_one(
+                    {"id": target_org}, {"_id": 0, "is_mod": 1, "mod_force": 1},
+                ) or {}
+            is_mod_org = bool(org_doc_cache[target_org].get("is_mod"))
+            # Iter — supplier defaulting. The SERVICE supplier is Pulse Fitness
+            # by default (Pulse sells & services the MOD kit); it is NOT the
+            # manufacturer. So:
+            #   • a blank supplier on a MOD import  → "Pulse Fitness Ltd"
+            #   • "Pulse Fitness" typed by the site → resolves to Pulse Fitness Ltd
+            #   • non-MOD import, blank supplier     → manufacturer (legacy behaviour)
             supplier_input = (
                 _normalize(row, "supplier", "Supplier")
                 or str(get_pick(row, "supplier", "")).strip()
-                or _normalize(row, "manufacturer")
-                or str(get_pick(row, "manufacturer", "")).strip()
             )
+            if not supplier_input:
+                supplier_input = PULSE_DEFAULT_SUPPLIER_NAME if is_mod_org else (
+                    _normalize(row, "manufacturer")
+                    or str(get_pick(row, "manufacturer", "")).strip()
+                )
+            else:
+                # "Pulse Fitness" / "PULSE FITNESS LTD" / "pulse-fitness" → the
+                # single locked "Pulse Fitness Ltd" service supplier record.
+                import re as _re_pf
+                if _re_pf.sub(r"[^a-z0-9]+", "", supplier_input.lower()).startswith("pulsefitness"):
+                    supplier_input = PULSE_DEFAULT_SUPPLIER_NAME
             supplier_match = await _resolve_supplier_for_org(supplier_input, target_org, supplier_cache)
             # Iter 216h108 — robust date parsing. Excel serials (45979),
             # dd/mm/yyyy, ISO etc. all coerce to YYYY-MM-DD before
@@ -603,6 +638,10 @@ async def _do_bulk_import_equipment(
                 "sla_start": contract_start_iso or None,
                 "sla_expiry": contract_end_iso or None,
                 "contract_number": str(get_pick(row, "contract_number", "")).strip() or None,
+                "contract_type": _normalize_contract_type(
+                    _normalize(row, "contract_type", "Contract Type", "Contract type")
+                    or str(get_pick(row, "contract_type", "")).strip()
+                ),
                 "contract_start_date": contract_start_iso or None,
                 "contract_end_date": contract_end_iso or None,
                 "service_provider": _normalize(row, "service_provider", "Service Provider") or str(get_pick(row, "service_provider", "")).strip(),
