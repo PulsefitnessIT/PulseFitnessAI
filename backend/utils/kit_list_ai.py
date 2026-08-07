@@ -46,7 +46,7 @@ _HEADER_HINTS = {
                      "asset tag", "nsn", "mod asset number"],
     "quantity": ["qty", "quantity", "count", "no.", "number"],
     "category": ["category", "class", "group"],
-    "mod_code": ["mod-code", "mod code"],
+    "mod_code": ["mod-code", "mod code", "mod_code", "modcode"],
 }
 
 _SUMMARY_NAMES = ("total", "totals", "summary", "pivot", "overview", "grand total", "sum")

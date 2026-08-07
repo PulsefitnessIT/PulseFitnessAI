@@ -372,6 +372,7 @@ _MOD_EQUIP_FIELDS = [
     ("model", "Model", "Recommended", "95T Discover SE3", ""),
     ("serial_number", "Serial number (dedupe key)", "Recommended", "LF-TM-001", ""),
     ("asset_number", "MOD asset number / NSN", "Optional", "NSN-7830-01-234-5678", ""),
+    ("mod_code", "MOD Code (quotes & reporting)", "Recommended", "MOD-Tread", "MOD SOR code — powers quote & report mapping"),
     ("quantity", "Quantity (if identical & untagged)", "Optional", "1", "Whole number"),
     ("location", "Area / gym floor", "Recommended", "Main cardio hall", ""),
     ("sub_location", "Room / zone / rack", "Optional", "Bay 3", ""),
@@ -430,7 +431,7 @@ async def mod_equipment_template_xlsx(user: dict = Depends(get_current_user)):
     ws.append([f[3] for f in _MOD_EQUIP_FIELDS])
     ws.append([
         "Upright Bike — Studio 1", "Bike", "Pulse Fitness", "Series 3 Upright",
-        "PF-UB-014", "", "3", "Spin studio", "Studio 1", "Good", "OFFICIAL",
+        "PF-UB-014", "", "MOD-Bike", "3", "Spin studio", "Studio 1", "Good", "OFFICIAL",
         "", "", "", "", "", "Pulse Fitness", "", "", "", "", "", "", "", "", "", "", "",
     ][: len(headers)])
     ws.freeze_panes = "A2"

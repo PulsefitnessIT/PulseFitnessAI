@@ -320,6 +320,19 @@ async def _load_user_core(
             user["is_inventory"] = True
         if not user.get("service_org_id"):
             user["service_org_id"] = user.get("organization_id")
+    # Master-admin "act as org" context switch (NON-impersonation). A dedicated,
+    # audited endpoint mints a token for the admin's OWN user with an `act_org`
+    # claim so a Pulse employee enters their own operator company as themselves
+    # (no impersonation banner). Honoured ONLY for a verified master/pulse admin
+    # so a forged or replayed claim by an ordinary user can never cross tenants.
+    _act_org = payload.get("act_org")
+    if _act_org and (
+        user.get("is_master_admin")
+        or user.get("is_pulse_admin")
+        or (user.get("role") or "") == "pulse_master_admin"
+    ):
+        user["organization_id"] = _act_org
+        user["_acting_org_id"] = _act_org
     # Iter 220au · F-17 — surface the MFA-verified claim so
     # ``require_mfa_verified`` / ``enforce_master_admin_mfa`` can
     # short-circuit without re-reading the JWT.

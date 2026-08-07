@@ -1559,17 +1559,55 @@ async def org_portal_login(org_id: str, request: Request, area: str = "operator"
     return {"token": token, "organization_id": org["id"], "organization_name": org.get("name"), "area": area}
 
 
+async def _issue_act_org_token(org: dict, actor: dict, request: Request) -> str:
+    """Mint a NON-impersonation token for the master admin's OWN identity,
+    scoped to `org` via an `act_org` claim. Used for the 'Pulse Fitness Portal'
+    switch so a Pulse employee enters their own operator company AS THEMSELVES
+    (no impersonation banner). Audited as a context switch, not impersonation."""
+    import jwt
+    from utils.database import JWT_SECRET as _JWT_SECRET, JWT_ALGORITHM as _JWT_ALGO
+    from utils.security_plus import new_jti
+    jti = new_jti()
+    now = datetime.now(timezone.utc)
+    exp = now + timedelta(hours=8)
+    token = jwt.encode({
+        "user_id": actor["id"],
+        "email": actor["email"],
+        "organization_id": org["id"],
+        "role": actor.get("role", "owner"),
+        "act_org": org["id"],
+        "jti": jti,
+        "iat": now,
+        "exp": exp,
+    }, _JWT_SECRET, algorithm=_JWT_ALGO)
+    await log_activity(
+        "portal_switch",
+        f"Entered {org.get('name')} operator portal as self",
+        actor["email"], "organization", org["id"],
+    )
+    return token
+
+
 @router.post("/master-admin/operator-portal-login")
 async def operator_portal_login(request: Request, user: dict = Depends(get_current_user)):
-    """Log a Pulse master admin into the Pulse Fitness OPERATOR COMPANY's portal
-    (the org flagged is_operator_company — 'Pulse Fitness Ltd'), NOT the admin's
-    own platform org. Backs the sidebar 'Pulse Fitness Portal' switch."""
+    """Enter the Pulse Fitness OPERATOR COMPANY's portal (the org flagged
+    is_operator_company — 'Pulse Fitness Ltd'). The master admin is a Pulse
+    Fitness employee, so this is a NON-impersonation context switch — they act
+    as themselves, no impersonation banner. (Switching into any OTHER, non-Pulse
+    org still uses impersonation via /org-portal-login.) Backs the sidebar
+    'Pulse Fitness Portal' switch."""
     require_master_admin(user)
     org = await db.organizations.find_one({"is_operator_company": True}, {"_id": 0})
     if not org:
         raise HTTPException(status_code=404, detail="No Pulse Fitness operator company is configured.")
-    token = await _issue_org_portal_token(org, user, request, grants=None)
-    return {"token": token, "organization_id": org["id"], "organization_name": org.get("name"), "area": "operator"}
+    token = await _issue_act_org_token(org, user, request)
+    return {
+        "token": token,
+        "organization_id": org["id"],
+        "organization_name": org.get("name"),
+        "area": "operator",
+        "impersonation": False,
+    }
 
 
 @router.post("/master-admin/inventory-access/grant")

@@ -198,18 +198,21 @@ export default function AIKitImportModal({ site, headers, onClose, onImported })
                     )}
                   </div>
                   {sh.include && (
-                    <div className="overflow-x-auto max-h-64 overflow-y-auto">
-                      <table className="w-full text-[11px]">
-                        <thead className="sticky top-0 bg-zinc-50 text-zinc-500">
+                    <div className="overflow-x-auto max-h-64 overflow-y-auto border-t border-zinc-100">
+                      <table className="text-[11px] min-w-[1180px]">
+                        <thead className="sticky top-0 bg-zinc-50 text-zinc-500 z-10">
                           <tr>
                             <th className="text-left px-2 py-1.5 w-8"></th>
-                            <th className="text-left px-2 py-1.5">Name</th>
-                            <th className="text-left px-2 py-1.5">Type</th>
-                            <th className="text-left px-2 py-1.5">Manufacturer</th>
-                            <th className="text-left px-2 py-1.5">Category</th>
-                            <th className="text-left px-2 py-1.5">Serial</th>
-                            <th className="text-left px-2 py-1.5">Asset #</th>
-                            <th className="text-left px-2 py-1.5 w-10">Qty</th>
+                            <th className="text-left px-2 py-1.5 min-w-[180px]">Name</th>
+                            <th className="text-left px-2 py-1.5 min-w-[90px]">Type</th>
+                            <th className="text-left px-2 py-1.5 min-w-[120px]">Manufacturer</th>
+                            <th className="text-left px-2 py-1.5 min-w-[130px]">Model</th>
+                            <th className="text-left px-2 py-1.5 min-w-[110px]">Category</th>
+                            <th className="text-left px-2 py-1.5 min-w-[110px]">MOD Code</th>
+                            <th className="text-left px-2 py-1.5 min-w-[140px]">Serial</th>
+                            <th className="text-left px-2 py-1.5 min-w-[140px]">Asset #</th>
+                            <th className="text-left px-2 py-1.5 min-w-[120px]">Sub-location</th>
+                            <th className="text-left px-2 py-1.5 w-12">Qty</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -220,11 +223,16 @@ export default function AIKitImportModal({ site, headers, onClose, onImported })
                                 <input value={r.name} onChange={(e) => setRow(ti, ri, { name: e.target.value })} className="w-full min-w-[160px] px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-cyan-400 rounded" data-testid={`ai-kit-name-${ti}-${ri}`} />
                                 {r.duplicate && <span className="ml-1 text-[9px] text-amber-700 font-semibold">DUP</span>}
                               </td>
-                              <td className="px-2 py-1 text-zinc-600">{r.equipment_type}</td>
-                              <td className="px-2 py-1 text-zinc-600">{r.manufacturer}</td>
-                              <td className="px-2 py-1 text-zinc-600">{r.category}{r.mod_code ? <span className="text-zinc-400"> · {r.mod_code}</span> : ''}</td>
-                              <td className="px-2 py-1 text-zinc-500 font-mono">{r.serial_number}</td>
-                              <td className="px-2 py-1 text-zinc-500 font-mono">{r.asset_number}</td>
+                              <td className="px-2 py-1 text-zinc-600 whitespace-nowrap">{r.equipment_type}</td>
+                              <td className="px-2 py-1 text-zinc-600 whitespace-nowrap">{r.manufacturer}</td>
+                              <td className="px-2 py-1 text-zinc-600 whitespace-nowrap">{r.model}</td>
+                              <td className="px-2 py-1 text-zinc-600 whitespace-nowrap">{r.category}</td>
+                              <td className="px-2 py-1 whitespace-nowrap">
+                                <input value={r.mod_code || ''} onChange={(e) => setRow(ti, ri, { mod_code: e.target.value })} placeholder="—" className="w-full min-w-[90px] px-1.5 py-0.5 font-mono text-cyan-800 border border-transparent hover:border-zinc-200 focus:border-cyan-400 rounded" data-testid={`ai-kit-modcode-${ti}-${ri}`} />
+                              </td>
+                              <td className="px-2 py-1 text-zinc-500 font-mono whitespace-nowrap">{r.serial_number}</td>
+                              <td className="px-2 py-1 text-zinc-500 font-mono whitespace-nowrap">{r.asset_number}</td>
+                              <td className="px-2 py-1 text-zinc-500 whitespace-nowrap">{r.sub_location}</td>
                               <td className="px-2 py-1 text-zinc-600">{r.quantity}</td>
                             </tr>
                           ))}

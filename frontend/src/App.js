@@ -524,6 +524,22 @@ function App() {
  // Handle Service Desk impersonation: ?impersonation_token=... overrides the stored token for this tab.
  const params = new URLSearchParams(window.location.search);
  const imp = params.get('impersonation_token');
+ const act = params.get('act_token');
+ if (act && !imp) {
+ localStorage.setItem('token', act);
+ localStorage.removeItem('impersonation_active');
+ setToken(act);
+ try {
+   localStorage.removeItem('active_site_cache');
+   localStorage.removeItem('active_site_all');
+   localStorage.removeItem('sites_cache');
+ } catch { /* quota */ }
+ setActiveSite(null);
+ setAllSitesMode(false);
+ params.delete('act_token');
+ const cleanAct = window.location.pathname + (params.toString() ? `?${params}` : '');
+ window.history.replaceState({}, '', cleanAct);
+ }
  if (imp) {
  localStorage.setItem('token', imp);
  localStorage.setItem('impersonation_active', '1');

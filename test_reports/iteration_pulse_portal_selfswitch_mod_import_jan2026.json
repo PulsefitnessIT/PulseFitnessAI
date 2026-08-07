@@ -1,0 +1,34 @@
+{
+  "summary": "Verified (A) Pulse Fitness Portal self-switch is NON-impersonation and (B) MOD equipment AI import has MOD Code column + horizontal scroll + capture + templates include mod_code. 6/6 backend tests pass; frontend UI both scenarios pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_pulse_portal_and_mod_import_jan2026.py",
+    "/app/test_reports/pytest/pulse_portal_jan2026.xml"
+  ],
+  "test_results_detail": {
+    "backend": {
+      "TestPulseOperatorPortalLogin::test_operator_portal_login_returns_non_impersonation": "PASS - {impersonation:false, organization_name:'Pulse Fitness Ltd'}, JWT has act_org, no impersonated_by",
+      "TestPulseOperatorPortalLogin::test_auth_me_with_act_token_returns_admin_self": "PASS - /auth/me returns email=admin@pulsefitness.com, is_master_admin=true, org_is_operator=true, company_name='Pulse Fitness Ltd'",
+      "TestOtherOrgPortalLoginStillImpersonates": "PASS - non-Pulse org portal login STILL returns token with impersonated_by claim (regression preserved)",
+      "TestModEstateTemplates::csv": "PASS - equipment-template.csv header includes mod_code",
+      "TestModEstateTemplates::xlsx": "PASS - equipment-template.xlsx xml payload includes mod_code header",
+      "TestAiKitImportModCode::analyse": "PASS - CSV with 'MOD Code' header parses per-row mod_code='MOD-Tread', 'MOD-Row'"
+    },
+    "frontend": {
+      "PulsePortalSelfSwitch": "PASS - clicking portal-switch-pulse navigates to /dashboard?as=operator&act_token=..., shows 'Operations · Pulse Fitness Ltd' title, 'Master Admin' badge top-right, impersonation-banner NOT present (count=0)",
+      "ModAIImportReviewTable": "PASS - opened AI Import modal, uploaded CSV, ai-kit-review table shows all 10 columns (Name, Type, Manufacturer, Model, Category, MOD Code, Serial, Asset #, Sub-location, Qty). ai-kit-modcode-0-0='MOD-Tread', ai-kit-modcode-0-1='MOD-Row' editable inputs pre-filled. Table horizontally scrollable: scrollWidth=1203 > clientWidth=982."
+    }
+  },
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Non-critical: CSP still blocks emergent-main.js, posthog, cloudflare beacon (script-src-elem fallback). Pre-existing; unrelated to this iteration."
+  ],
+  "updated_files": ["/app/backend/tests/test_pulse_portal_and_mod_import_jan2026.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. Used existing MOD sites (Aldershot Garrison Gym etc.) and inline in-memory CSV; no equipment was committed (analyse only).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Both features are fully implemented and verified end-to-end. Backend test file test_pulse_portal_and_mod_import_jan2026.py is a stable regression suite: 6/6 pass in ~10s including negative regression that non-Pulse org still impersonates."
+}

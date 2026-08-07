@@ -224,10 +224,12 @@ const MasterAdminPage = ({ _onBack }) => {
   const handlePulseSwitch = async () => {
     try {
       const res = await axios.post(`${API}/master-admin/operator-portal-login`, {}, { headers, withCredentials: true });
-      const impToken = res.data?.token;
-      if (!impToken) throw new Error('no token');
-      localStorage.setItem('impersonation_return', '/master-admin');
-      window.location.href = '/dashboard?impersonation_token=' + encodeURIComponent(impToken);
+      const actToken = res.data?.token;
+      if (!actToken) throw new Error('no token');
+      // Pulse Fitness is the master admin's OWN company — enter it AS THEMSELVES
+      // (no impersonation banner) via ?act_token=. ?as=operator guarantees the
+      // operator dashboard shell.
+      window.location.href = '/dashboard?as=operator&act_token=' + encodeURIComponent(actToken);
     } catch (e) {
       window.location.href = '/dashboard?as=operator';
     }
