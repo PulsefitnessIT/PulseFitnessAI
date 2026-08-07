@@ -140,10 +140,11 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
 
   useEffect(() => { loadBase(); }, [loadBase]);
 
-  const priceFor = useCallback((rcId) => {
+  const priceFor = useCallback((rcId, ct) => {
+    const useCt = ct || contractType;
     const rc = rateCard.find(r => r.id === rcId);
-    if (!rc || rc.is_poa || contractType === 'C') return null;
-    const base = contractType === 'A' ? 'type_a_price' : 'type_b_price';
+    if (!rc || rc.is_poa || useCt === 'C') return null;
+    const base = useCt === 'A' ? 'type_a_price' : 'type_b_price';
     if (year > 1 && rc[`${base}_y${year}`] != null) return rc[`${base}_y${year}`];
     return rc[base];
   }, [rateCard, contractType, year]);
@@ -177,7 +178,11 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
   };
 
   const onSelectRateCard = (key, rcId) => {
-    updateLine(key, { rate_card_id: rcId, rate_card_label: (rateCard.find(r => r.id === rcId) || {}).label, unit_price: priceFor(rcId) ?? 0, matched: true });
+    setLines(ls => ls.map(l => l.key === key ? {
+      ...l, rate_card_id: rcId,
+      rate_card_label: (rateCard.find(r => r.id === rcId) || {}).label,
+      unit_price: priceFor(rcId, l.contract_type) ?? 0, matched: true,
+    } : l));
   };
 
   const aiSuggest = async (line) => {
@@ -195,7 +200,12 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
   };
 
   const activeLines = lines.filter(l => l.included);
-  const priced = (l) => contractType === 'C' || (l.custom && !l.rate_card_id) ? (Number(l.unit_price) || 0) : (priceFor(l.rate_card_id) ?? 0);
+  const lineCt = (l) => (['A', 'B', 'C'].includes(l.contract_type) ? l.contract_type : contractType);
+  const priced = (l) => {
+    const lct = lineCt(l);
+    if (lct === 'C' || (l.custom && !l.rate_card_id)) return Number(l.unit_price) || 0;
+    return priceFor(l.rate_card_id, lct) ?? 0;
+  };
   const subtotal = activeLines.reduce((s, l) => s + priced(l) * (Number(l.quantity) || 1), 0)
     + (contractType === 'B' ? callOutCount * 80 : 0);
   const vat = subtotal * 0.2;
@@ -264,7 +274,8 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
         lines: activeLines.filter(l => l.rate_card_id || l.custom || l.needs_review).map(l => ({
           equipment_id: l.equipment_id, rate_card_id: l.rate_card_id,
           quantity: Number(l.quantity) || 1, serial_number: l.serial_number,
-          unit_price: Number(l.unit_price) || 0,
+          contract_type: lineCt(l),
+          unit_price: priced(l),
           description: (l.custom || l.imported) ? l.name : undefined,
         })),
       };
@@ -440,6 +451,11 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
                       <Zap size={10} className="inline" />{activeLines.filter(l => l.source === 'mod_code').length} auto-matched by MOD Code
                     </span>
                   )}
+                  {activeLines.filter(l => l.contract_type_source === 'equipment').length > 0 && (
+                    <span className="ml-2 inline-flex items-center gap-0.5" style={{ color: 'var(--color-accent-violet)' }} data-testid="mod-permachine-summary">
+                      <Zap size={10} className="inline" />{activeLines.filter(l => l.contract_type_source === 'equipment').length} priced at their own Type A/B/C
+                    </span>
+                  )}
                   {unmatchedCount > 0 && <span className="ml-2" style={{ color: 'var(--color-warning)' }}>{unmatchedCount} need mapping</span>}
                 </p>
                 <div className="flex gap-1.5">
@@ -462,6 +478,18 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
                           <div className="font-medium" style={{ color: c.text }}>{l.name}</div>
                           <div className="text-[10px] flex flex-wrap items-center gap-x-1" style={{ color: c.textDim }}>
                             {l.equipment_type}{l.serial_number ? ` · ${l.serial_number}` : ''}
+                            {['A', 'B', 'C'].includes(l.contract_type) && (
+                              <span
+                                className="inline-flex items-center px-1 py-px rounded font-semibold"
+                                style={{ background: 'var(--color-accent-violet)18', color: 'var(--color-accent-violet)' }}
+                                data-testid={`mod-line-type-${l.key}`}
+                                title={l.contract_type_source === 'equipment'
+                                  ? `Auto-picked from this machine's record — Type ${l.contract_type}`
+                                  : `Quote default — Type ${l.contract_type}`}
+                              >
+                                Type {l.contract_type}{l.contract_type_source === 'equipment' ? ' •' : ''}
+                              </span>
+                            )}
                             {l.source === 'mod_code'
                               ? <span className="inline-flex items-center gap-0.5 px-1 py-px rounded font-semibold" style={{ background: 'var(--color-info-ios)18', color: 'var(--color-info-ios)' }} data-testid={`mod-line-autocode-${l.key}`}>
                                   <Zap size={9} className="inline" />{l.mod_code} → TL {l.tl_number}

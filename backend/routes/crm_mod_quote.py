@@ -155,11 +155,17 @@ async def get_site_equipment(site_id: str, contract_type: str = "A", year: int =
         {"organization_id": site_id},
         {"_id": 0, "id": 1, "name": 1, "equipment_type": 1, "model": 1,
          "brand": 1, "serial_number": 1, "location": 1, "category": 1,
-         "mod_code": 1},
+         "mod_code": 1, "contract_type": 1},
     ).sort("name", 1)
     equipment = await cur.to_list(length=2000)
     lines = []
     for eq in equipment:
+        # Each machine carries its OWN service tier (Type A/B/C, set at import).
+        # That drives its SOR rate card + TL line automatically; the site-wide
+        # `contract_type` param is only a fallback for kit with no tier set.
+        eq_ct = (eq.get("contract_type") or "").upper()
+        line_ct = eq_ct if eq_ct in ("A", "B", "C") else ct
+        ct_source = "equipment" if eq_ct in ("A", "B", "C") else "default"
         # MOD Code is authoritative: an imported "MOD Code" deterministically
         # identifies the SOR/TL line, so a Service Quote pre-fills with zero
         # manual matching. Fall back to fuzzy keyword matching only when there's
@@ -179,16 +185,23 @@ async def get_site_equipment(site_id: str, contract_type: str = "A", year: int =
                 confidence = 1.0
                 source = "mod_code"
         if rc is None:
-            m = match_equipment(eq, rate_card, ct)
+            m = match_equipment(eq, rate_card, line_ct)
             rc = by_id.get(m["rate_card_id"]) if m["rate_card_id"] else None
             matched = m["matched"]
             confidence = m["confidence"]
             suggestions = m["suggestions"]
             source = "keyword" if matched else None
         # Type C is overseas / POA — prices are quoted case-by-case, so we
-        # surface the mapped label but leave the price for the user to enter.
-        unit_price = None if ct == "C" else (price_for(rc, ct, year) if rc else None)
-        tl_number = (rc.get("code_a") if ct == "A" else rc.get("code_b")) if rc else None
+        # surface the mapped label but leave the price (and TL) for the user.
+        unit_price = None if line_ct == "C" else (price_for(rc, line_ct, year) if rc else None)
+        if not rc:
+            tl_number = None
+        elif line_ct == "A":
+            tl_number = rc.get("code_a")
+        elif line_ct == "B":
+            tl_number = rc.get("code_b")
+        else:  # Type C — overseas, priced on application, no fixed TL line
+            tl_number = None
         lines.append({
             "equipment_id": eq.get("id"),
             "name": eq.get("name") or eq.get("equipment_type") or "Equipment",
@@ -197,6 +210,8 @@ async def get_site_equipment(site_id: str, contract_type: str = "A", year: int =
             "serial_number": eq.get("serial_number"),
             "location": eq.get("location"),
             "mod_code": mod_norm or (mod_raw or ""),
+            "contract_type": line_ct,
+            "contract_type_source": ct_source,
             "rate_card_id": rc["id"] if rc else None,
             "rate_card_label": rc["label"] if rc else None,
             "tl_number": tl_number,
@@ -214,6 +229,8 @@ async def get_site_equipment(site_id: str, contract_type: str = "A", year: int =
         "matched_count": sum(1 for l in lines if l["matched"]),
         "mod_code_matched_count": sum(1 for l in lines if l["source"] == "mod_code"),
         "unmatched_count": sum(1 for l in lines if not l["matched"]),
+        "per_machine_type_count": sum(1 for l in lines if l["contract_type_source"] == "equipment"),
+        "mixed_contract_types": len({l["contract_type"] for l in lines}) > 1,
         "lines": lines,
     }
 
@@ -476,21 +493,26 @@ async def generate_mod_quote(data: dict, user=Depends(require_operator_crm_user)
     for raw in (data.get("lines") or []):
         rc = by_id.get(raw.get("rate_card_id"))
         qty = float(raw.get("quantity", 1) or 1)
-        if rc and not rc.get("is_poa") and ct != "C":
-            unit_price = price_for(rc, ct, year)
+        # Each machine may carry its own service tier (Type A/B/C from its
+        # record); fall back to the quote-level contract type when absent.
+        line_ct = (raw.get("contract_type") or ct).upper()
+        if line_ct not in ("A", "B", "C"):
+            line_ct = ct
+        if rc and not rc.get("is_poa") and line_ct != "C":
+            unit_price = price_for(rc, line_ct, year)
             if unit_price is None:
                 continue
-            desc = raw.get("description") or f'{rc["label"]} — {"Annual Service" if ct == "A" else "Ad-hoc Service"}'
+            desc = raw.get("description") or f'{rc["label"]} — {"Annual Service" if line_ct == "A" else "Ad-hoc Service"}'
             lines.append({
                 "id": str(uuid.uuid4()),
                 "description": desc,
                 "product_name": rc["label"],
-                "sku": rc.get("code_a") if ct == "A" else rc.get("code_b"),
+                "sku": rc.get("code_a") if line_ct == "A" else rc.get("code_b"),
                 "quantity": qty, "unit_price": unit_price, "discount": 0,
-                "sicon_ref": rc.get("sicon_ref_a") if ct == "A" else rc.get("sicon_ref_b"),
+                "sicon_ref": rc.get("sicon_ref_a") if line_ct == "A" else rc.get("sicon_ref_b"),
                 "equipment_id": raw.get("equipment_id"),
                 "serial_number": raw.get("serial_number"),
-                "service_type": ct,
+                "service_type": line_ct,
                 "contracted": True,
             })
         else:
@@ -504,7 +526,7 @@ async def generate_mod_quote(data: dict, user=Depends(require_operator_crm_user)
                 "quantity": qty, "unit_price": unit_price, "discount": 0,
                 "sicon_ref": (rc.get("sicon_ref_a") if rc else None),
                 "equipment_id": raw.get("equipment_id"),
-                "service_type": "C" if (rc and rc.get("is_poa")) else ct,
+                "service_type": "C" if (rc and rc.get("is_poa")) else line_ct,
                 "is_poa": bool(rc and rc.get("is_poa")),
                 "contracted": False,
             })
