@@ -22,10 +22,22 @@ from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user
 from utils.database import db
-from routes.pulse_master_admin import _require_pulse_or_master
+from routes.pulse_master_admin import _require_pulse_or_master, MASTER_ADMIN_EMAIL, PULSE_ROLE
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _require_admin_no_desk(user: dict) -> None:
+    """Stricter gate for DESTRUCTIVE onboarding actions (permanent delete /
+    bulk purge). Master/Pulse admins only — Service Desk agents are excluded
+    (they may import equipment, but must not irreversibly wipe onboarding
+    records + audit trail)."""
+    if user.get("email") == MASTER_ADMIN_EMAIL or user.get("is_master_admin"):
+        return
+    if user.get("role") == PULSE_ROLE or user.get("is_pulse_admin"):
+        return
+    raise HTTPException(status_code=403, detail="Master admin access required")
 
 
 # ── Customer types & progressive-disclosure step catalogue ────────────────
@@ -402,6 +414,7 @@ async def archive_project(
         # Hard-delete the onboarding TRACKING project only. This never touches
         # the underlying organisation/customer records — it just removes the
         # onboarding checklist entry (used to clear out test/demo projects).
+        _require_admin_no_desk(user)  # destructive → full admin only
         await db.onboarding_projects.delete_one({"id": project_id})
         await db.onboarding_audit_events.delete_many({"project_id": project_id})
         return {"ok": True, "deleted": True}
@@ -421,7 +434,7 @@ async def purge_archived_projects(user: dict = Depends(get_current_user)) -> dic
     onboarding TRACKING records (+ their audit events) — never touches the
     underlying organisations, users, assets or any live data.
     """
-    _require_pulse_or_master(user)
+    _require_admin_no_desk(user)
     ids = [d["id"] async for d in db.onboarding_projects.find(
         {"status": "archived"}, {"_id": 0, "id": 1}
     )]

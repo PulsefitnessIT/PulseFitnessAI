@@ -1,3 +1,18 @@
+# ═══ 2026-08-07 · Code-review fixes (coverage totals dedup + destructive-delete auth hardening) — curl-verified ═══
+Addressed the MEDIUM findings from the functional code review of this session's changes.
+  • FIX 1 (crm_territories.py coverage_report): panel totals double-counted tenders when 2+ reps co-cover a region.
+    Now totals iterate a seen_tender_ids set → each tender counted once (in-flight value summed once). Per-rep figures
+    unchanged. VERIFIED (curl): 2 sales reps on one territory + 1 tender → totals.tenders=1 (was 2), each rep row still
+    shows its own count.
+  • FIX 2 (onboarding_projects.py): permanent delete (?permanent=true) + POST purge-archived were reachable by
+    is_service_desk via _require_pulse_or_master. Added _require_admin_no_desk (master/pulse admin only, excludes
+    service desk) on BOTH destructive paths. Non-destructive soft-archive still allows service desk.
+  • NOT CHANGED (accepted): coverage_report N+1 fan-out (bounded ≤1000 territories, low CRM-tender volume — not an
+    outage); £0-opportunity → quote-total fallback edge (immaterial). LOW header-label note left as-is.
+  Babel/py parse OK. Test data cleaned + territory assignments restored.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-08-07 · Master Admin Onboarding — "Delete all archived" bulk purge + preview→prod data-leak finding ═══
 Follow-on to the per-project permanent delete. User asked for a one-click "Delete all archived" cleanup, and flagged
 that the production test data was NOT entered by them (suspected preview→production leak).

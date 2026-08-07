@@ -647,6 +647,7 @@ async def coverage_report(user=Depends(get_crm_user)):
     rows = []
     total_tenders = 0
     total_value = 0.0
+    seen_tender_ids: set[str] = set()  # dedupe totals across reps sharing a region
     for rep_id, regions in rep_to_regions.items():
         meta = reps_meta.get(rep_id, {"full_name": "?", "colour_hex": "#94A3B8", "role": "sales_manager"})
         # Tenders are a sales activity — engineers never own/bid tenders, so
@@ -719,8 +720,14 @@ async def coverage_report(user=Depends(get_crm_user)):
             "win_rate": win_rate,
             "avg_tender_value": avg_tender_value,
         })
-        total_tenders += len(tenders)
-        total_value += tender_value
+        # Panel totals count each tender once even when two reps co-cover a region.
+        for t in tenders:
+            if t["id"] in seen_tender_ids:
+                continue
+            seen_tender_ids.add(t["id"])
+            total_tenders += 1
+            if t.get("status") not in ("won", "lost"):
+                total_value += _tender_value(t, opp_val, quote_val)
     rows.sort(key=lambda r: r["tender_value"], reverse=True)
     return {
         "rows": rows,
