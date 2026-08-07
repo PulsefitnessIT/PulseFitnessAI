@@ -1,3 +1,13 @@
+# ═══ 2026-08-07 · CRM Tenders — Coverage panel "Rank by" toggle (Tender value ↔ Win rate) — babel-verified ═══
+Added a client-side sort toggle to the Tenders "Territory Coverage" panel so reps can be ranked by win-rate.
+  • FRONTEND components/CRM/TenderCoveragePanel.js: new sortBy state ('value' default | 'win_rate'); a "Rank by"
+    segmented control (data-testid tender-coverage-sort-value / tender-coverage-sort-winrate) sits atop the rows.
+    Win-rate sort places reps with no decided tenders (win_rate null) at the bottom, tie-broken by tender value.
+    No backend change (all rows already returned by coverage-report). Babel parse OK.
+  • NOTE: Aidan Greig / Alan Herron confirmed as service engineers — they are (correctly) excluded from this panel.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-08-07 · CRM Tenders — Coverage Insights (win-rate + avg tender value per rep) + collection bugfix — curl-verified ═══
 Added each Sales Manager's win-rate and average tender value to the Tenders "Territory Coverage" panel.
   • ROOT-CAUSE BUGFIX: coverage_report() queried db.crm_v2_tenders (EMPTY — real tenders live in crm2_tenders) with a

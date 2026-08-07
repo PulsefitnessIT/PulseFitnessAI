@@ -35,6 +35,7 @@ export default function TenderCoveragePanel() {
   const [data, setData] = useState(null);
   const [open, setOpen] = useState(true);
   const [expanded, setExpanded] = useState(null);
+  const [sortBy, setSortBy] = useState('value'); // 'value' | 'win_rate'
 
   useEffect(() => {
     let cancel = false;
@@ -48,6 +49,21 @@ export default function TenderCoveragePanel() {
   }, []);
 
   const rows = useMemo(() => data?.rows || [], [data]);
+  const sortedRows = useMemo(() => {
+    const list = [...rows];
+    if (sortBy === 'win_rate') {
+      // Reps with no decided tenders (win_rate null) always sink to the bottom.
+      list.sort((a, b) => {
+        const aw = a.win_rate == null ? -1 : a.win_rate;
+        const bw = b.win_rate == null ? -1 : b.win_rate;
+        if (bw !== aw) return bw - aw;
+        return (b.tender_value || 0) - (a.tender_value || 0);
+      });
+    } else {
+      list.sort((a, b) => (b.tender_value || 0) - (a.tender_value || 0));
+    }
+    return list;
+  }, [rows, sortBy]);
   const totals = data?.totals || { tenders: 0, value: 0 };
   const totalRegions = useMemo(() => rows.reduce((acc, r) => acc + (r.region_count || 0), 0), [rows]);
 
@@ -71,8 +87,28 @@ export default function TenderCoveragePanel() {
         {open ? <ChevronDown size={14} className="text-zinc-400" /> : <ChevronRight size={14} className="text-zinc-400" />}
       </button>
       {open && (
-        <div className="border-t border-zinc-100 divide-y divide-zinc-100" data-testid="tender-coverage-rows">
-          {rows.map((r) => {
+        <div className="border-t border-zinc-100" data-testid="tender-coverage-rows">
+          <div className="flex items-center justify-end gap-1.5 px-4 py-2 bg-zinc-50/60 border-b border-zinc-100">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 mr-1">Rank by</span>
+            <button
+              type="button"
+              onClick={() => setSortBy('value')}
+              className={`text-[11px] font-semibold px-2 py-1 rounded-md transition-colors ${sortBy === 'value' ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100'}`}
+              data-testid="tender-coverage-sort-value"
+            >
+              Tender value
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortBy('win_rate')}
+              className={`text-[11px] font-semibold px-2 py-1 rounded-md transition-colors ${sortBy === 'win_rate' ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100'}`}
+              data-testid="tender-coverage-sort-winrate"
+            >
+              Win rate
+            </button>
+          </div>
+          <div className="divide-y divide-zinc-100">
+          {sortedRows.map((r) => {
             const Icon = ROLE_ICONS[r.role] || UserCog;
             const isExpanded = expanded === r.user_id;
             return (
@@ -130,6 +166,7 @@ export default function TenderCoveragePanel() {
               </div>
             );
           })}
+          </div>
         </div>
       )}
     </div>
