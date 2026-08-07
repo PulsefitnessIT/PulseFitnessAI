@@ -1,3 +1,23 @@
+# ═══ 2026-08-07 · Delete MOD Site (safe, type-to-confirm) + Master-Admin import-more guided — verified (curl) ═══
+User batch of 4 (tender wizard, delete MOD site, quote PDF preview, re-open import). Started with the safe delete +
+import-more; TENDER WIZARD + QUOTE PDF PREVIEW + CRM MOD-sites surface are STAGED (not yet built — see below).
+  • BACKEND routes/master_admin_mod_estate.py: NEW DELETE /master-admin/mod-estate/sites/{site_id}?confirm_name=<name>.
+    Guard _can_manage_mod_site (master/pulse admin OR operator role owner/manager/director/admin); 404 if missing; 400 if
+    org isn't account_type=mod_site; 400 if confirm_name != site name (type-to-confirm). Cascades: deletes equipment +
+    users + suppliers + the org; logs mod_estate.site_deleted.
+  • FRONTEND MODSiteOnboarding.js: per-card 'Remove' button (data-testid mod-site-delete-<id>) → type-to-confirm modal
+    (mod-site-delete-modal / -confirm-input / -confirm / -cancel). Also passes `guided` to AIKitImportModal so the
+    Master-Admin 'Import equipment' (import-more, available anytime) uses the dummy-proof wizard.
+  • VERIFIED (curl): create throwaway navy site → wrong name 400 → correct name 200 {deleted, equipment_removed,
+    users_removed} → gone from site-readiness. Babel + py OK.
+STAGED / NOT YET DONE (told user):
+  • Tender Wizard (dummy-proof create wizard, default with quick-form escape) — CRMTenders.js (large, ~2050 lines).
+  • Quote PDF Preview inside CRMMODQuoteWizard (live PDF w/ TL numbers before send).
+  • CRM MOD-sites list surface so Delete + Import-more are reachable in CRM too (needs a small CRM MOD-sites panel/tab).
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-07 · Equipment Import in CRM — dummy-proof guided wizard (auto-opens after MOD-site create) — testing_agent 100% ═══
 End-user-facing: after creating a MOD site via CRM (Add Company → MOD Site tab), a guided AI kit-import wizard now
 opens AUTOMATICALLY for that site — no leaving CRM, no hunting for a button.

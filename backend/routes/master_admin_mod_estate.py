@@ -627,6 +627,40 @@ async def mod_site_equipment_by_category(site_id: str, category: str = Query(...
     return {"site_id": site_id, "category": category, "count": len(items), "items": items}
 
 
+def _can_manage_mod_site(user: dict) -> bool:
+    """Owners/managers (operator roles) and master admins may remove a site."""
+    if user.get("is_master_admin") or user.get("is_pulse_admin"):
+        return True
+    return (user.get("role") or "").lower() in {"owner", "manager", "director", "admin"}
+
+
+@router.delete("/master-admin/mod-estate/sites/{site_id}")
+async def delete_mod_estate_site(site_id: str, confirm_name: str = Query(...),
+                                 user: dict = Depends(get_current_user)) -> dict:
+    """Safely remove a MOD site (owners/managers/master admins only). Requires
+    the caller to echo the site name (type-to-confirm) so mistaken or test
+    sites can be cleaned up without a developer. Cascades to the site's
+    equipment, users and suppliers."""
+    if not _can_manage_mod_site(user):
+        raise HTTPException(status_code=403, detail="Only owners, managers or a master admin can remove a site.")
+    org = await db.organizations.find_one({"id": site_id}, {"_id": 0, "id": 1, "name": 1, "account_type": 1})
+    if not org:
+        raise HTTPException(status_code=404, detail="Site not found.")
+    if org.get("account_type") != "mod_site":
+        raise HTTPException(status_code=400, detail="That organisation is not a MOD site and cannot be removed here.")
+    if (confirm_name or "").strip().lower() != (org.get("name") or "").strip().lower():
+        raise HTTPException(status_code=400, detail="Confirmation name does not match the site name.")
+    eq = await db.equipment.delete_many({"organization_id": site_id})
+    us = await db.users.delete_many({"organization_id": site_id})
+    await db.suppliers.delete_many({"organization_id": site_id})
+    await db.organizations.delete_one({"id": site_id})
+    await log_activity("mod_estate.site_deleted",
+                       f"Removed MOD site '{org.get('name')}' (+{eq.deleted_count} equipment, {us.deleted_count} users)",
+                       user.get("email"), "organization", site_id)
+    return {"deleted": True, "site_id": site_id, "name": org.get("name"),
+            "equipment_removed": eq.deleted_count, "users_removed": us.deleted_count}
+
+
 def build_readiness_xlsx_bytes(data: dict) -> bytes:
     """Build the whole-of-MOD go-live readiness workbook from a readiness
     payload (see `_compute_estate_readiness`) and return the raw .xlsx bytes.

@@ -15,7 +15,7 @@ import axios from 'axios';
 import {
   Download, Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet,
   Dumbbell, Users, Truck, FileText, ClipboardCheck, RefreshCw, ShieldCheck,
-  Link2, Inbox, ThumbsUp, Undo2, Bell, Eye, X, AlertTriangle, Copy, Mail, Sparkles,
+  Link2, Inbox, ThumbsUp, Undo2, Bell, Eye, X, AlertTriangle, Copy, Mail, Sparkles, Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -51,6 +51,9 @@ const MODSiteOnboarding = () => {
   const [loading, setLoading] = useState(true);
   const [uploadingId, setUploadingId] = useState(null);
   const [aiKitSite, setAiKitSite] = useState(null);
+  const [deleteSite, setDeleteSite] = useState(null);
+  const [confirmName, setConfirmName] = useState('');
+  const [deleting, setDeleting] = useState(false);
   const [result, setResult] = useState(null);
   const [filter, setFilter] = useState('all'); // all | needs-equipment | ready
   const [captures, setCaptures] = useState([]);
@@ -245,6 +248,23 @@ const MODSiteOnboarding = () => {
     } catch (e) {
       notify.error('Could not load machines', e?.response?.data?.detail || 'Server error');
       setKitDrill(null);
+    }
+  };
+  const doDeleteSite = async () => {
+    if (!deleteSite) return;
+    setDeleting(true);
+    try {
+      const { data } = await axios.delete(
+        `${API}/master-admin/mod-estate/sites/${encodeURIComponent(deleteSite.id)}`,
+        { headers, params: { confirm_name: confirmName } },
+      );
+      notify.success('Site removed', `${data.name} and ${data.equipment_removed} item(s) removed.`);
+      setDeleteSite(null); setConfirmName('');
+      load();
+    } catch (e) {
+      notify.error('Could not remove site', e?.response?.data?.detail || 'Server error');
+    } finally {
+      setDeleting(false);
     }
   };
   const onFile = async (e) => {
@@ -493,6 +513,10 @@ const MODSiteOnboarding = () => {
                   <Button size="sm" onClick={() => setAiKitSite(s)} data-testid={`mod-equip-import-${s.id}`}>
                     <Sparkles size={14} className="mr-1.5" /> Import equipment
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => { setDeleteSite(s); setConfirmName(''); }}
+                    className="text-red-600 border-red-200 hover:bg-red-50" data-testid={`mod-site-delete-${s.id}`}>
+                    <Trash2 size={14} className="mr-1.5" /> Remove
+                  </Button>
                 </div>
               </div>
             </Card>
@@ -588,9 +612,37 @@ const MODSiteOnboarding = () => {
         <AIKitImportModal
           site={aiKitSite}
           headers={headers}
+          guided
           onClose={() => setAiKitSite(null)}
           onImported={() => load()}
         />
+      )}
+
+      {deleteSite && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }} data-testid="mod-site-delete-modal" onClick={() => !deleting && setDeleteSite(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle size={18} className="text-red-600" />
+              <h3 className="text-base font-extrabold text-zinc-900">Remove MOD site</h3>
+            </div>
+            <p className="text-xs text-zinc-600 mb-3">
+              This permanently removes <b>{deleteSite.name}</b> and all its equipment, staff logins and suppliers. This can't be undone.
+            </p>
+            <label className="text-[11px] font-semibold text-zinc-500">Type the site name to confirm</label>
+            <input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder={deleteSite.name}
+              className="w-full mt-1 px-3 py-2 text-sm rounded-md border border-zinc-300 focus:border-red-400 focus:outline-none"
+              data-testid="mod-site-delete-confirm-input" autoFocus />
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setDeleteSite(null)} disabled={deleting} className="px-3 py-1.5 text-xs font-semibold text-zinc-600" data-testid="mod-site-delete-cancel">Cancel</button>
+              <button onClick={doDeleteSite}
+                disabled={deleting || confirmName.trim().toLowerCase() !== (deleteSite.name || '').trim().toLowerCase()}
+                className="px-3 py-1.5 text-xs font-bold rounded-md bg-red-600 text-white disabled:opacity-40 inline-flex items-center gap-1.5"
+                data-testid="mod-site-delete-confirm">
+                {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />} Remove site
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {kitDrill && (
