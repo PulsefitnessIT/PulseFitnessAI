@@ -1,3 +1,16 @@
+# ═══ 2026-08-07 · CRM Tenders — coverage_report N+1 fan-out batched to constant queries — curl-verified ═══
+Fixed the code-review N+1: coverage_report() previously issued crm2_tenders/crm2_opportunities/crm_quotes queries
+per rep PLUS an opportunities query per region (nested) → round-trips grew with reps×regions.
+  • BACKEND routes/crm_territories.py coverage_report(): now prefetches everything ONCE regardless of team size:
+    (1) covered territory→companies map, (2) ALL tenders across those companies indexed by company, (3) opportunity
+    values for referenced opp_ids, (4) best quote totals for those tenders, (5) open-pipeline opps summed per territory.
+    The per-rep loop is now pure in-memory (no awaits) — ~5 DB queries total instead of O(reps×regions).
+  • Behaviour unchanged: VERIFIED (curl) identical output to pre-batch — 2 reps sharing a region + 3 tenders (won/lost/
+    live) → each row win 50%, avg £40k, in-flight £30k, pipeline £50k; totals deduped tenders=3 (not 6), value £30k.
+    Engineer exclusion + totals dedup preserved. Test data cleaned, territory assignments restored. py parse OK.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-08-07 · Code-review fixes (coverage totals dedup + destructive-delete auth hardening) — curl-verified ═══
 Addressed the MEDIUM findings from the functional code review of this session's changes.
   • FIX 1 (crm_territories.py coverage_report): panel totals double-counted tenders when 2+ reps co-cover a region.
