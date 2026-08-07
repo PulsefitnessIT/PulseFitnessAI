@@ -1,3 +1,18 @@
+# ═══ 2026-08-07 · Frontend testing agent run — MOD equipment card / pills / quote tiers / Suppliers tab (100% PASS) ═══
+Ran testing_agent across all recent MOD UI changes; initial run ~95% (3 minor issues), all fixed + re-tested → 100%.
+  PASSED (run 1): MOD login; cover pills (Type A/B/C Contract / Warranty / No cover); Type A/B/C SOR tooltips; equipment
+  detail "Service Provider" + "Supplier (purchased from)" + "Type A Contract" badge + "Change service provider" button;
+  Suppliers tab excludes manufacturers; quote wizard per-line Type badges + Replace-existing toggle.
+  FIXES (verified in run 2, iteration_mod_3fixes_retest_jan2026.json — 3/3 PASS):
+    • CRMMODQuoteWizard.js price cell used the GLOBAL contract type → Type C row showed a fixed £ instead of POA. Now
+      gated on per-line lineCt(l): Type C → editable input placeholder "POA" (empty); others → fmt(priceFor(rc, lineCt)).
+    • supplier_portal.py _build_supplier_map now canonicalises any "Pulse Fitness*" → single "Pulse Fitness Ltd" (was
+      showing "Pulse Fitness Ltd" + "Pulse Fitness" as two entries).
+    • LiteEquipmentTab.js list-row subtitle relabelled "Supplier:" → "Service Provider:".
+  QAUI-* seed equipment created for the test were deleted afterwards (MOD Test Site left clean).
+⚠️ PREVIEW ONLY — needs REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-08-07 · Equipment: "Service Provider" vs "Supplier (purchased from)" (MOD) — harness-verified ═══
 User: the equipment card's "Supplier" field is really the SERVICING company, not where the kit was bought. Relabel it
 "Service Provider" and add a separate "Supplier (purchased from)" for the original vendor (MOD has legacy kit not
