@@ -12,6 +12,7 @@ import CRMAuditTrail from './CRMAuditTrail';
 import PreInstallSurveys from './PreInstallSurveys';
 import { EnrichFromWebsiteButton } from './CRMPhase3Panels';
 import CompanyAutocomplete from '@/components/shared/CompanyAutocomplete';
+import AIKitImportModal from '@/pages/MasterAdmin/AIKitImportModal';
 import Button from '@/components/shared/Button';
 import ListPanel from '@/components/shared/ListPanel';
 import TimelinePanel from '@/components/CRM/TimelinePanel';
@@ -33,6 +34,7 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
   const [showCreate, setShowCreate] = useState(false);
   const [companyKind, setCompanyKind] = useState('commercial'); // commercial | mod
   const [modBranch, setModBranch] = useState('army'); // army | raf | navy
+  const [modImportSite, setModImportSite] = useState(null); // launches the guided kit-import wizard
   const [form, setForm] = useState({ name: '', sector: '', type: 'prospect', phone: '', email: '', website: '', address: '', address_line1: '', address_line2: '', address_line3: '', city: '', county: '', postcode: '', country: 'United Kingdom', company_number: '', description: '', directors: [] });
   const [saving, setSaving] = useState(false);
   const [aiLookup, setAiLookup] = useState(false);
@@ -77,11 +79,14 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
           phone: form.phone,
           email: form.email,
         }, { headers: headers() });
-        toast.success(`MOD site "${form.name}" created (${modBranch.toUpperCase()}). Import its equipment from Master Admin → Onboarding.`);
+        toast.success(`MOD site "${form.name}" created (${modBranch.toUpperCase()}). Let's load its equipment.`);
         setShowCreate(false);
+        const newSite = res.data?.site || { id: res.data?.id, name: form.name };
         setForm({ name: '', sector: '', type: 'prospect', phone: '', email: '', website: '', address: '', address_line1: '', address_line2: '', address_line3: '', city: '', county: '', postcode: '', country: 'United Kingdom', company_number: '', description: '', directors: [] });
         setCompanyKind('commercial');
-        if (typeof onModSiteCreated === 'function') onModSiteCreated(res.data?.site);
+        // Dummy-proof: drop the user straight into the guided kit-import wizard
+        // for the site they just created — no hunting for a button.
+        setModImportSite(newSite);
         setSaving(false);
         return;
       }
@@ -470,6 +475,16 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
             </div>
           </div>
         </div>
+      )}
+
+      {modImportSite && (
+        <AIKitImportModal
+          site={modImportSite}
+          headers={headers()}
+          guided
+          onClose={() => setModImportSite(null)}
+          onImported={() => {}}
+        />
       )}
     </>
   );

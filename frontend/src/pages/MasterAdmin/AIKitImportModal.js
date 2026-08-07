@@ -8,13 +8,15 @@
  */
 import { useState, useCallback } from 'react';
 import axios from 'axios';
-import { Upload, Loader2, X, CheckCircle2, AlertTriangle, Sparkles, FileSpreadsheet } from 'lucide-react';
+import { Upload, Loader2, X, CheckCircle2, AlertTriangle, Sparkles, FileSpreadsheet, Download, Zap, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { notify } from '@/components/notifications';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
-export default function AIKitImportModal({ site, headers, onClose, onImported }) {
+const STEPS = [['upload', 'Upload'], ['review', 'Review'], ['done', 'Done']];
+
+export default function AIKitImportModal({ site, headers, onClose, onImported, guided = false }) {
   const [step, setStep] = useState('upload'); // upload | review | done
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -23,6 +25,21 @@ export default function AIKitImportModal({ site, headers, onClose, onImported })
   const [result, setResult] = useState(null);
   const [filteredDupes, setFilteredDupes] = useState(0);
   const [error, setError] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+
+  const downloadTemplate = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/master-admin/mod-estate/equipment-template.csv`,
+        { headers, responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'MOD_Equipment_Import_Template.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      notify.error('Could not download the template', 'Please try again.');
+    }
+  }, [headers]);
 
   const analyse = useCallback(async (f) => {
     if (!f) return;
@@ -115,11 +132,28 @@ export default function AIKitImportModal({ site, headers, onClose, onImported })
           <div className="flex items-center gap-2">
             <Sparkles size={18} className="text-cyan-600" />
             <div>
-              <h3 className="text-sm font-extrabold text-zinc-900">AI Import — any kit list</h3>
+              <h3 className="text-sm font-extrabold text-zinc-900">{guided ? 'Import equipment' : 'AI Import — any kit list'}</h3>
               <p className="text-[11px] text-zinc-500">{site.name}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-700" data-testid="ai-kit-close"><X size={16} /></button>
+        </div>
+
+        {/* Step indicator */}
+        <div className="flex items-center gap-2 px-5 py-3 border-b border-zinc-100 bg-zinc-50/60" data-testid="ai-kit-steps">
+          {STEPS.map(([key, label], i) => {
+            const active = step === key;
+            const doneStep = STEPS.findIndex((x) => x[0] === step) > i;
+            return (
+              <div key={key} className="flex items-center gap-2">
+                <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${active ? 'bg-cyan-600 text-white' : doneStep ? 'bg-green-500 text-white' : 'bg-zinc-200 text-zinc-500'}`}>
+                  {doneStep ? <CheckCircle2 size={12} /> : i + 1}
+                </span>
+                <span className={`text-[11px] font-semibold ${active ? 'text-cyan-700' : doneStep ? 'text-green-600' : 'text-zinc-400'}`}>{label}</span>
+                {i < STEPS.length - 1 && <span className="w-6 h-px bg-zinc-200" />}
+              </div>
+            );
+          })}
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
@@ -127,26 +161,50 @@ export default function AIKitImportModal({ site, headers, onClose, onImported })
 
           {/* Upload */}
           {step === 'upload' && (
-            <div className="text-center py-10">
-              <div className="mx-auto w-14 h-14 rounded-full bg-cyan-50 flex items-center justify-center mb-4"><FileSpreadsheet size={26} className="text-cyan-600" /></div>
-              <p className="text-sm font-semibold text-zinc-800 mb-1">Upload any equipment / kit list</p>
-              <p className="text-xs text-zinc-500 max-w-md mx-auto mb-5">
-                Excel or CSV — messy is fine. AI derives a proper equipment name, tidies ALL-CAPS text, treats each
-                worksheet tab as a room / sub-location and skips summary tabs. You review everything before it imports.
-              </p>
-              <label className="inline-flex">
-                <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onPick} data-testid="ai-kit-file-input" />
-                <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-semibold cursor-pointer ${busy ? 'bg-zinc-300 text-zinc-500' : 'bg-cyan-600 text-white hover:bg-cyan-700'}`}>
-                  {busy ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />} {busy ? 'Analysing…' : 'Choose file'}
-                </span>
-              </label>
-              {file && busy && <p className="text-[11px] text-zinc-500 mt-3">Reading “{file.name}” and cleaning with AI — this can take a few seconds…</p>}
+            <div className="py-4">
+              {/* Step 1 helper */}
+              <div className="mb-4 flex items-start gap-3 rounded-lg border border-cyan-100 bg-cyan-50/60 px-4 py-3">
+                <FileText size={18} className="text-cyan-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-zinc-600">
+                  <p className="font-semibold text-zinc-800 mb-0.5">No spreadsheet yet? Start with our template.</p>
+                  <p>It has the right columns — including a <b>MOD Code</b> column that auto-fills your Service Quotes later. Fill it in, then drop it below.</p>
+                  <button onClick={downloadTemplate} className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white border border-cyan-200 text-cyan-700 hover:bg-cyan-50" data-testid="ai-kit-download-template">
+                    <Download size={13} /> Download template (CSV)
+                  </button>
+                </div>
+              </div>
+
+              <div
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) { setFile(f); analyse(f); } }}
+                className={`text-center py-10 rounded-xl border-2 border-dashed transition-colors ${dragOver ? 'border-cyan-500 bg-cyan-50' : 'border-zinc-200'}`}
+                data-testid="ai-kit-dropzone"
+              >
+                <div className="mx-auto w-14 h-14 rounded-full bg-cyan-50 flex items-center justify-center mb-4"><FileSpreadsheet size={26} className="text-cyan-600" /></div>
+                <p className="text-sm font-semibold text-zinc-800 mb-1">Drag your equipment list here</p>
+                <p className="text-xs text-zinc-500 max-w-md mx-auto mb-5">
+                  …or choose a file. Excel or CSV — messy is fine. Our AI tidies names, treats each tab as a room, and
+                  skips summary tabs. <b>You review everything</b> before anything is saved.
+                </p>
+                <label className="inline-flex">
+                  <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onPick} data-testid="ai-kit-file-input" />
+                  <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-semibold cursor-pointer ${busy ? 'bg-zinc-300 text-zinc-500' : 'bg-cyan-600 text-white hover:bg-cyan-700'}`}>
+                    {busy ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />} {busy ? 'Analysing…' : 'Choose file'}
+                  </span>
+                </label>
+                {file && busy && <p className="text-[11px] text-zinc-500 mt-3">Reading “{file.name}” and cleaning with AI — this can take a few seconds…</p>}
+              </div>
             </div>
           )}
 
           {/* Review */}
           {step === 'review' && preview && (
             <div className="space-y-4" data-testid="ai-kit-review">
+              <div className="flex items-start gap-2 rounded-lg border border-cyan-100 bg-cyan-50/60 px-3 py-2 text-[11px] text-zinc-600">
+                <Zap size={14} className="text-cyan-600 shrink-0 mt-0.5" />
+                <span>Check the list below and fix anything that looks off. Tip: items with a <b>MOD Code</b> (cyan column) will <b>auto-fill your MOD Service Quote</b> — no manual matching. Nothing is saved until you hit Import.</span>
+              </div>
               <div className="flex items-center flex-wrap gap-3 justify-between">
                 <div className="flex items-center gap-4 text-xs text-zinc-600">
                   <span><b className="text-zinc-900">{preview.importable_rows}</b> items across <b className="text-zinc-900">{preview.sheets.filter((s) => !s.is_summary).length}</b> tabs</span>
@@ -251,6 +309,12 @@ export default function AIKitImportModal({ site, headers, onClose, onImported })
               <div className="mx-auto w-14 h-14 rounded-full bg-green-50 flex items-center justify-center mb-4"><CheckCircle2 size={28} className="text-green-600" /></div>
               <p className="text-sm font-bold text-zinc-900 mb-1">Imported {result.imported} items into {site.name}</p>
               <p className="text-xs text-zinc-500">{result.skipped || 0} skipped{result.errors?.length ? ` · ${result.errors.length} error(s)` : ''}.</p>
+              {guided && (
+                <div className="mt-3 mx-auto max-w-sm rounded-lg border border-cyan-100 bg-cyan-50/60 px-4 py-3 text-[11px] text-zinc-600 flex items-start gap-2" data-testid="ai-kit-done-nextstep">
+                  <Zap size={14} className="text-cyan-600 shrink-0 mt-0.5" />
+                  <span>All set! This kit will now <b>auto-fill a MOD Service Quote</b> — MOD Codes are matched to their TL/SOR lines for you. You can close this window.</span>
+                </div>
+              )}
               {filteredDupes > 0 && <p className="text-[11px] text-amber-700 mt-1">{filteredDupes} duplicate serial(s) filtered out before import.</p>}
               {result.per_site && result.per_site.length > 1 && (
                 <div className="mt-4 mx-auto max-w-md text-left text-[11px] text-zinc-600 bg-zinc-50 border border-zinc-200 rounded-md p-3" data-testid="ai-kit-per-site">

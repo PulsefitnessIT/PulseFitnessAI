@@ -1,0 +1,29 @@
+{
+  "summary": "Verified the CRM Add Company → MOD Site → guided AI Kit Import wizard end-to-end. Backend: created a real MOD site under RAF HQ, downloaded the equipment CSV template, ran /ai-kit-import/analyse on a CSV with a `mod_code` column, committed via /ai-kit-import/commit, and confirmed equipment persisted under the site with mod_code (MOD-Tread, MOD-Bench) via the master-admin by-category drill-down. Frontend: from Master Admin → Pulse Fitness Portal self-switch → CRM → Corporate → Companies → New Company → MOD Site tab → RAF branch → Create; wizard auto-opened, downloaded template (200), uploaded 2-row CSV, review showed both MOD Code cells (first='MOD-Tread'), commit succeeded, Done step showed 'Imported 2 items' and the guided next-step note about auto-filling a MOD Service Quote. Commercial regression: creating a Commercial company navigates to company overview and does NOT open the wizard.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_mod_kit_import_wizard_jan2026.py",
+    "/app/test_reports/pytest/mod_kit_import_wizard_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "No DELETE endpoint exists for MOD estate sites (POST /master-admin/mod-estate/sites but no matching DELETE). Cleanup requires direct MongoDB access, which is not ideal for operator-driven flows or for automated tests. Consider adding DELETE /master-admin/mod-estate/sites/{site_id} that removes the organization + its equipment + associated users/suppliers.",
+    "Frontend Axios interceptor generates a burst of 401 responses for every /mod-estate/* request on first call (401 then 200 retry visible in network log). Working (transparent retry), but noisy; worth investigating whether the initial auth header is missing or a token refresh is racing the initial request.",
+    "The `require_master_admin` check on /ai-kit-import/analyse/commit is fine, but the endpoints accept any `site_id` including non-MOD orgs; consider validating that the target org is `account_type='mod_site'` before importing to avoid mis-targeted uploads."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_mod_kit_import_wizard_jan2026.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Master Admin: admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg",
+  "seed_data_creation": "Test-time MOD sites (name starting with 'QA Import Wizard') and CRM commercial company ('QA Commercial …') were created during E2E and pytest runs, then removed via direct MongoDB cleanup at the end. Cleanup also removed a leftover 'QA Handover Site' (id qatest-mod-handover) from an earlier iteration — flagging in case that was intentional seed data (it looked like leftover test data based on the 'qatest-' id prefix).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Wizard flow end-to-end works. If retesting, use frontend/.env REACT_APP_BACKEND_URL and run `pytest backend/tests/test_mod_kit_import_wizard_jan2026.py` from /app/backend with REACT_APP_BACKEND_URL exported. Cleanup any 'QA %' orgs from db.organizations, db.equipment, db.users, db.suppliers, db.crm2_companies afterwards. The wizard listens on /master-admin/mod-estate/{sites, equipment-template.csv, ai-kit-import/analyse, ai-kit-import/commit}. Data-testids in AIKitImportModal: ai-kit-import-modal, ai-kit-steps, ai-kit-download-template, ai-kit-dropzone, ai-kit-file-input, ai-kit-review, ai-kit-modcode-<tab>-<row>, ai-kit-commit, ai-kit-done, ai-kit-done-nextstep, ai-kit-done-close.",
+  "rca of the issue": "N/A — no bugs found."
+}
