@@ -174,7 +174,9 @@ def _platform_role_from_staff_role(primary_role) -> str:
     r = (primary_role or "").strip().lower()
     if r in {"engineer", "technician", "maintenance"}:
         return "engineer"
-    if r in {"manager", "supervisor", "director", "duty_manager", "administrator", "sales_manager"}:
+    # People-management roles → platform "manager". NOTE: "administrator" is an
+    # office/admin job (not a people-manager) so it maps to "staff", not manager.
+    if r in {"manager", "supervisor", "director", "duty_manager", "sales_manager"}:
         return "manager"
     return "staff"
 

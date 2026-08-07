@@ -82,22 +82,58 @@ def build_crm_quote_pdf(quote: dict, org: dict, company: dict | None = None) -> 
     flow.append(Spacer(1, 6 * mm))
 
     # ── Line items table ─────────────────────────────────────────
-    data = [[Paragraph("Description", s["th"]), Paragraph("Qty", s["thR"]),
-             Paragraph("Unit Price", s["thR"]), Paragraph("Disc %", s["thR"]),
-             Paragraph("Net", s["thR"])]]
-    items = quote.get("line_items", [])
-    if not items:
-        data.append([Paragraph("No line items.", s["cell"]), Paragraph("", s["cellR"]),
-                     Paragraph("", s["cellR"]), Paragraph("", s["cellR"]), Paragraph("", s["cellR"])])
-    for item in items:
-        data.append([
-            Paragraph(_esc(item.get("description") or item.get("product_name", "—")), s["cell"]),
-            Paragraph(f"{item.get('quantity', 0):g}", s["cellR"]),
-            Paragraph(f"{sym}{item.get('unit_price', 0):,.2f}", s["cellR"]),
-            Paragraph(f"{item.get('discount_percent', 0):g}%", s["cellR"]),
-            Paragraph(f"{sym}{item.get('subtotal', 0):,.2f}", s["cellR"]),
-        ])
-    t = Table(data, colWidths=[80 * mm, 18 * mm, 26 * mm, 20 * mm, 26 * mm], repeatRows=1)
+    # MOD SOR quotes store their rows under `lines` (not `line_items`) and need
+    # the Leidos-mandated TL Number on every line plus the SER code in the
+    # description. Everything else keeps the standard CRM quote columns.
+    is_mod = (quote.get("quote_kind") == "mod_sor")
+    items = quote.get("line_items") or quote.get("lines") or []
+
+    def _line_net(item) -> float:
+        if item.get("subtotal") is not None:
+            return float(item.get("subtotal") or 0)
+        qty = float(item.get("quantity", 0) or 0)
+        up = float(item.get("unit_price", 0) or 0)
+        disc = float(item.get("discount_percent", item.get("discount", 0)) or 0)
+        return round(qty * up * (1 - disc / 100), 2)
+
+    if is_mod:
+        data = [[Paragraph("TL No.", s["th"]), Paragraph("Description", s["th"]),
+                 Paragraph("Qty", s["thR"]), Paragraph("Unit", s["thR"]),
+                 Paragraph("Unit Price", s["thR"]), Paragraph("Net", s["thR"])]]
+        if not items:
+            data.append([Paragraph("", s["cell"]), Paragraph("No line items.", s["cell"]),
+                         Paragraph("", s["cellR"]), Paragraph("", s["cellR"]),
+                         Paragraph("", s["cellR"]), Paragraph("", s["cellR"])])
+        for item in items:
+            desc = item.get("description") or item.get("product_name", "—")
+            ser = item.get("sicon_ref")
+            if ser:
+                desc = f"{desc}<br/><font size=7 color='#6B7280'>{_esc(ser)}</font>"
+            data.append([
+                Paragraph(_esc(item.get("sku") or "—"), s["cell"]),
+                Paragraph(desc, s["cell"]),
+                Paragraph(f"{item.get('quantity', 0):g}", s["cellR"]),
+                Paragraph(_esc(item.get("unit") or "Each"), s["cellR"]),
+                Paragraph(f"{sym}{float(item.get('unit_price', 0) or 0):,.2f}", s["cellR"]),
+                Paragraph(f"{sym}{_line_net(item):,.2f}", s["cellR"]),
+            ])
+        t = Table(data, colWidths=[15 * mm, 79 * mm, 12 * mm, 16 * mm, 24 * mm, 24 * mm], repeatRows=1)
+    else:
+        data = [[Paragraph("Description", s["th"]), Paragraph("Qty", s["thR"]),
+                 Paragraph("Unit Price", s["thR"]), Paragraph("Disc %", s["thR"]),
+                 Paragraph("Net", s["thR"])]]
+        if not items:
+            data.append([Paragraph("No line items.", s["cell"]), Paragraph("", s["cellR"]),
+                         Paragraph("", s["cellR"]), Paragraph("", s["cellR"]), Paragraph("", s["cellR"])])
+        for item in items:
+            data.append([
+                Paragraph(_esc(item.get("description") or item.get("product_name", "—")), s["cell"]),
+                Paragraph(f"{item.get('quantity', 0):g}", s["cellR"]),
+                Paragraph(f"{sym}{item.get('unit_price', 0):,.2f}", s["cellR"]),
+                Paragraph(f"{item.get('discount_percent', 0):g}%", s["cellR"]),
+                Paragraph(f"{sym}{_line_net(item):,.2f}", s["cellR"]),
+            ])
+        t = Table(data, colWidths=[80 * mm, 18 * mm, 26 * mm, 20 * mm, 26 * mm], repeatRows=1)
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), PULSE_NAVY),
         ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),

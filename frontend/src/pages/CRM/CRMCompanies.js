@@ -31,6 +31,8 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [showCreate, setShowCreate] = useState(false);
+  const [companyKind, setCompanyKind] = useState('commercial'); // commercial | mod
+  const [modBranch, setModBranch] = useState('army'); // army | raf | navy
   const [form, setForm] = useState({ name: '', sector: '', type: 'prospect', phone: '', email: '', website: '', address: '', address_line1: '', address_line2: '', address_line3: '', city: '', county: '', postcode: '', country: 'United Kingdom', company_number: '', description: '', directors: [] });
   const [saving, setSaving] = useState(false);
   const [aiLookup, setAiLookup] = useState(false);
@@ -58,9 +60,37 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
     if (!form.name.trim()) return;
     setSaving(true);
     try {
+      if (companyKind === 'mod') {
+        // Provision a REAL MOD site into the estate (org tagged mod_site with
+        // the chosen force) — same engine as the Onboarding wizard, so it shows
+        // up in the MOD estate and can have equipment imported.
+        const res = await axios.post(`${API}/master-admin/mod-estate/sites`, {
+          site_name: form.name,
+          force: modBranch,
+          address_line1: form.address_line1,
+          address_line2: form.address_line2,
+          address_line3: form.address_line3,
+          city: form.city,
+          county: form.county,
+          postcode: form.postcode,
+          country: form.country || 'United Kingdom',
+          phone: form.phone,
+          email: form.email,
+        }, { headers: headers() });
+        toast.success(`MOD site "${form.name}" created (${modBranch.toUpperCase()}). Import its equipment from Master Admin → Onboarding.`);
+        setShowCreate(false);
+        setForm({ name: '', sector: '', type: 'prospect', phone: '', email: '', website: '', address: '', address_line1: '', address_line2: '', address_line3: '', city: '', county: '', postcode: '', country: 'United Kingdom', company_number: '', description: '', directors: [] });
+        setCompanyKind('commercial');
+        if (typeof onModSiteCreated === 'function') onModSiteCreated(res.data?.site);
+        setSaving(false);
+        return;
+      }
       const res = await axios.post(`${API}/crm/v2/companies`, form, { headers: headers() });
       onSelect(res.data.id);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Could not create — please try again.');
+      console.error(e);
+    }
     setSaving(false);
   };
 
@@ -213,8 +243,35 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
       {/* Create Dialog */}
       {showCreate && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowCreate(false)}>
-          <div className="w-full max-w-lg mx-4 rounded-xl p-6 shadow-2xl" style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }} onClick={e => e.stopPropagation()} data-testid="create-company-dialog">
-            <h2 className="text-lg font-semibold mb-4" style={{ color: c.text }}>New Company</h2>
+          <div className="w-full max-w-lg mx-4 rounded-xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto" style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }} onClick={e => e.stopPropagation()} data-testid="create-company-dialog">
+            <h2 className="text-lg font-semibold mb-4" style={{ color: c.text }}>{companyKind === 'mod' ? 'New MOD Site' : 'New Company'}</h2>
+            {/* Commercial / MOD switch — MOD provisions a real estate site. */}
+            <div className="flex gap-1 mb-4 p-1 rounded-lg" style={{ background: isDark ? 'var(--color-ink-alt)' : 'var(--color-neutral-100)' }} data-testid="company-kind-tabs">
+              {[['commercial', 'Commercial'], ['mod', 'MOD Site']].map(([k, lbl]) => (
+                <button key={k} type="button" onClick={() => setCompanyKind(k)}
+                  className="flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-all"
+                  style={companyKind === k
+                    ? { background: 'var(--color-info-ios)', color: '#fff' }
+                    : { color: c.textMuted }}
+                  data-testid={`company-kind-${k}`}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            {companyKind === 'mod' && (
+              <div className="mb-4">
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Service branch *</label>
+                <select value={modBranch} onChange={(e) => setModBranch(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+                  style={{ background: c.inputBg || (isDark ? 'var(--color-ink-alt)' : '#fff'), border: `1px solid ${c.border}`, color: c.text }}
+                  data-testid="company-mod-branch">
+                  <option value="army">Army</option>
+                  <option value="raf">RAF</option>
+                  <option value="navy">Navy</option>
+                </select>
+                <p className="text-[9px] mt-1" style={{ color: c.textDim }}>Creates a live MOD site under the {modBranch.toUpperCase()} service HQ — it appears in the MOD estate ready for equipment import.</p>
+              </div>
+            )}
             {/* Iter 216h268 — website-first recognition. Recommended
                 primary source: paste the prospect's actual trading
                 website (not Companies House) so the right typing
@@ -222,7 +279,7 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
                 through to the rest of the CRM. */}
             <div
               className="mb-4 rounded-lg p-3"
-              style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-25-alt)', border: `1px solid ${c.border}` }}
+              style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-25-alt)', border: `1px solid ${c.border}`, display: companyKind === 'mod' ? 'none' : 'block' }}
               data-testid="company-website-recognise-panel"
             >
               <label className="text-[10px] uppercase tracking-wider font-medium flex items-center gap-1.5" style={{ color: c.textDim }}>
@@ -407,8 +464,8 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
             </div>
             <div className="flex gap-2 mt-5 justify-end">
               <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm rounded-md" style={{ color: c.textMuted }}>Cancel</button>
-              <button onClick={handleCreate} disabled={saving || !form.name.trim()} className="px-4 py-2 bg-[var(--color-info-ios)] text-white text-sm font-medium rounded-md hover:bg-[var(--color-brand-blue-deep)] disabled:opacity-50">
-                {saving ? 'Creating...' : 'Create Company'}
+              <button onClick={handleCreate} disabled={saving || !form.name.trim()} className="px-4 py-2 bg-[var(--color-info-ios)] text-white text-sm font-medium rounded-md hover:bg-[var(--color-brand-blue-deep)] disabled:opacity-50" data-testid="company-create-submit">
+                {saving ? (companyKind === 'mod' ? 'Creating site…' : 'Creating...') : (companyKind === 'mod' ? 'Create MOD Site' : 'Create Company')}
               </button>
             </div>
           </div>
