@@ -590,21 +590,34 @@ async def _do_bulk_import_equipment(
             #   • a blank supplier on a MOD import  → "Pulse Fitness Ltd"
             #   • "Pulse Fitness" typed by the site → resolves to Pulse Fitness Ltd
             #   • non-MOD import, blank supplier     → manufacturer (legacy behaviour)
-            supplier_input = (
-                _normalize(row, "supplier", "Supplier")
-                or str(get_pick(row, "supplier", "")).strip()
-            )
-            if not supplier_input:
-                supplier_input = PULSE_DEFAULT_SUPPLIER_NAME if is_mod_org else (
-                    _normalize(row, "manufacturer")
-                    or str(get_pick(row, "manufacturer", "")).strip()
-                )
+            # ── Service provider vs original supplier ──────────────────────
+            # SERVICE PROVIDER = the company servicing/maintaining the kit
+            # (routes faults; defaults to Pulse Fitness Ltd). PURCHASED FROM =
+            # the original vendor the kit was bought from (MOD only — a lot of
+            # legacy MOD kit wasn't supplied by Pulse). For MOD the servicing
+            # company comes from the `service_provider` column; the `supplier`
+            # column is treated as the original vendor.
+            import re as _re_pf
+            def _canon_pulse(v: str) -> str:
+                return PULSE_DEFAULT_SUPPLIER_NAME if _re_pf.sub(r"[^a-z0-9]+", "", (v or "").lower()).startswith("pulsefitness") else v
+            supplier_col = _normalize(row, "supplier", "Supplier") or str(get_pick(row, "supplier", "")).strip()
+            service_col = _normalize(row, "service_provider", "Service Provider") or str(get_pick(row, "service_provider", "")).strip()
+            purchased_from = None
+            if is_mod_org:
+                # Servicing company: service_provider col → else supplier col →
+                # else the locked Pulse Fitness Ltd default.
+                service_input = _canon_pulse(service_col) or _canon_pulse(supplier_col) or PULSE_DEFAULT_SUPPLIER_NAME
+                supplier_input = service_input
+                # Original vendor kept separately (blank unless supplied AND it
+                # isn't just Pulse Fitness again).
+                if supplier_col and _canon_pulse(supplier_col) != PULSE_DEFAULT_SUPPLIER_NAME:
+                    purchased_from = supplier_col
             else:
-                # "Pulse Fitness" / "PULSE FITNESS LTD" / "pulse-fitness" → the
-                # single locked "Pulse Fitness Ltd" service supplier record.
-                import re as _re_pf
-                if _re_pf.sub(r"[^a-z0-9]+", "", supplier_input.lower()).startswith("pulsefitness"):
-                    supplier_input = PULSE_DEFAULT_SUPPLIER_NAME
+                # Non-MOD unchanged: supplier col → manufacturer fallback.
+                supplier_input = supplier_col or (
+                    _normalize(row, "manufacturer") or str(get_pick(row, "manufacturer", "")).strip()
+                )
+                supplier_input = _canon_pulse(supplier_input) if supplier_input else supplier_input
             supplier_match = await _resolve_supplier_for_org(supplier_input, target_org, supplier_cache)
             # Iter 216h108 — robust date parsing. Excel serials (45979),
             # dd/mm/yyyy, ISO etc. all coerce to YYYY-MM-DD before
@@ -660,6 +673,7 @@ async def _do_bulk_import_equipment(
                 # AND the supplier_id / supplier_email for fault routing.
                 "supplier": (supplier_match or {}).get("name") or supplier_input,
                 "supplier_id": (supplier_match or {}).get("id"),
+                "purchased_from": purchased_from,
                 "supplier_email": (
                     (supplier_match or {}).get("service_email")
                     or (supplier_match or {}).get("email")

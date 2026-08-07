@@ -1,3 +1,37 @@
+# ═══ 2026-08-07 · Equipment: "Service Provider" vs "Supplier (purchased from)" (MOD) — harness-verified ═══
+User: the equipment card's "Supplier" field is really the SERVICING company, not where the kit was bought. Relabel it
+"Service Provider" and add a separate "Supplier (purchased from)" for the original vendor (MOD has legacy kit not
+bought from Pulse). Scope = MOD only for now (non-MOD customers buy from Pulse, so supplier == service provider).
+  • BACKEND master_admin_bulk_import.py _do_bulk_import_equipment: for MOD orgs the SERVICE PROVIDER (doc.supplier,
+    the fault-routing field) now comes from the `service_provider` column → else `supplier` col → else Pulse Fitness Ltd
+    (canonicalises any "Pulse Fitness…"). NEW doc.purchased_from = the `supplier` column (original vendor), left blank
+    unless supplied and not just Pulse. Non-MOD behaviour unchanged (supplier col → manufacturer fallback).
+  • FRONTEND LiteDashboard/LiteDialogs.js: equipment card field relabelled "Supplier"→"Service Provider"; button
+    "Change/Assign supplier"→"…service provider"; editor strings updated; NEW read-only "Supplier (purchased from)"
+    field shown only when purchased_from is set (data-testid lite-equip-purchased-from). Fault routing still uses the
+    (renamed) service-provider field — no routing change.
+  • VERIFIED (harness, MOD org): service_provider="Pulse Fitness"+supplier="Acme Gym Supplies Ltd" → service
+    provider=Pulse Fitness Ltd(+id), purchased_from="Acme Gym Supplies Ltd"; blank/absent → Pulse Fitness Ltd, no
+    purchased_from. py + babel OK. Harness rows cleaned.
+⚠️ MOD ONLY for now (CRM/admin equipment views unchanged — "do the rest later"). PREVIEW ONLY — needs REDEPLOY + re-import.
+─────────────────────────────────────────────────────────────────────────────
+# ═══ 2026-08-07 · MOD Service Quotes: auto rate-card per machine's own Type A/B/C — harness-verified ═══
+Each machine's stored contract_type (A/B/C) now auto-drives its SOR rate card, TL line and price in the Service Quote
+(was previously a single site-wide contract type).
+  • BACKEND crm_mod_quote.py GET /equipment: per line uses eq.contract_type (fallback = site-wide param); unit_price
+    via price_for(rc, line_ct, year); TL = code_a (A) / code_b (B) / None (C=overseas POA). Adds per-line contract_type +
+    contract_type_source, plus mixed_contract_types / per_machine_type_count to the response.
+  • BACKEND crm_mod_quote.py POST /generate: builds each saved line at its own contract_type (sku/sicon_ref/price/
+    service_type), not the global one.
+  • FRONTEND CRMMODQuoteWizard.js: priceFor(rcId, ct) + priced()/onSelectRateCard use each line's tier; save payload
+    sends per-line contract_type + priced unit; per-line "Type A/B/C" badge (data-testid mod-line-type-<key>, '•' when
+    from the machine's record) + a "N priced at their own Type A/B/C" summary (mod-permachine-summary). Global selector
+    is now the fallback/default.
+  • VERIFIED (harness): 3 treadmills tagged A/B/C → Type A=TL 2A £56.73, Type B=TL 2B £16.00, Type C=POA (no TL/price);
+    mixed_contract_types=true, per_machine_type_count=3. py + babel OK. Harness rows cleaned.
+⚠️ PREVIEW ONLY — needs REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-08-07 · MOD cover pills — Type A/B/C hover tooltips from the SOR — babel-verified ═══
 Added MOD SOR (Schedule C, LSLDC0223) service-tier definitions as hover tooltips on the Type A/B/C cover pills.
   • Exported CONTRACT_TYPE_TOOLTIP from LiteEquipmentTab.js:

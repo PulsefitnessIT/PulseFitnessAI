@@ -273,12 +273,15 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
                     testId: 'lite-equip-manufacturer',
                   },
                   { label: 'Location', value: selectedEquipment.location, testId: 'lite-equip-location' },
-                  { label: 'Supplier', value: currentSupplier, accent: !!currentSupplier, testId: 'lite-equip-supplier' },
+                  { label: 'Service Provider', value: currentSupplier, accent: !!currentSupplier, testId: 'lite-equip-supplier' },
+                  ...(selectedEquipment.purchased_from
+                    ? [{ label: 'Supplier (purchased from)', value: selectedEquipment.purchased_from, testId: 'lite-equip-purchased-from' }]
+                    : []),
                 ]}
               />
-              {/* Iter 216h114 — Per-machine supplier override (owners/managers only).
-                  Lets MOD managers route fault notifications to the
-                  correct supplier without leaving the drawer. */}
+              {/* Iter 216h114 — Per-machine SERVICE PROVIDER override (owners/managers
+                  only). Lets MOD managers route fault notifications to the
+                  correct servicing company without leaving the drawer. */}
               {canEditSupplier && (
                 <div className="mt-3" data-testid="lite-equip-supplier-editor">
                   {!editingSupplier ? (
@@ -288,7 +291,7 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
                       className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1.5 rounded-md border border-[var(--theme-border)] text-[var(--color-text-muted)] hover:text-[var(--theme-text)] hover:border-[var(--color-brand-cyan-hover)]"
                       data-testid="lite-equip-supplier-edit-btn"
                     >
-                      {currentSupplier ? 'Change supplier' : '+ Assign supplier'}
+                      {currentSupplier ? 'Change service provider' : '+ Assign service provider'}
                     </button>
                   ) : (
                     <SupplierEditor
@@ -544,7 +547,7 @@ const SupplierEditor = ({ options, current, saving, onSave, onCancel, brandAccen
         single
         value={value}
         onChange={setValue}
-        placeholder="Choose a supplier…"
+        placeholder="Choose a service provider…"
         testid="lite-equip-supplier-picker"
       />
       <label className="flex items-center gap-2 mt-2.5 text-[11px] text-[var(--color-text-muted)] cursor-pointer" data-testid="lite-equip-supplier-notify-toggle">
@@ -554,7 +557,7 @@ const SupplierEditor = ({ options, current, saving, onSave, onCancel, brandAccen
           onChange={(e) => setNotify(e.target.checked)}
           className="accent-cyan-500"
         />
-        Email the supplier about this assignment
+        Email the service provider about this assignment
       </label>
       {/* Iter 216h262 — if the picked name isn't in the org's
           directory, show an inline email field + "Add to directory"
@@ -567,7 +570,7 @@ const SupplierEditor = ({ options, current, saving, onSave, onCancel, brandAccen
           data-testid="lite-equip-supplier-not-in-directory"
         >
           <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-snug">
-            <b>&quot;{value}&quot;</b> isn&apos;t in your supplier directory yet.
+            <b>&quot;{value}&quot;</b> isn&apos;t in your service-provider directory yet.
             Add an email address below so fault notifications can be
             auto-routed to them.
           </p>
