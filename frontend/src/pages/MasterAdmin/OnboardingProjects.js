@@ -74,6 +74,8 @@ const OnboardingProjects = ({ types = [], onLaunchWizard }) => {
   const [active, setActive] = useState(null); // selected project for detail
   const [deleteTarget, setDeleteTarget] = useState(null); // project pending permanent delete
   const [deleting, setDeleting] = useState(false);
+  const [showPurge, setShowPurge] = useState(false);
+  const [purging, setPurging] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -107,6 +109,21 @@ const OnboardingProjects = ({ types = [], onLaunchWizard }) => {
       setDeleting(false);
     }
   };
+
+  const purgeArchived = async () => {
+    setPurging(true);
+    try {
+      const { data } = await axios.post(`${API}/onboarding/projects/purge-archived`);
+      notify.success(data.deleted ? `Deleted ${data.deleted} archived project${data.deleted === 1 ? '' : 's'}` : 'No archived projects to delete');
+      setShowPurge(false);
+      load();
+    } catch (e) {
+      notifyApiError(notify, e, 'Could not delete archived projects');
+    } finally {
+      setPurging(false);
+    }
+  };
+
 
   return (
     <div className="space-y-6" data-testid="onboarding-projects">
@@ -146,6 +163,9 @@ const OnboardingProjects = ({ types = [], onLaunchWizard }) => {
                 <SelectItem value="archived">Archived</SelectItem>
               </SelectContent>
             </Select>
+            <Button variant="outline" onClick={() => setShowPurge(true)} data-testid="onb-purge-archived-btn" className="h-9 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700">
+              <Trash2 size={15} className="mr-1.5" /> Delete all archived
+            </Button>
             <Button onClick={() => setShowCreate(true)} data-testid="onb-new-project-btn" className="h-9">
               <Plus size={15} className="mr-1.5" /> New project
             </Button>
@@ -206,6 +226,40 @@ const OnboardingProjects = ({ types = [], onLaunchWizard }) => {
           </div>
         )}
       </div>
+
+      {showPurge && (
+        <Dialog open onOpenChange={(o) => { if (!o) setShowPurge(false); }}>
+          <DialogContent data-testid="onb-purge-dialog">
+            <DialogHeader>
+              <DialogTitle>Delete all archived projects?</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm text-zinc-600">
+              <p>
+                This permanently removes <span className="font-semibold text-zinc-900">every archived</span> onboarding
+                project. Ideal for clearing out old test/demo projects in one go.
+              </p>
+              <p className="text-[13px] rounded-md bg-amber-50 border border-amber-200 text-amber-800 px-3 py-2">
+                It only deletes the onboarding checklist entries — it does <strong>not</strong> delete any customer
+                organisation, users, assets or live data. To include a live project, archive it first.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" onClick={() => setShowPurge(false)} data-testid="onb-purge-cancel" disabled={purging}>
+                Cancel
+              </Button>
+              <Button
+                onClick={purgeArchived}
+                disabled={purging}
+                className="bg-red-600 hover:bg-red-700 text-white"
+                data-testid="onb-purge-confirm"
+              >
+                {purging ? <Loader2 size={15} className="animate-spin mr-1.5" /> : <Trash2 size={15} className="mr-1.5" />}
+                Delete all archived
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {deleteTarget && (
         <Dialog open onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>

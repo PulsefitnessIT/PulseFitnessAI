@@ -1,3 +1,23 @@
+# ═══ 2026-08-07 · Master Admin Onboarding — "Delete all archived" bulk purge + preview→prod data-leak finding ═══
+Follow-on to the per-project permanent delete. User asked for a one-click "Delete all archived" cleanup, and flagged
+that the production test data was NOT entered by them (suspected preview→production leak).
+  • DATA-LEAK FINDING (confirmed): the EXACT 8 test onboarding projects in PRODUCTION (TEST_OnbCustomer_310408,
+    Curl Test Co, TESTONB5-*, Acme Test Gyms) also exist in the PREVIEW db (localhost:27017 / test_database) with
+    identical names AND identical 2026-06-24 timestamps → production was seeded from a copy/migration of the preview
+    DB (app name "fitness-ai-migrate" implies a migration). Escalated to support_agent (told user: separate prod
+    Mongo URL, don't migrate preview test data, contact support@emergent.sh with job id to confirm DB config).
+  • BACKEND routes/onboarding_projects.py: NEW POST /onboarding/projects/purge-archived (master/pulse only) →
+    delete_many(status=archived) + their onboarding_audit_events; returns {ok, deleted:N}. Tracking records only —
+    never orgs/users/assets/live data.
+  • FRONTEND pages/MasterAdmin/OnboardingProjects.js: NEW "Delete all archived" button (data-testid
+    onb-purge-archived-btn) next to New project → confirm Dialog (onb-purge-dialog / onb-purge-cancel /
+    onb-purge-confirm) → POST purge-archived → toast "Deleted N archived project(s)" + reload.
+  • VERIFIED (curl, preview): archived BEFORE=4 → purge {deleted:4} → archived AFTER=0. Babel + py OK. (Preview's
+    archived test projects were cleared as part of the test.)
+⚠️ PREVIEW ONLY — user must REDEPLOY, then use the button in PRODUCTION Master Admin → Onboarding (archive the
+  remaining in_progress test projects first, then "Delete all archived").
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-08-07 · Master Admin Onboarding — permanent-delete for (test) projects — curl-verified ═══
 User saw leftover TEST/demo onboarding projects (TEST_OnbCustomer, Curl Test Co, TESTONB5-*, Acme Test Gyms) in
 PRODUCTION Master Admin → Onboarding and asked how to delete them. Previously the only action was a soft-archive

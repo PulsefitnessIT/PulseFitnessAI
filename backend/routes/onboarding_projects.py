@@ -413,6 +413,26 @@ async def archive_project(
     return {"ok": True}
 
 
+@router.post("/onboarding/projects/purge-archived")
+async def purge_archived_projects(user: dict = Depends(get_current_user)) -> dict:
+    """Permanently delete ALL archived onboarding projects in one pass.
+
+    Cleanup helper for clearing out old/test projects. Only removes the
+    onboarding TRACKING records (+ their audit events) — never touches the
+    underlying organisations, users, assets or any live data.
+    """
+    _require_pulse_or_master(user)
+    ids = [d["id"] async for d in db.onboarding_projects.find(
+        {"status": "archived"}, {"_id": 0, "id": 1}
+    )]
+    if not ids:
+        return {"ok": True, "deleted": 0}
+    res = await db.onboarding_projects.delete_many({"id": {"$in": ids}})
+    await db.onboarding_audit_events.delete_many({"project_id": {"$in": ids}})
+    return {"ok": True, "deleted": res.deleted_count}
+
+
+
 # ── Dashboard ────────────────────────────────────────────────────────────────
 
 @router.get("/onboarding/dashboard")
