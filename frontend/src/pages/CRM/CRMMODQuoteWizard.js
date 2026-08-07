@@ -101,6 +101,9 @@ function RateCardEditor({ API, headers, c, isDark, rateCard, onSaved, onClose })
 /* ═══ MOD AUTO QUOTE WIZARD ═══ */
 export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, onCreated }) {
   const [step, setStep] = useState(1);
+  const [createdQuoteId, setCreatedQuoteId] = useState(null);
+  const [pdfUrl, setPdfUrl] = useState(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [sites, setSites] = useState([]);
   const [rateCard, setRateCard] = useState([]);
   const [siteId, setSiteId] = useState('');
@@ -267,10 +270,28 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
       };
       const r = await axios.post(`${API}/crm/mod-quote/generate`, payload, { headers: headers() });
       notify.success(`MOD quote ${r.data.quote.quote_number} created${r.data.contract ? ' + service contract' : ''}`);
-      onCreated && onCreated(r.data.quote.id);
+      // Show a live PDF preview (with TL numbers) before sending to Leidos —
+      // defer onCreated (which closes the wizard) until the user is done.
+      setCreatedQuoteId(r.data.quote.id);
+      setStep(4);
+      loadPdf(r.data.quote.id);
     } catch (e) { notify.error(e.response?.data?.detail || 'Could not generate quote'); }
     setGenerating(false);
   };
+
+  const loadPdf = async (qid) => {
+    setPdfLoading(true);
+    try {
+      const r = await axios.get(`${API}/crm/mod-quote/${qid}/pdf`, { headers: headers(), responseType: 'blob' });
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+      setPdfUrl(URL.createObjectURL(r.data));
+    } catch { notify.error('Could not load the PDF preview'); }
+    setPdfLoading(false);
+  };
+
+  const finishWizard = () => { if (onCreated) onCreated(createdQuoteId); };
+
+  useEffect(() => () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); }, [pdfUrl]);
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
@@ -299,10 +320,10 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
 
         {/* Stepper */}
         <div className="flex items-center gap-2 px-6 py-3 text-[11px]" style={{ color: c.textDim }}>
-          {['Contract & Site', 'Equipment & Pricing', 'Review & Generate'].map((s, i) => (
+          {['Contract & Site', 'Equipment & Pricing', 'Review & Generate', 'Preview & Send'].map((s, i) => (
             <React.Fragment key={s}>
               <span className={step === i + 1 ? 'font-semibold' : ''} style={{ color: step >= i + 1 ? 'var(--color-info-ios)' : c.textDim }}>{i + 1}. {s}</span>
-              {i < 2 && <ChevronRight size={12} />}
+              {i < 3 && <ChevronRight size={12} />}
             </React.Fragment>
           ))}
         </div>
@@ -517,12 +538,30 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
               </div>
             </div>
           )}
+          {/* STEP 4 — live PDF preview (TL numbers) before sending to Leidos */}
+          {step === 4 && (
+            <div data-testid="mod-step-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs flex items-center gap-1.5" style={{ color: c.textDim }}>
+                  <CheckCircle2 size={13} style={{ color: 'var(--color-success-alt)' }} /> Quote created. Review the PDF below — <b>TL numbers are included</b> — before you send it to Leidos.
+                </p>
+                {pdfUrl && (
+                  <a href={pdfUrl} download className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: 'var(--color-info-ios)' }} data-testid="mod-pdf-download">
+                    <FileText size={12} /> Download PDF
+                  </a>
+                )}
+              </div>
+              <div className="rounded-lg border overflow-hidden" style={{ borderColor: c.border, height: '55vh' }} data-testid="mod-pdf-preview">
+                {(pdfLoading || !pdfUrl)
+                  ? <div className="h-full flex items-center justify-center text-xs" style={{ color: c.textDim }}><Loader2 size={16} className="animate-spin mr-2" /> Building your quote PDF…</div>
+                  : <iframe title="MOD Quote PDF preview" src={pdfUrl} className="w-full h-full" style={{ border: 0 }} />}
+              </div>
+            </div>
+          )}
         </div>
-
-        {/* Footer */}
         <div className="px-6 py-4 border-t flex items-center justify-between" style={{ borderColor: c.border }}>
-          <button onClick={() => step > 1 ? setStep(step - 1) : onClose()} className="flex items-center gap-1 px-3 py-2 text-xs rounded-md" style={{ color: c.textMuted }} data-testid="mod-back-btn">
-            <ChevronLeft size={14} /> {step > 1 ? 'Back' : 'Cancel'}
+          <button onClick={() => (step === 4 ? finishWizard() : (step > 1 ? setStep(step - 1) : onClose()))} className="flex items-center gap-1 px-3 py-2 text-xs rounded-md" style={{ color: c.textMuted }} data-testid="mod-back-btn">
+            {step === 4 ? 'Close' : <><ChevronLeft size={14} /> {step > 1 ? 'Back' : 'Cancel'}</>}
           </button>
           {step === 1 && (
             <button onClick={loadEquipment} disabled={!siteId || loadingEq} className="btn-primary" data-testid="mod-next-1">
@@ -537,6 +576,11 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
           {step === 3 && (
             <button onClick={generate} disabled={generating} className="btn-primary" data-testid="mod-generate-btn">
               {generating ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} Generate Quote
+            </button>
+          )}
+          {step === 4 && (
+            <button onClick={finishWizard} className="btn-primary" data-testid="mod-finish-btn">
+              <CheckCircle2 size={14} /> Done — open quote
             </button>
           )}
         </div>

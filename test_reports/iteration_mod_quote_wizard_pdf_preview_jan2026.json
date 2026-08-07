@@ -1,0 +1,32 @@
+{
+  "summary": "Verified MOD Service Quote Wizard step-4 live PDF preview end-to-end. Logged in as master admin, self-switched to Pulse Fitness portal, opened CRM Corporate → Quotes → 'MOD Service Quote', selected 'Kifaru Base (AI Import Test)' + contract Type A, loaded equipment (57 auto-matched by MOD Code), advanced to Review, then Generate. Wizard correctly moved to STEP 4 (data-testid mod-step-4) instead of closing. GET /api/crm/mod-quote/{quote_id}/pdf returned HTTP 200 with content-type application/pdf. mod-pdf-preview panel is rendered with an <iframe src='blob:...'>, and mod-pdf-download link href is the same blob URL. The step-4 header confirms 'TL numbers are included'. Clicking 'Done — open quote' (mod-finish-btn) closed the wizard (onCreated fired). Regression: earlier steps (site/contract → auto-match → review totals → generate) still work; generate created quote id 341b3fbc-f8eb-469e-8105-4349e12c1d65 and a Type A service contract for Kifaru.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "CRMMODQuoteWizard step-4 <iframe>",
+        "issue": "Chromium logs a Content Security Policy violation: \"Framing 'blob:https://pulse-tender-system.preview.emergentagent.com/...' violates the following CSP directive: frame-src 'self' https://challenges.cloudflare.com https://hcaptcha.com https://js.stripe.com...\". The iframe element receives the correct blob src but the browser refuses to render the PDF inside it, so the preview panel appears blank (only the outer border/header are visible). The Download PDF link still works and downloads a valid application/pdf. Fix: add 'blob:' to the frame-src CSP directive (e.g. index.html <meta http-equiv=\"Content-Security-Policy\"> or the server response header) so the freshly-generated PDF renders inline in the preview iframe.",
+        "selector": "[data-testid=\"mod-pdf-preview\"] iframe",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Add 'blob:' to the frame-src Content Security Policy so the mod-pdf-preview iframe can actually render the generated PDF (currently CSP-blocked, panel appears empty even though the endpoint & blob URL are correct).",
+    "Consider also adding a lightweight loading skeleton inside the preview panel while pdfLoading===true; today the empty state is indistinguishable from the CSP-blocked state."
+  ],
+  "critical_code_review_comments": [
+    "CRMMODQuoteWizard.js loadPdf swallows errors with an empty catch — for a 401/403 (cross-login token race described in the request) the user just sees an empty iframe with no error toast beyond the generic 'Could not load the PDF preview'. Consider retrying once after a short delay if the cross-login token is still hydrating.",
+    "generate() proceeds to setStep(4) even if the network call to the PDF endpoint would later fail; consider fetching the PDF before the step transition or showing a retry button in the panel."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100% (with CSP caveat)"},
+  "test_credentials": "Master Admin admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from problem statement)",
+  "seed_data_creation": "Generated one real MOD quote id 341b3fbc-f8eb-469e-8105-4349e12c1d65 for site mod-site-test-kifaru (Kifaru Base (AI Import Test)) + a Type A service contract, as expected per the request (one generated quote).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The MOD quote wizard now has 4 steps and step 4 correctly shows the PDF preview + Download link + Done button. GET /api/crm/mod-quote/{id}/pdf works (200, application/pdf) and blob URL is set on both the iframe and download anchor. Only issue found: frame-src CSP does not allow blob:, so the iframe cannot render the PDF inside the browser even though the URL is correct. Cookie consent + Install App banners intercept clicks in the wizard footer — remove them (or use force=True after removing cookie-consent-banner) before clicking mod-next-2 / mod-generate-btn / mod-finish-btn in future Playwright runs."
+}
