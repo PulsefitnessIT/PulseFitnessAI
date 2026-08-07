@@ -1,0 +1,19 @@
+{
+  "summary": "Frontend-only E2E of the new CRM Tenders guided wizard (default) + quick-form escape. All 3 flows verified end-to-end via the production public URL as master admin: (1) Guided wizard with method 'later' — Basics→Customer→Questions→AI help→Review, Next disabled until title present, Back navigation works, Create POSTs to /api/crm/v2/tenders (200) and opens the full tender editor (tabs Overview/Timeline/Questions/Documents/Strategy) for the new tender. (2) Quick-form escape via tender-wizard-mode-toggle renders the original quick create form, submitting it creates the tender (POST 200) and opens the editor. (3) AI extraction path via paste — after Create, POST /api/crm/v2/tenders/{id}/ai/parse returned 200 and the editor showed Questions (3), confirming parsed questions were persisted. No console errors relevant to the flow (only benign CSP notices from third-party analytics blocked by CSP, unrelated to this feature).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CRMTenders.js is 2272 lines — long-standing size issue; consider splitting TenderList / TenderDetail / analytics into separate files (not blocking).",
+    "finishWizard swallows upload/parse errors with generic toasts (acceptable graceful behavior per spec)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (master admin)",
+  "seed_data_creation": "Created 3 QA tenders in Pulse Fitness org: 'QA Guided Tender ...', 'QA Quick Tender ...', 'QA Paste Tender ...' — safe to clean up.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Guided tender wizard flow is fully green. testids used: create-tender-btn, create-tender-dialog, tender-create-wizard, tender-wizard-steps, tender-wiz-step-1..5, tender-wiz-title, tender-wiz-next, tender-wiz-back, tender-wiz-create, tender-wiz-qmethod-upload/-paste/-later, tender-wiz-file-input, tender-wiz-paste, tender-wizard-mode-toggle. Quick-form Create Tender button has no data-testid — tests find it via text 'Create Tender' inside create-tender-dialog (works, but adding data-testid=\"tender-quick-create-btn\" would harden regression).",
+  "rca of the issue": "N/A — no issues found."
+}

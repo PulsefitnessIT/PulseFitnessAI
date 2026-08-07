@@ -39,6 +39,14 @@ function TenderList({ onSelect, c, isDark, API, headers, navigateTo }) {
   // Iter 220an — deep-linking: load deals so the create dialog can offer
   // an "Opportunity" dropdown filtered by the selected company.
   const [opportunities, setOpportunities] = useState([]);
+  // Guided create wizard (default) with a quick-form escape for power users.
+  const [wizardMode, setWizardMode] = useState('wizard'); // wizard | quick
+  const [wizStep, setWizStep] = useState(1);
+  const [qMethod, setQMethod] = useState('upload'); // upload | paste | later
+  const [ittFile, setIttFile] = useState(null);
+  const [pasteText, setPasteText] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createMsg, setCreateMsg] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -83,7 +91,48 @@ function TenderList({ onSelect, c, isDark, API, headers, navigateTo }) {
     setSaving(false);
   };
 
-  const openCreate = () => { loadCompanies(); loadOpportunities(''); setShowCreate(true); };
+  const openCreate = () => {
+    loadCompanies(); loadOpportunities('');
+    setWizardMode('wizard'); setWizStep(1);
+    setQMethod('upload'); setIttFile(null); setPasteText('');
+    setShowCreate(true);
+  };
+
+  const finishWizard = async () => {
+    if (!form.title.trim()) { setWizStep(1); return; }
+    setCreating(true);
+    try {
+      setCreateMsg('Creating your tender…');
+      const res = await axios.post(`${API}/crm/v2/tenders`, form, { headers: headers() });
+      const id = res.data.id;
+      if (qMethod === 'upload' && ittFile) {
+        setCreateMsg('Uploading your document…');
+        let docId = null;
+        try {
+          const fd = new FormData(); fd.append('file', ittFile);
+          const up = await axios.post(`${API}/crm/v2/tenders/${id}/documents?category=tender_pack`, fd,
+            { headers: { ...headers(), 'Content-Type': 'multipart/form-data' } });
+          docId = up.data?.id || up.data?.document?.id;
+        } catch { notify.error('Document upload failed', 'No worries — you can upload it in the editor.'); }
+        if (docId) {
+          setCreateMsg('Reading it and pulling out the questions with AI…');
+          try { await axios.post(`${API}/crm/v2/tenders/${id}/ai/parse-from-doc`, { doc_id: docId }, { headers: headers() }); }
+          catch { notify.error('Auto-extract didn’t finish', 'Open the tender and click “Parse questions”.'); }
+        }
+      } else if (qMethod === 'paste' && pasteText.trim()) {
+        setCreateMsg('Pulling the questions out of your text…');
+        try { await axios.post(`${API}/crm/v2/tenders/${id}/ai/parse`, { text: pasteText }, { headers: headers() }); }
+        catch { notify.error('Auto-extract didn’t finish', 'Open the tender and paste the text again.'); }
+      }
+      setShowCreate(false);
+      onSelect(id);
+    } catch (e) {
+      if (!notifyPicklistError(e, notify)) notify.error('Could not create tender', e?.response?.data?.detail || e.message);
+    } finally {
+      setCreating(false); setCreateMsg('');
+    }
+  };
+
   const inputStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${isDark ? 'var(--color-surface-dark-3)' : 'var(--color-border-alt)'}`, color: c.text };
 
   return (
@@ -211,9 +260,198 @@ function TenderList({ onSelect, c, isDark, API, headers, navigateTo }) {
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowCreate(false)}>
           <div className="w-full max-w-lg mx-4 rounded-xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto" style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }} onClick={e => e.stopPropagation()} data-testid="create-tender-dialog">
             <div className="sticky top-0 z-10 -mx-6 -mt-6 px-6 pt-6 pb-3 mb-4 flex items-center justify-between border-b" style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', borderColor: c.border }}>
-              <h2 className="text-lg font-semibold" style={{ color: c.text }}>New Tender</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-semibold" style={{ color: c.text }}>New Tender</h2>
+                <button
+                  type="button"
+                  onClick={() => setWizardMode(wizardMode === 'wizard' ? 'quick' : 'wizard')}
+                  className="text-[11px] font-semibold px-2 py-1 rounded-md border"
+                  style={{ color: c.textMuted, borderColor: c.border }}
+                  data-testid="tender-wizard-mode-toggle"
+                >
+                  {wizardMode === 'wizard' ? 'Switch to quick form' : 'Switch to guided setup'}
+                </button>
+              </div>
               <button onClick={() => setShowCreate(false)} className="p-1 hover:opacity-70" style={{ color: c.textDim }} data-testid="create-tender-close"><X size={16} /></button>
             </div>
+
+            {/* ── Guided wizard (default) ─────────────────────────── */}
+            {wizardMode === 'wizard' && (
+            <div data-testid="tender-create-wizard">
+              {/* Step indicator */}
+              <div className="flex items-center gap-1.5 mb-5" data-testid="tender-wizard-steps">
+                {['Basics', 'Customer', 'Questions', 'AI help', 'Review'].map((lbl, i) => {
+                  const n = i + 1; const active = wizStep === n; const done = wizStep > n;
+                  return (
+                    <div key={lbl} className="flex items-center gap-1.5">
+                      <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold`}
+                        style={active ? { background: 'var(--color-info-ios)', color: '#fff' } : done ? { background: 'var(--color-success-alt)', color: '#fff' } : { background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-200)', color: c.textDim }}>
+                        {done ? '✓' : n}
+                      </span>
+                      <span className="text-[11px] font-semibold hidden sm:inline" style={{ color: active ? 'var(--color-info-ios)' : done ? 'var(--color-success-alt)' : c.textDim }}>{lbl}</span>
+                      {n < 5 && <span className="w-4 h-px" style={{ background: c.border }} />}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Step 1 — Basics */}
+              {wizStep === 1 && (
+                <div className="space-y-3" data-testid="tender-wiz-step-1">
+                  <p className="text-xs" style={{ color: c.textDim }}>Let’s start with the essentials. You can change any of this later.</p>
+                  <div>
+                    <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Tender Title *</label>
+                    <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Leisure Centre Equipment Supply & Install" className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle} data-testid="tender-wiz-title" autoFocus />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Type</label>
+                      <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle}>
+                        {TENDER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Issuer</label>
+                      <input value={form.issuer} onChange={e => setForm({ ...form, issuer: e.target.value })} placeholder="e.g. Birmingham City Council" className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Submission deadline</label>
+                    <input type="date" value={form.deadline || ''} onChange={e => setForm({ ...form, deadline: e.target.value })} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle} />
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2 — Customer / deal */}
+              {wizStep === 2 && (
+                <div className="space-y-3" data-testid="tender-wiz-step-2">
+                  <p className="text-xs" style={{ color: c.textDim }}>Link this tender to a customer and deal so everything stays connected. Not sure yet? Just skip — you can link it anytime.</p>
+                  <div>
+                    <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Customer / Company</label>
+                    <select value={form.company_id || ''} onChange={(e) => { const cid = e.target.value; setForm({ ...form, company_id: cid, opportunity_id: '' }); loadOpportunities(cid); }} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle} data-testid="create-tender-company-select">
+                      <option value="">None (skip for now)</option>
+                      {companies.map(co => <option key={co.id} value={co.id}>{co.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Deal / Opportunity</label>
+                    <select value={form.opportunity_id || ''} onChange={e => setForm({ ...form, opportunity_id: e.target.value })} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle} data-testid="create-tender-opportunity-select">
+                      <option value="">None (skip for now)</option>
+                      {opportunities.map(op => <option key={op.id} value={op.id}>{op.title} {op.stage ? `· ${op.stage}` : ''}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3 — Questions */}
+              {wizStep === 3 && (
+                <div className="space-y-3" data-testid="tender-wiz-step-3">
+                  <p className="text-xs" style={{ color: c.textDim }}>How do you want to add the tender’s questions? This is where the magic happens — our AI reads the pack and pulls out every question, weighting and word limit.</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      ['upload', 'Upload the document', 'Best — drop the ITT/pack, AI extracts the questions'],
+                      ['paste', 'Paste the text', 'Copy the questions section and paste it in'],
+                      ['later', 'I’ll add later', 'Start empty and add questions in the editor'],
+                    ].map(([id, lbl, desc]) => (
+                      <button key={id} type="button" onClick={() => setQMethod(id)}
+                        className={`p-2.5 rounded-md text-left border transition-all ${qMethod === id ? 'ring-2 ring-[var(--color-info-ios)]' : ''}`}
+                        style={{ background: isDark ? 'var(--color-ink-alt)' : 'var(--color-neutral-50)', borderColor: qMethod === id ? 'var(--color-info-ios)' : c.border }}
+                        data-testid={`tender-wiz-qmethod-${id}`}>
+                        <p className="text-xs font-semibold" style={{ color: c.text }}>{lbl}</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: c.textDim }}>{desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                  {qMethod === 'upload' && (
+                    <label className="block mt-2 border-2 border-dashed rounded-lg p-4 text-center cursor-pointer" style={{ borderColor: c.border }} data-testid="tender-wiz-upload-zone">
+                      <input type="file" accept=".pdf,.docx,.doc,.txt" className="hidden" onChange={e => setIttFile(e.target.files?.[0] || null)} data-testid="tender-wiz-file-input" />
+                      <Upload size={18} className="mx-auto mb-1" style={{ color: 'var(--color-info-ios)' }} />
+                      <p className="text-xs font-semibold" style={{ color: c.text }}>{ittFile ? ittFile.name : 'Choose the tender document'}</p>
+                      <p className="text-[10px] mt-0.5" style={{ color: c.textDim }}>PDF or Word · we’ll read it and extract the questions automatically</p>
+                    </label>
+                  )}
+                  {qMethod === 'paste' && (
+                    <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} rows={5} placeholder="Paste the questions / scoring section here…" className="w-full mt-2 px-3 py-2 text-sm rounded-md" style={inputStyle} data-testid="tender-wiz-paste" />
+                  )}
+                </div>
+              )}
+
+              {/* Step 4 — AI help */}
+              {wizStep === 4 && (
+                <div className="space-y-3" data-testid="tender-wiz-step-4">
+                  <p className="text-xs" style={{ color: c.textDim }}>Choose how much the AI does for you when drafting answers, and the tone of voice.</p>
+                  <div>
+                    <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>AI Mode</label>
+                    <div className="grid grid-cols-3 gap-2 mt-1">
+                      {AI_MODES.map(m => (
+                        <button key={m.id} type="button" onClick={() => setForm({ ...form, ai_mode: m.id })}
+                          className={`p-2.5 rounded-md text-left border transition-all ${form.ai_mode === m.id ? 'ring-2 ring-[var(--color-info-ios)]' : ''}`}
+                          style={{ background: isDark ? 'var(--color-ink-alt)' : 'var(--color-neutral-50)', borderColor: form.ai_mode === m.id ? 'var(--color-info-ios)' : c.border }}>
+                          <p className="text-xs font-medium" style={{ color: m.color }}>{m.label}</p>
+                          <p className="text-[10px] mt-0.5" style={{ color: c.textDim }}>{m.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Tone</label>
+                    <div className="flex gap-1 mt-1">
+                      {TONES.map(t => (
+                        <button key={t} type="button" onClick={() => setForm({ ...form, tone: t })}
+                          className={`px-3 py-1.5 text-xs rounded-md ${form.tone === t ? 'bg-[var(--color-info-ios)] text-white' : ''}`}
+                          style={form.tone !== t ? { background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)', color: c.textMuted } : {}}>
+                          {t.charAt(0).toUpperCase() + t.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 5 — Review */}
+              {wizStep === 5 && (
+                <div className="space-y-2" data-testid="tender-wiz-step-5">
+                  <p className="text-xs mb-1" style={{ color: c.textDim }}>All set — here’s a quick recap. Hit create and we’ll open your tender, ready to write.</p>
+                  {[
+                    ['Title', form.title || '—'],
+                    ['Type', form.type],
+                    ['Issuer', form.issuer || '—'],
+                    ['Deadline', form.deadline || '—'],
+                    ['Customer', companies.find(co => co.id === form.company_id)?.name || 'Not linked'],
+                    ['Questions', qMethod === 'upload' ? (ittFile ? `From “${ittFile.name}”` : 'Upload (no file chosen)') : qMethod === 'paste' ? (pasteText.trim() ? 'From pasted text' : 'Paste (empty)') : 'Add later'],
+                    ['AI Mode', (AI_MODES.find(m => m.id === form.ai_mode) || {}).label || form.ai_mode],
+                    ['Tone', form.tone],
+                  ].map(([k, v]) => (
+                    <div key={k} className="flex items-center justify-between text-xs py-1 border-b" style={{ borderColor: c.border }}>
+                      <span style={{ color: c.textDim }}>{k}</span>
+                      <span className="font-semibold text-right ml-3 truncate" style={{ color: c.text }}>{v}</span>
+                    </div>
+                  ))}
+                  {createMsg && <p className="text-xs mt-2 flex items-center gap-1.5" style={{ color: 'var(--color-info-ios)' }}><Loader2 size={12} className="animate-spin" />{createMsg}</p>}
+                </div>
+              )}
+
+              {/* Wizard footer */}
+              <div className="flex items-center justify-between mt-6">
+                <button onClick={() => (wizStep > 1 ? setWizStep(wizStep - 1) : setShowCreate(false))} disabled={creating} className="px-3 py-2 text-sm" style={{ color: c.textMuted }} data-testid="tender-wiz-back">
+                  {wizStep > 1 ? 'Back' : 'Cancel'}
+                </button>
+                {wizStep < 5 ? (
+                  <button onClick={() => setWizStep(wizStep + 1)} disabled={wizStep === 1 && !form.title.trim()} className="px-4 py-2 bg-[var(--color-info-ios)] text-white text-sm font-medium rounded-md disabled:opacity-50 inline-flex items-center gap-1.5" data-testid="tender-wiz-next">
+                    Next <ChevronRight size={14} />
+                  </button>
+                ) : (
+                  <button onClick={finishWizard} disabled={creating || !form.title.trim()} className="px-4 py-2 bg-[var(--color-info-ios)] text-white text-sm font-medium rounded-md disabled:opacity-50 inline-flex items-center gap-1.5" data-testid="tender-wiz-create">
+                    {creating ? <><Loader2 size={14} className="animate-spin" /> Creating…</> : <>Create tender</>}
+                  </button>
+                )}
+              </div>
+            </div>
+            )}
+
+            {/* ── Quick form (power-user escape) ──────────────────── */}
+            {wizardMode === 'quick' && (
+            <>
             <div className="space-y-3">
               <div>
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Tender Title *</label>
@@ -234,36 +472,16 @@ function TenderList({ onSelect, c, isDark, API, headers, navigateTo }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Link to Company</label>
-                  <select
-                    value={form.company_id || ''}
-                    onChange={(e) => {
-                      const cid = e.target.value;
-                      // Iter 220an — reset opportunity when switching company
-                      // so we never persist an inconsistent link.
-                      setForm({ ...form, company_id: cid, opportunity_id: '' });
-                      loadOpportunities(cid);
-                    }}
-                    className="w-full mt-1 px-3 py-2 text-sm rounded-md"
-                    style={inputStyle}
-                    data-testid="create-tender-company-select"
-                  >
+                  <select value={form.company_id || ''} onChange={(e) => { const cid = e.target.value; setForm({ ...form, company_id: cid, opportunity_id: '' }); loadOpportunities(cid); }} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle}>
                     <option value="">None</option>
                     {companies.map(co => <option key={co.id} value={co.id}>{co.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Link to Deal (Opportunity)</label>
-                  <select
-                    value={form.opportunity_id || ''}
-                    onChange={e => setForm({ ...form, opportunity_id: e.target.value })}
-                    className="w-full mt-1 px-3 py-2 text-sm rounded-md"
-                    style={inputStyle}
-                    data-testid="create-tender-opportunity-select"
-                  >
+                  <select value={form.opportunity_id || ''} onChange={e => setForm({ ...form, opportunity_id: e.target.value })} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={inputStyle}>
                     <option value="">None</option>
-                    {opportunities.map(op => (
-                      <option key={op.id} value={op.id}>{op.title} {op.stage ? `· ${op.stage}` : ''}</option>
-                    ))}
+                    {opportunities.map(op => (<option key={op.id} value={op.id}>{op.title} {op.stage ? `· ${op.stage}` : ''}</option>))}
                   </select>
                 </div>
               </div>
@@ -303,6 +521,8 @@ function TenderList({ onSelect, c, isDark, API, headers, navigateTo }) {
                 {saving ? 'Creating...' : 'Create Tender'}
               </button>
             </div>
+            </>
+            )}
           </div>
         </div>
       )}
