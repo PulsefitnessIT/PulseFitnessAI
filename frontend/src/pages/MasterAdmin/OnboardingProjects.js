@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import {
   Rocket, Plus, Building2, AlertTriangle, CheckCircle2, Clock, Users2,
-  ListChecks, X, Loader2, Sparkles, ChevronRight, Mail, Send,
+  ListChecks, X, Loader2, Sparkles, ChevronRight, Mail, Send, Trash2,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -72,6 +72,8 @@ const OnboardingProjects = ({ types = [], onLaunchWizard }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreate, setShowCreate] = useState(false);
   const [active, setActive] = useState(null); // selected project for detail
+  const [deleteTarget, setDeleteTarget] = useState(null); // project pending permanent delete
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -90,6 +92,21 @@ const OnboardingProjects = ({ types = [], onLaunchWizard }) => {
   }, [statusFilter]);
 
   useEffect(() => { load(); }, [load]);
+
+  const deleteProject = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await axios.delete(`${API}/onboarding/projects/${deleteTarget.id}`, { params: { permanent: true } });
+      notify.success(`Deleted "${deleteTarget.customer_name}"`);
+      setDeleteTarget(null);
+      load();
+    } catch (e) {
+      notifyApiError(notify, e, 'Could not delete project');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-6" data-testid="onboarding-projects">
@@ -172,6 +189,15 @@ const OnboardingProjects = ({ types = [], onLaunchWizard }) => {
                         )}
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(p); }}
+                      className="shrink-0 p-1.5 rounded-md text-zinc-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      title="Delete onboarding project"
+                      data-testid={`onb-project-delete-${p.id}`}
+                    >
+                      <Trash2 size={16} />
+                    </button>
                     <ChevronRight size={16} className="text-zinc-300 shrink-0" />
                   </div>
                 </Card>
@@ -180,6 +206,40 @@ const OnboardingProjects = ({ types = [], onLaunchWizard }) => {
           </div>
         )}
       </div>
+
+      {deleteTarget && (
+        <Dialog open onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+          <DialogContent data-testid="onb-delete-dialog">
+            <DialogHeader>
+              <DialogTitle>Delete onboarding project?</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm text-zinc-600">
+              <p>
+                This permanently removes the onboarding tracking project{' '}
+                <span className="font-semibold text-zinc-900">"{deleteTarget.customer_name}"</span>.
+              </p>
+              <p className="text-[13px] rounded-md bg-amber-50 border border-amber-200 text-amber-800 px-3 py-2">
+                It only deletes the onboarding checklist entry — it does <strong>not</strong> delete the customer's
+                organisation, users, assets or any live data.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" onClick={() => setDeleteTarget(null)} data-testid="onb-delete-cancel" disabled={deleting}>
+                Cancel
+              </Button>
+              <Button
+                onClick={deleteProject}
+                disabled={deleting}
+                className="bg-red-600 hover:bg-red-700 text-white"
+                data-testid="onb-delete-confirm"
+              >
+                {deleting ? <Loader2 size={15} className="animate-spin mr-1.5" /> : <Trash2 size={15} className="mr-1.5" />}
+                Delete permanently
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {showCreate && (
         <CreateDialog

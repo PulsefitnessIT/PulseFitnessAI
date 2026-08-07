@@ -1,3 +1,19 @@
+# ═══ 2026-08-07 · Master Admin Onboarding — permanent-delete for (test) projects — curl-verified ═══
+User saw leftover TEST/demo onboarding projects (TEST_OnbCustomer, Curl Test Co, TESTONB5-*, Acme Test Gyms) in
+PRODUCTION Master Admin → Onboarding and asked how to delete them. Previously the only action was a soft-archive
+(status=archived) which still showed under "All statuses"; there was no per-row delete in the UI.
+  • BACKEND routes/onboarding_projects.py DELETE /onboarding/projects/{id} now accepts ?permanent=true → hard-deletes
+    the onboarding_projects doc + its onboarding_audit_events. Default (no flag) still soft-archives. Master/pulse only.
+    IMPORTANT: only removes the onboarding TRACKING project — never the org/users/assets/live data.
+  • FRONTEND pages/MasterAdmin/OnboardingProjects.js: each project card now has a trash button
+    (data-testid onb-project-delete-<id>, stopPropagation so it doesn't open detail) → confirm Dialog
+    (onb-delete-dialog / onb-delete-cancel / onb-delete-confirm) explaining it deletes only the checklist entry, then
+    DELETE ?permanent=true and reloads.
+  • VERIFIED (curl, preview): created throwaway project → permanent delete {ok,deleted} → GET returns 404. Babel + py OK.
+⚠️ PREVIEW ONLY — the test projects are in PRODUCTION's separate DB, so the user must REDEPLOY, then delete them from
+  the production Master Admin UI. (I cannot touch production data from preview.)
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-08-07 · CRM Tenders — Coverage panel "Rank by" toggle (Tender value ↔ Win rate) — babel-verified ═══
 Added a client-side sort toggle to the Tenders "Territory Coverage" panel so reps can be ranked by win-rate.
   • FRONTEND components/CRM/TenderCoveragePanel.js: new sortBy state ('value' default | 'win_rate'); a "Rank by"

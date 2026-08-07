@@ -389,11 +389,22 @@ async def approve_go_live(project_id: str, user: dict = Depends(get_current_user
 
 
 @router.delete("/onboarding/projects/{project_id}")
-async def archive_project(project_id: str, user: dict = Depends(get_current_user)) -> dict:
+async def archive_project(
+    project_id: str,
+    permanent: bool = Query(False),
+    user: dict = Depends(get_current_user),
+) -> dict:
     _require_pulse_or_master(user)
     doc = await db.onboarding_projects.find_one({"id": project_id}, {"_id": 0, "id": 1})
     if not doc:
         raise HTTPException(status_code=404, detail="Project not found")
+    if permanent:
+        # Hard-delete the onboarding TRACKING project only. This never touches
+        # the underlying organisation/customer records — it just removes the
+        # onboarding checklist entry (used to clear out test/demo projects).
+        await db.onboarding_projects.delete_one({"id": project_id})
+        await db.onboarding_audit_events.delete_many({"project_id": project_id})
+        return {"ok": True, "deleted": True}
     # Soft-archive only — never touches the underlying organisation/records.
     await db.onboarding_projects.update_one(
         {"id": project_id}, {"$set": {"status": "archived", "updated_at": _now()}}
