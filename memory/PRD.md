@@ -1,3 +1,24 @@
+# ═══ 2026-08-07 · CRM Tenders — dummy-proof GUIDED create wizard (default) + quick-form escape — testing_agent 100% ═══
+Replaced the plain 'New Tender' pop-up with a friendly 5-step wizard that feeds the SAME full editor (no capability lost).
+  • FRONTEND CRMTenders.js (TenderList): wizardMode state (default 'wizard', toggle 'quick' via data-testid
+    tender-wizard-mode-toggle). Steps (tender-wizard-steps / tender-wiz-step-1..5):
+      1 Basics (title*/type/issuer/deadline), 2 Customer (company+opportunity, skippable),
+      3 Questions (choice cards tender-wiz-qmethod-upload/-paste/-later → drop zone tender-wiz-file-input OR
+        textarea tender-wiz-paste), 4 AI help (ai_mode grid + tone), 5 Review recap.
+    Next (tender-wiz-next) disabled until title set; Back (tender-wiz-back). finishWizard(): POST /crm/v2/tenders →
+    if upload: POST /documents?category=tender_pack then /ai/parse-from-doc; if paste: /ai/parse → onSelect(id) opens
+    the full editor. AI/upload failures degrade gracefully (tender still created, editor still opens). The original
+    quick form is preserved verbatim under wizardMode==='quick' (Create Tender via handleCreate).
+  • VERIFIED: testing_agent iteration_crm_tender_guided_wizard_jan2026.json — 100% FE: guided ('later') create→editor
+    (Overview/Timeline/Questions/Documents/Strategy tabs); quick-form escape create→editor; paste path → /ai/parse 200,
+    editor showed Questions(3). Babel OK, no tail corruption (file 2272 lines). + screenshots of steps 1/3/5.
+  BACKLOG (review): CRMTenders.js is large (2272 lines) — split candidate; quick-form 'Create Tender' btn lacks a
+  data-testid (tests match by text) — add tender-quick-create-btn to harden.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY. STILL PENDING from the 4-item batch: Quote PDF Preview + CRM MOD-sites
+surface (Delete/Import-more in CRM).
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-07 · Delete MOD Site (safe, type-to-confirm) + Master-Admin import-more guided — verified (curl) ═══
 User batch of 4 (tender wizard, delete MOD site, quote PDF preview, re-open import). Started with the safe delete +
 import-more; TENDER WIZARD + QUOTE PDF PREVIEW + CRM MOD-sites surface are STAGED (not yet built — see below).
