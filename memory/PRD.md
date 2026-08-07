@@ -1,3 +1,24 @@
+# ═══ 2026-08-07 · Equipment Import in CRM — dummy-proof guided wizard (auto-opens after MOD-site create) — testing_agent 100% ═══
+End-user-facing: after creating a MOD site via CRM (Add Company → MOD Site tab), a guided AI kit-import wizard now
+opens AUTOMATICALLY for that site — no leaving CRM, no hunting for a button.
+  • FRONTEND CRMCompanies.js (CompanyList): new modImportSite state; handleCreate MOD branch now sets
+    modImportSite(newSite) after POST /master-admin/mod-estate/sites → renders <AIKitImportModal site headers guided />.
+    Imported AIKitImportModal from @/pages/MasterAdmin/AIKitImportModal. Commercial create unchanged (no wizard).
+  • FRONTEND AIKitImportModal.js: added `guided` prop + dummy-proofing (used in both CRM and Master Admin):
+    - Step indicator bar (data-testid ai-kit-steps): 1 Upload · 2 Review · 3 Done.
+    - Upload step: 'Download template (CSV)' button (ai-kit-download-template, GETs equipment-template.csv w/ auth blob),
+      big drag-and-drop zone (ai-kit-dropzone) + Choose file, friendly reassurance copy.
+    - Review: MOD-code guidance banner ("items with a MOD Code auto-fill your Service Quote").
+    - Done (guided): next-step note (ai-kit-done-nextstep) — "this kit will auto-fill a MOD Service Quote".
+  • VERIFIED: testing_agent iteration_crm_mod_import_wizard_jan2026.json — 100% backend+frontend: create RAF MOD site →
+    wizard auto-opens → download template (200) → upload 2-row CSV w/ mod_code → review (MOD-Tread) → commit → Done
+    'Imported 2 items' + next-step note; equipment persisted with mod_code; Commercial regression OK. + screenshot.
+  BACKLOG (review notes, non-blocking): no DELETE endpoint for MOD estate sites (cleanup needs Mongo); pre-existing
+  first /mod-estate/* request 401→200 retry (transparent); ai-kit-import endpoints don't assert target org is a mod_site.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-07 · MOD Code → TL auto-fill (Service Quotes pre-fill, zero manual matching) — testing_agent 100% ═══
 When a site's kit was imported with a 'MOD Code', the MOD Service Quote now auto-maps every item to its SOR/TL line —
 no manual matching. (Previously the quote's equipment endpoint used only fuzzy keyword matching and ignored mod_code.)
