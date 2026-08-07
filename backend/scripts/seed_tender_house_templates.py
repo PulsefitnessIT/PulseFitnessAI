@@ -26,6 +26,12 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from utils.tender_docx_exporter import detect_template_styles
 
+# ── Production safety guard (utils/seed_guard.py) — never seed a prod DB ──
+import os as _sg_os, sys as _sg_sys
+_sg_sys.path.insert(0, _sg_os.path.dirname(_sg_os.path.dirname(_sg_os.path.abspath(__file__))))
+from utils.seed_guard import assert_seeding_allowed  # noqa: E402
+assert_seeding_allowed(__file__)
+
 BRAND_INK = RGBColor(0x0B, 0x2A, 0x4A)   # deep navy
 BRAND_ACCENT = RGBColor(0x00, 0x74, 0xD9)  # pulse blue
 

@@ -23,6 +23,12 @@ from datetime import datetime, timedelta, timezone
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
+# ── Production safety guard (utils/seed_guard.py) — never seed a prod DB ──
+import os as _sg_os, sys as _sg_sys  # noqa: E402
+_sg_sys.path.insert(0, _sg_os.path.dirname(_sg_os.path.dirname(_sg_os.path.abspath(__file__))))
+from utils.seed_guard import assert_seeding_allowed  # noqa: E402
+assert_seeding_allowed(__file__)
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 TAG = "SDDEMO_"

@@ -13,6 +13,10 @@ from datetime import datetime, timezone
 from utils.auth import hash_password
 from utils.database import db
 
+# ── Production safety guard (utils/seed_guard.py) — never seed a prod DB ──
+from utils.seed_guard import assert_seeding_allowed  # noqa: E402
+assert_seeding_allowed(__file__)
+
 ORG_ID = "iso-demo-org"
 SITE_A = "iso-demo-site-a"   # Head Office (manager allowed)
 SITE_B = "iso-demo-site-b"   # manager NOT allowed

@@ -10,6 +10,10 @@ from datetime import datetime, timezone, date, timedelta
 from utils.database import db
 from utils.auth import hash_password
 
+# ── Production safety guard (utils/seed_guard.py) — never seed a prod DB ──
+from utils.seed_guard import assert_seeding_allowed  # noqa: E402
+assert_seeding_allowed(__file__)
+
 ORG = "iso-demo-org"
 DEPT = "Operations"
 

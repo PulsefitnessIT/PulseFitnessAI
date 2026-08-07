@@ -5,6 +5,11 @@ import os, sys, uuid
 from datetime import datetime, timezone, timedelta
 from pymongo import MongoClient
 
+# ── Production safety guard (utils/seed_guard.py) — never seed a prod DB ──
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.seed_guard import assert_seeding_allowed  # noqa: E402
+assert_seeding_allowed(__file__)
+
 db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 ORG = "iso-demo-org"
 SITE = "iso-demo-site-a"

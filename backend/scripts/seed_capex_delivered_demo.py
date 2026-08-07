@@ -13,6 +13,12 @@ from datetime import datetime, timezone, timedelta
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
+# ── Production safety guard (utils/seed_guard.py) — never seed a prod DB ──
+import sys as _sg_sys  # noqa: E402
+_sg_sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.seed_guard import assert_seeding_allowed  # noqa: E402
+assert_seeding_allowed(__file__)
+
 ORG = "iso-demo-org"
 TAG = "capex_delivered"
 now = datetime.now(timezone.utc)

@@ -12,6 +12,10 @@ from motor.motor_asyncio import AsyncIOMotorClient
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from routes.crm_auth import crm_hash_password  # noqa: E402
 
+# ── Production safety guard (utils/seed_guard.py) — never seed a prod DB ──
+from utils.seed_guard import assert_seeding_allowed  # noqa: E402
+assert_seeding_allowed(__file__)
+
 EMAIL = "crmonly.manager@pulsedemo.test"
 PASSWORD = "CrmOnly123!"
 

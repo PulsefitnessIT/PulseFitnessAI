@@ -18,6 +18,12 @@ _DB_NAME = re.search(r'DB_NAME="?([^"\n]+)', _env).group(1)
 from motor.motor_asyncio import AsyncIOMotorClient  # noqa: E402
 from datetime import datetime, timezone  # noqa: E402
 
+# ── Production safety guard (utils/seed_guard.py) — never seed a prod DB ──
+import os as _sg_os, sys as _sg_sys  # noqa: E402
+_sg_sys.path.insert(0, _sg_os.path.dirname(_sg_os.path.dirname(_sg_os.path.abspath(__file__))))
+from utils.seed_guard import assert_seeding_allowed  # noqa: E402
+assert_seeding_allowed(__file__)
+
 ORG_ID = "iso-demo-org"
 COMPANY_ID = "iso-cA"
 ASSET_ID = "iso-crmonly-asset-1"

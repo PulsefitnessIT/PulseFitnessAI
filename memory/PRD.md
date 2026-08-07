@@ -1,3 +1,17 @@
+# ═══ 2026-08-07 · Seed/test scripts — production DB safety guard (fail-safe) — unit + e2e verified ═══
+Prevents demo/test seed scripts from ever populating the PRODUCTION database (the preview→prod data-leak concern).
+  • NEW utils/seed_guard.py (stdlib-only): assert_seeding_allowed(script) hard-exits (SystemExit) UNLESS the target
+    MongoDB is LOCAL (preview/dev = mongodb://localhost:27017 → hostname in localhost/127.0.0.1/0.0.0.0/::1) OR an
+    explicit ALLOW_DEMO_SEED=1 override is set. Fail-safe: remote/managed prod Mongo host → refuses before connecting.
+  • WIRED into all 12 seed scripts (scripts/seed_*.py): guard block inserted right after imports / before any DB
+    connection or write. seed_pulse_equipment_demo.py (pymongo, writes at module level) guarded before MongoClient().
+  • VERIFIED: unit (local→allowed, remote srv→blocked, remote+ALLOW_DEMO_SEED=1→allowed) + e2e (ran
+    seed_site_isolation_demo.py with MONGO_URL=remote host → exit 1 with guard message, NO writes). All 12 scripts
+    ast-parse clean. Preview seeds still work (local DB) with zero config; no .env change needed.
+  • Assumption: preview uses localhost Mongo, production uses a remote/managed URI (confirmed for preview). If prod ever
+    used a localhost sidecar Mongo the host heuristic would need revisiting.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-08-07 · CRM Tenders — coverage_report N+1 fan-out batched to constant queries — curl-verified ═══
 Fixed the code-review N+1: coverage_report() previously issued crm2_tenders/crm2_opportunities/crm_quotes queries
 per rep PLUS an opportunities query per region (nested) → round-trips grew with reps×regions.
