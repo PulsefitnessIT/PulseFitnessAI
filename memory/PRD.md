@@ -1,3 +1,26 @@
+# ═══ 2026-08-07 · MOD AI-kit import: carry supplier/contract columns + "Replace existing kit" toggle — harness-verified ═══
+CRITICAL FIX: the MOD "Import equipment" wizard (AIKitImportModal) uses /mod-estate/ai-kit-import analyse+commit, which
+were STRIPPING every column except 10 basics — so supplier & contract fields from the template never reached the
+importer (root cause of the Kenya supplier=manufacturer + missing contract data, even though _do_bulk_import_equipment
+already handled them once received).
+  • utils/kit_list_ai.py: removed "supplier" from manufacturer hints; added header hints + a _PASSTHROUGH_FIELDS set
+    (supplier, service_provider, contract_number, contract_type, contract_start/end, warranty_expiry, location,
+    condition, classification, purchase/manufacturing dates, unit_price, replacement_cost). _analyse_sheet + the AI
+    output rows now carry these verbatim (sub_location prefers the column, falls back to tab name).
+  • routes/master_admin_mod_estate.py ai_kit_import_commit: CSV headers + writerow now include all the passthrough
+    columns; accepts payload.replace_existing; when replacing, duplicate rows are NOT filtered at grouping; returns
+    per-site + total `updated`.
+  • routes/master_admin_bulk_import.py _do_bulk_import_equipment: new `replace_existing` param — a duplicate serial is
+    UPDATED in place (match org+serial, preserves id/created_at/photos/manuals) instead of skipped; returns `updated`.
+  • FRONTEND AIKitImportModal.js: new "Replace existing kit" checkbox (data-testid ai-kit-replace-existing; disables the
+    Skip-dupes box, includes dup rows), sends replace_existing, and the result/toasts show the `updated` count.
+  • VERIFIED (full-pipeline harness on MOD org): xlsx → analyse (carries contract_type/dates/supplier) → commit#1
+    imported 2, supplier→"Pulse Fitness Ltd"(+id), contract_type A, dd/mm/yyyy→ISO; commit#2 replace_existing → updated 2
+    (not skipped), contract_type A→C overwritten, supplier retained. Harness rows cleaned. py + babel parse OK.
+  ⇒ User can now re-import the corrected Kenya sheet with "Replace existing kit" ticked — no need to clear the site first.
+⚠️ PREVIEW ONLY — needs REDEPLOY. UI toggle not yet visually tested (pulse portal auth); backend fully harness-verified.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-08-07 · MOD equipment import fixes: supplier default, contract_type, cover pills, Suppliers tab ═══
 User (PRODUCTION, Kenya MOD import): supplier came in as the MANUFACTURER, contract dates/type not shown, needed
 contract_type on the template, cover pills should read Warranty / Type A/B/C Contract, and the Suppliers tab must show

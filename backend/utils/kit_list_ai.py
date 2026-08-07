@@ -38,7 +38,7 @@ _BRANDS = {
 _HEADER_HINTS = {
     "type": ["type", "equipment type", "equipment", "description", "item", "asset type"],
     "model": ["model", "model number", "model no"],
-    "manufacturer": ["manufacturer", "make", "brand", "supplier"],
+    "manufacturer": ["manufacturer", "make", "brand"],
     "serial_number": ["frame - serial number", "frame serial number", "serial number",
                       "serial", "serial no", "frame serial", "s/n", "sn"],
     "serial_secondary": ["console - serial number", "console serial number", "console serial"],
@@ -47,7 +47,33 @@ _HEADER_HINTS = {
     "quantity": ["qty", "quantity", "count", "no.", "number"],
     "category": ["category", "class", "group"],
     "mod_code": ["mod-code", "mod code", "mod_code", "modcode"],
+    # ── MOD service fields carried straight through to the importer ──
+    "supplier": ["supplier", "service supplier"],
+    "service_provider": ["service provider", "service provider notes"],
+    "contract_number": ["contract number", "service contract ref", "contract ref", "contract_number"],
+    "contract_type": ["contract type", "contract_type", "type of contract", "service tier"],
+    "contract_start": ["contract start", "contract_start", "contract start date"],
+    "contract_end": ["contract end", "contract_end", "contract end date"],
+    "warranty_expiry": ["warranty expiry", "warranty_expiry", "warranty end", "warranty expiry date"],
+    "location": ["location", "area / gym floor", "area", "gym floor"],
+    "sub_location": ["sub location", "sub_location", "room / zone / rack", "room", "zone", "rack"],
+    "condition": ["condition", "condition on handover"],
+    "classification": ["classification", "security classification"],
+    "purchase_date": ["install / purchase date", "install date", "purchase date", "purchase_date"],
+    "manufacturing_date": ["manufacturing date", "manufacturing_date"],
+    "unit_price": ["unit price", "unit price (£)", "unit_price"],
+    "replacement_cost": ["replacement cost", "replacement cost (£)", "replacement_cost"],
 }
+
+# Extra MOD service columns preserved verbatim from the sheet onto each output
+# row (and written back out at commit time) so supplier + contract details are
+# not lost in the AI clean step.
+_PASSTHROUGH_FIELDS = (
+    "supplier", "service_provider", "contract_number", "contract_type",
+    "contract_start", "contract_end", "warranty_expiry", "location",
+    "condition", "classification", "purchase_date", "manufacturing_date",
+    "unit_price", "replacement_cost",
+)
 
 _SUMMARY_NAMES = ("total", "totals", "summary", "pivot", "overview", "grand total", "sum")
 _SUMMARY_CELL_HINTS = ("row labels", "sum of", "grand total", "count of")
@@ -178,6 +204,7 @@ def _analyse_sheet(ws):
                 "category": g("category"), "mod_code": g("mod_code"),
                 "serial_number": serial,
                 "asset_number": asset, "quantity": max(1, qty),
+                **{f: g(f) for f in _PASSTHROUGH_FIELDS},
             })
     return {
         "tab": ws.title, "is_summary": is_summary,
@@ -280,7 +307,8 @@ async def analyse_kit_workbook(content: bytes, filename: str) -> dict:
                 "quantity": r["quantity"],
                 "category": _title_case(r["category"], preserve_acronyms=False),
                 "mod_code": r.get("mod_code", ""),
-                "sub_location": _title_case(sh["tab"]),
+                "sub_location": r.get("sub_location") or _title_case(sh["tab"]),
+                **{f: r.get(f, "") for f in _PASSTHROUGH_FIELDS},
             })
         out_sheets.append({
             "tab": sh["tab"],

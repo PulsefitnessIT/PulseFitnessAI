@@ -1445,6 +1445,9 @@ async def ai_kit_import_commit(
     if not rows:
         raise HTTPException(400, "No equipment rows to import.")
     skip_duplicates = bool(payload.get("skip_duplicates", True))
+    # When the operator ticks "Replace existing kit", rows whose serial already
+    # exists are UPDATED in place rather than skipped (corrected re-import).
+    replace_existing = bool(payload.get("replace_existing", False))
 
     import csv as _csv
     import io as _io
@@ -1453,7 +1456,7 @@ async def ai_kit_import_commit(
     # Group rows by their target MOD site (a tab may target another base).
     groups: dict = {}
     for r in rows:
-        if skip_duplicates and r.get("duplicate"):
+        if skip_duplicates and not replace_existing and r.get("duplicate"):
             continue
         if not (r.get("name") or "").strip():
             continue
@@ -1472,8 +1475,13 @@ async def ai_kit_import_commit(
 
     headers = ["name", "equipment_type", "manufacturer", "model",
                "serial_number", "asset_number", "sub_location", "quantity",
-               "category", "mod_code"]
-    totals = {"imported": 0, "skipped": 0, "errors": []}
+               "category", "mod_code",
+               # MOD service fields (carried through from the template)
+               "location", "supplier", "service_provider", "contract_number",
+               "contract_type", "contract_start", "contract_end",
+               "warranty_expiry", "condition", "classification",
+               "purchase_date", "manufacturing_date", "unit_price", "replacement_cost"]
+    totals = {"imported": 0, "skipped": 0, "updated": 0, "errors": []}
     per_site = []
     site_names = {s["id"]: s.get("name") for s in await db.organizations.find(
         {"account_type": "mod_site"}, {"_id": 0, "id": 1, "name": 1}).to_list(5000)}
@@ -1495,17 +1503,33 @@ async def ai_kit_import_commit(
                 r.get("quantity") or 1,
                 (r.get("category") or "").strip(),
                 (r.get("mod_code") or "").strip(),
+                (r.get("location") or "").strip(),
+                (r.get("supplier") or "").strip(),
+                (r.get("service_provider") or "").strip(),
+                (r.get("contract_number") or "").strip(),
+                (r.get("contract_type") or "").strip(),
+                (r.get("contract_start") or "").strip(),
+                (r.get("contract_end") or "").strip(),
+                (r.get("warranty_expiry") or "").strip(),
+                (r.get("condition") or "").strip(),
+                (r.get("classification") or "").strip(),
+                (r.get("purchase_date") or "").strip(),
+                (r.get("manufacturing_date") or "").strip(),
+                (r.get("unit_price") or "").strip(),
+                (r.get("replacement_cost") or "").strip(),
             ])
             written += 1
         shim = _MemUpload(buf.getvalue().encode("utf-8"), f"ai-kit-{target}.csv")
-        res = await _do_bulk_import_equipment(shim, target, user, validate_org=True)
+        res = await _do_bulk_import_equipment(shim, target, user, validate_org=True, replace_existing=replace_existing)
         totals["imported"] += res.get("imported", 0)
         totals["skipped"] += res.get("skipped", 0)
+        totals["updated"] += res.get("updated", 0)
         totals["errors"].extend(res.get("errors", []) or [])
         per_site.append({
             "site_id": target, "site_name": site_names.get(target, target),
             "rows_submitted": written,
             "imported": res.get("imported", 0), "skipped": res.get("skipped", 0),
+            "updated": res.get("updated", 0),
         })
 
     totals["per_site"] = per_site

@@ -22,6 +22,7 @@ export default function AIKitImportModal({ site, headers, onClose, onImported, g
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
+  const [replaceExisting, setReplaceExisting] = useState(false);
   const [result, setResult] = useState(null);
   const [filteredDupes, setFilteredDupes] = useState(0);
   const [error, setError] = useState('');
@@ -90,7 +91,7 @@ export default function AIKitImportModal({ site, headers, onClose, onImported, g
       const target = sh.dest_site_id || site.id;
       sh.rows.forEach((r) => {
         if (!r.keep) return;
-        if (skipDuplicates && r.duplicate) return;
+        if (skipDuplicates && !replaceExisting && r.duplicate) return;
         out.push({ ...r, sub_location: subloc, target_site_id: target });
       });
     });
@@ -100,7 +101,7 @@ export default function AIKitImportModal({ site, headers, onClose, onImported, g
   const commit = async () => {
     const rows = buildRows();
     if (!rows.length) { notify.error('Nothing to import', 'All rows are excluded or duplicates.'); return; }
-    const dropped = skipDuplicates
+    const dropped = (skipDuplicates && !replaceExisting)
       ? (preview?.sheets || []).reduce((n, sh) => n + (sh.include ? sh.rows.filter((r) => r.keep && r.duplicate).length : 0), 0)
       : 0;
     setFilteredDupes(dropped);
@@ -108,13 +109,13 @@ export default function AIKitImportModal({ site, headers, onClose, onImported, g
     try {
       const { data } = await axios.post(
         `${API}/master-admin/mod-estate/ai-kit-import/commit`,
-        { site_id: site.id, rows, skip_duplicates: skipDuplicates },
+        { site_id: site.id, rows, skip_duplicates: skipDuplicates, replace_existing: replaceExisting },
         { headers },
       );
       setResult(data);
       setStep('done');
       notify.success(`Imported ${data.imported} items into ${site.name}`,
-        data.skipped ? `${data.skipped} skipped (duplicates / blanks).` : 'All rows accepted.');
+        `${data.updated ? `${data.updated} updated · ` : ''}${data.skipped ? `${data.skipped} skipped (duplicates / blanks).` : 'All rows accepted.'}`);
       onImported?.();
     } catch (e) {
       setError(e?.response?.data?.detail || 'Import failed.');
@@ -211,8 +212,11 @@ export default function AIKitImportModal({ site, headers, onClose, onImported, g
                   <span><b className="text-zinc-900">{preview.distinct_items}</b> distinct products</span>
                   {preview.duplicate_serials > 0 && <span className="text-amber-700 flex items-center gap-1"><AlertTriangle size={13} />{preview.duplicate_serials} duplicate serial(s)</span>}
                 </div>
-                <label className="flex items-center gap-1.5 text-xs text-zinc-700 cursor-pointer" data-testid="ai-kit-skip-dupes">
-                  <input type="checkbox" checked={skipDuplicates} onChange={(e) => setSkipDuplicates(e.target.checked)} /> Skip duplicate serials
+                <label className={`flex items-center gap-1.5 text-xs cursor-pointer ${replaceExisting ? 'text-zinc-400' : 'text-zinc-700'}`} data-testid="ai-kit-skip-dupes">
+                  <input type="checkbox" checked={skipDuplicates} disabled={replaceExisting} onChange={(e) => setSkipDuplicates(e.target.checked)} /> Skip duplicate serials
+                </label>
+                <label className="flex items-center gap-1.5 text-xs text-blue-700 font-medium cursor-pointer" data-testid="ai-kit-replace-existing" title="Overwrite equipment that already exists (matched by serial) instead of skipping it — use this for a corrected re-import.">
+                  <input type="checkbox" checked={replaceExisting} onChange={(e) => setReplaceExisting(e.target.checked)} /> Replace existing kit
                 </label>
               </div>
 
@@ -308,7 +312,7 @@ export default function AIKitImportModal({ site, headers, onClose, onImported, g
             <div className="text-center py-10" data-testid="ai-kit-done">
               <div className="mx-auto w-14 h-14 rounded-full bg-green-50 flex items-center justify-center mb-4"><CheckCircle2 size={28} className="text-green-600" /></div>
               <p className="text-sm font-bold text-zinc-900 mb-1">Imported {result.imported} items into {site.name}</p>
-              <p className="text-xs text-zinc-500">{result.skipped || 0} skipped{result.errors?.length ? ` · ${result.errors.length} error(s)` : ''}.</p>
+              <p className="text-xs text-zinc-500">{result.updated ? `${result.updated} updated · ` : ''}{result.skipped || 0} skipped{result.errors?.length ? ` · ${result.errors.length} error(s)` : ''}.</p>
               {guided && (
                 <div className="mt-3 mx-auto max-w-sm rounded-lg border border-cyan-100 bg-cyan-50/60 px-4 py-3 text-[11px] text-zinc-600 flex items-start gap-2" data-testid="ai-kit-done-nextstep">
                   <Zap size={14} className="text-cyan-600 shrink-0 mt-0.5" />
@@ -320,7 +324,7 @@ export default function AIKitImportModal({ site, headers, onClose, onImported, g
                 <div className="mt-4 mx-auto max-w-md text-left text-[11px] text-zinc-600 bg-zinc-50 border border-zinc-200 rounded-md p-3" data-testid="ai-kit-per-site">
                   <p className="font-semibold text-zinc-700 mb-1.5">Imported across {result.per_site.length} MOD sites:</p>
                   {result.per_site.map((p) => (
-                    <div key={p.site_id} className="flex justify-between"><span>{p.site_name}</span><span className="font-medium text-zinc-800">{p.imported} imported{p.skipped ? ` · ${p.skipped} skipped` : ''}</span></div>
+                    <div key={p.site_id} className="flex justify-between"><span>{p.site_name}</span><span className="font-medium text-zinc-800">{p.imported} imported{p.updated ? ` · ${p.updated} updated` : ''}{p.skipped ? ` · ${p.skipped} skipped` : ''}</span></div>
                   ))}
                 </div>
               )}

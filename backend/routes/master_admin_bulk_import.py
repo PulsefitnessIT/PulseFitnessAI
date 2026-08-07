@@ -454,13 +454,18 @@ async def _do_bulk_import_equipment(
     organization_id: Optional[str],
     user: dict,
     validate_org: bool = True,
+    replace_existing: bool = False,
 ) -> dict:
     """Shared equipment-import core (Iter 216h108).
 
     Used by both the master-admin endpoint (validate_org=True so the
     operator can target any Pulse-visible customer) and the customer
     endpoint (validate_org=False — the caller passes their own
-    organization_id so the Pulse-visibility check would always fail)."""
+    organization_id so the Pulse-visibility check would always fail).
+
+    `replace_existing`=True — a row whose serial already exists is UPDATED
+    in place (matched by org+serial) instead of skipped, so a corrected
+    re-import overwrites the old data rather than being rejected as a dup."""
     if validate_org:
         default_org = await _resolve_target_org(user, organization_id) if organization_id else None
     else:
@@ -477,6 +482,7 @@ async def _do_bulk_import_equipment(
     rows_iter = iter_rows(contents, file.filename)
 
     imported, skipped, errors = 0, 0, []
+    updated = 0
     org_cache: dict = {}
     org_doc_cache: dict = {}  # Iter 216h111 — cache org docs for force validation
     site_cache: dict = {}
@@ -537,14 +543,18 @@ async def _do_bulk_import_equipment(
                 errors.append(f"Row {i}: missing required column 'name'")
                 continue
             serial = _normalize(row, "serial_number", "Serial Number", "serial") or str(get_pick(row, "serial_number", "")).strip()
+            is_update = False
             if serial:
                 existing_serials = await _serial_set_for(target_org)
                 if serial in existing_serials:
-                    skipped += 1
-                    errors.append(
-                        f"Row {i}: duplicate — equipment with serial '{serial}' already exists in this org"
-                    )
-                    continue
+                    if replace_existing:
+                        is_update = True  # overwrite the existing row below
+                    else:
+                        skipped += 1
+                        errors.append(
+                            f"Row {i}: duplicate — equipment with serial '{serial}' already exists in this org"
+                        )
+                        continue
             # Iter 216h50 — link to a pre-imported site by name (or by
             # Sicon "Invoice Customer Ref" fallback). Sites import runs
             # first during onboarding so by the time equipment lands the
@@ -692,6 +702,20 @@ async def _do_bulk_import_equipment(
                 "condition": _normalize(row, "condition", "Condition") or str(get_pick(row, "condition", "")).strip() or None,
                 "quantity": _parse_int(_normalize(row, "quantity", "Quantity", "qty", "Qty") or str(get_pick(row, "quantity", "")).strip()),
             }
+            if is_update:
+                # Overwrite the existing row (match on org+serial). Preserve its
+                # original id/created_at, and don't clobber uploaded photos/manuals
+                # or the audit fields with empty defaults from a fresh doc.
+                upd = {k: v for k, v in doc.items()
+                       if k not in ("id", "created_at", "manuals", "photos", "imported_via")}
+                upd["updated_at"] = now_iso
+                await db.equipment.update_one(
+                    {"organization_id": target_org, "serial_number": serial},
+                    {"$set": upd},
+                )
+                updated += 1
+                org_breakdown[target_org] = org_breakdown.get(target_org, 0) + 1
+                continue
             pending.append(doc)
             # Add serial to cache so a duplicate WITHIN the same CSV is also caught.
             if serial:
@@ -707,7 +731,7 @@ async def _do_bulk_import_equipment(
     await _flush_pending()
 
     return {
-        "imported": imported, "skipped": skipped,
+        "imported": imported, "skipped": skipped, "updated": updated,
         "errors": errors[:50], "error_count": len(errors),
         "organization_id": default_org,
         "org_breakdown": org_breakdown,
