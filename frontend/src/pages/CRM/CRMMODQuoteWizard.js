@@ -281,7 +281,7 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
               <ShieldCheck size={18} style={{ color: 'var(--color-info-ios)' }} />
             </div>
             <div>
-              <h2 className="text-base font-semibold" style={{ color: c.text }}>MOD Auto Quote Writer</h2>
+              <h2 className="text-base font-semibold" style={{ color: c.text }}>MOD Service Quote Writer</h2>
               <p className="text-[11px]" style={{ color: c.textDim }}>PTE Service &amp; Repair · Schedule of Rates</p>
             </div>
           </div>

@@ -875,7 +875,7 @@ export default function CRMCPQ() {
         </button>
         {canModQuote && (
           <button type="button" onClick={() => setShowMOD(true)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="mod-quote-btn">
-            <ShieldCheck size={14} /> MOD Auto Quote
+            <ShieldCheck size={14} /> MOD Service Quote
           </button>
         )}
         <button type="button" onClick={openCreate} className="btn-primary" data-testid="create-quote-btn">

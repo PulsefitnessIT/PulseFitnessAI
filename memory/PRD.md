@@ -1,3 +1,37 @@
+# ═══ 2026-08-07 · Pulse Portal self-switch (non-impersonation) + MOD import (MOD Code col, h-scroll, template) + CRM button rename — testing_agent 100% ═══
+(1) 'PULSE FITNESS PORTAL' IS NO LONGER IMPERSONATION. A Pulse master admin is a Pulse employee, so entering their OWN
+    operator company (Pulse Fitness Ltd, is_operator_company) is now a context switch AS THEMSELVES (no red banner).
+    Switching into any OTHER org still impersonates (unchanged).
+    • BACKEND routes/master_admin_users.py: NEW _issue_act_org_token() mints a token for the admin's OWN user_id with an
+      `act_org` claim (jti+iat+exp 8h), NO `impersonated_by`. operator_portal_login() now uses it and returns
+      {impersonation:false}. org_portal_login()/pulse_portal_login() UNCHANGED (still impersonation via _issue_org_portal_token).
+    • BACKEND utils/auth.py _load_user_core: honours payload['act_org'] ONLY for verified master/pulse admins →
+      overrides user['organization_id']=act_org (+ _acting_org_id). Normal cookie sessions have no act_org, unaffected.
+      /auth/me then computes org_is_operator from the overridden org (routes/auth.py L996) so routing lands on operator.
+    • FRONTEND MasterAdminPage.handlePulseSwitch → /dashboard?as=operator&act_token=<tok>. App.js consumes ?act_token=
+      (swaps session token, resets site scope) WITHOUT setting localStorage.impersonation_active → no banner.
+      ?impersonation_token= (other-org switches) still sets the banner.
+    • VERIFIED: testing_agent 6/6 backend + FE both scenarios; curl (act_org present / impersonated_by absent; /auth/me =
+      admin@pulsefitness.com self, operator org); screenshots (operator dashboard + CRM, 'Master Admin' badge, NO banner;
+      non-Pulse org regression still impersonates).
+(2) MOD EQUIPMENT AI IMPORT — MOD Code + horizontal scroll + template.
+    • BACKEND master_admin_mod_estate.py: _MOD_EQUIP_FIELDS now includes ('mod_code','MOD Code (quotes & reporting)',...)
+      after asset_number → equipment-template.xlsx & .csv both carry a mod_code column (example MOD-Tread). Fixed the
+      hardcoded xlsx 2nd example row alignment.
+    • BACKEND utils/kit_list_ai.py: _HEADER_HINTS['mod_code'] += 'mod_code','modcode' so the official underscore header
+      maps (previously only 'mod code'/'mod-code' matched). Parser already emits mod_code per row; bulk importer already
+      persists it (master_admin_bulk_import.py L649).
+    • FRONTEND AIKitImportModal.js: preview table reworked — columns Name/Type/Manufacturer/Model/Category/MOD Code/
+      Serial/Asset #/Sub-location/Qty, dedicated EDITABLE MOD Code input (data-testid ai-kit-modcode-<ti>-<ri>),
+      min-w-[1180px] inside overflow-x-auto → horizontally scrollable (scrollWidth 1203 > client 982).
+    • VERIFIED: testing_agent PASS; curl (template header has mod_code; analyse of 'MOD Code' CSV → mod_code='MOD-Tread');
+      screenshot (dedicated editable MOD Code column, h-scroll).
+(3) CRM QUOTES BUTTON RENAME: 'MOD Auto Quote' → 'MOD Service Quote' (CRMCPQ.js mod-quote-btn) + wizard title
+    'MOD Auto Quote Writer' → 'MOD Service Quote Writer' (CRMMODQuoteWizard.js). Verified on screen.
+⚠️ ALL PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-06 · SECURITY AUDIT — FIX SEC-001 credentialed CORS origin reflection (HIGH) — verified ═══
 security_audit_agent flagged ONE HIGH (SEC-001): with allow_credentials=True the CORS allow-list resolved to ["*"]
 whenever APP_ENV/ENVIRONMENT were unset (they are unset in preview AND prod), so Starlette reflected ANY request
