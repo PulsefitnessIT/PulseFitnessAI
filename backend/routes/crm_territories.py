@@ -632,6 +632,11 @@ async def coverage_report(user=Depends(get_crm_user)):
     total_value = 0.0
     for rep_id, regions in rep_to_regions.items():
         meta = reps_meta.get(rep_id, {"full_name": "?", "colour_hex": "#94A3B8", "role": "sales_manager"})
+        # Tenders are a sales activity — engineers never own/bid tenders, so
+        # exclude engineer-only reps from the Tenders "Territory Coverage" panel.
+        # (Managers and "both" reps stay.)
+        if meta.get("role") == "engineer":
+            continue
         tender_count = 0
         tender_value = 0.0
         opp_value = 0.0

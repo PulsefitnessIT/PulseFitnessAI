@@ -1,3 +1,14 @@
+# ═══ 2026-08-07 · CRM Tenders — Territory Coverage now excludes Engineers (Sales only) — curl-verified ═══
+User: the Tenders → "Territory Coverage" panel listed Engineers (e.g. "Aidan Greig · Engineer"), but engineers
+are never involved in tenders — only Sales Managers should appear.
+  • BACKEND routes/crm_territories.py coverage_report() (GET /crm/territories/coverage-report, the endpoint that
+    feeds TenderCoveragePanel ONLY): now skips any rep whose normalised territory_role == 'engineer'. Sales Managers
+    and "both" (Manager+Engineer) reps still show. No frontend change (panel hides itself when rows come back empty).
+  • VERIFIED (curl, iso-demo-org): temporarily assigned Jordan Blake (engineer) + Demo Owner (sales_manager) to
+    territories → coverage-report returned ONLY Demo Owner (engineer excluded). QA territory data restored afterwards.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-08-07 · MOD Quote wizard — live PDF Preview (TL numbers) before send + CSP frame-src blob: fix — verified ═══
 The MOD Service Quote wizard now previews the real generated PDF (with the TL Number column) BEFORE sending to Leidos.
   • BACKEND routes/crm_mod_quote.py: NEW GET /crm/mod-quote/{quote_id}/pdf (require_operator_crm_user) → render_quote_pdf,
