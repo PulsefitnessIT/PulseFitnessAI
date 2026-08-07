@@ -1,3 +1,14 @@
+# ═══ 2026-08-07 · MOD cover pills — Type A/B/C hover tooltips from the SOR — babel-verified ═══
+Added MOD SOR (Schedule C, LSLDC0223) service-tier definitions as hover tooltips on the Type A/B/C cover pills.
+  • Exported CONTRACT_TYPE_TOOLTIP from LiteEquipmentTab.js:
+      A = All-inclusive 12-month service/repair/maintenance (UK only, fixed price)
+      B = One-off service/repair/maintenance (UK only, fixed price, as required)
+      C = Overseas requirement incl. operational theatres — quoted repair & maintenance (equipment outside the UK)
+  • Wired as `title=` on the equipment-list pill (LiteEquipmentTab) and the detail-panel Type badge (LiteDialogs, imports
+    the shared map, cursor-help). Definitions pulled from the user's uploaded SOR PDF. Babel parse OK.
+⚠️ PREVIEW ONLY — needs REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
 # ═══ 2026-08-07 · MOD AI-kit import: carry supplier/contract columns + "Replace existing kit" toggle — harness-verified ═══
 CRITICAL FIX: the MOD "Import equipment" wizard (AIKitImportModal) uses /mod-estate/ai-kit-import analyse+commit, which
 were STRIPPING every column except 10 basics — so supplier & contract fields from the template never reached the

@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertTriangle, CheckCircle, Shield, Download, FileText, Camera, Loader2, X, Wrench, Sparkles, Check, QrCode, ChevronDown } from 'lucide-react';
+import { CONTRACT_TYPE_TOOLTIP } from './LiteEquipmentTab';
 import axios from 'axios';
 import FaultTemplatePicker from '../Dashboard/FaultTemplatePicker';
 import FaultCodeSelect from '../Dashboard/FaultCodeSelect';
@@ -328,7 +329,7 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2"><FileText size={14} className={contractActive ? 'text-blue-400' : 'text-[var(--color-text-muted)]'} /><span className={contractActive ? 'text-blue-400 font-medium' : 'text-[var(--color-text-muted)]'}>Service Contract</span></div>
                   {contractType && ['A', 'B', 'C'].includes(contractType) ? (
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300" data-testid="lite-equip-contract-type">Type {contractType} Contract</span>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 cursor-help" data-testid="lite-equip-contract-type" title={CONTRACT_TYPE_TOOLTIP[contractType]}>Type {contractType} Contract</span>
                   ) : contractEndRaw ? (
                     <span className={`text-xs ${contractActive ? 'text-blue-400' : 'text-[var(--color-text-muted)]'}`}>{contractActive ? 'Active' : 'Expired'}</span>
                   ) : (

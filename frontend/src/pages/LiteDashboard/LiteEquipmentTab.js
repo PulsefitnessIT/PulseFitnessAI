@@ -6,6 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, ChevronRight, Shield, Sparkles, Loader2, Plus, ArrowRightLeft, Trash2, MapPin, FileText } from 'lucide-react';
 import { useAuth } from '@/App';
+
+// MOD SOR (Schedule C, LSLDC0223) service-tier definitions — shown as hover
+// tooltips on the cover pills so operators know what each contract covers.
+export const CONTRACT_TYPE_TOOLTIP = {
+  A: 'Type A — All-inclusive 12-month service, repair & maintenance (UK only), fixed price. (MOD SOR)',
+  B: 'Type B — One-off service, repair & maintenance (UK only), fixed price, used as required. (MOD SOR)',
+  C: 'Type C — Overseas requirement incl. operational theatres: quoted repair & maintenance for equipment outside the UK. (MOD SOR)',
+};
 import { useTranslation } from 'react-i18next';
 import { useInlineBanner, InlineProgress, notify, useConfirm } from '@/components/notifications';
 import EquipmentPlaceholder from '@/components/equipment/EquipmentPlaceholder';
@@ -246,7 +254,7 @@ const LiteEquipmentTab = ({
                     }
                     if (ctype && ['A', 'B', 'C'].includes(ctype)) {
                       return (
-                        <Badge className="bg-blue-500/15 text-blue-300 border border-blue-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`}>
+                        <Badge className="bg-blue-500/15 text-blue-300 border border-blue-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`} title={CONTRACT_TYPE_TOOLTIP[ctype]}>
                           <FileText size={10} /> {t(`equip.contract_type_${ctype.toLowerCase()}`, `Type ${ctype} Contract`)}
                         </Badge>
                       );
