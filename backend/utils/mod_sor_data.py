@@ -255,6 +255,22 @@ MOD_CODE_TO_ITEM_NO: dict[str, str] = {
     "MOD-MULTI": "25",
     "MOD-FREEDOM": "26",
     "MOD-RADIANT": "27",
+    # Human-friendly aliases people type on kit lists / import templates so
+    # "zero manual matching" holds even when the code isn't the canonical key.
+    "MOD-TREADMILL": "2", "MOD-RUN": "2",
+    "MOD-SPINNING": "3", "MOD-SPINBIKE": "3", "MOD-CYCLE": "3", "MOD-GROUPCYCLE": "3",
+    "MOD-ROWING": "4", "MOD-ROWER": "4",
+    "MOD-BENCHES": "5",
+    "MOD-CARDIOWAVE": "6",
+    "MOD-CLIMBERS": "7", "MOD-CLIMB": "7",
+    "MOD-CROSSTRAINER": "8", "MOD-CROSS": "8", "MOD-ELLIPTICAL": "8",
+    "MOD-CROSSTRAINERP": "9",
+    "MOD-RECUMBENT": "12", "MOD-RECUMBENTBIKE": "12", "MOD-RBIKE-NP": "12",
+    "MOD-SQUATRACK": "15", "MOD-RACK": "15",
+    "MOD-STEP": "16", "MOD-STEPPERS": "16",
+    "MOD-BIKE": "18", "MOD-UPRIGHT": "18", "MOD-UPRIGHTBIKE": "18", "MOD-UBIKE-NP": "18",
+    "MOD-STRENGTHMACHINE": "20", "MOD-SINGLESTATION": "20",
+    "MOD-MULTI3PLUS": "25", "MOD-MULTISTATION": "25",
 }
 
 

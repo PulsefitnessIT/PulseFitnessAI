@@ -154,16 +154,41 @@ async def get_site_equipment(site_id: str, contract_type: str = "A", year: int =
     cur = db.equipment.find(
         {"organization_id": site_id},
         {"_id": 0, "id": 1, "name": 1, "equipment_type": 1, "model": 1,
-         "brand": 1, "serial_number": 1, "location": 1, "category": 1},
+         "brand": 1, "serial_number": 1, "location": 1, "category": 1,
+         "mod_code": 1},
     ).sort("name", 1)
     equipment = await cur.to_list(length=2000)
     lines = []
     for eq in equipment:
-        m = match_equipment(eq, rate_card, ct)
-        rc = by_id.get(m["rate_card_id"]) if m["rate_card_id"] else None
+        # MOD Code is authoritative: an imported "MOD Code" deterministically
+        # identifies the SOR/TL line, so a Service Quote pre-fills with zero
+        # manual matching. Fall back to fuzzy keyword matching only when there's
+        # no (recognised) MOD code.
+        mod_raw = eq.get("mod_code")
+        mod_norm = normalise_mod_code(mod_raw) if mod_raw else ""
+        rc = None
+        matched = False
+        confidence = 0.0
+        suggestions: list = []
+        source = None
+        if mod_norm:
+            rc_mod = match_by_mod_code(mod_norm, rate_card)
+            if rc_mod:
+                rc = rc_mod
+                matched = True
+                confidence = 1.0
+                source = "mod_code"
+        if rc is None:
+            m = match_equipment(eq, rate_card, ct)
+            rc = by_id.get(m["rate_card_id"]) if m["rate_card_id"] else None
+            matched = m["matched"]
+            confidence = m["confidence"]
+            suggestions = m["suggestions"]
+            source = "keyword" if matched else None
         # Type C is overseas / POA — prices are quoted case-by-case, so we
         # surface the mapped label but leave the price for the user to enter.
         unit_price = None if ct == "C" else (price_for(rc, ct, year) if rc else None)
+        tl_number = (rc.get("code_a") if ct == "A" else rc.get("code_b")) if rc else None
         lines.append({
             "equipment_id": eq.get("id"),
             "name": eq.get("name") or eq.get("equipment_type") or "Equipment",
@@ -171,12 +196,15 @@ async def get_site_equipment(site_id: str, contract_type: str = "A", year: int =
             "model": eq.get("model"),
             "serial_number": eq.get("serial_number"),
             "location": eq.get("location"),
-            "rate_card_id": m["rate_card_id"],
+            "mod_code": mod_norm or (mod_raw or ""),
+            "rate_card_id": rc["id"] if rc else None,
             "rate_card_label": rc["label"] if rc else None,
-            "matched": m["matched"],
-            "confidence": m["confidence"],
+            "tl_number": tl_number,
+            "matched": matched,
+            "confidence": confidence,
+            "source": source,
             "unit_price": unit_price,
-            "suggestions": m["suggestions"],
+            "suggestions": suggestions,
             "quantity": 1,
         })
     return {
@@ -184,6 +212,7 @@ async def get_site_equipment(site_id: str, contract_type: str = "A", year: int =
         "contract_type": ct,
         "year": year,
         "matched_count": sum(1 for l in lines if l["matched"]),
+        "mod_code_matched_count": sum(1 for l in lines if l["source"] == "mod_code"),
         "unmatched_count": sum(1 for l in lines if not l["matched"]),
         "lines": lines,
     }

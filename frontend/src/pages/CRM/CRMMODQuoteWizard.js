@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import {
   X, ShieldCheck, Loader2, Sparkles, Plus, Trash2, ChevronRight, ChevronLeft,
-  CheckCircle2, AlertTriangle, Settings2, FileText, MapPin, Upload, FileSpreadsheet,
+  CheckCircle2, AlertTriangle, Settings2, FileText, MapPin, Upload, FileSpreadsheet, Zap,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
@@ -152,7 +152,10 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
       const r = await axios.get(`${API}/crm/mod-quote/equipment`, {
         headers: headers(), params: { site_id: siteId, contract_type: contractType, year },
       });
-      setLines((r.data.lines || []).map(l => ({ ...l, key: l.equipment_id || Math.random().toString(36).slice(2), included: true })));
+      const loaded = (r.data.lines || []).map(l => ({ ...l, key: l.equipment_id || Math.random().toString(36).slice(2), included: true }));
+      setLines(loaded);
+      const autoCode = r.data.mod_code_matched_count || 0;
+      if (autoCode > 0) notify.success(`${autoCode} item(s) auto-mapped from their MOD Code — no manual matching needed`);
       setStep(2);
     } catch (e) { notify.error('Could not load equipment'); }
     setLoadingEq(false);
@@ -411,6 +414,11 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs" style={{ color: c.textDim }}>
                   <MapPin size={11} className="inline mr-0.5" />{site?.name} · Type {contractType} · Year {year}
+                  {activeLines.filter(l => l.source === 'mod_code').length > 0 && (
+                    <span className="ml-2 inline-flex items-center gap-0.5" style={{ color: 'var(--color-info-ios)' }} data-testid="mod-autocode-summary">
+                      <Zap size={10} className="inline" />{activeLines.filter(l => l.source === 'mod_code').length} auto-matched by MOD Code
+                    </span>
+                  )}
                   {unmatchedCount > 0 && <span className="ml-2" style={{ color: 'var(--color-warning)' }}>{unmatchedCount} need mapping</span>}
                 </p>
                 <div className="flex gap-1.5">
@@ -431,11 +439,15 @@ export default function CRMMODQuoteWizard({ API, headers, c, isDark, onClose, on
                       <tr key={l.key} style={{ borderTop: `1px solid ${c.border}`, opacity: l.included ? 1 : 0.4 }} data-testid={`mod-line-${l.key}`}>
                         <td className="py-1.5 px-2">
                           <div className="font-medium" style={{ color: c.text }}>{l.name}</div>
-                          <div className="text-[10px]" style={{ color: c.textDim }}>
+                          <div className="text-[10px] flex flex-wrap items-center gap-x-1" style={{ color: c.textDim }}>
                             {l.equipment_type}{l.serial_number ? ` · ${l.serial_number}` : ''}
-                            {l.matched
-                              ? <span className="ml-1"><CheckCircle2 size={10} className="inline" style={{ color: 'var(--color-success-alt)' }} />{l.imported && l.confidence ? ` ${Math.round(l.confidence * 100)}% match` : ''}</span>
-                              : <span className="ml-1" style={{ color: 'var(--color-warning)' }}>{l.imported ? 'needs review' : 'unmatched'}</span>}
+                            {l.source === 'mod_code'
+                              ? <span className="inline-flex items-center gap-0.5 px-1 py-px rounded font-semibold" style={{ background: 'var(--color-info-ios)18', color: 'var(--color-info-ios)' }} data-testid={`mod-line-autocode-${l.key}`}>
+                                  <Zap size={9} className="inline" />{l.mod_code} → TL {l.tl_number}
+                                </span>
+                              : l.matched
+                                ? <span><CheckCircle2 size={10} className="inline" style={{ color: 'var(--color-success-alt)' }} />{l.imported && l.confidence ? ` ${Math.round(l.confidence * 100)}% match` : ''}</span>
+                                : <span style={{ color: 'var(--color-warning)' }}>{l.imported ? 'needs review' : 'unmatched'}</span>}
                           </div>
                         </td>
                         <td>

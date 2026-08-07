@@ -1,0 +1,24 @@
+{
+  "summary": "Verified MOD Code → TL Auto-fill feature end-to-end. Backend unit tests (13/13 pass) confirm match_by_mod_code maps all required MOD codes (MOD-Tread→2A, MOD-Rowing→4A, MOD-Spin→3A, MOD-Bench→5A, MOD-Strength→20A, MOD-Multi2→23A, MOD-Bike→18A, 'mod ubike'→18A; MOD-Unknown→None; normalisation tolerant of spaces / mixed case). Frontend wizard (CRM → Corporate mode → Quotes → 'MOD Service Quote' → Kifaru Base (57 items) → Type A → Load Equipment) correctly auto-mapped ALL 57 lines by MOD Code: API returned status 200 with mod_code_matched_count=57, matched_count=57, every line source='mod_code' confidence=1.0 with non-null rate_card_id, tl_number and mod_code. Header shows 'mod-autocode-summary' = '57 auto-matched by MOD Code'; 57 cyan 'mod-line-autocode-*' badges rendered (samples: MOD-BENCH → TL 5A, MOD-UBIKE → TL 18A, MOD-STRENGTH → TL 20A, MOD-STEPPER → TL 16A, MOD-MULTI2 → TL 23A, MOD-XTP → TL 9A confirmed). SOR Line dropdowns pre-selected 20/20 sampled with unit prices filled (£157.20, £145.12, etc). Verified sample TLs from spec: MOD-SPIN=3A (10 items), MOD-STEPPER=16A (2 items), MOD-XTP=9A (4 items). PDF (Pulse template, MOD-20260806-7E87 quote with 5 lines) generated 122KB with TL No. column populated (2A / 4A / 18A / —), SER references beneath descriptions (PAT SER100135 etc), line items rendered — NOT 'No line items.'",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_mod_code_tl_autofill_jan2026.py",
+    "/app/test_reports/pytest/mod_code_tl.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MOD_CODE_TO_ITEM_NO has a duplicate literal key 'MOD-CARDIOWAVE' (declared once in canonical block and again in the aliases block, both →'6'). Harmless (same value) but Ruff/pyflakes would flag; consider removing the duplicate.",
+    "utils/mod_sor_data.py: normalise_mod_code correctly handles trimmed and unprefixed input but does NOT strip a trailing space; because it uses \\s+ it removes ALL whitespace so this is fine — no change needed."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_mod_code_tl_autofill_jan2026.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (from review request). Note the CRM 'MOD Service Quote' button only appears in Corporate CRM mode (crm-mode-business) under Quotes tab (crm-nav-quotes) — not the default Members/Leisure mode.",
+  "seed_data_creation": "None. Used existing site mod-site-test-kifaru with 57 pre-imported equipment items carrying MOD Codes.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The wizard 'MOD Service Quote' button (data-testid=mod-quote-btn) is only visible under CRM → Corporate/Business mode (crm-mode-business) → Quotes tab (crm-nav-quotes). Kifaru option value is 'mod-site-test-kifaru' with 57 items, all pre-tagged with MOD Codes. Backend /api/crm/mod-quote/equipment requires operator CRM token (obtained by the app after portal switch to Pulse Fitness), so any direct curl tests need to use the browser-issued cross-login token; unit-test the mapping logic via utils/mod_sor_data.py directly instead.",
+  "rca of the issue": "N/A — feature verified working."
+}
