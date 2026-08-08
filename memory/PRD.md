@@ -1,3 +1,23 @@
+# ═══ 2026-08-08 · Reporter point-of-contact made PROMINENT on the fault card + provider/Pulse emails — harness-verified ═══
+User: show the reporter's name, email and phone prominently on the fault card and in the provider email so they can call
+them directly.
+  • BACKEND mod_portal.py: NEW _reporter_contact_block(doc) → a highlighted "Point of contact — call them directly" card
+    (name + role, clickable mailto, and a big tel: "Call <phone>" button). Injected into BOTH _supplier_fault_email_html
+    (provider email — replaces the old plain Reporter table row, block placed right after the intro line) and
+    _escalation_email_html (Pulse MOD desk email). Verified via harness: both emails contain the Call button, tel:/mailto:
+    links, the POC label and the reporter name.
+  • FRONTEND IssueDetailPanel.js: upgraded the existing "Logged by" block to "Logged by — call them directly" — larger bold
+    name, a prominent cyan "Call <phone>" button (Phone icon, tel:) and an email button (Mail icon, mailto:); shows "No
+    contact details on file" fallback. testids unchanged: issue-logged-by-<id>, logged-by-name, logged-by-phone,
+    logged-by-email. Added Phone, Mail to the lucide import.
+  • Data already present on MOD faults (reporter_name/email/phone/reporter_staff_id stored by mod_fault_submit; /issues/{id}
+    returns them). Shows on the site portal Faults tab AND MOD HQ/PRO views (all use IssueDetailPanel).
+  • Backend py OK; frontend compiled. NOTE: the /api/issues MOD notifier email body (dormant now that MOD uses the wizard)
+    was left as-is; the active path is /mod/site/faults which now has the prominent block.
+  ⚠️ PREVIEW ONLY — needs REDEPLOY. Preview Resend key invalid so emails don't deliver in preview (HTML is correct).
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-08 · Guided MOD Fault Wizard switched ON for MOD sites · NO AI triage · reporter mandatory for shared logins ═══
 Three linked changes (user: enable guided wizard, no AI triage for MOD, generic/shared logins must always select the
 reporting staff member so service providers have a contact point).

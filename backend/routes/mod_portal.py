@@ -3206,6 +3206,32 @@ def _inline_attachment_block(doc: dict, max_images: int = 4) -> str:
     )
 
 
+def _reporter_contact_block(doc: dict) -> str:
+    """Prominent 'call them directly' point-of-contact card for MOD fault
+    emails, so the service provider can reach the reporter without hunting
+    through the details table."""
+    name = doc.get("reporter_name") or "Not provided"
+    email = (doc.get("reporter_email") or "").strip()
+    phone = (doc.get("reporter_phone") or "").strip()
+    role = (doc.get("reporter_job_title") or "").strip()
+    phone_html = (
+        f'<a href="tel:{phone}" style="display:inline-block;background:#06b6d4;color:#062c33;'
+        f'font-weight:800;text-decoration:none;padding:11px 20px;border-radius:8px;font-size:16px;">'
+        f'Call {phone}</a>'
+        if phone else '<span style="color:#9ca3af;font-size:13px;">No phone on file</span>'
+    )
+    email_html = (
+        f'<a href="mailto:{email}" style="color:#0891b2;font-weight:600;text-decoration:none;">{email}</a>'
+        if email else '<span style="color:#9ca3af;">No email on file</span>'
+    )
+    return f"""<div style="margin:18px 0;padding:16px 18px;background:#ecfeff;border:1px solid #a5f3fc;border-left:4px solid #06b6d4;border-radius:10px;">
+    <div style="font-size:11px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#0891b2;">Point of contact — call them directly</div>
+    <div style="font-size:18px;font-weight:800;color:#0f172a;margin-top:4px;">{name}{f' &middot; {role}' if role else ''}</div>
+    <div style="margin-top:6px;font-size:14px;color:#334155;">{email_html}</div>
+    <div style="margin-top:12px;">{phone_html}</div>
+  </div>"""
+
+
 def _escalation_email_html(site: dict, eq: dict, doc: dict) -> str:
     attachment_block = _inline_attachment_block(doc)
     return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#0A0B10;color:#fff;border-radius:12px;overflow:hidden;">
@@ -3214,11 +3240,11 @@ def _escalation_email_html(site: dict, eq: dict, doc: dict) -> str:
     <h1 style="margin:8px 0 0 0;font-size:22px;">{doc['mod_ticket_ref']} — {site.get('name')}</h1>
   </div>
   <div style="padding:22px 28px;">
+    {_reporter_contact_block(doc)}
     <table style="width:100%;color:#e5e7eb;font-size:14px;border-collapse:collapse;">
       <tr><td style="padding:6px 0;color:#9ca3af;width:130px;">Asset</td><td style="padding:6px 0;font-weight:600;">{eq.get('name')} ({eq.get('machine_type','')})</td></tr>
       <tr><td style="padding:6px 0;color:#9ca3af;">Fault</td><td style="padding:6px 0;">{FAULT_TYPE_LABELS.get(doc.get('fault_type_mod'), doc.get('fault_type_mod'))} · Safe to use? {doc.get('safe_in_service')} · Usable? {doc.get('usable')}</td></tr>
       <tr><td style="padding:6px 0;color:#9ca3af;">Description</td><td style="padding:6px 0;">{doc.get('issue_description','')}</td></tr>
-      <tr><td style="padding:6px 0;color:#9ca3af;">Reporter</td><td style="padding:6px 0;">{doc.get('reporter_name')} · <a href="mailto:{doc.get('reporter_email')}" style="color:#19CDFF;">{doc.get('reporter_email')}</a> · {doc.get('reporter_phone')}</td></tr>
     </table>
   </div>
   {attachment_block}
@@ -3308,7 +3334,8 @@ def _supplier_fault_email_html(site: dict, eq: dict, doc: dict, supplier: dict) 
   </div>
   <div style="padding:22px 28px;">
     <p>Dear {contact},</p>
-    <p>A fault has been logged on a machine you service at <strong>{site.get('name')}</strong>. Details below — please follow up directly with the reporter.</p>
+    <p>A fault has been logged on a machine you service at <strong>{site.get('name')}</strong>. Please follow up directly with the reporter using the contact details below.</p>
+    {_reporter_contact_block(doc)}
     <table style="width:100%;color:#1B1D1D;font-size:14px;border-collapse:collapse;margin-top:14px;">
       <tr><td style="padding:6px 0;color:#6E7476;width:140px;">Ticket</td><td style="padding:6px 0;font-weight:700;">{doc['mod_ticket_ref']}</td></tr>
       <tr><td style="padding:6px 0;color:#6E7476;">Priority</td><td style="padding:6px 0;font-weight:700;">{doc.get('priority','').upper()}</td></tr>
@@ -3317,7 +3344,6 @@ def _supplier_fault_email_html(site: dict, eq: dict, doc: dict, supplier: dict) 
       <tr><td style="padding:6px 0;color:#6E7476;">Serial</td><td style="padding:6px 0;font-family:ui-monospace,Menlo,monospace;">{eq.get('serial_number','—')}</td></tr>
       <tr><td style="padding:6px 0;color:#6E7476;">Fault</td><td style="padding:6px 0;">{FAULT_TYPE_LABELS.get(doc.get('fault_type_mod'), doc.get('fault_type_mod'))} · Safe? {doc.get('safe_in_service')} · Usable? {doc.get('usable')}</td></tr>
       <tr><td style="padding:6px 0;color:#6E7476;vertical-align:top;">Description</td><td style="padding:6px 0;">{doc.get('issue_description','')}</td></tr>
-      <tr><td style="padding:6px 0;color:#6E7476;">Reporter</td><td style="padding:6px 0;">{doc.get('reporter_name','')} · <a href="mailto:{doc.get('reporter_email','')}" style="color:#19CDFF;">{doc.get('reporter_email','')}</a> · {doc.get('reporter_phone','')}</td></tr>
     </table>
   </div>
   {attachment_block}

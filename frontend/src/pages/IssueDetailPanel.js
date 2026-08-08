@@ -11,7 +11,7 @@ import axios from 'axios';
 import { notify } from '@/components/notifications';
 import {
  FileText, Upload, Send, Plus, Trash2,
- Paperclip, ExternalLink, ShoppingCart, Clock, CheckCircle, AlertCircle, Printer, Wrench, Loader2, CalendarDays, ShieldCheck,
+ Paperclip, ExternalLink, ShoppingCart, Clock, CheckCircle, AlertCircle, Printer, Wrench, Loader2, CalendarDays, ShieldCheck, Phone, Mail,
  ChevronDown, ChevronUp, Receipt,
 } from 'lucide-react';
 import SiconServicePanel from './SiconServicePanel';
@@ -414,13 +414,26 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  {/* Logged-by staff block — Site Staff Shared Login. Suppliers/engineers
      use these contact details to call the person who logged the fault. */}
  {issue.reporter_name && (
- <div className="p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-lg" data-testid={`issue-logged-by-${issue.id}`}>
- <span className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">Logged by</span>
- <p className="text-white font-semibold mt-1" data-testid="logged-by-name">{issue.reporter_name}</p>
+ <div className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-lg" data-testid={`issue-logged-by-${issue.id}`}>
+ <span className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">Logged by — call them directly</span>
+ <p className="text-white font-bold text-lg mt-1" data-testid="logged-by-name">{issue.reporter_name}</p>
  {issue.reporter_job_title && <p className="text-[var(--color-text-muted)] text-sm">{issue.reporter_job_title}</p>}
- <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-sm">
- {issue.reporter_email && <a href={`mailto:${issue.reporter_email}`} className="text-[var(--color-brand-cyan-hover)] hover:underline" data-testid="logged-by-email">{issue.reporter_email}</a>}
- {issue.reporter_phone && <a href={`tel:${issue.reporter_phone}`} className="text-[var(--color-brand-cyan-hover)] hover:underline" data-testid="logged-by-phone">{issue.reporter_phone}</a>}
+ <div className="flex flex-wrap items-center gap-2 mt-3">
+ {issue.reporter_phone && (
+ <a href={`tel:${issue.reporter_phone}`} data-testid="logged-by-phone"
+ className="inline-flex items-center gap-1.5 bg-[var(--color-brand-cyan)] text-[var(--color-surface-darker)] font-bold text-sm px-3.5 py-2 rounded-lg hover:opacity-90 transition-opacity">
+ <Phone size={15} /> Call {issue.reporter_phone}
+ </a>
+ )}
+ {issue.reporter_email && (
+ <a href={`mailto:${issue.reporter_email}`} data-testid="logged-by-email"
+ className="inline-flex items-center gap-1.5 border border-white/20 text-[var(--color-brand-cyan-hover)] font-semibold text-sm px-3 py-2 rounded-lg hover:bg-white/5 transition-colors">
+ <Mail size={14} /> {issue.reporter_email}
+ </a>
+ )}
+ {!issue.reporter_phone && !issue.reporter_email && (
+ <span className="text-[var(--color-text-muted)] text-sm">No contact details on file</span>
+ )}
  </div>
  {issue.logged_via_shared_login && <p className="text-[11px] text-[var(--color-text-muted)] mt-2">Logged via: Shared Site Login</p>}
  </div>
