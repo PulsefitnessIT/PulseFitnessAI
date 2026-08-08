@@ -1667,12 +1667,10 @@ async def mod_fault_submit(
         "status": {"$ne": "resolved"},
     }, {"_id": 0, "id": 1, "mod_ticket_ref": 1})
 
-    # Deterministic priority, then AI enrichment.
+    # Deterministic priority ONLY — AI triage is intentionally DISABLED for
+    # MOD (founder requirement: no AI triage on MOD faults).
     priority = _deterministic_priority(payload.fault_type, payload.safe_in_service, payload.usable)
-    ai = await _ai_triage(
-        equipment, payload.fault_type, payload.description,
-        payload.onset, payload.usable, payload.safe_in_service,
-    )
+    ai = None
 
     now = datetime.now(timezone.utc)
     ticket_ref = f"MOD-{now.year}-{str(uuid.uuid4().int)[:5].zfill(5)}"
@@ -1720,9 +1718,8 @@ async def mod_fault_submit(
 
     # Engineer-callout faults get an Engineer Appointment Booking form so the
     # site can book our engineer onto the base (details surface on the fault
-    # card). Auto-generated when AI triage says an engineer is required or the
-    # fault is high priority.
-    if (ai or {}).get("engineer_required") or priority in ("urgent", "high"):
+    # card). Auto-generated for high/urgent priority (deterministic — no AI).
+    if priority in ("urgent", "high"):
         try:
             from routes.svc.mod_visits import make_fault_booking
             await make_fault_booking(issue_id)
@@ -2107,10 +2104,8 @@ async def mod_triage_preview(
     if not eq:
         raise HTTPException(404, "Equipment not found")
     priority = _deterministic_priority(body.fault_type, body.safe_in_service, body.usable)
-    ai = await _ai_triage(
-        eq, body.fault_type, body.description, body.onset, body.usable, body.safe_in_service,
-    )
-    return {"priority": priority, "ai": ai}
+    # AI triage is DISABLED for MOD (founder requirement) — deterministic only.
+    return {"priority": priority, "ai": None}
 
 
 # ── Phase 2: Engineer pre-visit pack ──────────────────────────

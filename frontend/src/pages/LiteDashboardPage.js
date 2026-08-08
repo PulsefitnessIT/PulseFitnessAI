@@ -3,6 +3,7 @@ import { useAuth } from '@/App';
 import ClassificationBanner from '@/components/shared/ClassificationBanner';
 import OfflineStatusPill from '@/components/shared/OfflineStatusPill';
 import MODIncidentWizard from './MODPortal/MODIncidentWizard';
+import MODFaultWizard from './MODPortal/MODFaultWizard';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle
@@ -1159,7 +1160,7 @@ const LiteDashboardPage = () => {
         getSeverityStyle={getSeverityStyle}
         getSeverityLabel={getSeverityLabel}
         getStatusColor={getStatusColor}
-        showFaultDialog={showFaultDialog}
+        showFaultDialog={isMODSite ? false : showFaultDialog}
         onCloseFaultDialog={setShowFaultDialog}
         equipment={equipment}
         faultForm={faultForm}
@@ -1235,6 +1236,21 @@ const LiteDashboardPage = () => {
         <MODIncidentWizard
           onClose={() => setIncidentOpen(false)}
           onSubmitted={() => setIncidentOpen(false)}
+        />
+      )}
+
+      {/* MOD sites use the guided MOD Fault Wizard (equipment → fault type →
+          guided questions → attachments → reporter → review). No AI triage. */}
+      {isMODSite && showFaultDialog && (
+        <MODFaultWizard
+          prefillEquipmentId={faultForm?.equipment_id || ''}
+          onClose={() => setShowFaultDialog(false)}
+          onSubmitted={() => {
+            setShowFaultDialog(false);
+            setFaultForm({ equipment_id: '', serial_number: '', machine_type: '', issue_description: '', severity: 'operational_minor', supplier: '', steps_taken: '', fault_code: null });
+            loadData();
+            try { window.dispatchEvent(new CustomEvent('gymaxis:fault-logged', { detail: {} })); } catch (_) { /* no-op */ }
+          }}
         />
       )}
 
