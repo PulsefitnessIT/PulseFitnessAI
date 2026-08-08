@@ -891,6 +891,97 @@ async def _send_fault_notifications(issue_doc: dict, reporter: dict) -> None:
         logger.warning("fault notification failed: %s", e)
 
 
+async def _send_mod_fault_notifications(issue_doc: dict, user: dict) -> None:
+    """MOD sites: ensure BOTH the Pulse Fitness MOD Service desk AND the site's
+    assigned overseas service provider are notified when a job is logged, and
+    record a `notified_recipients` proof-log on the issue (rendered on the job
+    detail). Runs after `_auto_dispatch_to_primary_supplier` (which already
+    emailed the machine's resolved supplier), so we don't double-send. No-op
+    for non-MOD orgs. Best-effort — never blocks intake."""
+    try:
+        org_id = issue_doc.get("organization_id") or user.get("organization_id")
+        org = await db.organizations.find_one(
+            {"id": org_id},
+            {"_id": 0, "name": 1, "account_type": 1, "is_overseas": 1, "service_supplier_id": 1},
+        )
+        if not org or org.get("account_type") != "mod_site":
+            return
+
+        import os
+        from utils.default_supplier import MOD_SERVICE_EMAIL
+        from utils.email import send_email
+
+        pulse_email = (os.environ.get("MOD_SERVICE_EMAIL") or MOD_SERVICE_EMAIL).strip()
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        # Who did auto-dispatch already email? (re-read the issue for the tags)
+        fresh = await db.issues.find_one(
+            {"id": issue_doc.get("id")},
+            {"_id": 0, "auto_dispatched_supplier_email": 1, "auto_dispatched_supplier_name": 1},
+        ) or {}
+        dispatched_email = (fresh.get("auto_dispatched_supplier_email") or "").strip()
+        dispatched_name = fresh.get("auto_dispatched_supplier_name") or ""
+        already_emailed = {dispatched_email.lower()} if dispatched_email else set()
+
+        # Overseas provider assigned to this site (if any).
+        overseas_email, overseas_name = "", ""
+        if org.get("is_overseas") and (org.get("service_supplier_id") or "").strip():
+            ov = await db.suppliers.find_one(
+                {"id": org["service_supplier_id"], "organization_id": org_id},
+                {"_id": 0, "name": 1, "email": 1},
+            )
+            overseas_email = (ov or {}).get("email", "").strip()
+            overseas_name = (ov or {}).get("name", "")
+
+        machine = issue_doc.get("machine_type") or "the equipment"
+        ref = (issue_doc.get("id") or "")[:8]
+        desc = (issue_doc.get("issue_description") or "").strip()
+        subject = f"[MOD Fault] {ref} — {org.get('name')} — {machine}"
+        html = (
+            f"<p>A fault was logged at <b>{org.get('name')}</b>.</p>"
+            f"<ul><li><b>Ref:</b> {ref}</li><li><b>Equipment:</b> {machine}</li>"
+            f"<li><b>Severity:</b> {issue_doc.get('severity') or ''}</li></ul>"
+            f"<p>{desc}</p>"
+        )
+
+        notified = []
+        seen = set()
+
+        # 1) Pulse MOD Service desk — always in the log; email only if
+        #    auto-dispatch didn't already send to MODService@.
+        notified.append({"role": "pulse", "name": "Pulse Fitness (MOD Service)",
+                         "email": pulse_email, "at": now_iso})
+        seen.add(pulse_email.lower())
+        if pulse_email.lower() not in already_emailed:
+            asyncio.create_task(send_email(
+                pulse_email, subject, html,
+                organization_id=org_id, kind="mod_fault_pulse", category="operations"))
+
+        # 2) Overseas provider — email if not already emailed.
+        if overseas_email and overseas_email.lower() not in seen:
+            notified.append({"role": "overseas", "name": overseas_name,
+                             "email": overseas_email, "at": now_iso})
+            seen.add(overseas_email.lower())
+            if overseas_email.lower() not in already_emailed:
+                asyncio.create_task(send_email(
+                    overseas_email, subject, html,
+                    organization_id=org_id, kind="mod_fault_overseas", category="operations"))
+
+        # 3) Any other supplier auto-dispatch already emailed (machine supplier).
+        if dispatched_email and dispatched_email.lower() not in seen:
+            notified.append({"role": "supplier", "name": dispatched_name,
+                             "email": dispatched_email, "at": now_iso})
+            seen.add(dispatched_email.lower())
+
+        issue_doc["notified_recipients"] = notified
+        await db.issues.update_one(
+            {"id": issue_doc["id"]}, {"$set": {"notified_recipients": notified}})
+    except Exception as e:  # pragma: no cover
+        logger.warning("MOD fault notification failed: %s", e)
+
+
+
+
 @router.post("/issues")
 async def create_issue(issue: IssueCreate, user: dict = Depends(get_current_user)) -> dict:
     reporter = await _resolve_reporter(issue, user)
@@ -930,6 +1021,10 @@ async def create_issue(issue: IssueCreate, user: dict = Depends(get_current_user
     # signed up with a Partner Engineer's referral code). Best-effort —
     # never blocks intake.
     await _auto_dispatch_to_primary_supplier(issue_doc, user)
+
+    # MOD sites: notify Pulse + the overseas provider and record the
+    # notified_recipients proof-log (shown on the job detail).
+    await _send_mod_fault_notifications(issue_doc, user)
 
     # Iter 216h227 — Operations trial first-win milestone for logging
     # the org's very first fault. Best-effort — never block intake.
@@ -1010,6 +1105,7 @@ async def create_issues_batch(
     # supplier (machine-first resolution). Idempotent per issue_id.
     for doc in created:
         await _auto_dispatch_to_primary_supplier(doc, user)
+        await _send_mod_fault_notifications(doc, user)
 
     if reporter and created:
         asyncio.create_task(_send_fault_notifications(created[0], reporter))

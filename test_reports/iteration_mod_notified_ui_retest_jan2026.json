@@ -1,0 +1,21 @@
+{
+  "summary": "RETEST PASS. UI now correctly renders the 'Notified when logged' panel on a MOD-site logged fault. Logged in as test@army.mod.test at /MODService, landed at /pulse LiteDashboard, opened Faults tab, submitted a new fault on Pulse Fitness Series 3 Treadmill with a 87-char description and Out of Order severity. Fault created (FLT-FCBDC7F2, id=fcbdc7f2-2521-4d4a-8197-43dcfa45eaf8). Opened the new fault card in IssueDetailPanel — the 'Notified when logged' section is present with data-testid=issue-notified-log-<id> and one recipient row data-testid=issue-notified-<id>-0. Row content: 'PULSE' role pill, 'Pulse Fitness (MOD Service)', email 'MODService@pulsefitness.com', and 'Emailed 8/8/2026, 9:02:54 AM.' timestamp — all required assertions satisfied. UK-only single Pulse recipient behavior confirmed as expected.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Rate-limit sensitivity confirmed: /api/auth/login returns 429 after ~4 rapid logins with ~45s cooldown — makes iterative UI testing painful, keep in mind for future automation."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not tested)", "frontend": "100%"},
+  "test_credentials": "MOD site: test@army.mod.test / ModTest123! at /MODService",
+  "seed_data_creation": "Created new fault FLT-FCBDC7F2 (issue id fcbdc7f2-2521-4d4a-8197-43dcfa45eaf8) on PF-MODTS treadmill. An earlier attempt also created FLT-1ACFB4CC (id 1acfb4cc-bd3f-4eb5-a2ef-2b2c75e02b43) with the same description. Both are Out of Order status on MOD Test Site. Consider cleanup if the seeded data set needs to stay tidy.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Notified-when-logged UI on MOD-site LiteDashboard Faults flow is verified working. Selectors used: [data-testid=lite-tab-faults] → [data-testid=log-fault-btn] → dialog fields (native select for machine, textarea for description, click 'Out of Order' inside role=dialog scope) → 'Submit Fault Report'. Two blocking modals appear post-submit: [data-testid=fault-success-modal] (dismiss via OK button) and, when equipment already has open faults, [data-testid=duplicate-fault-modal] (Cancel/Continue Logging). Notified panel selectors are issue-notified-log-<issueId> and issue-notified-<issueId>-<i>. Login is rate-limited (~4 rapid attempts → 429 with 45s cooldown)."
+}
