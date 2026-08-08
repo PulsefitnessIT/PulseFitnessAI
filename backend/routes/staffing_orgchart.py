@@ -926,10 +926,9 @@ async def rotate_public_token(cid: str, user: dict = Depends(get_current_user)):
 
 
 def _oc_client_ip(request: Request) -> str:
-    fwd = request.headers.get("x-forwarded-for") or ""
-    if fwd:
-        return fwd.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    # SEC-002 — spoof-resistant client IP (right-indexed XFF past trusted hops).
+    from utils.security import client_ip
+    return client_ip(request)
 
 
 async def _log_public_org_access(*, token: str, ip: str, ua: str, found: bool) -> None:

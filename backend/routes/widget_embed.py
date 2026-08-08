@@ -262,10 +262,9 @@ async def public_widget_config(token: str, request: Request = None):  # type: ig
 
 
 def _client_ip(request: Request) -> str:
-    fwd = request.headers.get("x-forwarded-for") or ""
-    if fwd:
-        return fwd.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    # SEC-002 — spoof-resistant client IP (right-indexed XFF past trusted hops).
+    from utils.security import client_ip
+    return client_ip(request)
 
 
 async def _check_rate_limit(token: str, ip: str, max_per_hour: int = 5) -> None:

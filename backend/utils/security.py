@@ -7,21 +7,52 @@ from collections import defaultdict
 from fastapi import HTTPException, Request
 
 
-def _client_ip(request: Request) -> str:
-    """Best-effort real-client-IP extraction behind a reverse proxy (CF → K8s ingress → FastAPI).
+def _trusted_proxy_hops() -> int:
+    """Number of TRUSTED reverse-proxy hops that append to X-Forwarded-For
+    AFTER the real client's address. Measured for this platform: Cloudflare
+    + GCP load-balancer = 2 (the K8s ingress passes through without adding a
+    3rd). Overridable via env for other deployments."""
+    try:
+        return max(0, int(os.environ.get("TRUSTED_PROXY_HOPS", "2")))
+    except ValueError:
+        return 2
 
-    Prefers the left-most value of X-Forwarded-For, then X-Real-IP, then the
-    direct client host. Essential so rate limits aren't bypassed by traffic
-    being load-balanced across ingress pods (each showing a different
-    internal IP to FastAPI).
+
+def client_ip(request: Request) -> str:
+    """Spoof-resistant real-client-IP extraction (SEC-002).
+
+    The chain is: client → Cloudflare → GCP LB → K8s ingress → FastAPI. Each
+    TRUSTED proxy APPENDS the peer it saw to the RIGHT of X-Forwarded-For, so
+    the last ``TRUSTED_PROXY_HOPS`` entries are infra-controlled and the real
+    client sits immediately to their left (index ``-(hops+1)``). Anything a
+    client injects lands further LEFT and is therefore ignored — you cannot
+    forge your position past the fixed number of trusted appenders.
+
+    (The old code returned the LEFT-most XFF value, which is fully
+    attacker-controlled — the spoofing hole this fixes.)
     """
-    xff = request.headers.get("x-forwarded-for", "").strip()
-    if xff:
-        return xff.split(",")[0].strip()
+    hops = _trusted_proxy_hops()
+    xff = request.headers.get("x-forwarded-for", "")
+    parts = [p.strip() for p in xff.split(",") if p.strip()]
+    if parts:
+        idx = len(parts) - 1 - hops
+        if idx >= 0:
+            return parts[idx]
+        # Fewer entries than the expected trusted chain → not behind the full
+        # proxy stack (local/dev or an internal call). No trusted appender was
+        # bypassed, so the left-most is the best (and non-forgeable-here) value.
+        return parts[0]
+    # No XFF at all (direct/local): fall back to X-Real-IP then the socket peer.
     xri = request.headers.get("x-real-ip", "").strip()
     if xri:
         return xri
     return request.client.host if request.client else "unknown"
+
+
+def _client_ip(request: Request) -> str:
+    """Backwards-compatible alias — delegates to the spoof-resistant
+    :func:`client_ip`."""
+    return client_ip(request)
 
 # ── Rate Limiter (in-memory, per-IP) ──────────────────────────────
 

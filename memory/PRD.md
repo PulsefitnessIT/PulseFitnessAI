@@ -1,3 +1,30 @@
+# ═══ 2026-06 · SEC-002 FIX — X-Forwarded-For spoofing locked down (per-IP throttle + admin IP allow-list) — live-verified ═══
+The client-IP derivation trusted the LEFT-most X-Forwarded-For value, which is fully client-controlled → an attacker could
+rotate a fake XFF to mint a fresh rate-limit bucket per request (bypassing the 5/5min login throttle) and could forge an
+allow-listed source IP for the master-admin IP allow-list.
+  • MEASURED the real proxy chain (temp debug log on the external endpoint): honest XFF =
+    `<client>, <cloudflare>, <gcp-lb>` (3 entries); an injected XFF lands to the LEFT of `<client>`, i.e. the trusted infra
+    ALWAYS appends exactly 2 entries (Cloudflare + GCP LB) to the right of the real client. So the real client is at index
+    `-3` (`-(hops+1)`, hops=2).
+  • NEW canonical utils/security.py `client_ip(request)`: reads XFF from the RIGHT and skips `TRUSTED_PROXY_HOPS` (env,
+    default **2**) trusted appenders → returns the entry the trusted chain recorded for the client; anything a client injects
+    is further left and ignored. Falls back to X-Real-IP / socket peer when there's no full chain (dev/local). `_client_ip`
+    kept as a thin alias.
+  • ROUTED ALL five duplicate derivations through it: utils/security.py (rate_limit_by_ip / login / password-reset +
+    account-lockout via auth.py), utils/hardening.py `_extract_client_ip` (master-admin IP allow-list),
+    utils/security_plus.py `client_rate_key` (middleware limiter), routes/staffing_orgchart.py `_oc_client_ip`,
+    routes/widget_embed.py `_client_ip`.
+  • VERIFIED — unit: honest user → own IP (no throttle breakage); 1-fake & 2-fake spoofs → still resolves the true client at
+    `-3`; dev single / no-XFF fallbacks correct. LIVE (through the real ingress): 7 login attempts each with a DIFFERENT
+    spoofed `X-Forwarded-For` left-most → 5×401 then **429** (throttle keyed on the true IP, not the rotating spoof). Temp
+    debug logging removed; grep confirms zero remaining left-most-XFF security parsing.
+  • CONFIG: `TRUSTED_PROXY_HOPS` defaults to 2 in code (not added to .env to avoid touching secrets) — set it in the prod
+    env only if the deployment's trusted proxy count differs.
+  ⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY. If prod sits behind a different number of trusted proxies, set
+    TRUSTED_PROXY_HOPS accordingly (re-measure the same way).
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · CSP hardening (P2/P3) — dropped script-src 'unsafe-inline' in production; prod-build validated 0 violations ═══
 Removed the XSS-relevant `'unsafe-inline'` from the PRODUCTION script-src by externalising every inline executable script.
   • EXTERNALISED inline <script>s from frontend/public/index.html → NEW public/pwa-brand.js (PWA brand/manifest swap),

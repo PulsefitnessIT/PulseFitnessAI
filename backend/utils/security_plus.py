@@ -114,11 +114,12 @@ def client_rate_key(request: Request, user: Optional[dict], suffix: str) -> str:
     """Stable per-identity key used by the middleware rate limiter."""
     if user and user.get("id"):
         return f"user:{user['id']}:{suffix}"
-    ip = (request.client.host if request.client else "unknown")
-    # Honour proxy header if configured
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        ip = forwarded.split(",")[0].strip() or ip
+    # SEC-002 — spoof-resistant client IP (right-indexed XFF past trusted hops).
+    try:
+        from utils.security import client_ip
+        ip = client_ip(request)
+    except Exception:
+        ip = (request.client.host if request.client else "unknown")
     return f"ip:{ip}:{suffix}"
 
 

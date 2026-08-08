@@ -48,11 +48,16 @@ def _parse_allowlist() -> list:
 
 
 def _extract_client_ip(request: Request) -> Optional[str]:
-    # Respect X-Forwarded-For when it exists (behind ingress/LB) but fall back
-    # to the direct client address for local/dev.
-    xff = request.headers.get("x-forwarded-for", "")
-    if xff:
-        return xff.split(",")[0].strip()
+    # SEC-002 — use the spoof-resistant derivation (reads X-Forwarded-For from
+    # the RIGHT, skipping trusted proxy hops) so the master-admin IP allow-list
+    # can't be bypassed by a forged left-most X-Forwarded-For.
+    try:
+        from utils.security import client_ip
+        ip = client_ip(request)
+        if ip and ip != "unknown":
+            return ip
+    except Exception:
+        pass
     return request.client.host if request.client else None
 
 
