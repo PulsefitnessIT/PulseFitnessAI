@@ -1,3 +1,22 @@
+# ═══ 2026-08-08 · MOD job "Notified" log — proof of who was emailed (Pulse + overseas) — full e2e verified ═══
+Every logged MOD job now records and displays EXACTLY who was emailed, so HQ/site have proof both Pulse Fitness and the
+overseas provider were notified.
+  • BACKEND mod_portal.py mod_fault_submit: builds notified_recipients=[{role,name,email,at}] — role 'pulse' for the always-
+    notified MODService@ desk, 'overseas' for the site's assigned overseas provider (matched on org.service_supplier_id),
+    'supplier' for any machine-resolved supplier. Persisted on db.issues alongside the legacy supplier_notified_* fields.
+    GET /issues/{id} (get_issue_detail) already returns the full doc so the field flows through.
+  • FRONTEND IssueDetailPanel.js: NEW "Notified when logged" card (data-testid issue-notified-log-<id>) under the info grid
+    — a role pill (sky Pulse / amber Overseas / grey Supplier) + name + email per recipient (issue-notified-<id>-<i>) and
+    an "Emailed <timestamp>" line. Renders on every job detail (site portal Faults tab + MOD HQ views, which all use this
+    panel via /issues/{id}).
+  • VERIFIED (real HTTP e2e): set up overseas site (Nyati) + provider (ops@kenyafitness.test) + machine → impersonated the
+    site (org-portal-login) → POST /mod/site/faults → issue.notified_recipients = [pulse MODService@, overseas Kenya Fitness
+    Services Ltd] with timestamps. Backend py OK; frontend babel + webpack compiled. All test data cleaned up.
+  ⚠️ Applies to jobs logged AFTER this ships (existing jobs have no notified_recipients → the card simply doesn't render).
+    PREVIEW ONLY — needs REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-08 · MOD site card — "Assign / change overseas provider" (allocate or swap without re-import) — curl-verified ═══
 Follow-on to the dual-provider work. HQ can now allocate/swap/remove an overseas site's service provider from the Master
 Admin MOD estate site card — no equipment re-import needed.

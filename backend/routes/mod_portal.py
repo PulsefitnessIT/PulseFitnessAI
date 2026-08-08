@@ -1761,14 +1761,22 @@ async def mod_fault_submit(
 
     # The Pulse Fitness MOD Service desk is ALWAYS notified when a MOD fault
     # is logged — at every priority, UK or overseas. Founder requirement.
+    # We also record EVERY recipient in `notified_recipients` on the issue so
+    # the job detail can prove exactly who was emailed (Pulse + provider).
     from utils.default_supplier import MOD_SERVICE_EMAIL
     pulse_inbox = (os.environ.get("MOD_SERVICE_EMAIL") or MOD_SERVICE_EMAIL).strip()
+    notified_at = now.isoformat()
+    notified_recipients = []  # [{role, name, email, at}]
     urgent = priority == "urgent"
     subject = (f"[MOD URGENT] {ticket_ref}" if urgent else f"[MOD Fault] {ticket_ref}") \
         + f" — {org.get('name')} — {equipment.get('name')}"
     html = _escalation_email_html(org, equipment, doc)
     try:
         asyncio.create_task(send_email(pulse_inbox, subject, html))
+        notified_recipients.append({
+            "role": "pulse", "name": "Pulse Fitness (MOD Service)",
+            "email": pulse_inbox, "at": notified_at,
+        })
     except Exception as e:  # pragma: no cover
         logger.warning("MOD Pulse fault notification failed: %s", e)
 
@@ -1781,6 +1789,7 @@ async def mod_fault_submit(
     # double-sent (the MOD default supplier resolves to MODService@ and is
     # skipped here since it already got the escalation email above).
     try:
+        overseas_sup_id = (org.get("service_supplier_id") or "").strip() if org.get("is_overseas") else ""
         recipients: dict = {}  # email_lc -> supplier doc
 
         def _add(sd):
@@ -1792,11 +1801,9 @@ async def mod_fault_submit(
             recipients.setdefault(em.lower(), sd)
 
         _add(await _resolve_equipment_supplier(equipment, site_id))
-        if org.get("is_overseas"):
-            ov_id = (org.get("service_supplier_id") or "").strip()
-            if ov_id:
-                _add(await db.suppliers.find_one(
-                    {"id": ov_id, "organization_id": site_id}, {"_id": 0}))
+        if overseas_sup_id:
+            _add(await db.suppliers.find_one(
+                {"id": overseas_sup_id, "organization_id": site_id}, {"_id": 0}))
 
         notified = []
         for sd in recipients.values():
@@ -1806,18 +1813,22 @@ async def mod_fault_submit(
                 _supplier_fault_email_html(org, equipment, doc, sd),
             ))
             notified.append({"email": sd.get("email"), "name": sd.get("name", "")})
+            notified_recipients.append({
+                "role": "overseas" if (sd.get("id") and sd.get("id") == overseas_sup_id) else "supplier",
+                "name": sd.get("name", ""), "email": sd.get("email"), "at": notified_at,
+            })
+        doc["notified_recipients"] = notified_recipients
+        set_fields = {"notified_recipients": notified_recipients}
         if notified:
             doc["supplier_notified_email"] = notified[0]["email"]
             doc["supplier_notified_name"] = notified[0]["name"]
             doc["supplier_notified_all"] = notified
-            await db.issues.update_one(
-                {"id": issue_id},
-                {"$set": {
-                    "supplier_notified_email": notified[0]["email"],
-                    "supplier_notified_name": notified[0]["name"],
-                    "supplier_notified_all": notified,
-                }},
-            )
+            set_fields.update({
+                "supplier_notified_email": notified[0]["email"],
+                "supplier_notified_name": notified[0]["name"],
+                "supplier_notified_all": notified,
+            })
+        await db.issues.update_one({"id": issue_id}, {"$set": set_fields})
     except Exception as e:  # pragma: no cover
         logger.warning("MOD supplier-routed fault email failed: %s", e)
 

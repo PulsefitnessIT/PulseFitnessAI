@@ -453,6 +453,33 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  </div>
  </div>
 
+ {/* Notified — proof of exactly who was emailed when this job was
+     logged (Pulse Fitness always; overseas sites also their provider). */}
+ {Array.isArray(issue.notified_recipients) && issue.notified_recipients.length > 0 && (
+ <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20" data-testid={`issue-notified-log-${issue.id}`}>
+ <div className="flex items-center gap-2 mb-2">
+ <CheckCircle size={14} className="text-emerald-400" />
+ <span className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">Notified when logged</span>
+ </div>
+ <div className="space-y-1.5">
+ {issue.notified_recipients.map((r, i) => (
+ <div key={`${r.email || i}-${i}`} className="flex items-center justify-between gap-3 text-sm" data-testid={`issue-notified-${issue.id}-${i}`}>
+ <div className="min-w-0 flex items-center gap-2">
+ <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${r.role === 'pulse' ? 'bg-sky-500/20 text-sky-300' : r.role === 'overseas' ? 'bg-amber-500/20 text-amber-300' : 'bg-zinc-500/20 text-zinc-300'}`}>
+ {r.role === 'pulse' ? 'Pulse' : r.role === 'overseas' ? 'Overseas' : 'Supplier'}
+ </span>
+ <span className="text-white font-medium truncate">{r.name || r.email}</span>
+ </div>
+ <span className="text-[var(--color-text-muted)] text-xs truncate shrink-0">{r.email}</span>
+ </div>
+ ))}
+ </div>
+ <p className="text-[11px] text-[var(--color-text-muted)] mt-2">
+ Emailed {issue.notified_recipients[0]?.at ? new Date(issue.notified_recipients[0].at).toLocaleString() : 'when the job was logged'}.
+ </p>
+ </div>
+ )}
+
  {/* Iter 220ea·40 — confirmation the fault was dispatched to the supplier
      (auto on submit, or via manual contact). Reassures the operator it
      actually reached someone. */}
