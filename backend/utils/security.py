@@ -54,31 +54,93 @@ def _client_ip(request: Request) -> str:
     :func:`client_ip`."""
     return client_ip(request)
 
-# ── Rate Limiter (in-memory, per-IP) ──────────────────────────────
+# ── Rate Limiter (MongoDB-backed, shared across pods & restarts) ──────
+#
+# Rate-limit + account-lockout state used to live in per-process dicts, so a
+# restart wiped every counter and each pod enforced its OWN allowance (N pods
+# = N× the limit, and an attacker throttled on one pod was free on the next).
+# We now persist to the shared `rate_buckets` collection in MongoDB (same store
+# the async middleware limiter uses), so limits are global and durable.
+#
+# These functions keep their original SYNCHRONOUS signatures — callers (auth
+# routes etc.) are unchanged — backed by a dedicated lazy pymongo client. The
+# ops are single indexed upserts on low-QPS auth paths, and they FAIL OPEN
+# (logged) if the store is briefly unreachable so a DB blip never causes a
+# total auth outage.
 
-_rate_store: dict[str, list[float]] = defaultdict(list)
+import logging as _logging
+from datetime import datetime, timezone
+
+_rl_logger = _logging.getLogger(__name__)
+_RATE_COLLECTION = "rate_buckets"
+_sync_client = None
+_sync_col = None
+_sync_col_failed = False
+
+
+def _rl_col():
+    """Lazy sync handle to the shared rate-limit collection. Returns None (and
+    the limiter fails open) if Mongo is unreachable. Constructed lazily on
+    first use — never at import — so an Atlas SRV DNS lookup can't hang boot."""
+    global _sync_client, _sync_col, _sync_col_failed
+    if _sync_col is not None:
+        return _sync_col
+    if _sync_col_failed:
+        return None
+    try:
+        from pymongo import MongoClient
+        url = os.environ["MONGO_URL"]
+        name = os.environ["DB_NAME"]
+        _sync_client = MongoClient(url, serverSelectionTimeoutMS=1500, connectTimeoutMS=1500)
+        _sync_col = _sync_client[name][_RATE_COLLECTION]
+        try:
+            # TTL sweeps abandoned buckets (BSON-date `updated_at`) after 24h.
+            _sync_col.create_index("updated_at", expireAfterSeconds=24 * 3600)
+        except Exception:
+            pass
+        return _sync_col
+    except Exception as e:
+        _sync_col_failed = True
+        _rl_logger.warning("[rate-limit] shared store unavailable, failing OPEN: %s", e)
+        return None
+
+
+def _sliding_window_hit(key: str, max_requests: int, window_seconds: int) -> None:
+    """Atomic Mongo sliding-window check. Raises 429 if `key` has already had
+    `max_requests` hits inside the last `window_seconds`; otherwise records
+    this hit. Fails open if the store is down."""
+    col = _rl_col()
+    if col is None:
+        return
+    now = time.time()
+    cutoff = now - window_seconds
+    try:
+        from pymongo import ReturnDocument
+        doc = col.find_one_and_update(
+            {"_id": key},
+            {"$pull": {"hits": {"$lt": cutoff}},
+             "$set": {"window_seconds": window_seconds, "updated_at": datetime.now(timezone.utc)}},
+            upsert=True, return_document=ReturnDocument.AFTER,
+        )
+        hits = [h for h in (doc.get("hits") or []) if h >= cutoff]
+        if len(hits) >= max_requests:
+            oldest = min(hits)
+            retry_after = max(1, int(oldest + window_seconds - now))
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many requests. Please try again in {retry_after} seconds.",
+                headers={"Retry-After": str(retry_after)},
+            )
+        col.update_one({"_id": key}, {"$push": {"hits": now}})
+    except HTTPException:
+        raise
+    except Exception as e:
+        _rl_logger.warning("[rate-limit] store error on %r, failing OPEN: %s", key, e)
 
 
 def rate_limit(key: str, max_requests: int, window_seconds: int) -> None:
-    """Check rate limit. Raises 429 if exceeded."""
-    now = time.time()
-    cutoff = now - window_seconds
-
-    # Clean old entries
-    _rate_store[key] = [t for t in _rate_store[key] if t > cutoff]
-
-    if len(_rate_store[key]) >= max_requests:
-        # Compute when the oldest request in the window will expire, so the
-        # Retry-After header is accurate (not just the full window).
-        oldest = _rate_store[key][0]
-        retry_after = max(1, int(oldest + window_seconds - now))
-        raise HTTPException(
-            status_code=429,
-            detail=f"Too many requests. Please try again in {retry_after} seconds.",
-            headers={"Retry-After": str(retry_after)},
-        )
-
-    _rate_store[key].append(now)
+    """Check rate limit. Raises 429 if exceeded. (Mongo-backed, shared.)"""
+    _sliding_window_hit(key, max_requests, window_seconds)
 
 
 def rate_limit_by_ip(request: Request, max_requests: int = 10, window_seconds: int = 60) -> None:
@@ -113,60 +175,101 @@ def rate_limit_password_reset(request: Request) -> None:
     rate_limit(f"reset:{ip}", max_requests=3, window_seconds=900)
 
 
-# ── Account Lockout ───────────────────────────────────────────────
-
-_failed_logins: dict[str, list[float]] = defaultdict(list)
-_locked_accounts: dict[str, float] = {}
+# ── Account Lockout (MongoDB-backed, shared across pods & restarts) ───
 LOCKOUT_THRESHOLD = 5
 LOCKOUT_DURATION = 900  # 15 minutes
 
 
 def check_account_lockout(email: str) -> None:
-    """Check if account is locked due to failed attempts."""
-    email_lower = email.lower()
-    if email_lower in _locked_accounts:
-        lock_time = _locked_accounts[email_lower]
-        if time.time() - lock_time < LOCKOUT_DURATION:
-            remaining = int(LOCKOUT_DURATION - (time.time() - lock_time))
-            raise HTTPException(
-                status_code=429,
-                detail=f"Account temporarily locked. Try again in {remaining // 60} minutes.",
-            )
-        else:
-            del _locked_accounts[email_lower]
-            _failed_logins[email_lower] = []
+    """Check if account is locked due to failed attempts (shared store)."""
+    col = _rl_col()
+    if col is None:
+        return
+    try:
+        doc = col.find_one({"_id": f"lock:{email.lower()}"})
+    except Exception as e:
+        _rl_logger.warning("[lockout] read failed OPEN: %s", e)
+        return
+    if not doc:
+        return
+    until = doc.get("lock_until", 0)
+    now = time.time()
+    if until > now:
+        remaining = int(until - now)
+        raise HTTPException(
+            status_code=429,
+            detail=f"Account temporarily locked. Try again in {max(1, remaining // 60)} minutes.",
+        )
 
 
 def record_failed_login(email: str) -> None:
-    """Record a failed login attempt. Locks account after threshold."""
+    """Record a failed login attempt. Locks the account (in the shared store)
+    once the threshold is reached inside the window."""
+    col = _rl_col()
+    if col is None:
+        return
     email_lower = email.lower()
     now = time.time()
-    _failed_logins[email_lower] = [t for t in _failed_logins[email_lower] if t > now - LOCKOUT_DURATION]
-    _failed_logins[email_lower].append(now)
-
-    if len(_failed_logins[email_lower]) >= LOCKOUT_THRESHOLD:
-        _locked_accounts[email_lower] = now
+    cutoff = now - LOCKOUT_DURATION
+    try:
+        from pymongo import ReturnDocument
+        doc = col.find_one_and_update(
+            {"_id": f"faillogin:{email_lower}"},
+            {"$pull": {"hits": {"$lt": cutoff}},
+             "$set": {"updated_at": datetime.now(timezone.utc)}},
+            upsert=True, return_document=ReturnDocument.AFTER,
+        )
+        col.update_one({"_id": f"faillogin:{email_lower}"}, {"$push": {"hits": now}})
+        count = len([h for h in (doc.get("hits") or []) if h >= cutoff]) + 1
+        if count >= LOCKOUT_THRESHOLD:
+            col.update_one(
+                {"_id": f"lock:{email_lower}"},
+                {"$set": {"lock_until": now + LOCKOUT_DURATION,
+                          "updated_at": datetime.now(timezone.utc)}},
+                upsert=True,
+            )
+    except Exception as e:
+        _rl_logger.warning("[lockout] record failed OPEN: %s", e)
 
 
 def clear_failed_logins(email: str) -> None:
-    """Clear failed login counter on successful login."""
+    """Clear failed-login counter + lock on successful login / manual unlock."""
+    col = _rl_col()
+    if col is None:
+        return
     email_lower = email.lower()
-    _failed_logins.pop(email_lower, None)
-    _locked_accounts.pop(email_lower, None)
+    try:
+        col.delete_many({"_id": {"$in": [f"faillogin:{email_lower}", f"lock:{email_lower}"]}})
+    except Exception as e:
+        _rl_logger.warning("[lockout] clear failed: %s", e)
 
 
 def clear_login_rate_limits() -> None:
     """Flush every per-IP login rate-limit bucket. Used by the Master Admin
     "unlock" action so a manually-unlocked user isn't immediately blocked
     again by the IP rate limiter from their earlier burst of attempts."""
-    for key in list(_rate_store.keys()):
-        if key.startswith("login:") or key.startswith("ip:"):
-            _rate_store.pop(key, None)
+    col = _rl_col()
+    if col is None:
+        return
+    try:
+        col.delete_many({"_id": {"$regex": r"^(login|ip):"}})
+    except Exception as e:
+        _rl_logger.warning("[rate-limit] flush failed: %s", e)
 
 
 def get_failed_login_count(email: str) -> int:
     """Return the number of failed login attempts currently in the window."""
-    return len(_failed_logins.get(email.lower(), []))
+    col = _rl_col()
+    if col is None:
+        return 0
+    try:
+        doc = col.find_one({"_id": f"faillogin:{email.lower()}"})
+        if not doc:
+            return 0
+        cutoff = time.time() - LOCKOUT_DURATION
+        return len([h for h in (doc.get("hits") or []) if h >= cutoff])
+    except Exception:
+        return 0
 
 
 # ── Password Strength ─────────────────────────────────────────────

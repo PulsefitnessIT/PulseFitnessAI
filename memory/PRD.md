@@ -1,3 +1,29 @@
+# ═══ 2026-06 · Rate-limit + account-lockout moved to a SHARED MongoDB store (survives restarts, spans all pods) — verified ═══
+The per-IP throttle, login/reset limiters and account-lockout lived in per-process dicts in utils/security.py, so a restart
+wiped every counter and each pod enforced its OWN allowance (N pods = N× the limit; an attacker throttled on one pod was
+free on the next).
+  • Migrated all of them to the shared `rate_buckets` collection in MongoDB (the same store the async middleware limiter in
+    utils/security_plus.py already uses). Function signatures are UNCHANGED (still sync) — ZERO call-site edits across the
+    ~20 callers in auth.py / security_document.py / security_manifest.py / public_demo_request.py / signup_journeys.py /
+    service_provider.py / master_admin_users.py — so there was no risk of a missed `await` silently disabling a control.
+  • NEW in utils/security.py: a LAZY sync pymongo handle `_rl_col()` (built on first use, never at import, 1.5s timeouts →
+    can't hang an Atlas SRV boot) + `_sliding_window_hit()` (atomic `$pull` stale + count + `$push`, mirrors the async
+    limiter). `rate_limit` / `rate_limit_by_ip` / `rate_limit_login` / `rate_limit_password_reset` now delegate to it.
+    Account lockout rewritten to Mongo: `record_failed_login` pushes to `faillogin:<email>` + sets `lock:<email>.lock_until`
+    at threshold; `check_account_lockout` reads the lock doc; `clear_failed_logins` deletes both; `clear_login_rate_limits`
+    (Master-Admin unlock) `delete_many` on `^(login|ip):`; `get_failed_login_count` reads the window. `updated_at` stored as
+    a BSON **date** so the existing 24h TTL index actually sweeps abandoned buckets.
+  • FAIL-OPEN (logged) if the store is briefly unreachable, so a DB blip degrades gracefully instead of causing a total auth
+    outage. Buckets are keyed by the SEC-002 spoof-resistant client IP.
+  • VERIFIED — unit: sliding window blocks the 6th of 5; lockout after 6 fails; **still locked after a simulated restart**
+    (durability); unlock after clear. LIVE via the real ingress: 5×401 → **429**, and the bucket is present in Mongo
+    (`login:104.198.214.223`, `updated_at` = BSON date). No refs to the removed in-memory globals remain.
+  ⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY. Minor: the sync pymongo ops add ~1-2 ms of event-loop block on low-QPS auth
+    paths (acceptable); can be made fully async later if those endpoints ever get hot. `TRUSTED_PROXY_HOPS` (SEC-002) still
+    default 2.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · SEC-002 FIX — X-Forwarded-For spoofing locked down (per-IP throttle + admin IP allow-list) — live-verified ═══
 The client-IP derivation trusted the LEFT-most X-Forwarded-For value, which is fully client-controlled → an attacker could
 rotate a fake XFF to mint a fresh rate-limit bucket per request (bypassing the 5/5min login throttle) and could forge an
