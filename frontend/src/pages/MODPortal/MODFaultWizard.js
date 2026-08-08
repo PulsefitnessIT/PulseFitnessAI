@@ -1,20 +1,24 @@
 /**
- * MOD Fault Wizard — 6 steps:
- *   1. Equipment picker (recent + search + QR scan)
- *   2. Fault type tiles
- *   3. Guided questions (description, onset, usable, safe_in_service)
- *   4. Attachments (client-side WebP compression + upload to /mod/site/attachments)
- *   5. Reporter contact (picker or + new)
- *   6. AI triage preview → submit
+ * MOD Fault Wizard — multi-machine, theme-aware (follows the app light/dark toggle).
  *
- * Mobile-first: one step per screen, primary CTA bottom, back to previous state.
+ * Flow:
+ *   1. Equipment picker — MULTI-select, grouped by location, search + QR scan.
+ *   For EACH selected machine, in turn:
+ *     A. Fault type tiles
+ *     B. Guided questions (description, onset, usable, safe_in_service)
+ *     C. Attachments (client-side WebP compression + upload)
+ *   Then once:
+ *     - Reporter contact
+ *     - Review → submit (one ticket PER machine, each with its own SLA/email)
+ *
+ * Mobile-first: one screen at a time, primary CTA bottom. No AI triage.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import {
   X, ChevronLeft, ChevronRight, Search, AlertTriangle, Zap,
-  Volume2, Wrench, ShieldAlert, HelpCircle, Camera, Check, Sparkles, Loader2,
-  ScanLine, Image as ImageIcon, Film, Trash2,
+  Volume2, Wrench, ShieldAlert, HelpCircle, Camera, Check, Loader2,
+  ScanLine, Image as ImageIcon, Film, Trash2, MapPin,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -49,32 +53,46 @@ const SAFE = [
   { id: 'no',  label: 'No — isolate immediately' },
 ];
 
+const emptyMachineData = () => ({
+  fault_type: '',
+  description: '',
+  onset: '',
+  usable: '',
+  safe_in_service: '',
+  attachment_urls: [],
+});
+
 export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentId }) {
   const { API } = useAuth();
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
-  const [step, setStep] = useState(1);
+  // ── Navigation state ────────────────────────────────────────────
+  // phase: 'equipment' | 'machine' | 'reporter' | 'review'
+  // sub (machine phase only): 0=fault type, 1=guided, 2=attachments
+  const [phase, setPhase] = useState('equipment');
+  const [mi, setMi] = useState(0);   // index into selectedIds
+  const [sub, setSub] = useState(0);
+
   const [equipment, setEquipment] = useState([]);
   const [staff, setStaff] = useState([]);
   const [search, setSearch] = useState('');
   const [staffPickerOpen, setStaffPickerOpen] = useState(false);
 
-  const [form, setForm] = useState({
-    equipment_id: prefillEquipmentId || '',
-    fault_type: '',
-    description: '',
-    onset: '',
-    usable: '',
-    safe_in_service: '',
-    attachment_urls: [],
-    reporter_staff_id: '',
-  });
+  const [selectedIds, setSelectedIds] = useState(prefillEquipmentId ? [prefillEquipmentId] : []);
+  const [machineData, setMachineData] = useState(
+    prefillEquipmentId ? { [prefillEquipmentId]: emptyMachineData() } : {},
+  );
+  const [reporterStaffId, setReporterStaffId] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
-  const [confirmation, setConfirmation] = useState(null); // {ticket_ref, priority, duplicate_of}
+  const [confirmation, setConfirmation] = useState(null); // { tickets: [...], offline? }
 
-  const patch = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const equipById = useCallback((id) => equipment.find((e) => e.id === id), [equipment]);
+  const currentId = selectedIds[mi];
+  const currentData = machineData[currentId] || emptyMachineData();
+  const patchMachine = (k, v) =>
+    setMachineData((m) => ({ ...m, [currentId]: { ...(m[currentId] || emptyMachineData()), [k]: v } }));
 
   const load = useCallback(async () => {
     try {
@@ -86,10 +104,8 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
       const stList = s.data.staff || [];
       setEquipment(eqList);
       setStaff(stList);
-      // Cache for offline wizard launches.
       cacheListSnapshot({ equipment: eqList, staff: stList });
     } catch {
-      // Offline fallback — read the last good snapshot.
       const snap = readCachedSnapshot();
       if (snap.equipment.length || snap.staff.length) {
         setEquipment(snap.equipment);
@@ -99,84 +115,126 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
         notify.error('Failed to load site data');
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API]);
 
   useEffect(() => { load(); }, [load]);
 
-  const selectedEquipment = useMemo(
-    () => equipment.find((e) => e.id === form.equipment_id),
-    [equipment, form.equipment_id],
-  );
   const selectedStaff = useMemo(
-    () => staff.find((s) => s.id === form.reporter_staff_id),
-    [staff, form.reporter_staff_id],
+    () => staff.find((s) => s.id === reporterStaffId),
+    [staff, reporterStaffId],
   );
 
-  const filteredEquipment = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return equipment;
-    return equipment.filter((e) =>
-      (e.name || '').toLowerCase().includes(q) ||
-      (e.machine_type || '').toLowerCase().includes(q) ||
-      (e.serial_number || '').toLowerCase().includes(q),
-    );
-  }, [equipment, search]);
-
-  const canNext = stepValid(step, form);
-
-  const goNext = async () => {
-    if (!canNext) {
-      notify.error(whyInvalid(step, form));
-      return;
-    }
-    setStep((s) => Math.min(6, s + 1));
+  const toggleMachine = (id) => {
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      return [...prev, id];
+    });
+    setMachineData((m) => (m[id] ? m : { ...m, [id]: emptyMachineData() }));
   };
 
-  const goBack = () => setStep((s) => Math.max(1, s - 1));
+  const totalScreens = 1 + selectedIds.length * 3 + 2;
+  const currentScreen = useMemo(() => {
+    if (phase === 'equipment') return 1;
+    if (phase === 'machine') return 1 + mi * 3 + sub + 1;
+    if (phase === 'reporter') return 1 + selectedIds.length * 3 + 1;
+    return totalScreens;
+  }, [phase, mi, sub, selectedIds.length, totalScreens]);
 
-  async function submitFault() {
+  const canNext = useMemo(() => {
+    if (phase === 'equipment') return selectedIds.length > 0;
+    if (phase === 'machine') {
+      if (sub === 0) return !!currentData.fault_type;
+      if (sub === 1) return currentData.description.trim().length >= 40 && !!currentData.onset && !!currentData.usable && !!currentData.safe_in_service;
+      return true; // attachments optional
+    }
+    if (phase === 'reporter') return !!reporterStaffId;
+    return true;
+  }, [phase, sub, selectedIds.length, currentData, reporterStaffId]);
+
+  const whyInvalid = () => {
+    if (phase === 'equipment') return 'Select at least one machine';
+    if (phase === 'machine') {
+      if (sub === 0) return 'Pick a fault type for this machine';
+      if (sub === 1) {
+        if (currentData.description.trim().length < 40) return 'Description must be at least 40 characters';
+        if (!currentData.onset) return 'Pick when it started';
+        if (!currentData.usable) return "Say whether it's usable";
+        if (!currentData.safe_in_service) return "Say whether it's safe in service";
+      }
+    }
+    if (phase === 'reporter') return 'Pick a reporter so we can contact them';
+    return 'Please complete this step';
+  };
+
+  const goNext = () => {
+    if (!canNext) { notify.error(whyInvalid()); return; }
+    if (phase === 'equipment') { setPhase('machine'); setMi(0); setSub(0); return; }
+    if (phase === 'machine') {
+      if (sub < 2) { setSub(sub + 1); return; }
+      if (mi < selectedIds.length - 1) { setMi(mi + 1); setSub(0); return; }
+      setPhase('reporter'); return;
+    }
+    if (phase === 'reporter') { setPhase('review'); return; }
+  };
+
+  const goBack = () => {
+    if (phase === 'review') { setPhase('reporter'); return; }
+    if (phase === 'reporter') { setPhase('machine'); setMi(selectedIds.length - 1); setSub(2); return; }
+    if (phase === 'machine') {
+      if (sub > 0) { setSub(sub - 1); return; }
+      if (mi > 0) { setMi(mi - 1); setSub(2); return; }
+      setPhase('equipment'); return;
+    }
+  };
+
+  async function submitAll() {
     setSubmitting(true);
     try {
-      const hasOfflineAttachment = (form.attachment_urls || []).some((a) => a && a.offline);
+      const hasOfflineAttachment = selectedIds.some(
+        (id) => (machineData[id]?.attachment_urls || []).some((a) => a && a.offline),
+      );
       const mustQueueOffline = !navigator.onLine || hasOfflineAttachment;
+      const tickets = [];
 
       if (mustQueueOffline) {
-        // Hold form + raw blobs in IDB; the outer sync loop will upload
-        // and submit when we get back online.
-        const id = await enqueueFault({
-          form: {
-            equipment_id: form.equipment_id,
-            fault_type: form.fault_type,
-            description: form.description,
-            onset: form.onset,
-            usable: form.usable,
-            safe_in_service: form.safe_in_service,
-            reporter_staff_id: form.reporter_staff_id,
-          },
-          attachments: (form.attachment_urls || []).filter((a) => a && a.offline),
-        });
-        setConfirmation({
-          ticket_ref: 'QUEUED',
-          priority: 'medium',
-          offline: true,
-          queued_id: id,
-        });
+        for (const id of selectedIds) {
+          const md = machineData[id] || emptyMachineData();
+          await enqueueFault({
+            form: {
+              equipment_id: id,
+              fault_type: md.fault_type,
+              description: md.description,
+              onset: md.onset,
+              usable: md.usable,
+              safe_in_service: md.safe_in_service,
+              reporter_staff_id: reporterStaffId,
+            },
+            attachments: (md.attachment_urls || []).filter((a) => a && a.offline),
+          });
+          tickets.push({ ticket_ref: 'QUEUED', priority: md.safe_in_service === 'no' ? 'urgent' : 'medium', offline: true, machine: equipById(id) });
+        }
+        setConfirmation({ offline: true, tickets });
         notify.success('Saved offline — will sync when connection returns');
         return;
       }
 
-      const { data } = await axios.post(`${API}/mod/site/faults`, {
-        ...form,
-        // Online path: send storage paths (not viewer URLs, which embed
-        // tokens that expire).
-        attachment_urls: (form.attachment_urls || []).map((a) => {
-          if (typeof a === 'string') return a;
-          return a.path || a.url;
-        }),
-      }, { headers });
-      setConfirmation(data);
-      notify.success(`Fault logged — ${data.ticket_ref}`);
+      for (const id of selectedIds) {
+        const md = machineData[id] || emptyMachineData();
+        const { data } = await axios.post(`${API}/mod/site/faults`, {
+          equipment_id: id,
+          fault_type: md.fault_type,
+          description: md.description,
+          onset: md.onset,
+          usable: md.usable,
+          safe_in_service: md.safe_in_service,
+          reporter_staff_id: reporterStaffId,
+          attachment_urls: (md.attachment_urls || []).map((a) => (typeof a === 'string' ? a : (a.path || a.url))),
+        }, { headers });
+        tickets.push({ ...data, machine: equipById(id) });
+      }
+      setConfirmation({ tickets });
+      notify.success(tickets.length > 1 ? `${tickets.length} faults logged` : `Fault logged — ${tickets[0].ticket_ref}`);
     } catch (e) {
       notifyApiError(notify, e, 'Failed to submit fault');
     } finally {
@@ -185,107 +243,131 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
   }
 
   if (confirmation) {
-    return (
-      <ConfirmationScreen
-        confirmation={confirmation}
-        onDone={() => { onSubmitted?.(); }}
-      />
-    );
+    return <ConfirmationScreen confirmation={confirmation} onDone={() => onSubmitted?.()} />;
   }
 
-  return (
-    <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm grid place-items-center p-0 sm:p-4" data-testid="mod-fault-wizard">
-      <div className="w-full sm:max-w-xl h-full sm:h-auto sm:max-h-[92vh] bg-[var(--color-ink-deep)] sm:rounded-2xl border-0 sm:border border-white/10 flex flex-col">
+  const machineName = equipById(currentId)?.name;
+  const headerLabel = phase === 'equipment'
+    ? 'Select machines'
+    : phase === 'machine'
+      ? `Machine ${mi + 1} of ${selectedIds.length}${machineName ? ` · ${machineName}` : ''}`
+      : phase === 'reporter'
+        ? 'Reporter'
+        : 'Review & submit';
 
+  return (
+    <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm grid place-items-center p-0 sm:p-4" data-testid="mod-fault-wizard">
+      <div
+        className="w-full sm:max-w-xl h-full sm:h-auto sm:max-h-[92vh] sm:rounded-2xl border-0 sm:border flex flex-col"
+        style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}
+      >
         {/* Header with progress */}
-        <div className="px-5 py-4 border-b border-white/10 bg-[var(--color-surface-darker)] sm:rounded-t-2xl">
+        <div
+          className="px-5 py-4 border-b sm:rounded-t-2xl"
+          style={{ background: 'var(--theme-surface-2)', borderColor: 'var(--theme-border)' }}
+        >
           <div className="flex items-center justify-between mb-3">
-            <div>
+            <div className="min-w-0">
               <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)]">MOD Fault Wizard</div>
-              <div className="text-white text-sm font-bold">Step {step} of 6</div>
+              <div className="text-sm font-bold truncate" style={{ color: 'var(--theme-text)' }}>{headerLabel}</div>
             </div>
-            <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/5 text-white/60" data-testid="mod-wizard-close"><X size={18} /></button>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5"
+              style={{ color: 'var(--theme-text-muted)' }}
+              data-testid="mod-wizard-close"
+            ><X size={18} /></button>
           </div>
-          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-[var(--color-brand-cyan)] transition-all" style={{ width: `${(step / 6) * 100}%` }} data-testid="mod-wizard-progress" />
+          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--theme-surface-3)' }}>
+            <div className="h-full bg-[var(--color-brand-cyan)] transition-all" style={{ width: `${(currentScreen / totalScreens) * 100}%` }} data-testid="mod-wizard-progress" />
           </div>
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {step === 1 && (
+          {phase === 'equipment' && (
             <StepEquipment
-              equipment={filteredEquipment}
+              allEquipment={equipment}
               search={search}
               setSearch={setSearch}
-              selectedId={form.equipment_id}
-              onPick={(id) => patch('equipment_id', id)}
+              selectedIds={selectedIds}
+              onToggle={toggleMachine}
             />
           )}
-          {step === 2 && (
+          {phase === 'machine' && sub === 0 && (
             <StepFaultType
-              selected={form.fault_type}
-              onPick={(id) => patch('fault_type', id)}
-              machineName={selectedEquipment?.name}
+              selected={currentData.fault_type}
+              onPick={(id) => patchMachine('fault_type', id)}
+              machineName={machineName}
+              machineIndex={mi}
+              machineTotal={selectedIds.length}
             />
           )}
-          {step === 3 && (
-            <StepGuided form={form} patch={patch} />
+          {phase === 'machine' && sub === 1 && (
+            <StepGuided data={currentData} patch={patchMachine} machineName={machineName} />
           )}
-          {step === 4 && (
+          {phase === 'machine' && sub === 2 && (
             <StepAttachments
-              urls={form.attachment_urls}
-              onAdd={(u) => patch('attachment_urls', [...form.attachment_urls, u])}
-              onRemove={(i) => patch('attachment_urls', form.attachment_urls.filter((_, idx) => idx !== i))}
+              urls={currentData.attachment_urls}
+              onAdd={(u) => patchMachine('attachment_urls', [...currentData.attachment_urls, u])}
+              onRemove={(i) => patchMachine('attachment_urls', currentData.attachment_urls.filter((_, idx) => idx !== i))}
+              machineName={machineName}
             />
           )}
-          {step === 5 && (
+          {phase === 'reporter' && (
             <StepReporter
               staff={staff}
               selected={selectedStaff}
-              onPick={(s) => patch('reporter_staff_id', s.id)}
+              onPick={(s) => setReporterStaffId(s.id)}
               onAddNew={() => setStaffPickerOpen(true)}
             />
           )}
-          {step === 6 && (
+          {phase === 'review' && (
             <StepReview
-              form={form}
-              equipment={selectedEquipment}
+              selectedIds={selectedIds}
+              machineData={machineData}
+              equipById={equipById}
               staff={selectedStaff}
             />
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-white/10 bg-[var(--color-surface-darker)] sm:rounded-b-2xl flex items-center justify-between gap-3">
+        <div
+          className="px-5 py-3 border-t sm:rounded-b-2xl flex items-center justify-between gap-3"
+          style={{ background: 'var(--theme-surface-2)', borderColor: 'var(--theme-border)' }}
+        >
           <button
             onClick={goBack}
-            disabled={step === 1}
-            className="flex items-center gap-1 px-3 py-2.5 rounded-lg text-sm font-bold text-white/80 border border-white/15 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white/5"
+            disabled={phase === 'equipment'}
+            className="flex items-center gap-1 px-3 py-2.5 rounded-lg text-sm font-bold border disabled:opacity-40 disabled:cursor-not-allowed hover:bg-black/5"
+            style={{ color: 'var(--theme-text)', borderColor: 'var(--theme-border)' }}
             data-testid="mod-wizard-back"
           >
             <ChevronLeft size={15} /> Back
           </button>
-          {step < 6 ? (
+          {phase !== 'review' ? (
             <button
               onClick={goNext}
               disabled={!canNext}
               className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-extrabold disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: canNext ? 'var(--color-brand-cyan)' : '#2a3340', color: canNext ? 'var(--color-surface-darker)' : '#7a8796' }}
+              style={{ background: canNext ? 'var(--color-brand-cyan)' : 'var(--theme-surface-3)', color: canNext ? '#04121a' : 'var(--theme-text-muted)' }}
               data-testid="mod-wizard-next"
             >
-              Continue
+              {phase === 'equipment' && selectedIds.length > 0 ? `Continue with ${selectedIds.length} machine${selectedIds.length > 1 ? 's' : ''}` : 'Continue'}
               <ChevronRight size={15} />
             </button>
           ) : (
             <button
-              onClick={submitFault}
+              onClick={submitAll}
               disabled={submitting}
               className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-extrabold"
-              style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
+              style={{ background: 'var(--color-brand-cyan)', color: '#04121a' }}
               data-testid="mod-wizard-submit"
             >
-              {submitting ? <><Loader2 size={15} className="animate-spin" /> Submitting…</> : <>Submit fault <Check size={15} /></>}
+              {submitting
+                ? <><Loader2 size={15} className="animate-spin" /> Submitting…</>
+                : <>Submit {selectedIds.length > 1 ? `${selectedIds.length} faults` : 'fault'} <Check size={15} /></>}
             </button>
           )}
         </div>
@@ -295,7 +377,7 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
         <MODStaffModal
           onClose={() => { setStaffPickerOpen(false); load(); }}
           onPicked={(s) => {
-            patch('reporter_staff_id', s.id);
+            setReporterStaffId(s.id);
             setStaffPickerOpen(false);
             load();
           }}
@@ -308,49 +390,71 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
 
 /* ─────────────────────── Individual steps ─────────────────────── */
 
-function StepEquipment({ equipment, search, setSearch, selectedId, onPick }) {
+function StepEquipment({ allEquipment, search, setSearch, selectedIds, onToggle }) {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanError, setScanError] = useState(null);
 
   const handleScan = useCallback((rawValue) => {
     setScannerOpen(false);
     setScanError(null);
-    // Accept either a full URL ".../scan/<id>" or a raw UUID.
     let scannedId = null;
     const m = /\/scan\/([0-9a-fA-F-]{8,})/.exec(rawValue || '');
     if (m) scannedId = m[1];
     else if (/^[0-9a-fA-F-]{20,}$/.test((rawValue || '').trim())) scannedId = rawValue.trim();
-    if (!scannedId) {
-      setScanError('QR did not look like a Pulse equipment tag.');
-      return;
+    if (!scannedId) { setScanError('QR did not look like a Pulse equipment tag.'); return; }
+    const hit = allEquipment.find((e) => e.id === scannedId);
+    if (!hit) { setScanError('Scanned machine is not on this site.'); return; }
+    if (!selectedIds.includes(scannedId)) onToggle(scannedId);
+    notify.success(`Added — ${hit.name}`);
+  }, [allEquipment, onToggle, selectedIds]);
+
+  // Filter, then group by location.
+  const groups = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const filtered = !q ? allEquipment : allEquipment.filter((e) =>
+      (e.name || '').toLowerCase().includes(q) ||
+      (e.machine_type || '').toLowerCase().includes(q) ||
+      (e.serial_number || '').toLowerCase().includes(q) ||
+      (e.location || '').toLowerCase().includes(q));
+    const byLoc = {};
+    for (const e of filtered) {
+      const loc = (e.location || '').trim() || 'Unassigned';
+      (byLoc[loc] = byLoc[loc] || []).push(e);
     }
-    const hit = equipment.find((e) => e.id === scannedId);
-    if (!hit) {
-      setScanError('Scanned machine is not on this site.');
-      return;
-    }
-    onPick(scannedId);
-    notify.success(`Scanned — ${hit.name}`);
-  }, [equipment, onPick]);
+    // Sort: named locations alphabetically, "Unassigned" last.
+    return Object.keys(byLoc)
+      .sort((a, b) => (a === 'Unassigned' ? 1 : b === 'Unassigned' ? -1 : a.localeCompare(b)))
+      .map((loc) => ({ loc, items: byLoc[loc] }));
+  }, [allEquipment, search]);
+
+  const multiLocation = groups.filter((g) => g.loc !== 'Unassigned').length > 1
+    || (groups.length > 1);
+  const totalShown = groups.reduce((n, g) => n + g.items.length, 0);
 
   return (
     <div data-testid="mod-step-equipment">
-      <StepTitle eyebrow="Step 1" title="Which machine?" />
+      <StepTitle eyebrow="Step 1" title="Which machines?" subtitle="Tick every machine you're reporting — you'll describe each one's fault next." />
+      {selectedIds.length > 0 && (
+        <div className="mb-3 text-xs font-bold" style={{ color: 'var(--color-brand-cyan)' }} data-testid="mod-equipment-selected-count">
+          {selectedIds.length} machine{selectedIds.length > 1 ? 's' : ''} selected
+        </div>
+      )}
       <div className="flex gap-2 mb-3">
         <div className="relative flex-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--theme-text-muted)' }} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, type, or serial"
-            className="w-full rounded-lg bg-black/40 border border-white/10 pl-9 pr-3 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[rgb(var(--rgb-brand-cyan)/0.6)]"
+            placeholder="Search by name, type, serial or location"
+            className="w-full rounded-lg border pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-[var(--color-brand-cyan)]"
+            style={{ background: 'var(--theme-surface-2)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
             data-testid="mod-equipment-search"
           />
         </div>
         <button
           type="button"
           onClick={() => { setScanError(null); setScannerOpen(true); }}
-          className="flex items-center gap-1.5 rounded-lg border border-[rgb(var(--rgb-brand-cyan)/0.4)] bg-[rgb(var(--rgb-brand-cyan)/0.1)] text-[var(--color-brand-cyan)] px-3 py-2.5 text-sm font-bold hover:bg-[rgb(var(--rgb-brand-cyan)/0.2)]"
+          className="flex items-center gap-1.5 rounded-lg border border-[rgb(var(--rgb-brand-cyan)/0.5)] bg-[rgb(var(--rgb-brand-cyan)/0.12)] text-[var(--color-brand-cyan)] px-3 py-2.5 text-sm font-bold hover:bg-[rgb(var(--rgb-brand-cyan)/0.2)]"
           data-testid="mod-equipment-qr-scan"
           title="Scan QR tag"
         >
@@ -358,34 +462,57 @@ function StepEquipment({ equipment, search, setSearch, selectedId, onPick }) {
         </button>
       </div>
       {scanError && (
-        <div className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-200" data-testid="mod-scan-error">
+        <div className="mb-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 text-xs text-amber-600 dark:text-amber-300" data-testid="mod-scan-error">
           {scanError}
         </div>
       )}
-      {scannerOpen && (
-        <QRScanInline onScan={handleScan} onClose={() => setScannerOpen(false)} />
-      )}
-      {equipment.length === 0 ? (
-        <div className="text-center text-white/50 py-6 text-sm">No equipment matches.</div>
+      {scannerOpen && <QRScanInline onScan={handleScan} onClose={() => setScannerOpen(false)} />}
+
+      {totalShown === 0 ? (
+        <div className="text-center py-6 text-sm" style={{ color: 'var(--theme-text-muted)' }}>No equipment matches.</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[50vh] overflow-y-auto">
-          {equipment.map((e) => {
-            const picked = e.id === selectedId;
-            return (
-              <button
-                key={e.id}
-                onClick={() => onPick(e.id)}
-                className={`text-left rounded-xl border p-3 transition-all ${picked ? 'border-[var(--color-brand-cyan)] bg-[rgb(var(--rgb-brand-cyan)/0.1)]' : 'border-white/10 bg-white/[0.03] hover:border-white/25'}`}
-                data-testid={`mod-equipment-${e.id}`}
-              >
-                <div className="font-bold text-white text-sm">{e.name}</div>
-                <div className="text-xs text-white/60">{e.machine_type} · {e.serial_number}</div>
-                {e.status === 'out_of_service' && (
-                  <div className="text-[10px] font-bold text-red-300 mt-1 uppercase tracking-wider">Out of service</div>
-                )}
-              </button>
-            );
-          })}
+        <div className="max-h-[52vh] overflow-y-auto space-y-4">
+          {groups.map((g) => (
+            <div key={g.loc} data-testid={`mod-equipment-group-${g.loc.replace(/\s+/g, '-').toLowerCase()}`}>
+              {multiLocation && (
+                <div className="flex items-center gap-1.5 mb-2 sticky top-0 py-1 z-[1]" style={{ background: 'var(--theme-surface)' }}>
+                  <MapPin size={12} style={{ color: 'var(--color-brand-cyan)' }} />
+                  <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{g.loc}</span>
+                  <span className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>· {g.items.length}</span>
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {g.items.map((e) => {
+                  const picked = selectedIds.includes(e.id);
+                  return (
+                    <button
+                      key={e.id}
+                      onClick={() => onToggle(e.id)}
+                      className={`text-left rounded-xl border p-3 transition-all flex items-start gap-2.5 ${picked ? 'border-[var(--color-brand-cyan)] bg-[rgb(var(--rgb-brand-cyan)/0.12)]' : 'hover:border-[var(--color-brand-cyan)]'}`}
+                      style={picked ? {} : { background: 'var(--theme-surface-3)', borderColor: 'var(--theme-border)' }}
+                      data-testid={`mod-equipment-${e.id}`}
+                    >
+                      <span
+                        className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 ${picked ? 'bg-[var(--color-brand-cyan)] border-[var(--color-brand-cyan)]' : ''}`}
+                        style={picked ? {} : { borderColor: 'var(--theme-text-muted)' }}
+                      >
+                        {picked && <Check size={11} className="text-[#04121a]" strokeWidth={3} />}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block font-bold text-sm truncate" style={{ color: 'var(--theme-text)' }}>{e.name || e.machine_type || e.serial_number}</span>
+                        <span className="block text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>
+                          {[e.machine_type, e.serial_number].filter(Boolean).join(' · ')}
+                        </span>
+                        {e.status === 'out_of_service' && (
+                          <span className="block text-[10px] font-bold text-red-500 dark:text-red-300 mt-1 uppercase tracking-wider">Out of service</span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -393,9 +520,7 @@ function StepEquipment({ equipment, search, setSearch, selectedId, onPick }) {
 }
 
 
-/* In-wizard QR scanner — reuses browser BarcodeDetector (same pipeline as
-   /scan/:id page). Inline (not a full-screen modal) so the user can back
-   out easily with a single Cancel tap. */
+/* In-wizard QR scanner — browser BarcodeDetector. */
 function QRScanInline({ onScan, onClose }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -423,20 +548,13 @@ function QRScanInline({ onScan, onClose }) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
-        if (!('BarcodeDetector' in window)) {
-          setNativeUnsupported(true);
-          return;
-        }
+        if (!('BarcodeDetector' in window)) { setNativeUnsupported(true); return; }
         const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
         const tick = async () => {
           if (!scanningRef.current || !videoRef.current) return;
           try {
             const codes = await detector.detect(videoRef.current);
-            if (codes.length > 0) {
-              stop();
-              onScan(codes[0].rawValue);
-              return;
-            }
+            if (codes.length > 0) { stop(); onScan(codes[0].rawValue); return; }
           } catch { /* frame error */ }
           raf = requestAnimationFrame(tick);
         };
@@ -451,7 +569,7 @@ function QRScanInline({ onScan, onClose }) {
 
   if (cameraDenied) {
     return (
-      <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 mb-3 text-sm text-red-200" data-testid="mod-scan-camera-denied">
+      <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 mb-3 text-sm text-red-600 dark:text-red-200" data-testid="mod-scan-camera-denied">
         <Camera size={16} className="inline mr-1.5 -mt-0.5" />
         Camera access required. Enable it in your browser settings and try again.
         <button onClick={() => { stop(); onClose(); }} className="ml-3 underline font-bold">Close</button>
@@ -460,7 +578,7 @@ function QRScanInline({ onScan, onClose }) {
   }
 
   return (
-    <div className="relative rounded-xl overflow-hidden border border-[rgb(var(--rgb-brand-cyan)/0.4)] bg-black mb-3" data-testid="mod-qr-scanner">
+    <div className="relative rounded-xl overflow-hidden border border-[rgb(var(--rgb-brand-cyan)/0.5)] bg-black mb-3" data-testid="mod-qr-scanner">
       <video ref={videoRef} className="w-full" playsInline muted style={{ maxHeight: '42vh', objectFit: 'cover' }} />
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="w-44 h-44 border-2 border-[var(--color-brand-cyan)] rounded-2xl relative">
@@ -489,10 +607,14 @@ function QRScanInline({ onScan, onClose }) {
 }
 
 
-function StepFaultType({ selected, onPick, machineName }) {
+function StepFaultType({ selected, onPick, machineName, machineIndex, machineTotal }) {
   return (
     <div data-testid="mod-step-fault-type">
-      <StepTitle eyebrow="Step 2" title="What's wrong?" subtitle={machineName ? `With ${machineName}` : undefined} />
+      <StepTitle
+        eyebrow={machineTotal > 1 ? `Machine ${machineIndex + 1} of ${machineTotal}` : 'Step 2'}
+        title="What's wrong?"
+        subtitle={machineName ? `With ${machineName}` : undefined}
+      />
       <div className="grid grid-cols-2 gap-2.5">
         {FAULT_TYPES.map((t) => {
           const picked = t.id === selected;
@@ -501,11 +623,12 @@ function StepFaultType({ selected, onPick, machineName }) {
             <button
               key={t.id}
               onClick={() => onPick(t.id)}
-              className={`rounded-xl border p-4 flex flex-col items-center gap-2 transition-all ${picked ? 'border-[var(--color-brand-cyan)] bg-[rgb(var(--rgb-brand-cyan)/0.1)]' : 'border-white/10 bg-white/[0.03] hover:border-white/25'}`}
+              className={`rounded-xl border p-4 flex flex-col items-center gap-2 transition-all ${picked ? 'border-[var(--color-brand-cyan)] bg-[rgb(var(--rgb-brand-cyan)/0.12)]' : 'hover:border-[var(--color-brand-cyan)]'}`}
+              style={picked ? {} : { background: 'var(--theme-surface-3)', borderColor: 'var(--theme-border)' }}
               data-testid={`mod-fault-type-${t.id}`}
             >
-              <Icon size={26} className={picked ? 'text-[var(--color-brand-cyan)]' : 'text-white/70'} />
-              <div className={`text-sm font-bold ${picked ? 'text-white' : 'text-white/80'}`}>{t.label}</div>
+              <Icon size={26} className={picked ? 'text-[var(--color-brand-cyan)]' : ''} style={picked ? {} : { color: 'var(--theme-text-muted)' }} />
+              <div className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>{t.label}</div>
             </button>
           );
         })}
@@ -515,57 +638,36 @@ function StepFaultType({ selected, onPick, machineName }) {
 }
 
 
-function StepGuided({ form, patch }) {
+function StepGuided({ data, patch, machineName }) {
   return (
     <div className="space-y-5" data-testid="mod-step-guided">
-      <StepTitle eyebrow="Step 3" title="Tell us more" subtitle="≥ 40 characters so the engineer can prep before arrival" />
+      <StepTitle eyebrow="Fault details" title="Tell us more" subtitle={machineName ? `${machineName} · ≥ 40 characters so the engineer can prep` : '≥ 40 characters so the engineer can prep before arrival'} />
       <label className="block">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">Description *</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Description *</span>
         <textarea
-          value={form.description}
+          value={data.description}
           onChange={(e) => patch('description', e.target.value)}
           rows={4}
           placeholder="e.g. belt slipping when incline > 5% under heavy user. Started making a clicking noise yesterday."
-          className="mt-1 w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[rgb(var(--rgb-brand-cyan)/0.6)]"
+          className="mt-1 w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--color-brand-cyan)]"
+          style={{ background: 'var(--theme-surface-2)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
           data-testid="mod-field-description"
         />
         <div className="flex items-center justify-between mt-1 gap-3">
-          <div className={`text-[10px] font-bold ${form.description.length >= 40 ? 'text-emerald-400' : 'text-white/50'}`}>
-            {form.description.length} / 40 minimum
+          <div className={`text-[10px] font-bold ${data.description.length >= 40 ? 'text-emerald-500 dark:text-emerald-400' : ''}`} style={data.description.length >= 40 ? {} : { color: 'var(--theme-text-muted)' }}>
+            {data.description.length} / 40 minimum
           </div>
-          <div className="text-[10px] text-amber-300/80 font-semibold" data-testid="mod-field-classification-hint">
+          <div className="text-[10px] text-amber-600 dark:text-amber-300/90 font-semibold" data-testid="mod-field-classification-hint">
             ◆ OFFICIAL-SENSITIVE ceiling — do NOT include NSN, operation names, callsigns, personal data or anything above OFFICIAL-SENSITIVE.
           </div>
         </div>
       </label>
 
-      <RadioGroup
-        label="When did it start? *"
-        options={ONSETS}
-        value={form.onset}
-        onChange={(v) => patch('onset', v)}
-        testidPrefix="mod-field-onset"
-      />
-
-      <RadioGroup
-        label="Is it usable? *"
-        options={USABLE}
-        value={form.usable}
-        onChange={(v) => patch('usable', v)}
-        testidPrefix="mod-field-usable"
-        withHelp
-      />
-
-      <RadioGroup
-        label="Is it safe to leave in service? *"
-        options={SAFE}
-        value={form.safe_in_service}
-        onChange={(v) => patch('safe_in_service', v)}
-        testidPrefix="mod-field-safe"
-        alert={form.safe_in_service === 'no'}
-      />
-      {form.safe_in_service === 'no' && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200 font-medium">
+      <RadioGroup label="When did it start? *" options={ONSETS} value={data.onset} onChange={(v) => patch('onset', v)} testidPrefix="mod-field-onset" />
+      <RadioGroup label="Is it usable? *" options={USABLE} value={data.usable} onChange={(v) => patch('usable', v)} testidPrefix="mod-field-usable" withHelp />
+      <RadioGroup label="Is it safe to leave in service? *" options={SAFE} value={data.safe_in_service} onChange={(v) => patch('safe_in_service', v)} testidPrefix="mod-field-safe" alert={data.safe_in_service === 'no'} />
+      {data.safe_in_service === 'no' && (
+        <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-600 dark:text-red-200 font-medium">
           ⚠ This machine will be auto-isolated and flagged URGENT. The on-call engineer will be paged.
         </div>
       )}
@@ -574,7 +676,7 @@ function StepGuided({ form, patch }) {
 }
 
 
-function StepAttachments({ urls, onAdd, onRemove }) {
+function StepAttachments({ urls, onAdd, onRemove, machineName }) {
   const { API } = useAuth();
   const cameraRef = useRef(null);
   const galleryRef = useRef(null);
@@ -601,17 +703,8 @@ function StepAttachments({ urls, onAdd, onRemove }) {
     try {
       const payload = isImage ? await compressToWebP(file) : file;
 
-      // If we're offline, skip the upload and capture the blob locally.
-      // The outer flush loop will upload + link it at reconnect time.
       if (!navigator.onLine) {
-        onAdd({
-          offline: true,
-          blob: payload,
-          content_type: payload.type,
-          filename: payload.name || file.name,
-          kind: isImage ? 'image' : 'video',
-          size: payload.size,
-        });
+        onAdd({ offline: true, blob: payload, content_type: payload.type, filename: payload.name || file.name, kind: isImage ? 'image' : 'video', size: payload.size });
         notify.info('Captured offline — will upload when back online');
         return;
       }
@@ -627,17 +720,9 @@ function StepAttachments({ urls, onAdd, onRemove }) {
       onAdd({ path: res.data.path, url: viewerUrl, kind: res.data.kind, size: res.data.size });
       notify.success(`${isImage ? 'Photo' : 'Video'} added`);
     } catch (err) {
-      // Network failure mid-upload? Fall through to offline capture.
       const networkish = !err.response || err.code === 'ERR_NETWORK';
       if (networkish && file) {
-        onAdd({
-          offline: true,
-          blob: isImage ? await compressToWebP(file) : file,
-          content_type: isImage ? 'image/webp' : file.type,
-          filename: file.name,
-          kind: isImage ? 'image' : 'video',
-          size: file.size,
-        });
+        onAdd({ offline: true, blob: isImage ? await compressToWebP(file) : file, content_type: isImage ? 'image/webp' : file.type, filename: file.name, kind: isImage ? 'image' : 'video', size: file.size });
         notify.info('Network unavailable — saved offline');
       } else {
         notifyApiError(notify, err, 'Upload failed');
@@ -650,10 +735,10 @@ function StepAttachments({ urls, onAdd, onRemove }) {
 
   return (
     <div data-testid="mod-step-attachments">
-      <StepTitle eyebrow="Step 4 (optional)" title="Photo or video?" subtitle="A picture saves 10 minutes on site" />
+      <StepTitle eyebrow="Optional" title="Photo or video?" subtitle={machineName ? `${machineName} · a picture saves 10 minutes on site` : 'A picture saves 10 minutes on site'} />
 
-      <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-[12px] text-amber-200 flex items-start gap-2" data-testid="mod-attach-classification-warning">
-        <ShieldAlert size={15} className="shrink-0 mt-0.5 text-amber-300" />
+      <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-[12px] text-amber-700 dark:text-amber-200 flex items-start gap-2" data-testid="mod-attach-classification-warning">
+        <ShieldAlert size={15} className="shrink-0 mt-0.5 text-amber-500 dark:text-amber-300" />
         <span>
           <strong className="font-bold">OFFICIAL-SENSITIVE ceiling.</strong> Photograph the machine and fault only.
           Do NOT capture documents, screens, whiteboards, NSN/asset labels of other kit, personnel, vehicles,
@@ -662,43 +747,33 @@ function StepAttachments({ urls, onAdd, onRemove }) {
       </div>
 
       {uploading ? (
-        <div className="rounded-xl border border-[rgb(var(--rgb-brand-cyan)/0.4)] bg-[rgb(var(--rgb-brand-cyan)/0.05)] p-5 text-center">
+        <div className="rounded-xl border border-[rgb(var(--rgb-brand-cyan)/0.4)] bg-[rgb(var(--rgb-brand-cyan)/0.06)] p-5 text-center">
           <Loader2 size={22} className="animate-spin text-[var(--color-brand-cyan)] mx-auto mb-2" />
-          <div className="text-sm text-white font-semibold">Uploading… {progress}%</div>
-          <div className="mt-2 h-1.5 bg-white/10 rounded-full overflow-hidden">
+          <div className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>Uploading… {progress}%</div>
+          <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--theme-surface-3)' }}>
             <div className="h-full bg-[var(--color-brand-cyan)] transition-all" style={{ width: `${progress}%` }} />
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => cameraRef.current?.click()}
-            disabled={imageCount >= MAX_IMAGES}
-            className="rounded-xl border border-dashed border-[rgb(var(--rgb-brand-cyan)/0.4)] bg-[rgb(var(--rgb-brand-cyan)/0.05)] hover:bg-[rgb(var(--rgb-brand-cyan)/0.1)] py-5 text-center text-[var(--color-brand-cyan)] disabled:opacity-40 disabled:cursor-not-allowed"
-            data-testid="mod-attach-take-photo"
-          >
+          <button type="button" onClick={() => cameraRef.current?.click()} disabled={imageCount >= MAX_IMAGES}
+            className="rounded-xl border border-dashed border-[rgb(var(--rgb-brand-cyan)/0.5)] bg-[rgb(var(--rgb-brand-cyan)/0.06)] hover:bg-[rgb(var(--rgb-brand-cyan)/0.12)] py-5 text-center text-[var(--color-brand-cyan)] disabled:opacity-40 disabled:cursor-not-allowed"
+            data-testid="mod-attach-take-photo">
             <Camera size={22} className="mx-auto mb-1.5" />
             <div className="text-xs font-bold">Take Photo</div>
             <div className="text-[10px] opacity-70">{imageCount}/{MAX_IMAGES}</div>
           </button>
-          <button
-            type="button"
-            onClick={() => galleryRef.current?.click()}
-            disabled={imageCount >= MAX_IMAGES}
-            className="rounded-xl border border-dashed border-white/20 bg-white/[0.03] hover:bg-white/[0.06] py-5 text-center text-white/80 disabled:opacity-40 disabled:cursor-not-allowed"
-            data-testid="mod-attach-gallery"
-          >
+          <button type="button" onClick={() => galleryRef.current?.click()} disabled={imageCount >= MAX_IMAGES}
+            className="rounded-xl border border-dashed py-5 text-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-black/5"
+            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
+            data-testid="mod-attach-gallery">
             <ImageIcon size={22} className="mx-auto mb-1.5" />
             <div className="text-xs font-bold">From Gallery</div>
           </button>
-          <button
-            type="button"
-            onClick={() => videoRef.current?.click()}
-            disabled={videoCount >= MAX_VIDEOS}
-            className="col-span-2 rounded-xl border border-dashed border-white/20 bg-white/[0.03] hover:bg-white/[0.06] py-3.5 text-center text-white/80 disabled:opacity-40 disabled:cursor-not-allowed"
-            data-testid="mod-attach-video"
-          >
+          <button type="button" onClick={() => videoRef.current?.click()} disabled={videoCount >= MAX_VIDEOS}
+            className="col-span-2 rounded-xl border border-dashed py-3.5 text-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-black/5"
+            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
+            data-testid="mod-attach-video">
             <Film size={18} className="inline mr-1.5 -mt-0.5" />
             <span className="text-xs font-bold">Video (up to 50 MB)</span>
             <span className="text-[10px] opacity-70 ml-2">{videoCount}/{MAX_VIDEOS}</span>
@@ -706,31 +781,20 @@ function StepAttachments({ urls, onAdd, onRemove }) {
         </div>
       )}
 
-      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
-        onChange={(e) => uploadOne(e.target.files?.[0])} />
-      <input ref={galleryRef} type="file" accept="image/*" className="hidden"
-        onChange={(e) => uploadOne(e.target.files?.[0])} />
-      <input ref={videoRef} type="file" accept="video/*" capture="environment" className="hidden"
-        onChange={(e) => uploadOne(e.target.files?.[0])} />
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => uploadOne(e.target.files?.[0])} />
+      <input ref={galleryRef} type="file" accept="image/*" className="hidden" onChange={(e) => uploadOne(e.target.files?.[0])} />
+      <input ref={videoRef} type="file" accept="video/*" capture="environment" className="hidden" onChange={(e) => uploadOne(e.target.files?.[0])} />
 
       {urls.length > 0 && (
         <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2">
           {urls.map((a, i) => {
             const previewSrc = a.url || (a.blob ? URL.createObjectURL(a.blob) : null);
             return (
-              <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-white/10 bg-black/40 group" data-testid={`mod-attachment-${i}`}>
-                {a.kind === 'video' ? (
-                  <video src={previewSrc} className="w-full h-full object-cover" muted />
-                ) : (
-                  <img src={previewSrc} alt="" className="w-full h-full object-cover" />
-                )}
-                <button
-                  type="button"
-                  onClick={() => onRemove(i)}
-                  className="absolute top-1 right-1 rounded-full bg-black/70 hover:bg-red-500/90 text-white p-1"
-                  data-testid={`mod-attachment-remove-${i}`}
-                  aria-label="Remove"
-                >
+              <div key={i} className="relative aspect-square rounded-lg overflow-hidden border bg-black/40 group" style={{ borderColor: 'var(--theme-border)' }} data-testid={`mod-attachment-${i}`}>
+                {a.kind === 'video'
+                  ? <video src={previewSrc} className="w-full h-full object-cover" muted />
+                  : <img src={previewSrc} alt="" className="w-full h-full object-cover" />}
+                <button type="button" onClick={() => onRemove(i)} className="absolute top-1 right-1 rounded-full bg-black/70 hover:bg-red-500/90 text-white p-1" data-testid={`mod-attachment-remove-${i}`} aria-label="Remove">
                   <Trash2 size={11} />
                 </button>
                 {a.kind === 'video' && (
@@ -739,23 +803,20 @@ function StepAttachments({ urls, onAdd, onRemove }) {
                   </div>
                 )}
                 {a.offline && (
-                  <div className="absolute bottom-1 right-1 rounded bg-amber-500/90 text-black text-[9px] px-1 py-0.5 font-extrabold uppercase tracking-wider">
-                    Offline
-                  </div>
+                  <div className="absolute bottom-1 right-1 rounded bg-amber-500/90 text-black text-[9px] px-1 py-0.5 font-extrabold uppercase tracking-wider">Offline</div>
                 )}
               </div>
             );
           })}
         </div>
       )}
-      <div className="text-center text-[10px] text-white/40 mt-3">You can skip this step.</div>
+      <div className="text-center text-[10px] mt-3" style={{ color: 'var(--theme-text-muted)' }}>You can skip this step.</div>
     </div>
   );
 }
 
 
-/* Client-side image compression: max edge 1920px, WebP q=0.82 → keeps
-   most server payloads under 300 KB while preserving diagnosis detail. */
+/* Client-side image compression: max edge 1920px, WebP q=0.82. */
 async function compressToWebP(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -790,23 +851,19 @@ async function compressToWebP(file) {
 function StepReporter({ staff, selected, onPick, onAddNew }) {
   return (
     <div data-testid="mod-step-reporter">
-      <StepTitle
-        eyebrow="Step 5"
-        title="Who is reporting this?"
-        subtitle="So our engineer can contact you and resolve faster."
-      />
-      <div className="rounded-lg bg-amber-500/10 border border-amber-500/25 px-3 py-2 mb-3 text-[12px] text-amber-200 flex items-start gap-2" data-testid="mod-reporter-required-note">
+      <StepTitle eyebrow="Reporter" title="Who is reporting this?" subtitle="So our engineer can contact you and resolve faster." />
+      <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2 mb-3 text-[12px] text-amber-700 dark:text-amber-200 flex items-start gap-2" data-testid="mod-reporter-required-note">
         <span className="font-bold">Required:</span>
         <span>Select (or add) the staff member logging this fault — our service provider will contact them directly. This can't be skipped.</span>
       </div>
       <button
         onClick={onAddNew}
-        className="w-full rounded-xl border border-dashed border-[rgb(var(--rgb-brand-cyan)/0.4)] px-3 py-3 text-[var(--color-brand-cyan)] hover:bg-[rgb(var(--rgb-brand-cyan)/0.05)] text-sm font-bold mb-3"
+        className="w-full rounded-xl border border-dashed border-[rgb(var(--rgb-brand-cyan)/0.5)] px-3 py-3 text-[var(--color-brand-cyan)] hover:bg-[rgb(var(--rgb-brand-cyan)/0.06)] text-sm font-bold mb-3"
         data-testid="mod-reporter-add-new"
       >+ Add new contact</button>
 
       {staff.length === 0 ? (
-        <div className="text-center text-white/50 py-6 text-sm">No staff yet — add one above.</div>
+        <div className="text-center py-6 text-sm" style={{ color: 'var(--theme-text-muted)' }}>No staff yet — add one above.</div>
       ) : (
         <div className="space-y-2 max-h-[45vh] overflow-y-auto">
           {staff.map((s) => {
@@ -815,11 +872,12 @@ function StepReporter({ staff, selected, onPick, onAddNew }) {
               <button
                 key={s.id}
                 onClick={() => onPick(s)}
-                className={`w-full text-left rounded-xl border p-3 transition-all ${picked ? 'border-[var(--color-brand-cyan)] bg-[rgb(var(--rgb-brand-cyan)/0.1)]' : 'border-white/10 bg-white/[0.03] hover:border-white/25'}`}
+                className={`w-full text-left rounded-xl border p-3 transition-all ${picked ? 'border-[var(--color-brand-cyan)] bg-[rgb(var(--rgb-brand-cyan)/0.12)]' : 'hover:border-[var(--color-brand-cyan)]'}`}
+                style={picked ? {} : { background: 'var(--theme-surface-3)', borderColor: 'var(--theme-border)' }}
                 data-testid={`mod-reporter-${s.id}`}
               >
-                <div className="font-bold text-white text-sm">{s.name} {s.role && <span className="text-white/50 font-normal">· {s.role}</span>}</div>
-                <div className="text-xs text-white/60">{s.email} · {s.phone}</div>
+                <div className="font-bold text-sm" style={{ color: 'var(--theme-text)' }}>{s.name} {s.role && <span className="font-normal" style={{ color: 'var(--theme-text-muted)' }}>· {s.role}</span>}</div>
+                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{s.email} · {s.phone}</div>
               </button>
             );
           })}
@@ -830,20 +888,33 @@ function StepReporter({ staff, selected, onPick, onAddNew }) {
 }
 
 
-function StepReview({ form, equipment, staff }) {
+function StepReview({ selectedIds, machineData, equipById, staff }) {
   return (
     <div className="space-y-3" data-testid="mod-step-review">
-      <StepTitle eyebrow="Step 6" title="Review & submit" />
+      <StepTitle eyebrow="Review" title={`Review & submit ${selectedIds.length > 1 ? `· ${selectedIds.length} tickets` : ''}`} subtitle={selectedIds.length > 1 ? 'Each machine below becomes its own ticket with its own SLA.' : undefined} />
 
-      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-2">
-        <ReviewRow label="Machine" value={`${equipment?.name} · ${equipment?.serial_number}`} />
-        <ReviewRow label="Fault type" value={FAULT_TYPES.find((t) => t.id === form.fault_type)?.label} />
-        <ReviewRow label="Onset" value={ONSETS.find((t) => t.id === form.onset)?.label} />
-        <ReviewRow label="Usable" value={USABLE.find((t) => t.id === form.usable)?.label} />
-        <ReviewRow label="Safe in service" value={SAFE.find((t) => t.id === form.safe_in_service)?.label} />
+      <div className="rounded-xl border p-4 mb-1" style={{ background: 'var(--theme-surface-3)', borderColor: 'var(--theme-border)' }}>
         <ReviewRow label="Reporter" value={staff ? `${staff.name} · ${staff.email} · ${staff.phone}` : '—'} />
-        <ReviewRow label="Description" value={form.description} multiline />
       </div>
+
+      {selectedIds.map((id, idx) => {
+        const eq = equipById(id);
+        const md = machineData[id] || {};
+        return (
+          <div key={id} className="rounded-xl border p-4 space-y-2" style={{ background: 'var(--theme-surface-3)', borderColor: 'var(--theme-border)' }} data-testid={`mod-review-machine-${id}`}>
+            {selectedIds.length > 1 && (
+              <div className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--color-brand-cyan)]">Ticket {idx + 1}</div>
+            )}
+            <ReviewRow label="Machine" value={`${eq?.name || eq?.serial_number}${eq?.location ? ` · ${eq.location}` : ''}`} />
+            <ReviewRow label="Fault type" value={FAULT_TYPES.find((t) => t.id === md.fault_type)?.label} />
+            <ReviewRow label="Onset" value={ONSETS.find((t) => t.id === md.onset)?.label} />
+            <ReviewRow label="Usable" value={USABLE.find((t) => t.id === md.usable)?.label} />
+            <ReviewRow label="Safe in service" value={SAFE.find((t) => t.id === md.safe_in_service)?.label} />
+            <ReviewRow label="Photos/videos" value={(md.attachment_urls || []).length ? `${(md.attachment_urls || []).length} attached` : 'None'} />
+            <ReviewRow label="Description" value={md.description} multiline />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -852,8 +923,8 @@ function StepReview({ form, equipment, staff }) {
 function ReviewRow({ label, value, multiline }) {
   return (
     <div className={multiline ? 'pt-1' : 'flex items-start gap-3'}>
-      <div className="text-[10px] font-bold uppercase tracking-wider text-white/50 w-28 shrink-0">{label}</div>
-      <div className={`text-sm text-white/90 ${multiline ? 'mt-1' : 'flex-1'}`}>{value || '—'}</div>
+      <div className="text-[10px] font-bold uppercase tracking-wider w-28 shrink-0" style={{ color: 'var(--theme-text-muted)' }}>{label}</div>
+      <div className={`text-sm ${multiline ? 'mt-1' : 'flex-1'}`} style={{ color: 'var(--theme-text)' }}>{value || '—'}</div>
     </div>
   );
 }
@@ -861,35 +932,57 @@ function ReviewRow({ label, value, multiline }) {
 
 function ConfirmationScreen({ confirmation, onDone }) {
   const isOffline = confirmation.offline;
+  const tickets = confirmation.tickets || [];
+  const multi = tickets.length > 1;
   return (
-    <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm grid place-items-center p-4" data-testid="mod-fault-confirmation">
-      <div className={`w-full max-w-md bg-[var(--color-ink-deep)] border rounded-2xl overflow-hidden p-8 text-center ${isOffline ? 'border-amber-500/40' : 'border-[rgb(var(--rgb-brand-cyan)/0.3)]'}`}>
+    <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm grid place-items-center p-4" data-testid="mod-fault-confirmation">
+      <div
+        className="w-full max-w-md border rounded-2xl overflow-hidden p-8 text-center"
+        style={{ background: 'var(--theme-surface)', borderColor: isOffline ? 'rgba(245,158,11,0.4)' : 'rgb(var(--rgb-brand-cyan)/0.35)' }}
+      >
         <div className={`w-16 h-16 rounded-full grid place-items-center mx-auto mb-4 ${isOffline ? 'bg-amber-500/20' : 'bg-emerald-500/20'}`}>
-          {isOffline ? <Loader2 size={32} className="text-amber-300" /> : <Check size={32} className="text-emerald-400" />}
+          {isOffline ? <Loader2 size={32} className="text-amber-500 dark:text-amber-300" /> : <Check size={32} className="text-emerald-500 dark:text-emerald-400" />}
         </div>
-        <div className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-1 ${isOffline ? 'text-amber-300' : 'text-[var(--color-brand-cyan)]'}`}>
-          {isOffline ? 'Saved offline' : 'Ticket created'}
+        <div className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-1 ${isOffline ? 'text-amber-600 dark:text-amber-300' : 'text-[var(--color-brand-cyan)]'}`}>
+          {isOffline ? 'Saved offline' : (multi ? `${tickets.length} tickets created` : 'Ticket created')}
         </div>
-        <div className="text-2xl font-extrabold text-white mb-1 tracking-tight" data-testid="mod-confirmation-ref">
-          {isOffline ? 'QUEUED' : confirmation.ticket_ref}
-        </div>
-        <div className={`inline-block text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded mt-1 ${priorityTone(confirmation.priority)}`}>
-          {confirmation.priority}
-        </div>
-        {confirmation.duplicate_of && (
-          <div className="mt-3 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5">
-            ⚠ Similar open ticket exists: {confirmation.duplicate_of}
+
+        {multi ? (
+          <div className="mt-3 space-y-1.5 text-left max-h-[40vh] overflow-y-auto">
+            {tickets.map((t, i) => (
+              <div key={i} className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--theme-border)' }} data-testid={`mod-confirmation-ticket-${i}`}>
+                <span className="text-sm font-bold truncate" style={{ color: 'var(--theme-text)' }}>{t.machine?.name || t.machine?.serial_number || 'Machine'}</span>
+                <span className="text-sm font-extrabold" style={{ color: 'var(--theme-text)' }}>{isOffline ? 'QUEUED' : t.ticket_ref}</span>
+              </div>
+            ))}
           </div>
+        ) : (
+          <>
+            <div className="text-2xl font-extrabold mb-1 tracking-tight" style={{ color: 'var(--theme-text)' }} data-testid="mod-confirmation-ref">
+              {isOffline ? 'QUEUED' : tickets[0]?.ticket_ref}
+            </div>
+            {tickets[0]?.priority && (
+              <div className={`inline-block text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded mt-1 ${priorityTone(tickets[0].priority)}`}>
+                {tickets[0].priority}
+              </div>
+            )}
+            {tickets[0]?.duplicate_of && (
+              <div className="mt-3 text-xs text-amber-600 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5">
+                ⚠ Similar open ticket exists: {tickets[0].duplicate_of}
+              </div>
+            )}
+          </>
         )}
-        <p className="text-white/70 text-sm mt-4">
+
+        <p className="text-sm mt-4" style={{ color: 'var(--theme-text-muted)' }}>
           {isOffline
-            ? 'We\'ve stored this fault and its photos on your device. It will upload and create a MOD-XXXX ticket the moment you\'re back online.'
+            ? "We've stored these faults and their photos on your device. They'll upload and create tickets the moment you're back online."
             : 'Confirmation email sent. You can track status on the dashboard.'}
         </p>
         <button
           onClick={onDone}
           className="mt-5 w-full rounded-lg px-4 py-3 text-sm font-extrabold"
-          style={{ background: isOffline ? 'var(--color-warning)' : 'var(--color-brand-cyan)', color: 'var(--color-surface-darker)' }}
+          style={{ background: isOffline ? 'var(--color-warning)' : 'var(--color-brand-cyan)', color: '#04121a' }}
           data-testid="mod-confirmation-done"
         >Back to dashboard</button>
       </div>
@@ -904,8 +997,8 @@ function StepTitle({ eyebrow, title, subtitle }) {
   return (
     <div className="mb-4">
       <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)]">{eyebrow}</div>
-      <h3 className="text-white text-xl font-extrabold tracking-tight" style={{ letterSpacing: '-0.01em' }}>{title}</h3>
-      {subtitle && <div className="text-sm text-white/60 mt-1">{subtitle}</div>}
+      <h3 className="text-xl font-extrabold tracking-tight" style={{ letterSpacing: '-0.01em', color: 'var(--theme-text)' }}>{title}</h3>
+      {subtitle && <div className="text-sm mt-1" style={{ color: 'var(--theme-text-muted)' }}>{subtitle}</div>}
     </div>
   );
 }
@@ -914,22 +1007,23 @@ function StepTitle({ eyebrow, title, subtitle }) {
 function RadioGroup({ label, options, value, onChange, testidPrefix, withHelp, alert }) {
   return (
     <div>
-      <div className="text-[10px] font-bold uppercase tracking-wider text-white/60 mb-1.5">{label}</div>
+      <div className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--theme-text-muted)' }}>{label}</div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {options.map((o) => {
           const picked = o.id === value;
-          const bg = picked
-            ? (alert ? 'border-red-500 bg-red-500/10' : 'border-[var(--color-brand-cyan)] bg-[rgb(var(--rgb-brand-cyan)/0.1)]')
-            : 'border-white/10 bg-white/[0.03] hover:border-white/25';
+          const cls = picked
+            ? (alert ? 'border-red-500 bg-red-500/10' : 'border-[var(--color-brand-cyan)] bg-[rgb(var(--rgb-brand-cyan)/0.12)]')
+            : 'hover:border-[var(--color-brand-cyan)]';
           return (
             <button
               key={o.id}
               onClick={() => onChange(o.id)}
-              className={`text-left rounded-lg border px-3 py-2.5 transition-all ${bg}`}
+              className={`text-left rounded-lg border px-3 py-2.5 transition-all ${cls}`}
+              style={picked ? {} : { background: 'var(--theme-surface-3)', borderColor: 'var(--theme-border)' }}
               data-testid={`${testidPrefix}-${o.id}`}
             >
-              <div className="text-sm font-bold text-white">{o.label}</div>
-              {withHelp && o.help && <div className="text-[10px] text-white/60 mt-0.5">{o.help}</div>}
+              <div className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>{o.label}</div>
+              {withHelp && o.help && <div className="text-[10px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>{o.help}</div>}
             </button>
           );
         })}
@@ -941,37 +1035,9 @@ function RadioGroup({ label, options, value, onChange, testidPrefix, withHelp, a
 
 function priorityTone(p) {
   return {
-    urgent: 'bg-red-500/20 text-red-300',
-    high:   'bg-orange-500/20 text-orange-300',
-    medium: 'bg-amber-500/20 text-amber-300',
-    low:    'bg-emerald-500/20 text-emerald-300',
-  }[p] || 'bg-white/10 text-white/70';
-}
-
-
-/* ─────────────────────── Validation ─────────────────────── */
-
-function stepValid(step, f) {
-  switch (step) {
-    case 1: return !!f.equipment_id;
-    case 2: return !!f.fault_type;
-    case 3: return f.description.trim().length >= 40 && !!f.onset && !!f.usable && !!f.safe_in_service;
-    case 4: return true;
-    case 5: return !!f.reporter_staff_id;
-    case 6: return true;
-    default: return false;
-  }
-}
-
-function whyInvalid(step, f) {
-  if (step === 1) return 'Pick the machine first';
-  if (step === 2) return 'Pick a fault type';
-  if (step === 3) {
-    if (f.description.trim().length < 40) return 'Description must be at least 40 characters';
-    if (!f.onset) return 'Pick when it started';
-    if (!f.usable) return 'Say whether it\'s usable';
-    if (!f.safe_in_service) return 'Say whether it\'s safe in service';
-  }
-  if (step === 5) return 'Pick a reporter so we can contact them';
-  return 'Please complete this step';
+    urgent: 'bg-red-500/20 text-red-600 dark:text-red-300',
+    high:   'bg-orange-500/20 text-orange-600 dark:text-orange-300',
+    medium: 'bg-amber-500/20 text-amber-600 dark:text-amber-300',
+    low:    'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300',
+  }[p] || 'bg-black/10 dark:bg-white/10';
 }
