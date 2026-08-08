@@ -329,6 +329,23 @@ const MODSiteOnboarding = () => {
       setKitDrill(null);
     }
   };
+  const [savingLocId, setSavingLocId] = useState(null);
+  const saveEquipLocation = async (equipmentId, location) => {
+    setSavingLocId(equipmentId);
+    try {
+      const { data } = await axios.patch(
+        `${API}/master-admin/mod-estate/equipment/${encodeURIComponent(equipmentId)}`,
+        { location }, { headers },
+      );
+      setKitDrill((k) => (k ? { ...k, items: k.items.map((m) => (m.id === equipmentId ? { ...m, location: data.location } : m)) } : k));
+      notify.success('Location saved', data.location ? `Zone set to "${data.location}"` : 'Location cleared');
+    } catch (e) {
+      notify.error('Could not save location', e?.response?.data?.detail || 'Server error');
+    } finally {
+      setSavingLocId(null);
+    }
+  };
+
   const doDeleteSite = async () => {
     if (!deleteSite) return;
     setDeleting(true);
@@ -799,6 +816,7 @@ const MODSiteOnboarding = () => {
               ) : kitDrill.items.length === 0 ? (
                 <div className="py-10 text-center text-sm text-zinc-500" data-testid="mod-kit-drill-empty">No machines found in this category.</div>
               ) : (
+                <>
                 <table className="w-full text-xs border-collapse" data-testid="mod-kit-drill-table">
                   <thead>
                     <tr className="text-left text-zinc-500 border-b border-zinc-200">
@@ -808,7 +826,7 @@ const MODSiteOnboarding = () => {
                       <th className="py-2 pr-3 font-semibold">Model</th>
                       <th className="py-2 pr-3 font-semibold whitespace-nowrap">Serial</th>
                       <th className="py-2 pr-3 font-semibold whitespace-nowrap">Asset #</th>
-                      <th className="py-2 pr-3 font-semibold">Location</th>
+                      <th className="py-2 pr-3 font-semibold whitespace-nowrap">Location / zone</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -820,11 +838,37 @@ const MODSiteOnboarding = () => {
                         <td className="py-2 pr-3 text-zinc-700">{m.model || <span className="text-zinc-300">—</span>}</td>
                         <td className="py-2 pr-3 text-zinc-700 whitespace-nowrap">{m.serial_number || <span className="text-zinc-300">—</span>}</td>
                         <td className="py-2 pr-3 text-zinc-700 whitespace-nowrap">{m.asset_number || <span className="text-zinc-300">—</span>}</td>
-                        <td className="py-2 pr-3 text-zinc-700">{m.location || <span className="text-zinc-300">—</span>}</td>
+                        <td className="py-2 pr-2">
+                          <div className="flex items-center gap-1">
+                            <input
+                              list="mod-kit-drill-zones"
+                              defaultValue={m.location || ''}
+                              placeholder="e.g. Main Gym"
+                              disabled={savingLocId === m.id}
+                              onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                              onBlur={(e) => {
+                                const v = e.target.value.trim();
+                                if (v !== (m.location || '')) saveEquipLocation(m.id, v);
+                              }}
+                              className="w-32 rounded border border-zinc-300 px-2 py-1 text-xs focus:outline-none focus:border-cyan-500 disabled:opacity-50"
+                              data-testid={`mod-kit-location-input-${m.id}`}
+                            />
+                            {savingLocId === m.id && <Loader2 size={12} className="animate-spin text-cyan-600" />}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                <datalist id="mod-kit-drill-zones">
+                  {Array.from(new Set(kitDrill.items.map((m) => (m.location || '').trim()).filter(Boolean))).map((loc) => (
+                    <option key={loc} value={loc} />
+                  ))}
+                </datalist>
+                <p className="text-[11px] text-zinc-500 mt-3" data-testid="mod-kit-location-hint">
+                  Set each machine's location/zone here — the reporter's Fault Wizard groups machines by these zones so it matches your real gym layout. Press Enter or click away to save.
+                </p>
+                </>
               )}
             </div>
           </div>

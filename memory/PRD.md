@@ -1,3 +1,24 @@
+# ═══ 2026-06 · Set Machine Locations in Master Admin (drives the Fault Wizard zone grouping) — backend curl-verified ═══
+Goal: let Master Admin set each machine's location/zone so the Fault Wizard's location grouping matches the real gym layout.
+Backend already supported `equipment.location` (create/CSV/PATCH), and AddEquipmentDialog had a location field — the gap was
+EDITING location on EXISTING machines from Master Admin (a raw master-admin session is org-scoped so the generic
+PATCH /api/equipment/{id} can't touch a MOD site's kit).
+  • NEW backend endpoint: PATCH /api/master-admin/mod-estate/equipment/{equipment_id} {location} — guarded by
+    _can_manage_mod_site (master admin / owner / manager), cross-org by design; sets or clears location (≤80 chars),
+    logs mod_estate.equipment_location. (routes/master_admin_mod_estate.py)
+  • FRONTEND: MODSiteOnboarding.js kit-drill modal — the machines table's read-only "Location" column is now an
+    INLINE-EDITABLE input (data-testid mod-kit-location-input-<id>) with a datalist of the site's existing zones + a saving
+    spinner; saves on Enter/blur via the new endpoint, updates local state + toast, plus a hint line
+    (mod-kit-location-hint) explaining it drives the wizard grouping.
+  • VERIFIED (curl, master-admin session): PATCH returns 200 and the new location is immediately reflected in
+    /api/mod/site/equipment (the exact source the Fault Wizard groups by). Frontend babel-clean + webpack compiled
+    successfully. (UI not screenshot-verified — remote-browser master-admin auth was flaky; simple input wired to a
+    verified endpoint.)
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION; REDEPLOY to push live. Demo locations on the MOD Test Site remain
+    Main Gym(4)/Cardio Suite(3)/Unassigned(1).
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · Wizard cleanup — MODFaultWizard split into per-step files + a11y roles (refactor, no behaviour change) ═══
 Requested tidy-up of the ~1066-line MODFaultWizard.js. Split into a slim container + a FaultWizard/ folder:
   • NEW pages/MODPortal/FaultWizard/: wizardConfig.js (FAULT_TYPES/ONSETS/USABLE/SAFE/emptyMachineData/priorityTone),

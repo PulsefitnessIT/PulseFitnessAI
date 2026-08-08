@@ -653,6 +653,31 @@ def _can_manage_mod_site(user: dict) -> bool:
     return (user.get("role") or "").lower() in {"owner", "manager", "director", "admin"}
 
 
+@router.patch("/master-admin/mod-estate/equipment/{equipment_id}")
+async def set_mod_equipment_location(equipment_id: str, data: dict = Body(...),
+                                     user: dict = Depends(get_current_user)) -> dict:
+    """Set (or clear) a machine's LOCATION / zone from the Master Admin estate
+    view. Drives the Fault Wizard's location grouping so it mirrors the real
+    gym layout. Master-admin (or owner/manager) only, cross-org by design."""
+    if not _can_manage_mod_site(user):
+        raise HTTPException(403, "Only owners, managers or a master admin can set machine locations.")
+    eq = await db.equipment.find_one({"id": equipment_id}, {"_id": 0, "id": 1, "name": 1, "organization_id": 1})
+    if not eq:
+        raise HTTPException(404, "Machine not found.")
+    loc = (data.get("location") or "").strip()
+    now = datetime.now(timezone.utc).isoformat()
+    if loc:
+        if len(loc) > 80:
+            raise HTTPException(400, "Location is too long (max 80 characters).")
+        await db.equipment.update_one({"id": equipment_id}, {"$set": {"location": loc, "updated_at": now}})
+    else:
+        await db.equipment.update_one({"id": equipment_id}, {"$unset": {"location": ""}, "$set": {"updated_at": now}})
+    await log_activity("mod_estate.equipment_location",
+                       f"Set location '{loc or '—'}' for '{eq.get('name')}'",
+                       user.get("email"), "equipment", equipment_id)
+    return {"ok": True, "id": equipment_id, "location": loc or None}
+
+
 @router.delete("/master-admin/mod-estate/sites/{site_id}")
 async def delete_mod_estate_site(site_id: str, confirm_name: str = Query(...),
                                  user: dict = Depends(get_current_user)) -> dict:
