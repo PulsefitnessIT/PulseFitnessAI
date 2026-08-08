@@ -427,6 +427,15 @@ async def mod_site_dashboard(user: dict = Depends(get_current_user)):
         {"_id": 0},
     ).sort("created_at", -1).limit(25).to_list(25)
 
+    # Attach live SLA status to each open fault (targets differ UK vs overseas).
+    from utils.mod_sla import compute_sla_status
+    for _iss in open_issues:
+        try:
+            _iss["sla"] = compute_sla_status(_iss, org, now)
+        except Exception:
+            pass
+    sla_breaches = sum(1 for i in open_issues if (i.get("sla") or {}).get("state") == "breached")
+
     # Repeat-offender: any equipment with >= 3 issues in last 30 days.
     since = (now - timedelta(days=30)).isoformat()
     pipeline = [
@@ -447,6 +456,7 @@ async def mod_site_dashboard(user: dict = Depends(get_current_user)):
             "overdue_checks": overdue_checks,
             "repeat_offenders": len(repeat_ids),
             "open_faults": len(open_issues),
+            "sla_breaches": sla_breaches,
         },
         "open_faults": open_issues,
         "repeat_offender_equipment_ids": repeat_ids,
@@ -1896,6 +1906,7 @@ def _confirm_fix_token() -> str:
 
 def _confirm_fix_email_html(site: dict, issue: dict, link: str) -> str:
     return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+  {_classification_bar(site)}
   <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Confirm fix</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{issue.get('mod_ticket_ref','')} marked resolved</h1>
@@ -1979,6 +1990,63 @@ async def mod_mark_fault_resolved(
         resolution_note=(body.resolution_note or "")[:200],
     )
     return {"ok": True, "issue_id": issue_id, "acceptance_token_sent": True}
+
+
+class ConfirmResolvedBody(BaseModel):
+    note: str = Field(default="", max_length=2000)
+
+
+@router.post("/mod/site/faults/{issue_id}/confirm-resolved")
+async def mod_confirm_fault_resolved(
+    issue_id: str,
+    body: ConfirmResolvedBody,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """Close a fault directly from the portal WITHOUT waiting for the
+    reporter's email confirmation. Fixes the 'resolved-pending' limbo:
+    a fault marked resolved but never confirmed by the reporter would
+    auto-reopen after the acceptance grace window. A site owner/manager
+    (or HQ) can vouch for the fix here, which finalises acceptance and
+    stops the auto-reopen sweep from touching it.
+    """
+    org = await _require_mod_site(user)
+    issue = await db.issues.find_one(
+        {"id": issue_id, "organization_id": org["id"]}, {"_id": 0},
+    )
+    if not issue:
+        raise HTTPException(404, "Fault not found")
+
+    now = datetime.now(timezone.utc)
+    await db.issues.update_one(
+        {"id": issue_id},
+        {"$set": {
+            "status": "resolved",
+            "resolved_at": issue.get("resolved_at") or now.isoformat(),
+            "acceptance_status": "accepted",
+            "acceptance_confirmed_at": now.isoformat(),
+            "acceptance_confirmed_by_email": user.get("email"),
+            "acceptance_token": None,
+            "resolution_note": (body.note or issue.get("resolution_note") or "").strip(),
+        },
+         "$unset": {"reopened_reason": ""}},
+    )
+    # Bring the machine back into service if it was isolated.
+    try:
+        await db.equipment.update_one(
+            {"id": issue.get("equipment_id"), "status": "out_of_service"},
+            {"$set": {"status": "active"}},
+        )
+    except Exception:
+        pass
+
+    await _audit(
+        org["id"], user.get("id"), "fault.confirm_resolved",
+        request=request, user=user,
+        target_type="issue", target_id=issue_id,
+        ticket_ref=issue.get("mod_ticket_ref"),
+    )
+    return {"ok": True, "issue_id": issue_id, "acceptance_status": "accepted"}
 
 
 class ConfirmFixBody(BaseModel):
@@ -2749,6 +2817,7 @@ def _dio_escalation_email_html(site: dict, issue: dict, eq: dict, note: Optional
         if note else ""
     )
     return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+  {_classification_bar(site)}
   <div style="background:#0A2540;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · DIO Escalation</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{issue.get('mod_ticket_ref','')} — {site.get('name','')}</h1>
@@ -3206,6 +3275,22 @@ def _inline_attachment_block(doc: dict, max_images: int = 4) -> str:
     )
 
 
+def _classification_bar(site: dict) -> str:
+    """Full-width OFFICIAL-SENSITIVE marking bar for the top of every MOD
+    email. Default marking is OFFICIAL-SENSITIVE; a site may lower it to
+    OFFICIAL via ``organization.classification``."""
+    level = ((site or {}).get("classification") or "OFFICIAL-SENSITIVE").upper()
+    if level == "OFFICIAL-SENSITIVE":
+        bg, fg = "#1a1205", "#fbbf24"
+    else:
+        bg, fg = "#0A0B10", "#19CDFF"
+    return (
+        f'<div style="background:{bg};color:{fg};text-align:center;'
+        f'font-size:11px;font-weight:800;letter-spacing:0.28em;'
+        f'text-transform:uppercase;padding:7px 12px;">&#9670; {level} &#9670;</div>'
+    )
+
+
 def _reporter_contact_block(doc: dict) -> str:
     """Prominent 'call them directly' point-of-contact card for MOD fault
     emails, so the service provider can reach the reporter without hunting
@@ -3235,6 +3320,7 @@ def _reporter_contact_block(doc: dict) -> str:
 def _escalation_email_html(site: dict, eq: dict, doc: dict) -> str:
     attachment_block = _inline_attachment_block(doc)
     return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#0A0B10;color:#fff;border-radius:12px;overflow:hidden;">
+  {_classification_bar(site)}
   <div style="background:#b91c1c;padding:20px 28px;">
     <div style="font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;opacity:0.9;">MOD · URGENT</div>
     <h1 style="margin:8px 0 0 0;font-size:22px;">{doc['mod_ticket_ref']} — {site.get('name')}</h1>
@@ -3253,6 +3339,7 @@ def _escalation_email_html(site: dict, eq: dict, doc: dict) -> str:
 
 def _confirmation_email_html(site: dict, eq: dict, doc: dict) -> str:
     return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+  {_classification_bar(site)}
   <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:22px;">Fault logged — {doc['mod_ticket_ref']}</h1>
@@ -3328,6 +3415,7 @@ def _supplier_fault_email_html(site: dict, eq: dict, doc: dict, supplier: dict) 
     contact = (supplier or {}).get("contact_name") or (supplier or {}).get("name", "Service Team")
     attachment_block = _inline_attachment_block(doc)
     return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+  {_classification_bar(site)}
   <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Supplier Notification</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{doc['mod_ticket_ref']} — {site.get('name')}</h1>

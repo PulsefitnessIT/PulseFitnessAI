@@ -534,7 +534,7 @@ function StepGuided({ form, patch }) {
             {form.description.length} / 40 minimum
           </div>
           <div className="text-[10px] text-amber-300/80 font-semibold" data-testid="mod-field-classification-hint">
-            ◆ OFFICIAL only — do NOT include NSN, operation names, callsigns or anything above OFFICIAL.
+            ◆ OFFICIAL-SENSITIVE ceiling — do NOT include NSN, operation names, callsigns, personal data or anything above OFFICIAL-SENSITIVE.
           </div>
         </div>
       </label>
@@ -651,6 +651,15 @@ function StepAttachments({ urls, onAdd, onRemove }) {
   return (
     <div data-testid="mod-step-attachments">
       <StepTitle eyebrow="Step 4 (optional)" title="Photo or video?" subtitle="A picture saves 10 minutes on site" />
+
+      <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-[12px] text-amber-200 flex items-start gap-2" data-testid="mod-attach-classification-warning">
+        <ShieldAlert size={15} className="shrink-0 mt-0.5 text-amber-300" />
+        <span>
+          <strong className="font-bold">OFFICIAL-SENSITIVE ceiling.</strong> Photograph the machine and fault only.
+          Do NOT capture documents, screens, whiteboards, NSN/asset labels of other kit, personnel, vehicles,
+          or anything that reveals location or operations. Attachments are shared with our service provider.
+        </span>
+      </div>
 
       {uploading ? (
         <div className="rounded-xl border border-[rgb(var(--rgb-brand-cyan)/0.4)] bg-[rgb(var(--rgb-brand-cyan)/0.05)] p-5 text-center">

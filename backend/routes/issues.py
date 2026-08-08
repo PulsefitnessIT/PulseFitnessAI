@@ -1271,6 +1271,19 @@ async def get_issue_detail(issue_id: str, user: dict = Depends(get_current_user)
         except Exception:
             pass
 
+    # Live SLA status for MOD site faults (targets differ UK vs overseas).
+    try:
+        site_org = await db.organizations.find_one(
+            {"id": issue.get("organization_id")},
+            {"_id": 0, "account_type": 1, "is_overseas": 1,
+             "sla_response_hours": 1, "sla_fix_hours": 1, "classification": 1},
+        )
+        if site_org and site_org.get("account_type") == "mod_site":
+            from utils.mod_sla import compute_sla_status
+            issue["sla"] = compute_sla_status(issue, site_org)
+    except Exception:
+        pass
+
     return issue
 
 

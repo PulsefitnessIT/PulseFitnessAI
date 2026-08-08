@@ -842,7 +842,7 @@ const LiteDashboardPage = () => {
 
   return (
     <div className="min-h-screen overflow-x-hidden" style={{ background: 'var(--theme-bg)' }} data-testid="lite-dashboard" data-portal="pulse">
-      {isMOD && <ClassificationBanner level={user?.classification || 'OFFICIAL'} rightSlot={<OfflineStatusPill />} />}
+      {isMOD && <ClassificationBanner level={user?.classification || 'OFFICIAL-SENSITIVE'} rightSlot={<OfflineStatusPill />} />}
       <Navbar
         onOpenSettings={isSharedLogin ? undefined : () => setShowSettingsDialog(true)}
         onOpenMasterAdmin={() => setShowMasterAdmin(true)}

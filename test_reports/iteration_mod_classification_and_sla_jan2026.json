@@ -1,0 +1,27 @@
+{
+  "summary": "Frontend verification of P0.3 OFFICIAL-SENSITIVE classification posture + P1 editable SLA/MOD resolution loop. All five frontend surfaces verified: (1) MOD site portal shows the OFFICIAL-SENSITIVE classification banner at the top with data-classification='OFFICIAL-SENSITIVE' and amber styling (color rgb(251,191,36) on dark bg rgb(26,18,5)); (2) Fault Wizard Step 3 shows the mod-field-classification-hint reading 'OFFICIAL-SENSITIVE ceiling — do NOT include NSN, operation names, callsigns, personal data or anything above OFFICIAL-SENSITIVE.' in amber; (3) Fault Wizard Step 4 shows a prominent amber mod-attach-classification-warning warning against photographing documents, screens, whiteboards, NSN/asset labels, personnel, vehicles etc.; (4) IssueDetailPanel for a MOD fault (PF-MODTS-002) renders issue-sla-<id> card with UK target label, state 'SLA breached', response '10.7d overdue', fix '8.7d overdue' — all four testids present (card + state + response + fix); (5) Master Admin → Organisations → Onboarding → MOD Equipment & Readiness lists MOD sites each with an SLA pill (mod-site-sla-<id> showing '24h response · 72h fix' for UK sites, '48h response · 168h fix' for overseas Nyati site) and an Edit SLA button (mod-site-edit-sla-<id>) — clicking opens mod-sla-modal, unticking mod-sla-use-default reveals response+fix inputs, saving custom (12/48) updates pill to '12h response · 48h fix' with 'Custom' badge, reopening & re-ticking use-default + save reverts to '24h response · 72h fix' (Custom badge removed). Confirm-resolved acceptance-pending block correctly ABSENT for open faults (state-dependent UI could not be exercised via UI because it requires the fault to first be marked resolved via portal; backend endpoint POST /api/mod/site/faults/{id}/confirm-resolved was confirmed by main agent as curl-verified).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MOD Site LiteDashboard", "issues": ["ClassificationBanner is positioned CSS 'relative' despite the component docstring saying 'sticky' — banner scrolls out of view when the user scrolls down. It IS visible at top of page (offsetTop:0, height:30.5px, amber #fbbf24 on #1a1205). Consider making it position:sticky top:0 z:high so the marking stays visible while scrolling long fault lists (per MOD/HMG classification handling: marking must remain visible)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "OPTIONAL: Make ClassificationBanner truly sticky (position:sticky; top:0; z-index high) so the OFFICIAL-SENSITIVE marking remains visible while scrolling MOD surfaces (docstring already describes it as sticky but CSS uses position:relative)."
+  ],
+  "critical_code_review_comments": [
+    "ClassificationBanner.js docstring says 'Sticky marking shown on every MOD surface' but the CSS is position:relative — behaviour deviates from the documented intent.",
+    "MODFaultWizard.js Step 1 equipment selector uses testid prefix `mod-equipment-` which collides with `mod-equipment-search` (an input) and `mod-equipment-qr-scan` (a button). Selectors like `[data-testid^='mod-equipment-']` will pick up all three. Consider using a distinct prefix like `mod-equipment-card-<id>` for the choice buttons to make automated selection unambiguous."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (5/5 features verified)"},
+  "test_credentials": "MOD site: test@army.mod.test / ModTest123! via /MODService; Master Admin: admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg via /login",
+  "seed_data_creation": "None — did NOT mark any fault resolved (per instructions to leave MOD Test Site data untouched). SLA edit was reverted to default (24h/72h) after the custom (12h/48h) save-and-verify step, so MOD Test Site SLA is back at its default.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "MOD login rate-limit is ~4 rapid attempts before 429; add generous wait or re-use session between assertions. Fault Wizard has 6 steps; Step 3 requires description ≥40 chars + onset + usable + safe_in_service to enable Next. Testid prefix `mod-equipment-` collides with search input and qr-scan button — filter to only <button> elements and exclude tids 'mod-equipment-search' and 'mod-equipment-qr-scan'. MOD site SLA editor lives at Master Admin → Organisations → Onboarding tab → MOD Equipment & Readiness subtab (onboarding-subtab-mod-equipment).",
+  "rca of the issue": "N/A — no defects blocking the acceptance criteria. Only a docstring/CSS mismatch (banner position 'relative' vs docstring 'sticky') noted as a minor design observation."
+}

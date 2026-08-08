@@ -15,7 +15,7 @@ import axios from 'axios';
 import {
   Download, Upload, Loader2, CheckCircle2, AlertCircle, FileSpreadsheet,
   Dumbbell, Users, Truck, FileText, ClipboardCheck, RefreshCw, ShieldCheck,
-  Link2, Inbox, ThumbsUp, Undo2, Bell, Eye, X, AlertTriangle, Copy, Mail, Sparkles, Trash2,
+  Link2, Inbox, ThumbsUp, Undo2, Bell, Eye, X, AlertTriangle, Copy, Mail, Sparkles, Trash2, Timer,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -129,6 +129,45 @@ const MODSiteOnboarding = () => {
     } catch (e) {
       notify.error('Could not update provider', e?.response?.data?.detail || 'Server error');
     } finally { setProvBusy(false); }
+  };
+
+  // ── SLA editor ─────────────────────────────────────────────────
+  const [slaModal, setSlaModal] = useState(null); // { site }
+  const [slaForm, setSlaForm] = useState({ response_hours: '', fix_hours: '', use_default: true });
+  const [slaBusy, setSlaBusy] = useState(false);
+
+  const openSlaModal = (site) => {
+    const sla = site.sla || {};
+    const isCustom = sla.response_source === 'custom' || sla.fix_source === 'custom';
+    setSlaForm({
+      response_hours: String(sla.response_hours ?? sla.default_response_hours ?? ''),
+      fix_hours: String(sla.fix_hours ?? sla.default_fix_hours ?? ''),
+      use_default: !isCustom,
+    });
+    setSlaModal({ site });
+  };
+
+  const saveSla = async () => {
+    if (!slaModal?.site) return;
+    let body;
+    if (slaForm.use_default) {
+      body = { use_default: true };
+    } else {
+      const resp = parseInt(slaForm.response_hours, 10);
+      const fix = parseInt(slaForm.fix_hours, 10);
+      if (!resp || !fix) { notify.error('Enter both targets', 'Response and fix hours are required.'); return; }
+      if (fix < resp) { notify.error('Invalid targets', 'Fix target must be greater than or equal to response.'); return; }
+      body = { response_hours: resp, fix_hours: fix };
+    }
+    setSlaBusy(true);
+    try {
+      await axios.put(`${API}/master-admin/mod-estate/sites/${slaModal.site.id}/sla`, body, { headers });
+      notify.success('SLA saved', slaForm.use_default ? 'Reset to the default target for this site.' : 'Custom SLA target applied.');
+      setSlaModal(null);
+      await load();
+    } catch (e) {
+      notify.error('Could not save SLA', e?.response?.data?.detail || 'Server error');
+    } finally { setSlaBusy(false); }
   };
 
   const sendReadinessEmail = async (emailOverride) => {
@@ -550,6 +589,26 @@ const MODSiteOnboarding = () => {
                       </button>
                     )}
                   </div>
+                  {/* SLA targets — differ for UK vs overseas; editable per site. */}
+                  {s.sla && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2" data-testid={`mod-site-sla-${s.id}`}>
+                      <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold tracking-wide text-zinc-400">
+                        <Timer size={11} /> SLA
+                      </span>
+                      <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-100"
+                        title={`${s.sla.is_overseas ? 'Overseas' : 'UK'} site · ${s.sla.response_source === 'custom' || s.sla.fix_source === 'custom' ? 'custom target' : 'default target'}`}>
+                        {s.sla.response_hours}h response · {s.sla.fix_hours}h fix
+                      </span>
+                      {(s.sla.response_source === 'custom' || s.sla.fix_source === 'custom') && (
+                        <span className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Custom</span>
+                      )}
+                      <button type="button" onClick={() => openSlaModal(s)}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-zinc-300 text-zinc-600 hover:text-zinc-900 hover:border-zinc-400 transition-colors"
+                        data-testid={`mod-site-edit-sla-${s.id}`}>
+                        <Timer size={11} /> Edit SLA
+                      </button>
+                    </div>
+                  )}
                   {/* Checklist */}
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
                     {Object.entries(s.steps).map(([key, v]) => {
@@ -839,6 +898,56 @@ const MODSiteOnboarding = () => {
                 <button onClick={() => saveProvider()} disabled={provBusy}
                   className="px-3 py-1.5 text-xs font-bold rounded-md bg-cyan-600 text-white disabled:opacity-40 inline-flex items-center gap-1.5" data-testid="mod-provider-save">
                   {provBusy ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />} Save provider
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SLA editor modal */}
+      {slaModal && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }} data-testid="mod-sla-modal" onClick={() => !slaBusy && setSlaModal(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-zinc-100 flex items-center justify-between">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-600">SLA targets</div>
+                <div className="text-base font-extrabold text-zinc-900">{slaModal.site.name}</div>
+              </div>
+              <button onClick={() => setSlaModal(null)} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-500" data-testid="mod-sla-close"><X size={16} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="text-[12px] text-zinc-600">
+                {slaModal.site.sla?.is_overseas ? 'Overseas' : 'UK'} site. Default is{' '}
+                <strong>{slaModal.site.sla?.default_response_hours}h response / {slaModal.site.sla?.default_fix_hours}h fix</strong>.
+              </div>
+              <label className="flex items-center gap-2 text-sm text-zinc-800 cursor-pointer" data-testid="mod-sla-use-default">
+                <input type="checkbox" checked={slaForm.use_default}
+                  onChange={(e) => setSlaForm((f) => ({ ...f, use_default: e.target.checked }))} />
+                Use the default target for this {slaModal.site.sla?.is_overseas ? 'overseas' : 'UK'} site
+              </label>
+              {!slaForm.use_default && (
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">Response (hours)</span>
+                    <input type="number" min="1" max="8760" value={slaForm.response_hours}
+                      onChange={(e) => setSlaForm((f) => ({ ...f, response_hours: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm" data-testid="mod-sla-response-input" />
+                  </label>
+                  <label className="block">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">Fix (hours)</span>
+                    <input type="number" min="1" max="8760" value={slaForm.fix_hours}
+                      onChange={(e) => setSlaForm((f) => ({ ...f, fix_hours: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm" data-testid="mod-sla-fix-input" />
+                  </label>
+                </div>
+              )}
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button onClick={() => setSlaModal(null)} disabled={slaBusy}
+                  className="px-3 py-2 rounded-lg text-sm font-semibold text-zinc-600 hover:bg-zinc-100" data-testid="mod-sla-cancel">Cancel</button>
+                <button onClick={saveSla} disabled={slaBusy}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50" data-testid="mod-sla-save">
+                  {slaBusy ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />} Save SLA
                 </button>
               </div>
             </div>

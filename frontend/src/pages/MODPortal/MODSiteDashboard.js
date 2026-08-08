@@ -154,7 +154,7 @@ export default function MODSiteDashboard() {
 
   return (
     <div className="min-h-screen bg-[var(--color-ink-deep)] text-white pb-10" data-testid="mod-site-dashboard">
-      <ClassificationBanner level={user?.classification || 'OFFICIAL'} rightSlot={<OfflineStatusPill />} />
+      <ClassificationBanner level={user?.classification || 'OFFICIAL-SENSITIVE'} rightSlot={<OfflineStatusPill />} />
       {/* Branded header */}
       <header className="border-b border-white/10 bg-[var(--color-surface-darker)] sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between gap-3">

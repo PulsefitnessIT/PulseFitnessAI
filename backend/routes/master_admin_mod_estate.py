@@ -491,6 +491,7 @@ async def _compute_estate_readiness(estate_id: str) -> dict:
                  {"mod_estate_id": {"$exists": False}}]},
         {"_id": 0, "id": 1, "name": 1, "mod_force": 1, "site_code": 1,
          "is_overseas": 1, "region": 1,
+         "sla_response_hours": 1, "sla_fix_hours": 1,
          "serviced_by": 1, "service_supplier": 1, "service_supplier_id": 1},
     ).sort("name", 1).to_list(5000)
 
@@ -535,6 +536,7 @@ async def _compute_estate_readiness(estate_id: str) -> dict:
             cat_map = {}
 
     out = []
+    from utils.mod_sla import sla_targets_for_org
     # Batched lookup of assigned service-supplier emails (overseas sites) so
     # HQ can see WHO services each site and confirm it's allocated.
     sup_ids = [s.get("service_supplier_id") for s in sites if s.get("service_supplier_id")]
@@ -576,6 +578,7 @@ async def _compute_estate_readiness(estate_id: str) -> dict:
                 (sup_map.get(s.get("service_supplier_id")) or {}).get("name")
                 or s.get("service_supplier") or None),
             "service_provider_email": (sup_map.get(s.get("service_supplier_id")) or {}).get("email") or None,
+            "sla": sla_targets_for_org(s),
             "steps": steps,
             "kit_by_category": kit_by_category,
             "ready_count": ready_count, "total_steps": len(steps),
@@ -675,6 +678,75 @@ async def delete_mod_estate_site(site_id: str, confirm_name: str = Query(...),
                        user.get("email"), "organization", site_id)
     return {"deleted": True, "site_id": site_id, "name": org.get("name"),
             "equipment_removed": eq.deleted_count, "users_removed": us.deleted_count}
+
+
+@router.get("/master-admin/mod-estate/sites/{site_id}/sla")
+async def get_mod_site_sla(site_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Current SLA targets for a MOD site + the UK/overseas defaults so the
+    editor can show what the site inherits when left on default."""
+    if not _can_manage_mod_site(user):
+        raise HTTPException(403, "Only owners, managers or a master admin can view SLA settings.")
+    org = await db.organizations.find_one(
+        {"id": site_id},
+        {"_id": 0, "id": 1, "name": 1, "account_type": 1, "is_overseas": 1,
+         "sla_response_hours": 1, "sla_fix_hours": 1},
+    )
+    if not org:
+        raise HTTPException(404, "Site not found.")
+    if org.get("account_type") != "mod_site":
+        raise HTTPException(400, "That organisation is not a MOD site.")
+    from utils.mod_sla import sla_targets_for_org
+    t = sla_targets_for_org(org)
+    return {"site_id": site_id, "name": org.get("name"), **t}
+
+
+@router.put("/master-admin/mod-estate/sites/{site_id}/sla")
+async def set_mod_site_sla(site_id: str, data: dict = Body(...),
+                           user: dict = Depends(get_current_user)) -> dict:
+    """Set (or reset) a MOD site's SLA targets. Body:
+      • {"use_default": true}                     — clear overrides (inherit UK/overseas default)
+      • {"response_hours": N, "fix_hours": M}      — custom targets (hours, 1..8760)
+    """
+    if not _can_manage_mod_site(user):
+        raise HTTPException(403, "Only owners, managers or a master admin can change SLA settings.")
+    org = await db.organizations.find_one({"id": site_id}, {"_id": 0, "id": 1, "name": 1, "account_type": 1, "is_overseas": 1})
+    if not org:
+        raise HTTPException(404, "Site not found.")
+    if org.get("account_type") != "mod_site":
+        raise HTTPException(400, "That organisation is not a MOD site.")
+
+    if data.get("use_default"):
+        await db.organizations.update_one(
+            {"id": site_id},
+            {"$unset": {"sla_response_hours": "", "sla_fix_hours": ""}})
+        await log_activity("mod_estate.sla_updated",
+                           f"Reset SLA to default for '{org.get('name')}'",
+                           user.get("email"), "organization", site_id)
+    else:
+        def _hrs(v):
+            try:
+                n = int(v)
+            except (TypeError, ValueError):
+                raise HTTPException(400, "Response and fix hours must be whole numbers.")
+            if n < 1 or n > 8760:
+                raise HTTPException(400, "Hours must be between 1 and 8760.")
+            return n
+        resp = _hrs(data.get("response_hours"))
+        fix = _hrs(data.get("fix_hours"))
+        if fix < resp:
+            raise HTTPException(400, "Fix target must be greater than or equal to the response target.")
+        await db.organizations.update_one(
+            {"id": site_id},
+            {"$set": {"sla_response_hours": resp, "sla_fix_hours": fix}})
+        await log_activity("mod_estate.sla_updated",
+                           f"Set SLA {resp}h response / {fix}h fix for '{org.get('name')}'",
+                           user.get("email"), "organization", site_id)
+
+    org2 = await db.organizations.find_one(
+        {"id": site_id},
+        {"_id": 0, "is_overseas": 1, "sla_response_hours": 1, "sla_fix_hours": 1})
+    from utils.mod_sla import sla_targets_for_org
+    return {"ok": True, "site_id": site_id, **sla_targets_for_org(org2)}
 
 
 @router.put("/master-admin/mod-estate/sites/{site_id}/service-provider")

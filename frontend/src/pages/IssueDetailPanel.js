@@ -12,7 +12,7 @@ import { notify } from '@/components/notifications';
 import {
  FileText, Upload, Send, Plus, Trash2,
  Paperclip, ExternalLink, ShoppingCart, Clock, CheckCircle, AlertCircle, Printer, Wrench, Loader2, CalendarDays, ShieldCheck, Phone, Mail,
- ChevronDown, ChevronUp, Receipt,
+ ChevronDown, ChevronUp, Receipt, Timer, AlertTriangle,
 } from 'lucide-react';
 import SiconServicePanel from './SiconServicePanel';
 
@@ -466,8 +466,50 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  </div>
  </div>
 
- {/* Notified — proof of exactly who was emailed when this job was
-     logged (Pulse Fitness always; overseas sites also their provider). */}
+ {/* SLA tracker — MOD faults carry response/fix targets (different for
+     overseas sites). Shows on-track / due-soon / breached at a glance. */}
+ {issue.sla && (
+ <div className={`p-4 rounded-xl border ${
+   issue.sla.state === 'breached' ? 'bg-rose-500/5 border-rose-500/30'
+   : issue.sla.state === 'due_soon' ? 'bg-amber-500/5 border-amber-500/30'
+   : issue.sla.state === 'met' ? 'bg-emerald-500/5 border-emerald-500/25'
+   : 'bg-sky-500/5 border-sky-500/25'
+ }`} data-testid={`issue-sla-${issue.id}`}>
+ <div className="flex items-center justify-between gap-2 mb-2">
+ <div className="flex items-center gap-2">
+ <Timer size={14} className={
+   issue.sla.state === 'breached' ? 'text-rose-400'
+   : issue.sla.state === 'due_soon' ? 'text-amber-400'
+   : issue.sla.state === 'met' ? 'text-emerald-400' : 'text-sky-400'} />
+ <span className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">SLA · {issue.sla.is_overseas ? 'Overseas' : 'UK'} target</span>
+ </div>
+ <Badge className={
+   issue.sla.state === 'breached' ? 'bg-rose-500/20 text-rose-300'
+   : issue.sla.state === 'due_soon' ? 'bg-amber-500/20 text-amber-300'
+   : issue.sla.state === 'met' ? 'bg-emerald-500/20 text-emerald-300'
+   : 'bg-sky-500/20 text-sky-300'} data-testid={`issue-sla-state-${issue.id}`}>
+ {issue.sla.state === 'breached' ? 'SLA breached'
+   : issue.sla.state === 'due_soon' ? 'Due soon'
+   : issue.sla.state === 'met' ? 'Within SLA' : 'On track'}
+ </Badge>
+ </div>
+ <div className="grid grid-cols-2 gap-3 text-sm">
+ <div>
+ <span className="text-[var(--color-text-muted)] text-xs">Response ({issue.sla.response_hours}h)</span>
+ <p className={`font-medium ${issue.sla.response_breached ? 'text-rose-300' : 'text-white'}`} data-testid={`issue-sla-response-${issue.id}`}>
+ {issue.sla.response_met ? 'Met' : issue.sla.response_remaining_label}
+ </p>
+ </div>
+ <div>
+ <span className="text-[var(--color-text-muted)] text-xs">Fix ({issue.sla.fix_hours}h)</span>
+ <p className={`font-medium ${issue.sla.fix_breached ? 'text-rose-300' : 'text-white'}`} data-testid={`issue-sla-fix-${issue.id}`}>
+ {issue.sla.fix_met ? 'Met' : issue.sla.fix_remaining_label}
+ </p>
+ </div>
+ </div>
+ </div>
+ )}
+
  {Array.isArray(issue.notified_recipients) && issue.notified_recipients.length > 0 && (
  <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20" data-testid={`issue-notified-log-${issue.id}`}>
  <div className="flex items-center gap-2 mb-2">
@@ -1079,6 +1121,39 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
    <ShieldCheck size={11} /> Escalated to DIO
  </span>
  )}
+ </div>
+ )}
+
+ {/* MOD acceptance limbo fix — a fault marked resolved but awaiting the
+     reporter's email confirmation will auto-reopen after the grace window.
+     Let the site owner/manager confirm the fix directly and close it. */}
+ {user?.account_type === 'mod_site' && issue.status === 'resolved' && issue.acceptance_status === 'pending' && (
+ <div className="pt-2 border-t border-[var(--theme-border)]" data-testid={`mod-acceptance-pending-${issue.id}`}>
+ <div className="flex items-start gap-2 text-[12px] text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 mb-2">
+ <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+ <span>Awaiting the reporter's email confirmation. If they don't respond this fault will auto-reopen. You can confirm the fix directly to close it now.</span>
+ </div>
+ <Button
+   size="sm"
+   onClick={async () => {
+     try {
+       await axios.post(
+         `${API}/mod/site/faults/${issue.id}/confirm-resolved`,
+         { note: '' },
+         { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } },
+       );
+       setIssue({ ...issue, acceptance_status: 'accepted' });
+       notify.success('Fault closed', 'Confirmed resolved — it will no longer auto-reopen.');
+       if (onUpdate) onUpdate();
+     } catch (e) {
+       notify.error('Could not confirm', e?.response?.data?.detail || 'Please try again.');
+     }
+   }}
+   className="bg-emerald-500 hover:bg-emerald-600 text-white"
+   data-testid={`mod-confirm-resolved-btn-${issue.id}`}
+ >
+   <CheckCircle size={12} className="mr-1" /> Confirm resolved &amp; close
+ </Button>
  </div>
  )}
 
