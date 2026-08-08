@@ -1,3 +1,41 @@
+# ═══ 2026-06 · P0.3 OFFICIAL-SENSITIVE posture + P1 SLA timers + MOD resolution loop — testing_agent 100% (5/5 FE) ═══
+Delivered the two batches the user approved together. Banner default = OFFICIAL-SENSITIVE for all MOD, per-org override via
+organization.classification honored.
+  • P0.3 CLASSIFICATION POSTURE:
+     - ClassificationBanner call sites (LiteDashboardPage.js:845 + MODSiteDashboard.js:157) now default OFFICIAL-SENSITIVE
+       (was OFFICIAL). Banner already styles OFFICIAL-SENSITIVE amber vs OFFICIAL cyan.
+     - MODFaultWizard.js: Step 3 hint (mod-field-classification-hint) → 'OFFICIAL-SENSITIVE ceiling …'; Step 4 attachments now
+       has a prominent amber data/attachment warning (mod-attach-classification-warning) — don't photograph docs/screens/
+       personnel/NSN labels etc.
+     - EMAILS (mod_portal.py): NEW _classification_bar(site) full-width marking bar injected at top of all 5 MOD email
+       templates (_escalation_email_html, _supplier_fault_email_html, _confirmation_email_html, _confirm_fix_email_html,
+       _dio_escalation_email_html). Defaults OFFICIAL-SENSITIVE, lowers to OFFICIAL when org.classification=OFFICIAL. Harness-verified.
+  • P1 SLA TIMERS (editable, DIFFERENT for overseas):
+     - NEW utils/mod_sla.py: DEFAULT_SLA uk=24h/72h, overseas=48h/168h; sla_targets_for_org() (org override via
+       sla_response_hours/sla_fix_hours) + compute_sla_status() → response/fix due, breached/met flags, state
+       (met/on_track/due_soon/breached), remaining labels.
+     - Backend: master_admin_mod_estate.py NEW GET+PUT /master-admin/mod-estate/sites/{id}/sla (owner/manager/master admin;
+       use_default clears overrides, else response_hours/fix_hours 1..8760 with fix>=response); site-readiness now returns
+       per-site `sla`. mod_portal.py mod_site_dashboard attaches `sla` to each open fault + stats.sla_breaches. issues.py
+       get_issue_detail attaches `sla` for mod_site issues. All curl-verified.
+     - Frontend: IssueDetailPanel.js NEW SLA tracker card (issue-sla-<id> + -state/-response/-fix). MODSiteOnboarding.js
+       per-site SLA pill (mod-site-sla-<id>) + Edit SLA button + modal (mod-sla-modal, mod-sla-use-default/-response-input/
+       -fix-input/-save).
+  • P1 RESOLUTION LOOP (fix 'resolved-pending' limbo):
+     - Backend mod_portal.py NEW POST /mod/site/faults/{id}/confirm-resolved — site owner/manager/HQ vouches for the fix,
+       finalises acceptance (acceptance_status=accepted), clears reopened_reason so the 48h auto-reopen sweep won't touch it.
+       Curl-verified mark-resolved→pending→confirm-resolved→accepted.
+     - Frontend IssueDetailPanel.js: for MOD faults status=resolved & acceptance_status=pending shows an amber
+       'Awaiting reporter confirmation' block (mod-acceptance-pending-<id>) + green 'Confirm resolved & close' button
+       (mod-confirm-resolved-btn-<id>).
+  • VERIFIED: testing_agent iteration_mod_classification_and_sla_jan2026.json — 100% (5/5). Backend fully curl-verified.
+    Demo MOD Test Site data restored (SLA back to default, test fault returned to open, acceptance fields unset).
+  MINOR/OPTIONAL (not done, low risk): ClassificationBanner is position:relative not sticky (docstring says sticky) — left
+    as-is to avoid navbar overlap; marking is visible at top of every MOD page.
+  ⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY. No new credentials created.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-08 · P0.1 COMPLETE — sensitive MOD data scrubbed from the entire codebase (backend + frontend + tests) ═══
 Founder review flagged real MOD framework data hardcoded in source (compliance blocker). Now fully genericised.
   • RATE CARD utils/mod_sor_data.py: replaced the real LSLDC0223 contracted prices + PAT SER100xxx Sicon refs with
