@@ -1,3 +1,32 @@
+# ═══ 2026-08-08 · Guided MOD Fault Wizard switched ON for MOD sites · NO AI triage · reporter mandatory for shared logins ═══
+Three linked changes (user: enable guided wizard, no AI triage for MOD, generic/shared logins must always select the
+reporting staff member so service providers have a contact point).
+  • WIZARD ENABLED (frontend LiteDashboardPage.js): MOD sites now use the 6-step guided MODFaultWizard (equipment → fault
+    type → guided Qs → attachments → reporter → review) for ALL fault-logging entry points (Faults tab log-fault-btn,
+    Overview, equipment-detail "log fault", OperationsStart) — the generic dialog is suppressed for MOD via
+    showFaultDialog={isMODSite ? false : ...}; <MODFaultWizard prefillEquipmentId=faultForm.equipment_id
+    onSubmitted={loadData}/> renders when isMODSite && showFaultDialog. The unrouted MODSiteDashboard is still not used;
+    we simply mount the wizard inside the existing MOD LiteDashboard. testing_agent: 100% PASS (wizard opens, full flow,
+    ticket ref, HIGH priority, no AI anywhere, Notified panel present).
+  • NO AI TRIAGE FOR MOD (backend mod_portal.py): mod_fault_submit now sets ai=None (was await _ai_triage(...)); priority is
+    deterministic only (_deterministic_priority); engineer-booking auto-generates on priority in (urgent,high) instead of
+    the old AI 'engineer_required'; ai_triage stored/returned as null. /mod/site/faults/triage-preview also returns ai:null.
+    Frontend: gated the AI Diagnosis TabsContent with `isPro && !isMOD` (the tab TRIGGER was already !isMOD, but the content
+    panel still mounted — removed the stray ai-triage-content element for MOD).
+  • REPORTER MANDATORY FOR SHARED LOGINS (backend mod_portal.py): generic/shared MOD logins (role 'site_staff' OR
+    is_shared_site_login) MUST send reporter_staff_id — inline-only reporter is rejected with 400 ("On a shared site login
+    you must select (or add) the staff member reporting this fault so our service provider has a named contact point").
+    The wizard always produces a reporter_staff_id (existing pick OR MODStaffModal "Add new" which creates a staff row and
+    returns its id), so it's compatible. Added a "Required" banner on the wizard reporter step (mod-reporter-required-note).
+    Note: the wizard already required a reporter for EVERY login; this backend guard is the server-side hard enforcement for
+    shared logins (covers offline queue / any client).
+  • VERIFIED (curl): (A) shared-login user, inline reporter but NO staff_id → HTTP 400 with the message; (B) shared-login
+    user WITH reporter_staff_id → 200, MOD-2026-67746 logged. Owner login still logs fine (deterministic priority, ai_triage
+    null). All temp users/equipment/issues cleaned up. Backend py OK; frontend compiled.
+  ⚠️ PREVIEW ONLY — needs REDEPLOY. Shared-login detection = user.role=='site_staff' OR user.is_shared_site_login.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-08 · MOD Provider Directory + notified-log ROUTING FIX (real UI path) — testing_agent 100% PASS ═══
 Two deliverables + a critical routing fix uncovered by the testing agent.
   • NEW Provider Directory (Master Admin → Onboarding → "Service Providers" sub-tab, onboarding-subtab-mod-providers):

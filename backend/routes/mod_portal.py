@@ -1619,6 +1619,16 @@ async def mod_fault_submit(
     # Resolve reporter — either an existing staff row or inline details.
     reporter_name = reporter_email = reporter_phone = None
     staff_id_used = None
+    # Generic/shared MOD site logins (kiosk / site-code) MUST attribute the
+    # fault to a NAMED staff member, so our service providers have a direct
+    # contact point for whoever logged it. Founder requirement.
+    is_shared_login = bool(user.get("is_shared_site_login")) or user.get("role") == "site_staff"
+    if is_shared_login and not payload.reporter_staff_id:
+        raise HTTPException(
+            400,
+            "On a shared site login you must select (or add) the staff member "
+            "reporting this fault so our service provider has a named contact point.",
+        )
     if payload.reporter_staff_id:
         staff = await db.mod_site_staff.find_one(
             {"id": payload.reporter_staff_id, "site_id": site_id, "is_active": {"$ne": False}},

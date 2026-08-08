@@ -1079,7 +1079,7 @@ const LiteDashboardPage = () => {
                 <PulseCheckSheetsTab equipment={equipment} />
               </TabsContent>
             )}
-            {isPro && (
+            {isPro && !isMOD && (
               <TabsContent value="ai-triage" data-testid="ai-triage-content">
                 <PulseAIDiagnosisTab equipment={equipment} />
               </TabsContent>
