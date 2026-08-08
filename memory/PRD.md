@@ -1,3 +1,19 @@
+# ═══ 2026-06 · Wizard cleanup — MODFaultWizard split into per-step files + a11y roles (refactor, no behaviour change) ═══
+Requested tidy-up of the ~1066-line MODFaultWizard.js. Split into a slim container + a FaultWizard/ folder:
+  • NEW pages/MODPortal/FaultWizard/: wizardConfig.js (FAULT_TYPES/ONSETS/USABLE/SAFE/emptyMachineData/priorityTone),
+    WizardPrimitives.jsx (StepTitle/RadioGroup/ReviewRow/compressToWebP), StepEquipment.jsx (+ internal QRScanInline),
+    StepFaultType.jsx, StepGuided.jsx, StepAttachments.jsx, StepReporter.jsx, StepReview.jsx, ConfirmationScreen.jsx.
+  • MODFaultWizard.js is now the container/state-machine only (imports the steps). Same default export + same public props
+    (onClose, onSubmitted, prefillEquipmentId) so no call-site changes.
+  • A11Y added (the other tester suggestion): equipment cards role="checkbox" aria-checked; fault-type/onset/usable/safe/
+    reporter use role="radiogroup" + role="radio" aria-checked.
+  • Code moved VERBATIM (submitAll partial-failure logic + all step markup unchanged). VERIFIED: all 10 files babel-parse,
+    export/import names match, webpack "Compiled successfully". Behaviour identical to the 100%-passing multi-machine run
+    (not re-tested functionally since it's a verbatim move + green compile).
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION; REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · MOD Fault Wizard rewrite — light mode, multi-machine (per-machine tickets), location grouping, prefill — testing_agent 100% ═══
 User report (PRODUCTION https://fitness-ai-migrate.emergent.host): Fault Wizard + Report-Incident wizard stuck in dark mode with
 washed-out text; "Log a fault" from Equipment didn't pre-select the machine; needed to log >1 machine; group machines by location.
