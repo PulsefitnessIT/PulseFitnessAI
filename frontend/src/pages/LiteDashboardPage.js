@@ -177,9 +177,27 @@ const LiteDashboardPage = () => {
   const [faultMedia, setFaultMedia] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [coverage, setCoverage] = useState(null);
+  const [serviceProviders, setServiceProviders] = useState(null);
   const [duplicateModal, setDuplicateModal] = useState(null);
   const [successModal, setSuccessModal] = useState(null);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+
+  // MOD sites: who services this site (Pulse always; overseas sites also have
+  // an external provider). Both get emailed on a job. Shown as pills.
+  useEffect(() => {
+    if (!isMODSite) { setServiceProviders(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get(`${API}/mod/site/service-providers`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!cancelled) setServiceProviders(res.data || null);
+      } catch { if (!cancelled) setServiceProviders(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [isMODSite, API]);
   const [showMasterAdmin, setShowMasterAdmin] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showAddEquipment, setShowAddEquipment] = useState(false);
@@ -1120,6 +1138,7 @@ const LiteDashboardPage = () => {
       {/* All Dialogs: Equipment Detail, Log Fault, Duplicate, Success */}
       <LiteDialogs
         selectedEquipment={selectedEquipment}
+        serviceProviders={serviceProviders}
         onCloseEquipment={() => setSelectedEquipment(null)}
         getEquipmentFaults={getEquipmentFaults}
         getEquipmentFiles={getEquipmentFiles}

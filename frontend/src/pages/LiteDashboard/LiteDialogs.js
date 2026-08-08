@@ -38,7 +38,7 @@ const useBlobUrl = (url) => {
 };
 
 /* ─── Equipment Detail with Tabs (Details | Spec Sheet) ─── */
-const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEquipmentFiles, getSeverityStyle, getSeverityLabel, getStatusColor, onLogFaultForEquipment, onDownloadFile, brandAccent = 'var(--color-brand-cyan-hover)', userRole = 'staff', onSupplierChange }) => {
+const EquipmentDetailContent = ({ selectedEquipment, serviceProviders, getEquipmentFaults, getEquipmentFiles, getSeverityStyle, getSeverityLabel, getStatusColor, onLogFaultForEquipment, onDownloadFile, brandAccent = 'var(--color-brand-cyan-hover)', userRole = 'staff', onSupplierChange }) => {
   const { t } = useTranslation();
   const specId = selectedEquipment.spec_sheet_id;
   const hasSpec = !!specId;
@@ -279,6 +279,31 @@ const EquipmentDetailContent = ({ selectedEquipment, getEquipmentFaults, getEqui
                     : []),
                 ]}
               />
+              {/* Service providers notified when a job is logged for this
+                  machine. Pulse Fitness always; overseas sites also route to
+                  their assigned external provider. */}
+              {serviceProviders?.is_overseas && (
+                <div className="mt-3 flex flex-wrap items-center gap-1.5" data-testid="lite-equip-service-providers">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--color-text-muted)]">Job emails to</span>
+                  <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-300 border border-sky-500/20"
+                    title={serviceProviders?.pulse?.email || 'Pulse Fitness MOD Service'}>
+                    Pulse Fitness
+                  </span>
+                  {serviceProviders?.overseas_provider?.allocated ? (
+                    <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                      title={`Overseas provider · ${serviceProviders.overseas_provider.email}`}
+                      data-testid="lite-equip-overseas-provider">
+                      Overseas: {serviceProviders.overseas_provider.name}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20"
+                      title="No overseas provider (with an email) is assigned to this site — only Pulse Fitness is notified"
+                      data-testid="lite-equip-overseas-provider">
+                      No overseas provider assigned
+                    </span>
+                  )}
+                </div>
+              )}
               {/* Iter 216h114 — Per-machine SERVICE PROVIDER override (owners/managers
                   only). Lets MOD managers route fault notifications to the
                   correct servicing company without leaving the drawer. */}
@@ -697,6 +722,7 @@ const FaultMachineSelector = ({ equipment, faultForm, selectEquipmentForFault })
 const LiteDialogs = ({
   // Equipment Detail
   selectedEquipment, onCloseEquipment,
+  serviceProviders,
   getEquipmentFaults, getEquipmentFiles,
   onDownloadFile, onLogFaultForEquipment,
   getSeverityStyle, getSeverityLabel, getStatusColor,
@@ -824,6 +850,7 @@ const LiteDialogs = ({
           <DialogDescription className="sr-only">Equipment details, faults and documents.</DialogDescription>
           {selectedEquipment && <EquipmentDetailContent
             selectedEquipment={selectedEquipment}
+            serviceProviders={serviceProviders}
             getEquipmentFaults={getEquipmentFaults}
             getEquipmentFiles={getEquipmentFiles}
             getSeverityStyle={getSeverityStyle}

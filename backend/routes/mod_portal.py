@@ -453,6 +453,44 @@ async def mod_site_dashboard(user: dict = Depends(get_current_user)):
     }
 
 
+@router.get("/mod/site/service-providers")
+async def mod_site_service_providers(user: dict = Depends(get_current_user)):
+    """Who services this MOD site. Always includes the Pulse Fitness MOD
+    Service desk; overseas sites also carry an external service provider.
+    Both receive an email whenever a job is logged. Used for the equipment
+    card + site header pills and to confirm the overseas provider is
+    allocated."""
+    from utils.default_supplier import MOD_SERVICE_EMAIL
+    org = await _require_mod_site(user)
+    site_id = org["id"]
+    pulse_email = (os.environ.get("MOD_SERVICE_EMAIL") or MOD_SERVICE_EMAIL).strip()
+
+    overseas_provider = None
+    if org.get("is_overseas"):
+        ov_id = (org.get("service_supplier_id") or "").strip()
+        sup = None
+        if ov_id:
+            sup = await db.suppliers.find_one(
+                {"id": ov_id, "organization_id": site_id},
+                {"_id": 0, "name": 1, "email": 1, "phone": 1, "contact_name": 1},
+            )
+        overseas_provider = {
+            "allocated": bool(sup and (sup.get("email") or "").strip()),
+            "name": (sup or {}).get("name") or org.get("service_supplier") or "",
+            "email": (sup or {}).get("email") or "",
+            "phone": (sup or {}).get("phone") or "",
+            "contact_name": (sup or {}).get("contact_name") or "",
+        }
+
+    return {
+        "is_overseas": bool(org.get("is_overseas")),
+        "serviced_by": org.get("serviced_by") or ("external_supplier" if org.get("is_overseas") else "pulse_fitness"),
+        "pulse": {"name": "Pulse Fitness (MOD Service)", "email": pulse_email},
+        "overseas_provider": overseas_provider,
+    }
+
+
+
 # ── MOD site quotes (view & sign in-portal — no extra login) ───────
 
 @router.get("/mod/site/quotes")
@@ -1721,12 +1759,10 @@ async def mod_fault_submit(
         },
     )
 
-    # Pulse Fitness is ALWAYS notified when a MOD fault is logged — at every
-    # priority, and regardless of whether the site is Pulse-serviced (UK) or
-    # has an external supplier (overseas). Founder requirement 2026-07.
-    pulse_inbox = os.environ.get("MOD_ONCALL_EMAIL") or os.environ.get(
-        "TRIAL_SIGNUP_NOTIFY_EMAIL", "Lee@pulsefitness.ai",
-    )
+    # The Pulse Fitness MOD Service desk is ALWAYS notified when a MOD fault
+    # is logged — at every priority, UK or overseas. Founder requirement.
+    from utils.default_supplier import MOD_SERVICE_EMAIL
+    pulse_inbox = (os.environ.get("MOD_SERVICE_EMAIL") or MOD_SERVICE_EMAIL).strip()
     urgent = priority == "urgent"
     subject = (f"[MOD URGENT] {ticket_ref}" if urgent else f"[MOD Fault] {ticket_ref}") \
         + f" — {org.get('name')} — {equipment.get('name')}"
@@ -1736,29 +1772,50 @@ async def mod_fault_submit(
     except Exception as e:  # pragma: no cover
         logger.warning("MOD Pulse fault notification failed: %s", e)
 
-    # Iter 216h114 — Route fault to the machine's configured supplier so
-    # MOD sites can address requests to decentralised suppliers (each
-    # MOD site may have a different DIO / DEFCON service contract).
-    # Order of resolution:
-    #   1. Equipment's explicit `supplier_id` (preferred — direct link)
-    #   2. Equipment's `supplier` name (matched on supplier directory)
-    #   3. Fall back to manufacturer_keywords auto-match
+    # Route the fault to the responsible EXTERNAL service provider(s) too, so
+    # BOTH Pulse Fitness AND the site's overseas provider receive the job:
+    #   • the machine's configured supplier (supplier_id → name → mfr keyword)
+    #   • PLUS, for OVERSEAS sites, the site's assigned overseas service
+    #     provider (organizations.service_supplier_id) — always included.
+    # Recipients are de-duped by email; the Pulse desk address is never
+    # double-sent (the MOD default supplier resolves to MODService@ and is
+    # skipped here since it already got the escalation email above).
     try:
-        supplier_doc = await _resolve_equipment_supplier(equipment, site_id)
-        supplier_email = (supplier_doc or {}).get("email", "").strip() if supplier_doc else ""
-        if supplier_email:
+        recipients: dict = {}  # email_lc -> supplier doc
+
+        def _add(sd):
+            if not sd:
+                return
+            em = (sd.get("email") or "").strip()
+            if not em or em.lower() == pulse_inbox.lower():
+                return
+            recipients.setdefault(em.lower(), sd)
+
+        _add(await _resolve_equipment_supplier(equipment, site_id))
+        if org.get("is_overseas"):
+            ov_id = (org.get("service_supplier_id") or "").strip()
+            if ov_id:
+                _add(await db.suppliers.find_one(
+                    {"id": ov_id, "organization_id": site_id}, {"_id": 0}))
+
+        notified = []
+        for sd in recipients.values():
             asyncio.create_task(send_email(
-                supplier_email,
+                sd.get("email"),
                 f"[Fault Log] {ticket_ref} — {org.get('name')} — {equipment.get('name')}",
-                _supplier_fault_email_html(org, equipment, doc, supplier_doc),
+                _supplier_fault_email_html(org, equipment, doc, sd),
             ))
-            doc["supplier_notified_email"] = supplier_email
-            doc["supplier_notified_name"] = supplier_doc.get("name", "")
+            notified.append({"email": sd.get("email"), "name": sd.get("name", "")})
+        if notified:
+            doc["supplier_notified_email"] = notified[0]["email"]
+            doc["supplier_notified_name"] = notified[0]["name"]
+            doc["supplier_notified_all"] = notified
             await db.issues.update_one(
                 {"id": issue_id},
                 {"$set": {
-                    "supplier_notified_email": supplier_email,
-                    "supplier_notified_name": supplier_doc.get("name", ""),
+                    "supplier_notified_email": notified[0]["email"],
+                    "supplier_notified_name": notified[0]["name"],
+                    "supplier_notified_all": notified,
                 }},
             )
     except Exception as e:  # pragma: no cover

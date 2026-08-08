@@ -67,6 +67,10 @@ const MODSiteOnboarding = () => {
   const [emailStatus, setEmailStatus] = useState(null);
   const [emailBusy, setEmailBusy] = useState(false);
   const [kitDrill, setKitDrill] = useState(null);   // { site, category, loading, items }
+  const [providerModal, setProviderModal] = useState(null); // { site }
+  const [estateSuppliers, setEstateSuppliers] = useState([]);
+  const [provForm, setProvForm] = useState({ mode: 'existing', estate_supplier_id: '', name: '', email: '', phone: '', contact_name: '' });
+  const [provBusy, setProvBusy] = useState(false);
   const fileInput = useRef(null);
   const targetSite = useRef(null);
 
@@ -90,6 +94,42 @@ const MODSiteOnboarding = () => {
   }, [headers]);
 
   useEffect(() => { load(); }, [load]);
+
+  const openProviderModal = async (site) => {
+    setProviderModal({ site });
+    setProvForm({ mode: 'existing', estate_supplier_id: '', name: '', email: '', phone: '', contact_name: '' });
+    try {
+      const { data } = await axios.get(`${API}/master-admin/mod-estate/suppliers`, { headers });
+      setEstateSuppliers(data?.suppliers || []);
+    } catch { setEstateSuppliers([]); }
+  };
+
+  const saveProvider = async ({ clear } = {}) => {
+    if (!providerModal?.site) return;
+    let body;
+    if (clear) {
+      body = { clear: true };
+    } else if (provForm.mode === 'existing') {
+      if (!provForm.estate_supplier_id) { notify.error('Pick a provider', 'Select an existing provider or add a new one.'); return; }
+      body = { estate_supplier_id: provForm.estate_supplier_id };
+    } else {
+      if (!provForm.name.trim()) { notify.error('Name required', 'Enter the provider name.'); return; }
+      body = { name: provForm.name.trim(), email: provForm.email.trim(), phone: provForm.phone.trim(), contact_name: provForm.contact_name.trim() };
+    }
+    setProvBusy(true);
+    try {
+      const { data } = await axios.put(
+        `${API}/master-admin/mod-estate/sites/${providerModal.site.id}/service-provider`, body, { headers });
+      if (clear) notify.success('Overseas provider removed', 'This site now routes jobs to Pulse Fitness only.');
+      else notify.success('Overseas provider saved', data?.provider?.allocated === false
+        ? 'Assigned, but it has no email yet — add one so it receives job emails.'
+        : 'Both Pulse Fitness and this provider will now be emailed when a job is logged.');
+      setProviderModal(null);
+      await load();
+    } catch (e) {
+      notify.error('Could not update provider', e?.response?.data?.detail || 'Server error');
+    } finally { setProvBusy(false); }
+  };
 
   const sendReadinessEmail = async (emailOverride) => {
     setEmailBusy(true);
@@ -475,6 +515,41 @@ const MODSiteOnboarding = () => {
                       {s.ready_count}/{s.total_steps} ready
                     </span>
                   </div>
+                  {/* Service providers — who receives job emails for this site.
+                      Pulse Fitness always; overseas sites also route to their
+                      assigned external provider. */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2" data-testid={`mod-site-providers-${s.id}`}>
+                    <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold tracking-wide text-zinc-400">
+                      <Truck size={11} /> Serviced by
+                    </span>
+                    <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-100"
+                      title="Pulse Fitness MOD Service desk — always notified when a job is logged">
+                      Pulse Fitness
+                    </span>
+                    {s.is_overseas && (
+                      s.service_provider ? (
+                        <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100"
+                          title={s.service_provider_email ? `Overseas provider · ${s.service_provider_email} (emailed on every job)` : 'Overseas provider — no email set, so it will NOT receive job emails'}
+                          data-testid={`mod-site-overseas-provider-${s.id}`}>
+                          Overseas: {s.service_provider}
+                          {!s.service_provider_email && <AlertCircle size={11} className="ml-1 text-amber-500" />}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200"
+                          title="This overseas site has no external service provider assigned — only Pulse Fitness is notified"
+                          data-testid={`mod-site-overseas-provider-${s.id}`}>
+                          <AlertCircle size={11} /> No overseas provider assigned
+                        </span>
+                      )
+                    )}
+                    {s.is_overseas && (
+                      <button type="button" onClick={() => openProviderModal(s)}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-zinc-300 text-zinc-600 hover:text-zinc-900 hover:border-zinc-400 transition-colors"
+                        data-testid={`mod-site-assign-provider-${s.id}`}>
+                        <Truck size={11} /> {s.service_provider ? 'Change provider' : 'Assign provider'}
+                      </button>
+                    )}
+                  </div>
                   {/* Checklist */}
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
                     {Object.entries(s.steps).map(([key, v]) => {
@@ -692,6 +767,80 @@ const MODSiteOnboarding = () => {
                   </tbody>
                 </table>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {providerModal && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }} data-testid="mod-provider-modal" onClick={() => !provBusy && setProviderModal(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-1">
+              <Truck size={18} className="text-cyan-600" />
+              <h3 className="text-base font-extrabold text-zinc-900">Overseas service provider</h3>
+            </div>
+            <p className="text-xs text-zinc-500 mb-4">
+              <b>{providerModal.site.name}</b> — jobs logged here always email <b>Pulse Fitness</b>. Assign an overseas provider and they'll be emailed too.
+            </p>
+
+            <div className="flex gap-1 mb-3 p-0.5 bg-zinc-100 rounded-lg">
+              <button type="button" onClick={() => setProvForm((f) => ({ ...f, mode: 'existing' }))}
+                className={`flex-1 text-[11px] font-bold py-1.5 rounded-md ${provForm.mode === 'existing' ? 'bg-white shadow text-zinc-900' : 'text-zinc-500'}`}
+                data-testid="mod-provider-mode-existing">Pick existing</button>
+              <button type="button" onClick={() => setProvForm((f) => ({ ...f, mode: 'new' }))}
+                className={`flex-1 text-[11px] font-bold py-1.5 rounded-md ${provForm.mode === 'new' ? 'bg-white shadow text-zinc-900' : 'text-zinc-500'}`}
+                data-testid="mod-provider-mode-new">Add new</button>
+            </div>
+
+            {provForm.mode === 'existing' ? (
+              <div>
+                <label className="text-[11px] font-semibold text-zinc-500">Estate provider registry</label>
+                <select value={provForm.estate_supplier_id}
+                  onChange={(e) => setProvForm((f) => ({ ...f, estate_supplier_id: e.target.value }))}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-md border border-zinc-300 focus:border-cyan-400 focus:outline-none bg-white"
+                  data-testid="mod-provider-select">
+                  <option value="">Select a provider…</option>
+                  {estateSuppliers.map((sup) => (
+                    <option key={sup.id} value={sup.id}>
+                      {sup.name}{sup.email ? ` · ${sup.email}` : ' (no email)'}
+                    </option>
+                  ))}
+                </select>
+                {estateSuppliers.length === 0 && (
+                  <p className="text-[11px] text-zinc-400 mt-1">No providers in the registry yet — use “Add new”.</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <input value={provForm.name} onChange={(e) => setProvForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="Provider name *" className="w-full px-3 py-2 text-sm rounded-md border border-zinc-300 focus:border-cyan-400 focus:outline-none" data-testid="mod-provider-name" autoFocus />
+                <input value={provForm.email} onChange={(e) => setProvForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="Email (so they receive job alerts)" className="w-full px-3 py-2 text-sm rounded-md border border-zinc-300 focus:border-cyan-400 focus:outline-none" data-testid="mod-provider-email" />
+                <div className="flex gap-2">
+                  <input value={provForm.contact_name} onChange={(e) => setProvForm((f) => ({ ...f, contact_name: e.target.value }))}
+                    placeholder="Contact name" className="w-1/2 px-3 py-2 text-sm rounded-md border border-zinc-300 focus:border-cyan-400 focus:outline-none" data-testid="mod-provider-contact" />
+                  <input value={provForm.phone} onChange={(e) => setProvForm((f) => ({ ...f, phone: e.target.value }))}
+                    placeholder="Phone" className="w-1/2 px-3 py-2 text-sm rounded-md border border-zinc-300 focus:border-cyan-400 focus:outline-none" data-testid="mod-provider-phone" />
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-2 mt-5">
+              <div>
+                {providerModal.site.service_provider && (
+                  <button onClick={() => saveProvider({ clear: true })} disabled={provBusy}
+                    className="text-[11px] font-semibold text-red-600 hover:text-red-700 disabled:opacity-40" data-testid="mod-provider-clear">
+                    Remove provider
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setProviderModal(null)} disabled={provBusy} className="px-3 py-1.5 text-xs font-semibold text-zinc-600" data-testid="mod-provider-cancel">Cancel</button>
+                <button onClick={() => saveProvider()} disabled={provBusy}
+                  className="px-3 py-1.5 text-xs font-bold rounded-md bg-cyan-600 text-white disabled:opacity-40 inline-flex items-center gap-1.5" data-testid="mod-provider-save">
+                  {provBusy ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />} Save provider
+                </button>
+              </div>
             </div>
           </div>
         </div>

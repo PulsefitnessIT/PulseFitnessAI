@@ -490,7 +490,8 @@ async def _compute_estate_readiness(estate_id: str) -> dict:
                  {"mod_estate_id": {"$in": [None, ""]}},
                  {"mod_estate_id": {"$exists": False}}]},
         {"_id": 0, "id": 1, "name": 1, "mod_force": 1, "site_code": 1,
-         "is_overseas": 1, "region": 1},
+         "is_overseas": 1, "region": 1,
+         "serviced_by": 1, "service_supplier": 1, "service_supplier_id": 1},
     ).sort("name", 1).to_list(5000)
 
     async def _count(coll, oid):
@@ -534,6 +535,15 @@ async def _compute_estate_readiness(estate_id: str) -> dict:
             cat_map = {}
 
     out = []
+    # Batched lookup of assigned service-supplier emails (overseas sites) so
+    # HQ can see WHO services each site and confirm it's allocated.
+    sup_ids = [s.get("service_supplier_id") for s in sites if s.get("service_supplier_id")]
+    sup_map: dict = {}
+    if sup_ids:
+        async for sup in db.suppliers.find(
+            {"id": {"$in": sup_ids}}, {"_id": 0, "id": 1, "name": 1, "email": 1},
+        ):
+            sup_map[sup["id"]] = sup
     for s in sites:
         oid = s["id"]
         equipment = await _count(db.equipment, oid)
@@ -561,6 +571,11 @@ async def _compute_estate_readiness(estate_id: str) -> dict:
             "id": oid, "name": s.get("name"), "site_code": s.get("site_code"),
             "force": s.get("mod_force"), "is_overseas": bool(s.get("is_overseas")),
             "region": s.get("region"),
+            "serviced_by": s.get("serviced_by") or ("external_supplier" if s.get("is_overseas") else "pulse_fitness"),
+            "service_provider": (
+                (sup_map.get(s.get("service_supplier_id")) or {}).get("name")
+                or s.get("service_supplier") or None),
+            "service_provider_email": (sup_map.get(s.get("service_supplier_id")) or {}).get("email") or None,
             "steps": steps,
             "kit_by_category": kit_by_category,
             "ready_count": ready_count, "total_steps": len(steps),
@@ -660,6 +675,119 @@ async def delete_mod_estate_site(site_id: str, confirm_name: str = Query(...),
                        user.get("email"), "organization", site_id)
     return {"deleted": True, "site_id": site_id, "name": org.get("name"),
             "equipment_removed": eq.deleted_count, "users_removed": us.deleted_count}
+
+
+@router.put("/master-admin/mod-estate/sites/{site_id}/service-provider")
+async def assign_site_service_provider(site_id: str, data: dict = Body(...),
+                                       user: dict = Depends(get_current_user)) -> dict:
+    """Assign, change or clear the OVERSEAS service provider for a MOD site
+    without a re-import. Both Pulse Fitness and this provider are emailed when a
+    job is logged. Accepts one of:
+      • {"estate_supplier_id": "<id>"}      — pick an existing estate provider
+      • {"name": "...", "email": "...", ...} — create a NEW estate provider + assign
+      • {"clear": true}                      — unassign (Pulse-only again)
+    """
+    if not _can_manage_mod_site(user):
+        raise HTTPException(403, "Only owners, managers or a master admin can change a site's provider.")
+    org = await db.organizations.find_one({"id": site_id}, {"_id": 0})
+    if not org:
+        raise HTTPException(404, "Site not found.")
+    if org.get("account_type") != "mod_site":
+        raise HTTPException(400, "That organisation is not a MOD site.")
+
+    estate_id = org.get("mod_estate_id") or DEFAULT_ESTATE_ID
+    now = _now()
+
+    # ── Clear ────────────────────────────────────────────────────────
+    if data.get("clear"):
+        old_id = (org.get("service_supplier_id") or "").strip()
+        if old_id:
+            # Only remove the auto-instantiated estate-linked supplier row,
+            # never a manually-added per-machine supplier.
+            await db.suppliers.delete_one(
+                {"id": old_id, "organization_id": site_id,
+                 "estate_supplier_id": {"$exists": True}})
+        await db.organizations.update_one(
+            {"id": site_id},
+            {"$set": {"service_supplier_id": None, "service_supplier": None,
+                      "serviced_by": "pulse_fitness"}})
+        await log_activity("mod_estate.provider_cleared",
+                           f"Cleared overseas service provider for '{org.get('name')}'",
+                           user.get("email"), "organization", site_id)
+        return {"ok": True, "cleared": True, "site_id": site_id}
+
+    # ── Resolve / create the estate supplier ─────────────────────────
+    est_sup_id = (data.get("estate_supplier_id") or "").strip()
+    est_sup = None
+    if est_sup_id:
+        est_sup = await db.mod_estate_suppliers.find_one(
+            {"id": est_sup_id, "mod_estate_id": estate_id}, {"_id": 0})
+        if not est_sup:
+            raise HTTPException(404, "Selected service provider not found in the estate registry.")
+    else:
+        name = (data.get("name") or "").strip()
+        if not name:
+            raise HTTPException(400, "Provide an estate_supplier_id or a new provider name.")
+        est_sup = {
+            "id": str(uuid.uuid4()),
+            "mod_estate_id": estate_id,
+            "name": name,
+            "contact_name": (data.get("contact_name") or "").strip(),
+            "email": (data.get("email") or "").strip().lower(),
+            "phone": (data.get("phone") or "").strip(),
+            "countries": [c.strip() for c in (data.get("countries") or []) if c and c.strip()],
+            "regions": [r.strip() for r in (data.get("regions") or []) if r and r.strip()],
+            "manufacturer_keywords": [k.strip() for k in (data.get("manufacturer_keywords") or []) if k and k.strip()],
+            "notes": (data.get("notes") or "").strip(),
+            "created_at": now,
+        }
+        await db.mod_estate_suppliers.insert_one({**est_sup})
+        est_sup.pop("_id", None)
+
+    # ── Instantiate into the site's supplier directory ───────────────
+    # Reuse the existing estate-linked row for this site if present, else create.
+    site_sup = await db.suppliers.find_one(
+        {"organization_id": site_id, "estate_supplier_id": est_sup["id"]}, {"_id": 0, "id": 1})
+    site_sup_id = site_sup["id"] if site_sup else str(uuid.uuid4())
+    sup_fields = {
+        "organization_id": site_id,
+        "name": est_sup["name"],
+        "contact_name": est_sup.get("contact_name", ""),
+        "email": est_sup.get("email", ""),
+        "phone": est_sup.get("phone", ""),
+        "manufacturer_keywords": est_sup.get("manufacturer_keywords", []),
+        "notes": est_sup.get("notes", ""),
+        "estate_supplier_id": est_sup["id"],
+        "supplier_types": ["service"], "supplier_type": "service",
+        "updated_at": now,
+    }
+    await db.suppliers.update_one(
+        {"id": site_sup_id},
+        {"$set": sup_fields, "$setOnInsert": {"id": site_sup_id, "created_at": now}},
+        upsert=True)
+
+    # Remove any previously-assigned (different) estate-linked supplier row.
+    old_id = (org.get("service_supplier_id") or "").strip()
+    if old_id and old_id != site_sup_id:
+        await db.suppliers.delete_one(
+            {"id": old_id, "organization_id": site_id,
+             "estate_supplier_id": {"$exists": True}})
+
+    await db.organizations.update_one(
+        {"id": site_id},
+        {"$set": {"service_supplier_id": site_sup_id,
+                  "service_supplier": est_sup["name"],
+                  "serviced_by": "external_supplier"}})
+    await log_activity("mod_estate.provider_assigned",
+                       f"Assigned overseas service provider '{est_sup['name']}' to '{org.get('name')}'",
+                       user.get("email"), "organization", site_id)
+    return {
+        "ok": True, "site_id": site_id,
+        "service_supplier_id": site_sup_id,
+        "provider": {"name": est_sup["name"], "email": est_sup.get("email", ""),
+                     "allocated": bool((est_sup.get("email") or "").strip())},
+    }
+
 
 
 def build_readiness_xlsx_bytes(data: dict) -> bytes:

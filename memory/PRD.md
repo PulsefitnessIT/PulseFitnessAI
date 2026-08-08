@@ -1,3 +1,59 @@
+# ═══ 2026-08-08 · MOD site card — "Assign / change overseas provider" (allocate or swap without re-import) — curl-verified ═══
+Follow-on to the dual-provider work. HQ can now allocate/swap/remove an overseas site's service provider from the Master
+Admin MOD estate site card — no equipment re-import needed.
+  • BACKEND master_admin_mod_estate.py NEW PUT /master-admin/mod-estate/sites/{site_id}/service-provider (master admin /
+    owner-manager). Body is one of: {estate_supplier_id} (pick from mod_estate_suppliers registry) · {name,email,phone,
+    contact_name,…} (create a NEW estate supplier + assign) · {clear:true} (unassign → serviced_by=pulse_fitness). It
+    upserts the site's db.suppliers row (keyed by organization_id+estate_supplier_id, reused on change), deletes the prior
+    estate-linked row when swapping, sets organizations.service_supplier_id/service_supplier/serviced_by, and logs
+    admin_activity (mod_estate.provider_assigned / provider_cleared — so it also shows in the org Activity tab).
+  • FRONTEND MODSiteOnboarding.js: the "Serviced by" row on each OVERSEAS site card gains a "Assign provider" /
+    "Change provider" button (data-testid mod-site-assign-provider-<id>) → modal (mod-provider-modal) with a
+    "Pick existing" (dropdown from GET /mod-estate/suppliers) ↔ "Add new" (name*/email/contact/phone) toggle, a
+    "Remove provider" action when one is set, and Save. Toasts warn if the chosen provider has no email (won't receive
+    jobs). Reloads readiness on save. testids: mod-provider-mode-existing/-new, mod-provider-select, mod-provider-name/
+    -email/-contact/-phone, mod-provider-clear/-cancel/-save.
+  • VERIFIED (live curl, overseas site mod-site-test-nyati): assign NEW → provider allocated=true + readiness shows
+    name+email; change to existing estate supplier → ok; clear → serviced_by=pulse_fitness, provider None. Backend py OK,
+    frontend babel + webpack compiled clean. Test estate/site supplier rows cleaned up afterwards.
+  ⚠️ FRONTEND MODAL not screenshot-verified (headless auth 401 quirk); endpoints fully curl-verified. PREVIEW ONLY — REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
+# ═══ 2026-08-08 · MOD overseas sites — DUAL service-provider job emails (Pulse + overseas) + provider pills — harness-verified ═══
+User: overseas MOD sites (e.g. Kenya) should email BOTH Pulse Fitness AND the assigned overseas service provider when a
+job is logged; add a pill showing the overseas provider; confirm the provider is allocated. Choices: (1a) Pulse + overseas
+both; (2b) Pulse = MODService@pulsefitness.com; (3) per-site; (4c) pill on equipment card + MOD site card; (5) yes to
+allocation check.
+  • BACKEND mod_portal.py mod_fault_submit: the Pulse recipient is now MODService@pulsefitness.com (env MOD_SERVICE_EMAIL
+    override, default from utils/default_supplier.MOD_SERVICE_EMAIL) — was Lee@pulsefitness.ai/MOD_ONCALL_EMAIL. Then it
+    builds a DEDUPED external-supplier recipient set = machine's _resolve_equipment_supplier + (for is_overseas sites) the
+    site's organizations.service_supplier_id supplier; the Pulse desk address is excluded from that set (so the MOD default
+    "Pulse Fitness Ltd" supplier, whose email == MODService@, isn't double-sent). Each external recipient gets the supplier
+    fault email; the issue stores supplier_notified_all[] (+ legacy single fields).
+  • BACKEND mod_portal.py NEW GET /api/mod/site/service-providers (require mod_site) → {is_overseas, serviced_by,
+    pulse:{name,email}, overseas_provider:{allocated,name,email,phone,contact_name}}. Feeds the equipment-card pill + is the
+    allocation check.
+  • BACKEND master_admin_mod_estate.py _compute_estate_readiness: site projection + output now include serviced_by,
+    service_provider (name, resolved via a batched db.suppliers $in on service_supplier_id, falling back to org.service_
+    supplier) and service_provider_email → shown on the Master Admin MOD estate site card (this is WHERE HQ sees the provider).
+  • FRONTEND MODSiteOnboarding.js: each site card now has a "Serviced by" row — a sky "Pulse Fitness" pill always, plus (for
+    overseas) an emerald "Overseas: <name>" pill (email in tooltip; amber warn icon if no email) OR an amber "No overseas
+    provider assigned" pill. data-testid mod-site-providers-<id> / mod-site-overseas-provider-<id>.
+  • FRONTEND LiteDashboardPage.js fetches /mod/site/service-providers (MOD sites only) → passes serviceProviders to
+    LiteDialogs → EquipmentDetailContent renders a "Job emails to" pill row on the equipment card (Pulse + overseas /
+    not-assigned). data-testid lite-equip-service-providers / lite-equip-overseas-provider.
+  • VERIFIED: harness on overseas site "Nyati" — assigned Kenya Fitness Services Ltd → external recipients = {ops@kenya…},
+    Pulse(MODService@) deduped; /mod/site/service-providers returned allocated=true w/ name+email; site-readiness curl shows
+    the new provider fields. Backend py OK; frontend babel + webpack compiled clean.
+  ⚠️ FRONTEND PILLS NOT screenshot-verified (headless auth 401 quirk in the automation session; real logins fine). Logic +
+    compile verified. Offer testing_agent for UI confirmation.
+  ⚠️ IMPORTANT: an overseas site only emails the second provider if it HAS one assigned WITH an email. If the machine's
+    Service Provider is "Pulse Fitness Ltd" (as imported), that alone does NOT reach the overseas provider — the site must
+    have service_supplier_id set (the amber pill flags when it's missing). PREVIEW ONLY — needs REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-08 · Master Admin → Org → Activity tab now ORG-SCOPED (+ equipment imports tracked) — curl+harness verified ═══
 User: the Org drawer "Activity" tab showed PLATFORM-WIDE login noise (probe@checkvibe.test, admin@pulsefitness.com…)
 instead of just the org being viewed, and an equipment import into the site never appeared.
