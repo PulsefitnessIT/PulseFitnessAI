@@ -109,11 +109,11 @@ class TestCRMCrossLoginDenials:
     """Defence-in-depth: MOD accounts should be denied CRM cross-login."""
 
     def test_mod_site_account_denied_cross_login(self):
-        """MOD site account (raf-brizenorton) should get 403 on cross-login."""
+        """MOD site account (raf-demoairstation) should get 403 on cross-login."""
         # Login as MOD site user (username login)
         login_resp = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "raf-brizenorton", "password": "BrizeNorton2026!"},
+            json={"email": "raf-demoairstation", "password": "BrizeNorton2026!"},
             timeout=15
         )
         # MOD site login might use different endpoint or fail - skip if can't login
@@ -139,7 +139,7 @@ class TestCRMCrossLoginDenials:
         # Login as MOD branch user
         login_resp = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "raf@mod.gov.uk", "password": "RafEstates2026!"},
+            json={"email": "raf@demo.local", "password": "RafEstates2026!"},
             timeout=15
         )
         if login_resp.status_code != 200:

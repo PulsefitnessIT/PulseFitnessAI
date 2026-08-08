@@ -279,7 +279,7 @@ def test_compliance_refuses_cross_scope() -> None:
 
 
 def test_mod_hq_login_returns_mfa_enrolment_required() -> None:
-    """Catterick HQ user has account_type=mod_branch — mandatory MFA.
+    """Demo Garrison HQ user has account_type=mod_branch — mandatory MFA.
     A normal /auth/login response must return requires_mfa_enrolment
     + temp_token instead of the full JWT."""
     master = _master_token()

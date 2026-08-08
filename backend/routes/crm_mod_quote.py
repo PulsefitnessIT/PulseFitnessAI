@@ -114,13 +114,26 @@ async def update_rate_card_item(item_id: str, data: dict, user=Depends(require_o
 
 
 @router.post("/rate-card/reseed")
-async def reseed_rate_card(user=Depends(require_operator_crm_user)):
-    """Reset the rate card to the canonical SOR (loses manual edits)."""
+async def reseed_rate_card(user=Depends(require_operator_crm_user), confirm: bool = False):
+    """Reset the rate card to the built-in SCAFFOLD.
+
+    ⚠️ The built-in card ships only PLACEHOLDER prices — the real contracted
+    prices live in the database. Reseeding OVERWRITES any live pricing with
+    placeholders, so it is blocked once a card exists unless ?confirm=true is
+    passed explicitly (protects production pricing from an accidental reset)."""
     if not _is_admin(user):
         raise HTTPException(403, "Only CRM admins can reseed the SOR rate card")
+    existing = await db.mod_sor_rate_card.count_documents({})
+    if existing > 0 and not confirm:
+        raise HTTPException(
+            409,
+            "A rate card already exists. Reseeding installs PLACEHOLDER pricing "
+            "and will overwrite the live card. Re-send with confirm=true only if "
+            "you are sure — the real contracted prices are NOT restored from code.",
+        )
     await db.mod_sor_rate_card.delete_many({})
     await db.mod_sor_rate_card.insert_many(build_seed_rate_card())
-    await log_audit(user, "mod_rate_card", "all", "reseeded", {})
+    await log_audit(user, "mod_rate_card", "all", "reseeded", {"confirm": confirm})
     return {"items": await _rate_card_list()}
 
 

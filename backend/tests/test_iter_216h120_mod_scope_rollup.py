@@ -1,6 +1,6 @@
 """Iter 216h120 — MOD HQ rollup / drilldown scope tests.
 
-The regression Lee reported during the demo: regional.command@mod.gov.uk
+The regression Lee reported during the demo: regional.command@demo.local
 sees `0 eq` on every child site in the All Operations Sites switcher,
 even after we seeded 8 machines per site. Root cause was that the
 sites endpoint counted equipment by `site_id` instead of
@@ -114,7 +114,7 @@ def _setup() -> tuple[str, dict, dict]:
         headers={"Authorization": f"Bearer {master}"},
         timeout=60,
     ).raise_for_status()
-    helles = _find_org("mod_site", "Helles Barracks Gym")
+    helles = _find_org("mod_site", "Demo Barracks B Gym")
     assert helles
     return _hq_token(), army_hq, helles
 
@@ -144,7 +144,7 @@ def test_equipment_collective_rollup_for_mod_hq() -> None:
     )
     assert r.status_code == 200
     body = r.json()
-    # 7 Catterick sites × 8 machines = 56, Vimy gets 10 (8 demo seed + 2
+    # 7 Demo Garrison sites × 8 machines = 56, Demo Barracks A gets 10 (8 demo seed + 2
     # extras from a prior add-equipment test). Allow >= 50 to be robust.
     assert len(body["equipment"]) >= 50, len(body["equipment"])
 
@@ -199,7 +199,7 @@ def test_capex_drilldown_returns_only_that_site() -> None:
 
 
 def test_gym_health_score_drilldown_for_mod_hq() -> None:
-    """The Gym Health Score for a MOD HQ user drilling into Vimy Lines
+    """The Gym Health Score for a MOD HQ user drilling into Demo Barracks A
     must not return `not_ready=true` — Lee's screenshot showed that
     despite having 10 machines + 48 open faults the empty-state copy
     kept rendering."""

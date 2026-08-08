@@ -261,7 +261,7 @@ async def _resolve_target_org(user: dict, organization_id: Optional[str]) -> str
 
     Iter 216h111 — Master admins can also target MOD orgs (mod_site /
     mod_branch / mod_org), so a presenter can import equipment + sites
-    against the Catterick Garrison hierarchy from the Master Admin UI.
+    against the Demo Garrison hierarchy from the Master Admin UI.
     """
     if organization_id:
         allowed_types = list(PULSE_VISIBLE_ACCOUNT_TYPES)

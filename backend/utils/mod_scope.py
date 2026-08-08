@@ -5,7 +5,7 @@ MOD child sites are full organisations in their own right
 under that child's `organization_id` and **no** `site_id` field. The
 HQ tiers (`mod_org`, `mod_branch`) need to:
 
-  • Drill into a single child gym (Helles Barracks Gym) → query that
+  • Drill into a single child gym (Demo Barracks B Gym) → query that
     child org's data even though the HQ user's JWT carries the
     parent HQ org id.
   • Roll the whole estate up for "All Operations Sites" → query

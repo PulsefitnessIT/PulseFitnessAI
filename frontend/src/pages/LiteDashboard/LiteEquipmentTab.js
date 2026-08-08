@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Search, ChevronRight, Shield, Sparkles, Loader2, Plus, ArrowRightLeft, Trash2, MapPin, FileText } from 'lucide-react';
 import { useAuth } from '@/App';
 
-// MOD SOR (Schedule C, LSLDC0223) service-tier definitions — shown as hover
+// MOD SOR (Schedule C) service-tier definitions — shown as hover
 // tooltips on the cover pills so operators know what each contract covers.
 export const CONTRACT_TYPE_TOOLTIP = {
   A: 'Type A — All-inclusive 12-month service, repair & maintenance (UK only), fixed price. (MOD SOR)',

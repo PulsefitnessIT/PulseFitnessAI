@@ -206,7 +206,7 @@ export default function MODStaffTransferTab({ headers }) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by email address (e.g. j.smith@mod.gov.uk)…"
+              placeholder="Search by email address (e.g. j.smith@example.gov)…"
               className="w-full pl-9 pr-9 py-2.5 rounded-lg text-sm border focus:outline-none focus:border-cyan-400 transition-colors"
               style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
               data-testid="mod-transfer-search"

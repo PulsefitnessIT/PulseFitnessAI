@@ -24,14 +24,14 @@ from conftest import rate_limit_bypass_headers, _test_backend_url
 BASE_URL = _test_backend_url()
 
 # MOD Site credentials — loaded from env with safe local defaults.
-RAF_USERNAME = os.environ.get("TEST_RAF_USERNAME", "raf-brizenorton")
+RAF_USERNAME = os.environ.get("TEST_RAF_USERNAME", "raf-demoairstation")
 RAF_PASSWORD = os.environ.get("TEST_RAF_PASSWORD", "BrizeNorton2026!")
 ARMY_USERNAME = os.environ.get("TEST_ARMY_USERNAME", "army-catterick")
-ARMY_PASSWORD = os.environ.get("TEST_ARMY_PASSWORD", "Catterick2026!")
+ARMY_PASSWORD = os.environ.get("TEST_ARMY_PASSWORD", "Demo Garrison2026!")
 
 # Known ticket with attachment
 KNOWN_TICKET_REF = "MOD-2026-46415"
-KNOWN_ATTACHMENT_PATH = "gymaxis-ai/mod-attachments/mod-site-raf-brizenorton/072d3cec-417c-468c-a7d1-151cc83e2f02.webp"
+KNOWN_ATTACHMENT_PATH = "gymaxis-ai/mod-attachments/mod-site-raf-demoairstation/072d3cec-417c-468c-a7d1-151cc83e2f02.webp"
 
 
 def login_mod_site(username: str, password: str) -> str:
@@ -119,7 +119,7 @@ class TestInlineAttachmentBlockEdgeCases:
         sys.path.insert(0, '/app/backend')
         from routes.mod_portal import _escalation_email_html
 
-        site = {"name": "RAF Brize Norton Gym"}
+        site = {"name": "Demo Air Station Gym"}
         eq = {"name": "Treadmill 1", "machine_type": "Cardio"}
         doc = {
             "mod_ticket_ref": "MOD-2026-99999",
@@ -135,7 +135,7 @@ class TestInlineAttachmentBlockEdgeCases:
 
         html = _escalation_email_html(site, eq, doc)
         assert "MOD-2026-99999" in html, "Should contain ticket ref"
-        assert "RAF Brize Norton" in html, "Should contain site name"
+        assert "Demo Air Station" in html, "Should contain site name"
         # With empty attachments, should NOT have Attachments header
         assert "Attachments" not in html, "Should NOT have Attachments header when no attachments"
         print("✓ Escalation email without attachments omits Attachments header")

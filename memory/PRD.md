@@ -1,3 +1,38 @@
+# ═══ 2026-08-08 · P0.1 COMPLETE — sensitive MOD data scrubbed from the entire codebase (backend + frontend + tests) ═══
+Founder review flagged real MOD framework data hardcoded in source (compliance blocker). Now fully genericised.
+  • RATE CARD utils/mod_sor_data.py: replaced the real LSLDC0223 contracted prices + PAT SER100xxx Sicon refs with
+    PLACEHOLDER mock (_MOCK_A=100.00 / _MOCK_B=20.00, sicon refs=""), generic docstring. STRUCTURE/keywords/codes unchanged
+    so matching + build_seed_rate_card() still work (verified: 30 lines, no 'PAT SER'). Production reads the REAL card from
+    the DB (already seeded) — day-to-day unaffected.
+  • RESEED GUARD crm_mod_quote.py POST /rate-card/reseed: now blocks (409) when a card already exists unless ?confirm=true,
+    with a warning that reseed installs PLACEHOLDER pricing — protects live prod prices from an accidental wipe.
+  • ESTATE SEED utils/mod_seed.py: real base names/addresses/@mod.gov.uk & @royalnavy emails → generic "Demo Air Station /
+    Demo Garrison / Demo Naval Base", @demo.local, placeholder addresses/phones/passwords. Branch PRO + org PRO emails →
+    @demo.local. Docstring updated.
+  • DEMO SEED ENDPOINT mod_portal.py seed_army_catterick: _CATTERICK_SUBSITES + personnel + org names + address all
+    genericised (Demo Garrison / Demo Barracks A–G / Demo Army HQ). Master-admin-guarded already.
+  • SWEEP: mod_bulk_import.py, mod_sites_bulk_import.py, mod_demo_seed.py, master_admin_bulk_import.py, auth.py, sites.py,
+    utils/mod_scope.py, 15 tests/*.py, scripts/wipe_preview_to_kept_orgs.py, scripts/purge_test_data_216h191.py, and 4
+    frontend placeholders/comments (AdminOrganizations 'Garrison-level', MODDIOContractModal placeholder email,
+    LiteEquipmentTab comment, MODStaffTransferTab placeholder). FINAL grep across backend+frontend = ZERO residual of
+    Brize Norton/Catterick/HMS Raleigh/Torpoint/Carterton/Somme/mod.gov.uk/royalnavy/LSLDC0223/Vimy/Bruneval/Cambrai/
+    Bourlon/Le Cateau/Helles/Marne.
+  • VERIFIED: all edited .py parse OK; build_seed_rate_card() works; backend boots clean; frontend compiled.
+  ⚠️ GIT HISTORY: this removes the data going FORWARD only. Past commits still contain it — recommend a history purge
+    (BFG/filter-repo) via the Save-to-GitHub flow / support before the repo is shared with MOD.
+  ⚠️ PREVIEW/PROD DBs still hold the real seeded data (that's data, not code — acceptable). PREVIEW ONLY — needs REDEPLOY.
+
+STATUS OF FOUNDER-REVIEW PROGRAMME (user approved all):
+  • P0.1 scrub sensitive data — ✅ DONE (this entry)
+  • P0.2 sender email .env — ✅ user changed (verified no gymaxisai in .env)
+  • P0.3 classification / OFFICIAL-SENSITIVE / overseas data-residency posture — ⏳ NEXT
+  • P1 SLA timers (editable, DIFFERENT for overseas) + fault overdue/breach alerts — ⏳ NEXT
+  • P1 Resolution — allow MOD to Mark as Resolved directly — ⏳ NEXT
+  • Fault wizard continued improvements — ⏳ NEXT
+  • P2 polish (CSP unsafe-inline, X-Forwarded-For) — ⏳ later per user
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-08 · Reporter point-of-contact made PROMINENT on the fault card + provider/Pulse emails — harness-verified ═══
 User: show the reporter's name, email and phone prominently on the fault card and in the provider email so they can call
 them directly.

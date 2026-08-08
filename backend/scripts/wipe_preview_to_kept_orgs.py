@@ -4,8 +4,8 @@ Keeps ONLY:
   • Pulse Fitness AI Admin    (9fa701ef-…3179d) + master admin user
   • Third Space         (c695638c-…4205)
   • British Army HQ     (2be58411-…2997)
-  • Catterick Garrison  (6c355051-…06fc, mod_branch)
-  • Catterick Garrison Gym (mod-site-army-catterick, mod_site under Catterick)
+  • Demo Garrison  (6c355051-…06fc, mod_branch)
+  • Demo Garrison Gym (mod-site-demo-garrison, mod_site under Demo Garrison)
 
 Nukes EVERYTHING ELSE (orgs, users, members, sites, equipment,
 issues, CRM data, quotes, deals, audit logs, etc.) that doesn't

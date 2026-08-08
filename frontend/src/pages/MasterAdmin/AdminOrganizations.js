@@ -1705,7 +1705,7 @@ useEffect(() => {
  ) : ['mod_site','mod_branch','mod_org'].includes(orgForm.account_type) ? (
  <>
  <SelectItem value="mod_site">MOD Site</SelectItem>
- <SelectItem value="mod_branch">MOD Branch (Catterick-level)</SelectItem>
+ <SelectItem value="mod_branch">MOD Branch (Garrison-level)</SelectItem>
  <SelectItem value="mod_org">MOD Head Office (Army / RAF / Navy)</SelectItem>
  </>
  ) : (

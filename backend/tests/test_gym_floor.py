@@ -17,7 +17,7 @@ BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials from test_credentials.md
 PULSE_PRO_MANAGER = {"email": "lee.somers@pulsefitness.com", "password": "TempPass123!"}
-MOD_PRO_BRANCH = {"email": "raf@mod.gov.uk", "password": "RafEstates2026!"}
+MOD_PRO_BRANCH = {"email": "raf@demo.local", "password": "RafEstates2026!"}
 MASTER_ADMIN = {"email": "admin@gymaxisai.com", "password": "MasterAdmin123!"}
 
 # Gym floor shared credential for testing
@@ -35,7 +35,7 @@ def pulse_pro_token():
 
 @pytest.fixture(scope="module")
 def mod_pro_token():
-    """Get JWT token for MOD PRO branch user (raf@mod.gov.uk)"""
+    """Get JWT token for MOD PRO branch user (raf@demo.local)"""
     resp = requests.post(f"{BASE_URL}/api/auth/login", json=MOD_PRO_BRANCH)
     if resp.status_code != 200:
         pytest.skip(f"Could not login as MOD PRO branch: {resp.status_code} {resp.text}")

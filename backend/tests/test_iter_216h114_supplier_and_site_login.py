@@ -74,7 +74,7 @@ def test_hq_can_provision_site_credentials() -> None:
     assert site_ids, "seed returned no site ids"
     target_site = site_ids[0]
 
-    # Catterick HQ acts as a mod_branch user.
+    # Demo Garrison HQ acts as a mod_branch user.
     hq = hq_login_with_mfa("catterick.demo.lead@army.mod.local", "ArmyDemo2026!")
     hq_token = hq["token"]
 
@@ -105,7 +105,7 @@ def test_hq_provision_refuses_cross_scope() -> None:
     )
     r.raise_for_status()
     all_sites = r.json().get("sites", [])
-    # Find a site outside Army Catterick scope, if one exists. If
+    # Find a site outside Army Demo Garrison scope, if one exists. If
     # the demo seed is the only data, this branch is skipped.
     non_army = [s for s in all_sites if s.get("mod_force") != "army"]
     if not non_army:

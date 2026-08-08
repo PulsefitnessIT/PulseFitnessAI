@@ -24,7 +24,7 @@ def mod_user_token():
     """Get MOD site user token"""
     response = requests.post(
         f"{BASE_URL}/api/auth/login",
-        json={"email": "raf.brizenorton@mod.pulse.gym", "password": "BrizeNorton2026!"},
+        json={"email": "raf.demoairstation@mod.pulse.gym", "password": "BrizeNorton2026!"},
         headers=BYPASS_HEADERS
     )
     assert response.status_code == 200, f"MOD user login failed: {response.text}"
@@ -61,8 +61,8 @@ class TestMODSiteDashboard:
         assert "open_faults" in data
 
         # Verify site info
-        assert data["site"]["name"] == "RAF Brize Norton Gym"
-        assert data["site"]["id"] == "mod-site-raf.brizenorton"
+        assert data["site"]["name"] == "Demo Air Station Gym"
+        assert data["site"]["id"] == "mod-site-raf.demoairstation"
 
         # Verify stats
         stats = data["stats"]
@@ -126,7 +126,7 @@ class TestMODStaffCRUD:
 
     def test_staff_create(self, mod_user_token):
         """POST /api/mod/site/staff creates new staff member"""
-        unique_email = f"test.staff.{uuid.uuid4().hex[:8]}@mod.gov.uk"
+        unique_email = f"test.staff.{uuid.uuid4().hex[:8]}@demo.local"
         response = requests.post(
             f"{BASE_URL}/api/mod/site/staff",
             json={
@@ -161,7 +161,7 @@ class TestMODStaffCRUD:
             json={
                 "name": "Duplicate Staff",
                 "role": "Test",
-                "email": "j.hughes@mod.gov.uk",  # Existing seeded staff
+                "email": "j.hughes@demo.local",  # Existing seeded staff
                 "phone": "+44 7700 900999"
             },
             headers={"Authorization": f"Bearer {mod_user_token}"}

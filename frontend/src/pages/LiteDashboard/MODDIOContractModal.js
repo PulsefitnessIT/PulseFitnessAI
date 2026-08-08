@@ -182,7 +182,7 @@ export default function MODDIOContractModal({ site, API, onClose }) {
                   type="email"
                   value={contract.dio_contact_email}
                   onChange={(e) => setContract({ ...contract, dio_contact_email: e.target.value })}
-                  placeholder="dio.estates@mod.gov.uk"
+                  placeholder="dio.estates@example.gov"
                   className="w-full px-3 py-2 rounded-md border text-sm"
                   style={{
                     background: 'var(--theme-bg)',

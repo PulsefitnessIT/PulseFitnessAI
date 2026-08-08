@@ -126,7 +126,7 @@ async def get_my_sites(user: dict = Depends(get_current_user)) -> dict:
     # own organisation row, so we surface them with their org id
     # serving double duty as the site id.
     # Iter 216h114 — same logic for `mod_branch` HQ users (e.g.
-    # Catterick Garrison): every mod_site sharing this branch shows
+    # Demo Garrison): every mod_site sharing this branch shows
     # up so HQ owners/managers can roll out site logins from one
     # screen.
     at = (user.get("account_type") or "").lower()

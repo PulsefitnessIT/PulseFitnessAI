@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# Same fleet as the Catterick demo so the visual matches the
+# Same fleet as the Demo Garrison demo so the visual matches the
 # already-prepared sales narrative. Tuple: (display name, type,
 # manufacturer, model, age in years, faults logged in last 12 months).
 DEMO_MACHINES = [

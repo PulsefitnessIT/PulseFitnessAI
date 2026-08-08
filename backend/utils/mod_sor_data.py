@@ -1,10 +1,11 @@
-"""Canonical MOD PTE Service & Repair Schedule of Rates (SOR) rate card.
+"""MOD PTE Service & Repair Schedule of Rates (SOR) rate-card SCAFFOLD.
 
-Source: `04 - LSLDC0223 - Schedule B to T&C's - The Supply of PTE Service and
-Repair SOR.xlsx`. These are the *contracted* framework prices and must not be
-altered per-quote (Type A / Type B are fixed). Only Type C (Overseas), Repairs
-and Refurbishment are POA (Price On Application) — those allow a custom price
-line on the quote.
+⚠️ This module ships only a GENERIC / MOCK rate card (placeholder prices and
+reference codes). The real contracted framework prices and supplier reference
+codes are NOT stored in source — they live exclusively in the database (seeded
+out-of-band on each environment). At runtime the app reads the active rate card
+from Mongo; this scaffold is used only to bootstrap an EMPTY database with a
+safe placeholder so nothing is priced from source control.
 
 Each entry carries a Type A (all-inclusive 12-month service, per item / year)
 price and a Type B (ad-hoc call-out visit) price, plus optional Year 2/3/4
@@ -16,87 +17,91 @@ from __future__ import annotations
 
 CURRENCY = "GBP"
 
+# Placeholder prices — the real contracted values are loaded from the DB.
+_MOCK_A = 100.00
+_MOCK_B = 20.00
+
 # item_no, code_a, code_b, sicon_a, sicon_b, equipment_type, variant,
 # type_a_price, type_b_price, keywords
 _SERVICE_LINES = [
-    ("2", "2A", "2B", "PAT SER100135", "PAT SER100136", "Treadmill", "standard", 56.73, 16.0,
+    ("2", "2A", "2B", "", "", "Treadmill", "standard", _MOCK_A, _MOCK_B,
      ["treadmill", "running machine", "95t", "tread"]),
-    ("3", "3A", "3B", "PAT SER100127", "PAT SER100128", "Spinning Bikes", "standard", 72.56, 16.0,
+    ("3", "3A", "3B", "", "", "Spinning Bikes", "standard", _MOCK_A, _MOCK_B,
      ["spin", "spinning", "group cycle", "indoor cycle", "studio bike", "ic bike"]),
-    ("4", "4A", "4B", "PAT SER100123", "PAT SER100124", "Rowing Machine", "standard", 43.53, 7.0,
+    ("4", "4A", "4B", "", "", "Rowing Machine", "standard", _MOCK_A, _MOCK_B,
      ["rowing machine", "rower", "row erg", "concept2", "concept 2"]),
-    ("5", "5A", "5B", "PAT SER100078", "PAT SER100079", "Benches", "standard", 157.20, 24.0,
+    ("5", "5A", "5B", "", "", "Benches", "standard", _MOCK_A, _MOCK_B,
      ["bench", "flat bench", "adjustable bench", "weight bench"]),
-    ("6", "6A", "6B", "PAT SER100081", "PAT SER100082", "Cardio Wave", "standard", 157.20, 24.0,
+    ("6", "6A", "6B", "", "", "Cardio Wave", "standard", _MOCK_A, _MOCK_B,
      ["cardio wave", "wave"]),
-    ("7", "7A", "7B", "PAT SER100083", "PAT SER100084", "Climbers", "standard", 157.20, 24.0,
+    ("7", "7A", "7B", "", "", "Climbers", "standard", _MOCK_A, _MOCK_B,
      ["climber", "climbing", "vertical climber", "jacobs ladder", "maxi climber"]),
-    ("8", "8A", "8B", "PAT SER100085", "PAT SER100086", "Cross Trainer", "non_powered", 157.20, 24.0,
+    ("8", "8A", "8B", "", "", "Cross Trainer", "non_powered", _MOCK_A, _MOCK_B,
      ["cross trainer", "cross-trainer", "crosstrainer", "elliptical", "x-trainer"]),
-    ("9", "9A", "9B", "PAT SER100087", "PAT SER100088", "Cross Trainer", "powered", 157.20, 24.0,
+    ("9", "9A", "9B", "", "", "Cross Trainer", "powered", _MOCK_A, _MOCK_B,
      ["cross trainer powered", "powered cross trainer", "powered elliptical"]),
-    ("10", "10A", "10B", "PAT SER100089", "PAT SER100090", "Grappler", "standard", 120.93, 24.0,
+    ("10", "10A", "10B", "", "", "Grappler", "standard", _MOCK_A, _MOCK_B,
      ["grappler"]),
-    ("11", "11A", "11B", "PAT SER100091", "PAT SER100092", "Hand Bike", "standard", 133.02, 16.0,
+    ("11", "11A", "11B", "", "", "Hand Bike", "standard", _MOCK_A, _MOCK_B,
      ["hand bike", "handbike", "arm bike", "arm ergometer", "upper body ergometer", "ube"]),
-    ("12", "12A", "12B", "PAT SER100117", "PAT SER100118", "Recumbent Bike", "non_powered", 157.20, 16.0,
+    ("12", "12A", "12B", "", "", "Recumbent Bike", "non_powered", _MOCK_A, _MOCK_B,
      ["recumbent", "recumbent bike"]),
-    ("13", "13A", "13B", "PAT SER100119", "PAT SER100120", "Recumbent Bike", "powered", 157.20, 16.0,
+    ("13", "13A", "13B", "", "", "Recumbent Bike", "powered", _MOCK_A, _MOCK_B,
      ["recumbent powered", "powered recumbent"]),
-    ("14", "14A", "14B", "PAT SER100121", "PAT SER100122", "Rowers", "powered", 72.56, 16.0,
+    ("14", "14A", "14B", "", "", "Rowers", "powered", _MOCK_A, _MOCK_B,
      ["powered rower", "water rower", "air rower powered", "dynamic rower"]),
-    ("15", "15A", "15B", "PAT SER100129", "PAT SER100130", "Squat Rack", "standard", 97.50, 10.0,
+    ("15", "15A", "15B", "", "", "Squat Rack", "standard", _MOCK_A, _MOCK_B,
      ["squat rack", "power rack", "squat stand", "rack"]),
-    ("16", "16A", "16B", "PAT SER100131", "PAT SER100132", "Stepper", "non_powered", 157.20, 24.0,
+    ("16", "16A", "16B", "", "", "Stepper", "non_powered", _MOCK_A, _MOCK_B,
      ["stepper", "step machine", "step mill"]),
-    ("17", "17A", "17B", "PAT SER100133", "PAT SER100134", "Steppers", "powered", 157.20, 16.0,
+    ("17", "17A", "17B", "", "", "Steppers", "powered", _MOCK_A, _MOCK_B,
      ["stepper powered", "powered stepper", "stairmaster", "stair climber"]),
-    ("18", "18A", "18B", "PAT SER100137", "PAT SER100138", "Upright Bike", "non_powered", 145.12, 21.0,
+    ("18", "18A", "18B", "", "", "Upright Bike", "non_powered", _MOCK_A, _MOCK_B,
      ["upright bike", "exercise bike", "cycle", "bike", "cardio bike"]),
-    ("19", "19A", "19B", "PAT SER100139", "PAT SER100140", "Upright Bike", "powered", 145.12, 21.0,
+    ("19", "19A", "19B", "", "", "Upright Bike", "powered", _MOCK_A, _MOCK_B,
      ["upright bike powered", "powered bike", "self powered bike"]),
-    ("20", "20A", "20B", "PAT SER100125", "PAT SER100126", "SingleStation Strength Machine", "standard", 145.12, 21.0,
+    ("20", "20A", "20B", "", "", "SingleStation Strength Machine", "standard", _MOCK_A, _MOCK_B,
      ["single station", "strength machine", "leg press", "chest press", "lat pulldown",
       "cable machine", "selectorised", "pin loaded", "leg extension", "leg curl", "strength"]),
-    ("21", "21A", "21B", "PAT SER100093", "PAT SER100094", "Multi Station Bodylift", "standard", 207.50, 24.0,
+    ("21", "21A", "21B", "", "", "Multi Station Bodylift", "standard", _MOCK_A, _MOCK_B,
      ["bodylift", "body lift"]),
-    ("22", "22A", "22B", "PAT SER100095", "PAT SER100096", "Multi Station Chin & Dips", "standard", 145.12, 24.0,
+    ("22", "22A", "22B", "", "", "Multi Station Chin & Dips", "standard", _MOCK_A, _MOCK_B,
      ["chin", "dip", "chin and dips", "chin & dips", "chin dip"]),
-    ("23", "23A", "23B", "PAT SER100101", "PAT SER100102", "Multigym", "2_station", 145.12, 24.0,
+    ("23", "23A", "23B", "", "", "Multigym", "2_station", _MOCK_A, _MOCK_B,
      ["multigym 2", "2 station", "two station", "multi gym 2"]),
-    ("24", "24A", "24B", "PAT SER100103", "PAT SER100104", "Multigym", "3_station", 145.12, 21.0,
+    ("24", "24A", "24B", "", "", "Multigym", "3_station", _MOCK_A, _MOCK_B,
      ["multigym 3", "3 station", "three station", "multi gym 3"]),
-    ("25", "25A", "25B", "PAT SER100585", "PAT SER100582", "Multigym", "3plus_station", 145.12, 21.0,
+    ("25", "25A", "25B", "", "", "Multigym", "3plus_station", _MOCK_A, _MOCK_B,
      ["multigym 3+", "3+ station", "multi station", "multigym", "multi gym", "functional trainer",
       "cable crossover", "jungle gym"]),
-    ("26", "26A", "26B", "PAT SER100583", "PAT SER100584", "Freedom Trainer", "standard", 207.50, 24.0,
+    ("26", "26A", "26B", "", "", "Freedom Trainer", "standard", _MOCK_A, _MOCK_B,
      ["freedom trainer", "functional", "free motion", "freemotion", "dual adjustable pulley", "dap"]),
-    ("27", "27A", "27B", "PAT SER100115", "PAT SER100116", "Radiant Trainer", "standard", 145.12, 24.0,
+    ("27", "27A", "27B", "", "", "Radiant Trainer", "standard", _MOCK_A, _MOCK_B,
      ["radiant trainer", "radiant"]),
 ]
 
 # Special / non-equipment lines.
 _SPECIAL_LINES = [
     {
-        "item_no": "1", "code": "1B", "sicon_ref": "PAT SER100080",
+        "item_no": "1", "code": "1B", "sicon_ref": "",
         "kind": "call_out", "equipment_type": "Call Out Charge (Type B / UK Only)",
-        "variant": "standard", "type_a_price": None, "type_b_price": 80.0,
+        "variant": "standard", "type_a_price": None, "type_b_price": _MOCK_B,
         "is_poa": False, "allow_custom_price": False, "keywords": [],
     },
     {
-        "item_no": "28", "code": "28C", "sicon_ref": "PAT SER100143",
+        "item_no": "28", "code": "28C", "sicon_ref": "",
         "kind": "poa", "equipment_type": "Overseas Service (Type C)",
         "variant": "standard", "type_a_price": None, "type_b_price": None,
         "is_poa": True, "allow_custom_price": True, "keywords": [],
     },
     {
-        "item_no": "29", "code": "29REP", "sicon_ref": "PAT SER100141",
+        "item_no": "29", "code": "29REP", "sicon_ref": "",
         "kind": "poa", "equipment_type": "Repairs (Quote Required)",
         "variant": "standard", "type_a_price": None, "type_b_price": None,
         "is_poa": True, "allow_custom_price": True, "keywords": [],
     },
     {
-        "item_no": "30", "code": "30REF", "sicon_ref": "PAT SER100142",
+        "item_no": "30", "code": "30REF", "sicon_ref": "",
         "kind": "poa", "equipment_type": "Refurbishment (User/Supplier Defined)",
         "variant": "standard", "type_a_price": None, "type_b_price": None,
         "is_poa": True, "allow_custom_price": True, "keywords": [],

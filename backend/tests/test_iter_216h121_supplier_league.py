@@ -46,7 +46,7 @@ def _setup() -> tuple[str, dict]:
     try:
         db = client[os.environ["DB_NAME"]]
         army_hq = db.organizations.find_one({"name": "British Army — Head Office"}, {"_id": 0})
-        helles = db.organizations.find_one({"name": "Helles Barracks Gym"}, {"_id": 0})
+        helles = db.organizations.find_one({"name": "Demo Barracks B Gym"}, {"_id": 0})
     finally:
         client.close()
     # Ensure equipment populated

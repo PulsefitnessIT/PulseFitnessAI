@@ -24,8 +24,8 @@ Endpoints
           in `mod_bulk_imports.rows`).
 
 Required CSV columns (case-insensitive):
-  site_name             — display name (e.g. "Vimy Lines Gym")
-  mod_branch            — branch grouping (e.g. "Catterick Garrison")
+  site_name             — display name (e.g. "Demo Barracks A Gym")
+  mod_branch            — branch grouping (e.g. "Demo Garrison")
                           REQUIRED only when parent is a mod_org;
                           ignored when parent is a mod_branch.
   mod_force             — army | raf | navy (case-insensitive aliases
@@ -88,10 +88,10 @@ _CANONICAL_HEADERS = [
 
 _EXAMPLE_ROWS = [
     [
-        "Vimy Lines Gym", "Catterick Garrison", "army",
+        "Demo Barracks A Gym", "Demo Garrison", "army",
         "United Kingdom", "North Yorkshire", "",
         "DL9 3PS", "vimy.lead@army.mod.local",
-        "Vimy Lines, Catterick Garrison, North Yorkshire DL9 3PS",
+        "Demo Barracks A, Demo Garrison, Demo County ST1 1AA",
         "vimy-lines", "Sgt. Daniel Hayes",
     ],
     [

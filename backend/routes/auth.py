@@ -676,7 +676,7 @@ async def login(credentials: UserLogin, request: Request, response: Response) ->
     # MODService is its own entity — visitors signing in on
     # /MODService MUST have a MOD account_type, and conversely MOD
     # users cannot sign in via the standard Pulse Fitness login
-    # (preventing the cross-tenant leak where a `*@mod.gov.uk` user
+    # (preventing the cross-tenant leak where a `*@demo.local` user
     # who happens to be a Third Space team member ends up on the
     # MOD-branded shell of Third Space's tenant).
     requested_portal = (credentials.portal or "").lower().strip()

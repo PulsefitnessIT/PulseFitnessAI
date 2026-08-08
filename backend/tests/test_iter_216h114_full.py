@@ -81,7 +81,7 @@ class TestHQProvisionCredentials:
         assert site_ids, "seed returned no site ids"
         target_site = site_ids[0]
 
-        # Catterick HQ acts as a mod_branch user.
+        # Demo Garrison HQ acts as a mod_branch user.
         hq = _login("catterick.demo.lead@army.mod.local", "ArmyDemo2026!")
         hq_token = hq["token"]
 
@@ -252,7 +252,7 @@ class TestSitesOverview:
     """Tests for GET /api/sites/overview for MOD HQ users."""
 
     def test_catterick_hq_sees_child_sites(self):
-        """Catterick HQ (mod_branch) sees at least 7 child mod sites."""
+        """Demo Garrison HQ (mod_branch) sees at least 7 child mod sites."""
         master = _master_token()
         _seed_army_demo(master)
 
@@ -272,10 +272,10 @@ class TestSitesOverview:
         mod_children = [s for s in sites if s.get("is_mod_child") is True]
         assert len(mod_children) >= 7, f"Expected at least 7 MOD child sites, got {len(mod_children)}"
 
-        # Verify Catterick Garrison itself is included
+        # Verify Demo Garrison itself is included
         site_names = [s.get("name", "") for s in sites]
-        assert any("Catterick" in name or "Vimy" in name or "Helles" in name for name in site_names), \
-            f"Expected Catterick sub-sites in response, got: {site_names}"
+        assert any("Demo Garrison" in name or "Demo Barracks A" in name or "Helles" in name for name in site_names), \
+            f"Expected Demo Garrison sub-sites in response, got: {site_names}"
 
 
 class TestModFaultSupplierRouting:

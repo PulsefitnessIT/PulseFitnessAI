@@ -66,8 +66,8 @@ def test_transfer_targets_same_force_only_and_excludes_self():
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["force"] == "ARMY"
-    assert body["current_site_name"] == "Vimy Lines Gym"
-    # Six other Army sub-sites are seeded (7 total in Catterick demo).
+    assert body["current_site_name"] == "Demo Barracks A Gym"
+    # Six other Army sub-sites are seeded (7 total in Demo Garrison demo).
     assert len(body["sites"]) >= 5
     # None of the returned sites should be the caller's own site.
     assert body["current_site_id"] not in [s["id"] for s in body["sites"]]
@@ -110,7 +110,7 @@ def test_transfer_round_trip_in_same_force():
     _seed_army_demo(master)
     tok = _mod_site_token()
 
-    # Pick Megan Allen (Helles Barracks) and transfer her to Vimy.
+    # Pick Megan Allen (Demo Barracks B) and transfer her to Demo Barracks A.
     search = requests.get(f"{API}/mod/site/staff-search", params={"q": "megan"},
                           headers=_h(tok), timeout=10).json()
     assert search["matches"] >= 1
@@ -122,7 +122,7 @@ def test_transfer_round_trip_in_same_force():
                            headers=_h(tok), timeout=10).json()
     vimy_id = targets["current_site_id"]
 
-    # Out: Megan → Vimy
+    # Out: Megan → Demo Barracks A
     r1 = requests.post(
         f"{API}/mod/site/staff/transfer",
         headers=_h(tok),
@@ -130,10 +130,10 @@ def test_transfer_round_trip_in_same_force():
         timeout=10,
     )
     assert r1.status_code == 200, r1.text
-    assert r1.json()["to_site_name"] == "Vimy Lines Gym"
+    assert r1.json()["to_site_name"] == "Demo Barracks A Gym"
     assert r1.json()["from_site_name"] == origin_site_name
 
-    # Re-search and confirm she's now at Vimy (own_site=True).
+    # Re-search and confirm she's now at Demo Barracks A (own_site=True).
     re_search = requests.get(f"{API}/mod/site/staff-search", params={"q": "megan"},
                              headers=_h(tok), timeout=10).json()
     moved = [r for r in re_search["results"] if r["id"] == megan["id"]][0]

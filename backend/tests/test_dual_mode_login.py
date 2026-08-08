@@ -2,9 +2,9 @@
 Test dual-mode login (username vs email) and MOD account type routing.
 
 Tests:
-1. MOD site login via username (no @) - raf-brizenorton
-2. MOD branch PRO login via email - raf@mod.gov.uk
-3. MOD org PRO login via email - modestates@mod.gov.uk
+1. MOD site login via username (no @) - raf-demoairstation
+2. MOD branch PRO login via email - raf@demo.local
+3. MOD org PRO login via email - modestates@demo.local
 4. Wrong password returns 401
 5. Regression: civilian email login still works
 6. /auth/me returns correct account_type for each user type
@@ -30,7 +30,7 @@ class TestDualModeLogin:
         """MOD site login via kebab-case username (no @)"""
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "raf-brizenorton", "password": "BrizeNorton2026!"},
+            json={"email": "raf-demoairstation", "password": "BrizeNorton2026!"},
             headers=BYPASS_HEADERS,
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
@@ -38,13 +38,13 @@ class TestDualModeLogin:
         assert "token" in data, "Response should contain token"
         assert "user" in data, "Response should contain user"
         assert data["user"]["account_type"] == "mod_site", f"Expected mod_site, got {data['user'].get('account_type')}"
-        print(f"✓ MOD site username login (raf-brizenorton): account_type={data['user']['account_type']}")
+        print(f"✓ MOD site username login (raf-demoairstation): account_type={data['user']['account_type']}")
 
     def test_mod_site_username_login_army(self):
         """MOD site login via kebab-case username - army-catterick"""
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "army-catterick", "password": "Catterick2026!"},
+            json={"email": "army-catterick", "password": "Demo Garrison2026!"},
             headers=BYPASS_HEADERS,
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
@@ -65,60 +65,60 @@ class TestDualModeLogin:
         print(f"✓ MOD site username login (navy-raleigh): account_type={data['user']['account_type']}")
 
     def test_mod_branch_pro_login_raf(self):
-        """MOD branch PRO login via email - raf@mod.gov.uk"""
+        """MOD branch PRO login via email - raf@demo.local"""
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "raf@mod.gov.uk", "password": "RafEstates2026!"},
+            json={"email": "raf@demo.local", "password": "RafEstates2026!"},
             headers=BYPASS_HEADERS,
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
         data = response.json()
         assert "token" in data
         assert data["user"]["account_type"] == "mod_branch", f"Expected mod_branch, got {data['user'].get('account_type')}"
-        print(f"✓ MOD branch PRO login (raf@mod.gov.uk): account_type={data['user']['account_type']}")
+        print(f"✓ MOD branch PRO login (raf@demo.local): account_type={data['user']['account_type']}")
 
     def test_mod_branch_pro_login_army(self):
-        """MOD branch PRO login via email - army@mod.gov.uk"""
+        """MOD branch PRO login via email - army@demo.local"""
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "army@mod.gov.uk", "password": "ArmyEstates2026!"},
+            json={"email": "army@demo.local", "password": "ArmyEstates2026!"},
             headers=BYPASS_HEADERS,
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
         data = response.json()
         assert data["user"]["account_type"] == "mod_branch"
-        print(f"✓ MOD branch PRO login (army@mod.gov.uk): account_type={data['user']['account_type']}")
+        print(f"✓ MOD branch PRO login (army@demo.local): account_type={data['user']['account_type']}")
 
     def test_mod_branch_pro_login_navy(self):
-        """MOD branch PRO login via email - navy@mod.gov.uk"""
+        """MOD branch PRO login via email - navy@demo.local"""
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "navy@mod.gov.uk", "password": "NavyEstates2026!"},
+            json={"email": "navy@demo.local", "password": "NavyEstates2026!"},
             headers=BYPASS_HEADERS,
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
         data = response.json()
         assert data["user"]["account_type"] == "mod_branch"
-        print(f"✓ MOD branch PRO login (navy@mod.gov.uk): account_type={data['user']['account_type']}")
+        print(f"✓ MOD branch PRO login (navy@demo.local): account_type={data['user']['account_type']}")
 
     def test_mod_org_pro_login(self):
-        """MOD org PRO login via email - modestates@mod.gov.uk"""
+        """MOD org PRO login via email - modestates@demo.local"""
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "modestates@mod.gov.uk", "password": "ModEstates2026!"},
+            json={"email": "modestates@demo.local", "password": "ModEstates2026!"},
             headers=BYPASS_HEADERS,
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
         data = response.json()
         assert "token" in data
         assert data["user"]["account_type"] == "mod_org", f"Expected mod_org, got {data['user'].get('account_type')}"
-        print(f"✓ MOD org PRO login (modestates@mod.gov.uk): account_type={data['user']['account_type']}")
+        print(f"✓ MOD org PRO login (modestates@demo.local): account_type={data['user']['account_type']}")
 
     def test_wrong_password_mod_site(self):
         """Wrong password for MOD site returns 401"""
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "raf-brizenorton", "password": "WrongPassword123!"},
+            json={"email": "raf-demoairstation", "password": "WrongPassword123!"},
             headers=BYPASS_HEADERS,
         )
         assert response.status_code == 401, f"Expected 401, got {response.status_code}"
@@ -128,7 +128,7 @@ class TestDualModeLogin:
         """Wrong password for MOD branch PRO returns 401"""
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "raf@mod.gov.uk", "password": "WrongPassword123!"},
+            json={"email": "raf@demo.local", "password": "WrongPassword123!"},
             headers=BYPASS_HEADERS,
         )
         assert response.status_code == 401, f"Expected 401, got {response.status_code}"
@@ -138,7 +138,7 @@ class TestDualModeLogin:
         """Wrong password for MOD org PRO returns 401"""
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "modestates@mod.gov.uk", "password": "WrongPassword123!"},
+            json={"email": "modestates@demo.local", "password": "WrongPassword123!"},
             headers=BYPASS_HEADERS,
         )
         assert response.status_code == 401, f"Expected 401, got {response.status_code}"
@@ -185,7 +185,7 @@ class TestAuthMeEndpoint:
         # Login first
         login_resp = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "raf-brizenorton", "password": "BrizeNorton2026!"},
+            json={"email": "raf-demoairstation", "password": "BrizeNorton2026!"},
             headers=BYPASS_HEADERS,
         )
         assert login_resp.status_code == 200
@@ -207,7 +207,7 @@ class TestAuthMeEndpoint:
         """GET /auth/me for MOD branch PRO user returns mod_branch account_type"""
         login_resp = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "raf@mod.gov.uk", "password": "RafEstates2026!"},
+            json={"email": "raf@demo.local", "password": "RafEstates2026!"},
             headers=BYPASS_HEADERS,
         )
         assert login_resp.status_code == 200
@@ -226,7 +226,7 @@ class TestAuthMeEndpoint:
         """GET /auth/me for MOD org PRO user returns mod_org account_type"""
         login_resp = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "modestates@mod.gov.uk", "password": "ModEstates2026!"},
+            json={"email": "modestates@demo.local", "password": "ModEstates2026!"},
             headers=BYPASS_HEADERS,
         )
         assert login_resp.status_code == 200
@@ -249,7 +249,7 @@ class TestMODProDashboard:
         """RAF branch PRO should see only RAF sites (1 site)"""
         login_resp = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "raf@mod.gov.uk", "password": "RafEstates2026!"},
+            json={"email": "raf@demo.local", "password": "RafEstates2026!"},
             headers=BYPASS_HEADERS,
         )
         assert login_resp.status_code == 200
@@ -276,7 +276,7 @@ class TestMODProDashboard:
         """MOD org PRO should see all 3 sites (RAF + Army + Navy)"""
         login_resp = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "modestates@mod.gov.uk", "password": "ModEstates2026!"},
+            json={"email": "modestates@demo.local", "password": "ModEstates2026!"},
             headers=BYPASS_HEADERS,
         )
         assert login_resp.status_code == 200
@@ -323,7 +323,7 @@ class TestMasterAdminMODConsole:
         assert len(sites) == 3, f"Expected exactly 3 MOD sites, got {len(sites)}"
 
         site_names = [s.get("name", "") for s in sites]
-        expected_names = ["RAF Brize Norton Gym", "Catterick Garrison Gym", "HMS Raleigh Gym"]
+        expected_names = ["Demo Air Station Gym", "Demo Garrison Gym", "Demo Naval Base Gym"]
         for expected in expected_names:
             assert any(expected in name for name in site_names), f"Missing site: {expected}"
 

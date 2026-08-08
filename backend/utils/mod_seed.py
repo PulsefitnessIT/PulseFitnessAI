@@ -8,12 +8,12 @@ Creates the full MOD hierarchy so the portal is demo-able out of the box:
 
 Login convention:
 
-  • Site-tier (LITE)     — kebab-case username (e.g. `raf-brizenorton`),
+  • Site-tier (LITE)     — kebab-case username (e.g. `demo-airstation`),
                            NO email. Shared per-site credential.
-  • Division-tier (PRO)  — proper email (`raf@mod.gov.uk`, etc.) so the
-                           branch-facilities officer can oversee all sites
+  • Division-tier (PRO)  — placeholder email (`raf-pro@demo.local`, etc.) so
+                           the branch-facilities officer can oversee all sites
                            in their branch.
-  • Organisation-tier    — `modestates@mod.gov.uk` (bonus demo account) —
+  • Organisation-tier    — `modestates@demo.local` (bonus demo account) —
                            sees every site across all branches.
 
 Runs at server startup via `server.py` — safe to call repeatedly.
@@ -39,84 +39,84 @@ MOD_ORG_ID = "mod-root-uk"
 
 SITES = [
     {
-        "code": "raf-brizenorton",          # ← also the login username (no @)
+        "code": "demo-airstation",           # ← also the login username (no @)
         "branch": "RAF",
-        "name": "RAF Brize Norton Gym",
-        "password": "BrizeNorton2026!",
-        "address": "RAF Brize Norton, Carterton OX18 3LX",
+        "name": "Demo Air Station Gym",
+        "password": "DemoAir2026!",
+        "address": "Demo Air Station, Sample Town ST1 1AA",
         "access_notes": "Sign in at Main Gate. Escort required past barrier. PTI office is at the rear of the cardio hall.",
         "escort_required": True,
         "oncall_phone": "+44 7700 900110",
         "staff": [
-            ("Sgt J Hughes",   "PTI",           "j.hughes@mod.gov.uk",   "+44 7700 900111"),
-            ("Cpl L Baker",    "Duty Manager",  "l.baker@mod.gov.uk",    "+44 7700 900112"),
-            ("Lt R Owen",      "Ops Officer",   "r.owen@mod.gov.uk",     "+44 7700 900113"),
-            ("Fl Lt A Patel",  "Facilities",    "a.patel@mod.gov.uk",    "+44 7700 900114"),
-            ("FS D Mitchell",  "Gym Corporal",  "d.mitchell@mod.gov.uk", "+44 7700 900115"),
+            ("Sgt A Demo",     "PTI",           "pti@demo.local",       "+44 7700 900111"),
+            ("Cpl B Demo",     "Duty Manager",  "duty@demo.local",      "+44 7700 900112"),
+            ("Lt C Demo",      "Ops Officer",   "ops@demo.local",       "+44 7700 900113"),
+            ("Fl Lt D Demo",   "Facilities",    "facilities@demo.local","+44 7700 900114"),
+            ("FS E Demo",      "Gym Corporal",  "gym@demo.local",       "+44 7700 900115"),
         ],
     },
     {
-        "code": "army-catterick",
+        "code": "demo-garrison",
         "branch": "Army",
-        "name": "Catterick Garrison Gym",
-        "password": "Catterick2026!",
-        "address": "Catterick Garrison, Richmond DL9 3LR",
-        "access_notes": "Main gate pass required. Parking behind Somme Barracks.",
+        "name": "Demo Garrison Gym",
+        "password": "DemoArmy2026!",
+        "address": "Demo Garrison, Sample Town ST2 2BB",
+        "access_notes": "Main gate pass required. Parking behind the main building.",
         "escort_required": False,
         "oncall_phone": "+44 7700 900210",
         "staff": [
-            ("Sgt M Khan",     "PTI",           "m.khan@army.mod.gov.uk",  "+44 7700 900211"),
-            ("Cpl S Walsh",    "Duty Manager",  "s.walsh@army.mod.gov.uk", "+44 7700 900212"),
-            ("WO2 E Clarke",   "Gym SNCO",      "e.clarke@army.mod.gov.uk","+44 7700 900213"),
-            ("Pte K Moss",     "PTI Assistant", "k.moss@army.mod.gov.uk",  "+44 7700 900214"),
-            ("Maj T Greene",   "CO Rep",        "t.greene@army.mod.gov.uk","+44 7700 900215"),
+            ("Sgt F Demo",     "PTI",           "pti2@demo.local",      "+44 7700 900211"),
+            ("Cpl G Demo",     "Duty Manager",  "duty2@demo.local",     "+44 7700 900212"),
+            ("WO2 H Demo",     "Gym SNCO",      "snco@demo.local",      "+44 7700 900213"),
+            ("Pte I Demo",     "PTI Assistant", "asst@demo.local",      "+44 7700 900214"),
+            ("Maj J Demo",     "CO Rep",        "corep@demo.local",     "+44 7700 900215"),
         ],
     },
     {
-        "code": "navy-raleigh",
+        "code": "demo-navalbase",
         "branch": "Navy",
-        "name": "HMS Raleigh Gym",
-        "password": "Raleigh2026!",
-        "address": "HMS Raleigh, Torpoint, Cornwall PL11 2PD",
+        "name": "Demo Naval Base Gym",
+        "password": "DemoNavy2026!",
+        "address": "Demo Naval Base, Sample Port ST3 3CC",
         "access_notes": "Main gate, visitor pass from Guard Room. Gym is building 4A.",
         "escort_required": True,
         "oncall_phone": "+44 7700 900310",
         "staff": [
-            ("CPO N Shaw",     "Chief PTI",     "n.shaw@royalnavy.mod.uk",  "+44 7700 900311"),
-            ("PO R Davies",    "Duty Manager",  "r.davies@royalnavy.mod.uk","+44 7700 900312"),
-            ("Lt G Abiola",    "Training Ofc",  "g.abiola@royalnavy.mod.uk","+44 7700 900313"),
-            ("Lt Cdr H Reilly","Base Facilities","h.reilly@royalnavy.mod.uk","+44 7700 900314"),
-            ("AB J Lane",      "PTI Assistant", "j.lane@royalnavy.mod.uk",  "+44 7700 900315"),
+            ("CPO K Demo",     "Chief PTI",     "chiefpti@demo.local",  "+44 7700 900311"),
+            ("PO L Demo",      "Duty Manager",  "duty3@demo.local",     "+44 7700 900312"),
+            ("Lt M Demo",      "Training Ofc",  "training@demo.local",  "+44 7700 900313"),
+            ("Lt Cdr N Demo",  "Base Facilities","basefac@demo.local",  "+44 7700 900314"),
+            ("AB O Demo",      "PTI Assistant", "asst2@demo.local",     "+44 7700 900315"),
         ],
     },
 ]
 
 
 # Division-tier (branch PRO) and organisation-tier oversight accounts.
-# These ARE real email-based logins — the user typed them on the question.
+# Demo-only logins with placeholder emails.
 BRANCH_PRO_USERS = [
     {
         "branch": "RAF",
-        "email": "raf@mod.gov.uk",
+        "email": "raf-pro@demo.local",
         "password": "RafEstates2026!",
         "full_name": "RAF Estates Facilities",
     },
     {
         "branch": "Army",
-        "email": "army@mod.gov.uk",
+        "email": "army-pro@demo.local",
         "password": "ArmyEstates2026!",
         "full_name": "Army Estates Facilities",
     },
     {
         "branch": "Navy",
-        "email": "navy@mod.gov.uk",
+        "email": "navy-pro@demo.local",
         "password": "NavyEstates2026!",
         "full_name": "Navy Estates Facilities",
     },
 ]
 
 ORG_PRO_USER = {
-    "email": "modestates@mod.gov.uk",
+    "email": "modestates@demo.local",
     "password": "ModEstates2026!",
     "full_name": "MOD Estates — Head of PT",
 }

@@ -5,7 +5,7 @@ their child data, nuke everything else.
 Keep set (confirmed by user):
   • Third Space               (c695638c-…)
   • British Army — Head Office (2be58411-…)
-  • Catterick Garrison (MOD)   (6c355051-…)
+  • Demo Garrison (MOD)   (6c355051-…)
   • Pulse Fitness              (8cd02d8c-…)  — hosts e1.agent@pulsefitness.ai
 
 Protected collections (NEVER deleted from):
@@ -36,7 +36,7 @@ from utils.database import db
 KEEP_ORG_IDS = {
     "c695638c-5f60-424d-bdd0-2273e6c24205",  # Third Space
     "2be58411-61dc-460a-ba53-29d74a662997",  # British Army — Head Office
-    "6c355051-a502-419b-9154-094c425306fc",  # Catterick Garrison (MOD)
+    "6c355051-a502-419b-9154-094c425306fc",  # Demo Garrison (MOD)
     "8cd02d8c-e5a2-4c13-bdb9-8b143b85455f",  # Pulse Fitness
 }
 

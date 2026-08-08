@@ -45,16 +45,16 @@ def login(email_or_username, password):
 
 @pytest.fixture(scope="module")
 def mod_site_token():
-    """Get MOD site user token (RAF Brize Norton)"""
-    token = login("raf-brizenorton", "BrizeNorton2026!")
+    """Get MOD site user token (Demo Air Station)"""
+    token = login("raf-demoairstation", "BrizeNorton2026!")
     assert token, "MOD site login failed"
     return token
 
 
 @pytest.fixture(scope="module")
 def mod_site_token_army():
-    """Get MOD site user token (Army Catterick) - different site for cross-site tests"""
-    token = login("army-catterick", "Catterick2026!")
+    """Get MOD site user token (Army Demo Garrison) - different site for cross-site tests"""
+    token = login("army-catterick", "Demo Garrison2026!")
     assert token, "Army MOD site login failed"
     return token
 
@@ -62,7 +62,7 @@ def mod_site_token_army():
 @pytest.fixture(scope="module")
 def mod_branch_token():
     """Get MOD branch PRO user token"""
-    token = login("raf@mod.gov.uk", "RafEstates2026!")
+    token = login("raf@demo.local", "RafEstates2026!")
     assert token, "MOD branch login failed"
     return token
 
@@ -70,7 +70,7 @@ def mod_branch_token():
 @pytest.fixture(scope="module")
 def mod_org_token():
     """Get MOD org PRO user token"""
-    token = login("modestates@mod.gov.uk", "ModEstates2026!")
+    token = login("modestates@demo.local", "ModEstates2026!")
     assert token, "MOD org login failed"
     return token
 
@@ -373,7 +373,7 @@ class TestMODAttachmentRegressions:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["site"]["name"] == "RAF Brize Norton Gym"
+        assert data["site"]["name"] == "Demo Air Station Gym"
         assert data["stats"]["equipment_total"] == 12
 
     def test_mod_branch_pro_dashboard_still_works(self, mod_branch_token):

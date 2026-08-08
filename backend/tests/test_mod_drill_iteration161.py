@@ -25,9 +25,9 @@ BYPASS_HEADERS = {
 
 # Test credentials - MOD sites use email field with username value
 MASTER_ADMIN = {"email": "admin@gymaxisai.com", "password": "MasterAdmin123!"}
-RAF_SITE = {"email": "raf-brizenorton", "password": "BrizeNorton2026!"}
-ARMY_SITE = {"email": "army-catterick", "password": "Catterick2026!"}
-MOD_PRO = {"email": "raf@mod.gov.uk", "password": "RafEstates2026!"}
+RAF_SITE = {"email": "raf-demoairstation", "password": "BrizeNorton2026!"}
+ARMY_SITE = {"email": "army-catterick", "password": "Demo Garrison2026!"}
+MOD_PRO = {"email": "raf@demo.local", "password": "RafEstates2026!"}
 
 
 @pytest.fixture(scope="module")
@@ -88,7 +88,7 @@ def raf_site_id(admin_token):
     assert resp.status_code == 200
     sites = resp.json().get("sites", [])
     raf = next((s for s in sites if "brize" in s.get("name", "").lower()), None)
-    assert raf, "RAF Brize Norton site not found"
+    assert raf, "Demo Air Station site not found"
     return raf["id"]
 
 

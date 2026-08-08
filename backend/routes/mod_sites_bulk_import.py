@@ -72,7 +72,7 @@ _CSV_EXAMPLE = [
         "raf-conningsby", "RAF Coningsby Gym", "RAF",
         "RAF Coningsby", "", "Coningsby", "Lincolnshire", "LN4 4SY", "United Kingdom",
         "01526 000000", "site@example.com",
-        "Sgt J. Bloggs", "j.bloggs@mod.gov.uk", "+44 7700 900000",
+        "Sgt A Demo", "reporter@demo.local", "+44 7700 900000",
         "Pass required at main gate.", "",  # blank password → auto-generated
     ],
 ]
@@ -83,7 +83,7 @@ def _now() -> str:
 
 
 def _kebab(s: str) -> str:
-    """Convert 'RAF Brize Norton' → 'raf-brize-norton'."""
+    """Convert 'Demo Air Station' → 'demo-air-station'."""
     s = re.sub(r"[^A-Za-z0-9]+", "-", s or "").strip("-").lower()
     return s
 

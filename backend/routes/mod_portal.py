@@ -2770,7 +2770,7 @@ def _dio_escalation_email_html(site: dict, issue: dict, eq: dict, note: Optional
 
 # ── HQ-level (mod_org / mod_branch) Site Login provisioning ───────
 # Iter 216h114 — Owner/Manager of a MOD HQ org (e.g. British Army Head
-# Office, Catterick Garrison) needs to roll out site logins for each
+# Office, Demo Garrison) needs to roll out site logins for each
 # of their child sites WITHOUT going through a master admin. This
 # endpoint provisions (or rotates) a site's shared login on behalf of
 # the HQ user, returns the new plaintext password ONCE, and optionally
@@ -3352,7 +3352,7 @@ def _supplier_fault_email_html(site: dict, eq: dict, doc: dict, supplier: dict) 
 
 
 # ══════════════════════════════════════════════════════════════════
-#         Iter 216h109 — Demo seed (Catterick Garrison) + dropdown
+#         Iter 216h109 — Demo seed (Demo Garrison) + dropdown
 # ══════════════════════════════════════════════════════════════════
 import secrets as _secrets
 import string as _string
@@ -3363,36 +3363,36 @@ def _gen_pwd(n: int = 10) -> str:
 
 
 _CATTERICK_SUBSITES = [
-    ("Vimy Lines Gym",         "ARMY-CAT-VIM"),
-    ("Helles Barracks Gym",    "ARMY-CAT-HEL"),
-    ("Bruneval Barracks Gym",  "ARMY-CAT-BRU"),
-    ("Cambrai Lines Gym",      "ARMY-CAT-CAM"),
-    ("Marne Barracks Gym",     "ARMY-CAT-MAR"),
-    ("Le Cateau Barracks Gym", "ARMY-CAT-LEC"),
-    ("Bourlon Barracks Gym",   "ARMY-CAT-BOU"),
+    ("Demo Barracks A Gym",   "DEMO-GAR-A"),
+    ("Demo Barracks B Gym",   "DEMO-GAR-B"),
+    ("Demo Barracks C Gym",   "DEMO-GAR-C"),
+    ("Demo Barracks D Gym",   "DEMO-GAR-D"),
+    ("Demo Barracks E Gym",   "DEMO-GAR-E"),
+    ("Demo Barracks F Gym",   "DEMO-GAR-F"),
+    ("Demo Barracks G Gym",   "DEMO-GAR-G"),
 ]
 
 _DEMO_PERSONNEL_TEMPLATE = [
-    ("Sgt",  "Daniel Hayes",   "Vimy Lines Gym",          "+44 7700 900111"),
-    ("Cpl",  "Megan Allen",    "Helles Barracks Gym",     ""),
-    ("LCpl", "James OBrien",   "Bruneval Barracks Gym",   "+44 7700 900222"),
-    ("WO2",  "Sarah Mitchell", "Cambrai Lines Gym",       ""),
-    ("Capt", "Ben Foster",     "Marne Barracks Gym",      "+44 7700 900333"),
-    ("Maj",  "Olivia Carter",  "Le Cateau Barracks Gym",  ""),
-    ("Sgt",  "Tom Walker",     "Bourlon Barracks Gym",    "+44 7700 900444"),
+    ("Sgt",  "A Demo",   "Demo Barracks A Gym",   "+44 7700 900111"),
+    ("Cpl",  "B Demo",   "Demo Barracks B Gym",   ""),
+    ("LCpl", "C Demo",   "Demo Barracks C Gym",   "+44 7700 900222"),
+    ("WO2",  "D Demo",   "Demo Barracks D Gym",   ""),
+    ("Capt", "E Demo",   "Demo Barracks E Gym",   "+44 7700 900333"),
+    ("Maj",  "F Demo",   "Demo Barracks F Gym",   ""),
+    ("Sgt",  "G Demo",   "Demo Barracks G Gym",   "+44 7700 900444"),
 ]
 
 
 @router.post("/mod/demo/seed-army-catterick")
 async def seed_army_catterick(user: dict = Depends(get_current_user)):
-    """Idempotent seed of the Army HQ → Catterick Garrison hierarchy.
+    """Idempotent seed of the Army HQ → Demo Garrison hierarchy.
 
     Creates / refreshes:
       • Army HQ                — account_type=mod_org, mod_force=army
-      • Catterick Garrison     — account_type=mod_branch, mod_root_id=Army HQ
-      • 7 Catterick sub-sites  — account_type=mod_site, mod_branch="Catterick Garrison"
+      • Demo Garrison     — account_type=mod_branch, mod_root_id=Army HQ
+      • 7 Demo sub-sites  — account_type=mod_site, mod_branch="Demo Garrison"
       • One demo user per site (rank/name/site_number/mobile)
-      • One owner-level demo login on Catterick Garrison
+      • One owner-level demo login on Demo Garrison
 
     The single demo password is returned in the response so the
     presenter has a fresh set of credentials.
@@ -3413,7 +3413,7 @@ async def seed_army_catterick(user: dict = Depends(get_current_user)):
         army_id = str(uuid.uuid4())
         army_hq = {
             "id": army_id,
-            "name": "British Army — Head Office",
+            "name": "Demo Army HQ",
             "account_type": "mod_org",
             "subscription_tier": "mod_org",
             "portal_type": "service_portal",
@@ -3435,15 +3435,15 @@ async def seed_army_catterick(user: dict = Depends(get_current_user)):
         )
         created["orgs"].append({"name": army_hq["name"], "created": False})
 
-    # ── Catterick Garrison (mod_branch) ─────────────────────────
+    # ── Demo Garrison (mod_branch) ─────────────────────────
     cat = await db.organizations.find_one(
-        {"account_type": "mod_branch", "name": "Catterick Garrison"}, {"_id": 0},
+        {"account_type": "mod_branch", "name": "Demo Garrison"}, {"_id": 0},
     )
     if not cat:
         cat_id = str(uuid.uuid4())
         cat = {
             "id": cat_id,
-            "name": "Catterick Garrison",
+            "name": "Demo Garrison",
             "account_type": "mod_branch",
             "subscription_tier": "mod_branch",
             "portal_type": "service_portal",
@@ -3451,13 +3451,13 @@ async def seed_army_catterick(user: dict = Depends(get_current_user)):
             "status": "active", "created_at": now,
             "is_mod": True, "mod_force": "army",
             "mod_root_id": army_hq["id"],
-            "mod_branch": "Catterick Garrison",
-            "address_line1": "Catterick Garrison",
-            "city": "Catterick", "county": "North Yorkshire",
-            "postcode": "DL9 3PS", "country": "United Kingdom",
-            "address": "Catterick Garrison, Catterick, North Yorkshire DL9 3PS",
+            "mod_branch": "Demo Garrison",
+            "address_line1": "Demo Garrison",
+            "city": "Demo City", "county": "Demo County",
+            "postcode": "ST1 1AA", "country": "United Kingdom",
+            "address": "Demo Garrison, Demo City, Demo County ST1 1AA",
             "company_code": "ARMY-CAT",
-            "primary_contact_name": "Catterick Garrison — Fitness HQ",
+            "primary_contact_name": "Demo Garrison — Fitness HQ",
             "primary_contact_email": "catterick.demo@army.mod.local",
         }
         await db.organizations.insert_one(cat)
@@ -3465,7 +3465,7 @@ async def seed_army_catterick(user: dict = Depends(get_current_user)):
     else:
         await db.organizations.update_one(
             {"id": cat["id"]},
-            {"$set": {"is_mod": True, "mod_force": "army", "mod_root_id": army_hq["id"], "mod_branch": "Catterick Garrison"}},
+            {"$set": {"is_mod": True, "mod_force": "army", "mod_root_id": army_hq["id"], "mod_branch": "Demo Garrison"}},
         )
         created["orgs"].append({"name": cat["name"], "created": False})
 
@@ -3473,14 +3473,14 @@ async def seed_army_catterick(user: dict = Depends(get_current_user)):
     site_org_map: dict[str, str] = {}
     for site_name, site_code in _CATTERICK_SUBSITES:
         existing = await db.organizations.find_one(
-            {"account_type": "mod_site", "mod_branch": "Catterick Garrison", "name": site_name},
+            {"account_type": "mod_site", "mod_branch": "Demo Garrison", "name": site_name},
             {"_id": 0},
         )
         if existing:
             site_org_map[site_name] = existing["id"]
             await db.organizations.update_one(
                 {"id": existing["id"]},
-                {"$set": {"is_mod": True, "mod_force": "army", "mod_root_id": army_hq["id"], "mod_branch": "Catterick Garrison", "site_code": site_code}},
+                {"$set": {"is_mod": True, "mod_force": "army", "mod_root_id": army_hq["id"], "mod_branch": "Demo Garrison", "site_code": site_code}},
             )
             created["orgs"].append({"name": site_name, "created": False})
             continue
@@ -3491,14 +3491,14 @@ async def seed_army_catterick(user: dict = Depends(get_current_user)):
             "portal_type": "service_portal", "enabled_modules": ["service_portal"],
             "status": "active", "created_at": now,
             "is_mod": True, "mod_force": "army",
-            "mod_root_id": army_hq["id"], "mod_branch": "Catterick Garrison",
+            "mod_root_id": army_hq["id"], "mod_branch": "Demo Garrison",
             "site_code": site_code,
             "company_code": site_code,
         })
         site_org_map[site_name] = oid
         created["orgs"].append({"name": site_name, "created": True})
 
-    # ── Demo personnel (one per gym, plus the Catterick HQ owner) ─
+    # ── Demo personnel (one per gym, plus the Demo HQ owner) ─
     for rank, full_name, site_name, mobile in _DEMO_PERSONNEL_TEMPLATE:
         email = f"{full_name.lower().replace(' ', '.')}@army.mod.local"
         site_org_id = site_org_map[site_name]
@@ -3570,11 +3570,11 @@ async def seed_army_catterick(user: dict = Depends(get_current_user)):
             upsert=True,
         )
 
-    # Catterick Garrison HQ owner (demo presenter login)
+    # Demo Garrison HQ owner (demo presenter login)
     hq_email = "catterick.demo.lead@army.mod.local"
     hq_body = {
-        "name": "Col. Catterick Demo Lead", "full_name": "Col. Catterick Demo Lead",
-        "first_name": "Catterick", "last_name": "Demo Lead",
+        "name": "Col. Demo Demo Lead", "full_name": "Col. Demo Demo Lead",
+        "first_name": "Demo", "last_name": "Demo Lead",
         "rank": "Col", "mobile": "+44 7700 900555",
         "site_number": "ARMY-CAT-HQ",
         "role": "owner",
@@ -3683,9 +3683,9 @@ async def seed_army_catterick(user: dict = Depends(get_current_user)):
         "presenter_credentials": {
             "url": "/MODService",
             "logins": [
-                {"label": "Catterick Garrison (branch view)", "email": hq_email, "password": demo_password},
+                {"label": "Demo Garrison (branch view)", "email": hq_email, "password": demo_password},
                 {"label": "Army Head Office (Command Centre rollup)", "email": hq_org_email, "password": demo_password},
-                {"label": "Site-level (Vimy Lines)", "email": "daniel.hayes@army.mod.local", "password": demo_password},
+                {"label": "Site-level (Demo Barracks A)", "email": "site.demo@demo.local", "password": demo_password},
             ],
         },
         "created": created,

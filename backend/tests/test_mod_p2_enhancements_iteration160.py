@@ -19,7 +19,7 @@ BYPASS_HEADERS = {
 }
 
 # Test credentials
-MOD_SITE_RAF = {"username": "raf-brizenorton", "password": "BrizeNorton2026!"}
+MOD_SITE_RAF = {"username": "raf-demoairstation", "password": "BrizeNorton2026!"}
 MASTER_ADMIN = {"email": "admin@gymaxisai.com", "password": "MasterAdmin123!"}
 
 
@@ -161,15 +161,15 @@ class TestPasswordRotation:
 
     @pytest.fixture(scope="class")
     def raf_site_id(self, master_admin_token):
-        """Get RAF Brize Norton site ID."""
+        """Get Demo Air Station site ID."""
         resp = requests.get(
             f"{BASE_URL}/api/master-admin/mod/sites",
             headers={"Authorization": f"Bearer {master_admin_token}", **BYPASS_HEADERS},
         )
         assert resp.status_code == 200
         sites = resp.json().get("sites", [])
-        raf_site = next((s for s in sites if "brize" in s.get("name", "").lower() or s.get("username") == "raf-brizenorton"), None)
-        assert raf_site, "RAF Brize Norton site not found"
+        raf_site = next((s for s in sites if "brize" in s.get("name", "").lower() or s.get("username") == "raf-demoairstation"), None)
+        assert raf_site, "Demo Air Station site not found"
         return raf_site["id"]
 
     def test_rotate_password_returns_200_with_new_password(self, master_admin_token, raf_site_id):
@@ -214,7 +214,7 @@ class TestPasswordRotation:
         old_password = "BrizeNorton2026!"
         login_resp = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "raf-brizenorton", "password": old_password},
+            json={"email": "raf-demoairstation", "password": old_password},
             headers=BYPASS_HEADERS,
         )
         assert login_resp.status_code == 401, f"Old password should be rejected, got {login_resp.status_code}"
@@ -232,7 +232,7 @@ class TestPasswordRotation:
         # Login with new password
         login_resp = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "raf-brizenorton", "password": new_password},
+            json={"email": "raf-demoairstation", "password": new_password},
             headers=BYPASS_HEADERS,
         )
         assert login_resp.status_code == 200, f"New password should work, got {login_resp.status_code}: {login_resp.text}"
@@ -264,7 +264,7 @@ class TestResetRAFPassword:
     """Reset RAF password back to BrizeNorton2026! after rotation tests."""
 
     def test_reset_raf_password_to_original(self, master_admin_token):
-        """Reset RAF Brize Norton password back to BrizeNorton2026! for subsequent tests."""
+        """Reset Demo Air Station password back to BrizeNorton2026! for subsequent tests."""
         # This test runs last in the class to restore the original password
         # We need to directly update the database
 
@@ -278,7 +278,7 @@ class TestResetRAFPassword:
         # For now, let's just verify we can still login with whatever the current password is
         # and document the reset requirement
         print("NOTE: RAF password has been rotated during tests.")
-        print("To reset: Use MongoDB to set password hash for raf-brizenorton back to BrizeNorton2026!")
+        print("To reset: Use MongoDB to set password hash for raf-demoairstation back to BrizeNorton2026!")
 
         # Let's try to reset via direct API if available, or document for main agent
         # The main agent note says to reset after tests
@@ -294,7 +294,7 @@ class TestRegressionMODDashboard:
         # Try with the original password first
         login_resp = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "raf-brizenorton", "password": "BrizeNorton2026!"},
+            json={"email": "raf-demoairstation", "password": "BrizeNorton2026!"},
             headers=BYPASS_HEADERS,
         )
         if login_resp.status_code != 200:
@@ -312,7 +312,7 @@ class TestRegressionMODDashboard:
         """MOD site equipment endpoint returns 200."""
         login_resp = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "raf-brizenorton", "password": "BrizeNorton2026!"},
+            json={"email": "raf-demoairstation", "password": "BrizeNorton2026!"},
             headers=BYPASS_HEADERS,
         )
         if login_resp.status_code != 200:
@@ -329,7 +329,7 @@ class TestRegressionMODDashboard:
         """MOD site staff endpoint returns 200."""
         login_resp = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "raf-brizenorton", "password": "BrizeNorton2026!"},
+            json={"email": "raf-demoairstation", "password": "BrizeNorton2026!"},
             headers=BYPASS_HEADERS,
         )
         if login_resp.status_code != 200:

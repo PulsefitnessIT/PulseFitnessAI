@@ -120,7 +120,7 @@ def test_bulk_import_requires_master_admin() -> None:
     )
     assert reg.status_code in (200, 201), reg.text
     tok = reg.json()["token"]
-    csv_blob = "site_name,mod_branch,mod_force\nFoo,Catterick Garrison,army\n"
+    csv_blob = "site_name,mod_branch,mod_force\nFoo,Demo Garrison,army\n"
     files = {"file": ("sites.csv", csv_blob.encode(), "text/csv")}
     r = requests.post(
         f"{API}/master-admin/mod/bulk-import?parent_org_id={parent['id']}",
@@ -136,7 +136,7 @@ def test_bulk_import_creates_sites_and_returns_credentials(monkeypatch=None) -> 
     parent = _find_org("mod_org", "British Army")
     assert parent
 
-    # Two rows — one under Catterick branch, one under a NEW branch ID
+    # Two rows — one under Demo Garrison branch, one under a NEW branch ID
     # ("Aldershot Garrison") so we exercise the inherited-from-mod_org path.
     import uuid as _uuid
     suffix = _uuid.uuid4().hex[:6]
@@ -144,7 +144,7 @@ def test_bulk_import_creates_sites_and_returns_credentials(monkeypatch=None) -> 
     site_b = f"Bulk Test Site B {suffix}"
     csv_blob = (
         "site_name,mod_branch,mod_force,postcode,primary_contact_email,address\n"
-        f"{site_a},Catterick Garrison,army,DL9 9XX,test.a@army.mod.local,1 Test Lane DL9 9XX\n"
+        f"{site_a},Demo Garrison,army,DL9 9XX,test.a@army.mod.local,1 Test Lane DL9 9XX\n"
         f"{site_b},Aldershot Garrison,army,GU11 0AA,,2 Test Road GU11 0AA\n"
     )
     files = {"file": ("sites.csv", csv_blob.encode(), "text/csv")}
@@ -171,7 +171,7 @@ def test_bulk_import_creates_sites_and_returns_credentials(monkeypatch=None) -> 
     client = MongoClient(os.environ["MONGO_URL"])
     try:
         db = client[os.environ["DB_NAME"]]
-        for name, branch in ((site_a, "Catterick Garrison"), (site_b, "Aldershot Garrison")):
+        for name, branch in ((site_a, "Demo Garrison"), (site_b, "Aldershot Garrison")):
             doc = db.organizations.find_one({"name": name}, {"_id": 0})
             assert doc, f"Site not created: {name}"
             assert doc["account_type"] == "mod_site"
@@ -228,7 +228,7 @@ def test_bulk_import_inherits_branch_when_parent_is_mod_branch() -> None:
     let a single CSV span multiple branches in this mode."""
     tok = _master_token()
     _seed_demo(tok)
-    parent = _find_org("mod_branch", "Catterick Garrison")
+    parent = _find_org("mod_branch", "Demo Garrison")
     assert parent
 
     import uuid as _uuid
@@ -255,6 +255,6 @@ def test_bulk_import_inherits_branch_when_parent_is_mod_branch() -> None:
         doc = db.organizations.find_one({"name": site_name}, {"_id": 0})
         assert doc
         # Parent's branch wins.
-        assert doc["mod_branch"] == "Catterick Garrison"
+        assert doc["mod_branch"] == "Demo Garrison"
     finally:
         client.close()
