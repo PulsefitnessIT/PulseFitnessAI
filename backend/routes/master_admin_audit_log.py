@@ -97,6 +97,16 @@ async def _gather(
     """
     out: list[dict] = []
 
+    # audit_logs / admin_activity_log carry no organization_id, so when a
+    # single org is requested we resolve that org's user emails and scope
+    # login/security events to them (the Org → Activity drawer relies on this).
+    org_emails: Optional[set] = None
+    if org_id:
+        _urows = await db.users.find(
+            {"organization_id": org_id}, {"_id": 0, "email": 1},
+        ).to_list(length=5000)
+        org_emails = {(u.get("email") or "").lower() for u in _urows if u.get("email")}
+
     def _apply_brand(q: dict) -> dict:
         if brand_org_ids is None:
             return q
@@ -145,6 +155,9 @@ async def _gather(
         aq: dict = {"timestamp": {"$gte": since_iso}}
         if actor_email:
             aq["user_email"] = actor_email
+        elif org_emails is not None:
+            # Scope to this org's users (audit_logs has no organization_id).
+            aq["user_email"] = {"$in": list(org_emails)} if org_emails else "___no_match___"
         if kinds is not None:
             aq["action"] = {"$in": list(kinds & {
                 "login", "login_failed", "logout", "mfa_verify", "mfa_failed", "password_reset",
@@ -168,6 +181,32 @@ async def _gather(
                     "info": ev.get("details"),
                     "resource": ev.get("resource_type"),
                 }.items() if v},
+            })
+
+
+    # ── admin_activity_log (master-admin actions targeting this org:
+    #    org edits, MOD site creation, equipment imports, feature toggles,
+    #    subscription changes, etc.). Only surfaced in the unbounded "every
+    #    kind" view (kinds is None) since these actions aren't login kinds. ──
+    if kinds is None:
+        aaq: dict = {"timestamp": {"$gte": since_iso}}
+        if org_id:
+            aaq["target_id"] = org_id
+        elif brand_org_ids is not None:
+            aaq["target_id"] = {"$in": list(brand_org_ids)}
+        cursor = db.admin_activity_log.find(aaq, {"_id": 0}).sort("timestamp", -1).limit(limit)
+        async for ev in cursor:
+            action = ev.get("action") or "admin_action"
+            out.append({
+                "timestamp": ev.get("timestamp"),
+                "kind": action,
+                "severity": _severity_for(action),
+                "organization_id": (ev.get("target_id")
+                                    if ev.get("target_type") == "organization" else None),
+                "actor_email": ev.get("admin_email"),
+                "actor_type": "admin",
+                "summary": ev.get("details") or action.replace("_", " ").title(),
+                "details": {"target_type": ev.get("target_type"), "target_id": ev.get("target_id")},
             })
 
 
@@ -277,7 +316,8 @@ async def _gather(
                 })
 
     # ── system_jobs (autopay sweep completions) ─────────────────────
-    if kinds is None or "autopay_sweep" in kinds:
+    # Platform-wide (not tied to one org) — omit when scoped to a single org.
+    if not org_id and (kinds is None or "autopay_sweep" in kinds):
         q = {"kind": "autopay_sweep", "started_at": {"$gte": since_iso}}
         cursor = db.system_jobs.find(_apply_brand(q), {"_id": 0}).sort("started_at", -1).limit(limit)
         async for j in cursor:

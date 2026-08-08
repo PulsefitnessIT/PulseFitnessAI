@@ -1,3 +1,26 @@
+# ═══ 2026-08-08 · Master Admin → Org → Activity tab now ORG-SCOPED (+ equipment imports tracked) — curl+harness verified ═══
+User: the Org drawer "Activity" tab showed PLATFORM-WIDE login noise (probe@checkvibe.test, admin@pulsefitness.com…)
+instead of just the org being viewed, and an equipment import into the site never appeared.
+  • ROOT CAUSE (routes/master_admin_audit_log.py _gather): the `audit_logs` block (the collection logins are ACTUALLY
+    written to) had NO org filter — audit_logs carries no organization_id at all (0/1711 docs). So every org's Activity
+    tab returned all platform logins. Equipment imports were logged to no collection the timeline reads.
+  • FIX 1 — org-scope logins: when org_id given, resolve that org's user emails once (db.users) and filter the audit_logs
+    block by user_email $in {org emails} (empty-set → no match). login_events/wallet/invoice blocks already org-filter.
+  • FIX 2 — NEW admin_activity_log source (only in the "every kind" view, kinds is None): surfaces master-admin actions
+    targeting the org (org edits, mod_estate.site_created/deleted, feature_toggle, subscription_change, portal_switch,
+    equipment_imported) scoped by target_id==org_id (or brand_org_ids platform-wide). kind=action, summary=details,
+    actor=admin_email, actor_type='admin'.
+  • FIX 3 — autopay_sweep (system_jobs, org_id=None, platform-wide) is now OMITTED when scoped to a single org.
+  • FIX 4 — routes/master_admin_bulk_import.py _do_bulk_import_equipment now log_activity("equipment_imported",…,
+    target_type='organization', target_id=oid) per affected org at the end → covers ALL import paths (bulk, AI kit
+    import commit, capture approve). Future imports show in the org Activity timeline (past import won't retro-appear).
+  • VERIFIED: live curl (admin token) org=iso-demo-org → only that org's users' logins (owner@isodemo.com), 0 platform
+    noise, 0 autopay_sweep; platform-wide view still returns all actors + admin actions. Harness: inserted a fake
+    equipment_imported row → surfaced in _gather for the org, then cleaned. py syntax OK.
+⚠️ PREVIEW ONLY — PRODUCTION needs a REDEPLOY.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-07 · Frontend testing agent run — MOD equipment card / pills / quote tiers / Suppliers tab (100% PASS) ═══
 Ran testing_agent across all recent MOD UI changes; initial run ~95% (3 minor issues), all fixed + re-tested → 100%.
   PASSED (run 1): MOD login; cover pills (Type A/B/C Contract / Warranty / No cover); Type A/B/C SOR tooltips; equipment

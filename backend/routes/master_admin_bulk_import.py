@@ -744,6 +744,22 @@ async def _do_bulk_import_equipment(
     # Flush the tail.
     await _flush_pending()
 
+    # Audit — record the import against each affected org so it surfaces in
+    # Master Admin → Org → Activity (previously imports were untracked).
+    if org_breakdown:
+        try:
+            from routes.master_admin import log_activity
+            actor = user.get("email") or user.get("full_name") or "system"
+            for oid, cnt in org_breakdown.items():
+                if oid and cnt:
+                    await log_activity(
+                        "equipment_imported",
+                        f"Imported/updated {cnt} equipment item(s) via bulk import",
+                        actor, "organization", oid,
+                    )
+        except Exception:
+            pass
+
     return {
         "imported": imported, "skipped": skipped, "updated": updated,
         "errors": errors[:50], "error_count": len(errors),
