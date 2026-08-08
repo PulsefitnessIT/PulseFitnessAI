@@ -1,3 +1,35 @@
+# ═══ 2026-08-08 · MOD Provider Directory + notified-log ROUTING FIX (real UI path) — testing_agent 100% PASS ═══
+Two deliverables + a critical routing fix uncovered by the testing agent.
+  • NEW Provider Directory (Master Admin → Onboarding → "Service Providers" sub-tab, onboarding-subtab-mod-providers):
+    frontend MODProviderDirectory.js (NEW) lists every overseas provider with contact details + the sites each covers,
+    add/edit provider (modal), search. Backend: GET /api/master-admin/mod-estate/provider-directory (providers[]+covered
+    sites, batched), PATCH /api/master-admin/mod-estate/suppliers/{id} (edit + propagate name/contact to site rows &
+    org.service_supplier). Wired into AdminOnboardingHub.js. testids: mod-provider-directory, provider-add-btn,
+    provider-search, provider-card-<id>, provider-edit-<id>, provider-sites-<id>, provider-edit-modal, provider-form-*.
+    Testing agent: PASS (add/search/edit + assign-from-site-card all green).
+  • CRITICAL ROUTING FIX (notified-log): the testing agent found MOD sites log faults through the LiteDashboard Faults tab
+    → POST /api/issues (create_issue), NOT /api/mod/site/faults (mod_fault_submit). So the dual-notification + notified_
+    recipients built in mod_fault_submit NEVER fired from the real UI (and the MODSiteDashboard/MODFaultWizard that posts to
+    /mod/site/faults is imported but has NO active <Route> — dead path). FIX: routes/issues.py NEW _send_mod_fault_
+    notifications(issue_doc, user) called after _auto_dispatch_to_primary_supplier in BOTH create_issue and
+    create_issues_batch. Gated on org.account_type=='mod_site'. Always records a 'pulse' recipient (MODService@); adds the
+    overseas provider ('overseas') for overseas sites; folds in the auto-dispatched machine supplier ('supplier'). Emails
+    Pulse + overseas only if auto-dispatch didn't already send to them (no double-send; auto_dispatch already emails the
+    machine supplier — which for imported MOD kit resolves to the Pulse default = MODService@). Writes notified_recipients
+    to db.issues → IssueDetailPanel renders it.
+  • VERIFIED: curl on the REAL path — POST /api/issues as overseas MOD site (impersonated) → notified_recipients=[pulse,
+    overseas]; UK MOD site → [pulse]. testing_agent RETEST 100% PASS: logged a fault as test@army.mod.test via the MOD
+    LiteDashboard → 'Notified when logged' panel shows PULSE · Pulse Fitness (MOD Service) · MODService@pulsefitness.com +
+    Emailed <ts>. Backend py OK; frontend compiled. All test data cleaned up.
+  ⚠️ Preview Resend key is INVALID → actual email delivery fails in logs, but notified_recipients is still written
+    (best-effort create_task sends). Real delivery needs a valid prod Resend key + verified pulsefitness.ai domain.
+    PREVIEW ONLY — needs REDEPLOY. Applies to faults logged AFTER ship (older jobs have no notified_recipients).
+  NOTE/BACKLOG: MODFaultWizard (guided fault_type/onset/usable/safe + AI triage, posts to /mod/site/faults) is currently
+    unreachable (no route). The active MOD fault UI is the generic LiteDashboard dialog. If the guided MOD wizard is
+    wanted, MODSiteDashboard needs routing — separate task, not requested yet.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-08 · MOD job "Notified" log — proof of who was emailed (Pulse + overseas) — full e2e verified ═══
 Every logged MOD job now records and displays EXACTLY who was emailed, so HQ/site have proof both Pulse Fitness and the
 overseas provider were notified.
