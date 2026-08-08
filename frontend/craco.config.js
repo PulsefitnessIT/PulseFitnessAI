@@ -87,9 +87,10 @@ webpackConfig.devServer = (devServerConfig) => {
       "default-src 'self'",
       "img-src 'self' data: blob: https:",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com https://challenges.cloudflare.com https://js.hcaptcha.com",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://js.hcaptcha.com https://js.stripe.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://js.hcaptcha.com https://js.stripe.com https://assets.emergent.sh https://*.posthog.com https://*.i.posthog.com https://static.cloudflareinsights.com",
       "font-src 'self' data: https://fonts.gstatic.com https://cdn.fontshare.com",
       "connect-src 'self' https: wss: ws:",
+      "worker-src 'self' blob:",
       "frame-src 'self' blob: https://challenges.cloudflare.com https://hcaptcha.com https://js.stripe.com",
       // Allow our own origin + Emergent app-builder domains to embed the app
       // in an iframe (preview panel). All other external origins remain blocked.

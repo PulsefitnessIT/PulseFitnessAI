@@ -103,10 +103,13 @@ async def security_headers_middleware(request, call_next):
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
     response.headers["Cross-Origin-Resource-Policy"] = "same-site"
     # P3.20 / 216h214 — tightened content policy. Drops `unsafe-eval` (RCE
-    # surface); keeps `unsafe-inline` for style-src (Tailwind/emotion runtime)
-    # and script-src (third-party SDKs like Turnstile/hCaptcha inject inline
-    # bootstrap code). Swagger UI at /docs + /redoc is exempt because
-    # fastapi-swagger needs eval.
+    # surface); keeps `unsafe-inline` for style-src (Tailwind/emotion runtime).
+    # h2xx CSP hardening — `unsafe-inline` REMOVED from script-src: all inline
+    # <script> blocks were externalised (public/pwa-brand.js, perf-error-
+    # suppressor.js, posthog-init.js) and INLINE_RUNTIME_CHUNK=false stops CRA
+    # inlining its webpack runtime, so every executable script is now a
+    # same-origin ('self') or allow-listed external file. Swagger UI at /docs +
+    # /redoc is exempt (fastapi-swagger needs inline + eval).
     #
     # h214 — Craig stakeholder audit (h212) flagged CSP console violations
     # for assets.emergent.sh / PostHog / Cloudflare-insights. These scripts
@@ -120,13 +123,14 @@ async def security_headers_middleware(request, call_next):
             "default-src 'self'; "
             "img-src 'self' data: blob: https:; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com https://challenges.cloudflare.com https://js.hcaptcha.com; "
-            "script-src 'self' 'unsafe-inline' "
+            "script-src 'self' "
             "https://challenges.cloudflare.com https://js.hcaptcha.com https://js.stripe.com "
             "https://assets.emergent.sh "
             "https://*.posthog.com https://*.i.posthog.com "
             "https://static.cloudflareinsights.com; "
             "font-src 'self' data: https://fonts.gstatic.com https://cdn.fontshare.com; "
             "connect-src 'self' https: wss:; "
+            "worker-src 'self' blob:; "
             "frame-src 'self' blob: https://challenges.cloudflare.com https://hcaptcha.com https://js.stripe.com; "
             "frame-ancestors 'self' https://app.emergent.sh https://*.emergent.sh https://*.emergentagent.com; "
             "base-uri 'self'; "

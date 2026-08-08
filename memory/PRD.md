@@ -1,3 +1,30 @@
+# ═══ 2026-06 · CSP hardening (P2/P3) — dropped script-src 'unsafe-inline' in production; prod-build validated 0 violations ═══
+Removed the XSS-relevant `'unsafe-inline'` from the PRODUCTION script-src by externalising every inline executable script.
+  • EXTERNALISED inline <script>s from frontend/public/index.html → NEW public/pwa-brand.js (PWA brand/manifest swap),
+    perf-error-suppressor.js (PerformanceServerTiming DataCloneError suppressor), posthog-init.js (PostHog bootstrap).
+    index.html now references them via <script src="%PUBLIC_URL%/…">. Only type="application/ld+json" DATA blocks remain
+    inline (not executed → not subject to script-src).
+  • frontend/.env: added INLINE_RUNTIME_CHUNK=false so CRA no longer inlines the webpack runtime chunk (it becomes an
+    external /static/js file). Confirmed in a prod build: 0 inline executable <script> blocks.
+  • CSP (PRODUCTION) — backend/server.py + frontend/public/_headers: script-src dropped 'unsafe-inline' (now only 'self' +
+    the allow-listed CDNs: challenges.cloudflare/js.hcaptcha/js.stripe/assets.emergent.sh/*.posthog.com/
+    *.i.posthog.com/static.cloudflareinsights.com). ADDED `worker-src 'self' blob:` (a blob: Web Worker was falling back to
+    script-src and getting blocked — the tight fix is worker-src, not re-loosening script-src). style-src KEEPS 'unsafe-inline'
+    (Tailwind/emotion inject runtime inline styles — removing breaks the app; nonce/hash infeasible for a static CRA build).
+    'unsafe-eval' was already removed in a prior iteration.
+  • DEV/PREVIEW — frontend/craco.config.js (webpack-dev-server, the CSP the PREVIEW actually enforces): KEEPS 'unsafe-inline'
+    + 'unsafe-eval' (HMR/React refresh need them in dev — do NOT remove or preview breaks). Added the same external
+    allow-list (assets.emergent.sh/posthog/cloudflareinsights) + worker-src to clean up pre-existing preview console
+    violations (those domains were never on the dev allow-list, so emergent-main.js/PostHog/CF-beacon were being blocked in
+    preview — harmless telemetry, now allowed). /docs+/redoc still exempt from the backend CSP (swagger needs inline+eval).
+  • VALIDATED: ran a real `yarn build`, served build/ under the EXACT hardened production CSP, loaded headless →
+    / , /login , /MODService , /pulse all render (React mounts, root innerHTML 6k–110k) with **0 CSP violations**. Live
+    preview /login re-screenshotted clean after aligning the craco CSP (dev-server warmup showed a transient 'Loading…').
+  ⚠️ PREVIEW ONLY for code; the _headers CSP takes effect on the next Cloudflare Pages deploy, server.py CSP on backend
+    redeploy. No behavioural/UX change. Test artifacts (build/, temp servers) removed.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · P0.3 OFFICIAL-SENSITIVE posture + P1 SLA timers + MOD resolution loop — testing_agent 100% (5/5 FE) ═══
 Delivered the two batches the user approved together. Banner default = OFFICIAL-SENSITIVE for all MOD, per-org override via
 organization.classification honored.
