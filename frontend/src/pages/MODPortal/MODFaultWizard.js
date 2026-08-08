@@ -196,6 +196,7 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
       );
       const mustQueueOffline = !navigator.onLine || hasOfflineAttachment;
       const tickets = [];
+      const failed = [];
 
       if (mustQueueOffline) {
         for (const id of selectedIds) {
@@ -221,20 +222,36 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
 
       for (const id of selectedIds) {
         const md = machineData[id] || emptyMachineData();
-        const { data } = await axios.post(`${API}/mod/site/faults`, {
-          equipment_id: id,
-          fault_type: md.fault_type,
-          description: md.description,
-          onset: md.onset,
-          usable: md.usable,
-          safe_in_service: md.safe_in_service,
-          reporter_staff_id: reporterStaffId,
-          attachment_urls: (md.attachment_urls || []).map((a) => (typeof a === 'string' ? a : (a.path || a.url))),
-        }, { headers });
-        tickets.push({ ...data, machine: equipById(id) });
+        try {
+          const { data } = await axios.post(`${API}/mod/site/faults`, {
+            equipment_id: id,
+            fault_type: md.fault_type,
+            description: md.description,
+            onset: md.onset,
+            usable: md.usable,
+            safe_in_service: md.safe_in_service,
+            reporter_staff_id: reporterStaffId,
+            attachment_urls: (md.attachment_urls || []).map((a) => (typeof a === 'string' ? a : (a.path || a.url))),
+          }, { headers });
+          tickets.push({ ...data, machine: equipById(id) });
+        } catch (err) {
+          failed.push({ id, name: equipById(id)?.name || equipById(id)?.serial_number || 'Machine', err });
+        }
       }
-      setConfirmation({ tickets });
-      notify.success(tickets.length > 1 ? `${tickets.length} faults logged` : `Fault logged — ${tickets[0].ticket_ref}`);
+
+      if (tickets.length === 0) {
+        // Nothing succeeded — surface the error, keep the form so they can retry.
+        notifyApiError(notify, failed[0]?.err, 'Failed to submit fault');
+        return;
+      }
+      if (failed.length > 0) {
+        // Partial success — confirm the ones that went through (so they're not
+        // lost / re-submitted), and name the failures so the user can retry them.
+        notify.error(`${tickets.length} of ${selectedIds.length} logged`, `Couldn't log: ${failed.map((f) => f.name).join(', ')}. Please reopen and retry these.`);
+      } else {
+        notify.success(tickets.length > 1 ? `${tickets.length} faults logged` : `Fault logged — ${tickets[0].ticket_ref}`);
+      }
+      setConfirmation({ tickets, partialFailed: failed.map((f) => f.name) });
     } catch (e) {
       notifyApiError(notify, e, 'Failed to submit fault');
     } finally {
@@ -979,6 +996,11 @@ function ConfirmationScreen({ confirmation, onDone }) {
             ? "We've stored these faults and their photos on your device. They'll upload and create tickets the moment you're back online."
             : 'Confirmation email sent. You can track status on the dashboard.'}
         </p>
+        {confirmation.partialFailed?.length > 0 && (
+          <div className="mt-3 text-xs text-amber-600 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5 text-left" data-testid="mod-confirmation-partial-failed">
+            ⚠ These machines didn't submit — please reopen the wizard and log them again: <strong>{confirmation.partialFailed.join(', ')}</strong>
+          </div>
+        )}
         <button
           onClick={onDone}
           className="mt-5 w-full rounded-lg px-4 py-3 text-sm font-extrabold"

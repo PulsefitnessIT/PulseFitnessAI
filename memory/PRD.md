@@ -1,3 +1,34 @@
+# ═══ 2026-06 · MOD Fault Wizard rewrite — light mode, multi-machine (per-machine tickets), location grouping, prefill — testing_agent 100% ═══
+User report (PRODUCTION https://fitness-ai-migrate.emergent.host): Fault Wizard + Report-Incident wizard stuck in dark mode with
+washed-out text; "Log a fault" from Equipment didn't pre-select the machine; needed to log >1 machine; group machines by location.
+User choices: follow the existing light/dark TOGGLE; multi-machine = option (a) — one session, multi-select, walk EACH machine
+through its own fault, SEPARATE ticket per machine; prefill pre-ticks + STAYS on the list; group by `equipment.location`
+(Unassigned last).
+  • LIGHT MODE: both wizards hardcoded dark (bg #0A0B10 / text-white / border-white/10) and IGNORED the app's theme. App already
+    has a light/dark toggle (App.js, localStorage 'theme', DEFAULT light, applies data-theme; --theme-* CSS vars). Rewrote
+    MODFaultWizard.js + re-themed MODIncidentWizard.js to use --theme-surface / -surface-2/3 / -text / -text-muted / -border so
+    they FOLLOW the toggle (cyan/rose accents kept, readable in both themes). Fixes the washed-out text.
+  • MULTI-MACHINE (full rewrite of MODFaultWizard.js): state = selectedIds[] + machineData{equipmentId: {fault_type, description,
+    onset, usable, safe_in_service, attachment_urls}} + shared reporterStaffId. Phases: equipment → machine(sub 0 fault-type /
+    1 guided / 2 attachments, looped per selected machine, header "Machine X of N") → reporter → review (lists N tickets) →
+    submitAll() loops POST /api/mod/site/faults once PER machine → confirmation lists N ticket refs. Backend unchanged (frontend
+    calls the existing single-fault endpoint N times → each ticket gets its own ref/SLA/provider email).
+  • LOCATION GROUPING: Step 1 groups equipment under location headings (mod-equipment-group-<loc>), "Unassigned" last; headings
+    only shown when >1 group. Multi-select CHECKBOX cards + search (name/type/serial/location) + QR scan add.
+  • PREFILL: prefillEquipmentId pre-ticks that machine and STAYS on Step 1 (doesn't auto-advance) so more can be added.
+  • ROBUSTNESS: submitAll() is now resilient to partial failure — per-machine try/catch; if some succeed and some fail it still
+    shows the confirmation for the successes (no lost/duplicate tickets) and names the failed machines to retry
+    (mod-confirmation-partial-failed). Offline queue preserved (enqueues per machine). QR scanner + WebP compression preserved.
+  • VERIFIED: testing_agent iteration_mod_fault_wizard_multimachine_light_jan2026.json — 100% of the 5 behaviours (light+dark
+    readability, multi-select+grouping, per-machine flow → 2 tickets MOD-2026-15612 + MOD-2026-25141, prefill pre-tick, single-
+    machine regression). Both files babel-clean, dev server compiles. Partial-failure branch added after the run (defensive).
+  TEST DATA: MOD Test Site (abfdabd9-…) equipment given locations Main Gym(4)/Cardio Suite(3)/Unassigned(1) for the grouping test
+    — leave in place. Testing-agent OPTIONAL suggestions (not done): split the 1000-line file into per-step files; add
+    role=checkbox aria; GET /mod/site/faults list route currently 405 (dashboard uses another route).
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION; must REDEPLOY to push this live.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · Rate-limit + account-lockout moved to a SHARED MongoDB store (survives restarts, spans all pods) — verified ═══
 The per-IP throttle, login/reset limiters and account-lockout lived in per-process dicts in utils/security.py, so a restart
 wiped every counter and each pod enforced its OWN allowance (N pods = N× the limit; an attacker throttled on one pod was
