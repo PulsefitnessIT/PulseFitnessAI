@@ -330,7 +330,7 @@ const MODSiteOnboarding = () => {
     }
   };
   const [savingLocId, setSavingLocId] = useState(null);
-  const saveEquipLocation = async (equipmentId, location) => {
+  const saveEquipLocation = async (equipmentId, location, inputEl, prev) => {
     setSavingLocId(equipmentId);
     try {
       const { data } = await axios.patch(
@@ -340,6 +340,7 @@ const MODSiteOnboarding = () => {
       setKitDrill((k) => (k ? { ...k, items: k.items.map((m) => (m.id === equipmentId ? { ...m, location: data.location } : m)) } : k));
       notify.success('Location saved', data.location ? `Zone set to "${data.location}"` : 'Location cleared');
     } catch (e) {
+      if (inputEl) inputEl.value = prev || ''; // revert so the UI reflects the actual saved state
       notify.error('Could not save location', e?.response?.data?.detail || 'Server error');
     } finally {
       setSavingLocId(null);
@@ -848,7 +849,7 @@ const MODSiteOnboarding = () => {
                               onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                               onBlur={(e) => {
                                 const v = e.target.value.trim();
-                                if (v !== (m.location || '')) saveEquipLocation(m.id, v);
+                                if (v !== (m.location || '')) saveEquipLocation(m.id, v, e.target, m.location || '');
                               }}
                               className="w-32 rounded border border-zinc-300 px-2 py-1 text-xs focus:outline-none focus:border-cyan-500 disabled:opacity-50"
                               data-testid={`mod-kit-location-input-${m.id}`}
