@@ -789,6 +789,103 @@ async def assign_site_service_provider(site_id: str, data: dict = Body(...),
     }
 
 
+@router.get("/master-admin/mod-estate/provider-directory")
+async def provider_directory(estate_id: str = DEFAULT_ESTATE_ID,
+                             user: dict = Depends(get_current_user)) -> dict:
+    """Overseas service-provider directory: every registered provider with its
+    contact details and the MOD sites it covers. Powers the Provider Directory
+    page."""
+    require_master_admin(user)
+    estate_id = _kebab(estate_id) or DEFAULT_ESTATE_ID
+
+    est_sups = await db.mod_estate_suppliers.find(
+        {"mod_estate_id": estate_id}, {"_id": 0},
+    ).sort("name", 1).to_list(2000)
+
+    # Which sites reference each estate supplier (via their instantiated
+    # site-supplier row that the org's service_supplier_id points at).
+    site_sups = await db.suppliers.find(
+        {"estate_supplier_id": {"$in": [s["id"] for s in est_sups]}} if est_sups else {"id": None},
+        {"_id": 0, "id": 1, "organization_id": 1, "estate_supplier_id": 1},
+    ).to_list(20000)
+
+    # Map site-supplier row id → estate supplier id, and gather the orgs that
+    # actually have that row assigned as their service provider.
+    org_ids = list({ss["organization_id"] for ss in site_sups})
+    orgs = {}
+    if org_ids:
+        async for o in db.organizations.find(
+            {"id": {"$in": org_ids}, "account_type": "mod_site"},
+            {"_id": 0, "id": 1, "name": 1, "site_code": 1, "is_overseas": 1,
+             "mod_force": 1, "service_supplier_id": 1},
+        ):
+            orgs[o["id"]] = o
+
+    # estate_supplier_id → [site dicts] (only where the org still points at it)
+    by_est: dict = {}
+    for ss in site_sups:
+        org = orgs.get(ss["organization_id"])
+        if not org or org.get("service_supplier_id") != ss["id"]:
+            continue
+        by_est.setdefault(ss["estate_supplier_id"], []).append({
+            "id": org["id"], "name": org.get("name"),
+            "site_code": org.get("site_code"), "force": org.get("mod_force"),
+            "is_overseas": bool(org.get("is_overseas")),
+        })
+
+    providers = []
+    for s in est_sups:
+        sites = sorted(by_est.get(s["id"], []), key=lambda x: (x.get("name") or ""))
+        providers.append({
+            "id": s["id"], "name": s.get("name"),
+            "contact_name": s.get("contact_name", ""),
+            "email": s.get("email", ""), "phone": s.get("phone", ""),
+            "countries": s.get("countries", []), "regions": s.get("regions", []),
+            "notes": s.get("notes", ""),
+            "allocated": bool((s.get("email") or "").strip()),
+            "site_count": len(sites), "sites": sites,
+        })
+    return {"providers": providers, "count": len(providers)}
+
+
+@router.patch("/master-admin/mod-estate/suppliers/{supplier_id}")
+async def update_estate_supplier(supplier_id: str, data: dict = Body(...),
+                                 user: dict = Depends(get_current_user)) -> dict:
+    """Edit a registered provider's contact details. Also propagates the new
+    details to every site the provider is assigned to."""
+    require_master_admin(user)
+    est = await db.mod_estate_suppliers.find_one({"id": supplier_id}, {"_id": 0})
+    if not est:
+        raise HTTPException(404, "Provider not found")
+    fields = {}
+    for k in ("name", "contact_name", "phone", "notes"):
+        if k in data:
+            fields[k] = (data.get(k) or "").strip()
+    if "email" in data:
+        fields["email"] = (data.get("email") or "").strip().lower()
+    for k in ("countries", "regions", "manufacturer_keywords"):
+        if k in data:
+            fields[k] = [x.strip() for x in (data.get(k) or []) if x and x.strip()]
+    if not fields:
+        return {"ok": True, "supplier": est}
+    fields["updated_at"] = _now()
+    await db.mod_estate_suppliers.update_one({"id": supplier_id}, {"$set": fields})
+    # Propagate contact detail to the instantiated site rows.
+    prop = {k: v for k, v in fields.items()
+            if k in ("name", "contact_name", "email", "phone", "manufacturer_keywords", "notes", "updated_at")}
+    if prop:
+        await db.suppliers.update_many({"estate_supplier_id": supplier_id}, {"$set": prop})
+        if "name" in prop:
+            site_sup_ids = [x["id"] async for x in db.suppliers.find(
+                {"estate_supplier_id": supplier_id}, {"_id": 0, "id": 1})]
+            if site_sup_ids:
+                await db.organizations.update_many(
+                    {"service_supplier_id": {"$in": site_sup_ids}},
+                    {"$set": {"service_supplier": prop["name"]}})
+    return {"ok": True, "supplier": {**est, **fields}}
+
+
+
 
 def build_readiness_xlsx_bytes(data: dict) -> bytes:
     """Build the whole-of-MOD go-live readiness workbook from a readiness

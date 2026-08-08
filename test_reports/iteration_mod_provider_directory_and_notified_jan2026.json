@@ -1,0 +1,48 @@
+{
+  "summary": "Frontend-only verification for (1) Provider Directory page, (2) MOD site card assign/change/remove overseas provider, and (3) IssueDetailPanel 'Notified when logged' panel. Provider Directory and MOD site assign/change/remove all WORK end-to-end. The Notified panel could NOT be verified because (a) the LiteDashboard Faults tab 'Log New Fault' path posts to /api/issues (not the MOD-specific /api/mod/site/faults) so notified_recipients is never written, and (b) the MODFaultWizard (which posts to /api/mod/site/faults and has the onset/usable/safe fields the task references) is imported in AppRoutes but has NO active Route mounted, so it is unreachable from the UI.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/issues", "issue": "MOD site portal LiteDashboard 'Log New Fault' submits here; this path does NOT write notified_recipients / does not run the Pulse+overseas dual-notification logic. Only /api/mod/site/faults does. Confirmed via DB check on newly created issue b39c5106… — no notified_recipients field persisted."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "IssueDetailPanel notified panel", "issue": "'Notified when logged' panel (data-testid issue-notified-log-<id>) never renders on faults logged from the MOD portal because the UI submits to /api/issues which does not persist notified_recipients. Only the older issue-supplier-sent badge shows.", "selector": "[data-testid^='issue-notified-log-']", "priority": "HIGH"},
+      {"component": "MODFaultWizard route", "issue": "MODSiteDashboard/MODFaultWizard (data-testid mod-log-fault-btn / mod-fault-wizard) is imported but no <Route> in AppRoutes.js mounts MODSiteDashboard — the guided wizard with fault_type/onset/usable/safe_in_service fields described in the task is unreachable from the MOD site login (which lands on /pulse LiteDashboard).", "selector": "[data-testid='mod-log-fault-btn']", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "MOD site fault logging → notified proof", "issue": "The end-to-end proof-of-notification promised in the request is broken from the UI: no UI path currently reaches the MOD backend endpoint that writes notified_recipients.", "affected_selectors": ["[data-testid^='issue-notified-log-']", "[data-testid='mod-log-fault-btn']"]}
+    ],
+    "design_issues": []
+  },
+  "verified_working": [
+    "Master Admin → Onboarding → Service Providers sub-tab loads MODProviderDirectory (data-testid mod-provider-directory).",
+    "Add provider modal (provider-edit-modal): create QA Directory Provider → card provider-card-<id> appears with name/contact/email/phone.",
+    "provider-search filters correctly to 'QA Directory'.",
+    "Edit provider (provider-edit-<id>) → email update to qa.updated@test.local reflected on the card.",
+    "MOD Equipment & Readiness sub-tab: Nyati Base (AI Import Test) shows Assign provider button (mod-site-assign-provider-mod-site-test-nyati).",
+    "Assign 'Pick existing' → QA Directory Provider saved → emerald 'Overseas: QA Directory Provider' pill (mod-site-overseas-provider-mod-site-test-nyati) rendered; toast shown.",
+    "Change to 'Add new' → Inline QA Provider created inline; pill updates to 'Overseas: Inline QA Provider'.",
+    "Remove provider (mod-provider-clear) → row reverts to amber 'No overseas provider assigned' with 'Assign provider' button; success toast 'Overseas provider removed'."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Main agent: Fix LiteDashboardPage.handleFaultSubmit so that MOD-site fault submissions route to /api/mod/site/faults (or make /api/issues also write notified_recipients for MOD-site orgs) so the Pulse + overseas provider notification proof-log is persisted.",
+    "Main agent: Add a Route for MODSiteDashboard in AppRoutes.js (or expose MODFaultWizard from LiteDashboard/Faults), so the guided fault wizard (fault_type/onset/usable/safe_in_service) is reachable for MOD site accounts — the task description assumes this UI is live.",
+    "Retest: after fixing, verify IssueDetailPanel renders issue-notified-log-<id> with at least one issue-notified-<id>-0 row (Pulse pill + MODService@pulsefitness.com) on a UK MOD-site logged fault."
+  ],
+  "critical_code_review_comments": [
+    "backend/routes/mod_portal.py mod_fault_submit correctly writes notified_recipients including Pulse role + supplier/overseas rows, but this code is not triggered from the current UI logging path.",
+    "frontend/src/pages/IssueDetailPanel.js correctly gates render on Array.isArray(issue.notified_recipients) && length>0 — no UI bug there; missing data is the root cause.",
+    "MODProviderDirectory + MODSiteOnboarding assign/change/clear are cleanly wired and pass all UI checks."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only run)", "frontend": "67% (2 of 3 flows verified end-to-end)"},
+  "test_credentials": "Master admin admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg; MOD site test@army.mod.test / ModTest123! (rate-limited at /MODService after ~4 attempts).",
+  "seed_data_creation": "Created (and left in place) provider 'QA Directory Provider' (id 21c5fc93-b7ae-4e77-a0f5-e0dd2654ecd0, email qa.updated@test.local) plus inline 'Inline QA Provider' during assign flow. Nyati Base ended the run with NO overseas provider (cleared).",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Provider Directory + MOD site assign/change/remove are green. Focus retest on: (a) MOD-site login → Log a Fault path → verify /api/mod/site/faults is called and notified_recipients populated in db.issues; (b) IssueDetailPanel renders issue-notified-log-<id> with issue-notified-<id>-0 row for the new fault. MOD login is heavily rate-limited (~4 attempts / 3 min lockout) — reuse cookies where possible.",
+  "rca of the issue": "Missing UI wiring: (1) LiteDashboard Faults tab (the only reachable fault-logging path for MOD-site users after login) posts to /api/issues which is the generic endpoint, not /api/mod/site/faults. Since backend writes notified_recipients only in mod_fault_submit, faults logged from UI carry no notification log. (2) MODFaultWizard (the guided wizard whose fields the task describes) is imported but MODSiteDashboard has no active route — so the correct wizard is unreachable. Both need to be addressed together for the 'Notified when logged' panel to appear."
+}
