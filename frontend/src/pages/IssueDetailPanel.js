@@ -415,7 +415,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
      use these contact details to call the person who logged the fault. */}
  {issue.reporter_name && (
  <div className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-lg" data-testid={`issue-logged-by-${issue.id}`}>
- <span className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">Logged by — call them directly</span>
+ <span className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">Logged by</span>
  <p className="text-white font-bold text-lg mt-1" data-testid="logged-by-name">{issue.reporter_name}</p>
  {issue.reporter_job_title && <p className="text-[var(--color-text-muted)] text-sm">{issue.reporter_job_title}</p>}
  <div className="flex flex-wrap items-center gap-2 mt-3">

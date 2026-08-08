@@ -3225,7 +3225,7 @@ def _reporter_contact_block(doc: dict) -> str:
         if email else '<span style="color:#9ca3af;">No email on file</span>'
     )
     return f"""<div style="margin:18px 0;padding:16px 18px;background:#ecfeff;border:1px solid #a5f3fc;border-left:4px solid #06b6d4;border-radius:10px;">
-    <div style="font-size:11px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#0891b2;">Point of contact — call them directly</div>
+    <div style="font-size:11px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#0891b2;">Point of contact</div>
     <div style="font-size:18px;font-weight:800;color:#0f172a;margin-top:4px;">{name}{f' &middot; {role}' if role else ''}</div>
     <div style="margin-top:6px;font-size:14px;color:#334155;">{email_html}</div>
     <div style="margin-top:12px;">{phone_html}</div>
