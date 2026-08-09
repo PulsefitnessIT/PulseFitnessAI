@@ -705,3 +705,56 @@ async def sicon_equipment_auto_match(org_id: str, data: dict = Body(...),
     result["available"] = True
     result["local_total"] = len(equipment)
     return result
+
+
+
+# ── Import column-mapping templates ───────────────────────────────
+# Remember column choices per export format (platform-wide, master-admin)
+# so repeat imports auto-apply on matching headers → one-click.
+
+@router.get("/master-admin/sicon/import-templates")
+async def sicon_import_templates_list(user: dict = Depends(get_current_user)) -> dict:
+    require_master_admin(user)
+    tpls = await db.sicon_import_templates.find({}, {"_id": 0}).sort("name", 1).to_list(200)
+    return {"templates": tpls}
+
+
+@router.post("/master-admin/sicon/import-templates")
+async def sicon_import_template_save(data: dict = Body(...),
+                                     user: dict = Depends(get_current_user)) -> dict:
+    require_master_admin(user)
+    name = (data.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Template name is required.")
+    col_map = data.get("col_map") or {}
+    doc = {
+        "name": name,
+        "col_map": {
+            "serial": int(col_map.get("serial", 0)),
+            "sicon": int(col_map.get("sicon", -1)),
+            "sage": int(col_map.get("sage", -1)),
+        },
+        "first_row_header": bool(data.get("first_row_header")),
+        "header_signature": (data.get("header_signature") or "").strip(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    # Upsert by name so re-saving the same format updates it.
+    existing = await db.sicon_import_templates.find_one({"name": name}, {"_id": 0, "id": 1})
+    if existing:
+        doc["id"] = existing["id"]
+        await db.sicon_import_templates.update_one({"id": existing["id"]}, {"$set": doc})
+    else:
+        doc["id"] = str(uuid.uuid4())
+        doc["created_by"] = user.get("id") or user.get("user_id")
+        doc["created_at"] = doc["updated_at"]
+        await db.sicon_import_templates.insert_one(dict(doc))
+    doc.pop("_id", None)
+    return {"template": doc}
+
+
+@router.delete("/master-admin/sicon/import-templates/{template_id}")
+async def sicon_import_template_delete(template_id: str,
+                                       user: dict = Depends(get_current_user)) -> dict:
+    require_master_admin(user)
+    res = await db.sicon_import_templates.delete_one({"id": template_id})
+    return {"deleted": res.deleted_count}

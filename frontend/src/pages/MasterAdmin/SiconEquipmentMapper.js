@@ -7,7 +7,7 @@ import axios from 'axios';
 import { notify } from '@/components/notifications';
 import {
   Link2, Loader2, Save, Search, Building2, MapPin, RefreshCw, CheckCircle2,
-  Wand2, Upload, X, AlertTriangle,
+  Wand2, Upload, X, AlertTriangle, Bookmark, Trash2,
 } from 'lucide-react';
 
 // Split pasted/uploaded CSV or TSV into a cell matrix (delimiter auto-detected).
@@ -27,6 +27,16 @@ function splitTable(text) {
     return out.map((s) => s.trim());
   };
   return lines.map(splitLine);
+}
+
+// Signature of an export's shape, used to auto-apply a saved template.
+// Header present → the lowercased header names joined; else the column count.
+function sigFor(analysis, firstRowHeader) {
+  if (!analysis) return '';
+  if (firstRowHeader && analysis.table[0]) {
+    return 'h:' + analysis.table[0].map((c) => String(c).trim().toLowerCase()).join('|');
+  }
+  return 'c:' + analysis.colCount;
 }
 
 // Analyze the table: detect a header row + best-guess column indices for
@@ -85,6 +95,8 @@ export default function SiconEquipmentMapper() {
   const [matching, setMatching] = useState(false);
   const [matchStats, setMatchStats] = useState(null);
   const [fuzzyMatches, setFuzzyMatches] = useState([]);
+  const [templates, setTemplates] = useState([]);
+  const [appliedTpl, setAppliedTpl] = useState(null); // name auto-applied
 
   const loadOrgs = useCallback(async () => {
     setLoadingOrgs(true);
@@ -146,6 +158,66 @@ export default function SiconEquipmentMapper() {
   }, [analysis]);
   const header = analysis && firstRowHeader ? analysis.table[0] : null;
   const dataRows = analysis ? (firstRowHeader ? analysis.table.slice(1) : analysis.table) : [];
+
+  // Load saved column-mapping templates once.
+  const loadTemplates = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/master-admin/sicon/import-templates`, { headers });
+      setTemplates(res.data?.templates || []);
+    } catch { /* non-fatal */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [API]);
+  useEffect(() => { loadTemplates(); }, [loadTemplates]);
+
+  const applyTemplate = useCallback((tpl, silent) => {
+    if (!tpl) return;
+    if (typeof tpl.first_row_header === 'boolean') setFirstRowHeader(tpl.first_row_header);
+    if (tpl.col_map) setColMap({
+      serial: tpl.col_map.serial ?? 0,
+      sicon: tpl.col_map.sicon ?? -1,
+      sage: tpl.col_map.sage ?? -1,
+    });
+    setAppliedTpl(tpl.name);
+    if (!silent) notify.success(`Applied template "${tpl.name}"`);
+  }, []);
+
+  // Auto-apply a template whose header signature matches the pasted export.
+  useEffect(() => {
+    if (!analysis || !templates.length) return;
+    const sigHeader = sigFor(analysis, true);
+    const sigCols = sigFor(analysis, false);
+    const hit = templates.find((t) => t.header_signature && (t.header_signature === sigHeader || t.header_signature === sigCols));
+    if (hit) applyTemplate(hit, true);
+    else setAppliedTpl(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analysis, templates]);
+
+  const saveTemplate = async () => {
+    const name = window.prompt('Name this export format (e.g. "Sage 200 export", "Sicon asset dump"):');
+    if (!name || !name.trim()) return;
+    try {
+      const res = await axios.post(`${API}/master-admin/sicon/import-templates`, {
+        name: name.trim(),
+        col_map: colMap,
+        first_row_header: firstRowHeader,
+        header_signature: sigFor(analysis, firstRowHeader),
+      }, { headers });
+      notify.success(`Saved template "${name.trim()}"`, 'It will auto-apply next time this format is pasted.');
+      setAppliedTpl(name.trim());
+      await loadTemplates();
+    } catch (err) {
+      notify.error('Could not save template', err?.response?.data?.detail || '');
+    }
+  };
+
+  const deleteTemplate = async (tpl) => {
+    if (!window.confirm(`Delete template "${tpl.name}"?`)) return;
+    try {
+      await axios.delete(`${API}/master-admin/sicon/import-templates/${tpl.id}`, { headers });
+      if (appliedTpl === tpl.name) setAppliedTpl(null);
+      await loadTemplates();
+    } catch { notify.error('Could not delete template'); }
+  };
 
   const runAutoMatch = async () => {
     const importRows = buildRows(dataRows, colMap);
@@ -315,11 +387,34 @@ export default function SiconEquipmentMapper() {
               <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                 <p className="text-[11px] font-semibold text-zinc-600">
                   Column mapping <span className="font-normal text-zinc-400">· {dataRows.length} data row(s)</span>
+                  {appliedTpl && <span className="ml-1 text-violet-600">· template “{appliedTpl}” applied</span>}
                 </p>
-                <label className="inline-flex items-center gap-1.5 text-[11px] text-zinc-600 cursor-pointer" data-testid="sicon-mapper-header-toggle">
-                  <input type="checkbox" checked={firstRowHeader} onChange={(e) => setFirstRowHeader(e.target.checked)} className="accent-violet-600" />
-                  First row is a header
-                </label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {templates.length > 0 && (
+                    <select
+                      value={appliedTpl || ''}
+                      onChange={(e) => { const t = templates.find((x) => x.name === e.target.value); if (t) applyTemplate(t); }}
+                      className="h-7 px-2 rounded border border-zinc-300 bg-white text-[11px] focus:outline-none focus:border-violet-500"
+                      data-testid="sicon-mapper-template-select"
+                    >
+                      <option value="">Load template…</option>
+                      {templates.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
+                    </select>
+                  )}
+                  {appliedTpl && templates.find((t) => t.name === appliedTpl) && (
+                    <button type="button" onClick={() => deleteTemplate(templates.find((t) => t.name === appliedTpl))}
+                      className="text-zinc-400 hover:text-red-600" title="Delete this template" data-testid="sicon-mapper-template-delete">
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                  <button type="button" onClick={saveTemplate} className="inline-flex items-center gap-1 text-[11px] text-violet-700 hover:underline" data-testid="sicon-mapper-template-save">
+                    <Bookmark size={11} /> Save template
+                  </button>
+                  <label className="inline-flex items-center gap-1.5 text-[11px] text-zinc-600 cursor-pointer" data-testid="sicon-mapper-header-toggle">
+                    <input type="checkbox" checked={firstRowHeader} onChange={(e) => setFirstRowHeader(e.target.checked)} className="accent-violet-600" />
+                    First row is a header
+                  </label>
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[

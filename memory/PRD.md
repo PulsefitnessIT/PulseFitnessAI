@@ -1,3 +1,24 @@
+# ═══ 2026-08-09 · Save Mapping Template (one-click repeat imports) — curl+screenshot verified ═══
+Remember column choices per export format so re-imports auto-apply.
+  • BACKEND routes/master_admin_integrations.py (master-admin, platform-wide, collection db.sicon_import_templates):
+      GET    /master-admin/sicon/import-templates            → {templates:[{id,name,col_map,first_row_header,header_signature,…}]}
+      POST   /master-admin/sicon/import-templates            → upsert by NAME {name,col_map,first_row_header,header_signature}
+      DELETE /master-admin/sicon/import-templates/{id}        → {deleted}
+    ⚠️ ROUTE-ORDERING FIX: templates path was originally under /equipment-mapping/templates which collided with the
+    dynamic /equipment-mapping/{org_id} (FastAPI matched {org_id}="templates"). Moved to /sicon/import-templates.
+  • FRONTEND SiconEquipmentMapper.js: sigFor(analysis, firstRowHeader) builds a header/column signature
+    (h:col|col|… when header, else c:<count>). On paste, if a saved template's header_signature matches → AUTO-APPLIES
+    its col_map + first_row_header (zero-click) and shows "template '<name>' applied". A "Load template…" dropdown,
+    "Save template" (prompts for a name; upserts), and a trash icon to delete the applied template. testids:
+    sicon-mapper-template-select, -template-save, -template-delete.
+  • VERIFIED: curl (save→list shows col_map+signature→upsert same name keeps count 1→delete→empty); screenshot: saved
+    "Sage 200 export", re-pasted same format → auto-applied (dropdown selected, columns mapped Asset Tag/Ref No/Cost Code,
+    header on). Test template DELETED — db.sicon_import_templates back to 0. No other preview data changed.
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 · Column Mapping UI for Auto-Match (unusual/headerless exports) — screenshot verified ═══
 SiconEquipmentMapper.js auto-match now lets you map columns manually when the export headers don't auto-detect.
   • Refactor: splitTable() → cell matrix (CSV/TSV auto-delimiter); analyzeImport() returns {table, colCount, detected,
