@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, ChevronRight, ChevronDown, Shield, Sparkles, Loader2, Plus, ArrowRightLeft, Trash2, MapPin, FileText, AlertTriangle } from 'lucide-react';
+import { Search, ChevronRight, ChevronDown, Shield, Sparkles, Loader2, Plus, ArrowRightLeft, Trash2, MapPin, FileText, AlertTriangle, CheckSquare, Square, Check, X } from 'lucide-react';
 import { useAuth } from '@/App';
 
 // MOD SOR (Schedule C) service-tier definitions — shown as hover
@@ -36,8 +36,18 @@ const LiteEquipmentTab = ({
   // popover for one equipment row at a time.
   const [movingId, setMovingId] = useState(null);
   // Iter 2026-08-09 — collapse/expand each location zone so a large estate
-  // list stays tidy. Holds the set of collapsed zone keys (default: all open).
-  const [collapsedZones, setCollapsedZones] = useState(() => new Set());
+  // list stays tidy. Persisted per-org in localStorage so the open/closed
+  // state survives between visits.
+  const collapseStorageKey = `pf-equip-collapsed-zones:${user?.organization_id || 'default'}`;
+  const [collapsedZones, setCollapsedZones] = useState(() => {
+    try {
+      const raw = localStorage.getItem(collapseStorageKey);
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch { return new Set(); }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(collapseStorageKey, JSON.stringify(Array.from(collapsedZones))); } catch { /* noop */ }
+  }, [collapsedZones, collapseStorageKey]);
   const toggleZone = (loc) => {
     setCollapsedZones((prev) => {
       const next = new Set(prev);
@@ -47,6 +57,74 @@ const LiteEquipmentTab = ({
   };
   const canManageKit = user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin;
   const realSites = (sites || []).filter(s => !s.is_default);
+
+  // Iter 2026-08-09 — Bulk "Move kit to a zone" (gym refit). Owners/managers
+  // enter select mode, tick machines, then reassign them all to one location.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkZone, setBulkZone] = useState('');
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const zoneOptions = Array.from(
+    new Set((filteredEquipment || []).map((e) => (e.location || '').trim()).filter(Boolean)),
+  ).sort();
+  const toggleSelectMode = () => {
+    setSelectMode((on) => {
+      if (on) { setSelectedIds(new Set()); setBulkZone(''); }
+      return !on;
+    });
+  };
+  const toggleSelected = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const zoneAllSelected = (items) => items.length > 0 && items.every((e) => selectedIds.has(e.id));
+  const toggleZoneSelectAll = (items) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      const all = items.every((e) => next.has(e.id));
+      items.forEach((e) => { if (all) next.delete(e.id); else next.add(e.id); });
+      return next;
+    });
+  };
+  const toggleSelectAllVisible = () => {
+    setSelectedIds((prev) => {
+      const all = (filteredEquipment || []).every((e) => prev.has(e.id));
+      return all ? new Set() : new Set((filteredEquipment || []).map((e) => e.id));
+    });
+  };
+  const bulkMoveToZone = async () => {
+    const zone = (bulkZone || '').trim();
+    const ids = Array.from(selectedIds);
+    if (!ids.length) { notify.error('Select at least one machine'); return; }
+    setBulkSaving(true);
+    let ok = 0; let failed = 0;
+    for (const id of ids) {
+      try {
+        await axios.patch(
+          `${API}/equipment/${id}`,
+          { location: zone },
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        ok += 1;
+      } catch { failed += 1; }
+    }
+    setBulkSaving(false);
+    if (ok > 0) {
+      notify.success(
+        `Moved ${ok} ${ok === 1 ? 'machine' : 'machines'} to ${zone || 'Unassigned'}`,
+        failed > 0 ? `${failed} could not be moved — try again.` : undefined,
+      );
+      setSelectMode(false);
+      setSelectedIds(new Set());
+      setBulkZone('');
+      onEquipmentUpdated && onEquipmentUpdated();
+    } else {
+      notify.error('Move failed', 'None of the selected machines could be moved.');
+    }
+  };
 
   const moveEquipment = async (eqId, targetSiteId) => {
     try {
@@ -177,6 +255,7 @@ const LiteEquipmentTab = ({
     const faults = getEquipmentFaults(eq);
     const openFaults = faults.filter(f => f.status !== 'resolved').length;
     const eqBorderColor = openFaults > 0 ? 'var(--color-danger)' : 'var(--color-success-alt-2)';
+    const isSelected = selectedIds.has(eq.id);
     // Thumbnail fallback chain:
     //   1. Operator-uploaded on-site photo (best — ground truth)
     //   2. AI-matched manufacturer image (auto-lookup)
@@ -186,8 +265,15 @@ const LiteEquipmentTab = ({
       || eq.auto_image_url
       || (eq.spec_sheet_id ? `${API}/spec-sheets/image/${eq.spec_sheet_id}` : null);
     return (
-      <Card key={eq.id} className="p-5 cursor-pointer hover:border-[rgb(var(--rgb-brand-cyan-hover)/0.3)] transition-all" style={{ background: 'var(--theme-surface, var(--color-surface-dark-alt))', borderLeft: `4px solid ${eqBorderColor}`, borderColor: eqBorderColor }} onClick={() => onSelectEquipment(eq)} data-testid={`lite-equip-${eq.id}`}>
+      <Card key={eq.id} className="p-5 cursor-pointer hover:border-[rgb(var(--rgb-brand-cyan-hover)/0.3)] transition-all" style={{ background: 'var(--theme-surface, var(--color-surface-dark-alt))', borderLeft: `4px solid ${selectMode && isSelected ? 'var(--color-brand-cyan-hover)' : eqBorderColor}`, borderColor: selectMode && isSelected ? 'var(--color-brand-cyan-hover)' : eqBorderColor }} onClick={() => (selectMode ? toggleSelected(eq.id) : onSelectEquipment(eq))} data-testid={`lite-equip-${eq.id}`}>
         <div className="flex items-center gap-3">
+          {selectMode && (
+            <div className="shrink-0" data-testid={`lite-equip-select-${eq.id}`}>
+              {isSelected
+                ? <CheckSquare size={20} className="text-[var(--color-brand-cyan-hover)]" />
+                : <Square size={20} className="text-[var(--color-text-muted)]" />}
+            </div>
+          )}
           <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0">
             {/* Placeholder renders underneath — visible when no thumb,
                 or when the img fails to load and hides itself. */}
@@ -260,8 +346,9 @@ const LiteEquipmentTab = ({
               );
             })()}
             {/* Iter 216h49 — owner/manager kit row actions. Stop
-                propagation so clicks don't drill into the detail view. */}
-            {canManageKit && realSites.length > 1 && (
+                propagation so clicks don't drill into the detail view.
+                Hidden in bulk-select mode. */}
+            {!selectMode && canManageKit && realSites.length > 1 && (
               <Button
                 type="button"
                 size="sm"
@@ -274,7 +361,7 @@ const LiteEquipmentTab = ({
                 <ArrowRightLeft size={13} />
               </Button>
             )}
-            {canManageKit && (
+            {!selectMode && canManageKit && (
               <Button
                 type="button"
                 size="sm"
@@ -287,7 +374,7 @@ const LiteEquipmentTab = ({
                 <Trash2 size={13} />
               </Button>
             )}
-            <ChevronRight size={16} className="text-[var(--color-text-muted)]" />
+            {!selectMode && <ChevronRight size={16} className="text-[var(--color-text-muted)]" />}
           </div>
         </div>
         {movingId === eq.id && (
@@ -363,7 +450,77 @@ const LiteEquipmentTab = ({
               : <><Sparkles size={12} className="mr-1.5" /> {t('equip.autofind', { count: missingImages, defaultValue: 'Auto-find {{count}} image' })}{missingImages > 1 ? t('equip.plural_s', 's') : ''}</>}
           </Button>
         )}
+        {/* Bulk "Move kit to a zone" (gym refit) — owners/managers only. */}
+        {canManageKit && filteredEquipment.length > 0 && !selectMode && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-10 text-xs border-[var(--theme-border)] text-[var(--theme-text)] bg-[var(--theme-surface)] hover:bg-[var(--theme-surface)]"
+            onClick={toggleSelectMode}
+            data-testid="lite-equip-bulk-move-btn"
+          >
+            <ArrowRightLeft size={12} className="mr-1.5" /> {t('equip.bulk_move', 'Move kit')}
+          </Button>
+        )}
       </div>
+
+      {/* Bulk-move action bar — appears in select mode. Tick machines, type or
+          pick the target zone, Apply. Reassigns location for all selected. */}
+      {selectMode && (
+        <div className="sticky top-2 z-20 flex flex-col sm:flex-row sm:items-center gap-2 p-3 rounded-lg border border-[var(--color-brand-cyan-hover)]/40 bg-[var(--theme-surface)] shadow-lg" data-testid="lite-equip-bulk-bar">
+          <div className="flex items-center gap-3 flex-1">
+            <span className="text-sm font-semibold text-[var(--theme-text)]" data-testid="lite-equip-bulk-count">
+              {t('equip.bulk_selected', { count: selectedIds.size, defaultValue: '{{count}} selected' })}
+            </span>
+            <button
+              type="button"
+              onClick={toggleSelectAllVisible}
+              className="text-xs font-semibold text-[var(--color-brand-cyan-hover)] hover:underline"
+              data-testid="lite-equip-bulk-selectall"
+            >
+              {(filteredEquipment || []).length > 0 && (filteredEquipment || []).every((e) => selectedIds.has(e.id))
+                ? t('equip.bulk_clear', 'Clear all')
+                : t('equip.bulk_selectall', 'Select all')}
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              list="lite-equip-bulk-zone-list"
+              value={bulkZone}
+              onChange={(e) => setBulkZone(e.target.value)}
+              placeholder={t('equip.bulk_zone_placeholder', 'Move to zone…')}
+              maxLength={80}
+              disabled={bulkSaving}
+              className="h-9 w-full sm:w-48 px-2 rounded border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)] text-sm focus:outline-none focus:border-[var(--color-brand-cyan-hover)]"
+              data-testid="lite-equip-bulk-zone-input"
+            />
+            <datalist id="lite-equip-bulk-zone-list">
+              {zoneOptions.map((l) => <option key={l} value={l} />)}
+            </datalist>
+            <Button
+              size="sm"
+              className="h-9 text-xs bg-[var(--color-brand-cyan-hover)] hover:opacity-90 text-white shrink-0"
+              onClick={bulkMoveToZone}
+              disabled={bulkSaving || selectedIds.size === 0}
+              data-testid="lite-equip-bulk-apply"
+            >
+              {bulkSaving
+                ? <><Loader2 size={12} className="mr-1.5 animate-spin" /> {t('equip.bulk_moving', 'Moving…')}</>
+                : <><Check size={13} className="mr-1.5" /> {t('equip.bulk_apply', { count: selectedIds.size, defaultValue: 'Move {{count}}' })}</>}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-9 text-xs text-[var(--color-text-muted)] shrink-0"
+              onClick={toggleSelectMode}
+              disabled={bulkSaving}
+              data-testid="lite-equip-bulk-cancel"
+            >
+              <X size={13} className="mr-1" /> {t('equip.bulk_cancel', 'Cancel')}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-2">
         {equipmentGroups.map(([loc, items]) => {
@@ -376,28 +533,43 @@ const LiteEquipmentTab = ({
           return (
             <div key={loc} className="space-y-2" data-testid={`lite-equip-group-${zoneKey}`}>
               {showGroupHeaders && (
-                <button
-                  type="button"
-                  onClick={() => toggleZone(loc)}
-                  className="w-full flex items-center gap-2 pt-3 first:pt-0 group text-left"
-                  aria-expanded={!collapsed}
-                  data-testid={`lite-equip-group-toggle-${zoneKey}`}
-                >
-                  {collapsed
-                    ? <ChevronRight size={14} className="text-[var(--color-text-muted)] shrink-0 transition-transform group-hover:text-[var(--theme-text)]" />
-                    : <ChevronDown size={14} className="text-[var(--color-text-muted)] shrink-0 transition-transform group-hover:text-[var(--theme-text)]" />}
-                  <MapPin size={13} className="text-[var(--color-text-muted)] shrink-0" />
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] shrink-0 group-hover:text-[var(--theme-text)]" data-testid={`lite-equip-group-label-${zoneKey}`}>
-                    {loc === UNASSIGNED_KEY ? t('equip.unassigned_location', 'Unassigned') : loc}
-                  </h3>
-                  <span className="text-[10px] text-[var(--color-text-muted)] shrink-0">({items.length})</span>
-                  {zoneOpenFaults > 0 && (
-                    <Badge className="bg-red-500/15 text-red-400 border-0 text-[10px] font-bold inline-flex items-center gap-1 shrink-0" data-testid={`lite-equip-group-faults-${zoneKey}`}>
-                      <AlertTriangle size={9} /> {zoneOpenFaults} {zoneOpenFaults > 1 ? t('faults.plural', 'faults') : t('faults.singular', 'fault')}
-                    </Badge>
+                <div className="flex items-center gap-1 pt-3 first:pt-0">
+                  {selectMode && (
+                    <button
+                      type="button"
+                      onClick={() => toggleZoneSelectAll(items)}
+                      className="shrink-0 p-0.5"
+                      title="Select all in this zone"
+                      data-testid={`lite-equip-group-selectall-${zoneKey}`}
+                    >
+                      {zoneAllSelected(items)
+                        ? <CheckSquare size={16} className="text-[var(--color-brand-cyan-hover)]" />
+                        : <Square size={16} className="text-[var(--color-text-muted)]" />}
+                    </button>
                   )}
-                  <div className="flex-1 h-px bg-[var(--theme-border)]" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleZone(loc)}
+                    className="flex-1 flex items-center gap-2 group text-left"
+                    aria-expanded={!collapsed}
+                    data-testid={`lite-equip-group-toggle-${zoneKey}`}
+                  >
+                    {collapsed
+                      ? <ChevronRight size={14} className="text-[var(--color-text-muted)] shrink-0 transition-transform group-hover:text-[var(--theme-text)]" />
+                      : <ChevronDown size={14} className="text-[var(--color-text-muted)] shrink-0 transition-transform group-hover:text-[var(--theme-text)]" />}
+                    <MapPin size={13} className="text-[var(--color-text-muted)] shrink-0" />
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] shrink-0 group-hover:text-[var(--theme-text)]" data-testid={`lite-equip-group-label-${zoneKey}`}>
+                      {loc === UNASSIGNED_KEY ? t('equip.unassigned_location', 'Unassigned') : loc}
+                    </h3>
+                    <span className="text-[10px] text-[var(--color-text-muted)] shrink-0">({items.length})</span>
+                    {zoneOpenFaults > 0 && (
+                      <Badge className="bg-red-500/15 text-red-400 border-0 text-[10px] font-bold inline-flex items-center gap-1 shrink-0" data-testid={`lite-equip-group-faults-${zoneKey}`}>
+                        <AlertTriangle size={9} /> {zoneOpenFaults} {zoneOpenFaults > 1 ? t('faults.plural', 'faults') : t('faults.singular', 'fault')}
+                      </Badge>
+                    )}
+                    <div className="flex-1 h-px bg-[var(--theme-border)]" />
+                  </button>
+                </div>
               )}
               {!collapsed && items.map(renderEquipmentCard)}
             </div>

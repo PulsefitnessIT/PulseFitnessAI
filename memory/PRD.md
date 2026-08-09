@@ -1,3 +1,24 @@
+# ═══ 2026-08-09 · Bulk "Move kit to a zone" + remembered collapsed zones (equipment list) — screenshot+curl verified ═══
+Two follow-ons in pages/LiteDashboard/LiteEquipmentTab.js.
+  • BULK MOVE KIT (gym refit): owners/managers get a "Move kit" button (lite-equip-bulk-move-btn) that enters SELECT MODE.
+    Each card shows a CheckSquare/Square tick (lite-equip-select-<id>); clicking a card toggles selection instead of
+    opening it; selected cards get a cyan border. A sticky action bar (lite-equip-bulk-bar) shows "N selected" +
+    Select-all/Clear (lite-equip-bulk-selectall), a target-zone input with a datalist of existing zones
+    (lite-equip-bulk-zone-input), "Move N" (lite-equip-bulk-apply) and Cancel (lite-equip-bulk-cancel). Per-zone
+    "select all in this zone" (lite-equip-group-selectall-<zone>) sits left of each group header. Apply loops
+    PATCH /api/equipment/{id} {location} over the selected ids (partial-failure tolerant: reports moved/failed counts),
+    then onEquipmentUpdated() reloads so they regroup under the new zone. Row move/delete/chevron hidden in select mode.
+  • REMEMBER COLLAPSED ZONES: collapsedZones is now seeded from + persisted to localStorage key
+    `pf-equip-collapsed-zones:<organization_id>` (useEffect writes on change), so each zone's open/closed state survives
+    between visits, per-org.
+  • VERIFIED: babel clean, webpack compiled. Screenshot: select mode → Cardio Suite select-all ticked 3 (cyan borders) →
+    typed "Strength Zone" → "Move 3" → toast "Moved 3 machines to Strength Zone" + list regrouped under STRENGTH ZONE (3).
+    curl confirmed persistence, then DEMO DATA RESTORED to Main Gym(4)/Cardio Suite(3)/Unassigned(1) on the MOD Test Site.
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 · Edit a machine's location from the equipment drawer (operator side) — screenshot+curl verified ═══
 Follow-on to the zone grouping + collapse/fault-badge work. User: let users edit a machine's location in case kit is
 physically moved around. Previously location was editable only from Master Admin; the operator equipment drawer showed
