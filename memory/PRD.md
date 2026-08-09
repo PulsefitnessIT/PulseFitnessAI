@@ -1,3 +1,35 @@
+# ═══ 2026-08-09 (fork) · Master Admin fixes — org drawer role/width (D) + CRM operator-company scoping (C) + operator-portal verified (A) ═══
+User batch: (A) "Pulse Fitness Portal" switch shows no Pulse Fitness Ltd operations data; (B) MA login lands on Pulse Fitness AI
+Admin console; (C) Master Admin can't see CRM companies/contacts (worked as Owner); (D) org drawer — Staffing/CRM role doesn't pull
+through (blank dropdown) + names truncated, widen drawer. User confirmed: MA should be treated as working INSIDE the operator
+company (Pulse Fitness Ltd); production operations+CRM data IS under "Pulse Fitness Ltd" (is_operator_company).
+  • ✅ ISSUE D (FIXED, compile-clean) frontend/src/pages/MasterAdmin/AdminOrganizations.js:
+     - Role Select rendered BLANK whenever a user's role wasn't a standard ops role (CRM roles, Staffing roles). Now a fallback
+       <SelectItem> for any non-standard current role is injected (humanised label) so the dropdown ALWAYS shows the real role;
+       added SelectValue placeholder="—". Trigger width w-24→w-28.
+     - Drawer widened sm:max-w-2xl → sm:max-w-3xl; user name/email truncate → break-words/break-all so FULL names show.
+     - (Browser screenshot of the drawer kept timing out on the automated open interaction, but changes are pure CSS + one safe
+       conditional item; babel/webpack clean; MA org list renders fine.)
+  • ✅ ISSUE C (FIXED + verified) backend/routes/crm_auth.py get_crm_user():
+     - ROOT CAUSE: CRM scopes to user.organization_id; a Master Admin's home org is the internal platform admin org (d19de469…)
+       which has NO CRM data → companies vanished vs. when they were an Owner. crm_cross_login provisions the CRM user with that
+       empty platform org.
+     - FIX: in get_crm_user, if user.is_master_admin or is_pulse_admin, override user["organization_id"] to the is_operator_company
+       org (Pulse Fitness Ltd). This scopes EVERY CRM v2 request (list + create + update via _of/compute_visibility) to the operator
+       company. Falls back to own org if no operator company configured.
+     - VERIFIED (localhost + seeded data): MA cross-login → GET /api/crm/v2/companies returns Pulse Fitness Ltd's company. Cleaned up.
+  • ✅ ISSUE A (VERIFIED — code already correct, no change needed): master-admin/operator-portal-login mints an act_token scoped to
+     the operator company (organization_name="Pulse Fitness Ltd", act_org honored by utils/auth.py). /dashboard?as=operator sets
+     previewAsOperator→ operator view. In PREVIEW Pulse Fitness Ltd had 0 equipment/issues so it looked empty; after seeding 1 machine
+     the operator act-token returned equipment=1. On PRODUCTION (data present) the switch will show operations data → REDEPLOY & retest.
+  • ℹ️ ISSUE B (no change): MA landing on the admin console is by design; user did not ask to change it.
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push C+D live.
+  Files: frontend MasterAdmin/AdminOrganizations.js; backend routes/crm_auth.py. Diagnosis touched utils/auth.py
+  (get_organization_filter — unchanged), routes/master_admin_users.py (admin_edit_user role→master_admin re-home logic — unchanged).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 (fork) · Check Sheets organised by LOCATION (zone) — screenshot verified ═══
 User: now that equipment is broken down into locations, organise the Check Sheets into locations too so machines are easier to find per location.
   • FRONTEND pages/PulseCheckSheetsTab.js (used by the Lite/MOD LiteDashboardPage 'Check Sheets' tab, equipment prop): the Sheets

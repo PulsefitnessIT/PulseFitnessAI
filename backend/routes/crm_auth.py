@@ -100,6 +100,16 @@ async def get_crm_user(request: Request, credentials: HTTPAuthorizationCredentia
         user["is_org_owner"] = scope_user["is_org_owner"]
         user["is_master_admin"] = scope_user["is_master_admin"]
         user["is_pulse_admin"] = scope_user["is_pulse_admin"]
+        # Iter 2026-08-09 (fork) — a platform / Pulse Master Admin is a Pulse
+        # Fitness Ltd employee. Their own login org (the internal platform admin
+        # org) holds no CRM data, so scope their CRM session to the OPERATOR
+        # COMPANY (is_operator_company → "Pulse Fitness Ltd") so they see and
+        # work its companies/contacts/pipeline. Falls back to their own org if
+        # no operator company is configured.
+        if user.get("is_master_admin") or user.get("is_pulse_admin"):
+            _op = await db.organizations.find_one({"is_operator_company": True}, {"_id": 0, "id": 1})
+            if _op and _op.get("id"):
+                user["organization_id"] = _op["id"]
         set_request_site_scope(scope_user)
         set_requested_site(request.headers.get("x-site-id"))
     except Exception:
