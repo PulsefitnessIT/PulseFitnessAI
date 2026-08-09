@@ -550,3 +550,94 @@ async def sicon_equipment_mapping_save(org_id: str, data: dict = Body(...),
         {"organization_id": org_id, "sicon_equipment_id": {"$ne": None}},
     )
     return {"updated": updated, "total": total, "mapped": mapped}
+
+
+
+# ── Auto-match Sicon asset IDs by serial number ───────────────────
+# There is NO live Sicon/Sage installed-asset list endpoint (confirmed by
+# /app/memory/SICON_API_AUDIT_2026-06.md across Service/Contracts/CRM/Core/
+# Projects). Equipment must come from a Sage 200 / Sicon export (CSV/Excel).
+# This engine matches those export rows to local machines by serial number
+# and returns per-machine suggestions to pre-fill the mapper (review → Save).
+# `source="live"` is a stub for when/if a Sicon Asset Management API is
+# confirmed — wire the pull there and feed the same _match_by_serial().
+
+def _norm_serial(s) -> str:
+    return str(s or "").strip().lower()
+
+
+def _match_by_serial(import_rows: list, equipment: list) -> dict:
+    """Match import rows (each {serial, sicon_equipment_id, sage_item_id}) to
+    local equipment by serial. Returns suggestions + stats."""
+    by_serial: dict[str, dict] = {}
+    for r in import_rows:
+        key = _norm_serial(r.get("serial"))
+        if key:
+            by_serial[key] = r
+    matched, already_correct, used_serials = [], 0, set()
+    for eq in equipment:
+        key = _norm_serial(eq.get("serial_number"))
+        if not key or key not in by_serial:
+            continue
+        row = by_serial[key]
+        used_serials.add(key)
+        sug_sicon = _coerce_int_or_none(row.get("sicon_equipment_id"))
+        sug_sage = _coerce_int_or_none(row.get("sage_item_id"))
+        if sug_sicon is None and sug_sage is None:
+            continue
+        cur_sicon = eq.get("sicon_equipment_id")
+        if sug_sicon is not None and sug_sicon == cur_sicon:
+            already_correct += 1
+        matched.append({
+            "equipment_id": eq["id"],
+            "name": eq.get("name", ""),
+            "serial_number": eq.get("serial_number", ""),
+            "location": eq.get("location", ""),
+            "current_sicon_equipment_id": cur_sicon,
+            "current_sage_item_id": eq.get("sage_item_id"),
+            "suggested_sicon_equipment_id": sug_sicon,
+            "suggested_sage_item_id": sug_sage,
+        })
+    unmatched_serials = [s for s in by_serial.keys() if s not in used_serials]
+    return {
+        "matched": matched,
+        "stats": {
+            "import_rows": len(by_serial),
+            "matched": len(matched),
+            "already_correct": already_correct,
+            "unmatched_import": len(unmatched_serials),
+        },
+        "unmatched_import_serials": unmatched_serials[:100],
+    }
+
+
+@router.post("/master-admin/sicon/equipment-mapping/{org_id}/auto-match")
+async def sicon_equipment_auto_match(org_id: str, data: dict = Body(...),
+                                     user: dict = Depends(get_current_user)) -> dict:
+    """Auto-suggest Sicon asset IDs for an org's machines by matching serials.
+
+    source="import" (default): match against uploaded/pasted export `rows`.
+    source="live": reserved — no Sicon installed-asset list API exists yet.
+    """
+    require_master_admin(user)
+    source = (data.get("source") or "import").lower()
+    if source == "live":
+        return {
+            "available": False,
+            "reason": ("No Sicon/Sage installed-asset list API is available "
+                       "(Service/Contracts/CRM/Core/Projects all lack it). "
+                       "Use a Sage 200 / Sicon equipment export instead."),
+            "matched": [], "stats": {}, "unmatched_import_serials": [],
+        }
+    rows = data.get("rows") or []
+    if not isinstance(rows, list) or not rows:
+        raise HTTPException(status_code=400, detail="Provide import 'rows' (each with a serial).")
+    equipment = await db.equipment.find(
+        {"organization_id": org_id},
+        {"_id": 0, "id": 1, "name": 1, "serial_number": 1, "location": 1,
+         "sicon_equipment_id": 1, "sage_item_id": 1},
+    ).to_list(20000)
+    result = _match_by_serial(rows, equipment)
+    result["available"] = True
+    result["local_total"] = len(equipment)
+    return result

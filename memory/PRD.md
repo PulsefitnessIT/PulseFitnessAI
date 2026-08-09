@@ -1,3 +1,30 @@
+# ═══ 2026-08-09 · Auto-Match By Serial (Equipment ID Mapper) — CSV/paste import + live-pull stub — curl+screenshot verified ═══
+Founder chose option C. KEY CONSTRAINT (from /app/memory/SICON_API_AUDIT_2026-06.md, re-confirmed this session):
+there is NO live Sicon/Sage installed-asset list API (Service/Contracts/CRM/Core/Projects all lack it; StockItem =
+product catalogue, not serial-numbered assets). Equipment must come from a Sage 200 / Sicon export. So auto-match is
+sourced from that export, matched by serial — same value as a live pull.
+  • BACKEND routes/master_admin_integrations.py:
+      POST /master-admin/sicon/equipment-mapping/{org_id}/auto-match  (master-admin, org-scoped)
+        source="import" (default): body {rows:[{serial,sicon_equipment_id,sage_item_id}]}; _match_by_serial() matches
+          normalized serials against db.equipment, returns {matched:[{equipment_id,name,serial_number,location,
+          current_*,suggested_*}], stats:{import_rows,matched,already_correct,unmatched_import},
+          unmatched_import_serials[≤100], local_total, available:true}. READ-ONLY (suggestions only; nothing written).
+        source="live": STUB → {available:false, reason:"no Sicon/Sage asset list API…"} — wire a real pull here later
+          and feed the same _match_by_serial() engine.
+  • FRONTEND pages/MasterAdmin/SiconEquipmentMapper.js: "Auto-match by serial" button opens a panel with a textarea +
+    CSV upload. parseImport() (client) auto-detects delimiter (CSV/TSV), a header row and column variants
+    (serial / sicon|asset|equip-id / sage|item|stock), else positional [serial,sicon,sage]. On run → POST auto-match →
+    pre-fills ONLY rows whose suggestion differs from current (into `edits`, violet dirty highlight), shows a match-summary
+    banner + toast; user reviews then Save (existing PUT). testids: sicon-mapper-automatch-toggle,-panel,-textarea,-file,
+    -run,-close, sicon-mapper-match-summary.
+  • VERIFIED: backend restart clean; curl on iso-demo-org (2 real serials → suggested 4021/8801 & 4022; 1 bogus →
+    unmatched; live stub → available:false). Screenshot: paste 3 rows → toast "Matched 2 of 3 — 2 pre-filled", row
+    pre-filled 4022 highlighted, Save (2). NOT saved → no preview data changed.
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 · Sicon Equipment ID Mapper (bulk-map machines → Sicon asset IDs) — curl+screenshot verified ═══
 So faults cross-link to the right Sicon asset from day one (populates case.Equipments[].SiconEquipmentID).
   • BACKEND routes/master_admin_integrations.py (master-admin only, org-scoped):
