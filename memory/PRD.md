@@ -34763,3 +34763,11 @@ Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, 
 - Frontend (CRMMODQuoteWizard.js): Step-1 drag-and-drop dropzone + Browse + paste box (contract type chosen first, as before). Recognised lines flow into the existing Step-2 review screen with confidence '% match' badges and 'needs review' flags; unmatched rows become editable £0 lines. generate() now includes custom/needs_review lines so they survive to the quote.
 - Tested by testing_agent: backend 5/5, frontend E2E 100% (report: /app/test_reports/iteration_mod_auto_quote_import_jan2026.json). Created quote MOD-20260806-7E87 in the run. No bugs, no action items.
 - Also delivered: honest assessment that the in-app CRM Tender Writer (crm_v2.py) produces a strong first draft but does not yet match the LSL/DC/0223 pack (PDF export vs editable 2022-template DOCX, no per-response contents pages/figures/stat strips, no evidence traceability/QA, superlative-leaning prompt). Gap is closeable by porting the template engine + evidence rules into the product.
+
+## Changelog — 2026-08-09 (fork) · MOD Fault Wizard — finalize 3 changes (E2E verified)
+- Photo/video PREVIEW fix: StepAttachments.jsx keeps a local URL.createObjectURL(payload) as `preview` (falls back to serve URL), so the thumbnail renders instantly regardless of token/CSP. Verified thumbnail renders (naturalWidth/Height=200, not blank).
+- Description minimum lowered 40 → 30 chars (StepGuided.jsx counter "X / 30 minimum"; MODFaultWizard.js canNext/whyInvalid use >=30; backend FaultSubmit min_length=30).
+- New optional field "Any steps taken to fix?" (steps_taken): added to StepGuided.jsx (data-testid mod-field-steps-taken), wizardConfig emptyMachineData, and both online + offline submit paths in MODFaultWizard.js.
+- BACKEND FIX (this session): POST /api/mod/site/faults now PERSISTS steps_taken into the issues doc (was accepted by the model but silently dropped). GET /api/mod/site/faults/{id} returns it; IssueDetailPanel.js (lines 616-619) already renders it.
+- Testing: backend curl 200 + persisted steps_taken; frontend E2E 100% (test report iteration_mod_fault_wizard_3fixes_e2e_jan2026.json). Ticket MOD-2026-34010 created during test.
+- NOTE: "Report an incident → Reports tab (next to ASER)" was already completed in the prior session.
