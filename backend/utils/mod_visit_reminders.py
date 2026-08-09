@@ -26,6 +26,11 @@ _WINDOW_HIGH = REMINDER_LEAD_DAYS + 1
 # it was first sent.
 NUDGE_AFTER_DAYS = int(os.environ.get("MOD_BOOKING_NUDGE_DAYS", "7"))
 
+# Nudge the SUPPLIER if the engineer-callout (fault) booking form is still
+# unfilled this many hours after it was created/sent. It's the supplier who
+# provides the engineer details, so the reminder goes to them.
+FAULT_NUDGE_AFTER_HOURS = int(os.environ.get("MOD_FAULT_BOOKING_NUDGE_HOURS", "24"))
+
 
 def _parse_date(s: str) -> date | None:
     if not s:
@@ -166,4 +171,88 @@ async def run_mod_booking_nudges() -> dict:
 
     if sent:
         logger.info("[mod-booking-nudge] sent %d nudge(s)", sent)
-    return {"sent": sent}
+    fault_sent = await _run_fault_booking_supplier_nudges()
+    return {"sent": sent, "fault_supplier_sent": fault_sent}
+
+
+def _fault_booking_nudge_html(site_name: str, ticket_ref: str, booking_url: str) -> str:
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;background:#ffffff;color:#1B1D1D;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+  <div style="background:#1B1D1D;padding:18px 26px;border-bottom:3px solid #19CDFF;">
+    <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Reminder</div>
+    <h1 style="color:#fff;margin:6px 0 0 0;font-size:19px;">Engineer booking form still needs completing</h1>
+  </div>
+  <div style="padding:22px 26px;">
+    <p>The Engineer Appointment Booking form for <strong>{ticket_ref}</strong> at <strong>{site_name}</strong> hasn't been completed yet.</p>
+    <p>As the servicing provider, please add the engineer &amp; vehicle details the base needs to grant site access — this can't be actioned until it's submitted.</p>
+    <div style="margin:18px 0;">
+      <a href="{booking_url}" style="display:inline-block;background:#19CDFF;color:#04121a;font-weight:800;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;">Complete booking form &rarr;</a>
+    </div>
+    <p style="color:#6E7476;font-size:12px;">No login needed. You're receiving this because a fault was routed to you for service.</p>
+  </div>
+</div>"""
+
+
+async def _run_fault_booking_supplier_nudges() -> int:
+    """Remind the SUPPLIER when a MOD fault's engineer booking form is still
+    unfilled ~24h after it was created. Fires ONCE per booking (idempotent via
+    mod_booking.supplier_nudged_at). Targets the supplier the fault was
+    dispatched to (supplier_case → supplier_notified_email fallback)."""
+    from utils.email import send_email
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+
+    issues = await db.issues.find(
+        {"mod_booking.token": {"$exists": True},
+         "mod_booking.status": {"$in": ["sent", "draft"]},
+         "mod_booking.supplier_nudged_at": {"$in": [None, ""]}},
+        {"_id": 0, "id": 1, "mod_booking": 1, "mod_ticket_ref": 1,
+         "organization_id": 1, "mod_site_id": 1, "supplier_notified_email": 1},
+    ).to_list(5000)
+
+    sent = 0
+    for iss in issues:
+        booking = iss.get("mod_booking") or {}
+        created = _parse_dt(booking.get("sent_at") or booking.get("created_at"))
+        if not created:
+            continue
+        if (now - created).total_seconds() < FAULT_NUDGE_AFTER_HOURS * 3600:
+            continue
+
+        # Resolve the supplier's email — prefer the 2-way case, then the
+        # recorded dispatch recipient.
+        supplier_email = ""
+        case = await db.supplier_cases.find_one(
+            {"issue_id": iss["id"]}, {"_id": 0, "supplier_email": 1})
+        if case:
+            supplier_email = (case.get("supplier_email") or "").strip()
+        if not supplier_email:
+            supplier_email = (iss.get("supplier_notified_email") or "").strip()
+        if not supplier_email:
+            # Nothing to remind — stamp so we don't re-scan every cycle.
+            await db.issues.update_one(
+                {"id": iss["id"]},
+                {"$set": {"mod_booking.supplier_nudged_at": now_iso}})
+            continue
+
+        site = await db.organizations.find_one(
+            {"id": iss.get("mod_site_id") or iss.get("organization_id")},
+            {"_id": 0, "name": 1}) or {}
+        booking_url = _share_url(booking["token"]) if booking.get("token") else ""
+        ticket_ref = iss.get("mod_ticket_ref") or f"MODF-{str(iss['id'])[:8]}"
+        try:
+            await send_email(
+                supplier_email,
+                f"[Reminder] Engineer booking form — {ticket_ref} — {site.get('name', 'MOD site')}",
+                _fault_booking_nudge_html(site.get("name") or "the MOD site", ticket_ref, booking_url),
+            )
+        except Exception:
+            logger.exception("[mod-fault-booking-nudge] email failed for %s", iss["id"])
+
+        await db.issues.update_one(
+            {"id": iss["id"]},
+            {"$set": {"mod_booking.supplier_nudged_at": now_iso}})
+        sent += 1
+
+    if sent:
+        logger.info("[mod-fault-booking-nudge] sent %d supplier nudge(s)", sent)
+    return sent

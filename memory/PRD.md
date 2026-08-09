@@ -34795,3 +34795,9 @@ Incident Register (a) + PDF to Documents (b):
 Weekly Digest sub-tab hidden for MOD (kept for commercial). Incident modal backdrop raised to z-[80] full-cover.
 Testing: backend curl-verified (all endpoints 200); frontend E2E 100% for tested flows (report iteration_mod_batch_dio_incident_supplier_fe_jan2026.json).
 NOTE: preview change — user must REDEPLOY to reach production (fitness-ai-migrate.emergent.host).
+
+## Changelog — 2026-08-09 (fork) · Supplier Booking Nudge (24h)
+- utils/mod_visit_reminders.run_mod_booking_nudges() extended: new _run_fault_booking_supplier_nudges() sweep reminds the SUPPLIER when a MOD fault's Engineer Appointment Booking form (issues.mod_booking) is still status sent/draft > 24h after creation. Env: MOD_FAULT_BOOKING_NUDGE_HOURS (default 24).
+- Targets the supplier the fault was dispatched to: supplier_cases.supplier_email → issue.supplier_notified_email fallback. Idempotent via issues.mod_booking.supplier_nudged_at (fires once). Runs on the existing sicon_poller cadence (already hooked at _run_mod_booking_nudges).
+- Branded reminder email _fault_booking_nudge_html with "Complete booking form →" link to /mod-booking/{token}.
+- Verified via direct run: RUN1 fault_supplier_sent=1, RUN2=0 (idempotent), supplier_nudged_at stamped. Email send itself fails on PREVIEW ONLY (invalid Resend key) — works in production after redeploy.
