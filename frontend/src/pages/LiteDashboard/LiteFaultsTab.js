@@ -173,18 +173,6 @@ const LiteFaultsTab = ({
             <Calendar size={14} /> {t('faults.ppm', 'Planned Maintenance (PPM)')}
           </button>
         )}
-        {/* Iter 286 — Report Incident moved here (after Planned Maintenance)
-            from the old floating CTA. Opens the MOD personal-incident wizard. */}
-        {showReportIncident && (
-          <button type="button"
-            className="subtab-pill"
-            onClick={() => onReportIncident && onReportIncident()}
-            data-testid="lite-faults-report-incident"
-            style={{ color: 'var(--color-danger)' }}
-            title="Report a personal incident (RIDDOR)">
-            <ShieldAlert size={14} /> {t('faults.report_incident', 'Report Incident')}
-          </button>
-        )}
       </div>
 
       {faultView === 'ppm' && ppmEnabled && <PPMSubTab />}

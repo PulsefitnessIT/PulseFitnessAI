@@ -112,7 +112,7 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
     if (phase === 'equipment') return selectedIds.length > 0;
     if (phase === 'machine') {
       if (sub === 0) return !!currentData.fault_type;
-      if (sub === 1) return currentData.description.trim().length >= 40 && !!currentData.onset && !!currentData.usable && !!currentData.safe_in_service;
+      if (sub === 1) return currentData.description.trim().length >= 30 && !!currentData.onset && !!currentData.usable && !!currentData.safe_in_service;
       return true; // attachments optional
     }
     if (phase === 'reporter') return !!reporterStaffId;
@@ -124,7 +124,7 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
     if (phase === 'machine') {
       if (sub === 0) return 'Pick a fault type for this machine';
       if (sub === 1) {
-        if (currentData.description.trim().length < 40) return 'Description must be at least 40 characters';
+        if (currentData.description.trim().length < 30) return 'Description must be at least 30 characters';
         if (!currentData.onset) return 'Pick when it started';
         if (!currentData.usable) return "Say whether it's usable";
         if (!currentData.safe_in_service) return "Say whether it's safe in service";
@@ -173,6 +173,7 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
               equipment_id: id,
               fault_type: md.fault_type,
               description: md.description,
+              steps_taken: md.steps_taken || '',
               onset: md.onset,
               usable: md.usable,
               safe_in_service: md.safe_in_service,
@@ -194,6 +195,7 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
             equipment_id: id,
             fault_type: md.fault_type,
             description: md.description,
+            steps_taken: md.steps_taken || '',
             onset: md.onset,
             usable: md.usable,
             safe_in_service: md.safe_in_service,

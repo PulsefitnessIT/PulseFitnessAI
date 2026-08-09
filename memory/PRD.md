@@ -1,3 +1,22 @@
+# ═══ 2026-08-09 · Moved "Report Incident" from Faults → Reports (right of ASER) — screenshot verified ═══
+User: MOD service — move "Report an incident" from Faults to the Reports tab, next to (right of) ASER.
+IMPORTANT ROUTING NOTE: the LIVE MOD dashboard is LiteDashboardPage (/pulse), NOT MODPortal/MODSiteDashboard.js
+(that file + its _MODSiteDashboard lazy import in routes/AppRoutes.js are DEAD/unused — do not edit for live MOD UI).
+The Reports tab renders pages/PulseReportsTab.js; the Faults tab renders LiteDashboard/LiteFaultsTab.js.
+  • pages/PulseReportsTab.js: added a "Report Incident" sub-tab immediately AFTER the ASER sub-tab (MOD-only), rendered
+    in red (var(--color-danger)). It's a launcher (launch:'incident') that opens MODIncidentWizard as an overlay
+    (new incidentOpen state + import). Generalised the sub-tab map: aser → action, incident → launch, others → subTab.
+    testid pulse-report-sub-report-incident.
+  • pages/LiteDashboard/LiteFaultsTab.js: removed the old "Report Incident" sub-tab pill (was after Planned Maintenance).
+    (showReportIncident/onReportIncident props + LiteDashboardPage's incidentOpen wiring now unused but left in place.)
+  • VERIFIED: babel clean, webpack compiled; screenshot on MOD Test Site Reports tab shows
+    "… ASER · Report Incident (red) · CAPEX Intelligence" and clicking it opens the personal-incident wizard.
+    MODSiteDashboard.js dead-code edits were reverted via git checkout.
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 · Save Mapping Template (one-click repeat imports) — curl+screenshot verified ═══
 Remember column choices per export format so re-imports auto-apply.
   • BACKEND routes/master_admin_integrations.py (master-admin, platform-wide, collection db.sicon_import_templates):

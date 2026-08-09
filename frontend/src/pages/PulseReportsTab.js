@@ -12,6 +12,7 @@ import {
   PoundSterling, RefreshCw, Shield, Mail, ShieldAlert
 } from 'lucide-react';
 import MODASERPortal from './MODPortal/MODASERPortal';
+import MODIncidentWizard from './MODPortal/MODIncidentWizard';
 import RiskAssessmentTab from './RiskAssessmentTab';
 import CapexIntelligenceTab from './CapexIntelligenceTab';
 import IncidentsTab from './IncidentsTab';
@@ -28,6 +29,7 @@ const PulseReportsTab = () => {
   const [loading, setLoading] = useState(true);
   const [subTab, setSubTab] = useState('performance');
   const [aserOpen, setAserOpen] = useState(false);
+  const [incidentOpen, setIncidentOpen] = useState(false);
   const isMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
@@ -108,16 +110,22 @@ const PulseReportsTab = () => {
           { id: 'risk', label: 'Risk Assessments', icon: Shield },
           { id: 'incidents', label: 'H&S Incidents', icon: AlertTriangle },
           ...(isMOD ? [{ id: 'aser', label: 'ASER', icon: ShieldAlert, action: true }] : []),
+          ...(isMOD ? [{ id: 'report-incident', label: 'Report Incident', icon: ShieldAlert, launch: 'incident' }] : []),
           ...(['owner', 'manager', 'master_admin'].includes(user?.role) ? [{ id: 'capex', label: 'CAPEX Intelligence', icon: PoundSterling }] : []),
           ...(['owner', 'manager', 'master_admin'].includes(user?.role) ? [{ id: 'weekly-digest', label: 'Weekly Digest', icon: Mail }] : []),
         ].map(tab => {
-          const isActive = tab.action ? aserOpen : (subTab === tab.id && !aserOpen);
+          const isActive = tab.action ? aserOpen : (tab.launch ? false : (subTab === tab.id && !aserOpen));
           return (
             <button
               key={tab.id}
               type="button"
               className={`subtab-pill ${isActive ? 'is-active' : ''}`}
-              onClick={() => { if (tab.action) { setAserOpen(true); } else { setAserOpen(false); setSubTab(tab.id); } }}
+              style={tab.launch === 'incident' ? { color: 'var(--color-danger, #f87171)' } : undefined}
+              onClick={() => {
+                if (tab.action) { setIncidentOpen(false); setAserOpen(true); }
+                else if (tab.launch === 'incident') { setIncidentOpen(true); }
+                else { setAserOpen(false); setSubTab(tab.id); }
+              }}
               data-testid={`pulse-report-sub-${tab.id}`}
             >
               <tab.icon size={14} /> {tab.label}
@@ -128,8 +136,7 @@ const PulseReportsTab = () => {
 
       {aserOpen ? (
         <MODASERPortal onClose={() => setAserOpen(false)} />
-      ) : (
-      <>
+      ) : (      <>
       {subTab === 'performance' && <KPIPerformanceDashboard />}
       {subTab === 'risk' && <RiskAssessmentTab />}
       {subTab === 'incidents' && <IncidentsTab />}
@@ -298,6 +305,15 @@ const PulseReportsTab = () => {
       </>
       )}
       </>
+      )}
+
+      {/* Personal-incident wizard — launched from the "Report Incident" sub-tab
+          (moved here, right of ASER, from the Faults tab). Overlay modal. */}
+      {incidentOpen && (
+        <MODIncidentWizard
+          onClose={() => setIncidentOpen(false)}
+          onSubmitted={() => setIncidentOpen(false)}
+        />
       )}
     </div>
   );

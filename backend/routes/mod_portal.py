@@ -109,7 +109,8 @@ class StaffTransferRequest(BaseModel):
 class FaultSubmit(BaseModel):
     equipment_id: str
     fault_type: str = Field(..., pattern=r"^(not_working|noise|electrical|damage|safety|other)$")
-    description: str = Field(..., min_length=40, max_length=4000)
+    description: str = Field(..., min_length=30, max_length=4000)
+    steps_taken: Optional[str] = Field(default=None, max_length=2000)
     onset: str = Field(..., pattern=r"^(today|yesterday|this_week|older)$")
     usable: str = Field(..., pattern=r"^(yes|limited|no)$")
     safe_in_service: str = Field(..., pattern=r"^(yes|no)$")

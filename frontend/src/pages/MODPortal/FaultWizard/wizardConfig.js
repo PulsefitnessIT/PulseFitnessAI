@@ -30,6 +30,7 @@ export const SAFE = [
 export const emptyMachineData = () => ({
   fault_type: '',
   description: '',
+  steps_taken: '',
   onset: '',
   usable: '',
   safe_in_service: '',

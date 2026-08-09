@@ -47,7 +47,11 @@ export function StepAttachments({ urls, onAdd, onRemove, machineName }) {
         onUploadProgress: (e) => { if (e.total) setProgress(Math.round((e.loaded / e.total) * 100)); },
       });
       const viewerUrl = `${API}/mod/site/attachments/serve?path=${encodeURIComponent(res.data.path)}&token=${encodeURIComponent(token)}`;
-      onAdd({ path: res.data.path, url: viewerUrl, kind: res.data.kind, size: res.data.size });
+      // Also keep a local object URL for the thumbnail so the preview renders
+      // instantly and reliably (independent of the serve endpoint / token / CSP).
+      let preview = null;
+      try { preview = URL.createObjectURL(payload); } catch { /* noop */ }
+      onAdd({ path: res.data.path, url: viewerUrl, preview, kind: res.data.kind, size: res.data.size });
       notify.success(`${isImage ? 'Photo' : 'Video'} added`);
     } catch (err) {
       const networkish = !err.response || err.code === 'ERR_NETWORK';
@@ -118,7 +122,7 @@ export function StepAttachments({ urls, onAdd, onRemove, machineName }) {
       {urls.length > 0 && (
         <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2">
           {urls.map((a, i) => {
-            const previewSrc = a.url || (a.blob ? URL.createObjectURL(a.blob) : null);
+            const previewSrc = a.preview || a.url || (a.blob ? URL.createObjectURL(a.blob) : null);
             return (
               <div key={i} className="relative aspect-square rounded-lg overflow-hidden border bg-black/40 group" style={{ borderColor: 'var(--theme-border)' }} data-testid={`mod-attachment-${i}`}>
                 {a.kind === 'video'

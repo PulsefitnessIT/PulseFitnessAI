@@ -4,7 +4,7 @@ import { StepTitle, RadioGroup } from './WizardPrimitives';
 export function StepGuided({ data, patch, machineName }) {
   return (
     <div className="space-y-5" data-testid="mod-step-guided">
-      <StepTitle eyebrow="Fault details" title="Tell us more" subtitle={machineName ? `${machineName} · ≥ 40 characters so the engineer can prep` : '≥ 40 characters so the engineer can prep before arrival'} />
+      <StepTitle eyebrow="Fault details" title="Tell us more" subtitle={machineName ? `${machineName} · ≥ 30 characters so the engineer can prep` : '≥ 30 characters so the engineer can prep before arrival'} />
       <label className="block">
         <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Description *</span>
         <textarea
@@ -17,12 +17,29 @@ export function StepGuided({ data, patch, machineName }) {
           data-testid="mod-field-description"
         />
         <div className="flex items-center justify-between mt-1 gap-3">
-          <div className={`text-[10px] font-bold ${data.description.length >= 40 ? 'text-emerald-500 dark:text-emerald-400' : ''}`} style={data.description.length >= 40 ? {} : { color: 'var(--theme-text-muted)' }}>
-            {data.description.length} / 40 minimum
+          <div className={`text-[10px] font-bold ${data.description.length >= 30 ? 'text-emerald-500 dark:text-emerald-400' : ''}`} style={data.description.length >= 30 ? {} : { color: 'var(--theme-text-muted)' }}>
+            {data.description.length} / 30 minimum
           </div>
           <div className="text-[10px] text-amber-600 dark:text-amber-300/90 font-semibold" data-testid="mod-field-classification-hint">
             ◆ OFFICIAL-SENSITIVE ceiling — do NOT include NSN, operation names, callsigns, personal data or anything above OFFICIAL-SENSITIVE.
           </div>
+        </div>
+      </label>
+
+      {/* Encourage richer context — what has already been tried on site. */}
+      <label className="block">
+        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Any steps taken to fix?</span>
+        <textarea
+          value={data.steps_taken || ''}
+          onChange={(e) => patch('steps_taken', e.target.value)}
+          rows={3}
+          placeholder="e.g. powered off and back on, checked the belt tension, isolated the machine. Leave blank if none."
+          className="mt-1 w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--color-brand-cyan)]"
+          style={{ background: 'var(--theme-surface-2)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+          data-testid="mod-field-steps-taken"
+        />
+        <div className="text-[10px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>
+          Optional — telling the engineer what you've already tried saves a wasted visit.
         </div>
       </label>
 
