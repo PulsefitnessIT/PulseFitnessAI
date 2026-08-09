@@ -1,3 +1,27 @@
+# ═══ 2026-08-09 · Edit a machine's location from the equipment drawer (operator side) — screenshot+curl verified ═══
+Follow-on to the zone grouping + collapse/fault-badge work. User: let users edit a machine's location in case kit is
+physically moved around. Previously location was editable only from Master Admin; the operator equipment drawer showed
+it read-only.
+  • FRONTEND pages/LiteDashboard/LiteDialogs.js (EquipmentDetailContent): the "Location" spec-grid tile is now an inline
+    editor (owners/managers/master admin — same gate as the supplier editor). Read state shows the location + a pencil;
+    click → compact input (datalist of the site's existing zones) with cyan ✓ save + ✕ cancel that fit inside the tile.
+    Saves via the generic PATCH /api/equipment/{id} {location} (org-scoped, ≤80 chars; Enter=save, Esc=cancel). On save
+    it updates selectedEquipment.location + calls onLocationChange so the list REGROUPS into the new zone immediately.
+    On failure the input reverts to the stored value.
+  • THREADING: added onLocationChange + locationOptions props through LiteDialogs → EquipmentDetailContent;
+    LiteDashboardPage wires onLocationChange (setEquipment state update) + locationOptions (unique existing zones).
+  • Collapse/expand + zone fault badge (same session, earlier): each zone header is a toggle (ChevronDown/Right,
+    aria-expanded) that collapses its rows; a red AlertTriangle "N faults" badge sums open faults per zone. testids:
+    lite-equip-group-toggle-<zone>, lite-equip-group-faults-<zone>.
+  • data-testid: lite-equip-location-edit-btn, lite-equip-location-input, lite-equip-location-save, lite-equip-location-cancel.
+  • VERIFIED: babel clean, webpack compiled; screenshot shows the in-tile editor; curl confirmed PATCH persisted
+    (PF-MODTS-002 location → "Cardio Suite"). Backend endpoint already allowed `location` (routes/equipment.py
+    update_equipment allowed_fields) — no backend change needed.
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 · Equipment tab grouped by location (small zone headers) — screenshot-verified ═══
 User: on a site with kit in multiple locations, order the Equipment list under its locations with a small header per
 zone so users can find a machine faster. (Mirrors the Fault Wizard grouping.)

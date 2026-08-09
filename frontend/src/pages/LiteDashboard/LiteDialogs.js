@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { AlertTriangle, CheckCircle, Shield, Download, FileText, Camera, Loader2, X, Wrench, Sparkles, Check, QrCode, ChevronDown } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Shield, Download, FileText, Camera, Loader2, X, Wrench, Sparkles, Check, QrCode, ChevronDown, Pencil } from 'lucide-react';
 import { CONTRACT_TYPE_TOOLTIP } from './LiteEquipmentTab';
 import axios from 'axios';
 import FaultTemplatePicker from '../Dashboard/FaultTemplatePicker';
@@ -38,7 +38,7 @@ const useBlobUrl = (url) => {
 };
 
 /* ─── Equipment Detail with Tabs (Details | Spec Sheet) ─── */
-const EquipmentDetailContent = ({ selectedEquipment, serviceProviders, getEquipmentFaults, getEquipmentFiles, getSeverityStyle, getSeverityLabel, getStatusColor, onLogFaultForEquipment, onDownloadFile, brandAccent = 'var(--color-brand-cyan-hover)', userRole = 'staff', onSupplierChange }) => {
+const EquipmentDetailContent = ({ selectedEquipment, serviceProviders, getEquipmentFaults, getEquipmentFiles, getSeverityStyle, getSeverityLabel, getStatusColor, onLogFaultForEquipment, onDownloadFile, brandAccent = 'var(--color-brand-cyan-hover)', userRole = 'staff', onSupplierChange, onLocationChange, locationOptions = [] }) => {
   const { t } = useTranslation();
   const specId = selectedEquipment.spec_sheet_id;
   const hasSpec = !!specId;
@@ -90,6 +90,78 @@ const EquipmentDetailContent = ({ selectedEquipment, serviceProviders, getEquipm
     } finally {
       setSavingSupplier(false);
     }
+  };
+
+  // Iter 2026-08-09 — inline Location editor (owners/managers) so operators
+  // can update a machine's zone when kit is physically moved. Uses the same
+  // generic PATCH /equipment/{id} (location is org-scoped, not cross-org).
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [savingLocation, setSavingLocation] = useState(false);
+  const [locationValue, setLocationValue] = useState(selectedEquipment.location || '');
+  useEffect(() => { setLocationValue(selectedEquipment.location || ''); setEditingLocation(false); }, [selectedEquipment.id, selectedEquipment.location]);
+  const handleSaveLocation = async () => {
+    const next = (locationValue || '').trim();
+    if (next === (selectedEquipment.location || '')) { setEditingLocation(false); return; }
+    setSavingLocation(true);
+    try {
+      await axios.patch(
+        `${API_BASE}/equipment/${selectedEquipment.id}`,
+        { location: next },
+        { headers: { Authorization: `Bearer ${authToken}` } },
+      );
+      selectedEquipment.location = next || null;
+      setEditingLocation(false);
+      notify.success(next ? 'Location updated' : 'Location cleared');
+      if (onLocationChange) onLocationChange(selectedEquipment.id, next || null);
+    } catch (err) {
+      setLocationValue(selectedEquipment.location || '');
+      notify.error(err?.response?.data?.detail || 'Could not update location');
+    } finally {
+      setSavingLocation(false);
+    }
+  };
+
+  const LocationCell = () => {
+    if (!canEditSupplier) return <>{selectedEquipment.location || '—'}</>;
+    if (!editingLocation) {
+      return (
+        <button
+          type="button"
+          onClick={() => setEditingLocation(true)}
+          className="inline-flex items-center gap-1.5 hover:opacity-80 text-left"
+          data-testid="lite-equip-location-edit-btn"
+          title="Edit location"
+        >
+          <span>{selectedEquipment.location || <span className="text-[var(--color-text-muted)] italic">Unassigned</span>}</span>
+          <Pencil size={11} className="text-[var(--color-text-muted)] shrink-0" />
+        </button>
+      );
+    }
+    return (
+      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <input
+          list="lite-equip-location-list"
+          value={locationValue}
+          autoFocus
+          maxLength={80}
+          disabled={savingLocation}
+          onChange={(e) => setLocationValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleSaveLocation(); if (e.key === 'Escape') { setLocationValue(selectedEquipment.location || ''); setEditingLocation(false); } }}
+          placeholder="e.g. Main Gym"
+          className="h-7 flex-1 min-w-0 px-2 rounded border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)] text-sm focus:outline-none focus:border-[var(--color-brand-cyan-hover)]"
+          data-testid="lite-equip-location-input"
+        />
+        <datalist id="lite-equip-location-list">
+          {locationOptions.map((l) => <option key={l} value={l} />)}
+        </datalist>
+        <button type="button" onClick={handleSaveLocation} disabled={savingLocation} className="h-7 w-7 shrink-0 rounded bg-[var(--color-brand-cyan-hover)] text-white inline-flex items-center justify-center" title="Save location" data-testid="lite-equip-location-save">
+          {savingLocation ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
+        </button>
+        <button type="button" onClick={() => { setLocationValue(selectedEquipment.location || ''); setEditingLocation(false); }} disabled={savingLocation} className="h-7 w-7 shrink-0 rounded border border-[var(--theme-border)] text-[var(--color-text-muted)] inline-flex items-center justify-center" title="Cancel" data-testid="lite-equip-location-cancel">
+          <X size={14} />
+        </button>
+      </div>
+    );
   };
 
   const eqFaults = getEquipmentFaults(selectedEquipment);
@@ -272,7 +344,7 @@ const EquipmentDetailContent = ({ selectedEquipment, serviceProviders, getEquipm
                     ) : selectedEquipment.manufacturer,
                     testId: 'lite-equip-manufacturer',
                   },
-                  { label: 'Location', value: selectedEquipment.location, testId: 'lite-equip-location' },
+                  { label: 'Location', value: <LocationCell />, testId: 'lite-equip-location' },
                   { label: 'Service Provider', value: currentSupplier, accent: !!currentSupplier, testId: 'lite-equip-supplier' },
                   ...(selectedEquipment.purchased_from
                     ? [{ label: 'Supplier (purchased from)', value: selectedEquipment.purchased_from, testId: 'lite-equip-purchased-from' }]
@@ -749,6 +821,7 @@ const LiteDialogs = ({
   // Iter 216h114 — caller role + supplier-change callback used to
   // power the inline supplier editor in the equipment detail dialog.
   userRole = 'staff', onSupplierChange,
+  onLocationChange, locationOptions = [],
   // Iter 216h115 — flag classification hint on free-text fields when
   // the caller is on a MOD-scoped account.
   isMOD = false,
@@ -860,6 +933,8 @@ const LiteDialogs = ({
             onDownloadFile={onDownloadFile}
             userRole={userRole}
             onSupplierChange={onSupplierChange}
+            onLocationChange={onLocationChange}
+            locationOptions={locationOptions}
           />}
         </DialogContent>
       </Dialog>

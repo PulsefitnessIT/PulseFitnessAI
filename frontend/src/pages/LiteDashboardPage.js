@@ -1212,6 +1212,12 @@ const LiteDashboardPage = () => {
             e.id === equipmentId ? { ...e, supplier: supplierName, supplier_id: supplierId } : e
           )));
         }}
+        onLocationChange={(equipmentId, location) => {
+          setEquipment((list) => list.map((e) => (
+            e.id === equipmentId ? { ...e, location } : e
+          )));
+        }}
+        locationOptions={Array.from(new Set((equipment || []).map((e) => (e.location || '').trim()).filter(Boolean))).sort()}
       />
 
       {/* Mobile Bottom Navigation */}

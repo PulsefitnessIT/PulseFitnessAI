@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, ChevronRight, Shield, Sparkles, Loader2, Plus, ArrowRightLeft, Trash2, MapPin, FileText } from 'lucide-react';
+import { Search, ChevronRight, ChevronDown, Shield, Sparkles, Loader2, Plus, ArrowRightLeft, Trash2, MapPin, FileText, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/App';
 
 // MOD SOR (Schedule C) service-tier definitions — shown as hover
@@ -35,6 +35,16 @@ const LiteEquipmentTab = ({
   // directly from the list. `movingId` controls the inline site-picker
   // popover for one equipment row at a time.
   const [movingId, setMovingId] = useState(null);
+  // Iter 2026-08-09 — collapse/expand each location zone so a large estate
+  // list stays tidy. Holds the set of collapsed zone keys (default: all open).
+  const [collapsedZones, setCollapsedZones] = useState(() => new Set());
+  const toggleZone = (loc) => {
+    setCollapsedZones((prev) => {
+      const next = new Set(prev);
+      if (next.has(loc)) next.delete(loc); else next.add(loc);
+      return next;
+    });
+  };
   const canManageKit = user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin;
   const realSites = (sites || []).filter(s => !s.is_default);
 
@@ -356,21 +366,43 @@ const LiteEquipmentTab = ({
       </div>
 
       <div className="space-y-2">
-        {equipmentGroups.map(([loc, items]) => (
-          <div key={loc} className="space-y-2" data-testid={`lite-equip-group-${loc === UNASSIGNED_KEY ? 'unassigned' : loc}`}>
-            {showGroupHeaders && (
-              <div className="flex items-center gap-2 pt-3 first:pt-0">
-                <MapPin size={13} className="text-[var(--color-text-muted)] shrink-0" />
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] shrink-0" data-testid={`lite-equip-group-label-${loc === UNASSIGNED_KEY ? 'unassigned' : loc}`}>
-                  {loc === UNASSIGNED_KEY ? t('equip.unassigned_location', 'Unassigned') : loc}
-                </h3>
-                <span className="text-[10px] text-[var(--color-text-muted)] shrink-0">({items.length})</span>
-                <div className="flex-1 h-px bg-[var(--theme-border)]" />
-              </div>
-            )}
-            {items.map(renderEquipmentCard)}
-          </div>
-        ))}
+        {equipmentGroups.map(([loc, items]) => {
+          const zoneKey = loc === UNASSIGNED_KEY ? 'unassigned' : loc;
+          const collapsed = showGroupHeaders && collapsedZones.has(loc);
+          const zoneOpenFaults = items.reduce(
+            (n, eq) => n + getEquipmentFaults(eq).filter(f => f.status !== 'resolved').length,
+            0,
+          );
+          return (
+            <div key={loc} className="space-y-2" data-testid={`lite-equip-group-${zoneKey}`}>
+              {showGroupHeaders && (
+                <button
+                  type="button"
+                  onClick={() => toggleZone(loc)}
+                  className="w-full flex items-center gap-2 pt-3 first:pt-0 group text-left"
+                  aria-expanded={!collapsed}
+                  data-testid={`lite-equip-group-toggle-${zoneKey}`}
+                >
+                  {collapsed
+                    ? <ChevronRight size={14} className="text-[var(--color-text-muted)] shrink-0 transition-transform group-hover:text-[var(--theme-text)]" />
+                    : <ChevronDown size={14} className="text-[var(--color-text-muted)] shrink-0 transition-transform group-hover:text-[var(--theme-text)]" />}
+                  <MapPin size={13} className="text-[var(--color-text-muted)] shrink-0" />
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] shrink-0 group-hover:text-[var(--theme-text)]" data-testid={`lite-equip-group-label-${zoneKey}`}>
+                    {loc === UNASSIGNED_KEY ? t('equip.unassigned_location', 'Unassigned') : loc}
+                  </h3>
+                  <span className="text-[10px] text-[var(--color-text-muted)] shrink-0">({items.length})</span>
+                  {zoneOpenFaults > 0 && (
+                    <Badge className="bg-red-500/15 text-red-400 border-0 text-[10px] font-bold inline-flex items-center gap-1 shrink-0" data-testid={`lite-equip-group-faults-${zoneKey}`}>
+                      <AlertTriangle size={9} /> {zoneOpenFaults} {zoneOpenFaults > 1 ? t('faults.plural', 'faults') : t('faults.singular', 'fault')}
+                    </Badge>
+                  )}
+                  <div className="flex-1 h-px bg-[var(--theme-border)]" />
+                </button>
+              )}
+              {!collapsed && items.map(renderEquipmentCard)}
+            </div>
+          );
+        })}
         {filteredEquipment.length === 0 && <p className="text-center text-[var(--color-text-muted)] py-8 text-sm">{t('equip.no_equipment', 'No equipment found')}</p>}
       </div>
     </div>
