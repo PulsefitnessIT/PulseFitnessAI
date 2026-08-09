@@ -50,11 +50,20 @@ async def get_current_principal(request: Request) -> dict:
     from utils.auth import verify_token, AUTH_COOKIE_NAME  # type: ignore
     auth_header = request.headers.get("Authorization") or ""
     bearer = auth_header.split(" ", 1)[1].strip() if auth_header.lower().startswith("bearer ") else ""
-    cookie = request.cookies.get(AUTH_COOKIE_NAME)
-    token = bearer or cookie or ""
-    if not token:
+    cookie = request.cookies.get(AUTH_COOKIE_NAME) or ""
+    # Try the bearer first, then fall back to the auth cookie. The web app
+    # authenticates via an httpOnly cookie and only stores a short placeholder
+    # in localStorage, so a non-empty-but-invalid bearer must NOT shadow the
+    # cookie (that caused 401s in the Help Centre for cookie-auth sessions).
+    payload = None
+    for candidate in (bearer, cookie):
+        if not candidate:
+            continue
+        payload = verify_token(candidate)
+        if payload:
+            break
+    if not payload and not (bearer or cookie):
         raise HTTPException(status_code=401, detail="Not authenticated")
-    payload = verify_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")
     user_id = payload.get("user_id")
