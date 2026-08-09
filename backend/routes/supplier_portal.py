@@ -1574,7 +1574,21 @@ async def _send_comment_notification(case: dict, comment: dict, to_supplier: boo
                 pass
 
     params = _build_comment_email_params(case, comment, to_supplier, machine, branding)
-    if not params["to_email"]:
+    # Resolve the recipient list. For a MOD shared thread the case carries
+    # `notify_emails` (Pulse + overseas/machine provider) so a comment reaches
+    # EVERY supplier on the thread; otherwise fall back to the single address.
+    if to_supplier:
+        recips, seen = [], set()
+        for r in (case.get("notify_emails") or []):
+            e = (r.get("email") or "").strip()
+            if e and "@" in e and e.lower() not in seen:
+                seen.add(e.lower()); recips.append(e)
+        if not recips and (case.get("supplier_email") or "").strip():
+            recips = [case["supplier_email"].strip()]
+        to_list = recips
+    else:
+        to_list = [params["to_email"]] if params["to_email"] else []
+    if not to_list:
         return
     # Prefix subject with job ref so supplier inbox threads stay sane.
     params["subject"] = f"[{case_ref}] {params['subject']}"
@@ -1584,16 +1598,17 @@ async def _send_comment_notification(case: dict, comment: dict, to_supplier: boo
     reporter = await _resolve_reporter_contact(issue or {}) if to_supplier else None
     html = _build_comment_email_html(case, comment, params["intro"], branding, issue, case_ref, reporter)
 
-    try:
-        await asyncio.to_thread(resend.Emails.send, {
-            "from": params["from_line"],
-            "to": [params["to_email"]],
-            "subject": params["subject"],
-            "html": html,
-        })
-        logger.info(f"Comment notification sent to {params['to_email']}")
-    except Exception as e:
-        logger.warning(f"Failed to send comment notification: {e}")
+    for to_email in to_list:
+        try:
+            await asyncio.to_thread(resend.Emails.send, {
+                "from": params["from_line"],
+                "to": [to_email],
+                "subject": params["subject"],
+                "html": html,
+            })
+            logger.info(f"Comment notification sent to {to_email}")
+        except Exception as e:
+            logger.warning(f"Failed to send comment notification: {e}")
 
 
 @router.post("/supplier/case/{token}/update-email")

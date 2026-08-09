@@ -658,6 +658,43 @@ async def _resolve_fault_supplier(issue_doc: dict, org_id: str) -> Optional[dict
     return None
 
 
+async def _mod_case_recipients(issue_doc: dict, org_id: str, dispatched: Optional[dict]) -> list:
+    """For a MOD fault the supplier thread is SHARED and must notify BOTH the
+    Pulse Fitness MOD Service desk (always) AND the site's overseas / machine
+    service provider when present (e.g. Inda Fitness). Returns a deduped list of
+    ``{name, email}`` recipients; empty for non-MOD orgs (single-supplier path)."""
+    org = await db.organizations.find_one(
+        {"id": org_id},
+        {"_id": 0, "account_type": 1, "is_overseas": 1, "service_supplier_id": 1},
+    )
+    if not org or org.get("account_type") != "mod_site":
+        return []
+    import os
+    from utils.default_supplier import MOD_SERVICE_EMAIL
+    recips, seen = [], set()
+
+    def add(name, email):
+        e = (email or "").strip()
+        if e and "@" in e and e.lower() not in seen:
+            seen.add(e.lower())
+            recips.append({"name": name or "Supplier", "email": e})
+
+    # 1) Pulse MOD Service desk — always on the thread.
+    add("Pulse Fitness (MOD Service)", os.environ.get("MOD_SERVICE_EMAIL") or MOD_SERVICE_EMAIL)
+    # 2) The machine's dispatched supplier (e.g. Inda Fitness).
+    if dispatched:
+        add(dispatched.get("name"), dispatched.get("email"))
+    # 3) The site's assigned overseas provider (if different).
+    if (org.get("service_supplier_id") or "").strip():
+        ov = await db.suppliers.find_one(
+            {"id": org["service_supplier_id"], "organization_id": org_id},
+            {"_id": 0, "name": 1, "email": 1},
+        )
+        if ov:
+            add(ov.get("name"), ov.get("email"))
+    return recips
+
+
 async def _auto_dispatch_to_primary_supplier(issue_doc: dict, user: dict) -> None:
     """Iter 220ea·39 — on fault submit, automatically create the supplier
     "card to log the job" and **email** it to the right supplier so they can
@@ -696,6 +733,15 @@ async def _auto_dispatch_to_primary_supplier(issue_doc: dict, user: dict) -> Non
             issue_id, supplier.get("name") or "Service Supplier",
             supplier["email"], org_name, user,
         )
+        # MOD faults use a SHARED supplier thread — record every supplier who
+        # must be notified (Pulse always + overseas/machine provider) so each
+        # comment reaches all of them. Non-MOD orgs get an empty list and keep
+        # the single-supplier behaviour.
+        recipients = await _mod_case_recipients(issue_doc, org_id, supplier)
+        if recipients:
+            case["notify_emails"] = recipients
+            await db.supplier_cases.update_one(
+                {"id": case["id"]}, {"$set": {"notify_emails": recipients}})
         machine = issue_doc.get("machine_type") or "the equipment"
         desc = (issue_doc.get("issue_description") or "").strip()
         body = f"New fault logged for {machine}" + (f": {desc}." if desc else ".")
@@ -922,6 +968,16 @@ async def _send_mod_fault_notifications(issue_doc: dict, user: dict) -> None:
         dispatched_email = (fresh.get("auto_dispatched_supplier_email") or "").strip()
         dispatched_name = fresh.get("auto_dispatched_supplier_name") or ""
         already_emailed = {dispatched_email.lower()} if dispatched_email else set()
+
+        # The shared supplier thread (if created) already emailed everyone on
+        # its notify list with the portal link, so don't send a duplicate
+        # plain notification here — but still record them in the proof-log.
+        sc = await db.supplier_cases.find_one(
+            {"issue_id": issue_doc.get("id")}, {"_id": 0, "notify_emails": 1})
+        for r in ((sc or {}).get("notify_emails") or []):
+            em = (r.get("email") or "").strip().lower()
+            if em:
+                already_emailed.add(em)
 
         # Overseas provider assigned to this site (if any).
         overseas_email, overseas_name = "", ""
@@ -1169,7 +1225,7 @@ async def _batch_enrich_supplier_cases(issues: list[dict]):
     cases = await db.supplier_cases.find(
         {"issue_id": {"$in": issue_ids}},
         {"_id": 0, "issue_id": 1, "token": 1, "current_status": 1, "scheduled_date": 1,
-         "engineer_name": 1, "supplier_name": 1, "supplier_email": 1}
+         "engineer_name": 1, "supplier_name": 1, "supplier_email": 1, "notify_emails": 1}
     ).to_list(500)
     by_issue = {c["issue_id"]: c for c in cases}
     for issue in issues:
@@ -1241,6 +1297,7 @@ async def get_issue_detail(issue_id: str, user: dict = Depends(get_current_user)
             "engineer_name": supplier_case.get("engineer_name"),
             "supplier_name": supplier_case.get("supplier_name"),
             "supplier_email": supplier_case.get("supplier_email", ""),
+            "notify_emails": supplier_case.get("notify_emails", []),
             "rating": supplier_case.get("rating"),
             "rating_feedback": supplier_case.get("rating_feedback"),
             "status_history": supplier_case.get("status_history", []),

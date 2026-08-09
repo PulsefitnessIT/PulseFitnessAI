@@ -1,0 +1,23 @@
+{
+  "summary": "Frontend e2e for two new MOD features + two regressions from last session. (1) Public multi-engineer booking form on /mod-booking/QATEST_XpqcO08YCuzOSw: PASS — engineers block shows '1 of 4', Add appends engineer-1..3 blocks, Add button DISAPPEARS at cap of 4, Remove works and Add reappears, MOD contact fields fill, Save draft succeeds with no errors, and after reload the engineers persist (engineer 0/1/2 restored with their names/DOB/veh_reg). Submit not clicked (per instructions). (2) Dual-supplier shared thread: Created a NEW MOD fault via POST /api/issues against Series 3 Treadmill (linked to Inda Fitness). Opened issue detail — Supplier Communication card (supplier-comms-<id>) shows 'SHARED WITH' chips row (supplier-notified-<id>) with EXACTLY two chips: supplier-notified-<id>-0 = 'Pulse Fitness (MOD Service)' and supplier-notified-<id>-1 = 'Inda Fitness'. Posted a comment via reply-supplier-input/btn — no errors, thread counter went (1)->(2), comment appears. (3) Supplier Card ?view=site read-only regression: When the MOD-authenticated user (localStorage token present) opens /supplier/case/<token>?view=site, all supplier-only controls (schedule-visit-btn, schedule-prompt, show-update-btn, update-status-card, rating-section, reschedule-btn) are HIDDEN. schedule-readonly card + gym-viewer-banner render. Case details + comment thread remain visible. PASS. (4) DIO pill / Escalate-to-DIO layout: detail-escalate-dio-<id> present and rendered inline next to Mark In Progress / Mark Resolved / 'DIO contract on file' pill — no overlapping/broken layout observed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "SupplierCasePage.js: readOnly / isGymViewer is driven purely by localStorage.getItem('token') (line 599). The ?view=site query param is never actually parsed. Any logged-in user (not just MOD site viewers) that lands on a supplier case URL is forced into read-only. Works for the current use case but the ?view=site contract is misleading — consider parsing the query param OR renaming the constant. Not a bug for this test.",
+    "IssueDetailPanel.js line 858: The 'Shared with' chips row only renders when supplier_case.notify_emails.length > 1. Legacy MOD faults created before the shared-thread backend logic have notify_emails=[] and therefore never show the chips — expected but worth flagging so QA doesn't get confused when validating on old data.",
+    "detail-dio-pill-<id> testid is conditional (only when the fault has been escalated to DIO). Consider always rendering the wrapper with data-testid for stable QA hooks even when 'not escalated'."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "MOD site: test@army.mod.test / ModTest123! at /MODService. Public booking token: QATEST_XpqcO08YCuzOSw. New test fault id created (kept for main agent cleanup): 7ced2253-742f-4e3f-a1a6-eae294a28cd1 (supplier_case.token=0d053391-c77e-436a-a222-875f8b330284).",
+  "seed_data_creation": "Created new MOD fault id=7ced2253-742f-4e3f-a1a6-eae294a28cd1 on equipment Pulse Fitness Series 3 Treadmill (PF-MODTS-001), and posted one supplier comment 'QATEST shared thread reply from MOD'. Did NOT touch QATEST booking. Please clean up when convenient.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Rate limit on /api/auth/login triggers 429 after ~4 rapid logins with ~120s cooldown. Space out login attempts. To validate shared-thread chips reliably, create a NEW MOD fault (legacy MODTS faults have empty supplier_case.notify_emails). To validate supplier case ?view=site read-only mode, be logged in as an operator/MOD user first (isGymViewer needs localStorage.token) — opening the URL in a fresh incognito session will (incorrectly) show the SUPPLIER controls."
+}

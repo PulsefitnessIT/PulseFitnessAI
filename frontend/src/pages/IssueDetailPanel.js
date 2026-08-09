@@ -12,7 +12,7 @@ import { notify } from '@/components/notifications';
 import {
  FileText, Upload, Send, Plus, Trash2,
  Paperclip, ExternalLink, ShoppingCart, Clock, CheckCircle, AlertCircle, Printer, Wrench, Loader2, CalendarDays, ShieldCheck, Phone, Mail,
- ChevronDown, ChevronUp, Receipt, Timer, AlertTriangle,
+ ChevronDown, ChevronUp, Receipt, Timer, AlertTriangle, Users,
 } from 'lucide-react';
 import SiconServicePanel from './SiconServicePanel';
 import { MODDIOEscalateModal } from './MODPortal/MODDIOEscalateModal';
@@ -852,6 +852,23 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
      position previously occupied by the Supplier Fault Card. Kept
      here is only the chat thread itself + the Supplier Card deep
      link in the header. */}
+
+ {/* Shared thread — show every supplier notified on this fault (MOD faults
+     notify Pulse + the overseas/machine provider on the same thread). */}
+ {issue.supplier_case?.notify_emails?.length > 1 && (
+   <div className="mb-3 flex flex-wrap items-center gap-1.5" data-testid={`supplier-notified-${issue.id}`}>
+     <span className="text-[var(--color-text-muted)] text-[11px] font-semibold uppercase tracking-wide flex items-center gap-1">
+       <Users size={12} /> Shared with
+     </span>
+     {issue.supplier_case.notify_emails.map((r, i) => (
+       <span key={i} title={r.email}
+         className="inline-flex items-center rounded-full bg-[var(--color-brand-blue)]/15 text-[var(--color-brand-blue)] px-2 py-0.5 text-[11px] font-semibold"
+         data-testid={`supplier-notified-${issue.id}-${i}`}>
+         {r.name || r.email}
+       </span>
+     ))}
+   </div>
+ )}
 
  {/* Chat messages */}
  <div className={`overflow-y-auto space-y-2 mb-3 rounded-lg p-2 bg-[var(--theme-surface-2)] border border-[var(--theme-border-soft)] ${showFullHistory ? 'max-h-[280px]' : ''}`} style={{ minHeight: '40px' }}>
