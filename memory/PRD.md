@@ -1,3 +1,26 @@
+# ═══ 2026-08-09 · Sicon Equipment ID Mapper (bulk-map machines → Sicon asset IDs) — curl+screenshot verified ═══
+So faults cross-link to the right Sicon asset from day one (populates case.Equipments[].SiconEquipmentID).
+  • BACKEND routes/master_admin_integrations.py (master-admin only, org-scoped):
+      GET  /master-admin/sicon/equipment-mapping/orgs        → orgs that have equipment + {mapped,total} coverage (aggregate)
+      GET  /master-admin/sicon/equipment-mapping/{org_id}     → that org's kit [{id,name,serial_number,location,manufacturer,
+                                                                 site_name,sicon_equipment_id,sage_item_id}] + total/mapped
+      PUT  /master-admin/sicon/equipment-mapping/{org_id}     → body {mappings:[{equipment_id,sicon_equipment_id,sage_item_id}]}
+                                                                 bulk $set on db.equipment (coerce int-or-None; ''→clears),
+                                                                 returns {updated,total,mapped}
+  • FRONTEND pages/MasterAdmin/SiconEquipmentMapper.js + new "Equipment IDs" tab in SiconIntegrationPage.js
+    (Master Admin → Integrations → Sicon Service). Org dropdown (label shows mapped/total), search (name/serial/zone),
+    coverage badge, table with per-row Sicon Asset ID + optional Sage Item ID inputs; dirty rows highlight + Save shows
+    a count; save reloads list + org coverage. testids: sicon-tab-equipment, sicon-equipment-mapper, -org-select,
+    -search, -coverage, -save, -refresh, -row-<id>, -sicon-<id>, -sage-<id>.
+  • This directly clears the readiness "Equipment asset IDs" WARN check per org as machines get mapped.
+  • VERIFIED: backend restart clean; curl on iso-demo-org: save (sicon=9999/sage=123 → mapped 1) → verify → revert (→0);
+    orgs list returns 10 orgs with coverage. Screenshot of the mapper tab (Iso Demo Fitness 0/20, dirty row + Save (1)).
+    No data left changed.
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 · Sicon go-live readiness audit + pre-flight checklist (endpoint + Master Admin tab) — curl+screenshot verified ═══
 Founder asked: "are we ready for the Sicon integration?" (Sage set aside — no Sage Developer App).
 AUDIT VERDICT: Sicon is ~95% ready. Plumbing is production-grade & coherent —

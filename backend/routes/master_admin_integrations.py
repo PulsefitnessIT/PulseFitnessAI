@@ -431,3 +431,122 @@ async def sicon_readiness(user: dict = Depends(get_current_user)) -> dict:
         "organizations": org_rows,
     }
 
+
+
+# ── Sicon Equipment ID Mapper ─────────────────────────────────────
+# Bulk-map each machine's Sicon asset ID (case.Equipments[].SiconEquipmentID)
+# and optional Sage stock item ID, so faults cross-link to the right asset
+# from day one. Master-admin only; org-scoped writes.
+
+def _coerce_int_or_none(val):
+    """Accept '', None, int, or numeric string → int or None."""
+    if val is None:
+        return None
+    if isinstance(val, int):
+        return val
+    s = str(val).strip()
+    if not s:
+        return None
+    try:
+        return int(s)
+    except (TypeError, ValueError):
+        return None
+
+
+@router.get("/master-admin/sicon/equipment-mapping/orgs")
+async def sicon_equipment_mapping_orgs(user: dict = Depends(get_current_user)) -> dict:
+    """List organisations that have equipment, with mapping coverage counts."""
+    require_master_admin(user)
+    pipeline = [
+        {"$match": {"organization_id": {"$ne": None}}},
+        {"$group": {
+            "_id": "$organization_id",
+            "total": {"$sum": 1},
+            "mapped": {"$sum": {"$cond": [
+                {"$and": [
+                    {"$ne": ["$sicon_equipment_id", None]},
+                    {"$ne": [{"$ifNull": ["$sicon_equipment_id", None]}, None]},
+                ]}, 1, 0]}},
+        }},
+    ]
+    rows = await db.equipment.aggregate(pipeline).to_list(2000)
+    org_ids = [r["_id"] for r in rows]
+    orgs = await db.organizations.find(
+        {"id": {"$in": org_ids}}, {"_id": 0, "id": 1, "name": 1},
+    ).to_list(2000)
+    name_by_org = {o["id"]: o.get("name", "Unnamed") for o in orgs}
+    out = [{
+        "organization_id": r["_id"],
+        "organization_name": name_by_org.get(r["_id"], "Unnamed"),
+        "total": r["total"],
+        "mapped": r["mapped"],
+    } for r in rows]
+    out.sort(key=lambda x: x["organization_name"].lower())
+    return {"organizations": out}
+
+
+@router.get("/master-admin/sicon/equipment-mapping/{org_id}")
+async def sicon_equipment_mapping_list(org_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """List an org's equipment with current Sicon / Sage IDs for mapping."""
+    require_master_admin(user)
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "name": 1})
+    sites = await db.sites.find({"organization_id": org_id}, {"_id": 0, "id": 1, "name": 1}).to_list(500)
+    site_name = {s["id"]: s.get("name", "") for s in sites}
+    cur = db.equipment.find(
+        {"organization_id": org_id},
+        {"_id": 0, "id": 1, "name": 1, "serial_number": 1, "location": 1,
+         "manufacturer": 1, "site_id": 1, "sicon_equipment_id": 1, "sage_item_id": 1},
+    ).sort("name", 1)
+    items = []
+    async for e in cur:
+        items.append({
+            "id": e["id"],
+            "name": e.get("name", ""),
+            "serial_number": e.get("serial_number", ""),
+            "location": e.get("location", ""),
+            "manufacturer": e.get("manufacturer", ""),
+            "site_name": site_name.get(e.get("site_id"), ""),
+            "sicon_equipment_id": e.get("sicon_equipment_id"),
+            "sage_item_id": e.get("sage_item_id"),
+        })
+    mapped = sum(1 for i in items if i["sicon_equipment_id"] is not None)
+    return {
+        "organization_id": org_id,
+        "organization_name": (org or {}).get("name", "Unnamed"),
+        "equipment": items,
+        "total": len(items),
+        "mapped": mapped,
+    }
+
+
+@router.put("/master-admin/sicon/equipment-mapping/{org_id}")
+async def sicon_equipment_mapping_save(org_id: str, data: dict = Body(...),
+                                       user: dict = Depends(get_current_user)) -> dict:
+    """Bulk-save Sicon asset IDs (+ optional Sage item IDs) for an org's kit."""
+    require_master_admin(user)
+    mappings = data.get("mappings") or []
+    if not isinstance(mappings, list):
+        raise HTTPException(status_code=400, detail="mappings must be a list")
+    updated = 0
+    for m in mappings:
+        eq_id = m.get("equipment_id")
+        if not eq_id:
+            continue
+        set_doc = {}
+        if "sicon_equipment_id" in m:
+            set_doc["sicon_equipment_id"] = _coerce_int_or_none(m.get("sicon_equipment_id"))
+        if "sage_item_id" in m:
+            set_doc["sage_item_id"] = _coerce_int_or_none(m.get("sage_item_id"))
+        if not set_doc:
+            continue
+        res = await db.equipment.update_one(
+            {"id": eq_id, "organization_id": org_id},
+            {"$set": set_doc},
+        )
+        if res.matched_count:
+            updated += 1
+    total = await db.equipment.count_documents({"organization_id": org_id})
+    mapped = await db.equipment.count_documents(
+        {"organization_id": org_id, "sicon_equipment_id": {"$ne": None}},
+    )
+    return {"updated": updated, "total": total, "mapped": mapped}
