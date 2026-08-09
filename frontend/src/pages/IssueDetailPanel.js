@@ -169,14 +169,48 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  } catch {}
  };
 
+ // Auto-resolve the email of a supplier the fault was already dispatched to,
+ // so 2-way comms is pre-wired to the notified supplier(s) and we NEVER ask
+ // the operator to type an address that we already hold.
+ const _resolveNotifiedSupplierEmail = () => {
+   const c = issue.supplier_case?.supplier_email;
+   if (c && c.includes('@')) return c;
+   const recips = Array.isArray(issue.notified_recipients) ? issue.notified_recipients : [];
+   const hit = recips.find((r) => (r?.email || '').includes('@'));
+   if (hit) return hit.email;
+   if ((issue.supplier_notified_email || '').includes('@')) return issue.supplier_notified_email;
+   return '';
+ };
+
+ // Persist a resolved email onto the supplier_case (best-effort) so later
+ // sends in this and future sessions don't re-resolve/re-prompt.
+ const _persistCaseEmail = async (email) => {
+   if (!issue.supplier_case?.token || !email) return;
+   const tkn = localStorage.getItem('token');
+   try {
+     await axios.post(
+       `${API}/supplier/case/${issue.supplier_case.token}/update-email`,
+       { supplier_email: email },
+       { headers: { Authorization: `Bearer ${tkn}` } },
+     );
+     setIssue((prev) => ({ ...prev, supplier_case: { ...(prev.supplier_case || {}), supplier_email: email } }));
+   } catch { /* best effort */ }
+ };
+
  const handleSendGymComment = async () => {
  if (!commentText.trim() || !issue.supplier_case?.token) return;
 
- // If supplier email is missing, open the styled dialog and bail —
- // submission resumes when the operator confirms in the dialog.
+ // If the case has no email yet, auto-wire it from the supplier(s) the
+ // fault was dispatched to. Only fall back to the manual dialog if we
+ // genuinely hold no address anywhere.
  if (!issue.supplier_case?.supplier_email) {
-   setSupplierEmailDialog({ open: true, email: '', pending: 'gym-comment', submitting: false });
-   return;
+   const resolved = _resolveNotifiedSupplierEmail();
+   if (resolved) {
+     await _persistCaseEmail(resolved);
+   } else {
+     setSupplierEmailDialog({ open: true, email: '', pending: 'gym-comment', submitting: false });
+     return;
+   }
  }
  await _sendGymComment();
  };
@@ -202,6 +236,13 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  if (!commentText.trim()) return;
 
  if (!issue.supplier_case?.supplier_email) {
+   // Auto-wire to the supplier(s) the fault was sent to — no manual entry.
+   const resolved = _resolveNotifiedSupplierEmail();
+   if (resolved) {
+     await _persistCaseEmail(resolved);
+     await _contactSupplier(resolved);
+     return;
+   }
    setSupplierEmailDialog({ open: true, email: '', pending: 'contact-supplier', submitting: false });
    return;
  }

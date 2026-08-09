@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import {
 import axios from 'axios';
 import {
   BarChart3, TrendingUp, Wrench, AlertTriangle, CheckCircle,
-  PoundSterling, RefreshCw, Shield, Mail, ShieldAlert
+  PoundSterling, RefreshCw, Shield, Mail, ShieldAlert, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import MODASERPortal from './MODPortal/MODASERPortal';
 import MODIncidentWizard from './MODPortal/MODIncidentWizard';
@@ -30,6 +30,35 @@ const PulseReportsTab = () => {
   const [loading, setLoading] = useState(true);
   const [subTab, setSubTab] = useState('performance');
   const [aserOpen, setAserOpen] = useState(false);
+  const subtabBarRef = useRef(null);
+  const [subtabCanLeft, setSubtabCanLeft] = useState(false);
+  const [subtabCanRight, setSubtabCanRight] = useState(false);
+  const updateSubtabArrows = useCallback(() => {
+    const el = subtabBarRef.current;
+    if (!el) return;
+    setSubtabCanLeft(el.scrollLeft > 4);
+    setSubtabCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+  const scrollSubtabs = (dir) => {
+    const el = subtabBarRef.current;
+    if (el) el.scrollBy({ left: dir * Math.max(200, el.clientWidth * 0.6), behavior: 'smooth' });
+  };
+  useEffect(() => {
+    updateSubtabArrows();
+    const t1 = setTimeout(updateSubtabArrows, 150);
+    const t2 = setTimeout(updateSubtabArrows, 600);
+    window.addEventListener('resize', updateSubtabArrows);
+    let ro;
+    if (subtabBarRef.current && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(updateSubtabArrows);
+      ro.observe(subtabBarRef.current);
+    }
+    return () => {
+      clearTimeout(t1); clearTimeout(t2);
+      window.removeEventListener('resize', updateSubtabArrows);
+      if (ro) ro.disconnect();
+    };
+  }, [updateSubtabArrows]);
   const [incidentOpen, setIncidentOpen] = useState(false);
   const isMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
   const token = localStorage.getItem('token');
@@ -103,8 +132,26 @@ const PulseReportsTab = () => {
         </div>
       )}
 
-      {/* Sub-tab switcher */}
-      <div className="subtab-bar mb-2 overflow-x-auto" role="tablist" style={{ WebkitOverflowScrolling: 'touch' }}>
+      {/* Sub-tab switcher — horizontally scrollable with chevron affordances
+          so options like "CAPEX Intelligence" are always reachable. */}
+      <div className="relative mb-2" data-testid="reports-subtab-scroller">
+        {subtabCanLeft && (
+          <button type="button" aria-label="Scroll left" onClick={() => scrollSubtabs(-1)}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 grid place-items-center w-7 h-7 rounded-full shadow-md"
+            style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)', color: 'var(--theme-text)' }}
+            data-testid="reports-subtab-left">
+            <ChevronLeft size={16} />
+          </button>
+        )}
+        {subtabCanRight && (
+          <button type="button" aria-label="Scroll right" onClick={() => scrollSubtabs(1)}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 grid place-items-center w-7 h-7 rounded-full shadow-md"
+            style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)', color: 'var(--theme-text)' }}
+            data-testid="reports-subtab-right">
+            <ChevronRight size={16} />
+          </button>
+        )}
+        <div ref={subtabBarRef} onScroll={updateSubtabArrows} className="subtab-bar overflow-x-auto" role="tablist" style={{ WebkitOverflowScrolling: 'touch' }}>
         {[
           { id: 'performance', label: 'Performance KPIs', icon: TrendingUp },
           { id: 'operational', label: 'Operational Reports', icon: BarChart3 },
@@ -134,6 +181,7 @@ const PulseReportsTab = () => {
             </button>
           );
         })}
+      </div>
       </div>
 
       {aserOpen ? (

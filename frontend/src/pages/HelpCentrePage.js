@@ -167,6 +167,18 @@ export default function HelpCentrePage() {
 
         {/* Hero — pt-24 matches every other module (Navbar is fixed top). */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-4">
+          <button
+            onClick={() => {
+              const acct = (user?.account_type || '').toLowerCase();
+              const home = ['mod_site', 'mod_branch', 'mod_org', 'pulse_pro', 'lite'].includes(acct) ? '/pulse' : '/dashboard';
+              navigate(home);
+            }}
+            className="inline-flex items-center gap-1.5 mb-4 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors"
+            style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)', color: 'var(--theme-text-muted)' }}
+            data-testid="help-back-to-portal"
+          >
+            <ArrowLeft size={13} /> Back to portal
+          </button>
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2">
@@ -271,6 +283,31 @@ export default function HelpCentrePage() {
             )}
           </div>
         </div>
+
+        {/* MOD portal guide quick-link — the full portal User Guide lives
+            inside the MOD portal; surface it here too. */}
+        {isMODacct && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-2">
+            <button
+              onClick={() => {
+                try { if (user?.id) localStorage.setItem(`pulse.activeTab:${user.id}`, 'guide'); } catch {}
+                navigate('/pulse');
+              }}
+              className="w-full text-left rounded-2xl p-4 border flex items-center gap-3 transition-colors hover:border-[rgb(var(--rgb-brand-cyan)/0.6)]"
+              style={{ background: 'var(--theme-surface)', borderColor: 'var(--color-brand-cyan)' }}
+              data-testid="help-mod-portal-guide"
+            >
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
+                <BookOpen size={18} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>MOD Service — Portal User Guide</div>
+                <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>The full step-by-step guide to every portal feature — viewable and downloadable.</div>
+              </div>
+              <ChevronRight size={16} style={{ color: 'var(--color-brand-cyan)' }} />
+            </button>
+          </div>
+        )}
 
         {/* Body: sidebar + content + AI rail */}
         <div className={`max-w-7xl mx-auto px-4 md:px-8 pb-12 grid grid-cols-1 gap-6 ${aiEnabled ? 'lg:grid-cols-[220px_1fr_340px]' : 'lg:grid-cols-[220px_1fr]'}`}>
