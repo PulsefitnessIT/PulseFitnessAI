@@ -1,3 +1,21 @@
+# ═══ 2026-08-09 · Undo on the bulk-move toast + notify action support — screenshot-verified ═══
+Added an "Undo" to the bulk zone-move so a mistaken refit move can be reversed instantly.
+  • pages/LiteDashboard/LiteEquipmentTab.js: bulkMoveToZone now snapshots each selected machine's CURRENT location
+    (locMap) before moving, records the {id, prev} of every successful move, and raises the success toast with an
+    action { label: 'Undo', onClick } + ttl 9s. undoBulkMove(moved) PATCHes each machine back to its prev location
+    (prev '' → Unassigned), toasts "Reverted N machines" and reloads. Reverts per-machine to the EXACT previous zone
+    (not a single blanket zone).
+  • components/notifications/index.js: GlobalBannerHost now forwards the `action` prop to InlineBanner (it already
+    rendered `action` = {label,onClick} → button data-testid inline-banner-action-<tone>), so notify.success/info/etc.
+    can carry an action button. Small, generic enhancement — benefits any future toast that wants an action.
+  • VERIFIED: babel clean, webpack compiled. Screenshot: bulk move → toast "Moved 3 machines to …" WITH an "Undo →"
+    link; clicking Undo → "Reverted 3 machines" + the 3 machines returned to their previous zone (chips proved
+    Cardio Suite → Undo → back to prior zone). MOD Test Site restored to Main Gym(4)/Cardio Suite(3)/Unassigned(1).
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 · Zone filter chips on the equipment list — screenshot-verified ═══
 pages/LiteDashboard/LiteEquipmentTab.js: added a quick zone-filter chip row above the list (only when a site has >1
 location). Chips: "All (N)" + one per zone (MapPin + name + count) + "Unassigned". Selecting a chip sets zoneFilter and

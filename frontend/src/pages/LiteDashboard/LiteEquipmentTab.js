@@ -97,12 +97,34 @@ const LiteEquipmentTab = ({
       return all ? new Set() : new Set((filteredEquipment || []).map((e) => e.id));
     });
   };
+  const undoBulkMove = async (moved) => {
+    let ok = 0;
+    for (const m of moved) {
+      try {
+        await axios.patch(
+          `${API}/equipment/${m.id}`,
+          { location: m.prev || '' },
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        ok += 1;
+      } catch { /* skip */ }
+    }
+    if (ok > 0) {
+      notify.success(`Reverted ${ok} ${ok === 1 ? 'machine' : 'machines'}`);
+      onEquipmentUpdated && onEquipmentUpdated();
+    } else {
+      notify.error('Undo failed', 'Could not revert the move — try again.');
+    }
+  };
   const bulkMoveToZone = async () => {
     const zone = (bulkZone || '').trim();
     const ids = Array.from(selectedIds);
     if (!ids.length) { notify.error('Select at least one machine'); return; }
+    // Snapshot each machine's current location so the move can be undone.
+    const locMap = new Map((filteredEquipment || []).map((e) => [e.id, (e.location || '').trim()]));
     setBulkSaving(true);
-    let ok = 0; let failed = 0;
+    let failed = 0;
+    const moved = [];
     for (const id of ids) {
       try {
         await axios.patch(
@@ -110,14 +132,15 @@ const LiteEquipmentTab = ({
           { location: zone },
           { headers: { Authorization: `Bearer ${token}` } },
         );
-        ok += 1;
+        moved.push({ id, prev: locMap.get(id) || '' });
       } catch { failed += 1; }
     }
     setBulkSaving(false);
-    if (ok > 0) {
+    if (moved.length > 0) {
       notify.success(
-        `Moved ${ok} ${ok === 1 ? 'machine' : 'machines'} to ${zone || 'Unassigned'}`,
+        `Moved ${moved.length} ${moved.length === 1 ? 'machine' : 'machines'} to ${zone || 'Unassigned'}`,
         failed > 0 ? `${failed} could not be moved — try again.` : undefined,
+        { ttl: 9000, action: { label: t('equip.bulk_undo', 'Undo'), onClick: () => undoBulkMove(moved) } },
       );
       setSelectMode(false);
       setSelectedIds(new Set());

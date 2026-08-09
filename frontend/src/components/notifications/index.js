@@ -169,6 +169,7 @@ function GlobalBannerHost() {
  tone={it.tone}
  title={it.title}
  detail={it.detail}
+                                                                action={it.action}
  onDismiss={() => dismiss(it.id)}
  />
  </div>
