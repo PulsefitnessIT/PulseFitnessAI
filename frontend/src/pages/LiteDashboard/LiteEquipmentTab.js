@@ -63,6 +63,7 @@ const LiteEquipmentTab = ({
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkZone, setBulkZone] = useState('');
+  const [bulkSite, setBulkSite] = useState('');
   const [bulkSaving, setBulkSaving] = useState(false);
   // Quick zone filter chips — jump straight to one location. null = All.
   const [zoneFilter, setZoneFilter] = useState(null);
@@ -71,7 +72,7 @@ const LiteEquipmentTab = ({
   ).sort();
   const toggleSelectMode = () => {
     setSelectMode((on) => {
-      if (on) { setSelectedIds(new Set()); setBulkZone(''); }
+      if (on) { setSelectedIds(new Set()); setBulkZone(''); setBulkSite(''); }
       return !on;
     });
   };
@@ -101,6 +102,10 @@ const LiteEquipmentTab = ({
     let ok = 0;
     for (const m of moved) {
       try {
+        // Revert the site first (no-op if unchanged), then the location.
+        if (m.prevSite) {
+          try { await axios.post(`${API}/equipment/${m.id}/move`, { site_id: m.prevSite }, { headers: { Authorization: `Bearer ${token}` } }); } catch { /* skip site revert */ }
+        }
         await axios.patch(
           `${API}/equipment/${m.id}`,
           { location: m.prev || '' },
@@ -118,33 +123,44 @@ const LiteEquipmentTab = ({
   };
   const bulkMoveToZone = async () => {
     const zone = (bulkZone || '').trim();
+    const targetSite = (bulkSite || '').trim();
+    const targetSiteName = realSites.find((s) => s.id === targetSite)?.name;
     const ids = Array.from(selectedIds);
     if (!ids.length) { notify.error('Select at least one machine'); return; }
-    // Snapshot each machine's current location so the move can be undone.
-    const locMap = new Map((filteredEquipment || []).map((e) => [e.id, (e.location || '').trim()]));
+    // Snapshot each machine's current site + location so the move can be undone.
+    const eqMap = new Map((filteredEquipment || []).map((e) => [e.id, e]));
     setBulkSaving(true);
     let failed = 0;
     const moved = [];
     for (const id of ids) {
+      const eq = eqMap.get(id) || {};
       try {
+        // Cross-site move first (if a different site was picked), then set the zone.
+        if (targetSite && targetSite !== eq.site_id) {
+          await axios.post(`${API}/equipment/${id}/move`, { site_id: targetSite }, { headers: { Authorization: `Bearer ${token}` } });
+        }
         await axios.patch(
           `${API}/equipment/${id}`,
           { location: zone },
           { headers: { Authorization: `Bearer ${token}` } },
         );
-        moved.push({ id, prev: locMap.get(id) || '' });
+        moved.push({ id, prev: (eq.location || '').trim(), prevSite: eq.site_id || '' });
       } catch { failed += 1; }
     }
     setBulkSaving(false);
     if (moved.length > 0) {
+      const dest = targetSiteName
+        ? `${targetSiteName}${zone ? ` · ${zone}` : ''}`
+        : (zone || 'Unassigned');
       notify.success(
-        `Moved ${moved.length} ${moved.length === 1 ? 'machine' : 'machines'} to ${zone || 'Unassigned'}`,
+        `Moved ${moved.length} ${moved.length === 1 ? 'machine' : 'machines'} to ${dest}`,
         failed > 0 ? `${failed} could not be moved — try again.` : undefined,
         { ttl: 9000, action: { label: t('equip.bulk_undo', 'Undo'), onClick: () => undoBulkMove(moved) } },
       );
       setSelectMode(false);
       setSelectedIds(new Set());
       setBulkZone('');
+      setBulkSite('');
       onEquipmentUpdated && onEquipmentUpdated();
     } else {
       notify.error('Move failed', 'None of the selected machines could be moved.');
@@ -514,6 +530,20 @@ const LiteEquipmentTab = ({
             </button>
           </div>
           <div className="flex items-center gap-2">
+            {realSites.length > 1 && (
+              <select
+                value={bulkSite}
+                onChange={(e) => setBulkSite(e.target.value)}
+                disabled={bulkSaving}
+                className="h-9 w-full sm:w-40 px-2 rounded border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)] text-sm focus:outline-none focus:border-[var(--color-brand-cyan-hover)]"
+                data-testid="lite-equip-bulk-site-select"
+              >
+                <option value="">{t('equip.bulk_this_site', 'This site')}</option>
+                {realSites.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            )}
             <input
               list="lite-equip-bulk-zone-list"
               value={bulkZone}

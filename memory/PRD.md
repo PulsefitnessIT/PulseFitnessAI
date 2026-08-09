@@ -1,3 +1,23 @@
+# ═══ 2026-08-09 · Bulk mover can also move kit to ANOTHER SITE + zone in one step — curl+screenshot verified ═══
+Extended the bulk "Move kit" (LiteEquipmentTab.js) so a refit move can also relocate machines to a different site AND
+set their zone at the destination, in one action.
+  • FRONTEND: the bulk action bar now shows a SITE dropdown (lite-equip-bulk-site-select) BEFORE the zone input, but
+    ONLY when the org has >1 real site (single-site sites are unchanged — dropdown hidden). Default option "This site".
+    bulkMoveToZone now, per selected machine: if a different site is picked → POST /equipment/{id}/move {site_id} then
+    PATCH {location:zone}; else just PATCH the zone. Snapshots each machine's prev site_id + location; undoBulkMove
+    reverts BOTH (moves back to prevSite if set, then restores prev location). Toast destination reads
+    "<Site> · <Zone>" for cross-site, else "<Zone>".
+  • BACKEND: no change — reuses the existing owner/manager-gated POST /equipment/{id}/move (site_id only) + PATCH
+    /equipment/{id} (location). (Edge: a machine that had NO site can't be un-moved to "no site" via undo since /move
+    requires a site_id — only affects null-site kit, rare in real multi-site orgs.)
+  • VERIFIED: babel clean, webpack compiled. curl on 2-site iso-demo-org: move → Demo Branch B + "Studio 2" applied,
+    then restored. Screenshot on single-site MOD Test Site confirms the site dropdown is correctly HIDDEN (no regression);
+    demo data untouched.
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 · Undo on the bulk-move toast + notify action support — screenshot-verified ═══
 Added an "Undo" to the bulk zone-move so a mistaken refit move can be reversed instantly.
   • pages/LiteDashboard/LiteEquipmentTab.js: bulkMoveToZone now snapshots each selected machine's CURRENT location
