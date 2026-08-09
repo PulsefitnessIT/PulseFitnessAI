@@ -566,21 +566,44 @@ def _norm_serial(s) -> str:
     return str(s or "").strip().lower()
 
 
+def _canon_serial(s) -> str:
+    """Aggressive canonical form for fuzzy matching: lowercase, strip all
+    non-alphanumerics (spaces/dashes/punctuation), and drop leading zeros
+    within each digit run. So 'SN-0042', 'sn 42', 'sn42' all canon to 'sn42'."""
+    import re
+    s = re.sub(r"[^a-z0-9]", "", str(s or "").lower())
+    s = re.sub(r"0*(\d+)", lambda m: m.group(1), s)
+    return s
+
+
+def _fuzzy_reason(local_raw: str, import_raw: str) -> str:
+    import re
+    a, b = str(local_raw or ""), str(import_raw or "")
+    if a.strip().lower() == b.strip().lower():
+        return "case"
+    if re.sub(r"[^a-z0-9]", "", a.lower()) == re.sub(r"[^a-z0-9]", "", b.lower()):
+        return "spacing / punctuation"
+    return "leading zeros / formatting"
+
+
 def _match_by_serial(import_rows: list, equipment: list) -> dict:
     """Match import rows (each {serial, sicon_equipment_id, sage_item_id}) to
-    local equipment by serial. Returns suggestions + stats."""
+    local equipment by serial. Exact matches auto-fill; near-misses (case,
+    spacing/punctuation, leading zeros) are returned separately as `fuzzy`
+    review-before-apply suggestions."""
     by_serial: dict[str, dict] = {}
     for r in import_rows:
         key = _norm_serial(r.get("serial"))
         if key:
             by_serial[key] = r
-    matched, already_correct, used_serials = [], 0, set()
+    matched, already_correct, used_serials, used_eq = [], 0, set(), set()
     for eq in equipment:
         key = _norm_serial(eq.get("serial_number"))
         if not key or key not in by_serial:
             continue
         row = by_serial[key]
         used_serials.add(key)
+        used_eq.add(eq["id"])
         sug_sicon = _coerce_int_or_none(row.get("sicon_equipment_id"))
         sug_sage = _coerce_int_or_none(row.get("sage_item_id"))
         if sug_sicon is None and sug_sage is None:
@@ -598,12 +621,53 @@ def _match_by_serial(import_rows: list, equipment: list) -> dict:
             "suggested_sicon_equipment_id": sug_sicon,
             "suggested_sage_item_id": sug_sage,
         })
+
+    # ── Fuzzy pass: only over serials/equipment not already exactly matched ──
+    canon_to_serial: dict[str, str] = {}
+    for raw_key, row in by_serial.items():
+        if raw_key in used_serials:
+            continue
+        c = _canon_serial(raw_key)
+        if c and c not in canon_to_serial:
+            canon_to_serial[c] = raw_key  # first import row wins for a canon
+    fuzzy = []
+    for eq in equipment:
+        if eq["id"] in used_eq:
+            continue
+        raw = eq.get("serial_number")
+        if not raw:
+            continue
+        c = _canon_serial(raw)
+        if not c or c not in canon_to_serial:
+            continue
+        import_key = canon_to_serial[c]
+        row = by_serial[import_key]
+        sug_sicon = _coerce_int_or_none(row.get("sicon_equipment_id"))
+        sug_sage = _coerce_int_or_none(row.get("sage_item_id"))
+        if sug_sicon is None and sug_sage is None:
+            continue
+        used_serials.add(import_key)  # so it isn't also reported unmatched
+        fuzzy.append({
+            "equipment_id": eq["id"],
+            "name": eq.get("name", ""),
+            "serial_number": eq.get("serial_number", ""),
+            "location": eq.get("location", ""),
+            "import_serial": row.get("serial", ""),
+            "reason": _fuzzy_reason(raw, row.get("serial", "")),
+            "current_sicon_equipment_id": eq.get("sicon_equipment_id"),
+            "current_sage_item_id": eq.get("sage_item_id"),
+            "suggested_sicon_equipment_id": sug_sicon,
+            "suggested_sage_item_id": sug_sage,
+        })
+
     unmatched_serials = [s for s in by_serial.keys() if s not in used_serials]
     return {
         "matched": matched,
+        "fuzzy": fuzzy,
         "stats": {
             "import_rows": len(by_serial),
             "matched": len(matched),
+            "fuzzy": len(fuzzy),
             "already_correct": already_correct,
             "unmatched_import": len(unmatched_serials),
         },

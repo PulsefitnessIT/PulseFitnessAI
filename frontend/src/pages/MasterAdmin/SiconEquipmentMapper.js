@@ -71,6 +71,7 @@ export default function SiconEquipmentMapper() {
   const [pasteText, setPasteText] = useState('');
   const [matching, setMatching] = useState(false);
   const [matchStats, setMatchStats] = useState(null);
+  const [fuzzyMatches, setFuzzyMatches] = useState([]);
 
   const loadOrgs = useCallback(async () => {
     setLoadingOrgs(true);
@@ -137,8 +138,8 @@ export default function SiconEquipmentMapper() {
         { source: 'import', rows: importRows },
         { headers },
       );
-      const { matched = [], stats = {} } = res.data || {};
-      // Pre-fill only where a suggestion differs from the current value.
+      const { matched = [], fuzzy = [], stats = {} } = res.data || {};
+      // Pre-fill only EXACT matches where a suggestion differs from current.
       const next = {};
       matched.forEach((m) => {
         const patch = {};
@@ -158,10 +159,11 @@ export default function SiconEquipmentMapper() {
       });
       setEdits((prev) => ({ ...prev, ...next }));
       setMatchStats(stats);
+      setFuzzyMatches(fuzzy); // near-misses require explicit confirmation
       const prefilled = Object.keys(next).length;
       notify.success(
         `Matched ${stats.matched || 0} of ${stats.import_rows || 0} import rows — ${prefilled} pre-filled`,
-        `${stats.unmatched_import || 0} import row(s) had no matching serial. Review the highlighted rows, then Save.`,
+        `${stats.fuzzy || 0} near-miss(es) to review · ${stats.unmatched_import || 0} with no match. Review, then Save.`,
       );
       setShowMatch(false);
     } catch (err) {
@@ -178,6 +180,23 @@ export default function SiconEquipmentMapper() {
     reader.onload = () => setPasteText(String(reader.result || ''));
     reader.readAsText(file);
   };
+
+  const applyFuzzy = (fm) => {
+    const row = rows.find((r) => r.id === fm.equipment_id) || {};
+    setEdits((prev) => ({
+      ...prev,
+      [fm.equipment_id]: {
+        sicon_equipment_id: fm.suggested_sicon_equipment_id != null ? String(fm.suggested_sicon_equipment_id) : (row.sicon_equipment_id ?? ''),
+        sage_item_id: fm.suggested_sage_item_id != null ? String(fm.suggested_sage_item_id) : (row.sage_item_id ?? ''),
+      },
+    }));
+    setFuzzyMatches((prev) => prev.filter((x) => x.equipment_id !== fm.equipment_id));
+  };
+  const applyAllFuzzy = () => {
+    fuzzyMatches.forEach(applyFuzzy);
+    setFuzzyMatches([]);
+  };
+  const dismissFuzzy = (id) => setFuzzyMatches((prev) => prev.filter((x) => x.equipment_id !== id));
 
   const handleSave = async () => {
     if (!dirtyCount) return;
@@ -287,6 +306,43 @@ export default function SiconEquipmentMapper() {
           )}
           {dirtyCount > 0 && <span className="text-violet-700 font-medium">Review the highlighted rows, then Save.</span>}
         </div>
+      )}
+
+      {/* Fuzzy / near-miss review — require explicit Apply (riskier matches) */}
+      {fuzzyMatches.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/40 overflow-hidden" data-testid="sicon-mapper-fuzzy-card">
+          <div className="px-4 py-2.5 flex items-center justify-between gap-3 border-b border-amber-100">
+            <p className="text-sm font-semibold text-amber-800 flex items-center gap-1.5">
+              <AlertTriangle size={14} className="text-amber-600" />
+              {fuzzyMatches.length} near-miss{fuzzyMatches.length > 1 ? 'es' : ''} — review before applying
+            </p>
+            <Button size="sm" variant="outline" onClick={applyAllFuzzy}
+              className="border-amber-300 text-amber-800 hover:bg-amber-100" data-testid="sicon-mapper-fuzzy-apply-all">
+              Apply all
+            </Button>
+          </div>
+          <div className="divide-y divide-amber-100">
+            {fuzzyMatches.map((fm) => (
+              <div key={fm.equipment_id} className="px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap" data-testid={`sicon-mapper-fuzzy-${fm.equipment_id}`}>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-zinc-900">{fm.name}</p>
+                  <p className="text-[11px] text-zinc-600 font-mono">
+                    yours: <b>{fm.serial_number}</b> <span className="text-zinc-400">↔</span> import: <b>{fm.import_serial}</b>
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-amber-100 text-amber-700 border border-amber-200 text-[10px]">{fm.reason}</Badge>
+                  <span className="text-xs text-zinc-600">→ Sicon <b>{fm.suggested_sicon_equipment_id ?? '—'}</b>{fm.suggested_sage_item_id != null ? <>, Sage <b>{fm.suggested_sage_item_id}</b></> : null}</span>
+                  <Button size="sm" onClick={() => applyFuzzy(fm)}
+                    className="h-7 bg-violet-600 hover:bg-violet-700 text-white text-xs" data-testid={`sicon-mapper-fuzzy-apply-${fm.equipment_id}`}>
+                    Apply
+                  </Button>
+                  <button type="button" onClick={() => dismissFuzzy(fm.equipment_id)} className="text-zinc-400 hover:text-zinc-700" data-testid={`sicon-mapper-fuzzy-dismiss-${fm.equipment_id}`}><X size={14} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
       )}
 
       {/* Controls */}

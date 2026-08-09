@@ -1,3 +1,27 @@
+# ═══ 2026-08-09 · Fuzzy Serial Match (near-miss suggestions) in Auto-Match — curl+unit+screenshot verified ═══
+Extends the Equipment ID Mapper auto-match so almost-matches aren't missed. Near-misses are surfaced SEPARATELY as
+review-before-apply (riskier than exact), never auto-filled.
+  • BACKEND routes/master_admin_integrations.py:
+      _canon_serial(s): lowercase + strip all non-alphanumerics + drop leading zeros within each digit run
+        → 'SN-0042' / 'sn 42' / 'sn42' all canon to 'sn42'. _fuzzy_reason() labels case | spacing / punctuation |
+        leading zeros / formatting.
+      _match_by_serial(): exact pass first (unchanged, auto-fills); then a fuzzy pass over ONLY the not-yet-matched
+        import serials + equipment (canon equality, first-import-row-wins), returning `fuzzy:[{equipment_id,name,
+        serial_number,import_serial,reason,current_*,suggested_*}]` and stats.fuzzy. Fuzzy serials are marked used so
+        they don't double-count as unmatched.
+      auto-match endpoint now returns `fuzzy` + stats.fuzzy.
+  • FRONTEND SiconEquipmentMapper.js: exact matches still pre-fill (violet dirty); a new amber "N near-misses — review
+    before applying" card lists each with `yours ↔ import` serials, a reason badge, the suggested Sicon/Sage IDs, and
+    per-row Apply (adds to edits) + dismiss, plus "Apply all". Toast now reports matched / near-misses / unmatched.
+    testids: sicon-mapper-fuzzy-card, -fuzzy-apply-all, -fuzzy-<id>, -fuzzy-apply-<id>, -fuzzy-dismiss-<id>.
+  • VERIFIED: PY unit test (canon equalities, reasons, exact-vs-fuzzy split all correct); curl earlier for exact path;
+    screenshot on iso-demo-org: pasted spacing variants 'PF XT 220 01' & 'sn logqa2' → 0 exact, 2 near-misses card with
+    'spacing / punctuation' badges + Apply/Apply-all. Nothing saved → no preview data changed.
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 · Auto-Match By Serial (Equipment ID Mapper) — CSV/paste import + live-pull stub — curl+screenshot verified ═══
 Founder chose option C. KEY CONSTRAINT (from /app/memory/SICON_API_AUDIT_2026-06.md, re-confirmed this session):
 there is NO live Sicon/Sage installed-asset list API (Service/Contracts/CRM/Core/Projects all lack it; StockItem =
