@@ -7,7 +7,7 @@ export function StepReview({ selectedIds, machineData, equipById, staff }) {
       <StepTitle eyebrow="Review" title={`Review & submit ${selectedIds.length > 1 ? `· ${selectedIds.length} tickets` : ''}`} subtitle={selectedIds.length > 1 ? 'Each machine below becomes its own ticket with its own SLA.' : undefined} />
 
       <div className="rounded-xl border p-4 mb-1" style={{ background: 'var(--theme-surface-3)', borderColor: 'var(--theme-border)' }}>
-        <ReviewRow label="Reporter" value={staff ? `${staff.name} · ${staff.email} · ${staff.phone}` : '—'} />
+        <ReviewRow label="Reporter" value={staff ? [staff.name, staff.email, staff.phone].filter(Boolean).join(' · ') : '—'} />
       </div>
 
       {selectedIds.map((id, idx) => {
@@ -25,6 +25,9 @@ export function StepReview({ selectedIds, machineData, equipById, staff }) {
             <ReviewRow label="Safe in service" value={SAFE.find((t) => t.id === md.safe_in_service)?.label} />
             <ReviewRow label="Photos/videos" value={(md.attachment_urls || []).length ? `${(md.attachment_urls || []).length} attached` : 'None'} />
             <ReviewRow label="Description" value={md.description} multiline />
+            {(md.steps_taken || '').trim() && (
+              <ReviewRow label="Steps taken to fix" value={md.steps_taken} multiline />
+            )}
           </div>
         );
       })}

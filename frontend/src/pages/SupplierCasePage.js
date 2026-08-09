@@ -13,7 +13,7 @@ import {
  Wrench, MapPin, AlertTriangle, Clock, CheckCircle, Send,
  Image, FileText, ChevronDown, ChevronUp, Shield, Loader2,
  Calendar, User, Building2, Paperclip, Star, X, Camera, MessageCircle,
- Phone, Mail, Copy, ContactRound, Globe
+ Phone, Mail, Copy, ContactRound, Globe, ExternalLink
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -578,7 +578,7 @@ const SupplierCasePage = () => {
  );
  }
 
- const { issue, equipment, media, status_history, current_status, organization_name, _supplier_name, comments, reporter, site, job_ref, platform_name, platform_tagline, is_pulse_branded, brand_color, logo_url } = caseData;
+ const { issue, equipment, media, status_history, current_status, organization_name, _supplier_name, comments, reporter, site, job_ref, platform_name, platform_tagline, is_pulse_branded, brand_color, logo_url, mod_booking } = caseData;
 
  // A gym user is viewing this page via the "Supplier Card" link in their
  // own dashboard (they're authenticated with a JWT). Pass this down so the
@@ -652,6 +652,36 @@ const SupplierCasePage = () => {
  {/* Schedule Visit (prominent) */}
  {current_status !== 'completed' && (
  <ScheduleVisit token={token} caseData={caseData} onRefresh={loadCase} />
+ )}
+
+ {/* MOD Engineer Appointment Booking form — the SUPPLIER provides the
+     engineer + vehicle details for base access (not the site). */}
+ {mod_booking?.share_url && (
+ <Card className="bg-[#0b1220] border-cyan-500/30 p-5" data-testid="sup-case-mod-booking">
+ <div className="flex items-start justify-between gap-4 flex-wrap">
+ <div className="min-w-0">
+ <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-cyan-300">MOD · Base access</p>
+ <h2 className="text-white font-bold text-lg mt-1 flex items-center gap-2">
+ <Calendar size={18} className="text-cyan-300" /> Engineer Appointment Booking
+ </h2>
+ <p className="text-zinc-300 text-sm mt-1 max-w-md">
+ {mod_booking.status === 'submitted'
+ ? 'Booking form submitted — you can review or update the engineer & vehicle details for base access.'
+ : "As the servicing provider, please complete the engineer & vehicle details the base needs to grant site access."}
+ </p>
+ {mod_booking.status === 'submitted' && (
+ <p className="text-cyan-300 text-xs mt-2 font-semibold">
+ ✓ Engineer: {mod_booking.engineer_name || '—'}{mod_booking.visit_start_date ? ` · Visit ${mod_booking.visit_start_date}` : ''}
+ </p>
+ )}
+ </div>
+ <a href={mod_booking.share_url} target="_blank" rel="noopener noreferrer"
+   className="shrink-0 inline-flex items-center gap-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-[#04121a] font-extrabold px-5 py-3 text-sm transition-colors"
+   data-testid="sup-case-mod-booking-btn">
+ {mod_booking.status === 'submitted' ? 'Review booking form' : 'Complete booking form'} <ExternalLink size={15} />
+ </a>
+ </div>
+ </Card>
  )}
 
  {/* Fault Details */}

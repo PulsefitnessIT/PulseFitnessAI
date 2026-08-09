@@ -1825,11 +1825,32 @@ async def mod_fault_submit(
                 {"id": overseas_sup_id, "organization_id": site_id}, {"_id": 0}))
 
         notified = []
+        supplier_case_created = False
         for sd in recipients.values():
+            # Auto-create a supplier portal case for the FIRST external supplier
+            # so the site's "Supplier Communication" thread is pre-wired to the
+            # supplier the fault was actually dispatched to (no manual email entry)
+            # and the supplier gets a job-card link in their email (commercial parity).
+            portal_url = ""
+            if not supplier_case_created and (sd.get("email") or "").strip():
+                try:
+                    from routes.supplier_portal import create_supplier_case
+                    case_res = await create_supplier_case(
+                        issue_id=issue_id,
+                        supplier_name=sd.get("name", "") or "Service Provider",
+                        supplier_email=(sd.get("email") or "").strip(),
+                        organization_name=org.get("name", "Pulse Fitness"),
+                        base_url="",
+                        site_contact_email=(reporter_email or "").strip(),
+                    )
+                    portal_url = case_res.get("url", "")
+                    supplier_case_created = True
+                except Exception as ce:  # pragma: no cover
+                    logger.warning("MOD supplier_case auto-create failed: %s", ce)
             asyncio.create_task(send_email(
                 sd.get("email"),
                 f"[Fault Log] {ticket_ref} — {org.get('name')} — {equipment.get('name')}",
-                _supplier_fault_email_html(org, equipment, doc, sd),
+                _supplier_fault_email_html(org, equipment, doc, sd, portal_url=portal_url),
             ))
             notified.append({"email": sd.get("email"), "name": sd.get("name", "")})
             notified_recipients.append({
@@ -2744,6 +2765,7 @@ async def mod_site_get_own_dio_contract(user: dict = Depends(get_current_user)):
 
 class DIOEscalateBody(BaseModel):
     note: Optional[str] = Field(default=None, max_length=2000)
+    dio_email: Optional[str] = Field(default=None, max_length=200)
 
 
 @router.post("/mod/site/faults/{issue_id}/escalate-to-dio")
@@ -2767,10 +2789,19 @@ async def mod_escalate_to_dio(
         {"_id": 0, "name": 1, "dio_contract_ref": 1,
          "dio_contact_email": 1, "dio_contact_name": 1},
     )
+    # Allow the caller to supply / override the DIO email from the in-app modal.
+    override_email = (body.dio_email or "").strip()
+    if override_email and "@" in override_email:
+        if not (site or {}).get("dio_contact_email"):
+            # Persist so the site users aren't asked again next time.
+            await db.organizations.update_one(
+                {"id": org["id"]}, {"$set": {"dio_contact_email": override_email}},
+            )
+        site = {**(site or {}), "dio_contact_email": override_email}
     if not site or not site.get("dio_contact_email"):
         raise HTTPException(
             409,
-            "Site has no DIO contact configured. Ask HQ to set it in the site drawer.",
+            "No DIO contact email. Enter one in the escalation dialog, or ask HQ to set it in the site drawer.",
         )
 
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -3321,18 +3352,28 @@ def _reporter_contact_block(doc: dict) -> str:
 
 def _escalation_email_html(site: dict, eq: dict, doc: dict) -> str:
     attachment_block = _inline_attachment_block(doc)
-    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#0A0B10;color:#fff;border-radius:12px;overflow:hidden;">
+    is_urgent = (doc.get('priority') or '').lower() == 'urgent'
+    band_bg = "#b91c1c" if is_urgent else "#1B1D1D"
+    band_label = "MOD · URGENT" if is_urgent else "Pulse Fitness · MOD Service"
+    band_fg = "#fff" if is_urgent else "#19CDFF"
+    steps = (doc.get('steps_taken') or '').strip()
+    steps_row = (
+        f'<tr><td style="padding:6px 0;color:#6E7476;vertical-align:top;">Steps taken on site</td>'
+        f'<td style="padding:6px 0;">{steps}</td></tr>'
+    ) if steps else ""
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
   {_classification_bar(site)}
-  <div style="background:#b91c1c;padding:20px 28px;">
-    <div style="font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;opacity:0.9;">MOD · URGENT</div>
-    <h1 style="margin:8px 0 0 0;font-size:22px;">{doc['mod_ticket_ref']} — {site.get('name')}</h1>
+  <div style="background:{band_bg};padding:20px 28px;{'' if is_urgent else 'border-bottom:3px solid #19CDFF;'}">
+    <div style="font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;color:{band_fg};">{band_label}</div>
+    <h1 style="margin:8px 0 0 0;font-size:22px;color:#fff;">{doc['mod_ticket_ref']} — {site.get('name')}</h1>
   </div>
   <div style="padding:22px 28px;">
     {_reporter_contact_block(doc)}
-    <table style="width:100%;color:#e5e7eb;font-size:14px;border-collapse:collapse;">
-      <tr><td style="padding:6px 0;color:#9ca3af;width:130px;">Asset</td><td style="padding:6px 0;font-weight:600;">{eq.get('name')} ({eq.get('machine_type','')})</td></tr>
-      <tr><td style="padding:6px 0;color:#9ca3af;">Fault</td><td style="padding:6px 0;">{FAULT_TYPE_LABELS.get(doc.get('fault_type_mod'), doc.get('fault_type_mod'))} · Safe to use? {doc.get('safe_in_service')} · Usable? {doc.get('usable')}</td></tr>
-      <tr><td style="padding:6px 0;color:#9ca3af;">Description</td><td style="padding:6px 0;">{doc.get('issue_description','')}</td></tr>
+    <table style="width:100%;color:#1B1D1D;font-size:14px;border-collapse:collapse;">
+      <tr><td style="padding:6px 0;color:#6E7476;width:150px;">Asset</td><td style="padding:6px 0;font-weight:600;">{eq.get('name')} ({eq.get('machine_type','')})</td></tr>
+      <tr><td style="padding:6px 0;color:#6E7476;">Fault</td><td style="padding:6px 0;">{FAULT_TYPE_LABELS.get(doc.get('fault_type_mod'), doc.get('fault_type_mod'))} · Safe to use? {doc.get('safe_in_service')} · Usable? {doc.get('usable')}</td></tr>
+      <tr><td style="padding:6px 0;color:#6E7476;vertical-align:top;">Description</td><td style="padding:6px 0;">{doc.get('issue_description','')}</td></tr>
+      {steps_row}
     </table>
   </div>
   {attachment_block}
@@ -3409,13 +3450,26 @@ async def _resolve_equipment_supplier(eq: dict, site_id: str) -> Optional[dict]:
     return None
 
 
-def _supplier_fault_email_html(site: dict, eq: dict, doc: dict, supplier: dict) -> str:
+def _supplier_fault_email_html(site: dict, eq: dict, doc: dict, supplier: dict, portal_url: str = "") -> str:
     """Iter 216h114 — Email sent to a machine's configured supplier when a
     fault is logged. Contains the ticket, equipment details, reporter
     contact, and a CTA to the public case page (handled by the existing
     supplier portal flow). Branded for MOD-as-Pulse."""
     contact = (supplier or {}).get("contact_name") or (supplier or {}).get("name", "Service Team")
     attachment_block = _inline_attachment_block(doc)
+    steps = (doc.get('steps_taken') or '').strip()
+    steps_row = (
+        f'<tr><td style="padding:6px 0;color:#6E7476;vertical-align:top;">Steps taken on site</td>'
+        f'<td style="padding:6px 0;">{steps}</td></tr>'
+    ) if steps else ""
+    portal_cta = (
+        f'<div style="margin:18px 0 6px 0;">'
+        f'<a href="{portal_url}" style="display:inline-block;background:#19CDFF;color:#04121a;'
+        f'font-weight:800;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;">'
+        f'Open your job card &rarr;</a>'
+        f'<div style="font-size:12px;color:#6E7476;margin-top:8px;">Update status, add notes and message the site directly &mdash; no login needed.</div>'
+        f'</div>'
+    ) if portal_url else ""
     return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
   {_classification_bar(site)}
   <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
@@ -3425,6 +3479,7 @@ def _supplier_fault_email_html(site: dict, eq: dict, doc: dict, supplier: dict) 
   <div style="padding:22px 28px;">
     <p>Dear {contact},</p>
     <p>A fault has been logged on a machine you service at <strong>{site.get('name')}</strong>. Please follow up directly with the reporter using the contact details below.</p>
+    {portal_cta}
     {_reporter_contact_block(doc)}
     <table style="width:100%;color:#1B1D1D;font-size:14px;border-collapse:collapse;margin-top:14px;">
       <tr><td style="padding:6px 0;color:#6E7476;width:140px;">Ticket</td><td style="padding:6px 0;font-weight:700;">{doc['mod_ticket_ref']}</td></tr>
@@ -3434,6 +3489,7 @@ def _supplier_fault_email_html(site: dict, eq: dict, doc: dict, supplier: dict) 
       <tr><td style="padding:6px 0;color:#6E7476;">Serial</td><td style="padding:6px 0;font-family:ui-monospace,Menlo,monospace;">{eq.get('serial_number','—')}</td></tr>
       <tr><td style="padding:6px 0;color:#6E7476;">Fault</td><td style="padding:6px 0;">{FAULT_TYPE_LABELS.get(doc.get('fault_type_mod'), doc.get('fault_type_mod'))} · Safe? {doc.get('safe_in_service')} · Usable? {doc.get('usable')}</td></tr>
       <tr><td style="padding:6px 0;color:#6E7476;vertical-align:top;">Description</td><td style="padding:6px 0;">{doc.get('issue_description','')}</td></tr>
+      {steps_row}
     </table>
   </div>
   {attachment_block}

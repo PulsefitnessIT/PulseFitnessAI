@@ -43,10 +43,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr, Field
 
 from utils.auth import get_current_user
-from utils.database import db
+from utils.database import db, APP_NAME, put_object
 from utils.email import send_email
 
 logger = logging.getLogger(__name__)
@@ -180,6 +181,23 @@ async def submit_incident(
     }
     await db.mod_incidents.insert_one(doc)
 
+    # Auto-file a PDF copy into the site's Documents (category "incidents")
+    # so the record is always retrievable later — best-effort.
+    try:
+        from utils.incident_pdf import mod_incident_pdf
+        pdf = mod_incident_pdf(doc, org_name=org.get("name") or "MOD Site")
+        path = f"{APP_NAME}/incidents/{org['id']}/{uuid.uuid4()}.pdf"
+        res = put_object(path, pdf, "application/pdf")
+        await db.files.insert_one({
+            "id": str(uuid.uuid4()), "user_id": user["id"], "organization_id": org["id"],
+            "category": "incidents", "incident_id": incident_id,
+            "storage_path": res["path"], "download_url": res.get("url", res["path"]),
+            "original_filename": f"{ref}.pdf", "content_type": "application/pdf",
+            "size": res.get("size", len(pdf)), "created_at": now.isoformat(),
+        })
+    except Exception as _fe:  # pragma: no cover
+        logger.warning("Incident auto-file to Documents failed: %s", _fe)
+
     # Email the configured base H&S officer + on-call.
     site = await db.organizations.find_one(
         {"id": org["id"]},
@@ -252,6 +270,62 @@ async def incident_detail(incident_id: str, user: dict = Depends(get_current_use
     if not doc:
         raise HTTPException(404, "Incident not found")
     return doc
+
+
+async def _load_incident_for_export(incident_id: str, user: dict) -> tuple[dict, dict]:
+    org = await _require_mod_site(user)
+    doc = await db.mod_incidents.find_one(
+        {"id": incident_id, "site_id": org["id"]}, {"_id": 0},
+    )
+    if not doc:
+        raise HTTPException(404, "Incident not found")
+    return org, doc
+
+
+@router.get("/mod/site/incidents/{incident_id}/pdf")
+async def incident_pdf(incident_id: str, user: dict = Depends(get_current_user)):
+    """Download a branded PDF of the personal-incident record."""
+    org, doc = await _load_incident_for_export(incident_id, user)
+    from utils.incident_pdf import mod_incident_pdf
+    pdf = mod_incident_pdf(doc, org_name=org.get("name") or "MOD Site")
+    ref = doc.get("incident_ref") or incident_id
+    return Response(
+        content=pdf, media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{ref}.pdf"'},
+    )
+
+
+@router.post("/mod/site/incidents/{incident_id}/save-to-documents")
+async def incident_save_to_documents(incident_id: str, user: dict = Depends(get_current_user)):
+    """Generate the incident PDF and file it under the site's Documents
+    (category ``incidents``) so it's retained + retrievable later."""
+    org, doc = await _load_incident_for_export(incident_id, user)
+    from utils.incident_pdf import mod_incident_pdf
+    pdf = mod_incident_pdf(doc, org_name=org.get("name") or "MOD Site")
+    ref = doc.get("incident_ref") or incident_id
+    # Idempotent-ish: replace any prior filed copy for this incident.
+    existing = await db.files.find_one(
+        {"organization_id": org["id"], "category": "incidents", "incident_id": incident_id},
+        {"_id": 0, "id": 1},
+    )
+    path = f"{APP_NAME}/incidents/{org['id']}/{uuid.uuid4()}.pdf"
+    result = put_object(path, pdf, "application/pdf")
+    now = datetime.now(timezone.utc).isoformat()
+    file_doc = {
+        "id": existing["id"] if existing else str(uuid.uuid4()),
+        "user_id": user["id"],
+        "organization_id": org["id"],
+        "category": "incidents",
+        "incident_id": incident_id,
+        "storage_path": result["path"],
+        "download_url": result.get("url", result["path"]),
+        "original_filename": f"{ref}.pdf",
+        "content_type": "application/pdf",
+        "size": result.get("size", len(pdf)),
+        "created_at": now,
+    }
+    await db.files.update_one({"id": file_doc["id"]}, {"$set": file_doc}, upsert=True)
+    return {"ok": True, "file": file_doc}
 
 
 class ClosureBody(BaseModel):

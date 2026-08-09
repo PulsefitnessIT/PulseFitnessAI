@@ -1145,6 +1145,29 @@ async def get_supplier_case(token: str, request: Request):
                    or ("#0055FF" if is_pulse else "#0055FF"))
     logo_url = org.get("logo_url") or branding.get("logo_url") or None
 
+    # MOD Engineer Appointment Booking form — it's the SUPPLIER (Pulse/overseas
+    # servicer) who provides the engineer's details, so expose the booking form
+    # on the supplier's job card. Lazily create it for any MOD fault.
+    mod_booking = None
+    is_mod_issue = bool(issue.get("mod_site_id") or issue.get("mod_ticket_ref"))
+    if is_mod_issue:
+        try:
+            from routes.svc.mod_visits import make_fault_booking, _share_url
+            b = issue.get("mod_booking") or {}
+            if not b.get("token"):
+                b = await make_fault_booking(issue["id"]) or {}
+            if b.get("token"):
+                mod_booking = {
+                    "token": b.get("token"),
+                    "status": b.get("status") or "sent",
+                    "share_url": _share_url(b["token"]),
+                    "engineer_name": b.get("engineer_name") or "",
+                    "visit_start_date": b.get("visit_start_date") or "",
+                    "submitted_at": b.get("submitted_at"),
+                }
+        except Exception as _be:  # pragma: no cover
+            logger.warning("supplier case booking-form surface failed: %s", _be)
+
     return {
         "case_id": case["id"], "po_number": case.get("po_number"),
         "job_ref": job_ref,
@@ -1188,6 +1211,7 @@ async def get_supplier_case(token: str, request: Request):
         "engineer_name": case.get("engineer_name"),
         "rating": case.get("rating"),
         "rating_feedback": case.get("rating_feedback"),
+        "mod_booking": mod_booking,
         "comments": await db.supplier_case_comments.find({"case_id": case["id"]}, {"_id": 0}).sort("created_at", 1).to_list(500),
     }
 

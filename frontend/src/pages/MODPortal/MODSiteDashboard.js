@@ -58,6 +58,7 @@ function DrillBanner({ drill, onAcknowledge, acked }) {
 }
 import MODFaultWizard from './MODFaultWizard';
 import MODIncidentWizard from './MODIncidentWizard';
+import { MODDIOEscalateModal } from './MODDIOEscalateModal';
 import MODStaffModal from './MODStaffModal';
 import MODASERPortal from './MODASERPortal';
 import MODCapexPortal from './MODCapexPortal';
@@ -383,29 +384,8 @@ function FaultCard({ fault, onChange }) {
   // has configured one. Button hides once a fault has already been
   // escalated.
   const [escalating, setEscalating] = useState(false);
+  const [dioModalOpen, setDioModalOpen] = useState(false);
   const alreadyEscalated = Boolean(fault.escalated_to_dio);
-  const escalateToDIO = async () => {
-    const note = window.prompt(
-      `Escalate ${fault.mod_ticket_ref || 'this fault'} to DIO?\n\nOptional escalation note (max 2000 chars):`,
-      '',
-    );
-    if (note === null) return; // cancelled
-    setEscalating(true);
-    try {
-      const r = await axios.post(
-        `${API}/mod/site/faults/${fault.id}/escalate-to-dio`,
-        { note: (note || '').slice(0, 2000) },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      notify.success('Escalated to DIO', `Sent to ${r.data.escalated_to}.`);
-      onChange?.();
-    } catch (e) {
-      const detail = e?.response?.data?.detail || 'Could not escalate fault';
-      notify.error('Escalation failed', detail);
-    } finally {
-      setEscalating(false);
-    }
-  };
 
   return (
     <div className={`rounded-xl border p-4 ${toneMap[severity] || 'border-white/10 bg-white/[0.03]'}`} data-testid={`mod-fault-${fault.id}`}>
@@ -437,17 +417,26 @@ function FaultCard({ fault, onChange }) {
         {!alreadyEscalated && (
           <button
             type="button"
-            onClick={escalateToDIO}
+            onClick={() => setDioModalOpen(true)}
             disabled={escalating}
             className="shrink-0 inline-flex items-center gap-1 px-2 py-1 text-[11px] font-extrabold rounded-md border border-cyan-500/40 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20 disabled:opacity-60"
             data-testid={`mod-fault-${fault.id}-escalate-dio`}
             title="Report to DIO (Defence Infrastructure Organisation)"
           >
             <ShieldCheck size={10} />
-            {escalating ? 'Sending…' : 'Report to DIO'}
+            Report to DIO
           </button>
         )}
       </div>
+      <MODDIOEscalateModal
+        open={dioModalOpen}
+        onClose={() => setDioModalOpen(false)}
+        api={API}
+        faultId={fault.id}
+        ticketRef={fault.mod_ticket_ref}
+        existingDioEmail={fault.dio_contact_email || ''}
+        onEscalated={() => onChange?.()}
+      />
       {attachments.length > 0 && (
         <div className="mt-3 flex gap-1.5 flex-wrap" data-testid={`mod-fault-attachments-${fault.id}`}>
           {attachments.slice(0, 6).map((p, i) => (

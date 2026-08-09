@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import MODASERPortal from './MODPortal/MODASERPortal';
 import MODIncidentWizard from './MODPortal/MODIncidentWizard';
+import MODIncidentRegister from './MODPortal/MODIncidentRegister';
 import RiskAssessmentTab from './RiskAssessmentTab';
 import CapexIntelligenceTab from './CapexIntelligenceTab';
 import IncidentsTab from './IncidentsTab';
@@ -111,6 +112,7 @@ const PulseReportsTab = () => {
           { id: 'incidents', label: 'H&S Incidents', icon: AlertTriangle },
           ...(isMOD ? [{ id: 'aser', label: 'ASER', icon: ShieldAlert, action: true }] : []),
           ...(isMOD ? [{ id: 'report-incident', label: 'Report Incident', icon: ShieldAlert, launch: 'incident' }] : []),
+          ...(isMOD ? [{ id: 'incident-register', label: 'Incident Register', icon: Shield }] : []),
           ...(['owner', 'manager', 'master_admin'].includes(user?.role) ? [{ id: 'capex', label: 'CAPEX Intelligence', icon: PoundSterling }] : []),
           ...(!isMOD && ['owner', 'manager', 'master_admin'].includes(user?.role) ? [{ id: 'weekly-digest', label: 'Weekly Digest', icon: Mail }] : []),
         ].map(tab => {
@@ -140,6 +142,7 @@ const PulseReportsTab = () => {
       {subTab === 'performance' && <KPIPerformanceDashboard />}
       {subTab === 'risk' && <RiskAssessmentTab />}
       {subTab === 'incidents' && <IncidentsTab />}
+      {subTab === 'incident-register' && <MODIncidentRegister />}
       {subTab === 'capex' && <CapexIntelligenceTab />}
       {subTab === 'weekly-digest' && (
         <div className="space-y-4" data-testid="pulse-weekly-digest">

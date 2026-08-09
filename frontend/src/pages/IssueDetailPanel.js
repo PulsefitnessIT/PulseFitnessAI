@@ -15,6 +15,7 @@ import {
  ChevronDown, ChevronUp, Receipt, Timer, AlertTriangle,
 } from 'lucide-react';
 import SiconServicePanel from './SiconServicePanel';
+import { MODDIOEscalateModal } from './MODPortal/MODDIOEscalateModal';
 
 const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  const { API, user } = useAuth();
@@ -61,6 +62,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
    pending: null, // 'gym-comment' | 'contact-supplier'
    submitting: false,
  });
+ const [dioModalOpen, setDioModalOpen] = useState(false);
 
  // Load full detail with supplier case data
  useEffect(() => {
@@ -1089,22 +1091,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
 <Button
   size="sm"
   variant="outline"
-  onClick={async () => {
-    const note = window.prompt('Optional escalation note (max 2000 chars):', '');
-    if (note === null) return;
-    try {
-      const r = await axios.post(
-        `${API}/mod/site/faults/${issue.id}/escalate-to-dio`,
-        { note: (note || '').slice(0, 2000) },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } },
-      );
-      setIssue({ ...issue, escalated_to_dio: true, dio_escalated_at: new Date().toISOString() });
-      notify.success('Escalated to DIO', `Sent to ${r.data.escalated_to}.`);
-      if (onUpdate) onUpdate();
-    } catch (e) {
-      notify.error('Escalation failed', e?.response?.data?.detail || 'Could not escalate');
-    }
-  }}
+  onClick={() => setDioModalOpen(true)}
   className="border-cyan-400/60 bg-cyan-50 text-cyan-800 hover:bg-cyan-100"
   data-testid={`detail-escalate-dio-${issue.id}`}
 >
@@ -1160,6 +1147,18 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  {/* Iter 216k — supplier-email collector dialog. Replaces the
      ugly browser prompt() that was firing every time an operator
      sent a message to a supplier without an email on file. */}
+ <MODDIOEscalateModal
+   open={dioModalOpen}
+   onClose={() => setDioModalOpen(false)}
+   api={API}
+   faultId={issue.id}
+   ticketRef={issue.mod_ticket_ref}
+   existingDioEmail={issue.dio_contact_email || ''}
+   onEscalated={() => {
+     setIssue({ ...issue, escalated_to_dio: true, dio_escalated_at: new Date().toISOString() });
+     if (onUpdate) onUpdate();
+   }}
+ />
  <Dialog
    open={supplierEmailDialog.open}
    onOpenChange={(o) => setSupplierEmailDialog((s) => ({ ...s, open: o, ...(o ? {} : { pending: null, email: '' }) }))}
