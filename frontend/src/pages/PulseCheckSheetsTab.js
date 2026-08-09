@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
 import {
-  ClipboardCheck, Plus, Calendar, History, BarChart3, Trash2, Search,
+  ClipboardCheck, Plus, Calendar, History, BarChart3, Trash2, Search, MapPin,
 } from 'lucide-react';
 
 import { classifyByName, getTasksForType, isKnownType } from './pulseCheckSheets/constants';
@@ -188,24 +188,44 @@ const PulseCheckSheetsTab = ({ equipment }) => {
     || e.name?.toLowerCase().includes(searchQuery.toLowerCase())
     || (e.serial_number || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
-  const grouped = [];
-  const typeMap = {};
-  for (const eq of filtered) {
-    // Pulse imports often store a broad CATEGORY ("Cardiovascular") in
-    // equipment_type, which would lump every cardio machine into one group
-    // under the generic checklist. Trust an explicit type only when it maps
-    // to a real per-type checklist; otherwise classify by the machine name so
-    // each type (Treadmill / Upright Bike / Rower…) groups with its own tasks.
-    const explicit = (eq.equipment_type && eq.equipment_type.trim()) || '';
-    const type = isKnownType(explicit)
-      ? explicit
-      : (classifyByName(eq.name) || explicit || 'Uncategorised');
-    if (!typeMap[type]) {
-      typeMap[type] = { equipment_type: type, machines: [] };
-      grouped.push(typeMap[type]);
+  // Iter 2026-08-09 (fork) — organise the Check Sheets by physical LOCATION
+  // too (matches the equipment list + Fault Wizard grouping) so machines are
+  // easier to find per zone. Within each location we still group by type.
+  // "Unassigned" sorts last; location headers only show when >1 location.
+  const UNASSIGNED_KEY = '__unassigned__';
+  const buildTypeGroups = (items) => {
+    const out = [];
+    const map = {};
+    for (const eq of items) {
+      // Pulse imports often store a broad CATEGORY ("Cardiovascular") in
+      // equipment_type, which would lump every cardio machine into one group.
+      // Trust an explicit type only when it maps to a real per-type checklist;
+      // otherwise classify by the machine name so each type groups with its
+      // own tasks. Anything unmatched → "Uncategorised".
+      const explicit = (eq.equipment_type && eq.equipment_type.trim()) || '';
+      const type = isKnownType(explicit)
+        ? explicit
+        : (classifyByName(eq.name) || explicit || 'Uncategorised');
+      if (!map[type]) { map[type] = { equipment_type: type, machines: [] }; out.push(map[type]); }
+      map[type].machines.push(eq);
     }
-    typeMap[type].machines.push(eq);
+    return out;
+  };
+  const locMap = new Map();
+  for (const eq of filtered) {
+    const loc = (eq.location || '').trim() || UNASSIGNED_KEY;
+    if (!locMap.has(loc)) locMap.set(loc, []);
+    locMap.get(loc).push(eq);
   }
+  const locationGroups = Array.from(locMap.entries())
+    .sort((a, b) => {
+      if (a[0] === UNASSIGNED_KEY) return 1;
+      if (b[0] === UNASSIGNED_KEY) return -1;
+      return a[0].localeCompare(b[0]);
+    })
+    .map(([loc, items]) => [loc, buildTypeGroups(items)]);
+  const showLocationHeaders = locationGroups.length > 1;
+  const totalGroups = locationGroups.reduce((n, [, g]) => n + g.length, 0);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todayHistory = history.filter(h => (h.completed_date || '').startsWith(todayStr));
@@ -272,15 +292,34 @@ const PulseCheckSheetsTab = ({ equipment }) => {
             </div>
           </Card>
 
-          {grouped.map(group => (
-            <EquipmentGroupCard
-              key={group.equipment_type}
-              group={group}
-              completedTodayNames={completedTodayNames}
-              onStart={handleStartSheet}
-            />
+          {locationGroups.map(([loc, typeGroups]) => (
+            <div key={loc} className="space-y-4">
+              {showLocationHeaders && (
+                <div
+                  className="flex items-center gap-2 pt-1"
+                  data-testid={`pulse-cs-location-${loc === UNASSIGNED_KEY ? 'unassigned' : loc}`}
+                >
+                  <MapPin size={14} className="text-blue-600" />
+                  <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    {loc === UNASSIGNED_KEY ? 'Unassigned' : loc}
+                  </h3>
+                  <Badge className="bg-zinc-100 text-zinc-500 text-xs dark:bg-zinc-800">
+                    {typeGroups.reduce((n, g) => n + g.machines.length, 0)}
+                  </Badge>
+                  <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />
+                </div>
+              )}
+              {typeGroups.map(group => (
+                <EquipmentGroupCard
+                  key={`${loc}-${group.equipment_type}`}
+                  group={group}
+                  completedTodayNames={completedTodayNames}
+                  onStart={handleStartSheet}
+                />
+              ))}
+            </div>
           ))}
-          {grouped.length === 0 && (
+          {totalGroups === 0 && (
             <p className="text-center text-zinc-400 py-8 text-sm">No equipment found</p>
           )}
 

@@ -1,3 +1,20 @@
+# ═══ 2026-08-09 (fork) · Check Sheets organised by LOCATION (zone) — screenshot verified ═══
+User: now that equipment is broken down into locations, organise the Check Sheets into locations too so machines are easier to find per location.
+  • FRONTEND pages/PulseCheckSheetsTab.js (used by the Lite/MOD LiteDashboardPage 'Check Sheets' tab, equipment prop): the Sheets
+    sub-tab now groups by physical LOCATION first, then by equipment TYPE within each location (mirrors LiteEquipmentTab.js +
+    Fault Wizard). New buildTypeGroups(items) helper (same explicit-type/classifyByName logic as before) + a locationGroups map
+    keyed by (eq.location||'').trim() (UNASSIGNED_KEY='__unassigned__'); named zones sort A→Z, "Unassigned" last. A small MapPin +
+    uppercase zone header with a machine-count Badge + divider renders per location, ONLY when >1 location (single-location sites
+    look identical to before). EquipmentGroupCard React keys are now `${loc}-${type}` to stay unique across zones. Search filter,
+    multi-machine completion, today-progress, custom templates all unchanged. testid: pulse-cs-location-<zone|unassigned>.
+  • VERIFIED: babel clean; screenshot on MOD Test Site (test@army.mod.test) Check Sheets tab shows CARDIO SUITE (3) [Bike / Cross
+    Trainer / Strength] and MAIN GYM (4) [Treadmill …] zone headers with the type cards grouped underneath (3 location headers incl.
+    Unassigned). No backend change.
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 (fork) · MOD booking = up to 4 engineers + DUAL-supplier shared comms thread — testing_agent 100% ═══
 Two user asks delivered + last-session regressions verified. testing_agent iteration_mod_multieng_dualsupplier_regression_jan2026.json = 100% BE + FE.
   • MULTIPLE ENGINEERS on the MOD Engineer Appointment Booking form (per engineer: Name / Date of birth / Vehicle registration; CAP 4):
