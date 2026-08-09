@@ -1039,7 +1039,7 @@ useEffect(() => {
             <Sheet open onOpenChange={(o) => { if (!o) { setExpandedOrg(null); setEditingOrg(null); } }}>
               <SheetContent
                 side="right"
-                className="w-full sm:max-w-2xl overflow-y-auto p-0 bg-white text-slate-900 theme-gymaxis"
+                className="w-full sm:max-w-3xl overflow-y-auto p-0 bg-white text-slate-900 theme-gymaxis"
                 data-testid={`org-manage-drawer-${org.id}`}
               >
                 <SheetHeader className="px-5 py-4 pr-14 border-b border-slate-100 sticky top-0 bg-white z-10">
@@ -1108,13 +1108,13 @@ useEffect(() => {
  {(u.full_name || u.email || '?')[0].toUpperCase()}
  </div>
  <div className="min-w-0 flex-1">
- <p className="text-sm text-zinc-900 font-medium truncate" data-testid={`org-user-name-${u.id}`}>{u.full_name || 'Unnamed'}</p>
- <p className="text-[11px] text-zinc-500 truncate" data-testid={`org-user-email-${u.id}`}>{u.email}</p>
+ <p className="text-sm text-zinc-900 font-medium break-words" data-testid={`org-user-name-${u.id}`}>{u.full_name || 'Unnamed'}</p>
+ <p className="text-[11px] text-zinc-500 break-all" data-testid={`org-user-email-${u.id}`}>{u.email}</p>
  </div>
  </div>
  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
  <Select value={u.is_master_admin ? 'master_admin' : ((u.is_pulse_admin || u.role === 'pulse_master_admin') ? 'pulse_master_admin' : (u.role || 'staff'))} onValueChange={(v) => onEditUser && onEditUser(u.id, { role: v })}>
- <SelectTrigger className={`h-7 text-xs border w-24 ${u.role === 'owner' ? 'bg-amber-50 text-amber-700 border-amber-200' : u.role === 'manager' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-zinc-100 text-zinc-600 border-zinc-200'}`} data-testid={`user-role-${u.id}`}><SelectValue /></SelectTrigger>
+ <SelectTrigger className={`h-7 text-xs border w-28 ${u.role === 'owner' ? 'bg-amber-50 text-amber-700 border-amber-200' : u.role === 'manager' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-zinc-100 text-zinc-600 border-zinc-200'}`} data-testid={`user-role-${u.id}`}><SelectValue placeholder="—" /></SelectTrigger>
  <SelectContent className="bg-white border-zinc-200">
  <SelectItem value="owner">Owner</SelectItem>
  <SelectItem value="manager">Manager</SelectItem>
@@ -1125,6 +1125,12 @@ useEffect(() => {
  <SelectItem value="engineer">Engineer</SelectItem>
  <SelectItem value="master_admin">{masterAdminRoleLabel}</SelectItem>
  {(u.role === 'pulse_master_admin' || u.is_pulse_admin) && <SelectItem value="pulse_master_admin">Master Admin (Pulse)</SelectItem>}
+{/* Iter 2026-08-09 (fork) — surface any non-standard role (CRM roles or a
+    Staffing-created role) as its own option so the dropdown never renders
+    blank; the master admin can always SEE the user's current role. */}
+{!['owner', 'manager', 'staff', 'engineer', 'master_admin', 'pulse_master_admin'].includes(u.is_master_admin ? 'master_admin' : ((u.is_pulse_admin || u.role === 'pulse_master_admin') ? 'pulse_master_admin' : (u.role || 'staff'))) && (
+<SelectItem value={u.role || 'staff'}>{(u.role || 'staff').replace(/[_-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}</SelectItem>
+)}
  </SelectContent>
  </Select>
  {u.user_type === 'crm' && <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[9px]">CRM</Badge>}
