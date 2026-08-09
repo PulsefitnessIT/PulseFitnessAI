@@ -99,8 +99,8 @@ const LiteFaultsTab = ({
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[var(--color-brand-blue)]">
                     <CalendarClock size={12} /> {t('faults.engineer_booking', 'Engineer booking')}
-                    <Badge className={issue.mod_booking.status === 'submitted' ? 'bg-emerald-500/20 text-emerald-400 text-[9px] px-1.5 py-0' : 'bg-amber-500/20 text-amber-400 text-[9px] px-1.5 py-0'}>
-                      {issue.mod_booking.status === 'submitted' ? t('faults.booked', 'Booked') : t('faults.awaiting_booking', 'Awaiting booking')}
+                    <Badge className={issue.mod_booking.status === 'submitted' ? 'bg-emerald-500/20 text-emerald-400 text-[9px] px-1.5 py-0' : 'bg-amber-500/20 text-amber-400 text-[9px] px-1.5 py-0'} data-testid={`mod-booking-chip-${issue.id}`}>
+                      {issue.mod_booking.status === 'submitted' ? t('faults.booking_completed', 'Completed') : t('faults.booking_sent', 'Sent')}
                     </Badge>
                   </span>
                   <div className="flex items-center gap-2">

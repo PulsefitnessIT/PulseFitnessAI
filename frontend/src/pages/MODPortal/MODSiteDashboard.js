@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   AlertTriangle, Wrench, Users, Shield, Gauge, ChevronRight,
-  Activity, Clock, LogOut, CheckCircle2, QrCode, CloudOff, ShieldAlert, ShieldCheck, PoundSterling, FileText,
+  Activity, Clock, LogOut, CheckCircle2, QrCode, CloudOff, ShieldAlert, ShieldCheck, PoundSterling, FileText, Calendar,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
@@ -406,6 +406,22 @@ function FaultCard({ fault, onChange }) {
                 <ShieldCheck size={9} /> DIO
               </span>
             )}
+            {fault.mod_booking?.token && (() => {
+              const bs = fault.mod_booking.status;
+              const done = bs === 'submitted';
+              return (
+                <span
+                  className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider border inline-flex items-center gap-1 ${done ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40' : 'bg-amber-500/15 text-amber-300 border-amber-500/40'}`}
+                  data-testid={`mod-fault-${fault.id}-booking-chip`}
+                  title={done
+                    ? `Engineer booking completed by supplier${fault.mod_booking.engineer_name ? ` · ${fault.mod_booking.engineer_name}` : ''}`
+                    : 'Engineer booking form sent to supplier — awaiting completion'}
+                >
+                  {done ? <CheckCircle2 size={9} /> : <Calendar size={9} />}
+                  Booking: {done ? 'completed' : 'sent'}
+                </span>
+              );
+            })()}
           </div>
           <div className="text-sm text-white/80 truncate">{fault.issue_description}</div>
           {fault.reporter_name && (

@@ -1845,6 +1845,14 @@ async def mod_fault_submit(
                     )
                     portal_url = case_res.get("url", "")
                     supplier_case_created = True
+                    # Ensure an Engineer Appointment Booking form exists for the
+                    # supplier to fill (so the site sees a live booking chip on
+                    # the fault from the moment it's dispatched — any priority).
+                    try:
+                        from routes.svc.mod_visits import make_fault_booking
+                        await make_fault_booking(issue_id)
+                    except Exception as be:  # pragma: no cover
+                        logger.warning("MOD fault booking auto-create on dispatch failed: %s", be)
                 except Exception as ce:  # pragma: no cover
                     logger.warning("MOD supplier_case auto-create failed: %s", ce)
             asyncio.create_task(send_email(

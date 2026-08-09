@@ -34801,3 +34801,9 @@ NOTE: preview change — user must REDEPLOY to reach production (fitness-ai-migr
 - Targets the supplier the fault was dispatched to: supplier_cases.supplier_email → issue.supplier_notified_email fallback. Idempotent via issues.mod_booking.supplier_nudged_at (fires once). Runs on the existing sicon_poller cadence (already hooked at _run_mod_booking_nudges).
 - Branded reminder email _fault_booking_nudge_html with "Complete booking form →" link to /mod-booking/{token}.
 - Verified via direct run: RUN1 fault_supplier_sent=1, RUN2=0 (idempotent), supplier_nudged_at stamped. Email send itself fails on PREVIEW ONLY (invalid Resend key) — works in production after redeploy.
+
+## Changelog — 2026-08-09 (fork) · Booking Status Chip (site view)
+- Site's Faults tab (LiteFaultsTab.js) already rendered an engineer-booking block; reworded the status badge to "Sent" (amber) / "Completed" (green) per user request (data-testid mod-booking-chip-<id>) + i18n keys faults.booking_sent / faults.booking_completed.
+- Backend: MOD fault dispatch now calls make_fault_booking(issue_id) when a supplier_case is created, so the booking token (and therefore the chip) exists for EVERY supplier-routed fault immediately — not just urgent/high. GET /issues already returns mod_booking so the chip is live.
+- Also added the same chip to MODSiteDashboard FaultCard (mod-fault-<id>-booking-chip) for consistency (that view isn't currently mounted).
+- Verified via screenshot: 6 faults each show "Engineer booking · Sent"; submitted bookings show green "Completed".
