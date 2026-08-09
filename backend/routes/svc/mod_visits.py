@@ -80,6 +80,48 @@ BOOKING_FIELDS = [
     "veh_reg", "veh_make", "veh_model", "veh_colour",
 ]
 
+# A booking can name up to 4 visiting engineers, each needing Name / DOB /
+# Vehicle registration for base gate access. Stored as booking["engineers"];
+# the first entry is mirrored into the legacy single-engineer fields above so
+# the fault card and Sicon sync keep working.
+MAX_ENGINEERS = 4
+
+
+def _clean_engineers(raw) -> list:
+    out = []
+    if isinstance(raw, list):
+        for e in raw[:MAX_ENGINEERS]:
+            if not isinstance(e, dict):
+                continue
+            name = (e.get("name") or "").strip()
+            dob = (e.get("dob") or "").strip()
+            veh_reg = (e.get("veh_reg") or "").strip()
+            if name or dob or veh_reg:
+                out.append({"name": name, "dob": dob, "veh_reg": veh_reg})
+    return out
+
+
+def _sync_legacy_engineer(booking: dict) -> None:
+    """Mirror the first engineer into the legacy single-engineer fields."""
+    engs = booking.get("engineers") or []
+    if engs:
+        first = engs[0]
+        booking["engineer_name"] = first.get("name") or ""
+        booking["engineer_dob"] = first.get("dob") or ""
+        booking["veh_reg"] = first.get("veh_reg") or ""
+
+
+def _engineers_list(booking: dict) -> list:
+    """Normalised engineer list; falls back to the legacy single fields."""
+    engs = booking.get("engineers") or []
+    if engs:
+        return engs
+    if booking.get("engineer_name") or booking.get("veh_reg"):
+        return [{"name": booking.get("engineer_name") or "",
+                 "dob": booking.get("engineer_dob") or "",
+                 "veh_reg": booking.get("veh_reg") or ""}]
+    return []
+
 
 def _visit_row(c: dict) -> dict:
     av = c.get("annual_visit") or {}
@@ -89,6 +131,7 @@ def _visit_row(c: dict) -> dict:
     booking_out = None
     if booking.get("token"):
         booking_out = {k: booking.get(k, "") for k in BOOKING_FIELDS}
+        booking_out["engineers"] = _engineers_list(booking)
         booking_out["status"] = booking.get("status") or "sent"
         booking_out["submitted_at"] = booking.get("submitted_at")
     return {
@@ -151,6 +194,8 @@ async def create_booking_link(contract_id: str, data: dict = Body(default={}),
             "visit_start_time": "", "visit_end_date": "", "visit_end_time": "",
             "engineer_name": av.get("engineer") or "", "engineer_dob": "", "engineer_phone": "",
             "veh_reg": "", "veh_make": "", "veh_model": "", "veh_colour": "",
+            "engineers": ([{"name": av.get("engineer"), "dob": "", "veh_reg": ""}]
+                          if av.get("engineer") else []),
             "created_at": _now(), "updated_at": _now(),
         }
     booking["status"] = "sent" if booking.get("status") in (None, "not_sent") else booking["status"]
@@ -223,7 +268,8 @@ def _public_booking_view(handle: dict) -> dict:
         "source": handle["source"],
         "status": b.get("status") or "sent",
         "submitted_at": b.get("submitted_at"),
-        "form": {k: b.get(k, "") for k in BOOKING_FIELDS},
+        "form": {**{k: b.get(k, "") for k in BOOKING_FIELDS},
+                 "engineers": _engineers_list(b)},
     }
 
 
@@ -240,11 +286,10 @@ def _visit_datetimes(visit_date: str, booking: dict) -> tuple:
 
 def _booking_notes(booking: dict) -> str:
     lines = []
-    if booking.get("engineer_name"):
-        lines.append(f"Engineer/visitor: {booking['engineer_name']} · DOB {booking.get('engineer_dob') or '—'} · {booking.get('engineer_phone') or '—'}")
-    veh = " ".join(x for x in [booking.get("veh_colour"), booking.get("veh_make"), booking.get("veh_model")] if x)
-    if booking.get("veh_reg") or veh:
-        lines.append(f"Vehicle: {(booking.get('veh_reg') or '').strip()} {veh}".strip())
+    engs = _engineers_list(booking)
+    for idx, e in enumerate(engs, 1):
+        label = f"Engineer {idx}" if len(engs) > 1 else "Engineer/visitor"
+        lines.append(f"{label}: {e.get('name') or '—'} · DOB {e.get('dob') or '—'} · Vehicle {e.get('veh_reg') or '—'}")
     if booking.get("mod_contact_name"):
         lines.append(f"MOD contact: {booking['mod_contact_name']} · {booking.get('mod_contact_phone') or booking.get('mod_contact_email') or ''}")
     return "\n".join(lines)
@@ -331,6 +376,7 @@ async def make_fault_booking(issue_id: str) -> dict | None:
     booking.update({
         "token": secrets.token_urlsafe(24), "status": "sent",
         "site_name": org.get("name") or "", "kind": "fault",
+        "engineers": [],
         "requested_by_name": "Pulse Fitness Service", "requested_by_email": "",
         "mod_contact_name": issue.get("reporter_name") or "",
         "mod_contact_email": issue.get("reporter_email") or "",
@@ -359,6 +405,9 @@ async def public_save_booking(token: str, body: dict = Body(...)) -> dict:
     for k in BOOKING_FIELDS:
         if k in form:
             booking[k] = form.get(k).strip() if isinstance(form.get(k), str) else form.get(k)
+    if "engineers" in form:
+        booking["engineers"] = _clean_engineers(form.get("engineers"))
+        _sync_legacy_engineer(booking)
     booking["status"] = "draft" if booking.get("status") in (None, "sent") else booking["status"]
     booking["updated_at"] = _now()
     await _persist_booking(handle, booking)
@@ -375,6 +424,9 @@ async def public_submit_booking(token: str, body: dict = Body(default={})) -> di
     for k in BOOKING_FIELDS:
         if k in form:
             booking[k] = form.get(k).strip() if isinstance(form.get(k), str) else form.get(k)
+    if "engineers" in form:
+        booking["engineers"] = _clean_engineers(form.get("engineers"))
+        _sync_legacy_engineer(booking)
     if not (booking.get("mod_contact_name") and booking.get("mod_contact_email")):
         raise HTTPException(400, "Please provide the MOD contact name and email before submitting.")
     booking["status"] = "submitted"
@@ -387,11 +439,19 @@ async def public_submit_booking(token: str, body: dict = Body(default={})) -> di
         from utils.email import send_email
         team = os.environ.get("MOD_READINESS_HQ_EMAIL") or "modservice@pulsefitness.com"
         label = "engineer callout" if handle["source"] == "fault" else "annual service visit"
+        engs = _engineers_list(booking)
+        if engs:
+            eng_rows = "".join(
+                f"<li>{(e.get('name') or '—')} · DOB {(e.get('dob') or '—')} · Vehicle reg {(e.get('veh_reg') or '—')}</li>"
+                for e in engs)
+            eng_html = f"<p><b>Visiting engineer(s):</b></p><ul>{eng_rows}</ul>"
+        else:
+            eng_html = "<p>Engineer: —</p>"
         html = (f"<p>The Engineer Appointment Booking form for the {label} at "
                 f"<b>{handle['site_name']}</b> ({handle.get('reference') or ''}) has been completed.</p>"
                 f"<p>Contact: {booking.get('mod_contact_name')} · {booking.get('mod_contact_email')} · "
                 f"{booking.get('mod_contact_phone') or '—'}</p>"
-                f"<p>Engineer: {booking.get('engineer_name') or '—'} · Vehicle: {booking.get('veh_reg') or '—'}</p>"
+                f"{eng_html}"
                 f"<p>Visit: {booking.get('visit_start_date') or '—'} {booking.get('visit_start_time') or ''}</p>")
         await send_email(team, f"MOD booking completed — {handle['site_name']}", html, category="support")
     except Exception:

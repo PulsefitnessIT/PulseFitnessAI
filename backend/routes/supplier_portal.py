@@ -1157,11 +1157,15 @@ async def get_supplier_case(token: str, request: Request):
             if not b.get("token"):
                 b = await make_fault_booking(issue["id"]) or {}
             if b.get("token"):
+                from routes.svc.mod_visits import _engineers_list
+                _engs = _engineers_list(b)
                 mod_booking = {
                     "token": b.get("token"),
                     "status": b.get("status") or "sent",
                     "share_url": _share_url(b["token"]),
                     "engineer_name": b.get("engineer_name") or "",
+                    "engineers": _engs,
+                    "engineer_count": len(_engs),
                     "visit_start_date": b.get("visit_start_date") or "",
                     "submitted_at": b.get("submitted_at"),
                 }

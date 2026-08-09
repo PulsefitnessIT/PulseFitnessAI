@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import { Loader2, ShieldCheck, CheckCircle2, Save, Send, Car, User, CalendarClock, Building2 } from 'lucide-react';
+import { Loader2, ShieldCheck, CheckCircle2, Save, Send, User, CalendarClock, Building2, UserPlus, Trash2 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -49,7 +49,11 @@ export default function MODVisitBookingForm() {
     try {
       const r = await axios.get(`${API}/public/mod-booking/${token}`);
       setCtx(r.data);
-      setForm(r.data.form || {});
+      const f = r.data.form || {};
+      if (!Array.isArray(f.engineers) || f.engineers.length === 0) {
+        f.engineers = [{ name: f.engineer_name || '', dob: f.engineer_dob || '', veh_reg: f.veh_reg || '' }];
+      }
+      setForm(f);
       if (r.data.status === 'submitted') setDone(true);
     } catch (e) { setError(e?.response?.data?.detail || 'This booking form could not be found.'); }
     finally { setLoading(false); }
@@ -57,6 +61,23 @@ export default function MODVisitBookingForm() {
   useEffect(() => { load(); }, [load]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const MAX_ENGINEERS = 4;
+  const engineers = form.engineers && form.engineers.length ? form.engineers : [{ name: '', dob: '', veh_reg: '' }];
+  const setEng = (i, k, v) => setForm((f) => {
+    const engs = [...(f.engineers || [{ name: '', dob: '', veh_reg: '' }])];
+    engs[i] = { ...engs[i], [k]: v };
+    return { ...f, engineers: engs };
+  });
+  const addEng = () => setForm((f) => {
+    const engs = [...(f.engineers || [])];
+    if (engs.length >= MAX_ENGINEERS) return f;
+    return { ...f, engineers: [...engs, { name: '', dob: '', veh_reg: '' }] };
+  });
+  const removeEng = (i) => setForm((f) => {
+    const engs = (f.engineers || []).filter((_, idx) => idx !== i);
+    return { ...f, engineers: engs.length ? engs : [{ name: '', dob: '', veh_reg: '' }] };
+  });
 
   const saveDraft = async () => {
     setSaving(true); setError('');
@@ -119,18 +140,46 @@ export default function MODVisitBookingForm() {
               <Field label="Predicted end time" k="visit_end_time" form={form} set={set} type="time" />
             </Section>
 
-            <Section icon={User} title="Engineer / Visitor Details">
-              <Field label="Name" k="engineer_name" form={form} set={set} />
-              <Field label="Date of birth" k="engineer_dob" form={form} set={set} type="date" />
-              <Field label="Phone" k="engineer_phone" form={form} set={set} full />
-            </Section>
-
-            <Section icon={Car} title="Vehicle Details">
-              <Field label="Vehicle registration" k="veh_reg" form={form} set={set} />
-              <Field label="Make" k="veh_make" form={form} set={set} />
-              <Field label="Model" k="veh_model" form={form} set={set} />
-              <Field label="Colour" k="veh_colour" form={form} set={set} />
-            </Section>
+            <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5" data-testid="booking-engineers">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-bold text-zinc-900 flex items-center gap-2"><User size={16} className="text-[#19398D]" /> Visiting Engineer(s)</p>
+                <span className="text-[11px] font-semibold text-zinc-400">{engineers.length} of {MAX_ENGINEERS}</span>
+              </div>
+              <p className="text-xs text-zinc-500 mb-3">Add each engineer attending the base. Name, date of birth and vehicle registration are required for gate access.</p>
+              <div className="space-y-3">
+                {engineers.map((eng, i) => (
+                  <div key={i} className="rounded-lg border border-zinc-200 bg-zinc-50/60 p-3" data-testid={`booking-engineer-${i}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-bold text-zinc-600 uppercase tracking-wide">Engineer {i + 1}</p>
+                      {engineers.length > 1 && (
+                        <button type="button" onClick={() => removeEng(i)} className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:text-rose-700" data-testid={`booking-remove-engineer-${i}`}>
+                          <Trash2 size={13} /> Remove
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className={LABEL}>Name</label>
+                        <input type="text" value={eng.name || ''} onChange={(e) => setEng(i, 'name', e.target.value)} className={FIELD} data-testid={`booking-engineer-${i}-name`} />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Date of birth</label>
+                        <input type="date" value={eng.dob || ''} onChange={(e) => setEng(i, 'dob', e.target.value)} className={FIELD} data-testid={`booking-engineer-${i}-dob`} />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className={LABEL}>Vehicle registration</label>
+                        <input type="text" value={eng.veh_reg || ''} placeholder="e.g. AB12 CDE" onChange={(e) => setEng(i, 'veh_reg', e.target.value)} className={FIELD} data-testid={`booking-engineer-${i}-veh_reg`} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {engineers.length < MAX_ENGINEERS && (
+                <button type="button" onClick={addEng} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[#19398D] hover:opacity-80" data-testid="booking-add-engineer">
+                  <UserPlus size={15} /> Add another engineer
+                </button>
+              )}
+            </div>
 
             {error && <p className="text-sm text-rose-600 font-medium" data-testid="booking-error">{error}</p>}
 
