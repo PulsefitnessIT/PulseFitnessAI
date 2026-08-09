@@ -141,6 +141,178 @@ const LiteEquipmentTab = ({
     setBulkProgress({ done: 0, total: 0, matched: 0 });
   };
 
+  // Iter 2026-06 — group the equipment list by physical location with a
+  // small header per zone (matches the Fault Wizard grouping) so operators
+  // can find a machine faster. "Unassigned" always sorts last; headers only
+  // show when there is more than one location.
+  const UNASSIGNED_KEY = '__unassigned__';
+  const equipmentGroups = (() => {
+    const map = new Map();
+    filteredEquipment.forEach((eq) => {
+      const loc = (eq.location || '').trim() || UNASSIGNED_KEY;
+      if (!map.has(loc)) map.set(loc, []);
+      map.get(loc).push(eq);
+    });
+    const entries = Array.from(map.entries());
+    entries.sort((a, b) => {
+      if (a[0] === UNASSIGNED_KEY) return 1;
+      if (b[0] === UNASSIGNED_KEY) return -1;
+      return a[0].localeCompare(b[0]);
+    });
+    return entries;
+  })();
+  const showGroupHeaders = equipmentGroups.length > 1;
+
+  const renderEquipmentCard = (eq) => {
+    const faults = getEquipmentFaults(eq);
+    const openFaults = faults.filter(f => f.status !== 'resolved').length;
+    const eqBorderColor = openFaults > 0 ? 'var(--color-danger)' : 'var(--color-success-alt-2)';
+    // Thumbnail fallback chain:
+    //   1. Operator-uploaded on-site photo (best — ground truth)
+    //   2. AI-matched manufacturer image (auto-lookup)
+    //   3. Matched spec-sheet hero image (Pulse Fitness / Life Fitness / …)
+    //   4. Machine-type logo placeholder (menu-bar pill style)
+    const thumbUrl = eq.photo_url
+      || eq.auto_image_url
+      || (eq.spec_sheet_id ? `${API}/spec-sheets/image/${eq.spec_sheet_id}` : null);
+    return (
+      <Card key={eq.id} className="p-5 cursor-pointer hover:border-[rgb(var(--rgb-brand-cyan-hover)/0.3)] transition-all" style={{ background: 'var(--theme-surface, var(--color-surface-dark-alt))', borderLeft: `4px solid ${eqBorderColor}`, borderColor: eqBorderColor }} onClick={() => onSelectEquipment(eq)} data-testid={`lite-equip-${eq.id}`}>
+        <div className="flex items-center gap-3">
+          <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0">
+            {/* Placeholder renders underneath — visible when no thumb,
+                or when the img fails to load and hides itself. */}
+            <EquipmentPlaceholder
+              manufacturer={eq.manufacturer || eq.supplier}
+              equipmentType={eq.equipment_type || eq.category}
+              testId={`lite-equip-placeholder-${eq.id}`}
+            />
+            {thumbUrl && (
+              <img
+                src={thumbUrl}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-lg"
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-white break-words leading-snug" data-testid={`lite-equip-name-${eq.id}`}>{eq.name}</p>
+            {eq.serial_number && (
+              <p className="text-[10px] font-mono text-[var(--color-text-muted)] truncate mt-0.5" data-testid={`lite-equip-serial-${eq.id}`}>
+                S/N {eq.serial_number}
+              </p>
+            )}
+            {eq.manufacturer && (
+              <p className="text-xs text-[var(--color-text-muted)] truncate">{eq.manufacturer}</p>
+            )}
+            {eq.supplier && (
+              <p className="text-[10px] text-indigo-400 truncate mt-0.5" data-testid={`lite-equip-supplier-${eq.id}`}>
+                {t('equip.service_provider', 'Service Provider')}: {eq.supplier}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {openFaults > 0 && <Badge className="bg-red-500/15 text-red-400 border-0 text-xs">{openFaults} {openFaults > 1 ? t('faults.plural', 'faults') : t('faults.singular', 'fault')}</Badge>}
+            {/* Cover pill. Warranty and contract are mutually exclusive:
+                new kit ships with 1–4y warranty, then moves onto a
+                Type A/B/C service contract once the warranty ends. */}
+            {(() => {
+              const today = new Date();
+              const warrantyActive = eq.warranty_expiry && new Date(eq.warranty_expiry) > today;
+              const ctype = (eq.contract_type || '').toUpperCase();
+              const contractEnd = eq.contract_end_date || eq.sla_expiry || eq.service_contract_end;
+              const contractActive = !!ctype || (contractEnd && new Date(contractEnd) > today);
+              if (warrantyActive) {
+                return (
+                  <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`}>
+                    <Shield size={10} /> {t('equip.warranty', 'Warranty')}
+                  </Badge>
+                );
+              }
+              if (ctype && ['A', 'B', 'C'].includes(ctype)) {
+                return (
+                  <Badge className="bg-blue-500/15 text-blue-300 border border-blue-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`} title={CONTRACT_TYPE_TOOLTIP[ctype]}>
+                    <FileText size={10} /> {t(`equip.contract_type_${ctype.toLowerCase()}`, `Type ${ctype} Contract`)}
+                  </Badge>
+                );
+              }
+              if (contractActive) {
+                return (
+                  <Badge className="bg-blue-500/15 text-blue-300 border border-blue-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`}>
+                    <FileText size={10} /> {t('equip.under_contract', 'Under contract')}
+                  </Badge>
+                );
+              }
+              return (
+                <Badge className="bg-zinc-500/15 text-zinc-300 border border-zinc-500/30 text-[10px] font-bold" data-testid={`lite-equip-pill-${eq.id}`}>
+                  {t('equip.no_cover', 'No cover')}
+                </Badge>
+              );
+            })()}
+            {/* Iter 216h49 — owner/manager kit row actions. Stop
+                propagation so clicks don't drill into the detail view. */}
+            {canManageKit && realSites.length > 1 && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-[var(--color-text-muted)] hover:text-white hover:bg-[var(--theme-surface-hover)]"
+                onClick={(e) => { e.stopPropagation(); setMovingId(movingId === eq.id ? null : eq.id); }}
+                data-testid={`lite-equip-move-${eq.id}`}
+                title={t('equip.move_title', 'Move to another site')}
+              >
+                <ArrowRightLeft size={13} />
+              </Button>
+            )}
+            {canManageKit && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-[var(--color-text-muted)] hover:text-red-400 hover:bg-red-500/10"
+                onClick={(e) => { e.stopPropagation(); deleteEquipment(eq); }}
+                data-testid={`lite-equip-delete-${eq.id}`}
+                title={t('equip.delete_title', 'Delete kit')}
+              >
+                <Trash2 size={13} />
+              </Button>
+            )}
+            <ChevronRight size={16} className="text-[var(--color-text-muted)]" />
+          </div>
+        </div>
+        {movingId === eq.id && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="mt-3 pt-3 border-t flex flex-col gap-1.5"
+            style={{ borderColor: 'var(--theme-border)' }}
+            data-testid={`lite-equip-move-picker-${eq.id}`}
+          >
+            <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+              {t('equip.move_prompt', { name: eq.name, defaultValue: 'Move "{{name}}" to which site?' })}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {realSites.map(s => (
+                <Button
+                  key={s.id}
+                  type="button"
+                  size="sm"
+                  variant={s.id === eq.site_id ? 'secondary' : 'outline'}
+                  disabled={s.id === eq.site_id}
+                  className="h-8 text-xs"
+                  onClick={() => moveEquipment(eq.id, s.id)}
+                  data-testid={`lite-equip-move-target-${eq.id}-${s.id}`}
+                >
+                  <MapPin size={11} className="mr-1" />
+                  {s.name}{s.id === eq.site_id ? ` (${t('equip.current', 'current')})` : ''}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-4">
       {bulkBanner && <div>{bulkBanner}</div>}
@@ -184,157 +356,21 @@ const LiteEquipmentTab = ({
       </div>
 
       <div className="space-y-2">
-        {filteredEquipment.map(eq => {
-          const faults = getEquipmentFaults(eq);
-          const openFaults = faults.filter(f => f.status !== 'resolved').length;
-          const eqBorderColor = openFaults > 0 ? 'var(--color-danger)' : 'var(--color-success-alt-2)';
-          // Thumbnail fallback chain:
-          //   1. Operator-uploaded on-site photo (best — ground truth)
-          //   2. AI-matched manufacturer image (auto-lookup)
-          //   3. Matched spec-sheet hero image (Pulse Fitness / Life Fitness / …)
-          //   4. Machine-type logo placeholder (menu-bar pill style)
-          // The img.onError handler falls back through each layer in turn so
-          // a broken spec-sheet URL still lands on the placeholder.
-          const thumbUrl = eq.photo_url
-            || eq.auto_image_url
-            || (eq.spec_sheet_id ? `${API}/spec-sheets/image/${eq.spec_sheet_id}` : null);
-          return (
-            <Card key={eq.id} className="p-5 cursor-pointer hover:border-[rgb(var(--rgb-brand-cyan-hover)/0.3)] transition-all" style={{ background: 'var(--theme-surface, var(--color-surface-dark-alt))', borderLeft: `4px solid ${eqBorderColor}`, borderColor: eqBorderColor }} onClick={() => onSelectEquipment(eq)} data-testid={`lite-equip-${eq.id}`}>
-              <div className="flex items-center gap-3">
-                <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0">
-                  {/* Placeholder renders underneath — visible when no thumb,
-                      or when the img fails to load and hides itself. */}
-                  <EquipmentPlaceholder
-                    manufacturer={eq.manufacturer || eq.supplier}
-                    equipmentType={eq.equipment_type || eq.category}
-                    testId={`lite-equip-placeholder-${eq.id}`}
-                  />
-                  {thumbUrl && (
-                    <img
-                      src={thumbUrl}
-                      alt=""
-                      className="absolute inset-0 w-full h-full object-cover bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-lg"
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white break-words leading-snug" data-testid={`lite-equip-name-${eq.id}`}>{eq.name}</p>
-                  {eq.serial_number && (
-                    <p className="text-[10px] font-mono text-[var(--color-text-muted)] truncate mt-0.5" data-testid={`lite-equip-serial-${eq.id}`}>
-                      S/N {eq.serial_number}
-                    </p>
-                  )}
-                  {eq.manufacturer && (
-                    <p className="text-xs text-[var(--color-text-muted)] truncate">{eq.manufacturer}</p>
-                  )}
-                  {eq.supplier && (
-                    <p className="text-[10px] text-indigo-400 truncate mt-0.5" data-testid={`lite-equip-supplier-${eq.id}`}>
-                      {t('equip.service_provider', 'Service Provider')}: {eq.supplier}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {openFaults > 0 && <Badge className="bg-red-500/15 text-red-400 border-0 text-xs">{openFaults} {openFaults > 1 ? t('faults.plural', 'faults') : t('faults.singular', 'fault')}</Badge>}
-                  {/* Cover pill. Warranty and contract are mutually exclusive:
-                      new kit ships with 1–4y warranty, then moves onto a
-                      Type A/B/C service contract once the warranty ends. */}
-                  {(() => {
-                    const today = new Date();
-                    const warrantyActive = eq.warranty_expiry && new Date(eq.warranty_expiry) > today;
-                    const ctype = (eq.contract_type || '').toUpperCase();
-                    const contractEnd = eq.contract_end_date || eq.sla_expiry || eq.service_contract_end;
-                    const contractActive = !!ctype || (contractEnd && new Date(contractEnd) > today);
-                    if (warrantyActive) {
-                      return (
-                        <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`}>
-                          <Shield size={10} /> {t('equip.warranty', 'Warranty')}
-                        </Badge>
-                      );
-                    }
-                    if (ctype && ['A', 'B', 'C'].includes(ctype)) {
-                      return (
-                        <Badge className="bg-blue-500/15 text-blue-300 border border-blue-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`} title={CONTRACT_TYPE_TOOLTIP[ctype]}>
-                          <FileText size={10} /> {t(`equip.contract_type_${ctype.toLowerCase()}`, `Type ${ctype} Contract`)}
-                        </Badge>
-                      );
-                    }
-                    if (contractActive) {
-                      return (
-                        <Badge className="bg-blue-500/15 text-blue-300 border border-blue-500/30 text-[10px] font-bold inline-flex items-center gap-1" data-testid={`lite-equip-pill-${eq.id}`}>
-                          <FileText size={10} /> {t('equip.under_contract', 'Under contract')}
-                        </Badge>
-                      );
-                    }
-                    return (
-                      <Badge className="bg-zinc-500/15 text-zinc-300 border border-zinc-500/30 text-[10px] font-bold" data-testid={`lite-equip-pill-${eq.id}`}>
-                        {t('equip.no_cover', 'No cover')}
-                      </Badge>
-                    );
-                  })()}
-                  {/* Iter 216h49 — owner/manager kit row actions. Stop
-                      propagation so clicks don't drill into the detail view. */}
-                  {canManageKit && realSites.length > 1 && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 px-2 text-[var(--color-text-muted)] hover:text-white hover:bg-[var(--theme-surface-hover)]"
-                      onClick={(e) => { e.stopPropagation(); setMovingId(movingId === eq.id ? null : eq.id); }}
-                      data-testid={`lite-equip-move-${eq.id}`}
-                      title={t('equip.move_title', 'Move to another site')}
-                    >
-                      <ArrowRightLeft size={13} />
-                    </Button>
-                  )}
-                  {canManageKit && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 px-2 text-[var(--color-text-muted)] hover:text-red-400 hover:bg-red-500/10"
-                      onClick={(e) => { e.stopPropagation(); deleteEquipment(eq); }}
-                      data-testid={`lite-equip-delete-${eq.id}`}
-                      title={t('equip.delete_title', 'Delete kit')}
-                    >
-                      <Trash2 size={13} />
-                    </Button>
-                  )}
-                  <ChevronRight size={16} className="text-[var(--color-text-muted)]" />
-                </div>
+        {equipmentGroups.map(([loc, items]) => (
+          <div key={loc} className="space-y-2" data-testid={`lite-equip-group-${loc === UNASSIGNED_KEY ? 'unassigned' : loc}`}>
+            {showGroupHeaders && (
+              <div className="flex items-center gap-2 pt-3 first:pt-0">
+                <MapPin size={13} className="text-[var(--color-text-muted)] shrink-0" />
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] shrink-0" data-testid={`lite-equip-group-label-${loc === UNASSIGNED_KEY ? 'unassigned' : loc}`}>
+                  {loc === UNASSIGNED_KEY ? t('equip.unassigned_location', 'Unassigned') : loc}
+                </h3>
+                <span className="text-[10px] text-[var(--color-text-muted)] shrink-0">({items.length})</span>
+                <div className="flex-1 h-px bg-[var(--theme-border)]" />
               </div>
-              {movingId === eq.id && (
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  className="mt-3 pt-3 border-t flex flex-col gap-1.5"
-                  style={{ borderColor: 'var(--theme-border)' }}
-                  data-testid={`lite-equip-move-picker-${eq.id}`}
-                >
-                  <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
-                    {t('equip.move_prompt', { name: eq.name, defaultValue: 'Move "{{name}}" to which site?' })}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {realSites.map(s => (
-                      <Button
-                        key={s.id}
-                        type="button"
-                        size="sm"
-                        variant={s.id === eq.site_id ? 'secondary' : 'outline'}
-                        disabled={s.id === eq.site_id}
-                        className="h-8 text-xs"
-                        onClick={() => moveEquipment(eq.id, s.id)}
-                        data-testid={`lite-equip-move-target-${eq.id}-${s.id}`}
-                      >
-                        <MapPin size={11} className="mr-1" />
-                        {s.name}{s.id === eq.site_id ? ` (${t('equip.current', 'current')})` : ''}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </Card>
-          );
-        })}
+            )}
+            {items.map(renderEquipmentCard)}
+          </div>
+        ))}
         {filteredEquipment.length === 0 && <p className="text-center text-[var(--color-text-muted)] py-8 text-sm">{t('equip.no_equipment', 'No equipment found')}</p>}
       </div>
     </div>

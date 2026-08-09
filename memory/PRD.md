@@ -1,3 +1,18 @@
+# ═══ 2026-08-09 · Equipment tab grouped by location (small zone headers) — screenshot-verified ═══
+User: on a site with kit in multiple locations, order the Equipment list under its locations with a small header per
+zone so users can find a machine faster. (Mirrors the Fault Wizard grouping.)
+  • FRONTEND pages/LiteDashboard/LiteEquipmentTab.js: extracted the row into renderEquipmentCard(eq) (verbatim markup,
+    no behaviour change) and now group filteredEquipment by eq.location. Named zones sort A→Z, "Unassigned" always last;
+    a small MapPin + uppercase zone header with a count pill + divider renders per group, ONLY when >1 location exists
+    (single-location sites look identical to before). Search/move/delete/cover-pill logic all preserved.
+  • data-testid: lite-equip-group-<loc|unassigned>, lite-equip-group-label-<loc|unassigned>.
+  • VERIFIED: babel parse OK, webpack compiled, screenshot on MOD Test Site shows CARDIO SUITE (3) / MAIN GYM (4)
+    headers with kit grouped underneath (data: Main Gym 4 / Cardio Suite 3 / Unassigned 1).
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · Set Machine Locations in Master Admin (drives the Fault Wizard zone grouping) — backend curl-verified ═══
 Goal: let Master Admin set each machine's location/zone so the Fault Wizard's location grouping matches the real gym layout.
 Backend already supported `equipment.location` (create/CSV/PATCH), and AddEquipmentDialog had a location field — the gap was
