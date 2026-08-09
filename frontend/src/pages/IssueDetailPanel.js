@@ -454,33 +454,10 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  </div>
  </div>
 
- {/* Logged-by staff block — Site Staff Shared Login. Suppliers/engineers
-     use these contact details to call the person who logged the fault. */}
- {issue.reporter_name && (
- <div className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-lg" data-testid={`issue-logged-by-${issue.id}`}>
- <span className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">Logged by</span>
- <p className="text-white font-bold text-lg mt-1" data-testid="logged-by-name">{issue.reporter_name}</p>
- {issue.reporter_job_title && <p className="text-[var(--color-text-muted)] text-sm">{issue.reporter_job_title}</p>}
- <div className="flex flex-wrap items-center gap-2 mt-3">
- {issue.reporter_phone && (
- <a href={`tel:${issue.reporter_phone}`} data-testid="logged-by-phone"
- className="inline-flex items-center gap-1.5 bg-[var(--color-brand-cyan)] text-[var(--color-surface-darker)] font-bold text-sm px-3.5 py-2 rounded-lg hover:opacity-90 transition-opacity">
- <Phone size={15} /> Call {issue.reporter_phone}
- </a>
- )}
- {issue.reporter_email && (
- <a href={`mailto:${issue.reporter_email}`} data-testid="logged-by-email"
- className="inline-flex items-center gap-1.5 border border-white/20 text-[var(--color-brand-cyan-hover)] font-semibold text-sm px-3 py-2 rounded-lg hover:bg-white/5 transition-colors">
- <Mail size={14} /> {issue.reporter_email}
- </a>
- )}
- {!issue.reporter_phone && !issue.reporter_email && (
- <span className="text-[var(--color-text-muted)] text-sm">No contact details on file</span>
- )}
- </div>
- {issue.logged_via_shared_login && <p className="text-[11px] text-[var(--color-text-muted)] mt-2">Logged via: Shared Site Login</p>}
- </div>
- )}
+ {/* Logged-by contact is intentionally NOT shown as a large card here —
+     the site already knows who logged it (see the info grid below), and the
+     reporter's email/phone is surfaced to suppliers/engineers on the supplier
+     job card instead. */}
 
  {/* Info Grid */}
  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -593,7 +570,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  </div>
  </div>
  {issue.supplier_case?.token && (
- <Button size="sm" variant="outline" onClick={() => window.open(`/supplier/case/${issue.supplier_case.token}`, '_blank', 'noopener')} className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 text-xs shrink-0" data-testid={`supplier-sent-view-${issue.id}`}>
+ <Button size="sm" variant="outline" onClick={() => window.open(`/supplier/case/${issue.supplier_case.token}?view=site`, '_blank', 'noopener')} className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 text-xs shrink-0" data-testid={`supplier-sent-view-${issue.id}`}>
  View card
  </Button>
  )}
@@ -621,7 +598,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  {issue.supplier_case?.token && (
  <Button
  size="sm" variant="outline"
- onClick={() => window.open(`/supplier/case/${issue.supplier_case.token}`, '_blank', 'noopener')}
+ onClick={() => window.open(`/supplier/case/${issue.supplier_case.token}?view=site`, '_blank', 'noopener')}
  className="border-purple-500/40 text-purple-400 hover:bg-purple-500/20 text-xs shrink-0"
  data-testid={`engineer-visit-reschedule-${issue.id}`}
  >
@@ -863,7 +840,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  )}
  {issue.supplier_case?.token && (
  <Button size="sm" variant="ghost" className="text-[var(--color-brand-blue)] text-xs h-6 px-2"
- onClick={() => window.open(`/supplier/case/${issue.supplier_case.token}`, '_blank')}
+ onClick={() => window.open(`/supplier/case/${issue.supplier_case.token}?view=site`, '_blank')}
  data-testid={`view-chat-${issue.id}`}>
  <ExternalLink size={11} className="mr-1" /> Supplier Card
  </Button>
@@ -1115,7 +1092,16 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  {/* Iter 216h117 — MOD site users can escalate to DIO. Hidden for non-MOD. */}
 {/* Iter 216h137 — Surface the configured DIO contract context above the button so the engineer sees who escalation goes to. */}
 {user?.account_type === 'mod_site' && !issue.escalated_to_dio && (
-<div className="flex flex-col items-end gap-1" data-testid={`detail-dio-block-${issue.id}`}>
+<div className="flex items-center gap-2 flex-wrap" data-testid={`detail-dio-block-${issue.id}`}>
+<Button
+  size="sm"
+  variant="outline"
+  onClick={() => setDioModalOpen(true)}
+  className="border-cyan-400/60 bg-cyan-50 text-cyan-800 hover:bg-cyan-100"
+  data-testid={`detail-escalate-dio-${issue.id}`}
+>
+  <ShieldCheck size={12} className="mr-1" /> Report to DIO
+</Button>
 {dioContract?.configured ? (
 <div className="text-[10.5px] text-cyan-800 bg-cyan-50/60 border border-cyan-200 rounded px-2 py-1 max-w-[280px]" data-testid={`detail-dio-ctx-${issue.id}`}>
   <p className="font-bold leading-tight">DIO contract on file</p>
@@ -1129,15 +1115,6 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
   <p className="leading-tight">Escalation will go to HQ ops only.</p>
 </div>
 ) : null}
-<Button
-  size="sm"
-  variant="outline"
-  onClick={() => setDioModalOpen(true)}
-  className="border-cyan-400/60 bg-cyan-50 text-cyan-800 hover:bg-cyan-100"
-  data-testid={`detail-escalate-dio-${issue.id}`}
->
-  <ShieldCheck size={12} className="mr-1" /> Report to DIO
-</Button>
 </div>
 )}
  {user?.account_type === 'mod_site' && issue.escalated_to_dio && (

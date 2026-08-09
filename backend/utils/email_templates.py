@@ -67,17 +67,34 @@ def badge(label: str, kind: str = "neutral") -> str:
 
 def bulletproof_button(url: str, label: str, brand_color: Optional[str] = None,
                        testid: str = "email-cta") -> str:
-    """Outlook-safe CTA button (nested table + padded anchor)."""
+    """Outlook-safe CTA button. Uses VML (roundrect) for the Word rendering
+    engine in desktop Outlook, and a padded anchor everywhere else."""
     color = _brand(brand_color)
+    safe_url = esc(url)
+    safe_label = esc(label)
     return (
         '<table role="presentation" border="0" cellpadding="0" cellspacing="0" '
-        'style="margin:24px 0 8px;"><tr>'
-        f'<td align="center" bgcolor="{color}" style="border-radius:8px;">'
-        f'<a href="{esc(url)}" target="_blank" data-testid="{testid}" '
+        'style="margin:24px 0 8px;"><tr><td align="center">'
+        '<!--[if mso]>'
+        f'<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" '
+        f'xmlns:w="urn:schemas-microsoft-com:office:word" '
+        f'href="{safe_url}" style="height:48px;v-text-anchor:middle;width:240px;" '
+        f'arcsize="16%" strokecolor="{color}" fillcolor="{color}">'
+        f'<w:anchorlock/>'
+        f'<center style="color:#FFFFFF;font-family:sans-serif;font-size:16px;font-weight:bold;">{safe_label}</center>'
+        '</v:roundrect>'
+        '<![endif]-->'
+        '<!--[if !mso]><!-- -->'
+        f'<a href="{safe_url}" target="_blank" data-testid="{testid}" '
         f'style="font-family:{FONT_STACK};font-size:16px;font-weight:bold;'
         f'color:#FFFFFF;text-decoration:none;display:inline-block;padding:14px 28px;'
-        f'border:1px solid {color};border-radius:8px;">{esc(label)}</a>'
+        f'background:{color};border:1px solid {color};border-radius:8px;">{safe_label}</a>'
+        '<!--<![endif]-->'
         '</td></tr></table>'
+        # Plain-text fallback link (some corporate Outlook configs strip buttons).
+        f'<p style="font-family:{FONT_STACK};font-size:12px;color:{TEXT_MUTED};'
+        f'margin:4px 0 0;text-align:center;">Button not working? Open: '
+        f'<a href="{safe_url}" target="_blank" style="color:{color};">{safe_url}</a></p>'
     )
 
 

@@ -1354,8 +1354,20 @@ async def update_issue(issue_id: str, data: dict = Body(...), user: dict = Depen
     if timeline_entry:
         update_ops["$push"] = {"timeline": timeline_entry}
 
-    result = await db.issues.update_one({"id": issue_id, **org_filter}, update_ops)
-    if result.modified_count == 0:
+    # Match by id within the caller's scope. For MOD sites a fault may be
+    # keyed by mod_site_id rather than organization_id, so accept either —
+    # this fixes spurious "Issue not found" when marking status on MOD faults.
+    scope_val = None
+    if "organization_id" in org_filter:
+        scope_val = org_filter["organization_id"]
+    match_filter = {"id": issue_id}
+    if scope_val is not None:
+        match_filter["$or"] = [{"organization_id": scope_val}, {"mod_site_id": scope_val}]
+    elif "user_id" in org_filter:
+        match_filter["user_id"] = org_filter["user_id"]
+
+    result = await db.issues.update_one(match_filter, update_ops)
+    if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Issue not found")
     return {"success": True}
 

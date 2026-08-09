@@ -1538,7 +1538,20 @@ async def _send_comment_notification(case: dict, comment: dict, to_supplier: boo
     resend.api_key = RESEND_API_KEY
 
     issue = await db.issues.find_one({"id": case.get("issue_id")}, {"_id": 0})
-    machine = issue.get("machine_type", "Equipment") if issue else "Equipment"
+    # Resolve a human machine name (Issue: emails were showing "None").
+    machine = (
+        (issue or {}).get("equipment_name")
+        or (issue or {}).get("machine_name")
+        or (issue or {}).get("machine_type")
+        or (issue or {}).get("equipment_type")
+        or ""
+    )
+    if (not machine or str(machine).lower() == "none") and (issue or {}).get("equipment_id"):
+        eq = await db.equipment.find_one({"id": issue["equipment_id"]}, {"_id": 0, "name": 1, "machine_type": 1})
+        if eq:
+            machine = eq.get("name") or eq.get("machine_type") or ""
+    if not machine or str(machine).lower() == "none":
+        machine = "the reported machine"
     branding = await _resolve_platform_branding((issue or {}).get("organization_id"))
     case_ref = _short_case_ref(case, issue)
 

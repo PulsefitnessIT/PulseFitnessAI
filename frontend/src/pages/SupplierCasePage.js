@@ -379,7 +379,7 @@ function CommentsSection({ token, comments, onRefresh, caseData, isGymViewer }) 
 
 
 /* ═══ SCHEDULE VISIT ═══ */
-function ScheduleVisit({ token, caseData, onRefresh }) {
+function ScheduleVisit({ token, caseData, onRefresh, readOnly = false }) {
  const [showForm, setShowForm] = useState(false);
  const [form, setForm] = useState({ scheduled_date: '', engineer_name: '', notes: '' });
  const [saving, setSaving] = useState(false);
@@ -407,10 +407,23 @@ function ScheduleVisit({ token, caseData, onRefresh }) {
  <p className="text-zinc-900 font-medium">{new Date(caseData.scheduled_date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
  {caseData.engineer_name && <p className="text-zinc-500 text-xs mt-0.5">Engineer: {caseData.engineer_name}</p>}
  </div>
+ {!readOnly && (
  <Button variant="outline" size="sm" className="ml-auto border-teal-500/30 text-teal-400 text-xs" onClick={() => setShowForm(true)} data-testid="reschedule-btn">
  Reschedule
  </Button>
+ )}
  </div>
+ </Card>
+ );
+ }
+
+ // Site/operator view: read-only, they can't schedule — that's the supplier's job.
+ if (readOnly) {
+ return (
+ <Card className="bg-zinc-50 border-zinc-200 p-5 text-center" data-testid="schedule-readonly">
+ <Calendar size={26} className="mx-auto mb-2 text-zinc-400" />
+ <p className="text-zinc-700 font-medium">Awaiting the supplier to schedule the engineer visit</p>
+ <p className="text-zinc-500 text-xs mt-1">Engineer &amp; vehicle details will appear here once the supplier confirms.</p>
  </Card>
  );
  }
@@ -649,9 +662,9 @@ const SupplierCasePage = () => {
  </div>
  )}
 
- {/* Schedule Visit (prominent) */}
+ {/* Schedule Visit — supplier schedules; the site sees it read-only. */}
  {current_status !== 'completed' && (
- <ScheduleVisit token={token} caseData={caseData} onRefresh={loadCase} />
+ <ScheduleVisit token={token} caseData={caseData} onRefresh={loadCase} readOnly={isGymViewer} />
  )}
 
  {/* MOD Engineer Appointment Booking form — the SUPPLIER provides the
@@ -846,8 +859,9 @@ const SupplierCasePage = () => {
  </Card>
  )}
 
- {/* Update Status */}
- {current_status !== 'completed' && (
+ {/* Update Status — SUPPLIER only. The site/operator views the card
+     read-only (they manage the fault from their own portal). */}
+ {current_status !== 'completed' && !isGymViewer && (
  <Card className="bg-white border-zinc-200 p-5" data-testid="update-status-card">
  {!showUpdateForm ? (
  <div className="text-center">
@@ -891,7 +905,7 @@ const SupplierCasePage = () => {
  </Card>
  )}
 
- <RatingSection token={token} caseData={caseData} onRefresh={loadCase} />
+ {!isGymViewer && <RatingSection token={token} caseData={caseData} onRefresh={loadCase} />}
 
  <p className="text-center text-[#444] text-xs pb-4">
  Powered by {is_pulse_branded ? (platform_name || 'Pulse Fitness') : 'Pulse Fitness AI'}
