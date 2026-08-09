@@ -34776,3 +34776,22 @@ Settings shared cards (MFASetupCard, DigestPreferencesCard, AddEquipmentDialog, 
 - Weekly Digest report sub-tab HIDDEN for MOD sites (feedback: unused). PulseReportsTab.js line 115 now gated `!isMOD && role in owner/manager/master_admin`. Still visible for commercial orgs.
 - "Report a personal incident" modal (MODIncidentWizard.js) backdrop was z-50/bg-black/70 and sat BELOW the top app header (header showed through). Raised to z-[80] + bg-black/80 + backdrop-blur-sm so the full viewport (incl. header) is dimmed. Verified via screenshot.
 - STORAGE ANSWER (for user Q): MOD personal incidents POST /api/mod/site/incidents → stored in db.mod_incidents (scoped by site_id, retained, RIDDOR flags, classification flags) + emailed to H&S officer/on-call/DIO. List/detail endpoints EXIST (GET /api/mod/site/incidents, /{id}) but there is currently NO frontend viewer in the MOD portal — the "H&S Incidents" sub-tab reads a DIFFERENT collection (db.incidents via /api/incidents, commercial). GAP: MOD users cannot yet view their logged personal incidents back in the UI. Proposed next: an "Incident Register" viewer (and/or surface in Documents).
+
+## Changelog — 2026-08-09 (fork) · MOD fault/supplier/DIO batch + Incident Register (a & b)
+Fault Wizard review & submit:
+- StepReview.jsx: reporter line now joins only non-empty parts (fixes trailing "null" when phone missing); added "Steps taken to fix" row.
+Supplier email + comms (user complaints):
+- _escalation_email_html: was near-black (#0A0B10) → now white branded body (red URGENT band only when urgent) + shows steps-taken row.
+- _supplier_fault_email_html: added "Open your job card →" portal CTA (commercial parity) + steps-taken row.
+- MOD fault dispatch now AUTO-CREATES a supplier_case for the first external supplier (supplier_email pre-set) → the fault detail's "Supplier Communication" is pre-wired to the notified supplier (no more "Add supplier email" prompt). Verified: supplier_case.supplier_email populated.
+Supplier provides engineer info (booking form on supplier card):
+- supplier_portal.get_supplier_case now returns `mod_booking` {token, status, share_url} for MOD faults (lazily creates via make_fault_booking). SupplierCasePage.js renders an "Engineer Appointment Booking" CTA (sup-case-mod-booking) → /mod-booking/{token}, so the SUPPLIER fills engineer/vehicle details, not the site.
+DIO escalation:
+- Backend escalate-to-dio accepts optional dio_email (persists to site if none on file). New MODDIOEscalateModal.jsx replaces window.prompt in IssueDetailPanel (and MODSiteDashboard, though that view is not currently mounted). Modal has email + note fields.
+Incident Register (a) + PDF to Documents (b):
+- utils/incident_pdf.mod_incident_pdf() — branded PDF for db.mod_incidents.
+- New endpoints: GET /mod/site/incidents/{id}/pdf, POST /mod/site/incidents/{id}/save-to-documents. Incidents ALSO auto-file a PDF to Documents (category "incidents") on creation.
+- New MODIncidentRegister.jsx under MOD Reports → "Incident Register" sub-tab (list + expand detail + View PDF + Save to Documents).
+Weekly Digest sub-tab hidden for MOD (kept for commercial). Incident modal backdrop raised to z-[80] full-cover.
+Testing: backend curl-verified (all endpoints 200); frontend E2E 100% for tested flows (report iteration_mod_batch_dio_incident_supplier_fe_jan2026.json).
+NOTE: preview change — user must REDEPLOY to reach production (fitness-ai-migrate.emergent.host).
