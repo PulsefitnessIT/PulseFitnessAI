@@ -1715,6 +1715,7 @@ async def mod_fault_submit(
         "machine_type": equipment.get("machine_type") or equipment.get("category"),
         "serial_number": equipment.get("serial_number"),
         "issue_description": payload.description,
+        "steps_taken": (payload.steps_taken or "").strip(),
         "severity": priority,          # re-uses existing severity field
         "status": "open",
         "mod_site_id": site_id,

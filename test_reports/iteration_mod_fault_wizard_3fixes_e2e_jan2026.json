@@ -1,0 +1,36 @@
+{
+  "summary": "E2E-verified the 3 MOD Fault Wizard changes on the live preview. Logged in as test@army.mod.test at /MODService, opened wizard via 'Report a fault' CTA, picked a machine, chose fault type 'noise', entered 36-char description, filled the new 'Any steps taken to fix?' textarea (data-testid mod-field-steps-taken), uploaded a JPG through the hidden gallery input, picked a reporter, and submitted. All acceptance criteria PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_acceptance_criteria": [
+    "Description counter renders '36 / 30 minimum' (30-char minimum shown).",
+    "With a 30-39 char description, mod-wizard-next Continue is enabled (disabled=false observed at 36 chars).",
+    "New optional field mod-field-steps-taken is present, typing works, value persisted to textarea state.",
+    "Attachments step: POST /api/mod/site/attachments returned 200; mod-attachment-0 rendered an <img> whose src is a blob: object URL with naturalWidth=200, naturalHeight=200, complete=true (thumbnail preview NOT blank).",
+    "Submit posted to POST /api/mod/site/faults and returned 200 (NOT 422). Confirmation screen shown with ticket ref 'MOD-2026-34010'.",
+    "Payload sent by wizard includes steps_taken (verified in /app/frontend/src/pages/MODPortal/MODFaultWizard.js lines 176 & 198).",
+    "IssueDetailPanel.js lines 616-619 renders {issue.steps_taken} conditionally — will display the entered text on the fault detail view."
+  ],
+  "test_artifacts": {
+    "test_image": "/tmp/fault_test.jpg (200x200 JPG)",
+    "screenshots": ["/tmp/attach3.png (thumbnail preview visible)", "/tmp/review3.png (review step)", "/tmp/done3.png (Ticket Created MOD-2026-34010)"]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "StepAttachments correctly creates a local URL.createObjectURL(payload) as 'preview' and falls back to serve URL — good, this insulates the thumbnail from token/CSP issues.",
+    "MODFaultWizard sends steps_taken as '' when empty (md.steps_taken || '') — backend FaultSubmit accepts empty string.",
+    "Note: existing dashboard-list search finds description text; the new fault appears in the reactive faults list immediately."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "100%"},
+  "test_credentials": "test@army.mod.test / ModTest123! (MOD Test Site) — sign in at /MODService",
+  "seed_data_creation": "One fault ticket MOD-2026-34010 was created against PF-MODTS-006 (Pulse Fitness Fusion Dual Adjustable Pulley) with description 'Belt slipping badly on incline mode.' and steps_taken 'Powered off and on, tightened the belt slightly.' Reporter: Cpl James Reed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 3 Fault Wizard changes (thumbnail preview, 30-char minimum, steps_taken optional field) are verified live. The PWA install prompt overlays the dashboard on desktop viewport — dismiss it via 'Later' button before opening the wizard, otherwise machine tile clicks can be intercepted. Note /api/auth/login rejects MOD accounts with 403 requiring /MODService login flow."
+}
