@@ -1,3 +1,40 @@
+# ═══ 2026-08-09 (fork) · MOD booking = up to 4 engineers + DUAL-supplier shared comms thread — testing_agent 100% ═══
+Two user asks delivered + last-session regressions verified. testing_agent iteration_mod_multieng_dualsupplier_regression_jan2026.json = 100% BE + FE.
+  • MULTIPLE ENGINEERS on the MOD Engineer Appointment Booking form (per engineer: Name / Date of birth / Vehicle registration; CAP 4):
+     - BACKEND routes/svc/mod_visits.py: new MAX_ENGINEERS=4, _clean_engineers() (caps at 4, drops blanks), _sync_legacy_engineer()
+       (mirrors engineers[0] → legacy engineer_name/engineer_dob/veh_reg so the fault card + Sicon notes keep working),
+       _engineers_list() (normalised list, falls back to legacy single fields). public_save_booking + public_submit_booking now
+       accept form.engineers; _public_booking_view + _visit_row emit form.engineers; _booking_notes lists all engineers
+       ("Engineer 1/2/3/4 · DOB · Vehicle"); submit-notification email lists every engineer as a <ul>. create_booking_link +
+       make_fault_booking init engineers[].
+     - supplier_portal.py (fault-card booking surface): now returns engineers[] + engineer_count.
+     - FRONTEND MODVisitBookingForm.js: replaced the single Engineer + Vehicle sections with a repeatable "Visiting Engineer(s)"
+       block (data-testid booking-engineers) showing "N of 4"; per engineer inputs booking-engineer-<i>-name/-dob/-veh_reg;
+       booking-add-engineer (hidden at 4) + booking-remove-engineer-<i>. load() migrates legacy single-engineer into engineers[0].
+  • DUAL-SUPPLIER SHARED COMMS THREAD (user: comms must reach BOTH — always Pulse Fitness (MOD Service) AND, when present, the
+    overseas/machine provider e.g. Inda Fitness; ONE shared thread):
+     - BACKEND routes/issues.py: new _mod_case_recipients(issue,org,dispatched) → deduped [{name,email}] = Pulse MOD desk (always)
+       + dispatched machine supplier + org.service_supplier_id overseas provider (MOD-gated, [] for non-MOD). _auto_dispatch_to_
+       primary_supplier persists case.notify_emails and sets it on the local case before the first comment. _send_mod_fault_
+       notifications adds case.notify_emails to already_emailed (no duplicate plain notice; proof-log still lists everyone).
+       get_issue_detail + _batch_enrich_supplier_cases surface notify_emails.
+     - supplier_portal.py _send_comment_notification: when to_supplier, loops case.notify_emails (fallback supplier_email) so EVERY
+       gym→supplier comment reaches all suppliers on the shared thread.
+     - FRONTEND IssueDetailPanel.js: new "Shared with" chips row (data-testid supplier-notified-<id> / -<id>-<i>, Users icon) inside
+       the Supplier Communication card, shown when notify_emails.length>1.
+     - VERIFIED harness: fault on Inda-wired treadmill → case.notify_emails=[Pulse Fitness (MOD Service), Inda Fitness];
+       supplier_name/email stay = Inda (display), Pulse also notified. FE: chips render both; posting a comment works.
+  • REGRESSIONS from prior fork session (were untested) — both PASS: SupplierCasePage.js read-only for MOD site viewers
+    (supplier-only controls hidden, gym-viewer-banner + schedule-readonly shown); DIO escalate pill renders inline with the status
+    pills (no broken layout). NOTE (not a bug): SupplierCasePage read-only is driven by localStorage 'token' presence, not the
+    ?view=site query param — any authenticated user is forced read-only (suppliers use token links w/ no auth, so fine).
+  • Babel/webpack clean; backend boots clean; all test data cleaned up (MOD Test Site untouched).
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live. Preview Resend key
+    invalid → emails logged not delivered (data/UI correct).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 · Moved "Report Incident" from Faults → Reports (right of ASER) — screenshot verified ═══
 User: MOD service — move "Report an incident" from Faults to the Reports tab, next to (right of) ASER.
 IMPORTANT ROUTING NOTE: the LIVE MOD dashboard is LiteDashboardPage (/pulse), NOT MODPortal/MODSiteDashboard.js
