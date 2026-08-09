@@ -64,6 +64,8 @@ const LiteEquipmentTab = ({
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkZone, setBulkZone] = useState('');
   const [bulkSaving, setBulkSaving] = useState(false);
+  // Quick zone filter chips — jump straight to one location. null = All.
+  const [zoneFilter, setZoneFilter] = useState(null);
   const zoneOptions = Array.from(
     new Set((filteredEquipment || []).map((e) => (e.location || '').trim()).filter(Boolean)),
   ).sort();
@@ -250,6 +252,11 @@ const LiteEquipmentTab = ({
     return entries;
   })();
   const showGroupHeaders = equipmentGroups.length > 1;
+  // Reset a stale zone filter if that zone no longer exists (e.g. after a move).
+  const zoneFilterActive = zoneFilter && equipmentGroups.some(([loc]) => loc === zoneFilter);
+  const renderGroups = zoneFilterActive
+    ? equipmentGroups.filter(([loc]) => loc === zoneFilter)
+    : equipmentGroups;
 
   const renderEquipmentCard = (eq) => {
     const faults = getEquipmentFaults(eq);
@@ -522,8 +529,39 @@ const LiteEquipmentTab = ({
         </div>
       )}
 
+      {/* Quick zone filter chips — jump straight to one location. */}
+      {showGroupHeaders && (
+        <div className="flex flex-wrap items-center gap-1.5" data-testid="lite-equip-zone-chips">
+          <button
+            type="button"
+            onClick={() => setZoneFilter(null)}
+            className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border transition-colors ${!zoneFilterActive ? 'bg-[var(--color-brand-cyan-hover)] text-white border-[var(--color-brand-cyan-hover)]' : 'bg-[var(--theme-surface)] text-[var(--color-text-muted)] border-[var(--theme-border)] hover:text-[var(--theme-text)]'}`}
+            data-testid="lite-equip-zone-chip-all"
+          >
+            {t('equip.zone_all', 'All')} <span className="opacity-70">({filteredEquipment.length})</span>
+          </button>
+          {equipmentGroups.map(([loc, items]) => {
+            const zoneKey = loc === UNASSIGNED_KEY ? 'unassigned' : loc;
+            const active = zoneFilter === loc;
+            return (
+              <button
+                key={loc}
+                type="button"
+                onClick={() => setZoneFilter(active ? null : loc)}
+                className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border transition-colors ${active ? 'bg-[var(--color-brand-cyan-hover)] text-white border-[var(--color-brand-cyan-hover)]' : 'bg-[var(--theme-surface)] text-[var(--color-text-muted)] border-[var(--theme-border)] hover:text-[var(--theme-text)]'}`}
+                data-testid={`lite-equip-zone-chip-${zoneKey}`}
+              >
+                <MapPin size={11} className="opacity-80" />
+                {loc === UNASSIGNED_KEY ? t('equip.unassigned_location', 'Unassigned') : loc}
+                <span className="opacity-70">({items.length})</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="space-y-2">
-        {equipmentGroups.map(([loc, items]) => {
+        {renderGroups.map(([loc, items]) => {
           const zoneKey = loc === UNASSIGNED_KEY ? 'unassigned' : loc;
           const collapsed = showGroupHeaders && collapsedZones.has(loc);
           const zoneOpenFaults = items.reduce(

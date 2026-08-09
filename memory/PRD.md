@@ -1,3 +1,16 @@
+# ═══ 2026-08-09 · Zone filter chips on the equipment list — screenshot-verified ═══
+pages/LiteDashboard/LiteEquipmentTab.js: added a quick zone-filter chip row above the list (only when a site has >1
+location). Chips: "All (N)" + one per zone (MapPin + name + count) + "Unassigned". Selecting a chip sets zoneFilter and
+the list renders only that zone's group (re-click or "All" clears); a stale filter auto-clears if the zone disappears
+(e.g. after a bulk move). Active chip = cyan. Works alongside search, collapse, fault badges, bulk-move and inline edit.
+  • data-testid: lite-equip-zone-chips, lite-equip-zone-chip-all, lite-equip-zone-chip-<zone|unassigned>.
+  • VERIFIED: babel clean, webpack compiled; screenshot shows All(8)/Cardio Suite(3)/Main Gym(4)/Unassigned(1) chips and
+    the "Main Gym" filter narrowing the list to its 4 machines. MOD Test Site data unchanged.
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 · Bulk "Move kit to a zone" + remembered collapsed zones (equipment list) — screenshot+curl verified ═══
 Two follow-ons in pages/LiteDashboard/LiteEquipmentTab.js.
   • BULK MOVE KIT (gym refit): owners/managers get a "Move kit" button (lite-equip-bulk-move-btn) that enters SELECT MODE.
