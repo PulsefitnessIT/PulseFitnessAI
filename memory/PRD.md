@@ -1,3 +1,35 @@
+# ═══ 2026-08-09 · Sicon go-live readiness audit + pre-flight checklist (endpoint + Master Admin tab) — curl+screenshot verified ═══
+Founder asked: "are we ready for the Sicon integration?" (Sage set aside — no Sage Developer App).
+AUDIT VERDICT: Sicon is ~95% ready. Plumbing is production-grade & coherent —
+  • utils/sicon_client.py (986 lines): Basic-auth over TLS, R260200c WebAPI paths, ping /api/SMConnectivity/Ping,
+    Fernet-encrypted creds (JWT_SECRET-derived, fails loudly if unset).
+  • routes/sicon_mapping.py: ~200-field bidirectional mapper across 7 entities (Case, Contract, ContractLine,
+    TrackingNote, Appointment, TimeBooking, Resource). Field-mapping CI (scripts/check_integration_mapping.py) exits 0.
+  • utils/sicon_outbox_worker.py + sicon_poller + sicon_sync: outbox with pending→in_flight→succeeded/failed→dead_letter
+    (retry ≤5, idempotent), inbound poll, engineer refresh, contract/line writeback, appointment completion, time bookings,
+    stock movements. Config read/write both use db.sicon_config (consistent). Client only goes live when enabled=true+base_url.
+REMAINING GO-LIVE STEPS (all config/data, NOT code): per-org creds+base_url+company_id, priority_mapping, default
+  case_type/team, engineer refresh, equipment sicon_equipment_id mapping, flip Enabled + Test Connection, and set env
+  SICON_AUTOSTART_WORKER=true so the outbox drains automatically (worker is wired in server.py behind that flag; OFF in preview).
+BUILT — Sicon Go-Live Readiness pre-flight:
+  • BACKEND routes/master_admin_integrations.py: GET /api/master-admin/sicon/readiness (master-admin only, read-only,
+    DB/env-derived — no live HTTP). Per configured org runs 11 checks (credentials, base_url, company_id, enabled/live-switch,
+    connection[last test], priority_mapping, case_type, team, engineers cached, equipment asset-ID coverage %, outbox health);
+    each = pass|warn|fail with a detail + "fix" string. Org is `ready` when 0 fails. Plus 3 platform checks
+    (worker_autostart[env], credential_encryption, field_mapping). Returns summary {orgs_configured, orgs_ready}.
+  • FRONTEND pages/MasterAdmin/SiconReadinessPanel.js + new default "Readiness" tab in SiconIntegrationPage.js
+    (Master Admin → Integrations → Sicon Service). Verdict banner + Platform card + per-org checklist with green/amber/red
+    badges and inline "Fix:" guidance. testids: sicon-tab-readiness, sicon-readiness-panel, -verdict-text,
+    -check-<id>, -org-<orgId>, -refresh.
+  • VERIFIED: backend restart clean; curl returned full 11-check breakdown (seeded a temp config on "Lite Docs Demo Gym":
+    4 pass/7 warn/0 fail → READY; then DELETED the seed — sicon_config docs remaining: 0). Screenshot of the Readiness tab
+    confirms verdict + platform + per-org rendering. Preview has SICON_AUTOSTART_WORKER off → shows as WARN with the fix.
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live, and set
+    SICON_AUTOSTART_WORKER=true in the production backend env.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 · Zone summary cards on the equipment list — screenshot-verified ═══
 pages/LiteDashboard/LiteEquipmentTab.js: added a responsive grid of per-zone summary cards above the filter chips
 (only when a site has >1 location). Each card shows the zone name (MapPin), a big machine count, and open-fault count

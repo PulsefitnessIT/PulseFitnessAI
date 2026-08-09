@@ -17,9 +17,11 @@
 import { useState } from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import SiconHealthPanel from './SiconHealthPanel';
+import SiconReadinessPanel from './SiconReadinessPanel';
 import IntegrationAdminPanel from '../IntegrationAdminPanel';
 
 const TABS = [
+  { id: 'readiness',    label: 'Readiness' },
   { id: 'overview',     label: 'Overview' },
   { id: 'organisations', label: 'Organisations' },
   { id: 'logs',         label: 'Event Log' },
@@ -28,7 +30,7 @@ const TABS = [
 ];
 
 export default function SiconIntegrationPage() {
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab] = useState('readiness');
 
   return (
     <div className="space-y-5" data-testid="sicon-integration-page">
@@ -46,6 +48,7 @@ export default function SiconIntegrationPage() {
         ))}
       </div>
 
+      {tab === 'readiness' && <SiconReadinessPanel />}
       {tab === 'overview' && <SiconHealthPanel view="overview" />}
       {tab === 'organisations' && <SiconHealthPanel view="organisations" />}
       {(tab === 'logs' || tab === 'config' || tab === 'mappings') && (
