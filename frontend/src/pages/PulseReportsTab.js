@@ -112,7 +112,7 @@ const PulseReportsTab = () => {
           ...(isMOD ? [{ id: 'aser', label: 'ASER', icon: ShieldAlert, action: true }] : []),
           ...(isMOD ? [{ id: 'report-incident', label: 'Report Incident', icon: ShieldAlert, launch: 'incident' }] : []),
           ...(['owner', 'manager', 'master_admin'].includes(user?.role) ? [{ id: 'capex', label: 'CAPEX Intelligence', icon: PoundSterling }] : []),
-          ...(['owner', 'manager', 'master_admin'].includes(user?.role) ? [{ id: 'weekly-digest', label: 'Weekly Digest', icon: Mail }] : []),
+          ...(!isMOD && ['owner', 'manager', 'master_admin'].includes(user?.role) ? [{ id: 'weekly-digest', label: 'Weekly Digest', icon: Mail }] : []),
         ].map(tab => {
           const isActive = tab.action ? aserOpen : (tab.launch ? false : (subTab === tab.id && !aserOpen));
           return (

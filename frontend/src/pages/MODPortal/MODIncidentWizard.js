@@ -98,7 +98,7 @@ export default function MODIncidentWizard({ onClose, onSubmitted }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" data-testid="mod-incident-wizard">
+    <div className="fixed inset-0 z-[80] grid place-items-center bg-black/80 backdrop-blur-sm p-4" data-testid="mod-incident-wizard">
       <div className="w-full max-w-lg rounded-2xl overflow-hidden border" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
         <header className="px-5 py-4 border-b flex items-start justify-between gap-3" style={{ borderColor: 'var(--theme-border)', background: 'rgba(220,38,38,0.08)' }}>
           <div>
