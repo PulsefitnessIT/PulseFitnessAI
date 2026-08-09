@@ -93,6 +93,25 @@ def _user_role(user: dict) -> str:
     return "staff"  # safe default
 
 
+def _is_mod(user: dict) -> bool:
+    """MOD base-site sessions — used to scope MOD-only help articles."""
+    acct = (user.get("account_type") or "").lower()
+    return (
+        acct in ("mod_site", "mod_branch", "mod_org")
+        or bool(user.get("is_mod_user"))
+        or acct.startswith("mod")
+    )
+
+
+def _audience_ok(guide: dict, is_mod: bool) -> bool:
+    """MOD-audience guides are hidden from non-MOD users; everything else
+    is visible to everyone (MOD users see the full library plus MOD guides)."""
+    aud = (guide.get("audience") or "").lower()
+    if aud == "mod":
+        return is_mod
+    return True
+
+
 def _user_brand(user: dict) -> dict:
     """Return brand metadata for the current user.
 
@@ -168,15 +187,25 @@ async def help_categories(user: dict = Depends(get_current_principal)):
     """Return the 10 canonical help categories with per-category counts."""
     role = _user_role(user)
     brand = _user_brand(user)
+    is_mod = _is_mod(user)
     counts: dict[str, int] = {c["id"]: 0 for c in CATEGORIES}
     for g in GUIDES:
         if not visible_to_role(g, role):
             continue
+        if not _audience_ok(g, is_mod):
+            continue
         cid = g.get("category")
         if cid in counts:
             counts[cid] += 1
+    # MOD-only categories are dropped entirely for non-MOD users.
+    mod_only_cats = {"mod-service"}
+    cats_out = [
+        {**c, "count": counts.get(c["id"], 0)}
+        for c in CATEGORIES
+        if is_mod or c["id"] not in mod_only_cats
+    ]
     return {
-        "categories": [{**c, "count": counts.get(c["id"], 0)} for c in CATEGORIES],
+        "categories": cats_out,
         "role": role,
         "brand": brand,
     }
@@ -192,10 +221,12 @@ async def help_list(
     """Return guide cards (summary, no step bodies) filtered by role/category."""
     role = _user_role(user)
     brand = _user_brand(user)
+    is_mod = _is_mod(user)
     cards = list_guides(role=role, category=category, module=module, popular_only=popular)
     cards = [
         {**c, "title": _whitelabel(c.get("title"), brand), "description": _whitelabel(c.get("description"), brand)}
         for c in cards
+        if _audience_ok(guide_by_id(c["id"]) or {}, is_mod)
     ]
     return {"guides": cards, "role": role, "brand": brand}
 
@@ -209,6 +240,8 @@ async def help_detail(guide_id: str, user: dict = Depends(get_current_principal)
     role = _user_role(user)
     brand = _user_brand(user)
     if not visible_to_role(guide, role):
+        raise HTTPException(403, "Not available for your role")
+    if not _audience_ok(guide, _is_mod(user)):
         raise HTTPException(403, "Not available for your role")
     # Resolve related guide titles so the frontend can render links without a
     # second round-trip per related id.
@@ -230,10 +263,12 @@ async def help_search(q: str = Query(..., min_length=2), user: dict = Depends(ge
     """Case-insensitive search across the visible-to-role corpus."""
     role = _user_role(user)
     brand = _user_brand(user)
+    is_mod = _is_mod(user)
     raw = search_guides(q, role=role)
     out = [
         {**r, "title": _whitelabel(r.get("title"), brand), "description": _whitelabel(r.get("description"), brand)}
         for r in raw
+        if _audience_ok(guide_by_id(r["id"]) or {}, is_mod)
     ]
     # Iter 215c0 — also surface deep-link capability results so the user
     # finds the actual screen, not just the docs page.

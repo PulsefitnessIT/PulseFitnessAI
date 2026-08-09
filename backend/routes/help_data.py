@@ -26,6 +26,7 @@ CATEGORIES: list[dict] = [
     {"id": "release-notes",    "label": "Release Notes",         "blurb": "What changed, what shipped, what's next."},
     {"id": "crm",              "label": "CRM",                   "blurb": "Contacts, companies, pipeline, deals."},
     {"id": "service",          "label": "Service & Faults",      "blurb": "Log, triage and resolve equipment issues."},
+    {"id": "mod-service",      "label": "MOD Service",           "blurb": "Faults, engineer bookings, incidents & ASER for base staff."},
     {"id": "memberships",      "label": "Memberships & Bookings","blurb": "Members, plans, classes, timetable."},
     {"id": "marketing",        "label": "Marketing Suite",       "blurb": "Audiences, campaigns, AI Creative Director."},
     {"id": "staffing",         "label": "Staffing & Rota",       "blurb": "Smart Rota, marketplace, payroll, live floor."},
@@ -54,6 +55,7 @@ class Guide(TypedDict, total=False):
     mistakes: list[str]
     related: list[str]       # ids of related guides
     module: str              # matches Navbar module routes: operations|memberships|crm|marketing|admin
+    audience: str            # "mod" = only for MOD sites; unset = everyone
     # Optional interactive walkthrough — reuses GuidedTour (Joyride).
     # Each step targets a `[data-testid=...]` in the live app. The
     # Help Centre "Start walkthrough" button fires an event consumed
@@ -114,6 +116,170 @@ GUIDES: list[Guide] = [
         ],
         "mistakes": [],
         "related": ["gs-first-login", "admin-roles-explained"],
+    },
+
+    # ── MOD Service (base staff) ────────────────────────────────────
+    # audience:"mod" scopes these to MOD sites only (filtered in routes/help.py).
+    {
+        "id": "mod-report-fault",
+        "category": "mod-service",
+        "module": "operations",
+        "audience": "mod",
+        "title": "Report a fault on a machine",
+        "description": "Use the guided form to log an equipment fault with photos — it routes to the right supplier automatically.",
+        "read_minutes": 2,
+        "roles": [],
+        "popular": True,
+        "updated_at": "2026-08-09",
+        "steps": [
+            {"title": "Open the Faults tab", "body": "From your site dashboard choose Faults, then 'Report a fault'. You can also scan a machine's QR code to jump straight in.", "ui_hint": "The guided form has a few short steps — you can't miss a required detail."},
+            {"title": "Pick the machine", "body": "Choose the affected machine from your equipment list."},
+            {"title": "Describe the fault", "body": "Select the fault type, say whether it's safe to use and still usable, and add a short description (at least 30 characters)."},
+            {"title": "Add 'steps taken to fix' (optional)", "body": "If you've already tried something, note it here so the engineer doesn't repeat it."},
+            {"title": "Attach photos or a video", "body": "A thumbnail preview confirms each attachment. Clear photos speed up diagnosis and parts ordering."},
+            {"title": "Pick the reporter and submit", "body": "Choose who is reporting, review everything on one screen, and submit. You'll get a ticket reference (MOD-YYYY-NNNNN)."},
+        ],
+        "tips": [
+            "Safety-critical faults are highlighted and prioritised automatically.",
+            "The fault is sent to both the Pulse MOD Service desk and the machine's servicing supplier — you never look up an email.",
+        ],
+        "mistakes": [
+            "Don't mark a machine 'safe to use' if there's any doubt — flag it unsafe and let the engineer decide.",
+        ],
+        "related": ["mod-engineer-booking", "mod-supplier-comms", "mod-report-to-dio"],
+    },
+    {
+        "id": "mod-engineer-booking",
+        "category": "mod-service",
+        "module": "operations",
+        "audience": "mod",
+        "title": "Engineer visit bookings & the status chip",
+        "description": "See at a glance whether the supplier has confirmed the engineer's base-access details for a fault.",
+        "read_minutes": 2,
+        "roles": [],
+        "popular": True,
+        "updated_at": "2026-08-09",
+        "steps": [
+            {"title": "Find the booking chip", "body": "Each fault card shows an engineer-booking chip: amber 'Sent' means the booking form has gone to the supplier; green 'Completed' means they've confirmed the engineer and vehicle details."},
+            {"title": "The supplier fills the form", "body": "It's the servicing supplier — not your site — who provides the engineer and vehicle details needed for base access, via their own job card."},
+            {"title": "Automatic reminders", "body": "If the form isn't completed within 24 hours, the supplier is reminded automatically so nothing stalls."},
+        ],
+        "tips": [
+            "Green 'Completed' shows the engineer's name — handy for signing them onto the base.",
+        ],
+        "mistakes": [],
+        "related": ["mod-report-fault", "mod-supplier-comms"],
+    },
+    {
+        "id": "mod-supplier-comms",
+        "category": "mod-service",
+        "module": "operations",
+        "audience": "mod",
+        "title": "Message your servicing supplier",
+        "description": "Two-way messaging is set up automatically against the supplier the fault was sent to — no email to type.",
+        "read_minutes": 2,
+        "roles": [],
+        "popular": False,
+        "updated_at": "2026-08-09",
+        "steps": [
+            {"title": "Open the fault", "body": "Open the fault and find 'Supplier Communication'."},
+            {"title": "Type and send", "body": "Write your message and send. It's delivered by email to the supplier the fault was dispatched to, and their replies appear back in the thread."},
+            {"title": "Open the supplier's job card", "body": "Use 'Supplier Card' to see exactly what the supplier sees, including the engineer booking form."},
+        ],
+        "tips": [
+            "You never have to look up or type the supplier's email — it's wired to whoever the fault was routed to.",
+        ],
+        "mistakes": [],
+        "related": ["mod-report-fault", "mod-engineer-booking"],
+    },
+    {
+        "id": "mod-report-incident",
+        "category": "mod-service",
+        "module": "operations",
+        "audience": "mod",
+        "title": "Report a personal incident",
+        "description": "Record an injury or safety event, including RIDDOR considerations — it's saved securely and filed to Documents.",
+        "read_minutes": 2,
+        "roles": [],
+        "popular": True,
+        "updated_at": "2026-08-09",
+        "steps": [
+            {"title": "Open Reports → Report Incident", "body": "On the Reports tab choose 'Report Incident' (next to ASER)."},
+            {"title": "Record what happened", "body": "Capture the category, who was involved, the injury severity and any RIDDOR flags."},
+            {"title": "Submit", "body": "The incident is stored securely against your site and a PDF copy is automatically filed under Documents › Incidents."},
+        ],
+        "tips": [
+            "Everyone can log an incident — you don't need manager access.",
+            "Marking OFFICIAL-SENSITIVE keeps the record handled correctly.",
+        ],
+        "mistakes": [
+            "Don't wait to gather every detail — log it now; managers can add the investigation later on closure.",
+        ],
+        "related": ["mod-incident-register", "mod-aser"],
+    },
+    {
+        "id": "mod-incident-register",
+        "category": "mod-service",
+        "module": "operations",
+        "audience": "mod",
+        "title": "The Incident Register & closing incidents",
+        "description": "Browse every incident logged at your site, download its PDF, and (managers) close it with a root-cause review.",
+        "read_minutes": 3,
+        "roles": [],
+        "popular": False,
+        "updated_at": "2026-08-09",
+        "steps": [
+            {"title": "Open Reports → Incident Register", "body": "Every personal incident logged at your site is listed here — with RIDDOR status and open/closed state."},
+            {"title": "View or re-file the PDF", "body": "Expand a row to see the full detail. 'View PDF' opens the record; 'Save to Documents' re-files it for audit."},
+            {"title": "Close an incident (managers)", "body": "Owners and managers can close an incident: record the root cause, contributing factors and corrective action (plus a RIDDOR reference if relevant). The record flips to Closed and its filed PDF is refreshed."},
+        ],
+        "tips": [
+            "The register means incidents are always retrievable later — not just at the moment they're logged.",
+        ],
+        "mistakes": [],
+        "related": ["mod-report-incident"],
+    },
+    {
+        "id": "mod-aser",
+        "category": "mod-service",
+        "module": "operations",
+        "audience": "mod",
+        "title": "Submit an ASER return",
+        "description": "Record and review Activity Safety Events from the Reports tab to keep your base inspection-ready.",
+        "read_minutes": 2,
+        "roles": [],
+        "popular": False,
+        "updated_at": "2026-08-09",
+        "steps": [
+            {"title": "Open Reports → ASER", "body": "The Activity Safety Events Register lives on the Reports tab."},
+            {"title": "Add your return", "body": "Record the activity safety event details for the period."},
+            {"title": "Keep it audit-ready", "body": "ASER returns build a clear, reviewable safety history for HQ and inspections."},
+        ],
+        "tips": [],
+        "mistakes": [],
+        "related": ["mod-report-incident", "mod-incident-register"],
+    },
+    {
+        "id": "mod-report-to-dio",
+        "category": "mod-service",
+        "module": "operations",
+        "audience": "mod",
+        "title": "Escalate a fault to DIO",
+        "description": "Report a fault to the Defence Infrastructure Organisation with an optional note and a settable email.",
+        "read_minutes": 1,
+        "roles": [],
+        "popular": False,
+        "updated_at": "2026-08-09",
+        "steps": [
+            {"title": "Open the fault", "body": "On a fault, choose 'Report to DIO'."},
+            {"title": "Confirm the DIO email", "body": "A pop-up lets you add a short note and confirm the DIO contact email. If none is on file, enter one — it's saved for next time."},
+            {"title": "Send", "body": "The escalation is emailed to DIO and the fault is marked as escalated."},
+        ],
+        "tips": [
+            "Use the note to flag impact, urgency or access constraints for the DIO team.",
+        ],
+        "mistakes": [],
+        "related": ["mod-report-fault"],
     },
 
     # ── CRM ────────────────────────────────────────────────────────
