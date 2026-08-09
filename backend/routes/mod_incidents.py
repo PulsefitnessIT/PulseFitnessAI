@@ -385,6 +385,30 @@ async def close_incident(
         )
     except Exception:
         pass
+    # Refresh the filed PDF in Documents so the retained copy reflects closure.
+    try:
+        fresh = await db.mod_incidents.find_one(
+            {"id": incident_id, "site_id": org["id"]}, {"_id": 0})
+        from utils.incident_pdf import mod_incident_pdf
+        pdf = mod_incident_pdf(fresh, org_name=org.get("name") or "MOD Site")
+        ref = fresh.get("incident_ref") or incident_id
+        existing = await db.files.find_one(
+            {"organization_id": org["id"], "category": "incidents", "incident_id": incident_id},
+            {"_id": 0, "id": 1})
+        path = f"{APP_NAME}/incidents/{org['id']}/{uuid.uuid4()}.pdf"
+        res = put_object(path, pdf, "application/pdf")
+        await db.files.update_one(
+            {"id": existing["id"] if existing else str(uuid.uuid4())},
+            {"$set": {
+                "id": existing["id"] if existing else str(uuid.uuid4()),
+                "user_id": user["id"], "organization_id": org["id"],
+                "category": "incidents", "incident_id": incident_id,
+                "storage_path": res["path"], "download_url": res.get("url", res["path"]),
+                "original_filename": f"{ref}.pdf", "content_type": "application/pdf",
+                "size": res.get("size", len(pdf)), "created_at": now_iso,
+            }}, upsert=True)
+    except Exception as _re:  # pragma: no cover
+        logger.warning("Incident closure PDF re-file failed: %s", _re)
     return {"ok": True, "incident_id": incident_id, "questionnaire": questionnaire}
 
 

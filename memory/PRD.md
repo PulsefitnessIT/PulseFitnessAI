@@ -34807,3 +34807,12 @@ NOTE: preview change — user must REDEPLOY to reach production (fitness-ai-migr
 - Backend: MOD fault dispatch now calls make_fault_booking(issue_id) when a supplier_case is created, so the booking token (and therefore the chip) exists for EVERY supplier-routed fault immediately — not just urgent/high. GET /issues already returns mod_booking so the chip is live.
 - Also added the same chip to MODSiteDashboard FaultCard (mod-fault-<id>-booking-chip) for consistency (that view isn't currently mounted).
 - Verified via screenshot: 6 faults each show "Engineer booking · Sent"; submitted bookings show green "Completed".
+
+## Changelog — 2026-08-09 (fork) · Incident Closure + Portal User Guide
+Incident Closure (from the register):
+- Wired existing POST /mod/site/incidents/{id}/closure into MODIncidentRegister.jsx — owners/managers see a "Close incident" button that opens a post-incident review form (root_cause≥20, contributing_factors≥10, corrective_action≥20, optional RIDDOR ref). On submit the record flips to CLOSED (audited) and the closure detail shows on the card.
+- Backend close_incident now REFILES the incident PDF in Documents so the retained copy reflects closure. Verified via curl (200, status closed, questionnaire persisted) + screenshot (form renders, CLOSED badge shows).
+Portal User Guide:
+- New MODUserGuide.jsx — branded Pulse cover (cyan #19CDFF eyebrow, white title, dark gradient hero, 4px cyan rule), sticky Contents nav, 10 plain-English sections covering every MOD feature (getting started, dashboard, equipment/zones/bulk move, fault wizard, tracking/booking chip/supplier comms/DIO, supplier job card + booking form, reports/ASER/incident register/closure, documents, offline, help). Viewable in-app + "Download / Print" (window.print with print-color-adjust so the branded hero prints).
+- Added as a MOD "User Guide" tab in LiteDashboardPage (staff + managers/owners). data-testids: mod-user-guide, mod-guide-download, mod-guide-toc, mod-guide-section-<id>.
+- FIX: hero H1 was bleached dark by the global `[data-theme="light"] .text-white {color:var(--theme-text)!important}` rule — removed text-white and set color inline (#fff). Confirmed computed color rgb(255,255,255).

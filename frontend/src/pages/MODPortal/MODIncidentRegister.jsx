@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { ShieldAlert, FileText, Download, Loader2, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { ShieldAlert, FileText, Download, Loader2, ChevronDown, ChevronUp, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/App';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
@@ -33,11 +33,14 @@ function Row({ label, value }) {
 }
 
 export default function MODIncidentRegister() {
-  const { API } = useAuth();
+  const { API, user } = useAuth();
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [closingId, setClosingId] = useState(null);
+  const [cf, setCf] = useState({ root_cause: '', contributing_factors: '', corrective_action: '', riddor_submission_ref: '' });
+  const canClose = ['owner', 'manager', 'master_admin'].includes(user?.role);
 
   const headers = { Authorization: `Bearer ${localStorage.getItem('token') || ''}` };
 
@@ -74,6 +77,26 @@ export default function MODIncidentRegister() {
       notify.success('Saved to Documents', `${inc.incident_ref} filed under Documents › Incidents.`);
     } catch (e) {
       notifyApiError(notify, e, 'Could not save to Documents');
+    } finally { setBusyId(null); }
+  };
+
+  const openCloseForm = (inc) => {
+    setClosingId(inc.id);
+    setCf({ root_cause: '', contributing_factors: '', corrective_action: '', riddor_submission_ref: '' });
+  };
+
+  const submitClosure = async (inc) => {
+    if (cf.root_cause.trim().length < 20) return notify.error('Root cause too short', 'Please give at least 20 characters.');
+    if (cf.contributing_factors.trim().length < 10) return notify.error('Contributing factors too short', 'Please give at least 10 characters.');
+    if (cf.corrective_action.trim().length < 20) return notify.error('Corrective action too short', 'Please give at least 20 characters.');
+    setBusyId(inc.id + ':close');
+    try {
+      await axios.post(`${API}/mod/site/incidents/${inc.id}/closure`, cf, { headers });
+      notify.success('Incident closed', `${inc.incident_ref} closed and re-filed to Documents.`);
+      setClosingId(null);
+      await load();
+    } catch (e) {
+      notifyApiError(notify, e, 'Could not close incident');
     } finally { setBusyId(null); }
   };
 
@@ -148,10 +171,63 @@ export default function MODIncidentRegister() {
                       <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface-2)' }}>
                         <div className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-500">Closed / investigated</div>
                         <Row label="Root cause" value={inc.closure_questionnaire.root_cause} />
+                        <Row label="Contributing factors" value={inc.closure_questionnaire.contributing_factors} />
                         <Row label="Corrective action" value={inc.closure_questionnaire.corrective_action} />
+                        <Row label="RIDDOR submission ref" value={inc.closure_questionnaire.riddor_submission_ref} />
                       </div>
                     )}
+
+                    {inc.status !== 'closed' && canClose && closingId === inc.id && (
+                      <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--color-brand-cyan)', background: 'var(--theme-surface-2)' }} data-testid={`incident-close-form-${inc.id}`}>
+                        <div className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--color-brand-cyan)]">Close incident — post-incident review</div>
+                        {[
+                          { k: 'root_cause', label: 'Root cause *', min: 20, rows: 2, ph: 'What was the underlying cause? (min 20 chars)' },
+                          { k: 'contributing_factors', label: 'Contributing factors *', min: 10, rows: 2, ph: 'Environment, equipment, human factors… (min 10 chars)' },
+                          { k: 'corrective_action', label: 'Corrective action *', min: 20, rows: 2, ph: 'What has / will be done to prevent recurrence? (min 20 chars)' },
+                        ].map(({ k, label, ph, rows }) => (
+                          <div key={k}>
+                            <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{label}</label>
+                            <textarea
+                              rows={rows}
+                              value={cf[k]}
+                              onChange={(e) => setCf({ ...cf, [k]: e.target.value })}
+                              placeholder={ph}
+                              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                              style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                              data-testid={`incident-close-${k}-${inc.id}`}
+                            />
+                          </div>
+                        ))}
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>RIDDOR submission ref (if applicable)</label>
+                          <input
+                            value={cf.riddor_submission_ref}
+                            onChange={(e) => setCf({ ...cf, riddor_submission_ref: e.target.value })}
+                            placeholder="HSE reference…"
+                            className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
+                            style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                            data-testid={`incident-close-riddor-${inc.id}`}
+                          />
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <button onClick={() => setClosingId(null)} className="px-3 py-2 rounded-lg text-xs font-bold border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid={`incident-close-cancel-${inc.id}`}>Cancel</button>
+                          <button onClick={() => submitClosure(inc)} disabled={busyId === inc.id + ':close'} className="px-3 py-2 rounded-lg text-xs font-extrabold bg-emerald-600 text-white flex items-center gap-1.5 disabled:opacity-50" data-testid={`incident-close-submit-${inc.id}`}>
+                            {busyId === inc.id + ':close' ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />} Close incident
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex flex-wrap gap-2 pt-1">
+                      {inc.status !== 'closed' && canClose && closingId !== inc.id && (
+                        <button
+                          onClick={() => openCloseForm(inc)}
+                          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-extrabold bg-emerald-600/15 text-emerald-500 border border-emerald-600/40 hover:bg-emerald-600/25"
+                          data-testid={`incident-open-close-${inc.id}`}
+                        >
+                          <CheckCircle2 size={13} /> Close incident
+                        </button>
+                      )}
                       <button
                         onClick={() => openPdf(inc)}
                         disabled={busyId === inc.id + ':pdf'}

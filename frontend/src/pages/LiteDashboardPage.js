@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import axios from 'axios';
 import { useInlineBanner, useConfirm, notify } from '@/components/notifications';
-import { Eye, LayoutDashboard, Dumbbell, AlertTriangle, FileText, ClipboardCheck, ClipboardList, BarChart3, Truck, LayoutGrid, Rocket, Sparkles, Users, Brain, FileSignature } from 'lucide-react';
+import { Eye, LayoutDashboard, Dumbbell, AlertTriangle, FileText, ClipboardCheck, ClipboardList, BarChart3, Truck, LayoutGrid, Rocket, Sparkles, Users, Brain, FileSignature, BookOpen } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/shared/Navbar';
 import MobileBottomNav from '../components/shared/MobileBottomNav';
@@ -23,6 +23,7 @@ import PulseSettingsTab from './PulseSettingsTab';
 import PulseGymLayoutTab from './PulseGymLayoutTab';
 import PulseAIDiagnosisTab from './PulseAIDiagnosisTab';
 import SupplierDashboardTab from './SupplierDashboardTab';
+import MODUserGuide from './MODPortal/MODUserGuide';
 import OnboardingWizard from './OnboardingWizard';
 import AddEquipmentDialog from '../components/equipment/AddEquipmentDialog';
 import LiteOverviewTab from './LiteDashboard/LiteOverviewTab';
@@ -750,6 +751,7 @@ const LiteDashboardPage = () => {
             ...proBase,
             { id: 'reports',   label: t('dashboard.reports', 'Reports'),   icon: BarChart3 },
             { id: 'suppliers', label: t('dashboard.suppliers_tab', 'Suppliers'), icon: Truck },
+            { id: 'guide',     label: t('dashboard.user_guide', 'User Guide'), icon: BookOpen },
           ]
         : proBase;
     }
@@ -761,6 +763,7 @@ const LiteDashboardPage = () => {
         { id: 'quotes',    label: `${t('dashboard.quotes', 'Quotes')}${quotesPending ? ` (${quotesPending})` : ''}`, icon: FileSignature },
         { id: 'reports',   label: t('dashboard.reports', 'Reports'),   icon: BarChart3 },
         { id: 'suppliers', label: t('dashboard.suppliers_tab', 'Suppliers'), icon: Truck },
+        { id: 'guide',     label: t('dashboard.user_guide', 'User Guide'), icon: BookOpen },
       ];
     }
     // Managers and Owners see everything (Weekly Digest lives inside Reports)
@@ -1105,6 +1108,11 @@ const LiteDashboardPage = () => {
             {isPro && tabVisible('suppliers') && (
               <TabsContent value="suppliers" data-testid="suppliers-content">
                 <SupplierDashboardTab />
+              </TabsContent>
+            )}
+            {tabVisible('guide') && (
+              <TabsContent value="guide" data-testid="guide-content">
+                <MODUserGuide />
               </TabsContent>
             )}
             {!isPro && (
