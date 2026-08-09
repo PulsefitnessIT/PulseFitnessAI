@@ -582,6 +582,50 @@ const LiteEquipmentTab = ({
         </div>
       )}
 
+      {/* Zone summary cards — machine + open-fault counts per location at a glance.
+          Click a card to filter to that zone. */}
+      {showGroupHeaders && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2" data-testid="lite-equip-zone-summary">
+          {equipmentGroups.map(([loc, items]) => {
+            const zoneKey = loc === UNASSIGNED_KEY ? 'unassigned' : loc;
+            const openFaults = items.reduce(
+              (n, eq) => n + getEquipmentFaults(eq).filter(f => f.status !== 'resolved').length,
+              0,
+            );
+            const active = zoneFilter === loc;
+            return (
+              <button
+                key={loc}
+                type="button"
+                onClick={() => setZoneFilter(active ? null : loc)}
+                className={`text-left p-3 rounded-lg border transition-colors ${active ? 'border-[var(--color-brand-cyan-hover)] bg-[rgb(var(--rgb-brand-cyan-hover)/0.08)]' : 'border-[var(--theme-border)] bg-[var(--theme-surface)] hover:border-[var(--color-brand-cyan-hover)]/50'}`}
+                data-testid={`lite-equip-zone-summary-${zoneKey}`}
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <MapPin size={12} className="text-[var(--color-text-muted)] shrink-0" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] truncate">
+                    {loc === UNASSIGNED_KEY ? t('equip.unassigned_location', 'Unassigned') : loc}
+                  </span>
+                </div>
+                <div className="mt-1.5 flex items-baseline gap-1.5">
+                  <span className="text-2xl font-bold text-[var(--theme-text)] leading-none" data-testid={`lite-equip-zone-summary-count-${zoneKey}`}>{items.length}</span>
+                  <span className="text-[10px] text-[var(--color-text-muted)]">{items.length === 1 ? t('equip.machine', 'machine') : t('equip.machines', 'machines')}</span>
+                </div>
+                {openFaults > 0 ? (
+                  <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-red-400" data-testid={`lite-equip-zone-summary-faults-${zoneKey}`}>
+                    <AlertTriangle size={9} /> {openFaults} {openFaults > 1 ? t('faults.plural', 'faults') : t('faults.singular', 'fault')}
+                  </div>
+                ) : (
+                  <div className="mt-1 text-[10px] font-medium text-emerald-400" data-testid={`lite-equip-zone-summary-faults-${zoneKey}`}>
+                    {t('equip.zone_no_faults', 'No open faults')}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Quick zone filter chips — jump straight to one location. */}
       {showGroupHeaders && (
         <div className="flex flex-wrap items-center gap-1.5" data-testid="lite-equip-zone-chips">

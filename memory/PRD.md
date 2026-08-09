@@ -1,3 +1,16 @@
+# ═══ 2026-08-09 · Zone summary cards on the equipment list — screenshot-verified ═══
+pages/LiteDashboard/LiteEquipmentTab.js: added a responsive grid of per-zone summary cards above the filter chips
+(only when a site has >1 location). Each card shows the zone name (MapPin), a big machine count, and open-fault count
+(red "N faults" with AlertTriangle, or green "No open faults"). Clicking a card filters the list to that zone (toggles
+zoneFilter, same as the chips); active card is cyan-highlighted.
+  • data-testid: lite-equip-zone-summary, lite-equip-zone-summary-<zone|unassigned>, -count-<zone>, -faults-<zone>.
+  • VERIFIED: babel clean, webpack compiled; screenshot on MOD Test Site shows CARDIO SUITE (3 machines · 3 faults) /
+    MAIN GYM (4 · 2 faults) / UNASSIGNED (1 · No open faults). MOD Test Site data unchanged.
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 · Bulk mover can also move kit to ANOTHER SITE + zone in one step — curl+screenshot verified ═══
 Extended the bulk "Move kit" (LiteEquipmentTab.js) so a refit move can also relocate machines to a different site AND
 set their zone at the destination, in one action.
