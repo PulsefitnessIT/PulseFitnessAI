@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,12 +10,10 @@ import {
   Wand2, Upload, X, AlertTriangle,
 } from 'lucide-react';
 
-// Parse pasted/uploaded CSV or TSV into normalized import rows.
-// Auto-detects a header row and common column-name variants; falls back to
-// positional order [serial, sicon_equipment_id, sage_item_id] when headerless.
-function parseImport(text) {
+// Split pasted/uploaded CSV or TSV into a cell matrix (delimiter auto-detected).
+function splitTable(text) {
   const lines = (text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (!lines.length) return { rows: [], columns: null };
+  if (!lines.length) return [];
   const delim = lines[0].includes('\t') ? '\t' : ',';
   const splitLine = (line) => {
     const out = []; let cur = ''; let inQ = false;
@@ -28,29 +26,42 @@ function parseImport(text) {
     out.push(cur);
     return out.map((s) => s.trim());
   };
-  const cells0 = splitLine(lines[0]).map((c) => c.toLowerCase());
-  const findIdx = (preds) => cells0.findIndex((h) => preds.some((p) => h.includes(p)));
-  let serialIdx = findIdx(['serial']);
-  let siconIdx = cells0.findIndex((h) => h.includes('sicon') || (h.includes('equip') && h.includes('id')) || h === 'asset id' || h.includes('assetid'));
-  let sageIdx = cells0.findIndex((h) => h.includes('sage') || (h.includes('item') && h.includes('id')) || h.includes('stock'));
-  const hasHeader = serialIdx !== -1 || siconIdx !== -1 || sageIdx !== -1;
-  if (!hasHeader) { serialIdx = 0; siconIdx = 1; sageIdx = 2; }
-  const dataLines = hasHeader ? lines.slice(1) : lines;
+  return lines.map(splitLine);
+}
+
+// Analyze the table: detect a header row + best-guess column indices for
+// serial / sicon / sage. The user can override both in the mapping UI.
+function analyzeImport(text) {
+  const table = splitTable(text);
+  if (!table.length) return null;
+  const first = table[0].map((c) => c.toLowerCase());
+  const findIdx = (preds) => first.findIndex((h) => preds.some((p) => h.includes(p)));
+  const serialIdx = findIdx(['serial']);
+  const siconIdx = first.findIndex((h) => h.includes('sicon') || (h.includes('equip') && h.includes('id')) || h.includes('assetid') || h === 'asset id');
+  const sageIdx = first.findIndex((h) => h.includes('sage') || (h.includes('item') && h.includes('id')) || h.includes('stock'));
+  const autoHasHeader = serialIdx !== -1 || siconIdx !== -1 || sageIdx !== -1;
+  const colCount = Math.max(...table.map((r) => r.length));
+  const detected = {
+    serial: serialIdx !== -1 ? serialIdx : 0,
+    sicon: siconIdx !== -1 ? siconIdx : (colCount > 1 ? 1 : -1),
+    sage: sageIdx !== -1 ? sageIdx : (colCount > 2 ? 2 : -1),
+  };
+  return { table, colCount, detected, autoHasHeader };
+}
+
+// Build normalized import rows from data rows using the chosen column map.
+function buildRows(dataRows, colMap) {
   const rows = [];
-  dataLines.forEach((line) => {
-    const cells = splitLine(line);
-    const serial = serialIdx >= 0 ? cells[serialIdx] : '';
+  (dataRows || []).forEach((cells) => {
+    const serial = colMap.serial >= 0 ? (cells[colMap.serial] || '').trim() : '';
     if (!serial) return;
     rows.push({
       serial,
-      sicon_equipment_id: siconIdx >= 0 ? (cells[siconIdx] || '') : '',
-      sage_item_id: sageIdx >= 0 ? (cells[sageIdx] || '') : '',
+      sicon_equipment_id: colMap.sicon >= 0 ? (cells[colMap.sicon] || '').trim() : '',
+      sage_item_id: colMap.sage >= 0 ? (cells[colMap.sage] || '').trim() : '',
     });
   });
-  return {
-    rows,
-    columns: { serialIdx, siconIdx, sageIdx, hasHeader, header: hasHeader ? splitLine(lines[0]) : null },
-  };
+  return rows;
 }
 
 export default function SiconEquipmentMapper() {
@@ -69,6 +80,8 @@ export default function SiconEquipmentMapper() {
   const [q, setQ] = useState('');
   const [showMatch, setShowMatch] = useState(false);
   const [pasteText, setPasteText] = useState('');
+  const [colMap, setColMap] = useState({ serial: 0, sicon: 1, sage: 2 });
+  const [firstRowHeader, setFirstRowHeader] = useState(false);
   const [matching, setMatching] = useState(false);
   const [matchStats, setMatchStats] = useState(null);
   const [fuzzyMatches, setFuzzyMatches] = useState([]);
@@ -125,10 +138,19 @@ export default function SiconEquipmentMapper() {
 
   const dirtyCount = Object.keys(edits).length;
 
+  // Re-analyze whenever the pasted text changes; reset the column map + header
+  // toggle to the best-guess detection (user can override via the UI below).
+  const analysis = useMemo(() => analyzeImport(pasteText), [pasteText]);
+  useEffect(() => {
+    if (analysis) { setColMap(analysis.detected); setFirstRowHeader(analysis.autoHasHeader); }
+  }, [analysis]);
+  const header = analysis && firstRowHeader ? analysis.table[0] : null;
+  const dataRows = analysis ? (firstRowHeader ? analysis.table.slice(1) : analysis.table) : [];
+
   const runAutoMatch = async () => {
-    const { rows: importRows } = parseImport(pasteText);
+    const importRows = buildRows(dataRows, colMap);
     if (!importRows.length) {
-      notify.error('Nothing to match', 'Paste rows with at least a serial number.');
+      notify.error('Nothing to match', 'Check the Serial column is mapped and has values.');
       return;
     }
     setMatching(true);
@@ -284,8 +306,50 @@ export default function SiconEquipmentMapper() {
               Upload CSV
               <input type="file" accept=".csv,text/csv,text/plain" className="hidden" onChange={onFile} data-testid="sicon-mapper-automatch-file" />
             </label>
-            <span className="text-[11px] text-zinc-400">Headers auto-detected (Serial / Sicon / Sage). Headerless = column order Serial, Sicon, Sage.</span>
-            <Button size="sm" onClick={runAutoMatch} disabled={matching || !pasteText.trim()}
+            <span className="text-[11px] text-zinc-400">Headers auto-detected — override the columns below if they look wrong.</span>
+          </div>
+
+          {/* Column mapping — pick which column is Serial / Sicon / Sage */}
+          {analysis && (
+            <div className="mt-3 p-3 rounded-md bg-white border border-zinc-200" data-testid="sicon-mapper-colmap">
+              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                <p className="text-[11px] font-semibold text-zinc-600">
+                  Column mapping <span className="font-normal text-zinc-400">· {dataRows.length} data row(s)</span>
+                </p>
+                <label className="inline-flex items-center gap-1.5 text-[11px] text-zinc-600 cursor-pointer" data-testid="sicon-mapper-header-toggle">
+                  <input type="checkbox" checked={firstRowHeader} onChange={(e) => setFirstRowHeader(e.target.checked)} className="accent-violet-600" />
+                  First row is a header
+                </label>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[
+                  { key: 'serial', label: 'Serial *', allowNone: false },
+                  { key: 'sicon', label: 'Sicon Asset ID', allowNone: true },
+                  { key: 'sage', label: 'Sage Item ID', allowNone: true },
+                ].map(({ key, label, allowNone }) => (
+                  <label key={key} className="text-xs text-zinc-600">
+                    <span className="block mb-1 font-medium">{label}</span>
+                    <select
+                      value={colMap[key]}
+                      onChange={(e) => setColMap((m) => ({ ...m, [key]: parseInt(e.target.value, 10) }))}
+                      className="h-8 w-full px-2 rounded border border-zinc-300 bg-white text-xs focus:outline-none focus:border-violet-500"
+                      data-testid={`sicon-mapper-colmap-${key}`}
+                    >
+                      {allowNone && <option value={-1}>— none —</option>}
+                      {Array.from({ length: analysis.colCount }).map((_, i) => {
+                        const name = header ? (header[i] || `Column ${i + 1}`) : `Column ${i + 1}`;
+                        const sample = dataRows[0]?.[i];
+                        return <option key={i} value={i}>{name}{sample ? ` — e.g. ${String(sample).slice(0, 16)}` : ''}</option>;
+                      })}
+                    </select>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-3 mt-3">
+            <Button size="sm" onClick={runAutoMatch} disabled={matching || !analysis || colMap.serial < 0}
               className="bg-violet-600 hover:bg-violet-700 text-white" data-testid="sicon-mapper-automatch-run">
               {matching ? <Loader2 size={12} className="animate-spin mr-1" /> : <Wand2 size={12} className="mr-1" />}
               Match &amp; pre-fill

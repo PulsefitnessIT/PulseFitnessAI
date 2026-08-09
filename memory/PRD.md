@@ -1,3 +1,20 @@
+# ═══ 2026-08-09 · Column Mapping UI for Auto-Match (unusual/headerless exports) — screenshot verified ═══
+SiconEquipmentMapper.js auto-match now lets you map columns manually when the export headers don't auto-detect.
+  • Refactor: splitTable() → cell matrix (CSV/TSV auto-delimiter); analyzeImport() returns {table, colCount, detected,
+    autoHasHeader}; buildRows(dataRows, colMap) builds normalized import rows from the chosen columns.
+  • UI: after paste/upload, a "Column mapping" card shows 3 dropdowns (Serial* / Sicon Asset ID / Sage Item ID),
+    each listing every column by header name (or "Column N") + a sample value; Sicon/Sage allow "— none —". A
+    "First row is a header" checkbox (data-testid sicon-mapper-header-toggle) overrides header detection so unusual
+    headers (e.g. "Asset Tag, Ref No, Cost Code") can be excluded from data. Defaults seed from auto-detection but are
+    fully overridable; Match uses the chosen colMap. testids: sicon-mapper-colmap, -colmap-serial/-sicon/-sage.
+  • VERIFIED: babel clean, webpack compiled. Screenshot: pasted unusual headers → mapping card + header toggle →
+    ticked header → "Matched 2 of 2" with Sicon 4021 / Sage 8801 pre-filled + highlighted, Save (2). Nothing saved →
+    no preview data changed. Works with the fuzzy near-miss pass from the prior iteration.
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (https://fitness-ai-migrate.emergent.host); REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 · Fuzzy Serial Match (near-miss suggestions) in Auto-Match — curl+unit+screenshot verified ═══
 Extends the Equipment ID Mapper auto-match so almost-matches aren't missed. Near-misses are surfaced SEPARATELY as
 review-before-apply (riskier than exact), never auto-filled.
