@@ -483,6 +483,31 @@ export default function CRMTerritoryMap() {
     return Array.from(byUser.values());
   }, [coverage, areaCountyMap]);
 
+  // Same union as effectiveList, but tagged with provenance so tooltips can
+  // explain WHY a region is covered when no one painted it directly on this
+  // layer (e.g. "(via county Greater Manchester)" while viewing postcode M).
+  const coverageDetail = useCallback((type, code) => {
+    const byUser = new Map();
+    const put = (m, direct, viaLabel) => {
+      if (!m || !m.user_id) return;
+      const e = byUser.get(m.user_id) || { ...m, direct: false, via: null };
+      if (direct) e.direct = true;
+      else if (!e.via) e.via = viaLabel;
+      byUser.set(m.user_id, e);
+    };
+    if (type === 'county') {
+      (coverage.counties[code] || []).forEach((m) => put(m, true));
+      const area = areaCountyMap.countyToArea[code];
+      if (area) (coverage.postcode_areas[area] || []).forEach((m) => put(m, false, `postcode ${area}`));
+    } else {
+      (coverage.postcode_areas[code] || []).forEach((m) => put(m, true));
+      (areaCountyMap.areaToCounties[code] || []).forEach((cc) => {
+        (coverage.counties[cc] || []).forEach((m) => put(m, false, `county ${cc}`));
+      });
+    }
+    return Array.from(byUser.values());
+  }, [coverage, areaCountyMap]);
+
 
   const membersFor = useCallback(
     (type, code) => effectiveList(type, code).filter((m) => roleMatch(m.role)),
@@ -742,8 +767,11 @@ export default function CRMTerritoryMap() {
                   // darker outline so you can tell "theirs" apart while still
                   // seeing everyone else's colours.
                   const isFocus = focusedUser && list.some((m) => m.user_id === focusedUser);
+                  const detail = hasAssignees
+                    ? coverageDetail(region.type, region.code).filter((m) => roleMatch(m.role))
+                    : [];
                   const tooltip = hasAssignees
-                    ? `${region.label} — ${list.map((m) => m.full_name).join(', ')}${overlap ? ' ⚠ double-covered' : ''}`
+                    ? `${region.label} — ${detail.map((m) => (m.direct ? m.full_name : `${m.full_name} (via ${m.via})`)).join(', ')}${overlap ? ' ⚠ double-covered' : ''}`
                     : region.label;
                   return (
                     <g key={geo.rsmKey}>
