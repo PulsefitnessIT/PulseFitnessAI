@@ -124,6 +124,9 @@ async def update_connection(request: Request, body: dict,
 @router.post("/connection/rotate-key")
 async def rotate_key(request: Request, user: dict = Depends(_require_orbit4_admin)):
     """Regenerate the webhook key — invalidates the old webhook URL."""
+    # Step-up: rotating an integration secret is high-impact (§18).
+    from utils.step_up import require_step_up
+    await require_step_up(user, request=request, action="rotate_orbit4_key")
     org_id = user.get("organization_id") or user.get("service_org_id")
     await _get_or_create_connection(org_id, user)
     new_key = secrets.token_urlsafe(24)

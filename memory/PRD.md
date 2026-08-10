@@ -1,3 +1,24 @@
+# ═══ 2026-08-10 · SECURITY · Step-Up Authentication (§18) — fresh re-auth before destructive actions (tests 17/17) ═══
+Built a reusable step-up (fresh re-authentication) capability and wired it into high-impact endpoints. Non-breaking: gated by
+STEP_UP_ENFORCED (default OFF), so require_step_up is a safe no-op until the FE prompt ships and ops flips it on.
+  • NEW utils/step_up.py: require_step_up(user, action) → 403 {"error":"step_up_required","mfa_enabled":bool,"ttl_seconds"} unless a
+    fresh step-up exists; verify_step_up_challenge (TOTP/backup code when MFA enrolled, else account password via verify_password);
+    record_step_up / is_step_up_fresh / step_up_status. Email-keyed collection security_step_ups (spans operator + CRM tokens),
+    TTL=STEP_UP_TTL_SECONDS (default 300s), Mongo TTL index (1h cleanup) registered at boot.
+  • NEW endpoints (routes/auth.py, router mounts at /api and paths include /auth): GET /api/auth/step-up/status,
+    POST /api/auth/step-up (rate-limited 6/5min via sync rate_limit(); every attempt audited: step_up_granted/step_up_failed).
+    Verified live: status→401 unauth, POST→405 on GET. NOTE: auth router paths need the /auth segment (mfa uses /auth/mfa/...);
+    initial attempt without it registered at /api/step-up — fixed.
+  • WIRED require_step_up into: DELETE /crm/v2/companies/{id} (crm_v2.py), PUT /sicon/config when credentials set/rotated (sicon.py),
+    POST /svc/orbit4/connection/rotate-key (orbit4.py). Added Request param + imports where missing.
+  • TESTS: tests/test_step_up.py (4) — password challenge+freshness, enforced gate (403 payload), disabled no-op, TTL expiry.
+    Combined suite 17/17 PASS. Backend /api/health=200; all edited modules import clean.
+  ⚠️ PREVIEW ONLY — REDEPLOY to push live. STEP_UP_ENFORCED stays OFF until the FE step-up dialog is implemented (retry-on-403).
+    FE contract documented in /app/memory/SECURITY_REVIEW.md §I.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-10 · SECURITY · Contract Workflow Lock — draft→approved→active enforced server-side (tests 13/13) ═══
 Closed the contract skip-approval holes. Two existed: (1) sign_contract activated from ANY status (draft→active); (2) send
 flipped draft→sent, enabling draft→sent→public-sign→active without approval.

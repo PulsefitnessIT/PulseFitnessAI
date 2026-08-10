@@ -1417,6 +1417,53 @@ async def mfa_disable(body: dict, user: dict = Depends(get_current_user)) -> dic
     return {"success": True}
 
 
+@router.get("/auth/step-up/status")
+async def step_up_status_endpoint(user: dict = Depends(get_current_user)) -> dict:
+    """FE reads this to decide whether a step-up prompt is needed and which
+    challenge (authenticator code vs password) to show."""
+    from utils.step_up import step_up_status
+    return await step_up_status(user)
+
+
+@router.post("/auth/step-up")
+async def step_up_endpoint(body: dict, request: Request, user: dict = Depends(get_current_user)) -> dict:
+    """Fresh re-authentication for high-impact actions (security §18).
+
+    Body: ``{"code": "123456"}`` (TOTP/backup if MFA enrolled) OR
+    ``{"password": "..."}`` (when MFA is not enrolled). On success a
+    short-lived step-up is recorded for the caller's identity.
+    """
+    from utils.step_up import verify_step_up_challenge, record_step_up, STEP_UP_TTL_SECONDS
+    from utils.security import rate_limit
+    from utils.security_events import log_security_event, SEV_WARNING
+
+    # Brute-force protection — throttle step-up attempts per account.
+    try:
+        rate_limit(f"stepup:{(user.get('email') or user.get('id') or 'anon').lower()}", max_requests=6, window_seconds=300)
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+
+    code = (body or {}).get("code")
+    password = (body or {}).get("password")
+    try:
+        method = await verify_step_up_challenge(user, code=code, password=password)
+    except HTTPException:
+        await log_security_event(
+            "step_up_failed", user=user, request=request, severity=SEV_WARNING,
+            action="step_up", result="denied",
+        )
+        raise
+    await record_step_up(user, method)
+    await log_security_event(
+        "step_up_granted", user=user, request=request, severity=SEV_WARNING,
+        action="step_up", result="allowed", detail=f"method={method}",
+    )
+    return {"success": True, "valid_for_seconds": STEP_UP_TTL_SECONDS, "method": method}
+
+
+
 @router.get("/organization")
 async def get_organization(user: dict = Depends(get_current_user)) -> dict:
     if not user.get('organization_id'):

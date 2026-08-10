@@ -139,6 +139,29 @@ Run: `cd /app/backend && python -m pytest tests/test_security_authz_matrix.py -q
 
 ---
 
+## I. Step-Up Authentication (§18)
+
+Fresh re-authentication is required before especially destructive actions.
+- **Module:** `utils/step_up.py` — `require_step_up(user, action=…)` (deny with
+  403 `step_up_required` unless a fresh step-up exists), `verify_step_up_challenge`
+  (TOTP/backup code if MFA enrolled, else account password), `record_step_up`,
+  `step_up_status`. Email-keyed so it spans operator + CRM tokens. TTL
+  `STEP_UP_TTL_SECONDS` (default 300s).
+- **Endpoints:** `GET /api/auth/step-up/status`, `POST /api/auth/step-up`
+  (rate-limited 6/5min, all attempts audited to `security_events`).
+- **Wired into:** `DELETE /crm/v2/companies/{id}` (delete company),
+  `PUT /sicon/config` (set/rotate integration credentials),
+  `POST /svc/orbit4/connection/rotate-key` (rotate integration secret).
+- **Enforcement:** gated by `STEP_UP_ENFORCED` (**default OFF**) — capability
+  shipped and wired; enable deliberately once the FE prompt is live (same
+  pattern as `ENFORCE_MASTER_ADMIN_MFA`). While OFF, `require_step_up` is a
+  safe no-op so no existing flow breaks.
+- **FE contract:** on a `403 {"error":"step_up_required","mfa_enabled":bool}`
+  from any action, show a prompt (authenticator code if `mfa_enabled` else
+  password), `POST /api/auth/step-up`, then retry the original request.
+- **Tests:** `tests/test_step_up.py` (4) — challenge/freshness, enforced gate,
+  disabled no-op, expiry. All passing.
+
 ## H. Pen-test readiness notes
 - **Test accounts:** see `/app/memory/test_credentials.md` (Master Admin,
   operator owner/manager, site-restricted manager, MOD site, member portal).

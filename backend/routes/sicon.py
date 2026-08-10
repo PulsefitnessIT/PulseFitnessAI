@@ -3,7 +3,7 @@ Sicon Service Integration Routes
 Settings management, sync endpoints, poll & queue management, audit logging.
 See /app/memory/SICON_INTEGRATION_SPEC.md for the full field model.
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 import logging
@@ -79,10 +79,15 @@ async def get_config(user: dict = Depends(get_current_user)):
 
 
 @router.put("/sicon/config")
-async def save_config(data: Dict[str, Any], user: dict = Depends(get_current_user)):
+async def save_config(data: Dict[str, Any], request: Request = None, user: dict = Depends(get_current_user)):
     """Save or update Sicon integration config. Credentials encrypted at rest."""
     if user.get("role") != "owner" and not user.get("is_master_admin"):
         raise HTTPException(status_code=403, detail="Only owners can configure Sicon integration")
+    # Step-up: writing/rotating integration secrets is high-impact — require
+    # fresh re-authentication when credentials are being set (§18).
+    if data.get("password") or (data.get("username") and data.get("username") != "••••••••"):
+        from utils.step_up import require_step_up
+        await require_step_up(user, request=request, action="rotate_sicon_credentials")
     org_id = _require_org(user)
 
     update_doc = {

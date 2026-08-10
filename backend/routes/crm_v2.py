@@ -2,7 +2,7 @@
 CRM v2 — Core Data Model & Activity Engine
 All CRM entities with full cross-linking and org-scoped queries.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from utils.security_plus import safe_regex, safe_regex_exact
 from datetime import datetime, timezone
 from pydantic import BaseModel
@@ -621,7 +621,10 @@ async def update_company(company_id: str, data: dict, user=Depends(get_crm_user)
 
 
 @router.delete("/companies/{company_id}")
-async def delete_company(company_id: str, user=Depends(get_crm_user)):
+async def delete_company(company_id: str, request: Request = None, user=Depends(get_crm_user)):
+    # Step-up: deleting a company is destructive — require fresh re-auth (§18).
+    from utils.step_up import require_step_up
+    await require_step_up(user, request=request, action="delete_company")
     existing = await db.crm2_companies.find_one({"id": company_id, **_of(user)}, {"_id": 0})
     r = await db.crm2_companies.delete_one({"id": company_id, **_of(user)})
     if r.deleted_count == 0:
