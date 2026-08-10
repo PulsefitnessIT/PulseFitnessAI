@@ -226,6 +226,8 @@ export default function CRMTerritoryMap() {
   const [roleFilter, setRoleFilter] = useState('all'); // 'all' | 'sales_manager' | 'engineer'
   const [offices, setOffices] = useState([]);
   const [showOffices, setShowOffices] = useState(true);
+  const [staffLocations, setStaffLocations] = useState([]);
+  const [showStaffPins, setShowStaffPins] = useState(true);
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [staff, setStaff] = useState([]);
   const [focusedUser, setFocusedUser] = useState(null);
@@ -267,6 +269,13 @@ export default function CRMTerritoryMap() {
     } catch (e) { /* offices are optional; ignore load errors */ }
   }, []);
 
+  const loadStaffLocations = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/crm/territories/staff-locations`, auth());
+      setStaffLocations(r.data.staff || []);
+    } catch (e) { /* staff pins are optional; ignore load errors */ }
+  }, []);
+
   const loadMaps = useCallback(async () => {
     setLoading(true);
     try {
@@ -302,7 +311,8 @@ export default function CRMTerritoryMap() {
     loadMaps();
     loadCoverage();
     loadOffices();
-  }, [loadMaps, loadCoverage, loadOffices]);
+    loadStaffLocations();
+  }, [loadMaps, loadCoverage, loadOffices, loadStaffLocations]);
 
   // ── Save handlers ─────────────────────────────────────────────────
   const saveRegion = async (region, assignedIds) => {
@@ -542,6 +552,14 @@ export default function CRMTerritoryMap() {
             <Building2 size={12} /> Offices
           </button>
           <button
+            onClick={() => setShowStaffPins((v) => !v)}
+            className={`px-3 py-1.5 text-xs font-bold border rounded-md inline-flex items-center gap-1.5 ${showStaffPins ? 'seg-active' : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'}`}
+            title="Show or hide staff location pins (from each person's postcode in the staffing file)."
+            data-testid="map-staff-pins-toggle"
+          >
+            <Users size={12} /> Staff pins
+          </button>
+          <button
             onClick={runAutoAssign}
             disabled={autoAssigning}
             className="px-3 py-1.5 text-xs font-bold border border-zinc-200 dark:border-zinc-800 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800/60 inline-flex items-center gap-1.5 disabled:opacity-50"
@@ -666,6 +684,25 @@ export default function CRMTerritoryMap() {
                   </g>
                 </Marker>
               ))}
+              {showStaffPins && staffLocations.filter((s) => roleMatch(s.territory_role)).map((s) => {
+                const dim = focusedUser && focusedUser !== s.id;
+                const firstName = (s.full_name || '').split(' ')[0] || s.full_name;
+                return (
+                  <Marker key={s.id} coordinates={[s.lng, s.lat]} data-testid={`staff-marker-${s.id}`}>
+                    <g style={{ pointerEvents: 'none', opacity: dim ? 0.35 : 1 }}>
+                      {/* Teardrop pin — distinct from the circular office pins */}
+                      <path
+                        d="M0 0 C-4.4 -6 -6 -8.4 -6 -11.4 A6 6 0 1 1 6 -11.4 C6 -8.4 4.4 -6 0 0 Z"
+                        fill={s.colour_hex || '#2563EB'}
+                        stroke="#FFFFFF"
+                        strokeWidth={1.4}
+                      />
+                      <circle cy={-11.4} r={2.4} fill="#FFFFFF" />
+                      <text textAnchor="middle" y={9} fontSize={8.5} fontWeight="700" fill="#0F172A" stroke="#FFFFFF" strokeWidth={2.2} paintOrder="stroke">{firstName}</text>
+                    </g>
+                  </Marker>
+                );
+              })}
             </ComposableMap>
           )}
         </div>

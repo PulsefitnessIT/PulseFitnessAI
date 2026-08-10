@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only verification of the new CRM Territories 'Staff pins' feature. Logged in via /login?next=/crm as owner@isodemo.com (CRM standalone form is now bypassed by CRMApp; it redirects to the main platform login and cross-logs into CRM). Switched CRM env from Members to Corporate to expose the Territories tab, opened the Map view, and validated all three acceptance criteria.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "TEST1_jordan_pin_render": "PASS — 1 marker [data-testid=staff-marker-staffsync-9fa89a88-2a81-4351-8826-50f56961c8c1] with label 'Jordan' present over Manchester.",
+    "TEST2_toggle_behaviour": "PASS — clicking [map-staff-pins-toggle] toggles staff pins 1↔0. Office markers unaffected (demo org has 0 office pins configured, but count remained 0 across toggles, i.e. no unintended side-effect).",
+    "TEST3_role_filter_interaction": "PASS — Managers filter → 0 staff pins (Jordan hidden); Engineers filter → 1 (Jordan visible); All roles → 1 (Jordan visible)."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Note (informational): the review_request describes reaching the map via the standalone CRMLogin form at /crm; the actual flow now (iter 216h198) redirects /crm to /login?next=/crm and cross-logs into CRM via the main platform login. Behaviour is intentional per code comments; just update the acceptance-criteria wording next time.",
+    "IMPORTANT cleanup still owed by main agent (per review_request): revert the temporary postcode 'M1 1AE' on Jordan Blake's staffing record and clear cached map_lat/map_lng/map_geo_postcode on his crm_users doc so the demo staffing file is clean again."
+  ],
+  "critical_code_review_comments": [
+    "CRMTerritoryMap.js — loadStaffLocations + showStaffPins + roleMatch filtering are wired correctly; staff-marker-<id> testid and first-name label render as spec'd. No issues found."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "CRM (via main login redirect): owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None (test postcode already seeded by main agent on Jordan Blake staffing record).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "To reach the Territories map at /crm: go to /crm → auto-redirects to /login?next=/crm → main login form (email + password) → after sign-in CRM auto-loads → CRM defaults to 'Members' environment; click the 'Corporate' pill in the top toolbar to reveal the Territories tab (Territories is in MEMBERS_HIDDEN_TABS). On the map, toggles are: [map-offices-toggle], [map-staff-pins-toggle]; role filter buttons are 'All roles', 'Managers', 'Engineers'. Jordan Blake's marker testid is staff-marker-staffsync-9fa89a88-2a81-4351-8826-50f56961c8c1."
+}

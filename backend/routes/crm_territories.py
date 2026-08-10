@@ -346,6 +346,61 @@ async def staff_palette(user=Depends(get_crm_user)):
     return {"staff": palette, "total": len(palette)}
 
 
+@router.get("/staff-locations")
+async def staff_locations(user=Depends(get_crm_user)):
+    """Map pins for engineers / sales managers, positioned from their home
+    postcode in the Operations Staffing file — the same way office pins work.
+
+    Geocoded coordinates are cached on the crm_users mirror (map_lat/map_lng
+    keyed by the geocoded postcode) so we only hit postcodes.io when a
+    person's postcode changes. Staff without a resolvable postcode are omitted.
+    """
+    of = _org_filter(user)
+    org_id = user.get("organization_id")
+    await sync_staffing_to_crm_users(org_id)
+    users = await db.crm_users.find(
+        of,
+        {"_id": 0, "id": 1, "full_name": 1, "email": 1, "colour_hex": 1,
+         "territory_role": 1, "staff_id": 1, "map_lat": 1, "map_lng": 1,
+         "map_geo_postcode": 1},
+    ).sort("full_name", 1).to_list(1000)
+    staff_ids = [u["staff_id"] for u in users if u.get("staff_id")]
+    postcode_by_staff: dict = {}
+    if staff_ids:
+        rows = await db.staff_members.find(
+            {"id": {"$in": staff_ids}}, {"_id": 0, "id": 1, "postcode": 1},
+        ).to_list(2000)
+        postcode_by_staff = {r["id"]: (r.get("postcode") or "").strip() for r in rows}
+    out = []
+    for u in users:
+        pc = postcode_by_staff.get(u.get("staff_id"), "")
+        lat, lng = u.get("map_lat"), u.get("map_lng")
+        norm = pc.upper().replace(" ", "")
+        # (Re)geocode when we have a postcode and either no cached coords or
+        # the postcode changed since we last resolved it.
+        if pc and (lat is None or lng is None or (u.get("map_geo_postcode") or "") != norm):
+            g = await _geocode_postcode(pc)
+            if g:
+                lat, lng = g["lat"], g["lng"]
+                await db.crm_users.update_one(
+                    {"id": u["id"]},
+                    {"$set": {"map_lat": lat, "map_lng": lng, "map_geo_postcode": norm, "updated_at": _now()}},
+                )
+        if lat is None or lng is None:
+            continue
+        out.append({
+            "id": u["id"],
+            "full_name": u.get("full_name", ""),
+            "email": u.get("email", ""),
+            "colour_hex": _normalise_colour(u.get("colour_hex")),
+            "territory_role": _normalise_role(u.get("territory_role")),
+            "postcode": pc,
+            "lat": lat,
+            "lng": lng,
+        })
+    return {"staff": out, "total": len(out)}
+
+
 @router.put("/staff/{uid}/style")
 async def update_staff_style(uid: str, data: dict, user=Depends(get_crm_user)):
     """Save a CRM user's map colour + territory role.
