@@ -1,3 +1,25 @@
+# ═══ 2026-08-10 · SECURITY · Abuse Auto-Response escalation ladder (§33) — behaviour-based (tests 26/26) ═══
+Built deterministic abuse auto-response driven by the denial signals the authorisation engine already emits (no AI fingerprinting).
+  • NEW utils/abuse_guard.py: record_denial(user, request, reason) counts denials per actor (email, else IP) in a rolling window
+    (ABUSE_WINDOW_SECONDS=300) and escalates: throttle@8 → force step-up@15 → suspend writes@25; suspension cooldown 900s. Every
+    escalation → security_events (abuse_detected critical/warning). check_abuse(user, action) enforces on WRITE actions only.
+  • SAFEGUARDS (no legit lock-outs): only DENIED attempts count; READS never blocked; master/pulse admins exempt; all time-boxed
+    with auto-cooldown; enforcement gated by ABUSE_GUARD_ENFORCED (default true, conservative thresholds).
+  • RESPONSES: SUSPEND → 429 + Retry-After; STEP_UP → 403 step_up_required {reason:'unusual_activity'} (reuses existing step-up FE
+    dialog — the App.js interceptor already retries after re-auth).
+  • WIRED into utils/authz.py authorize_resource: check_abuse at top (writes, non-admin) + record_denial on cross_tenant/cross_owner/
+    cross_site denial branches. Index registered at boot (server.py). Config env: ABUSE_THROTTLE_AT/STEPUP_AT/SUSPEND_AT.
+  • ALERT CENTRE: added 'abuse' category (abuse_detected/abuse_action_blocked/abuse_stepup_required) to backend EVENT_CATEGORIES +
+    frontend chip 'Abuse / auto-response'.
+  • TESTS: NEW tests/test_abuse_guard.py (4) — escalate+block writes but allow reads, step-up band forces reauth, admin exempt,
+    disabled no-op. Added to CI gate (pre-deploy.sh §0c, ci.yml security-gate, Makefile security). Full suite 26/26 PASS.
+    Backend /api/health=200; SecurityAlertCentre babel OK; bash -n + ci.yml YAML validated.
+  ⚠️ PREVIEW ONLY — REDEPLOY (Save to GitHub for the workflow/Makefile/pre-deploy changes). Behaviour: an actor that trips 25 authz
+    denials in 5 min has WRITE actions paused for 15 min (reads unaffected, admins exempt).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-10 · SECURITY · CI wiring — authorisation gate as a required deploy gate (validated) ═══
 Wired the three security suites (test_auth_matrix, test_security_authz_matrix, test_step_up) into every gate so an auth gap blocks the build.
   • scripts/pre-deploy.sh §0c: NEW 'Zero-Trust authorisation gate' — runs the trio; deploy ABORTS (fail) on any BOLA/BFLA/step-up

@@ -124,6 +124,12 @@ async def authorize_resource(
         # never an implicit allow.
         raise HTTPException(status_code=500, detail="Authorization not configured for this resource")
 
+    # ── Abuse escalation ladder (§33): if this actor has been tripping denials,
+    #     enforce throttle/step-up/suspend on WRITE actions before doing work.
+    if action in WRITE_ACTIONS and not _is_admin(user):
+        from utils.abuse_guard import check_abuse
+        await check_abuse(user, request, action=action)
+
     doc = await db[spec.collection].find_one({spec.id_field: resource_id}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail=f"{resource_type} not found")
@@ -149,6 +155,8 @@ async def authorize_resource(
                 result="denied", detail=f"resource tenant {doc_org} outside caller scope",
             )
             # 404, not 403 — never confirm the object exists to an outsider.
+            from utils.abuse_guard import record_denial
+            await record_denial(user, request, reason="cross_tenant")
             raise HTTPException(status_code=404, detail=f"{resource_type} not found")
     else:
         # user_id-scoped fallback (no org): require personal ownership.
@@ -159,6 +167,8 @@ async def authorize_resource(
                 resource_type=resource_type, resource_id=resource_id, action=action,
                 result="denied",
             )
+            from utils.abuse_guard import record_denial
+            await record_denial(user, request, reason="cross_owner")
             raise HTTPException(status_code=404, detail=f"{resource_type} not found")
 
     # ── Site isolation. Only enforced when the doc carries a site and the
@@ -173,6 +183,8 @@ async def authorize_resource(
                 resource_type=resource_type, resource_id=resource_id, action=action,
                 result="denied", site_id=str(doc.get(spec.site_field)),
             )
+            from utils.abuse_guard import record_denial
+            await record_denial(user, request, reason="cross_site")
             raise HTTPException(status_code=403, detail="You do not have access to this site")
 
     # ── Ownership check for member-owned resources (explicit owner_id). ──

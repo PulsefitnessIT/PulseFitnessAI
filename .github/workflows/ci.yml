@@ -178,4 +178,5 @@ jobs:
             tests/test_auth_matrix.py \
             tests/test_security_authz_matrix.py \
             tests/test_step_up.py \
+            tests/test_abuse_guard.py \
             -q --tb=short

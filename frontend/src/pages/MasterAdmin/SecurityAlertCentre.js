@@ -19,6 +19,7 @@ const CATEGORY_LABELS = {
   financial: 'Invoices',
   stock: 'Stock',
   privileged: 'Privileged',
+  abuse: 'Abuse / auto-response',
 };
 
 const SEVERITY_STYLE = {

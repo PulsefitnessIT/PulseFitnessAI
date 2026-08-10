@@ -36,10 +36,11 @@ EVENT_CATEGORIES = {
         "contract_send_blocked_unapproved",
     ],
     "mass_assignment": ["mass_assignment_blocked"],
-    "step_up": ["step_up_required", "step_up_granted", "step_up_failed"],
+    "step_up": ["step_up_required", "step_up_granted", "step_up_failed", "abuse_stepup_required"],
     "financial": ["invoice_status_change", "parts_allocation_approved"],
     "stock": ["stock_movement"],
     "privileged": ["privileged_admin_write", "mod_staff_transfer"],
+    "abuse": ["abuse_detected", "abuse_action_blocked", "abuse_stepup_required"],
 }
 _ALL_TYPES = {t for types in EVENT_CATEGORIES.values() for t in types}
 

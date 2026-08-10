@@ -112,6 +112,7 @@ else
       tests/test_auth_matrix.py \
       tests/test_security_authz_matrix.py \
       tests/test_step_up.py \
+      tests/test_abuse_guard.py \
       -q --tb=line --no-header \
     || fail 'AUTHORISATION GATE FAILED — a BOLA/BFLA/step-up regression or a new unauthenticated endpoint was detected. Fix before deploying (see /app/memory/SECURITY_REVIEW.md). To register a genuinely-public new route: python scripts/gen_security_matrix.py --write-baseline (reviewed).'
   ok 'Authorisation gate green (no new auth gaps · BOLA/tenant/site/mass-assign/step-up all enforced)'

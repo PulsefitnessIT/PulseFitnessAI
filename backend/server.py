@@ -497,6 +497,12 @@ async def _full_boot() -> None:
     except Exception as e:
         logger.error(f"step_up index setup failed: {e}")
 
+    try:
+        from utils.abuse_guard import ensure_indexes as _abuse_indexes
+        await _abuse_indexes()
+    except Exception as e:
+        logger.error(f"abuse_guard index setup failed: {e}")
+
     # Compound-index bootstrap for every org-scoped hot-path collection —
     # single biggest latency win at tenant scale. Idempotent; safe on reboot.
     try:

@@ -377,7 +377,7 @@ security-scan:
 # cross-tenant / cross-site / mass-assignment / state-machine / step-up.
 # Same three suites the pre-deploy guard and CI security-gate run.
 security:
-        @cd /app/backend && python3 -m pytest tests/test_auth_matrix.py tests/test_security_authz_matrix.py tests/test_step_up.py -q --tb=short
+        @cd /app/backend && python3 -m pytest tests/test_auth_matrix.py tests/test_security_authz_matrix.py tests/test_step_up.py tests/test_abuse_guard.py -q --tb=short
 
 
 # Iter 216h211 — full trust-recovery regression suite. 84 isolated

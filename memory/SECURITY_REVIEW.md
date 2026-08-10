@@ -219,6 +219,29 @@ CI regression that fails the build when a new endpoint has an authorisation gap.
     them on every PR/push.
   - `make security` for local runs.
 
+## L. Abuse Auto-Response — escalation ladder (§33) — DELIVERED
+
+Deterministic behaviour-based auto-response driven by the denial signals the
+authorisation engine already emits (not AI-product fingerprinting).
+- **Module:** `utils/abuse_guard.py`. `record_denial(user, request, reason)` is
+  called on every BOLA/cross-tenant/cross-site/cross-owner denial in
+  `authorize_resource`; it counts denials per actor in a rolling window and
+  escalates: **throttle (8) → force step-up (15) → suspend writes (25)** in
+  ~5 min, with a 15 min suspension cooldown. `check_abuse(user, action)` runs
+  at the top of `authorize_resource` for WRITE actions.
+- **Safeguards (no legitimate lock-outs):** only *denied* attempts count; READS
+  are never blocked; master/Pulse admins are exempt; everything is time-boxed
+  with auto-cooldown; every escalation → `security_events` (`abuse_detected`
+  critical / `abuse_action_blocked` / `abuse_stepup_required`).
+- **Responses:** SUSPEND → `429` + `Retry-After`; STEP_UP → `403
+  step_up_required {reason:"unusual_activity"}` (reuses the step-up dialog).
+- **Alert Centre:** new **Abuse / auto-response** category chip.
+- **Config:** `ABUSE_GUARD_ENFORCED` (default on), `ABUSE_WINDOW_SECONDS=300`,
+  `ABUSE_THROTTLE_AT/STEPUP_AT/SUSPEND_AT`, `ABUSE_SUSPEND_SECONDS=900`.
+- **Tests:** `tests/test_abuse_guard.py` (4) — escalate+block writes/allow
+  reads, step-up band, admin exempt, disabled no-op. Wired into the CI gate.
+- Full security suite now **26/26** (4 matrix + 14 authz + 4 step-up + 4 abuse).
+
 ## H. Pen-test readiness notes
 - **Test accounts:** see `/app/memory/test_credentials.md` (Master Admin,
   operator owner/manager, site-restricted manager, MOD site, member portal).
