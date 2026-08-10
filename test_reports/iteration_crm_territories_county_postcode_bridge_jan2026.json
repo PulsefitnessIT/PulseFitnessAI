@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only verification of the county↔postcode-area geometric bridge fix in CRM → Territories → Map. All 3 scenarios PASS: (1) painting Greater Manchester on the counties layer causes postcode area 'M' to inherit the rep colour on the postcode layer; (2) painting 'B' on the postcode layer causes West Midlands to inherit the rep colour on the counties layer; (3) unrelated regions (ZE postcode, Cornwall county) remain the neutral white fill. Cleanup toggles restored both regions to neutral. PUT /api/crm/territories/region/... returned 200 for all paint operations.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_evidence": {
+    "focus_indicator_after_staff_select": true,
+    "pill_after_county_paint": "Painting: Demo Manager A · 1 counties",
+    "greater_manchester_before": "fill rgb(255,255,255) (neutral)",
+    "greater_manchester_after_paint": "fill rgb(37,99,235) (rep colour)",
+    "postcode_M_after_county_paint": "fill rgb(37,99,235) — INHERITED from county via bridge (bug fix confirmed)",
+    "postcode_ZE_unrelated": "fill rgb(255,255,255) (unchanged — no false coverage)",
+    "postcode_B_after_paint": "fill rgb(37,99,235) (rep colour)",
+    "county_WestMidlands_after_B_paint": "fill rgb(37,99,235) — INHERITED from postcode area B via bridge (reverse direction confirmed)",
+    "county_Cornwall_unrelated": "fill rgb(255,255,255) (unchanged)",
+    "cleanup_greater_manchester_final": "fill rgb(255,255,255) (restored to neutral)",
+    "cleanup_postcode_B_final": "fill rgb(255,255,255) (restored to neutral)",
+    "network": "PUT /api/crm/territories/region/county/Greater%20Manchester -> 200; PUT /api/crm/territories/region/postcode_area/B -> 200; both paint and unpaint (toggle) PUTs observed"
+  },
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CRMTerritoryMap.js is 915 lines — consider splitting rendering / palette / bridge computation into smaller modules for maintainability.",
+    "SVG Geography onClick is not reliable via Playwright .click(force=True); native pointer events must be dispatched. Consider adding a wrapping <rect pointer-events='fill'> or exposing an accessible handler to make E2E testing more robust (not a functional bug).",
+    "Suggest exposing effective vs direct coverage counts in the 'Painting: X · N counties' pill to communicate the bridge behaviour to end users."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (Iso Demo org)",
+  "seed_data_creation": "None; painted Greater Manchester (county) and B (postcode area) with Demo Manager A, then toggled both OFF to restore original state as instructed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Territory Map bridge fix verified. To repaint via Playwright, dispatch native pointerdown/mousedown/pointerup/mouseup/click on the SVG Geography (page.click force=True does not trigger react-simple-maps onClick reliably)."
+}

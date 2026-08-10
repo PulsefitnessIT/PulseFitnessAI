@@ -20,7 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
-import { geoCentroid } from 'd3-geo';
+import { geoCentroid, geoContains } from 'd3-geo';
 import { feature, merge } from 'topojson-client';
 import {
   Map as MapIcon, Layers, Download, RefreshCw, X, Search, UserCog, Hammer, CheckCircle2,
@@ -415,10 +415,79 @@ export default function CRMTerritoryMap() {
     (r) => roleFilter === 'all' || r === roleFilter || r === 'both',
     [roleFilter],
   );
-  const membersFor = useCallback((type, code) => {
-    const list = (type === 'county' ? coverage.counties : coverage.postcode_areas)[code] || [];
-    return list.filter((m) => roleMatch(m.role));
-  }, [coverage, roleMatch]);
+  // County ↔ postcode-area bridge. The two topojson layers share no key, so
+  // we map each county to the postcode area that geographically contains its
+  // centroid (and the inverse). This lets coverage assigned on ONE layer show
+  // on the OTHER — a county painted for a rep also lights up the postcode
+  // area(s) over it, and vice versa. Built once when both layers are loaded.
+  const areaCountyMap = useMemo(() => {
+    const countyToArea = {};
+    const areaToCounties = {};
+    if (!counties.length || !postcodes.length) return { countyToArea, areaToCounties };
+    // Pre-compute postcode-area centroids for the nearest-area fallback.
+    const areaCentroids = postcodes.map((pf) => {
+      let c = null;
+      try { c = geoCentroid(pf); } catch { c = null; }
+      return { area: pf.properties && pf.properties.area, c };
+    }).filter((x) => x.area && x.c && !Number.isNaN(x.c[0]));
+    const assign = (cc, ac) => {
+      if (!cc || !ac) return;
+      countyToArea[cc] = ac;
+      (areaToCounties[ac] = areaToCounties[ac] || []).push(cc);
+    };
+    for (const cf of counties) {
+      const cc = cf.properties && cf.properties.county;
+      if (!cc) continue;
+      let centroid;
+      try { centroid = geoCentroid(cf); } catch { centroid = null; }
+      if (!centroid || Number.isNaN(centroid[0])) continue;
+      let matched = false;
+      for (const pf of postcodes) {
+        let inside = false;
+        try { inside = geoContains(pf, centroid); } catch { inside = false; }
+        if (inside) { assign(cc, pf.properties && pf.properties.area); matched = true; break; }
+      }
+      // Fallback (islands): snap to the nearest postcode-area centroid, but
+      // only if reasonably close (< ~1 deg²). This keeps Shetland → ZE while
+      // NOT mis-mapping Northern Ireland (no NI postcode area exists on this
+      // layer) across the Irish Sea to Scotland.
+      if (!matched && areaCentroids.length) {
+        let best = null; let bestD = Infinity;
+        for (const a of areaCentroids) {
+          const dx = a.c[0] - centroid[0]; const dy = a.c[1] - centroid[1];
+          const d = dx * dx + dy * dy;
+          if (d < bestD) { bestD = d; best = a.area; }
+        }
+        if (best && bestD < 1.0) assign(cc, best);
+      }
+    }
+    return { countyToArea, areaToCounties };
+  }, [counties, postcodes]);
+
+  // Effective coverage for a region = its own assignments UNION the
+  // assignments inherited from the bridged layer (deduped by rep). This is
+  // what makes coverage appear on BOTH the county and postcode-area maps.
+  const effectiveList = useCallback((type, code) => {
+    const byUser = new Map();
+    const add = (arr) => (arr || []).forEach((m) => {
+      if (m && m.user_id && !byUser.has(m.user_id)) byUser.set(m.user_id, m);
+    });
+    if (type === 'county') {
+      add(coverage.counties[code]);
+      const area = areaCountyMap.countyToArea[code];
+      if (area) add(coverage.postcode_areas[area]);
+    } else {
+      add(coverage.postcode_areas[code]);
+      (areaCountyMap.areaToCounties[code] || []).forEach((cc) => add(coverage.counties[cc]));
+    }
+    return Array.from(byUser.values());
+  }, [coverage, areaCountyMap]);
+
+
+  const membersFor = useCallback(
+    (type, code) => effectiveList(type, code).filter((m) => roleMatch(m.role)),
+    [effectiveList, roleMatch],
+  );
   const visibleStaff = useMemo(
     () => staff.filter((s) => roleMatch(s.territory_role)),
     [staff, roleMatch],
@@ -457,16 +526,19 @@ export default function CRMTerritoryMap() {
   // Computed on the full (unfiltered) coverage so the warning is honest
   // regardless of the current role filter.
   const isOverlap = useCallback((type, code) => {
-    const list = (type === 'county' ? coverage.counties : coverage.postcode_areas)[code] || [];
+    const list = effectiveList(type, code);
     if (list.length < 2) return false;
     return ['sales_manager', 'engineer'].some(
       (role) => list.filter((m) => m.role === role || m.role === 'both').length >= 2,
     );
-  }, [coverage]);
+  }, [effectiveList]);
   const overlapRegions = useMemo(() => {
-    const src = layer === 'county' ? coverage.counties : coverage.postcode_areas;
-    return Object.keys(src).filter((code) => isOverlap(layer, code));
-  }, [coverage, layer, isOverlap]);
+    const list = layer === 'county' ? counties : postcodes;
+    const codeKey = layer === 'county' ? 'county' : 'area';
+    return list
+      .map((g) => g.properties && g.properties[codeKey])
+      .filter((code) => code && isOverlap(layer, code));
+  }, [layer, counties, postcodes, isOverlap]);
 
   // ── Geometries to render ─────────────────────────────────────────
   const features = layer === 'county' ? counties : postcodes;
