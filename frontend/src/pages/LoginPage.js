@@ -47,6 +47,32 @@ export default function LoginPage() {
   const [enrolSaved, setEnrolSaved] = useState(false);
   const { banner, _show, clear } = useInlineBanner({ autoDismiss: false });
 
+  // Resume an MFA challenge handed off from the homepage LoginModal (which has
+  // no MFA UI). The temp_token arrives via in-memory router state only.
+  useEffect(() => {
+    const ch = location.state?.mfaChallenge;
+    if (!ch || !ch.temp_token) return;
+    // Prevent replay on refresh / back-navigation.
+    window.history.replaceState({}, document.title);
+    if (ch.email) setEmail(ch.email);
+    if (ch.kind === 'verify') {
+      setMfa({ tempToken: ch.temp_token, email: ch.email || '' });
+    } else {
+      (async () => {
+        try {
+          const setup = await axios.post(`${API}/auth/mfa/enrol/setup`, { temp_token: ch.temp_token });
+          setEnrol({
+            tempToken: ch.temp_token,
+            email: ch.email || '',
+            secret: setup.data.secret || '',
+            qrDataUrl: setup.data.qrcode_data_url || '',
+          });
+        } catch { /* fall back to the password form */ }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Iter 274 — confirm sign-out: show a success toast when arriving from a
   // sign-out. The password field auto-focuses (autoFocus={!!email}) since the
   // email is already pre-filled.

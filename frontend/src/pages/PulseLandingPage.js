@@ -1654,6 +1654,24 @@ export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '', red
     setLoading(true);
     try {
       const res = await axios.post(`${API_URL}/auth/login`, { email, password });
+      // MFA enforcement: the backend withholds the real token and returns an
+      // MFA challenge. This modal has no MFA UI, so hand off to the dedicated
+      // /login page (which renders the enrol/verify steps) via in-memory
+      // router state — the short-lived temp_token is never persisted.
+      if (res.data?.requires_mfa_enrolment || res.data?.requires_mfa) {
+        onOpenChange(false);
+        navigate('/login', {
+          state: {
+            mfaChallenge: {
+              kind: res.data.requires_mfa_enrolment ? 'enrol' : 'verify',
+              temp_token: res.data.temp_token,
+              email: res.data.user?.email || email,
+            },
+          },
+        });
+        setLoading(false);
+        return;
+      }
       if (res.data.token) {
         onLogin(res.data);
         // Newly-provisioned admins on a temporary password must rotate it

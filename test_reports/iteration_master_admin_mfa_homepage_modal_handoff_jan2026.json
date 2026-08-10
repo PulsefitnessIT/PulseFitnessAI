@@ -1,0 +1,20 @@
+{
+  "summary": "Verified end-to-end MFA handoff from homepage LoginModal on / to /login page for master admin. Both flows PASS: (1) forced enrolment on first login and (2) verify path on subsequent login. Cleanup completed: user_mfa cleared, /api/auth/login returns requires_mfa_enrolment:true, ENFORCE_MASTER_ADMIN_MFA flag left ON.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100% (2/2 flows)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg",
+  "seed_data_creation": "None. Ran cleanup: db.user_mfa.delete_many({}) at end to leave admin un-enrolled.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Flow verified: Home '/' -> pulse-header-login-btn -> pulse-login-dialog fill email+password -> pulse-login-submit navigates to /login. When user not enrolled: gx-login-enrol-form auto-shown with gx-login-enrol-qr and gx-login-enrol-secret (email pre-filled, no password re-entry). Live TOTP -> gx-login-enrol-submit -> gx-login-enrol-codes -> tick gx-login-enrol-saved -> gx-login-enrol-continue -> /master-admin. When already enrolled: same modal flow lands on gx-login-mfa-form (verify), TOTP via gx-login-mfa-code + gx-login-mfa-submit lands on /master-admin. End state: ENFORCE_MASTER_ADMIN_MFA=ON, admin NOT enrolled (backend confirmed requires_mfa_enrolment:true).",
+  "rca of the issue": "Original bug: LoginModal.handleSubmit only handled res.data.token, silently dropped requires_mfa_enrolment challenge causing spinner-then-nothing. Fix works: modal now detects res.data.requires_mfa_enrolment || res.data.requires_mfa and navigate('/login', { state:{ mfaChallenge:{kind, temp_token, email} } }); LoginPage useEffect on mount consumes state.mfaChallenge -> for 'enrol' calls /api/auth/mfa/enrol/setup then renders gx-login-enrol-form; for 'verify' renders gx-login-mfa-form. temp_token used in-memory only, no persistence."
+}
