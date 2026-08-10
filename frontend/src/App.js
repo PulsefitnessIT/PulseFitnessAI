@@ -67,6 +67,26 @@ axios.interceptors.request.use((config) => {
           try {
             window.dispatchEvent(new CustomEvent('pulse:ai-upgrade-required', { detail: { message: detail } }));
           } catch { /* ignore */ }
+          return Promise.reject(error);
+        }
+        // ═══ Step-up (fresh re-authentication) — security §18 ═══
+        // The backend returns 403 {error:"step_up_required"} for destructive
+        // actions (delete company, rotate integration secrets…). Prompt the
+        // user via the global <StepUpDialog>, then transparently retry once.
+        const cfg2 = error?.config;
+        const url2 = String(cfg2?.url || '');
+        if (
+          detail && typeof detail === 'object' && detail.error === 'step_up_required' &&
+          cfg2 && !cfg2.__stepUpRetried && !url2.includes('/auth/step-up') &&
+          typeof window.__pulseStepUp === 'function'
+        ) {
+          try {
+            await window.__pulseStepUp({ mfa_enabled: !!detail.mfa_enabled, action: detail.action });
+            cfg2.__stepUpRetried = true;
+            return axios(cfg2);
+          } catch {
+            return Promise.reject(error); // user cancelled
+          }
         }
         return Promise.reject(error);
       }
@@ -180,6 +200,7 @@ import AskPulseFitness from './components/AskPulseFitness';
 import NPSWidget from './components/shared/NPSWidget';
 import FeedbackWidget from './components/shared/FeedbackWidget';
 import SessionResumedBanner from './components/shared/SessionResumedBanner';
+import StepUpDialog from './components/StepUpDialog';
 import UnifiedAssistant from './components/UnifiedAssistant';
 import CommandPalette, { useCommandPalette } from './components/CommandPalette';
 
@@ -944,6 +965,7 @@ function App() {
  <OfflineBanner />
  <PWAInstallPrompt />
  <SessionResumedBanner />
+ <StepUpDialog />
  {user && <AskPulseFitnessGuard />}
  {user && <NPSWidget />}
  </div>

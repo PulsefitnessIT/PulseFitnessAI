@@ -152,13 +152,17 @@ Fresh re-authentication is required before especially destructive actions.
 - **Wired into:** `DELETE /crm/v2/companies/{id}` (delete company),
   `PUT /sicon/config` (set/rotate integration credentials),
   `POST /svc/orbit4/connection/rotate-key` (rotate integration secret).
-- **Enforcement:** gated by `STEP_UP_ENFORCED` (**default OFF**) — capability
-  shipped and wired; enable deliberately once the FE prompt is live (same
-  pattern as `ENFORCE_MASTER_ADMIN_MFA`). While OFF, `require_step_up` is a
-  safe no-op so no existing flow breaks.
-- **FE contract:** on a `403 {"error":"step_up_required","mfa_enabled":bool}`
-  from any action, show a prompt (authenticator code if `mfa_enabled` else
-  password), `POST /api/auth/step-up`, then retry the original request.
+- **Enforcement:** `STEP_UP_ENFORCED=true` (**ON**, TTL 300s). Live-verified:
+  `PUT /sicon/config` with credentials returns `403 {error:"step_up_required",
+  action:"rotate_sicon_credentials", mfa_enabled:false}` without a fresh
+  step-up; `POST /api/auth/step-up` (password) then succeeds and the retry
+  passes.
+- **Frontend:** `components/StepUpDialog.js` — global dialog mounted at the app
+  root; registers `window.__pulseStepUp(...)`. The default-axios response
+  interceptor (`App.js`) catches `403 step_up_required`, shows the dialog
+  (authenticator code if `mfa_enabled`, else password), POSTs `/auth/step-up`,
+  then transparently retries the original request once. Covers all destructive
+  calls (they use the default axios instance).
 - **Tests:** `tests/test_step_up.py` (4) — challenge/freshness, enforced gate,
   disabled no-op, expiry. All passing.
 

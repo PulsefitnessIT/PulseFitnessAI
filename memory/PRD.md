@@ -1,3 +1,27 @@
+# ═══ 2026-08-10 · SECURITY · Step-Up FRONTEND shipped + enforcement TURNED ON (live-verified) ═══
+Completed the step-up feature end-to-end and enabled enforcement.
+  • FE: NEW src/components/StepUpDialog.js — global re-confirm dialog mounted at app root (App.js), registers window.__pulseStepUp().
+    Extended the default-axios response interceptor (App.js 403 branch) to catch 403 {error:"step_up_required"}, open the dialog
+    (6-digit authenticator code when mfa_enabled, else password), POST /api/auth/step-up, then retry the original request ONCE
+    (cfg.__stepUpRetried guard; skips /auth/step-up to avoid loops). Both destructive calls (delete company, sicon config PUT) use
+    the default axios instance, so they're covered without per-button wiring. data-testids: step-up-dialog, step-up-code-input,
+    step-up-password-input, step-up-submit-btn, step-up-cancel-btn, step-up-error.
+  • ENABLED: backend/.env STEP_UP_ENFORCED=true, STEP_UP_TTL_SECONDS=300 (appended safely; REACT_APP_BACKEND_URL untouched).
+    Restarted backend; utils.step_up.STEP_UP_ENFORCED=True confirmed.
+  • LIVE VERIFIED (curl, master admin, browser UA — NOTE: master-login bot-guard blocks non-browser UAs like python-urllib, use a
+    Mozilla UA): PUT /api/sicon/config with credentials + no fresh step-up → 403 {error:"step_up_required",
+    action:"rotate_sicon_credentials",mfa_enabled:false}; GET /auth/step-up/status → {enforced:true,valid:false,mfa_enabled:false};
+    POST /auth/step-up {password} → {success:true,method:"password"}. Test artifacts cleaned. Frontend compiles; landing page loads;
+    /api/health=200.
+  • Company DELETE uses get_crm_user (CRM token) — the gate sits after auth, so an operator-token curl 401s before reaching it;
+    the UI (crm_token) path is covered by the interceptor. Recommend a testing_agent UI pass to click-verify the dialog on a
+    throwaway company if desired.
+  ⚠️ PREVIEW ONLY — REDEPLOY to push live. Behaviour: deleting a company / setting Sicon creds / rotating Orbit4 key now prompt for
+    re-confirmation (password, since master admin has no TOTP enrolled).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-10 · SECURITY · Step-Up Authentication (§18) — fresh re-auth before destructive actions (tests 17/17) ═══
 Built a reusable step-up (fresh re-authentication) capability and wired it into high-impact endpoints. Non-breaking: gated by
 STEP_UP_ENFORCED (default OFF), so require_step_up is a safe no-op until the FE prompt ships and ops flips it on.
