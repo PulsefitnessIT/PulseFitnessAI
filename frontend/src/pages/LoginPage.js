@@ -37,6 +37,14 @@ export default function LoginPage() {
   const [mfaCode, setMfaCode] = useState('');
   const [mfaBusy, setMfaBusy] = useState(false);
   const [mfaErr, setMfaErr] = useState('');
+  // Forced enrolment DURING login (when ENFORCE_MASTER_ADMIN_MFA is on and the
+  // account isn't enrolled). All memory-only; temp_token never persisted.
+  const [enrol, setEnrol] = useState(null); // { tempToken, email, secret, qrDataUrl }
+  const [enrolCode, setEnrolCode] = useState('');
+  const [enrolBusy, setEnrolBusy] = useState(false);
+  const [enrolErr, setEnrolErr] = useState('');
+  const [enrolBackup, setEnrolBackup] = useState(null); // { codes:[], data:{token,user} }
+  const [enrolSaved, setEnrolSaved] = useState(false);
   const { banner, _show, clear } = useInlineBanner({ autoDismiss: false });
 
   // Iter 274 — confirm sign-out: show a success toast when arriving from a
@@ -96,7 +104,21 @@ export default function LoginPage() {
         return;
       }
       if (data?.requires_mfa_enrolment === true) {
-        notify.info('Two-factor setup required', 'This account must finish MFA enrolment. Please contact an administrator.');
+        if (!data.temp_token) throw new Error('MFA enrolment incomplete');
+        try {
+          const setup = await axios.post(`${API}/auth/mfa/enrol/setup`, { temp_token: data.temp_token });
+          setEnrol({
+            tempToken: data.temp_token,
+            email: data.user?.email || email,
+            secret: setup.data.secret || '',
+            qrDataUrl: setup.data.qrcode_data_url || '',
+          });
+          setEnrolCode('');
+          setEnrolErr('');
+          setEnrolSaved(false);
+        } catch (e2) {
+          notifyApiError(notify, e2, 'Could not start MFA enrolment');
+        }
         setLoading(false);
         return;
       }
@@ -150,6 +172,40 @@ export default function LoginPage() {
       }
       setMfaBusy(false);
     }
+  };
+
+  // Forced enrolment (login step 2b): verify first TOTP, enable MFA, and get
+  // a verified session + backup codes in one call. We hold routing until the
+  // user acknowledges saving the backup codes.
+  const submitEnrol = async (e) => {
+    e?.preventDefault?.();
+    if (enrolBusy || !enrol) return;
+    const code = enrolCode.replace(/\D/g, '');
+    if (code.length !== 6) {
+      setEnrolErr('Enter the 6-digit code from your authenticator app.');
+      return;
+    }
+    setEnrolBusy(true);
+    setEnrolErr('');
+    try {
+      const { data } = await axios.post(`${API}/auth/mfa/enrol/complete`, {
+        temp_token: enrol.tempToken, code,
+      });
+      if (!data?.token) throw new Error('No token returned');
+      setEnrolBackup({ codes: data.backup_codes || [], data });
+    } catch (err) {
+      const status = err.response?.status;
+      setEnrolErr((status === 400 || status === 401)
+        ? 'Invalid or expired code. Please try again.'
+        : 'Verification failed. Please try again.');
+      setEnrolBusy(false);
+    }
+  };
+
+  const finishEnrol = () => {
+    const d = enrolBackup?.data;
+    setEnrol(null); setEnrolBackup(null); setEnrolCode(''); setEnrolSaved(false);
+    if (d) routeAfterLogin(d);
   };
 
   // Shared post-login routing (used by both the password and MFA steps).
@@ -233,7 +289,78 @@ export default function LoginPage() {
 
           {banner && <div className="mb-3">{banner}</div>}
 
-          {mfa ? (
+          {enrolBackup ? (
+            <div className="space-y-4" data-testid="gx-login-enrol-backup">
+              <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3">
+                <p className="text-sm font-semibold text-emerald-900">Two-factor enabled</p>
+                <p className="text-xs text-emerald-700 mt-0.5">Save these backup codes — each works once if you lose your authenticator. They won't be shown again.</p>
+              </div>
+              <pre className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-sm font-mono grid grid-cols-2 gap-1 text-slate-800" data-testid="gx-login-enrol-codes">
+                {(enrolBackup.codes || []).join('\n')}
+              </pre>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={enrolSaved} onChange={(e) => setEnrolSaved(e.target.checked)} data-testid="gx-login-enrol-saved" />
+                I've saved my backup codes
+              </label>
+              <button
+                type="button"
+                onClick={finishEnrol}
+                disabled={!enrolSaved}
+                className="gx-cta w-full h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                data-testid="gx-login-enrol-continue"
+              >
+                Continue <ArrowRight size={14} />
+              </button>
+            </div>
+          ) : enrol ? (
+            <form onSubmit={submitEnrol} className="space-y-4" data-testid="gx-login-enrol-form">
+              <div className="flex items-center gap-3 rounded-xl bg-slate-50 border border-slate-200 p-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--gx-brand-from)]/15">
+                  <ShieldCheck size={18} className="text-[var(--gx-brand-from)]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900">Set up two-factor authentication</p>
+                  <p className="text-xs text-slate-500 truncate">Required for {enrol.email}. Scan the code, then enter the 6 digits.</p>
+                </div>
+              </div>
+              {enrol.qrDataUrl && (
+                <img src={enrol.qrDataUrl} alt="Scan in your authenticator app" className="w-40 h-40 mx-auto rounded-lg border border-slate-200 p-2 bg-white" data-testid="gx-login-enrol-qr" />
+              )}
+              <div>
+                <p className="text-[11px] text-slate-500 mb-1">Can't scan? Enter this key manually:</p>
+                <code className="block break-all rounded-lg bg-slate-100 px-3 py-2 text-xs font-mono text-slate-800" data-testid="gx-login-enrol-secret">{enrol.secret}</code>
+              </div>
+              <input
+                autoFocus
+                inputMode="numeric"
+                maxLength={6}
+                value={enrolCode}
+                onChange={(e) => setEnrolCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-center text-lg tracking-[0.35em] placeholder:tracking-normal placeholder:text-slate-400 focus:outline-none focus:border-[var(--gx-brand-from)] focus:bg-white transition"
+                placeholder="123456"
+                data-testid="gx-login-enrol-code"
+              />
+              {enrolErr && (
+                <div className="rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600" data-testid="gx-login-enrol-error">{enrolErr}</div>
+              )}
+              <button
+                type="submit"
+                disabled={enrolBusy || enrolCode.length !== 6}
+                className="gx-cta w-full h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                data-testid="gx-login-enrol-submit"
+              >
+                {enrolBusy ? <><Loader2 size={14} className="animate-spin" /> Verifying…</> : <>Verify & enable <ArrowRight size={14} /></>}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEnrol(null); setEnrolCode(''); setEnrolErr(''); }}
+                className="w-full text-xs font-semibold text-slate-500 hover:text-slate-900"
+                data-testid="gx-login-enrol-startover"
+              >
+                Start over
+              </button>
+            </form>
+          ) : mfa ? (
             <form onSubmit={submitMfa} className="space-y-4" data-testid="gx-login-mfa-form">
               <div className="flex items-center gap-3 rounded-xl bg-slate-50 border border-slate-200 p-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--gx-brand-from)]/15">

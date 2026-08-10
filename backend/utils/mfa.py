@@ -290,8 +290,12 @@ def user_requires_mfa(user: dict) -> bool:
 def user_mfa_enrolment_forced(user: dict) -> bool:
     """True when the user MUST enrol MFA before completing login (not just
     verify an existing enrolment). Applies to MOD HQ tiers and any role in
-    ``MFA_REQUIRED_ROLES``. Master admins keep the historical opt-in so
-    existing dev/test logins aren't broken."""
+    ``MFA_REQUIRED_ROLES``. The master admin is forced ONLY when
+    ``ENFORCE_MASTER_ADMIN_MFA`` is on — so flipping that flag walks the admin
+    through QR enrolment at login instead of soft-locking the console."""
+    if user.get("is_master_admin") and \
+            os.environ.get("ENFORCE_MASTER_ADMIN_MFA", "").lower() in ("1", "true", "yes"):
+        return True
     if (user.get("account_type") or "").lower() in ("mod_org", "mod_branch"):
         return True
     if (user.get("role") or "").lower() in _mfa_required_roles():

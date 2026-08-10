@@ -35168,3 +35168,14 @@ Portal User Guide:
 - Once enrolled, step-up + forced re-auth automatically use the authenticator code (utils/step_up.verify_step_up_challenge already prefers TOTP when mfa.enabled).
 - Testing: backend curl+pyotp (setup->enable->login requires_mfa->verify TOTP->verify backup->step-up mfa_enabled) all PASS. Frontend E2E 100% (3/3: enrolment, login MFA gate incl. invalid-code error + start-over, backup-code login) — report iteration_master_admin_mfa_frontend_jan2026.json. Environment left with MFA DISABLED (user_mfa empty) so normal password login works.
 - Cleanup/runbook: to disable MFA for an account (master admin cannot self-disable), run from /app/backend: `PYTHONPATH=/app/backend python -c "import asyncio; from utils.database import db\nasync def m():\n    await db.user_mfa.delete_many({})\nasyncio.run(m())"` (must wrap in async fn — Motor returns a Future).
+
+## Changelog — 2026-08-10 (fork) · ENFORCE_MASTER_ADMIN_MFA turned ON (lockout-safe) (COMPLETE)
+- User requested enabling ENFORCE_MASTER_ADMIN_MFA (wired into require_master_admin → every master-admin endpoint 401s without a mfa_verified session).
+- LOCKOUT-SAFE ROLLOUT: instead of soft-locking a non-enrolled admin, added forced-enrolment-at-login.
+  - Backend: utils/mfa.py user_mfa_enrolment_forced() now returns true for the master admin ONLY when ENFORCE_MASTER_ADMIN_MFA is on. So /auth/login returns {requires_mfa_enrolment, temp_token(type mfa_enrol)} for a non-enrolled admin (existing /auth/mfa/enrol/setup + /auth/mfa/enrol/complete endpoints handle it; enrol/complete issues a mfa_verified token + 10 backup codes).
+  - Frontend LoginPage.js: new inline enrolment branch — on requires_mfa_enrolment it calls enrol/setup, renders QR + manual secret + 6-digit input (gx-login-enrol-form/-qr/-secret/-code/-submit), on submit calls enrol/complete, shows backup codes (gx-login-enrol-backup/-codes) gated by a "saved" checkbox (gx-login-enrol-saved) before Continue (gx-login-enrol-continue) routes in. temp_token memory-only.
+- .env: ENFORCE_MASTER_ADMIN_MFA=true added (STEP_UP_ENFORCED already true).
+- Consulted integration_expert before the auth change (per policy).
+- Testing: backend curl+pyotp full flow PASS (login→requires_mfa_enrolment→enrol/setup→enrol/complete verified token+backup→master-admin/stats 200; re-login→requires_mfa→verify→200). Frontend E2E 100% (report iteration_master_admin_mfa_forced_enrol_jan2026.json): forced enrolment at login + backup-code gate + subsequent verify-step login all pass.
+- END STATE: ENFORCE_MASTER_ADMIN_MFA=true + admin NOT enrolled → the user's next /login walks them through enrolment with THEIR authenticator. To turn off: set the flag false + restart. To reset enrolment: clear db.user_mfa (see test_credentials.md).
+- Minor (non-blocking, from review): gx-login-mfa-error only mounts when an error exists (testability nit); feature works.
