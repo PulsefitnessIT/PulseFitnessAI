@@ -27,6 +27,8 @@ export default function MyMfaPanel() {
   const [savedAck, setSavedAck] = useState(false);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [regenCode, setRegenCode] = useState('');
+  const [regenErr, setRegenErr] = useState('');
 
   const headers = useCallback(() => ({
     Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -69,6 +71,29 @@ export default function MyMfaPanel() {
       await loadStatus();
     } catch (e) {
       notifyApiError(notify, e, 'Invalid code');
+    }
+    setBusy(false);
+  };
+
+  const confirmRegen = async () => {
+    setBusy(true);
+    setRegenErr('');
+    try {
+      const res = await axios.post(
+        `${API}/auth/mfa/backup-codes/regenerate`,
+        { code: regenCode }, { headers: headers() },
+      );
+      if (!res.data?.success || !Array.isArray(res.data.backup_codes) || res.data.backup_codes.length === 0) {
+        throw new Error('No backup codes were issued.');
+      }
+      setBackupCodes(res.data.backup_codes);
+      setSavedAck(false);
+      setRegenCode('');
+      setStage('backup');
+      notify.success('New backup codes generated', 'Your old codes no longer work. Save the new ones now.');
+      await loadStatus();
+    } catch (e) {
+      setRegenErr(e?.response?.data?.detail || 'Invalid authenticator code.');
     }
     setBusy(false);
   };
@@ -137,11 +162,74 @@ export default function MyMfaPanel() {
         )}
 
         {stage === 'idle' && enabled && (
-          <p className="mt-4 flex items-center gap-1.5 text-xs text-amber-600" data-testid="my-mfa-locked-note">
-            <ShieldAlert size={14} /> MFA is mandatory for the master admin and cannot be self-disabled.
-          </p>
+          <div className="mt-4 space-y-3">
+            {status.backup_codes_remaining <= 3 && (
+              <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800" data-testid="my-mfa-lowcodes-warning">
+                <ShieldAlert size={15} className="mt-0.5 flex-shrink-0" />
+                <span>
+                  Only <strong>{status.backup_codes_remaining}</strong> backup code{status.backup_codes_remaining === 1 ? '' : 's'} left.
+                  Generate a fresh set so you can always get back in if you lose your device.
+                </span>
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => { setStage('regen'); setRegenCode(''); setRegenErr(''); }}
+                className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
+                data-testid="my-mfa-regen-btn"
+              >
+                <KeyRound size={15} /> Regenerate backup codes
+              </button>
+              <p className="flex items-center gap-1.5 text-xs text-amber-600" data-testid="my-mfa-locked-note">
+                <ShieldAlert size={14} /> Mandatory for the master admin — cannot be self-disabled.
+              </p>
+            </div>
+          </div>
         )}
       </div>
+
+      {/* Regenerate backup codes */}
+      {stage === 'regen' && (
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-3" data-testid="my-mfa-regen">
+          <div className="flex items-center gap-2">
+            <KeyRound size={16} className="text-zinc-600" />
+            <h4 className="text-sm font-semibold text-zinc-900">Regenerate backup codes</h4>
+          </div>
+          <p className="text-sm text-zinc-500">
+            Enter a current code from your authenticator app to mint 10 new backup codes.
+            Your existing codes will stop working immediately.
+          </p>
+          <input
+            value={regenCode}
+            onChange={(e) => setRegenCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            maxLength={6}
+            inputMode="numeric"
+            placeholder="123456"
+            className="w-40 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-center text-lg tracking-[0.3em] text-zinc-900 focus:outline-none focus:border-zinc-900"
+            data-testid="my-mfa-regen-code"
+          />
+          {regenErr && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600" data-testid="my-mfa-regen-error">{regenErr}</div>
+          )}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={confirmRegen}
+              disabled={busy || regenCode.length !== 6}
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#18181b",color:"#fff"}}
+              data-testid="my-mfa-regen-confirm-btn"
+            >
+              {busy ? <Loader2 size={15} className="animate-spin" /> : <KeyRound size={15} />}
+              {busy ? 'Generating…' : 'Generate new codes'}
+            </button>
+            <button
+              onClick={() => { setStage('idle'); setRegenCode(''); setRegenErr(''); }}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-900"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Enrolment */}
       {stage === 'enrolling' && (

@@ -229,6 +229,31 @@ async def disable_mfa(user_id: str) -> None:
     )
 
 
+async def regenerate_backup_codes(user_id: str, code: str) -> list[str]:
+    """Mint a fresh set of backup codes for an already-enrolled user, atomically
+    invalidating every old code. Requires a LIVE TOTP (a backup code is NOT
+    accepted here) so a single leaked backup code can't be used to mint a new
+    set and lock the owner out. Returns the plain codes once."""
+    doc = await db.user_mfa.find_one({"user_id": user_id}, {"_id": 0})
+    if not doc or not doc.get("enabled") or not doc.get("secret_encrypted"):
+        raise HTTPException(status_code=400, detail="MFA is not enabled for this account")
+    if await is_code_replayed(user_id, code):
+        raise HTTPException(status_code=400, detail="Code already used. Wait for the next interval.")
+    secret = decrypt_secret(doc["secret_encrypted"])
+    if not verify_code(secret, code):
+        raise HTTPException(status_code=400, detail="Invalid authenticator code.")
+    await mark_code_used(user_id, code)
+    plain, hashed = generate_backup_codes()
+    await db.user_mfa.update_one(
+        {"user_id": user_id},
+        {"$set": {
+            "backup_codes": [{"hash": h, "used": False} for h in hashed],
+            "backup_codes_regenerated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+    return plain
+
+
 async def verify_login_code(user_id: str, code: str) -> bool:
     """Verify a TOTP or backup code during login. Handles replay + backup marking."""
     doc = await db.user_mfa.find_one({"user_id": user_id}, {"_id": 0})

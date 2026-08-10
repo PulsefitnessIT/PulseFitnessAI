@@ -1292,6 +1292,21 @@ async def mfa_enable(body: dict, user: dict = Depends(get_current_user)) -> dict
     return {"success": True, "backup_codes": codes}
 
 
+@router.post("/auth/mfa/backup-codes/regenerate")
+async def mfa_regenerate_backup_codes(body: dict, user: dict = Depends(get_current_user)) -> dict:
+    """Mint a fresh set of backup codes (requires a live authenticator code).
+    The main self-service recovery lever when backup codes run low — the master
+    admin cannot self-disable MFA, so keeping fresh codes is the safety net."""
+    from utils.mfa import regenerate_backup_codes
+    from utils.security_plus import audit_required
+    code = (body or {}).get("code", "")
+    codes = await regenerate_backup_codes(user["id"], code)
+    await audit_required("security_audit_log", {
+        "event": "mfa.backup_codes_regenerated", "actor_id": user["id"], "actor_email": user.get("email"),
+    })
+    return {"success": True, "backup_codes": codes}
+
+
 # Iter 216h116 — login-flow endpoints used when MFA is MANDATORY and
 # the user hasn't enrolled yet. The frontend hits these with the
 # ``mfa_enrol`` temp token returned by /auth/login.
