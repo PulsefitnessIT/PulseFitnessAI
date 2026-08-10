@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query, Request
 from fastapi.responses import Response
 from datetime import datetime, timezone
 import uuid
@@ -159,7 +159,10 @@ async def list_files(category: str = None, user: dict = Depends(get_current_user
 
 
 @router.delete("/files/{file_id}")
-async def delete_file(file_id: str, user: dict = Depends(get_current_user)):
+async def delete_file(file_id: str, request: Request = None, user: dict = Depends(get_current_user)):
+    from utils.authz import authorize_resource
+    # Central authorisation: tenant + site isolation + audit before delete (§25).
+    await authorize_resource(user, "file", file_id, "delete", request=request)
     org_filter = get_organization_filter(user)
     result = await db.files.delete_one({"id": file_id, **org_filter})
     if result.deleted_count == 0:
@@ -254,14 +257,11 @@ async def extract_file_info(file_id: str, user: dict = Depends(require_ai_access
 
 
 @router.get("/files/{file_id}")
-async def get_file(file_id: str, user: dict = Depends(get_current_user)):
-    # P1.7 — must be scoped to caller's org (or master admin override).
-    query = {"id": file_id}
-    if not user.get("is_master_admin"):
-        query["organization_id"] = user.get("organization_id")
-    file_doc = await db.files.find_one(query, {"_id": 0})
-    if not file_doc:
-        raise HTTPException(status_code=404, detail="File not found")
+async def get_file(file_id: str, request: Request = None, user: dict = Depends(get_current_user)):
+    from utils.authz import authorize_resource
+    # Central authorisation: enforce tenant + site on document download (§25),
+    # returns the doc (master admin still bypasses inside the engine).
+    file_doc = await authorize_resource(user, "file", file_id, "download", request=request)
     try:
         data, content_type = get_object(file_doc["storage_path"])
         return Response(content=data, media_type=content_type, headers={"Content-Disposition": f"inline; filename={file_doc['original_filename']}"})

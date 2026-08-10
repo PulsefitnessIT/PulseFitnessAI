@@ -58,6 +58,7 @@ RESOURCE_REGISTRY: dict[str, ResourceSpec] = {
     "booking":       ResourceSpec("bookings", ("organization_id",), site_field="site_id", member_field="member_id"),
     "member":        ResourceSpec("members", ("organization_id",), site_field="site_id"),
     "document":      ResourceSpec("documents", ("organization_id",)),
+    "file":          ResourceSpec("files", ("organization_id",), site_field="site_id"),
     "supplier_case": ResourceSpec("supplier_cases", ("organization_id",)),
     "quote":         ResourceSpec("crm2_quotes", ("organization_id",), sensitive=True),
     "contract":      ResourceSpec("crm2_contracts", ("organization_id",), sensitive=True),
@@ -219,27 +220,43 @@ STATE_MACHINES: dict[str, dict[str, set]] = {
         "cancelled":      {"reopened"},
     },
     "quote": {
-        "draft":     {"submitted", "cancelled"},
-        "submitted": {"accepted", "rejected", "draft", "cancelled"},
-        "accepted":  {"ordered", "cancelled"},
-        "rejected":  {"draft", "cancelled"},
-        "ordered":   set(),           # terminal
-        "cancelled": set(),
+        # CRM v2 quote lifecycle. The critical protection (section 8): a
+        # draft can NOT jump straight to 'approved' — it must pass through
+        # 'pending_approval', and an already-finalised quote can't be re-approved.
+        "draft":            {"pending_approval", "sent", "superseded", "cancelled"},
+        "pending_approval": {"approved", "rejected", "draft", "superseded", "cancelled"},
+        "approved":         {"sent", "accepted", "superseded", "cancelled"},
+        "rejected":         {"draft", "pending_approval", "superseded", "cancelled"},
+        "sent":             {"accepted", "rejected", "superseded", "cancelled"},
+        "accepted":         {"superseded", "cancelled"},
+        "superseded":       set(),
+        "cancelled":        set(),
     },
     "contract": {
-        "draft":     {"approved", "cancelled"},
-        "approved":  {"active", "cancelled"},
-        "active":    {"expired", "cancelled"},
-        "expired":   set(),
-        "cancelled": set(),
+        "draft":            {"pending_approval", "sent", "cancelled"},
+        "pending_approval": {"approved", "active", "sent", "rejected", "draft", "cancelled"},
+        "approved":         {"active", "sent", "cancelled"},
+        "sent":             {"active", "signed", "expired", "cancelled"},
+        "signed":           {"active", "expired", "cancelled"},
+        "active":           {"expired", "terminated", "cancelled"},
+        "expired":          {"active"},      # renewal
+        "cancelled":        set(),
+    },
+    "mod_incident": {
+        "open":          {"investigating", "closed"},
+        "investigating": {"open", "closed"},
+        "closed":        {"open", "reopened"},   # reopen = privileged-only (below)
+        "reopened":      {"investigating", "closed"},
     },
 }
 
 # Transitions only a privileged caller (owner/manager/admin) may perform.
+# NOTE: quote/contract approval authority in CRM is governed by the CRM's own
+# approver model (crm_permissions), so we do NOT add an engine-level role gate
+# there — only the state machine (which blocks skip-approval) applies.
 PRIVILEGED_ONLY_TRANSITIONS: dict[str, set] = {
     "issue": {("closed", "reopened"), ("cancelled", "reopened"), ("resolved", "open")},
-    "quote": {("accepted", "ordered"), ("submitted", "accepted")},
-    "contract": {("draft", "approved"), ("approved", "active")},
+    "mod_incident": {("closed", "open"), ("closed", "reopened")},
 }
 
 

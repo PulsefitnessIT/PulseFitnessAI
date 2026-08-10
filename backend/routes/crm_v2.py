@@ -4416,6 +4416,8 @@ async def submit_quote_for_approval(quote_id: str, user=Depends(get_crm_user)):
     q = await db.crm2_quotes.find_one({"id": quote_id, **_of(user)})
     if not q:
         raise HTTPException(404, "Quote not found")
+    from utils.authz import assert_transition
+    await assert_transition("quote", q.get("status"), "pending_approval", user, resource_id=quote_id)
     await db.crm2_quotes.update_one(
         {"id": quote_id},
         {"$set": {"status": "pending_approval", "submitted_by": user.get("full_name", ""), "submitted_at": _now(), "updated_at": _now()}}
@@ -4446,6 +4448,15 @@ async def approve_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
     if not q:
         raise HTTPException(404, "Quote not found")
     action = data.get("action", "approve")
+    # Server-enforced approval workflow (section 8): a quote can only be
+    # approved/rejected from 'pending_approval' — this blocks a direct API
+    # request skipping the approval step or re-approving a finalised quote.
+    from utils.authz import assert_transition
+    await assert_transition(
+        "quote", q.get("status"),
+        "approved" if action == "approve" else "rejected",
+        user, resource_id=quote_id,
+    )
     if action == "approve":
         await db.crm2_quotes.update_one(
             {"id": quote_id},

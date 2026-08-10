@@ -1434,6 +1434,17 @@ async def mod_staff_transfer(
         dest_site["id"], user.get("id"), "staff.transfer.in",
         staff_id=staff["id"], from_site_id=source_site["id"], reason=transfer_record["reason"],
     )
+    # Central security telemetry — MOD personnel transfers are high-sensitivity.
+    try:
+        from utils.security_events import log_security_event, SEV_WARNING
+        await log_security_event(
+            "mod_staff_transfer", user=user, severity=SEV_WARNING,
+            resource_type="mod_site_staff", resource_id=staff["id"], action="transfer",
+            result="allowed", tenant_id=source_site["id"], site_id=dest_site["id"],
+            detail=f"{source_site.get('name')} → {dest_site.get('name')}",
+        )
+    except Exception:
+        pass
 
     # Email both unit PTIs (best-effort — never fail the transfer).
     try:

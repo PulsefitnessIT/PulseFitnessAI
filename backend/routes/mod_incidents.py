@@ -353,6 +353,12 @@ async def close_incident(
     if not incident:
         raise HTTPException(404, "Incident not found")
 
+    # Server-enforced state machine + audit: block closing an already-closed
+    # incident (idempotent no-op) and any illegal transition.
+    from utils.authz import assert_transition
+    await assert_transition("mod_incident", incident.get("status"), "closed", user,
+                            resource_id=incident_id, request=request)
+
     now_iso = datetime.now(timezone.utc).isoformat()
     questionnaire = {
         "root_cause": body.root_cause.strip(),

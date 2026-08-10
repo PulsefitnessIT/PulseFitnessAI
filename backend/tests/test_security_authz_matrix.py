@@ -75,11 +75,29 @@ async def _seed():
         {"id": _uid("bk_u1"), "organization_id": ORG_A, "site_id": SITE_A1, "member_id": _uid("member1"), "status": "booked"},
         {"id": _uid("bk_u2"), "organization_id": ORG_A, "site_id": SITE_A1, "member_id": _uid("member2"), "status": "booked"},
     ])
+    # Files (documents) — one per site in org A, one in org B.
+    await db.files.insert_many([
+        {"id": _uid("file_a1"), "organization_id": ORG_A, "site_id": SITE_A1, "original_filename": "a1.pdf", "storage_path": "x"},
+        {"id": _uid("file_a2"), "organization_id": ORG_A, "site_id": SITE_A2, "original_filename": "a2.pdf", "storage_path": "x"},
+        {"id": _uid("file_b"), "organization_id": ORG_B, "original_filename": "b.pdf", "storage_path": "x"},
+    ])
+    # CRM quotes in org A for the approval state-machine tests.
+    await db.crm2_quotes.insert_many([
+        {"id": _uid("q_draft"), "organization_id": ORG_A, "status": "draft", "quote_number": "Q-1"},
+        {"id": _uid("q_pending"), "organization_id": ORG_A, "status": "pending_approval", "quote_number": "Q-2"},
+        {"id": _uid("q_accepted"), "organization_id": ORG_A, "status": "accepted", "quote_number": "Q-3"},
+    ])
+    # MOD incidents.
+    await db.mod_incidents.insert_many([
+        {"id": _uid("inc_open"), "site_id": SITE_A1, "organization_id": ORG_A, "status": "open"},
+        {"id": _uid("inc_closed"), "site_id": SITE_A1, "organization_id": ORG_A, "status": "closed"},
+    ])
 
 
 async def _teardown():
-    for col in (db.organizations, db.sites, db.equipment, db.issues, db.bookings):
-        await db[col.name].delete_many({"id": {"$regex": f"^{P}"}})
+    for name in ("organizations", "sites", "equipment", "issues", "bookings",
+                 "files", "crm2_quotes", "mod_incidents"):
+        await db[name].delete_many({"id": {"$regex": f"^{P}"}})
     await db.security_events.delete_many({"resource_id": {"$regex": f"^{P}"}})
 
 
@@ -269,6 +287,68 @@ class TestSecurityMatrix:
             # Master admin can reach org B's sensitive quote-like resource.
             doc = await authorize_resource(admin, "equipment", _uid("eq_b"), "read")
             assert doc["id"] == _uid("eq_b")
+            await _teardown()
+            clear_request_site_scope()
+        asyncio.run(run())
+
+    # ── Phase 2 rollout: quotes, documents, MOD incidents ──────────────
+
+    def test_quote_skip_approval_blocked(self):
+        async def run():
+            await _seed()
+            u = _user(ORG_A, role="manager")
+            _bind_scope(u)
+            # draft → approved (skipping submit) must be rejected (409). §8.
+            with pytest.raises(HTTPException) as ei:
+                await assert_transition("quote", "draft", "approved", u, resource_id=_uid("q_draft"))
+            assert ei.value.status_code == 409
+            # Legit path: draft → pending_approval → approved.
+            await assert_transition("quote", "draft", "pending_approval", u, resource_id=_uid("q_draft"))
+            await assert_transition("quote", "pending_approval", "approved", u, resource_id=_uid("q_pending"))
+            # Re-approving a finalised (accepted) quote is rejected.
+            with pytest.raises(HTTPException) as ei2:
+                await assert_transition("quote", "accepted", "approved", u, resource_id=_uid("q_accepted"))
+            assert ei2.value.status_code == 409
+            await _teardown()
+            clear_request_site_scope()
+        asyncio.run(run())
+
+    def test_file_download_cross_tenant_and_cross_site(self):
+        async def run():
+            await _seed()
+            # Cross-tenant download denied (404).
+            u = _user(ORG_A, role="owner")
+            _bind_scope(u)
+            with pytest.raises(HTTPException) as ei:
+                await authorize_resource(u, "file", _uid("file_b"), "download")
+            assert ei.value.status_code == 404
+            # Site-restricted user cannot download another site's file (403).
+            restricted = _user(ORG_A, role="manager", allowed_sites=[SITE_A1])
+            _bind_scope(restricted)
+            ok = await authorize_resource(restricted, "file", _uid("file_a1"), "download")
+            assert ok["id"] == _uid("file_a1")
+            with pytest.raises(HTTPException) as ei2:
+                await authorize_resource(restricted, "file", _uid("file_a2"), "download")
+            assert ei2.value.status_code == 403
+            await _teardown()
+            clear_request_site_scope()
+        asyncio.run(run())
+
+    def test_mod_incident_closure_state_machine(self):
+        async def run():
+            await _seed()
+            mgr = _user(ORG_A, role="manager")
+            _bind_scope(mgr)
+            # open → closed is legal.
+            await assert_transition("mod_incident", "open", "closed", mgr, resource_id=_uid("inc_open"))
+            # Closing an already-closed incident is an idempotent no-op (no raise).
+            await assert_transition("mod_incident", "closed", "closed", mgr, resource_id=_uid("inc_closed"))
+            # Reopening a closed incident requires a privileged role.
+            staff = _user(ORG_A, role="site_staff")
+            _bind_scope(staff)
+            with pytest.raises(HTTPException) as ei:
+                await assert_transition("mod_incident", "closed", "reopened", staff, resource_id=_uid("inc_closed"))
+            assert ei.value.status_code == 403
             await _teardown()
             clear_request_site_scope()
         asyncio.run(run())

@@ -26,7 +26,29 @@ ad-hoc `find_one({"id": ...})` lookups, `require_same_org` defined but unused).
 This is exactly the BOLA/IDOR + broken-object-level-authorisation class in the
 referenced incident (cancelling another user's reservation).
 
-### Phase 1 — DELIVERED (this iteration)
+### Phase 2 — DELIVERED (engine rollout)
+- **Quotes** (`crm_v2.py`): approval **state machine** wired into
+  `submit-approval` and `approve` — a `draft` can no longer be approved
+  directly (skip-approval blocked, §8), and finalised quotes can't be
+  re-approved. Statuses aligned to the real CRM vocabulary.
+- **MOD incidents** (`mod_incidents.py`): closure **state machine** + central
+  audit on `close-incident`; reopening a closed incident is privileged-only.
+- **Documents/files** (`files.py`): `GET /files/{id}` and `DELETE /files/{id}`
+  now enforce **site isolation** + central audit via the engine (previously
+  tenant-only) — closes the cross-site document-download gap (§25).
+- **MOD personnel** (`mod_portal.py`): staff transfer now writes a central
+  high-sensitivity security event (kept its bespoke same-force/DOB checks — the
+  engine's tenant guard is deliberately NOT applied to the legitimate
+  cross-site-within-force flow).
+- **Contracts / invoices / stock**: verified their mutation endpoints are
+  already tenant-scoped (`_of(user)` / `{id, organization_id}`); registered in
+  the engine (`quote`, `contract`, `invoice`, `file`, `mod_site_staff`,
+  `mod_incident`) for adoption as they're next touched. Contract transition
+  enforcement deferred (complex multi-stage lifecycle — avoid regression).
+- Acceptance suite extended to **12 tests** (added quote skip-approval,
+  file cross-tenant/cross-site, MOD incident closure) — all passing.
+
+### Phase 1 — DELIVERED
 - **Central Authorisation Engine** (`utils/authz.py`) — one deny-by-default
   `authorize_resource(user, type, id, action)` enforcing tenant → site →
   ownership → role for a registry of high-risk resources. Cross-tenant → 404

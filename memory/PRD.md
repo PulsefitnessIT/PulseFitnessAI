@@ -1,3 +1,29 @@
+# ═══ 2026-08-10 · SECURITY Phase 2 — engine rollout to quotes / MOD incidents / documents / MOD personnel (tests 12/12) ═══
+Rolled the Central Authorisation Engine across the requested high-risk families. Non-breaking (existing tenant scopes kept as
+defence-in-depth); focused on real gaps rather than redundant churn.
+  • QUOTES (routes/crm_v2.py submit-approval + approve): wired assert_transition("quote", …). Blocks draft→approved skip-approval
+    (§8) and re-approving finalised quotes. authz.py quote state machine rewritten to CRM's real statuses
+    (draft/pending_approval/approved/rejected/sent/accepted/superseded/cancelled).
+  • MOD INCIDENTS (routes/mod_incidents.py close-incident): assert_transition("mod_incident", …, "closed") + central audit;
+    reopen is privileged-only. New mod_incident state machine (open/investigating/closed/reopened).
+  • DOCUMENTS/FILES (routes/files.py GET & DELETE /files/{id}): now go through authorize_resource("file", …) → adds SITE isolation
+    + central security_events audit on document download/delete (was tenant-only). New "file" registry entry (site_field=site_id).
+  • MOD PERSONNEL (routes/mod_portal.py staff transfer): added a high-sensitivity log_security_event("mod_staff_transfer");
+    deliberately did NOT apply the engine tenant guard (transfer is a legitimate cross-site-within-force flow with its own DOB/
+    same-force checks — would have broken it).
+  • CONTRACTS/INVOICES/STOCK: verified already tenant-scoped (_of(user) / {id,organization_id}); registered in engine
+    (quote/contract/invoice/file/mod_site_staff/mod_incident) for adoption when next touched. Contract transition enforcement
+    DEFERRED (multi-stage lifecycle, regression risk).
+  • PRIVILEGED_ONLY_TRANSITIONS: quote/contract entries removed (CRM has its own approver model — engine only enforces the state
+    machine there, no role gate); added mod_incident reopen.
+  • TESTS: tests/test_security_authz_matrix.py now 12/12 PASS (added quote skip-approval, file cross-tenant/cross-site, incident
+    closure). Backend /api/health=200; all edited modules import clean.
+  ⚠️ PREVIEW ONLY — REDEPLOY to push live. Not e2e-tested via live HTTP this turn (validated at unit level through the exact code
+    paths). Backlog: contract state machine, invoice/stock engine wiring, step-up auth, Security Alert Centre UI.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-10 · SECURITY PROGRAMME Phase 1 — Central Authorisation Engine + Acceptance Tests A–H (9/9 pass) ═══
 User pivoted to a 54-section platform-wide Zero-Trust security hardening brief (BOLA/IDOR incident class: an AI agent
 cancelled another user's reservation). Approved plan: Phase 1 = keystone engine + measurable acceptance tests; mass-assignment
