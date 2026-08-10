@@ -24,7 +24,7 @@ import { geoCentroid } from 'd3-geo';
 import { feature, merge } from 'topojson-client';
 import {
   Map as MapIcon, Layers, Download, RefreshCw, X, Search, UserCog, Hammer, CheckCircle2,
-  Flame, Zap, Paintbrush, Building2, Users, AlertTriangle,
+  Flame, Zap, Paintbrush, Building2, Users, AlertTriangle, MapPin, ExternalLink,
 } from 'lucide-react';
 import OfficesPanel from './CRMTerritoryOffices';
 
@@ -228,6 +228,9 @@ export default function CRMTerritoryMap() {
   const [showOffices, setShowOffices] = useState(true);
   const [staffLocations, setStaffLocations] = useState([]);
   const [showStaffPins, setShowStaffPins] = useState(true);
+  const [pinCard, setPinCard] = useState(null); // { staff, left, top, above }
+  const mapWrapRef = useRef(null);
+  const pinCardRef = useRef(null);
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [staff, setStaff] = useState([]);
   const [focusedUser, setFocusedUser] = useState(null);
@@ -472,6 +475,33 @@ export default function CRMTerritoryMap() {
     return { type: layer, code, label: code };
   };
 
+  const openStaffPinCard = (e, s) => {
+    e.stopPropagation();
+    const wrap = mapWrapRef.current;
+    if (!wrap) return;
+    const wrapRect = wrap.getBoundingClientRect();
+    const pinRect = e.currentTarget.getBoundingClientRect();
+    const left = pinRect.left + pinRect.width / 2 - wrapRect.left;
+    const pinTop = pinRect.top - wrapRect.top;
+    const above = pinTop > 170; // enough room to show the card above the pin
+    setPinCard({
+      staff: s,
+      left: Math.max(90, Math.min(left, wrapRect.width - 90)),
+      top: above ? pinTop - 8 : pinRect.bottom - wrapRect.top + 8,
+      above,
+    });
+  };
+
+  // Close the pin card on outside click or Escape.
+  useEffect(() => {
+    if (!pinCard) return undefined;
+    const onDown = (e) => { if (pinCardRef.current && !pinCardRef.current.contains(e.target)) setPinCard(null); };
+    const onKey = (e) => { if (e.key === 'Escape') setPinCard(null); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [pinCard]);
+
   const downloadPng = async () => {
     if (!svgRef.current) return;
     const svg = svgRef.current.querySelector('svg');
@@ -610,6 +640,7 @@ export default function CRMTerritoryMap() {
       </header>
 
       <div className="grid lg:grid-cols-[1fr_320px] gap-4">
+        <div className="relative" ref={mapWrapRef}>
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden" ref={svgRef} data-testid="territory-map-svg">
           {loading ? (
             <div className="h-[600px] flex items-center justify-center text-zinc-400 text-sm">Loading map…</div>
@@ -689,7 +720,10 @@ export default function CRMTerritoryMap() {
                 const firstName = (s.full_name || '').split(' ')[0] || s.full_name;
                 return (
                   <Marker key={s.id} coordinates={[s.lng, s.lat]} data-testid={`staff-marker-${s.id}`}>
-                    <g style={{ pointerEvents: 'none', opacity: dim ? 0.35 : 1 }}>
+                    <g
+                      style={{ pointerEvents: 'auto', cursor: 'pointer', opacity: dim ? 0.35 : 1 }}
+                      onClick={(e) => openStaffPinCard(e, s)}
+                    >
                       {/* Teardrop pin — distinct from the circular office pins */}
                       <path
                         d="M0 0 C-4.4 -6 -6 -8.4 -6 -11.4 A6 6 0 1 1 6 -11.4 C6 -8.4 4.4 -6 0 0 Z"
@@ -705,6 +739,56 @@ export default function CRMTerritoryMap() {
               })}
             </ComposableMap>
           )}
+        </div>
+        {pinCard && (() => {
+          const s = pinCard.staff;
+          const RoleIcon = ROLE_ICONS[s.territory_role] || UserCog;
+          return (
+            <div
+              ref={pinCardRef}
+              className="absolute z-30 w-60 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl p-3"
+              style={{
+                left: pinCard.left,
+                top: pinCard.top,
+                transform: pinCard.above ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+              }}
+              data-testid="staff-pin-card"
+            >
+              <button
+                onClick={() => setPinCard(null)}
+                className="absolute top-2 right-2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                aria-label="Close"
+                data-testid="staff-pin-card-close"
+              >
+                <X size={14} />
+              </button>
+              <div className="flex items-center gap-2 pr-5">
+                <span className="h-3.5 w-3.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.colour_hex || '#2563EB' }} />
+                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate" data-testid="staff-pin-card-name">{s.full_name}</p>
+              </div>
+              <div className="mt-2 flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-300">
+                <RoleIcon size={13} className="text-zinc-400" />
+                <span data-testid="staff-pin-card-role">{ROLE_LABELS[s.territory_role] || s.territory_role}</span>
+              </div>
+              {s.postcode && (
+                <div className="mt-1 flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-300">
+                  <MapPin size={13} className="text-zinc-400" />
+                  <span data-testid="staff-pin-card-postcode">{s.postcode}</span>
+                </div>
+              )}
+              {s.email && (
+                <a href={`mailto:${s.email}`} className="mt-1 block text-xs text-blue-600 hover:underline truncate" data-testid="staff-pin-card-email">{s.email}</a>
+              )}
+              <button
+                onClick={() => window.open('/platform/staffing', '_blank', 'noopener')}
+                className="mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 text-white text-xs font-bold py-1.5 hover:opacity-90"
+                data-testid="staff-pin-card-profile"
+              >
+                View profile <ExternalLink size={12} />
+              </button>
+            </div>
+          );
+        })()}
         </div>
 
         <aside className="space-y-3">

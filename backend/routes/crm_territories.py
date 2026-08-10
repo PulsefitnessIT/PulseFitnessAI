@@ -390,6 +390,7 @@ async def staff_locations(user=Depends(get_crm_user)):
             continue
         out.append({
             "id": u["id"],
+            "staff_id": u.get("staff_id"),
             "full_name": u.get("full_name", ""),
             "email": u.get("email", ""),
             "colour_hex": _normalise_colour(u.get("colour_hex")),
