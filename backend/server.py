@@ -503,6 +503,12 @@ async def _full_boot() -> None:
     except Exception as e:
         logger.error(f"abuse_guard index setup failed: {e}")
 
+    try:
+        from utils.security_alerts import ensure_indexes as _sec_alert_indexes
+        await _sec_alert_indexes()
+    except Exception as e:
+        logger.error(f"security_alert_feed index setup failed: {e}")
+
     # Compound-index bootstrap for every org-scoped hot-path collection —
     # single biggest latency win at tenant scale. Idempotent; safe on reboot.
     try:

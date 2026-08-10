@@ -100,6 +100,45 @@ async def list_security_events(
             "categories": EVENT_CATEGORIES}
 
 
+@router.get("/alerts")
+async def poll_alerts(
+    user: dict = Depends(get_current_user),
+    since: Optional[str] = Query(None, description="ISO timestamp — only alerts newer than this"),
+    limit: int = Query(20, ge=1, le=100),
+):
+    """Fast short-poll feed of new critical/abuse alerts for the live toast UI."""
+    require_master_admin(user)
+    q: dict = {"acknowledged": {"$ne": True}}
+    if since:
+        try:
+            dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            q["ts"] = {"$gt": dt}
+        except Exception:
+            pass
+    rows = await db.security_alert_feed.find(q, {"_id": 0}).sort("ts", -1).limit(limit).to_list(length=limit)
+    now = datetime.now(timezone.utc).isoformat()
+    return {"count": len(rows), "alerts": rows, "server_time": now}
+
+
+@router.post("/alerts/ack")
+async def ack_alerts(
+    payload: dict,
+    user: dict = Depends(get_current_user),
+):
+    """Mark alerts acknowledged so they stop re-surfacing as toasts."""
+    require_master_admin(user)
+    ids = payload.get("ids") or []
+    if ids:
+        await db.security_alert_feed.update_many(
+            {"id": {"$in": ids}}, {"$set": {"acknowledged": True}})
+    else:
+        await db.security_alert_feed.update_many(
+            {"acknowledged": {"$ne": True}}, {"$set": {"acknowledged": True}})
+    return {"ok": True, "acknowledged": len(ids) if ids else "all"}
+
+
 @router.get("/summary")
 async def security_summary(
     user: dict = Depends(get_current_user),

@@ -1,0 +1,26 @@
+{
+  "summary": "Frontend-only E2E test of PulseFitness.ai Real-Time Security Alerts (10s short-poll toast). Logged in as Master Admin, opened /master-admin, waited ~5s for the alert poller to prime alertSinceRef, then emitted a CRITICAL security event via /app/backend/scripts/emit_test_security_alert.py (used /root/.venv/bin/python because plain `python` on PATH lacks motor). Toast surfaced in ~5s via the global banner host, exact copy matches spec, action link navigates to Security Alert Centre, and the alert is ack'd server-side so it does NOT re-toast over the next 22s (2+ poll cycles).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/toast.png",
+    "/app/test_reports/security_centre.png"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "utils/security_alerts.py:45 — `_throttled` computes (now - doc['ts']) where doc['ts'] can be a naive datetime (from Mongo) while `now` is offset-aware, producing 'can't subtract offset-naive and offset-aware datetimes' TypeError on every dispatch. It's caught silently but means the email throttle table is effectively bypassed / non-functional. Not blocking the in-app toast (queue write happens before this line? — verify), but should be fixed by normalising both sides to UTC-aware datetimes.",
+    "scripts/emit_test_security_alert.py — requires the backend venv Python (motor is not on system python). Consider adding a shebang '#!/root/.venv/bin/python' or a small wrapper so test agents can run it without hunting for the interpreter."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not tested this run)", "frontend": "100%"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (Master Admin)",
+  "seed_data_creation": "None. Emitted a transient bola_cross_tenant_denied critical event via the provided emit script.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reproduce with: (1) login master admin, (2) go to /master-admin and wait ~5s, (3) run `/root/.venv/bin/python /app/backend/scripts/emit_test_security_alert.py` from /app/backend with PYTHONPATH=/app/backend, (4) toast [data-testid=inline-banner-error] should appear <=10s later, (5) action [data-testid=inline-banner-action-error] labelled 'View in Security Centre →' navigates to the Security Alert Centre section. Toast is ack'd server-side so no duplicates. Test verified once-only delivery over 22s (2 poll cycles).",
+  "rca of the issue": "N/A — all specified acceptance criteria met."
+}

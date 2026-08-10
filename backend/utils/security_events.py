@@ -115,6 +115,14 @@ async def log_security_event(
     except Exception:
         logger.exception("security_events insert failed for %s", event_type)
 
+    # Real-time alerting for critical/abuse events (best-effort, never raises).
+    try:
+        from utils.security_alerts import dispatch_alert, is_alertable
+        if is_alertable(event_type, severity):
+            await dispatch_alert(doc)
+    except Exception:
+        logger.exception("dispatch_alert wiring failed for %s", event_type)
+
     # Structured mirror (survives DB outages; feeds log-based alerting).
     logger.warning(
         "SECURITY event=%s severity=%s result=%s actor=%s tenant=%s resource=%s:%s action=%s ip=%s req=%s detail=%s",

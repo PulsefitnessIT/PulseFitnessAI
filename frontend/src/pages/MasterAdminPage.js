@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState, useEffect, useCallback } from 'react';
+import { Suspense, lazy, useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/App';
 import { useNavigate } from 'react-router-dom';
@@ -315,6 +315,56 @@ const MasterAdminPage = ({ _onBack }) => {
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { loadSectionData(section); }, [section, loadSectionData]);
+
+  // Real-Time Security Alerts (security §32/§34) — short-poll the alert feed
+  // every 10s while the Master Admin console is open and raise a sonner-style
+  // toast the instant a critical/abuse event lands, jumping straight to the
+  // Security Alert Centre on click. Acknowledged server-side so each alert
+  // toasts exactly once across refreshes.
+  const alertSinceRef = useRef(new Date().toISOString());
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const r = await axios.get(
+          `${API}/master-admin/security-centre/alerts`,
+          { headers, params: { since: alertSinceRef.current } },
+        );
+        if (cancelled) return;
+        if (r.data?.server_time) alertSinceRef.current = r.data.server_time;
+        const alerts = r.data?.alerts || [];
+        if (alerts.length === 0) return;
+        const ackIds = [];
+        // Oldest first so the newest ends up on top of the stack.
+        [...alerts].reverse().forEach((a) => {
+          ackIds.push(a.id);
+          const isCritical = a.severity === 'critical';
+          const push = isCritical ? notify.error : notify.warning;
+          push(
+            `Security alert · ${a.title}`,
+            `${a.actor}${a.detail ? ` — ${a.detail}` : ''}`,
+            {
+              ttl: isCritical ? 12000 : 8000,
+              action: {
+                label: 'View in Security Centre',
+                onClick: () => setSection('security-centre'),
+              },
+            },
+          );
+        });
+        if (ackIds.length) {
+          axios.post(
+            `${API}/master-admin/security-centre/alerts/ack`,
+            { ids: ackIds }, { headers },
+          ).catch(() => { /* best-effort */ });
+        }
+      } catch { /* transient — retry next tick */ }
+    };
+    const t = setInterval(poll, 10000);
+    poll();
+    return () => { cancelled = true; clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [API]);
 
   // Iter 216h189 — server-side `q` filter on `/master-admin/organizations`.
   // We previously shipped the entire org list (up to 2000) on every load
