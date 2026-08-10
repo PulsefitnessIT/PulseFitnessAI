@@ -119,8 +119,9 @@ async def poll_alerts(
         except Exception:
             pass
     rows = await db.security_alert_feed.find(q, {"_id": 0}).sort("ts", -1).limit(limit).to_list(length=limit)
+    total_unread = await db.security_alert_feed.count_documents({"acknowledged": {"$ne": True}})
     now = datetime.now(timezone.utc).isoformat()
-    return {"count": len(rows), "alerts": rows, "server_time": now}
+    return {"count": len(rows), "alerts": rows, "server_time": now, "total_unread": total_unread}
 
 
 @router.post("/alerts/ack")

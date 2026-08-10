@@ -92,6 +92,7 @@ import AdminSidebar from './MasterAdmin/AdminSidebar';
 import OverviewSection from './MasterAdmin/OverviewSection';
 import { sectionTitles, sectionDescriptions, GROUP_SUBTABS, SECTION_TO_GROUP } from './MasterAdmin/SidebarConfig';
 import ConsolidatedTabsBar from './MasterAdmin/ConsolidatedTabsBar';
+import AlertBell from './MasterAdmin/AlertBell';
 import useMasterAdminActions from './MasterAdmin/hooks/useMasterAdminActions';
 // Iter 216h17 — brand context for Master Admin (Phase 1 IA redesign).
 import { BrandContextProvider, useBrandContext } from './MasterAdmin/BrandContext';
@@ -322,6 +323,8 @@ const MasterAdminPage = ({ _onBack }) => {
   // Security Alert Centre on click. Acknowledged server-side so each alert
   // toasts exactly once across refreshes.
   const alertSinceRef = useRef(new Date().toISOString());
+  const [unreadAlerts, setUnreadAlerts] = useState(0);
+  const refreshUnreadRef = useRef(null);
   useEffect(() => {
     let cancelled = false;
     const poll = async () => {
@@ -332,12 +335,13 @@ const MasterAdminPage = ({ _onBack }) => {
         );
         if (cancelled) return;
         if (r.data?.server_time) alertSinceRef.current = r.data.server_time;
+        if (typeof r.data?.total_unread === 'number') setUnreadAlerts(r.data.total_unread);
         const alerts = r.data?.alerts || [];
         if (alerts.length === 0) return;
-        const ackIds = [];
-        // Oldest first so the newest ends up on top of the stack.
+        // Toast new alerts once (client-side dedup via the `since` cursor).
+        // We intentionally do NOT ack here — alerts stay unread on the bell
+        // badge until the admin opens the bell and marks them read.
         [...alerts].reverse().forEach((a) => {
-          ackIds.push(a.id);
           const isCritical = a.severity === 'critical';
           const push = isCritical ? notify.error : notify.warning;
           push(
@@ -352,14 +356,9 @@ const MasterAdminPage = ({ _onBack }) => {
             },
           );
         });
-        if (ackIds.length) {
-          axios.post(
-            `${API}/master-admin/security-centre/alerts/ack`,
-            { ids: ackIds }, { headers },
-          ).catch(() => { /* best-effort */ });
-        }
       } catch { /* transient — retry next tick */ }
     };
+    refreshUnreadRef.current = poll;
     const t = setInterval(poll, 10000);
     poll();
     return () => { cancelled = true; clearInterval(t); };
@@ -734,6 +733,13 @@ const MasterAdminPage = ({ _onBack }) => {
             {/* Iter 222 — Pulse Fitness platform email-deliverability health is
                 internal platform infra; hidden for delegated Pulse admins. */}
             {!isPulseAdmin && <EmailHealthPill />}
+            <AlertBell
+              API={API}
+              headers={headers}
+              count={unreadAlerts}
+              onViewCentre={() => setSection('security-centre')}
+              onChanged={() => { setUnreadAlerts(0); refreshUnreadRef.current?.(); }}
+            />
             {/* Iter 285 — Brand switcher removed: there is now a single Pulse
                 Fitness brand, so the picker only added confusing duplicate
                 "Pulse Fitness" entries. Brand context stays 'all' (everything). */}
