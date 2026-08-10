@@ -422,6 +422,10 @@ async def body_size_guard(request: Request,
 _BRAND_DEFAULT_ORIGINS = [
     "https://pulsefitness.ai",
     "https://www.pulsefitness.ai",
+    # MOD Service portal vanity domain — a non-.ai domain so the MoD BPS web
+    # filter (which blanket-blocks the ".ai" AI/ML category) lets it through.
+    # Served by a second deployment of this same codebase.
+    "https://modservice.pulsefitness.com",
     "https://fitness-ai-migrate.emergent.host",
 ]
 

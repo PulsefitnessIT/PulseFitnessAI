@@ -51,3 +51,32 @@ Access from a personal device on 4G/5G or non-MoDNET WiFi (per the BPS notice).
   env always wins (comma-separated, no wildcard).
 - Email base URL: backend/utils/email.py PUBLIC_BASE_URL (EMAIL_PUBLIC_BASE_URL || FRONTEND_URL).
 - MOD route: frontend /modservice -> /MODService (AppRoutes.js) — page is healthy.
+
+## DECISION (2026-08-10): Option 2 — second deployment for modservice.pulsefitness.com
+Keep pulsefitness.ai live; stand up a SECOND Emergent deployment (same repo/codebase)
+and link the vanity domain modservice.pulsefitness.com to it. ~100 credits/mo total.
+
+### Code readiness (DONE — shared across both deployments)
+- CORS: `https://modservice.pulsefitness.com` added to _BRAND_DEFAULT_ORIGINS in
+  backend/utils/security_plus.py, so the new deployment accepts it even without a
+  CORS_ORIGINS env override. Verified (direct-to-app curl): MOD origin echoed WITH
+  credentials; pulsefitness.ai still works; unknown origins rejected.
+- Auth + refresh cookies are HOST-ONLY (no domain= attribute) in utils/auth.py and
+  utils/refresh_tokens.py, so sessions work on modservice.pulsefitness.com with no change.
+  SameSite=None; Secure (fine over HTTPS; each deployment serves its own FE+BE on one host).
+
+### Per-deployment env to set on the MOD deployment (in the Emergent deploy settings)
+- EMAIL_PUBLIC_BASE_URL=https://modservice.pulsefitness.com  (so MOD emails link to .com)
+- (Optional) FRONTEND_URL=https://modservice.pulsefitness.com
+- Leave CORS_ORIGINS unset to use the brand defaults above, OR set it explicitly to
+  include the new domain. Do NOT set it to "*".
+- Do NOT change EMAIL_PUBLIC_BASE_URL on the ORIGINAL .ai deployment.
+
+### Deploy steps (from platform support)
+1. Home tab → deploy the same app to a NEW deployment slot (no new project; same GitHub repo).
+2. On the new deployment: Link domain → modservice.pulsefitness.com → Entri → follow DNS steps.
+3. At the DNS provider: remove any existing A records for the `modservice` subdomain;
+   Entri sets the required CNAME/A. TLS is automatic. Propagation ~5–15 min (up to 24h).
+4. Set the per-deployment env above; redeploy/restart if prompted.
+5. Verify: open https://modservice.pulsefitness.com/MODService and log in.
+
