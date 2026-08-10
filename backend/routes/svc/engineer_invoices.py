@@ -25,7 +25,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
@@ -617,6 +617,10 @@ async def update_invoice(invoice_id: str, body: InvoiceUpdate, user=Depends(get_
     if "status" in payload and payload["status"]:
         if payload["status"] not in INVOICE_STATUSES:
             raise HTTPException(400, "invalid status")
+        # Server-enforced invoice state machine — blocks illegal financial
+        # transitions (e.g. paid→draft) regardless of client intent.
+        from utils.authz import assert_transition
+        await assert_transition("invoice", inv.get("status"), payload["status"], user, resource_id=invoice_id)
         patch["status"] = payload["status"]
     for k in ("customer_name", "customer_email", "customer_phone", "site_name",
               "site_address", "asset_name", "asset_serial", "description_of_work",
@@ -709,10 +713,13 @@ async def send_invoice(invoice_id: str, body: InvoiceSend, user=Depends(get_curr
 
 
 @router.post("/invoices/{invoice_id}/mark")
-async def mark_invoice(invoice_id: str, body: StatusMark, user=Depends(get_current_user)):
-    await _get_invoice_or_404(invoice_id, user)
+async def mark_invoice(invoice_id: str, body: StatusMark, request: Request = None, user=Depends(get_current_user)):
+    inv = await _get_invoice_or_404(invoice_id, user)
     if body.status not in INVOICE_STATUSES:
         raise HTTPException(400, "invalid status")
+    # Server-enforced invoice state machine (blocks e.g. paid→draft).
+    from utils.authz import assert_transition
+    await assert_transition("invoice", inv.get("status"), body.status, user, resource_id=invoice_id, request=request)
     set_payload: dict[str, Any] = {"status": body.status, "updated_at": _now()}
     if body.status == "paid":
         set_payload["paid_at"] = _now()
@@ -723,6 +730,18 @@ async def mark_invoice(invoice_id: str, body: StatusMark, user=Depends(get_curre
          "$push": {"status_history": {"status": body.status, "at": _now(),
                                        "by": user.get("email"), "note": body.note}}},
     )
+    # Central financial audit on money-affecting status changes.
+    if body.status in ("paid", "void"):
+        try:
+            from utils.security_events import log_security_event, SEV_WARNING
+            await log_security_event(
+                "invoice_status_change", user=user, request=request, severity=SEV_WARNING,
+                resource_type="invoice", resource_id=invoice_id, action="status_change",
+                result="allowed", detail=f"{inv.get('status')}→{body.status}",
+                extra={"amount": inv.get("total") or inv.get("grand_total")},
+            )
+        except Exception:
+            pass
     return await _get_invoice_or_404(invoice_id, user)
 
 

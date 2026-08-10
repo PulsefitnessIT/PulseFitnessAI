@@ -256,6 +256,15 @@ STATE_MACHINES: dict[str, dict[str, set]] = {
         "closed":        {"open", "reopened"},   # reopen = privileged-only (below)
         "reopened":      {"investigating", "closed"},
     },
+    "invoice": {
+        # Service/engineer invoice lifecycle. Blocks illegal financial jumps
+        # such as paid→draft (mark endpoint previously allowed any transition).
+        "draft":   {"sent", "paid", "void"},
+        "sent":    {"paid", "overdue", "void"},
+        "overdue": {"paid", "void", "sent"},
+        "paid":    {"void"},        # a paid invoice can only be voided (correction)
+        "void":    set(),           # terminal
+    },
 }
 
 # Transitions only a privileged caller (owner/manager/admin) may perform.

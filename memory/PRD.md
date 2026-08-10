@@ -1,3 +1,21 @@
+# ═══ 2026-08-10 · SECURITY · Invoice & Stock Guard — billing state machine + inventory audit (tests 18/18) ═══
+Extended the engine to billing + inventory writes. Both flows were already org-scoped (invoices also engineer-ownership scoped
+via _get_invoice_or_404; dealer allocations via _of + inline status guards + manager gate), so this adds the missing STATE MACHINE
++ CENTRAL AUDIT rather than redundant tenant guards.
+  • authz.py: NEW "invoice" state machine (draft→sent→paid/overdue/void; paid→void only; void terminal). Blocks illegal financial
+    jumps like paid→draft that the mark endpoint previously allowed.
+  • routes/svc/engineer_invoices.py: assert_transition("invoice", …) wired into mark_invoice + update_invoice status changes; added
+    Request param to mark; central log_security_event("invoice_status_change") on paid/void (financial audit, §32).
+  • routes/inventory_distribution.py receive_stock: log_security_event("stock_movement") on every warehouse receipt (§32 moving stock).
+  • routes/dealer_parts.py approve_allocation: log_security_event("parts_allocation_approved") on spend release (kept existing
+    draft→submitted→approved guards + _can_manage threshold gate).
+  • TESTS: added test_invoice_state_machine; fixed test_step_up disabled-noop (was asserting env default OFF — enforcement is now
+    ON, so it patches the flag instead). Full suite 18/18 PASS (14 authz + 4 step-up). Backend /api/health=200; modules import clean.
+  ⚠️ PREVIEW ONLY — REDEPLOY to push live. Behaviour: marking an invoice paid→draft (or other illegal status jump) now 409s.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-10 · SECURITY · Step-Up FRONTEND shipped + enforcement TURNED ON (live-verified) ═══
 Completed the step-up feature end-to-end and enabled enforcement.
   • FE: NEW src/components/StepUpDialog.js — global re-confirm dialog mounted at app root (App.js), registers window.__pulseStepUp().

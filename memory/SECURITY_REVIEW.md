@@ -54,6 +54,16 @@ referenced incident (cancelling another user's reservation).
 - Acceptance suite extended to **13 tests** (added contract workflow lock) —
   all passing.
 
+- **Billing (invoices)** (`svc/engineer_invoices.py`): invoice **state machine**
+  wired into `mark` + `update` — blocks illegal financial jumps (e.g.
+  paid→draft) and audits every paid/void change to `security_events`. (Already
+  tenant + engineer-ownership scoped.)
+- **Inventory (stock)** (`inventory_distribution.py`, `dealer_parts.py`): central
+  security telemetry on stock receipts (`stock_movement`) and parts-allocation
+  approvals (`parts_allocation_approved`) — the allocation flow keeps its
+  existing draft→submitted→approved guards + manager gate. (Already org-scoped.)
+- Acceptance suite: **14 authz + 4 step-up = 18 tests**, all passing.
+
 ### Phase 1 — DELIVERED
 - **Central Authorisation Engine** (`utils/authz.py`) — one deny-by-default
   `authorize_resource(user, type, id, action)` enforcing tenant → site →

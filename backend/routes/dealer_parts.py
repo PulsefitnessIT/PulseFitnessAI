@@ -601,6 +601,17 @@ async def approve_allocation(alloc_id: str, data: dict = None, user=Depends(get_
     )
     await _audit(org, user, "allocation_approved", allocation_id=alloc_id, value=value,
                  over_allowance=over, reason=reason)
+    # Central financial telemetry — parts allocation approval releases spend.
+    try:
+        from utils.security_events import log_security_event, SEV_WARNING
+        await log_security_event(
+            "parts_allocation_approved", user=user, severity=SEV_WARNING,
+            resource_type="parts_allocation", resource_id=alloc_id, action="approve",
+            result="allowed", tenant_id=org,
+            detail=f"value={value} over_allowance={over}",
+        )
+    except Exception:
+        pass
     return await _alloc_or_404(org, alloc_id)
 
 

@@ -75,14 +75,18 @@ class TestStepUp:
                 await _teardown()
         asyncio.run(run())
 
-    def test_disabled_by_default_is_noop(self):
+    def test_disabled_is_noop(self):
         async def run():
             await _seed()
             user = {"id": UID, "email": EMAIL}
-            assert step_up.STEP_UP_ENFORCED is False  # default OFF
-            # Even with no step-up recorded, the gate is a no-op when disabled.
-            await step_up.require_step_up(user, action="delete_company")
-            await _teardown()
+            original = step_up.STEP_UP_ENFORCED
+            step_up.STEP_UP_ENFORCED = False  # simulate the gate being disabled
+            try:
+                # With no step-up recorded, the gate is a no-op when disabled.
+                await step_up.require_step_up(user, action="delete_company")
+            finally:
+                step_up.STEP_UP_ENFORCED = original
+                await _teardown()
         asyncio.run(run())
 
     def test_freshness_expiry(self):

@@ -835,6 +835,17 @@ async def receive_stock(body: StockIn, user=Depends(get_current_user)):
         "created_at": _now(),
     })
     await _audit(user, "stock_received", "stock", hid, {"product": body.product_code, "qty": body.quantity})
+    # Central asset/stock telemetry (security §32 — "moving stock").
+    try:
+        from utils.security_events import log_security_event, SEV_INFO
+        await log_security_event(
+            "stock_movement", user=user, severity=SEV_INFO,
+            resource_type="stock_holding", resource_id=hid, action="receive",
+            result="allowed", site_id=body.warehouse_id,
+            detail=f"receipt {body.product_code} x{body.quantity}",
+        )
+    except Exception:
+        pass
     return {"ok": True, "holding_id": hid}
 
 

@@ -380,3 +380,19 @@ class TestSecurityMatrix:
             await _teardown()
             clear_request_site_scope()
         asyncio.run(run())
+
+    def test_invoice_state_machine(self):
+        async def run():
+            u = _user(ORG_A, role="manager")
+            _bind_scope(u)
+            # Illegal financial jumps are blocked.
+            for src, tgt in (("paid", "draft"), ("void", "sent"), ("paid", "sent")):
+                with pytest.raises(HTTPException) as ei:
+                    await assert_transition("invoice", src, tgt, u, resource_id="inv-x")
+                assert ei.value.status_code == 409, f"{src}->{tgt} should be blocked"
+            # Legit flow works.
+            await assert_transition("invoice", "draft", "sent", u, resource_id="inv-x")
+            await assert_transition("invoice", "sent", "paid", u, resource_id="inv-x")
+            await assert_transition("invoice", "paid", "void", u, resource_id="inv-x")
+            clear_request_site_scope()
+        asyncio.run(run())
