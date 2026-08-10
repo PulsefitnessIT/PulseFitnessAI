@@ -15,8 +15,8 @@
   ],
   "updated_files": [],
   "success_rate": {"backend": "100%", "frontend": "100%"},
-  "test_credentials": "MOD site: test@army.mod.test / ModTest123! at /MODService. Public booking token: QATEST_XpqcO08YCuzOSw. New test fault id created (kept for main agent cleanup): 7ced2253-742f-4e3f-a1a6-eae294a28cd1 (supplier_case.token=0d053391-c77e-436a-a222-875f8b330284).",
-  "seed_data_creation": "Created new MOD fault id=7ced2253-742f-4e3f-a1a6-eae294a28cd1 on equipment Pulse Fitness Series 3 Treadmill (PF-MODTS-001), and posted one supplier comment 'QATEST shared thread reply from MOD'. Did NOT touch QATEST booking. Please clean up when convenient.",
+  "test_credentials": "MOD site: test@army.mod.test / ModTest123! at /MODService. Public booking token: QATEST_XpqcO08YCuzOSw. New test fault id created (kept for main agent cleanup): 7ced2253-742f-4e3f-a1a6-eae294a28cd1 (supplier_case.token=multi-eng-booking).",
+  "seed_data_creation": "Created new MOD fault id=multi-eng-booking on equipment Pulse Fitness Series 3 Treadmill (PF-MODTS-001), and posted one supplier comment 'QATEST shared thread reply from MOD'. Did NOT touch QATEST booking. Please clean up when convenient.",
   "retest_needed": false,
   "should_main_agent_self_test": false,
   "context_for_next_testing_agent": "Rate limit on /api/auth/login triggers 429 after ~4 rapid logins with ~120s cooldown. Space out login attempts. To validate shared-thread chips reliably, create a NEW MOD fault (legacy MODTS faults have empty supplier_case.notify_emails). To validate supplier case ?view=site read-only mode, be logged in as an operator/MOD user first (isGymViewer needs localStorage.token) — opening the URL in a fresh incognito session will (incorrectly) show the SUPPLIER controls."

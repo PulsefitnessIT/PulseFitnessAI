@@ -22,7 +22,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from utils.auth import create_token
 from routes.staffing import _staff_role_from_platform_role, BUSINESS_DEFAULT_ROLES, VALID_ROLES
 
-API = (os.environ.get("REACT_APP_BACKEND_URL") or "https://pulse-tender-system.preview.emergentagent.com").rstrip("/")
+API = (os.environ.get("REACT_APP_BACKEND_URL") or "https://multi-eng-booking.preview.emergentagent.com").rstrip("/")
 MONGO_URL = os.environ["MONGO_URL"]
 DB_NAME = os.environ["DB_NAME"]
 

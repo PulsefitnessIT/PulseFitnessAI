@@ -14,7 +14,7 @@ import asyncio
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-tender-system.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://multi-eng-booking.preview.emergentagent.com").rstrip("/")
 ADMIN_EMAIL = "admin@pulsefitness.com"
 ADMIN_PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
 

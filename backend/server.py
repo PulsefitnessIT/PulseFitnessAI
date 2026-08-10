@@ -485,6 +485,12 @@ async def _full_boot() -> None:
     except Exception as e:
         logger.error(f"ui_error index setup failed: {e}")
 
+    try:
+        from utils.security_events import ensure_indexes as _sec_evt_indexes
+        await _sec_evt_indexes()
+    except Exception as e:
+        logger.error(f"security_events index setup failed: {e}")
+
     # Compound-index bootstrap for every org-scoped hot-path collection —
     # single biggest latency win at tenant scale. Idempotent; safe on reboot.
     try:

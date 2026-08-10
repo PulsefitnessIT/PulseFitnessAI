@@ -1,3 +1,30 @@
+# ═══ 2026-08-10 · SECURITY PROGRAMME Phase 1 — Central Authorisation Engine + Acceptance Tests A–H (9/9 pass) ═══
+User pivoted to a 54-section platform-wide Zero-Trust security hardening brief (BOLA/IDOR incident class: an AI agent
+cancelled another user's reservation). Approved plan: Phase 1 = keystone engine + measurable acceptance tests; mass-assignment
+allow-lists YES; Master-Admin MFA = capability only, left OFF (user choice A); infra items (CI/CD, SBOM, TLS, backups, IR)
+documented for pen-test, not implemented in-container.
+  • NEW utils/authz.py — Central Authorisation Engine (deny-by-default). authorize_resource(user, type, id, action) enforces
+    tenant→site→ownership→role for a RESOURCE_REGISTRY (issue, equipment, booking, member, document, supplier_case, quote,
+    contract, svc_case, invoice, site, mod_site_staff, mod_incident). Cross-tenant→404 (no leak), cross-site→403, all denials
+    audited. Unregistered type FAILS CLOSED (500). Plus assert_transition() state machines (issue/quote/contract: illegal→409,
+    privileged-only→403, privileged transitions logged) and filter_writable()+PROTECTED_FIELDS mass-assignment guard.
+  • NEW utils/security_events.py — immutable append-only `security_events` collection (actor/tenant/site/action/resource/result/
+    IP/UA/method/path/request-id), indexed at boot (server.py _full_boot), fail-open, mirrored to structured logger.
+  • WIRED: PATCH /api/issues/{id} (authorize_resource + assert_transition + audit); PATCH & DELETE /api/equipment/{id} (added the
+    MISSING site isolation — a Site-A-only manager could previously modify Site-B kit in the same org). Existing org_filter kept as
+    defence-in-depth; existing field allow-lists/role gates untouched.
+  • NEW tests/test_security_authz_matrix.py — permanent regression suite, Tests A–H + admin-audit = 9/9 PASS (real Mongo fixtures,
+    AUTHZQA_* namespaced + torn down). Run: cd /app/backend && python -m pytest tests/test_security_authz_matrix.py -q
+  • REPORT: /app/memory/SECURITY_REVIEW.md (exec summary, findings register SEC-101..106, engine usage, test matrix, pen-test pack).
+  • VERIFIED: backend /api/health=200, both edited route modules import clean, 9/9 tests green. NOT yet e2e via live login (preview
+    master-admin login was rate-limited/403 during the session; engine validated at unit level through the exact code paths).
+  ⚠️ PREVIEW ONLY — REDEPLOY to push live. Phase 2 backlog: roll engine across quotes/contracts/MOD personnel/stock/documents/
+    invoices routes; mass-assignment sweep of remaining $set writes; step-up auth for destructive ops; Security Alert Centre UI;
+    full role×resource matrix; enable ENFORCE_MASTER_ADMIN_MFA once TOTP enrolled.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-09 (fork) · Master Admin fixes — org drawer role/width (D) + CRM operator-company scoping (C) + operator-portal verified (A) ═══
 User batch: (A) "Pulse Fitness Portal" switch shows no Pulse Fitness Ltd operations data; (B) MA login lands on Pulse Fitness AI
 Admin console; (C) Master Admin can't see CRM companies/contacts (worked as Owner); (D) org drawer — Staffing/CRM role doesn't pull
@@ -19261,7 +19288,7 @@ So any external bookmarks or stray copy-paste links keep working:
   redirects + scan the rest of the codebase for any remaining links
   to the dead paths (`/legal/privacy`, `/legal/terms`).
 * `make regression` → **385 passed, 14 skipped** (up from 379).
-* Live smoke against `https://pulse-tender-system.preview.emergentagent.com`:
+* Live smoke against `https://multi-eng-booking.preview.emergentagent.com`:
   * `/legal/privacy`     → final URL `/privacy` ✅
   * `/legal/terms`       → final URL `/terms` ✅
   * `/forgot-password`   → final URL `/reset-password` ✅
@@ -29833,7 +29860,7 @@ P6 — final phase of the Master Admin redesign blueprint. Replaces ad-hoc "Add 
   8-10. Backend endpoint calls verified.
   11. Created user appears in unified directory.
   12. Regression: People → Directory still works.
-- **Main agent live smoke**: signed in as `admin@gymaxisai.com`, ran full 5-step flow, created `Wizard Test User`, received invite URL `https://pulse-tender-system.preview.emergentagent.com/reset-password?token=l47KegLXL2FI…`.
+- **Main agent live smoke**: signed in as `admin@gymaxisai.com`, ran full 5-step flow, created `Wizard Test User`, received invite URL `https://multi-eng-booking.preview.emergentagent.com/reset-password?token=l47KegLXL2FI…`.
 
 ### Pulse Master Admin guardrails
 - 'GymAxis Master Admin' role tile hidden.

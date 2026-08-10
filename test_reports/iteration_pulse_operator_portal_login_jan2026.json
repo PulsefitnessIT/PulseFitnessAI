@@ -5,7 +5,7 @@
   "backend_tests": {
     "file": "/app/backend/tests/test_operator_portal_login.py",
     "results": {
-      "test_operator_portal_login_as_master_admin": "PASS — 200, organization_id=3ece2d0c-57ea-4acd-a6b4-d748478ed117, organization_name='Pulse Fitness Ltd', area='operator', JWT payload organization_id matches and impersonated_by=admin@pulsefitness.com",
+      "test_operator_portal_login_as_master_admin": "PASS — 200, organization_id=multi-eng-booking, organization_name='Pulse Fitness Ltd', area='operator', JWT payload organization_id matches and impersonated_by=admin@pulsefitness.com",
       "test_operator_portal_login_forbidden_for_non_master_admin": "PASS — owner@isodemo.com receives 401/403",
       "test_operator_portal_login_unauthenticated": "PASS — 401/403 without auth"
     },

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Body
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Body, Request
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 import uuid
@@ -1394,7 +1394,20 @@ def _apply_engineer_fields(data: dict, update_fields: dict) -> None:
 
 
 @router.patch("/issues/{issue_id}")
-async def update_issue(issue_id: str, data: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
+async def update_issue(issue_id: str, data: dict = Body(...), request: Request = None, user: dict = Depends(get_current_user)) -> dict:
+    from utils.authz import authorize_resource, assert_transition
+    # Central authorisation: proves the caller may act on THIS exact fault
+    # (tenant + site + existence) before any mutation. Deny-by-default.
+    current = await authorize_resource(user, "issue", issue_id, "update", request=request)
+
+    # Server-enforced fault state machine (blocks e.g. closed→open without
+    # manager rights, and any illegal jump) — never trust the client's UI.
+    if data.get("status"):
+        await assert_transition(
+            "issue", current.get("status"), data.get("status"), user,
+            resource_id=issue_id, request=request,
+        )
+
     org_filter = get_organization_filter(user)
     now = datetime.now(timezone.utc).isoformat()
 

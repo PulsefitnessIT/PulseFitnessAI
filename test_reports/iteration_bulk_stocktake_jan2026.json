@@ -12,7 +12,7 @@
   "updated_files": [],
   "success_rate": {"backend": "100%", "frontend": "100%"},
   "test_credentials": "owner@isodemo.com / IsoDemo123!",
-  "seed_data_creation": "Created 1 stock-take report id=83e0ddcd-de0c-4dc7-b167-48b93cd0e232 (found=2, missing=18, unexpected=1) for iso-demo org — safe demo data.",
+  "seed_data_creation": "Created 1 stock-take report id=multi-eng-booking (found=2, missing=18, unexpected=1) for iso-demo org — safe demo data.",
   "retest_needed": false,
   "should_main_agent_self_test": false,
   "context_for_next_testing_agent": "Bulk stock-take manual flow verified. Camera path can't be tested headless. History now has 1 row for iso-demo site."

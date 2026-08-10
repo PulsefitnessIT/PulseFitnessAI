@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Request
 from fastapi.responses import Response
 from datetime import datetime, timezone
 from typing import Dict, Any
@@ -834,8 +834,12 @@ async def get_equipment(equipment_id: str, user: dict = Depends(get_current_user
 
 
 @router.patch("/equipment/{equipment_id}")
-async def update_equipment(equipment_id: str, data: Dict[str, Any], user: dict = Depends(get_current_user)) -> dict:
+async def update_equipment(equipment_id: str, data: Dict[str, Any], request: Request = None, user: dict = Depends(get_current_user)) -> dict:
     """Update equipment with partial data - accepts any subset of fields"""
+    from utils.authz import authorize_resource
+    # Central authorisation: tenant + site isolation on THIS exact asset
+    # (a site-restricted manager cannot touch another site's kit).
+    await authorize_resource(user, "equipment", equipment_id, "update", request=request)
     org_filter = get_organization_filter(user)
 
     # Only allow updating specific fields
@@ -943,7 +947,7 @@ async def _dispatch_single_equipment_reassignment(
 
 
 @router.delete("/equipment/{equipment_id}")
-async def delete_equipment(equipment_id: str, user: dict = Depends(get_current_user)) -> dict:
+async def delete_equipment(equipment_id: str, request: Request = None, user: dict = Depends(get_current_user)) -> dict:
     # Iter 216h49 — was previously scoped to {user_id: user['id']} which
     # meant only the original uploader could delete the kit. Lee
     # (org owner) reported he couldn't delete kit created by other staff.
@@ -954,6 +958,9 @@ async def delete_equipment(equipment_id: str, user: dict = Depends(get_current_u
             status_code=403,
             detail="Only owners and managers can delete equipment",
         )
+    from utils.authz import authorize_resource
+    # Central authorisation: tenant + site isolation before a destructive op.
+    await authorize_resource(user, "equipment", equipment_id, "delete", request=request)
     org_filter = get_organization_filter(user)
     # Capture before delete for audit trail
     doc = await db.equipment.find_one(

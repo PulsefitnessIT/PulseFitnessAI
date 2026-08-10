@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 BASE = os.environ.get(
     "TEST_BASE_URL",
-    "https://pulse-tender-system.preview.emergentagent.com",
+    "https://multi-eng-booking.preview.emergentagent.com",
 )
 _TOKENS: dict[str, str] = {}
 

@@ -6,7 +6,7 @@
 > URLs since the doc was written:
 >
 > - Production: `https://gymaxisai.com`
-> - Preview: `https://pulse-tender-system.preview.emergentagent.com`
+> - Preview: `https://multi-eng-booking.preview.emergentagent.com`
 >
 > The `admin@gymaxisai.com` master-admin credentials in
 > `memory/test_credentials.md` are valid for both environments.
