@@ -425,7 +425,8 @@ _BRAND_DEFAULT_ORIGINS = [
     # MOD Service portal vanity domain — a non-.ai domain so the MoD BPS web
     # filter (which blanket-blocks the ".ai" AI/ML category) lets it through.
     # Served by a second deployment of this same codebase.
-    "https://modservice.pulsefitness.com",
+    "https://modservice-pulsefitness.com",
+    "https://www.modservice-pulsefitness.com",
     "https://fitness-ai-migrate.emergent.host",
 ]
 
