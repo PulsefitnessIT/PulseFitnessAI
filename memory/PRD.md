@@ -1,3 +1,26 @@
+# ═══ 2026-08-10 · SECURITY · Automated Authorisation Matrix (§36/§38) — CI gap-guard + caught a real BFLA bug (22/22) ═══
+Built the role×resource×method authorisation matrix as a CI regression that fails the build on any new endpoint auth gap.
+  • NEW scripts/gen_security_matrix.py: walks the live FastAPI app (server.app.routes), classifies every /api route
+    (methods, authenticated?, auth_dependencies, mutating?) via recursive dependency-tree introspection + an auth-name regex
+    (get_current_user, get_crm_user, *master_admin, *mod_site, verify_api_key, require_*, _require_*, etc.). Writes
+    security_matrix.json (full API inventory §38, 3046 endpoints) and security_matrix_baseline.json (216 curated public routes).
+    Regenerate baseline: python scripts/gen_security_matrix.py --write-baseline.
+  • NEW tests/test_auth_matrix.py (4 tests): asserts current unauthenticated /api routes ⊆ baseline → a NEW route with no auth
+    dependency (BFLA) fails the build with the offending path + fix instructions. Also: baseline sanity, every-route-classified,
+    resource-registry deny-by-default still wired. Guard proven (simulated new unauth route flagged; clean tree = 0 gaps).
+  • REAL BUG CAUGHT + FIXED: routes/admin_documents.py — @router.post('/ai-scan-duplicates') was decorating the sync helper
+    _build_doc_summaries (docs:list body, NO auth) instead of the real async ai_scan_duplicates (Depends(get_current_user) +
+    require_admin), which was undecorated dead code. Anyone could POST a list unauthenticated. Moved decorator to the correct
+    function → now 401 unauthenticated (verified via curl). Also taught the detector to recognise verify_api_key (external
+    /api/v1/supplier/* API-key auth) so those aren't false-flagged.
+  • Full security suite 22/22 pass (4 matrix + 14 authz + 4 step-up). Backend /api/health=200; admin_documents imports clean.
+  ⚠️ PREVIEW ONLY — REDEPLOY to push live. NOTE: 216 baseline public routes reviewed (all 106 mutating ones are legit: auth,
+    webhooks, token/QR/kiosk flows, member in-body _require_current_member) except the ai-scan bug now fixed. Wire the two new
+    tests into CI (pytest tests/test_auth_matrix.py) so gaps block deployment.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-10 · SECURITY · Security Alert Centre (§34) — live Master Admin view of security_events (tested 100%) ═══
 Built a Master-Admin-only, read-only Security Alert Centre over the security_events telemetry.
   • BACKEND: NEW routes/master_admin_security_centre.py (prefix /master-admin/security-centre, require_master_admin, registered in

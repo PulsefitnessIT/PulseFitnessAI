@@ -193,6 +193,26 @@ Master-Admin-only, **read-only** live view over `security_events`.
   download work); server-side `search` confirmed via curl (0 for no-match, 4
   for "fresh"); a FE debounce stale-closure race was found + fixed.
 
+## K. Automated Authorisation Matrix (§36 & §38) — DELIVERED
+
+CI regression that fails the build when a new endpoint has an authorisation gap.
+- **Generator:** `scripts/gen_security_matrix.py` walks the live FastAPI app,
+  classifies every `/api` route (methods, authenticated?, auth dependencies,
+  mutating?) → writes `security_matrix.json` (full API inventory §38) and
+  `security_matrix_baseline.json` (curated allow-list of intentionally-public
+  routes). 3,046 endpoints; 216 approved public routes.
+- **Test:** `tests/test_auth_matrix.py` — asserts the current set of
+  unauthenticated `/api` routes is a **subset of the baseline**. Any NEW route
+  without an auth dependency (BFLA gap) fails with the offending path listed.
+  Adding a public route requires a reviewed baseline regen. Guard proven: a
+  simulated new unauth route is flagged; clean tree = 0 gaps.
+- **Real bug caught + fixed:** `POST /master-admin/documents/ai-scan-duplicates`
+  had its route decorator attached to a sync helper (`_build_doc_summaries`),
+  leaving the endpoint **unauthenticated + broken** and the real
+  `ai_scan_duplicates` (with `get_current_user` + `require_admin`) as dead code.
+  Decorator moved to the correct function — now returns 401 unauthenticated.
+- **Tests:** 22/22 pass (4 matrix + 14 authz + 4 step-up).
+
 ## H. Pen-test readiness notes
 - **Test accounts:** see `/app/memory/test_credentials.md` (Master Admin,
   operator owner/manager, site-restricted manager, MOD site, member portal).

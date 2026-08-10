@@ -280,7 +280,6 @@ async def delete_global_document(file_id: str, user: dict = Depends(get_current_
     return {"message": "Document deleted"}
 
 
-@router.post("/ai-scan-duplicates")
 def _build_doc_summaries(docs: list) -> list:
     """Build compact summaries for AI duplicate comparison."""
     summaries = []
@@ -300,6 +299,7 @@ def _build_doc_summaries(docs: list) -> list:
     return summaries
 
 
+@router.post("/ai-scan-duplicates")
 async def ai_scan_duplicates(user: dict = Depends(get_current_user)):
     """AI-powered scan for semantic duplicates across all documents."""
     require_admin(user)
