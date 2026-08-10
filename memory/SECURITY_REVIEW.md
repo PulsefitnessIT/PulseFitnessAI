@@ -45,8 +45,14 @@ referenced incident (cancelling another user's reservation).
   the engine (`quote`, `contract`, `invoice`, `file`, `mod_site_staff`,
   `mod_incident`) for adoption as they're next touched. Contract transition
   enforcement deferred (complex multi-stage lifecycle — avoid regression).
-- Acceptance suite extended to **12 tests** (added quote skip-approval,
-  file cross-tenant/cross-site, MOD incident closure) — all passing.
+- **Contracts** (`crm_contracts.py`, `crm_contract_send.py`): **workflow lock**
+  — the draft→pending_approval→approved→sent→signed/active lifecycle is now
+  server-enforced. `sign` can't activate an unapproved draft; `approve` only
+  works from `pending_approval`; `send` refuses any unapproved contract
+  (closing the draft→sent→public-sign→active skip path); the public customer
+  sign link defensively re-checks the transition. (Contract Workflow Lock.)
+- Acceptance suite extended to **13 tests** (added contract workflow lock) —
+  all passing.
 
 ### Phase 1 — DELIVERED
 - **Central Authorisation Engine** (`utils/authz.py`) — one deny-by-default

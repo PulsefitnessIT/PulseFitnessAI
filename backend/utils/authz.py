@@ -233,13 +233,21 @@ STATE_MACHINES: dict[str, dict[str, set]] = {
         "cancelled":        set(),
     },
     "contract": {
-        "draft":            {"pending_approval", "sent", "cancelled"},
-        "pending_approval": {"approved", "active", "sent", "rejected", "draft", "cancelled"},
-        "approved":         {"active", "sent", "cancelled"},
-        "sent":             {"active", "signed", "expired", "cancelled"},
+        # Enforced lifecycle: draft → (negotiation/amended) → pending_approval
+        # → approved → sent → signed/active. A contract can NOT be sent,
+        # signed or activated until it has been APPROVED — no request can skip
+        # the approval step (Contract Workflow Lock).
+        "draft":            {"negotiation", "amended", "pending_approval", "cancelled"},
+        "negotiation":      {"draft", "amended", "pending_approval", "cancelled"},
+        "amended":          {"draft", "negotiation", "pending_approval", "cancelled"},
+        "pending_approval": {"approved", "rejected", "draft", "cancelled"},
+        "rejected":         {"draft", "negotiation", "amended", "pending_approval", "cancelled"},
+        "approved":         {"sent", "signed", "active", "cancelled"},
+        "sent":             {"signed", "active", "approved", "expired", "cancelled"},
         "signed":           {"active", "expired", "cancelled"},
-        "active":           {"expired", "terminated", "cancelled"},
-        "expired":          {"active"},      # renewal
+        "active":           {"amended", "expired", "terminated", "cancelled"},
+        "expired":          {"active", "draft", "cancelled"},   # renewal
+        "terminated":       set(),
         "cancelled":        set(),
     },
     "mod_incident": {

@@ -118,6 +118,17 @@ async def send_contract_to_customer(contract_id: str, data: dict,
     of = _of(user)
     contract, org = await _load_contract_with_org(contract_id, of)
 
+    # Workflow lock: a contract must be APPROVED before it can be sent to the
+    # customer (blocks the draft → sent → public-sign → active skip path).
+    if (contract.get("status") or "").lower() in ("draft", "negotiation", "amended", "pending_approval", "rejected"):
+        from utils.security_events import log_security_event, SEV_WARNING
+        await log_security_event(
+            "contract_send_blocked_unapproved", user=user, severity=SEV_WARNING,
+            resource_type="contract", resource_id=contract_id, action="send",
+            result="denied", detail=f"status={contract.get('status')}",
+        )
+        raise HTTPException(403, "This contract must be approved before it can be sent to the customer.")
+
     # Resolve recipient.
     to_email = (data.get("to") or "").strip().lower()
     if not to_email:
@@ -258,6 +269,11 @@ async def public_contract_sign(token: str, data: dict):
     if contract.get("status") in ("active", "signed", "cancelled"):
         # Idempotent — re-signing an already-signed contract just confirms.
         return {"success": True, "status": contract["status"], "already_signed": True}
+    # Defensive workflow lock: the public link can only activate a contract
+    # that reached the customer via the approved→sent path.
+    from utils.authz import assert_transition
+    await assert_transition("contract", contract.get("status"), "active", {},
+                            resource_id=contract["id"])
     updates = {
         "signed_by": signer, "signed_at": _now(),
         "signature": sig, "status": "active",

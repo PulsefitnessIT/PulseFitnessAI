@@ -485,11 +485,17 @@ async def sign_contract(contract_id: str, data: dict, user=Depends(get_crm_user)
     if not c:
         raise HTTPException(404, "Contract not found")
 
+    target_status = "active" if data.get("activate", True) else "signed"
+    # Workflow lock: a contract can only be signed/activated once it has been
+    # APPROVED (or already sent/signed) — blocks signing an unapproved draft.
+    from utils.authz import assert_transition
+    await assert_transition("contract", c.get("status"), target_status, user, resource_id=contract_id)
+
     updates = {
         "signature": data.get("signature"),
         "signed_by": data.get("signer_name", user.get("full_name", "")),
         "signed_at": _now(),
-        "status": "active" if data.get("activate", True) else "signed",
+        "status": target_status,
         "updated_at": _now(),
     }
     await db.crm2_contracts.update_one({"id": contract_id}, {"$set": updates})
@@ -536,6 +542,8 @@ async def submit_for_approval(contract_id: str, data: dict, user=Depends(get_crm
     c = await db.crm2_contracts.find_one({"id": contract_id, **_of(user)})
     if not c:
         raise HTTPException(404, "Contract not found")
+    from utils.authz import assert_transition
+    await assert_transition("contract", c.get("status"), "pending_approval", user, resource_id=contract_id)
     if c.get("status") not in ("draft", "negotiation", "amended"):
         raise HTTPException(400, f"Cannot submit from status '{c.get('status')}'")
 
@@ -581,6 +589,12 @@ async def approve_contract(contract_id: str, data: dict, user=Depends(get_crm_us
     if not c:
         raise HTTPException(404, "Contract not found")
 
+    new_status = "approved" if decision == "approved" else "draft"
+    # Workflow lock: a contract can only be approved from 'pending_approval'
+    # — blocks approving a contract that never went through submission.
+    from utils.authz import assert_transition
+    await assert_transition("contract", c.get("status"), new_status, user, resource_id=contract_id)
+
     pending = await db.crm2_contract_approvals.find_one(
         {"contract_id": contract_id, "status": "pending"}, sort=[("created_at", -1)]
     )
@@ -592,7 +606,6 @@ async def approve_contract(contract_id: str, data: dict, user=Depends(get_crm_us
             "decided_at": _now(),
         }})
 
-    new_status = "approved" if decision == "approved" else "draft"
     await db.crm2_contracts.update_one({"id": contract_id}, {"$set": {"status": new_status, "updated_at": _now()}})
     await record_audit(
         entity_type="contract", entity_id=contract_id, action="approve",

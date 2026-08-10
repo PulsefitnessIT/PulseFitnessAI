@@ -1,3 +1,21 @@
+# ═══ 2026-08-10 · SECURITY · Contract Workflow Lock — draft→approved→active enforced server-side (tests 13/13) ═══
+Closed the contract skip-approval holes. Two existed: (1) sign_contract activated from ANY status (draft→active); (2) send
+flipped draft→sent, enabling draft→sent→public-sign→active without approval.
+  • authz.py: rewrote the "contract" state machine to the REAL statuses (draft/negotiation/amended/pending_approval/approved/
+    rejected/sent/signed/active/expired/terminated/cancelled). draft/negotiation/amended CANNOT reach sent/signed/active/approved —
+    only pending_approval→approved, then approved→sent/signed/active.
+  • routes/crm_contracts.py: assert_transition wired into submit-approval (→pending_approval), approve (→approved, only from
+    pending_approval), sign (→active/signed, blocks unapproved draft).
+  • routes/crm_contract_send.py: send now 403s any unapproved contract (status in draft/negotiation/amended/pending_approval/
+    rejected) with a security event; public customer sign defensively asserts current→active is legal. Re-sending an approved/
+    active contract still works (precise guard, not a blanket transition).
+  • tests/test_security_authz_matrix.py: +test_contract_workflow_lock → 13/13 PASS. Backend /api/health=200; modules import clean.
+  ⚠️ PREVIEW ONLY — REDEPLOY to push live. Behaviour change: sending/signing a DRAFT contract is now blocked (by design — approval
+    is mandatory). Backlog: invoice/stock engine wiring, step-up auth, Security Alert Centre UI.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-10 · SECURITY Phase 2 — engine rollout to quotes / MOD incidents / documents / MOD personnel (tests 12/12) ═══
 Rolled the Central Authorisation Engine across the requested high-risk families. Non-breaking (existing tenant scopes kept as
 defence-in-depth); focused on real gaps rather than redundant churn.

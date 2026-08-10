@@ -92,11 +92,17 @@ async def _seed():
         {"id": _uid("inc_open"), "site_id": SITE_A1, "organization_id": ORG_A, "status": "open"},
         {"id": _uid("inc_closed"), "site_id": SITE_A1, "organization_id": ORG_A, "status": "closed"},
     ])
+    # CRM contracts for the workflow-lock tests.
+    await db.crm2_contracts.insert_many([
+        {"id": _uid("c_draft"), "organization_id": ORG_A, "status": "draft", "contract_number": "C-1"},
+        {"id": _uid("c_pending"), "organization_id": ORG_A, "status": "pending_approval", "contract_number": "C-2"},
+        {"id": _uid("c_approved"), "organization_id": ORG_A, "status": "approved", "contract_number": "C-3"},
+    ])
 
 
 async def _teardown():
     for name in ("organizations", "sites", "equipment", "issues", "bookings",
-                 "files", "crm2_quotes", "mod_incidents"):
+                 "files", "crm2_quotes", "mod_incidents", "crm2_contracts"):
         await db[name].delete_many({"id": {"$regex": f"^{P}"}})
     await db.security_events.delete_many({"resource_id": {"$regex": f"^{P}"}})
 
@@ -349,6 +355,28 @@ class TestSecurityMatrix:
             with pytest.raises(HTTPException) as ei:
                 await assert_transition("mod_incident", "closed", "reopened", staff, resource_id=_uid("inc_closed"))
             assert ei.value.status_code == 403
+            await _teardown()
+            clear_request_site_scope()
+        asyncio.run(run())
+
+    def test_contract_workflow_lock(self):
+        async def run():
+            await _seed()
+            u = _user(ORG_A, role="manager")
+            _bind_scope(u)
+            # A draft contract cannot skip approval — none of these are legal.
+            for bad_target in ("approved", "signed", "active", "sent"):
+                with pytest.raises(HTTPException) as ei:
+                    await assert_transition("contract", "draft", bad_target, u, resource_id=_uid("c_draft"))
+                assert ei.value.status_code == 409, f"draft→{bad_target} should be blocked"
+            # Legit path: draft → pending_approval → approved → active.
+            await assert_transition("contract", "draft", "pending_approval", u, resource_id=_uid("c_draft"))
+            await assert_transition("contract", "pending_approval", "approved", u, resource_id=_uid("c_pending"))
+            await assert_transition("contract", "approved", "active", u, resource_id=_uid("c_approved"))
+            # A contract can only be APPROVED from pending_approval.
+            with pytest.raises(HTTPException) as ei2:
+                await assert_transition("contract", "draft", "approved", u, resource_id=_uid("c_draft"))
+            assert ei2.value.status_code == 409
             await _teardown()
             clear_request_site_scope()
         asyncio.run(run())
