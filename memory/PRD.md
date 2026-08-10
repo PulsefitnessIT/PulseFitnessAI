@@ -1,3 +1,21 @@
+# ═══ 2026-08-10 · SECURITY · CI wiring — authorisation gate as a required deploy gate (validated) ═══
+Wired the three security suites (test_auth_matrix, test_security_authz_matrix, test_step_up) into every gate so an auth gap blocks the build.
+  • scripts/pre-deploy.sh §0c: NEW 'Zero-Trust authorisation gate' — runs the trio; deploy ABORTS (fail) on any BOLA/BFLA/step-up
+    regression or new unauthenticated /api route. Escape hatch SKIP_SECURITY_AUTHZ=1. Uses existing note/ok/fail/warn helpers.
+    bash -n validated.
+  • .github/workflows/ci.yml: NEW job 'security-gate' (runs-on ubuntu, services: mongo:7 on 27017, env MONGO_URL/DB_NAME=pulse_ci)
+    → pip install -r requirements.txt + pytest-asyncio, then pytest the three files. YAML validated (jobs: precommit, backend-tests,
+    security-gate).
+  • Makefile: NEW 'security' target (8-space indent to MATCH the file's existing recipe convention — verified byte-identical to the
+    regression recipe via od -c; do NOT convert to a tab). Added to .PHONY line.
+  • VALIDATED: bash -n pre-deploy.sh OK; ci.yml YAML parses; exact gate command `pytest tests/test_auth_matrix.py
+    tests/test_security_authz_matrix.py tests/test_step_up.py` = 22/22 pass. Backend /api/health=200.
+  ⚠️ For write actions (commit workflow/Makefile/pre-deploy changes to the repo) the user should use the 'Save to GitHub' feature.
+    The GH Actions job only runs once pushed to GitHub. PREVIEW ONLY otherwise.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-10 · SECURITY · Automated Authorisation Matrix (§36/§38) — CI gap-guard + caught a real BFLA bug (22/22) ═══
 Built the role×resource×method authorisation matrix as a CI regression that fails the build on any new endpoint auth gap.
   • NEW scripts/gen_security_matrix.py: walks the live FastAPI app (server.app.routes), classifies every /api route

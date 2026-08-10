@@ -373,6 +373,13 @@ regression:
 security-scan:
         @bash /app/backend/scripts/security-scan.sh
 
+# Zero-Trust authorisation gate — BOLA / BFLA (new-endpoint auth gap) /
+# cross-tenant / cross-site / mass-assignment / state-machine / step-up.
+# Same three suites the pre-deploy guard and CI security-gate run.
+security:
+        @cd /app/backend && python3 -m pytest tests/test_auth_matrix.py tests/test_security_authz_matrix.py tests/test_step_up.py -q --tb=short
+
+
 # Iter 216h211 — full trust-recovery regression suite. 84 isolated
 # tests across 6 modules (Auth, Memberships, Operations, Service Desk,
 # MOD, CRM). No live server, no admin tokens, ~1 min runtime. This is

@@ -138,3 +138,44 @@ jobs:
         # runs locally before pushing. CI runs it verbatim so there
         # is exactly ONE definition of "did the suite pass".
         run: make regression
+
+  security-gate:
+    name: Zero-Trust authorisation gate (BOLA · BFLA · step-up)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    # Fails the build if a NEW /api endpoint ships without an auth dependency
+    # (Broken Function-Level Authorisation) or if any BOLA / cross-tenant /
+    # cross-site / mass-assignment / state-machine / step-up guard regresses.
+    # Needs a live Mongo (the authz tests seed + assert against it).
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    env:
+      MONGO_URL: mongodb://localhost:27017
+      DB_NAME: pulse_ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install deps
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Authorisation matrix + BOLA + step-up regression
+        working-directory: backend
+        run: |
+          python -m pytest \
+            tests/test_auth_matrix.py \
+            tests/test_security_authz_matrix.py \
+            tests/test_step_up.py \
+            -q --tb=short

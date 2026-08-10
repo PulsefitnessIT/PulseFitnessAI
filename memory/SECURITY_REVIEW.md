@@ -212,6 +212,12 @@ CI regression that fails the build when a new endpoint has an authorisation gap.
   `ai_scan_duplicates` (with `get_current_user` + `require_admin`) as dead code.
   Decorator moved to the correct function — now returns 401 unauthenticated.
 - **Tests:** 22/22 pass (4 matrix + 14 authz + 4 step-up).
+- **CI wiring (required deploy gate):**
+  - `scripts/pre-deploy.sh` §0c runs the three suites — deploy **aborts** on any
+    BOLA/BFLA/step-up regression (bypass only via `SKIP_SECURITY_AUTHZ=1`).
+  - `.github/workflows/ci.yml` job **`security-gate`** (Mongo 7 service) runs
+    them on every PR/push.
+  - `make security` for local runs.
 
 ## H. Pen-test readiness notes
 - **Test accounts:** see `/app/memory/test_credentials.md` (Master Admin,

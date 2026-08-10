@@ -92,6 +92,31 @@ else
   ok 'ruff clean · bandit 0 High / 0 Medium'
 fi
 
+# ---------------------------------------------------------------------------
+# 0c) Zero-Trust authorisation gate (security programme §36/§18/§8)
+# ---------------------------------------------------------------------------
+# Blocks the deploy on ANY authorisation regression:
+#   • test_auth_matrix          — a NEW /api route with no auth dependency
+#                                 (Broken Function-Level Authorisation) OR a
+#                                 broken resource-registry deny-by-default.
+#   • test_security_authz_matrix — BOLA / cross-tenant / cross-site / mass-
+#                                 assignment / state-machine (Tests A–H).
+#   • test_step_up              — fresh re-auth gate for destructive actions.
+# These are fast (~10 s), hit the local Mongo, and are the single source of
+# truth for "is the platform's authorisation still sound".
+if [[ "${SKIP_SECURITY_AUTHZ:-0}" == 1 ]]; then
+  warn 'SKIP_SECURITY_AUTHZ=1 — bypassing Zero-Trust authorisation gate'
+else
+  note 'Zero-Trust authorisation gate — BOLA / BFLA / step-up regression'
+  python3 -m pytest \
+      tests/test_auth_matrix.py \
+      tests/test_security_authz_matrix.py \
+      tests/test_step_up.py \
+      -q --tb=line --no-header \
+    || fail 'AUTHORISATION GATE FAILED — a BOLA/BFLA/step-up regression or a new unauthenticated endpoint was detected. Fix before deploying (see /app/memory/SECURITY_REVIEW.md). To register a genuinely-public new route: python scripts/gen_security_matrix.py --write-baseline (reviewed).'
+  ok 'Authorisation gate green (no new auth gaps · BOLA/tenant/site/mass-assign/step-up all enforced)'
+fi
+
 # Force .env to take precedence over pod stubs (matches utils/database.py
 # behaviour at runtime).
 note "Loading /app/backend/.env (overrides pod env)"
