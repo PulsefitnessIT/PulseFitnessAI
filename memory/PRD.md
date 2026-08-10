@@ -35144,3 +35144,9 @@ Portal User Guide:
 - User choices: 10s interval, console-only polling, email best-effort (Resend key invalid on PREVIEW → email fails there; works in production after redeploy — in-app toast is primary and fully working).
 - Testing: backend curl-verified (emit → feed → poll → ack → count 0); frontend E2E 100% (report iteration_realtime_security_alerts_toast_jan2026.json — toast appears <=10s, correct copy, action navigates, no duplicates over 2+ poll cycles).
 - QA helper: scripts/emit_test_security_alert.py emits a synthetic critical bola_cross_tenant_denied event.
+
+## Changelog — 2026-08-10 (fork) · Abuse Unblock Control (COMPLETE)
+- Master Admin can now one-click clear a wrongly-flagged actor's abuse escalation (throttle/step-up/suspend) from the Security Alert Centre.
+- Backend (routes/master_admin_security_centre.py): GET /api/master-admin/security-centre/abuse/active (lists actors from abuse_counters with level>0 and until>now — key, actor, level_name, count, last_ip, until) and POST .../abuse/clear {key,reason?} which resets level/count and unsets until/window_start, then writes an audited `abuse_suspension_cleared` (SEV_INFO, non-alertable) security event.
+- Frontend (SecurityAlertCentre.js): amber "Suspended / throttled actors" panel above the filters listing each active escalation with a confirm-gated "Clear suspension" button (useConfirm). data-testids: abuse-suspended-panel, abuse-actor-<key>, abuse-clear-btn-<key>. Loaded alongside summary/events and refreshed on the existing 15s live poll.
+- Testing: backend curl-verified (seed suspended actor → active list count 1 → clear → count 0 → audit event present); frontend screenshot confirms panel + SUSPEND badge + Clear suspension button render and the cleared audit event appears in the events table.

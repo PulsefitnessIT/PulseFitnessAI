@@ -15,11 +15,12 @@ import io
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from utils.auth import get_current_user
 from utils.database import db
+from utils.security_events import log_security_event, SEV_INFO
 from routes.master_admin import require_master_admin
 
 router = APIRouter(prefix="/master-admin/security-centre", tags=["master-admin-security-centre"])
@@ -137,6 +138,79 @@ async def ack_alerts(
         await db.security_alert_feed.update_many(
             {"acknowledged": {"$ne": True}}, {"$set": {"acknowledged": True}})
     return {"ok": True, "acknowledged": len(ids) if ids else "all"}
+
+
+def _parse_ts(v):
+    if not v:
+        return None
+    if isinstance(v, datetime):
+        return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+    try:
+        dt = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
+
+@router.get("/abuse/active")
+async def list_active_abuse(user: dict = Depends(get_current_user)):
+    """Actors currently under an active abuse escalation (throttle/step-up/
+    suspend) so the Master Admin can free a wrongly-flagged actor in one click."""
+    require_master_admin(user)
+    from utils.abuse_guard import _LEVEL_NAME
+    now = datetime.now(timezone.utc)
+    rows = await db.abuse_counters.find(
+        {"level": {"$gt": 0}}, {"_id": 0}).sort("ts", -1).limit(200).to_list(length=200)
+    out = []
+    for r in rows:
+        until = _parse_ts(r.get("until"))
+        if not until or until <= now:
+            continue  # cooldown already elapsed — effectively cleared
+        out.append({
+            "key": r.get("id"),
+            "actor": r.get("actor") or r.get("id"),
+            "last_ip": r.get("last_ip"),
+            "level": int(r.get("level", 0)),
+            "level_name": _LEVEL_NAME.get(int(r.get("level", 0)), "unknown"),
+            "count": int(r.get("count", 0)),
+            "until": until.isoformat(),
+            "window_start": r.get("window_start"),
+        })
+    return {"count": len(out), "actors": out}
+
+
+@router.post("/abuse/clear")
+async def clear_abuse(
+    payload: dict,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """One-click clear of an actor's abuse escalation/suspension (audited)."""
+    require_master_admin(user)
+    key = (payload.get("key") or "").strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="key is required")
+    existing = await db.abuse_counters.find_one({"id": key}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="No abuse record for that actor")
+    reason = (payload.get("reason") or "").strip()
+    await db.abuse_counters.update_one(
+        {"id": key},
+        {"$set": {"level": 0, "count": 0},
+         "$unset": {"until": "", "window_start": ""}},
+    )
+    await log_security_event(
+        "abuse_suspension_cleared",
+        user=user, request=request, severity=SEV_INFO,
+        action="abuse_clear", result="cleared",
+        resource_type="actor", resource_id=key,
+        detail=f"Master admin cleared abuse escalation for {existing.get('actor') or key}"
+               + (f" — reason: {reason}" if reason else ""),
+        extra={"cleared_actor": existing.get("actor") or key,
+               "previous_level": existing.get("level"),
+               "previous_count": existing.get("count")},
+    )
+    return {"ok": True, "cleared": key}
 
 
 @router.get("/summary")

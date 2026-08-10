@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   ShieldAlert, RefreshCcw, Download, Search, AlertTriangle,
-  Ban, ShieldCheck, Activity, Loader2,
+  Ban, ShieldCheck, Activity, Loader2, ShieldOff,
 } from 'lucide-react';
+import { notify, useConfirm } from '@/components/notifications';
 
 const API = process.env.REACT_APP_BACKEND_URL
   ? `${process.env.REACT_APP_BACKEND_URL}/api`
@@ -46,6 +47,9 @@ export default function SecurityAlertCentre() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [live, setLive] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(null);
+  const [suspended, setSuspended] = useState([]);
+  const [clearingKey, setClearingKey] = useState(null);
+  const confirm = useConfirm();
 
   // Debounce the search box into debouncedSearch (avoids stale-closure refetch).
   useEffect(() => {
@@ -59,12 +63,14 @@ export default function SecurityAlertCentre() {
       if (category) params.category = category;
       if (severity) params.severity = severity;
       if (debouncedSearch) params.search = debouncedSearch;
-      const [sRes, eRes] = await Promise.all([
+      const [sRes, eRes, aRes] = await Promise.all([
         axios.get(`${BASE}/summary`, { ...auth(), params: { since_days: sinceDays } }),
         axios.get(`${BASE}/events`, { ...auth(), params }),
+        axios.get(`${BASE}/abuse/active`, { ...auth() }).catch(() => ({ data: { actors: [] } })),
       ]);
       setSummary(sRes.data);
       setEvents(eRes.data.events || []);
+      setSuspended(aRes.data.actors || []);
       setLastRefresh(new Date());
     } catch (e) {
       console.error('security-centre load failed', e);
@@ -72,6 +78,27 @@ export default function SecurityAlertCentre() {
       setLoading(false);
     }
   }, [sinceDays, category, severity, debouncedSearch]);
+
+  const clearSuspension = async (row) => {
+    const ok = await confirm({
+      title: 'Clear suspension?',
+      tone: 'warning',
+      detail: `This immediately lifts the ${row.level_name.replace('_', ' ')} escalation on “${row.actor}”. They'll be able to perform sensitive actions again. The action is audited.`,
+      confirmLabel: 'Clear suspension',
+    });
+    if (!ok) return;
+    setClearingKey(row.key);
+    try {
+      await axios.post(`${BASE}/abuse/clear`, { key: row.key }, { ...auth() });
+      notify.success('Suspension cleared', `${row.actor} can act normally again.`);
+      setSuspended((prev) => prev.filter((r) => r.key !== row.key));
+      load();
+    } catch (e) {
+      notify.error('Could not clear suspension', e?.response?.data?.detail || e.message);
+    } finally {
+      setClearingKey(null);
+    }
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -155,6 +182,50 @@ export default function SecurityAlertCentre() {
           </div>
         ))}
       </div>
+
+      {/* Suspended actors — one-click clear */}
+      {suspended.length > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06]" data-testid="abuse-suspended-panel">
+          <div className="flex items-center gap-2 border-b border-amber-500/20 px-4 py-2.5">
+            <ShieldOff className="h-4 w-4 text-amber-400" />
+            <h3 className="text-sm font-semibold text-amber-200">
+              Suspended / throttled actors
+              <span className="ml-2 rounded-full bg-amber-500/20 px-2 py-0.5 text-xs text-amber-300">{suspended.length}</span>
+            </h3>
+            <span className="ml-auto text-xs text-white/40">Auto-response escalation · clear a wrongly-flagged actor</span>
+          </div>
+          <div className="divide-y divide-white/5">
+            {suspended.map((row) => (
+              <div key={row.key} className="flex flex-wrap items-center gap-3 px-4 py-3" data-testid={`abuse-actor-${row.key}`}>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-sm font-medium text-white/90">{row.actor}</span>
+                    <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-300">
+                      {row.level_name.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 text-xs text-white/40">
+                    {row.count} denial{row.count === 1 ? '' : 's'}
+                    {row.last_ip ? ` · IP ${row.last_ip}` : ''}
+                    {row.until ? ` · until ${fmtTime(row.until)}` : ''}
+                  </div>
+                </div>
+                <button
+                  onClick={() => clearSuspension(row)}
+                  disabled={clearingKey === row.key}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/25 disabled:opacity-50"
+                  data-testid={`abuse-clear-btn-${row.key}`}
+                >
+                  {clearingKey === row.key
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <ShieldCheck className="h-3.5 w-3.5" />}
+                  Clear suspension
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
