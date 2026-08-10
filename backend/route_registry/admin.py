@@ -57,6 +57,7 @@ from routes.master_admin_pricing import router as master_admin_pricing_router
 from routes.master_admin_billing import router as master_admin_billing_router
 from routes.master_admin_login_events import router as master_admin_login_events_router
 from routes.master_admin_audit_log import router as master_admin_audit_log_router
+from routes.master_admin_security_centre import router as master_admin_security_centre_router
 from routes.master_admin_communications import (
     router as master_admin_communications_router,
     canned_router as master_admin_canned_replies_router,
@@ -151,6 +152,7 @@ def register_admin(api_router: APIRouter) -> None:
         master_admin_pricing_router, master_admin_billing_router,
         master_admin_login_events_router,
         master_admin_audit_log_router,
+        master_admin_security_centre_router,
         master_admin_communications_router,
         master_admin_canned_replies_router,
         master_admin_theme_router,

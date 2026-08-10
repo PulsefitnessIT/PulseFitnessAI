@@ -159,6 +159,7 @@ export const SIDEBAR_ITEMS = [
     id: 'compliance-security', label: 'Compliance & Security', icon: ShieldCheck, group: 'main',
     subTabs: [
       { id: 'audit-log',          label: 'Audit & compliance',  icon: ScrollText },
+      { id: 'security-centre',    label: 'Security Alert Centre', icon: ShieldAlert },
       { id: 'login-events',       label: 'Login events',        icon: ShieldAlert },
       { id: 'access-matrix',      label: 'Access matrix',       icon: BadgeCheck },
       { id: 'gdpr-erasure',       label: 'Data Subject Erasure', icon: ShieldOff },
@@ -237,6 +238,7 @@ export const LEGACY_SECTION_REDIRECTS = {
   // resolves each id directly. This map is here to make P3-P5
   // consolidations explicit and reviewable.
   'audit-log':          'settings-compliance',
+  'security-centre':    'settings-compliance',
   'login-events':       'settings-compliance',
   'access-matrix':      'settings-compliance',
   'client-errors':      'settings-compliance',
@@ -298,6 +300,7 @@ export const sectionTitles = {
   'login-events': 'Login events',
   'client-errors': 'Client crashes',
   'audit-log': 'Audit & compliance',
+  'security-centre': 'Security Alert Centre',
   'locked-staff': 'Site-locked users',          // Iter 216h17 — terminology cleanup
   trust: 'Status & uptime',                     // moved into System Health group
   archive: 'Archive',                           // Iter 216h53 — relocated from Service Desk
@@ -367,6 +370,7 @@ export const sectionDescriptions = {
   'access-matrix': 'Live role × capability grid — evaluated straight from the permission code, so it can never drift.',
   'client-errors': 'Front-end render crashes captured by ModalErrorBoundary — see the stack & component-stack to debug what broke for a user.',
   'audit-log': 'Unified security + compliance timeline — every login, MFA challenge, wallet/Auto-Bill charge and retry-ladder escalation, with CSV export for SOC 2 / pentest evidence.',
+  'security-centre': 'Live Zero-Trust security telemetry — access-control denials, cross-tenant/site attempts, skip-approval blocks, step-up challenges and financial/stock movements, with CSV export for pentest evidence.',
   'locked-staff': 'Read-only audit view of every user with a per-site restriction set. Joins org name + site names + last-changed timestamp.',
   trust: 'Platform health, security events, and integration status — detect before customers do',
   'ask-support': 'Human-escalated AI support cases, CSAT trends, and deflection analytics',

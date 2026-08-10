@@ -176,6 +176,23 @@ Fresh re-authentication is required before especially destructive actions.
 - **Tests:** `tests/test_step_up.py` (4) — challenge/freshness, enforced gate,
   disabled no-op, expiry. All passing.
 
+## J. Security Alert Centre (§34) — DELIVERED
+
+Master-Admin-only, **read-only** live view over `security_events`.
+- **Backend:** `routes/master_admin_security_centre.py` (prefix
+  `/master-admin/security-centre`, `require_master_admin`):
+  `GET /events` (filters: since_days, event_type, category, severity, actor,
+  tenant_id, search; newest-first), `GET /summary` (totals by severity +
+  category, top actors, top IPs), `GET /export.csv` (pen-test/SOC 2 evidence).
+  No mutation endpoints (audit immutability §35).
+- **Frontend:** `pages/MasterAdmin/SecurityAlertCentre.js` under
+  Compliance & Security → **Security Alert Centre** (`?section=security-centre`).
+  KPI tiles, category chips, severity + time-range filters, debounced search,
+  live 15s auto-refresh, CSV export. Full `data-testid` coverage.
+- **Verified:** testing agent 100% FE + BE (KPIs populated, filters + CSV
+  download work); server-side `search` confirmed via curl (0 for no-match, 4
+  for "fresh"); a FE debounce stale-closure race was found + fixed.
+
 ## H. Pen-test readiness notes
 - **Test accounts:** see `/app/memory/test_credentials.md` (Master Admin,
   operator owner/manager, site-restricted manager, MOD site, member portal).

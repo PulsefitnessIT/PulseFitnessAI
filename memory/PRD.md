@@ -1,3 +1,24 @@
+# ═══ 2026-08-10 · SECURITY · Security Alert Centre (§34) — live Master Admin view of security_events (tested 100%) ═══
+Built a Master-Admin-only, read-only Security Alert Centre over the security_events telemetry.
+  • BACKEND: NEW routes/master_admin_security_centre.py (prefix /master-admin/security-centre, require_master_admin, registered in
+    route_registry/admin.py). GET /events (filters since_days/event_type/category/severity/actor/tenant_id/search, newest-first),
+    GET /summary (by_severity, by_category, by_type, top_actors, top_ips, access_denials), GET /export.csv (SOC2/pentest evidence).
+    Read-only (no mutations — audit immutability §35). Event categories: access_denied, workflow, mass_assignment, step_up,
+    financial, stock, privileged.
+  • FRONTEND: NEW pages/MasterAdmin/SecurityAlertCentre.js; nav sub-tab 'security-centre' under 'Compliance & Security' in
+    SidebarConfig.js; render case in MasterAdminPage.js (?section=security-centre). KPI tiles, category chips, severity + time-range
+    dropdowns, debounced search, Live 15s auto-refresh, Refresh + CSV export. Full data-testid coverage
+    (security-alert-centre, security-tile-*, security-events-table, security-cat-*, security-severity-select, security-since-select,
+    security-search-input, security-live-toggle, security-refresh-btn, security-export-btn, security-empty).
+  • VERIFIED: testing_agent 100% FE + BE (iteration_security_alert_centre_frontend_jan2026.json) — KPIs populated (10 events),
+    filters + CSV download work, endpoints 200 for master admin / 401 unauth. Server-side search confirmed via curl (zzz→0, fresh→4).
+    FIXED a FE debounce stale-closure race the tester flagged (search sometimes didn't filter) by moving to a debouncedSearch state.
+    Frontend compiles; backend /api/health=200.
+  ⚠️ PREVIEW ONLY — REDEPLOY to push live. Route: Master Admin → Compliance & Security → Security Alert Centre.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-10 · SECURITY · Invoice & Stock Guard — billing state machine + inventory audit (tests 18/18) ═══
 Extended the engine to billing + inventory writes. Both flows were already org-scoped (invoices also engineer-ownership scoped
 via _get_invoice_or_404; dealer allocations via _of + inline status guards + manager gate), so this adds the missing STATE MACHINE

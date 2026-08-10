@@ -79,6 +79,7 @@ const AdminCommunications = lazy(() => import('./MasterAdmin/AdminCommunications
 const AdminCannedReplies = lazy(() => import('./MasterAdmin/AdminCannedReplies'));
 const AdminPulseSales = lazy(() => import('./MasterAdmin/AdminPulseSales'));
 const AuditCompliancePanel = lazy(() => import('./MasterAdmin/AuditCompliancePanel'));
+const SecurityAlertCentre = lazy(() => import('./MasterAdmin/SecurityAlertCentre'));
 const BrandingDesignPanel = lazy(() => import('./MasterAdmin/BrandingDesignPanel'));
 const CustomDomainsPanel = lazy(() => import('./MasterAdmin/CustomDomainsPanel'));
 const AnalyticsSection = lazy(() => import('./MasterAdmin/AnalyticsSection'));
@@ -471,6 +472,8 @@ const MasterAdminPage = ({ _onBack }) => {
         // P0 SSoT — security timeline + compliance trail merged into one
         // "Audit & compliance" screen with an internal toggle.
         return <AuditCompliancePanel initialTab={section === 'audit-logs' ? 'compliance' : 'security'} />;
+      case 'security-centre':
+        return <SecurityAlertCentre />;
       case 'capex-config':
         return (
           <AdminCapex
