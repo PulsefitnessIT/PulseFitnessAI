@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react';
 
 import { useAuth } from '@/App';
 import { notify, useInlineBanner } from '@/components/notifications';
@@ -30,6 +30,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  // TOTP MFA second step — kept in memory only (never persisted). Set when
+  // /auth/login responds with {requires_mfa, temp_token} for an MFA-enrolled
+  // account (e.g. the master admin who has enabled an authenticator).
+  const [mfa, setMfa] = useState(null); // { tempToken, email }
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaBusy, setMfaBusy] = useState(false);
+  const [mfaErr, setMfaErr] = useState('');
   const { banner, _show, clear } = useInlineBanner({ autoDismiss: false });
 
   // Iter 274 — confirm sign-out: show a success toast when arriving from a
@@ -77,7 +84,76 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { data } = await axios.post(`${API}/auth/login`, { email, password });
+      // TOTP MFA gate: an MFA-enrolled account gets a temp_token, NOT a real
+      // token. Branch on requires_mfa BEFORE the token check so enabling MFA
+      // never locks the account out of login.
+      if (data?.requires_mfa === true) {
+        if (!data.temp_token) throw new Error('MFA challenge incomplete');
+        setMfa({ tempToken: data.temp_token, email: data.user?.email || email });
+        setMfaCode('');
+        setMfaErr('');
+        setLoading(false);
+        return;
+      }
+      if (data?.requires_mfa_enrolment === true) {
+        notify.info('Two-factor setup required', 'This account must finish MFA enrolment. Please contact an administrator.');
+        setLoading(false);
+        return;
+      }
       if (!data?.token) throw new Error('No token returned');
+      routeAfterLogin(data);
+    } catch (err) {
+      // Gym-floor fallback — same form, but POST against /gym-floor/login
+      // when the field looks like a kiosk username (no '@') and the
+      // standard portal returned 401.
+      if (err.response?.status === 401 && email && !email.includes('@')) {
+        try {
+          const gf = await axios.post(`${API}/gym-floor/login`, { username: email, password });
+          const session = { ...gf.data, logged_in_at: new Date().toISOString() };
+          localStorage.setItem('gym_floor_session', JSON.stringify(session));
+          navigate('/gym-floor', { replace: true });
+          return;
+        } catch (_gfErr) { /* fall through */ }
+      }
+      notifyApiError(notify, err, 'Invalid credentials');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Second step: verify the authenticator (or backup) code against the
+  // short-lived temp_token, then complete login with the returned real token.
+  const submitMfa = async (e) => {
+    e?.preventDefault?.();
+    if (mfaBusy || !mfa) return;
+    const code = mfaCode.replace(/[\s-]/g, '');
+    if (!/^(?:\d{6}|[A-Za-z0-9]{8,})$/.test(code)) {
+      setMfaErr('Enter your 6-digit authenticator code or an 8-character backup code.');
+      return;
+    }
+    setMfaBusy(true);
+    setMfaErr('');
+    try {
+      const { data } = await axios.post(`${API}/auth/mfa/verify`, {
+        temp_token: mfa.tempToken, code,
+      });
+      if (!data?.token) throw new Error('No token returned');
+      routeAfterLogin(data);
+    } catch (err) {
+      const status = err.response?.status;
+      if (status === 429) {
+        setMfaErr('Too many attempts. Please wait a moment before trying again.');
+      } else if (status === 401 || status === 400) {
+        setMfaErr('Invalid or expired code. Try again, or start over.');
+      } else {
+        setMfaErr('Verification failed. Please try again.');
+      }
+      setMfaBusy(false);
+    }
+  };
+
+  // Shared post-login routing (used by both the password and MFA steps).
+  const routeAfterLogin = (data) => {
       login(data.token, data.user);
       // Iter 216h216 — track lifetime login count for NPS trust-gating.
       try {
@@ -109,23 +185,6 @@ export default function LoginPage() {
               ? '/pulse'
               : (moduleHomePath(u) || '/dashboard');
       navigate(nextParam || fallback, { replace: true });
-    } catch (err) {
-      // Gym-floor fallback — same form, but POST against /gym-floor/login
-      // when the field looks like a kiosk username (no '@') and the
-      // standard portal returned 401.
-      if (err.response?.status === 401 && email && !email.includes('@')) {
-        try {
-          const gf = await axios.post(`${API}/gym-floor/login`, { username: email, password });
-          const session = { ...gf.data, logged_in_at: new Date().toISOString() };
-          localStorage.setItem('gym_floor_session', JSON.stringify(session));
-          navigate('/gym-floor', { replace: true });
-          return;
-        } catch (_gfErr) { /* fall through */ }
-      }
-      notifyApiError(notify, err, 'Invalid credentials');
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
@@ -174,6 +233,56 @@ export default function LoginPage() {
 
           {banner && <div className="mb-3">{banner}</div>}
 
+          {mfa ? (
+            <form onSubmit={submitMfa} className="space-y-4" data-testid="gx-login-mfa-form">
+              <div className="flex items-center gap-3 rounded-xl bg-slate-50 border border-slate-200 p-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--gx-brand-from)]/15">
+                  <ShieldCheck size={18} className="text-[var(--gx-brand-from)]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900">Two-factor verification</p>
+                  <p className="text-xs text-slate-500 truncate">Enter the code from your authenticator for {mfa.email}</p>
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500 mb-1.5 block">
+                  Authenticator or backup code
+                </label>
+                <input
+                  autoFocus
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={32}
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value)}
+                  className="w-full h-11 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-center text-lg tracking-[0.35em] placeholder:tracking-normal placeholder:text-slate-400 focus:outline-none focus:border-[var(--gx-brand-from)] focus:bg-white transition"
+                  placeholder="123456"
+                  data-testid="gx-login-mfa-code"
+                />
+              </div>
+              {mfaErr && (
+                <div className="rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600" data-testid="gx-login-mfa-error">
+                  {mfaErr}
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={mfaBusy || !mfaCode.trim()}
+                className="gx-cta w-full h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                data-testid="gx-login-mfa-submit"
+              >
+                {mfaBusy ? <><Loader2 size={14} className="animate-spin" /> Verifying…</> : <>Verify & sign in <ArrowRight size={14} /></>}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMfa(null); setMfaCode(''); setMfaErr(''); }}
+                className="w-full text-xs font-semibold text-slate-500 hover:text-slate-900"
+                data-testid="gx-login-mfa-startover"
+              >
+                Start over
+              </button>
+            </form>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4" data-testid="gx-login-form">
             <div>
               <label className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500 mb-1.5 block">
@@ -232,6 +341,7 @@ export default function LoginPage() {
               {loading ? <><Loader2 size={14} className="animate-spin" /> {t('auth.signing_in', 'Signing in…')}</> : <>{t('auth.login_btn', 'Sign In')} <ArrowRight size={14} /></>}
             </button>
           </form>
+          )}
 
           <div className="flex items-center justify-between text-xs text-slate-500 mt-5 pt-5 border-t border-slate-100">
             <Link to="/reset-password" className="hover:text-slate-900 font-semibold" data-testid="gx-login-forgot">

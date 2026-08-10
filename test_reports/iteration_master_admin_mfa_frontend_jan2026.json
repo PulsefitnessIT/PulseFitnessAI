@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only E2E verification of the new Master Admin TOTP MFA surfaces (MyMfaPanel enrolment + LoginPage MFA verify step). All three requested flows PASSED end-to-end against the preview URL, and the environment has been cleaned back to password-only login.",
+  "test_scope": [
+    "1) Master Admin MFA enrolment via /master-admin?section=my-security (my-mfa-start-btn -> QR + my-mfa-secret + my-mfa-code-input -> live TOTP -> my-mfa-confirm-btn -> my-mfa-backup-codes(10) -> my-mfa-saved-check gates my-mfa-done-btn -> my-mfa-enabled-badge Active).",
+    "2) /login MFA gate after enrolment: password submit does NOT auto-login; gx-login-mfa-form appears; short/invalid code shows gx-login-mfa-error; gx-login-mfa-startover returns to gx-login-form; fresh TOTP + gx-login-mfa-submit lands on /master-admin.",
+    "3) Backup code login: entering a saved 8-char backup code (02AB65D6) at gx-login-mfa-code completed sign-in successfully."
+  ],
+  "results": {
+    "enrolment_flow": "PASS — QR + plaintext secret (len=32) rendered, live TOTP accepted, 10 backup codes issued, Done button correctly disabled until saved-check ticked, Active badge shown after Done.",
+    "login_mfa_flow": "PASS — password no longer suffices; MFA form appears; invalid short code produces gx-login-mfa-error ('Enter your 6-digit authenticator code or an 8-character backup code.'); Start over returns to password form; fresh TOTP verifies and routes to /master-admin.",
+    "backup_code_login": "PASS — one-time backup code (02AB65D6) accepted at the /login MFA step and landed on /master-admin.",
+    "cleanup": "PASS — after running the coroutine-corrected cleanup (see below), plain email+password login at /login returns a token immediately and lands on /master-admin. GET /api/auth/login now returns a real token (no requires_mfa), confirming MFA is disabled."
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "critical_code_review_comments": [
+    "Cleanup command in the review_request uses `asyncio.run(db.user_mfa.delete_many({}))` but Motor's delete_many returns a Future (already scheduled on the running loop); asyncio.run() rejects it with 'a coroutine was expected, got <Future>'. It must be wrapped in an async function, e.g. `python -c \"import asyncio; from utils.database import db; asyncio.run((lambda: __import__('asyncio').get_event_loop())) ...\"` — I used the working form: `async def main(): await db.user_mfa.delete_many({})`. Recommend updating the reset snippet in the runbook / test_credentials doc so operators don't hit this error.",
+    "LoginPage.submitMfa client-side regex allows any 8+ alphanumeric string OR exactly 6 digits — a 7-digit code is blocked client-side but a 6-digit code that happens to be wrong will surface the backend 401 as 'Invalid or expired code'. Behaviour is correct, just noting the regex `^(?:\\d{6}|[A-Za-z0-9]{8,})$` intentionally rejects 7-char TOTPs, which is fine.",
+    "MyMfaPanel.confirmEnrol reads `res.data.success` — backend returns 200 with backup_codes even when success flag is absent could break the panel. Current backend does set success:true, so OK, but the extra guard is fragile; consider relying purely on `Array.isArray(res.data.backup_codes)`."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "None — feature works end-to-end. Optional: fix the asyncio.run cleanup one-liner in the runbook to use an async wrapper."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (3/3 flows)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (per /app/memory/test_credentials.md — used successfully)",
+  "seed_data_creation": "Temporarily enrolled MFA for the master admin then wiped user_mfa collection to restore password-only login. Environment is clean.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The runbook cleanup command `python -c \"import asyncio; from utils.database import db; asyncio.run(db.user_mfa.delete_many({}))\"` will FAIL with 'a coroutine was expected, got <Future>' because Motor returns a Future not a coroutine at that call site. Use: `python -c \"import asyncio; from utils.database import db; \\nasync def m():\\n    await db.user_mfa.delete_many({})\\nasyncio.run(m())\"`. Also note user_mfa collection count showed 0 immediately after enable even though MFA login worked — Motor writes may lag behind a direct standalone client read on the same pod; the authoritative signal that MFA is off is that POST /api/auth/login returns {token,user} directly (no requires_mfa)."
+}
