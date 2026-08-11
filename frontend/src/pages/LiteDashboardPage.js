@@ -1061,6 +1061,7 @@ const LiteDashboardPage = () => {
                 getStatusColor={getStatusColor}
                 showReportIncident={isMODSite}
                 onReportIncident={() => setIncidentOpen(true)}
+                onQueueSynced={loadData}
               />
             </TabsContent>
 

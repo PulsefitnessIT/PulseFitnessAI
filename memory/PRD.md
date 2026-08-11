@@ -1,3 +1,13 @@
+# ═══ 2026-08-11 · MOBILE · Offline "Queued — will sync" trust badge on the Faults list (verified) ═══
+Closed the offline-fault trust gap: a fault logged with no signal is stored in IndexedDB (utils/offlineFaultQueue.js) but never appeared in the Faults list (which reads the server), so gym-floor staff couldn't tell it was captured.
+  • NEW components/shared/QueuedFaultsList.js — reads listPending() from the IDB queue and renders an amber "N fault(s) queued — will sync" banner at the TOP of the Faults tab with per-fault rows (machine name resolved from readCachedSnapshot() equipment cache + description + a "QUEUED" pill). Online vs offline copy, a "Sync now" button (flushQueue), polls every 5s + refreshes on the `online` event, auto-clears when the queue empties, and calls onSynced() → LiteDashboardPage loadData() so freshly-synced faults appear live. Returns null when nothing is queued (safe for non-MOD too).
+  • WIRED: LiteFaultsTab.js renders <QueuedFaultsList onSynced={onQueueSynced}/> in the reactive view; LiteDashboardPage.js passes onQueueSynced={loadData}.
+  • VERIFIED live at 390px: seeded a pending fault in IndexedDB → Faults tab shows "1 fault queued — will sync" + row "Series 3 Treadmill · Belt slipping… · QUEUED". Flushing a fake-id record does NOT create bogus server data (0 matches for the test description across all collections).
+  • data-testid: queued-faults-banner, queued-faults-title, queued-faults-sync, queued-fault-<id>.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-11 · MOBILE · MOD Service Portal responsiveness audit + header fix (testing_agent 100%) ═══
 Founder asked "are you confident the MOD service portal is mobile optimised?" — ran a FULL responsive audit of the LIVE MOD experience.
   • ROUTING CLARIFICATION (important): MOD users (account_type mod_site/mod_branch/mod_org) are routed by AppRoutes.js (~L277) to /pulse → LiteDashboardPage.js. The file MODPortal/MODSiteDashboard.js flagged in the prior handoff is DEAD/unused code — NOT the live surface. The public MOD pages (MODConfirmFixPage.js, MODVisitBookingForm.js) already use correct responsive breakpoints (sm:grid-cols-2, p-4 sm:p-5, max-w-2xl) — the handoff's "missing breakpoints" claim was inaccurate.

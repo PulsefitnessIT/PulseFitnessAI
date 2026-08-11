@@ -13,6 +13,7 @@ import EmptyState from '@/components/shared/EmptyState';
 import PartsRequestsPage from '../PartsRequests/PartsRequestsPage';
 import { groupIssuesByJob } from './groupIssuesByJob';
 import ScrollFadeBar from '@/components/shared/ScrollFadeBar';
+import QueuedFaultsList from '@/components/shared/QueuedFaultsList';
 
 const STATUS_BORDER_COLOR = {
   open: 'var(--color-danger)',           // Red
@@ -26,7 +27,7 @@ const LiteFaultsTab = ({
   onLogFault, onFilterStatus, onFilterSeverity,
   onUpdateIssueStatus, suppliers = [],
   getSeverityStyle, getSeverityLabel, getStatusColor,
-  showReportIncident = false, onReportIncident,
+  showReportIncident = false, onReportIncident, onQueueSynced,
 }) => {
   const [faultView, setFaultView] = useState('reactive');
   // Iter 216d — multi-machine fault jobs collapse into a single
@@ -182,6 +183,9 @@ const LiteFaultsTab = ({
 
       {faultView === 'reactive' && (
       <>
+      {/* Offline-logged faults live only on this device until they sync —
+          surface them so gym-floor staff trust the report was captured. */}
+      <QueuedFaultsList onSynced={onQueueSynced} />
       <div className="flex flex-col sm:flex-row gap-3">
         <Button onClick={onLogFault} className="bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white" data-testid="log-fault-btn">
           <AlertCircle className="mr-2" size={18} /> {t('faults.log_new', 'Log New Fault')}
