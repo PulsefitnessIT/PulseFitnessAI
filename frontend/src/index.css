@@ -569,6 +569,32 @@ body.has-bottom-banner main.overflow-y-auto {
 }
 .subtab-bar::-webkit-scrollbar { display: none; }
 
+/* Scroll-hint fades — only mounted (by ScrollFadeBar) when the pill row
+   actually overflows, so a row that fits is never faded. */
+.subtab-scroll-wrap {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+}
+.subtab-fade {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  width: 2.25rem;
+  pointer-events: none;
+  z-index: 2;
+}
+.subtab-fade-right {
+  right: 1px;
+  border-radius: 0 9999px 9999px 0;
+  background: linear-gradient(to right, transparent, var(--theme-surface) 78%);
+}
+.subtab-fade-left {
+  left: 1px;
+  border-radius: 9999px 0 0 9999px;
+  background: linear-gradient(to left, transparent, var(--theme-surface) 78%);
+}
+
 /* Embedded "Request a Part" panel — inherit dashboard theme so form
    fields match light/dark mode instead of rendering white on dark. */
 [data-testid="parts-page"] input,

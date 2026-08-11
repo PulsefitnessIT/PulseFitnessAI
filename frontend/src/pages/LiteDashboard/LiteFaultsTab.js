@@ -12,6 +12,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import PartsRequestsPage from '../PartsRequests/PartsRequestsPage';
 import { groupIssuesByJob } from './groupIssuesByJob';
+import ScrollFadeBar from '@/components/shared/ScrollFadeBar';
 
 const STATUS_BORDER_COLOR = {
   open: 'var(--color-danger)',           // Red
@@ -154,8 +155,10 @@ const LiteFaultsTab = ({
       />
 
       {/* Reactive / PPM toggle — uses canonical .subtab-bar/pill,
-          identical to Pulse Fitness FaultsTab. */}
-      <div className="subtab-bar mb-2" role="tablist">
+          identical to Pulse Fitness FaultsTab. ScrollFadeBar adds an
+          edge fade on mobile when the row overflows so users notice
+          "Planned Maintenance" is one swipe away. */}
+      <ScrollFadeBar wrapperClassName="mb-2" role="tablist">
         <button type="button"
           className={`subtab-pill ${faultView === 'reactive' ? 'is-active' : ''}`}
           onClick={() => setFaultView('reactive')} data-testid="lite-faults-view-reactive">
@@ -173,7 +176,7 @@ const LiteFaultsTab = ({
             <Calendar size={14} /> {t('faults.ppm', 'Planned Maintenance (PPM)')}
           </button>
         )}
-      </div>
+      </ScrollFadeBar>
 
       {faultView === 'ppm' && ppmEnabled && <PPMSubTab />}
 
