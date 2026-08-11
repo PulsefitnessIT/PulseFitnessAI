@@ -1,0 +1,33 @@
+{
+  "summary": "Full responsive audit of the LIVE MOD portal (/pulse -> LiteDashboardPage.js) at mobile 390x844, tablet 768x1024, and desktop 1440x900. Logged in via /MODService with test@army.mod.test / ModTest123! (fresh session). Walked every top-level tab (Dashboard, Equipment, Faults, Check Sheets, Documents, Staffing, Quotes, Reports, Suppliers, User Guide) at all three viewports, opened the MOD Fault Wizard on mobile 390, and verified mobile bottom nav. NO document-level or modal-level horizontal overflow was observed at any viewport for any surface tested. The recently-shipped mobile header fix renders cleanly ('Pulse Fitness · MOD' on line 1, 'MOD Test Site' on its own line, no orphan word).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Faults tab sub-tab row (mobile 390)", "issues": ["Sub-tab row is horizontally scrollable (offsetWidth=358, scrollWidth=578). The third pill 'Planned Maintenance (PPM)' starts at x=344 and extends to x=591, so at initial render only 'Planned Mainten…' is visible on the right edge. Scroll works, but there is no visible affordance (fade/shadow/chevron) hinting that the row is scrollable. This is a minor discoverability issue, not overflow of the page. Note: the review-request text mentioned a 'date filter icon' being cut off on the right — I did not find a date-filter icon on the sub-tab row; the third pill is 'Planned Maintenance (PPM)'. The clipping on that third pill is likely what was noticed."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "OPTIONAL polish (minor): Add a right-side scroll affordance (gradient fade or overflow chevron) to the Faults sub-tab pill row on mobile so users discover that 'Planned Maintenance (PPM)' is reachable by horizontal scroll. Not blocking."
+  ],
+  "critical_code_review_comments": [
+    "LiteDashboardPage.js header change to 'block sm:inline-block' works well — no orphan wrap seen on 390px; site name 'MOD Test Site' renders on its own line cleanly.",
+    "Mobile pill tab bar (data-testid mobile-tab-pills / mobile-pill-<id>) scrolls horizontally and every tab is reachable via click at all three viewports (dashboard, equipment, faults, check_sheets, documents, staffing, quotes, reports, suppliers, user_guide). Note there is a 'Staffing' pill visible for this MOD Test Site account that was not enumerated in the review-request tab list — worth confirming it is intended for MOD accounts.",
+    "MOD Fault Wizard (Log New Fault) opens as a full-screen modal at 390px width; both the wizard container and the inner step content stay within the 390 viewport (documentElement.scrollWidth === innerWidth). Sticky Back/Continue footer visible and reachable.",
+    "MobileBottomNav renders only on mobile viewports and does not overlap tab content at 390px."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% no horizontal overflow across 9 tabs x 3 viewports + fault wizard on mobile"},
+  "test_credentials": "MOD site login: test@army.mod.test / ModTest123! via /MODService (portal=mod)",
+  "seed_data_creation": "None — used seeded MOD Test Site (8 machines, existing faults).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Responsive audit clean. Only minor polish item is optional scroll affordance on the Faults sub-tab pill row at 390px. Header orphan-wrap fix in LiteDashboardPage.js is confirmed working. No overflow found anywhere else. If revisiting, remember: single-session enforcement is ON and /api/auth/login is rate-limited after ~4 rapid attempts — log in once via UI and reuse the session.",
+  "measurements": {
+    "mobile_390": {"all_tabs_scrollWidth": 390, "innerWidth": 390, "overflow": false, "wizard_scrollWidth": 390, "faults_subtab_bar": {"offsetWidth": 358, "scrollWidth": 578, "note": "3rd pill (Planned Maintenance PPM) partially clipped on right, but horizontally scrollable"}},
+    "tablet_768": {"all_tabs_scrollWidth": 768, "innerWidth": 768, "overflow": false},
+    "desktop_1440": {"all_tabs_scrollWidth": 1440, "innerWidth": 1440, "overflow": false}
+  }
+}

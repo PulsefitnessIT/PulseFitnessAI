@@ -880,14 +880,14 @@ const LiteDashboardPage = () => {
           <div className="mb-6" data-testid="pulse-dashboard-header">
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div className="min-w-0">
-                <h1 className="text-3xl sm:text-4xl tracking-tight font-semibold mb-1 pulse-font-heading leading-tight" style={{ color: 'var(--theme-text)' }}>
+                <h1 className="text-2xl sm:text-4xl tracking-tight font-semibold mb-1 pulse-font-heading leading-tight break-words" style={{ color: 'var(--theme-text)' }}>
                   Pulse Fitness {isMOD
                     ? <span className="text-[var(--color-brand-cyan-hover)]">· MOD</span>
                     : (isPro && <span className="text-[var(--color-brand-cyan-hover)]">Pro</span>)
                   }
                   {user?.company_name && (
-                    <span className="text-base sm:text-lg font-normal ml-2 pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
-                      · {allSitesActive ? 'All Operations Sites' : (activeSite?.name || user.company_name)}
+                    <span className="block sm:inline-block text-base sm:text-lg font-normal sm:ml-2 pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
+                      <span className="hidden sm:inline">· </span>{allSitesActive ? 'All Operations Sites' : (activeSite?.name || user.company_name)}
                     </span>
                   )}
                 </h1>

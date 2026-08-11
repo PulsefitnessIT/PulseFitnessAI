@@ -1,3 +1,13 @@
+# ═══ 2026-08-11 · MOBILE · MOD Service Portal responsiveness audit + header fix (testing_agent 100%) ═══
+Founder asked "are you confident the MOD service portal is mobile optimised?" — ran a FULL responsive audit of the LIVE MOD experience.
+  • ROUTING CLARIFICATION (important): MOD users (account_type mod_site/mod_branch/mod_org) are routed by AppRoutes.js (~L277) to /pulse → LiteDashboardPage.js. The file MODPortal/MODSiteDashboard.js flagged in the prior handoff is DEAD/unused code — NOT the live surface. The public MOD pages (MODConfirmFixPage.js, MODVisitBookingForm.js) already use correct responsive breakpoints (sm:grid-cols-2, p-4 sm:p-5, max-w-2xl) — the handoff's "missing breakpoints" claim was inaccurate.
+  • FIX SHIPPED — LiteDashboardPage.js dashboard header (~L883): the site-name span was inline in a text-3xl h1 and orphan-wrapped on phones (e.g. "…MOD Test" / "Site"). Changed to text-2xl sm:text-4xl + made the site-name span `block sm:inline-block` (drops the "· " prefix + ml-2 on mobile) so it reads cleanly: line1 "Pulse Fitness · MOD", line2 "MOD Test Site". Confirmed live at 390px.
+  • AUDIT (testing_agent, frontend, /app/test_reports/iteration_mod_mobile_responsive_audit_jan2026.json): mobile 390x844, tablet 768, desktop 1440 across ALL 9 live MOD tabs (Dashboard/Equipment/Faults/Check-Sheets/Documents/Staffing/Quotes/Reports/Suppliers/User Guide) + MOD Fault Wizard on mobile + mobile bottom nav. RESULT: 100% — NO horizontal overflow / clipping / overlap at any viewport. documentElement.scrollWidth === innerWidth everywhere; wizard modal fits 390px; MobileBottomNav mobile-only, no content overlap.
+  • ONE OPTIONAL/NON-BLOCKING polish (deferred by design): the Faults sub-tab pill row (.subtab-bar, shared class) is horizontally scrollable on mobile (3 pills, scrollWidth 578 > 358) but has no scroll-fade affordance. NOT added — .subtab-bar is `inline-flex` (hugs content) and used across every module, so a pure-CSS right fade would incorrectly fade the last pill on non-overflowing 2-pill bars app-wide (net regression). A JS-driven overflow class would be the correct approach if the user wants it later.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-10 · SECURITY · Abuse Auto-Response escalation ladder (§33) — behaviour-based (tests 26/26) ═══
 Built deterministic abuse auto-response driven by the denial signals the authorisation engine already emits (no AI fingerprinting).
   • NEW utils/abuse_guard.py: record_denial(user, request, reason) counts denials per actor (email, else IP) in a rolling window
