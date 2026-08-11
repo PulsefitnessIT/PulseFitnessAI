@@ -43,6 +43,7 @@ import NudgeBanner from '../components/shared/NudgeBanner';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
 import PillTabBar from '../components/shared/PillTabBar';
+import ScrollFadeBar from '../components/shared/ScrollFadeBar';
 import ModuleSwitcher from '../components/shared/ModuleSwitcher';
 import CrossModuleTipsBanner from '../components/shared/CrossModuleTipsBanner';
 import PulseProUpgradeCta from '../components/shared/PulseProUpgradeCta';
@@ -970,7 +971,15 @@ const LiteDashboardPage = () => {
             </PillTabBar>
 
             {/* Mobile: scrollable pill tabs — identical to Memberships console */}
-            <div ref={pulsePillBarRef} className="md:hidden mb-5 flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1" style={{ WebkitOverflowScrolling: 'touch' }} data-testid="mobile-tab-pills">
+            <ScrollFadeBar
+              scrollRef={pulsePillBarRef}
+              variant="flat"
+              fadeColor="var(--theme-bg)"
+              wrapperClassName="md:hidden mb-5 -mx-1 px-1"
+              className="flex gap-2 overflow-x-auto scrollbar-hide pb-1"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+              testId="mobile-tab-pills"
+            >
               {TABS.map(tab => (
                 <button
                   key={tab.id}
@@ -984,7 +993,7 @@ const LiteDashboardPage = () => {
                   {tab.label}
                 </button>
               ))}
-            </div>
+            </ScrollFadeBar>
 
             {/* Start Tab — guided onboarding for first-time staff. */}
             {!hideStart && (

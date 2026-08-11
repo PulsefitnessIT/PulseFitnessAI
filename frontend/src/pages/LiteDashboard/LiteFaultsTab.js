@@ -158,7 +158,7 @@ const LiteFaultsTab = ({
           identical to Pulse Fitness FaultsTab. ScrollFadeBar adds an
           edge fade on mobile when the row overflows so users notice
           "Planned Maintenance" is one swipe away. */}
-      <ScrollFadeBar wrapperClassName="mb-2" role="tablist">
+      <ScrollFadeBar className="subtab-bar" wrapperClassName="mb-2" role="tablist">
         <button type="button"
           className={`subtab-pill ${faultView === 'reactive' ? 'is-active' : ''}`}
           onClick={() => setFaultView('reactive')} data-testid="lite-faults-view-reactive">

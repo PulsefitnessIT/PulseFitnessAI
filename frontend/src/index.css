@@ -569,31 +569,27 @@ body.has-bottom-banner main.overflow-y-auto {
 }
 .subtab-bar::-webkit-scrollbar { display: none; }
 
-/* Scroll-hint fades — only mounted (by ScrollFadeBar) when the pill row
-   actually overflows, so a row that fits is never faded. */
-.subtab-scroll-wrap {
-  position: relative;
-  display: inline-flex;
-  max-width: 100%;
-}
-.subtab-fade {
+/* Scroll-hint fades (ScrollFadeBar) — only mounted when the row actually
+   overflows, so a row that fits is never faded. Fades into --sfb-color
+   (the row's own background) so it reads as content trailing off. */
+.sfb-wrap { position: relative; }
+.sfb-wrap-pill { display: inline-flex; max-width: 100%; }
+.sfb-wrap-flat { display: block; }
+.sfb-fade {
   position: absolute;
-  top: 1px;
-  bottom: 1px;
+  top: 0;
+  bottom: 0;
   width: 2.25rem;
   pointer-events: none;
   z-index: 2;
 }
-.subtab-fade-right {
-  right: 1px;
-  border-radius: 0 9999px 9999px 0;
-  background: linear-gradient(to right, transparent, var(--theme-surface) 78%);
-}
-.subtab-fade-left {
-  left: 1px;
-  border-radius: 9999px 0 0 9999px;
-  background: linear-gradient(to left, transparent, var(--theme-surface) 78%);
-}
+.sfb-fade-right { background: linear-gradient(to right, transparent, var(--sfb-color) 82%); }
+.sfb-fade-left  { background: linear-gradient(to left,  transparent, var(--sfb-color) 82%); }
+.sfb-fade-pill { top: 1px; bottom: 1px; }
+.sfb-fade-pill.sfb-fade-right { right: 1px; border-radius: 0 9999px 9999px 0; }
+.sfb-fade-pill.sfb-fade-left  { left: 1px;  border-radius: 9999px 0 0 9999px; }
+.sfb-fade-flat.sfb-fade-right { right: 0; }
+.sfb-fade-flat.sfb-fade-left  { left: 0; }
 
 /* Embedded "Request a Part" panel — inherit dashboard theme so form
    fields match light/dark mode instead of rendering white on dark. */
