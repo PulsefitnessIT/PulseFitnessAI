@@ -19,7 +19,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '@/App';
-import { useSignedOutNotice } from '@/hooks/useSignedOutNotice';import { Loader2, ShieldCheck, ArrowRight, Lock, Mail, CheckCircle2 } from 'lucide-react';
+import { useSignedOutNotice } from '@/hooks/useSignedOutNotice';import { Loader2, ShieldCheck, ArrowRight, Lock, Mail, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { useSeo } from '@/utils/seo';
 
 // ── Official artwork (user-supplied) ──────────────────────────────
@@ -66,6 +66,7 @@ export default function MODServiceLogin() {
   const { prefillEmail } = useSignedOutNotice();
   const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   // Iter 216h118 — Mandatory MFA flow handling for MOD HQ (mod_org /
@@ -411,11 +412,11 @@ export default function MODServiceLogin() {
                   <div className="mt-1.5 relative">
                     <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: PULSE.greyLight }} />
                     <input
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       autoComplete="current-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2.5 rounded-lg text-sm focus:outline-none transition-colors"
+                      className="w-full pl-9 pr-10 py-2.5 rounded-lg text-sm focus:outline-none transition-colors"
                       style={{
                         background: PULSE.surface,
                         border: `1px solid ${PULSE.border}`,
@@ -426,6 +427,18 @@ export default function MODServiceLogin() {
                       onBlur={(e) => { e.currentTarget.style.borderColor = PULSE.border; }}
                       data-testid="mod-login-password"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded transition-colors hover:bg-black/5"
+                      style={{ color: PULSE.greyLight }}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      aria-pressed={showPassword}
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                      data-testid="mod-login-password-toggle"
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
                   </div>
                 </label>
               </div>

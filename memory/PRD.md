@@ -1,3 +1,10 @@
+# ═══ 2026-08-12 · MOD LOGIN · Password show/hide toggle on the MOD Service sign-in (verified) ═══
+Added a password-preview (eye) toggle to pages/MODPortal/MODServiceLogin.js so PTIs on a phone can check what they typed.
+  • New showPassword state; input type flips password↔text; Eye/EyeOff button (lucide) positioned right-inset (pr-10). Verified live at 390px: toggling flips the field type and reveals/hides the value. data-testid: mod-login-password-toggle (accessible aria-label/aria-pressed/title).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-11 · MOBILE · Offline "Queued — will sync" trust badge on the Faults list (verified) ═══
 Closed the offline-fault trust gap: a fault logged with no signal is stored in IndexedDB (utils/offlineFaultQueue.js) but never appeared in the Faults list (which reads the server), so gym-floor staff couldn't tell it was captured.
   • NEW components/shared/QueuedFaultsList.js — reads listPending() from the IDB queue and renders an amber "N fault(s) queued — will sync" banner at the TOP of the Faults tab with per-fault rows (machine name resolved from readCachedSnapshot() equipment cache + description + a "QUEUED" pill). Online vs offline copy, a "Sync now" button (flushQueue), polls every 5s + refreshes on the `online` event, auto-clears when the queue empties, and calls onSynced() → LiteDashboardPage loadData() so freshly-synced faults appear live. Returns null when nothing is queued (safe for non-MOD too).
