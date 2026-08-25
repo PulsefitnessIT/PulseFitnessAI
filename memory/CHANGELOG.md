@@ -2,13 +2,18 @@
 
 ## 2026-06 — MOD Tender pack (LSL/DC/0223) finalised in-place
 
-Edited all 6 `.docx` responses in place (templates, images, headers/footers, tables preserved) against the Red Team reviews + Richard Sheen's/Director comments. No AI/"pulsefitness.ai"/Sicon/"Leidos SIP" references remain; MSys.SIP used for the Authority portal.
+Edited all 6 `.docx` responses in place (templates, images, headers/footers, tables preserved) against Red Team reviews + Sheen/Director comments. Then a tender-writer QA pass drove a final correction round.
 
-- **2.1** (approved by user): 6 Red Team actions + 6 Sheen comments — KPIs named, Figure 1 citation fixed, QP149 annual-review clause, CONDO/clearance, military transport, office support, Toolbox Talks/quarterly refreshers, practical assessment, en-dash/quote editorial.
-- **2.2A** (approved): 11 RT actions + 6 Sheen — MSys.SIP, Wales, Type B, one-month refurb, remote video, MI deadline, no-3rd-party statement, office support, KPI rows in control-point table, Sicon removed. Figure 1 redraw → designer (spec in Figure_Build_Specs).
-- **2.2B / 2.3A / 2.3B / 2.4**: all RT + Sheen actions applied. Comparable-contract docs reframed as a contract; KPI tables added; Canada route added (2.3A/2.3B); overseas ack stated 100% (user-confirmed).
+### Final correction round (tender-writer QA)
+- **Figures embedded**: user-supplied corrected process maps for 2.2A (UK) and 2.3A (overseas) swapped into `word/media/image3.png` in each docx, with drawing extents adjusted to the new aspect ratios (no distortion).
+- **All `[PULSE INPUT]` removed** across all 6 docs, populated with confirmed data:
+  - Contract **LSL/DC/0186** (1 Apr 2023–31 Mar 2027); original value **£4,000,000**; delivered **£966,886.64** (UK £851,241.43; UK 2yr-to-30Jun2026 £719,479.54); overseas £115,645.30 (£84,549.87 2yr); **127 contract sites (9 overseas)** within **226-site** estate.
+  - Overseas: **100%** ack within 48h and 100% scheduled within 5 working days; Type C **9/9** accepted. Canada = direct UK Type C. Gibraltar: Sean Coakley removed → Jimmy Connors.
+  - UK 48/72 historic split confirmed unavailable → handled transparently (no fabricated stat).
+- **2.1**: QP149 caption → Issue 02, 1 Nov 2025; UKAS/ISO 9001 assurance paragraph reinstated; MI wording → "agreed contract reporting route".
+- **2.2B**: contract identified with values/sites; HMS testimonials no longer over-claimed as priority sites; KPI historic positions stated honestly.
+- **2.3A/2.3B**: courier 3–10 days; portal caption transparency; 2.3B reframed as contract, Cyprus/Jersey/Norway reconciled.
 
-**Outstanding real data** (no figures invented): consolidated in `Pulse_Input_Required_Register.docx`; each placeholder is bold + yellow-highlighted in the docs (`[PULSE INPUT: ...]`).
+**Deliverables** (`/app/tender_deliverables/`): `FINAL_Submission_Edited/` (6 docs), `MOD2026_Submission_EDITED.zip`, `Figure_Build_Specs.docx`, `Figure_Handover_Brief.docx`, `Pulse_Input_Required_Register.docx` (all resolved), `Score_Review.docx`.
 
-Deliverables: `/app/tender_deliverables/FINAL_Submission_Edited/` (6 docs) · `MOD2026_Submission_EDITED.zip` · `Figure_Build_Specs.docx` · `Pulse_Input_Required_Register.docx`.
-Edit scripts: `/tmp/tender_work/edit_21.py`, `edit_22a.py`, `edit_22b.py`, `edit_23a.py`, `edit_23b.py`, `edit_24.py`, `_tender_helpers.py`.
+**Estimated score after this pass: ~96–100/100** (from ~76). 2.2B carries a residual risk (unprovable historic 48/72 split, handled transparently).
