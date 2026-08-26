@@ -1110,6 +1110,9 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, navigateT
   const [savingEdit, setSavingEdit] = useState(false);
   const [showSign, setShowSign] = useState(false);
   const [converting, setConverting] = useState(false);
+  const [showConvert, setShowConvert] = useState(false);
+  const [convertEmail, setConvertEmail] = useState(true);
+  const [convertTo, setConvertTo] = useState('');
   const inp = useInput(isDark, c);
 
   const load = useCallback(async () => {
@@ -1193,8 +1196,11 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, navigateT
   const handleConvertToQuote = async () => {
     setConverting(true);
     try {
-      const res = await axios.post(`${API}/crm/v2/contracts/${contractId}/convert-to-quote`, {}, { headers: headers() });
+      const res = await axios.post(`${API}/crm/v2/contracts/${contractId}/convert-to-quote`,
+        { send_email: convertEmail, email_to: convertTo.trim() }, { headers: headers() });
       const q = res.data.quote;
+      setShowConvert(false);
+      if (convertEmail && res.data.email_error) alert(`Quote created (${q?.quote_number}), but not emailed: ${res.data.email_error}`);
       if (navigateTo && q?.id) navigateTo('quote', q.id);
       else load();
     } catch (e) { alert(e.response?.data?.detail || 'Convert failed'); }
@@ -1277,8 +1283,8 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, navigateT
             <Send size={12} className="inline mr-1" />Send
           </button>
           {canConvert && (
-            <button onClick={handleConvertToQuote} disabled={converting} className="px-3 py-1.5 text-xs font-medium rounded-md text-white disabled:opacity-50" style={{ background: 'var(--color-info-ios)' }} data-testid="contract-convert-quote-btn" title="Create a sent quote from this contract in one click">
-              <Send size={12} className="inline mr-1" />{converting ? 'Converting…' : 'Convert to quote'}
+            <button onClick={() => { setConvertTo(''); setConvertEmail(true); setShowConvert(true); }} disabled={converting} className="px-3 py-1.5 text-xs font-medium rounded-md text-white disabled:opacity-50" style={{ background: 'var(--color-info-ios)' }} data-testid="contract-convert-quote-btn" title="Create a sent quote from this contract in one click">
+              <Send size={12} className="inline mr-1" />Convert to quote
             </button>
           )}
           {contract.quote_id && (
@@ -1451,6 +1457,29 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, navigateT
 
       {/* Sign Modal */}
       <SignatureModal open={showSign} onClose={() => setShowSign(false)} onSign={handleSign} isDark={isDark} c={c} />
+
+      {showConvert && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onClick={() => !converting && setShowConvert(false)}>
+          <div className="w-full max-w-md rounded-xl p-5" style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }} onClick={e => e.stopPropagation()} data-testid="contract-convert-dialog">
+            <h3 className="text-base font-semibold mb-1" style={{ color: c.text }}>Convert to quote</h3>
+            <p className="text-xs mb-3" style={{ color: c.textDim }}>Creates a <b>sent</b> quote for this {(contract.tier || 'cover')} aftersales contract and links it back here.</p>
+            <label className="flex items-center gap-2 text-sm mb-2 cursor-pointer" style={{ color: c.text }}>
+              <input type="checkbox" checked={convertEmail} onChange={e => setConvertEmail(e.target.checked)} data-testid="contract-convert-email-toggle" />
+              Email the quote to the customer
+            </label>
+            {convertEmail && (
+              <input value={convertTo} onChange={e => setConvertTo(e.target.value)} placeholder="Recipient (optional — defaults to the linked contact)"
+                className="w-full mb-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} data-testid="contract-convert-email-to" />
+            )}
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => setShowConvert(false)} disabled={converting} className="px-3 py-2 text-sm" style={{ color: c.textMuted }}>Cancel</button>
+              <button onClick={handleConvertToQuote} disabled={converting} className="px-3 py-2 text-sm rounded-md text-white disabled:opacity-50 inline-flex items-center gap-1.5" style={{ background: 'var(--color-info-ios)' }} data-testid="contract-convert-confirm">
+                <Send size={13} /> {converting ? 'Converting…' : (convertEmail ? 'Convert & email' : 'Convert to quote')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

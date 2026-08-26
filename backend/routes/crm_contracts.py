@@ -337,7 +337,32 @@ async def convert_contract_to_quote(contract_id: str, data: dict = None, user=De
     })
     await record_audit(entity_type="contract", entity_id=contract_id, action="convert_to_quote",
                        user=user, after={"quote_id": quote["id"], "status": "sent"})
-    return {"status": "converted", "quote": quote, "contract_id": contract_id}
+
+    # Optionally email the freshly-created quote to the customer contact.
+    result = {"status": "converted", "quote": quote, "contract_id": contract_id, "emailed": False}
+    if data.get("send_email"):
+        from routes.crm_v2 import send_quote_email
+        to_addr = (data.get("email_to") or "").strip().lower()
+        if not to_addr and c.get("contact_id"):
+            ct = await db.crm2_contacts.find_one({"id": c["contact_id"], **_of(user)}, {"_id": 0, "email": 1})
+            to_addr = ((ct or {}).get("email") or "").strip().lower()
+        if not to_addr and c.get("company_id"):
+            ct = await db.crm2_contacts.find_one(
+                {"company_id": c["company_id"], "email": {"$nin": [None, ""]}, **_of(user)},
+                {"_id": 0, "email": 1})
+            to_addr = ((ct or {}).get("email") or "").strip().lower()
+        if not to_addr:
+            result["email_error"] = "No contact email on the contract or company — the quote was created but not emailed."
+        else:
+            try:
+                await send_quote_email(quote["id"], {"to": to_addr}, user)
+                result["emailed"] = True
+                result["email_to"] = to_addr
+            except HTTPException as he:
+                result["email_error"] = he.detail
+            except Exception as exc:  # pragma: no cover
+                result["email_error"] = f"Quote created but email failed: {exc}"
+    return result
 
 
 @router.get("/contracts/{contract_id}")
