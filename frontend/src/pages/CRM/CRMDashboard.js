@@ -246,12 +246,20 @@ function CasesBySeverity({ data, isDark, c }) {
 function EquipmentSalesTile({ isDark, c, setActiveTab }) {
   const { API, headers } = useCRM();
   const [s, setS] = useState(null);
+  const [drill, setDrill] = useState(null); // null | { loading, deals }
   useEffect(() => {
     let alive = true;
     axios.get(`${API}/crm/v2/equipment-sales/summary`, { headers: headers() })
       .then(r => { if (alive) setS(r.data); }).catch(() => {});
     return () => { alive = false; };
   }, [API, headers]);
+  const openDrill = async () => {
+    setDrill({ loading: true, deals: [] });
+    try {
+      const r = await axios.get(`${API}/crm/v2/equipment-sales/awaiting-delivery`, { headers: headers() });
+      setDrill({ loading: false, deals: r.data?.deals || [] });
+    } catch (e) { setDrill({ loading: false, deals: [] }); }
+  };
   if (!s) return null;
   const invoiced = s.invoiced_net || 0;
   const collected = s.collected || 0;
@@ -278,7 +286,7 @@ function EquipmentSalesTile({ isDark, c, setActiveTab }) {
       </div>
       <div className="flex flex-wrap gap-3">
         <Stat icon={TrendingUp} color="var(--color-info-ios)" label="Open deal value" value={fmt(s.open_deal_value)} sub={`${s.open_deal_count} open deal${s.open_deal_count === 1 ? '' : 's'}`} testid="es-open-deal-value" onClick={() => setActiveTab('quotes')} />
-        <Stat icon={Truck} color="var(--color-accent-amber)" label="Awaiting delivery" value={s.units_awaiting_delivery} sub={`${s.units_delivered}/${s.units_expected} units delivered`} testid="es-units-awaiting" />
+        <Stat icon={Truck} color="var(--color-accent-amber)" label="Awaiting delivery" value={s.units_awaiting_delivery} sub={`${s.units_delivered}/${s.units_expected} units delivered`} testid="es-units-awaiting" onClick={s.units_awaiting_delivery > 0 ? openDrill : undefined} />
         <Stat icon={CurrencyIcon} color="var(--color-success-alt)" label="Cash collected" value={fmt(collected)} sub={`of ${fmt(invoiced)} invoiced`} testid="es-cash-collected" />
       </div>
       <div className="mt-3">
@@ -291,6 +299,43 @@ function EquipmentSalesTile({ isDark, c, setActiveTab }) {
         </div>
         <p className="text-[11px] mt-1.5" style={{ color: c.textDim }} data-testid="es-outstanding">{fmt(s.outstanding)} outstanding{s.credited > 0 ? ` · ${fmt(s.credited)} credited` : ''}</p>
       </div>
+
+      {drill && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setDrill(null)}>
+          <div className="w-full max-w-lg rounded-xl p-5 max-h-[85vh] overflow-y-auto" style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }} onClick={e => e.stopPropagation()} data-testid="awaiting-delivery-modal">
+            <div className="flex items-center gap-2 mb-1">
+              <Truck size={16} style={{ color: 'var(--color-accent-amber)' }} />
+              <h3 className="text-base font-semibold" style={{ color: c.text }}>Units awaiting delivery</h3>
+              <button onClick={() => setDrill(null)} className="ml-auto text-sm" style={{ color: c.textMuted }} data-testid="awaiting-delivery-close">✕</button>
+            </div>
+            <p className="text-xs mb-3" style={{ color: c.textDim }}>Open deals with equipment still to be received (GRN).</p>
+            {drill.loading ? (
+              <p className="text-sm py-8 text-center" style={{ color: c.textDim }}>Loading…</p>
+            ) : drill.deals.length === 0 ? (
+              <p className="text-sm py-8 text-center" style={{ color: c.textDim }} data-testid="awaiting-delivery-empty">Nothing awaiting delivery — every unit on open deals is delivered.</p>
+            ) : (
+              <div className="space-y-2" data-testid="awaiting-delivery-list">
+                {drill.deals.map(d => (
+                  <button key={d.quote_id} onClick={() => { setDrill(null); setActiveTab('quotes'); }}
+                    className="w-full text-left p-3 rounded-lg border transition-all hover:bg-white/5"
+                    style={{ borderColor: c.border }} data-testid={`awaiting-deal-${d.quote_id}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: c.text }}>{d.company_name}</p>
+                        <p className="text-[11px]" style={{ color: c.textDim }}>{d.quote_number} · {fmt(d.total)}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold" style={{ color: 'var(--color-accent-amber)' }}>{d.units_awaiting} <span className="text-[10px] font-normal" style={{ color: c.textDim }}>awaiting</span></p>
+                        <p className="text-[11px]" style={{ color: c.textDim }}>{d.units_delivered}/{d.units_expected} delivered</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

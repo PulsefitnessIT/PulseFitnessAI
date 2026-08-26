@@ -1274,6 +1274,55 @@ async def equipment_sales_summary(user=Depends(get_crm_user)):
     }
 
 
+@router.get("/equipment-sales/awaiting-delivery")
+async def equipment_sales_awaiting(user=Depends(get_crm_user)):
+    """Drill-down for the leadership tile: the exact open deals with units
+    still to be delivered (expected vs GRN-registered)."""
+    org = user.get("organization_id")
+    of = _of(user)
+    open_quotes = await db.crm2_quotes.find(
+        {**of, "status": {"$in": list(_OPEN_DEAL_STATUSES)}, "deal_status": {"$ne": "completed"}},
+        {"_id": 0, "id": 1, "quote_number": 1, "company_name": 1, "total": 1, "lines": 1, "status": 1},
+    ).to_list(3000)
+
+    expected_by_quote = {}
+    meta = {}
+    for q in open_quotes:
+        units = sum(float(ln.get("quantity", 0) or 0) for ln in (q.get("lines") or []) if (ln.get("line_type") or "sale") == "sale")
+        if units <= 0:
+            continue
+        expected_by_quote[q["id"]] = int(round(units))
+        meta[q["id"]] = q
+
+    delivered_by_quote = {}
+    if expected_by_quote:
+        grouped = await db.equipment.aggregate([
+            {"$match": {"organization_id": org, "quote_id": {"$in": list(expected_by_quote)}}},
+            {"$group": {"_id": "$quote_id", "n": {"$sum": 1}}},
+        ]).to_list(len(expected_by_quote) + 1)
+        delivered_by_quote = {g["_id"]: g["n"] for g in grouped}
+
+    deals = []
+    for qid, expected in expected_by_quote.items():
+        delivered = delivered_by_quote.get(qid, 0)
+        awaiting = max(0, expected - delivered)
+        if awaiting <= 0:
+            continue
+        q = meta[qid]
+        deals.append({
+            "quote_id": qid,
+            "quote_number": q.get("quote_number") or "",
+            "company_name": q.get("company_name") or "—",
+            "status": q.get("status"),
+            "total": round(float(q.get("total", 0) or 0), 2),
+            "units_expected": expected,
+            "units_delivered": delivered,
+            "units_awaiting": awaiting,
+        })
+    deals.sort(key=lambda d: d["units_awaiting"], reverse=True)
+    return {"deals": deals, "total_units_awaiting": sum(d["units_awaiting"] for d in deals)}
+
+
 @router.get("/tags")
 async def list_crm_tags(user=Depends(get_crm_user)):
     """Aggregated tag vocabulary used by the workflow builder + tag

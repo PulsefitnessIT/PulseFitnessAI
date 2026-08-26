@@ -177,7 +177,21 @@ async def my_warranties(user=Depends(get_current_user)):
         "expiring": sum(1 for w in out if w["status"] == "expiring"),
         "expired": sum(1 for w in out if w["status"] == "expired"),
     }
-    return {"has_warranties": len(out) > 0, "warranties": out, "counts": counts}
+    # Is there already an open aftersales enquiry for this customer? (last 30 days)
+    enquiry_open = False
+    if counts["expiring"] or counts["expired"]:
+        from datetime import datetime, timezone, timedelta
+        company = await _linked_company(org_id)
+        if company:
+            since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+            hit = await db.crm2_contracts.find_one({
+                "organization_id": company.get("organization_id"),
+                "company_id": company.get("id"),
+                "source": "customer_warranty_enquiry", "status": "draft",
+                "created_at": {"$gte": since},
+            }, {"_id": 1})
+            enquiry_open = bool(hit)
+    return {"has_warranties": len(out) > 0, "warranties": out, "counts": counts, "renewal_enquiry_open": enquiry_open}
 
 
 @router.get("/warranties/summary")
@@ -185,3 +199,124 @@ async def my_warranties_summary(user=Depends(get_current_user)):
     """Lightweight flag + counts to show/hide the Warranties nav item."""
     res = await my_warranties(user)
     return {"has_warranties": res["has_warranties"], "counts": res["counts"]}
+
+
+async def _linked_company(org_id: str) -> dict | None:
+    """The single CRM company (seller-side record) linked to this customer org."""
+    if not org_id:
+        return None
+    return await db.crm2_companies.find_one(
+        {"$or": [{"linked_operator_org_id": org_id}, {"tenant_org_id": org_id}]}, {"_id": 0})
+
+
+@router.post("/warranties/enquire")
+async def enquire_aftersales(data: dict = None, user=Depends(get_current_user)):
+    """Customer-raised aftersales / warranty-renewal enquiry. Creates a DRAFT
+    aftersales contract on the seller's side (ties into the existing contracts
+    system) + a follow-up task for the account owner, and emails the owner a
+    heads-up. De-duplicated within 24h per customer."""
+    import uuid
+    from datetime import datetime, timezone, timedelta
+    data = data or {}
+    org_id = user.get("organization_id")
+    company = await _linked_company(org_id)
+    if not company:
+        raise HTTPException(400, "Your account isn't linked to a supplier yet — please contact Pulse Fitness directly.")
+
+    seller_org = company.get("organization_id")
+    company_id = company.get("id")
+    company_name = company.get("name") or "Customer"
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+
+    # Resolve the equipment referenced (must belong to the customer's org).
+    eq_ids = [e for e in (data.get("equipment_ids") or []) if isinstance(e, str)]
+    eq_query = {"organization_id": org_id}
+    if eq_ids:
+        eq_query["id"] = {"$in": eq_ids}
+    equipment = await db.equipment.find(
+        eq_query, {"_id": 0, "id": 1, "name": 1, "serial_number": 1, "warranty_expiry": 1},
+    ).limit(100).to_list(100)
+    eq_lines = "; ".join(
+        f"{e.get('name', 'Equipment')}"
+        + (f" (S/N {e['serial_number']})" if e.get("serial_number") else "")
+        + (f", cover until {e['warranty_expiry']}" if e.get("warranty_expiry") else "")
+        for e in equipment
+    ) or "All equipment on account"
+    note = (data.get("message") or "").strip()
+
+    # De-dupe: reuse an open enquiry contract raised in the last 24h.
+    since = (now - timedelta(hours=24)).isoformat()
+    existing = await db.crm2_contracts.find_one({
+        "organization_id": seller_org, "company_id": company_id,
+        "source": "customer_warranty_enquiry", "status": "draft",
+        "created_at": {"$gte": since},
+    }, {"_id": 0, "id": 1})
+    if existing:
+        return {"ok": True, "status": "already_requested", "contract_id": existing["id"]}
+
+    owner_id = company.get("owner_id") or ""
+    owner = await db.users.find_one({"id": owner_id}, {"_id": 0, "full_name": 1, "email": 1}) if owner_id else None
+    if not owner:
+        owner = await db.users.find_one({"organization_id": seller_org, "role": "owner"}, {"_id": 0, "id": 1, "full_name": 1, "email": 1})
+        owner_id = (owner or {}).get("id") or owner_id
+    owner_name = (owner or {}).get("full_name") or ""
+
+    # 1) Draft aftersales contract (Bronze) — team prices & sends.
+    contract_id = str(uuid.uuid4())
+    contract = {
+        "id": contract_id, "organization_id": seller_org,
+        "contract_number": f"CTR-{str(uuid.uuid4())[:6].upper()}",
+        "title": f"Aftersales cover — {company_name} (warranty renewal)",
+        "type": "service", "tier": "bronze", "status": "draft",
+        "company_id": company_id, "company_name": company_name,
+        "contact_id": "", "contact_name": user.get("full_name", ""),
+        "annual_value": 0.0, "total_value": 0.0,
+        "billing_frequency": "annual", "auto_renew": False, "renewal_notice_days": 90,
+        "sla": {"response_hours": 8, "resolution_hours": 48, "parts_included": False,
+                "labour_included": True, "preventive_maintenance": False},
+        "coverage_notes": f"Raised from a customer warranty-renewal enquiry via their Pulse portal.\nEquipment: {eq_lines}."
+                          + (f"\nCustomer note: {note}" if note else ""),
+        "source": "customer_warranty_enquiry",
+        "enquiry_equipment_ids": [e["id"] for e in equipment],
+        "version": 1,
+        "created_by": f"{company_name} (customer portal)",
+        "owner_id": owner_id, "owner_name": owner_name,
+        "created_at": now_iso, "updated_at": now_iso,
+    }
+    await db.crm2_contracts.insert_one({**contract})
+
+    # 2) Follow-up task for the account owner.
+    task_body = (f"{company_name} has enquired about aftersales / warranty-renewal cover via their Pulse portal.\n"
+                 f"Equipment: {eq_lines}." + (f"\nCustomer note: {note}" if note else "")
+                 + f"\nA draft contract ({contract['contract_number']}) has been created — price & send.")
+    await db.crm2_activities.insert_one({
+        "id": str(uuid.uuid4()), "organization_id": seller_org,
+        "type": "task", "subject": f"Aftersales cover enquiry — {company_name}",
+        "body": task_body, "company_id": company_id, "contract_id": contract_id,
+        "owner_id": owner_id, "owner_name": owner_name, "assigned_to": owner_id,
+        "status": "open", "priority": "high",
+        "due_date": (now + timedelta(days=3)).strftime("%Y-%m-%d"),
+        "source": "customer_warranty_enquiry",
+        "created_at": now_iso, "updated_at": now_iso,
+    })
+
+    # 3) Best-effort email heads-up to the account owner.
+    if (owner or {}).get("email"):
+        try:
+            from utils.email import send_email, wrap_branded
+            html = await wrap_branded(
+                f"<p>Hi {owner_name.split(' ')[0] if owner_name else 'there'},</p>"
+                f"<p><b>{company_name}</b> has asked about aftersales / warranty-renewal cover "
+                f"through their Pulse portal.</p>"
+                f"<p><b>Equipment:</b> {eq_lines}</p>"
+                + (f"<p><b>Their note:</b> {note}</p>" if note else "")
+                + f"<p>A draft contract <b>{contract['contract_number']}</b> is ready in the CRM to price and send.</p>",
+                seller_org)
+            await send_email(to=owner["email"],
+                             subject=f"Aftersales cover enquiry — {company_name}",
+                             html=html, kind="ops_notification")
+        except Exception:
+            logger.warning("aftersales enquiry heads-up email failed", exc_info=True)
+
+    return {"ok": True, "status": "requested", "contract_id": contract_id}
