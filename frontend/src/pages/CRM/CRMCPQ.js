@@ -356,21 +356,28 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers, canIn
           <table className="w-full text-sm" data-testid="quote-lines-table">
             <thead>
               <tr style={{ borderBottom: `1px solid ${isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)'}` }}>
-                {['Description', 'Qty', 'Unit Price', 'Discount', 'Total'].map(h => (
+                {['Description', 'Type', 'Qty', 'Unit Price', 'Discount', 'Total'].map(h => (
                   <th key={h} className={`py-2 text-[10px] uppercase tracking-wider font-medium ${h === 'Description' ? 'text-left' : 'text-right'}`} style={{ color: c.textDim }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {(quote.lines || []).map((line, i) => (
-                <tr key={i} style={{ borderBottom: `1px solid ${isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)'}` }}>
-                  <td className="py-3" style={{ color: c.text }}>{line.description || line.product_name || `Item ${i + 1}`}</td>
-                  <td className="py-3 text-right" style={{ color: c.textMuted }}>{line.quantity}</td>
-                  <td className="py-3 text-right" style={{ color: c.textMuted }}>{fmt(line.unit_price)}</td>
-                  <td className="py-3 text-right" style={{ color: c.textMuted }}>{line.discount || 0}%</td>
-                  <td className="py-3 text-right font-medium" style={{ color: c.text }}>{fmt(line.quantity * line.unit_price * (1 - (line.discount || 0) / 100))}</td>
-                </tr>
-              ))}
+              {(quote.lines || []).map((line, i) => {
+                const isTradeIn = line.line_type === 'trade_in';
+                const gross = (Number(line.quantity) || 0) * (Number(line.unit_price) || 0) * (1 - (Number(line.discount) || 0) / 100);
+                const net = line.net_subtotal != null ? line.net_subtotal : (isTradeIn ? -Math.abs(gross) : gross);
+                const typeLabel = { sale: 'Equipment', spare_part: 'Spare part', service_contract: 'Service contract', trade_in: 'Trade-in' }[line.line_type || 'sale'];
+                return (
+                  <tr key={i} style={{ borderBottom: `1px solid ${isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)'}` }} data-testid={`quote-detail-line-${i}`}>
+                    <td className="py-3" style={{ color: c.text }}>{line.description || line.product_name || `Item ${i + 1}`}</td>
+                    <td className="py-3 text-right"><span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: isTradeIn ? 'rgba(239,68,68,0.1)' : 'rgba(0,0,0,0.05)', color: isTradeIn ? 'var(--color-danger-alt)' : c.textMuted }}>{typeLabel}</span></td>
+                    <td className="py-3 text-right" style={{ color: c.textMuted }}>{line.quantity}</td>
+                    <td className="py-3 text-right" style={{ color: c.textMuted }}>{fmt(line.unit_price)}</td>
+                    <td className="py-3 text-right" style={{ color: c.textMuted }}>{line.discount || 0}%</td>
+                    <td className="py-3 text-right font-medium" style={{ color: isTradeIn ? 'var(--color-danger-alt)' : c.text }}>{fmt(net)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -714,7 +721,7 @@ export default function CRMCPQ() {
   const [form, setForm] = useState({
     company_id: '', contact_id: '', opportunity_id: '',
     valid_until: '', notes: '', vat_rate: 20,
-    lines: [{ description: '', quantity: 1, unit_price: 0, discount: 0 }],
+    lines: [{ description: '', quantity: 1, unit_price: 0, discount: 0, line_type: 'sale' }],
   });
   const [saving, setSaving] = useState(false);
 
@@ -755,7 +762,7 @@ export default function CRMCPQ() {
   useEffect(() => { load(); }, [load]);
 
   const addLine = () => {
-    setForm({ ...form, lines: [...form.lines, { description: '', quantity: 1, unit_price: 0, discount: 0 }] });
+    setForm({ ...form, lines: [...form.lines, { description: '', quantity: 1, unit_price: 0, discount: 0, line_type: 'sale' }] });
   };
   const removeLine = (i) => {
     if (form.lines.length <= 1) return;
@@ -763,24 +770,31 @@ export default function CRMCPQ() {
   };
   const updateLine = (i, field, value) => {
     const updated = [...form.lines];
-    updated[i] = { ...updated[i], [field]: field === 'description' ? value : parseFloat(value) || 0 };
+    const stringFields = ['description', 'line_type'];
+    updated[i] = { ...updated[i], [field]: stringFields.includes(field) ? value : parseFloat(value) || 0 };
     setForm({ ...form, lines: updated });
   };
 
-  const subtotal = form.lines.reduce((s, l) => s + (l.quantity * l.unit_price * (1 - (l.discount || 0) / 100)), 0);
+  // Iter — equipment-sale line types. Each line carries a `line_type`:
+  // sale | spare_part | service_contract | trade_in. Trade-ins are an
+  // allowance credited to the customer, so they subtract from the deal.
+  const lineNet = (l) => {
+    const gross = (Number(l.quantity) || 0) * (Number(l.unit_price) || 0) * (1 - (Number(l.discount) || 0) / 100);
+    return (l.line_type === 'trade_in') ? -Math.abs(gross) : gross;
+  };
+  const catSum = (t) => form.lines.filter(l => (l.line_type || 'sale') === t).reduce((s, l) => s + lineNet(l), 0);
+  const equipmentSubtotal = catSum('sale');
+  const partsSubtotal = catSum('spare_part');
+  const contractSubtotal = catSum('service_contract');
+  const tradeInTotal = catSum('trade_in'); // negative or 0
+  const subtotal = equipmentSubtotal + partsSubtotal + contractSubtotal + tradeInTotal;
   const vatAmount = subtotal * form.vat_rate / 100;
   const grandTotal = subtotal + vatAmount;
 
-  // Iter 216h269 — margin badge. Computed only over lines that carry
-  // a `cost_price` (typically populated when the line came from the
-  // master price list). Manual lines without a cost are excluded.
-  const totalCost = form.lines.reduce((s, l) => s + ((Number(l.cost_price) || 0) * (Number(l.quantity) || 0)), 0);
-  const sellOfCosted = form.lines.reduce((s, l) => {
-    if (!Number(l.cost_price)) return s;
-    return s + (Number(l.quantity) * Number(l.unit_price) * (1 - (Number(l.discount) || 0) / 100));
-  }, 0);
-  const marginAmount = sellOfCosted - totalCost;
-  const marginPercent = sellOfCosted > 0 ? (marginAmount / sellOfCosted) * 100 : 0;
+  // Margin badge — trade-ins carry no cost; matches backend gross margin.
+  const totalCost = form.lines.reduce((s, l) => (l.line_type === 'trade_in') ? s : s + ((Number(l.cost_price) || 0) * (Number(l.quantity) || 0)), 0);
+  const marginAmount = subtotal - totalCost;
+  const marginPercent = subtotal > 0 ? (marginAmount / subtotal) * 100 : 0;
   const hasCostedLines = totalCost > 0;
 
   // Iter 216h269 — drop a product onto the quote. Non-bundles append
@@ -797,6 +811,7 @@ export default function CRMCPQ() {
           quantity: 1,
           unit_price: Number(p.sell_price) || 0,
           discount: 0,
+          line_type: 'sale',
           product_id: p.id,
           cost_price: Number(p.cost_price) || 0,
           tax_rate: Number(p.tax_rate) || 0,
@@ -815,6 +830,7 @@ export default function CRMCPQ() {
         quantity: Number(item.quantity) || 1,
         unit_price: Number(item.sell_price) || 0,
         discount: 0,
+        line_type: 'sale',
         product_id: item.product_id,
         cost_price: Number(item.cost_price) || 0,
         tax_rate: Number(item.tax_rate) || 0,
@@ -847,7 +863,7 @@ export default function CRMCPQ() {
     try {
       await axios.post(`${API}/crm/v2/quotes`, form, { headers: headers() });
       setShowCreate(false);
-      setForm({ company_id: '', contact_id: '', opportunity_id: '', valid_until: '', notes: '', vat_rate: 20, lines: [{ description: '', quantity: 1, unit_price: 0, discount: 0 }] });
+      setForm({ company_id: '', contact_id: '', opportunity_id: '', valid_until: '', notes: '', vat_rate: 20, lines: [{ description: '', quantity: 1, unit_price: 0, discount: 0, line_type: 'sale' }] });
       load();
     } catch (e) { console.error(e); }
     setSaving(false);
@@ -1044,30 +1060,49 @@ export default function CRMCPQ() {
                 </div>
               )}
               <div className="space-y-2">
+                <div className="grid grid-cols-12 gap-2 px-0.5" data-testid="quote-lines-header">
+                  <span className="col-span-4 text-[9px]" style={{ color: c.textDim }}>Description</span>
+                  <span className="col-span-2 text-[9px]" style={{ color: c.textDim }}>Type</span>
+                  <span className="col-span-1 text-[9px]" style={{ color: c.textDim }}>Qty</span>
+                  <span className="col-span-2 text-[9px]" style={{ color: c.textDim }}>Price / Allowance</span>
+                  <span className="col-span-2 text-[9px]" style={{ color: c.textDim }}>Disc %</span>
+                  <span className="col-span-1" />
+                </div>
                 {form.lines.map((line, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-2 items-end" data-testid={`quote-line-${i}`}>
-                    <div className="col-span-5">
-                      {i === 0 && <span className="text-[9px]" style={{ color: c.textDim }}>Description</span>}
+                  <div key={i} className="grid grid-cols-12 gap-2 items-start" data-testid={`quote-line-${i}`}>
+                    <div className="col-span-4">
                       <input value={line.description} onChange={e => updateLine(i, 'description', e.target.value)} placeholder="Product/service"
                         className="w-full px-2 py-1.5 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
                     </div>
                     <div className="col-span-2">
-                      {i === 0 && <span className="text-[9px]" style={{ color: c.textDim }}>Qty</span>}
+                      <select
+                        value={line.line_type || 'sale'}
+                        onChange={e => updateLine(i, 'line_type', e.target.value)}
+                        className="w-full px-2 py-1.5 text-sm rounded-md"
+                        style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${line.line_type === 'trade_in' ? 'var(--color-danger-alt)' : c.border}`, color: c.text }}
+                        data-testid={`quote-line-type-${i}`}
+                      >
+                        <option value="sale">Equipment</option>
+                        <option value="spare_part">Spare part</option>
+                        <option value="service_contract">Service contract</option>
+                        <option value="trade_in">Trade-in</option>
+                      </select>
+                    </div>
+                    <div className="col-span-1">
                       <input type="number" min="1" value={line.quantity} onChange={e => updateLine(i, 'quantity', e.target.value)}
                         className="w-full px-2 py-1.5 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
                     </div>
                     <div className="col-span-2">
-                      {i === 0 && <span className="text-[9px]" style={{ color: c.textDim }}>Price</span>}
                       <input type="number" min="0" step="0.01" value={line.unit_price} onChange={e => updateLine(i, 'unit_price', e.target.value)}
-                        className="w-full px-2 py-1.5 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
+                        className="w-full px-2 py-1.5 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} data-testid={`quote-line-price-${i}`} />
+                      {line.line_type === 'trade_in' && <span className="text-[9px]" style={{ color: 'var(--color-danger-alt)' }} data-testid={`quote-line-allowance-hint-${i}`}>credit to customer</span>}
                     </div>
                     <div className="col-span-2">
-                      {i === 0 && <span className="text-[9px]" style={{ color: c.textDim }}>Disc %</span>}
                       <input type="number" min="0" max="100" value={line.discount} onChange={e => updateLine(i, 'discount', e.target.value)}
                         className="w-full px-2 py-1.5 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
                     </div>
-                    <div className="col-span-1 flex justify-center">
-                      {form.lines.length > 1 && <button type="button" onClick={() => removeLine(i)} style={{ color: 'var(--color-danger-alt)' }}><X size={14} /></button>}
+                    <div className="col-span-1 flex justify-center pt-1.5">
+                      {form.lines.length > 1 && <button type="button" onClick={() => removeLine(i)} style={{ color: 'var(--color-danger-alt)' }} data-testid={`quote-line-remove-${i}`}><X size={14} /></button>}
                     </div>
                   </div>
                 ))}
@@ -1077,10 +1112,18 @@ export default function CRMCPQ() {
             {/* Totals */}
             <div className="flex justify-end mb-4">
               <div className="w-72 space-y-1.5 text-sm">
-                <div className="flex justify-between"><span style={{ color: c.textDim }}>Subtotal</span><span style={{ color: c.text }}>{fmt(subtotal)}</span></div>
+                {(partsSubtotal !== 0 || contractSubtotal !== 0 || tradeInTotal !== 0) && (
+                  <>
+                    <div className="flex justify-between text-xs" data-testid="quote-equipment-subtotal"><span style={{ color: c.textDim }}>Equipment</span><span style={{ color: c.textMuted }}>{fmt(equipmentSubtotal)}</span></div>
+                    {partsSubtotal !== 0 && <div className="flex justify-between text-xs" data-testid="quote-parts-subtotal"><span style={{ color: c.textDim }}>Spare parts</span><span style={{ color: c.textMuted }}>{fmt(partsSubtotal)}</span></div>}
+                    {contractSubtotal !== 0 && <div className="flex justify-between text-xs" data-testid="quote-contract-subtotal"><span style={{ color: c.textDim }}>Service contract</span><span style={{ color: c.textMuted }}>{fmt(contractSubtotal)}</span></div>}
+                    {tradeInTotal !== 0 && <div className="flex justify-between text-xs" data-testid="quote-tradein-total"><span style={{ color: c.textDim }}>Trade-in allowance</span><span style={{ color: 'var(--color-danger-alt)' }}>{fmt(tradeInTotal)}</span></div>}
+                  </>
+                )}
+                <div className="flex justify-between" data-testid="quote-subtotal"><span style={{ color: c.textDim }}>Subtotal</span><span style={{ color: c.text }}>{fmt(subtotal)}</span></div>
                 <div className="flex justify-between"><span style={{ color: c.textDim }}>VAT ({form.vat_rate}%)</span><span style={{ color: c.text }}>{fmt(vatAmount)}</span></div>
                 <div className="flex justify-between font-bold pt-1" style={{ borderTop: `1px solid ${c.border}` }}>
-                  <span style={{ color: c.text }}>Total</span><span style={{ color: 'var(--color-success-alt)' }}>{fmt(grandTotal)}</span>
+                  <span style={{ color: c.text }}>Total</span><span style={{ color: 'var(--color-success-alt)' }} data-testid="quote-total">{fmt(grandTotal)}</span>
                 </div>
                 {canSeeCost && hasCostedLines && (
                   <div
@@ -1092,7 +1135,7 @@ export default function CRMCPQ() {
                     data-testid="quote-margin-badge"
                   >
                     <span className="font-semibold">Margin {marginPercent.toFixed(1)}%</span>
-                    <span className="font-mono">cost {fmt(totalCost)} · sell {fmt(sellOfCosted)}</span>
+                    <span className="font-mono">cost {fmt(totalCost)} · net {fmt(subtotal)}</span>
                   </div>
                 )}
               </div>
@@ -1112,8 +1155,8 @@ export default function CRMCPQ() {
             </div>
 
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm" style={{ color: c.textMuted }}>Cancel</button>
-              <button onClick={handleCreate} disabled={saving} className="px-4 py-2 bg-[var(--color-info-ios)] text-white text-sm font-medium rounded-md disabled:opacity-50">
+              <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm" style={{ color: c.textMuted }} data-testid="quote-cancel-btn">Cancel</button>
+              <button onClick={handleCreate} disabled={saving} className="px-4 py-2 bg-[var(--color-info-ios)] text-white text-sm font-medium rounded-md disabled:opacity-50" data-testid="quote-submit-btn">
                 {saving ? 'Creating...' : 'Create Quote'}
               </button>
             </div>

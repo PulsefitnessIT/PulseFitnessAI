@@ -1,0 +1,47 @@
+{
+  "summary": "Iter 294 — CPQ v2 line-type-aware quotes (sale / spare_part / service_contract / trade_in). BACKEND: 7/7 pytest passed against the public URL with an owner@isodemo.com CRM token — mixed-line quote returned exactly the expected totals (equipment 10000, parts 200, contract 1200, trade_in -2500, subtotal 8900, cost_total 7520, gross_profit 1380, margin 15.51%, VAT 1780, total 10680), every line carried a signed net_subtotal (trade-in negative), no _id leakage, and GET /quotes/{id}/pdf returned 200 application/pdf (%PDF magic) for the trade-in quote. Edge cases also pass: unknown line_type falls back to 'sale', a trade-in-only quote returns subtotal -500 without a divide-by-zero, and a negative-entered trade-in allowance is still applied as a credit (-300). FRONTEND: full builder + detail e2e verified in Corporate mode — Type dropdown per line, 'Allowance' price label, negative 'Trade-in allowance' row, Subtotal/Total dropping by the allowance (10,000 -> 7,500 / 12,000 -> 9,000), parts + contract breakdown rows appearing, submit created the quote, and the detail view showed the Type column with the trade-in Total rendered NEGATIVE (-£2,500.00) and header KPIs Subtotal £8,900 / VAT £1,780 / Total £10,680.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/crm/v2/quotes/{id}", "issue": "No single-quote read endpoint exists (404); the UI/tests must read via GET /quotes list. Not a regression, but worth adding for API completeness/deep links."},
+      {"endpoint": "POST /api/crm/v2/quotes", "issue": "gross_margin_percent is hard-coded to 0.0 when subtotal <= 0 (e.g. trade-in-heavy quote where the allowance exceeds the sale). A £-500 net quote reports 'Margin 0.0%' rather than a negative/undefined margin — misleading for reps. No crash."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CRMCPQ create-quote line grid", "issue": "Column labels (Description/Type/Qty/Price|Allowance/Disc %) are only rendered for row index 0 (i === 0). Setting a NON-first row to Trade-in therefore never shows the 'Allowance' label — the label only flips when line 0 itself is the trade-in. Verified: row-1 set to trade_in showed no label text; row-0 set to trade_in showed 'Allowance'.", "selector": "[data-testid=\"quote-line-1\"]", "priority": "MEDIUM"},
+      {"component": "CRMCPQ create-quote dialog", "issue": "The primary 'Create Quote' submit button and the 'Cancel' button have no data-testid (had to fall back to get_by_role name matching).", "selector": "button:has-text('Create Quote')", "priority": "LOW"},
+      {"component": "CRMCPQ margin badge", "issue": "quote-margin-badge is gated on hasCostedLines (totalCost > 0) and cost_price is only ever populated from the catalogue picker, so a manually typed quote NEVER shows a live margin. In iso-demo-org the master price list is empty ('No products in the master price list...'), so the badge could not be exercised in the UI at all — margin math itself is verified server-side. Consider seeding a costed product for iso-demo-org and/or allowing a cost input on manual lines.", "selector": "[data-testid=\"quote-margin-badge\"]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Quote detail — line items Type column", "issues": ["Type label wording differs between builder and detail view: builder option is 'Service contract' but the detail chip reads 'Contract'. Align the labels."]},
+      {"screen": "Quote detail", "issues": ["No explicit 'Trade-in allowance' line in the header KPI block; the reduction is only inferable from the negative line total. A 'less trade-in' KPI/row would match the builder breakdown."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter294_cpq_line_types.py",
+    "/app/test_reports/pytest/iter294_cpq.xml"
+  ],
+  "action_items": [
+    "Render the line-grid column labels per row (or move them to a real header row) so 'Allowance' shows for a trade-in on ANY row, not just row 0.",
+    "Add data-testid to the create-quote 'Create Quote' / 'Cancel' buttons.",
+    "Decide the margin story for manual lines: either expose a cost input or seed the master price list so quote-margin-badge is reachable in the UI (currently unreachable for iso-demo-org).",
+    "Make gross_margin_percent meaningful (negative or null) when subtotal <= 0 instead of 0.0.",
+    "Unify the service_contract label ('Service contract' vs 'Contract') between builder and detail view."
+  ],
+  "critical_code_review_comments": [
+    "compute_quote_totals correctly excludes trade-in cost_price from cost_total and signs allowances negative via _normalize_quote_line — math is sound and idempotent on revise (normalises in place before summing).",
+    "crm_product_perms.QUOTE_COST_FIELDS now includes gross_profit/gross_margin_percent, so cost-blind reps no longer see derived margin — verified in code; not exercised with a cost-blind rep token (no such seeded account).",
+    "CRMCPQ.js is 1165 lines and mixes the list, create dialog, detail view, revise dialog, email/e-sign dialogs and signature pad — over the 700-line guidance; split the detail view and dialogs into separate modules.",
+    "No DELETE endpoint exists for CPQ v2 quotes, so UI/QA-created quotes cannot be removed through the API (had to clean crm2_quotes directly in Mongo)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter294_cpq_line_types.py"],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% of requested flows (builder totals, breakdown rows, submit, detail view); margin badge not reachable — see ui_bugs"},
+  "seed_data_creation": "Created TEST_ prefixed CPQ v2 quotes via API and one TEST_QA quote via the UI in iso-demo-org; all removed afterwards (db.crm2_quotes delete by lines.description ^TEST_). One pre-existing 'TEST Treadmill' quote from the main agent's own curl remains.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (app /login and POST /api/crm/auth/login for the CRM token)",
+  "context_for_next_testing_agent": "Regression suite: /app/backend/tests/test_iter294_cpq_line_types.py (module-scoped CRM token fixture; cleans up via Mongo since there is no DELETE /crm/v2/quotes/{id}). Quotes tab path: /login -> /crm -> data-testid crm-mode-business -> crm-nav-quotes -> create-quote-btn. Builder testids: quote-line-type-{i}, quote-line-price-{i}, quote-add-line-btn, quote-equipment-subtotal, quote-parts-subtotal, quote-contract-subtotal, quote-tradein-total, quote-subtotal, quote-total, quote-margin-badge (needs a costed catalogue line — iso-demo-org price list is EMPTY). Detail: quote-detail-line-{i}. There is no GET /crm/v2/quotes/{id}; use the list endpoint.",
+  "rca_of_the_issue": "Allowance-label gap: in CRMCPQ.js the label spans are rendered conditionally on `i === 0`, so the 'Price'/'Allowance' toggle is driven exclusively by line 0's line_type. Repro: open New Quote, add a second line, set its Type to Trade-in -> no 'Allowance' text anywhere. Margin-badge gap: badge requires totalCost > 0 and cost_price is only injected by the catalogue picker (hydrate_quote_lines / product pick), so manual quotes are always cost-blind."
+}

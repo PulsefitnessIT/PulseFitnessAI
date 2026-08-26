@@ -44,6 +44,7 @@ COST_FIELDS = {
 QUOTE_COST_FIELDS = {
     "cost_price", "margin", "margin_percent", "cost_total", "total_cost",
     "rollup_cost", "rollup_margin_percent",
+    "gross_profit", "gross_margin_percent",
 }
 
 

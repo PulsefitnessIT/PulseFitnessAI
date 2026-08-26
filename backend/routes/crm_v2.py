@@ -2063,12 +2063,83 @@ async def compare_quotes(company_id: str = "", user=Depends(get_crm_user)):
     }
 
 
+# ── Equipment-sale line types (trade-ins, spare parts, service contracts) ──
+# A quote line carries an optional `line_type`:
+#   • sale             — equipment being sold (default)
+#   • spare_part       — spares sold alongside the equipment
+#   • service_contract — a maintenance/service contract sold with the deal
+#   • trade_in         — an allowance credited to the customer for taking
+#                        their old equipment; SUBTRACTS from the deal value.
+# This keeps complex equipment sales inside the existing CPQ quote engine
+# (used by both Pulse Fitness Ltd and the Global Dealers) — no new module.
+QUOTE_LINE_TYPES = ("sale", "spare_part", "service_contract", "trade_in")
+
+
+def _normalize_quote_line(line: dict) -> dict:
+    """Tag the line_type and compute its signed net subtotal.
+
+    Trade-ins are entered as a positive allowance but applied as negative
+    revenue so the deal total drops by the allowance given.
+    """
+    lt = (line.get("line_type") or "sale").lower()
+    if lt not in QUOTE_LINE_TYPES:
+        lt = "sale"
+    line["line_type"] = lt
+    qty = float(line.get("quantity", 0) or 0)
+    unit = float(line.get("unit_price", 0) or 0)
+    disc = float(line.get("discount", 0) or 0)
+    gross = qty * unit * (1 - disc / 100)
+    line["net_subtotal"] = round(-abs(gross) if lt == "trade_in" else gross, 2)
+    return line
+
+
+def compute_quote_totals(lines: list[dict], vat_rate: float) -> dict:
+    """Line-type-aware quote totals with a per-category breakdown and margin.
+
+    Trade-in allowances reduce the net subtotal; their `cost_price` is
+    ignored for margin (the allowance itself is the P&L impact — any resale
+    upside is handled in the profitability phase, not here).
+    """
+    for ln in lines or []:
+        _normalize_quote_line(ln)
+
+    def _cat(t: str) -> float:
+        return round(sum(l.get("net_subtotal", 0) for l in (lines or []) if l.get("line_type") == t), 2)
+
+    equipment_subtotal = _cat("sale")
+    parts_subtotal = _cat("spare_part")
+    contract_subtotal = _cat("service_contract")
+    trade_in_total = _cat("trade_in")  # negative or zero
+    subtotal = round(equipment_subtotal + parts_subtotal + contract_subtotal + trade_in_total, 2)
+    cost_total = round(sum(
+        float(l.get("cost_price", 0) or 0) * float(l.get("quantity", 0) or 0)
+        for l in (lines or []) if l.get("line_type") != "trade_in"
+    ), 2)
+    gross_profit = round(subtotal - cost_total, 2)
+    gross_margin_percent = round(gross_profit / subtotal * 100, 2) if subtotal > 0 else None
+    vat_amount = round(subtotal * vat_rate / 100, 2)
+    total = round(subtotal + vat_amount, 2)
+    return {
+        "equipment_subtotal": equipment_subtotal,
+        "parts_subtotal": parts_subtotal,
+        "contract_subtotal": contract_subtotal,
+        "trade_in_total": trade_in_total,
+        "subtotal": subtotal,
+        "cost_total": cost_total,
+        "gross_profit": gross_profit,
+        "gross_margin_percent": gross_margin_percent,
+        "vat_rate": vat_rate,
+        "vat_amount": vat_amount,
+        "tax_rate": vat_rate,  # PDF reads `tax_rate`; keep in sync with vat_rate
+        "total": total,
+    }
+
+
 @router.post("/quotes")
 async def create_quote(data: dict, user=Depends(get_crm_user)):
     from routes.crm_quote_sage import hydrate_quote_lines
     from utils.localization import org_localization
     lines = await hydrate_quote_lines(data.get("lines", []), user)
-    subtotal = sum(float(line.get("quantity", 0)) * float(line.get("unit_price", 0)) * (1 - float(line.get("discount", 0) or 0) / 100) for line in lines)
     # Iter 220p1 — tax rate follows the org market when not supplied
     # (0% US, 20% GB); currency/tax label snapshotted onto the quote.
     _org = await db.organizations.find_one(
@@ -2077,7 +2148,7 @@ async def create_quote(data: dict, user=Depends(get_crm_user)):
     )
     loc = org_localization(_org)
     vat_rate = float(data["vat_rate"]) if data.get("vat_rate") is not None else float(loc["default_tax_rate"])
-    vat = subtotal * vat_rate / 100
+    totals = compute_quote_totals(lines, vat_rate)
     # Resolve company and contact names
     company_name = ""
     contact_name = ""
@@ -2098,10 +2169,7 @@ async def create_quote(data: dict, user=Depends(get_crm_user)):
         "opportunity_id": data.get("opportunity_id"),
         "status": "draft",
         "lines": lines,
-        "subtotal": round(subtotal, 2),
-        "vat_rate": vat_rate, "vat_amount": round(vat, 2),
-        "tax_rate": vat_rate,  # PDF reads `tax_rate`; keep in sync with vat_rate
-        "total": round(subtotal + vat, 2),
+        **totals,
         # Iter 220p1 — localization snapshot (frozen at creation).
         "currency": loc["currency"], "tax_label": loc["tax_label"],
         "country_code": loc["country_code"],
@@ -2157,9 +2225,8 @@ async def revise_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
     base_number = original.get("quote_number", "").split("/")[0]
     from routes.crm_quote_sage import hydrate_quote_lines
     lines = await hydrate_quote_lines(data.get("lines", original.get("lines", [])), user)
-    subtotal = sum(float(ln.get("quantity", 0)) * float(ln.get("unit_price", 0)) * (1 - float(ln.get("discount", 0)) / 100) for ln in lines)
     vat_rate = float(data.get("vat_rate", original.get("vat_rate", 20)))
-    vat = subtotal * vat_rate / 100
+    totals = compute_quote_totals(lines, vat_rate)
 
     new_quote = {
         "id": _id(), "organization_id": user.get("organization_id"),
@@ -2173,9 +2240,7 @@ async def revise_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
         "opportunity_id": original.get("opportunity_id"),
         "status": "draft",
         "lines": lines,
-        "subtotal": round(subtotal, 2),
-        "vat_rate": vat_rate, "vat_amount": round(vat, 2),
-        "total": round(subtotal + vat, 2),
+        **totals,
         "valid_until": data.get("valid_until", original.get("valid_until", "")),
         "notes": data.get("notes", original.get("notes", "")),
         "version": new_version,

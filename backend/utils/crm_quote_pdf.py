@@ -89,12 +89,15 @@ def build_crm_quote_pdf(quote: dict, org: dict, company: dict | None = None) -> 
     items = quote.get("line_items") or quote.get("lines") or []
 
     def _line_net(item) -> float:
+        if item.get("net_subtotal") is not None:
+            return float(item.get("net_subtotal") or 0)
         if item.get("subtotal") is not None:
             return float(item.get("subtotal") or 0)
         qty = float(item.get("quantity", 0) or 0)
         up = float(item.get("unit_price", 0) or 0)
         disc = float(item.get("discount_percent", item.get("discount", 0)) or 0)
-        return round(qty * up * (1 - disc / 100), 2)
+        net = round(qty * up * (1 - disc / 100), 2)
+        return -abs(net) if item.get("line_type") == "trade_in" else net
 
     if is_mod:
         data = [[Paragraph("TL No.", s["th"]), Paragraph("Description", s["th"]),
