@@ -1,0 +1,37 @@
+{
+  "summary": "CPQ v2 Phase 2 staged invoicing (deposit/interim/final, running balance, credit notes) tested end-to-end. Backend: 13/13 pytest cases pass against the public URL with owner@isodemo.com CRM token — the exact lifecycle numbers were independently confirmed (auto 25/75 -> deposit 2500 + final 7500, scheduled 10000, balance 10000, remaining_to_invoice 10000; deposit invoice -> invoiced 2500 / balance still 10000 / INV- number; full pay -> paid 2500, balance 7500, status paid; final invoice -> invoiced 10000, fully_invoiced true; part-pay 5000 -> paid 7500, outstanding 2500, balance 2500, status part_paid; credit note 1000 (CN-) -> credited 1000, invoiced net 9000, invoiced_gross 10000, balance 1500). Guards verified: 400 when a PUT /schedule drops an invoiced stage, 422 on overpay, 422 when auto percentages != 100, plus extra guards (pay before invoice 400, double invoice 400, credit before invoice 400, credit > invoiced 422, unknown stage/quote 404, unauthenticated 401/403), and re-schedule preserves paid lifecycle state. Frontend: logged in as owner@isodemo.com, /crm -> Corporate mode -> Quotes -> quote detail; quote-invoicing-panel renders, invoicing-empty preset invoicing-auto-25-75 creates the schedule, all four running-balance cards render, Raise invoice / Record payment (prefilled 2500) / Credit note (1000, Goodwill) all worked with badges flipping Invoiced -> Paid -> Part paid and the summary matching the backend exactly (Deal total 10,000 / Invoiced 9,000 / Paid 7,500 / Balance 1,500 + 'Credit notes issued: 1,000'). Schedule editor opened, add-stage + value edit + Save persisted (3 stages). All TEST_ quotes and their crm2_invoices docs were deleted afterwards.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/crm/v2/quotes/{id}/schedule", "issue": "No validation that the schedule total <= quote total. Saving stages worth 600% of the deal is accepted (summary.scheduled 60000 vs total 10000, unscheduled -50000). A percent stage also accepts percent > 100 with no cap/warning."},
+      {"endpoint": "POST /api/crm/v2/quotes/{id}/stages/{sid}/invoice", "issue": "Over-invoicing is possible: after the over-sized schedule above, invoicing the extra stage returned 200 and produced invoiced_gross 60000 / remaining_to_invoice -50000 / outstanding 51500 on a 10000 deal while summary.balance stayed 1500 (balance = total - paid - credited ignores issued invoices), i.e. internally inconsistent figures. Suggest rejecting an invoice whose amount exceeds remaining_to_invoice (or at least surfacing a warning)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Quote detail · Payment schedule & invoicing", "issues": ["Panel layout, badge colours and running-balance cards read well in light mode; no contrast or spacing problems found.", "The schedule editor gives no inline feedback when the drafted stages exceed 100% of the deal (a 500% percent value was silently saved as a £50,000 interim stage on a £10,000 quote) — mirror the backend validation gap above with an inline warning."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_crm_quote_staged_invoicing_aug2026.py",
+    "/app/test_reports/pytest/staged_invoicing_aug2026.xml"
+  ],
+  "action_items": [
+    "Validate the schedule total against the quote total on PUT /schedule (reject or warn when scheduled > total, and cap percent at 100).",
+    "Reject (or warn on) invoicing a stage when the amount would push invoiced_gross above the quote total; today remaining_to_invoice can go negative while balance stays unchanged."
+  ],
+  "critical_code_review_comments": [
+    "crm_quote_invoicing.py::_build_view — balance = total - paid - credited is independent of what has actually been invoiced, so an over-invoiced quote reports outstanding 51500 but balance 1500. Consider deriving balance from max(total, invoiced_gross) or blocking over-invoicing at source.",
+    "_normalize_stage does not bound `percent` (0-100) or reject negative amounts; only the /schedule/auto path enforces the 100% rule."
+  ],
+  "updated_files": ["/app/backend/tests/test_crm_quote_staged_invoicing_aug2026.py"],
+  "success_rate": {"backend": "100% (13/13 pytest)", "frontend": "100% of the requested panel flows"},
+  "seed_data_creation": "Created 11 TEST_ CPQ v2 quotes (£10,000, vat 0) plus their crm2_invoices docs under iso-demo-org; ALL deleted after the run (0 leftovers).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (app /login and POST /api/crm/auth/login)",
+  "context_for_next_testing_agent": "Reusable pytest suite at /app/backend/tests/test_crm_quote_staged_invoicing_aug2026.py (module-scoped CRM login fixture + pymongo cleanup). Frontend path: /login -> /crm -> data-testid crm-mode-business -> crm-nav-quotes -> quote-row-{id} -> quote-invoicing-panel. Note the login for owner@isodemo.com lands on /service-desk, so navigate to /crm explicitly. Only open validation gaps are the over-scheduling / over-invoicing ones listed above; core Phase 2 lifecycle is correct on both backend and UI.",
+  "rca_of_the_issue": "N/A for the requested lifecycle — all expected numbers matched. The two minor findings stem from _normalize_stage not bounding stage percent/amount and invoice_stage not checking the stage amount against summary.remaining_to_invoice."
+}

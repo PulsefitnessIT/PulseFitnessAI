@@ -8,6 +8,7 @@ import {
 import axios from 'axios';
 import CRMQuoteSagePanel from './CRMQuoteSagePanel';
 import CRMMODQuoteWizard from './CRMMODQuoteWizard';
+import { QuoteInvoicingPanel } from './CRMQuoteInvoicing';
 import { notify } from '@/components/notifications';
 import { formatMoneySync } from '@/utils/localization';
 
@@ -381,6 +382,8 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers, canIn
             </tbody>
           </table>
         </div>
+
+        <QuoteInvoicingPanel quoteId={quoteId} API={API} headers={headers} fmt={fmt} c={c} isDark={isDark} />
 
         {quote.notes && (
           <div className="p-3 rounded-lg" style={{ background: isDark ? 'var(--color-neutral-950)' : 'var(--color-neutral-100)' }}>
