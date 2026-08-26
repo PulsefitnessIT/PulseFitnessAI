@@ -23,6 +23,7 @@ export default function CustomerWarrantiesTab() {
   const [data, setData] = useState(null);
   const [enquire, setEnquire] = useState(null); // { ids: [], label } | null
   const [note, setNote] = useState('');
+  const [tier, setTier] = useState('bronze');
   const [busy, setBusy] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -45,12 +46,18 @@ export default function CustomerWarrantiesTab() {
   const submitEnquiry = async () => {
     setBusy(true);
     try {
-      await axios.post(`${API}/customer/warranties/enquire`, { equipment_ids: enquire.ids, message: note.trim() }, authHeaders());
-      setEnquire(null); setNote('');
+      await axios.post(`${API}/customer/warranties/enquire`, { equipment_ids: enquire.ids, message: note.trim(), preferred_tier: tier }, authHeaders());
+      setEnquire(null); setNote(''); setTier('bronze');
       await load();
     } catch (e) { /* surfaced via reload; keep simple */ }
     setBusy(false);
   };
+
+  const TIERS = [
+    { id: 'bronze', name: 'Bronze', desc: 'Essential cover' },
+    { id: 'silver', name: 'Silver', desc: 'Enhanced cover · priority booking' },
+    { id: 'gold', name: 'Gold', desc: 'Premium cover · priority response' },
+  ];
 
   if (!data) return <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 className="animate-spin" /></div>;
   const items = data.warranties || [];
@@ -161,6 +168,20 @@ export default function CustomerWarrantiesTab() {
               <button onClick={() => !busy && setEnquire(null)} data-testid="warranty-enquiry-close"><X size={16} className="text-slate-400" /></button>
             </div>
             <p className="mb-3 text-xs text-slate-500">{t('warranties.enquire_for', 'For')}: <span className="font-medium text-slate-700">{enquire.label}</span>. {t('warranties.enquire_help', 'The Pulse Fitness team will prepare an aftersales contract and get in touch. Add anything helpful below (optional).')}</p>
+            <p className="mb-1.5 text-xs font-semibold text-slate-700">{t('warranties.preferred_cover', 'Preferred cover level')}</p>
+            <div className="mb-3 grid grid-cols-3 gap-2" data-testid="warranty-tier-choice">
+              {TIERS.map((ti) => {
+                const on = tier === ti.id;
+                return (
+                  <button key={ti.id} onClick={() => setTier(ti.id)} type="button"
+                    className={`rounded-lg border px-2 py-2 text-left transition-all ${on ? 'border-sky-400 bg-sky-50 ring-1 ring-sky-200' : 'border-slate-200 hover:border-slate-300'}`}
+                    data-testid={`warranty-tier-${ti.id}`}>
+                    <p className={`text-sm font-bold ${on ? 'text-sky-700' : 'text-slate-800'}`}>{ti.name}</p>
+                    <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{ti.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3}
               placeholder={t('warranties.enquire_placeholder', 'e.g. best time to call, preferred cover level, site notes…')}
               className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-sky-400 focus:outline-none" data-testid="warranty-enquiry-note" />

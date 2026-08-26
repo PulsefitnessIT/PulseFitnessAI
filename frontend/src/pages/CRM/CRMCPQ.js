@@ -87,7 +87,7 @@ function SignaturePad({ onSave, onCancel, isDark, c }) {
 }
 
 /* ═══ QUOTE DETAIL ═══ */
-function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers, canInventory }) {
+function QuoteDetail({ quoteId, onBack, onSelect, focusSection, c, isDark, API, headers, canInventory }) {
   const [quote, setQuote] = useState(null);
   const [showSign, setShowSign] = useState(false);
   const [esignDialog, setEsignDialog] = useState(null); // { to } | null
@@ -109,6 +109,14 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers, canIn
   }, [API, headers, quoteId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Deep-link focus: scroll to the Fulfilment section when navigated here.
+  useEffect(() => {
+    if (quote && focusSection === 'fulfilment') {
+      const el = document.getElementById('quote-fulfilment-section');
+      if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 250);
+    }
+  }, [quote, focusSection]);
 
   const loadVersions = async () => {
     try {
@@ -250,7 +258,6 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers, canIn
   if (!quote) return <div className="flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-[var(--color-info-ios)] border-t-transparent rounded-full animate-spin" /></div>;
 
   const statusColor = STATUS_COLORS[quote.status] || 'var(--color-text-faint-alt)';
-
   return (
     <div data-testid="crm-quote-detail">
       <button onClick={onBack} className="flex items-center gap-1.5 text-sm mb-4 hover:underline" style={{ color: c.textMuted }} data-testid="quote-back-btn">
@@ -387,7 +394,9 @@ function QuoteDetail({ quoteId, onBack, onSelect, c, isDark, API, headers, canIn
 
         <QuoteInvoicingPanel quoteId={quoteId} API={API} headers={headers} fmt={fmt} c={c} isDark={isDark} />
 
-        <QuoteFulfilmentPanel quoteId={quoteId} API={API} headers={headers} fmt={fmt} c={c} isDark={isDark} />
+        <div id="quote-fulfilment-section">
+          <QuoteFulfilmentPanel quoteId={quoteId} API={API} headers={headers} fmt={fmt} c={c} isDark={isDark} />
+        </div>
 
         <QuoteHandoverPanel quoteId={quoteId} API={API} headers={headers} c={c} isDark={isDark} />
 
@@ -736,9 +745,11 @@ export default function CRMCPQ() {
   const [saving, setSaving] = useState(false);
 
   // Cross-module navigation
+  const [pendingFocus, setPendingFocus] = useState(null);
   useEffect(() => {
     if (navTarget?.type === 'quote' && navTarget?.id) {
       setSelectedQuote(navTarget.id);
+      setPendingFocus(navTarget.focus || null);
       setNavTarget(null);
     }
   }, [navTarget, setNavTarget]);
@@ -884,7 +895,7 @@ export default function CRMCPQ() {
   const openCreate = () => { loadLookups(); setShowCreate(true); };
 
   if (selectedQuote) {
-    return <QuoteDetail quoteId={selectedQuote} onBack={() => { setSelectedQuote(null); load(); }} onSelect={setSelectedQuote} {...crm} />;
+    return <QuoteDetail quoteId={selectedQuote} focusSection={pendingFocus} onBack={() => { setSelectedQuote(null); setPendingFocus(null); load(); }} onSelect={setSelectedQuote} {...crm} />;
   }
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-[var(--color-info-ios)] border-t-transparent rounded-full animate-spin" /></div>;
@@ -916,7 +927,7 @@ export default function CRMCPQ() {
         {quotes.map(q => {
           const statusColor = STATUS_COLORS[q.status] || 'var(--color-text-faint-alt)';
           return (
-            <div key={q.id} onClick={() => setSelectedQuote(q.id)}
+            <div key={q.id} onClick={() => { setPendingFocus(null); setSelectedQuote(q.id); }}
               className="flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all hover:scale-[1.005]"
               style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}
               data-testid={`quote-row-${q.id}`}>

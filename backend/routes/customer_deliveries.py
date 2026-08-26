@@ -244,6 +244,12 @@ async def enquire_aftersales(data: dict = None, user=Depends(get_current_user)):
         for e in equipment
     ) or "All equipment on account"
     note = (data.get("message") or "").strip()
+    # Customer-selectable cover level (team finalises). Default Bronze.
+    _ALLOWED_TIERS = {"bronze": "Bronze", "silver": "Silver", "gold": "Gold"}
+    tier = (data.get("preferred_tier") or "bronze").strip().lower()
+    if tier not in _ALLOWED_TIERS:
+        tier = "bronze"
+    tier_label = _ALLOWED_TIERS[tier]
 
     # De-dupe: reuse an open enquiry contract raised in the last 24h.
     since = (now - timedelta(hours=24)).isoformat()
@@ -268,14 +274,15 @@ async def enquire_aftersales(data: dict = None, user=Depends(get_current_user)):
         "id": contract_id, "organization_id": seller_org,
         "contract_number": f"CTR-{str(uuid.uuid4())[:6].upper()}",
         "title": f"Aftersales cover — {company_name} (warranty renewal)",
-        "type": "service", "tier": "bronze", "status": "draft",
+        "type": "service", "tier": tier, "status": "draft",
         "company_id": company_id, "company_name": company_name,
         "contact_id": "", "contact_name": user.get("full_name", ""),
         "annual_value": 0.0, "total_value": 0.0,
         "billing_frequency": "annual", "auto_renew": False, "renewal_notice_days": 90,
         "sla": {"response_hours": 8, "resolution_hours": 48, "parts_included": False,
                 "labour_included": True, "preventive_maintenance": False},
-        "coverage_notes": f"Raised from a customer warranty-renewal enquiry via their Pulse portal.\nEquipment: {eq_lines}."
+        "coverage_notes": f"Raised from a customer warranty-renewal enquiry via their Pulse portal.\n"
+                          f"Preferred cover level: {tier_label}.\nEquipment: {eq_lines}."
                           + (f"\nCustomer note: {note}" if note else ""),
         "source": "customer_warranty_enquiry",
         "enquiry_equipment_ids": [e["id"] for e in equipment],
@@ -288,7 +295,7 @@ async def enquire_aftersales(data: dict = None, user=Depends(get_current_user)):
 
     # 2) Follow-up task for the account owner.
     task_body = (f"{company_name} has enquired about aftersales / warranty-renewal cover via their Pulse portal.\n"
-                 f"Equipment: {eq_lines}." + (f"\nCustomer note: {note}" if note else "")
+                 f"Preferred cover level: {tier_label}.\nEquipment: {eq_lines}." + (f"\nCustomer note: {note}" if note else "")
                  + f"\nA draft contract ({contract['contract_number']}) has been created — price & send.")
     await db.crm2_activities.insert_one({
         "id": str(uuid.uuid4()), "organization_id": seller_org,
@@ -309,6 +316,7 @@ async def enquire_aftersales(data: dict = None, user=Depends(get_current_user)):
                 f"<p>Hi {owner_name.split(' ')[0] if owner_name else 'there'},</p>"
                 f"<p><b>{company_name}</b> has asked about aftersales / warranty-renewal cover "
                 f"through their Pulse portal.</p>"
+                f"<p><b>Preferred cover level:</b> {tier_label}</p>"
                 f"<p><b>Equipment:</b> {eq_lines}</p>"
                 + (f"<p><b>Their note:</b> {note}</p>" if note else "")
                 + f"<p>A draft contract <b>{contract['contract_number']}</b> is ready in the CRM to price and send.</p>",

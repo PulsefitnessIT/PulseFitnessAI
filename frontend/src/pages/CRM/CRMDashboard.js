@@ -244,7 +244,7 @@ function CasesBySeverity({ data, isDark, c }) {
 
 /* ─── EQUIPMENT SALES (leadership) ─── */
 function EquipmentSalesTile({ isDark, c, setActiveTab }) {
-  const { API, headers } = useCRM();
+  const { API, headers, navigateTo } = useCRM();
   const [s, setS] = useState(null);
   const [drill, setDrill] = useState(null); // null | { loading, deals }
   useEffect(() => {
@@ -316,7 +316,7 @@ function EquipmentSalesTile({ isDark, c, setActiveTab }) {
             ) : (
               <div className="space-y-2" data-testid="awaiting-delivery-list">
                 {drill.deals.map(d => (
-                  <button key={d.quote_id} onClick={() => { setDrill(null); setActiveTab('quotes'); }}
+                  <button key={d.quote_id} onClick={() => { setDrill(null); navigateTo('quote', d.quote_id, { focus: 'fulfilment' }); }}
                     className="w-full text-left p-3 rounded-lg border transition-all hover:bg-white/5"
                     style={{ borderColor: c.border }} data-testid={`awaiting-deal-${d.quote_id}`}>
                     <div className="flex items-center justify-between gap-2">

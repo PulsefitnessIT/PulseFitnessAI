@@ -16,6 +16,8 @@ export const QuoteHandoverPanel = ({ quoteId, API, headers, c, isDark }) => {
   const [forceFor, setForceFor] = useState(false);
   const [forceReason, setForceReason] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [emailDialog, setEmailDialog] = useState(null); // { to, subject, message }
+  const [emailBusy, setEmailBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -64,8 +66,6 @@ export const QuoteHandoverPanel = ({ quoteId, API, headers, c, isDark }) => {
   };
   const hasEquipment = (comp.fulfilment_summary?.equipment_created || 0) > 0;
 
-  const [emailDialog, setEmailDialog] = useState(null); // { to, subject, message }
-  const [emailBusy, setEmailBusy] = useState(false);
   const sendPackEmail = async () => {
     setEmailBusy(true);
     try {

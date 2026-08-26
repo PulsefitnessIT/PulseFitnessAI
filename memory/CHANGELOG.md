@@ -140,3 +140,14 @@ Extends the existing CRM CPQ (Quotes) Equipment Sales workflow — no new module
 - **Backend** (customer_deliveries.py `GET /customer/warranties/certificate`, new utils/warranty_certificate_pdf.py): one branded (Pulse) PDF "Warranty Certificate" issued to the customer org, grouping their equipment by tier (Standard/Extended/Premium/Manufacturer) with a table per group (equipment, manufacturer/model, serial, cover-until) + standard terms note. 400 if no warranties.
 - **Frontend** (CustomerWarrantiesTab.js): "Download certificate" button in the register header (data-testid warranty-download-certificate), blob download.
 - **Verified**: endpoint returns HTTP 200 %PDF; PDF content confirmed grouped-by-tier with correct serials + cover-until dates (analyze_file_tool); button renders in the demo customer portal. Seed cleaned up; files compile clean.
+
+## 2026-08-26 — Cover-tier choice in renewal enquiry + Awaiting-delivery deep-link
+### Cover tier choice
+- **Backend** (customer_deliveries.py enquire): accepts `preferred_tier` (bronze/silver/gold, validated, default bronze) → the draft aftersales contract now starts on the chosen tier; tier is recorded in coverage_notes, the owner task and the heads-up email.
+- **Frontend** (CustomerWarrantiesTab.js): Bronze/Silver/Gold selector cards in the enquiry dialog (data-testid warranty-tier-choice, warranty-tier-{id}).
+- **Verified**: enquiry with preferred_tier=gold created a draft contract with tier=gold + "Preferred cover level: Gold" note; selector renders with Gold highlighted.
+
+### Awaiting-delivery deep-link (drill-down → Fulfilment)
+- **Frontend**: `navigateTo` (CRMApp.js) extended to take an `extra` payload and to switch to Business/Corporate mode when the target tab is Corporate-only (fixes bounce-back from Members mode). Drill-down rows (CRMDashboard EquipmentSalesTile) now call `navigateTo('quote', quote_id, { focus: 'fulfilment' })`. CRMCPQ QuoteDetail accepts `focusSection` and auto-scrolls to the new `#quote-fulfilment-section` anchor.
+- **Bug fixed**: QuoteHandoverPanel had `emailDialog`/`emailBusy` useState declared AFTER the `if (!data) return null` early return (introduced in the Email-Pack feature) → "Rendered more hooks than during the previous render" crash when the quote detail loaded. Moved both hooks above the early return.
+- **Verified**: clicking a drill-down deal opens the specific quote and scrolls straight to its Fulfilment panel. All files compile clean; visual-test seed cleaned up.

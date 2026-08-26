@@ -735,10 +735,11 @@ export default function CRMApp() {
   };
   const [navTarget, setNavTarget] = useState(null); // {type: 'company', id: '...'}
 
-  const navigateTo = useCallback((entityType, entityId) => {
+  const navigateTo = useCallback((entityType, entityId, extra) => {
     const tabMap = { company: 'companies', contact: 'contacts', opportunity: 'pipeline', deal: 'pipeline', case: 'dashboard', task: 'inbox', quote: 'quotes', contract: 'contracts', tender: 'tenders' };
     const tab = tabMap[entityType] || 'dashboard';
-    setNavTarget({ type: entityType, id: entityId });
+    if (MEMBERS_HIDDEN_TABS.has(tab)) setActiveMode('business');
+    setNavTarget({ type: entityType, id: entityId, ...(extra || {}) });
     setActiveTab(tab);
   }, []);
 
