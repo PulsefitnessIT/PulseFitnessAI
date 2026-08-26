@@ -19506,7 +19506,7 @@ So any external bookmarks or stray copy-paste links keep working:
   redirects + scan the rest of the codebase for any remaining links
   to the dead paths (`/legal/privacy`, `/legal/terms`).
 * `make regression` → **385 passed, 14 skipped** (up from 379).
-* Live smoke against `https://multi-eng-booking.preview.emergentagent.com`:
+* Live smoke against `https://photo-fix-verify.preview.emergentagent.com`:
   * `/legal/privacy`     → final URL `/privacy` ✅
   * `/legal/terms`       → final URL `/terms` ✅
   * `/forgot-password`   → final URL `/reset-password` ✅
@@ -30078,7 +30078,7 @@ P6 — final phase of the Master Admin redesign blueprint. Replaces ad-hoc "Add 
   8-10. Backend endpoint calls verified.
   11. Created user appears in unified directory.
   12. Regression: People → Directory still works.
-- **Main agent live smoke**: signed in as `admin@gymaxisai.com`, ran full 5-step flow, created `Wizard Test User`, received invite URL `https://multi-eng-booking.preview.emergentagent.com/reset-password?token=l47KegLXL2FI…`.
+- **Main agent live smoke**: signed in as `admin@gymaxisai.com`, ran full 5-step flow, created `Wizard Test User`, received invite URL `https://photo-fix-verify.preview.emergentagent.com/reset-password?token=l47KegLXL2FI…`.
 
 ### Pulse Master Admin guardrails
 - 'GymAxis Master Admin' role tile hidden.

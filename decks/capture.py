@@ -2,7 +2,7 @@ import asyncio, os
 from playwright.async_api import async_playwright
 
 TOKEN = open("/tmp/tok.txt").read().strip()
-BASE = "https://multi-eng-booking.preview.emergentagent.com"
+BASE = "https://photo-fix-verify.preview.emergentagent.com"
 OUT = "/app/decks/shots/"
 os.makedirs(OUT, exist_ok=True)
 

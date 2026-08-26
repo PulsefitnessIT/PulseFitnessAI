@@ -3,10 +3,22 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeOff, CheckCircle, Loader2, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, Loader2, ArrowLeft, Check, X } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import axios from 'axios';
 import { useAuth } from '@/App';
+import CaptchaWidget from '@/components/shared/CaptchaWidget';
+
+// Mirrors the backend policy in utils/security.validate_password_strength
+// (>=12 chars, upper, lower, digit, symbol) so users get instant feedback
+// instead of failed round-trips that used to burn the reset rate-limit.
+const PW_RULES = [
+  { key: 'len', label: 'At least 12 characters', test: (p) => (p || '').length >= 12 },
+  { key: 'upper', label: 'One uppercase letter', test: (p) => /[A-Z]/.test(p || '') },
+  { key: 'lower', label: 'One lowercase letter', test: (p) => /[a-z]/.test(p || '') },
+  { key: 'digit', label: 'One number', test: (p) => /\d/.test(p || '') },
+  { key: 'symbol', label: 'One symbol', test: (p) => /[^A-Za-z0-9]/.test(p || '') },
+];
 
 const ResetPasswordPage = () => {
   const { API } = useAuth();
@@ -23,13 +35,18 @@ const ResetPasswordPage = () => {
   const [reqLoading, setReqLoading] = useState(false);
   const [reqSent, setReqSent] = useState(false);
   const [reqError, setReqError] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
 
   const handleRequest = async (e) => {
     e.preventDefault();
     setReqLoading(true);
     setReqError('');
     try {
-      await axios.post(`${API}/auth/forgot-password`, { email: email.trim().toLowerCase() });
+      await axios.post(
+        `${API}/auth/forgot-password`,
+        { email: email.trim().toLowerCase() },
+        { headers: captchaToken ? { 'X-Captcha-Token': captchaToken } : {} },
+      );
       // Backend always returns a generic message to prevent email enumeration.
       setReqSent(true);
     } catch (err) {
@@ -45,8 +62,9 @@ const ResetPasswordPage = () => {
       setError('Passwords do not match');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    const failed = PW_RULES.filter((r) => !r.test(password));
+    if (failed.length) {
+      setError('Password must contain: ' + failed.map((r) => r.label.toLowerCase()).join(', ') + '.');
       return;
     }
 
@@ -57,7 +75,8 @@ const ResetPasswordPage = () => {
       setSuccess(true);
       notify.success('Password reset successfully');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to reset password. The link may have expired.');
+      const detail = err.response?.data?.detail;
+      setError(typeof detail === 'string' ? detail : 'Failed to reset password. The link may have expired.');
     }
     setLoading(false);
   };
@@ -104,6 +123,8 @@ const ResetPasswordPage = () => {
 
             {reqError && <p className="text-sm text-red-500" data-testid="reset-request-error">{reqError}</p>}
 
+            <CaptchaWidget action="forgot_password" onToken={setCaptchaToken} />
+
             <Button type="submit" className="w-full" disabled={reqLoading} data-testid="reset-request-submit">
               {reqLoading ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
               Send reset link
@@ -149,7 +170,7 @@ const ResetPasswordPage = () => {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Enter new password"
                 required
-                minLength={6}
+                minLength={12}
                 data-testid="reset-password-input"
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -157,6 +178,16 @@ const ResetPasswordPage = () => {
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+            <ul className="mt-2 space-y-1" data-testid="reset-password-rules">
+              {PW_RULES.map((r) => {
+                const ok = r.test(password);
+                return (
+                  <li key={r.key} className="flex items-center gap-1.5 text-xs" style={{ color: ok ? '#10B981' : 'var(--theme-text-muted)' }} data-testid={`reset-rule-${r.key}-${ok ? 'ok' : 'pending'}`}>
+                    {ok ? <Check size={13} /> : <X size={13} className="opacity-40" />} {r.label}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
 
           <div>
@@ -167,7 +198,7 @@ const ResetPasswordPage = () => {
               onChange={e => setConfirmPassword(e.target.value)}
               placeholder="Confirm new password"
               required
-              minLength={6}
+              minLength={12}
               data-testid="reset-confirm-input"
             />
           </div>

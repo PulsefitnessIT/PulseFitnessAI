@@ -28,8 +28,8 @@
   "updated_files": [],
   "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
   "test_credentials": "owner@isodemo.com / IsoDemo123! (org iso-demo-org)",
-  "seed_data_creation": "None. Cleanup performed at end per instructions: unset postcode on staff_members id=9fa89a88-2a81-4351-8826-50f56961c8c1 (matched=1, modified=1) and unset map_lat/map_lng/map_geo_postcode on crm_users where staff_id=... (matched=1, modified=1).",
+  "seed_data_creation": "None. Cleanup performed at end per instructions: unset postcode on staff_members id=photo-fix-verify (matched=1, modified=1) and unset map_lat/map_lng/map_geo_postcode on crm_users where staff_id=... (matched=1, modified=1).",
   "retest_needed": false,
   "main_agent_can_self_test": true,
-  "context_for_next_testing_agent": "After cleanup, Jordan Blake no longer has a test postcode, so staff-locations may not return his pin. If future tests need his pin visible again, re-set postcode 'M1 1AE' on staff_members id=9fa89a88-2a81-4351-8826-50f56961c8c1."
+  "context_for_next_testing_agent": "After cleanup, Jordan Blake no longer has a test postcode, so staff-locations may not return his pin. If future tests need his pin visible again, re-set postcode 'M1 1AE' on staff_members id=photo-fix-verify."
 }

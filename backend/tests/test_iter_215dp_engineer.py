@@ -22,7 +22,7 @@ from tests.conftest import rate_limit_bypass_headers
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
-    BASE_URL = "https://multi-eng-booking.preview.emergentagent.com"
+    BASE_URL = "https://photo-fix-verify.preview.emergentagent.com"
 
 # Session-scoped login to avoid rate limiting
 _SESSION_TOKEN = None

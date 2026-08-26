@@ -12,7 +12,8 @@ from utils.auth import get_current_user, get_current_user_portal, optional_curre
 from utils.refresh_tokens import issue_refresh_token, clear_refresh_cookie, renew_access_from_refresh, revoke_refresh_cookie
 from utils.email import send_welcome_email, send_password_reset_email
 from utils.security import (
-    rate_limit_login, rate_limit_password_reset, validate_password_strength,
+    rate_limit_login, rate_limit_password_reset, rate_limit_password_reset_submit,
+    validate_password_strength,
     assert_password_not_breached,
     check_account_lockout, record_failed_login, clear_failed_logins,
     sanitise_string, rate_limit, _client_ip,
@@ -884,9 +885,11 @@ async def forgot_password(body: dict, request: Request) -> dict:
 
 @router.post("/auth/reset-password")
 async def reset_password(body: dict, request: Request) -> dict:
-    # Per-IP rate limit (3 / 15 min) — same limiter as forgot-password, so a
-    # leaked/guessed reset token can't be paired with high-volume submissions.
-    rate_limit_password_reset(request)
+    # Dedicated per-IP limiter (15 / 15 min) SEPARATE from the forgot-password
+    # request limiter. The token is an unguessable 32-byte secret, so a user
+    # fumbling the strict password policy a few times must not get locked out
+    # of completing their reset (root cause of "Forgot Password doesn't work").
+    rate_limit_password_reset_submit(request)
     token = body.get("token", "")
     new_password = body.get("password", "")
 
@@ -1085,10 +1088,25 @@ async def refresh_token(request: Request, response: Response, user: Optional[dic
     old_jti = user.get("_jwt_jti")
     old_exp = user.get("_jwt_exp") or int(datetime.now(timezone.utc).timestamp()) + 86400
     ttl_hours = access_token_ttl_hours(user)
+    # Iter (Jun 2026) — PRESERVE the operator-portal "act as org" context and
+    # any additive impersonation grants across rotation. Without this, the
+    # frontend's on-load / 15-min refresh minted a token WITHOUT `act_org`,
+    # silently reverting a master admin out of the "Pulse Fitness Portal"
+    # (operator company) back to their home org seconds after switching in —
+    # the cause of "portal shows no data" and "reverts to Head Office after
+    # visiting CRM". `mfa_verified` was already preserved the same way.
+    _extra_claims: dict = {}
+    _acting_org = user.get("_acting_org_id")
+    if _acting_org:
+        _extra_claims["act_org"] = _acting_org
+    _imp_grants = user.get("_imp_grants")
+    if _imp_grants:
+        _extra_claims["imp_grants"] = _imp_grants
     new_token = create_token(
         user['id'],
         expires_hours=ttl_hours,
         mfa_verified=bool(user.get("_jwt_mfa_verified")),
+        extra_claims=_extra_claims or None,
     )
     if old_jti:
         await revoke_jwt(old_jti, int(old_exp), reason="refresh", grace_seconds=60)

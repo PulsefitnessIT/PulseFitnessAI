@@ -13,7 +13,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL") or "https://multi-eng-booking.preview.emergentagent.com"
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL") or "https://photo-fix-verify.preview.emergentagent.com"
 BASE_URL = BASE_URL.rstrip("/")
 
 # Test credentials from test_credentials.md

@@ -1,0 +1,46 @@
+{
+  "summary": "Independent verification of BUG 1 (job-role chips populate the 'Add a role' input) and BUG 2 (forgot-password / reset-password rate-limit separation + reset-page password checklist), plus the requested auth-playbook checks. Backend: 13/13 pytest assertions pass (2 new files). Frontend: Bug 2 public reset page 10/10 checks pass; Bug 1 operator flow (owner@isodemo.com -> /dashboard > Staffing > People > HR > Manage job roles) 6/6 checks pass, all 9 built-in chips clickable with a NORMAL (non-forced) click and each correctly populates job-roles-add-input. Master-admin UI (Bugs 3 & 4 frontend) skipped as instructed (TOTP MFA gate); Bug 4 backend covered indirectly by a /auth/refresh claim-preservation regression test.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "ResetPasswordPage (token form)",
+        "issues": [
+          "Confirm Password input still has minLength={6} (line 201) while New Password has minLength={12} — inconsistent with the 12-char policy shown in the checklist. Cosmetic only (JS equality check catches mismatches), but it lets the browser accept a 6-char confirm value.",
+          "Built-in role chips in JobRolesModal are <button> elements without an explicit cursor-pointer class; Tailwind preflight leaves buttons at the default cursor, so the new click affordance is only signalled by hover colour + title tooltip. Suggest adding cursor-pointer."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter293_reset_limiter_separation.py",
+    "/app/backend/tests/test_iter293_auth_playbook.py",
+    "/app/test_reports/pytest/iter293_all.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: change ResetPasswordPage confirm-password minLength from 6 to 12 for consistency.",
+    "OPTIONAL: add cursor-pointer to the job-roles-builtin-* chips for a clearer click affordance.",
+    "NOTE (env, not app code): the preview edge (Cloudflare/K8s ingress) rewrites CORS headers on public requests to 'Access-Control-Allow-Origin: *' together with 'Allow-Credentials: true' (an invalid combo) — including for Origin: https://evil.example.com. The FastAPI app itself is correct (echoes only allowlisted origins, rejects rogue origins). No app change needed, but do not rely on the edge for cross-origin isolation."
+  ],
+  "critical_code_review_comments": [
+    "routes/auth.py /auth/reset-password reads body key 'password' (not 'new_password' as stated in the review request); the frontend sends 'password' so they match — but the endpoint takes an untyped 'body: dict' instead of a Pydantic model, so a client key typo silently returns the generic 'Token and password are required'. Consider a ResetPasswordRequest model.",
+    "utils/security.py rate limiters fail OPEN when Mongo is unreachable — acceptable for availability but means the reset/lockout controls silently disappear during a DB blip; worth an alert/metric on the '[rate-limit] store error' log line.",
+    "The reset-submit limiter (15/15min) is per-IP only; the token itself is unguessable so this is fine, but a per-token attempt cap would be a cheap extra guard."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter293_reset_limiter_separation.py (new)",
+    "/app/backend/tests/test_iter293_auth_playbook.py (new)"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "100% (16/16 checks across Bug 1 + Bug 2)"},
+  "seed_data_creation": "None. Test-only side effects: throwaway forgot-password requests for TEST_*@example.invalid, and the per-IP resetreq:/resetsubmit: rate_buckets rows which the fixture deletes on teardown. No user data modified.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (works; lands on /service-desk because is_service_desk=true — navigate to /dashboard for Operations). /app/memory/test_credentials.md is present and accurate.",
+  "context_for_next_testing_agent": "Detailed verification results: (1) BUG 2 BACKEND VERIFIED — POST /api/auth/forgot-password returns 200 with the generic 'If an account exists...' message for both unknown and known emails; POST /api/auth/reset-password with a bogus token returns 400 ('Password must contain...' for weak, 'Invalid or expired reset token' for strong); 12 consecutive reset submits all returned 400 (no 429) and a forgot-password call immediately after still returned 200. Confirmed in the shared rate_buckets collection that TWO distinct keys exist: 'resetreq:<ip>' (5/900s) and 'resetsubmit:<ip>' (15/900s). IMPORTANT GOTCHA: these buckets are per-IP, Mongo-backed and survive restarts, so earlier manual curl runs pre-consume the allowance — my first run saw a 429 at attempt 8 purely because the bucket already held the main agent's 6 curls (15 hits total). The clean_reset_buckets fixture in test_iter293_reset_limiter_separation.py deletes ^(resetsubmit|resetreq): before/after each test; always use it. (2) BUG 2 FRONTEND VERIFIED — /reset-password with no token renders the request form (reset-request-email/reset-request-submit) and a real submit returns 200 + 'Check your email'; /reset-password?token=... renders reset-password-rules with exactly 5 rules, all 5 pending initially, live green/red switching ('weak' -> reset-rule-lower-ok + len/upper pending; strong -> 5/5 ok), new-password minLength=12, and submitting 'aaaaaaaaaaaaaa' produced the inline error 'Password must contain: one uppercase letter, one number, one symbol.' with ZERO network POSTs; mismatch shows 'Passwords do not match' with 0 POSTs; a policy-valid password with a bogus token makes exactly 1 POST and surfaces 'Invalid or expired reset token'. (3) BUG 1 FRONTEND VERIFIED — owner@isodemo.com lands on /service-desk (is_service_desk), so go to /dashboard then data-testid tab-staffing -> staffing-tab-people -> staffing-subtab-hr -> hr-manage-roles-btn -> job-roles-modal. The chips render ASYNCHRONOUSLY, so wait_for_selector('[data-testid=\"job-roles-builtin-engineer\"]') before counting (a count immediately after the modal opens returns 0 and will produce a false negative). 9 chips present (manager, engineer, technician, sales_manager, administrator, receptionist, supervisor, director, other); engineer->'Engineer', receptionist->'Receptionist', sales_manager->'Sales Manager', manager->'Manager' all populated job-roles-add-input correctly on a normal click (no overlay/actionability problem). (4) Auth playbook: bcrypt hashes are $2b$, login sets HttpOnly ga_session/ga_refresh cookies, app-level CORS echoes only the allowlisted origin with credentials:true and refuses https://evil.example.com, and 7 failed logins for a throwaway email triggered a 429 lockout at attempt 6. (5) NOT TESTED: master-admin UI flows (Bug 3 archive row layout, Bug 4 'Pulse Fitness Portal' button) — blocked by mandatory TOTP MFA (ENFORCE_MASTER_ADMIN_MFA=true); a /auth/refresh regression test proves rotation keeps the user's org/email context but does NOT exercise the act_org claim path.",
+  "rca_of_the_issue": "Initial 429 during the reset-submit burst was NOT a product bug: utils/security.py stores rate-limit windows in the shared Mongo 'rate_buckets' collection keyed by client IP, so the main agent's 6 earlier curl attempts were still inside the 15-minute window and my 9 requests pushed the bucket to the 15-hit ceiling. After clearing the resetsubmit:/resetreq: keys, 12 consecutive submits returned 400 with no 429 and forgot-password remained available — confirming the two limiters now use separate buckets as intended."
+}

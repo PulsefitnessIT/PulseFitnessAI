@@ -954,7 +954,15 @@ function JobRolesModal({ headers, onClose, onChanged }) {
             <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_builtin_roles', 'Built-in roles')}</span>
             <div className="flex flex-wrap gap-1.5">
               {defaults.map((r) => (
-                <span key={r} className="text-[11px] px-2 py-1 rounded-full border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{humanizeRole(r)}</span>
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setAdding(humanizeRole(r))}
+                  title={t('staffing.hr_use_role_tip', 'Click to use this role name')}
+                  className="text-[11px] px-2 py-1 rounded-full border transition-colors cursor-pointer hover:border-[var(--color-brand-cyan)] hover:text-[var(--color-brand-cyan)]"
+                  style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
+                  data-testid={`job-roles-builtin-${r}`}
+                >{humanizeRole(r)}</button>
               ))}
             </div>
           </div>

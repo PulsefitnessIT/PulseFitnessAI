@@ -20,7 +20,7 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or "https://multi-eng-booking.preview.emergentagent.com").rstrip("/")
+BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or "https://photo-fix-verify.preview.emergentagent.com").rstrip("/")
 CRM_EMAIL = "admin@gymaxisai.com"
 CRM_PASS = "MasterAdmin123!"
 

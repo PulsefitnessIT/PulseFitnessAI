@@ -170,9 +170,30 @@ def rate_limit_login(request: Request) -> None:
 
 
 def rate_limit_password_reset(request: Request) -> None:
-    """Rate limit password reset: 3 per 15 minutes per IP."""
+    """Rate limit password reset REQUESTS (forgot-password): 5 per 15 min per IP.
+
+    Overridable via PASSWORD_RESET_REQ_MAX / PASSWORD_RESET_REQ_WINDOW.
+    Keyed on ``resetreq:`` so it NO LONGER shares a bucket with the reset
+    SUBMISSION limiter — a genuine user requesting a link then mistyping
+    their new password a few times can never be locked out of finishing
+    the reset (the bug behind "Forgot Password doesn't work")."""
     ip = _client_ip(request)
-    rate_limit(f"reset:{ip}", max_requests=3, window_seconds=900)
+    max_req = int(os.environ.get("PASSWORD_RESET_REQ_MAX", "5"))
+    window = int(os.environ.get("PASSWORD_RESET_REQ_WINDOW", "900"))
+    rate_limit(f"resetreq:{ip}", max_requests=max_req, window_seconds=window)
+
+
+def rate_limit_password_reset_submit(request: Request) -> None:
+    """Rate limit password reset SUBMISSIONS separately from requests.
+
+    The reset token is an unguessable 32-byte urlsafe secret, so brute
+    forcing it is infeasible — a generous ceiling here just stops a user
+    from being locked out while they satisfy the (strict) password policy.
+    Overridable via PASSWORD_RESET_SUBMIT_MAX / PASSWORD_RESET_SUBMIT_WINDOW."""
+    ip = _client_ip(request)
+    max_req = int(os.environ.get("PASSWORD_RESET_SUBMIT_MAX", "15"))
+    window = int(os.environ.get("PASSWORD_RESET_SUBMIT_WINDOW", "900"))
+    rate_limit(f"resetsubmit:{ip}", max_requests=max_req, window_seconds=window)
 
 
 # ── Account Lockout (MongoDB-backed, shared across pods & restarts) ───

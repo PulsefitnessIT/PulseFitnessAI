@@ -314,6 +314,7 @@ async def _load_user_core(
     # JWT so the impersonated owner can render those shells without any DB change.
     _imp_grants = payload.get("imp_grants") or []
     if _imp_grants:
+        user["_imp_grants"] = _imp_grants
         if "service_desk" in _imp_grants:
             user["is_service_desk"] = True
         if "inventory" in _imp_grants:

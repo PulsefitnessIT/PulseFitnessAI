@@ -1103,16 +1103,16 @@ useEffect(() => {
  <div className="space-y-2">
  {orgUsers.map(u => (
  <div key={u.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-white rounded-md border border-zinc-200" data-testid={`org-user-${u.id}`}>
- <div className="flex items-center gap-3 min-w-0">
+ <div className="flex items-center gap-3 min-w-0 sm:w-60 sm:flex-shrink-0">
  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-700 flex-shrink-0">
  {(u.full_name || u.email || '?')[0].toUpperCase()}
  </div>
  <div className="min-w-0 flex-1">
- <p className="text-sm text-zinc-900 font-medium break-words" data-testid={`org-user-name-${u.id}`}>{u.full_name || 'Unnamed'}</p>
- <p className="text-[11px] text-zinc-500 break-all" data-testid={`org-user-email-${u.id}`}>{u.email}</p>
+ <p className="text-sm text-zinc-900 font-medium truncate" data-testid={`org-user-name-${u.id}`}>{u.full_name || 'Unnamed'}</p>
+ <p className="text-[11px] text-zinc-500 truncate" data-testid={`org-user-email-${u.id}`}>{u.email}</p>
  </div>
  </div>
- <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
+ <div className="flex items-center gap-2 flex-wrap sm:justify-end sm:flex-1 min-w-0">
  <Select value={u.is_master_admin ? 'master_admin' : ((u.is_pulse_admin || u.role === 'pulse_master_admin') ? 'pulse_master_admin' : (u.role || 'staff'))} onValueChange={(v) => onEditUser && onEditUser(u.id, { role: v })}>
  <SelectTrigger className={`h-7 text-xs border w-28 ${u.role === 'owner' ? 'bg-amber-50 text-amber-700 border-amber-200' : u.role === 'manager' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-zinc-100 text-zinc-600 border-zinc-200'}`} data-testid={`user-role-${u.id}`}><SelectValue placeholder="—" /></SelectTrigger>
  <SelectContent className="bg-white border-zinc-200">
