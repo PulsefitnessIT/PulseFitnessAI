@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useCRM } from './CRMApp';
 import {
   TrendingUp, Users, Building2, Target, AlertTriangle, CheckCircle, FileText, Phone, Mail, Calendar, Briefcase, Activity, ChevronRight, Zap, Wrench,
-  AlertCircle, PieChart, Award, UserCheck
+  AlertCircle, PieChart, Award, UserCheck, Package, Truck
 } from 'lucide-react';
 import axios from 'axios';
 import Button from '@/components/shared/Button';
@@ -242,6 +242,59 @@ function CasesBySeverity({ data, isDark, c }) {
    ROLE-BASED DASHBOARD VARIANTS
    ═══════════════════════════════════ */
 
+/* ─── EQUIPMENT SALES (leadership) ─── */
+function EquipmentSalesTile({ isDark, c, setActiveTab }) {
+  const { API, headers } = useCRM();
+  const [s, setS] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    axios.get(`${API}/crm/v2/equipment-sales/summary`, { headers: headers() })
+      .then(r => { if (alive) setS(r.data); }).catch(() => {});
+    return () => { alive = false; };
+  }, [API, headers]);
+  if (!s) return null;
+  const invoiced = s.invoiced_net || 0;
+  const collected = s.collected || 0;
+  const pct = invoiced > 0 ? Math.min(100, Math.round(collected / invoiced * 100)) : 0;
+  const Stat = ({ icon: Icon, color, label, value, sub, testid, onClick }) => (
+    <div onClick={onClick} className={`flex-1 min-w-[160px] p-3 rounded-lg border ${onClick ? 'cursor-pointer hover:scale-[1.01] transition-transform' : ''}`}
+      style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-50)', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }} data-testid={testid}>
+      <div className="flex items-center gap-2 mb-1.5">
+        <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: `${color}18` }}>
+          <Icon size={13} style={{ color }} />
+        </div>
+        <span className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>{label}</span>
+      </div>
+      <p className="text-lg font-bold tracking-tight" style={{ color: c.text }}>{value}</p>
+      {sub && <p className="text-[11px] mt-0.5" style={{ color: c.textDim }}>{sub}</p>}
+    </div>
+  );
+  return (
+    <Card isDark={isDark} data-testid="equipment-sales-tile">
+      <div className="flex items-center gap-2 mb-3">
+        <Package size={15} style={{ color: 'var(--color-info-ios)' }} />
+        <h3 className="text-sm font-semibold" style={{ color: c.text }}>Equipment Sales</h3>
+        <Button variant="tertiary" size="sm" onClick={() => setActiveTab('quotes')} iconRight={ChevronRight} className="ml-auto" data-testid="equipment-sales-view-quotes">Deals</Button>
+      </div>
+      <div className="flex flex-wrap gap-3">
+        <Stat icon={TrendingUp} color="var(--color-info-ios)" label="Open deal value" value={fmt(s.open_deal_value)} sub={`${s.open_deal_count} open deal${s.open_deal_count === 1 ? '' : 's'}`} testid="es-open-deal-value" onClick={() => setActiveTab('quotes')} />
+        <Stat icon={Truck} color="var(--color-accent-amber)" label="Awaiting delivery" value={s.units_awaiting_delivery} sub={`${s.units_delivered}/${s.units_expected} units delivered`} testid="es-units-awaiting" />
+        <Stat icon={CurrencyIcon} color="var(--color-success-alt)" label="Cash collected" value={fmt(collected)} sub={`of ${fmt(invoiced)} invoiced`} testid="es-cash-collected" />
+      </div>
+      <div className="mt-3">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[11px]" style={{ color: c.textMuted }}>Collected vs invoiced</span>
+          <span className="text-[11px] font-semibold" style={{ color: pct >= 80 ? 'var(--color-success-alt)' : pct >= 50 ? 'var(--color-accent-amber)' : 'var(--color-danger-alt)' }} data-testid="es-collection-rate">{pct}%</span>
+        </div>
+        <div className="h-2.5 rounded-full overflow-hidden" style={{ background: isDark ? 'var(--color-surface-dark-2)' : 'var(--color-neutral-100)' }}>
+          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct >= 80 ? 'var(--color-success-alt)' : pct >= 50 ? 'var(--color-accent-amber)' : 'var(--color-danger-alt)' }} />
+        </div>
+        <p className="text-[11px] mt-1.5" style={{ color: c.textDim }} data-testid="es-outstanding">{fmt(s.outstanding)} outstanding{s.credited > 0 ? ` · ${fmt(s.credited)} credited` : ''}</p>
+      </div>
+    </Card>
+  );
+}
+
 /* ─── SALES MANAGER / DEFAULT ─── */
 function SalesManagerDash({ data, serviceRevenue, tasks, stagnating, wfRuns, isDark, c, navigateTo, setActiveTab }) {
   const kpis = [
@@ -255,6 +308,8 @@ function SalesManagerDash({ data, serviceRevenue, tasks, stagnating, wfRuns, isD
   return (
     <div className="space-y-5">
       <KPIRow kpis={kpis} isDark={isDark} c={c} />
+      <EquipmentSalesTile isDark={isDark} c={c} setActiveTab={setActiveTab} />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2"><PipelineByStage data={data} isDark={isDark} c={c} onViewAll={() => setActiveTab('pipeline')} /></div>
         <div className="space-y-4">

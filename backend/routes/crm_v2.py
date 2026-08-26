@@ -1192,6 +1192,88 @@ async def get_warranty_tiers(user=Depends(get_crm_user)):
     return {"tiers": WARRANTY_TIERS}
 
 
+# Equipment-sale deal statuses that count as "open" (live pipeline).
+_OPEN_DEAL_STATUSES = ("draft", "pending_approval", "sent", "accepted")
+
+
+@router.get("/equipment-sales/summary")
+async def equipment_sales_summary(user=Depends(get_crm_user)):
+    """Leadership Equipment Sales tile: open deal value, units awaiting
+    delivery, and cash invoiced vs collected — org/site scoped."""
+    org = user.get("organization_id")
+    of = _of(user)
+
+    # ── Open equipment deals (quotes with >=1 equipment 'sale' line) ──
+    open_quotes = await db.crm2_quotes.find(
+        {**of, "status": {"$in": list(_OPEN_DEAL_STATUSES)},
+         "deal_status": {"$ne": "completed"}},
+        {"_id": 0, "id": 1, "total": 1, "lines": 1},
+    ).to_list(3000)
+
+    open_deal_value = 0.0
+    open_deal_count = 0
+    units_expected = 0
+    equip_deal_ids = []
+    for q in open_quotes:
+        sale_units = sum(
+            float(ln.get("quantity", 0) or 0)
+            for ln in (q.get("lines") or [])
+            if (ln.get("line_type") or "sale") == "sale"
+        )
+        if sale_units <= 0:
+            continue  # not an equipment deal
+        open_deal_count += 1
+        open_deal_value += float(q.get("total", 0) or 0)
+        units_expected += int(round(sale_units))
+        equip_deal_ids.append(q["id"])
+
+    # Units already registered (GRN) against those open deals.
+    units_delivered = 0
+    if equip_deal_ids:
+        grouped = await db.equipment.aggregate([
+            {"$match": {"organization_id": org, "quote_id": {"$in": equip_deal_ids}}},
+            {"$group": {"_id": "$quote_id", "n": {"$sum": 1}}},
+        ]).to_list(len(equip_deal_ids) + 1)
+        units_delivered = sum(g["n"] for g in grouped)
+    units_awaiting = max(0, units_expected - units_delivered)
+
+    # ── Cash invoiced vs collected (all staged invoices for the org) ──
+    inv_rows = await db.crm2_invoices.aggregate([
+        {"$match": {"organization_id": org}},
+        {"$group": {
+            "_id": "$doc_type",
+            "amount": {"$sum": "$amount"},
+            "paid": {"$sum": "$paid_amount"},
+        }},
+    ]).to_list(10)
+    invoiced_gross = 0.0
+    collected = 0.0
+    credited = 0.0
+    for r in inv_rows:
+        if r["_id"] == "invoice":
+            invoiced_gross += float(r.get("amount", 0) or 0)
+            collected += float(r.get("paid", 0) or 0)
+        elif r["_id"] == "credit_note":
+            credited += float(r.get("amount", 0) or 0)
+    invoiced_net = round(invoiced_gross - credited, 2)
+    outstanding = round(invoiced_net - collected, 2)
+
+    return {
+        "currency": "GBP",
+        "open_deal_value": round(open_deal_value, 2),
+        "open_deal_count": open_deal_count,
+        "units_expected": units_expected,
+        "units_delivered": units_delivered,
+        "units_awaiting_delivery": units_awaiting,
+        "invoiced_gross": round(invoiced_gross, 2),
+        "invoiced_net": invoiced_net,
+        "credited": round(credited, 2),
+        "collected": round(collected, 2),
+        "outstanding": outstanding,
+        "collection_rate": round(collected / invoiced_net * 100, 1) if invoiced_net > 0 else 0.0,
+    }
+
+
 @router.get("/tags")
 async def list_crm_tags(user=Depends(get_crm_user)):
     """Aggregated tag vocabulary used by the workflow builder + tag
