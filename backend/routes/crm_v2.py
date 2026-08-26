@@ -509,6 +509,78 @@ async def company_portal_invite_resend(company_id: str, user=Depends(get_crm_use
     return await resend_portal_invite(company_id, owner_email=user.get("email"))
 
 
+def _can_manage_portal(user: dict) -> bool:
+    role = (user.get("role") or "").lower()
+    return bool(role in ("owner", "manager", "admin") or user.get("is_org_owner") or user.get("is_master_admin"))
+
+
+@router.get("/portal-link/candidates")
+async def portal_link_candidates(q: str = "", user=Depends(get_crm_user)):
+    """Search the customer's OWN Pulse portal organisations to link a CRM
+    company to, so equipment handovers + fault logging land in their tenant.
+    Excludes the seller's own org."""
+    query = {
+        "account_type": {"$in": ["lite", "pulse_pro", "pro", "full"]},
+        "id": {"$ne": user.get("organization_id")},
+    }
+    if (q or "").strip():
+        query["name"] = safe_regex(q.strip())
+    rows = await db.organizations.find(
+        query, {"_id": 0, "id": 1, "name": 1, "account_type": 1},
+    ).sort("name", 1).limit(20).to_list(20)
+    return {"candidates": rows}
+
+
+@router.get("/companies/{company_id}/portal-link")
+async def get_company_portal_link(company_id: str, user=Depends(get_crm_user)):
+    """Current Pulse-portal link for a CRM company (canonical
+    ``linked_operator_org_id``, with legacy ``tenant_org_id`` fallback)."""
+    c = await db.crm2_companies.find_one(
+        {"id": company_id, **_of(user)},
+        {"_id": 0, "id": 1, "name": 1, "linked_operator_org_id": 1, "tenant_org_id": 1},
+    )
+    if not c:
+        raise HTTPException(404, "Company not found")
+    org_id = c.get("linked_operator_org_id") or c.get("tenant_org_id") or None
+    linked = None
+    if org_id:
+        linked = await db.organizations.find_one(
+            {"id": org_id}, {"_id": 0, "id": 1, "name": 1, "account_type": 1})
+    return {"company_id": company_id, "linked_org": linked, "can_manage": _can_manage_portal(user)}
+
+
+@router.post("/companies/{company_id}/portal-link")
+async def set_company_portal_link(company_id: str, data: dict, user=Depends(get_crm_user)):
+    """Link (or clear, when ``org_id`` is empty) the customer's own Pulse
+    portal org in one click. Powers the customer register handover + the
+    'how to log a fault' section of the branded handover pack."""
+    if not _can_manage_portal(user):
+        raise HTTPException(403, "Only owners / admins / managers can connect a customer's portal")
+    c = await db.crm2_companies.find_one({"id": company_id, **_of(user)}, {"_id": 0, "id": 1})
+    if not c:
+        raise HTTPException(404, "Company not found")
+    org_id = (data.get("org_id") or "").strip() or None
+    linked = None
+    if org_id:
+        if org_id == user.get("organization_id"):
+            raise HTTPException(400, "You can't link a customer to your own organisation")
+        linked = await db.organizations.find_one(
+            {"id": org_id}, {"_id": 0, "id": 1, "name": 1, "account_type": 1})
+        if not linked:
+            raise HTTPException(404, "Pulse organisation not found")
+    # Keep both fields in sync so every downstream reader (handover pack,
+    # deliveries, inventory) resolves the same tenant.
+    await db.crm2_companies.update_one(
+        {"id": company_id, **_of(user)},
+        {"$set": {"linked_operator_org_id": org_id, "tenant_org_id": org_id, "updated_at": _now()}},
+    )
+    await record_audit(
+        entity_type="company", entity_id=company_id,
+        action="portal_link" if org_id else "portal_unlink", user=user,
+        after={"linked_operator_org_id": org_id})
+    return {"ok": True, "linked_org": linked}
+
+
 @router.get("/companies/{company_id}/service-activity")
 async def company_service_activity(company_id: str, user=Depends(get_crm_user)):
     """Consolidated Service Desk view for a CRM account — so a sales

@@ -5,7 +5,7 @@ import {
   Building2, Plus, ChevronRight, Users, Target, AlertTriangle,
   Shield, Phone, Mail, Globe, MapPin, Tag, ArrowLeft,
   FileText, Calendar, Activity, CheckCircle, Edit2, Trash2, X,
-  Upload, Download, Sparkles, Loader2, Hash, Award, Wrench, Navigation, Clock, Send, ShieldCheck,
+  Upload, Download, Sparkles, Loader2, Hash, Award, Wrench, Navigation, Clock, Send, ShieldCheck, Plug, Search,
 } from 'lucide-react';
 import axios from 'axios';
 import CRMAuditTrail from './CRMAuditTrail';
@@ -1317,6 +1317,48 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
     not_invited: { bg: 'var(--color-neutral-100, #f1f5f9)', fg: 'var(--color-text-faint-alt, #64748b)', label: 'Portal: Not invited' },
   };
 
+  // Connect portal — link this customer to their own Pulse portal org
+  // (linked_operator_org_id). Powers customer equipment handover + the
+  // "how to log a fault" section of the branded handover pack.
+  const [portalLink, setPortalLink] = useState(null); // { linked_org, can_manage }
+  const [showConnectPortal, setShowConnectPortal] = useState(false);
+  const [portalQuery, setPortalQuery] = useState('');
+  const [portalCandidates, setPortalCandidates] = useState([]);
+  const [portalBusy, setPortalBusy] = useState(false);
+  const loadPortalLink = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/crm/v2/companies/${companyId}/portal-link`, { headers: headers() });
+      setPortalLink(res.data);
+    } catch (e) { /* non-blocking */ }
+  }, [API, headers, companyId]);
+  useEffect(() => { loadPortalLink(); }, [loadPortalLink]);
+  const searchPortalOrgs = useCallback(async (q) => {
+    try {
+      const res = await axios.get(`${API}/crm/v2/portal-link/candidates`, { headers: headers(), params: { q } });
+      setPortalCandidates(res.data?.candidates || []);
+    } catch (e) { setPortalCandidates([]); }
+  }, [API, headers]);
+  useEffect(() => {
+    if (!showConnectPortal) return;
+    const t = setTimeout(() => searchPortalOrgs(portalQuery), 250);
+    return () => clearTimeout(t);
+  }, [showConnectPortal, portalQuery, searchPortalOrgs]);
+  const connectPortal = async (orgId) => {
+    setPortalBusy(true);
+    try {
+      const res = await axios.post(`${API}/crm/v2/companies/${companyId}/portal-link`, { org_id: orgId || '' }, { headers: headers() });
+      if (orgId) toast.success(`Connected to ${res.data.linked_org?.name || 'portal'}`);
+      else toast.success('Portal disconnected');
+      setShowConnectPortal(false);
+      loadPortalLink();
+    } catch (e) {
+      toast.error(e?.response?.status === 403 ? 'Only owners / managers can connect a portal.' : (e?.response?.data?.detail || 'Could not update the portal link.'));
+    }
+    setPortalBusy(false);
+  };
+  const portalConnected = !!(portalLink && portalLink.linked_org);
+  const canManagePortal = !!(portalLink && portalLink.can_manage);
+
   const handleAddActivity = async () => {
     if (!noteForm.subject.trim()) return;
     setSaving(true);
@@ -1561,9 +1603,23 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
                 {(INVITE_STYLES[invite.status] || INVITE_STYLES.not_invited).label}
               </span>
             )}
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+              data-testid="portal-link-chip"
+              title={portalConnected ? `Fault-logging & handovers go to ${portalLink.linked_org.name}` : 'Not connected to a customer portal'}
+              style={{ background: portalConnected ? 'var(--color-success-bg, #dcfce7)' : 'var(--color-neutral-100, #f1f5f9)', color: portalConnected ? 'var(--color-success-alt, #16a34a)' : 'var(--color-text-faint-alt, #64748b)' }}>
+              <Plug size={10} /> {portalConnected ? `Portal: ${portalLink.linked_org.name}` : 'Portal: Not connected'}
+            </span>
           </div>
         </div>
         <div className="flex gap-2">
+          {canManagePortal && (
+            <button onClick={() => { setPortalQuery(''); setShowConnectPortal(true); }}
+              className="px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5"
+              style={{ borderColor: portalConnected ? 'var(--color-success-alt)' : c.border, color: portalConnected ? 'var(--color-success-alt)' : c.textMuted }}
+              data-testid="company-connect-portal-btn">
+              <Plug size={12} className="inline mr-1" /> {portalConnected ? 'Portal connected' : 'Connect portal'}
+            </button>
+          )}
           {showInvite && invite && invite.status !== 'active' && (
             <button onClick={resendInvite} disabled={inviteBusy}
               className="px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5 disabled:opacity-50"
@@ -2036,6 +2092,51 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
               <button onClick={saveEdit} disabled={savingEdit} className="px-4 py-2 bg-[var(--color-info-ios)] text-white text-sm font-medium rounded-md disabled:opacity-50" data-testid="save-company-edit-btn">
                 {savingEdit ? 'Saving...' : 'Save Changes'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Connect portal Dialog */}
+      {showConnectPortal && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowConnectPortal(false)}>
+          <div className="w-full max-w-md mx-4 rounded-xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto" style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }} onClick={e => e.stopPropagation()} data-testid="connect-portal-dialog">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-lg font-semibold" style={{ color: c.text }}>Connect customer portal</h2>
+              <button onClick={() => setShowConnectPortal(false)} data-testid="connect-portal-close"><X size={18} style={{ color: c.textMuted }} /></button>
+            </div>
+            <p className="text-xs mb-3" style={{ color: c.textDim }}>
+              Link {company.name} to their own Pulse portal so equipment handovers land in their account and their team can log faults from day one.
+            </p>
+            {portalConnected && (
+              <div className="flex items-center justify-between p-2.5 mb-3 rounded-lg border" style={{ borderColor: 'var(--color-success-alt)', background: 'var(--color-success-bg, #dcfce7)' }} data-testid="connect-portal-current">
+                <span className="text-xs font-medium inline-flex items-center gap-1.5" style={{ color: 'var(--color-success-alt)' }}>
+                  <CheckCircle size={13} /> Connected to {portalLink.linked_org.name}
+                </span>
+                <button onClick={() => connectPortal('')} disabled={portalBusy} className="text-[11px] px-2 py-1 rounded border disabled:opacity-50" style={{ borderColor: 'var(--color-danger-alt)', color: 'var(--color-danger-alt)' }} data-testid="connect-portal-disconnect">Disconnect</button>
+              </div>
+            )}
+            <div className="relative mb-2">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: c.textDim }} />
+              <input autoFocus value={portalQuery} onChange={e => setPortalQuery(e.target.value)} placeholder="Search portal organisations…"
+                className="w-full pl-8 pr-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-neutral-800)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} data-testid="connect-portal-search" />
+            </div>
+            <div className="space-y-1 max-h-64 overflow-y-auto" data-testid="connect-portal-results">
+              {portalCandidates.length === 0 ? (
+                <p className="text-xs py-4 text-center" style={{ color: c.textDim }}>No matching portal organisations.</p>
+              ) : portalCandidates.map(org => {
+                const isCurrent = portalConnected && portalLink.linked_org.id === org.id;
+                return (
+                  <button key={org.id} onClick={() => !isCurrent && connectPortal(org.id)} disabled={portalBusy || isCurrent}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm rounded-md border transition-all hover:bg-white/5 disabled:opacity-60"
+                    style={{ borderColor: c.border }} data-testid={`connect-portal-org-${org.id}`}>
+                    <Building2 size={14} style={{ color: c.textDim }} />
+                    <span className="flex-1 truncate" style={{ color: c.text }}>{org.name}</span>
+                    <span className="text-[10px] uppercase tracking-wider" style={{ color: c.textDim }}>{org.account_type}</span>
+                    {isCurrent && <CheckCircle size={13} style={{ color: 'var(--color-success-alt)' }} />}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

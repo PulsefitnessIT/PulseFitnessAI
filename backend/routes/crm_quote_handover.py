@@ -145,9 +145,9 @@ async def _customer_portal(quote: dict, user: dict) -> dict:
     deleted copy becomes re-pushable)."""
     company_id = quote.get("company_id")
     company = await db.crm2_companies.find_one(
-        {"id": company_id, **_of(user)}, {"_id": 0, "name": 1, "tenant_org_id": 1},
+        {"id": company_id, **_of(user)}, {"_id": 0, "name": 1, "tenant_org_id": 1, "linked_operator_org_id": 1},
     ) if company_id else None
-    tenant_org_id = (company or {}).get("tenant_org_id") or None
+    tenant_org_id = (company or {}).get("linked_operator_org_id") or (company or {}).get("tenant_org_id") or None
     tenant_name = ""
     if tenant_org_id:
         org = await db.organizations.find_one({"id": tenant_org_id}, {"_id": 0, "name": 1})
