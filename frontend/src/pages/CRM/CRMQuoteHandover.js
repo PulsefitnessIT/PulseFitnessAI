@@ -92,6 +92,38 @@ export const QuoteHandoverPanel = ({ quoteId, API, headers, c, isDark }) => {
         )}
       </div>
 
+      {/* Customer portal handover */}
+      {(() => {
+        const cp = data.customer_portal;
+        if (!cp) return null;
+        return (
+          <div className="p-3 rounded-lg border mb-3" style={{ background: panel, borderColor: bd }} data-testid="handover-customer-portal">
+            <p className="text-xs font-medium mb-1" style={{ color: c.text }}>Customer register handover</p>
+            {!cp.linked ? (
+              <p className="text-xs" style={{ color: c.textDim }} data-testid="handover-customer-unlinked">
+                {cp.company_name || 'This customer'} isn't linked to a Pulse portal yet, so equipment can't be handed over.
+              </p>
+            ) : (
+              <div className="flex items-center gap-3 flex-wrap">
+                <p className="text-xs flex-1" style={{ color: c.textDim }} data-testid="handover-customer-status">
+                  {cp.equipment_handed_over}/{cp.equipment_registered} unit(s) pushed to <span style={{ color: c.text }}>{cp.tenant_org_name}</span>'s portal
+                </p>
+                {canManage && cp.pending_handover > 0 && (
+                  <button onClick={() => post(`/crm/v2/quotes/${quoteId}/handover/register`, {}, 'register').then(() => notify.success(`${cp.pending_handover} unit(s) handed to customer`)).catch(() => {})}
+                    disabled={busy === 'register'}
+                    className="text-xs px-3 py-1.5 rounded-md text-white disabled:opacity-50" style={{ background: 'var(--color-info-ios)' }} data-testid="handover-push-customer">
+                    {busy === 'register' ? 'Handing over…' : `Hand over ${cp.pending_handover} unit(s)`}
+                  </button>
+                )}
+                {cp.pending_handover === 0 && cp.equipment_registered > 0 && (
+                  <span className="text-[11px]" style={{ color: 'var(--color-success-alt)' }} data-testid="handover-customer-done">All handed over ✓</span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Completion checklist */}
       <div className="p-3 rounded-lg border" style={{ background: panel, borderColor: bd }}>
         <p className="text-xs font-medium mb-2" style={{ color: c.text }}>Ready to close?</p>

@@ -1,0 +1,44 @@
+{
+  "summary": "Focused verification of the NEW 'Customer Register Handover' feature (CPQ v2 quote -> push GRN equipment into the customer's own Pulse portal). Backend: 5/5 pytest tests pass against the public URL using the seeded HANDOVER-TEST-CO / handover-test-portal fixture (GET handover customer_portal block, deliver-then-register 2 units, idempotent re-register, cross-org row provenance, unlinked-company 400, no-company_id 400, unauthenticated 401/403). Frontend: full e2e in the real UI (login owner@isodemo -> /crm -> Corporate mode -> Quotes -> open quote -> 'Handover & close' -> 'Customer register handover') showed '0/2 unit(s) pushed to Handover Test Gym's portal' + 'Hand over 2 unit(s)' button; clicking it updated to '2/2' with 'All handed over ✓' and hid the button. All test data cleaned up in BOTH orgs; seeded company/org left intact.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/crm/v2/quotes/{id}/handover/register", "issue": "Copied customer-org equipment row sets supplier = the CUSTOMER's own company name (portal['company_name'], e.g. 'Handover Test Gym') instead of the selling org / original supplier. From the customer's register perspective their own name as 'supplier' is wrong and confusing for fault routing."},
+      {"endpoint": "POST /api/crm/v2/quotes/{id}/handover/register", "issue": "When the customer org has no users, owner_id falls back to the SELLER's user id (user['id']), so a foreign (cross-tenant) user_id is stamped on rows inside the customer org. Verified: customer rows had user_id 8603519f (owner@isodemo)."},
+      {"endpoint": "POST /api/crm/v2/quotes/{id}/handover/register", "issue": "site_id is picked as the first arbitrary non-archived site of the customer org (None if no sites). Multi-site customers may get units filed to the wrong site and hidden from site-scoped equipment/fault views."},
+      {"endpoint": "POST /api/crm/v2/quotes/{id}/handover/register", "issue": "Idempotency key is handed_over_at on the SELLER row only. If the customer deletes their copy there is no re-push / repair path (register returns handed_over=[] forever)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Quote detail · Handover & close · Customer register handover", "issues": ["'All handed over \u2713' chip is 11px in light green (var(--color-success-alt)) on a near-white panel \u2014 borderline contrast for a state indicator; consider a pill/badge treatment.", "Cookie consent banner sits fixed over the lower part of the quote detail page (did not block the tested controls, but can cover the Sage/Notes area)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_crm_quote_customer_handover_aug2026.py",
+    "/app/backend/tests/_seed_fe_handover_quote.py",
+    "/app/test_reports/pytest/customer_handover_retest_aug2026.xml"
+  ],
+  "action_items": [
+    "Set the copied equipment's supplier to the SELLING org (or keep the original supplier) rather than the customer's own company name.",
+    "Do not fall back to the seller's user_id for customer-org rows \u2014 leave user_id empty/system when the customer org has no users.",
+    "Decide site placement explicitly (primary/HQ site of the customer org, or leave unset) instead of first-found site."
+  ],
+  "critical_code_review_comments": [
+    "crm_quote_handover.py::register_with_customer writes into another tenant's org (db.equipment with organization_id=tenant_org_id). Consider centralising this cross-tenant write behind one helper (register_customer_equipment already exists for install sign-off) so provenance/site/user rules stay consistent across both entry points.",
+    "_customer_portal counts equipment by quote_id + seller org only; a stale handed_over_at with a deleted customer row leaves no reconciliation path \u2014 consider verifying the customer_equipment_id still exists."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_crm_quote_customer_handover_aug2026.py",
+    "/app/backend/tests/_seed_fe_handover_quote.py"
+  ],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% (6/6 steps)"},
+  "seed_data_creation": "Created 1 delivered TEST quote (notes TEST_fe_customer_handover, company HANDOVER-TEST-CO, 2x Spin Bike serials SPIN-1/SPIN-2) for the UI run + transient pytest quotes. ALL removed afterwards (quotes, purchase_orders, equipment in BOTH iso-demo-org and handover-test-portal, invoices, issues). Verified 0 leftovers; seeded HANDOVER-TEST-CO company and handover-test-portal org left intact as instructed.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (app /login and POST /api/crm/auth/login) \u2014 both worked; /app/memory/test_credentials.md present and accurate.",
+  "context_for_next_testing_agent": "Customer Register Handover is functionally verified end-to-end (backend + UI) as of this run. Re-seed a UI fixture with `cd /app/backend && python tests/_seed_fe_handover_quote.py` (prints QUOTE_ID) and remove it with `--cleanup`. Regression suite: tests/test_crm_quote_customer_handover_aug2026.py (5 tests). Open items are provenance-quality only (supplier name, user_id, site_id) \u2014 no blocking defects.",
+  "rca_of_the_issue": "No functional defects found. The provenance quirks stem from register_with_customer copying seller-side context into the customer org: supplier is deliberately set to portal['company_name'] (the customer, not the seller) and owner_id/site_id fall back to the seller's user / first-found site when the customer org has no users or sites (as is the case for the seeded handover-test-portal org)."
+}

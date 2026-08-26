@@ -138,6 +138,44 @@ def _job_suggestions(quote: dict, ful: dict) -> list[dict]:
 # ── Read ───────────────────────────────────────────────────────────
 
 
+async def _customer_portal(quote: dict, user: dict) -> dict:
+    """Resolve the deal's customer to their own Pulse portal org (if linked)
+    via crm2_companies.tenant_org_id, plus handover progress. A unit only
+    counts as handed over while its customer-side copy still exists (so a
+    deleted copy becomes re-pushable)."""
+    company_id = quote.get("company_id")
+    company = await db.crm2_companies.find_one(
+        {"id": company_id, **_of(user)}, {"_id": 0, "name": 1, "tenant_org_id": 1},
+    ) if company_id else None
+    tenant_org_id = (company or {}).get("tenant_org_id") or None
+    tenant_name = ""
+    if tenant_org_id:
+        org = await db.organizations.find_one({"id": tenant_org_id}, {"_id": 0, "name": 1})
+        tenant_name = (org or {}).get("name", "")
+
+    seller_rows = await db.equipment.find(
+        {"quote_id": quote["id"], **_of(user)}, {"_id": 0, "id": 1, "customer_equipment_id": 1},
+    ).to_list(500)
+    seller_equipment = len(seller_rows)
+    cust_ids = [r["customer_equipment_id"] for r in seller_rows if r.get("customer_equipment_id")]
+    existing = set()
+    if tenant_org_id and cust_ids:
+        rows = await db.equipment.find(
+            {"organization_id": tenant_org_id, "id": {"$in": cust_ids}}, {"_id": 0, "id": 1},
+        ).to_list(500)
+        existing = {r["id"] for r in rows}
+    handed = sum(1 for r in seller_rows if r.get("customer_equipment_id") in existing)
+    return {
+        "linked": bool(tenant_org_id),
+        "tenant_org_id": tenant_org_id,
+        "tenant_org_name": tenant_name,
+        "company_name": (company or {}).get("name", ""),
+        "equipment_registered": seller_equipment,
+        "equipment_handed_over": handed,
+        "pending_handover": max(0, seller_equipment - handed),
+    }
+
+
 @router.get("/{quote_id}/handover")
 async def get_handover(quote_id: str, user=Depends(get_crm_user)):
     quote = await _get_quote(quote_id, user)
@@ -148,6 +186,95 @@ async def get_handover(quote_id: str, user=Depends(get_crm_user)):
         "jobs": await _linked_jobs(quote_id, user),
         "suggestions": _job_suggestions(quote, ful),
         "completion": await _completion(quote, user, ful=ful),
+        "customer_portal": await _customer_portal(quote, user),
+    }
+
+
+@router.post("/{quote_id}/handover/register")
+async def register_with_customer(quote_id: str, user=Depends(get_crm_user)):
+    """Push this deal's registered equipment into the customer's OWN Pulse
+    portal (crm2_companies.tenant_org_id) so they can log faults from day one.
+    Idempotent — already handed-over units are skipped."""
+    if not _can_manage(user):
+        raise HTTPException(403, "Only owners / admins / managers can hand equipment over")
+    quote = await _get_quote(quote_id, user)
+    portal = await _customer_portal(quote, user)
+    if not portal["linked"]:
+        raise HTTPException(400, "This customer isn't linked to a Pulse portal yet — link the company to a tenant org first.")
+    tenant_org_id = portal["tenant_org_id"]
+
+    # Sensible provenance for the customer-side copy:
+    #  • supplier  = the SELLING org (who they bought from), not themselves
+    #  • user_id   = a real user in the customer org, else left unset (never
+    #                a cross-tenant seller user)
+    #  • site_id   = the customer's head-office/only site, else unset
+    seller_org = await db.organizations.find_one(
+        {"id": user.get("organization_id")}, {"_id": 0, "name": 1},
+    )
+    seller_name = (seller_org or {}).get("name", "")
+    owner = await db.users.find_one({"organization_id": tenant_org_id}, {"_id": 0, "id": 1})
+    owner_id = (owner or {}).get("id")
+    sites = await db.sites.find(
+        {"organization_id": tenant_org_id, "status": {"$ne": "archived"}},
+        {"_id": 0, "id": 1, "is_head_office": 1},
+    ).to_list(50)
+    site_id = None
+    if sites:
+        hq = next((s for s in sites if s.get("is_head_office")), None)
+        site_id = hq["id"] if hq else (sites[0]["id"] if len(sites) == 1 else None)
+
+    # Re-pushable set: not yet handed over, OR the customer copy was deleted.
+    seller_rows = await db.equipment.find(
+        {"quote_id": quote_id, **_of(user)}, {"_id": 0},
+    ).to_list(500)
+    cust_ids = [r["customer_equipment_id"] for r in seller_rows if r.get("customer_equipment_id")]
+    existing = set()
+    if cust_ids:
+        rows = await db.equipment.find(
+            {"organization_id": tenant_org_id, "id": {"$in": cust_ids}}, {"_id": 0, "id": 1},
+        ).to_list(500)
+        existing = {r["id"] for r in rows}
+    pending = [r for r in seller_rows if r.get("customer_equipment_id") not in existing]
+
+    created = []
+    for src in pending:
+        new_id = _id()
+        copy = {
+            "id": new_id,
+            "user_id": owner_id,
+            "organization_id": tenant_org_id,
+            "name": src.get("name"),
+            "equipment_type": src.get("equipment_type", "gym_equipment"),
+            "manufacturer": src.get("manufacturer", ""),
+            "model": src.get("model", ""),
+            "serial_number": src.get("serial_number"),
+            "purchase_date": src.get("purchase_date"),
+            "purchase_cost": src.get("purchase_cost", 0),
+            "supplier": seller_name or src.get("supplier", ""),
+            "status": "active",
+            "site_id": site_id,
+            "manuals": [],
+            # Provenance back to the selling deal.
+            "source": "deal_handover",
+            "origin_org_id": user.get("organization_id"),
+            "origin_equipment_id": src["id"],
+            "quote_id": quote_id,
+            "quote_number": quote.get("quote_number", ""),
+            "created_at": _now(),
+            "updated_at": _now(),
+        }
+        await db.equipment.insert_one(dict(copy))
+        await db.equipment.update_one(
+            {"id": src["id"], **_of(user)},
+            {"$set": {"handed_over_at": _now(), "customer_org_id": tenant_org_id,
+                      "customer_equipment_id": new_id, "updated_at": _now()}},
+        )
+        created.append({"id": new_id, "name": copy["name"], "serial_number": copy["serial_number"]})
+
+    await _audit(user, quote_id, "customer_handover", {"count": len(created), "tenant_org_id": tenant_org_id})
+    return {
+        "handed_over": created,
+        "customer_portal": await _customer_portal(quote, user),
     }
 
 
