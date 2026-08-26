@@ -320,3 +320,33 @@ async def enquire_aftersales(data: dict = None, user=Depends(get_current_user)):
             logger.warning("aftersales enquiry heads-up email failed", exc_info=True)
 
     return {"ok": True, "status": "requested", "contract_id": contract_id}
+
+
+@router.get("/warranties/certificate")
+async def warranty_certificate_pdf(user=Depends(get_current_user)):
+    """One consolidated, branded warranty certificate for the customer's whole
+    kit list — grouped by warranty level with serials + cover-until dates."""
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    from utils.warranty_certificate_pdf import build_warranty_certificate_pdf
+
+    org_id = user.get("organization_id")
+    rows = await db.equipment.find(
+        {"organization_id": org_id, "status": {"$ne": "archived"}},
+        {"_id": 0, "id": 1, "name": 1, "manufacturer": 1, "model": 1,
+         "serial_number": 1, "warranty_tier": 1, "warranty_months": 1,
+         "warranty_start": 1, "warranty_expiry": 1, "purchase_date": 1},
+    ).limit(1000).to_list(1000)
+    equipment = [w for w in (_warranty_row(e) for e in rows) if w]
+    if not equipment:
+        raise HTTPException(400, "No warranties on record to certify yet.")
+    equipment.sort(key=lambda w: (w["days_remaining"] is None, w["days_remaining"] if w["days_remaining"] is not None else 1e9))
+
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "name": 1})
+    customer_name = (org or {}).get("name") or user.get("full_name") or "Customer"
+    pdf = build_warranty_certificate_pdf(customer_name=customer_name, equipment=equipment)
+    safe = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in customer_name)[:40] or "warranty"
+    return StreamingResponse(
+        BytesIO(pdf), media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{safe}-warranty-certificate.pdf"'},
+    )

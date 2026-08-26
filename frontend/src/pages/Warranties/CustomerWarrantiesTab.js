@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
-import { ShieldCheck, ShieldAlert, ShieldX, Loader2, Package, BellRing, Send, X, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, ShieldX, Loader2, Package, BellRing, Send, X, CheckCircle2, FileDown } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const authHeaders = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -24,9 +24,23 @@ export default function CustomerWarrantiesTab() {
   const [enquire, setEnquire] = useState(null); // { ids: [], label } | null
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const load = () => axios.get(`${API}/customer/warranties`, authHeaders()).then((r) => setData(r.data)).catch(() => setData({ warranties: [], counts: {} }));
   useEffect(() => { load(); }, []);
+
+  const downloadCertificate = async () => {
+    setDownloading(true);
+    try {
+      const r = await axios.get(`${API}/customer/warranties/certificate`, { ...authHeaders(), responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = 'warranty-certificate.pdf';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) { /* no-op */ }
+    setDownloading(false);
+  };
 
   const submitEnquiry = async () => {
     setBusy(true);
@@ -48,10 +62,17 @@ export default function CustomerWarrantiesTab() {
     <div className="space-y-5" data-testid="customer-warranties-tab">
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: 'linear-gradient(135deg, #19CDFF, #0BB0DD)' }}><ShieldCheck size={20} className="text-white" /></div>
-        <div>
+        <div className="min-w-0">
           <h2 className="text-xl font-bold text-slate-900">{t('warranties.title', 'Warranty Register')}</h2>
           <p className="text-sm text-slate-500">{t('warranties.subtitle', 'Your equipment, its warranty level and how long it stays in cover.')}</p>
         </div>
+        {items.length > 0 && (
+          <button onClick={downloadCertificate} disabled={downloading}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 shrink-0"
+            data-testid="warranty-download-certificate">
+            {downloading ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />} {t('warranties.certificate', 'Download certificate')}
+          </button>
+        )}
       </div>
 
       {/* Renewal nudge — aftersales cover */}

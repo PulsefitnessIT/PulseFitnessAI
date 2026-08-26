@@ -134,3 +134,9 @@ Extends the existing CRM CPQ (Quotes) Equipment Sales workflow — no new module
 - **Backend** `GET /crm/v2/equipment-sales/awaiting-delivery` (crm_v2.py): per-open-deal breakdown (company, quote_number, total, units_expected/delivered/awaiting) for deals with undelivered units, sorted most-awaiting first.
 - **Frontend** (CRMDashboard.js EquipmentSalesTile): the "Awaiting delivery" stat is now clickable → modal listing each deal; rows jump to the Quotes tab. testids: awaiting-delivery-modal/list/close, awaiting-deal-{quote_id}.
 - **Verified**: endpoint returns the exact open deal; modal renders with matching figures (1 awaiting, 0/1 delivered). All files compile clean.
+
+## 2026-08-26 — Customer Warranty Certificate PDF (consolidated, grouped)
+- Per user feedback: NOT per-unit certificates — a single consolidated certificate with the kit list grouped by warranty level.
+- **Backend** (customer_deliveries.py `GET /customer/warranties/certificate`, new utils/warranty_certificate_pdf.py): one branded (Pulse) PDF "Warranty Certificate" issued to the customer org, grouping their equipment by tier (Standard/Extended/Premium/Manufacturer) with a table per group (equipment, manufacturer/model, serial, cover-until) + standard terms note. 400 if no warranties.
+- **Frontend** (CustomerWarrantiesTab.js): "Download certificate" button in the register header (data-testid warranty-download-certificate), blob download.
+- **Verified**: endpoint returns HTTP 200 %PDF; PDF content confirmed grouped-by-tier with correct serials + cover-until dates (analyze_file_tool); button renders in the demo customer portal. Seed cleaned up; files compile clean.
