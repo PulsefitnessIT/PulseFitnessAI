@@ -104,3 +104,84 @@ async def my_delivery_certificate(alloc_id: str, user=Depends(get_current_user))
     data, _ct = await run_in_threadpool(get_object, rec["certificate_storage_path"])
     return Response(content=data, media_type="application/pdf",
                     headers={"Content-Disposition": f'inline; filename="{rec.get("certificate_filename", "installation-certificate.pdf")}"'})
+
+
+# ── Warranty register (customer-facing) ─────────────────────────────
+#
+# Shows the signed-in customer their live equipment warranties + cover-until
+# dates, right in their own Pulse dashboard. Reads their org's own
+# ``equipment`` records (warranty stamped on the deal handover / GRN), so it
+# is strictly org-scoped and read-only.
+
+_EXPIRING_DAYS = 60
+
+
+def _warranty_row(e: dict) -> dict | None:
+    """Shape one equipment doc into a warranty-register row with computed
+    status. Returns None if the item carries no warranty information."""
+    from datetime import datetime, timezone
+    from utils.warranty import get_tier, compute_expiry
+
+    tier_code = e.get("warranty_tier")
+    expiry = e.get("warranty_expiry")
+    if not expiry and (tier_code or e.get("warranty_start")):
+        months = e.get("warranty_months") or get_tier(tier_code)["months"]
+        expiry = compute_expiry(e.get("warranty_start") or e.get("purchase_date"), int(months))
+    if not expiry and not tier_code:
+        return None  # no warranty data → not shown
+
+    tier = get_tier(tier_code) if tier_code else None
+    days_remaining = None
+    status = "unknown"
+    if expiry:
+        try:
+            end = datetime.strptime(str(expiry)[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            days_remaining = (end - datetime.now(timezone.utc)).days
+            status = "expired" if days_remaining < 0 else ("expiring" if days_remaining <= _EXPIRING_DAYS else "active")
+        except Exception:
+            pass
+    return {
+        "id": e.get("id"),
+        "name": e.get("name") or "Equipment",
+        "manufacturer": e.get("manufacturer") or "",
+        "model": e.get("model") or "",
+        "serial_number": e.get("serial_number") or "",
+        "warranty_tier": tier_code or "",
+        "warranty_label": (tier or {}).get("label") or "Manufacturer warranty",
+        "warranty_summary": (tier or {}).get("summary") or "",
+        "warranty_start": e.get("warranty_start") or e.get("purchase_date"),
+        "warranty_expiry": expiry,
+        "days_remaining": days_remaining,
+        "status": status,
+    }
+
+
+@router.get("/warranties")
+async def my_warranties(user=Depends(get_current_user)):
+    """The signed-in customer's equipment warranties with live cover status."""
+    org_id = user.get("organization_id")
+    if not org_id:
+        return {"has_warranties": False, "warranties": [], "counts": {}}
+    rows = await db.equipment.find(
+        {"organization_id": org_id, "status": {"$ne": "archived"}},
+        {"_id": 0, "id": 1, "name": 1, "manufacturer": 1, "model": 1,
+         "serial_number": 1, "warranty_tier": 1, "warranty_months": 1,
+         "warranty_start": 1, "warranty_expiry": 1, "purchase_date": 1},
+    ).limit(1000).to_list(1000)
+    out = [w for w in (_warranty_row(e) for e in rows) if w]
+    # Sort: expiring/expired first (soonest cover-end), then active.
+    out.sort(key=lambda w: (w["days_remaining"] is None, w["days_remaining"] if w["days_remaining"] is not None else 1e9))
+    counts = {
+        "total": len(out),
+        "active": sum(1 for w in out if w["status"] == "active"),
+        "expiring": sum(1 for w in out if w["status"] == "expiring"),
+        "expired": sum(1 for w in out if w["status"] == "expired"),
+    }
+    return {"has_warranties": len(out) > 0, "warranties": out, "counts": counts}
+
+
+@router.get("/warranties/summary")
+async def my_warranties_summary(user=Depends(get_current_user)):
+    """Lightweight flag + counts to show/hide the Warranties nav item."""
+    res = await my_warranties(user)
+    return {"has_warranties": res["has_warranties"], "counts": res["counts"]}
