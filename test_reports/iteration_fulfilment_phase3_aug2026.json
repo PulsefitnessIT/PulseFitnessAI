@@ -1,0 +1,49 @@
+{
+  "summary": "Phase 3 (Fulfilment) tested end-to-end. Backend pytest: 6/9 pass (/app/backend/tests/test_crm_quote_fulfilment_phase3_aug2026.py) — the happy-path lifecycle is correct (procurable excludes trade_in, equipment_units_expected=2, PO priced at cost with subtotal 14150 + status draft + quote_id link, GRN created 2 equipment records SN-AAA/SN-BBB valued at the 10000 SELL price with supplier='Pulse Fitness Ltd', source='deal_grn', quote_id/po_number set, po_status=part_received, 2nd GET shows equipment_created=2, records visible in GET /api/equipment with the app token and free of _id; receiving the spare line flips PO to received and creates NO equipment). Guards verified: over-receive -> 422, missing/blank supplier_name -> 422, unknown quote -> 404, unknown PO -> 404, unauthenticated -> 401/403, bad PO status -> 422 and draft->ordered works. Frontend: the whole panel flow (Raise PO dialog -> PO row Draft -> Receive goods GRN with comma-separated serials -> Part received chip + 'Equipment registered from this deal' chips + Registered card = 2, persisting across a reload) works ONLY for quotes whose lines carry a stable line id, which I had to seed by hand. For quotes created the normal way (CPQ UI / POST /crm/v2/quotes) the 'Raise PO' button ALWAYS fails with a 400 'No matching lines to put on the purchase order' toast — reproduced in the browser. That makes Phase 3 unusable in production as shipped.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/crm/v2/quotes/{id}/fulfilment + POST /api/crm/v2/quotes/{id}/purchase-orders", "issue": "Quote lines are persisted WITHOUT an `id` (POST /crm/v2/quotes -> hydrate_quote_lines does not stamp one), so _procurable_lines() mints a fresh uuid on EVERY request. Two consecutive GET /fulfilment calls return different line_ids. The frontend PO dialog reads line_ids from GET /fulfilment and posts them back, so the POST's `wanted` set never matches and every real Raise-PO returns 400 'No matching lines to put on the purchase order'. Fix: stamp a persistent line id on quote lines at create/revise (and backfill existing quotes), or make the PO filter positional/index-based.", "priority": "CRITICAL"},
+      {"endpoint": "POST /api/crm/v2/quotes/{id}/purchase-orders/{poId}/receive", "issue": "A GRN whose items[].line_id matches no PO item is SILENTLY accepted: HTTP 200, created_equipment=[], nothing received, po_status unchanged. Should return 400/422 so a bad receipt is not reported as a success (the UI toasts '0 equipment record(s) created').", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST .../receive", "issue": "No serial validation: duplicate/blank serials are accepted, extra serials beyond received_qty are silently dropped, and units beyond the supplied serials are created with serial_number=null (no warning)."},
+      {"endpoint": "POST .../receive", "issue": "Status roll-up ignores the current status — receiving against a 'cancelled' PO moves it to part_received/received."},
+      {"endpoint": "POST .../purchase-orders", "issue": "supplier_name/line_ids validated by hand on a raw dict body instead of a Pydantic model (no schema in OpenAPI); minor consistency issue."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "QuoteFulfilmentPanel / Raise PO dialog", "issue": "Raise PO fails with error toast 'No matching lines to put on the purchase order' on every normally-created quote (see backend CRITICAL #1). The dialog also stays open after the failure with no inline error, so the user can only retry the same failing action.", "selector": "[data-testid=\"fulfilment-po-submit\"]", "priority": "CRITICAL"},
+      {"component": "GRN dialog", "issue": "Submitting with all quantities 0 sends an empty items array and shows a success toast '0 equipment record(s) created'. Should disable submit / warn when nothing is being received.", "selector": "[data-testid=\"fulfilment-grn-submit\"]", "priority": "MEDIUM"},
+      {"component": "QuoteFulfilmentPanel", "issue": "load() swallows fetch errors with console.error and the panel renders nothing (returns null) — no error/loading state, so an API failure is invisible to the operator.", "selector": "[data-testid=\"quote-fulfilment-panel\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Quote -> Raise PO", "issue": "Frontend sends line_ids taken from GET /fulfilment which the backend regenerates each request -> guaranteed 400. Verified in-browser on quote QT-6AE959.", "affected_selectors": ["[data-testid=\"fulfilment-raise-po\"]", "[data-testid=\"fulfilment-po-submit\"]"]},
+      {"flow": "GRN -> equipment register", "issue": "Works correctly (verified on a hand-seeded quote with stable line ids): 2 chips in fulfilment-equipment-list, fulfilment-equipment-created = 2, PO chip = 'Part received', values persist after reload.", "affected_selectors": ["[data-testid=\"fulfilment-grn-submit\"]", "[data-testid=\"fulfilment-equipment-list\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "Quote detail — Fulfilment panel", "issues": ["Panel layout, 3 summary cards, PO row and status chips read well in light mode; no contrast/spacing problems found.", "The cookie consent banner overlays the bottom of the quote detail page until accepted, covering the fulfilment panel on first visit."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_crm_quote_fulfilment_phase3_aug2026.py", "/app/test_reports/pytest/fulfilment_phase3.xml"],
+  "action_items": [
+    "CRITICAL: persist a stable `id` on every CPQ v2 quote line (create + revise + MOD wizard paths) and backfill existing quotes, OR change POST /purchase-orders to select lines by index; without this the whole Phase 3 UI entry point is dead.",
+    "Make POST .../receive reject item line_ids that do not exist on the PO (400/422) instead of returning 200 with no effect.",
+    "Disable/guard the GRN submit when every quantity is 0 and surface a real error instead of '0 equipment record(s) created'.",
+    "Add serial-number validation (count vs received_qty, duplicates, blank) and consider blocking receipt against cancelled POs.",
+    "Add a loading/error state to QuoteFulfilmentPanel instead of returning null on fetch failure."
+  ],
+  "critical_code_review_comments": [
+    "crm_quote_fulfilment.py::_procurable_lines uses `ln.get('id') or _id()` — generating an identifier as a fallback makes the id non-deterministic and is the root cause of the Raise-PO 400. Never mint ids in a read path.",
+    "receive_goods() skips unmatched receipts with `continue`, converting operator error into a silent success.",
+    "receive_goods() mutates `po['items']` in place and re-writes the whole array without a concurrency guard — two simultaneous GRNs can over-receive; consider a filtered update per line."
+  ],
+  "updated_files": ["/app/backend/tests/test_crm_quote_fulfilment_phase3_aug2026.py"],
+  "success_rate": {"backend": "67% (6/9 pytest; all 3 failures are the line-id / silent-no-op defects above)", "frontend": "60% (panel, GRN, equipment chips, summary cards OK; Raise PO broken on real quotes)"},
+  "seed_data_creation": "Created and DELETED: TEST_ quotes (TEST_fulfilment_phase3 / TEST_probe_lineid / TEST_fe_fulfilment_seed) plus their purchase_orders (by quote_id) and equipment (by quote_id, serials TEST_SN-AAA/TEST_SN-BBB). Verified 0 leftovers in db.equipment.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (both /login and POST /api/crm/auth/login) — both worked.",
+  "context_for_next_testing_agent": "Run `pytest tests/test_crm_quote_fulfilment_phase3_aug2026.py` from /app/backend. TestFulfilmentLifecycle + most guards pass; the 3 expected-to-fail tests (test_procurable_line_ids_are_stable_across_requests, test_raise_po_with_line_ids_from_fulfilment_view, test_grn_with_unknown_line_id_is_rejected) encode the open bugs — they must go green after the line-id fix. For frontend testing of the GRN half you can seed a quote with explicit line `id` values (POST /crm/v2/quotes accepts and preserves them) — see /tmp/seed_fe_quote.py pattern. UI path: /login -> /crm -> [data-testid=crm-mode-business] -> [data-testid=crm-nav-quotes] -> [data-testid=quote-row-{id}]; accept the cookie banner ('Accept All') first.",
+  "rca_of_the_issue": "POST /api/crm/v2/quotes stores quote lines exactly as sent (hydrate_quote_lines adds pricing/net_subtotal but no id) and the CPQ UI never generates one. crm_quote_fulfilment._procurable_lines falls back to `_id()` (a random uuid4) for the line_id, so every request returns different ids. The PO endpoint filters the procurable lines by the client-supplied `line_ids`, which were obtained from an earlier GET, so the intersection is always empty -> HTTP 400 'No matching lines'. Reproduction: create a quote via POST /crm/v2/quotes with sale+spare lines, GET /fulfilment, POST /purchase-orders with those line_ids -> 400 (also reproduced in the browser on QT-6AE959). Mitigation: stamp uuid line ids at quote create/revise time and backfill; the GRN path is unaffected because PO items persist their ids."
+}

@@ -2081,6 +2081,8 @@ def _normalize_quote_line(line: dict) -> dict:
     Trade-ins are entered as a positive allowance but applied as negative
     revenue so the deal total drops by the allowance given.
     """
+    if not line.get("id"):
+        line["id"] = _id()  # stable line id — used by fulfilment (PO/GRN)
     lt = (line.get("line_type") or "sale").lower()
     if lt not in QUOTE_LINE_TYPES:
         lt = "sale"
