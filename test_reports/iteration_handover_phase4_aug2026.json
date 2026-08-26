@@ -1,0 +1,36 @@
+{
+  "summary": "Phase 4 (Handover & Close) independently verified end-to-end with owner@isodemo.com. Backend: 8/8 pytest cases pass (not-ready view with both reasons + 1 install suggestion, complete→400, auto-jobs creating a real db.issues install job visible via GET /api/issues, PO+GRN delivery, 100% stage invoice, ready=true, complete→'completed', double-complete 400, reopen→'open', force-complete with reason, explicit ppm job, invalid case_type fallback, empty payload 400, 404s, auth guards, open jobs non-blocking). Frontend: full handover panel exercised in /crm → Corporate → Quotes → quote detail — badge 'Open', 3 checklist items, Complete deal DISABLED with both reasons listed, auto-create install jobs → job row appears, Add-job dialog (type=ppm + title) → 2nd job, force dialog (submit disabled until reason) → badge flips to 'Completed' + Reopen shown + auto-jobs/Add-job hidden, Reopen → badge back to 'Open'. No console errors, no error elements. All TEST_ quotes/issues/svc_cases/equipment/POs/invoices cleaned up.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/crm/v2/quotes/{id}/reopen", "issue": "Reopen only unsets deal_completed_at/by — deal_completed_forced (true) and deal_completed_reason survive on the quote after reopening, so a re-opened deal still reads as 'force completed' in the DB/audit view. Also there is no guard: reopening an already-open deal returns 200 and rewrites deal_status."},
+      {"endpoint": "POST /api/crm/v2/quotes/{id}/handover/jobs", "issue": "_mirror_issue_to_svc_case is called but is a silent no-op for handover jobs: it returns early unless issue_doc.resolution_type == 'engineer', which _build_issue_doc does not set for these jobs. Verified 0 svc_cases rows for a quote with 2 handover jobs. If Service Desk visibility is intended, set resolution_type='engineer' (or mirror explicitly); otherwise drop the misleading call."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CRM quote detail — Handover & close", "issues": ["Reason text shows raw floats/currency codes: 'Not fully invoiced — GBP 5000.0 still to invoice' (backend f-string) — should be formatted (e.g. £5,000.00)", "Checklist row reads '2 open job(s) — informational' with an unchecked circle in warning-muted colour; it looks like a blocker even though open jobs do not block completion", "Cookie-consent banner sits fixed over the bottom of the quote detail page (did not block the handover controls in this run, but overlaps page content)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_crm_quote_handover_phase4_aug2026.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Clear deal_completed_forced/deal_completed_reason on /reopen (and consider 400 when deal_status is already 'open')",
+    "Decide + fix svc_cases mirroring for handover jobs (currently never created)",
+    "Format currency in completion reasons (GBP 5000.0 → £5,000.00)"
+  ],
+  "critical_code_review_comments": [
+    "crm_quote_handover._create_job wraps _mirror_issue_to_svc_case in a bare except pass — a real mirroring failure would be invisible; log it at minimum.",
+    "auto-jobs expansion appends the SAME spec dict repeatedly (specs list holds shared references); harmless today but mutating one spec later would affect all copies.",
+    "_completion recomputes invoicing + fulfilment views on every call (handover GET runs fulfilment_view twice) — minor duplicate DB work per request."
+  ],
+  "updated_files": ["/app/backend/tests/test_crm_quote_handover_phase4_aug2026.py"],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% (all panel flows incl. force-complete + reopen)"},
+  "seed_data_creation": "Temporary TEST_ CPQ v2 quotes (equipment line qty1 @5000/cost3000, vat 0) created via API for backend + frontend runs; all deleted afterwards along with linked issues/svc_cases/equipment/purchase_orders/crm2_invoices.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (both /api/auth/login and /api/crm/auth/login; role owner → canManage true)",
+  "context_for_next_testing_agent": "Phase 4 handover backend+frontend fully verified (this iteration). Regression file: /app/backend/tests/test_crm_quote_handover_phase4_aug2026.py. Frontend nav: /login → /crm → data-testid crm-mode-business → button[data-pill-id='quotes'] → quote-row-{id} → quote-handover-panel. Only open items are the 3 minor issues above (reopen residue, svc_cases mirror no-op, currency formatting).",
+  "rca_of_the_issue": "reopen residue: the $unset in reopen_deal lists only deal_completed_at/deal_completed_by. svc_cases gap: routes.issues._mirror_issue_to_svc_case early-returns when resolution_type != 'engineer', and handover jobs are built via _build_issue_doc without that field."
+}
