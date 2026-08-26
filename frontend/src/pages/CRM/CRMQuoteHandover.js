@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { CheckCircle2, Circle, ClipboardList, X, Wrench, Sparkles, Lock, RotateCcw, FileDown } from 'lucide-react';
+import { CheckCircle2, Circle, ClipboardList, X, Wrench, Sparkles, Lock, RotateCcw, FileDown, Mail } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { useAuth } from '@/App';
 
@@ -64,6 +64,23 @@ export const QuoteHandoverPanel = ({ quoteId, API, headers, c, isDark }) => {
   };
   const hasEquipment = (comp.fulfilment_summary?.equipment_created || 0) > 0;
 
+  const [emailDialog, setEmailDialog] = useState(null); // { to, subject, message }
+  const [emailBusy, setEmailBusy] = useState(false);
+  const sendPackEmail = async () => {
+    setEmailBusy(true);
+    try {
+      const r = await axios.post(`${API}/crm/v2/quotes/${quoteId}/handover/pack/email`, {
+        to: (emailDialog.to || '').trim(),
+        subject: (emailDialog.subject || '').trim(),
+        message: (emailDialog.message || '').trim(),
+      }, { headers: headers() });
+      notify.success(`Handover pack emailed to ${r.data.to}`);
+      setEmailDialog(null);
+    } catch (e) {
+      notify.error(e.response?.data?.detail || 'Could not email the handover pack');
+    } finally { setEmailBusy(false); }
+  };
+
   const Check = ({ ok, children, testid }) => (
     <div className="flex items-center gap-2 text-sm" style={{ color: ok ? 'var(--color-success-alt)' : c.textMuted }} data-testid={testid}>
       {ok ? <CheckCircle2 size={15} /> : <Circle size={15} />} {children}
@@ -88,11 +105,20 @@ export const QuoteHandoverPanel = ({ quoteId, API, headers, c, isDark }) => {
             <p className="text-xs font-medium" style={{ color: c.text }}>Customer handover pack</p>
             <p className="text-[11px]" style={{ color: c.textDim }}>Branded PDF — equipment, serials, warranty & how to log a fault.</p>
           </div>
+          <div className="flex items-center gap-2 shrink-0">
           <button onClick={downloadPack} disabled={downloading}
             className="text-xs px-3 py-1.5 rounded-md border inline-flex items-center gap-1.5 shrink-0 disabled:opacity-50"
             style={{ borderColor: bd, color: 'var(--color-info-ios)' }} data-testid="handover-download-pack">
             <FileDown size={13} /> {downloading ? 'Preparing…' : 'Download pack (PDF)'}
           </button>
+          {canManage && (
+            <button onClick={() => setEmailDialog({ to: '', subject: '', message: '' })}
+              className="text-xs px-3 py-1.5 rounded-md text-white inline-flex items-center gap-1.5 shrink-0"
+              style={{ background: 'var(--color-info-ios)' }} data-testid="handover-email-pack">
+              <Mail size={13} /> Email pack
+            </button>
+          )}
+          </div>
         </div>
       )}
 
@@ -227,6 +253,34 @@ export const QuoteHandoverPanel = ({ quoteId, API, headers, c, isDark }) => {
             <div className="flex gap-2 justify-end mt-4">
               <button onClick={() => setForceFor(false)} className="px-3 py-2 text-sm" style={{ color: c.textMuted }}>Cancel</button>
               <button onClick={() => complete(true)} disabled={busy === 'complete' || !forceReason.trim()} className="px-3 py-2 text-sm rounded-md text-white disabled:opacity-50" style={{ background: 'var(--color-accent-amber)' }} data-testid="handover-force-submit">Force complete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Email handover pack dialog */}
+      {emailDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setEmailDialog(null)}>
+          <div className="w-full max-w-md rounded-xl p-5" style={{ background: isDark ? 'var(--color-ink)' : '#fff' }} onClick={e => e.stopPropagation()} data-testid="handover-email-dialog">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-semibold inline-flex items-center gap-1.5" style={{ color: c.text }}><Mail size={15} /> Email handover pack</h4>
+              <button onClick={() => setEmailDialog(null)}><X size={16} style={{ color: c.textMuted }} /></button>
+            </div>
+            <p className="text-xs mb-3" style={{ color: c.textMuted }}>Sends the branded PDF as an attachment. Leave the recipient blank to use the deal's linked contact.</p>
+            <label className="text-xs" style={{ color: c.textDim }}>To (optional)</label>
+            <input value={emailDialog.to} onChange={e => setEmailDialog(d => ({ ...d, to: e.target.value }))} placeholder="customer@example.com"
+              className="w-full mt-1 mb-2 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${bd}`, color: c.text }} data-testid="handover-email-to" />
+            <label className="text-xs" style={{ color: c.textDim }}>Subject (optional)</label>
+            <input value={emailDialog.subject} onChange={e => setEmailDialog(d => ({ ...d, subject: e.target.value }))} placeholder="Your equipment handover pack"
+              className="w-full mt-1 mb-2 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${bd}`, color: c.text }} data-testid="handover-email-subject" />
+            <label className="text-xs" style={{ color: c.textDim }}>Message (optional)</label>
+            <textarea value={emailDialog.message} onChange={e => setEmailDialog(d => ({ ...d, message: e.target.value }))} rows={3} placeholder="Add a personal note (a default message is used if left blank)."
+              className="w-full mt-1 px-3 py-2 text-sm rounded-md resize-none" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${bd}`, color: c.text }} data-testid="handover-email-message" />
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => setEmailDialog(null)} className="px-3 py-2 text-sm" style={{ color: c.textMuted }}>Cancel</button>
+              <button onClick={sendPackEmail} disabled={emailBusy} className="px-3 py-2 text-sm rounded-md text-white disabled:opacity-50 inline-flex items-center gap-1.5" style={{ background: 'var(--color-info-ios)' }} data-testid="handover-email-send">
+                <Mail size={13} /> {emailBusy ? 'Sending…' : 'Send pack'}
+              </button>
             </div>
           </div>
         </div>

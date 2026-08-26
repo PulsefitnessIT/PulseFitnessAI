@@ -312,10 +312,24 @@ async def handover_pack_pdf(quote_id: str, user=Depends(get_crm_user)):
     soon as equipment has been registered on the deal (GRN)."""
     from fastapi.responses import StreamingResponse
     from io import BytesIO
-    from routes.crm_v2 import _resolve_crm_brand
-    from utils.handover_pack_pdf import build_handover_pack_pdf
 
     quote = await _get_quote(quote_id, user)
+    pdf, filename = await _build_pack_bytes(quote, user)
+    return StreamingResponse(
+        BytesIO(pdf),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+async def _build_pack_bytes(quote: dict, user: dict) -> tuple[bytes, str]:
+    """Render the branded handover pack and return (pdf_bytes, filename).
+    Raises 400 if the deal has no registered equipment yet."""
+    from routes.crm_v2 import _resolve_crm_brand
+    from utils.handover_pack_pdf import build_handover_pack_pdf
+    from utils.warranty import get_tier, compute_expiry
+
+    quote_id = quote["id"]
     equipment = await db.equipment.find(
         {"quote_id": quote_id, **_of(user)},
         {"_id": 0, "id": 1, "name": 1, "serial_number": 1, "manufacturer": 1,
@@ -326,7 +340,6 @@ async def handover_pack_pdf(quote_id: str, user=Depends(get_crm_user)):
         raise HTTPException(400, "No equipment registered on this deal yet — receive goods (GRN) first.")
 
     # Backfill warranty for legacy GRN equipment created before tiers existed.
-    from utils.warranty import get_tier, compute_expiry
     for e in equipment:
         if not e.get("warranty_expiry"):
             t = get_tier(e.get("warranty_tier"))
@@ -348,11 +361,79 @@ async def handover_pack_pdf(quote_id: str, user=Depends(get_crm_user)):
         is_mod=is_mod,
     )
     safe = (quote.get("quote_number") or "handover").replace("/", "-")
-    return StreamingResponse(
-        BytesIO(pdf),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{safe}-handover-pack.pdf"'},
+    return pdf, f"{safe}-handover-pack.pdf"
+
+
+@router.post("/{quote_id}/handover/pack/email")
+async def email_handover_pack(quote_id: str, data: dict = None, user=Depends(get_crm_user)):
+    """Email the branded handover pack (PDF attachment) to the customer via
+    Resend. Body: {to?, cc?, subject?, message?}. Defaults `to` to the
+    linked contact's email. Owners / admins / managers only."""
+    if not _can_manage(user):
+        raise HTTPException(403, "Only owners / admins / managers can email the handover pack")
+    data = data or {}
+    quote = await _get_quote(quote_id, user)
+
+    to_addr = (data.get("to") or "").strip().lower()
+    if not to_addr and quote.get("contact_id"):
+        contact = await db.crm2_contacts.find_one(
+            {"id": quote["contact_id"], **_of(user)}, {"_id": 0, "email": 1})
+        if contact:
+            to_addr = (contact.get("email") or "").strip().lower()
+    if not to_addr:
+        raise HTTPException(400, "No recipient email — pass `to` or link a contact with an email address.")
+
+    pdf, filename = await _build_pack_bytes(quote, user)
+
+    company = quote.get("company_name") or "your organisation"
+    subject = (data.get("subject") or f"Your equipment handover pack — {quote.get('quote_number') or ''}").strip()
+    body_html = (data.get("message") or "").strip() or (
+        f"<p>Hi,</p>"
+        f"<p>Please find attached the equipment handover pack for <b>{company}</b>"
+        f" (ref {quote.get('quote_number') or quote_id}).</p>"
+        f"<p>It lists every unit delivered with serial numbers and warranty cover, "
+        f"and explains how to log a fault if you ever need support.</p>"
+        f"<p>Kind regards,<br>{user.get('full_name') or 'The team'}</p>"
     )
+    cc = [c for c in (data.get("cc") or []) if isinstance(c, str) and c.strip()]
+
+    try:
+        import base64 as _b64
+        from utils.email import send_email
+        attachment = {
+            "filename": filename,
+            "content": _b64.b64encode(pdf).decode("ascii"),
+            "content_type": "application/pdf",
+        }
+        sent = await send_email(
+            to=to_addr, subject=subject, html=body_html,
+            cc=cc or None, attachments=[attachment],
+            organization_id=user.get("organization_id"),
+            kind="crm_handover_pack", category="service",
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(500, f"Could not email the handover pack: {exc}") from exc
+    if not sent:
+        raise HTTPException(502, "Email could not be sent — check the sender configuration (RESEND_API_KEY / SENDER_EMAIL).")
+
+    sent_at = _now()
+    await db.crm2_quotes.update_one(
+        {"id": quote_id, **_of(user)},
+        {"$set": {"handover_pack_last_sent_to": to_addr, "handover_pack_last_sent_at": sent_at, "updated_at": sent_at}},
+    )
+    await db.crm2_activities.insert_one({
+        "id": _id(), "organization_id": user.get("organization_id"),
+        "type": "system", "subject": f"Handover pack emailed — {quote.get('quote_number') or quote_id}",
+        "body": f"Sent to {to_addr}",
+        "quote_id": quote_id, "company_id": quote.get("company_id"),
+        "contact_id": quote.get("contact_id"),
+        "owner_id": user.get("id"), "owner_name": user.get("full_name", ""),
+        "created_at": sent_at, "updated_at": sent_at,
+    })
+    await _audit(user, quote_id, "handover_pack_emailed", {"to": to_addr})
+    return {"ok": True, "to": to_addr, "sent_at": sent_at}
 
 
 # ── Create linked jobs ─────────────────────────────────────────────
