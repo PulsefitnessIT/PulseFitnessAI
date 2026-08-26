@@ -22,15 +22,21 @@ _FRONTEND_URL = (
 
 
 def _public_photo_url(equipment_id: str) -> str:
-    """Return an absolute URL that serves the equipment's main photo."""
-    base = _FRONTEND_URL or ""
-    return f"{base}/api/public/equipment/{equipment_id}/photo"
+    """Return a host-relative URL that serves the equipment's main photo.
+
+    We deliberately do NOT bake the frontend host into the stored value.
+    Preview/deploy hosts change over time, which left old absolute URLs
+    (e.g. platform-doctor.preview…) pointing at a dead host and rendering
+    as a broken/grey image. A relative path always resolves against
+    whatever origin is serving the app (and the QR endpoint re-derives an
+    absolute URL from the live request host where one is needed).
+    """
+    return f"/api/public/equipment/{equipment_id}/photo"
 
 
 def _public_photo_gallery_url(equipment_id: str, photo_id: str) -> str:
-    """Return an absolute URL that serves a specific gallery photo."""
-    base = _FRONTEND_URL or ""
-    return f"{base}/api/public/equipment/{equipment_id}/photos/{photo_id}"
+    """Return a host-relative URL that serves a specific gallery photo."""
+    return f"/api/public/equipment/{equipment_id}/photos/{photo_id}"
 from utils.helpers import get_equipment_stats, get_bulk_equipment_stats
 from models.schemas import EquipmentCreate
 # emergentintegrations (litellm) imported lazily inside functions to keep it off the startup import path

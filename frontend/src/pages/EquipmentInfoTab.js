@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { resolveEquipmentPhoto } from '@/utils/photoUrl';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
@@ -603,7 +604,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  // the operator-triggered auto-lookup and the PDF spec hero so list
  // thumbnails show real product photos for any equipment whose
  // manufacturer is in the catalogue.
- const thumbUrl = equip.photo_url
+ const thumbUrl = resolveEquipmentPhoto(equip.photo_url)
    || equip.auto_image_url
    || equip.spec_sheet_image
    || (equip.spec_sheet_id ? `${API}/spec-sheets/image/${equip.spec_sheet_id}` : null);

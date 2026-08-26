@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { resolveEquipmentPhoto } from '@/utils/photoUrl';
 import { useTranslation } from 'react-i18next';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
@@ -576,7 +577,7 @@ const QRScanPage = () => {
  <Card className="bg-[var(--theme-surface)] border-white/10 p-6 mb-4" data-testid="equipment-info-card">
  {equipment.photo_url ? (
  <div className="mb-4 rounded-lg overflow-hidden">
- <img src={equipment.photo_url} alt={equipment.name} className="w-full h-48 object-cover" />
+ <img src={resolveEquipmentPhoto(equipment.photo_url)} alt={equipment.name} className="w-full h-48 object-cover" />
  </div>
  ) : (
  <div className="mb-4 h-48">

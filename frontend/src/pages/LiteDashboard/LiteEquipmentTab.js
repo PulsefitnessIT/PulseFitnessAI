@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { resolveEquipmentPhoto } from '@/utils/photoUrl';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -307,7 +308,7 @@ const LiteEquipmentTab = ({
     //   2. AI-matched manufacturer image (auto-lookup)
     //   3. Matched spec-sheet hero image (Pulse Fitness / Life Fitness / …)
     //   4. Machine-type logo placeholder (menu-bar pill style)
-    const thumbUrl = eq.photo_url
+    const thumbUrl = resolveEquipmentPhoto(eq.photo_url)
       || eq.auto_image_url
       || (eq.spec_sheet_id ? `${API}/spec-sheets/image/${eq.spec_sheet_id}` : null);
     return (

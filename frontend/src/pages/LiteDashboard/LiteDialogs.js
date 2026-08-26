@@ -1,4 +1,5 @@
 import { notify } from '@/components/notifications';
+import { resolveEquipmentPhoto } from '@/utils/photoUrl';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { Button } from '@/components/ui/button';
@@ -43,7 +44,7 @@ const EquipmentDetailContent = ({ selectedEquipment, serviceProviders, getEquipm
   const specId = selectedEquipment.spec_sheet_id;
   const hasSpec = !!specId;
   const [activeTab, setActiveTab] = useState('details');
-  const [photoUrl, setPhotoUrl] = useState(selectedEquipment.photo_url || null);
+  const [photoUrl, setPhotoUrl] = useState(resolveEquipmentPhoto(selectedEquipment.photo_url) || null);
   const pdfBlobUrl = useBlobUrl(hasSpec && activeTab === 'spec-sheet' ? `${API_BASE}/spec-sheets/pdf/${specId}` : null);
   const authToken = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
 
@@ -305,7 +306,7 @@ const EquipmentDetailContent = ({ selectedEquipment, serviceProviders, getEquipm
                   }
                 }}
                 onUploaded={(newUrl) => {
-                  setPhotoUrl(newUrl);
+                  setPhotoUrl(resolveEquipmentPhoto(newUrl));
                   if (selectedEquipment) selectedEquipment.photo_url = newUrl;
                 }}
                 apiBase={API_BASE}
