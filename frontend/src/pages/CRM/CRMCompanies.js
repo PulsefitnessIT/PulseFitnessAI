@@ -1358,6 +1358,24 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
   };
   const portalConnected = !!(portalLink && portalLink.linked_org);
   const canManagePortal = !!(portalLink && portalLink.can_manage);
+  const createAndInvitePortal = async () => {
+    setPortalBusy(true);
+    try {
+      const res = await axios.post(`${API}/crm/v2/companies/${companyId}/portal-invite/resend`, {}, { headers: headers() });
+      const st = res.data?.status;
+      if (st === 'provisioned') toast.success(`Portal created — invite sent to ${res.data.email}`);
+      else if (st === 'linked_existing') toast.success('Linked to the customer\'s existing Pulse account.');
+      else if (st === 'resent') toast.success(`Invite re-sent to ${res.data.email}`);
+      else if (st === 'already_active') toast.info('This customer already has an active portal.');
+      else if (st === 'missing_email') { toast.error('Add a contact email to this company first, then invite.'); setPortalBusy(false); return; }
+      else toast.success('Portal invite processed.');
+      setShowConnectPortal(false);
+      loadPortalLink(); loadInvite(); load();
+    } catch (e) {
+      toast.error(e?.response?.status === 403 ? 'Only owners / managers can invite a portal.' : 'Could not create the portal invite.');
+    }
+    setPortalBusy(false);
+  };
 
   const handleAddActivity = async () => {
     if (!noteForm.subject.trim()) return;
@@ -2138,11 +2156,22 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
                 );
               })}
             </div>
+
+            {/* No portal yet → create & invite one */}
+            {!portalConnected && (
+              <div className="mt-4 pt-4 border-t" style={{ borderColor: c.border }} data-testid="connect-portal-invite-section">
+                <p className="text-xs font-medium mb-1" style={{ color: c.text }}>Customer has no portal yet?</p>
+                <p className="text-[11px] mb-2" style={{ color: c.textDim }}>Create a new Pulse portal for them and email a set-up link to their main contact{invite?.email ? ` (${invite.email})` : ''}. Once set up, handovers and fault-logging land in their account.</p>
+                <button onClick={createAndInvitePortal} disabled={portalBusy}
+                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md text-white disabled:opacity-50"
+                  style={{ background: 'var(--color-info-ios)' }} data-testid="connect-portal-invite-btn">
+                  <Send size={13} /> {portalBusy ? 'Working…' : 'Create & invite portal'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
-
-      {/* Add Activity Dialog */}
       {showAddNote && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowAddNote(false)}>
           <div className="w-full max-w-md mx-4 rounded-xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto" style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }} onClick={e => e.stopPropagation()}>
