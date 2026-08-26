@@ -274,6 +274,72 @@ async def create_contract(data: dict, user=Depends(get_crm_user)):
     return {k: v for k, v in contract.items() if k != "_id"}
 
 
+@router.post("/contracts/{contract_id}/convert-to-quote")
+async def convert_contract_to_quote(contract_id: str, data: dict = None, user=Depends(get_crm_user)):
+    """One-click: turn a (draft) aftersales contract into a SENT quote.
+
+    Builds a CPQ quote (crm2_quotes) with a single service-contract line for
+    the cover, marks it 'sent', links it both ways, and moves the contract to
+    'sent'. Idempotent — returns the existing quote if already converted."""
+    from routes.crm_v2 import compute_quote_totals
+    from utils.localization import org_localization
+
+    data = data or {}
+    c = await db.crm2_contracts.find_one({"id": contract_id, **_of(user)}, {"_id": 0})
+    if not c:
+        raise HTTPException(404, "Contract not found")
+
+    # Idempotency — reuse an already-linked quote.
+    if c.get("quote_id"):
+        existing = await db.crm2_quotes.find_one({"id": c["quote_id"], **_of(user)}, {"_id": 0})
+        if existing:
+            return {"status": "already_converted", "quote": existing, "contract_id": contract_id}
+
+    tier = (c.get("tier") or "bronze").title()
+    annual = float(c.get("annual_value", 0) or 0)
+    line = {
+        "id": _id(),
+        "line_type": "service_contract",
+        "description": f"Aftersales cover ({tier}) — {c.get('title') or 'Service contract'}",
+        "quantity": 1,
+        "unit_price": annual,
+        "discount": 0,
+    }
+    _org = await db.organizations.find_one(
+        {"id": user.get("organization_id")}, {"_id": 0, "country_code": 1, "currency": 1, "timezone": 1})
+    loc = org_localization(_org)
+    totals = compute_quote_totals([line], float(loc["default_tax_rate"]))
+    now = _now()
+    quote = {
+        "id": _id(), "organization_id": user.get("organization_id"),
+        "quote_number": f"QT-{str(uuid.uuid4())[:6].upper()}",
+        "company_id": c.get("company_id"), "company_name": c.get("company_name", ""),
+        "contact_id": c.get("contact_id", ""), "contact_name": c.get("contact_name", ""),
+        "opportunity_id": "",
+        "status": "sent", "sent_at": now,
+        "lines": [line], **totals,
+        "currency": loc["currency"], "tax_label": loc["tax_label"], "country_code": loc["country_code"],
+        "valid_until": "", "notes": f"Generated from aftersales contract {c.get('contract_number', '')}.",
+        "source": "aftersales_contract", "contract_id": contract_id,
+        "version": 1, "created_by": user.get("full_name", ""),
+        "created_at": now, "updated_at": now,
+    }
+    await db.crm2_quotes.insert_one({**quote})
+    await db.crm2_contracts.update_one(
+        {"id": contract_id, **_of(user)},
+        {"$set": {"quote_id": quote["id"], "status": "sent", "updated_at": now}})
+    await db.crm2_activities.insert_one({
+        "id": _id(), "organization_id": user.get("organization_id"),
+        "type": "system", "subject": f"Contract converted to quote: {quote['quote_number']}",
+        "body": f"{c.get('title')} → quote {quote['quote_number']} ({tier} cover) sent to {c.get('company_name')}.",
+        "company_id": c.get("company_id"), "contract_id": contract_id, "quote_id": quote["id"],
+        "owner_id": user.get("id"), "owner_name": user.get("full_name", ""), "created_at": now,
+    })
+    await record_audit(entity_type="contract", entity_id=contract_id, action="convert_to_quote",
+                       user=user, after={"quote_id": quote["id"], "status": "sent"})
+    return {"status": "converted", "quote": quote, "contract_id": contract_id}
+
+
 @router.get("/contracts/{contract_id}")
 async def get_contract(contract_id: str, user=Depends(get_crm_user)):
     """Get full contract detail with sites, assets, and service data."""

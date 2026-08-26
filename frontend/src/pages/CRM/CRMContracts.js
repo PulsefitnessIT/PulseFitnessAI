@@ -1102,13 +1102,14 @@ function SignatureModal({ open, onClose, onSign, isDark, c }) {
 
 
 /* ═══ CONTRACT DETAIL ═══ */
-function ContractDetail({ contractId, onBack, c, isDark, API, headers, _navigateTo, user }) {
+function ContractDetail({ contractId, onBack, c, isDark, API, headers, navigateTo, user }) {
   const [contract, setContract] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [savingEdit, setSavingEdit] = useState(false);
   const [showSign, setShowSign] = useState(false);
+  const [converting, setConverting] = useState(false);
   const inp = useInput(isDark, c);
 
   const load = useCallback(async () => {
@@ -1189,6 +1190,17 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, _navigate
     } catch (e) { alert(e.response?.data?.detail || 'Send failed'); }
   };
 
+  const handleConvertToQuote = async () => {
+    setConverting(true);
+    try {
+      const res = await axios.post(`${API}/crm/v2/contracts/${contractId}/convert-to-quote`, {}, { headers: headers() });
+      const q = res.data.quote;
+      if (navigateTo && q?.id) navigateTo('quote', q.id);
+      else load();
+    } catch (e) { alert(e.response?.data?.detail || 'Convert failed'); }
+    setConverting(false);
+  };
+
   // Iter 220e4-followup — one-click auto-renew toggle. Optimistic UI
   // so the engineer/coordinator gets immediate feedback; reverts on
   // server error.
@@ -1223,6 +1235,7 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, _navigate
 
   const canSign = ['approved', 'sent'].includes(contract.status);
   const canDelete = !['active', 'signed'].includes(contract.status);
+  const canConvert = !contract.quote_id && ['draft', 'pending_approval', 'approved'].includes(contract.status);
 
   return (
     <div data-testid="contract-detail">
@@ -1263,6 +1276,16 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, _navigate
           <button onClick={handleSendToCustomer} className="px-3 py-1.5 text-xs font-medium rounded-md border" style={{ borderColor: 'var(--color-info-ios)40', color: 'var(--color-info-ios)' }} data-testid="contract-send-btn">
             <Send size={12} className="inline mr-1" />Send
           </button>
+          {canConvert && (
+            <button onClick={handleConvertToQuote} disabled={converting} className="px-3 py-1.5 text-xs font-medium rounded-md text-white disabled:opacity-50" style={{ background: 'var(--color-info-ios)' }} data-testid="contract-convert-quote-btn" title="Create a sent quote from this contract in one click">
+              <Send size={12} className="inline mr-1" />{converting ? 'Converting…' : 'Convert to quote'}
+            </button>
+          )}
+          {contract.quote_id && (
+            <button onClick={() => navigateTo && navigateTo('quote', contract.quote_id)} className="px-3 py-1.5 text-xs font-medium rounded-md border" style={{ borderColor: 'var(--color-success-alt)40', color: 'var(--color-success-alt)' }} data-testid="contract-view-quote-btn">
+              <FileText size={12} className="inline mr-1" />View quote
+            </button>
+          )}
           {canSign && (
             <button onClick={() => setShowSign(true)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md bg-[var(--color-success-alt)] text-white" data-testid="sign-contract-btn">
               <PenTool size={12} /> Sign
