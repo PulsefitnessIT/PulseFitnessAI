@@ -1,0 +1,42 @@
+{
+  "summary": "Independently verified the Handover Pack + per-line warranty-tier feature (backend + frontend). Backend: 9/9 pytest cases pass (warranty-tiers endpoint, quote line tier preservation through fulfilment, PO -> GRN warranty stamping for extended_3yr/standard, pack 200 %PDF, 400 with no equipment, 404 unknown quote, auth guards). Extracted PDF text and confirmed per-unit warranty rows, cover-until dates (3yr/5yr), warranty summary wording, and BOTH 'how to log a fault' branches (Pulse portal URL when crm2_companies.tenant_org_id is set, phone/email service-desk fallback otherwise). Frontend: found and fixed a CRITICAL Rules-of-Hooks crash in QuoteHandoverPanel that blew up the whole quote-detail page ('Rendered more hooks than during the previous render'); after the fix the Warranty dropdown (populated from the tiers endpoint, hidden for non-sale line types), the handover-pack-row and the Download pack (PDF) button all work and the PDF downloads (QT-xxxx-pack.pdf, %PDF, 3.2KB). Pack row correctly absent for a quote with no GRN equipment.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/crm/v2/quotes", "issue": "company_name supplied without company_id is dropped (stored as ''), so the handover pack prints 'Customer —'. Pre-existing CPQ behaviour, not introduced by this feature, but it makes the branded pack look unfinished for quotes created without a linked company."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CRMQuoteHandover.js (QuoteHandoverPanel)", "issue": "FIXED BY TESTER: useState('downloading') was declared AFTER the early `if (!data) return null;` return -> React threw 'Rendered more hooks than during the previous render' and the entire CRM quote detail page crashed to the red runtime-error overlay every time the handover panel loaded. Moved the hook above the early return. Please review/keep this fix.", "selector": "[data-testid=\"quote-handover-panel\"]", "priority": "CRITICAL"},
+      {"component": "CRMCPQ new-quote modal", "issue": "React console error: 'In HTML, <span> cannot be a child of <option>' from the line-type/warranty select area (hydration warning). Cosmetic but noisy.", "selector": "[data-testid=\"create-quote-dialog\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Quote detail · Handover & close", "issues": ["'Complete deal' button uses very pale green background with near-white text when not ready — low contrast / reads as disabled-but-clickable ambiguity."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_handover_pack_warranty_jul2026.py",
+    "/app/backend/tests/_seed_fe_handover_pack.py",
+    "/app/test_reports/pytest/handover_pack_warranty_jul2026.xml"
+  ],
+  "action_items": [
+    "Keep/verify the hook-order fix in /app/frontend/src/pages/CRM/CRMQuoteHandover.js (downloading state must stay above `if (!data) return null;`). Add a lint/CI guard for hooks-after-early-return in CRM panels.",
+    "Optional: persist company_name on POST /crm/v2/quotes even without company_id so the pack header isn't blank.",
+    "Optional: fix the <span> inside <option> React warning in the CPQ line builder."
+  ],
+  "critical_code_review_comments": [
+    "CRMQuoteHandover.js violated the Rules of Hooks (state declared after a conditional return) — this class of bug silently crashes the page only after data loads, so babel/compile success is not sufficient validation; always click through the panel.",
+    "utils/warranty.py compute_expiry uses 30.44-day months (approx) — 36 months resolves to 2029-08-26 which is fine, but a calendar-accurate month add would avoid off-by-a-day expiry disputes on warranty claims.",
+    "GET /handover/pack backfills warranty on read for legacy equipment but does not persist it — the pack and the equipment record can disagree later; consider a one-off migration."
+  ],
+  "updated_files": ["/app/frontend/src/pages/CRM/CRMQuoteHandover.js"],
+  "success_rate": {"backend": "100%", "frontend": "100% after tester fix (0% before — quote detail page crashed)"},
+  "seed_data_creation": "Temporary TEST_ quotes/POs/equipment under iso-demo-org (notes TEST_handover_pack_warranty_jul2026 / TEST_fe_handover_pack_jul2026 / TEST_fe_no_equipment_jul2026 / TEST_pack_portal_branch_jul2026) — all deleted; 0 residual TEST- serials. One crm2_companies.tenant_org_id was temporarily set to test the portal branch and restored.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "CRM/app login owner@isodemo.com / IsoDemo123! (platform /login?next=/crm, then data-testid crm-mode-business -> crm-nav-quotes)",
+  "context_for_next_testing_agent": "Regression suite: /app/backend/tests/test_handover_pack_warranty_jul2026.py (9 tests, all green). FE seed helper: /app/backend/tests/_seed_fe_handover_pack.py (seed | --cleanup) prints QUOTE_ID with GRN equipment. FE path: https://<host>/login?next=/crm (going straight to /crm redirects to /login), gx-login-email/password/submit, then crm-mode-business, crm-nav-quotes, quote-row-{id}. Warranty select: quote-line-warranty-0 (native select, options standard/extended_3yr/premium_5yr; hidden unless line_type='sale'). Handover: quote-handover-panel > handover-pack-row > handover-download-pack (blob download, filename {quote_number}-pack.pdf).",
+  "rca_of_the_issue": "Root cause of the quote-detail crash: in CRMQuoteHandover.js the new download-pack feature added `const [downloading, setDownloading] = useState(false)` at line ~51, below the `if (!data) return null;` guard at line 27. First render (data === null) executed fewer hooks than the second render (data loaded), so React aborted with 'Rendered more hooks than during the previous render' and the CRM quote detail unmounted into the runtime-error overlay. Repro: open any CPQ v2 quote. Fix applied: hook moved up with the other useState declarations; re-tested, panel renders, pack row shows only when equipment_created>0, and the PDF downloads."
+}

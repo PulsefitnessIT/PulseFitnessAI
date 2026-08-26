@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from utils.database import db
 from routes.crm_auth import get_crm_user
+from utils.warranty import get_tier, compute_expiry
 
 router = APIRouter(prefix="/crm/v2/quotes", tags=["CRM Quote Fulfilment"])
 
@@ -88,6 +89,7 @@ def _procurable_lines(quote: dict) -> list[dict]:
             "manufacturer": ln.get("manufacturer") or "",
             "model": ln.get("model") or "",
             "sku": ln.get("sku") or "",
+            "warranty_tier": (ln.get("warranty_tier") or "").strip() or None,
             "is_equipment": (ln.get("line_type") or "sale") == "sale",
         })
     return out
@@ -163,6 +165,7 @@ async def raise_po(quote_id: str, data: dict, user=Depends(get_crm_user)):
         "quantity": p["quantity"],
         "unit_price": p["cost_price"],   # PO pays supplier at cost
         "sell_price": p["sell_price"],   # kept so GRN can value the asset
+        "warranty_tier": p.get("warranty_tier"),
         "is_equipment": p["is_equipment"],
         "received_qty": 0,
     } for p in chosen]
@@ -260,6 +263,8 @@ async def receive_goods(quote_id: str, po_id: str, data: dict, user=Depends(get_
             for n in range(req):
                 eq_id = _id()
                 serial = serials[n] if n < len(serials) else None
+                _wtier = get_tier(item.get("warranty_tier"))
+                _wstart = _today()
                 eq = {
                     "id": eq_id,
                     "user_id": user["id"],
@@ -269,12 +274,17 @@ async def receive_goods(quote_id: str, po_id: str, data: dict, user=Depends(get_
                     "manufacturer": item.get("manufacturer") or "",
                     "model": item.get("model") or "",
                     "serial_number": (serial or "").strip() or None,
-                    "purchase_date": _today(),
+                    "purchase_date": _wstart,
                     "purchase_cost": float(item.get("sell_price", 0) or 0),
                     "supplier": po.get("supplier_name", ""),
                     "status": "active",
                     "site_id": site_id,
                     "manuals": [],
+                    # Warranty sold on the deal.
+                    "warranty_tier": _wtier["code"],
+                    "warranty_months": _wtier["months"],
+                    "warranty_start": _wstart,
+                    "warranty_expiry": compute_expiry(_wstart, _wtier["months"]),
                     # Deal traceability.
                     "source": "deal_grn",
                     "quote_id": quote_id,

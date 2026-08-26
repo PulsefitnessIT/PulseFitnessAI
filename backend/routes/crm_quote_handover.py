@@ -254,6 +254,11 @@ async def register_with_customer(quote_id: str, user=Depends(get_crm_user)):
             "status": "active",
             "site_id": site_id,
             "manuals": [],
+            # Warranty sold on the deal (carried to the customer's copy).
+            "warranty_tier": src.get("warranty_tier"),
+            "warranty_months": src.get("warranty_months"),
+            "warranty_start": src.get("warranty_start"),
+            "warranty_expiry": src.get("warranty_expiry"),
             # Provenance back to the selling deal.
             "source": "deal_handover",
             "origin_org_id": user.get("organization_id"),
@@ -276,6 +281,78 @@ async def register_with_customer(quote_id: str, user=Depends(get_crm_user)):
         "handed_over": created,
         "customer_portal": await _customer_portal(quote, user),
     }
+
+
+# ── Branded handover pack PDF ──────────────────────────────────────
+
+
+async def _fault_instructions(quote: dict, user: dict) -> dict:
+    """How the customer logs a fault. If their company is linked to a Pulse
+    portal, point them at the portal; always include a service-desk contact
+    fallback."""
+    portal = await _customer_portal(quote, user)
+    out: dict = {"phone": "", "email": ""}
+    if portal.get("tenant_org_id"):
+        from utils.brand_urls import app_url_for_org
+        org = await db.organizations.find_one(
+            {"id": portal["tenant_org_id"]}, {"_id": 0, "account_type": 1})
+        out["portal_url"] = app_url_for_org(org)
+    # Service-desk contact — prefer the selling org's default supplier
+    # (Pulse) contact details from the shared doc template.
+    from utils.pulse_doc_template import PULSE
+    out["phone"] = PULSE.get("phone", "")
+    out["email"] = PULSE.get("email", "")
+    return out
+
+
+@router.get("/{quote_id}/handover/pack")
+async def handover_pack_pdf(quote_id: str, user=Depends(get_crm_user)):
+    """Branded customer Handover Pack PDF — equipment list + serials, the
+    warranty sold against each unit, and how to log a fault. Available as
+    soon as equipment has been registered on the deal (GRN)."""
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    from routes.crm_v2 import _resolve_crm_brand
+    from utils.handover_pack_pdf import build_handover_pack_pdf
+
+    quote = await _get_quote(quote_id, user)
+    equipment = await db.equipment.find(
+        {"quote_id": quote_id, **_of(user)},
+        {"_id": 0, "id": 1, "name": 1, "serial_number": 1, "manufacturer": 1,
+         "model": 1, "warranty_tier": 1, "warranty_months": 1,
+         "warranty_start": 1, "warranty_expiry": 1, "purchase_date": 1},
+    ).sort("created_at", 1).to_list(500)
+    if not equipment:
+        raise HTTPException(400, "No equipment registered on this deal yet — receive goods (GRN) first.")
+
+    # Backfill warranty for legacy GRN equipment created before tiers existed.
+    from utils.warranty import get_tier, compute_expiry
+    for e in equipment:
+        if not e.get("warranty_expiry"):
+            t = get_tier(e.get("warranty_tier"))
+            start = e.get("warranty_start") or e.get("purchase_date")
+            e["warranty_expiry"] = compute_expiry(start, t["months"])
+
+    brand = await _resolve_crm_brand(user)
+    faults = await _fault_instructions(quote, user)
+    org = await db.organizations.find_one(
+        {"id": user.get("organization_id")}, {"_id": 0, "mod_force": 1, "account_type": 1})
+    is_mod = bool((org or {}).get("mod_force") or (org or {}).get("account_type") == "mod_site")
+
+    pdf = build_handover_pack_pdf(
+        brand=brand,
+        quote=quote,
+        company_name=quote.get("company_name", ""),
+        equipment=equipment,
+        fault_instructions=faults,
+        is_mod=is_mod,
+    )
+    safe = (quote.get("quote_number") or "handover").replace("/", "-")
+    return StreamingResponse(
+        BytesIO(pdf),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{safe}-handover-pack.pdf"'},
+    )
 
 
 # ── Create linked jobs ─────────────────────────────────────────────

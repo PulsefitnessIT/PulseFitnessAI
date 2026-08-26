@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { CheckCircle2, Circle, ClipboardList, X, Wrench, Sparkles, Lock, RotateCcw } from 'lucide-react';
+import { CheckCircle2, Circle, ClipboardList, X, Wrench, Sparkles, Lock, RotateCcw, FileDown } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { useAuth } from '@/App';
 
@@ -15,6 +15,7 @@ export const QuoteHandoverPanel = ({ quoteId, API, headers, c, isDark }) => {
   const [jobForm, setJobForm] = useState(null);
   const [forceFor, setForceFor] = useState(false);
   const [forceReason, setForceReason] = useState('');
+  const [downloading, setDownloading] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -48,6 +49,21 @@ export const QuoteHandoverPanel = ({ quoteId, API, headers, c, isDark }) => {
     .then(() => { setForceFor(false); setForceReason(''); notify.success('Deal completed'); }).catch(() => {});
   const reopen = () => post(`/crm/v2/quotes/${quoteId}/reopen`, {}, 'reopen').then(() => notify.success('Deal reopened')).catch(() => {});
 
+  const downloadPack = async () => {
+    setDownloading(true);
+    try {
+      const r = await axios.get(`${API}/crm/v2/quotes/${quoteId}/handover/pack`, { headers: headers(), responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${data.quote_number || 'handover'}-pack.pdf`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) { notify.error('Could not download handover pack — register equipment (GRN) first.'); }
+    finally { setDownloading(false); }
+  };
+  const hasEquipment = (comp.fulfilment_summary?.equipment_created || 0) > 0;
+
   const Check = ({ ok, children, testid }) => (
     <div className="flex items-center gap-2 text-sm" style={{ color: ok ? 'var(--color-success-alt)' : c.textMuted }} data-testid={testid}>
       {ok ? <CheckCircle2 size={15} /> : <Circle size={15} />} {children}
@@ -64,6 +80,21 @@ export const QuoteHandoverPanel = ({ quoteId, API, headers, c, isDark }) => {
           {completed ? 'Completed' : 'Open'}
         </span>
       </div>
+
+      {/* Handover pack — available once equipment is registered (GRN) */}
+      {hasEquipment && (
+        <div className="p-3 rounded-lg border mb-3 flex items-center justify-between gap-3" style={{ background: panel, borderColor: bd }} data-testid="handover-pack-row">
+          <div className="min-w-0">
+            <p className="text-xs font-medium" style={{ color: c.text }}>Customer handover pack</p>
+            <p className="text-[11px]" style={{ color: c.textDim }}>Branded PDF — equipment, serials, warranty & how to log a fault.</p>
+          </div>
+          <button onClick={downloadPack} disabled={downloading}
+            className="text-xs px-3 py-1.5 rounded-md border inline-flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+            style={{ borderColor: bd, color: 'var(--color-info-ios)' }} data-testid="handover-download-pack">
+            <FileDown size={13} /> {downloading ? 'Preparing…' : 'Download pack (PDF)'}
+          </button>
+        </div>
+      )}
 
       {/* Jobs */}
       <div className="p-3 rounded-lg border mb-3" style={{ background: panel, borderColor: bd }}>

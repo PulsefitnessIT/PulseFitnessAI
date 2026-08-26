@@ -1113,6 +1113,13 @@ async def get_stages(user=Depends(get_crm_user)):
     return {"stages": OPPORTUNITY_STAGES}
 
 
+@router.get("/warranty-tiers")
+async def get_warranty_tiers(user=Depends(get_crm_user)):
+    """Sellable warranty levels for CPQ equipment lines + handover packs."""
+    from utils.warranty import WARRANTY_TIERS
+    return {"tiers": WARRANTY_TIERS}
+
+
 @router.get("/tags")
 async def list_crm_tags(user=Depends(get_crm_user)):
     """Aggregated tag vocabulary used by the workflow builder + tag

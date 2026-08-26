@@ -724,6 +724,7 @@ export default function CRMCPQ() {
   // exploded into N lines so the rep can see the provenance).
   const [products, setProducts] = useState([]);
   const [canSeeCost, setCanSeeCost] = useState(false);
+  const [warrantyTiers, setWarrantyTiers] = useState([]);
   const [showPicker, setShowPicker] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [expanding, setExpanding] = useState(null);  // product id being expanded
@@ -765,6 +766,8 @@ export default function CRMCPQ() {
       setOpps(oppRes.data.opportunities);
       setProducts(prodRes.data.products || []);
       setCanSeeCost(permRes.data?.can_see_cost !== false);
+      axios.get(`${API}/crm/v2/warranty-tiers`, { headers: headers() })
+        .then(r => setWarrantyTiers(r.data?.tiers || [])).catch(() => {});
     } catch (e) { console.error(e); }
   }, [API, headers]);
 
@@ -779,7 +782,7 @@ export default function CRMCPQ() {
   };
   const updateLine = (i, field, value) => {
     const updated = [...form.lines];
-    const stringFields = ['description', 'line_type'];
+    const stringFields = ['description', 'line_type', 'warranty_tier'];
     updated[i] = { ...updated[i], [field]: stringFields.includes(field) ? value : parseFloat(value) || 0 };
     setForm({ ...form, lines: updated });
   };
@@ -1113,6 +1116,20 @@ export default function CRMCPQ() {
                     <div className="col-span-1 flex justify-center pt-1.5">
                       {form.lines.length > 1 && <button type="button" onClick={() => removeLine(i)} style={{ color: 'var(--color-danger-alt)' }} data-testid={`quote-line-remove-${i}`}><X size={14} /></button>}
                     </div>
+                    {(line.line_type || 'sale') === 'sale' && warrantyTiers.length > 0 && (
+                      <div className="col-span-12 flex items-center gap-2 pl-1 -mt-1">
+                        <span className="text-[9px] uppercase tracking-wider" style={{ color: c.textDim }}>Warranty</span>
+                        <select
+                          value={line.warranty_tier || 'standard'}
+                          onChange={e => updateLine(i, 'warranty_tier', e.target.value)}
+                          className="px-2 py-1 text-xs rounded-md"
+                          style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                          data-testid={`quote-line-warranty-${i}`}
+                        >
+                          {warrantyTiers.map(t => <option key={t.code} value={t.code}>{t.label}</option>)}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
