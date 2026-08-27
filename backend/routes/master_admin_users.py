@@ -1190,19 +1190,27 @@ async def admin_reset_password(user_id: str, user: dict = Depends(get_current_us
     # secure channel and the user is forced to change it at next login.
     temp_password = secrets.token_urlsafe(16)
     hashed = bcrypt.hashpw(temp_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    # A fresh reset must also refresh the temp-password expiry window, otherwise
+    # the login gate (_enforce_account_status) keeps failing on a stale
+    # `temp_password_expires_at` left over from the user's original provisioning
+    # — the "Temporary password has expired" bug. 7-day validity, forced change.
+    reset_fields = {
+        "password": hashed,
+        "password_reset_required": True,
+        "must_change_password": True,
+        "temp_password_expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+    }
 
-    result = await db.users.update_one({"id": user_id}, {"$set": {"password": hashed, "password_reset_required": True}})
-    target_email = None
-    if result.modified_count > 0:
-        target = await db.users.find_one({"id": user_id}, {"_id": 0, "email": 1})
-        target_email = (target or {}).get("email")
-    else:
-        result = await db.crm_users.update_one({"id": user_id}, {"$set": {"password": hashed, "password_reset_required": True}})
-        if result.modified_count > 0:
-            target = await db.crm_users.find_one({"id": user_id}, {"_id": 0, "email": 1})
-            target_email = (target or {}).get("email")
-    if result.modified_count == 0:
+    result = await db.users.update_one({"id": user_id}, {"$set": reset_fields})
+    # Update BOTH collections — a user can be mirrored into db.users AND
+    # db.crm_users; resetting only one leaves a stale *valid* password on the
+    # other (e.g. /api/crm/auth/login would still accept the old password).
+    crm_result = await db.crm_users.update_one({"id": user_id}, {"$set": reset_fields})
+    if (result.modified_count + crm_result.modified_count) == 0:
         raise HTTPException(status_code=404, detail="User not found")
+    target = (await db.users.find_one({"id": user_id}, {"_id": 0, "email": 1})
+              or await db.crm_users.find_one({"id": user_id}, {"_id": 0, "email": 1}))
+    target_email = (target or {}).get("email")
 
     # Iter 215bh — keep the org's "Primary contact login" reveal panel in
     # sync. If the user we just reset is the org's primary contact, write
