@@ -297,18 +297,45 @@ async def convert_contract_to_quote(contract_id: str, data: dict = None, user=De
 
     tier = (c.get("tier") or "bronze").title()
     annual = float(c.get("annual_value", 0) or 0)
-    line = {
-        "id": _id(),
-        "line_type": "service_contract",
-        "description": f"Aftersales cover ({tier}) — {c.get('title') or 'Service contract'}",
-        "quantity": 1,
-        "unit_price": annual,
-        "discount": 0,
-    }
+
+    # Itemise: one service-contract line per unit from the warranty enquiry
+    # (with serials), so the aftersales quote is fully itemised on creation.
+    eq_ids = c.get("enquiry_equipment_ids") or []
+    equipment = []
+    if eq_ids:
+        equipment = await db.equipment.find(
+            {"id": {"$in": eq_ids}},
+            {"_id": 0, "id": 1, "name": 1, "manufacturer": 1, "model": 1, "serial_number": 1},
+        ).to_list(200)
+    if equipment:
+        n = len(equipment)
+        per = round(annual / n, 2) if annual else 0
+        lines, running = [], 0.0
+        for i, e in enumerate(equipment):
+            price = round(annual - running, 2) if (i == n - 1 and annual) else per
+            running += per
+            serial = e.get("serial_number")
+            mm = " ".join([p for p in [e.get("manufacturer"), e.get("model")] if p])
+            desc = f"Aftersales cover ({tier}) — {e.get('name') or 'Equipment'}"
+            if mm:
+                desc += f" · {mm}"
+            if serial:
+                desc += f" (S/N {serial})"
+            lines.append({
+                "id": _id(), "line_type": "service_contract", "description": desc,
+                "quantity": 1, "unit_price": price, "discount": 0,
+                "equipment_id": e.get("id"), "serial_number": serial or "",
+            })
+    else:
+        lines = [{
+            "id": _id(), "line_type": "service_contract",
+            "description": f"Aftersales cover ({tier}) — {c.get('title') or 'Service contract'}",
+            "quantity": 1, "unit_price": annual, "discount": 0,
+        }]
     _org = await db.organizations.find_one(
         {"id": user.get("organization_id")}, {"_id": 0, "country_code": 1, "currency": 1, "timezone": 1})
     loc = org_localization(_org)
-    totals = compute_quote_totals([line], float(loc["default_tax_rate"]))
+    totals = compute_quote_totals(lines, float(loc["default_tax_rate"]))
     now = _now()
     quote = {
         "id": _id(), "organization_id": user.get("organization_id"),
@@ -317,7 +344,7 @@ async def convert_contract_to_quote(contract_id: str, data: dict = None, user=De
         "contact_id": c.get("contact_id", ""), "contact_name": c.get("contact_name", ""),
         "opportunity_id": "",
         "status": "sent", "sent_at": now,
-        "lines": [line], **totals,
+        "lines": lines, **totals,
         "currency": loc["currency"], "tax_label": loc["tax_label"], "country_code": loc["country_code"],
         "valid_until": "", "notes": f"Generated from aftersales contract {c.get('contract_number', '')}.",
         "source": "aftersales_contract", "contract_id": contract_id,
