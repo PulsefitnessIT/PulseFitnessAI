@@ -1,3 +1,35 @@
+# ═══ 2026-08-28 · BLUE LIGHT — ASSET REGISTER RECONCILIATION (§35/§36/§37) · verified ═══
+Central "asset changes from service visits" review so the customer register stays clean; office staff approve
+or revert significant changes. Reuses the Phase-3 audit data (crm2_asset_verifications, crm2_asset_changes,
+crm2_contract_assets flags) — nothing new silently overwritten (§36).
+
+  • BACKEND routes/crm_contracts.py: _reconciliation_items() unifies three streams into one feed with old/new +
+    who/where/when + review_status — NEW (crm2_contract_assets.discovered_on_visit, office_review→pending),
+    CORRECTION (crm2_asset_changes.field_changes {old,new}, review_status auto_approved), NOT_FOUND
+    (crm2_asset_verifications action=not_found). item ids prefixed new:/corr:/nf:. Endpoints: GET /contracts/{id}/
+    asset-changes (?kind&status → items + counts {new,correction,not_found,pending}); POST /contracts/{id}/
+    asset-changes/review {item_id, action: approve|revert}. approve: new→clear office_review (confirmed),
+    corr→mark approved, nf→asset status=removed. revert: new→status rejected, corr→RESTORE old field values on
+    the asset + status reverted, nf→asset status=active. Audit-logged. overview asset_discrepancies now =
+    office_review assets + not_found verifications (was hardcoded 0).
+  • FRONTEND BlueLightTab.js: 'Asset Changes' toggle (bl-recon-toggle, shows pending badge) → panel
+    (bl-recon-panel) with count tiles (bl-recon-count-new/-correction/-not_found/-pending) + per-item rows
+    (bl-recon-row-<id>) with kind chip + station + old→new detail + Approve (bl-recon-approve-<id>) / Revert
+    (bl-recon-revert-<id>); resolved items show a status pill (approved/reverted/removed/rejected). CELL_META
+    extended. ClipboardList icon.
+  • BUG FIXED during build: review endpoint matched full kind names but item-id prefixes are new/corr/nf →
+    corrected the elif branches (corr, nf).
+  • VERIFIED: backend curl (feed counts; approve new→approved; revert correction→reverted + restored old serial;
+    approve not_found→removed; kind/status filters; overview asset_discrepancies updates) + screenshot (panel
+    renders with counts 2/2/2/2 and NEW→Approved, NOT FOUND→Removed, CORRECTION→Reverted rows + Approve/Revert
+    buttons on pending items).
+  ⚠️ PREVIEW ONLY — REDEPLOY to push live.
+  • REMAINING (Blue Light backlog): onboarding bulk import (§51/§52), calibration trend reporting (§48), CAPEX
+    links (§49), offline engineer support (§41), engineer-app 'Start Blue Light Service' entry banner, asset
+    transfer-between-stations approval (§37 REQUEST ASSET TRANSFER), Devon & Somerset certificate artwork match.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-28 · BLUE LIGHT — PHASE 5b: CERTIFICATE TRACKER ON CONTRACT OVERVIEW (§33) · verified ═══
 Leadership can spot any station without a certificate instantly, from the contract Overview.
 

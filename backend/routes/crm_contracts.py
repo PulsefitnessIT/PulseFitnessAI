@@ -1502,6 +1502,10 @@ async def blue_light_overview(contract_id: str, user=Depends(get_crm_user)):
     total_treadmills = sum(r["treadmill_count"] for r in rows)
     future_due = sorted([r["next_service_due"] for r in rows
                          if r["next_service_due"] and r["next_service_due"] >= today])
+    discrepancies = (
+        await db.crm2_contract_assets.count_documents({"contract_id": contract_id, "office_review": True})
+        + await db.crm2_asset_verifications.count_documents({"contract_id": contract_id, "action": "not_found"})
+    )
     return {
         "contract": {
             "id": c["id"], "contract_number": c.get("contract_number"),
@@ -1527,7 +1531,7 @@ async def blue_light_overview(contract_id: str, user=Depends(get_crm_user)):
             "certificates_breakdown": cert_breakdown,
             "open_faults": faults_open,
             "follow_ups_required": follow_ups,
-            "asset_discrepancies": 0,
+            "asset_discrepancies": discrepancies,
             "next_planned_service_date": future_due[0] if future_due else "",
             "completion_pct": round(completed / n * 100) if n else 0,
         },
@@ -2464,3 +2468,131 @@ async def blue_light_certificates(contract_id: str, status: str = "", user=Depen
     for r in rows:
         counts[r.get("status", "unknown")] = counts.get(r.get("status", "unknown"), 0) + 1
     return {"certificates": rows, "count": len(rows), "by_status": counts}
+
+
+# ════════════════════════════════════════════════════════════════════
+# BLUE LIGHT — ASSET REGISTER RECONCILIATION (§35/§36/§37)
+# ════════════════════════════════════════════════════════════════════
+
+
+async def _station_name_map(contract_id: str) -> dict:
+    sites = await db.crm2_contract_sites.find(
+        {"contract_id": contract_id}, {"_id": 0, "id": 1, "site_name": 1}).to_list(2000)
+    return {s["id"]: s.get("site_name", "") for s in sites}
+
+
+async def _reconciliation_items(contract_id: str) -> list[dict]:
+    """Unified stream of asset changes from service visits: new / corrected /
+    not-found. Each item carries old/new + who/where/when (§36) + review state."""
+    names = await _station_name_map(contract_id)
+    items = []
+    # NEW assets discovered on a visit
+    async for a in db.crm2_contract_assets.find(
+            {"contract_id": contract_id, "discovered_on_visit": {"$exists": True, "$ne": None}}, {"_id": 0}):
+        items.append({
+            "id": f"new:{a['id']}", "kind": "new", "asset_id": a["id"],
+            "site_id": a.get("site_id"), "station_name": names.get(a.get("site_id"), ""),
+            "asset_name": a.get("asset_name"), "serial_number": a.get("serial_number"),
+            "equipment_type": a.get("equipment_type"),
+            "detail": f"New machine discovered: {a.get('asset_name')} ({a.get('serial_number') or 'no serial'})",
+            "visit_id": a.get("discovered_on_visit"), "at": a.get("created_at"),
+            "review_status": "pending" if a.get("office_review") else "approved",
+        })
+    # CORRECTIONS (field changes)
+    async for ch in db.crm2_asset_changes.find({"contract_id": contract_id}, {"_id": 0}):
+        fc = ch.get("field_changes") or {}
+        summary = "; ".join(f"{k}: '{v.get('old') or '—'}' → '{v.get('new')}'" for k, v in fc.items())
+        items.append({
+            "id": f"corr:{ch['id']}", "kind": "correction", "asset_id": ch.get("asset_id"),
+            "site_id": ch.get("site_id"), "station_name": names.get(ch.get("site_id"), ""),
+            "field_changes": fc, "detail": summary,
+            "engineer_name": ch.get("engineer_name"), "visit_id": ch.get("visit_id"),
+            "at": ch.get("at"),
+            "review_status": ch.get("review_status", "auto_approved"),
+        })
+    # NOT FOUND / removed
+    async for v in db.crm2_asset_verifications.find(
+            {"contract_id": contract_id, "action": "not_found"}, {"_id": 0}):
+        a = await db.crm2_contract_assets.find_one({"id": v.get("asset_key")}, {"_id": 0, "asset_name": 1, "serial_number": 1, "status": 1})
+        items.append({
+            "id": f"nf:{v['asset_key']}:{v['visit_id']}", "kind": "not_found",
+            "asset_id": v.get("asset_key"), "site_id": v.get("site_id"),
+            "station_name": names.get(v.get("site_id"), ""),
+            "asset_name": (a or {}).get("asset_name", ""), "serial_number": (a or {}).get("serial_number", ""),
+            "reason": v.get("reason"),
+            "detail": f"Not found: {(a or {}).get('asset_name', 'asset')} — {v.get('reason') or 'no reason'}",
+            "engineer_name": v.get("engineer_name"), "visit_id": v.get("visit_id"), "at": v.get("at"),
+            "review_status": "removed" if (a or {}).get("status") == "removed" else "pending",
+        })
+    items.sort(key=lambda x: x.get("at") or "", reverse=True)
+    return items
+
+
+@router.get("/contracts/{contract_id}/asset-changes")
+async def blue_light_asset_changes(contract_id: str, kind: str = "", status: str = "",
+                                   user=Depends(get_crm_user)):
+    """Central 'asset changes from service visits' review feed (§35)."""
+    await _get_bl_contract(contract_id, user)
+    items = await _reconciliation_items(contract_id)
+    counts = {"new": 0, "correction": 0, "not_found": 0, "pending": 0}
+    for it in items:
+        counts[it["kind"]] = counts.get(it["kind"], 0) + 1
+        if it["review_status"] == "pending":
+            counts["pending"] += 1
+    if kind:
+        items = [i for i in items if i["kind"] == kind]
+    if status:
+        items = [i for i in items if i["review_status"] == status]
+    return {"items": items, "count": len(items), "counts": counts}
+
+
+@router.post("/contracts/{contract_id}/asset-changes/review")
+async def blue_light_asset_change_review(contract_id: str, data: dict, user=Depends(get_crm_user)):
+    """Approve or revert an asset change (§35/§36). Nothing is silently lost —
+    reverts restore the previous value and are audit-logged."""
+    await _get_bl_contract(contract_id, user)
+    item_id = (data.get("item_id") or "").strip()
+    action = (data.get("action") or "").strip()  # approve | revert
+    if action not in ("approve", "revert"):
+        raise HTTPException(400, "action must be approve or revert")
+    kind, _, rest = item_id.partition(":")
+    now = _now()
+    if kind == "new":
+        asset_id = rest
+        if action == "approve":
+            await db.crm2_contract_assets.update_one(
+                {"id": asset_id, "contract_id": contract_id},
+                {"$set": {"office_review": False, "review_status": "approved", "updated_at": now}})
+        else:  # revert = remove the erroneously-added asset
+            await db.crm2_contract_assets.update_one(
+                {"id": asset_id, "contract_id": contract_id},
+                {"$set": {"status": "rejected", "office_review": False, "updated_at": now}})
+    elif kind == "corr":
+        change_id = rest
+        ch = await db.crm2_asset_changes.find_one({"id": change_id, "contract_id": contract_id}, {"_id": 0})
+        if not ch:
+            raise HTTPException(404, "Change not found")
+        if action == "approve":
+            await db.crm2_asset_changes.update_one(
+                {"id": change_id}, {"$set": {"review_status": "approved", "reviewed_by": user.get("id"), "reviewed_at": now}})
+        else:  # revert asset fields to the recorded OLD values
+            revert = {k: v.get("old") for k, v in (ch.get("field_changes") or {}).items()}
+            await db.crm2_contract_assets.update_one(
+                {"id": ch.get("asset_id")}, {"$set": {**revert, "updated_at": now}})
+            await db.crm2_asset_changes.update_one(
+                {"id": change_id}, {"$set": {"review_status": "reverted", "reviewed_by": user.get("id"), "reviewed_at": now}})
+    elif kind == "nf":
+        asset_id, _, _vid = rest.partition(":")
+        if action == "approve":  # confirm removal
+            await db.crm2_contract_assets.update_one(
+                {"id": asset_id, "contract_id": contract_id},
+                {"$set": {"status": "removed", "updated_at": now}})
+        else:  # restore the asset to active
+            await db.crm2_contract_assets.update_one(
+                {"id": asset_id, "contract_id": contract_id},
+                {"$set": {"status": "active", "updated_at": now}})
+    else:
+        raise HTTPException(400, "Unknown change type")
+    await record_audit(entity_type="asset_reconciliation", entity_id=item_id, action=action, user=user)
+    return {"success": True, "item_id": item_id, "action": action}
+

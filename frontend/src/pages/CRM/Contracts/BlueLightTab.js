@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import {
   Radio, Save, Search, Download, Filter, MapPin, Gauge, AlertTriangle,
-  CheckCircle, Clock, CalendarClock, FileCheck2, ChevronUp, ChevronDown,
+  CheckCircle, Clock, CalendarClock, FileCheck2, ChevronUp, ChevronDown, ClipboardList,
 } from 'lucide-react';
 import Button from '@/components/shared/Button';
 
@@ -40,6 +40,10 @@ const CELL_META = {
   sent: { label: 'Sent', color: 'var(--color-success-alt)' },
   awaiting_review: { label: 'Awaiting review', color: 'var(--color-accent-amber)' },
   send_failed: { label: 'Send failed', color: 'var(--color-danger)' },
+  approved: { label: 'Approved', color: 'var(--color-success-alt)' },
+  reverted: { label: 'Reverted', color: 'var(--color-text-faint-alt)' },
+  removed: { label: 'Removed', color: 'var(--color-danger)' },
+  rejected: { label: 'Rejected', color: 'var(--color-text-faint-alt)' },
 };
 
 const CellPill = ({ value }) => {
@@ -79,6 +83,8 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
   const [cfg, setCfg] = useState(null);
   const [certs, setCerts] = useState(null);
   const [showCerts, setShowCerts] = useState(false);
+  const [recon, setRecon] = useState(null);
+  const [showRecon, setShowRecon] = useState(false);
   const [engineers, setEngineers] = useState([]);
   const [selected, setSelected] = useState(() => new Set());
   const [planDate, setPlanDate] = useState('');
@@ -136,6 +142,20 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
       .then(r => setCerts(r.data)).catch(() => setCerts({ certificates: [], by_status: {} }));
   }, [API, headers, contractId]);
   useEffect(() => { if (isBL) loadCerts(); }, [isBL, loadCerts]);
+
+  const loadRecon = useCallback(() => {
+    axios.get(`${API}/crm/v2/contracts/${contractId}/asset-changes`, { headers: headers() })
+      .then(r => setRecon(r.data)).catch(() => setRecon({ items: [], counts: {} }));
+  }, [API, headers, contractId]);
+  useEffect(() => { if (isBL) loadRecon(); }, [isBL, loadRecon]);
+
+  const reviewChange = async (item, action) => {
+    try {
+      await axios.post(`${API}/crm/v2/contracts/${contractId}/asset-changes/review`,
+        { item_id: item.id, action }, { headers: headers() });
+      loadRecon(); loadOverview();
+    } catch (e) { alert(e.response?.data?.detail || 'Review failed'); }
+  };
 
   const downloadCert = (cert) => {
     axios.get(`${API}/crm/v2/certificates/${cert.id}/download`, { headers: headers(), responseType: 'blob' })
@@ -260,11 +280,58 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
         </Button>
       </div>
 
-      <div className="flex justify-end -mt-2">
+      <div className="flex justify-end -mt-2 gap-2">
+        <Button variant="ghost" size="sm" icon={ClipboardList} onClick={() => setShowRecon(v => !v)} data-testid="bl-recon-toggle">
+          Asset Changes{recon?.counts?.pending ? ` (${recon.counts.pending})` : ''}
+        </Button>
         <Button variant="ghost" size="sm" icon={FileCheck2} onClick={() => setShowCerts(v => !v)} data-testid="bl-certs-toggle">
           Certificates{certs?.count ? ` (${certs.count})` : ''}
         </Button>
       </div>
+
+      {showRecon && (
+        <div className="rounded-xl border p-4" style={{ borderColor: c.border, background: 'var(--color-surface)' }} data-testid="bl-recon-panel">
+          <div className="flex items-center gap-2 mb-2 text-sm font-bold" style={{ color: c.text }}>
+            <ClipboardList size={15} style={{ color: 'var(--color-accent-violet)' }} /> Asset Changes From Service Visits
+          </div>
+          <div className="flex flex-wrap gap-3 mb-3">
+            {[['new', 'New found'], ['correction', 'Corrections'], ['not_found', 'Not found'], ['pending', 'Awaiting review']].map(([k, l]) => (
+              <div key={k} className="text-center px-3 py-1.5 rounded-lg" style={{ background: 'var(--color-bg)' }} data-testid={`bl-recon-count-${k}`}>
+                <div className="text-lg font-bold" style={{ color: c.text }}>{recon?.counts?.[k] || 0}</div>
+                <div className="text-[10px]" style={{ color: c.textMuted }}>{l}</div>
+              </div>
+            ))}
+          </div>
+          {(!recon || recon.items.length === 0) ? (
+            <div className="text-sm text-center py-4" style={{ color: c.textMuted }} data-testid="bl-recon-empty">No asset changes recorded yet.</div>
+          ) : (
+            <div className="divide-y" style={{ borderColor: c.border }}>
+              {recon.items.map(it => {
+                const kindColor = { new: 'var(--color-success-alt-2)', correction: 'var(--color-accent-amber)', not_found: 'var(--color-danger)' }[it.kind];
+                return (
+                  <div key={it.id} className="flex items-center justify-between py-2 gap-2" data-testid={`bl-recon-row-${it.id}`}>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold uppercase" style={{ background: kindColor + '22', color: kindColor }}>{it.kind.replace('_', ' ')}</span>
+                        <span className="text-sm font-medium truncate" style={{ color: c.text }}>{it.station_name}</span>
+                      </div>
+                      <div className="text-[11px] mt-0.5 truncate" style={{ color: c.textMuted }}>{it.detail}</div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {['pending', 'auto_approved'].includes(it.review_status) ? (
+                        <>
+                          <Button size="sm" onClick={() => reviewChange(it, 'approve')} data-testid={`bl-recon-approve-${it.id}`}>Approve</Button>
+                          <Button size="sm" variant="outline" onClick={() => reviewChange(it, 'revert')} data-testid={`bl-recon-revert-${it.id}`}>Revert</Button>
+                        </>
+                      ) : <CellPill value={it.review_status} />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {showCerts && (
         <div className="rounded-xl border p-4" style={{ borderColor: c.border, background: 'var(--color-surface)' }} data-testid="bl-certs-panel">
