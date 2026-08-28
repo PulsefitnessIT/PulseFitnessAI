@@ -1,5 +1,6 @@
 // PostHog product-analytics bootstrap. Externalised from index.html for CSP
 // hardening (removes an inline <script> so script-src can drop 'unsafe-inline').
+/* global posthog */
 !(function (t, e) {
     var o, n, p, r;
     e.__SV ||

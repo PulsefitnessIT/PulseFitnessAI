@@ -354,7 +354,13 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
                     <input type="checkbox" checked={selected.has(r.site_id)} onChange={() => toggleRow(r.site_id)}
                       data-testid={`bl-select-${r.site_id}`} aria-label={`Select ${r.station_name}`} />
                   </td>
-                  <td className="px-3 py-2 font-medium whitespace-nowrap" style={{ color: c.text }}>{r.station_name}</td>
+                  <td className="px-3 py-2 font-medium whitespace-nowrap" style={{ color: c.text }}>
+                    {r.visit_id && ['scheduled', 'in_progress', 'travelling', 'on_site', 'follow_up_required'].includes(r.visit_status) ? (
+                      <a href={`/blue-light/visit/${r.visit_id}`} target="_blank" rel="noreferrer"
+                        data-testid={`bl-open-visit-${r.site_id}`} className="underline decoration-dotted"
+                        style={{ color: 'var(--color-info-ios)' }}>{r.station_name}</a>
+                    ) : r.station_name}
+                  </td>
                   <td className="px-3 py-2 whitespace-nowrap" style={{ color: c.textDim }}>{r.address}</td>
                   <td className="px-3 py-2 whitespace-nowrap" style={{ color: c.textDim }}>{r.contact_name}</td>
                   <td className="px-3 py-2 whitespace-nowrap" style={{ color: c.textDim }}>{r.telephone}</td>

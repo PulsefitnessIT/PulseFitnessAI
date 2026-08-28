@@ -1,0 +1,28 @@
+{
+  "summary": "Targeted re-test of the Blue Light Phase 3 treadmill calibration fail -> retest -> pass path after the two fixes (retest now clears measured values; calibration onSubmit returns the API response; cookie/PWA banners suppressed on /blue-light/visit). Mobile viewport 430x900, public preview URL, CRM login owner@isodemo.com, scheduled visit 0aaaa1a8-918d-4ccb-8451-8d6ceba91a81 (Brixham Fire Station), treadmill 2d28790d-1db6-4b26-9f8e-d3d31d0d1dc2. ALL CHECKS PASSED, no new issues found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified": [
+    "Start screen -> confirm-on-site -> start-visit-btn works; asset audit 'Confirm present' on the treadmill works with a NORMAL (non-forced) click.",
+    "Calibration step tab + calib-asset-<key> opens the sheet (target 3 mph, phase speed).",
+    "FAIL run: speed 3/6/9 correct + 13 for the 12mph target, incline 0/5/10/15 in tolerance -> calib-result shows FAIL, calib-fail-action select and calib-retest button both visible (swallowed-response bug stays fixed).",
+    "REGRESSION FIX CONFIRMED: after clicking calib-retest the measured field renders blank ('—') and typing 3,6,9,12.1 (speed) and 0,5,10,15 (incline) produced exactly those values on calib-measured — no concatenation (no 33 / 1312.1).",
+    "Retest submission graded PASS (calib-result = PASS); calibration list badge flipped FAIL -> PASS and progress shows 1/1 treadmills calibrated.",
+    "DB check crm2_calibration_records for the asset: overall=pass, speed final [(3,3),(6,6),(9,9),(12,12.1)] all pass, incline all pass; history has exactly 2 clean attempts — [0] fail speed [3,6,9,13], [1] pass speed [3,6,9,12.1] with action_if_fail='adjusted_retested'. No 1312.1 / corrupted values.",
+    "No cookie-consent banner and no PWA install prompt present on the /blue-light/visit route (counts = 0). Every numpad key including numpad-0 and numpad-done, and the bottom-sheet lower buttons (calib-retest, calib-done), were clicked with normal Playwright clicks (no force=True) with zero interception/timeouts.",
+    "Zero console errors and zero .error/[class*=error] elements on the page during the whole flow."
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor (pre-existing, unchanged): calib-submit ('Submit all →') still allows submitting blank readings which stores an 'incomplete' record with measured=null and no user-facing validation message. Reported in the previous iteration; not re-tested here."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only request)", "frontend": "100%"},
+  "seed_data_creation": "No seed changes. Used existing scheduled visit 0aaaa1a8-...; the visit is now in_progress with 1 treadmill calibrated (fail then pass retest) — expected side effect of the flow.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": false,
+  "test_credentials": "CRM: owner@isodemo.com / IsoDemo123! via POST /api/crm/auth/login (token in localStorage 'crm_token')",
+  "context_for_next_testing_agent": "Visit 0aaaa1a8-918d-4ccb-8451-8d6ceba91a81 is now in_progress with its only treadmill calibrated (PASS after retest). Remaining scheduled visit with un-calibrated treadmills: c04da682-83c6-4d02-ad6b-92f26ec3f709 (Bruton Fire Station, 3 Technogym Run 1000 treadmills). Numpad entry helper: click numpad-<digit>/numpad-. then numpad-done per reading; speed phase auto-advances to incline, final Done triggers submit.",
+  "rca_of_the_issue": "Previous concatenation bug was caused by calib-retest resetting only phase/idx/result while keeping the previous measured strings, so NumPad appended to them. The fix (resetting speed/incline rows to measured='' on retest) is verified working; the earlier swallowed-response fix (returning the POST response so last_calibration reaches the sheet) is also still in place."
+}

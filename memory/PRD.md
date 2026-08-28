@@ -1,3 +1,48 @@
+# ═══ 2026-08-28 · BLUE LIGHT — PHASE 3: ENGINEER GUIDED SERVICE + CALIBRATION WIZARD · testing_agent 100% ═══
+Phase 3 of the Blue Light epic — the on-site engineer wizard. Reuses svc_cases for faults (reactive case, NO
+new fault type), crm2_contract_assets for the register, crm2_station_visits as the visit state. Mobile-first.
+
+  • BACKEND routes/crm_contracts.py (appended ~L1881+), CRM v2 router (get_crm_user, testable):
+    - GET  /crm/v2/visits/{id} — full wizard state via _visit_state(): pack, per-asset audit+service merge,
+      calibrations, faults, progress counters, completion_blockers (plain English §22), can_complete, steps.
+    - POST /visits/{id}/start (§6 confirm_on_site → in_progress + started_at + optional gps).
+    - POST /visits/{id}/assets/{key}/audit (§8: present|update|not_found|replaced|add). update/replace writes
+      changes to crm2_contract_assets + audit trail crm2_asset_changes (§36); add inserts new asset flagged
+      office_review; not_found sets status+reason. Stored in crm2_asset_verifications (upsert per asset).
+    - POST /visits/{id}/assets/{key}/service (§11 outcome enum + notes + optional check_sheet_id).
+    - POST /visits/{id}/treadmills/{key}/calibration (§14-§19): _calc_calibration() grades each speed/incline
+      point pass/review/fail — FAILURE = |measured-target|/target*100 > tolerance_pct(5); target incline 0 uses
+      abs band (0.5). overall=fail/review/pass/incomplete. Keeps original + retest in history[] (§17/§20) and
+      pushes calibration_history onto the asset. Returns last_calibration.
+    - POST /visits/{id}/faults (§12/§44): creates a reactive svc_case (next_reference/compute_sla_targets,
+      source=blue_light_visit) prefilled station/asset/engineer/visit; increments visit.faults_raised; out_of_
+      service flags the asset.
+    - POST /visits/{id}/complete (§22-§24): blocks unless can_complete or override_reason; requires signature;
+      computes next_service_due (+freq months); sets certificate_status = awaiting_review (office_review default)
+      else pending_generation; marks station completed + svc_case repaired. Audit logged.
+    - POST /visits/{id}/partial (§39): status follow_up_required, no certificate. _station_rows now returns
+      visit_id so the matrix can deep-link.
+  • FRONTEND pages/CRM/Contracts/BlueLightVisitWizard.js (NEW) — route /blue-light/visit/:visitId (AppRoutes.js),
+    reads localStorage crm_token. Start screen (confirm-on-site gate) → 6-step progress bar (Asset Check, Service,
+    Calibration, Faults, Review, Sign) → completion screen. Bottom-sheets for audit/add/service/calibration/fault;
+    large buttons + NumPad for calibration; signature canvas. Dummy-proof Sign step lists blockers with 'Go to'.
+    Matrix (BlueLightTab.js) station name deep-links to the wizard for open visits (bl-open-visit-<site_id>).
+    data-testids: start-visit-btn, step-tab-*, asset-row-*, audit-present/-update/-notfound, add-asset-*,
+    service-outcome-*, calib-asset-*, calib-numpad/numpad-*, calib-target/-measured/-result/-fail-action/-retest,
+    raise-fault-btn/fault-*, review-panel, sign-blocked/blocker-goto-*, sign-panel/sign-name/sign-canvas/
+    complete-visit-btn, save-partial-btn, visit-completed.
+  • VERIFIED: backend curl full flow (audit→service→calibration 12mph=13→8.33%>5%→FAIL→retest PASS, history
+    [fail,pass]→fault SVC-00009→complete next_due +6mo, cert awaiting_review; blocked while treadmill uncalib).
+    testing_agent frontend 85%→ fixed 2 HIGH (calibration onSubmit swallowed response; Retest didn't clear
+    measured values→concatenation/corrupt history) + suppressed cookie/PWA banners on wizard route + raised sheet
+    z-index → focused retest re-test 100%. Reports: iteration_bluelight_phase3_fe_jul2026.json +
+    iteration_bluelight_phase3_calib_retest_retest_jul2026.json.
+  ⚠️ PREVIEW ONLY — REDEPLOY to push live. Phase 4 = auto-generate branded Service & Calibration Certificate PDF
+    (Devon & Somerset FRS artwork, per-contract logo) on completion, store vs site/contract/job, office-review/
+    auto-send distribution, customer-portal certificates + 82-station certificate dashboard.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-28 · BLUE LIGHT — PHASE 2: BULK SERVICE PLANNING → ENGINEER JOB PACKS · testing_agent 100% (5/5) ═══
 Phase 2 of the Blue Light / Multi-Site PTE epic. Reuses svc_cases (engineer jobs) + svc_engineers (roster) —
 NO duplicate job system. Planners bulk-schedule stations, allocate an engineer, and the pre-visit engineer

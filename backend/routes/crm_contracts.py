@@ -1446,6 +1446,7 @@ async def _station_rows(contract_id: str, user: dict):
                 vstatus = "not_planned"
         rows.append({
             "site_id": sid,
+            "visit_id": visit.get("id", ""),
             "station_name": s.get("site_name", ""),
             "address": ", ".join([x for x in [s.get("address"), s.get("city"), s.get("postcode")] if x]),
             "postcode": s.get("postcode", ""),
@@ -1877,4 +1878,407 @@ async def blue_light_unschedule_visit(contract_id: str, site_id: str, user=Depen
         {"$set": {"visit_status": "not_planned", "scheduled_date": "",
                   "assigned_engineer_id": "", "assigned_engineer_name": "", "updated_at": _now()}})
     return {"success": True}
+
+
+
+# ════════════════════════════════════════════════════════════════════
+# BLUE LIGHT — PHASE 3: ENGINEER GUIDED SERVICE + CALIBRATION WIZARD
+# ════════════════════════════════════════════════════════════════════
+
+VISIT_STEPS = ["asset_check", "service", "calibration", "faults", "review", "sign"]
+
+
+async def _get_visit(visit_id: str, user: dict) -> dict:
+    v = await db.crm2_station_visits.find_one({"id": visit_id}, {"_id": 0})
+    if not v:
+        raise HTTPException(404, "Service visit not found")
+    # ownership via the parent contract (tenant boundary — §63/§64)
+    await _get_bl_contract(v["contract_id"], user)
+    return v
+
+
+def _calc_calibration(speed_rows, incline_rows, cfg):
+    """Compute pass/review/fail per test + overall (§17). Failure = variance
+    strictly outside tolerance (% of target; absolute band when target is 0)."""
+    tol = float(cfg.get("tolerance_pct") or 5.0)
+    review = cfg.get("review_pct")
+    zero_abs = float(cfg.get("incline_zero_abs_tolerance") or 0.5)
+
+    def grade(target, measured, is_incline):
+        try:
+            t = float(target); m = float(measured)
+        except (TypeError, ValueError):
+            return {"target": target, "measured": measured, "variance": None,
+                    "variance_pct": None, "result": "incomplete"}
+        var = round(m - t, 3)
+        if t == 0:
+            res = "pass" if abs(m) <= zero_abs else "fail"
+            return {"target": t, "measured": m, "variance": var,
+                    "variance_pct": None, "result": res}
+        pct = round(abs(var) / abs(t) * 100, 2)
+        if pct > tol:
+            res = "fail"
+        elif review is not None and pct > float(review):
+            res = "review"
+        else:
+            res = "pass"
+        return {"target": t, "measured": m, "variance": var, "variance_pct": pct, "result": res}
+
+    speed = [grade(r.get("target"), r.get("measured"), False) for r in (speed_rows or [])]
+    incline = [grade(r.get("target"), r.get("measured"), True) for r in (incline_rows or [])]
+    allr = speed + incline
+    if any(x["result"] == "incomplete" for x in allr) or not allr:
+        overall = "incomplete"
+    elif any(x["result"] == "fail" for x in allr):
+        overall = "fail"
+    elif any(x["result"] == "review" for x in allr):
+        overall = "review"
+    else:
+        overall = "pass"
+    return speed, incline, overall
+
+
+async def _visit_state(visit: dict, user: dict) -> dict:
+    """Assemble the full wizard state + progress + completion blockers (§22)."""
+    contract = await db.crm2_contracts.find_one({"id": visit["contract_id"]}, {"_id": 0})
+    pack = None
+    job = await db.svc_cases.find_one({"id": visit.get("svc_case_id")}, {"_id": 0, "blue_light": 1})
+    if job:
+        pack = job.get("blue_light")
+    if not pack:
+        assets = await db.crm2_contract_assets.find(
+            {"contract_id": visit["contract_id"], "site_id": visit["site_id"]}, {"_id": 0}).to_list(2000)
+        site = await db.crm2_contract_sites.find_one({"id": visit["site_id"]}, {"_id": 0}) or {}
+        pack = _build_job_pack(contract or {}, site, assets)
+
+    verifs = {v["asset_key"]: v for v in await db.crm2_asset_verifications.find(
+        {"visit_id": visit["id"]}, {"_id": 0}).to_list(5000)}
+    calibs = {cr["asset_key"]: cr for cr in await db.crm2_calibration_records.find(
+        {"visit_id": visit["id"]}, {"_id": 0}).sort("created_at", 1).to_list(5000)}
+    fault_rows = await db.svc_cases.find(
+        {"station_visit_id": visit["id"], "case_type": "reactive"},
+        {"_id": 0, "id": 1, "reference": 1, "title": 1, "priority": 1,
+         "asset_serial": 1, "out_of_service": 1, "status": 1}).to_list(500)
+
+    expected = pack.get("expected_assets", [])
+    # merge audit verification onto each expected asset + include added assets
+    audited = []
+    for a in expected:
+        key = a.get("contract_asset_id") or a.get("asset_id") or a.get("serial_number")
+        ver = verifs.get(key)
+        audited.append({**a, "asset_key": key,
+                        "audit": ver.get("action") if ver else None,
+                        "audit_status": "done" if ver else "pending",
+                        "service_outcome": (ver or {}).get("service_outcome"),
+                        "changes": (ver or {}).get("changes")})
+    known = {a["asset_key"] for a in audited}
+    for key, ver in verifs.items():
+        if key not in known and ver.get("action") == "add":
+            na = ver.get("new_asset") or {}
+            audited.append({"asset_key": key, "asset_name": na.get("asset_name", "New asset"),
+                            "serial_number": na.get("serial_number", ""),
+                            "equipment_type": na.get("equipment_type", ""),
+                            "is_treadmill": _is_treadmill(na), "audit": "add",
+                            "audit_status": "done", "service_outcome": ver.get("service_outcome"),
+                            "is_new": True})
+
+    # progress counters
+    expected_count = len([a for a in audited if a.get("audit") != "not_found"])
+    accounted = len([a for a in audited if a.get("audit_status") == "done"])
+    present_assets = [a for a in audited if a.get("audit") in ("present", "update", "replaced", "add")]
+    serviced = len([a for a in present_assets if a.get("service_outcome")])
+    treadmills = [a for a in present_assets if a.get("is_treadmill")]
+    calibrated = [t for t in treadmills if calibs.get(t["asset_key"], {}).get("overall") not in (None, "incomplete")]
+
+    # completion blockers (§22) — plain English
+    blockers = []
+    unaccounted = [a for a in audited if a.get("audit_status") != "done"]
+    if unaccounted:
+        blockers.append({"type": "asset_audit",
+                         "message": f"{len(unaccounted)} asset(s) still need to be confirmed, updated or marked as not found.",
+                         "asset_key": unaccounted[0]["asset_key"]})
+    unserviced = [a for a in present_assets if not a.get("service_outcome")]
+    if unserviced:
+        blockers.append({"type": "service",
+                         "message": f"{len(unserviced)} machine(s) still need a service outcome recorded.",
+                         "asset_key": unserviced[0]["asset_key"]})
+    if pack.get("calibration", {}).get("required"):
+        pending_cal = [t for t in treadmills if t not in calibrated]
+        if pending_cal:
+            t0 = pending_cal[0]
+            blockers.append({"type": "calibration",
+                             "message": f"Treadmill {t0.get('serial_number') or t0.get('asset_name')} still requires calibration.",
+                             "asset_key": t0["asset_key"]})
+
+    return {
+        "visit": visit, "pack": pack,
+        "contract": {"id": contract.get("id"), "contract_number": contract.get("contract_number"),
+                     "company_name": contract.get("company_name"),
+                     "customer_type": contract.get("customer_type"),
+                     "blue_light": contract.get("blue_light") or DEFAULT_BLUE_LIGHT_CONFIG} if contract else {},
+        "assets": audited,
+        "calibrations": calibs,
+        "faults": fault_rows,
+        "progress": {
+            "expected_assets": expected_count, "accounted": accounted,
+            "confirmed": len([a for a in audited if a.get("audit") == "present"]),
+            "updated": len([a for a in audited if a.get("audit") == "update"]),
+            "new": len([a for a in audited if a.get("audit") == "add"]),
+            "not_found": len([a for a in audited if a.get("audit") == "not_found"]),
+            "serviced": serviced, "to_service": len(present_assets),
+            "treadmills_required": len(treadmills), "treadmills_calibrated": len(calibrated),
+            "faults_raised": len(fault_rows),
+            "assets_remaining": len(unaccounted),
+        },
+        "completion_blockers": blockers,
+        "can_complete": len(blockers) == 0,
+        "steps": VISIT_STEPS,
+    }
+
+
+@router.get("/visits/{visit_id}")
+async def blue_light_visit_state(visit_id: str, user=Depends(get_crm_user)):
+    visit = await _get_visit(visit_id, user)
+    return await _visit_state(visit, user)
+
+
+@router.post("/visits/{visit_id}/start")
+async def blue_light_visit_start(visit_id: str, data: dict, user=Depends(get_crm_user)):
+    """§6 — engineer confirms they are at the correct station and begins."""
+    visit = await _get_visit(visit_id, user)
+    if not data.get("confirmed_on_site"):
+        raise HTTPException(400, "Please confirm you are at the correct station")
+    upd = {"status": "in_progress", "started_at": _now(),
+           "confirmed_on_site": True, "gps": data.get("gps"), "updated_at": _now()}
+    await db.crm2_station_visits.update_one({"id": visit_id}, {"$set": upd})
+    await db.crm2_contract_sites.update_one(
+        {"id": visit["site_id"]}, {"$set": {"visit_status": "in_progress", "updated_at": _now()}})
+    if visit.get("svc_case_id"):
+        await db.svc_cases.update_one({"id": visit["svc_case_id"]},
+                                      {"$set": {"status": "in_progress", "updated_at": _now()}})
+    return await _visit_state({**visit, **upd}, user)
+
+
+@router.post("/visits/{visit_id}/assets/{asset_key}/audit")
+async def blue_light_asset_audit(visit_id: str, asset_key: str, data: dict, user=Depends(get_crm_user)):
+    """§8 — CONFIRM PRESENT / UPDATE / NOT FOUND / REPLACED / ADD NEW.
+    Applies approved changes to the asset register with a full audit trail (§36)."""
+    visit = await _get_visit(visit_id, user)
+    action = (data.get("action") or "").strip()
+    if action not in ("present", "update", "not_found", "replaced", "add"):
+        raise HTTPException(400, "Invalid audit action")
+    now = _now()
+    ver = {"visit_id": visit_id, "contract_id": visit["contract_id"], "site_id": visit["site_id"],
+           "asset_key": asset_key, "action": action, "reason": data.get("reason", ""),
+           "changes": data.get("changes"), "new_asset": data.get("new_asset"),
+           "replacement": data.get("replacement"), "photo_url": data.get("photo_url"),
+           "engineer_id": user.get("id"), "engineer_name": user.get("full_name") or user.get("email"),
+           "at": now}
+
+    if action in ("update", "replaced") and data.get("changes"):
+        target = await db.crm2_contract_assets.find_one(
+            {"id": asset_key, "contract_id": visit["contract_id"]}, {"_id": 0})
+        if target:
+            changes = {k: v for k, v in data["changes"].items()
+                       if k in ("asset_name", "model_code", "serial_number", "equipment_type",
+                                "location", "supplier", "asset_number") and v != target.get(k)}
+            if changes:
+                await db.crm2_asset_changes.insert_one({
+                    "id": _id(), "visit_id": visit_id, "contract_id": visit["contract_id"],
+                    "site_id": visit["site_id"], "asset_id": asset_key, "field_changes":
+                    {k: {"old": target.get(k), "new": v} for k, v in changes.items()},
+                    "engineer_id": user.get("id"), "engineer_name": ver["engineer_name"],
+                    "status": "auto_approved", "at": now})
+                await db.crm2_contract_assets.update_one(
+                    {"id": asset_key}, {"$set": {**changes, "updated_at": now}})
+    if action == "add" and data.get("new_asset"):
+        na = data["new_asset"]
+        new_id = _id()
+        await db.crm2_contract_assets.insert_one({
+            "id": new_id, "contract_id": visit["contract_id"], "site_id": visit["site_id"],
+            "asset_name": na.get("asset_name", ""), "equipment_type": na.get("equipment_type", ""),
+            "model_code": na.get("model_code", ""), "serial_number": na.get("serial_number", ""),
+            "coverage_type": "full", "discovered_on_visit": visit_id, "office_review": True,
+            "created_at": now})
+        ver["created_asset_id"] = new_id
+    if action == "not_found":
+        await db.crm2_contract_assets.update_one(
+            {"id": asset_key}, {"$set": {"status": "not_found", "not_found_reason": data.get("reason", ""),
+                                         "updated_at": now}})
+
+    await db.crm2_asset_verifications.update_one(
+        {"visit_id": visit_id, "asset_key": asset_key}, {"$set": ver}, upsert=True)
+    await db.crm2_station_visits.update_one({"id": visit_id}, {"$set": {"updated_at": now}})
+    return await _visit_state(visit, user)
+
+
+@router.post("/visits/{visit_id}/assets/{asset_key}/service")
+async def blue_light_asset_service(visit_id: str, asset_key: str, data: dict, user=Depends(get_crm_user)):
+    """§11 — record the service outcome for a machine (check sheet outcome)."""
+    visit = await _get_visit(visit_id, user)
+    outcome = (data.get("outcome") or "").strip()
+    valid = {"serviced_operational", "serviced_minor_issue", "serviced_fault_raised",
+             "out_of_service", "unable_to_service", "asset_not_present", "further_visit_required"}
+    if outcome not in valid:
+        raise HTTPException(400, "Invalid service outcome")
+    await db.crm2_asset_verifications.update_one(
+        {"visit_id": visit_id, "asset_key": asset_key},
+        {"$set": {"service_outcome": outcome, "service_notes": data.get("notes", ""),
+                  "check_sheet_id": data.get("check_sheet_id"),
+                  "serviced_at": _now(), "serviced_by": user.get("id"),
+                  "visit_id": visit_id, "asset_key": asset_key}},
+        upsert=True)
+    return await _visit_state(visit, user)
+
+
+@router.post("/visits/{visit_id}/treadmills/{asset_key}/calibration")
+async def blue_light_calibration(visit_id: str, asset_key: str, data: dict, user=Depends(get_crm_user)):
+    """§14-§19 — record treadmill speed + incline calibration, grade pass/review/fail,
+    keep original + retest measurements in history (§17/§20)."""
+    visit = await _get_visit(visit_id, user)
+    contract = await db.crm2_contracts.find_one({"id": visit["contract_id"]}, {"_id": 0})
+    cfg = (contract.get("blue_light") or DEFAULT_BLUE_LIGHT_CONFIG)
+    speed, incline, overall = _calc_calibration(data.get("speed"), data.get("incline"), cfg)
+    now = _now()
+    existing = await db.crm2_calibration_records.find_one(
+        {"visit_id": visit_id, "asset_key": asset_key}, {"_id": 0})
+    entry = {"speed": speed, "incline": incline, "overall": overall,
+             "device": data.get("device"), "action_if_fail": data.get("action_if_fail"),
+             "is_retest": bool(existing), "engineer_id": user.get("id"),
+             "engineer_name": user.get("full_name") or user.get("email"), "at": now}
+    if existing:
+        history = existing.get("history", [])
+        if not history:  # first record becomes the original
+            history = [{k: existing.get(k) for k in ("speed", "incline", "overall", "at")}]
+        history.append(entry)
+        await db.crm2_calibration_records.update_one(
+            {"visit_id": visit_id, "asset_key": asset_key},
+            {"$set": {"speed": speed, "incline": incline, "overall": overall,
+                      "device": data.get("device"), "action_if_fail": data.get("action_if_fail"),
+                      "history": history, "updated_at": now}})
+    else:
+        serial = ""
+        a = await db.crm2_contract_assets.find_one({"id": asset_key}, {"_id": 0, "serial_number": 1, "asset_name": 1})
+        if a:
+            serial = a.get("serial_number", "")
+        await db.crm2_calibration_records.insert_one({
+            "id": _id(), "visit_id": visit_id, "contract_id": visit["contract_id"],
+            "site_id": visit["site_id"], "asset_key": asset_key, "asset_id": asset_key,
+            "serial_number": serial, "speed": speed, "incline": incline, "overall": overall,
+            "device": data.get("device"), "action_if_fail": data.get("action_if_fail"),
+            "history": [entry], "created_at": now, "updated_at": now})
+    # keep permanent history against the asset (§20)
+    await db.crm2_contract_assets.update_one(
+        {"id": asset_key}, {"$push": {"calibration_history": {
+            "visit_id": visit_id, "overall": overall, "speed": speed, "incline": incline, "at": now}}})
+    st = await _visit_state(visit, user)
+    st["last_calibration"] = {"asset_key": asset_key, "overall": overall, "speed": speed, "incline": incline}
+    return st
+
+
+@router.post("/visits/{visit_id}/faults")
+async def blue_light_raise_fault(visit_id: str, data: dict, user=Depends(get_crm_user)):
+    """§12/§44 — raise a fault using the EXISTING Service Desk (a reactive svc_case),
+    prefilled with station/asset/engineer/visit context. No new fault record type."""
+    visit = await _get_visit(visit_id, user)
+    contract = await db.crm2_contracts.find_one({"id": visit["contract_id"]}, {"_id": 0})
+    site = await db.crm2_contract_sites.find_one({"id": visit["site_id"]}, {"_id": 0}) or {}
+    org_id = contract.get("organization_id")
+    if not (data.get("description") or "").strip():
+        raise HTTPException(400, "A fault description is required")
+    from routes.svc.cases import next_reference, compute_sla_targets
+    from utils.svc_state import NEW
+    severity = (data.get("severity") or "p3").lower()
+    reference = await next_reference(org_id)
+    sla = await compute_sla_targets(organization_id=org_id, priority=severity, cover_type="contract")
+    fault = {
+        "id": _id(), "organization_id": org_id, "reference": reference, "status": NEW,
+        "priority": severity, "cover_type": "contract", "case_type": "reactive",
+        "title": data.get("title") or f"Fault — {data.get('asset_name') or site.get('site_name', '')}",
+        "description": data["description"],
+        "site_id": visit["site_id"], "site_name": site.get("site_name", ""),
+        "site_postcode": site.get("postcode", ""),
+        "contract_id": visit["contract_id"], "contract_site_id": visit["site_id"],
+        "station_visit_id": visit_id,
+        "asset_serial": data.get("asset_serial", ""), "asset_key": data.get("asset_key", ""),
+        "customer_name": contract.get("company_name", ""),
+        "out_of_service": bool(data.get("out_of_service")),
+        "safety_concern": bool(data.get("safety_concern")),
+        "photos": data.get("photos") or [],
+        "assigned_engineer_id": user.get("id"),
+        "assigned_engineer_name": user.get("full_name") or user.get("email"),
+        "sla_response_at": sla.get("sla_response_at"), "sla_resolve_at": sla.get("sla_resolve_at"),
+        "source": "blue_light_visit", "created_at": _now(), "updated_at": _now(),
+    }
+    await db.svc_cases.insert_one(fault)
+    await db.crm2_station_visits.update_one(
+        {"id": visit_id}, {"$inc": {"faults_raised": 1}, "$set": {"updated_at": _now()}})
+    if data.get("out_of_service") and data.get("asset_key"):
+        await db.crm2_contract_assets.update_one(
+            {"id": data["asset_key"]}, {"$set": {"status": "out_of_service", "updated_at": _now()}})
+    return {"success": True, "fault": {"id": fault["id"], "reference": reference,
+                                       "title": fault["title"], "priority": severity}}
+
+
+@router.post("/visits/{visit_id}/complete")
+async def blue_light_visit_complete(visit_id: str, data: dict, user=Depends(get_crm_user)):
+    """§22-§24 — dummy-proof completion, capture signature, compute next service date.
+    Certificate generation/distribution is handled in Phase 4."""
+    visit = await _get_visit(visit_id, user)
+    state = await _visit_state(visit, user)
+    override = data.get("override_reason")
+    if not state["can_complete"] and not override:
+        return {"success": False, "blocked": True,
+                "completion_blockers": state["completion_blockers"],
+                "message": "This visit cannot be completed yet."}
+    if not (data.get("signature") or data.get("signature_data")):
+        raise HTTPException(400, "An engineer signature is required to complete the visit")
+    contract = await db.crm2_contracts.find_one({"id": visit["contract_id"]}, {"_id": 0})
+    cfg = contract.get("blue_light") or DEFAULT_BLUE_LIGHT_CONFIG
+    freq = int(cfg.get("service_frequency_months", 6))
+    completed_at = datetime.now(timezone.utc)
+    next_due = data.get("next_service_due_override")
+    if not next_due:
+        nd = completed_at + timedelta(days=int(freq * 30.44))
+        next_due = nd.strftime("%Y-%m-%d")
+    prog = state["progress"]
+    approval = cfg.get("certificate_approval_mode", "office_review")
+    cert_status = "awaiting_review" if approval in ("office_review", "manager_approval") else "pending_generation"
+    upd = {
+        "status": "completed", "completed_at": _now(),
+        "completed_by": user.get("id"),
+        "engineer_name": data.get("engineer_name") or user.get("full_name") or user.get("email"),
+        "signature_data": data.get("signature_data") or data.get("signature"),
+        "override_reason": override, "next_service_due": next_due,
+        "calibration_status": "complete" if prog["treadmills_required"] else "n/a",
+        "asset_audit_status": "complete",
+        "certificate_status": cert_status,
+        "summary": prog, "updated_at": _now(),
+    }
+    await db.crm2_station_visits.update_one({"id": visit_id}, {"$set": upd})
+    await db.crm2_contract_sites.update_one(
+        {"id": visit["site_id"]},
+        {"$set": {"visit_status": "completed", "last_service": _now()[:10],
+                  "next_service_due": next_due, "scheduled_date": "", "updated_at": _now()}})
+    if visit.get("svc_case_id"):
+        await db.svc_cases.update_one(
+            {"id": visit["svc_case_id"]},
+            {"$set": {"status": "repaired", "resolved_at": _now(), "updated_at": _now()}})
+    await record_audit(entity_type="station_visit", entity_id=visit_id, action="complete",
+                       user=user, after={"next_service_due": next_due, "override": bool(override)})
+    return {"success": True, "next_service_due": next_due,
+            "certificate_status": cert_status, "override": bool(override)}
+
+
+@router.post("/visits/{visit_id}/partial")
+async def blue_light_visit_partial(visit_id: str, data: dict, user=Depends(get_crm_user)):
+    """§39 — save as a partial visit (no certificate). A follow-up continues the cycle."""
+    visit = await _get_visit(visit_id, user)
+    await db.crm2_station_visits.update_one(
+        {"id": visit_id}, {"$set": {"status": "follow_up_required", "partial_reason": data.get("reason", ""),
+                                    "follow_up_required": True, "updated_at": _now()}})
+    await db.crm2_contract_sites.update_one(
+        {"id": visit["site_id"]}, {"$set": {"visit_status": "follow_up_required",
+                                            "follow_up_required": True, "updated_at": _now()}})
+    return {"success": True, "status": "follow_up_required"}
 

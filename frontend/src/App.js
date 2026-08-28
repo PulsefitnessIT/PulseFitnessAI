@@ -960,10 +960,10 @@ function App() {
  </NotificationConfirmProvider>
  </BrowserRouter>
  <Toaster position="top-right" theme={theme} />
- <CookieConsent />
+ {!window.location.pathname.startsWith('/blue-light/visit') && <CookieConsent />}
  <LanguagePrompt />
  <OfflineBanner />
- <PWAInstallPrompt />
+ {!window.location.pathname.startsWith('/blue-light/visit') && <PWAInstallPrompt />}
  <SessionResumedBanner />
  <StepUpDialog />
  {user && <AskPulseFitnessGuard />}

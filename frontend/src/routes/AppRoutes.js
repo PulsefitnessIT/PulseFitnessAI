@@ -80,6 +80,7 @@ const MODVisitBookingForm = lazy(() => import('@/pages/MODVisitBookingForm'));
 const QRScanPage = lazy(() => import('@/pages/QRScanPage'));
 const EngineerFaultReportPage = lazy(() => import('@/pages/EngineerFaultReportPage'));
 const EngineerMachineHistory = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerMachineHistory'));
+const BlueLightVisitWizard = lazy(() => import('@/pages/CRM/Contracts/BlueLightVisitWizard'));
 const PublicFormPage = lazy(() => import('@/pages/PublicFormPage'));
 const PublicLandingPage = lazy(() => import('@/pages/PublicLandingPage'));
 const PartnershipProposalPage = lazy(() => import('@/pages/PartnershipProposalPage'));
@@ -508,6 +509,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/marketing" element={user ? <MODForbidden><ModuleAccessGate module="marketing"><MarketingSuite /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
       <Route path="/comms" element={user ? <MODForbidden><ModuleAccessGate module={["marketing", "memberships", "crm"]}><CommsCentre /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
       <Route path="/crm" element={<MODForbidden><CrmRouteElement user={user} /></MODForbidden>} />
+      <Route path="/blue-light/visit/:visitId" element={<BlueLightVisitWizard />} />
       <Route path="/crm/setup" element={user ? <MODForbidden><ModuleAccessGate module="crm"><CRMSetupWizard /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
       <Route path="/memberships" element={user ? <MODForbidden><ModuleAccessGate module="memberships"><MembershipsConsole /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
       <Route path="/memberships/setup" element={user ? <MODForbidden><ModuleAccessGate module="memberships"><MembershipsSetupWizard /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
