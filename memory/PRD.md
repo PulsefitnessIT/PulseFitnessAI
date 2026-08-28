@@ -1,3 +1,38 @@
+# ═══ 2026-08-28 · BLUE LIGHT — PHASE 2: BULK SERVICE PLANNING → ENGINEER JOB PACKS · testing_agent 100% (5/5) ═══
+Phase 2 of the Blue Light / Multi-Site PTE epic. Reuses svc_cases (engineer jobs) + svc_engineers (roster) —
+NO duplicate job system. Planners bulk-schedule stations, allocate an engineer, and the pre-visit engineer
+job pack (station info + expected asset register + treadmill-calibration flags) is auto-created.
+
+  • BACKEND routes/crm_contracts.py (appended ~L1597+):
+    - GET  /crm/v2/contracts/{id}/engineers — active svc_engineers for the org + live planned_visits load count.
+    - POST /crm/v2/contracts/{id}/plan-visits {site_ids[],scheduled_date,service_window_end?,engineer_id?,
+      engineer_name?,force?} — per station: duplicate check (§61) on (contract_id,site_id,cycle_tag,open status)
+      → skip w/ reason unless force; creates crm2_station_visits doc (status scheduled, calibration/audit
+      status, cycle_tag+label) + an engineer job in svc_cases via _create_engineer_job (case_type=ppm,
+      service_kind=blue_light, source=blue_light_planner, reuses next_reference()/compute_sla_targets(),
+      status ASSIGNED/NEW, estimated_minutes=assets*12+treadmills*20, equipment_ids/serials, blue_light pack);
+      updates crm2_contract_sites row (scheduled_date/visit_status/engineer/service_cycle_tag). Returns
+      {created[],skipped[],cycle_label}.
+    - POST /crm/v2/contracts/{id}/reassign-visits {site_ids[],engineer_id} — bulk reassign engineer on open
+      visits + their svc_cases jobs + station rows.
+    - DELETE /crm/v2/contracts/{id}/visits/{site_id} — cancel an open planned visit (frees for re-planning).
+    - _cycle_tag(date,freq) buckets by contract frequency: annual→YYYY, 6mo→YYYY-H{1,2}, quarterly→Q, else month.
+    - _build_job_pack() emits expected_assets[] {asset_name,manufacturer,model_code,serial_number,
+      equipment_type,is_treadmill,location,warranty_end} + calibration {required,speed/incline points,tolerance}.
+  • FRONTEND BlueLightTab.js: bulk-plan bar (bl-plan-bar: date bl-plan-date, window bl-plan-window, engineer
+    bl-plan-engineer[with load counts], bl-plan-btn, bl-reassign-btn); select-all (bl-select-all) + per-row
+    (bl-select-<id>) checkboxes; result banner bl-plan-result (success / amber when 0-created / skipped list with
+    'bl-plan-force' re-select). refreshAll() re-loads overview+stations+engineer counts.
+  • VERIFIED: backend curl (plan 3→scheduled 17→20 / awaiting 48→45; duplicate re-plan skipped 3; reassign 1;
+    job pack SVC-00003 assigned, 5 assets/1 treadmill, calib points+tol present) + testing_agent frontend
+    100% (5/5) — /app/test_reports/iteration_bluelight_phase2_fe_jul2026.json. Polished LOW items after: space
+    before re-select link, warning-style banner on 0-created, engineer counts refresh post-plan.
+  ⚠️ PREVIEW ONLY — REDEPLOY to push live. NOTE: preview demo now has ~23 stations scheduled from testing (seed
+    is idempotent — re-run scripts.seed_blue_light_demo to reset). Phase 3 = engineer guided wizard consumes the
+    svc_cases blue_light pack (asset audit → service → treadmill calibration → faults → sign → complete).
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-28 · BLUE LIGHT / MULTI-SITE PTE SERVICE — PHASE 1 (foundation & visibility) · testing_agent 100% ═══
 New 71-section epic: end-to-end multi-site Fire & Rescue / Police / Ambulance PTE service + treadmill
 calibration + auto-certificate workflow, built ON TOP of existing modules (NO duplicates). Delivered in

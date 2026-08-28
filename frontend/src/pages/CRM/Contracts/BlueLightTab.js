@@ -75,6 +75,13 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
   const [showConfig, setShowConfig] = useState(false);
   const [meta, setMeta] = useState(null);
   const [cfg, setCfg] = useState(null);
+  const [engineers, setEngineers] = useState([]);
+  const [selected, setSelected] = useState(() => new Set());
+  const [planDate, setPlanDate] = useState('');
+  const [planWindowEnd, setPlanWindowEnd] = useState('');
+  const [planEngineer, setPlanEngineer] = useState('');
+  const [planning, setPlanning] = useState(false);
+  const [planMsg, setPlanMsg] = useState(null);
 
   const isBL = !!(contract?.is_blue_light);
 
@@ -105,6 +112,53 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
     return () => clearTimeout(t);
   }, [search]);
   useEffect(() => { if (isBL) loadStations(); }, [isBL, loadStations]);
+  const loadEngineers = useCallback(() => {
+    axios.get(`${API}/crm/v2/contracts/${contractId}/engineers`, { headers: headers() })
+      .then(r => setEngineers(r.data.engineers || [])).catch(() => setEngineers([]));
+  }, [API, headers, contractId]);
+  useEffect(() => { if (isBL) loadEngineers(); }, [isBL, loadEngineers]);
+
+  const toggleRow = (id) => setSelected(prev => {
+    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
+  const allSelected = stations.length > 0 && stations.every(r => selected.has(r.site_id));
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(stations.map(r => r.site_id)));
+  const clearSel = () => setSelected(new Set());
+
+  const refreshAll = async () => { await Promise.all([loadOverview(), loadStations()]); loadEngineers(); };
+
+  const planVisits = async (force = false) => {
+    if (!planDate) { alert('Choose a scheduled date first.'); return; }
+    setPlanning(true); setPlanMsg(null);
+    try {
+      const eng = engineers.find(e => e.id === planEngineer);
+      const res = await axios.post(`${API}/crm/v2/contracts/${contractId}/plan-visits`, {
+        site_ids: Array.from(selected), scheduled_date: planDate,
+        service_window_end: planWindowEnd, engineer_id: planEngineer,
+        engineer_name: eng?.full_name || '', force,
+      }, { headers: headers() });
+      const d = res.data;
+      setPlanMsg({ created: d.created_count, skipped: d.skipped || [], cycle: d.cycle_label });
+      clearSel();
+      await refreshAll();
+    } catch (e) { alert(e.response?.data?.detail || 'Failed to plan visits'); }
+    finally { setPlanning(false); }
+  };
+
+  const reassign = async () => {
+    if (!planEngineer) { alert('Pick an engineer to reassign to.'); return; }
+    setPlanning(true); setPlanMsg(null);
+    try {
+      const eng = engineers.find(e => e.id === planEngineer);
+      const res = await axios.post(`${API}/crm/v2/contracts/${contractId}/reassign-visits`, {
+        site_ids: Array.from(selected), engineer_id: planEngineer, engineer_name: eng?.full_name || '',
+      }, { headers: headers() });
+      setPlanMsg({ reassigned: res.data.updated, engineer: res.data.engineer_name });
+      clearSel();
+      await refreshAll();
+    } catch (e) { alert(e.response?.data?.detail || 'Failed to reassign'); }
+    finally { setPlanning(false); }
+  };
 
   const saveConfig = async (extra = {}) => {
     setSaving(true);
@@ -207,6 +261,55 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
         <StatTile label="Service Every" value={`${s.service_frequency_months || 6} mo`} icon={Gauge} testId="bl-stat-freq" />
       </div>
 
+      {/* Bulk planning bar */}
+      <div className="rounded-xl border p-3 flex flex-wrap items-end gap-3" style={{ borderColor: c.border, background: 'var(--color-surface)' }} data-testid="bl-plan-bar">
+        <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: c.text }}>
+          <CalendarClock size={16} style={{ color: 'var(--color-info-ios)' }} />
+          {selected.size > 0 ? `${selected.size} station${selected.size > 1 ? 's' : ''} selected` : 'Bulk plan visits'}
+        </div>
+        <label className="text-[11px]" style={{ color: c.textMuted }}>Scheduled date
+          <input data-testid="bl-plan-date" type="date" value={planDate} onChange={e => setPlanDate(e.target.value)}
+            className="block px-2 py-1.5 text-sm rounded-md border bg-transparent" style={{ borderColor: c.border, color: c.text }} />
+        </label>
+        <label className="text-[11px]" style={{ color: c.textMuted }}>Window end (optional)
+          <input data-testid="bl-plan-window" type="date" value={planWindowEnd} onChange={e => setPlanWindowEnd(e.target.value)}
+            className="block px-2 py-1.5 text-sm rounded-md border bg-transparent" style={{ borderColor: c.border, color: c.text }} />
+        </label>
+        <label className="text-[11px]" style={{ color: c.textMuted }}>Engineer
+          <select data-testid="bl-plan-engineer" value={planEngineer} onChange={e => setPlanEngineer(e.target.value)}
+            className="block px-2 py-1.5 text-sm rounded-md border bg-transparent min-w-[180px]" style={{ borderColor: c.border, color: c.text }}>
+            <option value="">— Unallocated —</option>
+            {engineers.map(e => <option key={e.id} value={e.id}>{e.full_name}{typeof e.planned_visits === 'number' ? ` (${e.planned_visits})` : ''}</option>)}
+          </select>
+        </label>
+        <Button onClick={() => planVisits(false)} disabled={planning || selected.size === 0} icon={CalendarClock} data-testid="bl-plan-btn">
+          {planning ? 'Planning…' : `Plan ${selected.size || ''} visit${selected.size === 1 ? '' : 's'}`}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={reassign} disabled={planning || selected.size === 0} data-testid="bl-reassign-btn">Reassign engineer</Button>
+        {selected.size > 0 && <Button variant="ghost" size="sm" onClick={clearSel} data-testid="bl-clear-sel">Clear</Button>}
+      </div>
+      {planMsg && (
+        <div className="rounded-lg border p-3 text-sm" style={{ borderColor: c.border, background: 'var(--color-surface)' }} data-testid="bl-plan-result">
+          {planMsg.reassigned != null ? (
+            <span style={{ color: 'var(--color-success-alt)' }}><CheckCircle size={14} className="inline mr-1" />Reassigned {planMsg.reassigned} visit(s) to {planMsg.engineer || 'Unallocated'}.</span>
+          ) : (
+            <>
+              {planMsg.created > 0 ? (
+                <span style={{ color: 'var(--color-success-alt)' }}><CheckCircle size={14} className="inline mr-1" />Planned {planMsg.created} visit(s) for the {planMsg.cycle} service cycle.</span>
+              ) : (
+                <span style={{ color: 'var(--color-accent-amber)' }}><AlertTriangle size={14} className="inline mr-1" />No new visits planned — every selected station already has a {planMsg.cycle} visit.</span>
+              )}
+              {planMsg.skipped?.length > 0 && (
+                <div className="mt-1" style={{ color: 'var(--color-accent-amber)' }}>
+                  <AlertTriangle size={14} className="inline mr-1" />{planMsg.skipped.length} skipped (duplicate protection): {planMsg.skipped.slice(0, 3).map(s => s.station_name || s.site_id).join(', ')}{planMsg.skipped.length > 3 ? '…' : ''}{' '}
+                  <button className="ml-2 underline" data-testid="bl-plan-force" onClick={() => { setSelected(new Set(planMsg.skipped.map(s => s.site_id))); }}>re-select skipped</button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {/* Station matrix */}
       <div className="rounded-xl border" style={{ borderColor: c.border }}>
         <div className="flex flex-wrap items-center gap-2 p-3 border-b" style={{ borderColor: c.border }}>
@@ -228,6 +331,9 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
           <table className="w-full text-sm">
             <thead>
               <tr style={{ color: c.textMuted }} className="text-[11px] uppercase">
+                <th className="px-3 py-2 w-8">
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll} data-testid="bl-select-all" aria-label="Select all stations" />
+                </th>
                 {stationCols.map(([col, label]) => (
                   <th key={col} className="text-left font-semibold px-3 py-2 cursor-pointer whitespace-nowrap"
                     onClick={() => setSortCol(col)} data-testid={`bl-sort-${col}`}>
@@ -239,11 +345,15 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={stationCols.length} className="px-3 py-8 text-center" style={{ color: c.textMuted }}>Loading…</td></tr>
+                <tr><td colSpan={stationCols.length + 1} className="px-3 py-8 text-center" style={{ color: c.textMuted }}>Loading…</td></tr>
               ) : stations.length === 0 ? (
-                <tr><td colSpan={stationCols.length} className="px-3 py-8 text-center" style={{ color: c.textMuted }} data-testid="bl-station-empty">No stations match.</td></tr>
+                <tr><td colSpan={stationCols.length + 1} className="px-3 py-8 text-center" style={{ color: c.textMuted }} data-testid="bl-station-empty">No stations match.</td></tr>
               ) : stations.map(r => (
                 <tr key={r.site_id} className="border-t" style={{ borderColor: c.border }} data-testid={`bl-station-row-${r.site_id}`}>
+                  <td className="px-3 py-2">
+                    <input type="checkbox" checked={selected.has(r.site_id)} onChange={() => toggleRow(r.site_id)}
+                      data-testid={`bl-select-${r.site_id}`} aria-label={`Select ${r.station_name}`} />
+                  </td>
                   <td className="px-3 py-2 font-medium whitespace-nowrap" style={{ color: c.text }}>{r.station_name}</td>
                   <td className="px-3 py-2 whitespace-nowrap" style={{ color: c.textDim }}>{r.address}</td>
                   <td className="px-3 py-2 whitespace-nowrap" style={{ color: c.textDim }}>{r.contact_name}</td>

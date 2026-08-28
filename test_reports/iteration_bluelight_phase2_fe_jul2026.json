@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend-only E2E test of Blue Light Phase 2 (bulk planning / allocation / duplicate protection / reassign) on contract CTR-BLFRS1 (b113a3cd…). Logged in via /api/crm/auth/login (owner@isodemo.com), set crm_token + crm_active_mode=business, opened Contracts -> contract -> Blue Light tab. ALL 5 requested behaviours PASS: (1) bl-plan-bar visible with bl-plan-date, bl-plan-window, bl-plan-engineer (8 options loaded from roster incl. 'Jordan Blake (2)' with planned-visit counts), bl-plan-btn, bl-reassign-btn, bl-select-all — all visible/enabled. (2) select-all + per-row bl-select-<site_id> checkboxes work (select-all -> '23 stations selected', untoggle -> 'Bulk plan visits'). (3) Filter status=Not Planned returned 45 rows; selected 3 (Bideford/Brixham/Bruton), date 2026-11-18, engineer Jordan Blake -> bl-plan-result shows 'Planned 3 visit(s) for the H2 2026 service cycle.', selection cleared, Scheduled tile 20->23 and awaiting booking 45->42; Bideford row flipped to Scheduled with Scheduled date 2026-11-18 and engineer 'Jordan Blake'. (4) Duplicate protection: re-planning the same 3 stations -> 'Planned 0 visit(s) for the H2 2026 service cycle. 3 skipped (duplicate protection): Bideford, Brixham, Bruton' + 're-select skipped' link. (5) Reassign: selected Bideford, picked 'TEST Staff 3707274e' -> 'Reassigned 1 visit(s) to TEST Staff 3707274e.' and the row Engineer cell updated. No JS runtime errors from BlueLightTab (only pre-existing 401/404 console noise from other CRM widgets).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/crm/v2/contracts/workspace", "issue": "Still 404s on every Contracts tab load (pre-existing, carried over from Phase 1) — console noise."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BlueLightTab bl-plan-result", "issue": "Missing space before the 're-select skipped' link — renders as 'Bruton Fire Stationre-select skipped'.", "selector": "[data-testid='bl-plan-force']", "priority": "LOW"},
+      {"component": "BlueLightTab bl-plan-result", "issue": "When every station is skipped the banner still leads with the green success line 'Planned 0 visit(s)…' with a check icon; a 0-created result should read as a warning, not a success.", "selector": "[data-testid='bl-plan-result']", "priority": "LOW"},
+      {"component": "BlueLightTab engineer dropdown", "issue": "Engineer option labels carry a planned-visit count e.g. 'Jordan Blake (2)' but the list is only fetched once on mount — after planning 3 visits the count is stale until a tab reload. Refetch /engineers inside refreshAll().", "selector": "[data-testid='bl-plan-engineer']", "priority": "LOW"},
+      {"component": "BlueLightTab planning", "issue": "planVisits()/reassign() use window.alert() for validation ('Choose a scheduled date first.') and API errors — blocks the UI and is untestable/inconsistent with the app's toast pattern.", "selector": "[data-testid='bl-plan-btn']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Blue Light tab", "issues": ["Station matrix still needs horizontal scroll at 1920px — Visit/Calibration/Faults/Certificate columns are off-screen by default, so a user planning visits cannot see the resulting Visit-status pill without scrolling right (worse now that a checkbox column was added).", "The outer-app 'Your session has expired' toast + cookie banner overlay the bottom of the matrix (known/ignorable).", "No date validation: a past scheduled date is accepted by the UI without warning."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Add the missing space before the 're-select skipped' link in bl-plan-result.",
+    "Style the plan banner as a warning when created_count === 0 and all sites were skipped.",
+    "Refresh the engineer roster (planned_visits counts) after plan/reassign in refreshAll().",
+    "Replace alert() calls in planVisits/reassign with inline validation or the app toast.",
+    "Consider a sticky first column / condensed columns so the Visit + Engineer cells are visible without horizontal scrolling."
+  ],
+  "critical_code_review_comments": [
+    "BlueLightTab.js is 425 lines and now mixes overview, config, bulk planner and matrix — consider extracting the bulk-plan bar into its own component before Phase 3.",
+    "planVisits(force) is only ever called with force=false; the 're-select skipped' link just re-selects rows so the user must press Plan again, which will skip them again — either wire the link to planVisits(true) or rename it (currently a dead-end loop).",
+    "No client-side guard that scheduled_date >= today or <= service_window_end; the backend should be checked or a min attribute added to bl-plan-date."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only request)", "frontend": "100% (5/5 requested behaviours pass)"},
+  "seed_data_creation": "Planned 3 real visits (Bideford / Brixham / Bruton Fire Stations, 2026-11-18, engineer Jordan Blake) on the seeded contract; Bideford then reassigned to 'TEST Staff 3707274e'. These created crm2_station_visits + svc_cases jobs — clean up if the demo needs the original 20-scheduled state. Seeded demo (blue_light_demo_v1) untouched otherwise.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "CRM: owner@isodemo.com / IsoDemo123! (POST /api/crm/auth/login, token -> localStorage 'crm_token', plus localStorage 'crm_active_mode'='business').",
+  "context_for_next_testing_agent": "Navigation recipe unchanged from Phase 1 (login via fetch, set crm_token + crm_active_mode=business, goto /crm?tab=contracts, click contract-row-b113a3cd-9998-434b-8bc4-a02e417eef91, click tab-bluelight). The first in-page fetch can throw 'Failed to fetch' — retry the login call a few times. After this run: Scheduled=23, Awaiting booking=42, 42 stations remain 'Not Planned'. The org roster contains several leftover 'TEST Staff <hex>' engineers from earlier test runs — they appear in bl-plan-engineer.",
+  "rca_of_the_issue": "No functional defect found in Phase 2 frontend; only cosmetic/UX polish items listed above."
+}

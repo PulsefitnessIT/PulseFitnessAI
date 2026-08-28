@@ -1594,3 +1594,287 @@ async def blue_light_station_matrix_csv(contract_id: str, user=Depends(get_crm_u
     return StreamingResponse(
         iter([buf.getvalue()]), media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename=stations-{contract_id[:8]}.csv"})
+
+
+# ════════════════════════════════════════════════════════════════════
+# BLUE LIGHT — PHASE 2: BULK SERVICE PLANNING → ENGINEER JOB PACKS
+# ════════════════════════════════════════════════════════════════════
+
+_OPEN_VISIT_STATES = ("scheduled", "planned", "travelling", "on_site",
+                      "in_progress", "awaiting_information", "follow_up_required")
+
+
+def _cycle_tag(scheduled_date: str, freq_months: int) -> tuple[str, str]:
+    """Return (cycle_tag, human label) for duplicate-protection + display.
+    Buckets by the contract service frequency so two visits in the same
+    service window collide (§61)."""
+    try:
+        dt = datetime.fromisoformat(scheduled_date[:10])
+    except (ValueError, TypeError):
+        dt = datetime.now(timezone.utc)
+    y = dt.year
+    if freq_months >= 12:
+        return f"{y}", f"{y} Annual"
+    if freq_months >= 6:
+        half = 1 if dt.month <= 6 else 2
+        return f"{y}-H{half}", f"H{half} {y}"
+    if freq_months >= 3:
+        q = (dt.month - 1) // 3 + 1
+        return f"{y}-Q{q}", f"Q{q} {y}"
+    return f"{y}-M{dt.month:02d}", dt.strftime("%b %Y")
+
+
+async def _engineer_name(org_id: str, engineer_id: str) -> str:
+    if not engineer_id:
+        return ""
+    e = await db.svc_engineers.find_one(
+        {"id": engineer_id, "organization_id": org_id}, {"_id": 0, "full_name": 1})
+    return (e or {}).get("full_name", "")
+
+
+@router.get("/contracts/{contract_id}/engineers")
+async def blue_light_engineers(contract_id: str, user=Depends(get_crm_user)):
+    """Available engineers for allocation (reuses svc_engineers — no new roster)."""
+    c = await _get_bl_contract(contract_id, user)
+    org_id = c.get("organization_id")
+    rows = await db.svc_engineers.find(
+        {"organization_id": org_id, "active": {"$ne": False}},
+        {"_id": 0, "id": 1, "full_name": 1, "skills": 1, "home_postcode": 1},
+    ).sort("full_name", 1).to_list(500)
+    # live open Blue Light job counts per engineer for capacity awareness
+    load = {}
+    async for v in db.crm2_station_visits.find(
+            {"contract_id": contract_id, "status": {"$in": list(_OPEN_VISIT_STATES)}},
+            {"_id": 0, "assigned_engineer_id": 1}):
+        eid = v.get("assigned_engineer_id")
+        if eid:
+            load[eid] = load.get(eid, 0) + 1
+    for r in rows:
+        r["planned_visits"] = load.get(r["id"], 0)
+    return {"engineers": rows, "count": len(rows)}
+
+
+def _build_job_pack(contract: dict, site: dict, assets: list) -> dict:
+    """Pre-visit engineer job pack (§5): station + contract + expected asset
+    register with treadmill-calibration flags."""
+    bl = contract.get("blue_light") or DEFAULT_BLUE_LIGHT_CONFIG
+    expected = []
+    for a in assets:
+        name = a.get("asset_name", "")
+        manu = name.split(" ")[0] if name else ""
+        expected.append({
+            "asset_id": a.get("asset_id") or a.get("id"),
+            "contract_asset_id": a.get("id"),
+            "asset_name": name,
+            "manufacturer": manu,
+            "model_code": a.get("model_code", ""),
+            "serial_number": a.get("serial_number", ""),
+            "equipment_type": a.get("equipment_type", ""),
+            "is_treadmill": _is_treadmill(a),
+            "location": site.get("site_name", ""),
+            "warranty_end": a.get("warranty_end", ""),
+        })
+    treadmills = [e for e in expected if e["is_treadmill"]]
+    return {
+        "contract_id": contract["id"],
+        "contract_number": contract.get("contract_number", ""),
+        "customer_type": contract.get("customer_type", ""),
+        "company_name": contract.get("company_name", ""),
+        "station_name": site.get("site_name", ""),
+        "station": {
+            "address": site.get("address", ""), "city": site.get("city", ""),
+            "postcode": site.get("postcode", ""),
+            "contact_name": site.get("contact_name", ""),
+            "telephone": site.get("telephone", site.get("phone", "")),
+            "email": site.get("email", ""),
+            "access_instructions": site.get("access_instructions", ""),
+            "parking_info": site.get("parking_info", ""),
+            "opening_times": site.get("opening_times", ""),
+            "site_notes": site.get("site_notes", ""),
+        },
+        "expected_assets": expected,
+        "expected_asset_count": len(expected),
+        "treadmill_count": len(treadmills),
+        "calibration": {
+            "required": bool(bl.get("calibration_required", True)) and bool(treadmills),
+            "speed_points_mph": bl.get("speed_points_mph", [3, 6, 9, 12]),
+            "incline_points_pct": bl.get("incline_points_pct", [0, 5, 10, 15]),
+            "tolerance_pct": bl.get("tolerance_pct", 5.0),
+            "incline_zero_abs_tolerance": bl.get("incline_zero_abs_tolerance", 0.5),
+        },
+        "asset_audit_required": bool(bl.get("asset_audit_required", True)),
+    }
+
+
+async def _create_engineer_job(contract: dict, site: dict, visit: dict, pack: dict,
+                                engineer_id: str, engineer_name: str, user: dict) -> str:
+    """Create the engineer job in the existing svc_cases collection (case_type=ppm,
+    service_kind=blue_light) carrying the pre-visit pack. No duplicate job system."""
+    from routes.svc.cases import next_reference, compute_sla_targets
+    from utils.svc_state import NEW, ASSIGNED
+    org_id = contract.get("organization_id")
+    reference = await next_reference(org_id)
+    sla = await compute_sla_targets(organization_id=org_id, priority="p3", cover_type="contract")
+    job_id = _id()
+    doc = {
+        "id": job_id, "organization_id": org_id, "reference": reference,
+        "status": ASSIGNED if engineer_id else NEW,
+        "priority": "p3", "cover_type": "contract", "case_type": "ppm",
+        "service_kind": "blue_light",
+        "title": f"Blue Light Service — {site.get('site_name', '')}",
+        "description": (f"Multi-site PTE service & calibration visit for "
+                        f"{site.get('site_name', '')} ({contract.get('company_name', '')}). "
+                        f"{pack['expected_asset_count']} assets · {pack['treadmill_count']} treadmills."),
+        "site_id": site.get("id", ""), "site_name": site.get("site_name", ""),
+        "site_postcode": site.get("postcode", ""),
+        "contract_id": contract["id"], "contract_site_id": site.get("id", ""),
+        "station_visit_id": visit["id"],
+        "customer_name": contract.get("company_name", ""),
+        "customer_email": site.get("email", ""),
+        "customer_phone": site.get("telephone", site.get("phone", "")),
+        "equipment_ids": [e["asset_id"] for e in pack["expected_assets"] if e["asset_id"]],
+        "equipment_serials": [e["serial_number"] for e in pack["expected_assets"] if e["serial_number"]],
+        "assigned_engineer_id": engineer_id or "",
+        "assigned_engineer_name": engineer_name or "",
+        "scheduled_at": visit.get("scheduled_date") or None,
+        "estimated_minutes": max(45, pack["expected_asset_count"] * 12 + pack["treadmill_count"] * 20),
+        "sla_response_at": sla.get("sla_response_at"),
+        "sla_resolve_at": sla.get("sla_resolve_at"),
+        "blue_light": pack,
+        "source": "blue_light_planner",
+        "logged_by_id": user.get("id"),
+        "logged_by_name": user.get("full_name") or user.get("email") or "",
+        "created_at": _now(), "updated_at": _now(),
+    }
+    await db.svc_cases.insert_one(doc)
+    return job_id
+
+
+@router.post("/contracts/{contract_id}/plan-visits")
+async def blue_light_plan_visits(contract_id: str, data: dict, user=Depends(get_crm_user)):
+    """Bulk-schedule stations, allocate an engineer, and auto-create the
+    pre-visit engineer job packs (§4/§5). Duplicate-protected per service
+    cycle (§61) unless force=true."""
+    contract = await _get_bl_contract(contract_id, user)
+    org_id = contract.get("organization_id")
+    site_ids = data.get("site_ids") or []
+    if not site_ids:
+        raise HTTPException(400, "Select at least one station to plan")
+    scheduled_date = (data.get("scheduled_date") or "").strip()
+    if not scheduled_date:
+        raise HTTPException(400, "A scheduled date is required")
+    window_end = (data.get("service_window_end") or "").strip()
+    engineer_id = (data.get("engineer_id") or "").strip()
+    engineer_name = data.get("engineer_name") or await _engineer_name(org_id, engineer_id)
+    force = bool(data.get("force"))
+    freq = int((contract.get("blue_light") or {}).get("service_frequency_months", 6))
+    cycle_tag, cycle_label = _cycle_tag(scheduled_date, freq)
+
+    created, skipped = [], []
+    for sid in site_ids:
+        site = await db.crm2_contract_sites.find_one({"id": sid, "contract_id": contract_id}, {"_id": 0})
+        if not site:
+            skipped.append({"site_id": sid, "reason": "Station not found"})
+            continue
+        if not force:
+            dupe = await db.crm2_station_visits.find_one(
+                {"contract_id": contract_id, "site_id": sid, "cycle_tag": cycle_tag,
+                 "status": {"$in": list(_OPEN_VISIT_STATES)}}, {"_id": 0, "id": 1})
+            if dupe:
+                skipped.append({"site_id": sid, "station_name": site.get("site_name", ""),
+                                "reason": f"A visit already exists for this station in the {cycle_label} service cycle"})
+                continue
+        assets = await db.crm2_contract_assets.find(
+            {"contract_id": contract_id, "site_id": sid}, {"_id": 0}).to_list(2000)
+        pack = _build_job_pack(contract, site, assets)
+        visit = {
+            "id": _id(), "contract_id": contract_id, "organization_id": org_id,
+            "site_id": sid, "station_name": site.get("site_name", ""),
+            "cycle_tag": cycle_tag, "service_cycle_label": cycle_label,
+            "status": "scheduled",
+            "scheduled_date": scheduled_date, "service_window_end": window_end,
+            "assigned_engineer_id": engineer_id, "assigned_engineer_name": engineer_name,
+            "expected_asset_count": pack["expected_asset_count"],
+            "treadmill_count": pack["treadmill_count"],
+            "calibration_required": pack["calibration"]["required"],
+            "calibration_status": "pending" if pack["treadmill_count"] else "n/a",
+            "asset_audit_status": "pending" if pack["expected_asset_count"] else "n/a",
+            "faults_raised": 0, "follow_up_required": False,
+            "created_by": user.get("id"), "created_at": _now(), "updated_at": _now(),
+        }
+        job_id = await _create_engineer_job(contract, site, visit, pack,
+                                            engineer_id, engineer_name, user)
+        visit["svc_case_id"] = job_id
+        await db.crm2_station_visits.insert_one(visit)
+        # reflect on the station row so the matrix + overview update immediately
+        await db.crm2_contract_sites.update_one(
+            {"id": sid, "contract_id": contract_id},
+            {"$set": {"scheduled_date": scheduled_date, "visit_status": "scheduled",
+                      "assigned_engineer_id": engineer_id, "assigned_engineer_name": engineer_name,
+                      "service_cycle_tag": cycle_tag, "updated_at": _now()}})
+        created.append({"site_id": sid, "station_name": site.get("site_name", ""),
+                        "visit_id": visit["id"], "svc_case_id": job_id})
+
+    await record_audit(entity_type="contract", entity_id=contract_id, action="plan_visits",
+                       user=user, after={"created": len(created), "skipped": len(skipped),
+                                         "cycle": cycle_tag, "engineer_id": engineer_id})
+    return {"success": True, "created": created, "skipped": skipped,
+            "created_count": len(created), "skipped_count": len(skipped),
+            "cycle_tag": cycle_tag, "cycle_label": cycle_label}
+
+
+@router.post("/contracts/{contract_id}/reassign-visits")
+async def blue_light_reassign_visits(contract_id: str, data: dict, user=Depends(get_crm_user)):
+    """Bulk-reassign the engineer on selected stations' open visits + jobs (§4)."""
+    contract = await _get_bl_contract(contract_id, user)
+    org_id = contract.get("organization_id")
+    site_ids = data.get("site_ids") or []
+    engineer_id = (data.get("engineer_id") or "").strip()
+    if not site_ids:
+        raise HTTPException(400, "Select at least one station")
+    engineer_name = data.get("engineer_name") or await _engineer_name(org_id, engineer_id)
+    updated = 0
+    for sid in site_ids:
+        v = await db.crm2_station_visits.find_one(
+            {"contract_id": contract_id, "site_id": sid, "status": {"$in": list(_OPEN_VISIT_STATES)}},
+            {"_id": 0, "id": 1, "svc_case_id": 1})
+        if not v:
+            continue
+        await db.crm2_station_visits.update_one(
+            {"id": v["id"]}, {"$set": {"assigned_engineer_id": engineer_id,
+                                       "assigned_engineer_name": engineer_name, "updated_at": _now()}})
+        if v.get("svc_case_id"):
+            from utils.svc_state import ASSIGNED, NEW
+            await db.svc_cases.update_one(
+                {"id": v["svc_case_id"]},
+                {"$set": {"assigned_engineer_id": engineer_id, "assigned_engineer_name": engineer_name,
+                          "status": ASSIGNED if engineer_id else NEW, "updated_at": _now()}})
+        await db.crm2_contract_sites.update_one(
+            {"id": sid, "contract_id": contract_id},
+            {"$set": {"assigned_engineer_id": engineer_id, "assigned_engineer_name": engineer_name,
+                      "updated_at": _now()}})
+        updated += 1
+    return {"success": True, "updated": updated,
+            "engineer_id": engineer_id, "engineer_name": engineer_name}
+
+
+@router.delete("/contracts/{contract_id}/visits/{site_id}")
+async def blue_light_unschedule_visit(contract_id: str, site_id: str, user=Depends(get_crm_user)):
+    """Cancel an open planned visit for a station (frees it for re-planning)."""
+    await _get_bl_contract(contract_id, user)
+    v = await db.crm2_station_visits.find_one(
+        {"contract_id": contract_id, "site_id": site_id, "status": {"$in": list(_OPEN_VISIT_STATES)}},
+        {"_id": 0, "id": 1, "svc_case_id": 1})
+    if not v:
+        raise HTTPException(404, "No open planned visit for this station")
+    await db.crm2_station_visits.update_one(
+        {"id": v["id"]}, {"$set": {"status": "cancelled", "updated_at": _now()}})
+    if v.get("svc_case_id"):
+        await db.svc_cases.update_one({"id": v["svc_case_id"]},
+                                      {"$set": {"status": "cancelled", "updated_at": _now()}})
+    await db.crm2_contract_sites.update_one(
+        {"id": site_id, "contract_id": contract_id},
+        {"$set": {"visit_status": "not_planned", "scheduled_date": "",
+                  "assigned_engineer_id": "", "assigned_engineer_name": "", "updated_at": _now()}})
+    return {"success": True}
+
