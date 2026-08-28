@@ -1,3 +1,44 @@
+# ═══ 2026-08-28 · BLUE LIGHT — PHASE 4: AUTO SERVICE & CALIBRATION CERTIFICATE · testing_agent 100% ═══
+Phase 4 — auto-generated branded Service & Calibration Certificate PDF on visit completion, stored vs
+station/contract/job, distributed per approval mode (default office_review). Reuses the shared Pulse doc
+shell + Resend email util. Swappable per-contract customer logo; treadmill table spills to extra pages.
+
+  • NEW utils/blue_light_certificate_pdf.py — build_certificate_pdf() on the Pulse doc shell (pulse_header/
+    make_pulse_doc): centred "CERTIFICATE OF SERVICE & CALIBRATION", certifying statement w/ station name,
+    detail block (customer, contract number, engineer, service date, next due), treadmill calibration table
+    (Serial + speed points mph + incline points %) with per-cell pass/review/fail colouring using FINAL
+    measured values, engineer + MD signature blocks. Optional customer_logo_url crest (§55). Table uses
+    repeatRows=1 → auto multi-page with repeated header (§26/§70, verified 16 treadmills → 2 pages). Zero-
+    treadmill message (§27). certificate_filename() = [Customer]_[Station]_Service-and-Calibration_YYYY-MM-DD.pdf
+    (§28, invalid chars stripped). TEMPLATE_VERSION=1.
+  • BACKEND routes/crm_contracts.py (appended ~L2289+): _build_cert_pdf_bytes() (rebuilds from visit +
+    crm2_calibration_records, decodes signature_data), _generate_certificate() (creates/updates crm2_certificates
+    record + stores PDF base64 in crm2_certificate_files; status sent/generated/awaiting_review by approval mode;
+    auto_send emails), _send_certificate() (Resend via utils.email.send_email with PDF attachment; records
+    sent/send_failed + sent_at + error). Endpoints: POST /visits/{id}/certificate/generate, GET /certificates/
+    {id}/download (application/pdf, audit-logged, _of tenant scoped), POST /certificates/{id}/approve (office/
+    manager review→send §31), POST /certificates/{id}/send, GET /contracts/{id}/certificates (dashboard §33,
+    by_status counts). blue_light_visit_complete() now calls _generate_certificate (auto_send when auto_send mode).
+    Overview + matrix already read crm2_certificates so certs_completed/certs_sent update live.
+  • FRONTEND BlueLightTab.js: Certificates toggle (bl-certs-toggle) → panel (bl-certs-panel) with status count
+    tiles (bl-cert-count-*), rows (bl-cert-row-<id>) with status pill + PDF download (bl-cert-download-<id>) +
+    Approve&send (bl-cert-approve-<id>) / Retry (bl-cert-retry-<id>); ConfigForm gains bl-cfg-logo (customer
+    logo URL). BlueLightVisitWizard.js completed screen gains download-cert-btn.
+  • VERIFIED: backend curl full flow (complete→awaiting_review cert auto-gen; download valid 122KB %PDF w/ 3-
+    treadmill table; approve→sent; dashboard + overview updated; 16-treadmill → 2 pages w/ repeated header) +
+    PDF visually confirmed professional (branded header, statement, coloured calibration table, signatures) +
+    testing_agent frontend 100% (5/5) — iteration_bluelight_phase4_certificates_frontend_jul2026.json.
+  ⚠️ NOTE: certificate PDF stored as base64 in crm2_certificate_files (single-page ~120KB; acceptable, avoids
+    object-storage wiring) — consider moving to object storage later for scale. Resend DID send in preview
+    (recipients configured on the seed contract). PREVIEW ONLY — REDEPLOY to push live. Certificate artwork:
+    used the Pulse doc shell (the attached Devon & Somerset FRS cert was not retrievable from job assets — the
+    'high wycombe test.pdf' turned out to be a quotation); per-contract crest supported via customer_logo_url.
+  • REMAINING (Phase 5): customer-portal certificates view (§32), 82-station certificate dashboard on Overview
+    (§33 counts exist via /certificates), asset reconciliation (§35), onboarding import (§51/§52), calibration
+    trends (§48), CAPEX links (§49), offline engineer support (§41), engineer-app entry banner.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-28 · BLUE LIGHT — PHASE 3: ENGINEER GUIDED SERVICE + CALIBRATION WIZARD · testing_agent 100% ═══
 Phase 3 of the Blue Light epic — the on-site engineer wizard. Reuses svc_cases for faults (reactive case, NO
 new fault type), crm2_contract_assets for the register, crm2_station_visits as the visit state. Mobile-first.

@@ -2266,8 +2266,11 @@ async def blue_light_visit_complete(visit_id: str, data: dict, user=Depends(get_
             {"$set": {"status": "repaired", "resolved_at": _now(), "updated_at": _now()}})
     await record_audit(entity_type="station_visit", entity_id=visit_id, action="complete",
                        user=user, after={"next_service_due": next_due, "override": bool(override)})
+    # Generate the certificate record now (§25). auto_send also emails it.
+    cert = await _generate_certificate(visit_id, user, auto_send=(approval == "auto_send"))
     return {"success": True, "next_service_due": next_due,
-            "certificate_status": cert_status, "override": bool(override)}
+            "certificate_status": cert_status, "certificate_id": cert.get("id"),
+            "override": bool(override)}
 
 
 @router.post("/visits/{visit_id}/partial")
@@ -2282,3 +2285,168 @@ async def blue_light_visit_partial(visit_id: str, data: dict, user=Depends(get_c
                                             "follow_up_required": True, "updated_at": _now()}})
     return {"success": True, "status": "follow_up_required"}
 
+
+
+# ════════════════════════════════════════════════════════════════════
+# BLUE LIGHT — PHASE 4: SERVICE & CALIBRATION CERTIFICATE
+# ════════════════════════════════════════════════════════════════════
+
+
+async def _build_cert_pdf_bytes(visit: dict):
+    """Assemble the certificate PDF bytes from the stored visit + calibration
+    records (final measured values). Returns (bytes, contract, station, filename)."""
+    import base64
+    from utils.blue_light_certificate_pdf import build_certificate_pdf, certificate_filename, TEMPLATE_VERSION
+    contract = await db.crm2_contracts.find_one({"id": visit["contract_id"]}, {"_id": 0}) or {}
+    station = await db.crm2_contract_sites.find_one({"id": visit["site_id"]}, {"_id": 0}) or {}
+    cfg = contract.get("blue_light") or DEFAULT_BLUE_LIGHT_CONFIG
+    cal_rows = await db.crm2_calibration_records.find(
+        {"visit_id": visit["id"]}, {"_id": 0}).to_list(500)
+    treadmills = [{
+        "serial_number": c.get("serial_number", ""),
+        "asset_name": c.get("asset_name", ""),
+        "speed": c.get("speed", []), "incline": c.get("incline", []),
+        "overall": c.get("overall"),
+    } for c in cal_rows]
+    sig = visit.get("signature_data") or ""
+    if isinstance(sig, str) and sig.startswith("data:image"):
+        try:
+            visit = {**visit, "_signature_image_bytes": base64.b64decode(sig.split(",", 1)[1])}
+        except Exception:
+            pass
+    pdf = build_certificate_pdf(contract=contract, station=station, visit=visit,
+                                treadmills=treadmills, config=cfg)
+    fname = certificate_filename(contract, station, (visit.get("completed_at") or "")[:10])
+    return pdf, contract, station, fname, TEMPLATE_VERSION
+
+
+async def _generate_certificate(visit_id: str, user: dict, auto_send: bool = False) -> dict:
+    """Create/refresh the crm2_certificates record + store the PDF, and send it
+    when auto_send. Certificate status drives the contract dashboard."""
+    import base64
+    visit = await db.crm2_station_visits.find_one({"id": visit_id}, {"_id": 0})
+    if not visit:
+        return {}
+    pdf, contract, station, fname, tver = await _build_cert_pdf_bytes(visit)
+    cfg = contract.get("blue_light") or DEFAULT_BLUE_LIGHT_CONFIG
+    approval = cfg.get("certificate_approval_mode", "office_review")
+    status = "sent" if auto_send else ("generated" if approval == "auto_send" else "awaiting_review")
+    existing = await db.crm2_certificates.find_one(
+        {"visit_id": visit_id}, {"_id": 0, "id": 1})
+    cert_id = existing["id"] if existing else _id()
+    cert = {
+        "id": cert_id, "organization_id": contract.get("organization_id"),
+        "contract_id": visit["contract_id"], "site_id": visit["site_id"],
+        "visit_id": visit_id, "svc_case_id": visit.get("svc_case_id"),
+        "station_name": station.get("site_name"), "filename": fname,
+        "template_version": tver, "status": status,
+        "generated_at": _now(), "generated_by": user.get("id"),
+        "approval_mode": approval,
+        "recipients": cfg.get("certificate_recipients", []),
+        "updated_at": _now(),
+    }
+    await db.crm2_certificates.update_one({"visit_id": visit_id}, {"$set": cert}, upsert=True)
+    await db.crm2_certificate_files.update_one(
+        {"cert_id": cert_id},
+        {"$set": {"cert_id": cert_id, "pdf_b64": base64.b64encode(pdf).decode(), "at": _now()}},
+        upsert=True)
+    await db.crm2_station_visits.update_one(
+        {"id": visit_id}, {"$set": {"certificate_status": status, "certificate_id": cert_id}})
+    await record_audit(entity_type="certificate", entity_id=cert_id, action="generate",
+                       user=user, after={"status": status, "visit_id": visit_id})
+    if auto_send:
+        await _send_certificate(cert_id, user)
+    return cert
+
+
+async def _send_certificate(cert_id: str, user: dict, override_recipients=None) -> dict:
+    import base64
+    from utils.email import send_email
+    cert = await db.crm2_certificates.find_one({"id": cert_id}, {"_id": 0})
+    if not cert:
+        raise HTTPException(404, "Certificate not found")
+    f = await db.crm2_certificate_files.find_one({"cert_id": cert_id}, {"_id": 0, "pdf_b64": 1})
+    if not f:
+        raise HTTPException(400, "Certificate file missing — regenerate it")
+    recipients = override_recipients or cert.get("recipients") or []
+    if not recipients:
+        raise HTTPException(400, "No certificate recipients configured for this contract")
+    station = cert.get("station_name", "")
+    visit = await db.crm2_station_visits.find_one({"id": cert["visit_id"]}, {"_id": 0}) or {}
+    html = (f"<p>Dear customer,</p><p>Please find attached the completed Pulse Fitness "
+            f"Service &amp; Calibration Certificate for:</p><p><b>{station}</b></p>"
+            f"<p>Service completed: {(visit.get('completed_at') or '')[:10]}<br/>"
+            f"Engineer: {visit.get('engineer_name', '')}</p>"
+            f"<p>Any faults requiring additional action will continue to be managed through the "
+            f"Pulse Fitness Service Team.</p><p>Kind regards,<br/>Pulse Fitness Service Team</p>")
+    attachments = [{"filename": cert.get("filename", "certificate.pdf"), "content": f["pdf_b64"]}]
+    sent_ok, error = True, None
+    try:
+        await send_email(to=recipients[0], subject=f"{station} — Service & Calibration Certificate",
+                         html=html, attachments=attachments,
+                         cc=recipients[1:] or None,
+                         organization_id=cert.get("organization_id"), kind="blue_light_certificate")
+    except Exception as e:  # preview Resend key is a placeholder — record + surface
+        sent_ok, error = False, str(e)
+    upd = {"status": "sent" if sent_ok else "send_failed", "sent_at": _now() if sent_ok else None,
+           "sent_recipients": recipients, "send_error": error, "updated_at": _now()}
+    await db.crm2_certificates.update_one({"id": cert_id}, {"$set": upd})
+    await db.crm2_station_visits.update_one(
+        {"id": cert["visit_id"]}, {"$set": {"certificate_status": upd["status"]}})
+    return {"success": sent_ok, "status": upd["status"], "recipients": recipients, "error": error}
+
+
+@router.post("/visits/{visit_id}/certificate/generate")
+async def blue_light_certificate_generate(visit_id: str, user=Depends(get_crm_user)):
+    """Manually (re)generate the certificate for a completed visit (§25/§56)."""
+    visit = await _get_visit(visit_id, user)
+    if visit.get("status") != "completed":
+        raise HTTPException(400, "Complete the visit before generating a certificate")
+    cert = await _generate_certificate(visit_id, user, auto_send=False)
+    return {"success": True, "certificate": cert}
+
+
+@router.get("/certificates/{cert_id}/download")
+async def blue_light_certificate_download(cert_id: str, user=Depends(get_crm_user)):
+    import base64
+    from fastapi.responses import Response
+    cert = await db.crm2_certificates.find_one({"id": cert_id, **_of(user)}, {"_id": 0})
+    if not cert:
+        raise HTTPException(404, "Certificate not found")
+    f = await db.crm2_certificate_files.find_one({"cert_id": cert_id}, {"_id": 0, "pdf_b64": 1})
+    if not f:
+        raise HTTPException(404, "Certificate file not available")
+    await record_audit(entity_type="certificate", entity_id=cert_id, action="download", user=user)
+    return Response(content=base64.b64decode(f["pdf_b64"]), media_type="application/pdf",
+                    headers={"Content-Disposition": f"inline; filename={cert.get('filename', 'certificate.pdf')}"})
+
+
+@router.post("/certificates/{cert_id}/approve")
+async def blue_light_certificate_approve(cert_id: str, data: dict = None, user=Depends(get_crm_user)):
+    """Office/Manager review → approve + send (§31)."""
+    cert = await db.crm2_certificates.find_one({"id": cert_id, **_of(user)}, {"_id": 0})
+    if not cert:
+        raise HTTPException(404, "Certificate not found")
+    res = await _send_certificate(cert_id, user, (data or {}).get("recipients"))
+    await record_audit(entity_type="certificate", entity_id=cert_id, action="approve_send",
+                       user=user, after=res)
+    return res
+
+
+@router.post("/certificates/{cert_id}/send")
+async def blue_light_certificate_send(cert_id: str, data: dict = None, user=Depends(get_crm_user)):
+    return await _send_certificate(cert_id, user, (data or {}).get("recipients"))
+
+
+@router.get("/contracts/{contract_id}/certificates")
+async def blue_light_certificates(contract_id: str, status: str = "", user=Depends(get_crm_user)):
+    """Central 82-station certificate dashboard feed (§33)."""
+    await _get_bl_contract(contract_id, user)
+    q = {"contract_id": contract_id}
+    if status:
+        q["status"] = status
+    rows = await db.crm2_certificates.find(q, {"_id": 0}).sort("generated_at", -1).to_list(2000)
+    counts = {}
+    for r in rows:
+        counts[r.get("status", "unknown")] = counts.get(r.get("status", "unknown"), 0) + 1
+    return {"certificates": rows, "count": len(rows), "by_status": counts}

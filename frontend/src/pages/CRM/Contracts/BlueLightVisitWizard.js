@@ -136,6 +136,13 @@ export default function BlueLightVisitWizard() {
           <p className="text-slate-600 mt-1">{pack.station_name}</p>
           <p className="text-sm text-slate-500 mt-2">Next service due: <b>{visit.next_service_due}</b></p>
           <p className="text-xs text-slate-400 mt-1">Certificate: {visit.certificate_status?.replace(/_/g, ' ')}</p>
+          {visit.certificate_id && (
+            <button data-testid="download-cert-btn" onClick={() => {
+              axios.get(`${API}/crm/v2/certificates/${visit.certificate_id}/download`, { headers: authHeaders(), responseType: 'blob' })
+                .then(res => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' })); a.download = 'certificate.pdf'; a.click(); URL.revokeObjectURL(a.href); })
+                .catch(() => {});
+            }} className="mt-3 text-sm underline text-blue-600">Download certificate</button>
+          )}
           <BigButton testId="back-to-matrix" color="#1d4ed8" onClick={() => nav('/crm?tab=contracts')}>Back to contracts</BigButton>
         </div>
       </div>

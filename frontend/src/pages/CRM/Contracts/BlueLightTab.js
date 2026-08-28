@@ -39,6 +39,7 @@ const CELL_META = {
   generated: { label: 'Generated', color: 'var(--color-success-alt-2)' },
   sent: { label: 'Sent', color: 'var(--color-success-alt)' },
   awaiting_review: { label: 'Awaiting review', color: 'var(--color-accent-amber)' },
+  send_failed: { label: 'Send failed', color: 'var(--color-danger)' },
 };
 
 const CellPill = ({ value }) => {
@@ -75,6 +76,8 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
   const [showConfig, setShowConfig] = useState(false);
   const [meta, setMeta] = useState(null);
   const [cfg, setCfg] = useState(null);
+  const [certs, setCerts] = useState(null);
+  const [showCerts, setShowCerts] = useState(false);
   const [engineers, setEngineers] = useState([]);
   const [selected, setSelected] = useState(() => new Set());
   const [planDate, setPlanDate] = useState('');
@@ -125,7 +128,29 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(stations.map(r => r.site_id)));
   const clearSel = () => setSelected(new Set());
 
-  const refreshAll = async () => { await Promise.all([loadOverview(), loadStations()]); loadEngineers(); };
+  const refreshAll = async () => { await Promise.all([loadOverview(), loadStations()]); loadEngineers(); loadCerts(); };
+
+  const loadCerts = useCallback(() => {
+    axios.get(`${API}/crm/v2/contracts/${contractId}/certificates`, { headers: headers() })
+      .then(r => setCerts(r.data)).catch(() => setCerts({ certificates: [], by_status: {} }));
+  }, [API, headers, contractId]);
+  useEffect(() => { if (isBL) loadCerts(); }, [isBL, loadCerts]);
+
+  const downloadCert = (cert) => {
+    axios.get(`${API}/crm/v2/certificates/${cert.id}/download`, { headers: headers(), responseType: 'blob' })
+      .then(res => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+        a.download = cert.filename || 'certificate.pdf'; a.click(); URL.revokeObjectURL(a.href);
+      }).catch(() => alert('Could not download the certificate.'));
+  };
+  const approveCert = async (cert) => {
+    try {
+      const r = await axios.post(`${API}/crm/v2/certificates/${cert.id}/approve`, {}, { headers: headers() });
+      alert(r.data.success ? `Certificate sent to ${(r.data.recipients || []).join(', ')}.` : `Send failed: ${r.data.error || 'unknown'}`);
+      loadCerts(); loadOverview();
+    } catch (e) { alert(e.response?.data?.detail || 'Approve/send failed'); }
+  };
 
   const planVisits = async (force = false) => {
     if (!planDate) { alert('Choose a scheduled date first.'); return; }
@@ -233,6 +258,49 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
           Configure
         </Button>
       </div>
+
+      <div className="flex justify-end -mt-2">
+        <Button variant="ghost" size="sm" icon={FileCheck2} onClick={() => setShowCerts(v => !v)} data-testid="bl-certs-toggle">
+          Certificates{certs?.count ? ` (${certs.count})` : ''}
+        </Button>
+      </div>
+
+      {showCerts && (
+        <div className="rounded-xl border p-4" style={{ borderColor: c.border, background: 'var(--color-surface)' }} data-testid="bl-certs-panel">
+          <div className="flex flex-wrap gap-3 mb-3">
+            {[['generated', 'Generated'], ['sent', 'Sent'], ['awaiting_review', 'Awaiting review'], ['send_failed', 'Failed to send']].map(([k, l]) => (
+              <div key={k} className="text-center px-3 py-1.5 rounded-lg" style={{ background: 'var(--color-bg)' }} data-testid={`bl-cert-count-${k}`}>
+                <div className="text-lg font-bold" style={{ color: c.text }}>{certs?.by_status?.[k] || 0}</div>
+                <div className="text-[10px]" style={{ color: c.textMuted }}>{l}</div>
+              </div>
+            ))}
+          </div>
+          {(!certs || certs.certificates.length === 0) ? (
+            <div className="text-sm text-center py-4" style={{ color: c.textMuted }} data-testid="bl-certs-empty">No certificates yet — complete a station visit to generate one.</div>
+          ) : (
+            <div className="divide-y" style={{ borderColor: c.border }}>
+              {certs.certificates.map(cert => (
+                <div key={cert.id} className="flex items-center justify-between py-2 gap-2" data-testid={`bl-cert-row-${cert.id}`}>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate" style={{ color: c.text }}>{cert.station_name}</div>
+                    <div className="text-[11px]" style={{ color: c.textMuted }}>{cert.filename}</div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <CellPill value={cert.status} />
+                    <Button variant="ghost" size="sm" icon={Download} onClick={() => downloadCert(cert)} data-testid={`bl-cert-download-${cert.id}`}>PDF</Button>
+                    {cert.status === 'awaiting_review' && (
+                      <Button size="sm" onClick={() => approveCert(cert)} data-testid={`bl-cert-approve-${cert.id}`}>Approve &amp; send</Button>
+                    )}
+                    {cert.status === 'send_failed' && (
+                      <Button size="sm" variant="outline" onClick={() => approveCert(cert)} data-testid={`bl-cert-retry-${cert.id}`}>Retry send</Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {showConfig && meta && cfg && (
         <div className="rounded-xl border p-4" style={{ borderColor: c.border, background: 'var(--color-surface)' }} data-testid="bl-config-panel">
@@ -423,6 +491,11 @@ function ConfigForm({ cfg, setCfg, meta, c }) {
         <input data-testid="bl-cfg-recipients" className={inp} style={{ borderColor: c.border, color: c.text }}
           defaultValue={(cfg.certificate_recipients || []).join(', ')}
           onBlur={e => set('certificate_recipients', e.target.value.split(',').map(x => x.trim()).filter(Boolean))} />
+      </label>
+      <label className="text-xs md:col-span-2" style={{ color: c.textMuted }}>Customer logo URL (crest shown on the certificate)
+        <input data-testid="bl-cfg-logo" className={inp} style={{ borderColor: c.border, color: c.text }}
+          defaultValue={cfg.customer_logo_url || ''} placeholder="https://…/crest.png"
+          onBlur={e => set('customer_logo_url', e.target.value.trim())} />
       </label>
       <label className="text-xs md:col-span-2 flex items-center gap-2 mt-1" style={{ color: c.textMuted }}>
         <input data-testid="bl-cfg-calibration-required" type="checkbox" checked={!!cfg.calibration_required}

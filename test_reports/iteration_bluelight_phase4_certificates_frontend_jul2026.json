@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only test of Blue Light Phase 4 (Auto Certificate) operator UI on contract CTR-BLFRS1. Verified: Certificates toggle + panel, 4 status count tiles, certificate rows (station + filename + status pill), PDF download (valid %PDF, 121KB), Approve & send on an awaiting_review certificate (alert 'Certificate sent to fleet.fitness@example-frs.gov.uk.', row pill flipped Awaiting review -> Sent, tiles refreshed 1/1 -> 2/0, contract CERTIFICATES tile 1/82 -> 2/82), the per-contract bl-cfg-logo field (saved + persisted as blue_light.customer_logo_url), and the visit wizard visit-completed screen download-cert-btn (valid 124KB PDF). All 5 requested items PASS.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Blue Light tab > Certificates panel", "issues": ["Status pills ('Sent' light green, 'Awaiting review' amber) are 11px on a white surface — contrast is borderline for AA small text; consider darker pill text or a tinted background chip.", "Certificate list is a flat unpaginated list — with up to 82 stations this panel will grow very long; consider status filter/pagination."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional polish only: darken certificate status pill text and add a status filter/pagination to the certificates list once the count grows.",
+    "Informational: visits completed BEFORE Phase 4 (e.g. Appledore, Axminster) had certificate_status 'outstanding' with no certificate row; there is no back-fill path in the UI (only POST /visits/{id}/certificate/generate). Consider a 'Generate certificate' action for completed visits without a certificate.",
+    "Pre-existing/unrelated: the /crm page fires several 401s and shows a 'Your session has expired' toast when only crm_token is present (no platform token). Not blocking the Blue Light tab but noisy."
+  ],
+  "critical_code_review_comments": [
+    "BlueLightTab.downloadCert / VisitWizard download-cert-btn call URL.revokeObjectURL(a.href) synchronously right after a.click(); it worked in Chromium here but can abort the save in some browsers — revoke in a setTimeout(...,0) instead.",
+    "downloadCert/approveCert use window.alert for both success and error; a toast with the recipient list would match the rest of the CRM UI. Wizard download-cert-btn swallows errors with .catch(() => {}) — no user feedback on failure.",
+    "Certificate PDF generation is resilient to an unreachable customer_logo_url (verified: generation returned 200 with a fake https://example.com/crest-test.png logo) — good."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "not tested (per request)", "frontend": "100% (5/5 features)" },
+  "seed_data_creation": "Used POST /crm/v2/visits/{id}/certificate/generate to create awaiting_review certificates for the already-completed Appledore visit (30405126-…, then approved via UI -> now 'sent') and Axminster visit (b52c1474-… -> still 'awaiting_review', left in place as test data). No seed data deleted. blue_light.customer_logo_url was set to a test URL by the UI test and then reset to empty via API.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "CRM: owner@isodemo.com / IsoDemo123! via POST /api/crm/auth/login; store token in localStorage 'crm_token' + crm_active_mode='business'",
+  "context_for_next_testing_agent": "Contract b113a3cd-9998-434b-8bc4-a02e417eef91 (CTR-BLFRS1) now has 3 certificates: Bruton (sent), Appledore (sent, approved via UI in this run), Axminster (awaiting_review — use this one to re-test Approve & send; regenerate via POST /crm/v2/visits/{completed_visit_id}/certificate/generate if you need another). Resend really sends to fleet.fitness@example-frs.gov.uk. customer_logo_url is currently empty.",
+  "rca_of_the_issue": "No defects found. Initial absence of an awaiting_review certificate was seed state, resolved by regenerating certificates for two already-completed visits."
+}
