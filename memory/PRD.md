@@ -1,3 +1,36 @@
+# ═══ 2026-06 · BLUE LIGHT — IMPORT MAPPING MEMORY · testing_agent 100% (7/7) ═══
+Spreadsheets with non-standard column headers can be mapped once in a column-mapping table, then the
+layout is SAVED (shared per organisation) and auto-applied on future imports of the same header set —
+zero clicks. User choices: manual mapping table with pre-filled auto-detection; prompt to name+save;
+shared across the org; auto-match by exact header signature with a "Using saved layout: {name}" note.
+MOD Code intentionally NOT offered as a manual choice (not needed for Blue Light).
+
+  • BACKEND utils/blue_light_import.py: parse_import() now takes column_map (header→field, ""/"ignore"
+    to skip) which overrides auto-detection. Returns richer meta: columns [{header, field, auto}], mapping
+    (effective), signature (sorted canon headers), field_labels (UI choices, excludes mod_code/quantity),
+    unmapped, missing_required. Helpers signature(), _auto_field(), _all_headers(), FIELD_LABELS.
+  • BACKEND routes/crm_contracts.py: preview endpoint gained a 'mapping' Form field (JSON) + auto-applies a
+    saved layout matching meta.signature (bumps use_count/last_used_at) when no explicit mapping sent; when
+    a file has columns but nothing maps yet it returns zero-count summary + meta (so the operator can map)
+    instead of erroring. New org-scoped CRUD keyed by signature: GET/POST/DELETE
+    /crm/v2/blue-light/import/mappings (collection crm2_import_mappings).
+  • FRONTEND pages/CRM/Contracts/BlueLightImportPanel.js: 'Column mapping' section (bl-import-mapping) —
+    per-column native <select> (bl-import-map-<i>) from meta.field_labels + '— Ignore —' (+ a locked
+    '(auto)' option for auto-detected fields not offered, e.g. MOD code, so the control is never
+    value-mismatched); 'Re-check with these columns' (bl-import-remap-btn) re-previews with the edited map;
+    name input (bl-import-layout-name) + 'Save layout' (bl-import-save-layout); auto-applied badge
+    (bl-import-saved-badge) 'Using saved layout: {name}'; missing hint (bl-import-missing). runPreview now
+    accepts an override map and appends it as the 'mapping' form field.
+  • VERIFIED: backend curl (preview no-map → unmapped list; preview+map → full rows; POST save; preview
+    no-map → saved auto-applied, use_count++) + testing_agent frontend 100% (7/7: custom-header CSV mapping,
+    re-check, save+badge, zero-click auto-apply on re-import, standard template still pre-mapped) —
+    iteration_bluelight_import_mapping_memory_frontend_jul2026.json. All QA fixtures/mappings cleaned; demo
+    CTR-BLFRS1 untouched (nothing committed).
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · BLUE LIGHT — ASSET TRANSFER REQUESTS (§37) · testing_agent 100% (8/8) ═══
 When an engineer finds a machine on-site that is actually registered at ANOTHER station on the same
 contract, they request a TRANSFER instead of creating a duplicate. Office approves the move in the

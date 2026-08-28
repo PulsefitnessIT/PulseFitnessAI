@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import axios from 'axios';
 import {
   UploadCloud, Download, AlertTriangle, CheckCircle2, FileSpreadsheet,
-  ClipboardPaste, Loader2, MapPin, Gauge, Copy, XCircle,
+  ClipboardPaste, Loader2, MapPin, Gauge, Copy, XCircle, Save, Wand2, Sparkles,
 } from 'lucide-react';
 import Button from '@/components/shared/Button';
 
@@ -26,6 +26,10 @@ export default function BlueLightImportPanel({ API, headers, contractId, c, onIm
   const [committing, setCommitting] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [columnMap, setColumnMap] = useState({});
+  const [saveName, setSaveName] = useState('');
+  const [savingLayout, setSavingLayout] = useState(false);
+  const [savedName, setSavedName] = useState('');
   const fileRef = useRef(null);
 
   const base = `${API}/crm/v2/contracts/${contractId}/blue-light/import`;
@@ -42,8 +46,8 @@ export default function BlueLightImportPanel({ API, headers, contractId, c, onIm
     } catch { setError('Could not download the template. Please try again.'); }
   };
 
-  const runPreview = async () => {
-    setError(''); setResult(null); setPreview(null);
+  const runPreview = async (overrideMap = null) => {
+    setError(''); setResult(null);
     if (mode === 'upload' && !file) { setError('Choose a CSV or Excel file first.'); return; }
     if (mode === 'paste' && !pasteText.trim()) { setError('Paste some rows first.'); return; }
     setLoading(true);
@@ -52,11 +56,30 @@ export default function BlueLightImportPanel({ API, headers, contractId, c, onIm
       if (mode === 'upload') fd.append('file', file);
       else fd.append('text', pasteText);
       if (defaultStation.trim()) fd.append('default_station', defaultStation.trim());
+      if (overrideMap) fd.append('mapping', JSON.stringify(overrideMap));
       const res = await axios.post(`${base}/preview`, fd, { headers: headers() });
       setPreview(res.data);
+      const cm = {};
+      (res.data.meta?.columns || []).forEach(col => { cm[col.header] = col.field || ''; });
+      setColumnMap(cm);
+      setSavedName(res.data.meta?.saved?.name || '');
+      setSaveName('');
     } catch (e) {
       setError(e?.response?.data?.detail || 'Could not read that spreadsheet. Check the columns and try again.');
     } finally { setLoading(false); }
+  };
+
+  const saveLayout = async () => {
+    if (!saveName.trim() || !preview?.meta?.signature) return;
+    setSavingLayout(true); setError('');
+    try {
+      await axios.post(`${API}/crm/v2/blue-light/import/mappings`,
+        { name: saveName.trim(), signature: preview.meta.signature, columns: columnMap },
+        { headers: headers() });
+      setSavedName(saveName.trim()); setSaveName('');
+    } catch (e) {
+      setError(e?.response?.data?.detail || 'Could not save the layout.');
+    } finally { setSavingLayout(false); }
   };
 
   const runCommit = async () => {
@@ -149,7 +172,7 @@ export default function BlueLightImportPanel({ API, headers, contractId, c, onIm
               style={{ borderColor: c.border, color: c.text, background: 'var(--color-bg)' }} />
           </div>
 
-          <Button onClick={runPreview} disabled={loading} icon={loading ? Loader2 : FileSpreadsheet} data-testid="bl-import-preview-btn">
+          <Button onClick={() => runPreview()} disabled={loading} icon={loading ? Loader2 : FileSpreadsheet} data-testid="bl-import-preview-btn">
             {loading ? 'Reading…' : 'Preview import'}
           </Button>
         </div>
@@ -158,6 +181,66 @@ export default function BlueLightImportPanel({ API, headers, contractId, c, onIm
       {/* Preview / validation summary */}
       {preview && counts && (
         <div className="space-y-3" data-testid="bl-import-preview">
+          {preview.meta?.columns?.length > 0 && (
+            <div className="rounded-lg border p-3 space-y-2" data-testid="bl-import-mapping"
+              style={{ borderColor: c.border, background: 'var(--color-bg)' }}>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color: c.text }}>
+                  <Wand2 size={13} style={{ color: 'var(--color-info-ios)' }} /> Column mapping
+                </div>
+                {(savedName || preview.meta?.saved) && (
+                  <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full" data-testid="bl-import-saved-badge"
+                    style={{ background: 'var(--color-info-ios)22', color: 'var(--color-info-ios)' }}>
+                    <Sparkles size={11} /> Using saved layout: {savedName || preview.meta.saved.name}
+                  </span>
+                )}
+              </div>
+              <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+                {preview.meta.columns.map((col, i) => {
+                  const cur = columnMap[col.header] ?? '';
+                  const labels = preview.meta.field_labels || {};
+                  const autoOnly = cur && !labels[cur];
+                  const AUTO = { mod_code: 'MOD code', quantity: 'Quantity', category: 'Category', console_serial: 'Console serial' };
+                  return (
+                    <div key={col.header} className="flex items-center gap-2 text-[12px] rounded-md border px-2 py-1"
+                      style={{ borderColor: c.border, background: 'var(--color-surface)' }}>
+                      <span className="truncate flex-1 font-mono" title={col.header} style={{ color: c.textMuted }}>{col.header}</span>
+                      <span style={{ color: 'var(--color-text-faint-alt)' }}>→</span>
+                      <select data-testid={`bl-import-map-${i}`} value={cur}
+                        onChange={e => setColumnMap(m => ({ ...m, [col.header]: e.target.value }))}
+                        className="text-[12px] rounded-md border px-1.5 py-1 flex-1 min-w-0"
+                        style={{ borderColor: c.border, color: c.text, background: 'var(--color-bg)' }}>
+                        <option value="">— Ignore —</option>
+                        {autoOnly && <option value={cur}>{(AUTO[cur] || cur)} (auto)</option>}
+                        {Object.entries(labels).map(([f, l]) => (
+                          <option key={f} value={f}>{l}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap pt-1">
+                <Button size="sm" variant="secondary" icon={Wand2} onClick={() => runPreview(columnMap)} disabled={loading} data-testid="bl-import-remap-btn">
+                  Re-check with these columns
+                </Button>
+                <div className="flex items-center gap-1.5">
+                  <input data-testid="bl-import-layout-name" value={saveName} onChange={e => setSaveName(e.target.value)}
+                    placeholder="Name this layout" className="text-[12px] rounded-md border px-2 py-1"
+                    style={{ borderColor: c.border, color: c.text, background: 'var(--color-surface)' }} />
+                  <Button size="sm" variant="ghost" icon={savingLayout ? Loader2 : Save} onClick={saveLayout}
+                    disabled={savingLayout || !saveName.trim()} data-testid="bl-import-save-layout">
+                    Save layout
+                  </Button>
+                </div>
+              </div>
+              {preview.meta?.missing_required?.length > 0 && (
+                <div className="text-[11px]" data-testid="bl-import-missing" style={{ color: 'var(--color-accent-amber)' }}>
+                  Map a column for: {preview.meta.missing_required.map(x => x === 'station_name' ? 'Station / Location' : 'Equipment details').join(', ')}
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex flex-wrap gap-2">
             <Tile label="Stations (new)" value={counts.stations_new} color="var(--color-success-alt-2)" testId="bl-import-count-stations-new" />
             <Tile label="Stations (existing)" value={counts.stations_existing} testId="bl-import-count-stations-existing" />

@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only E2E test of Blue Light Import 'Mapping Memory' on contract CTR-BLFRS1 (CRM owner@isodemo.com, Corporate mode). All 7 requested scenarios PASSED: custom-header CSV preview shows the Column mapping table with correct auto-detection (Gym->Station/Location, Make->Manufacturer, Serial No->Serial number, Kit & Type Ref -> — Ignore —); manual mapping of Kit->Equipment type and Type Ref->Model + 'Re-check with these columns' refreshed the summary (Assets=2, 1 new station 'Strensham', Treadmills 0->1); 'QA Custom Layout' saved and blue badge 'Using saved layout: QA Custom Layout' appeared; after Cancel + panel close/reopen, re-selecting the SAME CSV and clicking Preview with ZERO manual mapping auto-applied the saved layout (badge shown, Kit=Equipment type, Type Ref=Model, no '— Ignore —' left, Assets=2) — verified use_count incremented to 1 in crm2_import_mappings; standard downloadable template file previewed with all business columns pre-mapped, no missing-required hint and (correctly) no saved badge. Commit/Import button was NEVER clicked — no demo data created.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BlueLightImportPanel column mapping", "issue": "Columns auto-detected to fields NOT present in field_labels (mod_code, quantity in the standard template) render as '— Ignore —' because the <select> value has no matching <option> (selectedIndex -1). They ARE still parsed/used by the backend, so the display is misleading and the select is technically value-mismatched (React controlled-value warning risk / blank render in some browsers). Suggest rendering a locked/disabled chip such as 'MOD code (auto — not mappable)'.", "selector": "bl-import-map-6 / bl-import-map-7 (template file)", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Import panel — Column mapping grid", "issues": ["Header label and its dropdown read ambiguously on the wide (1920px) auto-fill grid: the header text of column N sits immediately left of its select but visually hugs the previous column's select (e.g. 'Kit' appears right after the Gym select), making it easy to misread which select belongs to which header. Consider a label-above-select layout or a visible divider/border per cell."]}
+    ]
+  },
+  "test_report_links": ["/tmp/qa_custom_headers.csv", "/tmp/bl_template.csv"],
+  "action_items": [
+    "Optional (LOW): show auto-detected-but-unofferable columns (mod_code, quantity) as a locked 'auto' chip instead of a select stuck on '— Ignore —'.",
+    "Optional (design): improve header↔dropdown pairing clarity in the mapping grid at wide viewports.",
+    "Cleanup: saved layout 'QA Custom Layout' (id e707db86-85e8-4753-8b57-1234960fc8b9, sig gym|kit|make|serialno|typeref) remains in org iso-demo-org as expected."
+  ],
+  "critical_code_review_comments": [
+    "BlueLightImportPanel: select value can be a field not in preview.meta.field_labels (mod_code/quantity) — add an option for the current value (disabled) so the control is never value-mismatched.",
+    "Note: on the custom CSV the Assets tile was already 2 BEFORE mapping (both rows have station + serial), so the mapping's real effect is field enrichment (equipment_type/model) and treadmill detection 0->1 — the request's expectation of '2 only after mapping' is not how validity is computed; not a defect."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only request)", "frontend": "100% (7/7 scenarios)"},
+  "seed_data_creation": "None committed. Created only /tmp CSV fixtures and one org-scoped saved layout 'QA Custom Layout'.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "CRM owner@isodemo.com / IsoDemo123! at /login?next=/crm",
+  "context_for_next_testing_agent": "Flow: /login?next=/crm -> crm-mode-business -> crm-nav-contracts -> click text 'CTR-BLFRS1' -> click text 'Blue Light' (exact) -> bl-import-toggle -> set_input_files on bl-import-file -> bl-import-preview-btn. Mapping selects are native <select> (use select_option label=...). The file input is unmounted while a preview is displayed — click bl-import-cancel (or the toggle twice) before re-selecting a file. Saved layouts live in mongo collection crm2_import_mappings keyed by header signature + organization_id.",
+  "rca_of_the_issue": "No functional failures found. The only anomaly (mod_code/quantity showing '— Ignore —') stems from FIELD_LABELS in backend/utils/blue_light_import.py deliberately excluding mod_code/quantity while parse_import still auto-maps them, so the frontend select has no matching option for the returned field value."
+}

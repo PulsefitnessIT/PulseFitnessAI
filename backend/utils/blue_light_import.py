@@ -71,6 +71,52 @@ def _map_columns(columns):
     return mapping
 
 
+# Fields offered in the manual column-mapping dropdown (UI order). MOD code is
+# intentionally excluded — not needed for Blue Light services — but still parsed
+# automatically if a column matches its aliases.
+FIELD_LABELS = {
+    "station_name": "Station / Location",
+    "sub_location": "Sub-location",
+    "equipment_type": "Equipment type",
+    "manufacturer": "Manufacturer",
+    "model": "Model",
+    "serial_number": "Serial number",
+    "asset_number": "Asset number",
+    "warranty_end": "Warranty expiry",
+    "asset_name": "Name",
+    "notes": "Notes",
+}
+
+
+def _auto_field(header) -> str:
+    """Best auto-detected field for a single header, or '' if none."""
+    ck = canon(header)
+    if not ck:
+        return ""
+    for field, aliases in HEADER_ALIASES.items():
+        if ck in aliases:
+            return field
+    return ""
+
+
+def signature(headers) -> str:
+    """Stable fingerprint of a spreadsheet layout (sorted, canonicalised headers)."""
+    return "|".join(sorted({canon(h) for h in headers if canon(h)}))
+
+
+def _all_headers(frames):
+    seen, s = [], set()
+    for df in frames.values():
+        if df is None or df.empty:
+            continue
+        for c in df.columns:
+            key = str(c)
+            if canon(key) and key not in s:
+                s.add(key)
+                seen.append(key)
+    return seen
+
+
 def _clean(v) -> str:
     if v is None:
         return ""
@@ -152,43 +198,74 @@ def _row_to_norm(rec: dict, sheet: str, row_no: int, default_station: str) -> di
     }
 
 
-def parse_import(content=None, filename=None, text=None, default_station=""):
+def parse_import(content=None, filename=None, text=None, default_station="", column_map=None):
     """
     Parse a spreadsheet/CSV/paste into normalised rows.
 
-    Returns (rows, meta). `rows` is a list of normalised dicts. `meta` carries
-    the detected sheet names and whether any recognised columns were found.
-    Rows that are completely blank are dropped.
+    `column_map` (optional) maps ORIGINAL header text -> canonical field (or "" /
+    "ignore" to skip a column). It overrides auto-detection, letting the operator
+    map unusual layouts. Returns (rows, meta). `meta` describes the detected
+    columns + effective mapping so the UI can render a mapping table and remember
+    it for next time.
     """
+    column_map = column_map or {}
     frames = _frames(content=content, filename=filename, text=text)
-    rows = []
-    sheets = []
-    recognised = False
+    all_headers = _all_headers(frames)
+    sheets_named = any(str(s).strip() for s in frames.keys())
+
+    # Effective field per header: manual override wins, else auto-detect.
+    def _eff_field(header):
+        if header in column_map:
+            f = column_map[header]
+            return "" if f in ("ignore", None) else f
+        return _auto_field(header)
+
+    effective = {h: _eff_field(h) for h in all_headers}
+
+    rows, recognised = [], False
     for sheet_name, df in frames.items():
         if df is None or df.empty:
             continue
-        sheets.append(str(sheet_name))
-        colmap = _map_columns(df.columns)
+        colmap = {c: effective.get(str(c), "") for c in df.columns
+                  if effective.get(str(c), "") in HEADER_ALIASES}
         if colmap:
             recognised = True
-        # Build records keyed by canonical field
         renamed = df.rename(columns=colmap)
         for idx, r in renamed.iterrows():
             rec = {}
             for field in HEADER_ALIASES:
                 if field in renamed.columns:
                     val = r[field]
-                    # duplicate column labels yield a Series — take the first
                     if isinstance(val, pd.Series):
                         val = next((x for x in val.tolist() if _clean(x)), "")
                     rec[field] = val
             norm = _row_to_norm(rec, str(sheet_name), int(idx) + 2, default_station)
-            # drop fully blank rows
             if not any([norm["station_name"], norm["equipment_type"], norm["manufacturer"],
                         norm["model"], norm["serial_number"], norm["asset_number"]]):
                 continue
             rows.append(norm)
-    return rows, {"sheets": sheets, "recognised_columns": recognised}
+
+    columns = [{"header": h, "field": effective.get(h, ""), "auto": _auto_field(h)}
+               for h in all_headers]
+    mapped_fields = {f for f in effective.values() if f}
+    unmapped = [h for h in all_headers if not effective.get(h)]
+    missing_required = []
+    if "station_name" not in mapped_fields and not default_station and not sheets_named:
+        missing_required.append("station_name")
+    if not (mapped_fields & {"equipment_type", "manufacturer", "model", "serial_number", "asset_name"}):
+        missing_required.append("equipment")
+
+    meta = {
+        "sheets": [str(s) for s in frames.keys()],
+        "recognised_columns": recognised,
+        "columns": columns,
+        "mapping": {h: f for h, f in effective.items() if f},
+        "signature": signature(all_headers),
+        "field_labels": FIELD_LABELS,
+        "unmapped": unmapped,
+        "missing_required": missing_required,
+    }
+    return rows, meta
 
 
 def template_csv() -> str:

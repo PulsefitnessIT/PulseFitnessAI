@@ -2821,27 +2821,104 @@ async def blue_light_import_preview(
     file: UploadFile = File(None),
     text: str = Form(None),
     default_station: str = Form(""),
+    mapping: str = Form(None),
     user=Depends(get_crm_user),
 ):
     """Parse a spreadsheet/CSV/paste and return a validation summary WITHOUT
-    creating anything. Returns per-row flags so the operator can review dupes."""
+    creating anything. Returns per-row flags + the detected column mapping so the
+    operator can review dupes and adjust/remember the layout."""
+    import json as _json
     from utils.blue_light_import import parse_import
     await _get_bl_contract(contract_id, user)
     if not file and not text:
         raise HTTPException(400, "Provide a file upload or pasted text")
+    column_map = None
+    if mapping:
+        try:
+            column_map = _json.loads(mapping)
+        except ValueError:
+            raise HTTPException(400, "Invalid column mapping")
+    content = await file.read() if file else None
+    fname = file.filename if file else None
+
+    def _parse(cmap):
+        return parse_import(content=content, filename=fname, text=text,
+                            default_station=default_station or "", column_map=cmap)
     try:
-        if file:
-            content = await file.read()
-            rows, meta = parse_import(content=content, filename=file.filename,
-                                      default_station=default_station or "")
-        else:
-            rows, meta = parse_import(text=text, default_station=default_station or "")
+        rows, meta = _parse(column_map)
+        saved = None
+        if not column_map:  # auto-apply a remembered layout for this header set
+            doc = await db.crm2_import_mappings.find_one(
+                {"organization_id": user.get("organization_id"), "signature": meta["signature"]},
+                {"_id": 0})
+            if doc:
+                rows, meta = _parse(doc.get("columns") or {})
+                saved = {"id": doc["id"], "name": doc["name"]}
+                await db.crm2_import_mappings.update_one(
+                    {"id": doc["id"]},
+                    {"$set": {"last_used_at": _now()}, "$inc": {"use_count": 1}})
+        meta["saved"] = saved
+    except HTTPException:
+        raise
     except Exception as e:  # noqa: BLE001 — surface parse errors to the operator
         raise HTTPException(400, f"Could not read the spreadsheet: {e}")
+
     if not rows:
+        # Columns were found but nothing mapped yet — let the operator map them.
+        if meta.get("columns"):
+            empty = {"counts": {"rows_total": 0, "assets_valid": 0, "assets_duplicate": 0,
+                                "assets_blank_serial": 0, "treadmills": 0, "stations_total": 0,
+                                "stations_new": 0, "stations_existing": 0},
+                     "stations": [], "warnings": [], "errors": []}
+            return {**empty, "rows": [], "meta": meta}
         raise HTTPException(400, "No data rows found in the file")
     summary = await _bl_import_validate(contract_id, rows)
     return {**summary, "rows": rows, "meta": meta}
+
+
+@router.get("/blue-light/import/mappings")
+async def blue_light_import_mappings_list(user=Depends(get_crm_user)):
+    """Saved column layouts for this organisation (shared across the team)."""
+    docs = await db.crm2_import_mappings.find(
+        {"organization_id": user.get("organization_id")},
+        {"_id": 0}).sort("last_used_at", -1).to_list(200)
+    return {"mappings": docs}
+
+
+@router.post("/blue-light/import/mappings")
+async def blue_light_import_mappings_save(data: dict, user=Depends(get_crm_user)):
+    """Create/update a remembered layout, keyed by the header signature."""
+    name = (data.get("name") or "").strip()
+    sig = (data.get("signature") or "").strip()
+    columns = data.get("columns") or {}
+    if not name:
+        raise HTTPException(400, "Give the layout a name")
+    if not sig:
+        raise HTTPException(400, "Missing layout signature")
+    org, now = user.get("organization_id"), _now()
+    existing = await db.crm2_import_mappings.find_one(
+        {"organization_id": org, "signature": sig}, {"_id": 0, "id": 1, "use_count": 1})
+    doc = {
+        "id": existing["id"] if existing else _id(),
+        "organization_id": org, "name": name, "signature": sig,
+        "columns": columns, "updated_at": now,
+        "created_at": now if not existing else None,
+        "last_used_at": now, "use_count": (existing or {}).get("use_count", 0),
+    }
+    doc = {k: v for k, v in doc.items() if v is not None}
+    await db.crm2_import_mappings.update_one(
+        {"id": doc["id"]}, {"$set": doc}, upsert=True)
+    return {"success": True, "id": doc["id"], "name": name}
+
+
+@router.delete("/blue-light/import/mappings/{mapping_id}")
+async def blue_light_import_mappings_delete(mapping_id: str, user=Depends(get_crm_user)):
+    r = await db.crm2_import_mappings.delete_one(
+        {"id": mapping_id, "organization_id": user.get("organization_id")})
+    if not r.deleted_count:
+        raise HTTPException(404, "Saved layout not found")
+    return {"success": True}
+
 
 
 @router.post("/contracts/{contract_id}/blue-light/import/commit")
