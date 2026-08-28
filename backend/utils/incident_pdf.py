@@ -171,7 +171,7 @@ def _pill(label: str, color, st) -> Table:
 def _signature_block(sig: dict, st) -> list:
     """Embed a captured signature (data URL or raw PNG bytes) plus the
     typed name / role / timestamp legal-line."""
-    flow: list = list(_intro)
+    flow: list = []
     flow.append(Paragraph(_esc(f"{sig.get('role','').title() or 'Signed by'}: {sig.get('name','')}"),
                           st["value"]))
     img = sig.get("image_data_url") or sig.get("image_b64")

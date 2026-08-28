@@ -1,3 +1,47 @@
+# ═══ 2026-08-28 · BLUE LIGHT / MULTI-SITE PTE SERVICE — PHASE 1 (foundation & visibility) · testing_agent 100% ═══
+New 71-section epic: end-to-end multi-site Fire & Rescue / Police / Ambulance PTE service + treadmill
+calibration + auto-certificate workflow, built ON TOP of existing modules (NO duplicates). Delivered in
+tested phases. User choices: start Phase 1; calibration FAILURE = variance outside 5% of target (admin-
+configurable); certificate approval default = OFFICE REVIEW; seed an 82-station Example Fire & Rescue demo.
+PHASE PLAN: 1 Contract foundation+visibility (DONE) · 2 Bulk planning→engineer job packs · 3 Engineer guided
+wizard (asset audit→service→treadmill calibration→faults→sign) · 4 Certificate gen+distribution+portal ·
+5 Reporting/asset reconciliation/onboarding import/calibration trends/CAPEX.
+
+PHASE 1 SHIPPED (reuses crm2_contracts / crm2_contract_sites / crm2_contract_assets — no new collections):
+  • BACKEND routes/crm_contracts.py (appended ~L1303+): GET /crm/v2/blue-light/customer-types (types+approval
+    modes+DEFAULT_BLUE_LIGHT_CONFIG); PUT /crm/v2/contracts/{id}/blue-light-config (marks contract_type=
+    blue_light_multisite + is_blue_light + customer_type, merges configurable service/calibration/cert profile:
+    service_frequency_months, speed_points_mph[3,6,9,12], incline_points_pct[0,5,10,15], tolerance_pct(5),
+    incline_zero_abs_tolerance, certificate_approval_mode(office_review default), certificate_recipients,
+    calibration_required, customer_logo_url, certificate_template_id); GET /contracts/{id}/overview (stats:
+    stations/assets/treadmills/visits completed·scheduled·awaiting·overdue·outstanding/certs/faults/follow-ups/
+    next planned date/completion%); GET /contracts/{id}/stations (station matrix; query search,status,engineer_id,
+    sort,direction); PUT /contracts/{id}/stations/{site_id} (edit station ops fields); GET /contracts/{id}/stations.csv.
+    Treadmill detection via _is_treadmill(). Reads future crm2_station_visits / crm2_certificates safe-empty.
+  • FRONTEND pages/CRM/Contracts/BlueLightTab.js (new) wired into CRMContracts.js as a 'Blue Light' tab. Shows an
+    Enable panel (config form) when not yet BL, else Overview stat tiles + Station Service Matrix (search[300ms
+    debounce]/status filter/sortable headers/CSV export) + Configure panel. data-testids: bl-tab, bl-enable-panel/
+    -btn, bl-config-toggle/-panel/-save, bl-stat-*, bl-station-search/-status-filter/-export/-empty, bl-sort-<col>,
+    bl-station-row-<id>, bl-cfg-*. Humanised calibration/certificate cells (CellPill). Export uses auth blob (no
+    token-in-URL).
+  • SEED backend/scripts/seed_blue_light_demo.py (RAN): company 'Example Fire & Rescue Service' + contract
+    CTR-BLFRS1 (id b113a3cd-9998-434b-8bc4-a02e417eef91) under organization_id iso-demo-org · 82 stations ·
+    468 assets · 152 treadmills · realistic overdue/scheduled/awaiting spread + some zero-treadmill stations.
+    Idempotent (seed_tag blue_light_demo_v1). Re-run: cd /app/backend && python -m scripts.seed_blue_light_demo
+  • CONFIG CHANGE (preview): enabled organizations.features.crm_documents=true for iso-demo-org so the Contracts
+    tab (hence Blue Light) is visible for owner@isodemo.com. NOTE: Contracts tab is hidden in CRM 'leisure' mode
+    (MEMBERS_HIDDEN_TABS) — business mode required.
+  • ALSO FIXED (pre-existing lint gate, 94 blockers, unrelated to feature): star-import→explicit in
+    routes/svc/ai_scheduling/{planner,engineer_views}.py; duplicate logger in comms_intel.py; missing `mm` import
+    in svc/service_report.py; `_intro`→[] in utils/incident_pdf.py; 3 route-shadowing reorders (crm_v2 figures,
+    partners me/reviews, staff_onboarding cases/upload).
+  • VERIFIED: backend curl (overview 82/468/152; search Exeter=2; status overdue=17; CSV; config PUT persists) +
+    testing_agent frontend 100% (8/8) — /app/test_reports/iteration_bluelight_phase1_fe_jul2026.json.
+  ⚠️ PREVIEW ONLY — user is on PRODUCTION (fitness-ai-migrate.emergent.host); REDEPLOY to push live. Certificate
+    template (Devon & Somerset FRS artwork, per-contract logo) to be pinned/analysed in Phase 4.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-12 · MOD LOGIN · Password show/hide toggle on the MOD Service sign-in (verified) ═══
 Added a password-preview (eye) toggle to pages/MODPortal/MODServiceLogin.js so PTIs on a phone can check what they typed.
   • New showPassword state; input type flips password↔text; Eye/EyeOff button (lucide) positioned right-inset (pr-10). Verified live at 390px: toggling flips the field type and reveals/hides the value. data-testid: mod-login-password-toggle (accessible aria-label/aria-pressed/title).

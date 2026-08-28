@@ -16,7 +16,10 @@ from utils.svc_state import (
 from routes.svc.scheduler import _score_engineers_for_case, _drive_minutes_estimate
 from routes.svc.diary import admin_assign_case, AssignIn, _require_dispatcher
 from routes.partners import require_engineer_app_access
-from ._shared import *  # noqa: F401,F403
+from ._shared import (
+    _SETTINGS_DEFAULTS, _audit, _get_settings, _now, _now_dt, _of,
+    engineer_router, router,
+)
 
 
 @engineer_router.get("")

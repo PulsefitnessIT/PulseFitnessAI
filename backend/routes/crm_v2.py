@@ -3583,24 +3583,6 @@ async def get_question_figure_data(tender_id: str, q_id: str, fig_id: str, user=
     raise HTTPException(404, "Figure not found")
 
 
-@router.put("/tenders/{tender_id}/questions/{q_id}/figures/{fig_id}")
-async def update_question_figure(tender_id: str, q_id: str, fig_id: str, data: dict, user=Depends(get_crm_user)):
-    q = await db.crm2_tender_questions.find_one({"id": q_id, "tender_id": tender_id, **_of(user)})
-    if not q:
-        raise HTTPException(404, "Question not found")
-    figs = q.get("figures") or []
-    found = False
-    for f in figs:
-        if f.get("id") == fig_id:
-            f["caption"] = (data.get("caption") or "").strip()[:300]
-            found = True
-    if not found:
-        raise HTTPException(404, "Figure not found")
-    await db.crm2_tender_questions.update_one(
-        {"id": q_id, "tender_id": tender_id}, {"$set": {"figures": figs, "updated_at": _now()}})
-    return {"success": True}
-
-
 @router.put("/tenders/{tender_id}/questions/{q_id}/figures/reorder")
 async def reorder_question_figures(tender_id: str, q_id: str, data: dict, user=Depends(get_crm_user)):
     q = await db.crm2_tender_questions.find_one({"id": q_id, "tender_id": tender_id, **_of(user)})
@@ -3618,6 +3600,24 @@ async def reorder_question_figures(tender_id: str, q_id: str, data: dict, user=D
         f["order"] = i
     await db.crm2_tender_questions.update_one(
         {"id": q_id, "tender_id": tender_id}, {"$set": {"figures": reordered, "updated_at": _now()}})
+    return {"success": True}
+
+
+@router.put("/tenders/{tender_id}/questions/{q_id}/figures/{fig_id}")
+async def update_question_figure(tender_id: str, q_id: str, fig_id: str, data: dict, user=Depends(get_crm_user)):
+    q = await db.crm2_tender_questions.find_one({"id": q_id, "tender_id": tender_id, **_of(user)})
+    if not q:
+        raise HTTPException(404, "Question not found")
+    figs = q.get("figures") or []
+    found = False
+    for f in figs:
+        if f.get("id") == fig_id:
+            f["caption"] = (data.get("caption") or "").strip()[:300]
+            found = True
+    if not found:
+        raise HTTPException(404, "Figure not found")
+    await db.crm2_tender_questions.update_one(
+        {"id": q_id, "tender_id": tender_id}, {"$set": {"figures": figs, "updated_at": _now()}})
     return {"success": True}
 
 

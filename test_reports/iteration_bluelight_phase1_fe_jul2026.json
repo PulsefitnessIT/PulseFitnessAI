@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend-only E2E test of the Blue Light / Multi-Site PTE Phase 1 tab on the seeded contract CTR-BLFRS1 ('2026 Annual Service Programme — Example Fire & Rescue'). Logged in via POST /api/crm/auth/login (owner@isodemo.com), set localStorage crm_token, loaded /crm?tab=contracts, opened the contract and exercised the Blue Light tab. All 8 requested behaviours PASS: tab present ('Blue Light'), bl-tab renders (no enable panel), all 8 stat tiles render (Stations 82 / 468 assets / 152 treadmills, Completed 0 (0%), Scheduled 17 (48 awaiting booking), Overdue 17 (next 2026-09-12), Certificates 0/82, Open Faults 0, Follow-ups 8, Service Every 6 mo), 82 station rows with all 13 columns, search 'Exeter' -> 2 rows (server call with search=Exeter observed), status filter 'Overdue' -> 17 rows, both reset to 82 on clear, column-header sort toggles (asc Appledore -> desc Yeovil, direction=desc request observed), Configure panel opens, tolerance 5 -> 4.5 + approval office_review -> manager_approval saved via PUT /crm/v2/contracts/{id}/blue-light-config (200), panel closed and re-opening showed persisted 4.5 / manager_approval (values then reverted to 5 / office_review, PUT 200), Export triggered a real CSV download (stations-b113a3cd.csv). No JS runtime errors from BlueLightTab.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/crm/v2/contracts/workspace", "issue": "Returns 404 twice on every Contracts tab load (called by ContractReviewQueue.js:200). Pre-existing / unrelated to Blue Light, but pollutes console with errors — endpoint appears to be missing or is being swallowed by the /contracts/{contract_id} route."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BlueLightTab station matrix", "issue": "Calibration and Certificate cells render raw backend enum values ('pending', 'outstanding') instead of humanised labels/pills like the Visit column does — inconsistent with the rest of the row.", "selector": "[data-testid^='bl-station-row-'] td:nth-child(11), td:nth-child(13)", "priority": "LOW"},
+      {"component": "CRM tab bar gating", "issue": "The Contracts pill (and therefore the Blue Light tab) is hidden whenever the CRM mode is 'leisure' (the default from getStoredCrmMode()); /crm?tab=contracts also silently falls back to Dashboard because 'contracts' is in MEMBERS_HIDDEN_TABS. Testing required localStorage crm_active_mode='business'. Real users must first flip the mode switcher — worth confirming this is intended for Blue Light customers.", "selector": "[data-testid='crm-mode-switcher']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Blue Light tab", "issues": ["82 rows render unpaginated in one table (long scroll); acceptable for Phase 1 but consider virtualisation/pagination as station counts grow.", "Station matrix requires horizontal scrolling at 1920px — the Calibration/Faults/Certificate columns are off-screen by default; consider condensing Address/Tel or sticky first column.", "An outer-app 'Your session has expired' toast plus the cookie banner overlay the bottom of the matrix (known/ignorable per dev note, but it does obscure the last rows)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional polish: humanise Calibration/Certificate status values in the station matrix (map to labelled pills).",
+    "Confirm whether Blue Light contracts should be reachable in 'leisure' CRM mode; currently the Contracts tab is hidden by default mode and ?tab=contracts deep-links silently redirect to Dashboard.",
+    "Fix/remove the GET /crm/v2/contracts/workspace 404 (ContractReviewQueue) — console noise on every Contracts load."
+  ],
+  "critical_code_review_comments": [
+    "BlueLightTab.exportCsv fallback opens `${url}?t=${token}` in a new tab — the CSV endpoint authenticates via Authorization header, so that fallback would leak the bearer token in the URL and still fail. Remove the fallback or add a signed-download param server-side.",
+    "loadStations fires a server request on every keystroke of bl-station-search (no debounce) — add a 300ms debounce to reduce load on an 82+ row contract.",
+    "ConfigForm speed/incline/recipients inputs are uncontrolled (defaultValue + onBlur); if a save happens while focus is still in one of them the newest text is not committed. Consider controlled values or commit onChange."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only request)", "frontend": "100% (8/8 requested behaviours pass)"},
+  "seed_data_creation": "None created. Existing seed (blue_light_demo_v1) left intact. Blue-light config was temporarily changed (tolerance 4.5 / manager_approval) and reverted to 5 / office_review. localStorage crm_active_mode set to 'business' in the test browser only (no server-side config changed).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "CRM: owner@isodemo.com / IsoDemo123! via POST /api/crm/auth/login; token stored in localStorage 'crm_token'.",
+  "context_for_next_testing_agent": "To reach the Blue Light tab: (1) fetch-login to /api/crm/auth/login, (2) localStorage.setItem('crm_token', token) AND localStorage.setItem('crm_active_mode','business') — without the business mode the Contracts tab is hidden (MEMBERS_HIDDEN_TABS) and ?tab=contracts falls back to Dashboard, (3) goto /crm?tab=contracts on a fresh load, (4) click [data-testid='contract-row-b113a3cd-9998-434b-8bc4-a02e417eef91'], (5) click [data-testid='tab-bluelight']. Note the first fetch-login can throw 'Failed to fetch' if executed before page load completes — wait for load state and retry.",
+  "rca_of_the_issue": "Earlier harness failures were caused by the CRM mode preference defaulting to 'leisure', which removes 'contracts' from the visible nav and triggers the leisure-mode redirect to Dashboard, so ?tab=contracts appeared to be ignored. Setting crm_active_mode='business' resolved it."
+}

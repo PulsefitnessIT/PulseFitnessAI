@@ -22,7 +22,7 @@ from utils import comms_ai
 from utils import email_ingest
 
 logger = logging.getLogger("comms_intel")
-from routes.marketing.helpers import _org_id, _now_iso, logger
+from routes.marketing.helpers import _org_id, _now_iso
 from routes.comms import _ANY_COMMS_MODULE, _get_owned, render_blocks_to_html
 
 router = APIRouter(prefix="/comms")

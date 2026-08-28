@@ -3060,6 +3060,32 @@ async def submit_review(
     }
 
 
+@router.get("/partners/me/reviews")
+async def list_my_reviews(user: dict = Depends(get_current_user)):
+    """Engineer's own view — includes pending + rejected so they can
+    see incoming reviews before moderation. Excludes the
+    reviewer email + IP hash."""
+    partner = await _get_partner_by_user(user["id"])
+    if not partner:
+        raise HTTPException(404, "Not a partner — apply first.")
+    rows = await db.partner_reviews.find(
+        {"partner_id": partner["id"]},
+        {"_id": 0, "ip_hash": 0, "reviewer_email": 0},
+    ).sort("created_at", -1).limit(500).to_list(length=500)
+    approved = [r for r in rows if r.get("status") == "approved"]
+    avg = round(sum(r.get("rating") or 0 for r in approved) / len(approved), 2) if approved else None
+    return {
+        "reviews": rows,
+        "summary": {
+            "total": len(rows),
+            "approved": len(approved),
+            "pending": len([r for r in rows if r.get("status") == "pending"]),
+            "rejected": len([r for r in rows if r.get("status") == "rejected"]),
+            "average": avg,
+        },
+    }
+
+
 @router.get("/partners/{partner_id}/reviews")
 async def list_partner_reviews(partner_id: str, limit: int = 50):
     """Public endpoint — returns approved reviews + summary stats so
@@ -3091,32 +3117,6 @@ async def list_partner_reviews(partner_id: str, limit: int = 50):
         },
         "summary": {"average": average, "count": len(rows)},
         "reviews": [_public_review(r) for r in rows],
-    }
-
-
-@router.get("/partners/me/reviews")
-async def list_my_reviews(user: dict = Depends(get_current_user)):
-    """Engineer's own view — includes pending + rejected so they can
-    see incoming reviews before moderation. Excludes the
-    reviewer email + IP hash."""
-    partner = await _get_partner_by_user(user["id"])
-    if not partner:
-        raise HTTPException(404, "Not a partner — apply first.")
-    rows = await db.partner_reviews.find(
-        {"partner_id": partner["id"]},
-        {"_id": 0, "ip_hash": 0, "reviewer_email": 0},
-    ).sort("created_at", -1).limit(500).to_list(length=500)
-    approved = [r for r in rows if r.get("status") == "approved"]
-    avg = round(sum(r.get("rating") or 0 for r in approved) / len(approved), 2) if approved else None
-    return {
-        "reviews": rows,
-        "summary": {
-            "total": len(rows),
-            "approved": len(approved),
-            "pending": len([r for r in rows if r.get("status") == "pending"]),
-            "rejected": len([r for r in rows if r.get("status") == "rejected"]),
-            "average": avg,
-        },
     }
 
 

@@ -1299,3 +1299,298 @@ async def attach_equipment_to_contract(company_id: str, data: dict,
     await db.crm2_contract_assets.insert_one(asset)
     asset.pop("_id", None)
     return {"success": True, "contract_id": contract_id, "asset": asset}
+
+
+
+# ════════════════════════════════════════════════════════════════════
+# BLUE LIGHT / MULTI-SITE PTE SERVICE  (Phase 1 — foundation & visibility)
+# ════════════════════════════════════════════════════════════════════
+
+BLUE_LIGHT_CUSTOMER_TYPES = [
+    {"id": "fire_rescue", "name": "Fire & Rescue Service"},
+    {"id": "police", "name": "Police"},
+    {"id": "ambulance", "name": "Ambulance Service"},
+    {"id": "combined_emergency", "name": "Combined Emergency Services"},
+    {"id": "public_sector", "name": "Other public-sector multi-site organisation"},
+]
+
+# Default calibration + service profile for a Blue Light contract. Every value
+# is overridable per contract by an authorised admin (§53). Speed/incline points
+# match the approved Pulse Fire & Rescue certificate. Failure = variance strictly
+# outside the tolerance band (default 5% of target).
+DEFAULT_BLUE_LIGHT_CONFIG = {
+    "customer_type": "fire_rescue",
+    "service_frequency_months": 6,
+    "calibration_required": True,
+    "speed_points_mph": [3, 6, 9, 12],
+    "incline_points_pct": [0, 5, 10, 15],
+    "tolerance_pct": 5.0,               # speed + non-zero incline: |measured-target|/target*100
+    "incline_zero_abs_tolerance": 0.5,  # absolute tolerance when target incline is 0%
+    "review_pct": None,                 # optional amber band (< tolerance_pct); null = no amber
+    "asset_audit_required": True,
+    "certificate_approval_mode": "office_review",  # auto_send | office_review | manager_approval
+    "certificate_template_id": None,
+    "customer_logo_url": None,
+    "certificate_recipients": [],        # contract-level recipient emails
+    "mandatory_check_sheets": [],
+    "engineer_skills_required": [],
+}
+
+CERT_APPROVAL_MODES = ["auto_send", "office_review", "manager_approval"]
+
+_TREADMILL_HINTS = ("treadmill", "run ", "runner", "tread ")
+
+
+def _is_treadmill(asset: dict) -> bool:
+    blob = " ".join(str(asset.get(k, "")) for k in
+                     ("asset_name", "model_code", "equipment_type", "type", "category")).lower()
+    return any(h in blob for h in _TREADMILL_HINTS)
+
+
+def _today_str() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+async def _get_bl_contract(contract_id: str, user: dict) -> dict:
+    c = await db.crm2_contracts.find_one({"id": contract_id, **_of(user)}, {"_id": 0})
+    if not c:
+        raise HTTPException(404, "Contract not found")
+    return c
+
+
+@router.get("/blue-light/customer-types")
+async def blue_light_customer_types(user=Depends(get_crm_user)):
+    return {"customer_types": BLUE_LIGHT_CUSTOMER_TYPES,
+            "approval_modes": CERT_APPROVAL_MODES,
+            "defaults": DEFAULT_BLUE_LIGHT_CONFIG}
+
+
+@router.put("/contracts/{contract_id}/blue-light-config")
+async def set_blue_light_config(contract_id: str, data: dict, user=Depends(get_crm_user)):
+    """Mark a contract as a Blue Light / Multi-Site PTE Service contract and
+    save its configurable service + calibration + certificate profile (§1, §53).
+    Non-destructive: merges over the existing config so partial updates work."""
+    existing = await _get_bl_contract(contract_id, user)
+    cfg = {**DEFAULT_BLUE_LIGHT_CONFIG, **(existing.get("blue_light") or {})}
+    incoming = data.get("blue_light") if isinstance(data.get("blue_light"), dict) else data
+    for k, v in (incoming or {}).items():
+        if k in DEFAULT_BLUE_LIGHT_CONFIG:
+            cfg[k] = v
+    # Validation / coercion
+    if cfg.get("certificate_approval_mode") not in CERT_APPROVAL_MODES:
+        cfg["certificate_approval_mode"] = "office_review"
+    valid_ct = {t["id"] for t in BLUE_LIGHT_CUSTOMER_TYPES}
+    if cfg.get("customer_type") not in valid_ct:
+        cfg["customer_type"] = "fire_rescue"
+    try:
+        cfg["tolerance_pct"] = float(cfg.get("tolerance_pct") or 5.0)
+        cfg["service_frequency_months"] = int(cfg.get("service_frequency_months") or 6)
+        cfg["speed_points_mph"] = [float(x) for x in (cfg.get("speed_points_mph") or [])]
+        cfg["incline_points_pct"] = [float(x) for x in (cfg.get("incline_points_pct") or [])]
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Invalid numeric value in calibration config")
+    updates = {
+        "contract_type": "blue_light_multisite",
+        "is_blue_light": True,
+        "customer_type": cfg.get("customer_type"),
+        "blue_light": cfg,
+        "updated_at": _now(),
+    }
+    await db.crm2_contracts.update_one({"id": contract_id, **_of(user)}, {"$set": updates})
+    await record_audit(entity_type="contract", entity_id=contract_id,
+                       action="blue_light_config", user=user, after=updates)
+    return {"success": True, "blue_light": cfg, "contract_type": "blue_light_multisite"}
+
+
+async def _station_rows(contract_id: str, user: dict):
+    """Build the per-station matrix: joins contract_sites → contract_assets and
+    any recorded station visits / certificates (future collections; safe-empty)."""
+    sites = await db.crm2_contract_sites.find(
+        {"contract_id": contract_id}, {"_id": 0}).to_list(2000)
+    assets = await db.crm2_contract_assets.find(
+        {"contract_id": contract_id}, {"_id": 0}).to_list(20000)
+    # index assets by site
+    by_site: dict[str, list] = {}
+    for a in assets:
+        by_site.setdefault(a.get("site_id") or "", []).append(a)
+    # future: recorded visits + certificates (empty until Phase 3/4)
+    visits = {}
+    try:
+        async for v in db.crm2_station_visits.find({"contract_id": contract_id}, {"_id": 0}):
+            visits[v.get("site_id")] = v
+    except Exception:
+        pass
+    certs = {}
+    try:
+        async for cert in db.crm2_certificates.find({"contract_id": contract_id}, {"_id": 0}):
+            certs.setdefault(cert.get("site_id"), cert)
+    except Exception:
+        pass
+    today = _today_str()
+    rows = []
+    for s in sites:
+        sid = s.get("id")
+        sassets = by_site.get(sid, [])
+        treadmills = [a for a in sassets if _is_treadmill(a)]
+        visit = visits.get(sid) or {}
+        cert = certs.get(sid) or {}
+        next_due = s.get("next_service_due") or ""
+        scheduled = s.get("scheduled_date") or visit.get("scheduled_date") or ""
+        vstatus = (visit.get("status") or s.get("visit_status") or "").strip()
+        if not vstatus:
+            if scheduled:
+                vstatus = "scheduled"
+            elif next_due and next_due < today:
+                vstatus = "overdue"
+            else:
+                vstatus = "not_planned"
+        rows.append({
+            "site_id": sid,
+            "station_name": s.get("site_name", ""),
+            "address": ", ".join([x for x in [s.get("address"), s.get("city"), s.get("postcode")] if x]),
+            "postcode": s.get("postcode", ""),
+            "contact_name": s.get("contact_name", ""),
+            "telephone": s.get("telephone", s.get("phone", "")),
+            "email": s.get("email", ""),
+            "asset_count": len(sassets),
+            "treadmill_count": len(treadmills),
+            "last_service": s.get("last_service", visit.get("completed_at", "")),
+            "next_service_due": next_due,
+            "scheduled_date": scheduled,
+            "assigned_engineer_id": s.get("assigned_engineer_id", visit.get("assigned_engineer_id", "")),
+            "assigned_engineer_name": s.get("assigned_engineer_name", visit.get("assigned_engineer_name", "")),
+            "visit_status": vstatus,
+            "asset_audit_status": visit.get("asset_audit_status", "pending" if sassets else "n/a"),
+            "calibration_status": visit.get("calibration_status",
+                                            ("pending" if treadmills else "n/a")),
+            "faults_raised": int(visit.get("faults_raised", 0) or 0),
+            "certificate_status": cert.get("status", "outstanding"),
+            "certificate_sent_date": cert.get("sent_at", ""),
+            "follow_up_required": bool(s.get("follow_up_required", visit.get("follow_up_required", False))),
+        })
+    return rows
+
+
+@router.get("/contracts/{contract_id}/overview")
+async def blue_light_overview(contract_id: str, user=Depends(get_crm_user)):
+    """Operational contract overview stats (§2) — reads linked stations + assets
+    + any recorded visits/certificates. Works before any visit exists (defaults)."""
+    c = await _get_bl_contract(contract_id, user)
+    rows = await _station_rows(contract_id, user)
+    today = _today_str()
+    n = len(rows)
+    completed = sum(1 for r in rows if r["visit_status"] in ("completed", "certificate_generated", "certificate_sent"))
+    scheduled = sum(1 for r in rows if r["visit_status"] == "scheduled")
+    overdue = sum(1 for r in rows if r["visit_status"] == "overdue"
+                  or (r["next_service_due"] and r["next_service_due"] < today
+                      and r["visit_status"] not in ("completed", "certificate_generated", "certificate_sent")))
+    awaiting = sum(1 for r in rows if r["visit_status"] == "not_planned")
+    certs_done = sum(1 for r in rows if r["certificate_status"] in ("generated", "sent"))
+    certs_sent = sum(1 for r in rows if r["certificate_status"] == "sent")
+    faults_open = sum(r["faults_raised"] for r in rows)
+    follow_ups = sum(1 for r in rows if r["follow_up_required"])
+    total_assets = sum(r["asset_count"] for r in rows)
+    total_treadmills = sum(r["treadmill_count"] for r in rows)
+    future_due = sorted([r["next_service_due"] for r in rows
+                         if r["next_service_due"] and r["next_service_due"] >= today])
+    return {
+        "contract": {
+            "id": c["id"], "contract_number": c.get("contract_number"),
+            "title": c.get("title"), "company_name": c.get("company_name"),
+            "customer_type": c.get("customer_type"),
+            "start_date": c.get("start_date"), "end_date": c.get("end_date"),
+            "is_blue_light": bool(c.get("is_blue_light")),
+            "blue_light": c.get("blue_light") or DEFAULT_BLUE_LIGHT_CONFIG,
+        },
+        "stats": {
+            "sites": n,
+            "assets": total_assets,
+            "treadmills": total_treadmills,
+            "service_frequency_months": (c.get("blue_light") or {}).get("service_frequency_months", 6),
+            "visits_completed": completed,
+            "visits_scheduled": scheduled,
+            "visits_awaiting_booking": awaiting,
+            "visits_overdue": overdue,
+            "visits_outstanding": n - completed,
+            "certificates_completed": certs_done,
+            "certificates_sent": certs_sent,
+            "certificates_outstanding": n - certs_done,
+            "open_faults": faults_open,
+            "follow_ups_required": follow_ups,
+            "asset_discrepancies": 0,
+            "next_planned_service_date": future_due[0] if future_due else "",
+            "completion_pct": round(completed / n * 100) if n else 0,
+        },
+    }
+
+
+@router.get("/contracts/{contract_id}/stations")
+async def blue_light_station_matrix(
+    contract_id: str,
+    search: str = "", status: str = "", engineer_id: str = "",
+    sort: str = "station_name", direction: str = "asc",
+    user=Depends(get_crm_user),
+):
+    """Station service matrix (§3) with search / filter / sort."""
+    await _get_bl_contract(contract_id, user)
+    rows = await _station_rows(contract_id, user)
+    if search:
+        q = search.lower()
+        rows = [r for r in rows if q in (r["station_name"] or "").lower()
+                or q in (r["address"] or "").lower()
+                or q in (r["contact_name"] or "").lower()
+                or q in (r["postcode"] or "").lower()]
+    if status:
+        rows = [r for r in rows if r["visit_status"] == status]
+    if engineer_id:
+        rows = [r for r in rows if r["assigned_engineer_id"] == engineer_id]
+    reverse = direction == "desc"
+    try:
+        rows.sort(key=lambda r: (r.get(sort) is None, r.get(sort)), reverse=reverse)
+    except TypeError:
+        rows.sort(key=lambda r: str(r.get(sort) or ""), reverse=reverse)
+    return {"stations": rows, "count": len(rows)}
+
+
+@router.put("/contracts/{contract_id}/stations/{site_id}")
+async def update_contract_station(contract_id: str, site_id: str, data: dict, user=Depends(get_crm_user)):
+    """Edit a station's operational fields (contact, next due, engineer, follow-up).
+    Reuses the existing crm2_contract_sites collection (no duplicate site record)."""
+    await _get_bl_contract(contract_id, user)
+    allowed = {"contact_name", "telephone", "phone", "email", "access_instructions",
+               "parking_info", "opening_times", "site_notes", "next_service_due",
+               "scheduled_date", "last_service", "assigned_engineer_id",
+               "assigned_engineer_name", "visit_status", "follow_up_required"}
+    updates = {k: v for k, v in (data or {}).items() if k in allowed}
+    if not updates:
+        raise HTTPException(400, "No editable station fields supplied")
+    updates["updated_at"] = _now()
+    res = await db.crm2_contract_sites.update_one(
+        {"id": site_id, "contract_id": contract_id}, {"$set": updates})
+    if res.matched_count == 0:
+        raise HTTPException(404, "Station not found on this contract")
+    return {"success": True, "updates": updates}
+
+
+@router.get("/contracts/{contract_id}/stations.csv")
+async def blue_light_station_matrix_csv(contract_id: str, user=Depends(get_crm_user)):
+    """CSV export of the station matrix (§3 Export)."""
+    import csv
+    import io
+    from fastapi.responses import StreamingResponse
+    await _get_bl_contract(contract_id, user)
+    rows = await _station_rows(contract_id, user)
+    cols = ["station_name", "address", "postcode", "contact_name", "telephone", "email",
+            "asset_count", "treadmill_count", "last_service", "next_service_due",
+            "scheduled_date", "assigned_engineer_name", "visit_status",
+            "asset_audit_status", "calibration_status", "faults_raised",
+            "certificate_status", "certificate_sent_date", "follow_up_required"]
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow([c.replace("_", " ").title() for c in cols])
+    for r in rows:
+        w.writerow([r.get(c, "") for c in cols])
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]), media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=stations-{contract_id[:8]}.csv"})

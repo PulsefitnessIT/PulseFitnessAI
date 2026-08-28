@@ -864,6 +864,7 @@ def _paint_page_chrome(canv, doc) -> None:
     registered-office / company-registration / VAT line used across all Pulse
     documents (invoices, quotes, reports)."""
     from reportlab.lib import colors as _colors
+    from reportlab.lib.units import mm
     from utils.pulse_doc_template import PULSE
     canv.saveState()
     width, _ = doc.pagesize

@@ -650,6 +650,16 @@ async def delete_agreement(key: str, user: dict = Depends(get_current_user)):
     return {"ok": True, "deleted": r.deleted_count}
 
 
+@router.post("/staff-onboarding/cases/{case_id}/upload")
+async def hr_upload(case_id: str, file: UploadFile = File(...), document_type: str = Form("other"),
+                    user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
+    if not c:
+        raise HTTPException(404, "Case not found")
+    return await _store_upload(org, case_id, c["staff_id"], file, document_type, user)
+
+
 @router.post("/staff-onboarding/{kind}/{key}/upload")
 async def upload_company_doc(kind: str, key: str, file: UploadFile = File(...),
                              user: dict = Depends(get_current_user)):
@@ -1707,16 +1717,6 @@ async def recruit_upload(file: UploadFile = File(...), document_type: str = Form
                          user: dict = Depends(get_current_user)):
     case, staff = await _recruit_case(user)
     return await _store_upload(case["organization_id"], case["id"], staff["id"], file, document_type, user)
-
-
-@router.post("/staff-onboarding/cases/{case_id}/upload")
-async def hr_upload(case_id: str, file: UploadFile = File(...), document_type: str = Form("other"),
-                    user: dict = Depends(get_current_user)):
-    _require_hr(user); org = _org(user)
-    c = await db.staff_onboarding_cases.find_one({"id": case_id, "organization_id": org})
-    if not c:
-        raise HTTPException(404, "Case not found")
-    return await _store_upload(org, case_id, c["staff_id"], file, document_type, user)
 
 
 @router.get("/staff-onboarding/files/{doc_id}/download")

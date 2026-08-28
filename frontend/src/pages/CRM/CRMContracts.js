@@ -16,6 +16,7 @@ import { ContractMatrix } from './Contracts/ContractMatrix';
 import { useContractCatalog, useContractTemplates } from './Contracts/contractCatalog';
 import { ContractsReportsDashboard, ContractsRenewalsDashboard } from './Contracts/ContractDashboards';
 import { ContractReviewQueue, useWorkspaceMode } from './Contracts/ContractReviewQueue';
+import BlueLightTab from './Contracts/BlueLightTab';
 import CurrencyIcon from '@/components/shared/CurrencyIcon';
 import { useLocalization, formatMoneySync } from '@/utils/localization';
 
@@ -1228,6 +1229,7 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, navigateT
   const tc = TIER_COLORS[contract.tier] || 'var(--color-text-faint-alt)';
   const tabs = [
     { id: 'overview', label: 'Overview', icon: FileText },
+    { id: 'bluelight', label: contract.is_blue_light ? 'Blue Light' : 'Blue Light Service', icon: Zap },
     { id: 'sites', label: `Sites (${contract.sites?.length || 0})`, icon: MapPin },
     { id: 'assets', label: `Assets (${contract.covered_assets?.length || 0})`, icon: Wrench },
     { id: 'cover', label: 'Cover', icon: Shield },
@@ -1395,6 +1397,7 @@ function ContractDetail({ contractId, onBack, c, isDark, API, headers, navigateT
       )}
 
       {/* Tabs Content */}
+      {activeTab === 'bluelight' && <BlueLightTab contract={contract} contractId={contractId} API={API} headers={headers} c={c} reload={load} />}
       {activeTab === 'sites' && <SitesTab contract={contract} contractId={contractId} API={API} headers={headers} isDark={isDark} c={c} reload={load} />}
       {activeTab === 'assets' && <AssetsTab contract={contract} contractId={contractId} API={API} headers={headers} isDark={isDark} c={c} reload={load} />}
       {activeTab === 'cover' && <CoverTab contract={contract} contractId={contractId} API={API} headers={headers} isDark={isDark} c={c} reload={load} />}
