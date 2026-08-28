@@ -87,6 +87,7 @@ async def main():
             "id": str(uuid.uuid4()), "organization_id": org_id,
             "name": "Example Fire & Rescue Service",
             "industry": "Fire & Rescue Service", "customer_type": "fire_rescue",
+            "linked_operator_org_id": org_id,
             "seed_tag": SEED_TAG, "created_at": _now(), "updated_at": _now(),
         }
         await db.crm2_companies.insert_one(company)

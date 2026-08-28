@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import axios from 'axios';
 import { useInlineBanner, useConfirm, notify } from '@/components/notifications';
-import { Eye, LayoutDashboard, Dumbbell, AlertTriangle, FileText, ClipboardCheck, ClipboardList, BarChart3, Truck, LayoutGrid, Rocket, Sparkles, Users, Brain, FileSignature, BookOpen, ShieldCheck } from 'lucide-react';
+import { Eye, LayoutDashboard, Dumbbell, AlertTriangle, FileText, ClipboardCheck, ClipboardList, BarChart3, Truck, LayoutGrid, Rocket, Sparkles, Users, Brain, FileSignature, BookOpen, ShieldCheck, FileCheck2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/shared/Navbar';
 import MobileBottomNav from '../components/shared/MobileBottomNav';
@@ -30,6 +30,7 @@ import LiteOverviewTab from './LiteDashboard/LiteOverviewTab';
 import LiteEquipmentTab from './LiteDashboard/LiteEquipmentTab';
 import CustomerDeliveriesTab from './Deliveries/CustomerDeliveriesTab';
 import CustomerWarrantiesTab from './Warranties/CustomerWarrantiesTab';
+import CustomerCertificatesTab from './Warranties/CustomerCertificatesTab';
 import LiteFaultsTab from './LiteDashboard/LiteFaultsTab';
 import LiteQuotesTab from './LiteDashboard/LiteQuotesTab';
 import LiteDocumentsTab from './LiteDashboard/LiteDocumentsTab';
@@ -136,6 +137,7 @@ const LiteDashboardPage = () => {
   const [equipment, setEquipment] = useState([]);
   const [hasDeliveries, setHasDeliveries] = useState(false);
   const [hasWarranties, setHasWarranties] = useState(false);
+  const [hasCertificates, setHasCertificates] = useState(false);
   useEffect(() => {
     axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/customer/deliveries/summary`, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } })
       .then((r) => setHasDeliveries(!!r.data?.has_deliveries))
@@ -143,6 +145,9 @@ const LiteDashboardPage = () => {
     axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/customer/warranties/summary`, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } })
       .then((r) => setHasWarranties(!!r.data?.has_warranties))
       .catch(() => setHasWarranties(false));
+    axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/customer/certificates/summary`, { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } })
+      .then((r) => setHasCertificates(!!r.data?.has_certificates))
+      .catch(() => setHasCertificates(false));
   }, []);
   const [issues, setIssues] = useState([]);
   const [files, setFiles] = useState([]);
@@ -785,6 +790,7 @@ const LiteDashboardPage = () => {
     ...buildTabs(),
     ...(hasDeliveries ? [{ id: 'deliveries', label: t('dashboard.deliveries', 'Deliveries'), icon: Truck }] : []),
     ...(hasWarranties ? [{ id: 'warranties', label: t('dashboard.warranties', 'Warranties'), icon: ShieldCheck }] : []),
+    ...(hasCertificates ? [{ id: 'certificates', label: t('dashboard.certificates', 'Certificates'), icon: FileCheck2 }] : []),
   ]
     // The generic SHARED site login (role site_staff / is_shared_site_login) is
     // used by many people, so it must NOT expose the owner's figures or staffing
@@ -1038,6 +1044,13 @@ const LiteDashboardPage = () => {
             {hasWarranties && (
               <TabsContent value="warranties" data-testid="warranties-content">
                 <CustomerWarrantiesTab />
+              </TabsContent>
+            )}
+
+            {/* Service & Calibration Certificates — only when the customer has completed certificates */}
+            {hasCertificates && (
+              <TabsContent value="certificates" data-testid="certificates-content">
+                <CustomerCertificatesTab />
               </TabsContent>
             )}
 

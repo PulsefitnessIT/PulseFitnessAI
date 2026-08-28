@@ -201,6 +201,100 @@ async def my_warranties_summary(user=Depends(get_current_user)):
     return {"has_warranties": res["has_warranties"], "counts": res["counts"]}
 
 
+# ── Service & Calibration Certificates (customer-facing) ────────────
+#
+# Shows the signed-in customer the completed Blue Light Service & Calibration
+# certificates for their stations, with the next service-due date. Read-only
+# and strictly scoped to the CRM companies linked to the customer's org.
+# Reuses the existing crm2_certificates store (no duplicate document system).
+
+_CUSTOMER_CERT_STATUSES = ("sent", "generated")
+
+
+async def _customer_contract_map(org_id: str) -> dict:
+    """{contract_id: {number, title}} for Blue Light contracts of the linked companies."""
+    company_ids = await _linked_company_ids(org_id)
+    if not company_ids:
+        return {}
+    rows = await db.crm2_contracts.find(
+        {"company_id": {"$in": company_ids}, "is_blue_light": True},
+        {"_id": 0, "id": 1, "contract_number": 1, "title": 1}).to_list(500)
+    return {r["id"]: {"contract_number": r.get("contract_number"), "title": r.get("title")} for r in rows}
+
+
+@router.get("/certificates")
+async def my_certificates(search: str = "", contract_id: str = "",
+                          date_from: str = "", date_to: str = "",
+                          user=Depends(get_current_user)):
+    """The customer's completed station Service & Calibration certificates."""
+    org_id = user.get("organization_id")
+    cmap = await _customer_contract_map(org_id)
+    if not cmap:
+        return {"has_certificates": False, "certificates": [], "count": 0, "next_service_due": ""}
+    q = {"contract_id": {"$in": list(cmap.keys())}, "status": {"$in": list(_CUSTOMER_CERT_STATUSES)}}
+    if contract_id:
+        q["contract_id"] = contract_id
+    certs = await db.crm2_certificates.find(q, {"_id": 0}).sort("generated_at", -1).to_list(2000)
+    visit_ids = [c["visit_id"] for c in certs if c.get("visit_id")]
+    visits = {}
+    if visit_ids:
+        async for v in db.crm2_station_visits.find(
+                {"id": {"$in": visit_ids}}, {"_id": 0, "id": 1, "completed_at": 1, "next_service_due": 1}):
+            visits[v["id"]] = v
+    out = []
+    for c in certs:
+        v = visits.get(c.get("visit_id"), {})
+        service_date = (v.get("completed_at") or c.get("generated_at") or "")[:10]
+        row = {
+            "id": c["id"], "station_name": c.get("station_name", ""),
+            "filename": c.get("filename", ""),
+            "contract_number": cmap.get(c["contract_id"], {}).get("contract_number", ""),
+            "service_date": service_date,
+            "next_service_due": v.get("next_service_due", ""),
+            "status": c.get("status"),
+        }
+        if search and search.lower() not in (row["station_name"] or "").lower():
+            continue
+        if date_from and service_date and service_date < date_from:
+            continue
+        if date_to and service_date and service_date > date_to:
+            continue
+        out.append(row)
+    future = sorted([r["next_service_due"] for r in out if r["next_service_due"]])
+    return {"has_certificates": len(out) > 0, "certificates": out, "count": len(out),
+            "next_service_due": future[0] if future else "",
+            "contracts": [{"id": k, **v} for k, v in cmap.items()]}
+
+
+@router.get("/certificates/summary")
+async def my_certificates_summary(user=Depends(get_current_user)):
+    """Lightweight flag + count to show/hide the Certificates nav item."""
+    org_id = user.get("organization_id")
+    cmap = await _customer_contract_map(org_id)
+    if not cmap:
+        return {"has_certificates": False, "count": 0}
+    n = await db.crm2_certificates.count_documents(
+        {"contract_id": {"$in": list(cmap.keys())}, "status": {"$in": list(_CUSTOMER_CERT_STATUSES)}})
+    return {"has_certificates": n > 0, "count": n}
+
+
+@router.get("/certificates/{cert_id}/download")
+async def my_certificate_download(cert_id: str, user=Depends(get_current_user)):
+    """Stream one of the customer's station certificates (scope-checked)."""
+    import base64
+    org_id = user.get("organization_id")
+    cmap = await _customer_contract_map(org_id)
+    cert = await db.crm2_certificates.find_one({"id": cert_id}, {"_id": 0})
+    if not cert or cert.get("contract_id") not in cmap or cert.get("status") not in _CUSTOMER_CERT_STATUSES:
+        raise HTTPException(404, "Certificate not found")
+    f = await db.crm2_certificate_files.find_one({"cert_id": cert_id}, {"_id": 0, "pdf_b64": 1})
+    if not f:
+        raise HTTPException(404, "Certificate file not available")
+    return Response(content=base64.b64decode(f["pdf_b64"]), media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{cert.get("filename", "certificate.pdf")}"'})
+
+
+
 async def _linked_company(org_id: str) -> dict | None:
     """The single CRM company (seller-side record) linked to this customer org."""
     if not org_id:

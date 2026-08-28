@@ -1,0 +1,39 @@
+{
+  "summary": "Blue Light Phase 5 — Customer Portal Certificates, FRONTEND ONLY. Logged in as owner@isodemo.com (platform /login, token in localStorage) and exercised the portal Certificates tab end-to-end on the LiteDashboardPage (/pulse). All 5 requested features PASS: (1) 'Certificates' nav item appears (data-testid lite-tab-certificates) after the /api/customer/certificates/summary call resolves; (2) tab content renders (customer-certificates-tab) with 2 cards — 'Appledore Fire Station' and 'Bruton Fire Station', both showing 'CTR-BLFRS1 · Serviced Aug 28, 2026' + 'Next due Feb 26, 2027'; (3) cert-next-due badge shows 'NEXT SERVICE DUE / Feb 26, 2027'; (4) typing 'Bruton' in cert-search filters to exactly 1 card and clearing restores 2; (5) cert-download-<id> downloads a real PDF (Example-Fire-Rescue-Service_Appledore-Fire-Station_Service-and-Calibration_2026-08-28.pdf, 121,731 bytes, %PDF header). Also verified: deep link /pulse?tab=certificates opens the tab directly, no-match search shows certs-empty, contract filter correctly hidden with a single contract, mobile 390x844 layout stacks cleanly, zero console errors and zero error elements on the page.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Customer Certificates tab (/pulse → Certificates)",
+        "issues": [
+          "No-match search shows the generic first-run copy: 'No certificates found yet. They appear here once a station service is completed.' — misleading when the user has certificates but the search simply matched nothing. Suggest a distinct 'No certificates match \"<term>\"' message when search/contract filters are active.",
+          "The 'Next service due' badge (cert-next-due) disappears while a search filter is active (next_service_due is derived from the filtered response). The soonest-due date is org-level information and arguably should stay pinned regardless of the filter.",
+          "Download failure path uses a native window.alert() instead of an in-UI error/toast (CustomerCertificatesTab.js line 36) — inconsistent with the rest of the portal.",
+          "Mobile (390px): PDF button measures 76x36px, slightly under the 44px recommended touch-target height. Cosmetic."
+        ]
+      }
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/_clear_login_ratelimit.py"],
+  "action_items": [
+    "OPTIONAL/INFO — routing expectation mismatch in the review note: the Certificates tab exists ONLY in LiteDashboardPage (/pulse). pages/Dashboard/DashboardTabs.js and pages/DashboardPage.js contain no 'certificates' entry, so an account_type='full' user landing on /dashboard (Operations) will NOT see it. owner@isodemo.com also has is_service_desk=true, so login redirects to /service-desk; the tester had to navigate to /pulse. Real Lite/pulse_pro customers land on /pulse directly (DashboardRoute redirects them), so the customer-facing behaviour is correct — but the claim 'shows in the dashboard nav right after login' is not true for this operator/service-desk account.",
+    "MINOR — differentiate the empty state for 'no search match' vs 'no certificates yet'.",
+    "MINOR — keep the cert-next-due badge visible when search/contract filters are applied, or label it as filter-scoped.",
+    "MINOR — replace the window.alert() download-failure path with an inline error/toast."
+  ],
+  "critical_code_review_comments": [
+    "CustomerCertificatesTab.js: axios .catch() swallows the failure and renders the empty state — a 401/500 is indistinguishable from 'no certificates'. Add an error state so a broken token/API surfaces to the user instead of a false 'no certificates yet'.",
+    "CustomerCertificatesTab.js load(): 250ms debounce fires on mount too, adding a small blank/spinner delay; also the request is not aborted on re-type, so a slow earlier response can overwrite a newer one (no request-sequence guard).",
+    "LiteDashboardPage.js is ~1,313 lines — exceeds the 700-line guideline; the tab registry/nav config should be extracted."
+  ],
+  "updated_files": ["/app/backend/tests/_clear_login_ratelimit.py"],
+  "success_rate": { "backend": "not tested (frontend-only request); summary/list endpoints spot-checked via curl and returned correct data", "frontend": "100% (5/5 requested features + 5 edge cases)" },
+  "seed_data_creation": "None created. Existing Blue Light seed (Example Fire & Rescue, contract CTR-BLFRS1, 2 sent certificates) left untouched as instructed.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "owner@isodemo.com / IsoDemo123! at /login (token in localStorage 'token'). NOTE: /api/auth/login is IP rate-limited to 5 attempts / 5 min — the run hit HTTP 429 twice. Clear it with: cd /app/backend && python tests/_clear_login_ratelimit.py (deletes db.rate_buckets docs with _id starting 'login').",
+  "context_for_next_testing_agent": "Do NOT test the Certificates tab on /dashboard — for owner@isodemo.com (account_type full, is_service_desk) login redirects to /service-desk and /dashboard renders the Operations DashboardPage which has no certificates tab. Navigate to /pulse (LiteDashboardPage) or deep link /pulse?tab=certificates, which works. Allow ~9-10s after navigating for the summary fetch to resolve before the nav item appears. cert-search is debounced 250ms + network, so wait ~2.5s after fill before counting cards. Login rate limit: use /app/backend/tests/_clear_login_ratelimit.py between runs.",
+  "rca_of_the_issue": "No functional defects found in Phase 5. The only friction was a test-environment login rate limit (429 from utils/security.rate_limit_login: 5 attempts / 5 min per IP) plus the review note's incorrect assumption that the Certificates tab is present in DashboardTabs.js — it is only wired into LiteDashboardPage.js (nav item id 'certificates' + TabsContent data-testid 'certificates-content', both gated on hasCertificates from /api/customer/certificates/summary)."
+}

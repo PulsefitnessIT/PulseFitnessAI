@@ -1,3 +1,34 @@
+# ═══ 2026-08-28 · BLUE LIGHT — PHASE 5a: CUSTOMER PORTAL CERTIFICATES · testing_agent 100% ═══
+Customers can now view / search / download their station Service & Calibration certificates in the Customer
+Portal, with the next-service-due date. Reuses the existing portal (LiteDashboardPage) + crm2_certificates
+store (NO duplicate document system). Scoped via crm2_companies.linked_operator_org_id == the customer's org.
+
+  • BACKEND routes/customer_deliveries.py (appended after warranties, ~L203+): _customer_contract_map(org_id)
+    → Blue Light contracts of the linked companies. GET /customer/certificates (?search&contract_id&date_from&
+    date_to → list of {station_name, contract_number, service_date (from visit.completed_at), next_service_due,
+    status, filename}; only status in (sent, generated); + next_service_due soonest + contracts[]).
+    GET /customer/certificates/summary (has_certificates flag + count for nav gating). GET /customer/
+    certificates/{id}/download (scope-checked → streams PDF from crm2_certificate_files, application/pdf).
+  • FRONTEND pages/Warranties/CustomerCertificatesTab.js (NEW, mirrors CustomerWarrantiesTab) — search box,
+    optional contract filter (only when >1 contract), 'Next service due' badge, cards with station/contract/
+    serviced/next-due + PDF download. Wired into LiteDashboardPage.js: hasCertificates summary fetch, nav item
+    {id:'certificates', FileCheck2} (lite-tab-certificates), TabsContent value='certificates'. testids:
+    customer-certificates-tab, cert-search, cert-contract-filter, cert-next-due, cert-card-<id>,
+    cert-download-<id>, certs-empty.
+  • SEED scripts/seed_blue_light_demo.py: FRS company now sets linked_operator_org_id=org_id so the portal
+    (owner@isodemo.com platform /login) shows its certificates. (Also set live on the existing seed row.)
+  • VERIFIED: backend curl (summary has 2; list Appledore+Bruton CTR-BLFRS1 serviced 2026-08-28 next 2027-02-26
+    sent; search Bruton=1; download application/pdf) + testing_agent frontend 100% (5/5 + 5 edge cases incl.
+    deep link /pulse?tab=certificates, empty state, single-contract filter hidden, mobile) —
+    iteration_bluelight_phase5_customer_certificates_frontend_jul2026.json.
+  ⚠️ PREVIEW ONLY — REDEPLOY to push live. Portal customer for demo = owner@isodemo.com (platform /login), org
+    iso-demo-org doubles as the FRS portal org via linked_operator_org_id (demo shortcut).
+  • REMAINING (Phase 5 rest): 82-station certificate dashboard on contract Overview (§33 counts exist),
+    asset reconciliation review (§35), onboarding import (§51/§52), calibration trend reporting (§48), CAPEX
+    links (§49), offline engineer support (§41), engineer-app 'Start Blue Light Service' entry banner.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-28 · BLUE LIGHT — PHASE 4: AUTO SERVICE & CALIBRATION CERTIFICATE · testing_agent 100% ═══
 Phase 4 — auto-generated branded Service & Calibration Certificate PDF on visit completion, stored vs
 station/contract/job, distributed per approval mode (default office_review). Reuses the shared Pulse doc
