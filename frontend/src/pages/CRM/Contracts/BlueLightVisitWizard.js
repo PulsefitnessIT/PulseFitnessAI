@@ -83,6 +83,17 @@ export default function BlueLightVisitWizard() {
     finally { setBusy(false); }
   };
 
+  const lookupAsset = async ({ serial, model, name }) => {
+    try {
+      const params = new URLSearchParams();
+      if (serial) params.set('serial', serial);
+      if (model) params.set('model', model);
+      if (name) params.set('name', name);
+      const r = await axios.get(`${API}/crm/v2/visits/${visitId}/assets/lookup?${params.toString()}`, { headers: authHeaders() });
+      return r.data.matches || [];
+    } catch { return []; }
+  };
+
   if (loading) return <div className="min-h-screen grid place-items-center bg-slate-50"><Loader2 className="animate-spin text-blue-600" /></div>;
   if (!state) return <div className="min-h-screen grid place-items-center bg-slate-50 text-slate-500">Visit not found.</div>;
 
@@ -250,6 +261,11 @@ export default function BlueLightVisitWizard() {
       {mode === 'audit' && activeAsset && <AuditSheet asset={activeAsset} busy={busy} onClose={() => setMode(null)}
         onSubmit={async (payload) => { await post(`/assets/${activeAsset.asset_key}/audit`, payload); setMode(null); }} />}
       {mode === 'addAsset' && <AddAssetSheet busy={busy} onClose={() => setMode(null)}
+        onLookup={lookupAsset}
+        onRequestTransfer={async (assetId, reason) => {
+          const r = await post(`/assets/${assetId}/transfer-request`, { reason });
+          if (r) { setMode(null); setToast({ ok: 'Transfer requested — the office will review it.' }); }
+        }}
         onSubmit={async (na) => { await post(`/assets/new-${Date.now()}/audit`, { action: 'add', new_asset: na }); setMode(null); }} />}
       {mode === 'service' && activeAsset && <ServiceSheet asset={activeAsset} busy={busy} onClose={() => setMode(null)}
         onSubmit={async (payload) => { await post(`/assets/${activeAsset.asset_key}/service`, payload); setMode(null); }}
@@ -347,18 +363,67 @@ function AuditSheet({ asset, onSubmit, onClose, busy }) {
   );
 }
 
-function AddAssetSheet({ onSubmit, onClose, busy }) {
+function AddAssetSheet({ onSubmit, onClose, busy, onLookup, onRequestTransfer }) {
   const [na, setNa] = useState({ asset_name: '', equipment_type: '', model_code: '', serial_number: '' });
+  const [match, setMatch] = useState(null);
+  const [ignore, setIgnore] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const timer = useRef();
   const inp = 'w-full border rounded-xl px-3 py-2.5 mt-1';
+
+  const runLookup = (next) => {
+    clearTimeout(timer.current);
+    const hasSignal = next.serial_number || (next.model_code && next.asset_name);
+    if (!hasSignal || !onLookup) { setMatch(null); return; }
+    timer.current = setTimeout(async () => {
+      setChecking(true);
+      const matches = await onLookup({ serial: next.serial_number, model: next.model_code, name: next.asset_name });
+      setChecking(false);
+      setMatch(matches[0] || null);
+      setIgnore(false);
+    }, 400);
+  };
+
+  const setField = (f, v) => {
+    const next = { ...na, [f]: v };
+    setNa(next);
+    if (['serial_number', 'model_code', 'asset_name'].includes(f)) runLookup(next);
+  };
+
+  const showTransfer = match && !ignore;
   return (
     <Sheet title="Add machine" onClose={onClose}>
       <div className="space-y-2">
         {[['asset_name', 'Name / make+model'], ['equipment_type', 'Equipment type'], ['model_code', 'Model code'], ['serial_number', 'Serial number']].map(([f, l]) => (
           <label key={f} className="block text-xs text-slate-500">{l}
-            <input className={inp} data-testid={`add-field-${f}`} value={na[f]} onChange={e => setNa(c => ({ ...c, [f]: e.target.value }))} /></label>
+            <input className={inp} data-testid={`add-field-${f}`} value={na[f]} onChange={e => setField(f, e.target.value)} /></label>
         ))}
-        <p className="text-xs text-slate-400">Unknown fields can be left blank — the office will review.</p>
-        <BigButton testId="add-asset-save" icon={Plus} disabled={busy || !na.asset_name} onClick={() => onSubmit(na)}>Add machine</BigButton>
+        {checking && <p className="text-xs text-slate-400" data-testid="add-lookup-checking">Checking the register…</p>}
+
+        {showTransfer ? (
+          <div className="rounded-2xl border-2 p-3 mt-1" data-testid="transfer-banner"
+            style={{ borderColor: '#d97706', background: '#fffbeb' }}>
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={18} className="text-amber-600 mt-0.5" />
+              <div className="text-sm text-amber-900">
+                This {match.match === 'serial' ? 'serial' : 'machine'} is already registered at{' '}
+                <b>{match.station_name || 'another station'}</b>{match.serial_number ? <> ({match.serial_number})</> : null}.
+                It looks like it may have been moved here.
+              </div>
+            </div>
+            <div className="mt-3 space-y-2">
+              <BigButton testId="transfer-request-btn" icon={RefreshCw} color="#d97706" disabled={busy}
+                onClick={() => onRequestTransfer(match.asset_id, '')}>Request transfer to this station</BigButton>
+              <button data-testid="transfer-add-anyway" className="w-full text-sm text-slate-500 underline py-1"
+                onClick={() => setIgnore(true)}>No — add as a new machine anyway</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="text-xs text-slate-400">Unknown fields can be left blank — the office will review.</p>
+            <BigButton testId="add-asset-save" icon={Plus} disabled={busy || !na.asset_name} onClick={() => onSubmit(na)}>Add machine</BigButton>
+          </>
+        )}
       </div>
     </Sheet>
   );

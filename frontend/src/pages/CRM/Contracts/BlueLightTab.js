@@ -313,7 +313,7 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
             <ClipboardList size={15} style={{ color: 'var(--color-accent-violet)' }} /> Asset Changes From Service Visits
           </div>
           <div className="flex flex-wrap gap-3 mb-3">
-            {[['new', 'New found'], ['correction', 'Corrections'], ['not_found', 'Not found'], ['pending', 'Awaiting review']].map(([k, l]) => (
+            {[['new', 'New found'], ['correction', 'Corrections'], ['not_found', 'Not found'], ['transfer', 'Transfers'], ['pending', 'Awaiting review']].map(([k, l]) => (
               <div key={k} className="text-center px-3 py-1.5 rounded-lg" style={{ background: 'var(--color-bg)' }} data-testid={`bl-recon-count-${k}`}>
                 <div className="text-lg font-bold" style={{ color: c.text }}>{recon?.counts?.[k] || 0}</div>
                 <div className="text-[10px]" style={{ color: c.textMuted }}>{l}</div>
@@ -325,7 +325,7 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
           ) : (
             <div className="divide-y" style={{ borderColor: c.border }}>
               {recon.items.map(it => {
-                const kindColor = { new: 'var(--color-success-alt-2)', correction: 'var(--color-accent-amber)', not_found: 'var(--color-danger)' }[it.kind];
+                const kindColor = { new: 'var(--color-success-alt-2)', correction: 'var(--color-accent-amber)', not_found: 'var(--color-danger)', transfer: 'var(--color-info-ios)' }[it.kind];
                 return (
                   <div key={it.id} className="flex items-center justify-between py-2 gap-2" data-testid={`bl-recon-row-${it.id}`}>
                     <div className="min-w-0">

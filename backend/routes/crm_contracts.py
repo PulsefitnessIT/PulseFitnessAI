@@ -1505,6 +1505,7 @@ async def blue_light_overview(contract_id: str, user=Depends(get_crm_user)):
     discrepancies = (
         await db.crm2_contract_assets.count_documents({"contract_id": contract_id, "office_review": True})
         + await db.crm2_asset_verifications.count_documents({"contract_id": contract_id, "action": "not_found"})
+        + await db.crm2_asset_transfers.count_documents({"contract_id": contract_id, "status": "pending"})
     )
     return {
         "contract": {
@@ -2130,6 +2131,83 @@ async def blue_light_asset_audit(visit_id: str, asset_key: str, data: dict, user
     return await _visit_state(visit, user)
 
 
+def _asset_soft_key(model, name, asset_number) -> str:
+    return _norm_serial("".join([model or "", name or "", asset_number or ""]))
+
+
+@router.get("/visits/{visit_id}/assets/lookup")
+async def blue_light_asset_lookup(visit_id: str, serial: str = "", model: str = "",
+                                  name: str = "", asset_number: str = "",
+                                  user=Depends(get_crm_user)):
+    """§37 — find a machine already on the register at ANOTHER station (so the
+    engineer can request a transfer instead of creating a duplicate). Matches on
+    serial; when serial is blank, on a soft key of model + name + asset number."""
+    visit = await _get_visit(visit_id, user)
+    can = _norm_serial(serial) if serial else ""
+    soft = _asset_soft_key(model, name, asset_number) if not can else ""
+    if not can and len(soft) < 4:
+        return {"matches": []}
+    names = await _station_name_map(visit["contract_id"])
+    matches = []
+    async for a in db.crm2_contract_assets.find(
+            {"contract_id": visit["contract_id"]}, {"_id": 0}):
+        if a.get("site_id") == visit["site_id"]:
+            continue
+        if a.get("status") in ("removed", "rejected"):
+            continue
+        hit = False
+        if can and a.get("serial_number"):
+            hit = _norm_serial(a.get("serial_number", "")) == can
+        elif soft:
+            hit = _asset_soft_key(a.get("model_code"), a.get("asset_name"),
+                                  a.get("asset_number")) == soft
+        if hit:
+            matches.append({
+                "asset_id": a["id"], "asset_name": a.get("asset_name", ""),
+                "serial_number": a.get("serial_number", ""), "model_code": a.get("model_code", ""),
+                "site_id": a.get("site_id"), "station_name": names.get(a.get("site_id"), ""),
+                "match": "serial" if can else "details"})
+    return {"matches": matches}
+
+
+@router.post("/visits/{visit_id}/assets/{asset_id}/transfer-request")
+async def blue_light_transfer_request(visit_id: str, asset_id: str, data: dict = None,
+                                      user=Depends(get_crm_user)):
+    """§37 — request moving an asset from its current station to this visit's
+    station. Does NOT move it — office approves in Asset Reconciliation."""
+    data = data or {}
+    visit = await _get_visit(visit_id, user)
+    asset = await db.crm2_contract_assets.find_one(
+        {"id": asset_id, "contract_id": visit["contract_id"]}, {"_id": 0})
+    if not asset:
+        raise HTTPException(404, "Asset not found on this contract")
+    if asset.get("site_id") == visit["site_id"]:
+        raise HTTPException(400, "That machine is already registered at this station")
+    now = _now()
+    existing = await db.crm2_asset_transfers.find_one(
+        {"asset_id": asset_id, "contract_id": visit["contract_id"], "status": "pending"}, {"_id": 0, "id": 1})
+    tr = {
+        "id": existing["id"] if existing else _id(),
+        "contract_id": visit["contract_id"], "asset_id": asset_id,
+        "from_site_id": asset.get("site_id"), "to_site_id": visit["site_id"],
+        "visit_id": visit_id, "asset_name": asset.get("asset_name", ""),
+        "serial_number": asset.get("serial_number", ""),
+        "reason": data.get("reason", ""), "status": "pending",
+        "engineer_id": user.get("id"), "engineer_name": user.get("full_name") or user.get("email"),
+        "at": now, "updated_at": now,
+    }
+    await db.crm2_asset_transfers.update_one(
+        {"id": tr["id"]}, {"$set": tr}, upsert=True)
+    await db.crm2_asset_verifications.update_one(
+        {"visit_id": visit_id, "asset_key": asset_id},
+        {"$set": {"visit_id": visit_id, "asset_key": asset_id, "action": "transfer_requested",
+                  "site_id": visit["site_id"], "contract_id": visit["contract_id"],
+                  "engineer_id": user.get("id"), "engineer_name": tr["engineer_name"], "at": now}},
+        upsert=True)
+    return await _visit_state(visit, user)
+
+
+
 @router.post("/visits/{visit_id}/assets/{asset_key}/service")
 async def blue_light_asset_service(visit_id: str, asset_key: str, data: dict, user=Depends(get_crm_user)):
     """§11 — record the service outcome for a machine (check sheet outcome)."""
@@ -2524,6 +2602,20 @@ async def _reconciliation_items(contract_id: str) -> list[dict]:
             "engineer_name": v.get("engineer_name"), "visit_id": v.get("visit_id"), "at": v.get("at"),
             "review_status": "removed" if (a or {}).get("status") == "removed" else "pending",
         })
+    # TRANSFER requests (§37) — move an asset between stations
+    async for tr in db.crm2_asset_transfers.find({"contract_id": contract_id}, {"_id": 0}):
+        from_name = names.get(tr.get("from_site_id"), "")
+        to_name = names.get(tr.get("to_site_id"), "")
+        items.append({
+            "id": f"xfer:{tr['id']}", "kind": "transfer", "asset_id": tr.get("asset_id"),
+            "site_id": tr.get("to_site_id"), "station_name": to_name,
+            "from_station": from_name, "to_station": to_name,
+            "asset_name": tr.get("asset_name"), "serial_number": tr.get("serial_number"),
+            "detail": (f"Transfer requested: {tr.get('asset_name')} "
+                       f"({tr.get('serial_number') or 'no serial'}) from {from_name or '—'} → {to_name or '—'}"),
+            "engineer_name": tr.get("engineer_name"), "visit_id": tr.get("visit_id"),
+            "at": tr.get("at"), "review_status": tr.get("status", "pending"),
+        })
     items.sort(key=lambda x: x.get("at") or "", reverse=True)
     return items
 
@@ -2534,7 +2626,7 @@ async def blue_light_asset_changes(contract_id: str, kind: str = "", status: str
     """Central 'asset changes from service visits' review feed (§35)."""
     await _get_bl_contract(contract_id, user)
     items = await _reconciliation_items(contract_id)
-    counts = {"new": 0, "correction": 0, "not_found": 0, "pending": 0}
+    counts = {"new": 0, "correction": 0, "not_found": 0, "transfer": 0, "pending": 0}
     for it in items:
         counts[it["kind"]] = counts.get(it["kind"], 0) + 1
         if it["review_status"] == "pending":
@@ -2591,6 +2683,22 @@ async def blue_light_asset_change_review(contract_id: str, data: dict, user=Depe
             await db.crm2_contract_assets.update_one(
                 {"id": asset_id, "contract_id": contract_id},
                 {"$set": {"status": "active", "updated_at": now}})
+    elif kind == "xfer":
+        tr = await db.crm2_asset_transfers.find_one({"id": rest, "contract_id": contract_id}, {"_id": 0})
+        if not tr:
+            raise HTTPException(404, "Transfer request not found")
+        if action == "approve":  # move the asset to the requested station
+            await db.crm2_contract_assets.update_one(
+                {"id": tr.get("asset_id"), "contract_id": contract_id},
+                {"$set": {"site_id": tr.get("to_site_id"), "status": "active",
+                          "not_found_reason": "", "updated_at": now}})
+            await db.crm2_asset_transfers.update_one(
+                {"id": rest}, {"$set": {"status": "approved", "reviewed_by": user.get("id"),
+                                        "reviewed_at": now}})
+        else:  # reject — leave the asset where it is
+            await db.crm2_asset_transfers.update_one(
+                {"id": rest}, {"$set": {"status": "rejected", "reviewed_by": user.get("id"),
+                                        "reviewed_at": now}})
     else:
         raise HTTPException(400, "Unknown change type")
     await record_audit(entity_type="asset_reconciliation", entity_id=item_id, action=action, user=user)

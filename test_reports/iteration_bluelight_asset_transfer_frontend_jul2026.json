@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend-only E2E test of Asset Transfer Requests (§37). Engineer wizard: logged into CRM (owner@isodemo.com), crm_token stored, opened visit 67b385fb... at Exeter Middlemoor, started visit, opened 'Add machine not on list', typed serial PF-EXE-0000 -> transfer-banner appeared correctly ('already registered at Exeter Central Fire Station (PF-EXE-0000)') with both buttons; 'Add as new anyway' hid banner and revealed add-asset-save; retyping the serial re-showed the banner; 'Request transfer to this station' closed the sheet and showed toast 'Transfer requested — the office will review it.' with no duplicate asset added; negative serial ZZZ-NOEXIST-999 produced NO banner and a usable Add machine button. Office side: CRM -> Corporate mode -> Contracts -> CTR-BLFRS1 -> Blue Light tab -> Asset Changes: Transfers tile = 1, row chip 'TRANSFER' with 'Transfer requested: Pulse Fitness Fusion Multi Station (PF-EXE-0000) from Exeter Central Fire Station -> Exeter Middlemoor Fire Station' plus Approve/Revert. Clicked REVERT (reject) -> row now shows 'Rejected', awaiting-review count dropped 3->2. DB verified: asset still at Exeter Central (site unchanged), transfer doc status='rejected'. All 8 requested steps PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CRM Contract detail / Blue Light Asset Changes", "issues": ["'Transfers' count tile still shows 1 after the request is rejected (counts all transfers regardless of status) — consider counting pending only, matching engineer expectation", "Contract detail tabs (Overview/Blue Light/Sites...) and contract list rows have no data-testid, forcing text-based selectors in tests; tab is labelled 'Blue Light' not 'Blue Light Service' as stated in the request"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: add data-testid to contract detail tabs (e.g. contract-tab-blue-light) and contract list rows for stable automation",
+    "Optional: make the Transfers tile count pending transfers only (currently includes rejected/approved)"
+  ],
+  "critical_code_review_comments": [
+    "AddAssetSheet lookup debounce (400ms) and ignore-flag reset on retype behave as specified; no leaks observed.",
+    "lookupAsset swallows errors with `catch { return [] }` — a failed/401 lookup is indistinguishable from 'no match', so an auth/network failure silently allows a duplicate add. Consider surfacing a subtle error hint."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only request)", "frontend": "100% (8/8 steps)"},
+  "seed_data_creation": "One transfer request created via the wizard for PF-EXE-0000 and then REJECTED via the office panel as instructed; demo asset remains at Exeter Central Fire Station (verified in DB). A rejected transfer doc remains in crm2_asset_transfers.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (CRM)",
+  "context_for_next_testing_agent": "Wizard needs crm_token in localStorage: log in at /login?next=/crm first, then go to /blue-light/visit/{id}; check the on-site confirm checkbox before clicking start-visit-btn. CRM contracts require clicking crm-mode-business then crm-nav-contracts (deep link ignored). Contract sub-tab label is exactly 'Blue Light'. Dismiss cookie 'Accept All' and PWA 'Later' prompts.",
+  "rca_of_the_issue": "N/A — no defects found in the transfer flow."
+}

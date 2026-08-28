@@ -1,3 +1,45 @@
+# ═══ 2026-06 · BLUE LIGHT — ASSET TRANSFER REQUESTS (§37) · testing_agent 100% (8/8) ═══
+When an engineer finds a machine on-site that is actually registered at ANOTHER station on the same
+contract, they request a TRANSFER instead of creating a duplicate. Office approves the move in the
+Asset Reconciliation panel. User choices: trigger inside the wizard "Add machine" sheet; office approval
+required; match by serial, and when serial is blank by manufacturer+model+asset number.
+
+  • BACKEND routes/crm_contracts.py:
+    - GET /crm/v2/visits/{id}/assets/lookup?serial&model&name&asset_number — finds a machine on the
+      contract at a DIFFERENT station (excludes current site + removed/rejected). Matches on normalised
+      serial; when serial blank, on a soft key of model+name+asset_number (min length guard). _asset_soft_key().
+    - POST /crm/v2/visits/{id}/assets/{asset_id}/transfer-request {reason} — records a crm2_asset_transfers
+      doc (status pending, from_site_id=asset's current site, to_site_id=visit site, engineer/at, asset_name+
+      serial cached) — does NOT move the asset; upserts (one pending per asset). Also writes an
+      asset_verifications action=transfer_requested marker. Returns _visit_state.
+    - _reconciliation_items() adds kind "transfer" from crm2_asset_transfers (item id 'xfer:<id>'; detail
+      'Transfer requested: <asset> (<serial>) from <A> → <B>'; review_status = pending|approved|rejected).
+      asset-changes counts gain "transfer". Review endpoint handles 'xfer': approve → move asset site_id to
+      to_site + status active + clear not_found_reason + mark approved; reject → leave asset, mark rejected.
+    - overview asset_discrepancies now also counts pending transfers.
+  • FRONTEND pages/CRM/Contracts/BlueLightVisitWizard.js: AddAssetSheet debounces (400ms) a lookup as the
+    engineer types serial/model/name; on a hit shows an amber transfer-banner ("already registered at
+    <Station>") with 'Request transfer to this station' (transfer-request-btn) + 'No — add as a new machine
+    anyway' (transfer-add-anyway, sets an ignore flag; retyping re-shows it). Parent helpers lookupAsset +
+    onRequestTransfer (toast 'Transfer requested — the office will review it.'). testids: transfer-banner,
+    transfer-request-btn, transfer-add-anyway, add-lookup-checking.
+  • FRONTEND pages/CRM/Contracts/BlueLightTab.js: Asset Changes panel gains a 'Transfers' count tile
+    (bl-recon-count-transfer) + a blue 'transfer' kind chip; existing Approve/Revert wiring drives xfer review.
+  • VERIFIED: backend curl (lookup by serial matched Exeter Central; request → pending feed item; approve →
+    asset site_id moved + status active + transfer approved; then reverted/cleaned) + testing_agent frontend
+    100% (8/8: banner appears/toggles/re-triggers, request toast, no-match negative case, office Transfers
+    tile + row + REJECT leaves asset put) — iteration_bluelight_asset_transfer_frontend_jul2026.json. All
+    test fixtures cleaned; demo CTR-BLFRS1 restored (82 stations, PF-EXE-0000 back at Exeter Central).
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live. NOTE (minor, by design): the office 'Transfers'
+    tile counts all transfers (like the other kind tiles), not just pending; the 'Awaiting review' tile is
+    the actionable one. lookupAsset fails open (a network/401 lookup returns no match → engineer can still
+    add new — no data corruption).
+  • REMAINING (Blue Light backlog): calibration trend reporting (§48), CAPEX links (§49), offline engineer
+    support (§41), Devon & Somerset certificate artwork match.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · BLUE LIGHT — CONTRACT ONBOARDING IMPORT (§51/§52) · testing_agent 100% (11/11) ═══
 Bulk-import a Blue Light contract's stations + assets from a spreadsheet, with a full validation
 summary + duplicate warnings shown BEFORE anything is created. Reference format = the customer's
