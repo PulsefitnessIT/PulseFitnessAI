@@ -1,3 +1,22 @@
+# ═══ 2026-08-28 · BLUE LIGHT — PHASE 5b: CERTIFICATE TRACKER ON CONTRACT OVERVIEW (§33) · verified ═══
+Leadership can spot any station without a certificate instantly, from the contract Overview.
+
+  • BACKEND routes/crm_contracts.py: blue_light_overview() stats now include certificates_breakdown =
+    {total_stations, generated (incl. sent+awaiting_review), sent, awaiting_review, send_failed, outstanding}
+    computed from per-station certificate_status. blue_light_station_matrix() gains a cert_status query filter
+    (outstanding matches ''/'outstanding').
+  • FRONTEND BlueLightTab.js: Certificate Tracker card (bl-cert-tracker) below the stat tiles with 6 clickable
+    tiles (bl-cert-track-all/-generated/-sent/-awaiting_review/-send_failed/-outstanding) that set certStatusFilter
+    → filters the station matrix (cert_status param wired into loadStations); active filter chip in the matrix
+    toolbar (bl-cert-filter-clear). NOTE: this Overview tracker is inside the Blue Light TAB (not the separate
+    'Overview' tab) alongside the operational stats — the natural home for the contract's operational picture.
+  • VERIFIED: backend curl (breakdown {82 total,3 generated,2 sent,1 awaiting,0 failed,79 outstanding};
+    cert_status=outstanding → 79) + screenshot (tracker renders with correct figures; clicking 'No certificate'
+    highlights tile 79 + applies filter chip).
+  ⚠️ PREVIEW ONLY — REDEPLOY to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-08-28 · BLUE LIGHT — PHASE 5a: CUSTOMER PORTAL CERTIFICATES · testing_agent 100% ═══
 Customers can now view / search / download their station Service & Calibration certificates in the Customer
 Portal, with the next-service-due date. Reuses the existing portal (LiteDashboardPage) + crm2_certificates

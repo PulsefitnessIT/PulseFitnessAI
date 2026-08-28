@@ -1488,6 +1488,14 @@ async def blue_light_overview(contract_id: str, user=Depends(get_crm_user)):
     awaiting = sum(1 for r in rows if r["visit_status"] == "not_planned")
     certs_done = sum(1 for r in rows if r["certificate_status"] in ("generated", "sent"))
     certs_sent = sum(1 for r in rows if r["certificate_status"] == "sent")
+    cert_breakdown = {
+        "total_stations": n,
+        "generated": sum(1 for r in rows if r["certificate_status"] in ("generated", "sent", "awaiting_review")),
+        "sent": certs_sent,
+        "awaiting_review": sum(1 for r in rows if r["certificate_status"] == "awaiting_review"),
+        "send_failed": sum(1 for r in rows if r["certificate_status"] == "send_failed"),
+        "outstanding": sum(1 for r in rows if r["certificate_status"] in ("outstanding", "")),
+    }
     faults_open = sum(r["faults_raised"] for r in rows)
     follow_ups = sum(1 for r in rows if r["follow_up_required"])
     total_assets = sum(r["asset_count"] for r in rows)
@@ -1516,6 +1524,7 @@ async def blue_light_overview(contract_id: str, user=Depends(get_crm_user)):
             "certificates_completed": certs_done,
             "certificates_sent": certs_sent,
             "certificates_outstanding": n - certs_done,
+            "certificates_breakdown": cert_breakdown,
             "open_faults": faults_open,
             "follow_ups_required": follow_ups,
             "asset_discrepancies": 0,
@@ -1528,7 +1537,7 @@ async def blue_light_overview(contract_id: str, user=Depends(get_crm_user)):
 @router.get("/contracts/{contract_id}/stations")
 async def blue_light_station_matrix(
     contract_id: str,
-    search: str = "", status: str = "", engineer_id: str = "",
+    search: str = "", status: str = "", engineer_id: str = "", cert_status: str = "",
     sort: str = "station_name", direction: str = "asc",
     user=Depends(get_crm_user),
 ):
@@ -1543,6 +1552,11 @@ async def blue_light_station_matrix(
                 or q in (r["postcode"] or "").lower()]
     if status:
         rows = [r for r in rows if r["visit_status"] == status]
+    if cert_status:
+        if cert_status == "outstanding":
+            rows = [r for r in rows if r["certificate_status"] in ("outstanding", "")]
+        else:
+            rows = [r for r in rows if r["certificate_status"] == cert_status]
     if engineer_id:
         rows = [r for r in rows if r["assigned_engineer_id"] == engineer_id]
     reverse = direction == "desc"

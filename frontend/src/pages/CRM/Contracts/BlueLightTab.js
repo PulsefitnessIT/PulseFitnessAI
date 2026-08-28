@@ -70,6 +70,7 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [certStatusFilter, setCertStatusFilter] = useState('');
   const [sort, setSort] = useState('station_name');
   const [direction, setDirection] = useState('asc');
   const [saving, setSaving] = useState(false);
@@ -103,11 +104,11 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
   const loadStations = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ search: debouncedSearch, status: statusFilter, sort, direction });
+      const params = new URLSearchParams({ search: debouncedSearch, status: statusFilter, cert_status: certStatusFilter, sort, direction });
       const res = await axios.get(`${API}/crm/v2/contracts/${contractId}/stations?${params}`, { headers: headers() });
       setStations(res.data.stations || []);
     } catch (e) { setStations([]); } finally { setLoading(false); }
-  }, [API, headers, contractId, debouncedSearch, statusFilter, sort, direction]);
+  }, [API, headers, contractId, debouncedSearch, statusFilter, certStatusFilter, sort, direction]);
 
   useEffect(() => { loadOverview(); }, [loadOverview]);
   useEffect(() => {
@@ -329,6 +330,38 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
         <StatTile label="Service Every" value={`${s.service_frequency_months || 6} mo`} icon={Gauge} testId="bl-stat-freq" />
       </div>
 
+      {/* Certificate tracker (§33) — click a tile to filter the matrix */}
+      {(() => {
+        const cb = s.certificates_breakdown || {};
+        const tiles = [
+          ['', 'All stations', cb.total_stations ?? s.sites ?? 0, 'var(--color-text)'],
+          ['generated', 'Generated', cb.generated || 0, 'var(--color-success-alt-2)'],
+          ['sent', 'Sent', cb.sent || 0, 'var(--color-success-alt)'],
+          ['awaiting_review', 'Awaiting review', cb.awaiting_review || 0, 'var(--color-accent-amber)'],
+          ['send_failed', 'Failed to send', cb.send_failed || 0, 'var(--color-danger)'],
+          ['outstanding', 'No certificate', cb.outstanding || 0, 'var(--color-danger)'],
+        ];
+        return (
+          <div className="rounded-xl border p-3" style={{ borderColor: c.border, background: 'var(--color-surface)' }} data-testid="bl-cert-tracker">
+            <div className="flex items-center gap-2 mb-2 text-sm font-bold" style={{ color: c.text }}>
+              <FileCheck2 size={15} style={{ color: 'var(--color-success-alt-2)' }} /> Certificate Tracker
+              <span className="text-[11px] font-normal" style={{ color: c.textMuted }}>· click to find stations instantly</span>
+            </div>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+              {tiles.map(([key, label, val, color]) => (
+                <button key={key || 'all'} data-testid={`bl-cert-track-${key || 'all'}`}
+                  onClick={() => { setCertStatusFilter(key); setStatusFilter(''); }}
+                  className="rounded-lg p-2 text-center transition-transform active:scale-95"
+                  style={{ background: certStatusFilter === key ? color + '26' : 'var(--color-bg)', border: certStatusFilter === key ? `1px solid ${color}` : '1px solid transparent' }}>
+                  <div className="text-xl font-bold" style={{ color }}>{val}</div>
+                  <div className="text-[10px] leading-tight" style={{ color: c.textMuted }}>{label}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Bulk planning bar */}
       <div className="rounded-xl border p-3 flex flex-wrap items-end gap-3" style={{ borderColor: c.border, background: 'var(--color-surface)' }} data-testid="bl-plan-bar">
         <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: c.text }}>
@@ -394,6 +427,13 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
             {Object.entries(STATUS_META).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
           </select>
           <Button variant="ghost" size="sm" icon={Download} onClick={exportCsv} data-testid="bl-station-export">Export</Button>
+          {certStatusFilter && (
+            <button data-testid="bl-cert-filter-clear" onClick={() => setCertStatusFilter('')}
+              className="text-xs px-2 py-1 rounded-full flex items-center gap-1"
+              style={{ background: 'var(--color-info-ios)22', color: 'var(--color-info-ios)' }}>
+              Certificate: {certStatusFilter.replace(/_/g, ' ')} ✕
+            </button>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
