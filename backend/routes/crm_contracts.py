@@ -10,7 +10,7 @@ Source of Truth Rules:
   - Sage 200: financial postings, invoices, payments, deferred income
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from utils.security_plus import safe_regex
 from datetime import datetime, timezone, timedelta
 from utils.database import db
@@ -2596,3 +2596,206 @@ async def blue_light_asset_change_review(contract_id: str, data: dict, user=Depe
     await record_audit(entity_type="asset_reconciliation", entity_id=item_id, action=action, user=user)
     return {"success": True, "item_id": item_id, "action": action}
 
+
+
+# ════════════════════════════════════════════════════════════════════
+# BLUE LIGHT — CONTRACT ONBOARDING IMPORT (§51/§52)
+# Bulk-import a contract's stations + assets from a spreadsheet with a
+# validation summary + duplicate warnings BEFORE anything is created.
+# ════════════════════════════════════════════════════════════════════
+
+@router.get("/blue-light/import/template.csv")
+async def blue_light_import_template(user=Depends(get_crm_user)):
+    """Downloadable CSV template with the exact import columns + sample rows."""
+    from fastapi.responses import Response
+    from utils.blue_light_import import template_csv
+    return Response(
+        content=template_csv(), media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=blue-light-import-template.csv"})
+
+
+async def _bl_import_validate(contract_id: str, rows: list) -> dict:
+    """Annotate rows with duplicate/validity flags and build a summary.
+    Mutates each row dict in place (adds is_treadmill/dup_*/station_exists/valid)."""
+    existing_assets = await db.crm2_contract_assets.find(
+        {"contract_id": contract_id},
+        {"_id": 0, "serial_number": 1, "manufacturer": 1, "model_code": 1,
+         "asset_number": 1, "equipment_type": 1, "site_id": 1}).to_list(200000)
+    site_docs = await db.crm2_contract_sites.find(
+        {"contract_id": contract_id}, {"_id": 0, "id": 1, "site_name": 1}).to_list(200000)
+    existing_station_names = {(d.get("site_name") or "").strip().lower() for d in site_docs}
+    site_name_by_id = {d.get("id"): (d.get("site_name") or "") for d in site_docs}
+
+    def _soft_key(station, manufacturer, model, asset_number, equipment_type):
+        return _norm_serial("|".join([(station or "").lower(), manufacturer or "",
+                                       model or "", asset_number or "", equipment_type or ""]))
+
+    existing_serials = set()
+    existing_soft = set()   # soft key for assets with NO serial (re-import guard)
+    for a in existing_assets:
+        if a.get("serial_number"):
+            existing_serials.add(_norm_serial(a.get("serial_number", "")))
+        else:
+            existing_soft.add(_soft_key(site_name_by_id.get(a.get("site_id"), ""),
+                                        a.get("manufacturer"), a.get("model_code"),
+                                        a.get("asset_number"), a.get("equipment_type")))
+
+    seen, seen_soft, warnings, errors, stations = set(), set(), [], [], {}
+    for r in rows:
+        st = (r.get("station_name") or "").strip()
+        r["is_treadmill"] = _is_treadmill({
+            "equipment_type": r.get("equipment_type", ""),
+            "model_code": r.get("model", ""),
+            "asset_name": r.get("asset_name", "")})
+        r["dup_in_file"] = r["dup_on_contract"] = r["station_exists"] = False
+        r["valid"] = True
+        if not st:
+            r["valid"] = False
+            errors.append({"row": r.get("source_row"), "sheet": r.get("source_sheet", ""),
+                           "message": "No station / location for this row"})
+            continue
+        r["station_exists"] = st.lower() in existing_station_names
+        can = _norm_serial(r.get("serial_number", "")) if r.get("serial_number") else ""
+        if can:
+            if can in seen:
+                r["dup_in_file"] = True
+            else:
+                seen.add(can)
+            if can in existing_serials:
+                r["dup_on_contract"] = True
+        else:
+            # No serial — de-dupe on a soft key so re-imports don't recreate rows
+            soft = _soft_key(st, r.get("manufacturer"), r.get("model"),
+                             r.get("asset_number"), r.get("equipment_type"))
+            if soft in seen_soft:
+                r["dup_in_file"] = True
+            else:
+                seen_soft.add(soft)
+            if soft in existing_soft:
+                r["dup_on_contract"] = True
+        if r["dup_in_file"]:
+            warnings.append({"row": r.get("source_row"), "type": "duplicate_in_file",
+                             "serial": r.get("serial_number"), "station": st,
+                             "message": (f"Serial {r.get('serial_number')} appears more than once in the file"
+                                         if can else f"{r.get('asset_name')} (no serial) appears more than once in the file")})
+        if r["dup_on_contract"]:
+            warnings.append({"row": r.get("source_row"), "type": "duplicate_on_contract",
+                             "serial": r.get("serial_number"), "station": st,
+                             "message": (f"Serial {r.get('serial_number')} already exists on this contract"
+                                         if can else f"{r.get('asset_name')} (no serial) already looks present on this contract")})
+        if not can and not r["dup_in_file"] and not r["dup_on_contract"]:
+            warnings.append({"row": r.get("source_row"), "type": "missing_serial", "station": st,
+                             "message": f"{r.get('asset_name')} has no serial number"})
+        grp = stations.setdefault(st, {"name": st, "exists": r["station_exists"],
+                                       "asset_count": 0, "treadmill_count": 0})
+        grp["asset_count"] += 1
+        if r["is_treadmill"]:
+            grp["treadmill_count"] += 1
+
+    station_list = list(stations.values())
+    valid_rows = [r for r in rows if r.get("valid")]
+    counts = {
+        "rows_total": len(rows),
+        "assets_valid": len(valid_rows),
+        "assets_duplicate": sum(1 for r in valid_rows if r["dup_in_file"] or r["dup_on_contract"]),
+        "assets_blank_serial": sum(1 for r in valid_rows if not r.get("serial_number")),
+        "treadmills": sum(1 for r in valid_rows if r["is_treadmill"]),
+        "stations_total": len(station_list),
+        "stations_new": sum(1 for s in station_list if not s["exists"]),
+        "stations_existing": sum(1 for s in station_list if s["exists"]),
+    }
+    return {"counts": counts, "stations": station_list, "warnings": warnings, "errors": errors}
+
+
+@router.post("/contracts/{contract_id}/blue-light/import/preview")
+async def blue_light_import_preview(
+    contract_id: str,
+    file: UploadFile = File(None),
+    text: str = Form(None),
+    default_station: str = Form(""),
+    user=Depends(get_crm_user),
+):
+    """Parse a spreadsheet/CSV/paste and return a validation summary WITHOUT
+    creating anything. Returns per-row flags so the operator can review dupes."""
+    from utils.blue_light_import import parse_import
+    await _get_bl_contract(contract_id, user)
+    if not file and not text:
+        raise HTTPException(400, "Provide a file upload or pasted text")
+    try:
+        if file:
+            content = await file.read()
+            rows, meta = parse_import(content=content, filename=file.filename,
+                                      default_station=default_station or "")
+        else:
+            rows, meta = parse_import(text=text, default_station=default_station or "")
+    except Exception as e:  # noqa: BLE001 — surface parse errors to the operator
+        raise HTTPException(400, f"Could not read the spreadsheet: {e}")
+    if not rows:
+        raise HTTPException(400, "No data rows found in the file")
+    summary = await _bl_import_validate(contract_id, rows)
+    return {**summary, "rows": rows, "meta": meta}
+
+
+@router.post("/contracts/{contract_id}/blue-light/import/commit")
+async def blue_light_import_commit(contract_id: str, data: dict, user=Depends(get_crm_user)):
+    """Create stations (deduped by name) + assets from reviewed import rows.
+    Skips duplicate serials when skip_duplicates is true (default)."""
+    await _get_bl_contract(contract_id, user)
+    rows = data.get("rows") or []
+    if not rows:
+        raise HTTPException(400, "No rows to import")
+    skip_duplicates = data.get("skip_duplicates", True)
+    summary = await _bl_import_validate(contract_id, rows)  # recompute flags fresh
+    org, now = user.get("organization_id"), _now()
+
+    site_docs = await db.crm2_contract_sites.find(
+        {"contract_id": contract_id}, {"_id": 0, "id": 1, "site_name": 1}).to_list(200000)
+    site_map = {(d.get("site_name") or "").strip().lower(): d["id"] for d in site_docs}
+
+    new_sites, stations_created = [], 0
+    for s in summary["stations"]:
+        key = s["name"].strip().lower()
+        if key and key not in site_map:
+            sid = _id()
+            new_sites.append({
+                "id": sid, "contract_id": contract_id, "organization_id": org,
+                "site_name": s["name"], "address": "", "city": "", "postcode": "",
+                "visit_status": "not_planned", "next_service_due": "", "scheduled_date": "",
+                "last_service": "", "follow_up_required": False,
+                "source": "onboarding_import", "created_at": now})
+            site_map[key] = sid
+            stations_created += 1
+    if new_sites:
+        await db.crm2_contract_sites.insert_many(new_sites)
+
+    assets, skipped = [], 0
+    for r in rows:
+        if not r.get("valid", True):
+            continue
+        if skip_duplicates and (r.get("dup_in_file") or r.get("dup_on_contract")):
+            skipped += 1
+            continue
+        sid = site_map.get((r.get("station_name") or "").strip().lower(), "")
+        assets.append({
+            "id": _id(), "contract_id": contract_id, "organization_id": org,
+            "site_id": sid, "asset_id": "",
+            "asset_name": r.get("asset_name", ""), "equipment_type": r.get("equipment_type", ""),
+            "model_code": r.get("model", ""), "manufacturer": r.get("manufacturer", ""),
+            "serial_number": r.get("serial_number", ""), "asset_number": r.get("asset_number", ""),
+            "mod_code": r.get("mod_code", ""), "sub_location": r.get("sub_location", ""),
+            "warranty_end": r.get("warranty_end", ""), "coverage_type": "full",
+            "notes": r.get("notes", ""), "source": "onboarding_import", "created_at": now})
+    if assets:
+        await db.crm2_contract_assets.insert_many(assets)
+
+    result = {
+        "success": True,
+        "stations_created": stations_created,
+        "stations_matched": summary["counts"]["stations_existing"],
+        "assets_created": len(assets),
+        "assets_skipped": skipped,
+        "treadmills": sum(1 for a in assets if _is_treadmill(a)),
+    }
+    await record_audit(entity_type="contract", entity_id=contract_id,
+                       action="blue_light_import", user=user, after=result)
+    return result

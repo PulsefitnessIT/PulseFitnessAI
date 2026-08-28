@@ -1,0 +1,44 @@
+{
+  "summary": "Frontend E2E test of the Blue Light Contract Onboarding Import (CRM → Contracts → Blue Light tab). Logged in via the platform login (/login?next=/crm — /crm bounces to /login by design), switched CRM to Corporate mode, created a throwaway contract 'Import QA Contract 1787949623', used the enable-and-import entry (bl-enable-import) which enabled Blue Light AND opened bl-import-panel, downloaded the template, uploaded the Kenya CSV, verified the pre-commit validation summary, committed, verified the result banner + station matrix refresh, then re-ran the same CSV to prove duplicate-on-contract detection, tested the paste path, input validation and a bad-file upload. ALL primary acceptance criteria PASSED; no functional defects found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CRM Blue Light tab — 'Bulk plan visits' row (pre-existing, not part of this feature)", "issues": ["Uses native browser date inputs (mm/dd/yyyy placeholders / native picker) instead of the shadcn calendar component; also US date order in a UK-facing app"]},
+      {"screen": "CRM deep link", "issues": ["/crm?tab=contracts is ignored — app lands on the Members-mode Dashboard; Contracts only reachable after switching to Corporate mode (crm-mode-business). Minor discoverability/deep-link gap."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "OPTIONAL (low): blank-serial rows are not de-dupable — after the successful import, re-previewing the SAME Kenya CSV still offers 'Import 5 assets into 4 stations' (the 5 no-serial rows). Committing twice would create 5 duplicate serial-less assets. Consider a soft dedupe key (station+manufacturer+model+asset_number) or an explicit warning that no-serial rows will be re-created.",
+    "OPTIONAL (low): support /crm?tab=contracts deep link (currently ignored; needs Corporate mode switch first).",
+    "Housekeeping: delete the throwaway QA contract 'Import QA Contract 1787949623' (CTR-4BBBF2, org iso-demo-org) which now holds 4 stations / 107 assets.",
+    "Unrelated console noise: React 'unique key prop' warning from StagnatingDeals on the CRM dashboard."
+  ],
+  "critical_code_review_comments": [
+    "BlueLightImportPanel is well-scoped (~240 lines), every interactive element has a data-testid, loading/error/success states all handled, multipart upload lets the browser set the boundary — no issues found.",
+    "commit posts back preview.rows verbatim; server re-validates (verified via the second preview flagging dup_on_contract), so no trust issue observed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only request)", "frontend": "100% (11/11 checks passed)"},
+  "seed_data_creation": "Throwaway CRM contract 'Import QA Contract 1787949623' (CTR-4BBBF2) under iso-demo-org with Blue Light enabled, 4 stations (Nyati Gym, FMB Nyati, Med Centre & PCRF, Kifaru Gym) and 107 imported assets (11 treadmills). Demo contract CTR-BLFRS1 was only read/previewed — nothing committed there (its stats remain 82 stations / 470 assets).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "owner@isodemo.com / IsoDemo123! — NOTE: must log in via the PLATFORM login at /login?next=/crm (the standalone CRM login form is never shown; /crm redirects to /login). Then CRM → Corporate mode (data-testid crm-mode-business) → crm-nav-contracts.",
+  "detailed_results": {
+    "1_enable_and_import_entry": "PASS — bl-enable-import enabled Blue Light and opened bl-import-panel in one click.",
+    "2_template_download": "PASS — downloaded 'blue-light-import-template.csv' via bl-import-template.",
+    "3_upload_preview_counts": "PASS — Stations(new)=4, Stations(existing)=0, Assets=108, Treadmills=11, Duplicates=1, No serial=5 (exact match to expectations). Nothing created at preview time (overview stats still 0 stations).",
+    "4_station_breakdown": "PASS — 4 rows, all tagged 'new': Nyati Gym 55 assets/7 treadmills, FMB Nyati 19/1, Med Centre & PCRF 16/2, Kifaru Gym 18/1.",
+    "5_warnings_box": "PASS — bl-import-warnings shows 6 warnings: 5 missing-serial rows (50, 51, 92, 95, 109) + 1 in-file duplicate (Row 107 serial 22018429).",
+    "6_commit": "PASS — skip-dupes checked by default; button label 'Import 107 assets into 4 stations'; green bl-import-result: 'Imported 107 assets across 4 new stations. 1 duplicate skipped. 11 treadmills detected for calibration.'",
+    "7_refresh_after_commit": "PASS — BL overview refreshed to STATIONS 4 / 107 assets / 11 treadmills, CERTIFICATES 0/4, 4 matrix rows (bl-station-row-*), and header tabs updated to Sites (4) / Assets (107).",
+    "8_duplicate_on_contract": "PASS — re-uploading the same CSV gave Stations(new)=0, Stations(existing)=4, Duplicates=103, 109 warnings ('Serial X already exists on this contract'), commit label reduced to 'Import 5 assets into 4 stations' (the 5 no-serial rows).",
+    "9_paste_path": "PASS — paste mode + default station 'QA Paste Station' → 1 new station, 2 assets, 1 treadmill, 0 duplicates (not committed).",
+    "10_import_toggle_existing_contract": "PASS — bl-import-toggle shows/hides the same panel on both the QA contract and the existing 82-station CTR-BLFRS1.",
+    "11_validation_error_handling": "PASS — 'Choose a CSV or Excel file first.' (no file), 'Paste some rows first.' (empty paste), and a friendly 'No data rows found in the file' for a non-spreadsheet .txt upload; no crash, no preview rendered."
+  },
+  "context_for_next_testing_agent": "Auth path for CRM tests: go to /login?next=/crm, fill gx-login-email / gx-login-password, submit; then click crm-mode-business and crm-nav-contracts (Contracts is NOT in Members mode, and ?tab=contracts is ignored). Kenya CSV cached at /tmp/kenya.csv. QA contract 'Import QA Contract 1787949623' already has the Kenya import committed — re-previewing it is a ready-made duplicate-on-contract fixture.",
+  "rca_of_the_issue": "No defects to root-cause. Initial test failures were environmental/test-side only: (a) /crm redirects unauthenticated users to the platform /login (CRMApp.js ~line 703), and (b) the CRM mode testids are crm-mode-leisure / crm-mode-business (not 'corporate'). Test script was corrected accordingly."
+}

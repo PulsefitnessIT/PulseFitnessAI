@@ -3,8 +3,10 @@ import axios from 'axios';
 import {
   Radio, Save, Search, Download, Filter, MapPin, Gauge, AlertTriangle,
   CheckCircle, Clock, CalendarClock, FileCheck2, ChevronUp, ChevronDown, ClipboardList,
+  FileSpreadsheet,
 } from 'lucide-react';
 import Button from '@/components/shared/Button';
+import BlueLightImportPanel from './BlueLightImportPanel';
 
 const STATUS_META = {
   not_planned: { label: 'Not Planned', color: 'var(--color-text-faint-alt)' },
@@ -85,6 +87,7 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
   const [showCerts, setShowCerts] = useState(false);
   const [recon, setRecon] = useState(null);
   const [showRecon, setShowRecon] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [engineers, setEngineers] = useState([]);
   const [selected, setSelected] = useState(() => new Set());
   const [planDate, setPlanDate] = useState('');
@@ -261,6 +264,13 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
         <Button onClick={() => saveConfig()} disabled={saving} icon={CheckCircle} data-testid="bl-enable-btn">
           {saving ? 'Enabling…' : 'Enable Blue Light Service'}
         </Button>
+        <div className="mt-3">
+          <button className="text-[12px] underline" data-testid="bl-enable-import"
+            style={{ color: 'var(--color-info-ios)' }}
+            onClick={async () => { await saveConfig(); setShowImport(true); }}>
+            or enable &amp; import stations &amp; assets from a spreadsheet
+          </button>
+        </div>
       </div>
     );
   }
@@ -281,6 +291,9 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
       </div>
 
       <div className="flex justify-end -mt-2 gap-2">
+        <Button variant="ghost" size="sm" icon={FileSpreadsheet} onClick={() => setShowImport(v => !v)} data-testid="bl-import-toggle">
+          Import
+        </Button>
         <Button variant="ghost" size="sm" icon={ClipboardList} onClick={() => setShowRecon(v => !v)} data-testid="bl-recon-toggle">
           Asset Changes{recon?.counts?.pending ? ` (${recon.counts.pending})` : ''}
         </Button>
@@ -288,6 +301,11 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
           Certificates{certs?.count ? ` (${certs.count})` : ''}
         </Button>
       </div>
+
+      {showImport && (
+        <BlueLightImportPanel API={API} headers={headers} contractId={contractId} c={c}
+          onImported={() => { refreshAll(); }} />
+      )}
 
       {showRecon && (
         <div className="rounded-xl border p-4" style={{ borderColor: c.border, background: 'var(--color-surface)' }} data-testid="bl-recon-panel">

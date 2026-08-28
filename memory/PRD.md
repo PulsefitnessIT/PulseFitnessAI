@@ -1,3 +1,48 @@
+# ═══ 2026-06 · BLUE LIGHT — CONTRACT ONBOARDING IMPORT (§51/§52) · testing_agent 100% (11/11) ═══
+Bulk-import a Blue Light contract's stations + assets from a spreadsheet, with a full validation
+summary + duplicate warnings shown BEFORE anything is created. Reference format = the customer's
+"Kenya import" CSV (columns: name, equipment_type, manufacturer, model, serial_number, asset_number,
+mod_code, quantity, location, sub_location, warranty_expiry, notes...). The `location` column = the
+STATION; each worksheet TAB name can also be a station (both supported). User choices: paste + CSV/XLSX
+upload + downloadable template; duplicates = dup serials in file / serials already on contract / existing
+station names; on confirm → import valid rows and SKIP flagged duplicates with a result summary; importer
+works for an EXISTING BL contract AND a newly created one.
+
+  • BACKEND utils/blue_light_import.py (NEW): parse_import(content|text, filename, default_station) reads
+    CSV/XLSX (every sheet — tab name used as station when no location column) / pasted TSV-CSV via pandas;
+    flexible header aliasing (HEADER_ALIASES), UK date parsing (DD/MM/YYYY→ISO), blank/NA serial handling,
+    drops fully-blank rows. template_csv() → the downloadable template (TEMPLATE_COLUMNS + sample rows).
+  • BACKEND routes/crm_contracts.py (appended ~L2600+): GET /crm/v2/blue-light/import/template.csv;
+    POST /crm/v2/contracts/{id}/blue-light/import/preview (multipart: file OR text + default_station) →
+    validation summary via _bl_import_validate() (per-row flags is_treadmill/dup_in_file/dup_on_contract/
+    station_exists/valid, counts, per-station breakdown, warnings, errors) + returns rows[] for commit —
+    CREATES NOTHING; POST /crm/v2/contracts/{id}/blue-light/import/commit (json {rows, skip_duplicates})
+    → creates stations (deduped by name, case-insensitive) + assets, skips flagged dupes, audit-logged,
+    returns {stations_created, stations_matched, assets_created, assets_skipped, treadmills}.
+    Duplicate detection: serial via _norm_serial; serial-less rows use a SOFT KEY
+    (station|manufacturer|model|asset_number|equipment_type) so re-imports don't recreate them.
+  • FRONTEND pages/CRM/Contracts/BlueLightImportPanel.js (NEW): upload/paste modes, default-station input,
+    template download, Preview (summary tiles + per-station list + warnings/errors), Skip-duplicates toggle,
+    Commit with live "Import N assets into M stations" label, result banner. Wired into BlueLightTab.js:
+    'Import' toggle (bl-import-toggle) on the main tab + enable-panel entry (bl-enable-import) that enables
+    Blue Light AND opens the panel in one click (covers the "new contract" path). testids: bl-import-panel,
+    -template, -mode-upload/-paste, -file, -paste, -default-station, -preview-btn, -preview, -count-*,
+    -stations, -station-<i>, -warnings/-warning-<i>, -errors, -skip-dupes, -commit-btn, -result, -again,
+    -cancel, -error.
+  • VERIFIED: backend curl (preview 108 rows/4 stations/11 treadmills/1 in-file dup/5 no-serial; commit →
+    107 assets + 4 stations, 1 dup skipped; re-preview flags dup_on_contract incl. soft-key on the 5
+    serial-less rows → 108 dupes, 0 net creatable; paste + template) + testing_agent frontend 100% (11/11) —
+    iteration_bluelight_import_frontend_jul2026.json. Demo CTR-BLFRS1 left untouched (82 stations); QA
+    contract cleaned up.
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live. NOTE: XLSX with one tab per station reads the tab
+    name as the station when there's no location column. CRM access: /login?next=/crm → Corporate/business
+    mode → Contracts → contract → 'Blue Light Service' tab.
+  • REMAINING (Blue Light backlog): calibration trend reporting (§48), CAPEX links (§49), asset transfer
+    between stations (§37), offline engineer support (§41), Devon & Somerset certificate artwork match.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-08-28 · BLUE LIGHT — ASSET REGISTER RECONCILIATION (§35/§36/§37) · verified ═══
 Central "asset changes from service visits" review so the customer register stays clean; office staff approve
 or revert significant changes. Reuses the Phase-3 audit data (crm2_asset_verifications, crm2_asset_changes,
