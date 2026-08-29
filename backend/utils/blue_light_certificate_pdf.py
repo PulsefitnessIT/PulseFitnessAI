@@ -285,6 +285,14 @@ def build_certificate_pdf(*, contract: dict, station: dict, visit: dict,
 
     # ── Signature blocks: Managing Director (left) + Engineer (right) ──
     md_sig = Paragraph("Chris Johnson", sig_script)
+    try:
+        import os as _os
+        _md_path = _os.path.join(_os.path.dirname(__file__), "assets", "md_signature.png")
+        if _os.path.exists(_md_path):
+            md_sig = Image(_md_path, width=46 * mm, height=46 * mm * (114 / 212))
+            md_sig.hAlign = "LEFT"
+    except Exception:
+        pass
     sig_bytes = visit.get("_signature_image_bytes")
     eng_sig = Paragraph(_esc(visit.get("engineer_name")) or "&nbsp;", sig_script)
     if sig_bytes:

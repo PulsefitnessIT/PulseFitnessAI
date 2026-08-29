@@ -25,8 +25,11 @@ Reworked the Service & Calibration Certificate PDF to mirror Pulse's master "Cer
     rendered to PNG and visually compared to the master — matches (banner, two-tone title, top-right crest,
     table, 2x2 details, MD-left/Engineer-right signatures, footer). Module imports clean; endpoints call
     build_certificate_pdf with the unchanged signature so all cert download/portal paths keep working.
-  • NOTE: the Managing Director signature is rendered as a styled ("script") name — no handwritten MD
-    signature graphic was provided. If Pulse supplies a Chris Johnson signature PNG, it can be dropped in.
+  • MD SIGNATURE (2026-06 update): the real Chris Johnson handwritten signature is now embedded
+    (utils/assets/md_signature.png — sourced from "Chris Johnson's Signature.JPG", near-white made
+    transparent + trimmed) in the left signature block above his name/title, matching the master. The
+    engineer's on-device signature renders on the right at visit time; falls back to the styled name if
+    an image is missing.
   ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live. Certificates already generated keep their old
     stored PDF; newly completed visits use the v2 layout.
 ─────────────────────────────────────────────────────────────────────────────
