@@ -1,3 +1,38 @@
+# ═══ 2026-06 · BLUE LIGHT — CERTIFICATE MATCHED TO MASTER TEMPLATE · visual-verified ═══
+Reworked the Service & Calibration Certificate PDF to mirror Pulse's master "Certificate of Service"
+(Master - certificate.pdf) exactly in layout. TEMPLATE_VERSION bumped 1 -> 2.
+
+  • utils/blue_light_certificate_pdf.py fully rewritten (dedicated SimpleDocTemplate, no longer uses the
+    generic pulse_doc shell). New layout:
+    - Full-bleed dark charcoal HEADER banner (with a lighter top strip) drawn on canvas: pulsefitness
+      wordmark (cyan ring + "pulse" bold / "fitness" light, white) left; "Qualified to deliver the best" right.
+    - Two-tone LEFT-aligned title: "CERTIFICATE" (dark grey, 48pt) over "OF SERVICE" (Pulse cyan, 29pt),
+      then "IS TO CERTIFY THAT ALL PULSE FITNESS EQUIPMENT AT", the site name (bold), then
+      "HAS BEEN CHECKED, SERVICED AND CALIBRATED / TO MEET PULSE FITNESS OPERATIONAL STANDARDS".
+    - Customer crest drawn TOP-RIGHT on the canvas (uploaded/URL logo via _resolve_logo_bytes), aspect-fit
+      to ~150pt.
+    - Calibration table: near-black header row, columns Serial Number | {3/6/9/12} mph | {0/5/10/15}%,
+      pass/review/fail values colour-coded (green/amber/red) — richer than the blank master grid.
+    - 2x2 service-detail block (underlined rows): Service Contract Number | Engineer Name /
+      Service & Calibration Date | Next Service Due Date (Next due formatted "Month YYYY").
+    - Signature blocks: Managing Director LEFT ("Chris Johnson" script + Chris Johnson / Managing Director /
+      Pulse Fitness) and Engineer RIGHT (engineer's on-device signature image, or name in script, +
+      Engineer / Service Team / Pulse Fitness).
+    - Full-bleed dark FOOTER: cyan ring + www.pulsefitness.com (right).
+    - Colours sampled from master: banner #2D2D32, top strip #565A61, cyan #33BEE8, title #3F3F45,
+      sub-grey #6E747B, table head #1B1B1F.
+  • VERIFIED: generated a certificate with a crest + 2 treadmills (mixed pass/review/fail) + engineer/date,
+    rendered to PNG and visually compared to the master — matches (banner, two-tone title, top-right crest,
+    table, 2x2 details, MD-left/Engineer-right signatures, footer). Module imports clean; endpoints call
+    build_certificate_pdf with the unchanged signature so all cert download/portal paths keep working.
+  • NOTE: the Managing Director signature is rendered as a styled ("script") name — no handwritten MD
+    signature graphic was provided. If Pulse supplies a Chris Johnson signature PNG, it can be dropped in.
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live. Certificates already generated keep their old
+    stored PDF; newly completed visits use the v2 layout.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · BLUE LIGHT — CERTIFICATE LOGO UPLOADER · testing_agent 100% ═══
 Pulse can now UPLOAD a customer logo/crest per contract (PNG/JPG) instead of pasting a URL; it appears
 on that contract's certificates and everything else on the certificate stays the same. User choices:
