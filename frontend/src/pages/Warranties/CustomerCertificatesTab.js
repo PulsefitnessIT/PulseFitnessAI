@@ -83,13 +83,21 @@ export default function CustomerCertificatesTab() {
           {certs.map((cert) => (
             <div key={cert.id} className="rounded-xl border border-slate-200 bg-white p-4 flex items-center justify-between gap-3"
               data-testid={`cert-card-${cert.id}`}>
-              <div className="min-w-0">
-                <div className="font-semibold text-slate-800 truncate">{cert.station_name}</div>
-                <div className="text-xs text-slate-500 mt-0.5">
-                  {cert.contract_number && <span>{cert.contract_number} · </span>}
-                  Serviced {fmtDate(cert.service_date)}
+              <div className="flex items-center gap-3 min-w-0">
+                {cert.logo_url && (
+                  <img src={/^(https?:|data:)/.test(cert.logo_url) ? cert.logo_url : `${process.env.REACT_APP_BACKEND_URL}${cert.logo_url}`}
+                    alt="" data-testid={`cert-logo-${cert.id}`}
+                    className="h-10 w-10 rounded-md object-contain bg-white border border-slate-100 flex-shrink-0"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                )}
+                <div className="min-w-0">
+                  <div className="font-semibold text-slate-800 truncate">{cert.station_name}</div>
+                  <div className="text-xs text-slate-500 mt-0.5">
+                    {cert.contract_number && <span>{cert.contract_number} · </span>}
+                    Serviced {fmtDate(cert.service_date)}
+                  </div>
+                  {cert.next_service_due && <div className="text-xs text-slate-400 mt-0.5">Next due {fmtDate(cert.next_service_due)}</div>}
                 </div>
-                {cert.next_service_due && <div className="text-xs text-slate-400 mt-0.5">Next due {fmtDate(cert.next_service_due)}</div>}
               </div>
               <button onClick={() => download(cert)} disabled={downloading === cert.id}
                 data-testid={`cert-download-${cert.id}`}

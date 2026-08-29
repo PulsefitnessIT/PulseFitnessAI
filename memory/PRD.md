@@ -1,3 +1,15 @@
+# ═══ 2026-06 · BLUE LIGHT — CREST ON CUSTOMER PORTAL CERT LIST ═══
+The customer's uploaded crest now shows as a thumbnail next to each certificate in the portal list
+(not just inside the PDF). Backend routes/customer_deliveries.py: _customer_contract_map() carries
+logo_url and GET /api/customer/certificates returns per-cert logo_url (contract.blue_light.
+customer_logo_url); the public GET /api/crm/v2/contracts/{id}/blue-light/logo backs the <img>. Frontend
+Warranties/CustomerCertificatesTab.js renders a 40x40 crest thumbnail per row (testid cert-logo-<id>),
+hidden on load error; absolute URL = REACT_APP_BACKEND_URL + the relative path (or http/data as-is).
+Verified: helper returns logo_url + 3 demo certs. Demo crest left as none (thumbnail only appears once a
+logo is uploaded for that contract).
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · BLUE LIGHT — CERTIFICATE MATCHED TO MASTER TEMPLATE · visual-verified ═══
 Reworked the Service & Calibration Certificate PDF to mirror Pulse's master "Certificate of Service"
 (Master - certificate.pdf) exactly in layout. TEMPLATE_VERSION bumped 1 -> 2.

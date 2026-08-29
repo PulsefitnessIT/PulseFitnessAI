@@ -218,8 +218,10 @@ async def _customer_contract_map(org_id: str) -> dict:
         return {}
     rows = await db.crm2_contracts.find(
         {"company_id": {"$in": company_ids}, "is_blue_light": True},
-        {"_id": 0, "id": 1, "contract_number": 1, "title": 1}).to_list(500)
-    return {r["id"]: {"contract_number": r.get("contract_number"), "title": r.get("title")} for r in rows}
+        {"_id": 0, "id": 1, "contract_number": 1, "title": 1, "blue_light": 1}).to_list(500)
+    return {r["id"]: {"contract_number": r.get("contract_number"), "title": r.get("title"),
+                      "logo_url": (r.get("blue_light") or {}).get("customer_logo_url") or ""}
+            for r in rows}
 
 
 @router.get("/certificates")
@@ -252,6 +254,7 @@ async def my_certificates(search: str = "", contract_id: str = "",
             "service_date": service_date,
             "next_service_due": v.get("next_service_due", ""),
             "status": c.get("status"),
+            "logo_url": cmap.get(c["contract_id"], {}).get("logo_url", ""),
         }
         if search and search.lower() not in (row["station_name"] or "").lower():
             continue
