@@ -1,3 +1,34 @@
+# ═══ 2026-06 · BLUE LIGHT — TRANSFER NOTIFICATIONS · self-tested (curl+DB, e2e) ═══
+When the office APPROVES an asset transfer (§37), the asset moves to its new station AND both stations
+are kept in sync + an office email goes out. User choices: stamp both losing/gaining station records +
+audit-trail entry on each; office recipients from a new Blue Light settings field (fallback = approver);
+plain branded email (asset+serial, from→to, requested-by engineer, approved-by, contract), no attachment.
+
+  • BACKEND routes/crm_contracts.py:
+    - DEFAULT_BLUE_LIGHT_CONFIG gains office_notification_emails: []. set_blue_light_config coerces a
+      comma/semicolon string into a list (merges like other cfg keys).
+    - Review endpoint (xfer approve) now also: stamps updated_at on both from/to crm2_contract_sites;
+      record_audit(entity_type="contract_site") on each ("Machine transferred out: <asset> → <to>" /
+      "Machine transferred in: <asset> ← <from>"); calls _notify_transfer_approved(); persists
+      notified_ok/notify_error/notified_recipients/notified_at on the transfer doc. Response now includes
+      a "notification" block {ok, recipients, error} for the UI.
+    - _notify_transfer_approved(contract, tr, user, names): recipients = cfg.office_notification_emails
+      (list or comma-string) else [approver email]; sends via utils.email.send_email(kind=
+      "blue_light_transfer", organization_id=...) with an HTML table; best-effort (never raises).
+  • FRONTEND pages/CRM/Contracts/BlueLightTab.js: ConfigForm gains 'Office notification emails' input
+    (data-testid=bl-cfg-office-emails, comma-separated). reviewChange() surfaces the notification result
+    as an alert on transfer approve (sent to X / or could-not-send note for preview without a live key).
+  • VERIFIED (self-test, curl+DB): set office emails via config → persisted as list; requested a transfer
+    on a fixture visit, approved → response.notification.ok=true (email sent to ops@/service@), asset moved,
+    BOTH stations stamped updated_at, two contract_site audit entries recorded, transfer doc carries
+    notified_ok+recipients. All fixtures cleaned; demo CTR-BLFRS1 restored (asset back at Exeter Central,
+    office_notification_emails reset to []). Small change — not sent to testing_agent.
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live. Email delivery depends on a valid Resend key in
+    the target env (same as certificate emails); the send status is always recorded either way.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · BLUE LIGHT — IMPORT MAPPING MEMORY · testing_agent 100% (7/7) ═══
 Spreadsheets with non-standard column headers can be mapped once in a column-mapping table, then the
 layout is SAVED (shared per organisation) and auto-applied on future imports of the same header set —

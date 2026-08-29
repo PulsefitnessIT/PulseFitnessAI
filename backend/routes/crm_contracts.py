@@ -1332,6 +1332,7 @@ DEFAULT_BLUE_LIGHT_CONFIG = {
     "certificate_template_id": None,
     "customer_logo_url": None,
     "certificate_recipients": [],        # contract-level recipient emails
+    "office_notification_emails": [],    # internal office ops emails for transfer/ops alerts
     "mandatory_check_sheets": [],
     "engineer_skills_required": [],
 }
@@ -1389,6 +1390,9 @@ async def set_blue_light_config(contract_id: str, data: dict, user=Depends(get_c
         cfg["incline_points_pct"] = [float(x) for x in (cfg.get("incline_points_pct") or [])]
     except (TypeError, ValueError):
         raise HTTPException(400, "Invalid numeric value in calibration config")
+    onc = cfg.get("office_notification_emails")
+    if isinstance(onc, str):
+        cfg["office_notification_emails"] = [e.strip() for e in onc.replace(";", ",").split(",") if e.strip()]
     updates = {
         "contract_type": "blue_light_multisite",
         "is_blue_light": True,
@@ -2638,17 +2642,61 @@ async def blue_light_asset_changes(contract_id: str, kind: str = "", status: str
     return {"items": items, "count": len(items), "counts": counts}
 
 
+async def _notify_transfer_approved(contract: dict, tr: dict, user: dict, names: dict) -> dict:
+    """Best-effort office email when a transfer is approved. Never raises."""
+    from utils.email import send_email
+    cfg = contract.get("blue_light") or {}
+    raw = cfg.get("office_notification_emails") or []
+    if isinstance(raw, str):
+        raw = [e.strip() for e in raw.replace(";", ",").split(",")]
+    recipients = [e for e in raw if e and "@" in e]
+    if not recipients:  # fallback to the approver
+        approver = user.get("email")
+        recipients = [approver] if approver and "@" in approver else []
+    result = {"notified_ok": False, "notify_error": None,
+              "notified_recipients": recipients, "notified_at": _now()}
+    if not recipients:
+        result["notify_error"] = "No office recipients and approver has no email"
+        return result
+    from_name = names.get(tr.get("from_site_id"), "—")
+    to_name = names.get(tr.get("to_site_id"), "—")
+    asset = tr.get("asset_name") or "Asset"
+    serial = tr.get("serial_number") or "no serial"
+    label = contract.get("contract_number") or contract.get("title") or contract.get("id", "")
+    html = (
+        "<p>An asset transfer has been <b>approved</b> and the register has been updated.</p>"
+        "<table cellpadding='6' style='border-collapse:collapse;font-size:14px'>"
+        f"<tr><td><b>Machine</b></td><td>{asset} ({serial})</td></tr>"
+        f"<tr><td><b>From station</b></td><td>{from_name}</td></tr>"
+        f"<tr><td><b>To station</b></td><td>{to_name}</td></tr>"
+        f"<tr><td><b>Requested by</b></td><td>{tr.get('engineer_name') or '—'}</td></tr>"
+        f"<tr><td><b>Approved by</b></td><td>{user.get('full_name') or user.get('email', '')}</td></tr>"
+        f"<tr><td><b>Contract</b></td><td>{label}</td></tr>"
+        "</table>"
+        "<p>Both station records have been updated to reflect this move.</p>"
+        "<p>Kind regards,<br/>Pulse Fitness Service Team</p>")
+    try:
+        await send_email(to=recipients[0], subject=f"Asset transfer approved — {asset} → {to_name}",
+                         html=html, cc=recipients[1:] or None,
+                         organization_id=contract.get("organization_id"), kind="blue_light_transfer")
+        result["notified_ok"] = True
+    except Exception as e:  # preview Resend key is a placeholder — record + surface
+        result["notify_error"] = str(e)
+    return result
+
+
 @router.post("/contracts/{contract_id}/asset-changes/review")
 async def blue_light_asset_change_review(contract_id: str, data: dict, user=Depends(get_crm_user)):
     """Approve or revert an asset change (§35/§36). Nothing is silently lost —
     reverts restore the previous value and are audit-logged."""
-    await _get_bl_contract(contract_id, user)
+    contract = await _get_bl_contract(contract_id, user)
     item_id = (data.get("item_id") or "").strip()
     action = (data.get("action") or "").strip()  # approve | revert
     if action not in ("approve", "revert"):
         raise HTTPException(400, "action must be approve or revert")
     kind, _, rest = item_id.partition(":")
     now = _now()
+    notify_result = None
     if kind == "new":
         asset_id = rest
         if action == "approve":
@@ -2695,6 +2743,29 @@ async def blue_light_asset_change_review(contract_id: str, data: dict, user=Depe
             await db.crm2_asset_transfers.update_one(
                 {"id": rest}, {"$set": {"status": "approved", "reviewed_by": user.get("id"),
                                         "reviewed_at": now}})
+            # keep BOTH stations in sync + leave an audit trail on each
+            names = await _station_name_map(contract_id)
+            from_name = names.get(tr.get("from_site_id"), "—")
+            to_name = names.get(tr.get("to_site_id"), "—")
+            asset_label = f"{tr.get('asset_name')} ({tr.get('serial_number') or 'no serial'})"
+            for sid in (tr.get("from_site_id"), tr.get("to_site_id")):
+                if sid:
+                    await db.crm2_contract_sites.update_one({"id": sid}, {"$set": {"updated_at": now}})
+            if tr.get("from_site_id"):
+                await record_audit(entity_type="contract_site", entity_id=tr["from_site_id"],
+                                   action="update", user=user,
+                                   summary=f"Machine transferred out: {asset_label} → {to_name}")
+            if tr.get("to_site_id"):
+                await record_audit(entity_type="contract_site", entity_id=tr["to_site_id"],
+                                   action="update", user=user,
+                                   summary=f"Machine transferred in: {asset_label} ← {from_name}")
+            # notify the office (best-effort)
+            notify_result = await _notify_transfer_approved(contract, tr, user, names)
+            await db.crm2_asset_transfers.update_one(
+                {"id": rest}, {"$set": {"notified_ok": notify_result["notified_ok"],
+                                        "notify_error": notify_result["notify_error"],
+                                        "notified_recipients": notify_result["notified_recipients"],
+                                        "notified_at": notify_result["notified_at"]}})
         else:  # reject — leave the asset where it is
             await db.crm2_asset_transfers.update_one(
                 {"id": rest}, {"$set": {"status": "rejected", "reviewed_by": user.get("id"),
@@ -2702,7 +2773,12 @@ async def blue_light_asset_change_review(contract_id: str, data: dict, user=Depe
     else:
         raise HTTPException(400, "Unknown change type")
     await record_audit(entity_type="asset_reconciliation", entity_id=item_id, action=action, user=user)
-    return {"success": True, "item_id": item_id, "action": action}
+    resp = {"success": True, "item_id": item_id, "action": action}
+    if notify_result is not None:
+        resp["notification"] = {"ok": notify_result["notified_ok"],
+                                "recipients": notify_result["notified_recipients"],
+                                "error": notify_result["notify_error"]}
+    return resp
 
 
 

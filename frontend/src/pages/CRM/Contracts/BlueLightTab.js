@@ -154,8 +154,13 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
 
   const reviewChange = async (item, action) => {
     try {
-      await axios.post(`${API}/crm/v2/contracts/${contractId}/asset-changes/review`,
+      const r = await axios.post(`${API}/crm/v2/contracts/${contractId}/asset-changes/review`,
         { item_id: item.id, action }, { headers: headers() });
+      const n = r.data?.notification;
+      if (n) {
+        if (n.ok) alert(`Transfer approved. Office notified: ${(n.recipients || []).join(', ')}`);
+        else alert(`Transfer approved and stations updated. Email could not be sent (${n.error || 'unknown'}) — it will send once a live email key is configured.`);
+      }
       loadRecon(); loadOverview();
     } catch (e) { alert(e.response?.data?.detail || 'Review failed'); }
   };
@@ -616,6 +621,11 @@ function ConfigForm({ cfg, setCfg, meta, c }) {
         <input data-testid="bl-cfg-recipients" className={inp} style={{ borderColor: c.border, color: c.text }}
           defaultValue={(cfg.certificate_recipients || []).join(', ')}
           onBlur={e => set('certificate_recipients', e.target.value.split(',').map(x => x.trim()).filter(Boolean))} />
+      </label>
+      <label className="text-xs md:col-span-2" style={{ color: c.textMuted }}>Office notification emails (asset-transfer alerts, comma-separated — defaults to the approver)
+        <input data-testid="bl-cfg-office-emails" className={inp} style={{ borderColor: c.border, color: c.text }}
+          defaultValue={(cfg.office_notification_emails || []).join(', ')}
+          onBlur={e => set('office_notification_emails', e.target.value.split(',').map(x => x.trim()).filter(Boolean))} />
       </label>
       <label className="text-xs md:col-span-2" style={{ color: c.textMuted }}>Customer logo URL (crest shown on the certificate)
         <input data-testid="bl-cfg-logo" className={inp} style={{ borderColor: c.border, color: c.text }}
