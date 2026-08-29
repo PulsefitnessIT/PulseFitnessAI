@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only test of the new Blue Light 'Customer logo / crest' uploader in ConfigForm (contract CTR-BLFRS1, org iso-demo-org). Logged in at /login?next=/crm as owner@isodemo.com, switched to Corporate (crm-mode-business), opened Contracts (crm-nav-contracts), opened CTR-BLFRS1 -> 'Blue Light' sub-tab -> bl-config-toggle. Verified: baseline 'No logo yet' + 'Upload logo' (bl-cfg-logo-upload) with hidden input[type=file] accept='image/png,image/jpeg' and NO free-text URL box; uploaded the sample PNG via setInputFiles -> preview (bl-cfg-logo-preview) appeared with src https://<origin>/api/crm/v2/contracts/b113a3cd-.../blue-light/logo?v=..., image actually rendered (naturalWidth 512 x naturalHeight 124, complete=true) and a direct GET on the src returned 200 image/png; button label flipped to 'Replace logo' and 'Remove' (bl-cfg-logo-remove) appeared. Remove reverted to 'No logo yet' + 'Upload logo' with preview removed. Re-upload (replace) worked and produced a fresh cache-busted src that also rendered. Saved config, then re-verified in a NEW browser session by navigating fresh to the contract: logo preview persists (512x124, label 'Replace logo'). All requested flows PASS; no blocking issues.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CRM Contract detail (Blue Light config)", "issues": ["The cookie-consent banner (bottom, fixed) overlaps the logo uploader row when the config panel is scrolled to that position — the 'Upload logo'/'Remove' controls sit behind the banner at 1920x1080 until the banner is dismissed. Test only proceeded because setInputFiles bypasses pointer events; a real user may need to accept cookies first. Low priority but worth checking z-index/bottom padding."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: reset the demo contract logo (a logo is now set on CTR-BLFRS1 from testing, as expected).",
+    "Optional/low: cookie-consent banner can overlay the logo uploader controls in the Blue Light config panel."
+  ],
+  "critical_code_review_comments": [
+    "ConfigForm logo upload errors surface via window.alert() only — prefer inline error text with a data-testid so failures (size/type/500) are visible and testable.",
+    "removeLogo swallows DELETE errors (empty catch) and still clears local state, so a failed server delete would silently desync UI vs stored logo.",
+    "Reloading the browser on the contract detail view drops back to the CRM dashboard (no deep-linkable contract URL) — pre-existing, not part of this feature, but it makes persistence hard to verify via refresh."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "not tested (frontend-only request)", "frontend": "100%" },
+  "seed_data_creation": "None. Uploaded the provided sample PNG as the customer logo on contract CTR-BLFRS1 (left in place per request).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "CRM: owner@isodemo.com / IsoDemo123!",
+  "context_for_next_testing_agent": "Path: /login?next=/crm -> crm-mode-business -> crm-nav-contracts -> click 'CTR-BLFRS1' row -> 'Blue Light' sub-tab -> bl-config-toggle to reveal ConfigForm. Logo testids: bl-cfg-logo-upload (label wrapping hidden input[type=file]), bl-cfg-logo-preview, bl-cfg-logo-remove. Sample PNG cached at /tmp/logo.png. Contract detail is not deep-linkable, so verify persistence by re-navigating instead of page.reload(). Two unexplained 404s appear in console when landing on the Contracts tab (non-blocking, page renders fine).",
+  "rca_of_the_issue": "N/A — no functional defects reproduced."
+}

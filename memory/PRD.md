@@ -1,3 +1,38 @@
+# ═══ 2026-06 · BLUE LIGHT — CERTIFICATE LOGO UPLOADER · testing_agent 100% ═══
+Pulse can now UPLOAD a customer logo/crest per contract (PNG/JPG) instead of pasting a URL; it appears
+on that contract's certificates and everything else on the certificate stays the same. User choices:
+proper file uploader (not URL), single logo per contract, stored securely (object storage).
+Master certificate template received: "Master - certificate.pdf" (CERTIFICATE OF SERVICE, "is to certify
+that all Pulse Fitness equipment at {site} has been checked, serviced and calibrated to meet Pulse Fitness
+operational standards", calibration table, MD=Chris Johnson + Engineer signature blocks). Current
+generator body already matches this wording; exact layout polish (top-right crest, MD signature block,
+column headers "3/6/9/12 mph" + "0/5/10/15%") is a possible follow-up.
+
+  • BACKEND routes/crm_contracts.py: POST/GET/DELETE /crm/v2/contracts/{id}/blue-light/logo. Upload uses
+    Pillow (fit 512px, preserve PNG transparency) + object storage (put_object) at
+    {APP_NAME}/bl_certificate_logos/{contract_id}/{uuid}.{ext}; stores customer_logo_path +
+    customer_logo_url (relative /api serve path) + customer_logo_content_type on contract.blue_light; falls
+    back to an inline data URL if object store is unavailable. GET serves via get_object (public, for the
+    settings preview). DELETE clears the fields. DEFAULT_BLUE_LIGHT_CONFIG unchanged (logo_url already there;
+    path/content_type persist via the config-merge existing-spread).
+  • BACKEND utils/blue_light_certificate_pdf.py: new _resolve_logo_bytes(config) loads the logo from object
+    storage (customer_logo_path) first, else the hosted URL — so generated certificates embed the uploaded
+    crest with no network round-trip.
+  • FRONTEND pages/CRM/Contracts/BlueLightTab.js ConfigForm: replaced the 'Customer logo URL' text box with
+    an uploader — preview thumbnail (bl-cfg-logo-preview), Upload/Replace (bl-cfg-logo-upload, hidden
+    image/png+jpeg input), Remove (bl-cfg-logo-remove). ConfigForm now receives API/headers/contractId; preview
+    src built from backend origin + relative logo path. removeLogo only clears the preview on a successful
+    server delete.
+  • VERIFIED: backend curl (upload stores + returns url; GET serves 200 image/png; builder resolves 29KB logo
+    from object storage and produces a 149KB PDF) + testing_agent frontend 100% (upload→preview renders
+    512x124, Replace, Remove, persists across re-navigation) — iteration_bluelight_logo_uploader_frontend_
+    jul2026.json. Demo CTR-BLFRS1 logo reset to none after testing.
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live. Known low: cookie-consent banner can overlay the
+    uploader row until dismissed (pre-existing global z-index).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · BLUE LIGHT — TRANSFER NOTIFICATIONS · self-tested (curl+DB, e2e) ═══
 When the office APPROVES an asset transfer (§37), the asset moves to its new station AND both stations
 are kept in sync + an office email goes out. User choices: stamp both losing/gaining station records +

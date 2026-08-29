@@ -3060,3 +3060,86 @@ async def blue_light_import_commit(contract_id: str, data: dict, user=Depends(ge
     await record_audit(entity_type="contract", entity_id=contract_id,
                        action="blue_light_import", user=user, after=result)
     return result
+
+
+# ════════════════════════════════════════════════════════════════════
+# BLUE LIGHT — CERTIFICATE LOGO (swappable customer crest per contract)
+# ════════════════════════════════════════════════════════════════════
+
+@router.post("/contracts/{contract_id}/blue-light/logo")
+async def blue_light_upload_logo(contract_id: str, file: UploadFile = File(...),
+                                 user=Depends(get_crm_user)):
+    """Upload a customer logo/crest (PNG/JPG) shown on this contract's
+    certificates. Stored securely in object storage; everything else on the
+    certificate stays the same."""
+    import io as _io
+    import base64 as _b64
+    from PIL import Image as _PILImage
+    from utils.database import APP_NAME as _APP, put_object
+    contract = await _get_bl_contract(contract_id, user)
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "Empty file")
+    if len(raw) > 8 * 1024 * 1024:
+        raise HTTPException(413, "Logo must be 8 MB or smaller")
+    try:
+        img = _PILImage.open(_io.BytesIO(raw))
+        img.load()
+    except Exception:
+        raise HTTPException(400, "Could not parse image — please use PNG or JPG")
+    is_png = (img.format or "").upper() == "PNG"
+    img.thumbnail((512, 512), _PILImage.LANCZOS)
+    out = _io.BytesIO()
+    if is_png:
+        img.save(out, format="PNG", optimize=True)
+        content_type, ext = "image/png", "png"
+    else:
+        img = img.convert("RGB")
+        img.save(out, format="JPEG", quality=88, optimize=True)
+        content_type, ext = "image/jpeg", "jpg"
+    compressed = out.getvalue()
+    path = f"{_APP}/bl_certificate_logos/{contract_id}/{_id()}.{ext}"
+    cfg = contract.get("blue_light") or {}
+    try:
+        put_object(path, compressed, content_type)
+        cfg["customer_logo_path"] = path
+        cfg["customer_logo_content_type"] = content_type
+        cfg["customer_logo_url"] = f"/api/crm/v2/contracts/{contract_id}/blue-light/logo?v={_id()[:8]}"
+    except Exception as exc:  # object store unavailable — inline as data URL
+        cfg["customer_logo_path"] = None
+        cfg["customer_logo_url"] = f"data:{content_type};base64," + _b64.b64encode(compressed).decode("ascii")
+    await db.crm2_contracts.update_one({"id": contract_id}, {"$set": {"blue_light": cfg}})
+    await record_audit(entity_type="contract", entity_id=contract_id,
+                       action="blue_light_logo_upload", user=user)
+    return {"success": True, "customer_logo_url": cfg["customer_logo_url"]}
+
+
+@router.get("/contracts/{contract_id}/blue-light/logo")
+async def blue_light_serve_logo(contract_id: str):
+    """Public proxy for the certificate logo (used by the settings preview)."""
+    from fastapi.responses import Response
+    from utils.database import get_object
+    contract = await db.crm2_contracts.find_one(
+        {"id": contract_id}, {"_id": 0, "blue_light": 1})
+    cfg = (contract or {}).get("blue_light") or {}
+    path = cfg.get("customer_logo_path")
+    if not path:
+        raise HTTPException(404, "No logo")
+    try:
+        data, content_type = get_object(path)
+    except Exception as exc:
+        raise HTTPException(404, "Logo not available") from exc
+    return Response(content=data,
+                    media_type=cfg.get("customer_logo_content_type") or content_type or "image/png",
+                    headers={"Cache-Control": "public, max-age=600"})
+
+
+@router.delete("/contracts/{contract_id}/blue-light/logo")
+async def blue_light_delete_logo(contract_id: str, user=Depends(get_crm_user)):
+    contract = await _get_bl_contract(contract_id, user)
+    cfg = contract.get("blue_light") or {}
+    cfg["customer_logo_path"] = None
+    cfg["customer_logo_url"] = None
+    cfg["customer_logo_content_type"] = None
+    await db.crm2_contracts.update_one({"id": contract_id}, {"$set": {"blue_light": cfg}})
+    return {"success": True}

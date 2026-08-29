@@ -263,7 +263,7 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
         </p>
         {meta && cfg && (
           <div className="text-left rounded-xl border p-4 mb-4" style={{ borderColor: c.border, background: 'var(--color-surface)' }}>
-            <ConfigForm cfg={cfg} setCfg={setCfg} meta={meta} c={c} />
+            <ConfigForm cfg={cfg} setCfg={setCfg} meta={meta} c={c} API={API} headers={headers} contractId={contractId} />
           </div>
         )}
         <Button onClick={() => saveConfig()} disabled={saving} icon={CheckCircle} data-testid="bl-enable-btn">
@@ -395,7 +395,7 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
 
       {showConfig && meta && cfg && (
         <div className="rounded-xl border p-4" style={{ borderColor: c.border, background: 'var(--color-surface)' }} data-testid="bl-config-panel">
-          <ConfigForm cfg={cfg} setCfg={setCfg} meta={meta} c={c} />
+          <ConfigForm cfg={cfg} setCfg={setCfg} meta={meta} c={c} API={API} headers={headers} contractId={contractId} />
           <div className="flex justify-end mt-3">
             <Button onClick={() => saveConfig()} disabled={saving} icon={Save} data-testid="bl-config-save">
               {saving ? 'Saving…' : 'Save Configuration'}
@@ -581,10 +581,32 @@ export default function BlueLightTab({ contract, contractId, API, headers, c, re
   );
 }
 
-function ConfigForm({ cfg, setCfg, meta, c }) {
+function ConfigForm({ cfg, setCfg, meta, c, API, headers, contractId }) {
   const set = (k, v) => setCfg(p => ({ ...p, [k]: v }));
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const numList = (str) => str.split(',').map(x => parseFloat(x.trim())).filter(x => !isNaN(x));
   const inp = 'w-full px-2 py-1.5 text-sm rounded-md border bg-transparent';
+  const origin = (API || '').replace(/\/api$/, '');
+  const logoSrc = cfg.customer_logo_url
+    ? (/^(https?:|data:)/.test(cfg.customer_logo_url) ? cfg.customer_logo_url : origin + cfg.customer_logo_url)
+    : '';
+  const onLogoFile = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setUploadingLogo(true);
+    try {
+      const fd = new FormData(); fd.append('file', f);
+      const r = await axios.post(`${API}/crm/v2/contracts/${contractId}/blue-light/logo`, fd, { headers: headers() });
+      set('customer_logo_url', r.data.customer_logo_url);
+    } catch (err) { alert(err.response?.data?.detail || 'Logo upload failed'); }
+    finally { setUploadingLogo(false); e.target.value = ''; }
+  };
+  const removeLogo = async () => {
+    try {
+      await axios.delete(`${API}/crm/v2/contracts/${contractId}/blue-light/logo`, { headers: headers() });
+      set('customer_logo_url', ''); set('customer_logo_path', null);
+    } catch (err) { alert(err.response?.data?.detail || 'Could not remove the logo — please try again'); }
+  };
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       <label className="text-xs" style={{ color: c.textMuted }}>Customer type
@@ -627,10 +649,21 @@ function ConfigForm({ cfg, setCfg, meta, c }) {
           defaultValue={(cfg.office_notification_emails || []).join(', ')}
           onBlur={e => set('office_notification_emails', e.target.value.split(',').map(x => x.trim()).filter(Boolean))} />
       </label>
-      <label className="text-xs md:col-span-2" style={{ color: c.textMuted }}>Customer logo URL (crest shown on the certificate)
-        <input data-testid="bl-cfg-logo" className={inp} style={{ borderColor: c.border, color: c.text }}
-          defaultValue={cfg.customer_logo_url || ''} placeholder="https://…/crest.png"
-          onBlur={e => set('customer_logo_url', e.target.value.trim())} />
+      <label className="text-xs md:col-span-2" style={{ color: c.textMuted }}>Customer logo / crest (shown on the certificate — everything else stays the same)
+        <div className="flex items-center gap-3 mt-1 flex-wrap">
+          {logoSrc
+            ? <img data-testid="bl-cfg-logo-preview" src={logoSrc} alt="Customer logo"
+                className="h-12 rounded border p-1 bg-white object-contain" style={{ borderColor: c.border }} />
+            : <span className="text-xs italic" style={{ color: c.textMuted }}>No logo yet — the certificate shows the Pulse header only</span>}
+          <label className="text-xs px-3 py-1.5 rounded-md border cursor-pointer" data-testid="bl-cfg-logo-upload"
+            style={{ borderColor: c.border, color: c.text }}>
+            {uploadingLogo ? 'Uploading…' : (logoSrc ? 'Replace logo' : 'Upload logo')}
+            <input type="file" accept="image/png,image/jpeg" className="hidden" onChange={onLogoFile} disabled={uploadingLogo} />
+          </label>
+          {logoSrc && <button type="button" data-testid="bl-cfg-logo-remove" onClick={removeLogo}
+            className="text-xs underline" style={{ color: 'var(--color-danger)' }}>Remove</button>}
+        </div>
+        <span className="text-[11px]" style={{ color: c.textMuted }}>PNG or JPG, up to 8 MB. Stored securely.</span>
       </label>
       <label className="text-xs md:col-span-2 flex items-center gap-2 mt-1" style={{ color: c.textMuted }}>
         <input data-testid="bl-cfg-calibration-required" type="checkbox" checked={!!cfg.calibration_required}

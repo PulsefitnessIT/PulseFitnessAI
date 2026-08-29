@@ -47,6 +47,22 @@ def _fetch_logo_bytes(url):
     return None
 
 
+def _resolve_logo_bytes(config):
+    """Prefer an uploaded logo from object storage (customer_logo_path); fall
+    back to a hosted URL (customer_logo_url) for backwards compatibility."""
+    cfg = config or {}
+    path = cfg.get("customer_logo_path")
+    if path:
+        try:
+            from utils.database import get_object
+            data, _ct = get_object(path)
+            if data:
+                return data
+        except Exception:
+            pass
+    return _fetch_logo_bytes(cfg.get("customer_logo_url"))
+
+
 def build_certificate_pdf(*, contract: dict, station: dict, visit: dict,
                           treadmills: list[dict], config: dict) -> bytes:
     """treadmills: [{serial_number, asset_name, speed:[{target,measured,result}],
@@ -59,8 +75,8 @@ def build_certificate_pdf(*, contract: dict, station: dict, visit: dict,
     title = ParagraphStyle("cert_title", parent=s["title"], alignment=TA_CENTER, fontSize=22, leading=25)
     story.append(Spacer(1, 6 * mm))
 
-    # Optional customer logo/crest (swappable per contract)
-    logo_bytes = _fetch_logo_bytes((config or {}).get("customer_logo_url"))
+    # Optional customer logo/crest (swappable per contract — uploaded or URL)
+    logo_bytes = _resolve_logo_bytes(config)
     if logo_bytes:
         try:
             from reportlab.lib.utils import ImageReader
