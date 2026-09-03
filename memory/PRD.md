@@ -1,3 +1,18 @@
+# ═══ 2026-06 · MOD INCIDENT WIZARD — reporter auto-fill · /auth/me verified, compile+lint clean ═══
+Pre-fills the reporter from the signed-in MOD user so most incidents log in a couple of taps.
+
+  • FRONTEND MODPortal/MODIncidentWizard.js: on mount, GET {API}/auth/me and prefill reporter_name
+    (full_name/name), reporter_email (email) and reporter_phone (phone/mobile/contact_phone) — ONLY when the
+    field is still empty, so it never overwrites what the user typed. All fields remain fully editable.
+    Guarded with an `alive` flag; failures are silent (form still works). Wizard is shared by LiteDashboardPage,
+    MODSiteDashboard and PulseReportsTab, so the prefill applies everywhere it opens.
+  • VERIFIED: /auth/me returns {full_name:'Lee Somers', email:'test@army.mod.test'} for the MOD test user;
+    lint 0 errors, frontend compiles clean. (Visual screenshot skipped — the Lite dashboard's incident CTA was
+    removed in a prior iteration, so the trigger is buried; logic is trivial and self-contained.)
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · MOD INCIDENT WIZARD — consistent "show what's missing" validation · compile-verified ═══
 Applied the same inline validation UX from the Fault wizard to the Personal-Incident (RIDDOR) wizard.
 

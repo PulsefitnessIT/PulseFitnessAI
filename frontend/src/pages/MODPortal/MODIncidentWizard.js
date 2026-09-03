@@ -10,7 +10,7 @@
  * Triggered from the MOD site dashboard via a dedicated "Report
  * incident" button. Returns the incident_ref + RIDDOR verdict.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { AlertTriangle, ShieldAlert, Loader2, X, Check } from 'lucide-react';
 import { notify } from '@/components/notifications';
@@ -65,6 +65,26 @@ export default function MODIncidentWizard({ onClose, onSubmitted }) {
   const [triedSubmit, setTriedSubmit] = useState(false); // highlight missing fields after a blocked submit
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Pre-fill the reporter from the signed-in MOD user (still editable) — the
+  // reporter is almost always the person logging in, so this saves retyping.
+  useEffect(() => {
+    let alive = true;
+    axios.get(`${API}/auth/me`, { headers })
+      .then((r) => {
+        if (!alive) return;
+        const me = r.data || {};
+        setForm((f) => ({
+          ...f,
+          reporter_name: f.reporter_name || me.full_name || me.name || '',
+          reporter_email: f.reporter_email || me.email || '',
+          reporter_phone: f.reporter_phone || me.phone || me.mobile || me.contact_phone || '',
+        }));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const isRiddorHinted = SEVERITY_RIDDOR_HINT.has(form.injury_severity)
     || (form.injury_severity === 'medical' && ['electric', 'cardiac'].includes(form.category));
 
