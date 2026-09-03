@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Wand2, Plus, Trash2, ChevronRight, ChevronLeft, ChevronDown, CheckCircle2, AlertTriangle, PackageCheck, Building2, UploadCloud, Sparkles, FileText, Search, X } from 'lucide-react';
+import { Wand2, Plus, Trash2, ChevronRight, ChevronLeft, ChevronDown, CheckCircle2, AlertTriangle, PackageCheck, Building2, UploadCloud, Sparkles, FileText, Search, X, Loader2 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { Spinner, StatCard, input, inputTight, money } from './shared';
@@ -83,6 +83,7 @@ export default function AllocationWizardTab() {
   const [aiInfo, setAiInfo] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const [resolving, setResolving] = useState(null);
+  const [resolvingUnmatched, setResolvingUnmatched] = useState(null); // step-1 unmatched input_ref being mapped
   const [manualParts, setManualParts] = useState({}); // `${ref}||${code}` -> {part_sku, part_name, machine_model, quantity, unit_value}
   const [bomOpen, setBomOpen] = useState(null);        // machine ref whose BOM is expanded
   const [bomData, setBomData] = useState({});          // ref -> {loading, components}
@@ -128,12 +129,23 @@ export default function AllocationWizardTab() {
 
   const setLine = (i, k, v) => { const n = [...lines]; n[i][k] = v; setLines(n); };
 
-  const pickMachine = (i, m) => {
+  const pickMachine = async (i, m) => {
+    const origRef = (lines[i].input_ref || lines[i].machine_ref || '').trim();
     const n = [...lines];
-    n[i] = { ...n[i], machine_ref: m.top_level_ref, matched: true, description: m.description || '', input_ref: n[i].input_ref || n[i].machine_ref };
+    n[i] = { ...n[i], machine_ref: m.top_level_ref, matched: true, description: m.description || '', input_ref: origRef };
     setLines(n);
     setResolving(null);
     notify.success(`Matched to ${m.top_level_ref}`);
+    // Remember the mapping so this invoice ref auto-resolves next time.
+    const differs = origRef && origRef.replace(/\s/g, '').toLowerCase() !== (m.top_level_ref || '').replace(/\s/g, '').toLowerCase();
+    if (differs) {
+      try {
+        await dpApi.createMachineAlias({ input_ref: origRef, top_level_ref: m.top_level_ref });
+        notify.success(`Remembered — “${origRef}” will map to ${m.top_level_ref} automatically next time.`);
+      } catch {
+        notify.error(`Matched for this order, but couldn’t save “${origRef}” for next time.`);
+      }
+    }
   };
 
   const parseInvoice = async (file) => {
@@ -185,6 +197,17 @@ export default function AllocationWizardTab() {
       setQtyOverrides({});
       setStep(1);
     } catch (e) { notify.error(e?.response?.data?.detail || 'Failed to generate'); } finally { setBusy(false); }
+  };
+
+  const resolveUnmatched = async (inputRef, m) => {
+    setResolvingUnmatched(null);
+    try {
+      await dpApi.createMachineAlias({ input_ref: inputRef, top_level_ref: m.top_level_ref });
+      notify.success(`Remembered — “${inputRef}” maps to ${m.top_level_ref}. Updating recommendation…`);
+      await generate();
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not save the mapping');
+    }
   };
 
   const qtyFor = (grpIdx, itemIdx, def) => {
@@ -395,7 +418,33 @@ export default function AllocationWizardTab() {
             <div className="rounded-lg bg-red-50 border border-red-100 p-3 text-xs text-red-700 flex items-center gap-2"><AlertTriangle size={14} /> Pack exceeds allowance by {money(liveTotal() - rec.allowance)}. Reduce quantities or seek manager approval.</div>
           )}
           {rec.unmatched_lines?.length > 0 && (
-            <div className="rounded-lg bg-amber-50 border border-amber-100 p-3 text-xs text-amber-800 flex items-center gap-2"><AlertTriangle size={14} /> Unmatched machine lines (no BOM): {rec.unmatched_lines.map((u) => u.input_ref).join(', ')}. These produce no recommendations until matched.</div>
+            <div className="rounded-lg bg-amber-50 border border-amber-100 p-3 text-xs text-amber-800" data-testid="dp-wiz-unmatched-warning">
+              <div className="flex items-start gap-2">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <b>{rec.unmatched_lines.length} machine line(s) not found in the BOM.</b> They produce no recommendations until mapped. Pick the right BOM machine — we’ll remember it for next time.
+                  {busy && <span className="ml-1 inline-flex items-center gap-1 font-semibold text-amber-700"><Loader2 size={11} className="animate-spin" /> Re-checking BOM…</span>}
+                  <div className="mt-2 space-y-1.5">
+                    {rec.unmatched_lines.map((u) => (
+                      <div key={u.input_ref} data-testid={`dp-wiz-unmatched-${u.input_ref}`}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono font-semibold text-amber-900">{u.input_ref}</span>
+                          <span className="text-amber-500">×{u.quantity}</span>
+                          <button data-testid={`dp-wiz-unmatched-find-${u.input_ref}`}
+                            onClick={() => setResolvingUnmatched(resolvingUnmatched === u.input_ref ? null : u.input_ref)}
+                            className="inline-flex items-center gap-1 font-semibold text-amber-800 hover:underline">
+                            <Search size={12} /> Find in BOM
+                          </button>
+                        </div>
+                        {resolvingUnmatched === u.input_ref && (
+                          <MachinePicker onPick={(m) => resolveUnmatched(u.input_ref, m)} onClose={() => setResolvingUnmatched(null)} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {rec.note && (

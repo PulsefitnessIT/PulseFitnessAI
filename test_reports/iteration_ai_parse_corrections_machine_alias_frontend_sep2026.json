@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only e2e test of the 'AI Parse Corrections' machine-alias feature in the Dealer Parts Allocation Wizard (owner@isodemo.com, org iso-demo-org). All 3 requested flows PASSED: (1) Step-1 'Find in BOM' picker maps an unmatched typed ref, shows the green matched state and BOTH toasts ('Matched to <ref>' + 'Remembered — \u201cQATESTREF1\u201d will map to 220G-AAW automatically next time.'); (2) REMEMBER/AUTO-RESOLVE — a brand-new allocation typing only 'QATESTREF1' generated a recommendation with UNMATCHED LINES = 0 and a full pack (\u00a3494, 15 parts, machine 220G-AAW) i.e. the backend resolved it via the stored alias; (3) STEP-2 UNMATCHED RESOLVER — 'QATESTREF2' produced the amber dp-wiz-unmatched-warning box listing the ref with a working dp-wiz-unmatched-find-QATESTREF2 button; picking a BOM machine saved the alias and AUTO-REGENERATED the recommendation (unmatched 1 -> 0, pack \u00a30 -> \u00a3494, consolidated parts table rendered). Alias persistence independently confirmed via GET /api/dealer-parts/data/machine-aliases (2 rows, no MongoDB _id leaked).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Service Desk shell (all Dealer Parts tabs)",
+        "issues": ["Pre-existing React console error on every render: 'In HTML, <span> cannot be a child of <option> ... ServiceDesk...:477' (hydration warning). Not caused by this feature but noisy; the dealer <select> options should render plain text."]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "CLEANUP REQUIRED — delete the 2 throwaway aliases created by this test in org iso-demo-org via DELETE /api/dealer-parts/data/machine-aliases/{id}: QATESTREF1 -> 220G-AAW (id 4f6eec99-930b-4ebb-9dbf-45caa188039d) and QATESTREF2 -> 220G-AAW (id 9b76a609-2409-40d4-b438-18317386a8fa).",
+    "Optional: fix the <span> inside <option> hydration warning in ServiceDesk (line ~477).",
+    "FYI: the BOM machine '220G-AAA' named in the test brief does NOT exist in iso-demo-org (searching '220' returns 220G-AAW/AAT/ABC/AAS/ABA/AAQ/AAR/AAZ). Test used 220G-AAW instead."
+  ],
+  "critical_code_review_comments": [
+    "resolveUnmatched() awaits createMachineAlias then calls generate(); generate() re-reads `lines` from state, which still holds the original unmatched ref \u2014 correct, and it worked. But the 'Remembered \u2014 \u2026 Updating recommendation\u2026' toast was already gone by the time the regenerate finished in my run; consider keeping an inline 'Re-checking BOM\u2026' indicator on the amber box while generate() runs so the user isn't left with a stale unmatched panel.",
+    "pickMachine() overwrites the visible machine_ref input with the BOM ref and only keeps the typed ref in a hidden `input_ref` field \u2014 fine, but generate() sends machine_ref only, so if the alias POST fails (swallowed by the empty catch) the user gets no feedback that the mapping was NOT remembered. Consider a non-blocking warning toast in that catch."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "not tested (per request)", "frontend": "100% (3/3 flows)" },
+  "seed_data_creation": "Created 2 machine aliases in org iso-demo-org (QATESTREF1, QATESTREF2 -> 220G-AAW). No allocations were approved/created (stopped at the Recommendation review step every time).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (from /app/memory/test_credentials.md)",
+  "context_for_next_testing_agent": "Route: /service-desk -> desk-tab-stores -> desk-stores-sub-dealer -> click text 'Allocation Wizard'. A cookie banner overlays the bottom of the page on first load \u2014 click 'Accept All' before interacting with dp-wiz-generate. /api/auth/login is rate-limited so run the whole flow in ONE browser session. Valid BOM machine refs in iso-demo-org start with '220G-AA*'; '220G-AAA' does not exist.",
+  "rca_of_the_issue": "No defects found. The only observation is cosmetic (toast lifetime vs regenerate duration) and a pre-existing unrelated hydration warning."
+}

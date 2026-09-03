@@ -1,3 +1,33 @@
+# ═══ 2026-06 · DEALER PARTS — AI PARSE CORRECTIONS (remembered machine mappings) · testing_agent 100% (3/3) ═══
+Let operators map an unmatched invoice machine to a BOM machine via "Find in BOM" and REMEMBER it, so the
+same invoice ref auto-resolves on every future allocation.
+
+  • BACKEND routes/dealer_parts_data.py:
+    - NEW collection dealer_machine_aliases (MACHINE_ALIASES): {input_ref, input_ref_norm, top_level_ref,
+      top_level_ref_norm, description, updated_by, timestamps}. Upsert keyed on (org, input_ref_norm).
+    - _machine_index now ALSO returns a 4th element alias_map (input_ref_norm → resolved BOM machine); all
+      unpack sites updated to the 4-tuple. _resolve_machine consults alias_map FIRST → returns method "alias",
+      score 100 (so recommend / plan-vs-actuals / invoice parsing all honour remembered mappings).
+    - Endpoints: GET /api/dealer-parts/data/machine-aliases (list), POST .../machine-aliases {input_ref,
+      top_level_ref} (validates the BOM machine exists, upserts, audit-logged), DELETE .../machine-aliases/{id}.
+    - NOTE: reused the EXISTING /data/machines search endpoint for the picker (no new search route added).
+  • FRONTEND pages/DealerWarrantyParts/AllocationWizardTab.js:
+    - pickMachine() now saves a machine alias when the picked BOM ref differs from the typed/invoice ref
+      ("Remembered — “X” will map to Y automatically next time"; non-blocking error toast if the save fails).
+    - Step-2 (Recommendation) unmatched-lines box is now INTERACTIVE (dp-wiz-unmatched-warning): each unmatched
+      ref has a "Find in BOM" button (dp-wiz-unmatched-find-<ref>) → picker → resolveUnmatched() saves the alias
+      and auto-regenerates the recommendation (shows a "Re-checking BOM…" indicator while busy).
+    - api.js: listMachineAliases / createMachineAlias / deleteMachineAlias.
+  • VERIFIED: backend curl (alias create → recommend resolves via method "alias" → delete) + testing_agent
+    frontend 100% (3/3): map+remember, auto-resolve on a fresh allocation, and step-2 resolver auto-regenerate.
+    Report iteration_ai_parse_corrections_machine_alias_frontend_sep2026.json. Test aliases cleaned up.
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live.
+  ⚠️ Pre-existing (not from this work): ServiceDeskPage ~line 477 hydration warning "<span> cannot be a child
+     of <option>" in the dealer <select> — cosmetic console noise, candidate for a later cleanup.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · DEALER PARTS — PLAN vs ACTUALS (refine the 5-year plan) · testing_agent 100% (5/5) ═══
 In-wizard panel that flags where REAL historical parts usage diverges from Pulse's 5-year warranty plan
 so the operator can refine the plan over time. User choices: scale the plan by the machine count on the

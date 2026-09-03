@@ -57,6 +57,7 @@ BOM_MACHINES = "dealer_bom_machines"
 BOM_COMPONENTS = "dealer_bom_components"
 MATCHES = "dealer_component_matches"
 ALIASES = "dealer_component_aliases"
+MACHINE_ALIASES = "dealer_machine_aliases"
 DATA_SETTINGS = "dealer_parts_data_settings"
 WARRANTY_PLAN = "dealer_parts_warranty_plan"
 PRICES = "dealer_parts_prices"
@@ -1190,7 +1191,9 @@ def _fit_pack_to_allowance(pack: list, allowance: float) -> dict:
 
 
 async def _machine_index(org: str):
-    """Load active BOM machines once for in-memory matching (few lines per invoice)."""
+    """Load active BOM machines once for in-memory matching (few lines per invoice).
+    Also loads remembered manual machine mappings (dealer_machine_aliases) so a ref
+    an operator once mapped by hand resolves instantly next time."""
     by_ref, by_stock, desc_pairs = {}, {}, []
     async for m in db[BOM_MACHINES].find(
         {"organization_id": org, "status": "active"},
@@ -1204,12 +1207,19 @@ async def _machine_index(org: str):
         dn = norm_desc(m.get("description"))
         if dn:
             desc_pairs.append((dn, m))
-    return by_ref, by_stock, desc_pairs
+    alias_map = {}
+    async for a in db[MACHINE_ALIASES].find({"organization_id": org}, {"_id": 0, "input_ref_norm": 1, "top_level_ref_norm": 1}):
+        tgt = by_ref.get(a.get("top_level_ref_norm"))
+        if tgt and a.get("input_ref_norm"):
+            alias_map[a["input_ref_norm"]] = tgt
+    return by_ref, by_stock, desc_pairs, alias_map
 
 
 def _resolve_machine(ref: str, idx, fuzzy_cutoff: int):
-    by_ref, by_stock, desc_pairs = idx
+    by_ref, by_stock, desc_pairs, alias_map = idx
     rn = norm_code(ref)
+    if rn in alias_map:
+        return alias_map[rn], "alias", 100
     if rn in by_ref:
         return by_ref[rn], "exact_ref", 100
     if rn in by_stock:
@@ -1592,7 +1602,7 @@ async def match_machine(q: str = Query(...), user=Depends(get_current_user)):
     # a few alternatives by fuzzy description
     alts = []
     from rapidfuzz import process, fuzz as _rf
-    _, _, desc_pairs = idx
+    _, _, desc_pairs, _ = idx
     if desc_pairs:
         keys = [d for d, _ in desc_pairs]
         for hit in process.extract(norm_desc(q), keys, scorer=_rf.ratio, limit=5):
@@ -1600,6 +1610,58 @@ async def match_machine(q: str = Query(...), user=Depends(get_current_user)):
             if not m or mm["top_level_ref"] != m["top_level_ref"]:
                 alts.append({"top_level_ref": mm["top_level_ref"], "description": mm.get("description"), "score": int(hit[1])})
     return {"match": result, "alternatives": alts[:4]}
+
+
+@router.get("/machine-aliases")
+async def list_machine_aliases(user=Depends(get_current_user)):
+    """Remembered manual invoice-machine → BOM-machine mappings."""
+    org = _of(user)
+    rows = await db[MACHINE_ALIASES].find({"organization_id": org}, {"_id": 0}).sort("updated_at", -1).to_list(500)
+    return {"aliases": rows, "count": len(rows)}
+
+
+@router.post("/machine-aliases")
+async def create_machine_alias(data: dict, user=Depends(get_current_user)):
+    """Remember (upsert) a mapping so an unmatched invoice machine ref resolves to a
+    chosen BOM machine automatically next time."""
+    org = _of(user)
+    input_ref = (data.get("input_ref") or "").strip()
+    top_level_ref = (data.get("top_level_ref") or "").strip()
+    if not input_ref or not top_level_ref:
+        raise HTTPException(400, "input_ref and top_level_ref are required")
+    m = await db[BOM_MACHINES].find_one(
+        {"organization_id": org, "top_level_ref_norm": norm_code(top_level_ref), "status": "active"}, {"_id": 0})
+    if not m:
+        raise HTTPException(404, f"BOM machine '{top_level_ref}' not found")
+    now = _now()
+    doc = {
+        "organization_id": org, "input_ref": input_ref, "input_ref_norm": norm_code(input_ref),
+        "top_level_ref": m["top_level_ref"], "top_level_ref_norm": m["top_level_ref_norm"],
+        "description": m.get("description"), "updated_at": now, "updated_by": user.get("full_name") or user.get("email"),
+    }
+    existing = await db[MACHINE_ALIASES].find_one(
+        {"organization_id": org, "input_ref_norm": norm_code(input_ref)}, {"_id": 0, "id": 1})
+    if existing:
+        await db[MACHINE_ALIASES].update_one(
+            {"organization_id": org, "input_ref_norm": norm_code(input_ref)}, {"$set": doc})
+        aid = existing["id"]
+    else:
+        aid = str(uuid.uuid4())
+        doc.update({"id": aid, "created_at": now})
+        await db[MACHINE_ALIASES].insert_one(dict(doc))
+    await _audit(org, user, "machine_alias_saved", input_ref=input_ref, top_level_ref=m["top_level_ref"])
+    return {"ok": True, "id": aid, "top_level_ref": m["top_level_ref"], "description": m.get("description")}
+
+
+@router.delete("/machine-aliases/{alias_id}")
+async def delete_machine_alias(alias_id: str, user=Depends(get_current_user)):
+    org = _of(user)
+    r = await db[MACHINE_ALIASES].delete_one({"organization_id": org, "id": alias_id})
+    if not r.deleted_count:
+        raise HTTPException(404, "Mapping not found")
+    await _audit(org, user, "machine_alias_deleted", alias_id=alias_id)
+    return {"ok": True}
+
 
 
 @router.post("/recommend")
@@ -1986,7 +2048,7 @@ async def _scan_spreadsheet_invoice(org: str, content: bytes, filename: str, idx
       • If there is NO quantity column, each ROW represents one machine.
     """
     from utils.dealer_parts_ai import spreadsheet_rows
-    by_ref, by_stock, _ = idx
+    by_ref, by_stock, _, _ = idx
 
     def _num(v):
         try:
@@ -2088,7 +2150,7 @@ async def _scan_pdf_invoice(content: bytes, idx) -> dict:
     follow. This is instant and accurate — no LLM — and never hangs. Codes not in
     the BOM are still surfaced as unmatched so they can be mapped.
     """
-    by_ref, by_stock, _ = idx
+    by_ref, by_stock, _, _ = idx
     try:
         import io as _io
         from pypdf import PdfReader
