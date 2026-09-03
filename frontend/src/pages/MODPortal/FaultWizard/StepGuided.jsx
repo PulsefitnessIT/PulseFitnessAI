@@ -1,23 +1,24 @@
 import { ONSETS, USABLE, SAFE } from './wizardConfig';
 import { StepTitle, RadioGroup } from './WizardPrimitives';
 
-export function StepGuided({ data, patch, machineName }) {
+export function StepGuided({ data, patch, machineName, errors }) {
+  const descShort = data.description.trim().length < 30;
   return (
     <div className="space-y-5" data-testid="mod-step-guided">
       <StepTitle eyebrow="Fault details" title="Tell us more" subtitle={machineName ? `${machineName} · ≥ 30 characters so the engineer can prep` : '≥ 30 characters so the engineer can prep before arrival'} />
       <label className="block">
-        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>Description *</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: errors?.description ? '#ef4444' : 'var(--theme-text-muted)' }}>Description *{errors?.description && <span className="ml-1 normal-case tracking-normal font-semibold">· needs {30 - data.description.trim().length} more character{30 - data.description.trim().length === 1 ? '' : 's'}</span>}</span>
         <textarea
           value={data.description}
           onChange={(e) => patch('description', e.target.value)}
           rows={4}
           placeholder="e.g. belt slipping when incline > 5% under heavy user. Started making a clicking noise yesterday."
           className="mt-1 w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:border-[var(--color-brand-cyan)]"
-          style={{ background: 'var(--theme-surface-2)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+          style={{ background: 'var(--theme-surface-2)', borderColor: errors?.description ? '#ef4444' : 'var(--theme-border)', color: 'var(--theme-text)' }}
           data-testid="mod-field-description"
         />
         <div className="flex items-center justify-between mt-1 gap-3">
-          <div className={`text-[10px] font-bold ${data.description.length >= 30 ? 'text-emerald-500 dark:text-emerald-400' : ''}`} style={data.description.length >= 30 ? {} : { color: 'var(--theme-text-muted)' }}>
+          <div className={`text-[10px] font-bold ${!descShort ? 'text-emerald-500 dark:text-emerald-400' : ''}`} style={!descShort ? {} : { color: errors?.description ? '#ef4444' : 'var(--theme-text-muted)' }}>
             {data.description.length} / 30 minimum
           </div>
           <div className="text-[10px] text-amber-600 dark:text-amber-300/90 font-semibold" data-testid="mod-field-classification-hint">
@@ -43,9 +44,9 @@ export function StepGuided({ data, patch, machineName }) {
         </div>
       </label>
 
-      <RadioGroup label="When did it start? *" options={ONSETS} value={data.onset} onChange={(v) => patch('onset', v)} testidPrefix="mod-field-onset" />
-      <RadioGroup label="Is it usable? *" options={USABLE} value={data.usable} onChange={(v) => patch('usable', v)} testidPrefix="mod-field-usable" withHelp />
-      <RadioGroup label="Is it safe to leave in service? *" options={SAFE} value={data.safe_in_service} onChange={(v) => patch('safe_in_service', v)} testidPrefix="mod-field-safe" alert={data.safe_in_service === 'no'} />
+      <RadioGroup label="When did it start? *" options={ONSETS} value={data.onset} onChange={(v) => patch('onset', v)} testidPrefix="mod-field-onset" error={errors?.onset} />
+      <RadioGroup label="Is it usable? *" options={USABLE} value={data.usable} onChange={(v) => patch('usable', v)} testidPrefix="mod-field-usable" withHelp error={errors?.usable} />
+      <RadioGroup label="Is it safe to leave in service? *" options={SAFE} value={data.safe_in_service} onChange={(v) => patch('safe_in_service', v)} testidPrefix="mod-field-safe" alert={data.safe_in_service === 'no'} error={errors?.safe_in_service} />
       {data.safe_in_service === 'no' && (
         <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-600 dark:text-red-200 font-medium">
           ⚠ This machine will be auto-isolated and flagged URGENT. The on-call engineer will be paged.

@@ -3,7 +3,7 @@ import { X, Search, ScanLine, Camera, MapPin, Check } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { StepTitle } from './WizardPrimitives';
 
-export function StepEquipment({ allEquipment, search, setSearch, selectedIds, onToggle }) {
+export function StepEquipment({ allEquipment, search, setSearch, selectedIds, onToggle, error }) {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanError, setScanError] = useState(null);
 
@@ -47,6 +47,11 @@ export function StepEquipment({ allEquipment, search, setSearch, selectedIds, on
   return (
     <div data-testid="mod-step-equipment">
       <StepTitle eyebrow="Step 1" title="Which machines?" subtitle="Tick every machine you're reporting — you'll describe each one's fault next." />
+      {error && selectedIds.length === 0 && (
+        <div className="mb-3 rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-[11px] font-bold text-red-600 dark:text-red-300" data-testid="mod-equipment-error">
+          Tick at least one machine to continue.
+        </div>
+      )}
       {selectedIds.length > 0 && (
         <div className="mb-3 text-xs font-bold" style={{ color: 'var(--color-brand-cyan)' }} data-testid="mod-equipment-selected-count">
           {selectedIds.length} machine{selectedIds.length > 1 ? 's' : ''} selected

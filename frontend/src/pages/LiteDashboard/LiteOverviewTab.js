@@ -48,6 +48,18 @@ const LiteOverviewTab = ({
   const isMultiSite = (sites?.length || 0) > 1;
   const scopeSiteId = isMultiSite && activeSite?.id ? activeSite.id : null;
 
+  // "Recent Faults" = the most recent still-active faults (anything not
+  // resolved/closed), newest first. Using the strict status==='open' set here
+  // hid faults the moment an engineer moved them to in_progress/assigned, which
+  // made the panel look empty even when work was ongoing.
+  const recentFaults = [...(issues || [])]
+    .filter((i) => {
+      const s = (i.status || '').toLowerCase();
+      return s && s !== 'resolved' && s !== 'closed' && s !== 'cancelled';
+    })
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+    .slice(0, 5);
+
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -244,7 +256,7 @@ const LiteOverviewTab = ({
           <h3 className="font-semibold" style={{ color: 'var(--theme-text)' }}>{t('dashboard.recent_faults', 'Recent Faults')}</h3>
         </div>
         <div className="divide-y divide-[var(--theme-border)]/40">
-          {openFaults.slice(0, 5).map((f) => (
+          {recentFaults.map((f) => (
             <div
               key={f.id}
               className="p-4 flex items-center gap-3 hover:bg-[var(--theme-hover-bg)] transition-colors cursor-pointer"
@@ -261,7 +273,7 @@ const LiteOverviewTab = ({
               </span>
             </div>
           ))}
-          {openFaults.length === 0 && (
+          {recentFaults.length === 0 && (
             <p className="p-6 text-center text-[var(--color-text-muted)] text-sm">{t('dashboard.no_open_faults', 'No open faults')}</p>
           )}
         </div>

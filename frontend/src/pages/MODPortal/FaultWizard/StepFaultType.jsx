@@ -1,7 +1,7 @@
 import { FAULT_TYPES } from './wizardConfig';
 import { StepTitle } from './WizardPrimitives';
 
-export function StepFaultType({ selected, onPick, machineName, machineIndex, machineTotal }) {
+export function StepFaultType({ selected, onPick, machineName, machineIndex, machineTotal, error }) {
   return (
     <div data-testid="mod-step-fault-type">
       <StepTitle
@@ -9,7 +9,8 @@ export function StepFaultType({ selected, onPick, machineName, machineIndex, mac
         title="What's wrong?"
         subtitle={machineName ? `With ${machineName}` : undefined}
       />
-      <div className="grid grid-cols-2 gap-2.5" role="radiogroup" aria-label="Fault type">
+      {error && <div className="mb-2 text-[11px] font-bold text-red-500" data-testid="mod-fault-type-error">Pick a fault type to continue.</div>}
+      <div className={`grid grid-cols-2 gap-2.5 ${error ? 'rounded-xl ring-1 ring-red-500/50 p-1 -m-1' : ''}`} role="radiogroup" aria-label="Fault type">
         {FAULT_TYPES.map((t) => {
           const picked = t.id === selected;
           const Icon = t.icon;

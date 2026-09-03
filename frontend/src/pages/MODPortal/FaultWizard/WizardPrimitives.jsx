@@ -10,11 +10,13 @@ export function StepTitle({ eyebrow, title, subtitle }) {
   );
 }
 
-export function RadioGroup({ label, options, value, onChange, testidPrefix, withHelp, alert }) {
+export function RadioGroup({ label, options, value, onChange, testidPrefix, withHelp, alert, error }) {
   return (
     <div role="radiogroup" aria-label={label}>
-      <div className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--theme-text-muted)' }}>{label}</div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: error ? '#ef4444' : 'var(--theme-text-muted)' }}>
+        {label}{error && <span className="ml-1 normal-case tracking-normal font-semibold">· required</span>}
+      </div>
+      <div className={`grid grid-cols-1 sm:grid-cols-3 gap-2 ${error ? 'rounded-lg ring-1 ring-red-500/50 p-1 -m-1' : ''}`}>
         {options.map((o) => {
           const picked = o.id === value;
           const cls = picked

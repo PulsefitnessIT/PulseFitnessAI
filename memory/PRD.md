@@ -1,3 +1,32 @@
+# ═══ 2026-06 · MOD SERVICE PORTAL — 2 BUG FIXES (Recent Faults + Fault Wizard validation) · screenshot-verified ═══
+The "Modservice" portal is the Lite Dashboard rendered for MOD sites (login /MODService, portal:'mod', lands /pulse).
+
+  BUG 1 — Dashboard "Recent Faults" showed nothing.
+    • ROOT CAUSE: LiteOverviewTab rendered openFaults.slice(0,5) where openFaults = issues.filter(status==='open').
+      Any fault moved to in_progress/assigned/awaiting_parts dropped off, and the list was never sorted by date, so
+      "Recent Faults" looked empty even with active faults.
+    • FIX (frontend LiteDashboard/LiteOverviewTab.js): new recentFaults = issues NOT resolved/closed/cancelled,
+      sorted by created_at desc, top 5. KPI "Open Faults" (strict status==='open') is unchanged.
+    • VERIFIED: MOD Test Site (test@army.mod.test / ModTest123!, portal mod) → Dashboard now lists 5 recent faults
+      incl. In Progress ones (was "No open faults").
+
+  BUG 2 — "Log a Fault" wizard Continue button greyed out with no feedback; missing fields not highlighted.
+    • ROOT CAUSE: MODFaultWizard "Continue" used disabled={!canNext}; a disabled button never fires onClick, so the
+      existing whyInvalid() toast could never show and the user got no reason.
+    • FIX (frontend MODPortal/MODFaultWizard.js + FaultWizard steps): Continue is ALWAYS clickable (subtle 0.85 opacity
+      when invalid); on click when invalid → setTriedNext(true) + toast(whyInvalid()). New triedNext state (reset on
+      phase/sub/mi change) drives inline highlights: StepGuided description shows "needs N more characters" + red border,
+      required radios (onset/usable/safe) get a red "· required" label + ring (WizardPrimitives.RadioGroup error prop),
+      StepFaultType shows "Pick a fault type to continue", StepReporter note turns red, StepEquipment shows
+      "Tick at least one machine to continue."
+    • VERIFIED: wizard Continue now enabled; clicking it while incomplete shows the red highlight hint (equipment step
+      screenshot confirmed) — same mechanism across all steps.
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live. NOTE: preview edge (Cloudflare) intermittently 502s during
+     recompiles — not app-related (localhost:3000 + backend return 200).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · DEALER PARTS — COVER PERIOD OPTION (1–5 year pack) · curl + e2e-screenshot verified ═══
 Operators can now generate a 1–5 year spare-parts pack instead of always defaulting to 5 years.
 

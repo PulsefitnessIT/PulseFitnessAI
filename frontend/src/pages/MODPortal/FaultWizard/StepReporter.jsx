@@ -1,10 +1,10 @@
 import { StepTitle } from './WizardPrimitives';
 
-export function StepReporter({ staff, selected, onPick, onAddNew }) {
+export function StepReporter({ staff, selected, onPick, onAddNew, error }) {
   return (
     <div data-testid="mod-step-reporter">
       <StepTitle eyebrow="Reporter" title="Who is reporting this?" subtitle="So our engineer can contact you and resolve faster." />
-      <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2 mb-3 text-[12px] text-amber-700 dark:text-amber-200 flex items-start gap-2" data-testid="mod-reporter-required-note">
+      <div className={`rounded-lg px-3 py-2 mb-3 text-[12px] flex items-start gap-2 border ${error ? 'bg-red-500/10 border-red-500/50 text-red-600 dark:text-red-300' : 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-200'}`} data-testid="mod-reporter-required-note">
         <span className="font-bold">Required:</span>
         <span>Select (or add) the staff member logging this fault — our service provider will contact them directly. This can't be skipped.</span>
       </div>

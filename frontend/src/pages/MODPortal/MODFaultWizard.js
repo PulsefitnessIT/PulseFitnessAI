@@ -43,6 +43,7 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
   const [phase, setPhase] = useState('equipment');
   const [mi, setMi] = useState(0);   // index into selectedIds
   const [sub, setSub] = useState(0);
+  const [triedNext, setTriedNext] = useState(false); // highlight missing fields after a blocked "Continue"
 
   const [equipment, setEquipment] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -134,8 +135,21 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
     return 'Please complete this step';
   };
 
+  // Which fields on the CURRENT screen are still missing — shown inline once the
+  // user has attempted to continue (triedNext), so nothing is a mystery.
+  const showErrors = triedNext && !canNext;
+  const guidedErrors = {
+    description: currentData.description.trim().length < 30,
+    onset: !currentData.onset,
+    usable: !currentData.usable,
+    safe_in_service: !currentData.safe_in_service,
+  };
+
+  // Clear the highlights whenever the user lands on a fresh screen.
+  useEffect(() => { setTriedNext(false); }, [phase, sub, mi]);
+
   const goNext = () => {
-    if (!canNext) { notify.error(whyInvalid()); return; }
+    if (!canNext) { setTriedNext(true); notify.error(whyInvalid()); return; }
     if (phase === 'equipment') { setPhase('machine'); setMi(0); setSub(0); return; }
     if (phase === 'machine') {
       if (sub < 2) { setSub(sub + 1); return; }
@@ -278,6 +292,7 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
               setSearch={setSearch}
               selectedIds={selectedIds}
               onToggle={toggleMachine}
+              error={showErrors}
             />
           )}
           {phase === 'machine' && sub === 0 && (
@@ -287,10 +302,11 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
               machineName={machineName}
               machineIndex={mi}
               machineTotal={selectedIds.length}
+              error={showErrors}
             />
           )}
           {phase === 'machine' && sub === 1 && (
-            <StepGuided data={currentData} patch={patchMachine} machineName={machineName} />
+            <StepGuided data={currentData} patch={patchMachine} machineName={machineName} errors={showErrors ? guidedErrors : null} />
           )}
           {phase === 'machine' && sub === 2 && (
             <StepAttachments
@@ -306,6 +322,7 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
               selected={selectedStaff}
               onPick={(s) => setReporterStaffId(s.id)}
               onAddNew={() => setStaffPickerOpen(true)}
+              error={showErrors}
             />
           )}
           {phase === 'review' && (
@@ -335,9 +352,8 @@ export default function MODFaultWizard({ onClose, onSubmitted, prefillEquipmentI
           {phase !== 'review' ? (
             <button
               onClick={goNext}
-              disabled={!canNext}
-              className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-extrabold disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ background: canNext ? 'var(--color-brand-cyan)' : 'var(--theme-surface-3)', color: canNext ? '#04121a' : 'var(--theme-text-muted)' }}
+              className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-extrabold transition-opacity"
+              style={{ background: 'var(--color-brand-cyan)', color: '#04121a', opacity: canNext ? 1 : 0.85 }}
               data-testid="mod-wizard-next"
             >
               {phase === 'equipment' && selectedIds.length > 0 ? `Continue with ${selectedIds.length} machine${selectedIds.length > 1 ? 's' : ''}` : 'Continue'}
