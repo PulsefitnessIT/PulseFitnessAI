@@ -1399,6 +1399,183 @@ async def _warranty_plan_by_group(org: str, tier: str = "platinum") -> dict:
     return out
 
 
+# ─────────────────────────────────────────────────────────────────
+# Plan vs Actuals — flag where REAL historical usage diverges from
+# Pulse's 5-year warranty plan, so the operator can refine the plan.
+# Compared per-machine over 5 years: plan = total_qty_5y; actual =
+# (fleet 12-month usage × 5, else all-time usage) ÷ the machines on
+# this invoice. Scaled to the invoice fleet as the user directed.
+# ─────────────────────────────────────────────────────────────────
+
+PVA_OVER_PCT = 50.0   # actual >= plan + 50% → plan too low (under-planned)
+PVA_UNDER_PCT = 50.0  # actual <= plan - 50% → plan too high (over-planned)
+
+
+def _pva_status(plan_pm: float, actual_pm: float):
+    """(status, divergence_pct) for per-machine 5-year plan vs actual rates."""
+    if plan_pm > 0 and actual_pm <= 0:
+        return "in_plan_unused", -100.0
+    if plan_pm <= 0 and actual_pm > 0:
+        return "used_not_in_plan", 100.0
+    if plan_pm <= 0 and actual_pm <= 0:
+        return "aligned", 0.0
+    div = (actual_pm - plan_pm) / plan_pm * 100.0
+    if div >= PVA_OVER_PCT:
+        return "under_planned", round(div, 1)
+    if div <= -PVA_UNDER_PCT:
+        return "over_planned", round(div, 1)
+    return "aligned", round(div, 1)
+
+
+@router.post("/plan-vs-actuals")
+async def plan_vs_actuals(data: dict, user=Depends(get_current_user)):
+    """Compare the 5-year warranty plan against REAL historical parts usage for the
+    machines on an invoice. Flags plan-too-low (>50% under), plan-too-high (>50% over),
+    'in plan but never used' and 'used but not in plan' — so the plan can be refined."""
+    org = _of(user)
+    settings = await _data_settings(org)
+    approved_only = bool(settings.get("require_human_review_before_recommend", True))
+    fuzzy_cutoff = int(settings["fuzzy_threshold"] * 100)
+
+    plan_by_group = await _warranty_plan_by_group(org, tier="platinum")
+    if not plan_by_group:
+        return {"loaded": False, "machines": [], "total_flagged": 0,
+                "note": "No 5-year warranty plan loaded yet — import it under Data Imports to compare."}
+
+    idx = await _machine_index(org)
+    usage_map = await _usage_by_bom_code(org, approved_only)
+    if not usage_map and approved_only:
+        usage_map = await _usage_by_bom_code(org, approved_only=False)
+    price_map = await _price_map(org)
+    group_meta = _build_group_meta(plan_by_group.keys())
+
+    def _actual_pm(u, n):
+        if not u:
+            return 0.0, 0.0
+        total = u.get("total_qty") or 0
+        return round(total / max(1, n), 3), round(total, 2)
+
+    machines_out = []
+    for ln in (data.get("lines") or []):
+        ref = (ln.get("machine_ref") or ln.get("machine_model") or "").strip()
+        n = int(float(ln.get("quantity") or 1)) or 1
+        if not ref:
+            continue
+        m, method, score = _resolve_machine(ref, idx, fuzzy_cutoff)
+        if not m:
+            machines_out.append({"input_ref": ref, "quantity": n, "matched": False, "rows": [],
+                                 "note": "Not matched to a BOM machine."})
+            continue
+        plan_group = _match_warranty_group(m, group_meta)
+        if not plan_group:
+            machines_out.append({"input_ref": ref, "quantity": n, "matched": True,
+                                 "machine_ref": m["top_level_ref"], "machine_description": m.get("description"),
+                                 "machine_group": "", "rows": [],
+                                 "note": "No warranty-plan machine group matched this machine."})
+            continue
+        comps = {}
+        async for c in db[BOM_COMPONENTS].find(
+            {"organization_id": org, "top_level_ref_norm": m["top_level_ref_norm"], "status": "active"},
+            {"_id": 0, "code": 1, "code_norm": 1, "description": 1}):
+            comps.setdefault(c["code_norm"], {"code": c["code"], "description": c.get("description")})
+
+        rows, covered = [], set()
+        for p in plan_by_group.get(plan_group, []):
+            cn = p["part_code_norm"]
+            covered.add(cn)
+            plan_pm = round(p.get("total_qty_5y") or 0, 2)
+            u = usage_map.get(cn)
+            actual_pm, actual_total = _actual_pm(u, n)
+            status, div = _pva_status(plan_pm, actual_pm)
+            unit = p.get("sales_price") or price_map.get(cn) or (u.get("avg_cost") if u else 0) or 0
+            rows.append({
+                "part_code": p["part_code"], "part_code_norm": cn,
+                "description": p.get("description") or p["part_code"],
+                "machine_group": plan_group, "in_plan": True,
+                "plan_per_machine_5y": plan_pm, "plan_this_order": round(plan_pm * n, 2),
+                "actual_per_machine_5y": actual_pm, "actual_this_order": round(actual_pm * n, 2),
+                "actual_total_used": actual_total, "trend": (u or {}).get("trend"),
+                "status": status, "divergence_pct": div,
+                "suggested_qty_5y": actual_pm if status in ("under_planned", "over_planned") else plan_pm,
+                "unit_value": round(unit, 2),
+                "sales_price": round(p.get("sales_price") or 0, 2),
+                "cost_price": round(p.get("cost_price") or 0, 2),
+            })
+        for cn, c in comps.items():
+            if cn in covered:
+                continue
+            u = usage_map.get(cn)
+            if not u:
+                continue
+            actual_pm, actual_total = _actual_pm(u, n)
+            if actual_pm <= 0:
+                continue
+            unit = price_map.get(cn) or u.get("avg_cost") or 0
+            rows.append({
+                "part_code": c["code"], "part_code_norm": cn,
+                "description": c.get("description") or c["code"],
+                "machine_group": plan_group, "in_plan": False,
+                "plan_per_machine_5y": 0.0, "plan_this_order": 0.0,
+                "actual_per_machine_5y": actual_pm, "actual_this_order": round(actual_pm * n, 2),
+                "actual_total_used": actual_total, "trend": u.get("trend"),
+                "status": "used_not_in_plan", "divergence_pct": 100.0,
+                "suggested_qty_5y": actual_pm, "unit_value": round(unit, 2),
+                "sales_price": round(unit, 2), "cost_price": 0.0,
+            })
+        rank = {"under_planned": 0, "over_planned": 1, "used_not_in_plan": 2, "in_plan_unused": 3, "aligned": 4}
+        rows.sort(key=lambda r: (rank.get(r["status"], 9), -abs(r["divergence_pct"] or 0)))
+        summary = {k: sum(1 for r in rows if r["status"] == k)
+                   for k in ("under_planned", "over_planned", "used_not_in_plan", "in_plan_unused", "aligned")}
+        summary["flagged"] = (summary["under_planned"] + summary["over_planned"]
+                              + summary["used_not_in_plan"] + summary["in_plan_unused"])
+        machines_out.append({
+            "input_ref": ref, "quantity": n, "matched": True,
+            "machine_ref": m["top_level_ref"], "machine_description": m.get("description"),
+            "machine_group": plan_group, "rows": rows, "summary": summary,
+        })
+    total_flagged = sum(mo.get("summary", {}).get("flagged", 0) for mo in machines_out)
+    return {"loaded": True, "over_pct": PVA_OVER_PCT, "under_pct": PVA_UNDER_PCT,
+            "usage_available": bool(usage_map), "machines": machines_out, "total_flagged": total_flagged}
+
+
+@router.post("/warranty-plan/update-part")
+async def update_warranty_plan_part(data: dict, user=Depends(get_current_user)):
+    """Refine the 5-year plan from real usage: set a part's expected 5-year quantity
+    (per machine) for a machine group. Updates every tier row for that group + part;
+    if the part isn't in the plan yet ('used but not in plan') it's added as a full
+    silver/gold/platinum row."""
+    org = _of(user)
+    grp = (data.get("machine_group") or "").strip()
+    pcn = (data.get("part_code_norm") or "").strip()
+    if not grp or not pcn or data.get("total_qty_5y") is None:
+        raise HTTPException(400, "machine_group, part_code_norm and total_qty_5y are required")
+    new_total = round(max(0.0, float(data.get("total_qty_5y"))), 2)
+    per_year = round(new_total / 5.0, 3)
+    now = _now()
+    res = await db[WARRANTY_PLAN].update_many(
+        {"organization_id": org, "machine_group": grp, "part_code_norm": pcn},
+        {"$set": {"total_qty_5y": new_total, "year_qty": [per_year] * 5,
+                  "updated_at": now, "refined_from_actuals": True}})
+    added = False
+    if res.matched_count == 0:
+        doc = {
+            "id": str(uuid.uuid4()), "organization_id": org,
+            "machine_group": grp, "machine_group_norm": grp.strip().lower(),
+            "part_code": (data.get("part_code") or pcn), "part_code_norm": pcn,
+            "description": data.get("description") or "",
+            "sales_price": _num0(data.get("sales_price")), "cost_price": _num0(data.get("cost_price")),
+            "silver": True, "gold": True, "platinum": True,
+            "year_qty": [per_year] * 5, "total_qty_5y": new_total,
+            "updated_at": now, "refined_from_actuals": True, "added_from_actuals": True,
+        }
+        await db[WARRANTY_PLAN].insert_one(dict(doc))
+        added = True
+    await _audit(org, user, "warranty_plan_part_refined", machine_group=grp,
+                 part_code_norm=pcn, total_qty_5y=new_total, added=added)
+    return {"ok": True, "updated": res.modified_count, "added": added, "total_qty_5y": new_total}
+
+
+
 
 
 @router.get("/match-machine")

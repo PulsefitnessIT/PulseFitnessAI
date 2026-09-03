@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only E2E test of the new 'Plan vs Actuals' panel in the Dealer Parts Allocation Wizard (Playwright, desktop 1920x1080, public preview URL). Logged in as owner@isodemo.com, navigated Service Desk → Stores → Dealer Parts → Allocation Wizard, generated a recommendation (dealer=Fitline Deutschland, value 20000, machine 220G-AAA x2), and validated all 5 requested behaviours. All 5 passed: (1) dp-wiz-pva-panel renders in step 2 below the recommendation note; (2) dp-wiz-pva-toggle lazy-loads POST /api/dealer-parts/data/plan-vs-actuals (200) and shows dp-wiz-pva-flagged = '15 to review'; (3) machine row dp-wiz-pva-machine-220G-AAA auto-expands (collapse/re-expand verified: 15 rows → 0 → 15) and renders the Plan /machine (5yr) vs Actual /machine (5yr) table with correct status badges (1 'Plan too low', 5 'Used, not in plan', 9 'In plan, never used'); (4) apply on part 26/221 (pva-apply-26/221, 'Set plan to 4.5') called POST /data/warranty-plan/update-part (200), showed the success toast 'Plan updated — 26/221 set to 4.5/machine over 5 years.' and switched to pva-applied-26/221 'Plan set to 4.5'; (5) the dp-wiz-pva-show-aligned checkbox correctly filters aligned rows (13→15 rows, 2 'Aligned' badges when checked) — verified using a test-side stubbed response because the real iso-demo dataset contains ZERO aligned rows for group 220. No JS errors, no 4xx/5xx from the feature endpoints. Demo data restored: 26/221 in group 220 set back to total_qty_5y=2.0 via the API (verified plan_per_machine_5y=2.0, total_flagged=15 again).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PlanVsActualsPanel / DivergenceRow", "issue": "data-testid naming does not match the spec: apply/applied elements are 'pva-apply-<part_code>' and 'pva-applied-<part_code>', not the documented 'dp-wiz-pva-apply-<part_code>' / 'dp-wiz-pva-applied-<part_code>'. Row testids are also 'pva-row-<code>'. Harmless functionally but breaks any test/automation written against the spec — recommend prefixing consistently with dp-wiz-.", "selector": "[data-testid='pva-apply-26/221']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Allocation Wizard → Plan vs Actuals panel", "issues": ["Badge text '15 to review' counts in_plan_unused rows (9) as flagged, but those rows have no actionable 'Set plan to N' button (dash shown) — a user seeing '15 to review' can only act on 6. Consider wording like '6 to fix · 9 unused' or excluding in_plan_unused from the badge.", "The 'Show parts that already match the plan' checkbox has no visible effect on the seeded demo data (0 aligned rows for group 220) — consider disabling/annotating it with the aligned count so it doesn't look broken."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_plan_vs_actuals_frontend_jul2026.json"],
+  "action_items": [
+    "Optional: rename apply/applied/row testids to the dp-wiz-pva-* prefix for consistency with the rest of the wizard.",
+    "Optional UX: clarify the 'N to review' badge (it includes non-actionable 'In plan, never used' rows) and surface the aligned count next to the show-aligned checkbox.",
+    "Informational: /api/auth/login is aggressively rate-limited ('Slow down — too many requests') after ~4 logins in a few minutes, which throttles automated UI testing. Consider a higher limit or an exemption for the preview environment."
+  ],
+  "critical_code_review_comments": [
+    "PlanVsActualsPanel: applied state is keyed on `${machine_group}||${part_code_norm}` while the data is not refetched after an apply — the row keeps showing the stale Plan value (2) alongside 'Plan set to 4.5'. Consider patching row.plan_per_machine_5y/status locally or refetching so the table stays truthful.",
+    "PlanVsActualsPanel: load() has no error/retry state in the panel body — if plan-vs-actuals fails, only a toast fires and the expanded panel renders nothing (data stays null, and the useEffect will retry on every re-render loop guard only via loading). A visible error + Retry button would be safer.",
+    "Backend _pva_status returns 'aligned' when both plan and actual are 0, so such rows are silently hidden by default; fine today (plan rows always have qty>0) but worth an explicit filter."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only request; feature endpoints observed 200 through the UI)", "frontend": "100% (5/5 requested behaviours pass)"},
+  "seed_data_creation": "None created. One apply action was executed on part 26/221 / machine_group 220 (2.0 → 4.5) as instructed, then RESTORED to total_qty_5y=2.0 via POST /api/dealer-parts/data/warranty-plan/update-part and re-verified. No other plan rows touched.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (from /app/memory/test_credentials.md)",
+  "context_for_next_testing_agent": "Path to the panel: /login → /service-desk → data-testid desk-tab-stores → desk-stores-sub-dealer → text 'Allocation Wizard' → dp-wiz-dealer (select index 1) + dp-wiz-value=20000 + dp-wiz-machine-0='220G-AAA' + dp-wiz-qty-input-0=2 → dp-wiz-generate → dp-wiz-step1. Panel testids: dp-wiz-pva-panel / -toggle / -flagged / -machine-220G-AAA / -show-aligned, rows pva-row-<code>, apply pva-apply-<code>, applied pva-applied-<code>. Group 220 baseline: total_flagged=15 (1 under_planned 26/221, 5 used_not_in_plan, 9 in_plan_unused, 0 aligned). Login is rate-limited — allow ~2 min between browser sessions. To exercise the show-aligned checkbox you must stub the plan-vs-actuals response (page.route) since no aligned rows exist in the demo data.",
+  "rca_of_the_issue": "No functional defect found. The show-aligned checkbox appearing inert is a data condition (0 aligned rows in the iso-demo warranty plan for group 220), not a code bug — confirmed by stubbing two rows to status 'aligned', after which the filter toggled 13↔15 rows correctly."
+}

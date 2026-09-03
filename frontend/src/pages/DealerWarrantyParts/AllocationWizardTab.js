@@ -4,6 +4,7 @@ import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { Spinner, StatCard, input, inputTight, money } from './shared';
 import { useDealerPartsNav } from './navGuard';
+import PlanVsActualsPanel from './PlanVsActualsPanel';
 
 const PRIORITY_TONE = {
   critical: 'bg-red-50 text-red-700 border-red-200',
@@ -401,6 +402,10 @@ export default function AllocationWizardTab() {
             <div className={`rounded-lg p-3 text-xs flex items-start gap-2 border ${rec.parts_total === 0 ? 'bg-amber-50 border-amber-100 text-amber-800' : 'bg-blue-50 border-blue-100 text-blue-800'}`} data-testid="dp-wiz-rec-note">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" /><div>{rec.note}</div>
             </div>
+          )}
+
+          {rec.matched_machine_count > 0 && (
+            <PlanVsActualsPanel lines={(rec.machine_lines || []).filter((l) => l.matched).map((l) => ({ machine_ref: l.top_level_ref || l.input_ref, quantity: l.quantity }))} />
           )}
 
           {(() => {

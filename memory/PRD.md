@@ -1,3 +1,39 @@
+# ═══ 2026-06 · DEALER PARTS — PLAN vs ACTUALS (refine the 5-year plan) · testing_agent 100% (5/5) ═══
+In-wizard panel that flags where REAL historical parts usage diverges from Pulse's 5-year warranty plan
+so the operator can refine the plan over time. User choices: scale the plan by the machine count on the
+invoice; live as an expandable panel inside the Allocation Wizard's recommendation step; sensible default
+thresholds (>50% over/under, plus "in plan but never used" and "used but not in plan"); one-click "update
+plan to match actuals" that writes total_qty_5y back.
+
+  • BACKEND routes/dealer_parts_data.py (after _warranty_plan_by_group):
+    - POST /api/dealer-parts/data/plan-vs-actuals {lines:[{machine_ref,quantity}]} — per matched machine,
+      matches a warranty-plan group (_match_warranty_group), then per plan part compares PER-MACHINE 5-year
+      rates: plan_per_machine_5y = total_qty_5y; actual_per_machine_5y = all-time fleet usage (_usage_by_bom_code
+      total_qty) ÷ the invoice machine count (the user's chosen scaling). _pva_status flags under_planned
+      (actual ≥ plan+50%), over_planned (≤ plan−50%), in_plan_unused (plan>0, no usage), plus a used_not_in_plan
+      pass over BOM comps with real usage the plan misses. Returns per-machine rows + summary counts + total_flagged.
+      Constants PVA_OVER_PCT/PVA_UNDER_PCT = 50 (easy to make a setting later).
+    - POST /api/dealer-parts/data/warranty-plan/update-part {machine_group, part_code_norm, total_qty_5y, ...} —
+      sets total_qty_5y + year_qty=[t/5]×5 + refined_from_actuals on every tier row; if the part isn't in the
+      plan (used_not_in_plan) it INSERTS a full silver/gold/platinum row (added_from_actuals). Audit-logged.
+  • FRONTEND: NEW pages/DealerWarrantyParts/PlanVsActualsPanel.js — expandable panel (lazy fetch on open),
+    per-machine collapsible tables (Plan /machine vs Actual /machine + status badge), one-click "Set plan to N"
+    (applies + patches the row locally so it stays truthful, shows "Plan set to N"), error+Retry state,
+    show-aligned toggle annotated with the aligned count (disabled when none). Wired into AllocationWizardTab.js
+    step 1 (rendered when rec.matched_machine_count>0, lines from rec.machine_lines matched entries).
+    api.js: planVsActuals, updateWarrantyPlanPart. testids: dp-wiz-pva-panel/-toggle/-flagged/-machine-<ref>/
+    -row-<code>/-apply-<code>/-applied-<code>/-show-aligned/-error/-retry.
+  • VERIFIED: backend curl (iso-demo-org, 2×220G-AAA → group 220, total_flagged=15 [1 under_planned 26/221,
+    5 used_not_in_plan, 9 in_plan_unused]; update-part 26/221 2.0→4.5 then RESTORED to 2.0) + testing_agent
+    frontend 100% (5/5) — iteration_plan_vs_actuals_frontend_jul2026.json. Demo plan restored.
+  • NOTE (transparency): the actual-per-machine figure divides fleet-wide history by the invoice machine count
+    (the user's explicit scaling) — labelled in the panel; most reliable when the invoice fleet is representative.
+    The "N to review" badge counts actionable rows (under/over/missing); "in plan, never used" shown as "· N unused".
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · DEALER PARTS — ALLOCATION WIZARD ACCURACY (5-YEAR WARRANTY PLAN) · e2e-verified ═══
 Replaced the flat 3/2/1 constant quantities with Pulse's evidence-based 5-year warranty failure plan
 as the primary driver of the recommended spare-parts pack. User choices: Platinum tier always (for now);

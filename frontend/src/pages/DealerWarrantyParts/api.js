@@ -158,6 +158,8 @@ export const dpApi = {
   saveDataSettings: (data) => axios.put(`${BASE}/data/settings`, data, auth()).then((r) => r.data),
   matchMachine: (q) => axios.get(`${BASE}/data/match-machine`, { ...auth(), params: { q } }).then((r) => r.data),
   recommendFromInvoice: (data) => axios.post(`${BASE}/data/recommend`, data, auth()).then((r) => r.data),
+  planVsActuals: (data) => axios.post(`${BASE}/data/plan-vs-actuals`, data, auth()).then((r) => r.data),
+  updateWarrantyPlanPart: (data) => axios.post(`${BASE}/data/warranty-plan/update-part`, data, auth()).then((r) => r.data),
   dataMonitoring: () => axios.get(`${BASE}/data/monitoring`, auth()).then((r) => r.data),
   aiParseInvoiceFile: async (file, onProgress) => {
     // Chunked upload (MongoDB-backed, per-chunk retry) → async parse job → poll.
