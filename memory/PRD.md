@@ -1,3 +1,25 @@
+# ═══ 2026-06 · DEALER PARTS — COVER PERIOD OPTION (1–5 year pack) · curl + e2e-screenshot verified ═══
+Operators can now generate a 1–5 year spare-parts pack instead of always defaulting to 5 years.
+
+  • BACKEND routes/dealer_parts_data.py:
+    - NEW helper _plan_cover_qty(plan_part, cover_years): expected per-machine qty over N years = SUM of the
+      plan's per-year figures year_qty[:N] (failure rates vary year to year), falling back to a pro-rata of
+      total_qty_5y × N/5 when per-year data is missing. cover_years>=5 uses total_qty_5y as before.
+    - POST /recommend accepts cover_years (1–5, clamped, default 5); the warranty-plan block uses
+      _plan_cover_qty instead of total_qty_5y. Reason text + "note" + run record now say "{N}-year" and
+      "expected X over N year(s)". Response returns cover_years.
+    - Plan-vs-Actuals is intentionally UNCHANGED (still a 5-year comparison — it refines the master plan).
+  • FRONTEND pages/DealerWarrantyParts/AllocationWizardTab.js:
+    - NEW segmented "Cover period" selector in Step 1 (dp-wiz-cover-years, buttons dp-wiz-cover-1..5), default 5,
+      reset() clears to 5, generate() sends cover_years. Step-2 plan badge is now dynamic ("{N}-year …").
+  • VERIFIED: curl (iso-demo-org, 1×220G-AAW): cover=5 → 26/221 planned 2 (21 parts); cover=3 → planned 1
+    (17 parts); cover=1 → smaller/plan qtys round out (11 supplementary parts). E2E screenshot: picking 2 yrs
+    produced a pack badged "Pulse's 2-year warranty failure plan … over 2 years". Both compile clean.
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · DEALER PARTS — PLAN vs ACTUALS TUNABLE THRESHOLDS · backend curl-verified ═══
 The 50% Plan-vs-Actuals flags are now a per-organisation SETTING you can tighten or loosen.
 

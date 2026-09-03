@@ -74,6 +74,7 @@ export default function AllocationWizardTab() {
   const [dealerId, setDealerId] = useState('');
   const [orderValue, setOrderValue] = useState('');
   const [pct, setPct] = useState('');
+  const [coverYears, setCoverYears] = useState(5);
   const [lines, setLines] = useState([{ machine_ref: '', quantity: 1 }]);
   const [rec, setRec] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -191,6 +192,7 @@ export default function AllocationWizardTab() {
         dealer_id: dealerId,
         order_value: Number(orderValue) || 0,
         spare_parts_percentage: pct === '' ? undefined : Number(pct),
+        cover_years: coverYears,
         lines: validLines.map((l) => ({ machine_ref: l.machine_ref, quantity: Number(l.quantity) || 1 })),
       });
       setRec(r);
@@ -245,7 +247,7 @@ export default function AllocationWizardTab() {
     } finally { setBusy(false); }
   };
 
-  const reset = () => { setStep(0); setRec(null); setLines([{ machine_ref: '', quantity: 1 }]); setOrderValue(''); setPct(''); setQtyOverrides({}); setManualParts({}); setBomOpen(null); setBomData({}); setInvoiceRef(''); setDupInfo(null); };
+  const reset = () => { setStep(0); setRec(null); setLines([{ machine_ref: '', quantity: 1 }]); setOrderValue(''); setPct(''); setCoverYears(5); setQtyOverrides({}); setManualParts({}); setBomOpen(null); setBomData({}); setInvoiceRef(''); setDupInfo(null); };
 
   const liveTotal = () => {
     let t = 0;
@@ -291,6 +293,17 @@ export default function AllocationWizardTab() {
                 <input data-testid="dp-wiz-value" type="number" className={input} value={orderValue} onChange={(e) => setOrderValue(e.target.value)} placeholder="50000" /></label>
               <label className="block"><span className="text-xs font-semibold text-slate-500 mb-1 block">Spare parts % (blank = dealer/global default)</span>
                 <input data-testid="dp-wiz-pct" type="number" className={input} value={pct} onChange={(e) => setPct(e.target.value)} placeholder="2.5" /></label>
+            </div>
+            <div>
+              <span className="text-xs font-semibold text-slate-500 mb-1 block">Cover period <span className="text-slate-400 font-normal">— how many years of expected failures to pack</span></span>
+              <div className="flex gap-1.5" data-testid="dp-wiz-cover-years">
+                {[1, 2, 3, 4, 5].map((y) => (
+                  <button key={y} type="button" data-testid={`dp-wiz-cover-${y}`} onClick={() => setCoverYears(y)}
+                    className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-colors ${coverYears === y ? 'bg-[var(--gx-brand-from)] text-white border-[var(--gx-brand-from)]' : 'bg-white text-slate-600 border-slate-200 hover:border-[var(--gx-brand-from)]/40'}`}>
+                    {y} {y === 1 ? 'yr' : 'yrs'}
+                  </button>
+                ))}
+              </div>
             </div>
             <label className="block"><span className="text-xs font-semibold text-slate-500 mb-1 block">Invoice number <span className="text-slate-400 font-normal">— logged against the dealer; each invoice can only be allocated once</span></span>
               <input data-testid="dp-wiz-invoice-ref" className={`${input} font-mono ${dupInfo ? 'border-red-300 bg-red-50/50' : ''}`} value={invoiceRef}
@@ -410,7 +423,7 @@ export default function AllocationWizardTab() {
 
           {rec.plan_used && (
             <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3 text-xs text-emerald-800 flex items-center gap-2" data-testid="dp-wiz-plan-badge">
-              <CheckCircle2 size={14} /> Based on Pulse's 5-year warranty failure plan — the most-likely parts per machine, topped up with proven-usage parts to use the remaining allowance.
+              <CheckCircle2 size={14} /> Based on Pulse's {rec.cover_years || 5}-year warranty failure plan — the most-likely parts per machine over {rec.cover_years || 5} year{(rec.cover_years || 5) !== 1 ? 's' : ''}, topped up with proven-usage parts to use the remaining allowance.
             </div>
           )}
 

@@ -1417,6 +1417,19 @@ async def _warranty_plan_by_group(org: str, tier: str = "platinum") -> dict:
     return out
 
 
+def _plan_cover_qty(p: dict, cover_years: int) -> float:
+    """Expected per-machine quantity over the chosen cover period. Sums the plan's
+    per-year figures (failure rates vary year to year) and falls back to a pro-rata
+    of the 5-year total when per-year data is missing."""
+    cy = max(1, min(5, int(cover_years or 5)))
+    if cy >= 5:
+        return round(p.get("total_qty_5y") or 0, 2)
+    yq = p.get("year_qty") or []
+    if yq:
+        return round(sum(_num0(v) for v in yq[:cy]), 2)
+    return round((p.get("total_qty_5y") or 0) * cy / 5.0, 2)
+
+
 # ─────────────────────────────────────────────────────────────────
 # Plan vs Actuals — flag where REAL historical usage diverges from
 # Pulse's 5-year warranty plan, so the operator can refine the plan.
@@ -1720,6 +1733,7 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
         percentage = 2.5
     percentage = float(percentage)
     allowance = round(order_value * percentage / 100.0, 2)
+    cover_years = max(1, min(5, int(data.get("cover_years") or 5)))
 
     machine_lines, unmatched_lines, pack = [], [], []
     duplicates_avoided = 0
@@ -1786,7 +1800,7 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
             for p in plan_by_group.get(plan_group, []):
                 cn = p["part_code_norm"]
                 covered.add(cn)
-                tq = p.get("total_qty_5y") or 0
+                tq = _plan_cover_qty(p, cover_years)
                 planned = int(round(tq * max(1, int(qty))))
                 if planned <= 0:
                     continue
@@ -1806,8 +1820,8 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
                     "trend": "warranty_plan", "recommended_qty": rec, "original_qty": planned, "ideal_qty": rec,
                     "already_held": have, "unit_value": round(unit, 2), "value": round(rec * unit, 2),
                     "total_used": tq, "source": "warranty_plan",
-                    "reason": (f"5-year warranty plan (machine {plan_group}): expected {planned} over 5 years. "
-                               + dup).strip(),
+                    "reason": (f"{cover_years}-year warranty plan (machine {plan_group}): expected {planned} over "
+                               f"{cover_years} year{'s' if cover_years != 1 else ''}. " + dup).strip(),
                     "status": "recommended" if rec > 0 else "duplicate_avoided",
                 })
             # SUPPLEMENTARY: other proven-usage parts, so freed budget sends "other parts"
@@ -1864,7 +1878,7 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
     else:
         bits = []
         if plan_used:
-            bits.append("Recommended from Pulse's 5-year warranty failure plan; extra proven-usage parts "
+            bits.append(f"Recommended from Pulse's {cover_years}-year warranty failure plan; extra proven-usage parts "
                         "were added to use the remaining allowance.")
         if not fit["all_fit"]:
             bits.append(f"Pack auto-fitted to the {_gbp(allowance)} allowance — {fit['fitted_count']} of "
@@ -1885,6 +1899,7 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
         "id": str(uuid.uuid4()), "organization_id": org, "dealer_id": dealer_id, "dealer_name": dealer["name"],
         "order_value": round(order_value, 2), "spare_parts_percentage": percentage, "allowance": allowance,
         "total_value": total_value, "over_allowance": over, "duplicates_avoided": duplicates_avoided,
+        "cover_years": cover_years,
         "machine_lines": machine_lines, "unmatched_lines": unmatched_lines,
         "created_by": user.get("full_name") or user.get("email"), "created_at": _now(),
     }
