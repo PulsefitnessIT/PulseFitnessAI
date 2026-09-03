@@ -1,3 +1,25 @@
+# ═══ 2026-06 · DEALER PARTS — PLAN vs ACTUALS TUNABLE THRESHOLDS · backend curl-verified ═══
+The 50% Plan-vs-Actuals flags are now a per-organisation SETTING you can tighten or loosen.
+
+  • BACKEND routes/dealer_parts_data.py:
+    - DEFAULT_DATA_SETTINGS gains plan_actual_over_pct=50 (flag "plan too low" when actual ≥ plan + N%) and
+      plan_actual_under_pct=50 (flag "plan too high" when actual ≤ plan − N%). _pva_status now takes over/under
+      params; plan-vs-actuals reads them from _data_settings and returns them (over_pct/under_pct).
+    - PUT /api/dealer-parts/data/settings coerces + clamps both to 0–1000 (float, 1dp). Existing whitelist covers them.
+    - Removed the old hardcoded PVA_OVER_PCT/PVA_UNDER_PCT module constants.
+  • FRONTEND pages/DealerWarrantyParts/PlanVsActualsPanel.js:
+    - New "Sensitivity" toggle (dp-wiz-pva-sensitivity-toggle) reveals two % inputs (dp-wiz-pva-over-input /
+      -under-input) + Apply (dp-wiz-pva-sensitivity-save) → dpApi.saveDataSettings then reloads the comparison.
+      Inputs seed from the response's over_pct/under_pct. Copy updated to show both thresholds.
+    - api.js saveDataSettings already existed (PUT /data/settings) — reused.
+  • VERIFIED (curl, iso-demo-org, 2×220G-AAW): default 50/50 → 1 under_planned (26/221 at +125%); loosen over→300
+    clears it (0 under_planned, +1 aligned); clamp 99999→1000; restored to 50/50. Frontend compiles clean.
+    NOTE: the Sensitivity UI control itself was not run through testing_agent (self-tested backend + compile only).
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · DEALER PARTS — AI PARSE CORRECTIONS (remembered machine mappings) · testing_agent 100% (3/3) ═══
 Let operators map an unmatched invoice machine to a BOM machine via "Find in BOM" and REMEMBER it, so the
 same invoice ref auto-resolves on every future allocation.

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { ChevronDown, ChevronRight, Scale, TrendingUp, TrendingDown, PlusCircle, CircleSlash, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ChevronDown, ChevronRight, Scale, TrendingUp, TrendingDown, PlusCircle, CircleSlash, CheckCircle2, AlertTriangle, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { Spinner } from './shared';
@@ -60,12 +60,18 @@ export default function PlanVsActualsPanel({ lines }) {
   const [applied, setApplied] = useState({}); // `${group}||${code_norm}` -> qty
   const [expanded, setExpanded] = useState({}); // machine_ref -> bool
   const [showAligned, setShowAligned] = useState(false);
+  const [showThresh, setShowThresh] = useState(false);
+  const [overIn, setOverIn] = useState('');
+  const [underIn, setUnderIn] = useState('');
+  const [savingThresh, setSavingThresh] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
       const res = await dpApi.planVsActuals({ lines });
       setData(res);
+      setOverIn(String(res.over_pct ?? 50));
+      setUnderIn(String(res.under_pct ?? 50));
       const exp = {};
       (res.machines || []).forEach((m) => { exp[m.machine_ref || m.input_ref] = ((m.summary || {}).flagged || 0) > 0; });
       setExpanded(exp);
@@ -73,6 +79,21 @@ export default function PlanVsActualsPanel({ lines }) {
       setError(e?.response?.data?.detail || 'Could not load Plan vs Actuals. Please retry.');
     } finally { setLoading(false); }
   }, [lines]);
+
+  const saveThresholds = async () => {
+    setSavingThresh(true);
+    try {
+      await dpApi.saveDataSettings({
+        plan_actual_over_pct: Number(overIn) || 0,
+        plan_actual_under_pct: Number(underIn) || 0,
+      });
+      setShowThresh(false);
+      await load();
+      notify.success('Sensitivity updated — recalculated against the new thresholds.');
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not save thresholds (manager access may be required)');
+    } finally { setSavingThresh(false); }
+  };
 
   useEffect(() => { if (open && !data && !loading && !error) load(); }, [open, data, loading, error, load]);
 
@@ -152,13 +173,42 @@ export default function PlanVsActualsPanel({ lines }) {
             <div className="space-y-3 pt-3">
               <div className="text-xs text-slate-500 flex items-start gap-2">
                 <Scale size={13} className="mt-0.5 shrink-0 text-slate-400" />
-                <div>
+                <div className="flex-1">
                   Compares Pulse's 5-year plan (expected failures <b>per machine</b>) against real historical usage,
                   scaled to the <b>{(data.machines || []).reduce((s, m) => s + (m.quantity || 0), 0)} machine(s)</b> on this invoice.
-                  Flags anything more than <b>{data.over_pct}%</b> above or below the plan, plus parts in the plan but never used, and parts used but not in the plan.
+                  Flags parts used <b>≥{data.over_pct}%</b> above the plan (too low) or <b>≥{data.under_pct}%</b> below it (too high),
+                  plus parts in the plan but never used, and parts used but not in the plan.
                   {!data.usage_available && <span className="text-amber-600"> No historical usage data yet — import a “Parts Used” spreadsheet to compare.</span>}
                 </div>
+                <button data-testid="dp-wiz-pva-sensitivity-toggle" onClick={() => setShowThresh((v) => !v)}
+                  className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-[var(--gx-brand-from)] border border-slate-200 rounded-full px-2 py-0.5">
+                  <SlidersHorizontal size={11} /> Sensitivity
+                </button>
               </div>
+
+              {showThresh && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 flex flex-wrap items-end gap-3" data-testid="dp-wiz-pva-sensitivity">
+                  <label className="text-xs text-slate-600">
+                    <span className="block mb-1 font-semibold">Flag “plan too low” at ≥</span>
+                    <span className="inline-flex items-center gap-1">
+                      <input type="number" min="0" step="5" data-testid="dp-wiz-pva-over-input" value={overIn} onChange={(e) => setOverIn(e.target.value)}
+                        className="w-20 rounded-md border border-slate-200 px-2 py-1 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--gx-brand-from)]/30" /> % over
+                    </span>
+                  </label>
+                  <label className="text-xs text-slate-600">
+                    <span className="block mb-1 font-semibold">Flag “plan too high” at ≥</span>
+                    <span className="inline-flex items-center gap-1">
+                      <input type="number" min="0" step="5" data-testid="dp-wiz-pva-under-input" value={underIn} onChange={(e) => setUnderIn(e.target.value)}
+                        className="w-20 rounded-md border border-slate-200 px-2 py-1 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--gx-brand-from)]/30" /> % under
+                    </span>
+                  </label>
+                  <button data-testid="dp-wiz-pva-sensitivity-save" onClick={saveThresholds} disabled={savingThresh}
+                    className="inline-flex items-center gap-1 text-xs font-semibold bg-[var(--gx-brand-from)] text-white px-3 py-1.5 rounded-md hover:opacity-90 disabled:opacity-50">
+                    {savingThresh ? 'Saving…' : 'Apply'}
+                  </button>
+                  <span className="text-[11px] text-slate-400">Lower = more sensitive (more flags). Saved for all future recommendations.</span>
+                </div>
+              )}
 
               {(data.machines || []).map((mac) => {
                 const ref = mac.machine_ref || mac.input_ref;

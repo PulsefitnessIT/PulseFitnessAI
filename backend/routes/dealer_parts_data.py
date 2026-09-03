@@ -71,6 +71,8 @@ DEFAULT_DATA_SETTINGS = {
     "auto_match_fuzzy_description": False,   # fuzzy always needs review
     "require_alias_approval": True,
     "require_human_review_before_recommend": True,
+    "plan_actual_over_pct": 50,   # Plan-vs-Actuals: flag "plan too low" when actual ≥ plan + this %
+    "plan_actual_under_pct": 50,  # Plan-vs-Actuals: flag "plan too high" when actual ≤ plan − this %
 }
 
 CONF_RANK = {
@@ -1114,6 +1116,12 @@ async def update_data_settings(data: dict, user=Depends(get_current_user)):
     org = _of(user)
     allowed = set(DEFAULT_DATA_SETTINGS.keys())
     upd = {k: v for k, v in data.items() if k in allowed}
+    for k in ("plan_actual_over_pct", "plan_actual_under_pct"):
+        if k in upd:
+            try:
+                upd[k] = round(min(1000.0, max(0.0, float(upd[k]))), 1)
+            except (TypeError, ValueError):
+                upd.pop(k)
     upd["updated_at"] = _now()
     await db[DATA_SETTINGS].update_one({"organization_id": org}, {"$set": upd}, upsert=True)
     await _audit(org, user, "data_settings_updated", **{k: str(v) for k, v in upd.items()})
@@ -1417,11 +1425,8 @@ async def _warranty_plan_by_group(org: str, tier: str = "platinum") -> dict:
 # this invoice. Scaled to the invoice fleet as the user directed.
 # ─────────────────────────────────────────────────────────────────
 
-PVA_OVER_PCT = 50.0   # actual >= plan + 50% → plan too low (under-planned)
-PVA_UNDER_PCT = 50.0  # actual <= plan - 50% → plan too high (over-planned)
 
-
-def _pva_status(plan_pm: float, actual_pm: float):
+def _pva_status(plan_pm: float, actual_pm: float, over_pct: float = 50.0, under_pct: float = 50.0):
     """(status, divergence_pct) for per-machine 5-year plan vs actual rates."""
     if plan_pm > 0 and actual_pm <= 0:
         return "in_plan_unused", -100.0
@@ -1430,9 +1435,9 @@ def _pva_status(plan_pm: float, actual_pm: float):
     if plan_pm <= 0 and actual_pm <= 0:
         return "aligned", 0.0
     div = (actual_pm - plan_pm) / plan_pm * 100.0
-    if div >= PVA_OVER_PCT:
+    if div >= over_pct:
         return "under_planned", round(div, 1)
-    if div <= -PVA_UNDER_PCT:
+    if div <= -under_pct:
         return "over_planned", round(div, 1)
     return "aligned", round(div, 1)
 
@@ -1446,6 +1451,8 @@ async def plan_vs_actuals(data: dict, user=Depends(get_current_user)):
     settings = await _data_settings(org)
     approved_only = bool(settings.get("require_human_review_before_recommend", True))
     fuzzy_cutoff = int(settings["fuzzy_threshold"] * 100)
+    over_pct = float(settings.get("plan_actual_over_pct", 50) or 50)
+    under_pct = float(settings.get("plan_actual_under_pct", 50) or 50)
 
     plan_by_group = await _warranty_plan_by_group(org, tier="platinum")
     if not plan_by_group:
@@ -1496,7 +1503,7 @@ async def plan_vs_actuals(data: dict, user=Depends(get_current_user)):
             plan_pm = round(p.get("total_qty_5y") or 0, 2)
             u = usage_map.get(cn)
             actual_pm, actual_total = _actual_pm(u, n)
-            status, div = _pva_status(plan_pm, actual_pm)
+            status, div = _pva_status(plan_pm, actual_pm, over_pct, under_pct)
             unit = p.get("sales_price") or price_map.get(cn) or (u.get("avg_cost") if u else 0) or 0
             rows.append({
                 "part_code": p["part_code"], "part_code_norm": cn,
@@ -1544,7 +1551,7 @@ async def plan_vs_actuals(data: dict, user=Depends(get_current_user)):
             "machine_group": plan_group, "rows": rows, "summary": summary,
         })
     total_flagged = sum(mo.get("summary", {}).get("flagged", 0) for mo in machines_out)
-    return {"loaded": True, "over_pct": PVA_OVER_PCT, "under_pct": PVA_UNDER_PCT,
+    return {"loaded": True, "over_pct": over_pct, "under_pct": under_pct,
             "usage_available": bool(usage_map), "machines": machines_out, "total_flagged": total_flagged}
 
 
