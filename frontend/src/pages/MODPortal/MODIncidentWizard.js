@@ -62,23 +62,36 @@ export default function MODIncidentWizard({ onClose, onSubmitted }) {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [triedSubmit, setTriedSubmit] = useState(false); // highlight missing fields after a blocked submit
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const isRiddorHinted = SEVERITY_RIDDOR_HINT.has(form.injury_severity)
     || (form.injury_severity === 'medical' && ['electric', 'cardiac'].includes(form.category));
 
+  // Which fields are still missing/invalid — shown inline once the user has
+  // attempted to submit (triedSubmit), so nothing is a mystery.
+  const fieldErrors = {
+    description: form.description.trim().length < 20,
+    injured_party_name: form.injured_party_name.trim().length < 2,
+    reporter_name: form.reporter_name.trim().length < 2,
+    reporter_email: !form.reporter_email.includes('@'),
+  };
+  const firstErrorMsg = () => {
+    if (fieldErrors.description) return 'Description must be at least 20 characters.';
+    if (fieldErrors.injured_party_name) return 'Injured-party name is required.';
+    if (fieldErrors.reporter_name) return 'Reporter name is required.';
+    if (fieldErrors.reporter_email) return 'Reporter email looks invalid.';
+    return '';
+  };
+  const showErr = (k) => triedSubmit && fieldErrors[k];
+
   const submit = async () => {
     setError(null);
-    if (form.description.trim().length < 20) {
-      setError('Description must be at least 20 characters.');
-      return;
-    }
-    if (form.injured_party_name.trim().length < 2 || form.reporter_name.trim().length < 2) {
-      setError('Both injured-party name and reporter name are required.');
-      return;
-    }
-    if (!form.reporter_email.includes('@')) {
-      setError('Reporter email looks invalid.');
+    if (Object.values(fieldErrors).some(Boolean)) {
+      setTriedSubmit(true);
+      const msg = firstErrorMsg();
+      setError(msg);
+      notify.error(msg);
       return;
     }
     setSubmitting(true);
@@ -150,7 +163,7 @@ export default function MODIncidentWizard({ onClose, onSubmitted }) {
                     {SEVERITIES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </Field>
-                <Field label="Injured party (name or ID)">
+                <Field label="Injured party (name or ID)" required error={showErr('injured_party_name')} hint="required">
                   <input type="text" value={form.injured_party_name} onChange={(e) => set('injured_party_name', e.target.value)} className="w-full bg-[var(--theme-surface-2)] border border-[var(--theme-border)] rounded-md px-2 py-1.5 text-sm text-[var(--theme-text)] focus:outline-none focus:border-[var(--color-brand-cyan)]" data-testid="mod-incident-party-name" />
                 </Field>
                 <Field label="Party type">
@@ -158,10 +171,10 @@ export default function MODIncidentWizard({ onClose, onSubmitted }) {
                     {PARTY_TYPES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
                   </select>
                 </Field>
-                <Field label="Reporter name">
+                <Field label="Reporter name" required error={showErr('reporter_name')} hint="required">
                   <input type="text" value={form.reporter_name} onChange={(e) => set('reporter_name', e.target.value)} className="w-full bg-[var(--theme-surface-2)] border border-[var(--theme-border)] rounded-md px-2 py-1.5 text-sm text-[var(--theme-text)] focus:outline-none focus:border-[var(--color-brand-cyan)]" data-testid="mod-incident-reporter-name" />
                 </Field>
-                <Field label="Reporter email">
+                <Field label="Reporter email" required error={showErr('reporter_email')} hint="add a valid email">
                   <input type="email" value={form.reporter_email} onChange={(e) => set('reporter_email', e.target.value)} className="w-full bg-[var(--theme-surface-2)] border border-[var(--theme-border)] rounded-md px-2 py-1.5 text-sm text-[var(--theme-text)] focus:outline-none focus:border-[var(--color-brand-cyan)]" data-testid="mod-incident-reporter-email" />
                 </Field>
                 <Field label="Reporter phone (optional)">
@@ -171,10 +184,10 @@ export default function MODIncidentWizard({ onClose, onSubmitted }) {
                   <input type="datetime-local" value={form.occurred_at} onChange={(e) => set('occurred_at', e.target.value)} className="w-full bg-[var(--theme-surface-2)] border border-[var(--theme-border)] rounded-md px-2 py-1.5 text-sm text-[var(--theme-text)] focus:outline-none focus:border-[var(--color-brand-cyan)]" data-testid="mod-incident-occurred" />
                 </Field>
               </div>
-              <Field label="Description">
+              <Field label="Description" required error={showErr('description')} hint={`needs ${Math.max(0, 20 - form.description.trim().length)} more characters`}>
                 <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={4} placeholder="What happened? Be factual. (min 20 chars)" className="w-full bg-[var(--theme-surface-2)] border border-[var(--theme-border)] rounded-md px-2 py-1.5 text-sm text-[var(--theme-text)] focus:outline-none focus:border-[var(--color-brand-cyan)] placeholder-[var(--theme-text-muted)]" data-testid="mod-incident-description" />
                 <div className="flex justify-between text-[10px] mt-1">
-                  <span className={form.description.length >= 20 ? 'text-emerald-500 dark:text-emerald-400' : ''} style={form.description.length >= 20 ? {} : { color: 'var(--theme-text-muted)' }}>
+                  <span className={form.description.length >= 20 ? 'text-emerald-500 dark:text-emerald-400' : ''} style={form.description.length >= 20 ? {} : { color: showErr('description') ? '#f43f5e' : 'var(--theme-text-muted)' }}>
                     {form.description.length} / 20 minimum
                   </span>
                   <span className="text-amber-600 dark:text-amber-400/90 font-semibold">
@@ -210,13 +223,15 @@ export default function MODIncidentWizard({ onClose, onSubmitted }) {
   );
 }
 
-function Field({ label, children }) {
+function Field({ label, children, required, error, hint }) {
   return (
     <div>
-      <label className="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style={{ color: 'var(--theme-text-muted)' }}>
-        {label}
+      <label className="block text-[10px] font-extrabold uppercase tracking-wider mb-1" style={{ color: error ? '#f43f5e' : 'var(--theme-text-muted)' }}>
+        {label}{required ? ' *' : ''}{error && hint ? <span className="normal-case tracking-normal"> · {hint}</span> : ''}
       </label>
-      {children}
+      <div className={error ? 'rounded-md ring-1 ring-rose-500/70' : ''}>
+        {children}
+      </div>
     </div>
   );
 }

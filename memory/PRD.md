@@ -1,3 +1,22 @@
+# ═══ 2026-06 · MOD INCIDENT WIZARD — consistent "show what's missing" validation · compile-verified ═══
+Applied the same inline validation UX from the Fault wizard to the Personal-Incident (RIDDOR) wizard.
+
+  • FRONTEND MODPortal/MODIncidentWizard.js (single-page form, not multi-step):
+    - Was: one generic error string at the bottom on submit; no indication of WHICH field was wrong.
+    - Now: new triedSubmit state + structured fieldErrors {description(<20), injured_party_name(<2),
+      reporter_name(<2), reporter_email(no @)}. On a blocked submit → setTriedSubmit(true) + toast(firstErrorMsg)
+      + keep the bottom summary. showErr(k) drives INLINE highlights.
+    - Field helper extended with required/error/hint props: invalid field gets a rose label ("· required" /
+      "· add a valid email"), a rose ring around the input, and the description counter turns rose with a
+      "needs N more characters" hint. Fields wired: injured party name, reporter name, reporter email, description.
+    - Submit button stays enabled (was only disabled while submitting) — consistent with the Fault wizard.
+  • VERIFIED: compiles clean; mechanism is identical to the screenshot-verified Fault-wizard fix. testids unchanged
+    (mod-incident-party-name / -reporter-name / -reporter-email / -description / -submit / -error).
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · MOD SERVICE PORTAL — 2 BUG FIXES (Recent Faults + Fault Wizard validation) · screenshot-verified ═══
 The "Modservice" portal is the Lite Dashboard rendered for MOD sites (login /MODService, portal:'mod', lands /pulse).
 

@@ -28,6 +28,7 @@ const OPS = [
 ];
 
 const AudiencesTab = ({ API, headers }) => {
+  const { t } = useTranslation();
   const [audiences, setAudiences] = useState([]);
   const [conditions, setConditions] = useState([]);
   const [name, setName] = useState('');
