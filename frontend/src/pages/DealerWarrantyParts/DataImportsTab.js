@@ -69,6 +69,54 @@ function UploadCard({ kind, title, subtitle, sheet, icon: Icon, onDone }) {
   );
 }
 
+function WarrantyPlanCard() {
+  const inputRef = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const [plan, setPlan] = useState(null);
+  useEffect(() => { dpApi.getWarrantyPlan().then(setPlan).catch(() => {}); }, []);
+  const upload = async (file) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const res = await dpApi.importWarrantyPlan(file);
+      notify.success(`Warranty plan loaded — ${res.parts} parts across ${res.machine_groups?.length || 0} machine groups`);
+      setPlan(await dpApi.getWarrantyPlan());
+    } catch (e) {
+      notify.error(e?.response?.data?.detail || 'Could not load the warranty plan');
+    } finally { setBusy(false); if (inputRef.current) inputRef.current.value = ''; }
+  };
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5" data-testid="dp-warranty-plan-card">
+      <div className="flex items-center gap-3">
+        <FileSpreadsheet size={18} className="text-[var(--gx-brand-from)]" />
+        <div className="flex-1">
+          <div className="font-semibold text-slate-900">5-Year Warranty Failure Plan</div>
+          <div className="text-xs text-slate-500">Pulse's planned parts per machine over 5 years (the “Warranty” sheet). Drives the Allocation Wizard’s recommended pack; extra proven-usage parts top up any remaining allowance.</div>
+        </div>
+        <input ref={inputRef} type="file" accept=".xlsx,.xls" className="hidden" data-testid="dp-warranty-plan-input"
+          onChange={(e) => upload(e.target.files?.[0])} />
+        <button data-testid="dp-warranty-plan-btn" onClick={() => inputRef.current?.click()} disabled={busy}
+          className="inline-flex items-center gap-2 bg-slate-900 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50">
+          <UploadCloud size={15} /> {busy ? 'Loading…' : (plan?.loaded ? 'Re-upload plan' : 'Upload plan')}
+        </button>
+      </div>
+      {plan?.loaded && (
+        <div className="mt-4" data-testid="dp-warranty-plan-summary">
+          <div className="text-xs text-slate-500 mb-2">{plan.part_count} planned parts · {plan.machine_groups?.length || 0} machine groups</div>
+          <div className="flex flex-wrap gap-1.5">
+            {(plan.machine_groups || []).map((g) => (
+              <span key={g.machine_group} className="text-xs bg-slate-100 text-slate-700 rounded-full px-2.5 py-1">
+                {g.machine_group} · {g.part_count} parts
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 export default function DataImportsTab() {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -106,6 +154,8 @@ export default function DataImportsTab() {
         <UploadCard kind="pricelist" title="Parts Price List" subtitle="Sales price per part code → values recommendation packs & the allowance"
           sheet="ExportData" icon={PoundSterling} onDone={load} />
       </div>
+
+      <WarrantyPlanCard />
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
         <div className="flex items-center gap-3">

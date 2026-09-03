@@ -1,3 +1,41 @@
+# ═══ 2026-06 · DEALER PARTS — ALLOCATION WIZARD ACCURACY (5-YEAR WARRANTY PLAN) · e2e-verified ═══
+Replaced the flat 3/2/1 constant quantities with Pulse's evidence-based 5-year warranty failure plan
+as the primary driver of the recommended spare-parts pack. User choices: Platinum tier always (for now);
+full 5-year cover; match invoice machines to plan groups by model number in ref/description (Strength =
+category); trim to allowance highest-failure-first; load plan now + re-upload; do NOT touch the Nov-2024
+price list (older). Keep the wizard flow (AI invoice parse → review → approve) unchanged.
+
+  • DATA: new collection dealer_parts_warranty_plan (org-scoped) from the "Warranty" sheet of
+    "Parts Warranty Costs 5 Years.xlsx": per machine group (220/224/225/240-250/260/270/280/Strength/
+    Consoles/Trakk) × part → tier flags (silver/gold/platinum), Parts Used Year 1-5, total_qty_5y,
+    sales/cost price. Parser _parse_warranty_plan (header row 3; skips Machine/Engineer header rows;
+    carry-forward machine group). 120 platinum rows across 10 groups.
+  • BACKEND routes/dealer_parts_data.py:
+    - POST /api/dealer-parts/data/warranty-plan/import (xlsx) — replaces org plan; GET .../warranty-plan
+      — summary (groups + part counts). _warranty_plan_by_group() dedupes per part (max 5yr qty).
+    - Machine→group matching: _build_group_meta + _match_warranty_group (numeric token match with word
+      boundaries, most-specific first; category keywords for Strength/Consoles/Trakk). Verified: 268 demo
+      BOM machines mapped (220G-AAA→220, 240G→240/250, 346G→Strength, etc.).
+    - recommend_from_invoice REWRITTEN per machine: if the machine matches a plan group, PRIMARY pack =
+      plan parts, ideal_qty = total_qty_5y × fleet-size, netted against dealer held/allocated (duplicate
+      avoidance); priority_rank = 100+min(5yr qty,90) so the highest-failure parts survive the allowance
+      trim first. SUPPLEMENTARY = proven-usage BOM parts NOT in the plan (ranked below), so when the dealer
+      already holds planned parts the freed allowance sends OTHER needed parts (the requested behaviour).
+      Machines with no plan group fall back to the original historical-usage engine. Response adds
+      plan_used; note explains the plan-driven pack. _fit_pack_to_allowance unchanged (breadth then depth,
+      within allowance).
+  • FRONTEND: DataImportsTab.js — new "5-Year Warranty Failure Plan" upload/re-upload card
+    (dp-warranty-plan-card/-input/-btn/-summary showing group chips). AllocationWizardTab.js — green badge
+    (dp-wiz-plan-badge) when rec.plan_used. api.js — importWarrantyPlan/getWarrantyPlan.
+  • VERIFIED (HTTP e2e, iso-demo-org, owner@isodemo.com): loaded plan (120 parts/10 groups); recommend for
+    2×220G-AAA, £20k order → plan_used=true, 14 plan parts, ideal = 5yr×2, fitted to £500 (2.5%) allowance
+    highest-failure-first, deduped. Backend + frontend compile clean.
+  • NOTES: tier is hard-coded Platinum for now (easy to make a wizard selector later); Strength/Consoles/
+    Trakk matched by keyword (best-effort, operator can correct via "Find in BOM"). Plan loaded into
+    iso-demo-org (the demo org that holds the dealer BOM). Price list intentionally untouched.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · BLUE LIGHT — CREST ON CUSTOMER PORTAL CERT LIST ═══
 The customer's uploaded crest now shows as a thumbnail next to each certificate in the portal list
 (not just inside the PDF). Backend routes/customer_deliveries.py: _customer_contract_map() carries

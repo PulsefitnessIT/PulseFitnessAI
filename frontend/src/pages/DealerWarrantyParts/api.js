@@ -133,6 +133,8 @@ export const dpApi = {
 
   // ── Phase 1 Data & Intelligence engine ──
   listImports: (kind = '') => axios.get(`${BASE}/data/imports`, { ...auth(), params: kind ? { kind } : {} }).then((r) => r.data),
+  importWarrantyPlan: (file) => { const fd = new FormData(); fd.append('file', file); return axios.post(`${BASE}/data/warranty-plan/import`, fd, auth()).then((r) => r.data); },
+  getWarrantyPlan: () => axios.get(`${BASE}/data/warranty-plan`, auth()).then((r) => r.data),
   reverseImport: (id) => axios.post(`${BASE}/data/imports/${id}/reverse`, {}, auth()).then((r) => r.data),
   // Chunked upload (MongoDB-backed, replica-safe) with per-chunk auto-retry.
   uploadSpreadsheet: async (file, kind, onProgress) => {

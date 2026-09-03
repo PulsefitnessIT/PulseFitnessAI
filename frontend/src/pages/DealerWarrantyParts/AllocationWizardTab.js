@@ -384,6 +384,12 @@ export default function AllocationWizardTab() {
             <StatCard label="Unmatched lines" value={rec.unmatched_lines?.length || 0} tone={rec.unmatched_lines?.length ? 'amber' : 'slate'} />
           </div>
 
+          {rec.plan_used && (
+            <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3 text-xs text-emerald-800 flex items-center gap-2" data-testid="dp-wiz-plan-badge">
+              <CheckCircle2 size={14} /> Based on Pulse's 5-year warranty failure plan — the most-likely parts per machine, topped up with proven-usage parts to use the remaining allowance.
+            </div>
+          )}
+
           {liveTotal() > rec.allowance && rec.allowance > 0 && (
             <div className="rounded-lg bg-red-50 border border-red-100 p-3 text-xs text-red-700 flex items-center gap-2"><AlertTriangle size={14} /> Pack exceeds allowance by {money(liveTotal() - rec.allowance)}. Reduce quantities or seek manager approval.</div>
           )}

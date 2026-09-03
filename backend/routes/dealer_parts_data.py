@@ -58,6 +58,7 @@ BOM_COMPONENTS = "dealer_bom_components"
 MATCHES = "dealer_component_matches"
 ALIASES = "dealer_component_aliases"
 DATA_SETTINGS = "dealer_parts_data_settings"
+WARRANTY_PLAN = "dealer_parts_warranty_plan"
 PRICES = "dealer_parts_prices"
 
 DEFAULT_DATA_SETTINGS = {
@@ -1243,6 +1244,162 @@ async def _usage_by_bom_code(org: str, approved_only: bool) -> dict:
             }
     return out
 
+# ─────────────────────────────────────────────────────────────────
+# Warranty failure plan — authoritative "expected parts per machine
+# over 5 years" (Pulse's planning sheet). Drives the recommended pack;
+# the historical-usage engine supplements it ("send other parts").
+# ─────────────────────────────────────────────────────────────────
+
+def _num0(v) -> float:
+    try:
+        if v is None or v == "":
+            return 0.0
+        return float(v)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _parse_warranty_plan(content: bytes) -> list:
+    import io
+    wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+    if "Warranty" not in wb.sheetnames:
+        raise HTTPException(400, "No 'Warranty' sheet found in the workbook")
+    rows = list(wb["Warranty"].iter_rows(values_only=True))
+    if len(rows) < 4:
+        raise HTTPException(400, "The Warranty sheet has no data rows")
+    header = [str(h).replace("\n", " ").strip() if h is not None else "" for h in rows[2]]
+
+    def col(name):
+        for i, h in enumerate(header):
+            if h.lower() == name.lower():
+                return i
+        return None
+    ci = {k: col(k) for k in ("Silver", "Gold", "Platinum", "Machine", "Part", "Description",
+                              "Parts Sales Price", "Parts Cost Price", "Total Parts Used Over 5 Years")}
+    if ci["Machine"] is None or ci["Part"] is None:
+        raise HTTPException(400, "Could not find 'Machine' and 'Part' columns")
+    year_idx = [col(f"Parts Used Year {n}") for n in range(1, 6)]
+    out, last_machine = [], ""
+    for r in rows[3:]:
+        def g(i):
+            return r[i] if (i is not None and i < len(r)) else None
+        machine = str(g(ci["Machine"])).strip() if g(ci["Machine"]) not in (None, "") else ""
+        if machine and machine.lower() != "machine":
+            last_machine = machine
+        part = g(ci["Part"])
+        if not part or str(part).strip() == "" or str(part).strip().lower() == "part":
+            continue
+        group = machine or last_machine
+        if not group or group.lower() in ("machine", "engineer"):
+            continue
+        years = [_num0(g(i)) for i in year_idx]
+        total = g(ci["Total Parts Used Over 5 Years"])
+        total = _num0(total) if total not in (None, "") else sum(years)
+        out.append({
+            "machine_group": group, "part_code": str(part).strip(),
+            "part_code_norm": norm_code(part), "machine_group_norm": group.strip().lower(),
+            "description": str(g(ci["Description"]) or "").strip(),
+            "sales_price": _num0(g(ci["Parts Sales Price"])),
+            "cost_price": _num0(g(ci["Parts Cost Price"])),
+            "silver": bool(str(g(ci["Silver"]) or "").strip()),
+            "gold": bool(str(g(ci["Gold"]) or "").strip()),
+            "platinum": bool(str(g(ci["Platinum"]) or "").strip()),
+            "year_qty": years, "total_qty_5y": round(total, 2),
+        })
+    return out
+
+
+def _build_group_meta(groups) -> list:
+    """Return [(group_raw, kind, tokens/keyword)] for matching invoice machines."""
+    import re as _re
+    meta = []
+    for grp in groups:
+        nums = _re.findall(r"\d+", str(grp))
+        if nums:
+            meta.append((grp, "numeric", nums))
+        else:
+            meta.append((grp, "category", str(grp).strip().lower()))
+    meta.sort(key=lambda m: (m[1] != "numeric",
+                             -max((len(t) for t in m[2]), default=0) if m[1] == "numeric" else 0))
+    return meta
+
+
+_CATEGORY_KEYWORDS = {
+    "strength": ("strength", "selectoris", "plate load", "plate-load", "pin load", "pin-load", "dual"),
+    "consoles": ("console", "display", "monitor"),
+    "trakk": ("trakk", "trak"),
+}
+
+
+def _match_warranty_group(m: dict, meta: list) -> str:
+    import re as _re
+    text = f"{m.get('top_level_ref', '')} {m.get('description', '')}".lower()
+    for grp, kind, val in meta:
+        if kind == "numeric":
+            for tok in val:
+                if _re.search(rf"(?<!\d){tok}(?!\d)", text):
+                    return grp
+    for grp, kind, val in meta:
+        if kind == "category":
+            keys = _CATEGORY_KEYWORDS.get(val, (val,))
+            if any(k in text for k in keys):
+                return grp
+    return ""
+
+
+@router.post("/warranty-plan/import")
+async def import_warranty_plan(file: UploadFile = File(...), user=Depends(get_current_user)):
+    """Load Pulse's 5-year warranty failure plan (the 'Warranty' sheet). Replaces
+    any previously loaded plan for this organisation."""
+    org = _of(user)
+    content = await file.read()
+    if not content:
+        raise HTTPException(400, "Empty file")
+    items = _parse_warranty_plan(content)
+    if not items:
+        raise HTTPException(400, "No usable plan rows found (need Machine + Part columns with data)")
+    now = _now()
+    await db[WARRANTY_PLAN].delete_many({"organization_id": org})
+    docs = [{**it, "id": str(uuid.uuid4()), "organization_id": org, "updated_at": now} for it in items]
+    for i in range(0, len(docs), 1000):
+        await db[WARRANTY_PLAN].insert_many([dict(d) for d in docs[i:i + 1000]])
+    groups = sorted({d["machine_group"] for d in docs})
+    await _audit(org, user, "warranty_plan_imported", parts=len(docs), machines=len(groups))
+    return {"parts": len(docs), "machine_groups": groups}
+
+
+@router.get("/warranty-plan")
+async def get_warranty_plan(user=Depends(get_current_user)):
+    org = _of(user)
+    rows = await db[WARRANTY_PLAN].find({"organization_id": org}, {"_id": 0}).to_list(20000)
+    groups = {}
+    for r in rows:
+        gg = groups.setdefault(r["machine_group"], {"machine_group": r["machine_group"],
+                                                    "part_count": 0, "total_parts_5y": 0.0})
+        gg["part_count"] += 1
+        gg["total_parts_5y"] = round(gg["total_parts_5y"] + (r.get("total_qty_5y") or 0), 2)
+    updated = max((r.get("updated_at") for r in rows), default=None)
+    return {"loaded": bool(rows), "part_count": len(rows), "updated_at": updated,
+            "machine_groups": sorted(groups.values(), key=lambda x: x["machine_group"])}
+
+
+async def _warranty_plan_by_group(org: str, tier: str = "platinum") -> dict:
+    """group -> deduped list of plan parts (one row per part code, highest 5yr qty)."""
+    tmp: dict = {}
+    async for p in db[WARRANTY_PLAN].find({"organization_id": org}, {"_id": 0}):
+        if not p.get(tier, False):
+            continue
+        key = (p["machine_group"], p["part_code_norm"])
+        cur = tmp.get(key)
+        if not cur or (p.get("total_qty_5y") or 0) > (cur.get("total_qty_5y") or 0):
+            tmp[key] = p
+    out: dict = {}
+    for (grp, _pc), p in tmp.items():
+        out.setdefault(grp, []).append(p)
+    return out
+
+
+
 
 @router.get("/match-machine")
 async def match_machine(q: str = Query(...), user=Depends(get_current_user)):
@@ -1305,6 +1462,8 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
     price_map = await _price_map(org)
     held = await _dealer_held(org, dealer_id)
     allocated = await _dealer_allocated(org, dealer_id)
+    plan_by_group = await _warranty_plan_by_group(org, tier="platinum")
+    group_meta = _build_group_meta(plan_by_group.keys()) if plan_by_group else []
 
     # allowance
     order_value = float(data.get("order_value") or 0)
@@ -1344,36 +1503,82 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
             else:
                 comps[c["code_norm"]] = {"code": c["code"], "code_norm": c["code_norm"],
                                          "description": c.get("description"), "quantity": c.get("quantity") or 0}
-        items = []
-        for cn, c in comps.items():
+
+        def _usage_item(cn, c, source, rank):
             u = usage_map.get(cn)
             if not u:
-                continue  # only recommend parts with proven historical usage
-            priority = u["priority"]
-            base = PRIORITY_BASE_QTY.get(priority, 0)
+                return None
+            base = PRIORITY_BASE_QTY.get(u["priority"], 0)
             if base <= 0:
-                continue
-            fleet_factor = max(1, int(qty))
-            raw = int(base * fleet_factor)
+                return None
+            raw = int(base * max(1, int(qty)))
             have = int((held.get(c["code"], 0) or 0) + (allocated.get(c["code"], 0) or 0))
             rec = max(0, raw - have)
             unit = price_map.get(cn) or u.get("avg_cost") or 0
-            dup_warning = ""
+            dup = ""
             if have > 0 and rec < raw:
-                duplicates_avoided += 1
-                dup_warning = (f"Dealer already holds/allocated {have} — no repeat needed."
-                               if rec == 0 else f"Reduced {raw}→{rec}: dealer already holds/allocated {have}.")
-            status = "recommended" if rec > 0 else "duplicate_avoided"
-            reason = (f"Historically used {u['total_qty']} (trend {u['trend']}, {priority} priority) "
-                      f"for {m['top_level_ref']}. " + dup_warning).strip()
-            items.append({
+                dup = ("Dealer already holds/allocated %d — none needed." % have if rec == 0
+                       else f"Reduced {raw}\u2192{rec}: dealer already holds/allocated {have}.")
+            pre = "Supplementary (not in warranty plan): " if source == "supplementary" else ""
+            return {
                 "part_sku": c["code"], "part_name": c.get("description") or c["code"],
                 "machine_model": m["top_level_ref"], "bom_qty": c["quantity"],
-                "priority": priority, "priority_rank": PRIORITY_RANK.get(priority, 1),
+                "priority": u["priority"], "priority_rank": rank,
                 "trend": u["trend"], "recommended_qty": rec, "original_qty": raw, "ideal_qty": rec,
                 "already_held": have, "unit_value": round(unit, 2), "value": round(rec * unit, 2),
-                "total_used": u["total_qty"], "reason": reason, "status": status,
-            })
+                "total_used": u["total_qty"], "source": source,
+                "reason": (f"{pre}Historically used {u['total_qty']} (trend {u['trend']}, {u['priority']} "
+                           f"priority) for {m['top_level_ref']}. " + dup).strip(),
+                "status": "recommended" if rec > 0 else "duplicate_avoided", "dup_flag": bool(dup and rec == 0),
+            }
+
+        items = []
+        plan_group = _match_warranty_group(m, group_meta) if plan_by_group else ""
+        covered = set()
+        if plan_group:
+            # PRIMARY: Pulse's 5-year warranty failure plan for this machine group
+            for p in plan_by_group.get(plan_group, []):
+                cn = p["part_code_norm"]
+                covered.add(cn)
+                tq = p.get("total_qty_5y") or 0
+                planned = int(round(tq * max(1, int(qty))))
+                if planned <= 0:
+                    continue
+                have = int((held.get(p["part_code"], 0) or 0) + (allocated.get(p["part_code"], 0) or 0))
+                rec = max(0, planned - have)
+                unit = p.get("sales_price") or price_map.get(cn) or 0
+                prio = "critical" if tq >= 5 else ("recommended" if tq >= 2 else "optional")
+                dup = ""
+                if have > 0 and rec < planned:
+                    duplicates_avoided += 1
+                    dup = (f"Dealer already holds/allocated {have} \u2014 none needed." if rec == 0
+                           else f"Reduced {planned}\u2192{rec}: dealer already holds/allocated {have}.")
+                items.append({
+                    "part_sku": p["part_code"], "part_name": p.get("description") or p["part_code"],
+                    "machine_model": m["top_level_ref"], "bom_qty": tq,
+                    "priority": prio, "priority_rank": 100 + min(int(round(tq)), 90),
+                    "trend": "warranty_plan", "recommended_qty": rec, "original_qty": planned, "ideal_qty": rec,
+                    "already_held": have, "unit_value": round(unit, 2), "value": round(rec * unit, 2),
+                    "total_used": tq, "source": "warranty_plan",
+                    "reason": (f"5-year warranty plan (machine {plan_group}): expected {planned} over 5 years. "
+                               + dup).strip(),
+                    "status": "recommended" if rec > 0 else "duplicate_avoided",
+                })
+            # SUPPLEMENTARY: other proven-usage parts, so freed budget sends "other parts"
+            for cn, c in comps.items():
+                if cn in covered:
+                    continue
+                it = _usage_item(cn, c, "supplementary", PRIORITY_RANK.get(usage_map.get(cn, {}).get("priority"), 1))
+                if it:
+                    items.append(it)
+        else:
+            # No plan for this machine — fall back to the historical-usage engine
+            for cn, c in comps.items():
+                it = _usage_item(cn, c, "usage", PRIORITY_RANK.get(usage_map.get(cn, {}).get("priority"), 1))
+                if it:
+                    if it.get("dup_flag"):
+                        duplicates_avoided += 1
+                    items.append(it)
         items.sort(key=lambda x: (-x["priority_rank"], -x["value"]))
         pack.append({
             "machine_ref": m["top_level_ref"], "machine_description": m.get("description"),
@@ -1388,6 +1593,7 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
         grp["item_count"] = sum(1 for i in grp["items"] if i["recommended_qty"] > 0)
 
     total_value = round(sum(i["value"] for grp in pack for i in grp["items"] if i["recommended_qty"] > 0), 2)
+    plan_used = any(i.get("source") == "warranty_plan" for grp in pack for i in grp["items"])
     over = bool(allowance and total_value > allowance + 0.01)
     parts_total = sum(g["item_count"] for g in pack)
     matched_machine_count = sum(1 for l in machine_lines if l.get("matched"))
@@ -1411,6 +1617,9 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
                     "were recommended. Add/approve usage for these machines’ components, then regenerate.")
     else:
         bits = []
+        if plan_used:
+            bits.append("Recommended from Pulse's 5-year warranty failure plan; extra proven-usage parts "
+                        "were added to use the remaining allowance.")
         if not fit["all_fit"]:
             bits.append(f"Pack auto-fitted to the {_gbp(allowance)} allowance — {fit['fitted_count']} of "
                         f"{fit['candidate_count']} eligible parts included (higher-value / lower-priority parts were "
@@ -1443,7 +1652,7 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
         "dealer_context": {"previous_allocations": prev_allocs, "stock_lines": stock_lines},
         "approved_only_matches": approved_only,
         "parts_total": parts_total, "matched_machine_count": matched_machine_count,
-        "usage_relaxed": usage_relaxed, "note": note, "fit_stats": fit,
+        "usage_relaxed": usage_relaxed, "note": note, "fit_stats": fit, "plan_used": plan_used,
     }
 
 
