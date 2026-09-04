@@ -1,3 +1,25 @@
+# ═══ 2026-06 · STAFFING — assign Service Desk + Inventory to staff · tested, PENDING REDEPLOY ═══
+Owner ask: "Operations → Staffing — assign modules to staff within the staff accounts,
+including Service Desk and Inventory."
+- The per-staff module grant UI already exists: StaffingConsole → Team access tab
+  (frontend pages/LiteDashboard/staffing/TeamAccessTab.js) backed by /api/staffing/access/*.
+- backend routes/staff_portal.py: added `service_desk` + `inventory` to MODULE_LABELS and a new
+  USER_GRANTS tuple. `_org_available_modules` now always appends these two (they're per-user
+  capability grants, not org-plan modules). `grant_report_modules` now stamps
+  users.is_service_desk / users.is_inventory from the toggles (+ defaults service_desk_brand
+  "pulse" and service_org_id=org, and service_desk_granted_at/by on grant). `my_reports` reflects
+  the authoritative user flags back into granted_modules so toggles show correct state.
+- Frontend needs NO change — the tab renders available_modules generically (key/label).
+- Permission model unchanged: a line manager grants their direct reports; owners/master admins
+  grant anyone.
+- Tested via live API with a temp owner + report: available_modules now lists
+  operations/memberships/marketing/crm/service_desk/inventory; granting [service_desk, inventory]
+  set is_service_desk=true, is_inventory=true, brand=pulse, service_org_id set; reload reflected
+  both; revoking inventory set is_inventory=false while service_desk stayed. Temp data cleaned up.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · CRM/AUTH FIXES (Honey Hancock support thread) · tested, PENDING REDEPLOY ═══
 Several fixes from an owner support thread. ALL verified in preview; go live on next PUBLISH.
 

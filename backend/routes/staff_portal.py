@@ -40,8 +40,16 @@ MODULE_LABELS = {
     "memberships": "Memberships",
     "marketing": "Marketing",
     "crm": "CRM",
+    "service_desk": "Service Desk",
+    "inventory": "Inventory & Distribution",
 }
 BOLT_ON = ("memberships", "marketing", "crm")
+# Per-user capability grants — NOT org module_access keys. These are additive
+# rights stamped straight onto the user record (users.is_service_desk /
+# users.is_inventory) and are assignable to any staff account regardless of the
+# org's plan, so a line manager can put a team member on the Service Desk /
+# Inventory app from Operations → Staffing → Team access.
+USER_GRANTS = ("service_desk", "inventory")
 
 
 def _now() -> str:
@@ -101,7 +109,10 @@ async def _department(staff: dict) -> str:
 async def _org_available_modules(org_id: str) -> list[str]:
     org = await db.organizations.find_one({"id": org_id})
     access = org_module_access(org)
-    return [k for k in MODULE_LABELS if access.get(k)]
+    org_mods = [k for k in MODULE_LABELS if k not in USER_GRANTS and access.get(k)]
+    # Service Desk + Inventory are per-user capability grants, not org plan
+    # modules — always offer them so managers can assign them to staff.
+    return org_mods + list(USER_GRANTS)
 
 
 # ══════════════════════════ EMPLOYEE PORTAL ══════════════════════════
@@ -375,17 +386,30 @@ async def my_reports(user: dict = Depends(get_current_user)):
         q_reports = {**q, "line_manager_staff_id": {"$nin": [None, ""]}}
     reports = await db.staff_members.find(
         q_reports, {"_id": 0, "id": 1, "full_name": 1, "primary_role": 1,
-                    "department": 1, "line_manager_name": 1},
+                    "department": 1, "line_manager_name": 1, "user_id": 1},
     ).sort("full_name", 1).to_list(1000)
     avail = await _org_available_modules(org)
     out = []
     for r in reports:
         prov = await db.staff_access_provisions.find_one({"staff_id": r["id"]}) or {}
+        granted = set(prov.get("granted_modules") or [])
+        # Service Desk / Inventory live on the user record (and can be set from
+        # other surfaces too), so reflect the authoritative flags into the
+        # toggles rather than trusting only the provision doc.
+        if r.get("user_id"):
+            u = await db.users.find_one(
+                {"id": r["user_id"]}, {"_id": 0, "is_service_desk": 1, "is_inventory": 1})
+            if u:
+                granted.discard("service_desk"); granted.discard("inventory")
+                if u.get("is_service_desk"):
+                    granted.add("service_desk")
+                if u.get("is_inventory"):
+                    granted.add("inventory")
         out.append({
             "staff_id": r["id"], "full_name": r.get("full_name"),
             "role": r.get("primary_role"), "department": r.get("department"),
             "line_manager_name": r.get("line_manager_name"),
-            "granted_modules": prov.get("granted_modules") or [],
+            "granted_modules": sorted(granted),
             "status": prov.get("status") or "awaiting_manager",
         })
     return {"reports": out,
@@ -424,6 +448,24 @@ async def grant_report_modules(staff_id: str, body: ModuleGrant,
     # back to the org-level entitlement).
     if report.get("user_id"):
         overrides = {m: (m in granted) for m in BOLT_ON if m in avail}
-        await db.users.update_one({"id": report["user_id"]},
-                                  {"$set": {"module_overrides": overrides}})
+        user_set: dict = {"module_overrides": overrides}
+        now = _now()
+        # Per-user capability grants — stamp Service Desk / Inventory straight
+        # onto the user record so they can reach those apps (or lose access).
+        if "service_desk" in avail:
+            desk_on = "service_desk" in granted
+            user_set["is_service_desk"] = desk_on
+            if desk_on:
+                existing = await db.users.find_one(
+                    {"id": report["user_id"]},
+                    {"_id": 0, "service_desk_brand": 1, "service_org_id": 1})
+                if not (existing or {}).get("service_desk_brand"):
+                    user_set["service_desk_brand"] = "pulse"
+                if not (existing or {}).get("service_org_id"):
+                    user_set["service_org_id"] = org
+                user_set["service_desk_granted_at"] = now
+                user_set["service_desk_granted_by_email"] = user.get("email")
+        if "inventory" in avail:
+            user_set["is_inventory"] = "inventory" in granted
+        await db.users.update_one({"id": report["user_id"]}, {"$set": user_set})
     return {"ok": True, "granted_modules": granted}
