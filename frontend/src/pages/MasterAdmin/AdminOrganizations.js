@@ -2137,7 +2137,7 @@ useEffect(() => {
         <p className="text-[12px] font-medium text-zinc-800">Service Desk</p>
         <p className="text-[10px] text-zinc-400 truncate">Service Desk hub (/service-desk)</p>
       </div>
-      {privileged ? (
+      {editingUser.is_master_admin ? (
         <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
       ) : (
         <button
@@ -2176,7 +2176,7 @@ useEffect(() => {
         <p className="text-[12px] font-medium text-zinc-800">Inventory &amp; Distribution</p>
         <p className="text-[10px] text-zinc-400 truncate">{editingUser.is_inventory ? 'Inventory module (/inventory)' : (hasInv ? 'Included via Service Desk' : 'Inventory module (/inventory)')}</p>
       </div>
-      {privileged ? (
+      {editingUser.is_master_admin ? (
         <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
       ) : (
         <button
@@ -2206,8 +2206,9 @@ useEffect(() => {
       <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3" data-testid="edit-user-permissions-owner-note">
         <p className="text-xs font-bold uppercase tracking-wider text-amber-700 mb-1">Module Permissions</p>
         <p className="text-[11px] text-amber-800 leading-relaxed">
-          Owners always have access to every module the organisation has enabled.
+          Owners always have access to every core module the organisation has enabled.
           To restrict a teammate, change their role to Manager or Staff first.
+          Service Desk and Inventory are additive apps — grant them explicitly below.
         </p>
         {infoRows}
       </div>
