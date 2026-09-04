@@ -261,7 +261,7 @@ async def grant_service_desk(
             "service_desk_granted_by": user["id"], "service_desk_granted_by_email": user["email"],
             "provisioned_by": user.get("email"), "provisioned_from_crm": crm.get("id"),
             "organization_id": crm_org,
-            "service_org_id": crm_org or user.get("organization_id") or user.get("service_org_id"),
+            "service_org_id": crm_org,
             "subscription_tier": "none",
             "company_name": "Pulse Fitness" if brand == "pulse" else "Pulse Fitness AI",
             "active": True, "created_at": now_iso, "last_login": None,
@@ -297,13 +297,17 @@ async def grant_service_desk(
         "service_desk_granted_by": user["id"],
         "service_desk_granted_by_email": user["email"],
     }
-    # Iter 281 — an existing org user KEEPS their organization_id (grant is
-    # additive). Only backfill a service_org_id when they're a platform-level
-    # (org-less) user, so the org-scoped Service-Ops surfaces still resolve.
+    # An existing org user KEEPS their organization_id (grant is additive).
+    # If the target has no org yet, scope them to their OWN real org (from their
+    # CRM identity) — NEVER the granting master admin's org, which on this
+    # platform is the "Pulse Fitness AI Admin" login container, not an
+    # operational org. This stops staff being mis-filed under the admin org.
     if not target.get("organization_id") and not target.get("service_org_id"):
-        svc_org = user.get("organization_id") or user.get("service_org_id")
+        crm = await db.crm_users.find_one({"email": email}, {"_id": 0, "organization_id": 1})
+        svc_org = (crm or {}).get("organization_id")
         if svc_org:
             set_fields["service_org_id"] = svc_org
+            set_fields["organization_id"] = svc_org
     await db.users.update_one({"id": target["id"]}, {"$set": set_fields})
     await log_desk_action(
         user, "desk.grant", "user", target["id"],

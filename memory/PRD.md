@@ -1,3 +1,24 @@
+# ═══ 2026-06 · ROOT-CAUSE: stop stamping the master-admin's AI-Admin org onto staff · PENDING REDEPLOY ═══
+Owner clarified the model: THIS PLATFORM IS FOR PULSE FITNESS LTD. Everything in Master Admin →
+Organisations/People is Pulse Fitness Ltd (3ece2d0c). "Pulse Fitness AI Admin" (d19de469) is only the
+master-admin login container — it must NEVER be stamped onto operational records (staff, service
+desk, customers). Modules are used by Pulse Fitness Ltd front-of-house staff; Master Admin is the
+deeper control layer used by Pulse Fitness Ltd master admins (module/site access etc.).
+ROOT CAUSE of Honey's drift: routes/service_desk_admin.py grant/provision fell back to
+`user.get("organization_id")` (= the GRANTING master admin's org = d19de469 AI Admin) when the target
+lacked an org, stamping the admin org onto the staff member's service_org_id.
+FIX (backend routes/service_desk_admin.py):
+  - New CRM-contact provisioning (was line 264): service_org_id = crm_org ONLY (dropped the granter-
+    org fallback).
+  - Existing org-less grant (was line 303): scope service_org_id AND organization_id to the TARGET's
+    own CRM org (looked up by email), never the granting admin's org.
+Combined with the login self-heal (routes/auth.py) that realigns organization_id + service_org_id to
+the user's real (crm) org, any already-drifted record (Honey) auto-corrects on next login, and new
+grants can never mis-file to the AI-Admin org. Verified imports clean; self-heal path tested earlier.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · HEADER SWITCHER for owners + Pulse org audit · tested, PENDING REDEPLOY ═══
 Owner: "Lee Somers (owner, Pulse Fitness Ltd) should have Service Desk + Inventory but there's no
 header switcher" + "are the two Pulse orgs mixed up?"
