@@ -673,6 +673,23 @@ async def login(credentials: UserLogin, request: Request, response: Response) ->
         )
         raise
 
+    # 3a. Self-heal a detached org link (the "Honey Hancock" org-detachment).
+    # Some Service-Desk-provisioned `users` rows were left with
+    # organization_id=null, orphaning the person from their org's data even
+    # though their `crm_users` row is correctly attached to the org. There is
+    # no UI path to re-attach an already-Service-Desk user, so backfill it
+    # from the matching same-email crm_users org on login. Data repair only —
+    # never touches credentials/tokens, and only fills when currently empty.
+    if not user.get("organization_id") and "@" in identifier:
+        crm_row = await db.crm_users.find_one(
+            {"email": {"$regex": f"^{re.escape(identifier)}$", "$options": "i"}},
+            {"_id": 0, "organization_id": 1},
+        )
+        crm_org = (crm_row or {}).get("organization_id")
+        if crm_org and user.get("id"):
+            await db.users.update_one({"id": user["id"]}, {"$set": {"organization_id": crm_org}})
+            user["organization_id"] = crm_org
+
     # 3b. Portal-scope enforcement (Iter 216h113f).
     # MODService is its own entity — visitors signing in on
     # /MODService MUST have a MOD account_type, and conversely MOD

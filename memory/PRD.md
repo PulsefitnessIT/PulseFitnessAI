@@ -1,3 +1,49 @@
+# ═══ 2026-06 · CRM/AUTH FIXES (Honey Hancock support thread) · tested, PENDING REDEPLOY ═══
+Several fixes from an owner support thread. ALL verified in preview; go live on next PUBLISH.
+
+1) MODULE SWITCHER — removed Service Desk + Inventory from the main pill tab bar
+   (frontend components/shared/ModuleSwitcher.js MODULES list). They remain in the header
+   "Switch area" dropdown (AreaSwitcher) only, per owner. Pill bar = Operations/Memberships/
+   CRM/Marketing/Comms Centre.
+
+2) COMPANY-WIDE CRM VISIBILITY — all staff now see ALL companies org-wide (owner requirement:
+   "company wide system, users must see all companies; Account Manager field denotes
+   responsibility, not access"). backend routes/crm_permissions.py: added ORG_WIDE_READ_DEFAULT
+   = {company, contact, opportunity}; _resolve_access() now defaults these to "all" (org-wide)
+   for every role, contract stays "team". Admin sharing-rules still override to tighten a role.
+   Cross-org isolation intact (organization_id always in query). Tested with a temp `staff` user:
+   saw all 6 iso-demo companies; owner-override rule restricted to 0; cleaned up.
+   Also added role `staff` to CRMPermissions role presets + AdminCRMUsers role dropdowns.
+
+3) CRM UNIFIED-LOGIN FALLBACK — routes/crm_auth.py crm_login: now falls back to verifying the
+   user's platform (`users`) bcrypt password whenever the crm_users password doesn't match (was
+   gated on `cross_login_provisioned`, locking out Master-Admin-created CRM users who only know
+   their platform password). On success sets cross_login_provisioned. Email-keyed (users.id and
+   crm_users.id can differ). 401 only when BOTH hashes fail. Consulted integration_expert. Tested
+   4 cases (platform pw ✓, wrong pw 401, correct crm pw ✓, flag set).
+
+4) LOGIN-TIME ORG SELF-HEAL — routes/auth.py login(): if a `users` row has no organization_id
+   but a same-email `crm_users` row has one, backfill it on login. Fixes the "Honey Hancock"
+   org-detachment (Service-Desk-provisioned users left with organization_id=null) that had NO UI
+   remediation (the Service Desk "Grant existing" dropdown excludes already-desk users). Data
+   repair only; never touches credentials/tokens; only fills when empty. Tested: detached user
+   logs in → users.organization_id backfilled from crm org.
+
+HONEY HANCOCK RCA (prod, read-only via deployer): role→manager change did NOT corrupt her
+password (valid $2b$ hash, must_change_password=false, no temp expiry, last_login Aug 27) — it
+force-revoked her session (tokens_revoked_reason=role_or_permissions_changed) by design → forced
+main-app re-login → "invalid credentials" = wrong/forgotten password. Her users.organization_id
+was null (fixed by #4 on next login). Remediation for owner: Master Admin → Users → Reset
+password for honey.hancock@pulsefitness.com; then she signs in (org auto-reattaches). Grant module
+access for "access to all"; she's already is_service_desk (lands on Service Desk).
+
+STILL OPEN: Master Admin "sign out to save org settings" MFA prompt — enforce_master_admin_mfa
+(utils/auth_guards.py) hard-401s asking for full re-login instead of using the existing inline
+step-up dialog (StepUpDialog / 403 step_up_required). Investigated, NOT yet fixed. Deferred by owner.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · CRM ENRICHMENT — GLOBAL POSTCODES + HEADLESS FETCH (2 deferred P0s) · testing_agent 100% (4/4) ═══
 The two items deferred earlier per user. Both delivered + verified.
 
