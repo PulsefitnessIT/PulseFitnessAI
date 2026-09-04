@@ -15,7 +15,7 @@
 import React from 'react';
 import axios from 'axios';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Activity, Calendar, Briefcase, Rocket, MessagesSquare, Wrench, Boxes } from 'lucide-react';
+import { Activity, Calendar, Briefcase, Rocket, MessagesSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -25,11 +25,6 @@ const MODULES = [
  { id: 'memberships', path: '/memberships', label: 'Memberships', icon: Calendar, accessKey: 'memberships' },
  { id: 'crm', path: '/crm', label: 'CRM', icon: Briefcase, accessKey: 'crm' },
  { id: 'marketing', path: '/marketing', label: 'Marketing', icon: Rocket, accessKey: 'marketing' },
- // Service Desk + Inventory — surfaced for operators granted those areas
- // (user.is_service_desk / user.is_inventory) so they can switch to them
- // from any module's header instead of typing the URL.
- { id: 'service_desk', path: '/service-desk', label: 'Service Desk', icon: Wrench, accessKey: 'service_desk' },
- { id: 'inventory', path: '/inventory', label: 'Inventory', icon: Boxes, accessKey: 'inventory' },
  // Comms Centre — the merged campaign system. Surfaced when the operator
  // has BOTH Marketing and CRM so members + B2B comms can be run together.
  { id: 'comms', path: '/comms', label: 'Comms Centre', icon: MessagesSquare, accessKey: 'comms' },
