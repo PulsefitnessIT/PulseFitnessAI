@@ -687,8 +687,18 @@ async def login(credentials: UserLogin, request: Request, response: Response) ->
         )
         crm_org = (crm_row or {}).get("organization_id")
         if crm_org and user.get("id"):
-            await db.users.update_one({"id": user["id"]}, {"$set": {"organization_id": crm_org}})
+            set_fields = {"organization_id": crm_org}
+            # A detached account often also had its Service Desk scoped to the
+            # wrong org (e.g. the platform admin org). While we're re-attaching,
+            # realign service_org_id to the real org if it's missing or points
+            # elsewhere. Scoped to the null-org case, so it only touches genuinely
+            # orphaned records.
+            svc = user.get("service_org_id")
+            if not svc or svc != crm_org:
+                set_fields["service_org_id"] = crm_org
+            await db.users.update_one({"id": user["id"]}, {"$set": set_fields})
             user["organization_id"] = crm_org
+            user["service_org_id"] = crm_org
 
     # 3b. Portal-scope enforcement (Iter 216h113f).
     # MODService is its own entity — visitors signing in on

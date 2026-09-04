@@ -1,3 +1,34 @@
+# ═══ 2026-06 · HEADER SWITCHER for owners + Pulse org audit · tested, PENDING REDEPLOY ═══
+Owner: "Lee Somers (owner, Pulse Fitness Ltd) should have Service Desk + Inventory but there's no
+header switcher" + "are the two Pulse orgs mixed up?"
+
+FIX 1 — owner Service Desk/Inventory grant (frontend pages/MasterAdmin/AdminOrganizations.js):
+Service Desk + Inventory are ADDITIVE per-user capabilities (users.is_service_desk / is_inventory),
+NOT org modules owners auto-inherit. The Edit User drawer showed them as a static ✓ for owners
+(privileged), implying access, but never set the flags — while AreaSwitcher (the header "Switch
+area" control) only renders when those flags are set. So owners looked granted but had no switcher.
+Changed ServiceDeskRow + InventoryRow to show the real Grant/Revoke toggle for OWNERS too (static ✓
+kept only for true platform master admins, is_master_admin). Updated the amber owner note. After
+publish: Master Admin → Edit Lee → Grant Service Desk + Inventory → his header switcher appears.
+
+FIX 2 — service_org_id realign (backend routes/auth.py login self-heal): extended the null-org
+self-heal (added earlier) to ALSO realign a mismatched/missing service_org_id to the user's real
+(crm) org in the same null-org branch. Tested: detached user (org=null, service_org_id=WRONG) →
+after login both organization_id and service_org_id = crm org.
+
+PULSE ORG AUDIT (read-only prod, run 57b523ba) — VERDICT: NO mass cross-contamination.
+- users: only 1 on AI Admin org = admin@pulsefitness.com (legit master admin). No Ltd staff misfiled.
+- crm_users: 24 on Ltd (3ece2d0c) ✓, 1 on AI Admin = admin (legit). Clean.
+- crm2_companies: 4 under Ltd ✓; 2 under AI Admin (d19de469) = `Penkridge Leisure Centre`,
+  `Pulse Fitness Ltd` with ids `tenant-<orgid>` → platform TENANT-REGISTRY records, not real
+  customers. Left as-is (owner to confirm).
+- Honey (honey.hancock@pulsefitness.com) was the ONLY misconfigured account: users.org=null,
+  service_org_id=d19de469 (AI Admin), crm org=3ece2d0c (Ltd). Both self-heal to Ltd on next login.
+  Two Pulse orgs: Ltd=3ece2d0c (real company, ~24 users, Lee owner), AI Admin=d19de469 (platform).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · MASTER ADMIN — inline step-up instead of "sign out to save" · tested, PENDING REDEPLOY ═══
 Owner ask: saving org settings (any master-admin write) demanded a full sign-out/-in + re-enter
 authenticator. Replaced with the app's existing inline step-up dialog.
