@@ -58,6 +58,7 @@ export const dpApi = {
   saveSettings: (data) => axios.put(`${BASE}/settings`, data, auth()).then((r) => r.data),
 
   listDealers: (params = {}) => axios.get(`${BASE}/dealers`, { ...auth(), params }).then((r) => r.data),
+  listRecommendCustomers: (search = '') => axios.get(`${BASE}/data/customers`, { ...auth(), params: { search } }).then((r) => r.data),
   createDealer: (data) => axios.post(`${BASE}/dealers`, data, auth()).then((r) => r.data),
   getDealer: (id) => axios.get(`${BASE}/dealers/${id}`, auth()).then((r) => r.data),
   updateDealer: (id, data) => axios.patch(`${BASE}/dealers/${id}`, data, auth()).then((r) => r.data),

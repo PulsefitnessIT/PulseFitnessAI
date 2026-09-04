@@ -15,7 +15,7 @@
 import React from 'react';
 import axios from 'axios';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Activity, Calendar, Briefcase, Rocket, MessagesSquare } from 'lucide-react';
+import { Activity, Calendar, Briefcase, Rocket, MessagesSquare, Wrench, Boxes } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -25,6 +25,11 @@ const MODULES = [
  { id: 'memberships', path: '/memberships', label: 'Memberships', icon: Calendar, accessKey: 'memberships' },
  { id: 'crm', path: '/crm', label: 'CRM', icon: Briefcase, accessKey: 'crm' },
  { id: 'marketing', path: '/marketing', label: 'Marketing', icon: Rocket, accessKey: 'marketing' },
+ // Service Desk + Inventory — surfaced for operators granted those areas
+ // (user.is_service_desk / user.is_inventory) so they can switch to them
+ // from any module's header instead of typing the URL.
+ { id: 'service_desk', path: '/service-desk', label: 'Service Desk', icon: Wrench, accessKey: 'service_desk' },
+ { id: 'inventory', path: '/inventory', label: 'Inventory', icon: Boxes, accessKey: 'inventory' },
  // Comms Centre — the merged campaign system. Surfaced when the operator
  // has BOTH Marketing and CRM so members + B2B comms can be run together.
  { id: 'comms', path: '/comms', label: 'Comms Centre', icon: MessagesSquare, accessKey: 'comms' },
@@ -59,6 +64,10 @@ function hasAccess(user, accessKey) {
  if (!user) return false;
  const isMaster = user.is_master_admin === true || user.role === 'master_admin' || user.role === 'master';
  if (isMaster) return true;
+ // Service Desk + Inventory are per-user grants (not in the org module_access
+ // dict), so resolve them from the user's own flags.
+ if (accessKey === 'service_desk') return user.is_service_desk === true;
+ if (accessKey === 'inventory') return user.is_inventory === true;
  // Comms Centre is a derived surface: visible only when the operator has
  // BOTH Marketing and CRM (members + B2B comms run together).
  if (accessKey === 'comms') return hasAccess(user, 'marketing') && hasAccess(user, 'crm');
@@ -116,6 +125,9 @@ export default function ModuleSwitcher({ user, current }) {
  const orgAccess = (user && typeof user.org_module_access === 'object' && user.org_module_access) || null;
  const previewRespectsOrg = asOperatorPreview && isMasterUser && orgAccess;
  const moduleOn = (accessKey) => {
+   // Service Desk + Inventory are user-level grants, not org module flags —
+   // always resolve them from the user (even in master-admin org preview).
+   if (accessKey === 'service_desk' || accessKey === 'inventory') return hasAccess(user, accessKey);
    if (!previewRespectsOrg) return hasAccess(user, accessKey);
    if (accessKey === 'comms') return !!orgAccess.marketing && !!orgAccess.crm;
    return !!orgAccess[accessKey];

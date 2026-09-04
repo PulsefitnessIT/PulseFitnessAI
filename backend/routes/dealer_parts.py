@@ -464,10 +464,21 @@ async def list_allocations(
 async def create_allocation(data: dict, user=Depends(get_current_user)):
     org = _of(user)
     dealer_id = data.get("dealer_id")
+    customer_id = data.get("customer_id")
     order_id = data.get("order_id")
-    if not dealer_id:
-        raise HTTPException(400, "dealer_id required")
-    dealer = await _dealer_or_404(org, dealer_id)
+    if not dealer_id and not customer_id:
+        raise HTTPException(400, "dealer_id or customer_id required")
+    dealer = None
+    customer = None
+    recipient_name = ""
+    if dealer_id:
+        dealer = await _dealer_or_404(org, dealer_id)
+        recipient_name = dealer["name"]
+    else:
+        customer = await db.crm2_companies.find_one({"organization_id": org, "id": customer_id}, {"_id": 0})
+        if not customer:
+            raise HTTPException(404, "Customer not found")
+        recipient_name = customer.get("name") or "Customer"
     order = None
     if order_id:
         order = await db[ORDERS].find_one({"organization_id": org, "id": order_id}, {"_id": 0})
@@ -505,7 +516,10 @@ async def create_allocation(data: dict, user=Depends(get_current_user)):
         "id": str(uuid.uuid4()),
         "organization_id": org,
         "dealer_id": dealer_id,
-        "dealer_name": dealer["name"],
+        "dealer_name": recipient_name,
+        "customer_id": customer_id,
+        "customer_name": (customer.get("name") if customer else None),
+        "recipient_type": "dealer" if dealer_id else "customer",
         "order_id": order_id,
         "order_reference": order.get("order_reference") if order else "",
         "invoice_reference": invoice_reference,

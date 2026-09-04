@@ -72,6 +72,9 @@ export default function AllocationWizardTab() {
   const [step, setStep] = useState(0);
   const [dealers, setDealers] = useState([]);
   const [dealerId, setDealerId] = useState('');
+  const [recipientType, setRecipientType] = useState('dealer'); // 'dealer' | 'customer'
+  const [customers, setCustomers] = useState([]);
+  const [customerId, setCustomerId] = useState('');
   const [orderValue, setOrderValue] = useState('');
   const [pct, setPct] = useState('');
   const [coverYears, setCoverYears] = useState(5);
@@ -117,12 +120,13 @@ export default function AllocationWizardTab() {
   const manualQtyOf = (ref, code) => manualParts[manualKey(ref, code)]?.quantity || 0;
 
   useEffect(() => { dpApi.listDealers().then((d) => setDealers(d.dealers || [])); }, []);
+  useEffect(() => { dpApi.listRecommendCustomers().then((d) => setCustomers(d.customers || [])).catch(() => {}); }, []);
 
   // Iter 282 — report unsaved-work state so the page can warn before the
   // user navigates away mid-allocation. Step 2 is the completed screen.
   const { setDirty } = useDealerPartsNav();
   const isDirty = step === 1 || (step === 0 && (
-    !!dealerId || !!orderValue || !!invoiceRef || !!rec || !!aiInfo ||
+    !!dealerId || !!customerId || !!orderValue || !!invoiceRef || !!rec || !!aiInfo ||
     lines.some((l) => (l.machine_ref || '').trim())
   ));
   useEffect(() => { setDirty(isDirty); }, [isDirty, setDirty]);
@@ -183,13 +187,14 @@ export default function AllocationWizardTab() {
   };
 
   const generate = async () => {
-    if (!dealerId) { notify.error('Select a dealer'); return; }
+    if (recipientType === 'dealer' && !dealerId) { notify.error('Select a dealer'); return; }
+    if (recipientType === 'customer' && !customerId) { notify.error('Select a customer'); return; }
     const validLines = lines.filter((l) => l.machine_ref.trim());
     if (validLines.length === 0) { notify.error('Add at least one machine line'); return; }
     setBusy(true);
     try {
       const r = await dpApi.recommendFromInvoice({
-        dealer_id: dealerId,
+        ...(recipientType === 'dealer' ? { dealer_id: dealerId } : { customer_id: customerId }),
         order_value: Number(orderValue) || 0,
         spare_parts_percentage: pct === '' ? undefined : Number(pct),
         cover_years: coverYears,
@@ -233,7 +238,7 @@ export default function AllocationWizardTab() {
     if (dupInfo) { notify.error('This invoice has already been allocated — change the invoice number to continue.'); return; }
     setBusy(true);
     try {
-      const alloc = await dpApi.createAllocation({ dealer_id: dealerId, items, invoice_reference: invoiceRef.trim() });
+      const alloc = await dpApi.createAllocation({ ...(recipientType === 'dealer' ? { dealer_id: dealerId } : { customer_id: customerId }), items, invoice_reference: invoiceRef.trim() });
       notify.success(`Allocation created — ${items.length} parts (draft). Open the Allocations tab to submit & dispatch.`);
       setRec({ ...rec, _createdAllocId: alloc.id });
       setStep(2);
@@ -247,7 +252,7 @@ export default function AllocationWizardTab() {
     } finally { setBusy(false); }
   };
 
-  const reset = () => { setStep(0); setRec(null); setLines([{ machine_ref: '', quantity: 1 }]); setOrderValue(''); setPct(''); setCoverYears(5); setQtyOverrides({}); setManualParts({}); setBomOpen(null); setBomData({}); setInvoiceRef(''); setDupInfo(null); };
+  const reset = () => { setStep(0); setRec(null); setLines([{ machine_ref: '', quantity: 1 }]); setOrderValue(''); setPct(''); setCoverYears(5); setCustomerId(''); setRecipientType('dealer'); setQtyOverrides({}); setManualParts({}); setBomOpen(null); setBomData({}); setInvoiceRef(''); setDupInfo(null); };
 
   const liveTotal = () => {
     let t = 0;
@@ -281,13 +286,33 @@ export default function AllocationWizardTab() {
       {step === 0 && (
         <div className="space-y-4 max-w-3xl" data-testid="dp-wiz-step0">
           <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-            <label className="block">
-              <span className="text-xs font-semibold text-slate-500 mb-1 flex items-center gap-1"><Building2 size={13} /> Dealer *</span>
-              <select data-testid="dp-wiz-dealer" className={input} value={dealerId} onChange={(e) => setDealerId(e.target.value)}>
-                <option value="">Select dealer…</option>
-                {dealers.map((d) => <option key={d.id} value={d.id}>{d.name} · {d.country}</option>)}
-              </select>
-            </label>
+            <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50" data-testid="dp-wiz-recipient-toggle">
+              {['dealer', 'customer'].map((rt) => (
+                <button key={rt} type="button" data-testid={`dp-wiz-recipient-${rt}`}
+                  onClick={() => setRecipientType(rt)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${recipientType === rt ? 'bg-[var(--gx-brand-from)] text-white' : 'text-slate-600 hover:text-slate-900'}`}>
+                  {rt === 'dealer' ? 'Dealer' : 'Customer'}
+                </button>
+              ))}
+            </div>
+            {recipientType === 'dealer' ? (
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500 mb-1 flex items-center gap-1"><Building2 size={13} /> Dealer *</span>
+                <select data-testid="dp-wiz-dealer" className={input} value={dealerId} onChange={(e) => setDealerId(e.target.value)}>
+                  <option value="">Select dealer…</option>
+                  {dealers.map((d) => <option key={d.id} value={d.id}>{d.name} · {d.country}</option>)}
+                </select>
+              </label>
+            ) : (
+              <label className="block">
+                <span className="text-xs font-semibold text-slate-500 mb-1 flex items-center gap-1"><Building2 size={13} /> Customer *</span>
+                <select data-testid="dp-wiz-customer" className={input} value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                  <option value="">Select customer…</option>
+                  {customers.map((c) => <option key={c.id} value={c.id}>{c.name}{c.city ? ` · ${c.city}` : ''}{c.country ? ` · ${c.country}` : ''}</option>)}
+                </select>
+                <span className="text-[10px] text-slate-400 mt-1 block">Orders sent direct to a customer — the spare-parts % applies to their order too.</span>
+              </label>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <label className="block"><span className="text-xs font-semibold text-slate-500 mb-1 block">Order / invoice value (£)</span>
                 <input data-testid="dp-wiz-value" type="number" className={input} value={orderValue} onChange={(e) => setOrderValue(e.target.value)} placeholder="50000" /></label>

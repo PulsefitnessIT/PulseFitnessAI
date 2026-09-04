@@ -13,11 +13,13 @@ function OrgRow({ org, onSelect }) {
     pulse_pro: { label: t('service.cust_acct_pulse_pro', 'Pulse Pro'), className: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
     lite: { label: t('service.cust_acct_lite', 'Pulse Lite'), className: 'bg-sky-50 text-sky-700 border-sky-200' },
     gymaxis: { label: t('service.cust_acct_full', 'Pulse Fitness'), className: 'bg-teal-50 text-teal-700 border-teal-200' },
+    crm_company: { label: t('service.cust_acct_crm', 'CRM Company'), className: 'bg-violet-50 text-violet-700 border-violet-200' },
   };
+  const isCrm = org.source === 'crm';
   const acct = ACCOUNT_TYPE_LABELS[org.account_type] || { label: org.account_type || '—', className: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:border-zinc-800' };
   return (
     <button
-      onClick={() => onSelect(org.id)}
+      onClick={() => (isCrm ? window.open(`/crm?company=${org.id}`, '_blank') : onSelect(org.id))}
       data-testid={`desk-org-row-${org.id}`}
       className="w-full text-left p-4 bg-white border border-zinc-200 rounded-lg hover:border-orange-300 hover:shadow-sm transition flex items-center gap-4 dark:bg-zinc-900 dark:border-zinc-800"
     >

@@ -1,4 +1,37 @@
-# ═══ 2026-06 · CRM — GLOBAL-AWARE WEBSITE FETCH + ACCOUNT MANAGER SELECTION · curl-verified ═══
+# ═══ 2026-06 · SERVICE DESK ↔ CRM FLUIDITY (3 items) · curl + screenshot verified ═══
+
+(i) CRM companies now pull through as Service Desk customers.
+  • Root cause: /crm writes to db.crm2_companies, but Service Desk /customers read only db.organizations.
+  • BACKEND routes/service_desk.py list_customers: merges crm2_companies (operator org) into the customers list
+    with source:'crm', account_type:'crm_company' (first page only; respects the q search; skipped when filtering
+    a specific platform account_type). FRONTEND ServiceDesk/DeskCustomers.js: violet "CRM Company" badge; clicking
+    a CRM row opens it in /crm?company=<id> (new tab) instead of the org-detail page.
+  • VERIFIED curl: /service-desk/customers returns 6 crm companies (source crm).
+
+(ii) Allocation Wizard — pick a Customer as well as a Dealer.
+  • BACKEND dealer_parts_data.py: /recommend accepts customer_id OR dealer_id (customer = crm2_companies; no dealer
+    held/allocated stock; same %/pack/cover logic; run tagged recipient_type + customer_id/name). NEW GET
+    /dealer-parts/data/customers lists crm2 companies for the picker. dealer_parts.py create_allocation also accepts
+    customer_id (records recipient_type customer, no dealer store needed).
+  • FRONTEND DealerWarrantyParts/AllocationWizardTab.js: Dealer|Customer toggle (dp-wiz-recipient-toggle /
+    -recipient-dealer / -recipient-customer); customer <select> (dp-wiz-customer); generate() + createAllocation()
+    send dealer_id or customer_id. api.js listRecommendCustomers.
+  • VERIFIED: curl recommend(customer_id) → recipient_type customer, allowance from % ; createAllocation(customer_id)
+    → recipient_type customer, dealer_id None. Screenshot: toggle + customer picker render.
+
+(iii) Module switcher (top-right) now includes Service Desk + Inventory.
+  • FRONTEND components/shared/ModuleSwitcher.js: added Service Desk (/service-desk) + Inventory (/inventory) pills,
+    gated on user.is_service_desk / user.is_inventory (master admin sees all). Rendered wherever ModuleSwitcher is
+    mounted (Operations/CRM/Memberships/Marketing/Comms/Lite). VERIFIED screenshot: owner@isodemo.com (is_service_desk
+    true, is_inventory false) → SERVICE DESK pill shows, Inventory hidden.
+
+DEFERRED per user: headless (JS-rendering) fetch for bot-protected sites; international postcode → city/region lookup
+(Zippopotam.us). To do after these.
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 
 BUG — "Fetch company by website" returned junk (e.g. name "Home"/"One moment, please...", a bogus phone),
 and was UK-centric even though Pulse trades globally. Reproduced on https://www.reh-fit.com (a Winnipeg, CA

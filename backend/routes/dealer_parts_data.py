@@ -1684,6 +1684,21 @@ async def delete_machine_alias(alias_id: str, user=Depends(get_current_user)):
 
 
 
+@router.get("/customers")
+async def list_recommend_customers(search: str = Query(""), limit: int = Query(200), user=Depends(get_current_user)):
+    """CRM (v2) companies selectable as spare-parts recipients in the wizard —
+    orders sometimes go direct to a customer who still needs a spare-parts pack."""
+    org = _of(user)
+    q: dict = {"organization_id": org}
+    if search:
+        q["name"] = {"$regex": re.escape(search), "$options": "i"}
+    rows = await db.crm2_companies.find(
+        q, {"_id": 0, "id": 1, "name": 1, "sector": 1, "city": 1, "country": 1, "spare_parts_percentage": 1},
+    ).sort("name", 1).limit(limit).to_list(limit)
+    return {"customers": rows, "count": len(rows)}
+
+
+
 @router.post("/recommend")
 async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
     """Recommend a dealer spare-parts pack from invoice machine lines, using the
@@ -1691,9 +1706,17 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
     (duplicate prevention) and computes the spare-parts allowance."""
     org = _of(user)
     dealer_id = data.get("dealer_id")
-    if not dealer_id:
-        raise HTTPException(400, "dealer_id required")
-    dealer = await _dealer_or_404(org, dealer_id)
+    customer_id = data.get("customer_id")
+    if not dealer_id and not customer_id:
+        raise HTTPException(400, "dealer_id or customer_id required")
+    dealer = None
+    customer = None
+    if dealer_id:
+        dealer = await _dealer_or_404(org, dealer_id)
+    else:
+        customer = await db.crm2_companies.find_one({"organization_id": org, "id": customer_id}, {"_id": 0})
+        if not customer:
+            raise HTTPException(404, "Customer not found")
     settings = await _data_settings(org)
     approved_only = bool(settings.get("require_human_review_before_recommend", True))
     fuzzy_cutoff = int(settings["fuzzy_threshold"] * 100)
@@ -1719,16 +1742,18 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
         usage_map = await _usage_by_bom_code(org, approved_only=False)
         usage_relaxed = bool(usage_map)
     price_map = await _price_map(org)
-    held = await _dealer_held(org, dealer_id)
-    allocated = await _dealer_allocated(org, dealer_id)
+    held = await _dealer_held(org, dealer_id) if dealer_id else {}
+    allocated = await _dealer_allocated(org, dealer_id) if dealer_id else {}
     plan_by_group = await _warranty_plan_by_group(org, tier="platinum")
     group_meta = _build_group_meta(plan_by_group.keys()) if plan_by_group else []
 
     # allowance
     order_value = float(data.get("order_value") or 0)
     percentage = data.get("spare_parts_percentage")
-    if percentage is None:
+    if percentage is None and dealer:
         percentage = dealer.get("default_percentage")
+    if percentage is None and customer:
+        percentage = customer.get("spare_parts_percentage")
     if percentage is None:
         percentage = 2.5
     percentage = float(percentage)
@@ -1890,13 +1915,16 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
             bits.append("Recommended from all matched parts (none manually approved yet — refine under Data → Matches).")
         note = " ".join(bits)
 
-    # dealer context (previous allocations + current stock)
+    # dealer/customer context (previous allocations + current stock)
     prev_allocs = await db[ALLOCATIONS].count_documents(
-        {"organization_id": org, "dealer_id": dealer_id, "status": {"$nin": ["cancelled", "draft"]}})
-    stock_lines = await db[STORE_STOCK].count_documents({"organization_id": org, "dealer_id": dealer_id})
+        {"organization_id": org, "dealer_id": dealer_id, "status": {"$nin": ["cancelled", "draft"]}}) if dealer_id else 0
+    stock_lines = await db[STORE_STOCK].count_documents({"organization_id": org, "dealer_id": dealer_id}) if dealer_id else 0
 
     run = {
-        "id": str(uuid.uuid4()), "organization_id": org, "dealer_id": dealer_id, "dealer_name": dealer["name"],
+        "id": str(uuid.uuid4()), "organization_id": org,
+        "dealer_id": dealer_id, "dealer_name": (dealer["name"] if dealer else None),
+        "customer_id": customer_id, "customer_name": (customer.get("name") if customer else None),
+        "recipient_type": "dealer" if dealer_id else "customer",
         "order_value": round(order_value, 2), "spare_parts_percentage": percentage, "allowance": allowance,
         "total_value": total_value, "over_allowance": over, "duplicates_avoided": duplicates_avoided,
         "cover_years": cover_years,

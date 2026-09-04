@@ -258,6 +258,30 @@ async def list_customers(
     cursor = db.organizations.find(query, projection).sort("created_at", -1).skip(skip).limit(limit)
     orgs = await cursor.to_list(limit)
     total = await db.organizations.count_documents(query)
+
+    # Iter (Jun 2026) — surface CRM (v2) companies as customers too, so the
+    # whole platform speaks to the CRM fluidly. A company added in /crm now
+    # appears in the Service Desk customer list (source: 'crm'). Only on the
+    # first page to avoid cross-page duplication, and skipped when the user is
+    # filtering by a specific platform account_type.
+    if skip == 0 and (not account_type or account_type == "crm_company"):
+        crm_q: dict = {"organization_id": user.get("organization_id")}
+        if q:
+            crm_q["name"] = safe_regex(q)
+        crm_rows = await db.crm2_companies.find(
+            crm_q,
+            {"_id": 0, "id": 1, "name": 1, "sector": 1, "type": 1, "email": 1,
+             "city": 1, "country": 1, "created_at": 1},
+        ).sort("name", 1).limit(limit).to_list(limit)
+        for c in crm_rows:
+            orgs.append({
+                "id": c["id"], "name": c.get("name"), "account_type": "crm_company",
+                "status": c.get("type") or "prospect", "source": "crm",
+                "primary_contact_email": c.get("email"), "sector": c.get("sector"),
+                "city": c.get("city"), "country": c.get("country"),
+                "created_at": c.get("created_at"),
+            })
+        total += await db.crm2_companies.count_documents(crm_q)
     return {"organizations": orgs, "total": total, "scoped_to_pulse": scope is not None}
 
 
