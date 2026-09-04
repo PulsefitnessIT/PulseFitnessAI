@@ -225,26 +225,27 @@ async def crm_login(data: dict):
         raise HTTPException(status_code=400, detail="Email and password required")
 
     user = await db.crm_users.find_one({"email": email}, {"_id": 0})
-    # Iter 216h197 — Craig's "Invalid credentials" bug. CRM users that
-    # were auto-created by the cross-login flow have a random uuid hex
-    # stored as their crm password (they don't know it). When such a
-    # user lands on /crm without a main session and types their actual
-    # Pulse Fitness password, the standalone /crm/auth/login rejected them.
+    # Iter 216h197 → (Jun 2026) — "Invalid credentials" bug. A user created
+    # via the admin console gets BOTH a `users` row and a `crm_users` row for
+    # the same email, but the crm_users row is given a random throwaway CRM
+    # password the person never learns. They only know their platform (Pulse
+    # Fitness) password. Previously the platform-password fallback ONLY fired
+    # when the crm_users row was flagged `cross_login_provisioned`, so anyone
+    # created straight in Master Admin (not via cross-login) was locked out of
+    # the CRM portal even with the correct platform password.
     #
-    # Fall back: if the user record is flagged ``cross_login_provisioned``
-    # (or simply no crm_users row exists), validate the password against
-    # the main `users` collection's hash. On success, we mint the CRM
-    # token exactly as before and auto-provision a crm_users row.
-    cross_provisioned = bool(user and user.get("cross_login_provisioned"))
-    crm_password_match = user and crm_verify_password(password, user.get("password", ""))
-    if not user or (not crm_password_match and cross_provisioned):
+    # Fix: whenever the typed password does NOT match the crm_users hash (or
+    # there's no crm_users row), fall back to verifying it against the SAME-
+    # email record in `users`. On success we authenticate and flag the crm row
+    # `cross_login_provisioned` so future logins are seamless. Identity is keyed
+    # by email (a person's `users.id` and `crm_users.id` can legitimately
+    # differ). Only 401 when BOTH the CRM and platform hashes fail.
+    crm_password_match = bool(user and crm_verify_password(password, user.get("password", "")))
+    if not crm_password_match:
         platform_user = await db.users.find_one({"email": email}, {"_id": 0})
-        if not platform_user:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-        # Validate against the main platform's bcrypt hash.
         from utils.auth import verify_password as platform_verify_password
-        platform_hash = platform_user.get("password_hash") or platform_user.get("password") or ""
-        if not platform_verify_password(password, platform_hash):
+        platform_hash = (platform_user or {}).get("password_hash") or (platform_user or {}).get("password") or ""
+        if not platform_user or not platform_verify_password(password, platform_hash):
             raise HTTPException(status_code=401, detail="Invalid credentials")
         # Reuse / create a crm_users row for this account so subsequent
         # CRM flows have something to attach to.
@@ -267,8 +268,6 @@ async def crm_login(data: dict):
             {"id": user["id"]},
             {"$set": {"cross_login_provisioned": True, "last_platform_login": datetime.now(timezone.utc).isoformat()}},
         )
-    elif not crm_password_match:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
 
     org_name = ""
     if user.get("organization_id"):
