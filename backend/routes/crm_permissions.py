@@ -38,6 +38,13 @@ router = APIRouter(prefix="/crm/permissions", tags=["CRM Permissions"])
 ENTITY_TYPES = {"contact", "company", "opportunity", "contract"}
 ACCESS_LEVELS = {"all", "team", "owner", "none"}
 
+# Company-wide CRM: the core "account working set" is readable by every
+# member of the org by default (all staff must see all companies to work
+# on them — the Account Manager field denotes responsibility, not access).
+# Admins can still tighten a specific role via an explicit sharing rule.
+# Other entity types keep the historical team-hierarchy default.
+ORG_WIDE_READ_DEFAULT = {"company", "contact", "opportunity"}
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -61,7 +68,13 @@ async def _get_team_ids(user: dict) -> list[str]:
 
 
 async def _resolve_access(user: dict, entity_type: str) -> str:
-    """Highest-priority sharing rule wins; default = `team`."""
+    """Highest-priority sharing rule wins; default depends on entity type.
+
+    Company / contact / opportunity default to org-wide `all` (company-wide
+    CRM — every staff member sees all accounts). Everything else defaults to
+    `team`. An explicit `crm_sharing_rules` row always overrides the default,
+    so admins can still restrict a role to team/owner/none.
+    """
     if is_unrestricted(user):
         return "all"
     role = (user.get("role") or "user").lower()
@@ -71,7 +84,7 @@ async def _resolve_access(user: dict, entity_type: str) -> str:
     )
     if rule and rule.get("access") in ACCESS_LEVELS:
         return rule["access"]
-    return "team"
+    return "all" if entity_type in ORG_WIDE_READ_DEFAULT else "team"
 
 
 async def compute_visibility(user: dict, entity_type: str) -> dict:

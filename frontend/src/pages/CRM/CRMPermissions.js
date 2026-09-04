@@ -17,7 +17,7 @@ import Button from '@/components/shared/Button';
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => { const _t = localStorage.getItem('crm_token'); return { headers: _t ? { Authorization: `Bearer ${_t}` } : {} }; };
 
-const ROLES = ['rep', 'sales_rep', 'manager', 'analyst', 'support', 'finance'];
+const ROLES = ['staff', 'rep', 'sales_rep', 'manager', 'analyst', 'support', 'finance'];
 const ACCESS_LABEL = {
   all: 'Full access',
   team: 'Team only (manager hierarchy)',
@@ -69,7 +69,7 @@ function SharingRules({ rules, entityTypes, accessLevels, onChange }) {
   return (
     <Section
       title="Sharing rules"
-      subtitle="Control which records each role can read. Default for any role without a rule is Team only."
+      subtitle="Control which records each role can read. By default Companies, Contacts and Opportunities are visible org-wide (all staff see all accounts); other records default to Team only. Add a rule to tighten a role."
       icon={Shield}
       testid="permissions-sharing-rules"
     >
@@ -85,7 +85,7 @@ function SharingRules({ rules, entityTypes, accessLevels, onChange }) {
           </thead>
           <tbody>
             {rules.length === 0 ? (
-              <tr><td colSpan="4" className="px-2 py-4 opacity-60 text-center">No custom rules — every non-admin defaults to Team-only access.</td></tr>
+              <tr><td colSpan="4" className="px-2 py-4 opacity-60 text-center">No custom rules — Companies, Contacts &amp; Opportunities are visible org-wide; other records default to Team-only.</td></tr>
             ) : null}
             {rules.map((r) => (
               <tr key={`${r.role}-${r.entity_type}`} className="border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`rule-row-${r.role}-${r.entity_type}`}>

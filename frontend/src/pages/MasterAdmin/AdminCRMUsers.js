@@ -103,6 +103,7 @@ const AdminCRMUsers = () => {
  <SelectContent className="bg-white border-zinc-200">
  <SelectItem value="admin">Admin</SelectItem>
  <SelectItem value="manager">Manager</SelectItem>
+ <SelectItem value="staff">Staff</SelectItem>
  <SelectItem value="user">User</SelectItem>
  </SelectContent>
  </Select>
@@ -141,6 +142,7 @@ const AdminCRMUsers = () => {
  <SelectContent className="bg-[var(--theme-surface)] border-white/10">
  <SelectItem value="admin" className="text-white">Admin</SelectItem>
  <SelectItem value="manager" className="text-white">Manager</SelectItem>
+ <SelectItem value="staff" className="text-white">Staff</SelectItem>
  <SelectItem value="user" className="text-white">User</SelectItem>
  </SelectContent>
  </Select>
