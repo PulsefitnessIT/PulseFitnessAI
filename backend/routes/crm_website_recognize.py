@@ -181,15 +181,24 @@ async def recognize_from_website(data: dict, user=Depends(get_crm_user)) -> dict
             f"Could not extract any company details from {base}. The site may block bots — please add the details manually.",
         )
 
+    blocked = bool(info.pop("blocked", False))
+    substantive = any(info.get(k) for k in ("phone", "email", "address_line1", "postcode"))
+    note = None
+    if blocked or not substantive:
+        note = ("This site blocks automated readers, so only its name and website could be filled "
+                "automatically — please add the remaining details manually.")
+
     payload = {
         "company_info": info,
         "pages_fetched": pages_fetched,
     }
-    # Cache successful extractions for 24h
-    try:
-        await _write_cache(base, payload)
-    except Exception:
-        logger.exception("website cache write failed (non-fatal)")
+    # Only cache genuinely useful extractions — never cache a bot-blocked or
+    # name-only result, so the next attempt can try again for real data.
+    if substantive and not blocked:
+        try:
+            await _write_cache(base, payload)
+        except Exception:
+            logger.exception("website cache write failed (non-fatal)")
 
     return {
         "success": True,
@@ -197,6 +206,8 @@ async def recognize_from_website(data: dict, user=Depends(get_crm_user)) -> dict
         "url": base,
         "company_info": info,
         "pages_fetched": pages_fetched,
+        "blocked": blocked,
+        "note": note,
         "cached": False,
     }
 

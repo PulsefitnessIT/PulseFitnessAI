@@ -36,10 +36,29 @@ UK_POSTCODE_RX = re.compile(
 )
 
 # Phone shapes accepted: UK (+44 / 0…), generic international +N…,
-# parenthesised area codes. We pick the first match — the homepage
-# usually surfaces the main switchboard above the fold.
+# North-American ((204) 488-8023 / 204-488-8023 / 204.488.8023),
+# parenthesised area codes. We pick the first VALID match.
 PHONE_RX = re.compile(
-    r"(\+44[\s\d()-]{8,}|\+\d{1,3}[\s\d()-]{6,}|0\d{2,4}[\s\d()-]{6,})",
+    r"(\+44[\s\d()-]{8,}|\+\d{1,3}[\s\d()-]{6,}|\(?\d{3}\)?[\s.\u2011-]\d{3}[\s.\u2011-]\d{4}|0\d{2,4}[\s\d()-]{6,})",
+)
+
+# Titles/site-names that are page labels or bot-challenge text, NOT a
+# company name. When we hit one of these we fall back to the domain.
+GENERIC_NAME_RX = re.compile(
+    r"^(home|welcome|home ?page|contact( us)?|about( us)?|index|loading|"
+    r"untitled|default|menu|site|website|one moment(, please)?\.*|"
+    r"just a moment\.*|please wait\.*|attention required|"
+    r"checking your browser|access denied|error \d+)$",
+    re.IGNORECASE,
+)
+
+# Markers that the page we fetched is a JS/bot interstitial rather than
+# the real site — extracting from it yields garbage, so we skip it.
+CHALLENGE_MARKERS = (
+    "one moment, please", "just a moment", "attention required",
+    "checking your browser", "cf-browser-verification", "cf_chl_",
+    "please enable javascript", "please wait while", "ddos protection",
+    "enable cookies to continue", "verifying you are human",
 )
 
 
@@ -184,6 +203,49 @@ def _clean_title(title: str) -> str:
     return cleaned
 
 
+def _is_generic_name(name: str) -> bool:
+    """True for page labels / challenge text that aren't a company name."""
+    n = (name or "").strip()
+    return not n or bool(GENERIC_NAME_RX.match(n))
+
+
+def _is_challenge_html(html: str, title: str | None) -> bool:
+    """Detect Cloudflare / bot-challenge / 'please enable JS' interstitials —
+    extracting from these yields junk (fake title + a nonsense phone)."""
+    if title and GENERIC_NAME_RX.match(title.strip()) and title.strip().lower().startswith(("one moment", "just a moment", "please wait", "checking", "attention")):
+        return True
+    low = (html or "")[:6000].lower()
+    return any(m in low for m in CHALLENGE_MARKERS)
+
+
+def _name_from_domain(base_url: str) -> str | None:
+    """Derive a readable company name from the domain — far better than a
+    generic page title. `reh-fit.com` → `Reh-Fit`, `cityfitness.co.uk`
+    → `Cityfitness`."""
+    try:
+        host = urlparse(base_url).netloc.lower().split(":")[0]
+    except Exception:
+        return None
+    if host.startswith("www."):
+        host = host[4:]
+    label = host.split(".")[0] if host else ""
+    if not label:
+        return None
+    return re.sub(r"[A-Za-z0-9]+", lambda m: m.group(0).capitalize(), label)
+
+
+def _valid_phone(raw: str | None) -> str | None:
+    """Keep only plausible phone numbers (10–15 digits). Rejects junk like
+    a scraped `013244 15` (8 digits) that the loose regex can catch."""
+    if not raw:
+        return None
+    s = raw.strip()
+    digits = re.sub(r"\D", "", s)
+    if len(digits) < 10 or len(digits) > 15:
+        return None
+    return s
+
+
 def extract_company_info(html: str, base_url: str) -> dict[str, Any]:
     """Run the full extractor pipeline on a homepage's HTML.
 
@@ -198,6 +260,19 @@ def extract_company_info(html: str, base_url: str) -> dict[str, Any]:
         return {}
 
     info: dict[str, Any] = {"source_url": base_url}
+
+    title = _grab(r"<title[^>]*>([^<]+)</title>", html)
+
+    # Bot-challenge / JS interstitial? Don't scrape garbage from it — just
+    # anchor the record on the domain-derived name + website so the form is
+    # still usefully pre-filled.
+    if _is_challenge_html(html, title):
+        dom = _name_from_domain(base_url)
+        if dom:
+            info["name"] = dom
+        info["website"] = base_url
+        info["blocked"] = True
+        return info
 
     # ── 1. JSON-LD ────────────────────────────────────────────────
     for org in _extract_jsonld_organizations(html):
@@ -226,12 +301,23 @@ def extract_company_info(html: str, base_url: str) -> dict[str, Any]:
         r'<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']+)["\']',
         html,
     )
-    title = _grab(r"<title[^>]*>([^<]+)</title>", html)
 
+    # Name precedence: JSON-LD name > og:site_name > cleaned <title>/og:title
+    # (only when it's not a generic page label) > domain-derived fallback.
+    if _is_generic_name(info.get("name")):
+        info.pop("name", None)
     if not info.get("name"):
-        chosen = og_site_name or _clean_title(og_title or title or "")
-        if chosen:
-            info["name"] = chosen
+        candidate = ""
+        if og_site_name and not _is_generic_name(og_site_name):
+            candidate = og_site_name.strip()
+        else:
+            cleaned = _clean_title(og_title or title or "")
+            if cleaned and not _is_generic_name(cleaned):
+                candidate = cleaned
+        if not candidate:
+            candidate = _name_from_domain(base_url) or ""
+        if candidate:
+            info["name"] = candidate
     if not info.get("description"):
         d = og_desc or meta_desc
         if d:
@@ -240,14 +326,17 @@ def extract_company_info(html: str, base_url: str) -> dict[str, Any]:
         info["logo_url"] = urljoin(base_url, og_image)
 
     # ── 3. Contact info fallbacks ─────────────────────────────────
-    if not info.get("phone"):
+    if not _valid_phone(info.get("phone")):
+        info.pop("phone", None)
         tel = _extract_phone_from_tel_links(html)
-        if tel:
-            info["phone"] = tel
+        if _valid_phone(tel):
+            info["phone"] = tel.strip()
         else:
-            m = PHONE_RX.search(html)
-            if m:
-                info["phone"] = m.group(1).strip()
+            for m in PHONE_RX.finditer(html):
+                cand = _valid_phone(m.group(1))
+                if cand:
+                    info["phone"] = cand
+                    break
     if not info.get("email"):
         em = _extract_email_from_mailto(html)
         if em:
@@ -271,9 +360,11 @@ def extract_company_info(html: str, base_url: str) -> dict[str, Any]:
         if socials:
             info["social_links"] = socials[:6]
 
-    # ── 5. Default country to UK only when we found a UK postcode
-    #       (we don't want to lie about region for non-UK prospects).
-    if info.get("postcode") and not info.get("country"):
+    # ── 5. Default country to UK only when the postcode is genuinely a
+    #       UK shape — Pulse trades globally, so we must not mislabel a
+    #       non-UK prospect (e.g. a Canadian JSON-LD postal code).
+    pc = (info.get("postcode") or "").strip()
+    if pc and not info.get("country") and UK_POSTCODE_RX.match(pc):
         info["country"] = "United Kingdom"
 
     info["website"] = base_url

@@ -35,7 +35,8 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
   const [companyKind, setCompanyKind] = useState('commercial'); // commercial | mod
   const [modBranch, setModBranch] = useState('army'); // army | raf | navy
   const [modImportSite, setModImportSite] = useState(null); // launches the guided kit-import wizard
-  const [form, setForm] = useState({ name: '', sector: '', type: 'prospect', phone: '', email: '', website: '', address: '', address_line1: '', address_line2: '', address_line3: '', city: '', county: '', postcode: '', country: 'United Kingdom', company_number: '', description: '', directors: [] });
+  const [form, setForm] = useState({ name: '', sector: '', type: 'prospect', phone: '', email: '', website: '', address: '', address_line1: '', address_line2: '', address_line3: '', city: '', county: '', postcode: '', country: 'United Kingdom', company_number: '', description: '', directors: [], account_owner_id: '', account_owner_name: '' });
+  const [staffList, setStaffList] = useState([]);
   const [saving, setSaving] = useState(false);
   const [aiLookup, setAiLookup] = useState(false);
   // Iter 216h268 — website-first recognition. Sales reps prefer the
@@ -57,6 +58,28 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
   }, [API, headers, search, typeFilter]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Load selectable account managers (CRM users) and default the new
+  // company's account manager to the signed-in user.
+  useEffect(() => {
+    (async () => {
+      try {
+        const [sp, me] = await Promise.all([
+          axios.get(`${API}/crm/territories/staff-palette`, { headers: headers() }).catch(() => null),
+          axios.get(`${API}/auth/me`, { headers: headers() }).catch(() => null),
+        ]);
+        let staff = sp?.data?.staff || [];
+        const meData = me?.data || null;
+        const meId = meData?.id;
+        const meName = meData?.full_name || meData?.name || '';
+        if (meId && !staff.some((s) => s.id === meId)) {
+          staff = [{ id: meId, full_name: meName || 'Me', role: meData?.role || 'me' }, ...staff];
+        }
+        setStaffList(staff);
+        setForm((prev) => (prev.account_owner_id ? prev : { ...prev, account_owner_id: meId || '', account_owner_name: meName }));
+      } catch { /* silent — the field stays optional */ }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreate = async () => {
     if (!form.name.trim()) return;
@@ -82,7 +105,7 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
         toast.success(`MOD site "${form.name}" created (${modBranch.toUpperCase()}). Let's load its equipment.`);
         setShowCreate(false);
         const newSite = res.data?.site || { id: res.data?.id, name: form.name };
-        setForm({ name: '', sector: '', type: 'prospect', phone: '', email: '', website: '', address: '', address_line1: '', address_line2: '', address_line3: '', city: '', county: '', postcode: '', country: 'United Kingdom', company_number: '', description: '', directors: [] });
+        setForm({ name: '', sector: '', type: 'prospect', phone: '', email: '', website: '', address: '', address_line1: '', address_line2: '', address_line3: '', city: '', county: '', postcode: '', country: 'United Kingdom', company_number: '', description: '', directors: [], account_owner_id: form.account_owner_id, account_owner_name: form.account_owner_name });
         setCompanyKind('commercial');
         // Dummy-proof: drop the user straight into the guided kit-import wizard
         // for the site they just created — no hunting for a button.
@@ -169,8 +192,10 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
         url: res.data?.url || url,
         pagesFetched: res.data?.pages_fetched || [],
         cached: !!res.data?.cached,
-        filled: Object.keys(info).filter(k => info[k]).length,
+        filled: Object.keys(info).filter(k => info[k] && k !== 'source_url').length,
         socialLinks: info.social_links || [],
+        blocked: !!res.data?.blocked,
+        note: res.data?.note || '',
       });
     } catch (e) {
       setWebsiteLookupError(e?.response?.data?.detail || 'Could not read that website');
@@ -377,6 +402,11 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
                   )}
                 </div>
               )}
+              {websiteSummary?.note && (
+                <p className="text-[10px] mt-1.5 flex items-start gap-1" style={{ color: 'var(--color-warning-alt, #b45309)' }} data-testid="company-website-lookup-note">
+                  <AlertTriangle size={11} className="mt-0.5 shrink-0" /> {websiteSummary.note}
+                </p>
+              )}
             </div>
             {aiLookup && (
               <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md" style={{ background: 'var(--color-info-ios)08', border: '1px solid var(--color-info-ios)20' }}>
@@ -428,6 +458,25 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
                   </button>
                 </div>
                 <p className="text-[9px] mt-0.5" style={{ color: c.textDim }}>Pick from the dropdown for instant fill, or click "AI fill" for fuzzy AI-powered enrichment</p>
+              </div>
+              <div className="col-span-2">
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Account Manager</label>
+                <select
+                  value={form.account_owner_id || ''}
+                  onChange={(e) => {
+                    const s = staffList.find((x) => x.id === e.target.value);
+                    setForm({ ...form, account_owner_id: e.target.value, account_owner_name: s ? s.full_name : '' });
+                  }}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+                  style={{ background: c.inputBg || (isDark ? 'var(--color-ink-alt)' : '#fff'), border: `1px solid ${c.border}`, color: c.text }}
+                  data-testid="company-account-manager-select"
+                >
+                  <option value="">Unassigned</option>
+                  {staffList.map((s) => (
+                    <option key={s.id} value={s.id}>{s.full_name}{s.role && s.role !== 'me' ? ` · ${s.role}` : ''}</option>
+                  ))}
+                </select>
+                <p className="text-[9px] mt-0.5" style={{ color: c.textDim }}>Who owns this account. Defaults to you — change it to assign a colleague.</p>
               </div>
               {[
                 { key: 'company_number', label: 'Company Number', readOnly: true },
@@ -1270,6 +1319,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
   const [_contacts, _setContacts] = useState([]);
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({});
+  const [editStaff, setEditStaff] = useState([]);
   const [savingEdit, setSavingEdit] = useState(false);
 
   const load = useCallback(async () => {
@@ -1525,9 +1575,15 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
       county: company.county || '',
       postcode: company.postcode || '',
       country: company.country || 'United Kingdom',
+      account_owner_id: company.account_owner_id || '',
+      account_owner_name: company.account_owner_name || '',
       sla_tier: company.sla_tier || 'standard', notes: company.notes || '',
     });
     setShowEdit(true);
+    // Load selectable account managers (CRM users) for the dropdown.
+    axios.get(`${API}/crm/territories/staff-palette`, { headers: headers() })
+      .then((r) => setEditStaff(r.data?.staff || []))
+      .catch(() => {});
   };
 
   const saveEdit = async () => {
@@ -2100,6 +2156,27 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
               <datalist id="crm-edit-country-presets">
                 {COUNTRIES.map((c) => <option key={c} value={c} />)}
               </datalist>
+              <div className="col-span-2">
+                <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Account Manager</label>
+                <select
+                  value={editForm.account_owner_id || ''}
+                  onChange={(e) => {
+                    const s = editStaff.find((x) => x.id === e.target.value);
+                    setEditForm({ ...editForm, account_owner_id: e.target.value, account_owner_name: s ? s.full_name : '' });
+                  }}
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-md"
+                  style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                  data-testid="edit-company-account-manager-select"
+                >
+                  <option value="">Unassigned</option>
+                  {editForm.account_owner_id && !editStaff.some((s) => s.id === editForm.account_owner_id) && (
+                    <option value={editForm.account_owner_id}>{editForm.account_owner_name || 'Current manager'}</option>
+                  )}
+                  {editStaff.map((s) => (
+                    <option key={s.id} value={s.id}>{s.full_name}{s.role ? ` · ${s.role}` : ''}</option>
+                  ))}
+                </select>
+              </div>
               <div className="col-span-2">
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Notes</label>
                 <textarea value={editForm.notes || ''} onChange={e => setEditForm({...editForm, notes: e.target.value})} rows={3} className="w-full mt-1 px-3 py-2 text-sm rounded-md resize-none" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />

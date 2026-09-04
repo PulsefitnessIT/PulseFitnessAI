@@ -1,4 +1,44 @@
-# ═══ 2026-06 · MOD INCIDENT WIZARD — reporter auto-fill · /auth/me verified, compile+lint clean ═══
+# ═══ 2026-06 · CRM — GLOBAL-AWARE WEBSITE FETCH + ACCOUNT MANAGER SELECTION · curl-verified ═══
+
+BUG — "Fetch company by website" returned junk (e.g. name "Home"/"One moment, please...", a bogus phone),
+and was UK-centric even though Pulse trades globally. Reproduced on https://www.reh-fit.com (a Winnipeg, CA
+gym that serves a Cloudflare bot-challenge to server-side fetches).
+  • BACKEND utils/website_enrichment.py:
+    - Detect bot-challenge / JS interstitial pages (CHALLENGE_MARKERS: "one moment, please", "just a moment",
+      "attention required", "checking your browser", cf_chl_, "please enable javascript"...) → don't scrape
+      garbage; return domain-derived name + website + blocked:True.
+    - Reject GENERIC page titles as company names ("Home", "Welcome", "Contact", "One moment"...) and fall back
+      to a domain-derived name (reh-fit.com → "Reh-Fit"). Precedence: JSON-LD name > og:site_name > cleaned
+      <title>/og:title (if not generic) > domain.
+    - Phone validation _valid_phone (10–15 digits) rejects junk like "013244 15"; added NANP matching
+      ((204) 488-8023 / 204-488-8023 / 204.488.8023). tel:/regex both validated.
+    - Country now defaults to "United Kingdom" ONLY when the postcode is genuinely UK-shaped — a Canadian/other
+      JSON-LD postcode is no longer mislabelled UK.
+  • BACKEND routes/crm_website_recognize.py: never cache a blocked/name-only result (so a retry can try again);
+    response adds blocked + a friendly note ("This site blocks automated readers, so only its name and website
+    could be filled automatically — please add the remaining details manually.").
+  • FRONTEND CRM/CRMCompanies.js: shows the note under the Fetch summary (testid company-website-lookup-note).
+  • VERIFIED curl (CRM token): reh-fit.com → success, blocked:true, name "Reh-Fit", note shown, no junk phone,
+    not cached. Unit: Canadian JSON-LD → name/city/postcode/phone extracted, country NOT forced to UK. UK JSON-LD
+    still fully extracts + country UK.
+
+FEATURE — choose the Account Manager when creating OR editing a company (Pulse is global; accounts need explicit owners).
+  • Concept maps to existing company fields account_owner_id / account_owner_name (create already defaulted to the
+    creator; update_company persists any field sent).
+  • FRONTEND CRM/CRMCompanies.js:
+    - New Company (Commercial) form: "Account Manager" <select> (testid company-account-manager-select), options
+      from GET /crm/territories/staff-palette, default = signed-in user (GET /auth/me). account_owner_id/name are
+      in the POST payload. Reset keeps the chosen manager.
+    - Edit Company modal: "Account Manager" <select> (testid edit-company-account-manager-select) seeded from the
+      company + staff-palette; saveEdit PUTs account_owner_id/name.
+  • VERIFIED curl: staff-palette returns the org's CRM users; /auth/me works with the CRM token for the default.
+  ⚠️ Env note: many rapid hot-reloads OOM-crashed the CRA dev server into a restart loop — cleared with a single
+     `supervisorctl restart frontend`; now compiles clean + serves 200 (not a code issue).
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 Pre-fills the reporter from the signed-in MOD user so most incidents log in a couple of taps.
 
   • FRONTEND MODPortal/MODIncidentWizard.js: on mount, GET {API}/auth/me and prefill reporter_name
