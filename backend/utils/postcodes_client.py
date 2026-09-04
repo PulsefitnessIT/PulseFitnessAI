@@ -112,7 +112,7 @@ def normalise_lookup(result: dict | None) -> dict | None:
     }
 
 
-async def lookup(postcode: str) -> dict | None:
+async def _uk_lookup(postcode: str) -> dict | None:
     """Validate + look up a UK postcode. Returns the Pulse Fitness-shaped dict
     or `None` when the postcode is invalid / not found."""
     norm = normalise_postcode(postcode)
@@ -168,3 +168,155 @@ async def autocomplete(prefix: str, limit: int = 10) -> list[str]:
     async with _cache_lock:
         _cache_set(_autocomplete_cache, cache_key, suggestions, AUTOCOMPLETE_TTL)
     return suggestions
+
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# International postcodes — Zippopotam.us (Iter — Jun 2026)
+#
+# postcodes.io is UK-only, but Pulse trades globally. Zippopotam.us is a
+# free, no-auth public API covering ~60 countries. We route by country:
+#   • UK-shaped postcode (or GB country) → postcodes.io (richest data)
+#   • everything else                    → Zippopotam.us /{code}/{postcode}
+# Zippopotam returns { "post code", "country", "places": [{ "place name",
+# "state", "latitude", "longitude" }] }.
+# ─────────────────────────────────────────────────────────────────────────
+
+ZIPPOPOTAM_BASE_URL = "https://api.zippopotam.us"
+
+# Map free-text country names (as typed on the address form) → ISO 3166-1
+# alpha-2 codes that Zippopotam understands. Anything already a 2-letter
+# code is accepted as-is.
+_COUNTRY_CODE_MAP: dict[str, str] = {
+    "united kingdom": "GB", "uk": "GB", "great britain": "GB", "britain": "GB",
+    "england": "GB", "scotland": "GB", "wales": "GB", "northern ireland": "GB",
+    "united states": "US", "united states of america": "US", "usa": "US",
+    "america": "US", "u.s.a.": "US", "u.s.": "US",
+    "canada": "CA",
+    "ireland": "IE", "republic of ireland": "IE",
+    "germany": "DE", "deutschland": "DE",
+    "france": "FR",
+    "spain": "ES", "españa": "ES",
+    "italy": "IT", "italia": "IT",
+    "netherlands": "NL", "holland": "NL",
+    "belgium": "BE",
+    "portugal": "PT",
+    "switzerland": "CH",
+    "austria": "AT",
+    "denmark": "DK",
+    "sweden": "SE",
+    "norway": "NO",
+    "finland": "FI",
+    "poland": "PL",
+    "australia": "AU",
+    "new zealand": "NZ",
+    "india": "IN",
+    "japan": "JP",
+    "mexico": "MX",
+    "brazil": "BR", "brasil": "BR",
+    "south africa": "ZA",
+}
+
+
+def country_to_code(country: str | None) -> str | None:
+    """Resolve a free-text country name to an ISO alpha-2 code, or None."""
+    if not country:
+        return None
+    c = country.strip().lower()
+    if not c:
+        return None
+    if c in _COUNTRY_CODE_MAP:
+        return _COUNTRY_CODE_MAP[c]
+    # Already a 2-letter code?
+    if len(c) == 2 and c.isalpha():
+        return c.upper()
+    return None
+
+
+def normalise_zippo(result: dict | None) -> dict | None:
+    """Pluck Pulse-relevant fields out of a Zippopotam response onto our
+    address shape (city ← place name, county/region ← state)."""
+    if not result:
+        return None
+    places = result.get("places") or []
+    place = places[0] if places else {}
+    return {
+        "postcode": result.get("post code") or "",
+        "city": place.get("place name") or "",
+        "county": place.get("state") or "",
+        "country": result.get("country") or "",
+        "region": place.get("state") or "",
+        "latitude": place.get("latitude"),
+        "longitude": place.get("longitude"),
+        "parliamentary_constituency": "",
+        "ccg": "",
+        "nhs_region": "",
+    }
+
+
+async def _zippo_lookup(postcode: str, code: str) -> dict | None:
+    """Look up an international postcode via Zippopotam.us."""
+    pc = re.sub(r"\s+", "", (postcode or "")).upper()
+    if len(pc) < 3:
+        return None
+    code = (code or "").upper()
+    cache_key = f"ZIPPO:{code}:{pc}"
+    async with _cache_lock:
+        cached = _cache_get(_lookup_cache, cache_key)
+    if cached is not None:
+        return cached
+    try:
+        async with httpx.AsyncClient(base_url=ZIPPOPOTAM_BASE_URL, timeout=8.0) as client:
+            r = await client.get(f"/{code.lower()}/{pc}")
+        if r.status_code == 404:
+            async with _cache_lock:
+                _cache_set(_lookup_cache, cache_key, None, 60)
+            return None
+        if r.status_code != 200:
+            logger.warning("[zippopotam] %s on /%s/%s", r.status_code, code, pc)
+            return None
+        data = r.json() or {}
+    except httpx.HTTPError as e:
+        logger.warning("[zippopotam] transport error on %s/%s: %s", code, pc, e)
+        return None
+    out = normalise_zippo(data)
+    if out and not out.get("city"):
+        out = None
+    async with _cache_lock:
+        _cache_set(_lookup_cache, cache_key, out, LOOKUP_TTL)
+    return out
+
+
+async def lookup(postcode: str, country: str | None = None) -> dict | None:
+    """Validate + look up a postcode, worldwide.
+
+    Routing:
+      • UK-shaped postcode, or country resolves to GB → postcodes.io.
+      • Otherwise → Zippopotam.us using the resolved country code.
+      • UK-shaped with an unknown country still tries postcodes.io first,
+        then Zippopotam GB as a fallback.
+    """
+    code = country_to_code(country)
+    uk_shaped = normalise_postcode(postcode) is not None
+
+    # UK context → postcodes.io (richest data).
+    if uk_shaped and code in (None, "GB"):
+        res = await _uk_lookup(postcode)
+        if res:
+            return res
+
+    # International context → Zippopotam.
+    if code and code != "GB":
+        res = await _zippo_lookup(postcode, code)
+        if res:
+            return res
+
+    # Explicit GB country but postcodes.io missed → try UK lookup then Zippo GB.
+    if code == "GB":
+        res = await _uk_lookup(postcode)
+        if res:
+            return res
+        return await _zippo_lookup(postcode, "GB")
+
+    # No country hint and not UK-shaped — nothing reliable to query.
+    return None

@@ -1,3 +1,46 @@
+# ═══ 2026-06 · CRM ENRICHMENT — GLOBAL POSTCODES + HEADLESS FETCH (2 deferred P0s) · testing_agent 100% (4/4) ═══
+The two items deferred earlier per user. Both delivered + verified.
+
+(1) GLOBAL POSTCODES — auto-fill City/Region worldwide (Zippopotam.us), keeping UK postcodes.io.
+  • BACKEND utils/postcodes_client.py: lookup() now takes an optional `country`. Routing — UK-shaped postcode
+    (or country→GB) → postcodes.io (richest data); otherwise → Zippopotam.us /{code}/{postcode} (free, no key).
+    New helpers: country_to_code() (free-text country name → ISO alpha-2 map + accepts 2-letter codes),
+    normalise_zippo() (city←place name, county/region←state), _zippo_lookup() (24h cached, negative-cached 60s).
+    Existing UK path renamed _uk_lookup(). routes/postcodes.py GET /api/integrations/postcode/lookup gains
+    ?country= (passed through).
+  • FRONTEND: components/shared/AddressFields.js PostcodeInput now sends `country` (from the form) + guard relaxed
+    5→3 chars (intl postcodes are shorter). CRM/CRMCompanies.js New + Edit company forms: their inline postcode
+    onBlur now sends `country`, guard 5→3, AND the Country field is flagged lookupCountry:true so committing the
+    Country ALSO re-runs the lookup with the already-typed postcode (fixes field-order: Country sits below Postcode).
+    Country is now filled ONLY when empty (prev.country || r.data.country) — respects a user-entered country and no
+    longer overwrites "United Kingdom" with "England" (testing-agent MEDIUM fix).
+  • VERIFIED: curl US 90210→Beverly Hills/California, DE 10115→Berlin, UK SW1A 1AA→Westminster/London, M1 1AE→
+    Manchester/North West. testing_agent frontend: US(both field orders)+DE+UK auto-fill all PASS.
+
+(2) HEADLESS FETCH — JS-rendering fallback so bot-protected (Cloudflare) sites auto-fill phone/email/etc.
+  • Playwright + headless Chromium (user chose self-hosted). playwright==1.58.0 already in requirements; browser
+    binary installed to /pw-browsers (chromium + chromium_headless_shell -1208).
+  • BACKEND utils/headless_fetch.py (NEW): render_html(url) launches headless Chromium (--no-sandbox,
+    --disable-blink-features=AutomationControlled + navigator.webdriver mask → clears Cloudflare "just a moment"
+    challenges), waits/re-reads up to ~8s until the challenge clears, SSRF-guarded, returns rendered HTML (fails
+    safe → None on any error / missing browser). Pins os.environ PLAYWRIGHT_BROWSERS_PATH=/pw-browsers so the fetch
+    works regardless of the process env.
+  • BACKEND routes/crm_website_recognize.py: _scrape_url() now runs a headless fallback (_headless_scrape) ONLY
+    when the plain httpx read is bot-blocked or thin (keeps normal sites fast). When blocked, rendered extraction
+    replaces the domain-only httpx result. Homepage + up to 2 contact pages rendered.
+  • VERIFIED: live API POST /api/crm/v2/companies/recognize-from-website for https://www.reh-fit.com now returns
+    name "Reh-Fit", phone "+12044888023", email "reh-fit@reh-fit.com", 4 social links, blocked:false (was name-only
+    + blocked note). testing_agent frontend: cached + uncached (live ~12s render) both fill Name/Phone/Email.
+  ⚠️ PROD CAVEAT: the Chromium *binary* (via `playwright install chromium`) is not captured by requirements.txt.
+    On a fresh deploy without it, render_html() fails safe and the site falls back to the old blocked-note behaviour
+    (no regression). To enable headless in prod, ensure `playwright install chromium` runs in the deploy build.
+  ⚠️ Cookie/PWA banner can overlay the bottom of the CRM New/Edit Company dialog (pre-existing app-wide modal
+     stacking issue, all dialogs z-[80]; dismissing the banner unblocks it) — NOT introduced here; left as-is.
+  ⚠️ PREVIEW ONLY — REDEPLOY (tap Publish) to push live.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · SERVICE DESK ↔ CRM FLUIDITY (3 items) · curl + screenshot verified ═══
 
 (i) CRM companies now pull through as Service Desk customers.

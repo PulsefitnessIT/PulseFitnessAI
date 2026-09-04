@@ -498,7 +498,7 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
                 // list yet can still enter bespoke values (overseas
                 // territories, edge cases) without being blocked.
                 { key: 'county', label: 'County', datalist: 'crm-county-presets' },
-                { key: 'country', label: 'Country', datalist: 'crm-country-presets' },
+                { key: 'country', label: 'Country', datalist: 'crm-country-presets', lookupCountry: true },
               ].map(f => (
                 <div key={f.key} className={f.span === 2 ? 'col-span-2' : ''}>
                   <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>{f.label}</label>
@@ -512,21 +512,26 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
                       readOnly={f.readOnly}
                       list={f.datalist}
                       onChange={e => setForm({...form, [f.key]: e.target.value})}
-                      onBlur={f.lookupPostcode ? async (e) => {
+                      onBlur={(f.lookupPostcode || f.lookupCountry) ? async (e) => {
                         // Iter 215eq — auto-fill city/county/country from
-                        // postcodes.io when the user finishes typing the
-                        // postcode. Doesn't clobber values already typed.
-                        const pc = (e.target.value || '').trim();
-                        if (!pc || pc.replace(/\s+/g, '').length < 5) return;
+                        // postcodes.io (UK) / Zippopotam.us (international,
+                        // routed by the Country field). Re-runs when either
+                        // the postcode OR the country is committed, so an
+                        // overseas postcode still resolves regardless of the
+                        // order the fields are filled. Doesn't clobber typed
+                        // City/County values.
+                        const pc = (f.lookupPostcode ? (e.target.value || '') : (form.postcode || '')).trim();
+                        const ctry = (f.lookupCountry ? (e.target.value || '') : (form.country || '')).trim();
+                        if (!pc || pc.replace(/\s+/g, '').length < 3) return;
                         try {
-                          const r = await axios.get(`${API}/integrations/postcode/lookup`, { headers: headers(), params: { postcode: pc } });
+                          const r = await axios.get(`${API}/integrations/postcode/lookup`, { headers: headers(), params: { postcode: pc, country: ctry || undefined } });
                           if (r.data?.found) {
                             setForm(prev => ({
                               ...prev,
                               postcode: r.data.postcode || prev.postcode,
                               city: prev.city || r.data.city || '',
                               county: prev.county || r.data.county || '',
-                              country: r.data.country || prev.country,
+                              country: prev.country || r.data.country || '',
                             }));
                           }
                         } catch { /* silent */ }
@@ -2113,7 +2118,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
                 { key: 'postcode', label: 'Post code', lookupPostcode: true },
                 { key: 'city', label: 'City' },
                 { key: 'county', label: 'County', datalist: 'crm-edit-county-presets' },
-                { key: 'country', label: 'Country', datalist: 'crm-edit-country-presets' },
+                { key: 'country', label: 'Country', datalist: 'crm-edit-country-presets', lookupCountry: true },
                 { key: 'sla_tier', label: 'SLA Tier', type: 'select', options: ['standard', 'premium', 'enterprise'] },
               ].map(f => (
                 <div key={f.key} className={f.span === 2 ? 'col-span-2' : ''}>
@@ -2127,18 +2132,19 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
                       value={editForm[f.key] || ''}
                       list={f.datalist}
                       onChange={e => setEditForm({...editForm, [f.key]: e.target.value})}
-                      onBlur={f.lookupPostcode ? async (e) => {
-                        const pc = (e.target.value || '').trim();
-                        if (!pc || pc.replace(/\s+/g, '').length < 5) return;
+                      onBlur={(f.lookupPostcode || f.lookupCountry) ? async (e) => {
+                        const pc = (f.lookupPostcode ? (e.target.value || '') : (editForm.postcode || '')).trim();
+                        const ctry = (f.lookupCountry ? (e.target.value || '') : (editForm.country || '')).trim();
+                        if (!pc || pc.replace(/\s+/g, '').length < 3) return;
                         try {
-                          const r = await axios.get(`${API}/integrations/postcode/lookup`, { headers: headers(), params: { postcode: pc } });
+                          const r = await axios.get(`${API}/integrations/postcode/lookup`, { headers: headers(), params: { postcode: pc, country: ctry || undefined } });
                           if (r.data?.found) {
                             setEditForm(prev => ({
                               ...prev,
                               postcode: r.data.postcode || prev.postcode,
                               city: prev.city || r.data.city || '',
                               county: prev.county || r.data.county || '',
-                              country: r.data.country || prev.country,
+                              country: prev.country || r.data.country || '',
                             }));
                           }
                         } catch { /* silent */ }

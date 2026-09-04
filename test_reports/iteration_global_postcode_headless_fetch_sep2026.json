@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only verification of the two deferred CRM features via the public preview URL. Logged in on the platform login page (owner@isodemo.com) which auto-bridged into /crm, opened Companies tab -> New Company (Commercial kind default confirmed). (1) Global postcode auto-fill: US 90210 -> Beverly Hills / California PASSED in BOTH field orders (postcode-first + country-blur re-lookup, and country-first), DE 10115 -> Berlin / Berlin PASSED, UK SW1A 1AA -> Westminster / London PASSED. (2) Headless website fetch on the bot-protected reh-fit.com: cached URL (https://www.reh-fit.com) returned in ~3s and an UNCACHED variant (https://reh-fit.com/) live-rendered in ~12s; both populated Name 'Reh-Fit', Phone '+12044888023', Email 'reh-fit@reh-fit.com', Website, summary '5 fields filled / 3-4 pages read / 4 social links' and NO 'blocked' note. Core feature verdict: both features work end-to-end in the UI. Found 1 notable UI overlay defect (cookie banner covers the Create button) plus 2 minor issues.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CRMCompanies New Company dialog", "issue": "The fixed cookie-consent banner overlays the bottom of the modal: document.elementFromPoint at the centre of the Create button returns the cookie banner div (DIV.max-w-4xl mx-auto bg-zinc-900...), not the button (sameOrInside=false). At 1920x1080 a user who has not dismissed cookies cannot click Create company. Postcode/other inputs are not obstructed.", "selector": "[data-testid=\"company-create-submit\"]", "priority": "HIGH"},
+      {"component": "Postcode lookup (country field)", "issue": "UK lookup overwrites the user-typed Country. Entering 'United Kingdom' + SW1A 1AA leaves Country = 'England' (postcodes.io country). City/County only fill when empty (prev.city || ...) but country is set unconditionally (r.data.country || prev.country) — inconsistent and degrades data quality for UK records.", "selector": "[data-testid=\"company-field-country\"]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Website fetch (reh-fit.com)", "issue": "Panel copy promises 'name, phone, email, address, description & social links' but address_line1 / city / postcode / county stay empty for reh-fit.com (backend returns no address). Expected per backend behaviour, but the promise vs. result mismatch is misleading — consider only claiming address when returned.", "affected_selectors": ["[data-testid=\"company-website-lookup-summary\"]", "[data-testid=\"company-field-address_line1\"]"]},
+      {"flow": "CRM Companies load (non-master-admin CRM user)", "issue": "Console/network noise: GET /api/master-admin/companies-house/status returns 403 (twice) for owner@isodemo.com. Should be gated client-side on master-admin.", "affected_selectors": []}
+    ],
+    "design_issues": [
+      {"screen": "New Company modal (1920x1080)", "issues": ["Cookie banner + 'Install App' PWA prompt both stack over the modal footer, hiding the primary action", "Dialog is long; the primary Create action sits below the fold with no sticky footer"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Raise the New Company dialog z-index above the cookie-consent banner (or add a sticky modal footer / suppress the banner + PWA install prompt while a modal is open) so [data-testid=company-create-submit] is clickable.",
+    "Make the postcode lookup respect a user-entered Country (only fill when empty, or map postcodes.io 'England/Scotland/Wales' back to 'United Kingdom').",
+    "Hide/skip the master-admin companies-house status call for non-master-admin CRM users (currently 403 x2)."
+  ],
+  "critical_code_review_comments": [
+    "CRMCompanies.js onBlur lookup: city/county use `prev.city || r.data.city` but country uses `r.data.country || prev.country` — asymmetric, causes the UK 'England' overwrite.",
+    "CRMCompanies.js is 2547 lines — well over the 700-line guideline; split the create dialog / MOD sites panel into separate components.",
+    "CRMCompanies.js autoRecognize/autoRecognizeFromWebsite swallow errors silently ('/* silent */') for the AI-fill path — no user-visible error state."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (per request)", "frontend": "100% of the 4 requested feature cases passed; 4 side issues found"},
+  "seed_data_creation": "None persisted — no company was submitted (typed 'TEST_Overlay Check' into the name field only, dialog abandoned).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "Platform login owner@isodemo.com / IsoDemo123! at /login?next=/crm auto-bridges into the CRM (direct /crm hit redirects to /login, the CRM-only login form at data-testid=crm-login-page was never shown).",
+  "context_for_next_testing_agent": "Navigate to /login?next=%2Fcrm and use gx-login-* testids; /crm alone redirects to the platform login. CRM lands on Dashboard — click [data-pill-id=\"companies\"] to reach the Companies list (create-company-btn). Company name input testid is 'company-name-autocomplete-input' (NOT company-field-name). Website fetch results are cached 24h per exact URL — vary the URL (e.g. drop 'www.') to exercise the live headless render (~12s). Dismiss the cookie banner/'Later' PWA prompt before clicking modal footer buttons.",
+  "rca_of_the_issue": "Cookie-consent banner is rendered as a fixed bottom element outside the modal stacking context with an equal/higher z-index, so it hit-tests above the dialog footer. The UK country overwrite comes from postcodes.io returning country='England', which the frontend applies unconditionally."
+}

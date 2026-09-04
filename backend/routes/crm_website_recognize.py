@@ -107,7 +107,12 @@ async def _fetch(client: httpx.AsyncClient, url: str) -> str | None:
 
 async def _scrape_url(base: str) -> tuple[dict, list[str]]:
     """Fetch the homepage + opportunistic contact pages, return the
-    merged extraction + the list of paths we successfully fetched."""
+    merged extraction + the list of paths we successfully fetched.
+
+    When the plain httpx read is bot-blocked or yields nothing useful,
+    fall back to a headless (JS-rendering) Chromium read of the homepage
+    (+ a contact page if still thin) so bot-protected sites still fill.
+    """
     extractions: list[dict] = []
     pages_fetched: list[str] = []
     async with httpx.AsyncClient(
@@ -122,7 +127,8 @@ async def _scrape_url(base: str) -> tuple[dict, list[str]]:
             pages_fetched.append("/")
         # 2. Contact pages — only if homepage didn't yield phone/email/postcode
         primary = extractions[0] if extractions else {}
-        needs_contact = not all(primary.get(k) for k in ("phone", "email", "postcode"))
+        blocked_home = bool(primary.get("blocked"))
+        needs_contact = not blocked_home and not all(primary.get(k) for k in ("phone", "email", "postcode"))
         if needs_contact:
             for path in CONTACT_PATHS:
                 if not needs_contact:
@@ -137,7 +143,62 @@ async def _scrape_url(base: str) -> tuple[dict, list[str]]:
                 # Refresh the "do we still need more pages?" check
                 merged_so_far = merge_extractions(*extractions)
                 needs_contact = not all(merged_so_far.get(k) for k in ("phone", "email", "postcode"))
-    return merge_extractions(*extractions), pages_fetched
+
+    merged = merge_extractions(*extractions)
+    blocked = bool(merged.get("blocked"))
+    substantive = any(merged.get(k) for k in ("phone", "email", "address_line1", "postcode"))
+
+    # 3. Headless (JS-rendering) fallback — only when the plain read was
+    #    blocked or thin. Renders the homepage in Chromium and re-extracts.
+    if blocked or not substantive:
+        rendered = await _headless_scrape(base, need_contact=not substantive)
+        if rendered:
+            r_extractions, r_pages = rendered
+            if blocked:
+                # A challenge page yields only a domain name — drop those
+                # httpx extractions so the real rendered data wins.
+                extractions = r_extractions + [e for e in extractions if not e.get("blocked")]
+            else:
+                extractions = extractions + r_extractions
+            pages_fetched += r_pages
+            merged = merge_extractions(*extractions)
+
+    return merged, pages_fetched
+
+
+async def _headless_scrape(base: str, need_contact: bool) -> tuple[list[dict], list[str]] | None:
+    """Render the homepage (+ optional contact page) in headless Chromium
+    and extract company info. Returns (extractions, pages) or None."""
+    try:
+        from utils.headless_fetch import render_html
+    except Exception:  # noqa: BLE001
+        return None
+
+    extractions: list[dict] = []
+    pages: list[str] = []
+    home_html = await render_html(base + "/")
+    if home_html:
+        info = extract_company_info(home_html, base)
+        if info:
+            extractions.append(info)
+            pages.append("/ (rendered)")
+            merged = merge_extractions(*extractions)
+            need_contact = not all(merged.get(k) for k in ("phone", "email", "postcode"))
+
+    if need_contact:
+        for path in CONTACT_PATHS[:2]:
+            html = await render_html(base + path)
+            if not html:
+                continue
+            extra = extract_company_info(html, base)
+            if extra:
+                extractions.append(extra)
+                pages.append(f"{path} (rendered)")
+            merged = merge_extractions(*extractions)
+            if all(merged.get(k) for k in ("phone", "email", "postcode")):
+                break
+
+    return (extractions, pages) if extractions else None
 
 
 @router.post("/companies/recognize-from-website")

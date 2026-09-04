@@ -72,8 +72,9 @@ export const splitLegacyAddress = (legacy = '') => {
   return out;
 };
 
-/** Postcode input with autocomplete + auto-fill via postcodes.io. */
-const PostcodeInput = ({ value, onChange, onResolve, testId, inputClassName }) => {
+/** Postcode input with autocomplete + auto-fill via postcodes.io (UK) /
+ *  Zippopotam.us (international, routed by the Country field). */
+const PostcodeInput = ({ value, onChange, onResolve, testId, inputClassName, country }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [open, setOpen] = useState(false);
   const [valid, setValid] = useState(null); // null | true | false
@@ -110,7 +111,7 @@ const PostcodeInput = ({ value, onChange, onResolve, testId, inputClassName }) =
   };
 
   const commit = async (postcode) => {
-    if (!postcode || postcode.replace(/\s+/g, '').length < 5) {
+    if (!postcode || postcode.replace(/\s+/g, '').length < 3) {
       setValid(null);
       return;
     }
@@ -118,7 +119,7 @@ const PostcodeInput = ({ value, onChange, onResolve, testId, inputClassName }) =
     try {
       const r = await axios.get(`${API}/integrations/postcode/lookup`, {
         ...auth(),
-        params: { postcode },
+        params: { postcode, country: country || undefined },
       });
       if (r.data?.found) {
         setValid(true);
@@ -261,6 +262,7 @@ export const AddressFields = ({
           onResolve={onPostcodeResolved}
           testId={`${testIdPrefix}-postcode`}
           inputClassName={`${inputCls} pr-7 font-mono`}
+          country={v.country}
         />
       </div>
       <div>

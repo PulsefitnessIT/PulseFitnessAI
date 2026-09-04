@@ -27,9 +27,11 @@ router = APIRouter()
 @router.get("/integrations/postcode/lookup")
 async def postcode_lookup(
     postcode: str = Query(..., min_length=2, max_length=12),
+    country: str | None = Query(None, max_length=64),
 ) -> dict:
-    """Validate + look up a UK postcode."""
-    result = await pc_lookup(postcode)
+    """Validate + look up a postcode worldwide (UK via postcodes.io, the
+    rest via Zippopotam.us — routed by the optional `country` hint)."""
+    result = await pc_lookup(postcode, country)
     if not result:
         return {"found": False, "postcode": postcode}
     return {"found": True, **result}
