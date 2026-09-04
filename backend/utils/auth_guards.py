@@ -163,9 +163,19 @@ def enforce_master_admin_mfa(user: dict) -> None:
     if not is_admin:
         return
     if not user.get("_jwt_mfa_verified"):
+        # Iter (Jun 2026) — instead of forcing a full sign-out/-in, prompt the
+        # inline authenticator step-up (§18). The frontend axios interceptor
+        # catches this 403 shape, opens <StepUpDialog>, and transparently
+        # retries once the master admin enters their code. get_current_user
+        # then treats the fresh step-up as MFA-verified, so the retry passes
+        # (and further privileged actions pass for the step-up TTL window).
         raise HTTPException(
-            status_code=401,
-            detail="Master admin MFA required. Sign out, sign back in, and complete your authenticator code.",
+            status_code=403,
+            detail={
+                "error": "step_up_required",
+                "mfa_enabled": True,
+                "action": "master_admin_action",
+            },
         )
 
 

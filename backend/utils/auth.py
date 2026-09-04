@@ -338,6 +338,23 @@ async def _load_user_core(
     # ``require_mfa_verified`` / ``enforce_master_admin_mfa`` can
     # short-circuit without re-reading the JWT.
     user["_jwt_mfa_verified"] = bool(payload.get("mfa_verified"))
+    # Iter (Jun 2026) — a fresh authenticator step-up (§18) counts as an MFA
+    # confirmation for privileged master-admin gates, so admins can confirm
+    # once inline instead of a full sign-out/-in. Only checked for admins whose
+    # session isn't already MFA-stamped (one indexed lookup, skipped otherwise).
+    if not user["_jwt_mfa_verified"]:
+        _is_admin = bool(
+            user.get("is_master_admin")
+            or user.get("is_pulse_admin")
+            or (user.get("role") or "").lower() in ("master_admin", "pulse_master_admin")
+        )
+        if _is_admin:
+            try:
+                from utils.step_up import is_step_up_fresh
+                if await is_step_up_fresh(user):
+                    user["_jwt_mfa_verified"] = True
+            except Exception:
+                pass
     # Iter 216h124 — MOD HQ users see their entire estate by default.
     # Stash the child mod_site org ids on the user dict so the
     # synchronous `get_organization_filter` can fan out queries

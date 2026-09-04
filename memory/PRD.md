@@ -1,3 +1,27 @@
+# ═══ 2026-06 · MASTER ADMIN — inline step-up instead of "sign out to save" · tested, PENDING REDEPLOY ═══
+Owner ask: saving org settings (any master-admin write) demanded a full sign-out/-in + re-enter
+authenticator. Replaced with the app's existing inline step-up dialog.
+- ROOT: utils/auth_guards.py enforce_master_admin_mfa (called by require_master_admin, 422 sites)
+  hard-401'd "Sign out, sign back in…" whenever the JWT lacked mfa_verified (ENFORCE_MASTER_ADMIN_MFA
+  = true in env). The app already had a full inline step-up flow (StepUpDialog + App.js axios
+  interceptor on 403 {error:step_up_required} + POST /auth/step-up recording a 300s step-up) used
+  for other destructive actions — the master-admin gate just wasn't using it.
+- FIX (backend only, keeps the sync guard — no 422-caller async refactor):
+  1. utils/auth.py _load_user_core: after reading _jwt_mfa_verified, if false AND the caller is an
+     admin, treat a fresh authenticator step-up (utils/step_up.is_step_up_fresh, email-keyed, TTL
+     300s) as MFA-verified. One indexed lookup, only for admins without an MFA-stamped session.
+  2. utils/auth_guards.py enforce_master_admin_mfa: raise 403 {error:step_up_required, mfa_enabled:
+     true, action:master_admin_action} instead of the 401 sign-out message.
+- FLOW: admin Save → 403 step_up_required → interceptor opens <StepUpDialog> ("Confirm it's you",
+  6-digit code) → POST /auth/step-up (TOTP) records step-up → interceptor retries once →
+  get_current_user now sees fresh step-up → guard passes. Valid for the 300s TTL so repeated saves
+  don't re-prompt. NO sign-out. Frontend already wired (StepUpDialog mounted App.js:968) — no FE change.
+- TESTED via API with a temp master admin (mfa_verified=false token): master-admin endpoint returned
+  403 step_up_required; after record_step_up the retry returned 200; temp data cleaned up.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFFING — assign Service Desk + Inventory to staff · tested, PENDING REDEPLOY ═══
 Owner ask: "Operations → Staffing — assign modules to staff within the staff accounts,
 including Service Desk and Inventory."
