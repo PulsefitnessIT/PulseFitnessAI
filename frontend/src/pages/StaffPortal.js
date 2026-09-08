@@ -619,15 +619,25 @@ function Stat({ label, value }) {
 function HolidaysTab({ H }) {
   const [data, setData] = useState(null);
   const [form, setForm] = useState({ start_date: '', end_date: '', note: '' });
+  const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
   const load = useCallback(() => { axios.get(`${API}/new-starter/portal/holidays`, { headers: H }).then((r) => setData(r.data)).catch(() => setData({ mine: [], team: [], allowance: {} })); }, [H]);
   useEffect(() => { load(); }, [load]);
 
+  // Live working-days preview (excludes weekends + bank holidays) once both dates are set.
+  useEffect(() => {
+    if (!form.start_date || !form.end_date || form.end_date < form.start_date) { setPreview(null); return; }
+    let alive = true;
+    axios.get(`${API}/new-starter/portal/holidays/preview`, { headers: H, params: { start: form.start_date, end: form.end_date } })
+      .then((r) => { if (alive) setPreview(r.data); }).catch(() => { if (alive) setPreview(null); });
+    return () => { alive = false; };
+  }, [form.start_date, form.end_date, H]);
+
   const submit = async () => {
     setBusy(true); setErr('');
-    try { await axios.post(`${API}/new-starter/portal/holidays`, form, { headers: H }); setForm({ start_date: '', end_date: '', note: '' }); load(); }
+    try { await axios.post(`${API}/new-starter/portal/holidays`, form, { headers: H }); setForm({ start_date: '', end_date: '', note: '' }); setPreview(null); load(); }
     catch (e) { setErr(e?.response?.data?.detail || 'Could not submit request.'); }
     finally { setBusy(false); }
   };
@@ -648,11 +658,20 @@ function HolidaysTab({ H }) {
             <label className="block"><span className="text-xs text-slate-500">To</span>
               <input type="date" value={form.end_date} onChange={(e) => setForm((p) => ({ ...p, end_date: e.target.value }))} data-testid="holiday-end" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
           </div>
+          {preview && (
+            <div className="mt-3 flex items-center gap-2 rounded-lg bg-cyan-50 border border-cyan-200 px-3 py-2 text-sm text-cyan-800" data-testid="holiday-working-days">
+              <Calendar size={15} />
+              <span><strong>{preview.working_days}</strong> working day{preview.working_days === 1 ? '' : 's'} will be deducted{preview.bank_holidays > 0 ? ` — ${preview.bank_holidays} bank holiday${preview.bank_holidays === 1 ? '' : 's'} excluded` : ''}.
+                {typeof a.remaining === 'number' && preview.working_days > a.remaining && <span className="ml-1 font-semibold text-amber-700">More than your {a.remaining} remaining — your manager will review.</span>}
+              </span>
+            </div>
+          )}
           <input value={form.note} onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))} data-testid="holiday-note" placeholder="Note (optional)" className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           {err && <div className="text-red-500 text-sm mt-2" data-testid="holiday-error">{err}</div>}
           <button onClick={submit} disabled={busy || !form.start_date || !form.end_date} data-testid="holiday-submit"
             className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-40" style={{ background: CORE }}>
             <Plus size={15} /> {busy ? 'Submitting…' : 'Submit request'}</button>
+          <p className="mt-2 text-[11px] text-slate-500">Your request is routed to your line manager for approval. We count working days only.</p>
         </Card>
 
         <Card testId="staff-holiday-mine">
@@ -661,7 +680,10 @@ function HolidaysTab({ H }) {
             <div className="space-y-2">
               {data.mine.map((r) => (
                 <div key={r.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-2.5" data-testid={`holiday-row-${r.id}`}>
-                  <div className="text-sm text-slate-700">{fmtDate(r.start_date)} → {fmtDate(r.end_date)}<span className="ml-2 text-xs capitalize text-slate-400">{r.leave_type}</span></div>
+                  <div className="text-sm text-slate-700">{fmtDate(r.start_date)} → {fmtDate(r.end_date)}
+                    <span className="ml-2 text-xs capitalize text-slate-400">{r.leave_type}</span>
+                    {typeof r.working_days === 'number' && <span className="ml-2 text-xs font-semibold text-cyan-700" data-testid={`holiday-days-${r.id}`}>{r.working_days} day{r.working_days === 1 ? '' : 's'}</span>}
+                  </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${tone[r.status] || tone.pending}`}>{r.status}</span>
                     {r.status === 'pending' && <button onClick={() => cancel(r.id)} data-testid={`holiday-cancel-${r.id}`} className="text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>}

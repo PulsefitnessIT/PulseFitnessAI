@@ -36451,3 +36451,11 @@ Portal User Guide:
 - Frontend: StaffPortal "My Day" shows an RTW acknowledgement banner (data-testid `rtw-ack-card-<id>`, `rtw-ack-agree-<id>`, `rtw-ack-comment-<id>`, `rtw-ack-submit-<id>`). AttendanceTab board shows "Return-to-work sign-offs" panel (data-testid `attendance-rtw-signoffs`, `rtw-signoff-<id>`, `rtw-signoff-emp-pending-<id>` / `rtw-signoff-emp-done-<id>`).
 - Verified end-to-end via curl + FE screenshot (owner@isodemo.com closes → portal.staff acknowledges → manager panel flips to "Employee ✓"). No email notifications (per user choice 3a).
 
+
+
+## 2026-09-08 — Leave Request Workflow (auto-calculated working days) [§14/§15]
+- Employees request holiday from the Staff Portal; the system auto-calculates WORKING days only (excludes their rest days per working pattern + gov.uk bank holidays) and routes the request to their line manager for approval (existing StaffingConsole "Time Off" tab → approve/reject → fans out to attendance spine).
+- Backend: new `count_working_days(org_id, staff, start, end)` in attendance.py (reusable, pattern + bank-holiday aware). `POST /api/new-starter/portal/holidays` now stores `working_days` + `bank_holidays_in_range` and rejects weekend/BH-only ranges (400). New `GET /api/new-starter/portal/holidays/preview?start=&end=` for the live count. Allowance `used`/`remaining` now computed from working days (stored, with fallback compute for legacy rows).
+- Frontend: StaffPortal HolidaysTab shows a live "N working days will be deducted" banner (data-testid `holiday-working-days`), per-request day count (`holiday-days-<id>`), and an over-allowance hint. StaffingConsole LeaveTab row shows `· Nd` (data-testid `leave-days-<id>`) for portal requests.
+- Verified via curl (preview=6, submit stores 6, manager list shows working_days, weekend-only→400, approve deducts allowance to used=6) + FE screenshot of the live preview.
+

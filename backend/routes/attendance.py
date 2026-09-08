@@ -229,6 +229,40 @@ def _expected_for_date(pattern: dict, date_iso: str) -> dict:
             "break_minutes": brk, "expected_hours": round(float(exp_h), 2)}
 
 
+async def count_working_days(org_id: str, staff: dict, start_iso: str, end_iso: str) -> dict:
+    """Working days an employee would otherwise have worked across an inclusive
+    date range — excludes rest days (their working pattern) and bank holidays.
+    Reused for holiday deduction so the figure always matches the spine."""
+    try:
+        s = date.fromisoformat(start_iso)
+        e = date.fromisoformat(end_iso)
+    except Exception:
+        return {"working_days": 0, "dates": [], "bank_holidays": 0}
+    if e < s:
+        s, e = e, s
+    profile = await _resolve_profile(org_id, staff)
+    pattern = await _pattern_for(org_id, profile)
+    region = profile.get("bank_holiday_region") or DEFAULT_REGION
+    bh: set[str] = set()
+    for yr in range(s.year, e.year + 1):
+        try:
+            bh |= await _bank_holiday_dates(region, yr)
+        except Exception:
+            pass
+    dates: list[str] = []
+    bh_hit = 0
+    cur = s
+    while cur <= e:
+        iso = cur.isoformat()
+        if _expected_for_date(pattern, iso)["expected_status"] == "working":
+            if iso in bh:
+                bh_hit += 1
+            else:
+                dates.append(iso)
+        cur += timedelta(days=1)
+    return {"working_days": len(dates), "dates": dates, "bank_holidays": bh_hit}
+
+
 # ───────────────────────── Bank holidays (gov.uk) ─────────────────────────
 
 async def _bank_holiday_dates(division: str, year: int) -> set[str]:

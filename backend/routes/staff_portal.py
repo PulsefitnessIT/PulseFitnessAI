@@ -192,12 +192,15 @@ async def portal_holidays(user: dict = Depends(get_current_user_portal)):
     m = re.search(r"\d+", str(ent))
     total = int(m.group()) if m else 28
     yr = date.today().year
-    used = sum(
-        _days_between(r["start_date"], r["end_date"])
-        for r in mine
-        if r.get("leave_type") == "holiday" and r.get("status") == "approved"
-        and str(r.get("start_date", "")).startswith(str(yr))
-    )
+    from routes.attendance import count_working_days
+    used = 0
+    for r in mine:
+        if (r.get("leave_type") == "holiday" and r.get("status") == "approved"
+                and str(r.get("start_date", "")).startswith(str(yr))):
+            wd = r.get("working_days")
+            if wd is None:
+                wd = (await count_working_days(org, staff, r["start_date"], r["end_date"]))["working_days"]
+            used += wd
 
     # Team calendar — APPROVED holidays of same-department colleagues only.
     dept = await _department(staff)
@@ -234,11 +237,15 @@ class HolidayRequest(BaseModel):
 
 @router.post("/new-starter/portal/holidays")
 async def portal_request_holiday(body: HolidayRequest, user: dict = Depends(get_current_user_portal)):
+    from routes.attendance import count_working_days
     staff = await _portal_staff(user)
     if not body.start_date or not body.end_date:
         raise HTTPException(400, "Start and end dates are required.")
     if body.end_date < body.start_date:
         raise HTTPException(400, "End date can't be before the start date.")
+    wd = await count_working_days(staff["organization_id"], staff, body.start_date, body.end_date)
+    if wd["working_days"] < 1:
+        raise HTTPException(400, "That range has no working days (weekend / bank holiday only).")
     doc = {
         "id": str(uuid.uuid4()),
         "organization_id": staff["organization_id"],
@@ -247,12 +254,26 @@ async def portal_request_holiday(body: HolidayRequest, user: dict = Depends(get_
         "leave_type": "holiday",
         "start_date": body.start_date,
         "end_date": body.end_date,
+        "working_days": wd["working_days"],
+        "bank_holidays_in_range": wd["bank_holidays"],
         "reason": body.note,
         "created_at": _now(),
         "requested_via": "staff_portal",
     }
     await db.staff_leave_requests.insert_one(doc.copy())
     return _clean(doc)
+
+
+@router.get("/new-starter/portal/holidays/preview")
+async def portal_holiday_preview(start: str = Query(...), end: str = Query(...),
+                                 user: dict = Depends(get_current_user_portal)):
+    """Live working-days count for the request form (excludes rest days + bank holidays)."""
+    from routes.attendance import count_working_days
+    staff = await _portal_staff(user)
+    if end < start:
+        return {"working_days": 0, "bank_holidays": 0}
+    wd = await count_working_days(staff["organization_id"], staff, start, end)
+    return {"working_days": wd["working_days"], "bank_holidays": wd["bank_holidays"]}
 
 
 @router.delete("/new-starter/portal/holidays/{leave_id}")

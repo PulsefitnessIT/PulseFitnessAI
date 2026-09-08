@@ -1012,7 +1012,7 @@ function LeaveTab({ headers, isManager }) {
             <tbody>
               {rows.map((l) => (
                 <tr key={l.id} className="border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`leave-row-${l.id}`}>
-                  <td className="py-2 px-2 text-xs">{l.start_date} → {l.end_date}</td>
+                  <td className="py-2 px-2 text-xs">{l.start_date} → {l.end_date}{typeof l.working_days === 'number' && <span className="ml-2 font-semibold" style={{ color: 'var(--color-brand-cyan)' }} data-testid={`leave-days-${l.id}`}>· {l.working_days}d</span>}</td>
                   <td className="py-2 px-2 text-xs uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>{l.leave_type}</td>
                   <td className="py-2 px-2 text-xs"><StatusBadge status={l.status} /></td>
                   {isManager && l.status === 'pending' && (
