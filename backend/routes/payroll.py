@@ -312,7 +312,34 @@ async def return_for_correction(period_id: str, staff_id: str = Body(...), reaso
     return {"ok": True}
 
 
-# ───────────────────────── lock / snapshot / adjustment ─────────────────────────
+@router.post("/payroll/periods/{period_id}/approve-ready")
+async def approve_ready(period_id: str, user: dict = Depends(get_current_user)):
+    """Bulk-approve every employee who has submitted and carries no blocking
+    exception, leaving payroll only the genuine exceptions to review."""
+    _require_manager(user)
+    org_id = _org(user)
+    period = await _period(org_id, period_id)
+    if period["status"] == "locked":
+        raise HTTPException(409, "period is locked")
+    staff = await db.staff_members.find(
+        {"organization_id": org_id, "active": {"$ne": False}}, {"_id": 0},
+    ).to_list(1000)
+    approved, skipped = 0, []
+    for s in staff:
+        row = await _build_row(org_id, s, period, recompute=False)
+        if row["status"] not in ("submitted", "returned"):
+            continue
+        blocking = [e for e in row["exceptions"] if e != "missing_approval"]
+        if blocking:
+            skipped.append({"staff_id": s["id"], "full_name": s.get("full_name"), "reasons": blocking})
+            continue
+        await db.pay_period_timesheets.update_one(
+            {"organization_id": org_id, "period_id": period_id, "staff_id": s["id"]},
+            {"$set": {"status": "approved", "approved_by": user.get("email"),
+                      "approved_at": _now().isoformat(), "returned_reason": None}},
+        )
+        approved += 1
+    return {"approved": approved, "skipped": skipped, "skipped_count": len(skipped)}
 @router.post("/payroll/periods/{period_id}/lock")
 async def lock_period(period_id: str, user: dict = Depends(get_current_user)):
     """Freeze an immutable payroll snapshot (§39/§42). Later attendance edits

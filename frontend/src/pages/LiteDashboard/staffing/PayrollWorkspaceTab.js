@@ -64,6 +64,10 @@ export default function PayrollWorkspaceTab({ headers }) {
   const approve = (staff_id) => act(() => axios.post(`${API}/payroll/periods/${sel}/approve`, { staff_id }, { headers }));
   const submitBehalf = (staff_id) => act(() => axios.post(`${API}/payroll/periods/${sel}/submit`, { staff_id, declaration: true }, { headers }));
   const lock = () => { if (window.confirm('Lock this period? A permanent payroll snapshot is created and it can no longer be edited without an adjustment.')) act(() => axios.post(`${API}/payroll/periods/${sel}/lock`, {}, { headers })); };
+  const approveReady = () => act(async () => {
+    const r = await axios.post(`${API}/payroll/periods/${sel}/approve-ready`, {}, { headers });
+    alert(`Approved ${r.data.approved} clean employee${r.data.approved === 1 ? '' : 's'}. ${r.data.skipped_count} left as exception${r.data.skipped_count === 1 ? '' : 's'} to review.`);
+  });
 
   const exportCsv = async () => {
     const res = await fetch(`${API}/payroll/periods/${sel}/export`, { headers: { Authorization: `Bearer ${token()}` } });
@@ -114,6 +118,8 @@ export default function PayrollWorkspaceTab({ headers }) {
               <div className="flex gap-2">
                 <button onClick={exportCsv} data-testid="payroll-export"
                   className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold"><Download size={13} /> Export CSV</button>
+                {!locked && s.awaiting_approval > 0 && <button onClick={approveReady} disabled={busy} data-testid="payroll-approve-ready"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-semibold"><CheckCircle2 size={13} /> Approve all ready</button>}
                 {!locked && <button onClick={lock} disabled={busy} data-testid="payroll-lock"
                   className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-violet-600 text-white text-xs font-semibold"><Lock size={13} /> Lock period</button>}
                 {locked && <span className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-violet-700"><ShieldCheck size={14} /> Snapshot locked</span>}

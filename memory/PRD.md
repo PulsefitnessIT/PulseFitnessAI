@@ -1,3 +1,18 @@
+# ═══ 2026-06 · PAYROLL WORKSPACE — "APPROVE ALL READY" · curl-verified both paths ═══
+One-click bulk approve so payroll is left only with genuine exceptions.
+- BACKEND routes/payroll.py: POST /payroll/periods/{id}/approve-ready (manager, 409 if locked) → approves every
+  timesheet in status submitted/returned whose exceptions (excluding the inherent 'missing_approval') are empty;
+  returns {approved, skipped[], skipped_count}. Uses _build_row(recompute=False) for exception evaluation.
+- FRONTEND PayrollWorkspaceTab.js: green "Approve all ready" button in the workspace toolbar, shown only when
+  summary.awaiting_approval > 0 and period not locked (data-testid payroll-approve-ready); alerts approved vs
+  skipped counts and reloads.
+- VERIFIED curl: negative path (2 exception rows → approved 0, skipped 2 with reasons) AND positive path (clean
+  employee: payroll# set + full day entry → exceptions just ['missing_approval'] → approved 1, skipped 0). Test
+  data reverted. FE compiles clean.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF PORTAL PROGRAMME — PAYROLL REPORTS (§43) · BE curl-verified + FE compiled ═══
 Reporting over any date range, built on the SPINE (no separate reporting engine — reuses the existing
 one-endpoint + recharts dashboard pattern).
