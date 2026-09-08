@@ -240,32 +240,65 @@ function CorrectModal({ row, statuses, headers, onClose, onSaved }) {
 
 function ReturnToWorkModal({ row, headers, onClose, onSaved }) {
   const [rd, setRd] = useState(() => new Date().toISOString().slice(0, 10));
+  const [reason, setReason] = useState('');
+  const [fit, setFit] = useState('yes');
+  const [fitDetails, setFitDetails] = useState('');
+  const [actions, setActions] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const save = async () => {
     setSaving(true); setErr('');
     try {
-      await axios.post(`${API}/attendance/absence/${row.leave_event_id}/close`, { return_date: rd }, { headers });
+      await axios.post(`${API}/attendance/absence/${row.leave_event_id}/close`,
+        { return_date: rd, reason, fit_to_return: fit, fit_details: fitDetails, agreed_actions: actions },
+        { headers });
       onSaved();
     } catch (e) { setErr(e?.response?.data?.detail || 'Could not close absence'); setSaving(false); }
   };
+  const FIT = [['yes', 'Fit to return'], ['phased', 'Yes — phased return'], ['no', 'Not fit']];
   return createPortal(
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4" data-testid="attendance-rtw-modal">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-base font-bold text-slate-900">Return to work — {row.full_name}</h3>
+      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-base font-bold text-slate-900">Return to Work — {row.full_name}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
         </div>
-        <p className="text-xs text-slate-500 mb-3">Set the first day back. Days from then on stop being marked sick.</p>
-        <label className="block text-xs font-semibold text-slate-600 mb-3">First day back
+        <p className="text-[11px] text-slate-400 mb-3">Private &amp; confidential · complete on the employee's return.</p>
+
+        <label className="block text-xs font-semibold text-slate-600 mb-2">First day back
           <input type="date" value={rd} onChange={(e) => setRd(e.target.value)} data-testid="attendance-rtw-date"
             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+
+        <label className="block text-xs font-semibold text-slate-600 mb-2">Reason for absence
+          <input value={reason} onChange={(e) => setReason(e.target.value)} data-testid="attendance-rtw-reason"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+
+        <div className="mb-2">
+          <div className="text-xs font-semibold text-slate-600 mb-1">Fit to return?</div>
+          <div className="flex gap-1.5 flex-wrap">
+            {FIT.map(([k, l]) => (
+              <button key={k} onClick={() => setFit(k)} data-testid={`attendance-rtw-fit-${k}`}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border ${fit === k ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500'}`}>{l}</button>
+            ))}
+          </div>
+        </div>
+        {(fit === 'phased' || fit === 'no') && (
+          <label className="block text-xs font-semibold text-slate-600 mb-2">Please give details
+            <input value={fitDetails} onChange={(e) => setFitDetails(e.target.value)} data-testid="attendance-rtw-fit-details"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+        )}
+
+        <label className="block text-xs font-semibold text-slate-600 mb-3">Agreed actions to avoid further absence
+          <textarea value={actions} onChange={(e) => setActions(e.target.value)} data-testid="attendance-rtw-actions" rows={2}
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+
         {err && <div className="text-xs text-rose-600 mb-2" data-testid="attendance-rtw-error">{err}</div>}
+        <p className="text-[11px] text-slate-400 mb-3">Submitting records your electronic sign-off as interviewer (name, role, date &amp; time).</p>
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600">Cancel</button>
           <button onClick={save} disabled={saving} data-testid="attendance-rtw-save"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold disabled:opacity-60">
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Close absence
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Close &amp; record
           </button>
         </div>
       </div>

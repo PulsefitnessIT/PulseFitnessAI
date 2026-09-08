@@ -790,6 +790,10 @@ async def clear_override(record_id: str, user: dict = Depends(get_current_user))
 
 class ReturnToWorkBody(BaseModel):
     return_date: str
+    reason: str | None = None
+    fit_to_return: str | None = None      # yes | phased | no
+    fit_details: str | None = None
+    agreed_actions: str | None = None
 
 
 @router.post("/attendance/absence/{leave_id}/close")
@@ -812,10 +816,19 @@ async def close_absence(leave_id: str, body: ReturnToWorkBody,
         raise HTTPException(400, "return date must be after the first day of absence")
     new_end = (rd - timedelta(days=1)).isoformat()
     old_end = leave.get("end_date") or _today()
+    rtw = {
+        "reason": (body.reason or "").strip() or leave.get("reason"),
+        "fit_to_return": body.fit_to_return,
+        "fit_details": (body.fit_details or "").strip() or None,
+        "agreed_actions": (body.agreed_actions or "").strip() or None,
+        "interviewer": user.get("email"),
+        "completed_at": _now().isoformat(),
+    }
     await db.staff_leave_requests.update_one(
         {"organization_id": org_id, "id": leave_id},
         {"$set": {"end_date": new_end, "return_date": body.return_date, "status": "approved",
-                  "closed_by": user.get("email"), "closed_at": _now().isoformat()}},
+                  "closed_by": user.get("email"), "closed_at": _now().isoformat(),
+                  "rtw_interview": rtw}},
     )
     last = max(date.fromisoformat(old_end), rd, date.today())
     cur = start

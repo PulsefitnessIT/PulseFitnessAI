@@ -1,14 +1,18 @@
-# ═══ 2026-06 · ATTENDANCE — RETURN-TO-WORK CLOSE (§20/§21) · curl-verified ═══
-Managers can close an open-ended sickness so forward SICK marking stops.
-- BACKEND routes/attendance.py: POST /attendance/absence/{leave_id}/close {return_date} (manager) → caps the
-  leave end_date at return_date-1, records return_date/closed_by/closed_at, and recomputes start..max(old_end,
-  return_date,today) so days from the return date onward re-derive (weekend→off, else pattern/clock/not_confirmed).
-  Rejects return_date <= start (400). Board rows now expose leave_event_id.
-- FRONTEND AttendanceTab.js: sick rows on the Attendance Board show a green 'Return to work' action
-  (attendance-rtw-<staff_id>) → ReturnToWorkModal (attendance-rtw-date/-save) → POST close, then reloads.
-- VERIFIED curl: open-ended sick from 09-02 (marking to today) → close return 09-05 → sick_through 09-04, days
-  09-05+ reverted. FE compiles clean. Test data cleaned.
+# ═══ 2026-06 · ATTENDANCE — RETURN-TO-WORK CLOSE (§20/§21) + RTW INTERVIEW (Pulse form) · curl-verified ═══
+Managers close an open-ended sickness so forward SICK marking stops, capturing Pulse's Return to Work
+Interview electronically (per the uploaded RTW.pdf; §35 electronic sign-off, no scanned signatures).
+- BACKEND routes/attendance.py: POST /attendance/absence/{leave_id}/close now takes {return_date, reason,
+  fit_to_return(yes|phased|no), fit_details, agreed_actions} → caps end_date at return-1, recomputes
+  start..max(old_end,return,today) so days from the return re-derive, and stores rtw_interview{reason,
+  fit_to_return,fit_details,agreed_actions,interviewer=user.email,completed_at} on the leave. Board rows
+  expose leave_event_id.
+- FRONTEND AttendanceTab.js ReturnToWorkModal: Pulse RTW form — first day back, reason, Fit-to-return pills
+  (Fit / Phased / Not fit) with conditional details, agreed actions; notes the electronic interviewer sign-off.
+  Triggered by the green 'Return to work' action on sick board rows (attendance-rtw-*).
+- VERIFIED curl: close return 09-05 w/ RTW (reason Flu, phased, details, actions) → sick_through 09-04, days
+  reverted, rtw_interview persisted with interviewer + timestamp. FE compiles clean. Test data cleaned.
 ─────────────────────────────────────────────────────────────────────────────
+
 
 
 
