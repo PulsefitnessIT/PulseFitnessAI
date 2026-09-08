@@ -1,0 +1,40 @@
+{
+  "summary": "Tested the post-login launcher for owner@isodemo.com. Backend GET /api/staffing/me/portal-access returns {has_staff_portal:true, full_name:'Demo Owner'} correctly (200). Frontend: navigating directly to /launch renders the launcher page with all 3 expected cards (launch-staff, launch-operations, launch-service_desk) and clicking Operations navigates to /dashboard. TWO CRITICAL BUGS FOUND: (1) POST-LOGIN REDIRECT bypasses /launch — /login sends owner to /service-desk instead of /launch because LoginRedirectPage.js checks user.is_service_desk BEFORE the /launch fallback, and owner has is_service_desk=true. (2) STAFF PORTAL from launcher does not load — clicking launch-staff navigates to /staff-portal, StaffPortal.js calls /api/new-starter/me with the platform token which returns 404 'No onboarding case' (owner has a staff_members record linked but no onboarding_case), so StaffPortal falls back to /launch and staff-my-day never renders.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/new-starter/me", "issue": "For linked staff_members (owner@isodemo.com) without an onboarding_case, returns 404 'No onboarding case'. Launcher's has_staff_portal=true criterion (based on staff_members) is inconsistent with StaffPortal's data source (new-starter/me requires onboarding_case). Either seed a case for the owner, or make StaffPortal render My Day from staff_members + staffing endpoints when the onboarding case is missing (activated employees don't need a new-starter case)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "LoginRedirectPage.js", "issue": "Owner (is_service_desk=true) is redirected to /service-desk on login, never reaching /launch, so the chooser is never shown. Task requires owner (Staff Portal + multiple modules) to see the launcher. The is_service_desk branch should not short-circuit users who also have Staff Portal + other modules; consider deferring to /launch when the user has 2+ destinations, or gating the is_service_desk branch on 'is_service_desk_only'.", "selector": "n/a (routing)", "priority": "HIGH"},
+      {"component": "StaffPortal.js", "issue": "Clicking launch-staff opens /staff-portal which calls /new-starter/me. Owner returns 404 → StaffPortal.js bounces back to /launch (usingPlatformToken branch). Result: launcher → Staff Portal card is broken end-to-end for owner. staff-my-day never renders. Either use /staffing/me/portal-access (already returns full_name) or a new /staff-portal/my-day endpoint that works without a new-starter case, or auto-create/backfill an onboarding_case on staff_members link.", "selector": "[data-testid=staff-my-day]", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "One-login → Staff Portal from launcher", "issue": "Full flow fails: launcher renders correctly at /launch, but launch-staff → /staff-portal → 404 on /new-starter/me → redirect back to /launch (loop). staff-my-day is never visible.", "affected_selectors": ["[data-testid=launch-staff]", "[data-testid=staff-my-day]"]},
+      {"flow": "Post-login redirect to launcher", "issue": "Signing in at /login with owner@isodemo.com lands on /service-desk, not /launch — the chooser is never presented.", "affected_selectors": ["[data-testid=launcher-page]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "CRITICAL: In LoginRedirectPage.js, do not short-circuit to /service-desk for users who have BOTH the Staff Portal AND additional modules — such users must land on /launch. Options: (a) call /api/staffing/me/portal-access before deciding the redirect, (b) always route through /launch and let LauncherPage decide (it already auto-redirects when only one destination), (c) only apply the is_service_desk shortcut when the user has no other module access AND no staff portal.",
+    "CRITICAL: Fix StaffPortal load path when user is a linked staff_member without an onboarding_case. Either (a) auto-provision an onboarding_case when staff_members is linked with active=true, (b) make /new-starter/me tolerant (return activated=true + person from staff_members when no case exists), or (c) point StaffPortal.js at a different bootstrap endpoint (e.g. /staffing/me + /staff-portal/my-day) for the platform-token flow.",
+    "Operations card from /launch works (navigates to /dashboard).",
+    "Backend /api/staffing/me/portal-access is correct — no change needed."
+  ],
+  "critical_code_review_comments": [
+    "LoginRedirectPage.js precedence — the is_service_desk shortcut runs before moduleHomePath()/'/launch', silently skipping the launcher for any user flagged as service desk. This is the ordering that breaks the new one-login → chooser flow.",
+    "LauncherPage.js is fine but relies on has_staff_portal being consistent with StaffPortal's bootstrap; today they read from different collections (staff_members vs onboarding_cases) → mismatch surfaces as a redirect loop.",
+    "StaffPortal.js catches ANY error on /new-starter/me and bounces to /launch — a 404 for a real staff member is treated the same as an auth failure. Consider distinguishing the two and rendering a fallback My Day."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "40%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! ; portal.staff@pulsedemo.test / Staff123! ; admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (MFA)",
+  "seed_data_creation": "None. Cleared owner lockout + rate-limit buckets in rate_buckets collection to allow backend curl tests to proceed after multiple failed attempts.",
+  "retest_needed": true,
+  "main_agent_can_self_test": false,
+  "context_for_next_testing_agent": "Backend /api/staffing/me/portal-access already confirmed 200 with has_staff_portal:true, full_name:'Demo Owner'. Two frontend bugs to fix before re-testing the full launcher happy path: LoginRedirectPage ordering + StaffPortal data-source mismatch. Master admin (admin@pulsefitness.com) was not tested to /master-admin due to MFA gate + rate-limit contention — task note said skipping was OK. The dedicated /staff-login regression was NOT re-run (blocked by rate limits during backend curl loop) — prior iteration_staff_portal_myday_phase2_retest_jan2026.json already validated it. Note: staff_portal login endpoint at /api/staff-portal/auth/login returned 404 — verify which route (/api/new-starter/staff-login?) is used by /staff-login UI.",
+  "rca of the issue": "Bug 1 (missed launcher): In /app/frontend/src/pages/LoginRedirectPage.js the fallback chain is `is_master_admin → is_service_desk → is_partner_engineer → lite/pulse_pro → moduleHomePath()||'/launch'`. Owner has is_service_desk=true so the chain stops at /service-desk before ever considering the launcher. Reproduction: sign in at /login with owner@isodemo.com / IsoDemo123! — lands directly on /service-desk. Mitigation: move the /launch fallback in front of role-specific shortcuts when the user has multiple destinations, or make is_service_desk conditional on `!has_staff_portal && !has_other_modules`. Bug 2 (staff-portal loop): /app/frontend/src/pages/StaffPortal.js calls /api/new-starter/me which requires an onboarding_case (routes/staff_onboarding_wizard.py::recruit_me → _recruit_case). Owner has a staff_members record linked but no onboarding_case, so the endpoint returns 404 and the catch-block redirects platform-token users to /launch — infinite bounce. Reproduction: cd /app/backend && curl /api/staffing/me/portal-access → has_staff_portal:true, but /api/new-starter/me → 404 'No onboarding case'. Mitigation: either (a) auto-create an onboarding_case when a user is linked as a staff_member with active=true, (b) relax /new-starter/me to synthesize a minimal 'activated' response from staff_members when no case exists, or (c) replace the bootstrap call in StaffPortal.js with an endpoint that also works for already-active staff (e.g. /api/staff-portal/my-day)."
+}

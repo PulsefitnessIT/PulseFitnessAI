@@ -1,3 +1,32 @@
+# ═══ 2026-06 · STAFF PORTAL PROGRAMME — POST-LOGIN LAUNCHER (one login → choose) · testing_agent 100% ═══
+User's one-login flow: staff sign in ONCE at /login then choose the Staff Portal OR any platform module
+they can access. Single-destination users skip the chooser (auto-redirect); master-admin & partner-engineer
+keep their dedicated homes.
+- BACKEND routes/staff_portal.py: GET /staffing/me/portal-access (platform token) → {has_staff_portal,
+  full_name}, true when a staff_members record links to the user (by user_id or email) in their org.
+- FRONTEND pages/LauncherPage.js (NEW, route /launch in AppRoutes.js): reads useAuth + hasModuleAccess
+  (reused from ModuleSwitcher) + portal-access; builds destination cards (Staff Portal first, then
+  Operations/Service Desk/Inventory/Memberships/CRM/Marketing/Comms per access). 0 dest → moduleHomePath
+  fallback; 1 → Navigate straight there; 2+ → branded chooser grid (data-testids launcher-page,
+  launch-staff, launch-operations, launch-service_desk, launch-<key>). CRM card does the crm cross-login
+  token exchange before navigating. Bypasses: master-admin→/master-admin, partner-engineer→/partner-engineer,
+  service-desk setup-incomplete→/service-desk/setup.
+- FRONTEND LoginRedirectPage.js: fallback simplified to '/launch' (was a chain that short-circuited
+  is_service_desk users to /service-desk before they could reach the chooser). Master-admin + partner-engineer
+  still bypass directly.
+- FRONTEND StaffPortal.js: (a) token = staff_jwt || platform 'token' so the portal opens from the launcher
+  with the single login; (b) on /new-starter/me failure with a platform token (activated staff with a
+  staff_members record but NO onboarding case → 404), fall back to /staffing/me/portal-access to render a
+  minimal profile so My Day/My Time still work; only a genuine non-portal user is sent to /staff-login.
+- TWO BUGS found+fixed mid-build (testing_agent): is_service_desk short-circuit (fixed in LoginRedirectPage)
+  and StaffPortal 404 for case-less activated staff (fixed with portal-access fallback).
+- VERIFIED testing_agent 100% BE+FE (owner@isodemo.com sees the 3-card chooser; Staff Portal opens from a
+  card with one login; Operations opens; dedicated /staff-login regression intact). Reports
+  iteration_staff_portal_launcher_jan2026.json (found bugs) + _retest.json (all green).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF PORTAL PROGRAMME — PHASE 2: EMPLOYEE MY DAY + MY TIME · testing_agent 100% (BE 6/6 + FE) ═══
 Mobile-first employee surface on the Phase-1 Attendance Spine — record a day in <10s, all writing the ONE
 DailyAttendanceRecord (ENTER ONCE → USE EVERYWHERE). Built into the EXISTING Staff Portal (/staff-portal,

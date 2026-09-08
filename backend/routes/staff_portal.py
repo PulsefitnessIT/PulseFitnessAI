@@ -463,6 +463,23 @@ async def portal_report_absence(body: AbsenceBody, user: dict = Depends(get_curr
             "open_ended": end_date is None}
 
 
+@router.get("/staffing/me/portal-access")
+async def my_portal_access(user: dict = Depends(get_current_user)):
+    """Post-login launcher probe — does the signed-in platform user also have
+    an employee Staff Portal? True when a staff_members record is linked to
+    their user id (or email) in their org."""
+    org = user.get("organization_id")
+    q = {"$or": [{"user_id": user.get("id")}]}
+    if user.get("email"):
+        q["$or"].append({"email": user.get("email")})
+    if org:
+        q["organization_id"] = org
+    staff = await db.staff_members.find_one(q, {"_id": 0, "full_name": 1, "active": 1})
+    return {"has_staff_portal": bool(staff and staff.get("active", True)),
+            "full_name": (staff or {}).get("full_name")}
+
+
+
 
 
 @router.get("/new-starter/portal/documents")

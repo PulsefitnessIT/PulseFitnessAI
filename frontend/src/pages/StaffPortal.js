@@ -40,16 +40,33 @@ const TABS = [
 ];
 
 export default function StaffPortal() {
-  const [jwt] = useState(() => sessionStorage.getItem('staff_jwt') || '');
+  const [jwt] = useState(() => sessionStorage.getItem('staff_jwt') || localStorage.getItem('token') || '');
   const [me, setMe] = useState(null);
   const [tab, setTab] = useState('home');
   const H = jwt ? { Authorization: `Bearer ${jwt}` } : {};
+  const usingPlatformToken = !sessionStorage.getItem('staff_jwt') && !!localStorage.getItem('token');
 
   useEffect(() => {
     if (!jwt) { window.location.href = '/staff-login'; return; }
     axios.get(`${API}/new-starter/me`, { headers: H })
       .then((r) => setMe(r.data))
-      .catch(() => { sessionStorage.removeItem('staff_jwt'); window.location.href = '/staff-login'; });
+      .catch(async () => {
+        // Activated staff opened from the launcher (platform token) may have a
+        // staff_members record but no onboarding case (/new-starter/me 404s).
+        // Fall back to a minimal profile so My Day / My Time still render.
+        if (usingPlatformToken) {
+          try {
+            const r = await axios.get(`${API}/staffing/me/portal-access`, { headers: H });
+            if (r.data?.has_staff_portal) {
+              setMe({ activated: true, person: { full_name: r.data.full_name },
+                portal_name: 'Pulse Fitness Staff Portal' });
+              return;
+            }
+          } catch { /* fall through */ }
+          window.location.href = '/launch'; return;
+        }
+        sessionStorage.removeItem('staff_jwt'); window.location.href = '/staff-login';
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jwt]);
 
