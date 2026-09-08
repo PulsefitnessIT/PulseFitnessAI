@@ -9,8 +9,9 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   Plus, Lock, Download, CheckCircle2, RotateCcw, AlertTriangle, X, Save,
-  Loader2, FileSpreadsheet, ShieldCheck, ChevronRight,
+  Loader2, FileSpreadsheet, ShieldCheck, ChevronRight, BarChart3, Table2,
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const token = () => localStorage.getItem('token');
@@ -41,6 +42,7 @@ export default function PayrollWorkspaceTab({ headers }) {
   const [adj, setAdj] = useState(null);
   const [ret, setRet] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [view, setView] = useState('workspace');
 
   const loadPeriods = useCallback(async () => {
     const r = await axios.get(`${API}/payroll/periods`, { headers });
@@ -76,6 +78,18 @@ export default function PayrollWorkspaceTab({ headers }) {
 
   return (
     <div className="space-y-4" data-testid="payroll-workspace">
+      <div className="flex items-center gap-1.5">
+        {[['workspace', 'Workspace', Table2], ['reports', 'Reports', BarChart3]].map(([id, label, Icon]) => (
+          <button key={id} onClick={() => setView(id)} data-testid={`payroll-view-${id}`}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border ${view === id ? 'border-cyan-500 text-cyan-700 bg-cyan-50' : 'border-slate-200 text-slate-500'}`}>
+            <Icon size={13} /> {label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'reports' && <PayrollReports headers={headers} />}
+
+      {view === 'workspace' && (<>
       <div className="flex items-center gap-2 flex-wrap">
         <select value={sel || ''} onChange={(e) => setSel(e.target.value)} data-testid="payroll-period-select"
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm min-w-[240px]">
@@ -160,6 +174,7 @@ export default function PayrollWorkspaceTab({ headers }) {
           </div>
         </>
       )}
+      </>)}
 
       {showNew && <NewPeriodModal headers={headers} onClose={() => setShowNew(false)} onCreated={(id) => { setShowNew(false); setSel(id); loadPeriods(); }} />}
       {ret && <ReturnModal onClose={() => setRet(null)} onSubmit={async (reason) => { await act(() => axios.post(`${API}/payroll/periods/${sel}/return`, { staff_id: ret.staff_id, reason }, { headers })); setRet(null); }} name={ret.name} />}
@@ -262,3 +277,118 @@ function AdjustModal({ periodId, headers, adj, onClose, onSaved }) {
       </div>
     </div>, document.body);
 }
+
+/* ─────────────── Payroll Reports (§43) ─────────────── */
+function monthBounds() {
+  const n = new Date();
+  const first = new Date(n.getFullYear(), n.getMonth(), 1);
+  const last = new Date(n.getFullYear(), n.getMonth() + 1, 0);
+  const iso = (d) => d.toISOString().slice(0, 10);
+  return [iso(first), iso(last)];
+}
+
+function PayrollReports({ headers }) {
+  const [mb] = useState(monthBounds);
+  const [from, setFrom] = useState(mb[0]);
+  const [to, setTo] = useState(mb[1]);
+  const [d, setD] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const r = await axios.get(`${API}/payroll/reports?date_from=${from}&date_to=${to}`, { headers }); setD(r.data); }
+    catch { setD(null); }
+    setLoading(false);
+  }, [from, to, headers]);
+  useEffect(() => { load(); }, [load]);
+
+  const t = d?.totals || {};
+  const sub = d?.submissions || {};
+  const tiles = [
+    ['Hours worked', `${t.worked ?? 0}h`, '#0f172a'],
+    ['Overtime', `${t.overtime ?? 0}h`, '#0891b2'],
+    ['Holiday', `${t.holiday ?? 0}h`, '#2563eb'],
+    ['Sick', `${t.sick ?? 0}h`, '#dc2626'],
+    ['Attendance rate', `${t.attendance_rate ?? 0}%`, '#16a34a'],
+    ['Adjustments', d?.adjustments ?? 0, '#7c3aed'],
+  ];
+
+  return (
+    <div className="space-y-4" data-testid="payroll-reports">
+      <div className="flex items-end gap-3 flex-wrap">
+        <label className="text-xs font-semibold text-slate-600">From
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} data-testid="payroll-report-from" className="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+        <label className="text-xs font-semibold text-slate-600">To
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} data-testid="payroll-report-to" className="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+        {loading && <Loader2 className="animate-spin text-cyan-500 mb-2" />}
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-2" data-testid="payroll-report-tiles">
+        {tiles.map(([l, v, c]) => (
+          <div key={l} className="rounded-xl border border-slate-200 bg-white p-3">
+            <div className="text-xl font-bold" style={{ color: c }}>{v}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{l}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <h3 className="font-bold text-slate-900 mb-3">Hours by department</h3>
+        <div style={{ width: '100%', height: 240 }}>
+          <ResponsiveContainer>
+            <BarChart data={d?.by_department || []} margin={{ top: 4, right: 8, left: -12, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" />
+              <XAxis dataKey="department" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Bar dataKey="worked" name="Worked" fill="#0891b2" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="overtime" name="Overtime" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-2" data-testid="payroll-report-submissions">
+        {[['On-time submissions', sub.on_time, '#16a34a'], ['Late submissions', sub.late, '#b45309'], ['Missing submissions', sub.missing, '#dc2626']].map(([l, v, c]) => (
+          <div key={l} className="rounded-xl border border-slate-200 bg-white p-3">
+            <div className="text-lg font-bold" style={{ color: c }}>{v ?? 0}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{l}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th className="text-left px-3 py-2">Employee</th>
+              <th className="text-left px-3 py-2">Dept</th>
+              <th className="text-right px-3 py-2">Worked</th>
+              <th className="text-right px-3 py-2">OT</th>
+              <th className="text-right px-3 py-2">Holiday</th>
+              <th className="text-right px-3 py-2">Sick</th>
+              <th className="text-right px-3 py-2">Missing</th>
+              <th className="text-right px-3 py-2">Attendance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(d?.by_employee || []).map((r) => (
+              <tr key={r.staff_id} className="border-t border-slate-100" data-testid={`payroll-report-emp-${r.staff_id}`}>
+                <td className="px-3 py-2 font-semibold text-slate-800">{r.full_name}</td>
+                <td className="px-3 py-2 text-slate-500">{r.department}</td>
+                <td className="px-3 py-2 text-right">{r.worked}h</td>
+                <td className="px-3 py-2 text-right">{r.overtime}h</td>
+                <td className="px-3 py-2 text-right">{r.holiday}h</td>
+                <td className="px-3 py-2 text-right">{r.sick}h</td>
+                <td className="px-3 py-2 text-right">{r.missing}</td>
+                <td className="px-3 py-2 text-right font-semibold" style={{ color: r.attendance_rate >= 90 ? '#16a34a' : r.attendance_rate >= 70 ? '#b45309' : '#dc2626' }}>{r.attendance_rate}%</td>
+              </tr>
+            ))}
+            {d && !d.by_employee?.length && <tr><td colSpan={8} className="px-3 py-6 text-center text-slate-400">No data in this range.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+

@@ -901,5 +901,7 @@ async def period_summary(org_id: str, staff_id: str, start: str, end: str,
                              + paid("business_travel") + paid("wfh"), 2),
         "unpaid_days": sum(1 for r in rows if r.get("actual_status") == "unpaid_leave"),
         "missing": sum(1 for r in rows if r.get("actual_status") == "not_confirmed" and r["date"] < today),
+        "expected_days": sum(1 for r in rows if r.get("expected_status") == "working"),
+        "present_days": sum(1 for r in rows if r.get("actual_status") == "working"),
         "pt": pt, "classes": classes, "days": len(rows),
     }

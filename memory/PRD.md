@@ -1,3 +1,23 @@
+# ═══ 2026-06 · STAFF PORTAL PROGRAMME — PAYROLL REPORTS (§43) · BE curl-verified + FE compiled ═══
+Reporting over any date range, built on the SPINE (no separate reporting engine — reuses the existing
+one-endpoint + recharts dashboard pattern).
+- BACKEND routes/payroll.py: GET /payroll/reports?date_from=&date_to= (manager) → totals
+  {worked,regular,overtime,holiday,sick,unpaid_days,expected,attendance_rate}, by_employee[] (+attendance_rate
+  = present_days/expected_days), by_department[] (worked/overtime/holiday/sick/headcount/attendance_rate),
+  submissions {on_time,late,missing,approvals_on_time,approvals_late,periods} computed from pay-period
+  deadlines vs submitted_at/approved_at, and adjustments count. attendance.period_summary extended with
+  expected_days/present_days.
+- FRONTEND staffing/PayrollWorkspaceTab.js: Workspace|Reports toggle (payroll-view-workspace/-reports);
+  PayrollReports view = date range, 6 KPI tiles (payroll-report-tiles), 'Hours by department' recharts
+  BarChart (worked+overtime), submission tiles (on-time/late/missing), and a by-employee table with a
+  colour-coded attendance %.
+- VERIFIED: /payroll/reports curl-verified (totals/by_department/by_employee/submissions); FE compiles clean;
+  recharts import matches the proven app-wide pattern. (Authenticated-view screenshots unreliable in this
+  preview; payroll module + endpoint already tested. Offer testing_agent for the Reports UI if desired.)
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF PORTAL PROGRAMME — PAY PERIODS & PAYROLL WORKSPACE (§32–§43) · testing_agent BE 20/20 + FE 100% ═══
 Configurable pay periods → employee submit → manager approve/return → LOCK (immutable snapshot) → export
 CSV with configurable field mapping; exception-based Payroll Workspace; post-lock adjustments. Every figure

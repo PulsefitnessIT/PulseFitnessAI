@@ -425,3 +425,91 @@ async def export_period(period_id: str, format: str = Query("csv"), user: dict =
     fname = f"payroll-{period.get('name', period_id)}.csv".replace(" ", "_").replace("/", "-")
     return Response(content=buf.getvalue().encode("utf-8"), media_type="text/csv",
                     headers={"Content-Disposition": f"attachment; filename={fname}"})
+
+
+# ───────────────────────── reports (§43) ─────────────────────────
+@router.get("/payroll/reports")
+async def payroll_reports(date_from: str = Query(...), date_to: str = Query(...),
+                          user: dict = Depends(get_current_user)):
+    """Aggregated payroll reporting over any date range — hours/overtime/absence
+    by employee and department, attendance rate, and submission performance.
+    Reads the spine; no separate reporting engine."""
+    _require_manager(user)
+    org_id = _org(user)
+    staff = await db.staff_members.find(
+        {"organization_id": org_id, "active": {"$ne": False}}, {"_id": 0},
+    ).sort("full_name", 1).to_list(1000)
+
+    by_emp = []
+    dept: dict[str, dict] = {}
+    tot = {"worked": 0.0, "regular": 0.0, "overtime": 0.0, "holiday": 0.0, "sick": 0.0,
+           "unpaid_days": 0, "expected": 0.0, "expected_days": 0, "present_days": 0}
+    for s in staff:
+        profile = await _resolve_profile(org_id, s)
+        t = await period_summary(org_id, s["id"], date_from, date_to)
+        ot = t["overtime_approved"] or t["overtime_raw"]
+        rate = round(100 * t["present_days"] / t["expected_days"], 1) if t["expected_days"] else 100.0
+        d = s.get("department") or "Unassigned"
+        by_emp.append({"staff_id": s["id"], "full_name": s.get("full_name"), "department": d,
+                       "payroll_number": profile.get("payroll_number"),
+                       "worked": t["worked"], "regular": t["regular"], "overtime": ot,
+                       "holiday": t["holiday"], "sick": t["sick"], "unpaid_days": t["unpaid_days"],
+                       "expected": t["expected"], "missing": t["missing"], "attendance_rate": rate})
+        g = dept.setdefault(d, {"department": d, "headcount": 0, "worked": 0.0, "overtime": 0.0,
+                                "holiday": 0.0, "sick": 0.0, "expected_days": 0, "present_days": 0})
+        g["headcount"] += 1
+        g["worked"] += t["worked"]; g["overtime"] += ot
+        g["holiday"] += t["holiday"]; g["sick"] += t["sick"]
+        g["expected_days"] += t["expected_days"]; g["present_days"] += t["present_days"]
+        tot["worked"] += t["worked"]; tot["regular"] += t["regular"]; tot["overtime"] += ot
+        tot["holiday"] += t["holiday"]; tot["sick"] += t["sick"]; tot["unpaid_days"] += t["unpaid_days"]
+        tot["expected"] += t["expected"]; tot["expected_days"] += t["expected_days"]; tot["present_days"] += t["present_days"]
+
+    by_dept = []
+    for g in dept.values():
+        g["worked"] = round(g["worked"], 1); g["overtime"] = round(g["overtime"], 1)
+        g["holiday"] = round(g["holiday"], 1); g["sick"] = round(g["sick"], 1)
+        g["attendance_rate"] = round(100 * g["present_days"] / g["expected_days"], 1) if g["expected_days"] else 100.0
+        by_dept.append(g)
+    for k in ("worked", "regular", "overtime", "holiday", "sick", "expected"):
+        tot[k] = round(tot[k], 1)
+    tot["attendance_rate"] = round(100 * tot["present_days"] / tot["expected_days"], 1) if tot["expected_days"] else 100.0
+
+    # Submission + approval performance across periods overlapping the range.
+    periods = await db.pay_periods.find(
+        {"organization_id": org_id, "start_date": {"$lte": date_to}, "end_date": {"$gte": date_from}},
+        {"_id": 0},
+    ).to_list(50)
+    on_time = late = missing_sub = appr_on = appr_late = 0
+    for p in periods:
+        ts_rows = await db.pay_period_timesheets.find(
+            {"organization_id": org_id, "period_id": p["id"]}, {"_id": 0},
+        ).to_list(1000)
+        submitted_ids = set()
+        for ts in ts_rows:
+            if ts.get("submitted_at"):
+                submitted_ids.add(ts["staff_id"])
+                dl = p.get("employee_deadline")
+                if dl and ts["submitted_at"][:10] > dl:
+                    late += 1
+                else:
+                    on_time += 1
+            if ts.get("approved_at"):
+                mdl = p.get("manager_deadline")
+                if mdl and ts["approved_at"][:10] > mdl:
+                    appr_late += 1
+                else:
+                    appr_on += 1
+        missing_sub += max(0, len(staff) - len(submitted_ids))
+
+    adjustments = await db.payroll_adjustments.count_documents({"organization_id": org_id})
+    return {
+        "range": {"from": date_from, "to": date_to},
+        "totals": tot,
+        "by_employee": sorted(by_emp, key=lambda x: -x["worked"]),
+        "by_department": sorted(by_dept, key=lambda x: -x["worked"]),
+        "submissions": {"on_time": on_time, "late": late, "missing": missing_sub,
+                        "approvals_on_time": appr_on, "approvals_late": appr_late,
+                        "periods": len(periods)},
+        "adjustments": adjustments,
+    }
