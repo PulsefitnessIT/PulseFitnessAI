@@ -66,6 +66,7 @@ from routes.staffing_hr import router as staffing_hr_router
 from routes.staff_onboarding_wizard import router as staff_onboarding_wizard_router
 from routes.staff_portal import router as staff_portal_router
 from routes.attendance import router as attendance_router
+from routes.payroll import router as payroll_router
 from routes.staffing_ai_phase6 import router as staffing_ai_phase6_router
 from routes.staffing_orgchart import router as staffing_orgchart_router
 from routes.staffing_orgchart_ai import router as staffing_orgchart_ai_router
@@ -325,6 +326,7 @@ _UNGATED_ROUTERS = (
     staff_onboarding_wizard_router,
     staff_portal_router,
     attendance_router,
+    payroll_router,
     staffing_ai_phase6_router,
     staffing_orgchart_router,
     staffing_orgchart_ai_router,

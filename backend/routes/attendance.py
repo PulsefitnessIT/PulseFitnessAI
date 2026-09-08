@@ -856,3 +856,50 @@ async def get_bank_holidays(region: str = Query(DEFAULT_REGION),
     )
     return {"region": region, "year": yr, "dates": sorted(dates),
             "events": (doc or {}).get("events", [])}
+
+
+# ───────────────────────── Pay-period aggregation ─────────────────────────
+# Categories credited as paid leave, grouped for payroll.
+async def period_summary(org_id: str, staff_id: str, start: str, end: str,
+                         recompute: bool = True) -> dict:
+    """Aggregate the spine daily records for one employee across a pay period.
+
+    This is the payroll read model — every figure traces back to daily records
+    (the single source of truth), never re-keyed."""
+    if recompute:
+        cur = date.fromisoformat(start)
+        stop = min(date.fromisoformat(end), date.today())
+        while cur <= stop:
+            try:
+                await recompute_day(org_id, staff_id, cur.isoformat())
+            except Exception:
+                pass
+            cur += timedelta(days=1)
+    rows = await db.attendance_daily.find(
+        {"organization_id": org_id, "staff_id": staff_id,
+         "date": {"$gte": start, "$lte": end}}, {"_id": 0},
+    ).to_list(60)
+    today = _today()
+
+    def paid(status):
+        return round(sum(r.get("paid_leave_hours") or 0 for r in rows if r.get("actual_status") == status), 2)
+
+    worked = round(sum(r.get("raw_worked_hours") or 0 for r in rows if r.get("actual_status") == "working"), 2)
+    regular = round(sum(r.get("regular_hours") or 0 for r in rows if r.get("actual_status") == "working"), 2)
+    ot_raw = round(sum(r.get("overtime_raw_hours") or 0 for r in rows), 2)
+    ot_appr = round(sum(r.get("approved_overtime_hours") or 0 for r in rows), 2)
+    expected = round(sum(r.get("expected_hours") or 0 for r in rows if r.get("expected_status") == "working"), 2)
+    pt = round(sum(((r.get("categories") or {}).get("pt") or 0) for r in rows), 2)
+    classes = round(sum(((r.get("categories") or {}).get("classes") or 0) for r in rows), 2)
+    return {
+        "worked": worked, "regular": regular, "expected": expected,
+        "overtime_raw": ot_raw, "overtime_approved": ot_appr,
+        "holiday": paid("holiday"), "sick": paid("sick"),
+        "bank_holiday": paid("bank_holiday"), "comp": paid("comp"),
+        "training": paid("training"),
+        "other_leave": round(paid("other_authorised") + paid("family_leave")
+                             + paid("business_travel") + paid("wfh"), 2),
+        "unpaid_days": sum(1 for r in rows if r.get("actual_status") == "unpaid_leave"),
+        "missing": sum(1 for r in rows if r.get("actual_status") == "not_confirmed" and r["date"] < today),
+        "pt": pt, "classes": classes, "days": len(rows),
+    }

@@ -318,6 +318,46 @@ function MyDayTab({ H, onGoTo }) {
 }
 
 /* ─────────────── My Time (spine) ─────────────── */
+function PeriodSubmitCard({ H }) {
+  const [rows, setRows] = useState(null);
+  const [busy, setBusy] = useState('');
+  const load = useCallback(async () => {
+    try { const r = await axios.get(`${API}/new-starter/portal/periods`, { headers: H }); setRows(r.data.periods || []); }
+    catch { setRows([]); }
+  }, [H]);
+  useEffect(() => { load(); }, [load]);
+
+  const submit = async (pid) => {
+    setBusy(pid);
+    try { await axios.post(`${API}/new-starter/portal/period/${pid}/submit`, { declaration: true }, { headers: H }); await load(); }
+    catch (e) { alert(e?.response?.data?.detail || 'Could not submit'); }
+    setBusy('');
+  };
+
+  const open = (rows || []).filter((r) => ['draft', 'returned'].includes(r.status));
+  if (!open.length) return null;
+  return (
+    <div className="rounded-2xl border border-cyan-200 bg-cyan-50/60 p-4" data-testid="period-submit-card">
+      {open.map((r) => (
+        <div key={r.period.id} className="flex items-center justify-between flex-wrap gap-2 py-1">
+          <div>
+            <div className="font-bold text-slate-900">Your {r.period.name} timesheet is ready</div>
+            <div className="text-xs text-slate-600">
+              {r.totals.regular}h recorded · {r.totals.overtime_raw || 0}h overtime · {r.totals.missing} missing
+              {r.status === 'returned' && r.returned_reason && <span className="text-amber-700"> · returned: {r.returned_reason}</span>}
+            </div>
+          </div>
+          <button onClick={() => submit(r.period.id)} disabled={busy === r.period.id} data-testid={`period-submit-${r.period.id}`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold text-white" style={{ background: CORE }}>
+            {busy === r.period.id ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Submit to manager
+          </button>
+        </div>
+      ))}
+      <p className="mt-1 text-[11px] text-slate-500">By submitting you confirm this reflects your working time and absence for the period.</p>
+    </div>
+  );
+}
+
 function MyTimeTab({ H }) {
   const [scope, setScope] = useState('week');
   const [anchor, setAnchor] = useState(() => new Date().toISOString().slice(0, 10));
@@ -339,6 +379,7 @@ function MyTimeTab({ H }) {
   const t = d?.totals || {};
   return (
     <div className="space-y-4" data-testid="staff-my-time">
+      <PeriodSubmitCard H={H} />
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex gap-1.5">
           {['week', 'month'].map((s) => (

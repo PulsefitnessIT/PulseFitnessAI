@@ -39,6 +39,7 @@ import HRTab from '@/pages/LiteDashboard/staffing/HRTab';
 import StaffOnboarding from '@/pages/LiteDashboard/staffing/StaffOnboarding';
 import TeamAccessTab from '@/pages/LiteDashboard/staffing/TeamAccessTab';
 import AttendanceTab from '@/pages/LiteDashboard/staffing/AttendanceTab';
+import PayrollWorkspaceTab from '@/pages/LiteDashboard/staffing/PayrollWorkspaceTab';
 import OrgChartTab from '@/pages/LiteDashboard/staffing/orgchart/OrgChartTab';
 import AIWorkforceTab from '@/pages/LiteDashboard/staffing/AIWorkforceTab';
 import MODStaffTransferTab from '@/pages/LiteDashboard/staffing/MODStaffTransferTab';
@@ -311,7 +312,7 @@ export default function StaffingConsole() {
         {tab === 'leave'       && <LeaveTab       headers={headers} isManager={isManager} />}
         {tab === 'market'      && <MarketTab      headers={headers} isManager={isManager} />}
         {tab === 'performance' && <PerformanceTab headers={headers} />}
-        {tab === 'payroll'     && <PayrollTab     headers={headers} />}
+        {tab === 'payroll'     && <PayrollWorkspaceTab headers={headers} />}
         {tab === 'expenses'    && <DeskExpenses />}
         {tab === 'live'        && <LiveFloorTab   headers={headers} />}
         {tab === 'rules'       && <RulesTab       headers={headers} />}

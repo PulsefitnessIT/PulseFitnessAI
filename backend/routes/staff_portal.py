@@ -463,6 +463,45 @@ async def portal_report_absence(body: AbsenceBody, user: dict = Depends(get_curr
             "open_ended": end_date is None}
 
 
+@router.get("/new-starter/portal/periods")
+async def portal_current_periods(user: dict = Depends(get_current_user_portal)):
+    """Open pay periods relevant to the employee + their own submission status."""
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    from routes.attendance import period_summary
+    periods = await db.pay_periods.find(
+        {"organization_id": org}, {"_id": 0},
+    ).sort("start_date", -1).to_list(12)
+    out = []
+    for p in periods[:6]:
+        ts = await db.pay_period_timesheets.find_one(
+            {"organization_id": org, "period_id": p["id"], "staff_id": staff["id"]}, {"_id": 0},
+        )
+        totals = (ts or {}).get("snapshot_totals") or (ts or {}).get("totals")
+        if not totals:
+            totals = await period_summary(org, staff["id"], p["start_date"], p["end_date"])
+        out.append({"period": p, "status": (ts or {}).get("status", "draft"),
+                    "returned_reason": (ts or {}).get("returned_reason"), "totals": totals})
+    return {"periods": out}
+
+
+class PortalSubmitBody(BaseModel):
+    declaration: bool = True
+
+
+@router.post("/new-starter/portal/period/{period_id}/submit")
+async def portal_submit_period(period_id: str, body: PortalSubmitBody,
+                               user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    period = await db.pay_periods.find_one({"organization_id": org, "id": period_id}, {"_id": 0})
+    if not period:
+        raise HTTPException(404, "pay period not found")
+    from routes.payroll import _do_submit
+    totals = await _do_submit(org, period, staff["id"], body.declaration, user.get("email") or staff.get("full_name"))
+    return {"ok": True, "totals": totals}
+
+
 @router.get("/staffing/me/portal-access")
 async def my_portal_access(user: dict = Depends(get_current_user)):
     """Post-login launcher probe — does the signed-in platform user also have

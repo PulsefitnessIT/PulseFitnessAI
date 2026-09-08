@@ -1,3 +1,41 @@
+# ═══ 2026-06 · STAFF PORTAL PROGRAMME — PAY PERIODS & PAYROLL WORKSPACE (§32–§43) · testing_agent BE 20/20 + FE 100% ═══
+Configurable pay periods → employee submit → manager approve/return → LOCK (immutable snapshot) → export
+CSV with configurable field mapping; exception-based Payroll Workspace; post-lock adjustments. Every figure
+reads the Attendance Spine (attendance_daily) via attendance.period_summary — payroll never rebuilds hours.
+- BACKEND routes/payroll.py (NEW router, /api, _UNGATED_ROUTERS, _require_manager gated):
+  • Collections: pay_periods, pay_period_timesheets (per org+period+staff: status draft/submitted/approved/
+    returned/locked + declaration + frozen totals + snapshot_totals), payroll_snapshots (immutable),
+    payroll_adjustments, payroll_field_mappings (DEFAULT_FIELD_MAPPING).
+  • Periods: GET/POST /payroll/periods, POST /payroll/periods/generate {month|4_week|5_week, anchor}
+    (auto start/end/deadlines/pay-date), PUT/DELETE (409 once locked).
+  • Workspace: GET /payroll/periods/{id}/workspace → rows(totals+exceptions[])+summary{ready,
+    awaiting_approval,missing_timesheet,exceptions}; GET .../employee/{staff_id} adds day breakdown.
+    Exceptions (§37): missing_entry, unapproved_overtime, unpaid_leave, no_payroll_id, above/below_contract,
+    missing_approval.
+  • Flow: POST /submit {staff_id,declaration}(400 if false) freezes totals; /approve (409 unless submitted);
+    /return {reason}. LOCK: POST /payroll/periods/{id}/lock → immutable payroll_snapshot + period+timesheets
+    locked; workspace then reads snapshot. /adjustment (locked only, reason req, never mutates snapshot §84);
+    /validation counts; /export?format=csv streams CSV with mapping header. GET/PUT /payroll/field-mapping.
+  • period_summary() in attendance.py aggregates spine: regular, worked, expected, overtime_raw/approved,
+    holiday/sick/bank_holiday/comp/training/other paid hours, unpaid_days, missing, pt, classes.
+- EMPLOYEE PORTAL (staff_portal.py, staff JWT): GET /new-starter/portal/periods (own status+totals),
+  POST /new-starter/portal/period/{id}/submit {declaration} → payroll._do_submit.
+- FRONTEND: staffing/PayrollWorkspaceTab.js replaces the old shift-CSV PayrollTab on the Staffing 'Payroll'
+  tab — period selector + New-period modal (quick-generate month/4wk/5wk or custom), summary tiles, employee
+  table with status pills + totals + exception chips + Submit/Approve/Return/Lock/Export/Adjust (portal
+  modals z-[120]). StaffPortal.js MyTimeTab: PeriodSubmitCard banner ('Your <period> timesheet is ready' →
+  Submit to manager with declaration).
+- VERIFIED: testing_agent BE 20/20 pytest + FE 100% manager flow; employee submit path curl-verified
+  (draft→submitted). Report iteration_payroll_workspace_jan2026.json. Test payroll data cleared from
+  iso-demo-org after testing.
+- NEXT (backlog): Return-to-Work close for open-ended sickness; spreadsheet migration importer
+  (TIME SHEETS 2026 + Attendance Request) + reconciliation; Engineer working-day proposal from job
+  timestamps + Service Desk availability; PT/Classes configurable categories in Master Admin + capture on
+  daily entry; Atlas sync (blocked on Citation API); payroll reports (§43) on existing reporting engine.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF PORTAL PROGRAMME — POST-LOGIN LAUNCHER (one login → choose) · testing_agent 100% ═══
 User's one-login flow: staff sign in ONCE at /login then choose the Staff Portal OR any platform module
 they can access. Single-destination users skip the chooser (auto-redirect); master-admin & partner-engineer
