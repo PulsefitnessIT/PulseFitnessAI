@@ -991,10 +991,15 @@ function LeaveTab({ headers, isManager }) {
   const { t } = useTranslation();
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState({ start_date: '', end_date: '', leave_type: 'holiday', reason: '' });
+  const [clashConfirm, setClashConfirm] = useState(null); // leave row pending approval with clashes
   const load = useCallback(async () => { const r = await axios.get(`${API}/staffing/leave`, { headers }); setRows(r.data.leave || []); }, [headers]);
   useEffect(() => { load(); }, [load]);
   const submit = async () => { try { await axios.post(`${API}/staffing/leave`, form, { headers }); setForm({ start_date: '', end_date: '', leave_type: 'holiday', reason: '' }); load(); } catch (err) { alert(err.response?.data?.detail || 'Failed'); } };
-  const decide = async (id, status) => { await axios.patch(`${API}/staffing/leave/${id}`, { status }, { headers }); load(); };
+  const patch = async (id, status) => { await axios.patch(`${API}/staffing/leave/${id}`, { status }, { headers }); setClashConfirm(null); load(); };
+  const decide = (l, status) => {
+    if (status === 'approved' && (l.clashes || []).length > 0) { setClashConfirm(l); return; }
+    patch(l.id, status);
+  };
 
   return (
     <div className="space-y-3">
@@ -1014,24 +1019,63 @@ function LeaveTab({ headers, isManager }) {
       {rows.length === 0 ? <EmptyState icon={Plane} title={t('staffing.sc_no_leave', 'No leave requests yet')} testId="leave-empty" /> : (
         <Card testId="leave-list">
           <table className="w-full text-sm">
-            <thead><tr className="text-xs" style={{ color: 'var(--theme-text-muted)' }}><th className="text-left py-2 px-2">{t('staffing.sc_dates', 'Dates')}</th><th className="text-left py-2 px-2">{t('staffing.sc_type', 'Type')}</th><th className="text-left py-2 px-2">{t('staffing.sc_status', 'Status')}</th>{isManager && <th className="w-32" />}</tr></thead>
+            <thead><tr className="text-xs" style={{ color: 'var(--theme-text-muted)' }}><th className="text-left py-2 px-2">{t('staffing.sc_who_dates', 'Who / dates')}</th><th className="text-left py-2 px-2">{t('staffing.sc_type', 'Type')}</th><th className="text-left py-2 px-2">{t('staffing.sc_status', 'Status')}</th>{isManager && <th className="w-32" />}</tr></thead>
             <tbody>
-              {rows.map((l) => (
-                <tr key={l.id} className="border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`leave-row-${l.id}`}>
-                  <td className="py-2 px-2 text-xs">{l.start_date} → {l.end_date}{typeof l.working_days === 'number' && <span className="ml-2 font-semibold" style={{ color: 'var(--color-brand-cyan)' }} data-testid={`leave-days-${l.id}`}>· {l.working_days}d</span>}</td>
+              {rows.map((l) => {
+                const clashes = l.clashes || [];
+                return (
+                <tr key={l.id} className="border-t align-top" style={{ borderColor: 'var(--theme-border)' }} data-testid={`leave-row-${l.id}`}>
+                  <td className="py-2 px-2 text-xs">
+                    {l.staff_name && <div className="font-semibold" style={{ color: 'var(--theme-text)' }}>{l.staff_name}</div>}
+                    <div>{l.start_date} → {l.end_date}{typeof l.working_days === 'number' && <span className="ml-2 font-semibold" style={{ color: 'var(--color-brand-cyan)' }} data-testid={`leave-days-${l.id}`}>· {l.working_days}d</span>}</div>
+                    {isManager && clashes.length > 0 && (
+                      <div className="mt-1 inline-flex items-start gap-1 rounded-md px-2 py-1 text-[11px] font-semibold" style={{ background: 'rgba(245,158,11,0.12)', color: '#B45309' }} data-testid={`leave-clash-${l.id}`}>
+                        <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+                        <span>{t('staffing.sc_team_clash', 'Team clash')}: {clashes.map((c) => `${c.staff_name || 'Teammate'} (${c.start_date}→${c.end_date}${c.status === 'pending' ? ', pending' : ''})`).join('; ')}</span>
+                      </div>
+                    )}
+                  </td>
                   <td className="py-2 px-2 text-xs uppercase tracking-[0.14em]" style={{ color: 'var(--theme-text-muted)' }}>{l.leave_type}</td>
                   <td className="py-2 px-2 text-xs"><StatusBadge status={l.status} /></td>
                   {isManager && l.status === 'pending' && (
-                    <td className="py-2 px-2 text-right space-x-1">
-                      <button type="button" onClick={() => decide(l.id, 'approved')} className="text-[10px] font-semibold rounded-full px-2 py-1" style={{ background: 'var(--color-success)', color: 'var(--color-emerald-dark)' }} data-testid={`leave-approve-${l.id}`}>{t('staffing.sc_approve', 'Approve')}</button>
-                      <button type="button" onClick={() => decide(l.id, 'rejected')} className="text-[10px] font-semibold rounded-full px-2 py-1 border" style={{ borderColor: 'var(--theme-border)' }} data-testid={`leave-reject-${l.id}`}>{t('staffing.sc_reject', 'Reject')}</button>
+                    <td className="py-2 px-2 text-right space-x-1 whitespace-nowrap">
+                      <button type="button" onClick={() => decide(l, 'approved')} className="text-[10px] font-semibold rounded-full px-2 py-1" style={{ background: 'var(--color-success)', color: 'var(--color-emerald-dark)' }} data-testid={`leave-approve-${l.id}`}>{t('staffing.sc_approve', 'Approve')}</button>
+                      <button type="button" onClick={() => decide(l, 'rejected')} className="text-[10px] font-semibold rounded-full px-2 py-1 border" style={{ borderColor: 'var(--theme-border)' }} data-testid={`leave-reject-${l.id}`}>{t('staffing.sc_reject', 'Reject')}</button>
                     </td>
                   )}
                 </tr>
-              ))}
+              ); })}
             </tbody>
           </table>
         </Card>
+      )}
+
+      {clashConfirm && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 p-4" onClick={() => setClashConfirm(null)} data-testid="leave-clash-modal">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <span className="rounded-lg bg-amber-100 p-2 text-amber-700"><AlertTriangle size={18} /></span>
+              <div className="flex-1">
+                <h3 className="font-bold text-slate-900">{t('staffing.sc_clash_title', 'Overlapping team leave')}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {t('staffing.sc_clash_sub', 'Approving')} {clashConfirm.staff_name || 'this request'} ({clashConfirm.start_date} → {clashConfirm.end_date}) {t('staffing.sc_clash_sub2', 'overlaps booked leave in the same team:')}
+                </p>
+                <ul className="mt-3 space-y-1.5">
+                  {(clashConfirm.clashes || []).map((c, i) => (
+                    <li key={i} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm">
+                      <span className="font-semibold text-slate-800">{c.staff_name || 'Teammate'}</span>
+                      <span className="text-xs text-slate-500">{c.start_date} → {c.end_date}{c.status === 'pending' ? ' · pending' : ''}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-4 flex justify-end gap-2">
+                  <button onClick={() => setClashConfirm(null)} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 border border-slate-200" data-testid="leave-clash-cancel">{t('staffing.sc_cancel', 'Cancel')}</button>
+                  <button onClick={() => patch(clashConfirm.id, 'approved')} className="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-bold" data-testid="leave-clash-approve-anyway">{t('staffing.sc_approve_anyway', 'Approve anyway')}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

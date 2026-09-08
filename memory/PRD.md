@@ -36470,3 +36470,10 @@ Portal User Guide:
 - Frontend: `components/staffing/StaffNotificationBell.js` (badge + dropdown, fixed sheet on mobile / absolute on ≥sm, 60s poll, click-to-navigate tab). Wired into StaffPortal header (onNavigate=setTab) and StaffingConsole PageHeader actions for managers.
 - Verified end-to-end via curl (manager sees request+pending nudge; employee sees decision+missing/rtw nudges; read endpoints; owner vs line-manager scoping) + screenshots of both bells (mobile portal + desktop console).
 
+
+
+## 2026-09-08 — Team Clash Warning (leave overlap at approval)
+- `GET /api/staffing/leave` now enriches each row (managers only) with `staff_name`, `department` and a `clashes[]` array — same-department teammates whose approved/pending leave date-range overlaps this request (ISO date lexicographic overlap: s1<=e2 and s2<=e1). Team = same non-empty `department`; no department ⇒ no clash (avoids noise). Employees' own view unaffected.
+- Frontend StaffingConsole LeaveTab: shows employee name, an inline amber "Team clash: <name> (dates)" badge (data-testid `leave-clash-<id>`), and on Approve with clashes opens a confirmation modal (`leave-clash-modal`) listing overlaps with Cancel / "Approve anyway" (`leave-clash-approve-anyway`). Reject is unaffected.
+- Verified via curl (Alex pending overlaps Jamie approved, both Operations → mutual clashes returned) + desktop screenshot of the inline badge and confirm modal. Also confirmed notification-bell nudge navigates straight to Time Off.
+

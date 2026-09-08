@@ -849,6 +849,40 @@ async def list_leave(user: dict = Depends(get_current_user)):
         sid = await _my_staff_id_async(user, org_id)
         q["staff_id"] = sid or "__none__"
     rows = await db.staff_leave_requests.find(q, {"_id": 0}).sort("start_date", -1).to_list(500)
+    # Team clash detection (managers only): flag date overlaps with same-department teammates.
+    if _is_manager(user):
+        staff_docs = await db.staff_members.find(
+            {"organization_id": org_id}, {"_id": 0, "id": 1, "full_name": 1, "department": 1}).to_list(2000)
+        smap = {s["id"]: s for s in staff_docs}
+        pool = await db.staff_leave_requests.find(
+            {"organization_id": org_id, "status": {"$in": ["approved", "pending"]}},
+            {"_id": 0, "id": 1, "staff_id": 1, "start_date": 1, "end_date": 1,
+             "status": 1, "leave_type": 1}).to_list(2000)
+
+        def _overlaps(a1, a2, b1, b2):
+            return bool(a1 and a2 and b1 and b2 and a1 <= b2 and b1 <= a2)
+
+        for r in rows:
+            mine = smap.get(r.get("staff_id")) or {}
+            r["staff_name"] = mine.get("full_name")
+            dept = (mine.get("department") or "").strip()
+            r["department"] = dept or None
+            clashes = []
+            if dept:
+                for o in pool:
+                    if o["id"] == r["id"] or o.get("staff_id") == r.get("staff_id"):
+                        continue
+                    od = ((smap.get(o.get("staff_id")) or {}).get("department") or "").strip()
+                    if od != dept:
+                        continue
+                    if _overlaps(r.get("start_date"), r.get("end_date"),
+                                 o.get("start_date"), o.get("end_date")):
+                        clashes.append({
+                            "staff_name": (smap.get(o.get("staff_id")) or {}).get("full_name"),
+                            "start_date": o.get("start_date"), "end_date": o.get("end_date"),
+                            "status": o.get("status"), "leave_type": o.get("leave_type"),
+                        })
+            r["clashes"] = clashes
     return {"leave": rows, "role": _role(user)}
 
 
