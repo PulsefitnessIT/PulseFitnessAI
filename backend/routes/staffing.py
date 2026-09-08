@@ -889,6 +889,23 @@ async def decide_leave(leave_id: str, body: dict = Body(...), user: dict = Depen
     if res.matched_count == 0:
         raise HTTPException(404, "leave request not found")
     doc = await db.staff_leave_requests.find_one({"id": leave_id}, {"_id": 0})
+    # Notify the employee of the manager's decision (Staff Portal bell).
+    if decision in ("approved", "rejected") and doc:
+        try:
+            from routes.staff_portal import notify_staff
+            verb = "approved" if decision == "approved" else "declined"
+            lt = (doc.get("leave_type") or "leave").capitalize()
+            note = body.get("manager_notes")
+            await notify_staff(
+                org=org_id, recipient_kind="employee", recipient_staff_id=doc.get("staff_id"),
+                type="leave_decision",
+                title=f"{lt} {verb}",
+                body=f"Your {doc.get('leave_type') or 'leave'} {doc.get('start_date')} → "
+                     f"{doc.get('end_date')} was {verb} by {user.get('email')}."
+                     + (f" Note: {note}" if note else ""),
+                link="holidays")
+        except Exception as e:
+            logging.getLogger(__name__).warning("staff notify (leave decision) failed: %s", e)
     # Attendance Spine — one approved leave event fans out to every daily
     # record it covers (§3/§80). Revoking recomputes those days back to the
     # working pattern. Best-effort so the decision itself never fails.

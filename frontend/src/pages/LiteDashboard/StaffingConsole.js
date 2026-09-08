@@ -38,6 +38,7 @@ import OperationsTab from '@/pages/LiteDashboard/staffing/OperationsTab';
 import HRTab from '@/pages/LiteDashboard/staffing/HRTab';
 import StaffOnboarding from '@/pages/LiteDashboard/staffing/StaffOnboarding';
 import TeamAccessTab from '@/pages/LiteDashboard/staffing/TeamAccessTab';
+import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
 import AttendanceTab from '@/pages/LiteDashboard/staffing/AttendanceTab';
 import PayrollWorkspaceTab from '@/pages/LiteDashboard/staffing/PayrollWorkspaceTab';
 import OrgChartTab from '@/pages/LiteDashboard/staffing/orgchart/OrgChartTab';
@@ -249,11 +250,16 @@ export default function StaffingConsole() {
         icon={Users}
         helpId={isManager ? 'staffing-overview' : 'staffing-marketplace'}
         testId="staffing-header"
-        actions={!isManager ? (
+        actions={isManager ? (
+          <StaffNotificationBell
+            endpoint={`${API}/staffing/notifications`}
+            readEndpoint={`${API}/staffing/notifications/read`}
+            headers={headers} onNavigate={setTab} />
+        ) : (
           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] px-3 py-1 rounded-full" style={{ background: 'rgba(25,205,255,0.1)', color: 'var(--color-brand-cyan)' }} data-testid="staffing-staff-badge">
             {t('staffing.sc_staff_view', 'Staff view')}
           </div>
-        ) : null}
+        )}
       />
 
       {/* Primary group bar */}

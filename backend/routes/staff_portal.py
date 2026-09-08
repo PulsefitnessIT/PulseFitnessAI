@@ -92,6 +92,42 @@ async def _portal_staff(user: dict) -> dict:
     return staff
 
 
+async def notify_staff(*, org: str, recipient_kind: str, type: str, title: str,
+                       body: str, link: str = "", recipient_staff_id: str | None = None,
+                       recipient_user_id: str | None = None,
+                       dedupe_key: str | None = None) -> None:
+    """Write a persistent in-app staffing notification (bell feed).
+
+    recipient_kind='employee' → keyed by recipient_staff_id (Staff Portal bell).
+    recipient_kind='manager'  → keyed by recipient_user_id (line manager) or
+    left null for any owner/manager in the org to pick up (Staffing bell)."""
+    if dedupe_key:
+        exists = await db.staff_notifications.find_one(
+            {"organization_id": org, "dedupe_key": dedupe_key}, {"_id": 1})
+        if exists:
+            return
+    doc = {
+        "id": str(uuid.uuid4()), "organization_id": org,
+        "recipient_kind": recipient_kind,
+        "recipient_staff_id": recipient_staff_id,
+        "recipient_user_id": recipient_user_id,
+        "type": type, "title": title, "body": body, "link": link,
+        "read": False, "created_at": _now(),
+    }
+    if dedupe_key:
+        doc["dedupe_key"] = dedupe_key
+    await db.staff_notifications.insert_one(doc.copy())
+
+
+async def _line_manager_user_id(org: str, staff: dict) -> str | None:
+    lm_sid = staff.get("line_manager_staff_id")
+    if not lm_sid:
+        return None
+    lm = await db.staff_members.find_one(
+        {"organization_id": org, "id": lm_sid}, {"_id": 0, "user_id": 1})
+    return (lm or {}).get("user_id")
+
+
 async def _case_for(staff_id: str) -> dict | None:
     return await db.staff_onboarding_cases.find_one({"staff_id": staff_id})
 
@@ -261,6 +297,16 @@ async def portal_request_holiday(body: HolidayRequest, user: dict = Depends(get_
         "requested_via": "staff_portal",
     }
     await db.staff_leave_requests.insert_one(doc.copy())
+    # Route to the employee's line manager (or any owner/manager if unassigned).
+    mgr_uid = await _line_manager_user_id(staff["organization_id"], staff)
+    await notify_staff(
+        org=staff["organization_id"], recipient_kind="manager", recipient_user_id=mgr_uid,
+        type="holiday_request",
+        title="New holiday request",
+        body=f"{staff.get('full_name') or 'An employee'} requested {wd['working_days']} "
+             f"working day{'' if wd['working_days'] == 1 else 's'}: {body.start_date} → {body.end_date}.",
+        link="leave",
+    )
     return _clean(doc)
 
 
@@ -602,6 +648,106 @@ async def my_portal_access(user: dict = Depends(get_current_user)):
     staff = await db.staff_members.find_one(q, {"_id": 0, "full_name": 1, "active": 1})
     return {"has_staff_portal": bool(staff and staff.get("active", True)),
             "full_name": (staff or {}).get("full_name")}
+
+
+# ══════════════════════════ NOTIFICATIONS / NUDGES ══════════════════════════
+
+@router.get("/new-starter/portal/notifications")
+async def portal_notifications(user: dict = Depends(get_current_user_portal)):
+    """Staff Portal bell — event pings (leave decisions) + live nudges
+    (missing time entries, unsigned return-to-work forms)."""
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    stored = await db.staff_notifications.find(
+        {"organization_id": org, "recipient_kind": "employee", "recipient_staff_id": staff["id"]},
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(50)
+
+    nudges: list[dict] = []
+    today = _today()
+    win_start = (date.today() - timedelta(days=30)).isoformat()
+    missing = await db.attendance_daily.count_documents(
+        {"organization_id": org, "staff_id": staff["id"],
+         "actual_status": "not_confirmed", "date": {"$gte": win_start, "$lt": today}})
+    if missing:
+        nudges.append({
+            "type": "missing_time", "title": "Missing time entries",
+            "body": f"{missing} day{'' if missing == 1 else 's'} in the last 30 days have no confirmed hours.",
+            "link": "mytime"})
+    rtw_pending = await db.staff_leave_requests.count_documents(
+        {"organization_id": org, "staff_id": staff["id"],
+         "rtw_interview": {"$exists": True}, "employee_ack": {"$exists": False}})
+    if rtw_pending:
+        nudges.append({
+            "type": "rtw_unsigned", "title": "Return-to-work sign-off needed",
+            "body": f"{rtw_pending} return-to-work form{'' if rtw_pending == 1 else 's'} awaiting your confirmation.",
+            "link": "home"})
+
+    unread = sum(1 for n in stored if not n.get("read")) + len(nudges)
+    return {"notifications": stored, "nudges": nudges, "unread": unread}
+
+
+@router.post("/new-starter/portal/notifications/read")
+async def portal_notifications_read(user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    await db.staff_notifications.update_many(
+        {"organization_id": staff["organization_id"], "recipient_kind": "employee",
+         "recipient_staff_id": staff["id"], "read": False},
+        {"$set": {"read": True}})
+    return {"ok": True}
+
+
+def _is_owner(user: dict) -> bool:
+    return bool(user.get("is_master_admin") or user.get("is_pulse_admin")
+                or (user.get("role") or "").lower() == "owner")
+
+
+@router.get("/staffing/notifications")
+async def staffing_notifications(user: dict = Depends(get_current_user)):
+    """Staffing console bell (managers) — new leave requests + live nudge for
+    pending approvals. Line managers see items routed to them or unassigned;
+    owners see the whole org."""
+    _require_hr(user)
+    org = _org(user)
+    me = await db.staff_members.find_one(
+        {"organization_id": org, "user_id": user.get("id")}, {"_id": 0, "id": 1})
+    owner = _is_owner(user)
+    if owner:
+        q = {"organization_id": org, "recipient_kind": "manager"}
+    else:
+        q = {"organization_id": org, "recipient_kind": "manager",
+             "$or": [{"recipient_user_id": user.get("id")}, {"recipient_user_id": None}]}
+    stored = await db.staff_notifications.find(q, {"_id": 0}).sort("created_at", -1).to_list(50)
+
+    leave_q: dict = {"organization_id": org, "status": "pending"}
+    if not owner and me:
+        report_ids = await db.staff_members.distinct(
+            "id", {"organization_id": org, "line_manager_staff_id": me["id"]})
+        leave_q["staff_id"] = {"$in": report_ids or ["__none__"]}
+    pending = await db.staff_leave_requests.count_documents(leave_q)
+    nudges: list[dict] = []
+    if pending:
+        nudges.append({
+            "type": "pending_approvals", "title": "Holiday approvals waiting",
+            "body": f"{pending} leave request{'' if pending == 1 else 's'} need your review.",
+            "link": "leave"})
+
+    unread = sum(1 for n in stored if not n.get("read")) + len(nudges)
+    return {"notifications": stored, "nudges": nudges, "unread": unread}
+
+
+@router.post("/staffing/notifications/read")
+async def staffing_notifications_read(user: dict = Depends(get_current_user)):
+    _require_hr(user)
+    org = _org(user)
+    owner = _is_owner(user)
+    if owner:
+        q = {"organization_id": org, "recipient_kind": "manager", "read": False}
+    else:
+        q = {"organization_id": org, "recipient_kind": "manager", "read": False,
+             "$or": [{"recipient_user_id": user.get("id")}, {"recipient_user_id": None}]}
+    await db.staff_notifications.update_many(q, {"$set": {"read": True}})
+    return {"ok": True}
 
 
 

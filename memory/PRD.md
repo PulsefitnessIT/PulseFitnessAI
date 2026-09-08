@@ -36459,3 +36459,14 @@ Portal User Guide:
 - Frontend: StaffPortal HolidaysTab shows a live "N working days will be deducted" banner (data-testid `holiday-working-days`), per-request day count (`holiday-days-<id>`), and an over-allowance hint. StaffingConsole LeaveTab row shows `· Nd` (data-testid `leave-days-<id>`) for portal requests.
 - Verified via curl (preview=6, submit stores 6, manager list shows working_days, weekend-only→400, approve deducts allowance to used=6) + FE screenshot of the live preview.
 
+
+
+## 2026-09-08 — Smart Reminders Engine + Approval Notifications [§49/§50]
+- Shared in-app staffing bell (no scheduler; nudges computed live, event pings persisted). Delivery: in-app only (per user choice 1a).
+- New collection `staff_notifications` + helper `notify_staff()` in staff_portal.py; `_line_manager_user_id()` resolves the route target.
+- Approval Notifications: `POST /portal/holidays` pings the employee's line manager (or org owners/managers if unassigned) with a `holiday_request`; `PATCH /staffing/leave/{id}` (approve/reject) pings the employee with a `leave_decision` incl. manager note (staffing.py decide_leave hook).
+- Smart Reminders (live nudges): employee — missing time entries (past `not_confirmed` in last 30d) + unsigned return-to-work forms; manager — pending holiday approvals (scoped to their reports, owners see all).
+- Endpoints: `GET/POST /api/new-starter/portal/notifications[/read]` (employee), `GET/POST /api/staffing/notifications[/read]` (manager). Feed shape `{notifications, nudges, unread}`; reads mark stored items only (nudges persist until state resolves).
+- Frontend: `components/staffing/StaffNotificationBell.js` (badge + dropdown, fixed sheet on mobile / absolute on ≥sm, 60s poll, click-to-navigate tab). Wired into StaffPortal header (onNavigate=setTab) and StaffingConsole PageHeader actions for managers.
+- Verified end-to-end via curl (manager sees request+pending nudge; employee sees decision+missing/rtw nudges; read endpoints; owner vs line-manager scoping) + screenshots of both bells (mobile portal + desktop console).
+
