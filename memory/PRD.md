@@ -1,3 +1,17 @@
+# ═══ 2026-06 · ATTENDANCE — RETURN-TO-WORK CLOSE (§20/§21) · curl-verified ═══
+Managers can close an open-ended sickness so forward SICK marking stops.
+- BACKEND routes/attendance.py: POST /attendance/absence/{leave_id}/close {return_date} (manager) → caps the
+  leave end_date at return_date-1, records return_date/closed_by/closed_at, and recomputes start..max(old_end,
+  return_date,today) so days from the return date onward re-derive (weekend→off, else pattern/clock/not_confirmed).
+  Rejects return_date <= start (400). Board rows now expose leave_event_id.
+- FRONTEND AttendanceTab.js: sick rows on the Attendance Board show a green 'Return to work' action
+  (attendance-rtw-<staff_id>) → ReturnToWorkModal (attendance-rtw-date/-save) → POST close, then reloads.
+- VERIFIED curl: open-ended sick from 09-02 (marking to today) → close return 09-05 → sick_through 09-04, days
+  09-05+ reverted. FE compiles clean. Test data cleaned.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF PORTAL PROGRAMME — SPREADSHEET MIGRATION IMPORTER (§74–§76) · testing_agent BE 5/5 + FE 100% ═══
 Import the legacy TIME SHEETS 2026 + Attendance Request workbooks into the spine; match existing employees
 (never duplicate); convert status codes; dry-run preview + reconciliation before commit (§75 — nothing decided

@@ -80,6 +80,7 @@ function BoardView({ headers }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [correct, setCorrect] = useState(null);
+  const [rtw, setRtw] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -154,7 +155,11 @@ function BoardView({ headers }) {
                 <td className="px-3 py-2 text-slate-600">{r.finish_time || '—'}</td>
                 <td className="px-3 py-2 text-slate-600">{r.regular_hours ? `${r.regular_hours}h` : (r.expected_hours ? `${r.expected_hours}h exp` : '—')}</td>
                 <td className="px-3 py-2 text-[11px] text-slate-400">{r.manual_override ? 'manager' : (r.source || '').replace(/_/g, ' ')}</td>
-                <td className="px-3 py-2 text-right">
+                <td className="px-3 py-2 text-right whitespace-nowrap">
+                  {r.status === 'sick' && r.leave_event_id && (
+                    <button onClick={() => setRtw(r)} data-testid={`attendance-rtw-${r.staff_id}`}
+                      className="text-xs font-semibold text-emerald-600 hover:underline mr-3">Return to work</button>
+                  )}
                   <button onClick={() => setCorrect(r)} data-testid={`attendance-correct-${r.staff_id}`}
                     className="text-xs font-semibold text-cyan-700 hover:underline">Correct</button>
                 </td>
@@ -170,6 +175,10 @@ function BoardView({ headers }) {
       {correct && (
         <CorrectModal row={correct} statuses={statuses} headers={headers}
           onClose={() => setCorrect(null)} onSaved={() => { setCorrect(null); load(); }} />
+      )}
+      {rtw && (
+        <ReturnToWorkModal row={rtw} headers={headers}
+          onClose={() => setRtw(null)} onSaved={() => { setRtw(null); load(); }} />
       )}
     </div>
   );
@@ -229,7 +238,39 @@ function CorrectModal({ row, statuses, headers, onClose, onSaved }) {
     </div>, document.body);
 }
 
-/* ─────────────────────────── Patterns ─────────────────────────── */
+function ReturnToWorkModal({ row, headers, onClose, onSaved }) {
+  const [rd, setRd] = useState(() => new Date().toISOString().slice(0, 10));
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const save = async () => {
+    setSaving(true); setErr('');
+    try {
+      await axios.post(`${API}/attendance/absence/${row.leave_event_id}/close`, { return_date: rd }, { headers });
+      onSaved();
+    } catch (e) { setErr(e?.response?.data?.detail || 'Could not close absence'); setSaving(false); }
+  };
+  return createPortal(
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4" data-testid="attendance-rtw-modal">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-base font-bold text-slate-900">Return to work — {row.full_name}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+        <p className="text-xs text-slate-500 mb-3">Set the first day back. Days from then on stop being marked sick.</p>
+        <label className="block text-xs font-semibold text-slate-600 mb-3">First day back
+          <input type="date" value={rd} onChange={(e) => setRd(e.target.value)} data-testid="attendance-rtw-date"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+        {err && <div className="text-xs text-rose-600 mb-2" data-testid="attendance-rtw-error">{err}</div>}
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600">Cancel</button>
+          <button onClick={save} disabled={saving} data-testid="attendance-rtw-save"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold disabled:opacity-60">
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Close absence
+          </button>
+        </div>
+      </div>
+    </div>, document.body);
+}
 function blankDays() {
   return Array.from({ length: 7 }, (_, dow) => ({
     dow, working: dow < 5, start: dow < 5 ? '09:00' : null, finish: dow < 5 ? '17:00' : null,

@@ -788,6 +788,48 @@ async def clear_override(record_id: str, user: dict = Depends(get_current_user))
     return await recompute_day(org_id, rec["staff_id"], rec["date"])
 
 
+class ReturnToWorkBody(BaseModel):
+    return_date: str
+
+
+@router.post("/attendance/absence/{leave_id}/close")
+async def close_absence(leave_id: str, body: ReturnToWorkBody,
+                        user: dict = Depends(get_current_user)):
+    """Return-to-work (§20/§21) — cap an open-ended sickness at the return date
+    so forward SICK marking stops and the days from return onward re-derive."""
+    _require_manager(user)
+    org_id = _org(user)
+    leave = await db.staff_leave_requests.find_one(
+        {"organization_id": org_id, "id": leave_id}, {"_id": 0})
+    if not leave:
+        raise HTTPException(404, "absence not found")
+    start = date.fromisoformat(leave["start_date"])
+    try:
+        rd = date.fromisoformat(body.return_date)
+    except Exception:
+        raise HTTPException(400, "invalid return_date")
+    if rd <= start:
+        raise HTTPException(400, "return date must be after the first day of absence")
+    new_end = (rd - timedelta(days=1)).isoformat()
+    old_end = leave.get("end_date") or _today()
+    await db.staff_leave_requests.update_one(
+        {"organization_id": org_id, "id": leave_id},
+        {"$set": {"end_date": new_end, "return_date": body.return_date, "status": "approved",
+                  "closed_by": user.get("email"), "closed_at": _now().isoformat()}},
+    )
+    last = max(date.fromisoformat(old_end), rd, date.today())
+    cur = start
+    n = 0
+    while cur <= last:
+        try:
+            await recompute_day(org_id, leave["staff_id"], cur.isoformat())
+            n += 1
+        except Exception:
+            pass
+        cur += timedelta(days=1)
+    return {"ok": True, "sick_through": new_end, "return_date": body.return_date, "recomputed": n}
+
+
 # ───────────────────────── Attendance board (§26/§27) ─────────────────────────
 
 @router.get("/attendance/board")
@@ -821,6 +863,7 @@ async def attendance_board(date_iso: str = Query(None, alias="date"),
             "regular_hours": rec.get("regular_hours"),
             "source": rec.get("source"),
             "manual_override": rec.get("manual_override", False),
+            "leave_event_id": rec.get("leave_event_id"),
             "is_exception": rec["actual_status"] == "not_confirmed",
         })
     expected_working = sum(1 for r in rows if r["status"] in ("working", "not_confirmed"))
