@@ -1,3 +1,52 @@
+# ═══ 2026-06 · STAFF PORTAL PROGRAMME — PHASE 1: ATTENDANCE SPINE · testing_agent 100% (BE 9/9 + FE) ═══
+NEW multi-phase programme (87-point brief): unify Staff Timesheets + Manager Attendance spreadsheet +
+Citation Atlas + Payroll into ONE record. Principle: ENTER ONCE → USE EVERYWHERE. Scoped against the
+existing platform first — REUSED (not duplicated): staff_members, staff_shifts/templates,
+staff_clock_events, staff_timesheets, staff_leave_requests, HR (staffing_hr), onboarding, kiosk,
+payroll CSV export, StaffPortal, Engineer App/Service Desk, notifications, expenses, documents.
+
+DELIVERED THIS PHASE (the missing single-source-of-truth spine):
+- NEW backend routes/attendance.py — the engine + endpoints (org-scoped, /api prefix, in _UNGATED_ROUTERS):
+  • Collections (all NEW): attendance_daily (unique idx org+staff+date = the truth), attendance_patterns,
+    attendance_work_profiles (EXTENDS staff_members, never copies identity), attendance_bank_holidays
+    (gov.uk cache per division/year — free, no key).
+  • recompute_day(org,staff,date): resolves ONE record by priority manager-correction > approved leave >
+    bank holiday > scheduled-off (pattern) > clock actuals (working) > not_confirmed. Tags `source`.
+  • ATTENDANCE_STATUSES vocabulary maps every status to legacy codes (working→IN, holiday→HOL,
+    bank_holiday→BH, sick→SICK, comp→COMP, off→OFF, +unpaid/training/travel/wfh/other/family/not_confirmed).
+  • apply_leave_to_daily(): one approved leave fans out to every day it covers; revoke recomputes back
+    (open-ended sick marks start→today). LEAVE_TYPE_TO_STATUS maps existing VALID_LEAVE_TYPE.
+  • Endpoints: /attendance/patterns CRUD + seed-defaults; /attendance/work-profile(s) GET/PUT;
+    /attendance/bank-holidays; /attendance/daily + /me/daily; /attendance/recompute; PATCH
+    /attendance/daily/{id} (manager correction, reason required, history old→new §29) + clear-override;
+    /attendance/board (exception-based "Today's Attendance" §26/§27, summary counts).
+- WIRING (ENTER ONCE, additive/best-effort, never breaks host flow):
+  • staffing.py decide_leave → apply_leave_to_daily on approve/reject/cancel (now logs failures at WARNING).
+  • staffing_clock.py clock_punch (on punch) + manual_edit → recompute_day.
+- NEW frontend pages/LiteDashboard/staffing/AttendanceTab.js — manager UI, 3 views: Attendance Board
+  (date, refresh, summary tiles, colour-coded status table, Correct modal w/ required reason),
+  Working Patterns (7-day editor + seed defaults + CRUD), Work Profiles (payroll #, pattern, BH region,
+  time-entry method, overtime rule/eligibility). Wired into StaffingConsole GROUPS_ALL as 'Attendance'
+  pill (manager-only). React-portal modals at z-[120] (sit above cookie banner).
+- VERIFIED: BE curl (seed=4, board summary, leave→HOL fan-out source leave_approval, correction override
+  survives leave cancel, bank holidays 8/2026) + testing_agent BE 9/9 pytest
+  (/app/backend/tests/test_attendance_spine_jan2026.py) + FE 100%. Report
+  /app/test_reports/iteration_attendance_spine_jan2026.json.
+- USER DECISIONS: build/test on iso-demo-org; keep PT+Classes (configurable later in Master Admin);
+  Atlas deferred (no API yet — build Atlas-ready with conflict dashboard as a disabled stub later);
+  Staff Portal access = ONE login then a chooser (Staff Portal OR their modules) — Phase 2 item.
+- BACKLOG (next phases, in brief order): P1 Staff Portal Home + My Day + My Time (mobile-first) on the
+  spine; P1 post-login launcher/chooser; P1 Pay Periods (4/5-wk/custom) + submit→approve→Payroll
+  Workspace→lock→immutable snapshot→export w/ field mapping; P2 Report Absence / open-ended sick /
+  return-to-work; P2 Engineer working-day proposal from job timestamps + Service Desk availability;
+  P2 spreadsheet migration importer (TIME SHEETS 2026 + Attendance Request) + reconciliation; P3 Atlas
+  sync + conflict dashboard (blocked on Citation API); PT/Classes configurable categories in Master Admin.
+- KNOWN (deferred, not bugs): routes/attendance.py ~825 lines (split before Phase 2); recompute is
+  O(staff*days) sequential (fine for demo, needs bulk for real orgs).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · ROOT-CAUSE: stop stamping the master-admin's AI-Admin org onto staff · PENDING REDEPLOY ═══
 Owner clarified the model: THIS PLATFORM IS FOR PULSE FITNESS LTD. Everything in Master Admin →
 Organisations/People is Pulse Fitness Ltd (3ece2d0c). "Pulse Fitness AI Admin" (d19de469) is only the
@@ -20460,7 +20509,7 @@ So any external bookmarks or stray copy-paste links keep working:
   redirects + scan the rest of the codebase for any remaining links
   to the dead paths (`/legal/privacy`, `/legal/terms`).
 * `make regression` → **385 passed, 14 skipped** (up from 379).
-* Live smoke against `https://photo-fix-verify.preview.emergentagent.com`:
+* Live smoke against `https://allocation-wizard-ai.preview.emergentagent.com`:
   * `/legal/privacy`     → final URL `/privacy` ✅
   * `/legal/terms`       → final URL `/terms` ✅
   * `/forgot-password`   → final URL `/reset-password` ✅
@@ -31032,7 +31081,7 @@ P6 — final phase of the Master Admin redesign blueprint. Replaces ad-hoc "Add 
   8-10. Backend endpoint calls verified.
   11. Created user appears in unified directory.
   12. Regression: People → Directory still works.
-- **Main agent live smoke**: signed in as `admin@gymaxisai.com`, ran full 5-step flow, created `Wizard Test User`, received invite URL `https://photo-fix-verify.preview.emergentagent.com/reset-password?token=l47KegLXL2FI…`.
+- **Main agent live smoke**: signed in as `admin@gymaxisai.com`, ran full 5-step flow, created `Wizard Test User`, received invite URL `https://allocation-wizard-ai.preview.emergentagent.com/reset-password?token=l47KegLXL2FI…`.
 
 ### Pulse Master Admin guardrails
 - 'GymAxis Master Admin' role tile hidden.

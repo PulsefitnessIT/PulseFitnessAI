@@ -12,7 +12,7 @@ import requests
 import os
 import uuid
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://photo-fix-verify.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://allocation-wizard-ai.preview.emergentagent.com').rstrip('/')
 BYPASS_HEADERS = {
     'X-RateLimit-Bypass': '1438ab298eab4e7ef2cb89e61309123e85fb05ae6fc583c6',
     'X-Captcha-Token': 'bypass:1438ab298eab4e7ef2cb89e61309123e85fb05ae6fc583c6'

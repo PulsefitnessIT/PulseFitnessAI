@@ -13,7 +13,7 @@ import pytest
 import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/") or \
-    "https://photo-fix-verify.preview.emergentagent.com"
+    "https://allocation-wizard-ai.preview.emergentagent.com"
 ADMIN_EMAIL = "admin@pulsefitness.com"
 ADMIN_PWD = "C2s9yJ3YAhydB4d34-Bykg"
 

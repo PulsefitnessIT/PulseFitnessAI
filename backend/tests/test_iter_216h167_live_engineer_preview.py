@@ -15,7 +15,7 @@ import pytest
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL")
-       or "https://photo-fix-verify.preview.emergentagent.com").rstrip("/")
+       or "https://allocation-wizard-ai.preview.emergentagent.com").rstrip("/")
 
 
 @pytest.fixture(scope="module")

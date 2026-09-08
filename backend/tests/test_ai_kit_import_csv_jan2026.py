@@ -3,7 +3,7 @@ import os
 import requests
 import pytest
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://photo-fix-verify.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://allocation-wizard-ai.preview.emergentagent.com").rstrip("/")
 EMAIL = "admin@pulsefitness.com"
 PASSWORD = "C2s9yJ3YAhydB4d34-Bykg"
 CSV_PATH = "/tmp/nyati.csv"

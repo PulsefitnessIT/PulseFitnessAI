@@ -243,6 +243,14 @@ async def clock_punch(body: PunchBody, user: dict = Depends(get_current_user)):
     }
     await db.staff_clock_events.insert_one(event.copy())
 
+    # Attendance Spine — keep the day's single source of truth in step with
+    # the punch (best-effort; punches stand even if the recompute fails).
+    try:
+        from routes.attendance import recompute_day
+        await recompute_day(org_id, sid, now.date().isoformat())
+    except Exception:
+        pass
+
     # Update the linked shift if any (best-effort — punches stand even if no shift)
     if body.shift_id:
         if body.kind == "clock_in":
@@ -488,6 +496,11 @@ async def manual_edit(
         "created_at": _now().isoformat(),
     }
     await db.staff_clock_events.insert_one(event.copy())
+    try:
+        from routes.attendance import recompute_day
+        await recompute_day(org_id, staff_id, occurred_at[:10])
+    except Exception:
+        pass
     return {"ok": True, "event": {k: v for k, v in event.items() if k != "_id"}}
 
 

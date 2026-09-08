@@ -889,6 +889,17 @@ async def decide_leave(leave_id: str, body: dict = Body(...), user: dict = Depen
     if res.matched_count == 0:
         raise HTTPException(404, "leave request not found")
     doc = await db.staff_leave_requests.find_one({"id": leave_id}, {"_id": 0})
+    # Attendance Spine — one approved leave event fans out to every daily
+    # record it covers (§3/§80). Revoking recomputes those days back to the
+    # working pattern. Best-effort so the decision itself never fails.
+    try:
+        from routes.attendance import apply_leave_to_daily
+        await apply_leave_to_daily(org_id, doc)
+    except Exception as e:
+        logging.getLogger(__name__).warning(
+            "attendance spine fan-out failed for leave %s (staff %s): %s",
+            leave_id, (doc or {}).get("staff_id"), e,
+        )
     return doc
 
 

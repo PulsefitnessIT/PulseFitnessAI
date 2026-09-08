@@ -21,7 +21,7 @@ import {
   Eye, Shield, Megaphone, Sparkles, Trash2,
   ChevronLeft, ChevronRight, Clock, AlertTriangle, Download, RefreshCw,
   LayoutDashboard, Layers, Activity, Timer, MessageSquare, ClipboardList,
-  IdCard, Wand2, ArrowRightLeft, Wallet, Network,
+  IdCard, Wand2, ArrowRightLeft, Wallet, Network, CalendarDays,
   // Iter 216h264 — staff portal preview + credentials issuance
   ExternalLink, KeyRound, Loader2, Copy, Check, X,
 } from 'lucide-react';
@@ -38,6 +38,7 @@ import OperationsTab from '@/pages/LiteDashboard/staffing/OperationsTab';
 import HRTab from '@/pages/LiteDashboard/staffing/HRTab';
 import StaffOnboarding from '@/pages/LiteDashboard/staffing/StaffOnboarding';
 import TeamAccessTab from '@/pages/LiteDashboard/staffing/TeamAccessTab';
+import AttendanceTab from '@/pages/LiteDashboard/staffing/AttendanceTab';
 import OrgChartTab from '@/pages/LiteDashboard/staffing/orgchart/OrgChartTab';
 import AIWorkforceTab from '@/pages/LiteDashboard/staffing/AIWorkforceTab';
 import MODStaffTransferTab from '@/pages/LiteDashboard/staffing/MODStaffTransferTab';
@@ -90,6 +91,8 @@ const GROUPS_ALL = [
     { id: 'timeclock', label: 'Team Clock', icon: Activity, roles: MGR },
     { id: 'myclock',   label: 'My Clock',   icon: Timer,    roles: ['staff'] },
   ] },
+  // Attendance = the single-source-of-truth daily record (spine).
+  { id: 'attendance', label: 'Attendance', icon: CalendarDays, leaf: 'attendance', roles: MGR },
   // Performance = overview metrics + AI insights (combined per request).
   { id: 'performance', label: 'Performance', icon: BarChart3, children: [
     { id: 'performance', label: 'Overview',    icon: BarChart3, roles: MGR },
@@ -301,6 +304,7 @@ export default function StaffingConsole() {
         {tab === 'rota'        && <RotaTab        headers={headers} isManager={isManager} />}
         {tab === 'templates'   && <ShiftTemplatesTab  headers={headers} isManager={isManager} />}
         {tab === 'timeclock'   && <TimeClockTab   headers={headers} />}
+        {tab === 'attendance'  && <AttendanceTab  headers={headers} isManager={isManager} />}
         {tab === 'myclock'     && <MyClockTab     headers={headers} />}
         {tab === 'staff'       && (isMOD ? <MODStaffTab headers={headers} /> : <StaffTab headers={headers} />)}
         {tab === 'site-access' && <SiteStaffManager headers={headers} />}

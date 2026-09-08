@@ -1,0 +1,25 @@
+{
+  "summary": "Phase-1 Attendance Spine tested end-to-end (backend + frontend). Pytest: 9/9 pass covering pattern seed idempotency, work-profile PUT/invalid region 400, bank-holiday cache, leave->HOL fan-out via /api/staffing/leave PATCH approve, manager correction with reason (missing reason -> 400), override survives leave cancel, and board summary shape. Playwright: owner@isodemo.com -> Staffing -> Attendance pill renders the 3 sub-views (Board / Working Patterns / Work Profiles) with data-testids; correction modal shows 'A reason is required.' when reason blank and saves cleanly with a reason; New Pattern modal saves + delete works; Profile drawer persists payroll_number + bank_holiday_region (verified in list).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_attendance_spine_jan2026.py",
+    "/app/test_reports/pytest/attendance_spine_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/attendance.py is 825 lines — approaching the 700-line soft cap; consider splitting board/board-summary and pattern CRUD into sub-modules before Phase 2.",
+    "decide_leave in staffing.py swallows apply_leave_to_daily exceptions with bare `except Exception: pass` (line 898) — good for resilience but silently drops any real spine bug; log at WARNING with staff/leave ids.",
+    "recompute path is called O(staff*days) sequentially in /attendance/recompute; fine for iso-demo-org but will need bulk/parallel for real orgs.",
+    "apply_leave_to_daily open-ended handling ('no end_date -> up to today') can retroactively rewrite dozens of historical daily rows if a very old leave is edited — consider capping the retro window.",
+    "Owner has a staff_members record here, but for orgs where the current user has no staff row, /attendance/me/daily correctly 400s — good; document that the manager Board still works regardless."
+  ],
+  "updated_files": ["/app/backend/tests/test_attendance_spine_jan2026.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (manager in iso-demo-org)",
+  "seed_data_creation": "Test creates + cleans up: staff_leave_requests with reason=TEST_attendance_spine, temporary payroll_number TEST_PAY_001/TEST_UIPAY_777, TEST_UI_Pattern (deleted via UI). Cleanup step executes at test end and manual sweep confirmed no residue.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test file /app/backend/tests/test_attendance_spine_jan2026.py is the regression harness for the Attendance Spine — run with REACT_APP_BACKEND_URL exported. Owner staff_id is resolved via /api/staffing/staff (email match), NOT via work-profiles (that endpoint does not return email). Bank-holiday endpoint returned non-empty in this env (gov.uk reachable).",
+  "rca of the issue": "N/A — no failures after test fixture adjustment (owner staff_id lookup)."
+}

@@ -1,19 +1,24 @@
-<analysis><analysis>
-**original_problem_statement**: Bug Report: Operations - Equipment details - Uploaded image is not showing on equipment details on desktop or when you scan the QR code (showing a broken/grey placeholder). Prior to this, the agent completed a massive requirement to act as a master tender writer editing 6 Word () MOD Tender submission documents without losing corporate templates.
+<analysis>**original_problem_statement**: 
+1. Improve the Dealer Parts Allocation Wizard with Plan vs Actuals reporting, tunable thresholds, AI parse mapping memory, 1-5 year cover period options, intelligence blending, invoice number capture, and upfront duplicate guards.
+2. Fix MOD Service Portal bugs.
+3. Fix CRM Fetch company by website to handle bot-protected sites and international postcodes, and add an Account Manager selection for companies.
+4. Integrate Service Desk: Add Service Desk to the global Module Switcher, allow CRM Companies to pull through as Service Desk Customers.
+PRODUCT REQUIREMENTS: Deliver a robust, interconnected Service Desk and CRM experience, finalize the Allocation Wizard's intelligence capabilities, and harden the MOD Portal's UX.
 
 **User's preferred language**: English (INSTRUCT next agent to respond in English only)
 
-**what currently exists?**: A mature React + FastAPI CRM/operations platform. The offline tender document editing tasks are 100% complete and zipped. The platform's equipment photo rendering bug has just been addressed—the root cause was absolute URLs being saved to the database with a stale environment host (), resulting in 404s when the app was moved to a new preview/production host.
+**what currently exists?**: 
+A mature React + FastAPI CRM and Operations platform. Core capabilities include a highly advanced Dealer Parts Allocation Wizard, strict MOD Portal validation, and a robust CRM. Features global international postcode lookups via Zippopotam.us. Module entitlements are strictly scoped by org (), with Master Admin providing top-level governance via inline MFA step-up authentication. Cross-login between the main platform and CRM is supported. The Dealer Parts Allocation Wizard now includes smart recommendation blending (actuals + trends), per-machine threshold overrides, upfront AI review steps with duplicate validation gates, and deterministic invoice number extraction. 
 
 **Last working item**: 
-    - Last item agent was working: Fixing the equipment photo rendering bug across the application (desktop and QR scan page). The agent modified the backend to store relative URLs and introduced a frontend normalizer () to self-heal existing absolute URLs by re-mapping them to the current .
+    - Last item agent was working: Upgrading the duplicate invoice guard. Moved the invoice already used warning directly into the AI review panel (before clicking Apply), complete with a prominent red banner and a required checkbox acknowledgement to un-gate the Apply button.
     - Status: USER VERIFICATION PENDING
     - Agent Testing Done: Y
-    - Which testing method agent to use?: Frontend testing agent (to fully verify the UI rendering of the modal and QR page, as the screenshot tool had issues with lazy-loaded chunks during the agent's manual tests).
+    - Which testing method agent to use?: NA (already verified via backend curl and frontend compilation check)
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:  
-  Issue 1: Production SENDER_EMAIL delivery verification (P2)
+  Issue 1: Production SENDER_EMAIL delivery verification (P1)
      - Attempted fixes: Pending verification on live environment.
      - Next debug checklist: Await user input on production email delivery tests.
      - Why fix this issue and what will be achieved with the fix?: Ensures operational emails reach customers.
@@ -28,116 +33,145 @@
      - Should Test frontend/backend/both after fix: Backend
      - Blocked on other issue: User action required
 
-**In progress Task List**:
-  None. (Tender document editing and equipment photo bugs are completed/pending verification).
+  Issue 3: Invalid RESEND_API_KEY in preview environment (P2)
+     - Attempted fixes: Backend logic succeeds, but Resend API rejects the placeholder key.
+     - Next debug checklist: Inject a valid Resend key in the preview environment  or request from the user.
+     - Status: BLOCKED
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix: Backend
+     - Blocked on other issue: Valid API key required from user.
 
-**Upcoming and Future Tasks**
+  Issue 4: Platform tenant-registry records verification (P2)
+     - Next debug checklist: Ask user if the two companies (, ) sitting under the AI-Admin org are real customers that need re-attaching, or if they are meant to be platform tenant-registry records.
+     - Status: USER VERIFICATION PENDING
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix: NA
+
+  Issue 5: Git history containing old sensitive data (P2)
+     - Next debug checklist: Run a history purge (BFG/filter-repo).
+     - Status: NOT STARTED
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix: NA
+
+  Issue 6: Unique Index Guard (P2)
+     - Next debug checklist: Add a unique index on  in MongoDB.
+     - Status: NOT STARTED
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix: Backend
+
+**In progress Task List**: 
+  None
+
+**Upcoming and Future Tasks**:
     Upcoming Tasks:
-    - Task 1: Git history containing old sensitive data (P1): Run a history purge (BFG/filter-repo).
-    - Task 2: Unique Index Guard (P2): Add a unique index on  in MongoDB.
-    - Task 3: Complete i18n localization for remaining Engineer App files (P2).
-    - Task 4: Dictation Widget Locale (P2).
+    - Task 1: Offline Engineer Support for Blue Light Wizard (P0): Needs offline caching/sync capability for Fire Stations with no cell signal.
+    - Task 2: Calibration Trend Reporting / Capex Integration (§48/§49) (P1): Flag when treadmill models repeatedly need adjustment or fail.
     
     Future Tasks:
-    - Sicon Equipment API Auto-Import & Write-back.
-    - Interactive-hotspot version for exploded drawings.
+    - Task 3: Complete i18n localization for remaining Engineer App files.
+    - Task 4: Dictation Widget Locale.
+    - Task 5: Sicon Equipment API Auto-Import & Write-back.
+    - Task 6: Interactive-hotspot version for exploded drawings.
 
-**Completed work in this session**
-- Finalised all 6 Word () MOD Tender submission documents (2.1 to 2.4) using Python in-place editing. Incorporated extensive feedback (Red Team, Director, Tender Writer), removed defeatist narratives, and injected hard statistical data. (DONE)
-- Replaced/embedded corrected  PNG process maps directly into documents 2.2A and 2.3A using . (DONE)
-- Generated final submission zip  containing all finalized docs. (DONE)
-- Fixed Equipment Photo URL bug by ensuring the backend () saves relative paths () instead of absolute paths, and adding a frontend normalizer to strip and rebuild stale hosts for existing DB records. (DONE)
+**Completed work in this session**:
+- Verified Master Admin Service Desk provisioning bug fix (DONE)
+- Implemented Dealer Parts Allocation Wizard smart recommendation blending (40% actuals) and medium trend sensitivity logic (DONE)
+- Added per-machine-group Plan vs Actuals threshold overrides (DONE)
+- Added AI review step (card) before dropzone in the wizard (DONE)
+- Made Intelligence (blend + trend) default for Pulse Fitness Ltd and demo orgs (DONE)
+- Fixed missing  import blocking compilation in  (DONE)
+- Added deterministic extraction of invoice numbers from PDFs/Excel to auto-fill after Apply (DONE)
+- Upgraded Duplicate Guard to surface in AI review panel before Apply, requiring checkbox acknowledgment (DONE)
 
-**Earlier issues found/mentioned but not fixed**
-   Issue 1: Git history containing old sensitive data
-   - Debug checklist: Run a history purge (BFG/filter-repo).
-   - Why to solve this issue and what will be achieved with this?: Compliance and security hardening.
-   - Should Test frontend/backend/both after fix: NA
-   - Is recurring issue? N
+**Earlier issues found/mentioned but not fixed**:
+   - Issue 1: Global Modal Stacking Contexts (z-index issues)
+     - Debug checklist: A cookie banner/PWA prompt overlaps modal dialogs (like the CRM New Company Create button). Requires an app-wide Modal Portal refactor.
+     - Why to solve this issue and what will be achieved with this?: Unblocks obscured buttons at the bottom of forms.
+     - Should Test frontend/backend/both after fix: Frontend
+     - Is recurring issue? Y
 
-**Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: Babel JS string duplication (Tail Corruption) caused by heavy  commands on large React files.
-  - Recurrence count: 21+
-  - Status: RESOLVED
+**Known issue recurrence from previous fork**:
+  - Issue recurrence in previous fork: React Rules of Hooks violations (Recurrence count: 2) - RESOLVED 
+  - Issue recurrence in previous fork: Babel JS string duplication (Tail Corruption) (Recurrence count: 21+) - RESOLVED
+  - Issue recurrence in previous fork: OOM (Out of Memory) dev server crashing (Recurrence count: 3) - RESOLVED
 
-**Code Architecture**
+**Code Architecture**:
 /app
-├── backend/routes/ (equipment.py, qr_codes.py)
-├── frontend/src/utils/ (photoUrl.js)
-├── frontend/src/pages/ (EquipmentInfoTab.js, QRScanPage.js)
-├── tender_deliverables/ 
-│   ├── FINAL_Submission_Edited/
-│   ├── MOD2026_Submission_EDITED.zip (Final zipped tender pack)
+├── backend/routes/ (dealer_parts_data.py, crm_website_recognize.py, auth.py, crm_auth.py, staff_portal.py, service_desk_admin.py)
+├── backend/utils/ (headless_fetch.py, postcodes_client.py, auth_guards.py)
+├── frontend/src/pages/DealerWarrantyParts/ (AllocationWizardTab.js, PlanVsActualsPanel.js)
+├── frontend/src/pages/LiteDashboard/ (LiteDialogs.js)
+├── frontend/src/pages/MasterAdmin/ (AdminOrganizations.js)
+├── frontend/src/pages/CRM/ (CRMCompanies.js, CRMPermissions.js)
+├── frontend/src/components/shared/ (ModuleSwitcher.js, AreaSwitcher.js)
 
-**Key Technical Concepts**
-React, FastAPI, MongoDB, Zero-Trust Authorization.  was heavily utilized in this session for XML and text manipulation of complex Word documents.
+**Key Technical Concepts**:
+React, FastAPI, MongoDB, Playwright (Headless Chromium), MFA Step-Up Authentication, JWT, Zippopotam.us API, Reportlab (PDF).
 
-**key DB schema**
-  - : Central immutable log.
-  - : TOTP secrets.
-  - :  field is now strictly a relative path to avoid stale host 404s.
+**key DB schema**:
+  - : Main platform login accounts.  links to the company.
+  - : CRM-specific profiles. Uses  for unified passwords.
+  - : Platform tenants (e.g. Pulse Fitness Ltd ).
+  - : Allocation wizard tenant settings.
+  - : Allocation wizard target quantities.
+  - : Equipment breakdown.
+  - : Parsed job history records.
 
-**changes in tech stack**
-  - None
+**changes in tech stack**:
+  - None this session. (Playwright + headless Chromium browser previously added to backend).
 
-**All files of reference** 
-  -  (Created to parse and heal absolute photo URLs into relative ones)
-  -  (Modified to store relative URLs going forward)
-  - , , ,  (Updated to use the  normalizer)
-  -  (Final output of the tender doc writing task)
+**All files of reference**: 
+  -  (Added blend/trend intelligence, deterministic invoice number extraction, and threshold overrides).
+  -  (Added AI review card, intelligence badge, duplicate guard acknowledgement checkbox).
+  -  (Added per-machine override UI).
+  -  (Fixed compilation-blocking missing  import).
 
 **Areas that need refactoring**: 
-  -  (large, highly prone to Babel tail corruption).
+  - App-wide modal placement (needs standardized React Portals) to avoid z-index overlapping with PWA/cookie banners.
 
-**key api endpoints**
-  -  (Serves the actual image bytes)
+**key api endpoints**:
+  -  (Applies smart blends/trends)
+  -  (Applies global and per-machine group thresholds)
+  -  (Uses fast deterministic extraction for CSVs and PDFs to capture invoice IDs)
 
-**Critical Info for New Agent** 
-  - **Equipment Photo Bug Fix**: The agent implemented a self-healing fix for the equipment photos. The backend now writes *relative* paths to the DB. For older records that have a baked-in host (like ), the frontend  utility intercepts them and replaces the host with the environment's current . 
-  - **Testing Agent Status**: The agent verified the fix via backend  (yielding HTTP 200). However, the screenshot tool failed due to lazy-loading chunks. Await the user's response in the next message to see if they want you to run the  to verify the UI, or if they have deployed it and are happy.
-  - **Tender Docs**: The tender document generation is fully complete. The zip is at . No further actions are needed on the  files unless requested.
+**Critical Info for New Agent**: 
+  - Domain Model: The primary tenant is **Pulse Fitness Ltd** (). The Pulse Fitness AI Admin () tenant is strictly a master-admin login container.
+  - Test Data Context: The  data (warranty plan, BOM machines, settings) lives under **** in the dev preview, but settings defaults have been applied to both  and .
+  - Master Admin security uses an **inline Step-Up MFA flow** () rather than hard 401 sign-outs.
 
-**documents and test reports created in this job** 
+**documents and test reports created in this job**: 
   - 
-  - 
-  - 
+  -  (Updated test sample)
 
-**Last 10 User Messages and any pending HUMAN messages** 
- 1. *[User]*: Happy with 2.2A? Approved — continue. Handle the remaining four documents... (COMPLETED)
- 2. *[User]*: Figures for comparable contract? LSLDCO186... Run consistency sweep... (COMPLETED)
- 3. *[User]*: Posted heavy feedback from a tender writer regarding missing UKAS references, bad placeholders, incorrect stats, and needing new Figure 1 maps. Uploaded the PNGs. (COMPLETED)
- 4. *[User]*: Jimmy Connors is verified (COMPLETED)
- 5. *[User]*: Asked to rewrite a defensive/defeatist narrative regarding historic SLA reporting. (COMPLETED)
- 6. *[User]*: where is MOD2026_Submission_EDITED.zip saved? Can it be moved to /tender_deliverables (COMPLETED)
- 7. *[User]*: Bug - Operations - Equipment details - Uploaded image is not showing on equipment details on desktop or when you scan the QR code - I used the attached image to upload (COMPLETED, USER VERIFICATION PENDING)
+**Last 10 User Messages and any pending HUMAN messages**: 
+ 1. *[User]*: Confirmed Service desk provisioning bug fix is verified. Requested to prioritize Dealer Parts Allocation Wizard improvements. (COMPLETED)
+ 2. *[User]*: Selected specific features (b, c, d) for the Wizard. (COMPLETED)
+ 3. *[User]*: Asked to Make Intelligence Default: Turn blend + trend on by default across the org and asked if it still nets against current stock. (COMPLETED)
+ 4. *[User]*: Authorized setting Blend to 40%, Trend to Medium, strictly for Pulse Fitness Ltd. (COMPLETED)
+ 5. *[User]*: Requested Invoice Number Capture to reliably pull the invoice number from PDFs/Excel to auto-fill after Apply. (COMPLETED)
+ 6. *[User]*: Requested Duplicate Guard on Apply to surface the invoice already used warning directly in the AI review panel before Apply. (COMPLETED)
+*(No pending human messages)*
 
-**Project Health Check:**
-  - Broken: None
-  - Mocked: Sicon / Sage 200 Integration
+**Project Health Check**:
+  Broken: Global Modal Stacking/z-index overlaps.
+  Mocked: Sage 200 Integration, Resend Email Delivery (Preview Env).
 
-**3rd Party Integrations** 
+**3rd Party Integrations**: 
   - OpenAI GPT-4o / Claude Sonnet 4.6 — uses Emergent LLM Key
   - Stripe (Payments) — requires User API Key
   - Resend (Emails) — requires User API Key
 
-**Testing status**
-  - Testing agent used after significant changes: NO (For the equipment bug, agent used curl/bash; offered testing agent to user).
+**Testing status**:
+  - Testing agent used after significant changes: YES
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: None
+  - Test files created: 
   - Known regressions: None
 
-**Credentials to test flow:**
-  -  (Master admin)
+**Credentials to test flow**:
+  -  (Master admin - Note: Has MFA Enabled)
+  -  (CRM / Portal / Service Desk user)
   - Password in 
 
-**What agent forgot to execute**
-- Nothing was overlooked. The tender documents were exhaustively patched and the photo rendering bug was addressed on both frontend and backend. 
-
-**Debugging checklist for current issue**
-    Issue: Verification of Equipment Photo rendering UI
-    Frontend files to check: 
-    - 
-    - 
-    Steps:
-    - If the user requests UI verification, utilize the  to navigate to Operations -> Equipment Details and verify the image loads without triggering an  grey placeholder.
-</analysis></analysis>
+**What agent forgot to execute**:
+- The agent explicitly deferred Git history purging (BFG/filter-repo) and  unique index guards. 
+- The React Portals refactor for resolving Global Modal Stacking contexts/z-index overlap remains untouched.</analysis>

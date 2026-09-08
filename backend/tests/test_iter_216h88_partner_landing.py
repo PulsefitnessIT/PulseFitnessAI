@@ -13,7 +13,7 @@ import requests
 BASE_URL = (
     os.environ.get("REACT_APP_BACKEND_URL")
     or os.environ.get("TEST_API_URL")
-    or "https://photo-fix-verify.preview.emergentagent.com"
+    or "https://allocation-wizard-ai.preview.emergentagent.com"
 ).rstrip("/")
 
 
