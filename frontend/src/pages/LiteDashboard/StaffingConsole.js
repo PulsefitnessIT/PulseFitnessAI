@@ -24,6 +24,7 @@ import {
   IdCard, Wand2, ArrowRightLeft, Wallet, Network, CalendarDays,
   // Iter 216h264 — staff portal preview + credentials issuance
   ExternalLink, KeyRound, Loader2, Copy, Check, X,
+  Truck, Plus, ShieldAlert, FileDown, Link2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
@@ -39,6 +40,7 @@ import HRTab from '@/pages/LiteDashboard/staffing/HRTab';
 import StaffOnboarding from '@/pages/LiteDashboard/staffing/StaffOnboarding';
 import TeamAccessTab from '@/pages/LiteDashboard/staffing/TeamAccessTab';
 import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
+import VehiclesTab from '@/pages/LiteDashboard/staffing/VehiclesTab';
 import AttendanceTab from '@/pages/LiteDashboard/staffing/AttendanceTab';
 import PayrollWorkspaceTab from '@/pages/LiteDashboard/staffing/PayrollWorkspaceTab';
 import OrgChartTab from '@/pages/LiteDashboard/staffing/orgchart/OrgChartTab';
@@ -109,6 +111,7 @@ const GROUPS_ALL = [
     { id: 'comms',    label: 'Handover Diary', icon: MessageSquare, roles: ALL },
   ] },
   { id: 'operations', label: 'Ops · Forms', icon: ClipboardList, leaf: 'operations', roles: ALL },
+  { id: 'vehicles', label: 'Vehicles', icon: Truck, leaf: 'vehicles', roles: MGR },
   { id: 'rules',      label: 'Rules',       icon: Shield,        leaf: 'rules',      roles: MGR },
 ];
 
@@ -325,6 +328,7 @@ export default function StaffingConsole() {
         {tab === 'announce'    && <AnnouncementsTab headers={headers} isManager={isManager} />}
         {tab === 'comms'       && <CommsTab        headers={headers} isManager={isManager} isMOD={isMOD} />}
         {tab === 'operations'  && <OperationsTab   headers={headers} isManager={isManager} />}
+        {tab === 'vehicles'    && <VehiclesTab     headers={headers} />}
         {tab === 'hr'          && <HRTab           headers={headers} isManager={isManager} />}
         {tab === 'onboarding'  && <StaffOnboarding headers={headers} />}
         {tab === 'team-access' && <TeamAccessTab   headers={headers} />}

@@ -36477,3 +36477,22 @@ Portal User Guide:
 - Frontend StaffingConsole LeaveTab: shows employee name, an inline amber "Team clash: <name> (dates)" badge (data-testid `leave-clash-<id>`), and on Approve with clashes opens a confirmation modal (`leave-clash-modal`) listing overlaps with Cancel / "Approve anyway" (`leave-clash-approve-anyway`). Reject is unaffected.
 - Verified via curl (Alex pending overlaps Jamie approved, both Operations → mutual clashes returned) + desktop screenshot of the inline badge and confirm modal. Also confirmed notification-bell nudge navigates straight to Time Off.
 
+
+
+## 2026-09-08 — Vehicle Check feature (weekly driver inspections) [NEW]
+Problem: replace Pulse's paper Vehicle Check + Van Maintenance sheets with a digital, weekly, "enter once → use everywhere" flow. HR/managers assign vehicles to staff + a check type; drivers complete weekly in the Staff Portal; records stored for H&S/managers/owners; must feed from existing platform data (no duplication).
+
+Backend — `/app/backend/routes/vehicle_checks.py` (registered in route_registry/features.py):
+- Two official templates verbatim from the PDFs: `van_maintenance` (Vanarama, 23 items, 3 sections) and `vehicle_check` (company vehicle, 29 items + 5 EV items when is_ev; adds Safety Equipment + Electric Vehicle sections, tax/insurance fields). `GET /api/vehicle-checks/templates`.
+- Vehicle registry (manager, `_require_manager`): `GET/POST/PATCH/DELETE /api/vehicles`, `GET /api/vehicles/driver-options` (reuses staff_members), `GET /api/vehicles/import-candidates` + `POST /api/vehicles/import` (reuses engineers.vehicle_reg — no re-keying). Primary driver's reg is written back to their engineer profile (`_sync_engineer_reg`, two-way, no-op if not an engineer).
+- Weekly register/review (manager): `GET /api/vehicle-checks/register?week=&status=`, `GET /api/vehicle-checks/{id}`, `POST /api/vehicle-checks/{id}/review` (submitted→reviewed), `GET /api/vehicle-checks/export.csv`.
+- Driver (portal, `get_current_user_portal`): `GET /api/new-starter/portal/vehicles`, `GET /api/new-starter/portal/vehicle-check`, `POST .../vehicle-check/save` (draft) + `/submit` (validates all items answered + declaration; requires defect description), `POST .../vehicle-check/photo` (object storage, category vehicle-photos). Dual-auth image serve `GET /api/vehicle-checks/photo/{file_id}` (?auth= for <img>).
+- Defect on submit → creates `vehicle_defects` record + notifies line manager via the staffing bell (type `vehicle_defect`). Odometer synced back to the vehicle. Weekly key = Monday (`week_commencing`). Collections: `vehicles`, `vehicle_checks`, `vehicle_defects`.
+- Staff Portal notification nudge `vehicle_check_due` (counts only currently-assigned active vehicles without a submitted check this week).
+
+Frontend:
+- Staff Portal `Vehicle` tab (StaffPortal.js: VehicleTab + VehicleCheckForm) — mobile-first, prefilled driver/reg/make-model/odometer, one-tap OK/Defect/N/A (TriState), conditional Defect block with Yes/No toggles + camera photo, declaration + submit, save-draft, read-only after submit.
+- Manager `Vehicles` tab in Staffing console (staffing/VehiclesTab.js) — Fleet register (add/edit/delete + Import from engineers), Weekly checks (filter by week, open detail modal with per-item status + defect banner + Mark reviewed, CSV export).
+
+Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail later fixed: nudge now intersects with active assigned vehicles), frontend 100% smoke. Verified via curl + screenshots (staff form, manager detail modal with defect). Two robustness fixes applied post-test: nudge counting + draft photo preservation.
+

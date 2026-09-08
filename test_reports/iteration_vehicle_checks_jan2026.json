@@ -1,0 +1,36 @@
+{
+  "summary": "Vehicle Check feature end-to-end test: backend 13/13 core tests pass (1 xfail on nudge count edge case); manager Vehicles tab + staff portal Vehicle tab render correctly with correct data-testids, prefilled form, and read-only mode for already-submitted checks. Templates verified (van_maintenance=23 items, vehicle_check=29 items, vehicle_check_ev=34 items). Manager CRUD, driver-options, import-candidates, register, detail, review->reviewed, and CSV export all work. Portal save-draft, submit validation, defect submission (creates vehicle_defects + notifies line manager), and odometer sync-back all work.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/new-starter/portal/notifications (vehicle_check_due nudge)", "issue": "Nudge logic counts 'done' = ALL vehicle_checks with driver_staff_id==me & status in submitted/reviewed for the week. It does NOT filter to only currently-assigned/active vehicles, so stale checks for deleted vehicles inflate 'done' and can make (my_vehicles - done) <= 0, hiding the nudge even when there is a genuine 'due' assigned vehicle. Fix: compute done as count of DISTINCT vehicle_ids in {my vehicle ids} with a submitted/reviewed check this week (routes/staff_portal.py L688-695)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_vehicle_checks.py",
+    "/app/test_reports/pytest/vehicle_checks.xml"
+  ],
+  "action_items": [
+    "Fix vehicle_check_due nudge counting in routes/staff_portal.py to intersect submitted checks with currently-assigned & active vehicle ids (avoids hiding the nudge when a manager deletes / reassigns vehicles)."
+  ],
+  "critical_code_review_comments": [
+    "vehicle_checks.py is 590 lines — acceptable but consider splitting templates helpers into a module.",
+    "Dual-auth image serve /vehicle-checks/photo/{file_id} accepts ?auth= query param — necessary for <img> tags but ensure the token isn't logged to access logs.",
+    "_upsert_check ignores photos overwriting existing draft photos if body.photos is empty — currently replaces {vehicle:{},defect:[]} on every save; could accidentally clear driver-uploaded photos on a subsequent save-draft that omits the photos field."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_vehicle_checks.py"
+  ],
+  "success_rate": {"backend": "100% (13/13 core, 1 xfail)", "frontend": "100% smoke"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!, portal.staff@pulsedemo.test / Staff123! (both worked)",
+  "seed_data_creation": "Test creates + deletes ephemeral vehicles (TEST/NUDGE prefix). No lasting seed data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_vehicle_checks.py is the regression suite. portal.staff has staff_id='SPDEMO_emp_staff'. PF21 ABC's current-week check is pre-seeded submitted+reviewed, so staff portal opens it read-only (matches spec). To retest the nudge live, delete or reassign PF21 ABC first, then create a fresh vehicle for SPDEMO_emp_staff and check /portal/notifications for vehicle_check_due.",
+  "rca of the issue": "Nudge hidden bug — routes/staff_portal.py L688-699 computes due = my_vehicles - done using count_documents on staff_id alone. When a manager deletes a vehicle (active=False) after a check was submitted, the check row remains and still counts toward 'done'. Aggregate arithmetic then under-counts unmet checks. Reproduce: create vehicle assigned to portal.staff, submit its weekly check, delete the vehicle; done still ==1 but active vehicles ==0 -> next week when a new vehicle is added the diff can go negative and mask the nudge. Fix: aggregate distinct vehicle_ids of THIS staff's active vehicles that DO NOT have a submitted/reviewed check for the week."
+}

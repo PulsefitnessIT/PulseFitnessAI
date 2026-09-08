@@ -10,7 +10,7 @@ import {
   Loader2, LogOut, Calendar, Clock, Plane, FileText, ShieldCheck, Download,
   CheckCircle2, AlertCircle, Plus, Trash2, Users,
   Home, Play, Square, Coffee, Sun, Thermometer, ChevronLeft, ChevronRight,
-  ClipboardCheck, PenLine,
+  ClipboardCheck, PenLine, Truck, Camera, ShieldAlert, Check, X,
 } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
@@ -37,6 +37,7 @@ const TABS = [
   ['rota', 'My Rota', Calendar],
   ['timesheets', 'Timesheets', Clock],
   ['holidays', 'Holidays', Plane],
+  ['vehicle', 'Vehicle', Truck],
   ['documents', 'Documents', FileText],
   ['access', 'System Access', ShieldCheck],
 ];
@@ -113,6 +114,7 @@ export default function StaffPortal() {
           {tab === 'rota' && <RotaTab H={H} />}
           {tab === 'timesheets' && <TimesheetsTab H={H} />}
           {tab === 'holidays' && <HolidaysTab H={H} />}
+          {tab === 'vehicle' && <VehicleTab H={H} jwt={jwt} />}
           {tab === 'documents' && <DocumentsTab H={H} />}
           {tab === 'access' && <AccessTab H={H} />}
         </div>
@@ -791,6 +793,237 @@ function Shell({ children }) {
         </div>
       </div>
       {children}
+    </div>
+  );
+}
+
+
+/* ─────────────── Vehicle checks ─────────────── */
+const CHECK_TYPE_LABEL = { van_maintenance: 'Van Maintenance', vehicle_check: 'Vehicle Check' };
+const VSTATUS = {
+  due: ['Due this week', 'bg-amber-50 text-amber-700 border-amber-200'],
+  in_progress: ['In progress', 'bg-sky-50 text-sky-700 border-sky-200'],
+  submitted: ['Submitted', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
+  reviewed: ['Reviewed ✓', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
+};
+
+function VehicleTab({ H, jwt }) {
+  const [data, setData] = useState(null);
+  const [openId, setOpenId] = useState(null);
+  const load = useCallback(() => {
+    axios.get(`${API}/new-starter/portal/vehicles`, { headers: H })
+      .then((r) => setData(r.data)).catch(() => setData({ vehicles: [] }));
+  }, [H]);
+  useEffect(() => { load(); }, [load]);
+
+  if (!data) return <Loader2 className="animate-spin text-cyan-500" />;
+  if (openId) return <VehicleCheckForm H={H} jwt={jwt} vehicleId={openId} onBack={() => { setOpenId(null); load(); }} />;
+
+  if (!data.vehicles?.length) return <Empty icon={Truck} title="No vehicle assigned" hint="Your manager assigns vehicles and the weekly check you need to complete." />;
+
+  return (
+    <div className="space-y-3" data-testid="staff-vehicle-tab">
+      <p className="text-sm text-slate-500">Complete your weekly vehicle check. Week commencing <strong>{fmtDate(data.week_commencing)}</strong>.</p>
+      {data.vehicles.map((v) => {
+        const [label, cls] = VSTATUS[v.this_week?.status] || VSTATUS.due;
+        return (
+          <button key={v.id} onClick={() => setOpenId(v.id)} data-testid={`vehicle-card-${v.id}`}
+            className="w-full text-left rounded-2xl bg-white border border-slate-200 shadow-sm p-5 hover:border-cyan-300 transition-colors">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="rounded-xl bg-slate-900 text-white p-2.5"><Truck size={18} /></span>
+                <div className="min-w-0">
+                  <div className="font-bold text-slate-900 uppercase tracking-wide">{v.reg_no}</div>
+                  <div className="text-xs text-slate-500 truncate">{v.make_model || CHECK_TYPE_LABEL[v.check_type]} · {CHECK_TYPE_LABEL[v.check_type]}{v.is_ev ? ' · EV' : ''}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {v.this_week?.has_defects && <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600"><ShieldAlert size={13} /> Defect</span>}
+                <span className={`text-[11px] font-semibold px-2 py-1 rounded-full border ${cls}`} data-testid={`vehicle-status-${v.id}`}>{label}</span>
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function TriState({ value, onChange, testId }) {
+  const opts = [['ok', 'OK', 'emerald'], ['defect', 'Defect', 'rose'], ['na', 'N/A', 'slate']];
+  const on = { emerald: 'bg-emerald-500 text-white border-emerald-500', rose: 'bg-rose-500 text-white border-rose-500', slate: 'bg-slate-400 text-white border-slate-400' };
+  return (
+    <div className="inline-flex rounded-lg overflow-hidden border border-slate-200 shrink-0" data-testid={testId}>
+      {opts.map(([val, lab, tone]) => (
+        <button key={val} type="button" onClick={() => onChange(val)} data-testid={`${testId}-${val}`}
+          className={`px-3 py-1.5 text-xs font-semibold border-l first:border-l-0 border-slate-200 ${value === val ? on[tone] : 'bg-white text-slate-500'}`}>
+          {lab}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
+  const [d, setD] = useState(null);
+  const [items, setItems] = useState({});
+  const [details, setDetails] = useState({});
+  const [defect, setDefect] = useState({});
+  const [photos, setPhotos] = useState({ vehicle: {}, defect: [] });
+  const [declaration, setDeclaration] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [saved, setSaved] = useState('');
+  const locked = d?.check?.status === 'submitted' || d?.check?.status === 'reviewed';
+
+  useEffect(() => {
+    axios.get(`${API}/new-starter/portal/vehicle-check?vehicle_id=${vehicleId}`, { headers: H }).then((r) => {
+      setD(r.data);
+      const c = r.data.check || {};
+      setItems(c.items || {});
+      setDetails({ ...c.details, driver_name: (c.details?.driver_name) || r.data.check?.driver_name });
+      setDefect(c.defect || {});
+      setPhotos(c.photos || { vehicle: {}, defect: [] });
+      setDeclaration(!!c.declaration?.confirmed);
+    }).catch((e) => setErr(e?.response?.data?.detail || 'Could not load the check.'));
+  }, [vehicleId, H]);
+
+  const setItem = (id, val) => setItems((p) => ({ ...p, [id]: val }));
+  const hasDefects = Object.values(items).some((v) => v === 'defect') || defect.safe_to_drive === false;
+  const allIds = (d?.template?.sections || []).flatMap((s) => s.items.map((i) => i.id));
+  const answered = allIds.filter((i) => items[i]).length;
+
+  const persist = async (submit) => {
+    setBusy(true); setErr(''); setSaved('');
+    const body = { vehicle_id: vehicleId, details, items, defect, photos };
+    try {
+      const url = submit ? 'submit' : 'save';
+      const r = await axios.post(`${API}/new-starter/portal/vehicle-check/${url}`, body, { headers: H });
+      if (submit) { onBack(); } else { setSaved('Saved'); setTimeout(() => setSaved(''), 1500); setD((p) => ({ ...p, check: { ...p.check, status: r.data.status } })); }
+    } catch (e) { setErr(e?.response?.data?.detail || 'Something went wrong.'); }
+    finally { setBusy(false); }
+  };
+
+  const submit = () => {
+    if (!declaration) { setErr('Please confirm the declaration before submitting.'); return; }
+    if (answered < allIds.length) { setErr(`Please answer all ${allIds.length} checks (${answered} done).`); return; }
+    persist(true);
+  };
+
+  const uploadPhoto = async (file, slot) => {
+    const fd = new FormData(); fd.append('file', file);
+    try {
+      const r = await axios.post(`${API}/new-starter/portal/vehicle-check/photo`, fd, { headers: { ...H, 'Content-Type': 'multipart/form-data' } });
+      if (slot === 'defect') setPhotos((p) => ({ ...p, defect: [...(p.defect || []), r.data.file_id] }));
+      else setPhotos((p) => ({ ...p, vehicle: { ...(p.vehicle || {}), [slot]: r.data.file_id } }));
+    } catch { setErr('Photo upload failed.'); }
+  };
+
+  if (!d) return <Loader2 className="animate-spin text-cyan-500" />;
+  const tmpl = d.template;
+  const sr = d.vehicle?.service_record || {};
+
+  return (
+    <div className="space-y-4" data-testid="vehicle-check-form">
+      <div className="flex items-center justify-between gap-2">
+        <button onClick={onBack} data-testid="vehicle-check-back" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800"><ChevronLeft size={16} /> Vehicles</button>
+        {locked && <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Submitted — read only</span>}
+      </div>
+
+      <Card testId="vehicle-check-details">
+        <div className="flex items-center gap-3">
+          <span className="rounded-xl bg-slate-900 text-white p-2.5"><Truck size={18} /></span>
+          <div>
+            <div className="font-bold text-slate-900 uppercase tracking-wide">{d.vehicle.reg_no}</div>
+            <div className="text-xs text-slate-500">{tmpl.title} · Week commencing {fmtDate(d.week_commencing)}</div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4 text-sm">
+          <label className="block"><span className="text-xs text-slate-500">Driver</span>
+            <input value={details.driver_name || ''} disabled={locked} onChange={(e) => setDetails((p) => ({ ...p, driver_name: e.target.value }))} data-testid="vehicle-driver-name" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+          <label className="block"><span className="text-xs text-slate-500">Make / model</span>
+            <input value={d.vehicle.make_model || ''} disabled className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-slate-500" /></label>
+          <label className="block"><span className="text-xs text-slate-500">Odometer</span>
+            <input value={details.odometer || ''} disabled={locked} onChange={(e) => setDetails((p) => ({ ...p, odometer: e.target.value }))} data-testid="vehicle-odometer" placeholder="Mileage" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+        </div>
+        {(sr.mot_due || sr.next_service || sr.insurance_expiry || sr.tax_status) && (
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
+            {sr.next_service && <span>Next service: <strong>{sr.next_service}</strong></span>}
+            {sr.mot_due && <span>MOT due: <strong>{sr.mot_due}</strong></span>}
+            {sr.tax_status && <span>Tax: <strong>{sr.tax_status}</strong></span>}
+            {sr.insurance_expiry && <span>Insurance: <strong>{sr.insurance_expiry}</strong></span>}
+          </div>
+        )}
+      </Card>
+
+      {tmpl.sections.map((s) => (
+        <Card key={s.key} testId={`vehicle-section-${s.key}`}>
+          <h3 className="font-bold text-slate-900 mb-3">{s.title}</h3>
+          <div className="space-y-2.5">
+            {s.items.map((it) => (
+              <div key={it.id} className="flex items-start justify-between gap-3">
+                <span className="text-sm text-slate-700 flex-1">{it.label}</span>
+                <TriState value={items[it.id]} onChange={locked ? () => {} : (v) => setItem(it.id, v)} testId={`vehicle-item-${it.id}`} />
+              </div>
+            ))}
+          </div>
+        </Card>
+      ))}
+
+      {hasDefects && (
+        <Card testId="vehicle-defect-block">
+          <h3 className="font-bold text-rose-600 mb-3 flex items-center gap-2"><ShieldAlert size={18} /> Defects / corrective action</h3>
+          <textarea value={defect.details || ''} disabled={locked} onChange={(e) => setDefect((p) => ({ ...p, details: e.target.value }))} rows={3} data-testid="vehicle-defect-details" placeholder="Describe the defect, location and any reference…" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          <div className="grid grid-cols-2 gap-3 mt-3 text-sm">
+            <YesNo label="Safe to drive?" value={defect.safe_to_drive} disabled={locked} onChange={(v) => setDefect((p) => ({ ...p, safe_to_drive: v }))} testId="vehicle-safe" />
+            <YesNo label="Manager told?" value={defect.manager_told} disabled={locked} onChange={(v) => setDefect((p) => ({ ...p, manager_told: v }))} testId="vehicle-mgr-told" />
+            <YesNo label={`${d.vehicle.provider || 'Provider'} contacted?`} value={defect.provider_contacted} disabled={locked} onChange={(v) => setDefect((p) => ({ ...p, provider_contacted: v }))} testId="vehicle-provider" />
+            <YesNo label="Repair booked?" value={defect.repair_booked} disabled={locked} onChange={(v) => setDefect((p) => ({ ...p, repair_booked: v }))} testId="vehicle-repair-booked" />
+          </div>
+          {!locked && (
+            <label className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer">
+              <Camera size={14} /> Add defect photo
+              <input type="file" accept="image/*" capture="environment" className="hidden" data-testid="vehicle-defect-photo" onChange={(e) => e.target.files[0] && uploadPhoto(e.target.files[0], 'defect')} />
+            </label>
+          )}
+          {(photos.defect || []).length > 0 && (
+            <div className="flex gap-2 mt-2 flex-wrap">
+              {photos.defect.map((fid) => (
+                <img key={fid} src={`${API}/vehicle-checks/photo/${fid}?auth=${jwt}`} alt="defect" className="h-16 w-16 object-cover rounded-lg border border-slate-200" />
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {!locked && (
+        <Card testId="vehicle-declaration">
+          <label className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
+            <input type="checkbox" checked={declaration} onChange={(e) => setDeclaration(e.target.checked)} data-testid="vehicle-declaration-check" className="mt-0.5 h-4 w-4 rounded border-slate-300 text-cyan-600" />
+            <span>{tmpl.declaration}</span>
+          </label>
+          {err && <div className="mt-2 text-xs text-rose-600" data-testid="vehicle-error">{err}</div>}
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <span className="text-xs text-slate-400">{answered}/{allIds.length} checks answered {saved && <span className="text-emerald-600 font-semibold ml-2">{saved}</span>}</span>
+            <div className="flex gap-2">
+              <button onClick={() => persist(false)} disabled={busy} data-testid="vehicle-save-draft" className="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-slate-600">Save draft</button>
+              <button onClick={submit} disabled={busy} data-testid="vehicle-submit" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold text-slate-900" style={{ background: CORE }}>{busy ? <Loader2 size={14} className="animate-spin" /> : <PenLine size={14} />} Submit check</button>
+            </div>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function YesNo({ label, value, onChange, disabled, testId }) {
+  return (
+    <div data-testid={testId}>
+      <span className="text-xs text-slate-500 block mb-1">{label}</span>
+      <div className="inline-flex rounded-lg overflow-hidden border border-slate-200">
+        <button type="button" disabled={disabled} onClick={() => onChange(true)} data-testid={`${testId}-yes`} className={`px-4 py-1.5 text-xs font-semibold ${value === true ? 'bg-emerald-500 text-white' : 'bg-white text-slate-500'}`}>Yes</button>
+        <button type="button" disabled={disabled} onClick={() => onChange(false)} data-testid={`${testId}-no`} className={`px-4 py-1.5 text-xs font-semibold border-l border-slate-200 ${value === false ? 'bg-rose-500 text-white' : 'bg-white text-slate-500'}`}>No</button>
+      </div>
     </div>
   );
 }

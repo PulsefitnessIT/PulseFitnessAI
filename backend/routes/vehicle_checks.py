@@ -1,0 +1,596 @@
+"""Vehicle Check feature — Pulse Fitness weekly driver vehicle inspections.
+
+ENTER ONCE → USE EVERYWHERE: drivers are `staff_members`, vehicle registrations
+sync to/from engineer profiles (engineers.vehicle_reg), and defects raise a
+maintenance record + manager notification. No data is re-keyed.
+
+Two official check templates (verbatim from Pulse forms):
+  • van_maintenance  — Vanarama vans (breakdown contacts, no EV section)
+  • vehicle_check    — company vehicles (adds Safety Equipment + EV, tax/insurance)
+"""
+from __future__ import annotations
+
+import csv
+import io
+import logging
+import uuid
+from datetime import date, datetime, timedelta, timezone
+
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
+from fastapi.responses import Response
+from pydantic import BaseModel
+
+from utils.auth import get_current_user, get_current_user_portal, verify_token
+from utils.database import APP_NAME, db, get_object, put_object
+from routes.staffing import _org, _require_manager
+from routes.staff_portal import _line_manager_user_id, _portal_staff, notify_staff
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+
+# ──────────────────────────── Official templates ────────────────────────────
+def _section(key: str, title: str, labels: list[str]) -> dict:
+    return {"key": key, "title": title,
+            "items": [{"id": f"{key}_{i}", "label": lab} for i, lab in enumerate(labels)]}
+
+
+_EXTERIOR_VAN = [
+    "Tyres — tread at least 1.6mm; no cuts, bulges or visible damage; pressures correct.",
+    "Wheels — no cracks or obvious damage; wheel nuts appear secure.",
+    "Lights & reflectors — headlights, indicators, brake, reverse and hazard lights working and clean.",
+    "Mirrors & windows — secure, clean and free from damage that affects the driver's view.",
+    "Wipers & washers — operate correctly and screen wash is sufficient.",
+    "Number plates — secure, clean and legible.",
+    "Bodywork, doors & locks — no loose/sharp/dangerous damage; doors close and secure correctly.",
+    "Ground/leak check — no obvious fuel, oil, coolant or brake-fluid leaks under the vehicle.",
+]
+_EXTERIOR_VEHICLE = _EXTERIOR_VAN + [
+    "Glass / windscreen — no cracks, chips or damage that obstructs or impairs the driver's view.",
+]
+_UNDER_BONNET = [
+    "Engine oil — correct level and no obvious contamination/leakage.",
+    "Coolant — correct level when safe to check; no obvious leakage.",
+    "Brake fluid — correct level.",
+    "Battery — secure with no obvious damage or heavy corrosion.",
+    "Screen wash — filled to a suitable level.",
+]
+_INTERIOR = [
+    "Seat belts — latch and retract correctly; no obvious damage.",
+    "Dashboard — no unexplained warning lights or warning messages.",
+    "Horn — working.",
+    "Brakes — effective with no unusual feel, noise or pulling.",
+    "Handbrake / parking brake — operates and holds the vehicle securely.",
+    "Steering & clutch — operate normally with no unusual noises or excessive play.",
+    "Heating, ventilation & demisting — working sufficiently for safe visibility.",
+    "Fuel / AdBlue / charge — sufficient for planned work and no related warnings.",
+    "Load / luggage area, racking, tools & stock — secure; nothing likely to move or create a hazard.",
+    "Interior / load area — reasonably clean and clear; supplied safety equipment is present and serviceable.",
+]
+_SAFETY_TECH = [
+    "Hands-free equipment — available and working where fitted / required.",
+    "Sat Nav / navigation equipment — secure and working where supplied.",
+    "First Aid Kit — present, accessible and serviceable where supplied / required.",
+    "Fire Extinguisher — present, secure and in serviceable condition where supplied / required.",
+    "Vehicle is clean and tidy — interior and storage areas are reasonably clear and safe.",
+]
+_EV = [
+    "Charging cable & connector — present where supplied, no cuts, damage, exposed conductors or excessive wear.",
+    "Charge port / flap — clean, undamaged and closes / secures correctly.",
+    "EV dashboard / battery system — no unexplained warning lights or charging-system fault messages.",
+    "Charging cable storage — cable and any adapters are stored securely and cannot move around the vehicle.",
+    "Home charging lead / portable lead (if used) — visually checked before use; plugs and connectors show no obvious damage.",
+]
+
+
+def _build_template(check_type: str, is_ev: bool) -> dict:
+    if check_type == "van_maintenance":
+        sections = [
+            _section("exterior", "Exterior", _EXTERIOR_VAN),
+            _section("under_bonnet", "Under the Bonnet", _UNDER_BONNET),
+            _section("interior", "Interior & Operation", _INTERIOR),
+        ]
+        photos = ["Cab", "Nearside", "Offside", "Rear"]
+        provider_label = "Vanarama"
+        declaration = ("I confirm that I have completed the vehicle checks and reported all known "
+                       "defects. If the vehicle appears unsafe or unroadworthy, I will not drive it "
+                       "until advice or repair confirms it is safe.")
+    else:
+        sections = [
+            _section("exterior", "Exterior", _EXTERIOR_VEHICLE),
+            _section("under_bonnet", "Under the Bonnet", _UNDER_BONNET),
+            _section("interior", "Interior & Operation", _INTERIOR),
+            _section("safety_tech", "Safety Equipment & Technology", _SAFETY_TECH),
+        ]
+        if is_ev:
+            sections.append(_section("ev", "Electric Vehicle Checks", _EV))
+        photos = ["Interior/Cab", "Nearside", "Offside", "Front", "Rear"]
+        provider_label = "Provider / garage"
+        declaration = ("I confirm that I have completed this weekly vehicle check and reported all "
+                       "known defects. If the vehicle appears unsafe or unroadworthy, I will not "
+                       "drive it until advice or repair confirms it is safe.")
+    return {
+        "check_type": check_type,
+        "title": "Van Maintenance — Weekly Vehicle Check" if check_type == "van_maintenance"
+                 else "Weekly Company Vehicle Check",
+        "sections": sections,
+        "photo_slots": photos,
+        "provider_label": provider_label,
+        "declaration": declaration,
+        "is_ev": is_ev,
+    }
+
+
+def _all_item_ids(template: dict) -> list[str]:
+    return [it["id"] for s in template["sections"] for it in s["items"]]
+
+
+CHECK_TYPES = {"van_maintenance", "vehicle_check"}
+
+
+# ──────────────────────────────── Helpers ────────────────────────────────
+def _week_commencing(d: date | None = None) -> str:
+    d = d or date.today()
+    return (d - timedelta(days=d.weekday())).isoformat()
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _clean(doc: dict | None) -> dict | None:
+    if doc:
+        doc.pop("_id", None)
+    return doc
+
+
+async def _sync_engineer_reg(org: str, staff_id: str | None, reg: str | None) -> None:
+    """Feed a vehicle's registration into the engineer profile (if the driver is
+    an engineer) so the Service Desk never holds a stale/duplicate reg."""
+    if not staff_id or not reg:
+        return
+    sm = await db.staff_members.find_one({"organization_id": org, "id": staff_id}, {"_id": 0, "user_id": 1})
+    uid = (sm or {}).get("user_id")
+    if not uid:
+        return
+    await db.engineers.update_one(
+        {"organization_id": org, "user_id": uid}, {"$set": {"vehicle_reg": reg}})
+
+
+async def _this_week_status(org: str, vehicle_id: str, week: str) -> dict:
+    doc = await db.vehicle_checks.find_one(
+        {"organization_id": org, "vehicle_id": vehicle_id, "week_commencing": week}, {"_id": 0})
+    if not doc:
+        return {"status": "due", "has_defects": False, "check_id": None}
+    return {"status": doc.get("status", "in_progress"),
+            "has_defects": bool(doc.get("has_defects")),
+            "check_id": doc.get("id")}
+
+
+# ════════════════════════════ Templates endpoint ════════════════════════════
+@router.get("/vehicle-checks/templates")
+async def vehicle_templates(user: dict = Depends(get_current_user)):
+    return {
+        "van_maintenance": _build_template("van_maintenance", False),
+        "vehicle_check": _build_template("vehicle_check", False),
+        "vehicle_check_ev": _build_template("vehicle_check", True),
+    }
+
+
+# ═══════════════════════════ Vehicle registry (mgr) ═══════════════════════════
+class VehicleBody(BaseModel):
+    reg_no: str
+    make_model: str = ""
+    check_type: str = "vehicle_check"
+    is_ev: bool = False
+    provider: str = ""
+    driver_staff_ids: list[str] = []
+    primary_driver_staff_id: str | None = None
+    odometer: str = ""
+    service_record: dict = {}
+    notes: str = ""
+
+
+@router.get("/vehicles")
+async def list_vehicles(user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    week = _week_commencing()
+    rows = await db.vehicles.find({"organization_id": org, "active": {"$ne": False}}, {"_id": 0}).sort("reg_no", 1).to_list(500)
+    staff = await db.staff_members.find({"organization_id": org}, {"_id": 0, "id": 1, "full_name": 1}).to_list(2000)
+    names = {s["id"]: s.get("full_name") for s in staff}
+    for r in rows:
+        r["driver_names"] = [names.get(sid) for sid in (r.get("driver_staff_ids") or []) if names.get(sid)]
+        r["this_week"] = await _this_week_status(org, r["id"], week)
+    return {"vehicles": rows, "week_commencing": week}
+
+
+@router.post("/vehicles")
+async def create_vehicle(body: VehicleBody, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    if body.check_type not in CHECK_TYPES:
+        raise HTTPException(400, "invalid check_type")
+    reg = body.reg_no.strip().upper()
+    if not reg:
+        raise HTTPException(400, "Registration is required.")
+    primary = body.primary_driver_staff_id or (body.driver_staff_ids[0] if body.driver_staff_ids else None)
+    doc = {
+        "id": str(uuid.uuid4()), "organization_id": org, "active": True,
+        "reg_no": reg, "make_model": body.make_model.strip(),
+        "check_type": body.check_type, "is_ev": bool(body.is_ev),
+        "provider": body.provider.strip() or ("Vanarama" if body.check_type == "van_maintenance" else ""),
+        "driver_staff_ids": body.driver_staff_ids,
+        "primary_driver_staff_id": primary,
+        "odometer": body.odometer.strip(),
+        "service_record": body.service_record or {},
+        "notes": body.notes.strip(),
+        "created_at": _now(),
+    }
+    await db.vehicles.insert_one(doc.copy())
+    await _sync_engineer_reg(org, primary, reg)
+    return _clean(doc)
+
+
+@router.patch("/vehicles/{vehicle_id}")
+async def update_vehicle(vehicle_id: str, body: VehicleBody, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    if body.check_type not in CHECK_TYPES:
+        raise HTTPException(400, "invalid check_type")
+    reg = body.reg_no.strip().upper()
+    primary = body.primary_driver_staff_id or (body.driver_staff_ids[0] if body.driver_staff_ids else None)
+    upd = {
+        "reg_no": reg, "make_model": body.make_model.strip(),
+        "check_type": body.check_type, "is_ev": bool(body.is_ev),
+        "provider": body.provider.strip(),
+        "driver_staff_ids": body.driver_staff_ids,
+        "primary_driver_staff_id": primary,
+        "odometer": body.odometer.strip(),
+        "service_record": body.service_record or {},
+        "notes": body.notes.strip(),
+        "updated_at": _now(),
+    }
+    r = await db.vehicles.update_one({"organization_id": org, "id": vehicle_id}, {"$set": upd})
+    if not r.matched_count:
+        raise HTTPException(404, "vehicle not found")
+    await _sync_engineer_reg(org, primary, reg)
+    return {"ok": True}
+
+
+@router.delete("/vehicles/{vehicle_id}")
+async def delete_vehicle(vehicle_id: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    await db.vehicles.update_one({"organization_id": org, "id": vehicle_id}, {"$set": {"active": False}})
+    return {"ok": True}
+
+
+@router.get("/vehicles/driver-options")
+async def driver_options(user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    staff = await db.staff_members.find(
+        {"organization_id": org, "active": {"$ne": False}},
+        {"_id": 0, "id": 1, "full_name": 1, "department": 1, "job_title": 1}).sort("full_name", 1).to_list(2000)
+    return {"drivers": staff}
+
+
+@router.get("/vehicles/import-candidates")
+async def import_candidates(user: dict = Depends(get_current_user)):
+    """Engineers who already have a vehicle_reg on their Service Desk profile that
+    isn't yet in the vehicle register — link, don't re-key."""
+    _require_manager(user)
+    org = _org(user)
+    existing = set(v.get("reg_no") for v in await db.vehicles.find(
+        {"organization_id": org, "active": {"$ne": False}}, {"_id": 0, "reg_no": 1}).to_list(500))
+    engs = await db.engineers.find(
+        {"organization_id": org, "vehicle_reg": {"$nin": ["", None]}},
+        {"_id": 0, "user_id": 1, "vehicle_reg": 1, "full_name": 1}).to_list(500)
+    out = []
+    for e in engs:
+        reg = (e.get("vehicle_reg") or "").strip().upper()
+        if not reg or reg in existing:
+            continue
+        sm = await db.staff_members.find_one({"organization_id": org, "user_id": e.get("user_id")}, {"_id": 0, "id": 1, "full_name": 1})
+        out.append({"reg_no": reg, "engineer_name": e.get("full_name") or (sm or {}).get("full_name"),
+                    "staff_id": (sm or {}).get("id")})
+    return {"candidates": out}
+
+
+class ImportBody(BaseModel):
+    items: list[dict] = []  # [{reg_no, staff_id, check_type?}]
+
+
+@router.post("/vehicles/import")
+async def import_vehicles(body: ImportBody, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    created = 0
+    for it in body.items:
+        reg = (it.get("reg_no") or "").strip().upper()
+        if not reg:
+            continue
+        if await db.vehicles.find_one({"organization_id": org, "reg_no": reg, "active": {"$ne": False}}):
+            continue
+        sid = it.get("staff_id")
+        await db.vehicles.insert_one({
+            "id": str(uuid.uuid4()), "organization_id": org, "active": True,
+            "reg_no": reg, "make_model": it.get("make_model", ""),
+            "check_type": it.get("check_type", "van_maintenance"),
+            "is_ev": False, "provider": "Vanarama" if it.get("check_type", "van_maintenance") == "van_maintenance" else "",
+            "driver_staff_ids": [sid] if sid else [],
+            "primary_driver_staff_id": sid, "odometer": "", "service_record": {},
+            "notes": "Imported from engineer profile", "created_at": _now(),
+        })
+        created += 1
+    return {"ok": True, "created": created}
+
+
+# ═══════════════════════ Weekly register + review (mgr) ═══════════════════════
+@router.get("/vehicle-checks/register")
+async def check_register(week: str | None = Query(None), status: str | None = Query(None),
+                         user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    q: dict = {"organization_id": org}
+    if week:
+        q["week_commencing"] = week
+    if status:
+        q["status"] = status
+    rows = await db.vehicle_checks.find(q, {"_id": 0}).sort("week_commencing", -1).to_list(1000)
+    return {"checks": rows}
+
+
+@router.get("/vehicle-checks/export.csv")
+async def export_csv(week: str | None = Query(None), user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    q: dict = {"organization_id": org}
+    if week:
+        q["week_commencing"] = week
+    rows = await db.vehicle_checks.find(q, {"_id": 0}).sort("week_commencing", -1).to_list(5000)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Week", "Reg", "Make/Model", "Check type", "Driver", "Status",
+                "Defects", "Safe to drive", "Odometer", "Submitted", "Reviewed by"])
+    for r in rows:
+        rv = r.get("manager_review") or {}
+        df = r.get("defect") or {}
+        w.writerow([
+            r.get("week_commencing"), (r.get("details") or {}).get("reg_no"),
+            (r.get("details") or {}).get("make_model"), r.get("check_type"),
+            r.get("driver_name"), r.get("status"),
+            "Yes" if r.get("has_defects") else "No",
+            {True: "Yes", False: "No"}.get(df.get("safe_to_drive"), ""),
+            (r.get("details") or {}).get("odometer"),
+            r.get("submitted_at", ""), rv.get("reviewer", ""),
+        ])
+    return Response(content=buf.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": f"attachment; filename=vehicle-checks-{week or 'all'}.csv"})
+
+
+@router.get("/vehicle-checks/{check_id}")
+async def check_detail(check_id: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    doc = await db.vehicle_checks.find_one({"organization_id": org, "id": check_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "not found")
+    doc["template"] = _build_template(doc.get("check_type", "vehicle_check"), doc.get("is_ev", False))
+    return doc
+
+
+class ReviewBody(BaseModel):
+    notes: str = ""
+
+
+@router.post("/vehicle-checks/{check_id}/review")
+async def review_check(check_id: str, body: ReviewBody, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    doc = await db.vehicle_checks.find_one({"organization_id": org, "id": check_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "not found")
+    if doc.get("status") != "submitted":
+        raise HTTPException(400, "Only submitted checks can be reviewed.")
+    await db.vehicle_checks.update_one(
+        {"organization_id": org, "id": check_id},
+        {"$set": {"status": "reviewed",
+                  "manager_review": {"reviewer": user.get("email"), "at": _now(), "notes": body.notes.strip()}}})
+    return {"ok": True}
+
+
+# ═══════════════════════════ Staff Portal (driver) ═══════════════════════════
+@router.get("/new-starter/portal/vehicles")
+async def portal_vehicles(user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    week = _week_commencing()
+    rows = await db.vehicles.find(
+        {"organization_id": org, "active": {"$ne": False}, "driver_staff_ids": staff["id"]},
+        {"_id": 0}).sort("reg_no", 1).to_list(100)
+    for r in rows:
+        r["this_week"] = await _this_week_status(org, r["id"], week)
+    return {"vehicles": rows, "week_commencing": week, "driver_name": staff.get("full_name")}
+
+
+@router.get("/new-starter/portal/vehicle-check")
+async def portal_get_check(vehicle_id: str = Query(...), week: str | None = Query(None),
+                           user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    week = week or _week_commencing()
+    veh = await db.vehicles.find_one({"organization_id": org, "id": vehicle_id, "active": {"$ne": False}}, {"_id": 0})
+    if not veh:
+        raise HTTPException(404, "vehicle not found")
+    if staff["id"] not in (veh.get("driver_staff_ids") or []):
+        raise HTTPException(403, "This vehicle isn't assigned to you.")
+    template = _build_template(veh.get("check_type", "vehicle_check"), veh.get("is_ev", False))
+    existing = await db.vehicle_checks.find_one(
+        {"organization_id": org, "vehicle_id": vehicle_id, "week_commencing": week}, {"_id": 0})
+    if not existing:
+        existing = {
+            "vehicle_id": vehicle_id, "week_commencing": week,
+            "check_type": veh.get("check_type"), "is_ev": veh.get("is_ev", False),
+            "driver_staff_id": staff["id"], "driver_name": staff.get("full_name"),
+            "details": {"reg_no": veh.get("reg_no"), "make_model": veh.get("make_model"),
+                        "odometer": veh.get("odometer", ""), "date": date.today().isoformat()},
+            "items": {}, "defect": {}, "photos": {"vehicle": {}, "defect": []},
+            "declaration": {}, "status": "due",
+        }
+    return {"vehicle": veh, "template": template, "check": existing, "week_commencing": week}
+
+
+class SaveCheckBody(BaseModel):
+    vehicle_id: str
+    week_commencing: str | None = None
+    details: dict = {}
+    items: dict = {}
+    defect: dict = {}
+    photos: dict = {}
+
+
+async def _upsert_check(user, body: SaveCheckBody, submit: bool):
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    week = body.week_commencing or _week_commencing()
+    veh = await db.vehicles.find_one({"organization_id": org, "id": body.vehicle_id, "active": {"$ne": False}}, {"_id": 0})
+    if not veh:
+        raise HTTPException(404, "vehicle not found")
+    if staff["id"] not in (veh.get("driver_staff_ids") or []):
+        raise HTTPException(403, "This vehicle isn't assigned to you.")
+    template = _build_template(veh.get("check_type", "vehicle_check"), veh.get("is_ev", False))
+    all_ids = _all_item_ids(template)
+    items = {k: v for k, v in (body.items or {}).items() if k in all_ids and v in ("ok", "defect", "na")}
+    has_defects = any(v == "defect" for v in items.values())
+    defect = body.defect or {}
+    not_safe = defect.get("safe_to_drive") is False
+
+    if submit:
+        missing = [i for i in all_ids if i not in items]
+        if missing:
+            raise HTTPException(400, "Please answer every check item (OK / Defect / N/A) before submitting.")
+        if not (body.details or {}).get("driver_name") and not staff.get("full_name"):
+            raise HTTPException(400, "Driver name is required.")
+        if (has_defects or not_safe) and not (defect.get("details") or "").strip():
+            raise HTTPException(400, "Please describe the defect before submitting.")
+
+    now = _now()
+    existing = await db.vehicle_checks.find_one(
+        {"organization_id": org, "vehicle_id": body.vehicle_id, "week_commencing": week}, {"_id": 0})
+    set_doc = {
+        "organization_id": org, "vehicle_id": body.vehicle_id, "week_commencing": week,
+        "check_type": veh.get("check_type"), "is_ev": veh.get("is_ev", False),
+        "driver_staff_id": staff["id"], "driver_name": staff.get("full_name"),
+        "details": {**(body.details or {}),
+                    "reg_no": veh.get("reg_no"), "make_model": veh.get("make_model")},
+        "items": items, "defect": defect,
+        "has_defects": has_defects or not_safe, "updated_at": now,
+    }
+    # Don't wipe previously-uploaded photos when a save omits them.
+    incoming_photos = body.photos or {}
+    if incoming_photos.get("vehicle") or incoming_photos.get("defect"):
+        set_doc["photos"] = incoming_photos
+    elif not existing:
+        set_doc["photos"] = {"vehicle": {}, "defect": []}
+    if submit:
+        set_doc["status"] = "submitted"
+        set_doc["submitted_at"] = now
+        set_doc["declaration"] = {"confirmed": True, "driver_name": (body.details or {}).get("driver_name") or staff.get("full_name"), "at": now}
+    else:
+        set_doc.setdefault("status", "in_progress")
+        if not existing or existing.get("status") not in ("submitted", "reviewed"):
+            set_doc["status"] = "in_progress"
+
+    if existing:
+        await db.vehicle_checks.update_one(
+            {"organization_id": org, "id": existing["id"]}, {"$set": set_doc})
+        check_id = existing["id"]
+    else:
+        set_doc["id"] = str(uuid.uuid4())
+        set_doc["created_at"] = now
+        await db.vehicle_checks.insert_one(set_doc.copy())
+        check_id = set_doc["id"]
+
+    # sync latest odometer back to the vehicle record (single source of truth)
+    odo = (body.details or {}).get("odometer")
+    if odo:
+        await db.vehicles.update_one({"organization_id": org, "id": body.vehicle_id}, {"$set": {"odometer": odo}})
+
+    if submit and (has_defects or not_safe):
+        # Raise a maintenance record + ping the line manager — no duplicate keying.
+        await db.vehicle_defects.insert_one({
+            "id": str(uuid.uuid4()), "organization_id": org, "vehicle_id": body.vehicle_id,
+            "check_id": check_id, "reg_no": veh.get("reg_no"), "make_model": veh.get("make_model"),
+            "reported_by_staff_id": staff["id"], "reported_by": staff.get("full_name"),
+            "details": defect.get("details", ""), "safe_to_drive": defect.get("safe_to_drive"),
+            "provider": veh.get("provider", ""), "status": "open", "created_at": now,
+        })
+        mgr_uid = await _line_manager_user_id(org, staff)
+        await notify_staff(
+            org=org, recipient_kind="manager", recipient_user_id=mgr_uid,
+            type="vehicle_defect",
+            title=("⚠ Vehicle not safe to drive" if not_safe else "Vehicle defect reported"),
+            body=f"{staff.get('full_name')} reported a defect on {veh.get('reg_no')} "
+                 f"({veh.get('make_model') or veh.get('check_type')}): {(defect.get('details') or '').strip()[:120]}",
+            link="vehicles")
+    return {"ok": True, "check_id": check_id, "status": set_doc["status"], "has_defects": set_doc["has_defects"]}
+
+
+@router.post("/new-starter/portal/vehicle-check/save")
+async def portal_save_check(body: SaveCheckBody, user: dict = Depends(get_current_user_portal)):
+    return await _upsert_check(user, body, submit=False)
+
+
+@router.post("/new-starter/portal/vehicle-check/submit")
+async def portal_submit_check(body: SaveCheckBody, user: dict = Depends(get_current_user_portal)):
+    return await _upsert_check(user, body, submit=True)
+
+
+@router.post("/new-starter/portal/vehicle-check/photo")
+async def portal_upload_photo(file: UploadFile = File(...), user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    ext = file.filename.split(".")[-1].lower() if file.filename and "." in file.filename else "jpg"
+    if ext not in ("jpg", "jpeg", "png", "webp", "heic", "heif"):
+        raise HTTPException(415, "Please upload an image (JPG, PNG, WEBP or HEIC).")
+    data = await file.read()
+    if len(data) > 15 * 1024 * 1024:
+        raise HTTPException(413, "Image too large — keep under 15MB.")
+    ct = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+          "webp": "image/webp", "heic": "image/heic", "heif": "image/heif"}.get(ext, "image/jpeg")
+    path = f"{APP_NAME}/vehicle-photos/{org}/{uuid.uuid4()}.{ext}"
+    result = put_object(path, data, ct)
+    fid = str(uuid.uuid4())
+    await db.files.insert_one({
+        "id": fid, "user_id": user.get("id"), "organization_id": org,
+        "category": "vehicle-photos", "storage_path": result["path"],
+        "original_filename": file.filename, "content_type": ct,
+        "size": result.get("size", len(data)), "created_at": _now(),
+    })
+    return {"file_id": fid}
+
+
+@router.get("/vehicle-checks/photo/{file_id}")
+async def vehicle_photo(file_id: str, authorization: str = Header(None), auth: str = Query(None)):
+    """Dual-auth image serve (manager platform token OR driver portal token, via
+    header or ?auth= query param so <img src> works)."""
+    token = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]
+    elif auth:
+        token = auth
+    payload = verify_token(token) if token else None
+    if not payload:
+        raise HTTPException(401, "unauthorised")
+    viewer = await db.users.find_one({"id": payload.get("user_id")}, {"_id": 0, "organization_id": 1, "is_master_admin": 1})
+    if not viewer:
+        raise HTTPException(401, "unauthorised")
+    doc = await db.files.find_one({"id": file_id, "category": "vehicle-photos"}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "not found")
+    if not viewer.get("is_master_admin") and doc.get("organization_id") != viewer.get("organization_id"):
+        raise HTTPException(403, "forbidden")
+    data, ct = get_object(doc["storage_path"])
+    return Response(content=data, media_type=doc.get("content_type", ct))

@@ -683,6 +683,22 @@ async def portal_notifications(user: dict = Depends(get_current_user_portal)):
             "body": f"{rtw_pending} return-to-work form{'' if rtw_pending == 1 else 's'} awaiting your confirmation.",
             "link": "home"})
 
+    # Weekly vehicle checks assigned to me but not yet submitted this week.
+    week = (date.today() - timedelta(days=date.today().weekday())).isoformat()
+    my_vehicle_ids = await db.vehicles.distinct(
+        "id", {"organization_id": org, "active": {"$ne": False}, "driver_staff_ids": staff["id"]})
+    if my_vehicle_ids:
+        done_ids = await db.vehicle_checks.distinct(
+            "vehicle_id", {"organization_id": org, "week_commencing": week,
+                           "vehicle_id": {"$in": my_vehicle_ids},
+                           "status": {"$in": ["submitted", "reviewed"]}})
+        due = len(set(my_vehicle_ids) - set(done_ids))
+        if due > 0:
+            nudges.append({
+                "type": "vehicle_check_due", "title": "Weekly vehicle check due",
+                "body": f"{due} vehicle check{'' if due == 1 else 's'} to complete this week.",
+                "link": "vehicle"})
+
     unread = sum(1 for n in stored if not n.get("read")) + len(nudges)
     return {"notifications": stored, "nudges": nudges, "unread": unread}
 
