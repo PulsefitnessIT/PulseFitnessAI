@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-06 — Duplicate-invoice guard surfaced in the AI review panel (before Apply)
+- The AI review panel now shows a prominent red "Duplicate invoice — already allocated" banner
+  (dealer name + allocated date) BEFORE Apply, driven by `aiReview.duplicate`. Since the deterministic
+  scanners now return duplicate info (see prior entry), this fires for CSV/PDF fast paths too, not just LLM.
+- Added a required acknowledgment checkbox (data-testid dp-wiz-ai-review-dup-ack): when a duplicate is
+  detected the Apply button (dp-wiz-ai-review-apply) is disabled and relabelled until the user ticks
+  "I understand — apply anyway to review". `dupAck` state resets on each new parse and on reset().
+- Files: frontend/src/pages/DealerWarrantyParts/AllocationWizardTab.js.
+- Verified backend chain via curl: seeded a fake allocation for INV-2051 → re-parsing the sample CSV
+  returned duplicate_invoice=true with dealer name; test record cleaned up afterward.
+
+
 ## 2026-06 — Invoice-number capture for the fast (deterministic) invoice scanners
 - Problem: only the LLM parse path returned an invoice number; the fast deterministic PDF and
   spreadsheet scanners returned order_reference="", so the wizard's Invoice-number field stayed empty

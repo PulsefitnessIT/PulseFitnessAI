@@ -95,6 +95,7 @@ export default function AllocationWizardTab() {
   const [invoiceRef, setInvoiceRef] = useState('');   // Iter 282 — invoice number for the allocation log + dedupe
   const [dupInfo, setDupInfo] = useState(null);        // duplicate-invoice warning from the parser
   const [aiReview, setAiReview] = useState(null);      // parsed invoice awaiting explicit confirm before it fills the form
+  const [dupAck, setDupAck] = useState(false);         // user has acknowledged a duplicate-invoice warning in the review panel
   const [dataSettings, setDataSettings] = useState(null);  // recommendation-intelligence settings (blend / trend)
   const [intelOpen, setIntelOpen] = useState(false);
   const [savingIntel, setSavingIntel] = useState(false);
@@ -168,7 +169,7 @@ export default function AllocationWizardTab() {
 
   const parseInvoice = async (file) => {
     if (!file) return;
-    setAiBusy(true); setAiInfo(null); setAiReview(null); setAiProgress(0);
+    setAiBusy(true); setAiInfo(null); setAiReview(null); setDupAck(false); setAiProgress(0);
     try {
       const res = await dpApi.aiParseInvoiceFile(file, setAiProgress);
       if (!res.available) { notify.error(res.error || 'AI could not read this invoice'); return; }
@@ -491,9 +492,19 @@ export default function AllocationWizardTab() {
                   {aiReview.currency ? <span className="text-slate-400">{aiReview.currency}</span> : null}
                 </div>
                 {aiReview.duplicate && (
-                  <div className="rounded-lg bg-red-50 border border-red-200 p-2.5 text-xs text-red-700 flex items-start gap-2" data-testid="dp-wiz-ai-review-dup">
-                    <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-                    <div>Invoice <span className="font-mono">{aiReview.order_reference}</span> has already been allocated{aiReview.duplicate.dealer ? ` to ${aiReview.duplicate.dealer}` : ''}. You can still apply to review, but you’ll need a new invoice number to allocate.</div>
+                  <div className="rounded-lg bg-red-50 border-2 border-red-300 p-3 text-xs text-red-800 space-y-2" data-testid="dp-wiz-ai-review-dup">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle size={16} className="mt-0.5 shrink-0 text-red-600" />
+                      <div>
+                        <div className="font-bold text-red-900 text-sm">Duplicate invoice — already allocated</div>
+                        <div className="mt-0.5">Invoice <span className="font-mono font-semibold">{aiReview.order_reference}</span> has already been used{aiReview.duplicate.dealer ? <> for <b>{aiReview.duplicate.dealer}</b></> : ''}{aiReview.duplicate.at ? <> on {new Date(aiReview.duplicate.at).toLocaleDateString()}</> : ''}. You can apply it to review the machines, but you’ll need a fresh invoice number to actually allocate.</div>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 pl-6 cursor-pointer font-semibold text-red-800">
+                      <input type="checkbox" data-testid="dp-wiz-ai-review-dup-ack" checked={dupAck}
+                        onChange={(e) => setDupAck(e.target.checked)} className="rounded border-red-300" />
+                      I understand — apply anyway to review
+                    </label>
                   </div>
                 )}
                 <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-100 bg-white">
@@ -535,9 +546,9 @@ export default function AllocationWizardTab() {
                     className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 px-3 py-2">
                     <X size={15} /> Discard
                   </button>
-                  <button data-testid="dp-wiz-ai-review-apply" onClick={applyAiReview} disabled={aiReview.lines.length === 0}
+                  <button data-testid="dp-wiz-ai-review-apply" onClick={applyAiReview} disabled={aiReview.lines.length === 0 || (aiReview.duplicate && !dupAck)}
                     className="ml-auto inline-flex items-center gap-2 bg-[var(--gx-brand-from)] text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50">
-                    <CheckCircle2 size={16} /> Apply {aiReview.lines.length} machine{aiReview.lines.length === 1 ? '' : 's'} to form
+                    <CheckCircle2 size={16} /> {aiReview.duplicate && !dupAck ? 'Acknowledge the duplicate to continue' : `Apply ${aiReview.lines.length} machine${aiReview.lines.length === 1 ? '' : 's'} to form`}
                   </button>
                 </div>
               </div>
