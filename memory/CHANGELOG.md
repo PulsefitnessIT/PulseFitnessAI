@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 2026-06 — Intelligence made the org default (Pulse Fitness Ltd) + Input import fix
+- Owner opted to make wizard intelligence ON by default: `blend_actuals=true, blend_weight_pct=40,
+  trend_sensitivity=med`. Set the org-level `dealer_parts_data_settings` doc for Pulse Fitness Ltd
+  (`3ece2d0c-...`) AND `iso-demo-org` (the org that actually holds the dealer-parts warranty plan +
+  4879 BOM machines in this preview, so it's testable now). NOT changed globally — DEFAULT_DATA_SETTINGS
+  stays off so other/new orgs remain opt-in, per owner's "just Pulse Fitness Ltd" scope.
+  Duplicate-avoidance (netting vs dealer held/on-order stock) is unaffected — blend/trend only change the
+  target quantity; `send = max(0, target − already_held_or_allocated)` still runs on top.
+- Fixed pre-existing blocking lint: `frontend/src/pages/LiteDashboard/LiteDialogs.js` used `<Input>`
+  without importing it — added `import { Input } from '@/components/ui/input'`.
+- NOTE for future agent: in this preview the Dealer Parts module data lives under `iso-demo-org`,
+  not Pulse Fitness Ltd — confirm which org holds the live dealer-parts data in production before
+  changing dealer-parts settings there.
+
+
 ## 2026-06 — Dealer Parts Allocation Wizard: Smarter Recommendations, Tunable Thresholds, AI Review Step
 Owner asked for three wizard improvements (b, c, d). All shipped, tested (frontend E2E 100%, backend curl-verified), demo org reset to opt-in defaults.
 
