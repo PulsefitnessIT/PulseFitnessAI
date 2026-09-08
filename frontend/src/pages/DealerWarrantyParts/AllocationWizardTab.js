@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Wand2, Plus, Trash2, ChevronRight, ChevronLeft, ChevronDown, CheckCircle2, AlertTriangle, PackageCheck, Building2, UploadCloud, Sparkles, FileText, Search, X, Loader2 } from 'lucide-react';
+import { Wand2, Plus, Trash2, ChevronRight, ChevronLeft, ChevronDown, CheckCircle2, AlertTriangle, PackageCheck, Building2, UploadCloud, Sparkles, FileText, Search, X, Loader2, Brain, TrendingUp } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { dpApi } from './api';
 import { Spinner, StatCard, input, inputTight, money } from './shared';
@@ -94,6 +94,10 @@ export default function AllocationWizardTab() {
   const [bomQuery, setBomQuery] = useState('');
   const [invoiceRef, setInvoiceRef] = useState('');   // Iter 282 — invoice number for the allocation log + dedupe
   const [dupInfo, setDupInfo] = useState(null);        // duplicate-invoice warning from the parser
+  const [aiReview, setAiReview] = useState(null);      // parsed invoice awaiting explicit confirm before it fills the form
+  const [dataSettings, setDataSettings] = useState(null);  // recommendation-intelligence settings (blend / trend)
+  const [intelOpen, setIntelOpen] = useState(false);
+  const [savingIntel, setSavingIntel] = useState(false);
   const fileRef = useRef(null);
 
   const loadBom = (ref) => {
@@ -121,12 +125,21 @@ export default function AllocationWizardTab() {
 
   useEffect(() => { dpApi.listDealers().then((d) => setDealers(d.dealers || [])); }, []);
   useEffect(() => { dpApi.listRecommendCustomers().then((d) => setCustomers(d.customers || [])).catch(() => {}); }, []);
+  useEffect(() => { dpApi.getDataSettings().then(setDataSettings).catch(() => {}); }, []);
+
+  const saveIntel = async (patch) => {
+    setDataSettings((s) => ({ ...(s || {}), ...patch }));
+    setSavingIntel(true);
+    try { const saved = await dpApi.saveDataSettings(patch); setDataSettings(saved); }
+    catch { notify.error('Could not save recommendation settings'); }
+    finally { setSavingIntel(false); }
+  };
 
   // Iter 282 — report unsaved-work state so the page can warn before the
   // user navigates away mid-allocation. Step 2 is the completed screen.
   const { setDirty } = useDealerPartsNav();
   const isDirty = step === 1 || (step === 0 && (
-    !!dealerId || !!customerId || !!orderValue || !!invoiceRef || !!rec || !!aiInfo ||
+    !!dealerId || !!customerId || !!orderValue || !!invoiceRef || !!rec || !!aiInfo || !!aiReview ||
     lines.some((l) => (l.machine_ref || '').trim())
   ));
   useEffect(() => { setDirty(isDirty); }, [isDirty, setDirty]);
@@ -155,7 +168,7 @@ export default function AllocationWizardTab() {
 
   const parseInvoice = async (file) => {
     if (!file) return;
-    setAiBusy(true); setAiInfo(null); setAiProgress(0);
+    setAiBusy(true); setAiInfo(null); setAiReview(null); setAiProgress(0);
     try {
       const res = await dpApi.aiParseInvoiceFile(file, setAiProgress);
       if (!res.available) { notify.error(res.error || 'AI could not read this invoice'); return; }
@@ -167,23 +180,48 @@ export default function AllocationWizardTab() {
         description: l.machine_description || '',
         unit_value: l.unit_value,
       }));
-      if (newLines.length) setLines(newLines);
-      if (res.order_value) setOrderValue(String(res.order_value));
-      if (res.order_reference) setInvoiceRef(res.order_reference);
-      if (res.duplicate_invoice) {
-        setDupInfo({ dealer: res.duplicate_dealer_name, at: res.duplicate_allocated_at });
-        notify.error(`Invoice ${res.order_reference} has already been allocated${res.duplicate_dealer_name ? ` to ${res.duplicate_dealer_name}` : ''}.`);
-      } else {
-        setDupInfo(null);
-      }
-      setAiInfo({ ref: res.order_reference, currency: res.currency, matched: res.matched_count, total: res.lines?.length || 0, note: res.note,
-        machinesTotal: res.machines_total, machinesMatched: res.machines_matched, source: res.source });
+      setAiReview({
+        lines: newLines,
+        order_value: res.order_value,
+        order_reference: res.order_reference,
+        currency: res.currency,
+        matched: res.matched_count,
+        total: res.lines?.length || 0,
+        note: res.note,
+        machinesTotal: res.machines_total,
+        machinesMatched: res.machines_matched,
+        source: res.source,
+        duplicate: res.duplicate_invoice ? { dealer: res.duplicate_dealer_name, at: res.duplicate_allocated_at } : null,
+      });
       const machineMsg = res.machines_total != null
-        ? `AI found ${res.machines_total} machines — ${res.machines_matched} matched to BOM`
-        : `AI read the invoice — ${res.matched_count}/${res.lines?.length || 0} machines matched to BOM`;
+        ? `AI found ${res.machines_total} machines — ${res.machines_matched} matched to BOM. Review before applying.`
+        : `AI read the invoice — ${res.matched_count}/${res.lines?.length || 0} machines matched. Review before applying.`;
       notify.success(machineMsg);
     } catch (e) { notify.error(e?.response?.data?.detail || 'AI parsing failed'); }
     finally { setAiBusy(false); }
+  };
+
+  const setReviewQty = (i, v) => setAiReview((r) => {
+    if (!r) return r;
+    const lines = [...r.lines]; lines[i] = { ...lines[i], quantity: Math.max(1, Number(v) || 1) };
+    return { ...r, lines };
+  });
+  const removeReviewLine = (i) => setAiReview((r) => (r ? { ...r, lines: r.lines.filter((_, x) => x !== i) } : r));
+
+  const applyAiReview = () => {
+    if (!aiReview) return;
+    if (aiReview.lines.length) setLines(aiReview.lines);
+    if (aiReview.order_value) setOrderValue(String(aiReview.order_value));
+    if (aiReview.order_reference) setInvoiceRef(aiReview.order_reference);
+    if (aiReview.duplicate) {
+      setDupInfo(aiReview.duplicate);
+      notify.error(`Invoice ${aiReview.order_reference} has already been allocated${aiReview.duplicate.dealer ? ` to ${aiReview.duplicate.dealer}` : ''}.`);
+    } else { setDupInfo(null); }
+    setAiInfo({ ref: aiReview.order_reference, currency: aiReview.currency, matched: aiReview.matched,
+      total: aiReview.total, note: aiReview.note, machinesTotal: aiReview.machinesTotal,
+      machinesMatched: aiReview.machinesMatched, source: aiReview.source });
+    setAiReview(null);
+    notify.success('Applied to the form — review the machine lines below, then generate a recommendation.');
   };
 
   const generate = async () => {
@@ -252,7 +290,7 @@ export default function AllocationWizardTab() {
     } finally { setBusy(false); }
   };
 
-  const reset = () => { setStep(0); setRec(null); setLines([{ machine_ref: '', quantity: 1 }]); setOrderValue(''); setPct(''); setCoverYears(5); setCustomerId(''); setRecipientType('dealer'); setQtyOverrides({}); setManualParts({}); setBomOpen(null); setBomData({}); setInvoiceRef(''); setDupInfo(null); };
+  const reset = () => { setStep(0); setRec(null); setLines([{ machine_ref: '', quantity: 1 }]); setOrderValue(''); setPct(''); setCoverYears(5); setCustomerId(''); setRecipientType('dealer'); setQtyOverrides({}); setManualParts({}); setBomOpen(null); setBomData({}); setInvoiceRef(''); setDupInfo(null); setAiReview(null); setAiInfo(null); };
 
   const liveTotal = () => {
     let t = 0;
@@ -341,6 +379,70 @@ export default function AllocationWizardTab() {
             )}
           </div>
 
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden" data-testid="dp-wiz-intel-card">
+            <button type="button" data-testid="dp-wiz-intel-toggle" onClick={() => setIntelOpen((v) => !v)}
+              className="w-full flex items-center gap-2 px-4 py-3 hover:bg-slate-50 text-left">
+              {intelOpen ? <ChevronDown size={16} className="text-slate-400" /> : <ChevronRight size={16} className="text-slate-400" />}
+              <Brain size={15} className="text-[var(--gx-brand-from)]" />
+              <span className="text-sm font-bold text-slate-900">Recommendation intelligence</span>
+              <span className="text-xs text-slate-500 hidden sm:inline">How pack quantities are calculated</span>
+              {dataSettings && (dataSettings.blend_actuals || (dataSettings.trend_sensitivity && dataSettings.trend_sensitivity !== 'off')) && (
+                <span className="ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--gx-brand-from)]/10 text-[var(--gx-brand-from)]" data-testid="dp-wiz-intel-active">
+                  {[dataSettings.blend_actuals ? `Blend ${dataSettings.blend_weight_pct ?? 40}%` : null,
+                    dataSettings.trend_sensitivity !== 'off' ? `Trend ${dataSettings.trend_sensitivity}` : null].filter(Boolean).join(' · ')}
+                </span>
+              )}
+            </button>
+            {intelOpen && (
+              <div className="px-4 pb-4 border-t border-slate-100 pt-3 space-y-4" data-testid="dp-wiz-intel-body">
+                {!dataSettings ? <div className="text-xs text-slate-400 py-2">Loading…</div> : (
+                  <>
+                    <div className="rounded-lg border border-slate-200 p-3">
+                      <label className="flex items-start gap-2 cursor-pointer">
+                        <input type="checkbox" data-testid="dp-wiz-intel-blend" checked={!!dataSettings.blend_actuals}
+                          onChange={(e) => saveIntel({ blend_actuals: e.target.checked })}
+                          className="mt-0.5 rounded border-slate-300" />
+                        <span>
+                          <span className="text-sm font-semibold text-slate-800 flex items-center gap-1"><Sparkles size={13} className="text-[var(--gx-brand-from)]" /> Blend real usage into the plan</span>
+                          <span className="text-xs text-slate-500 block mt-0.5">Nudges each planned quantity toward what these machines have actually used — so the pack tracks reality, not just the theoretical plan.</span>
+                        </span>
+                      </label>
+                      {dataSettings.blend_actuals && (
+                        <div className="mt-3 pl-6" data-testid="dp-wiz-intel-blend-weight">
+                          <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                            <span>Pure plan</span>
+                            <span className="font-semibold text-slate-800">{dataSettings.blend_weight_pct ?? 40}% actuals</span>
+                            <span>Pure actuals</span>
+                          </div>
+                          <input type="range" min="0" max="100" step="5" data-testid="dp-wiz-intel-blend-slider"
+                            value={dataSettings.blend_weight_pct ?? 40}
+                            onChange={(e) => saveIntel({ blend_weight_pct: Number(e.target.value) })}
+                            className="w-full accent-[var(--gx-brand-from)]" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="rounded-lg border border-slate-200 p-3">
+                      <span className="text-sm font-semibold text-slate-800 flex items-center gap-1"><TrendingUp size={13} className="text-[var(--gx-brand-from)]" /> Trend sensitivity</span>
+                      <span className="text-xs text-slate-500 block mt-0.5 mb-2">Packs a little more for parts with a rising failure trend and less for declining ones.</span>
+                      <div className="flex gap-1.5" data-testid="dp-wiz-intel-trend">
+                        {['off', 'low', 'med', 'high'].map((t) => (
+                          <button key={t} type="button" data-testid={`dp-wiz-intel-trend-${t}`}
+                            onClick={() => saveIntel({ trend_sensitivity: t })}
+                            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border capitalize transition-colors ${(dataSettings.trend_sensitivity || 'off') === t ? 'bg-[var(--gx-brand-from)] text-white border-[var(--gx-brand-from)]' : 'bg-white text-slate-600 border-slate-200 hover:border-[var(--gx-brand-from)]/40'}`}>
+                            {t === 'off' ? 'Off' : t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="text-[11px] text-slate-400 flex items-center gap-1">
+                      {savingIntel ? <><Loader2 size={11} className="animate-spin" /> Saving…</> : 'Saved — applies to every future recommendation until you change it.'}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
           <div
             data-testid="dp-wiz-dropzone"
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -373,6 +475,74 @@ export default function AllocationWizardTab() {
               </div>
             )}
           </div>
+          {aiReview && (
+            <div className="rounded-xl border-2 border-[var(--gx-brand-from)]/40 bg-[var(--gx-brand-from)]/[0.03] overflow-hidden" data-testid="dp-wiz-ai-review">
+              <div className="px-4 py-3 border-b border-[var(--gx-brand-from)]/15 flex items-center gap-2 flex-wrap">
+                <Sparkles size={16} className="text-[var(--gx-brand-from)]" />
+                <span className="text-sm font-bold text-slate-900">Review what AI extracted</span>
+                <span className="text-xs text-slate-500">Nothing is applied until you confirm.</span>
+                {aiReview.order_reference && <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-600">Invoice {aiReview.order_reference}</span>}
+              </div>
+              <div className="px-4 py-3 space-y-3">
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <span className="text-slate-600"><b className="text-slate-900">{aiReview.machinesTotal != null ? aiReview.machinesTotal : aiReview.lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0)}</b> machines</span>
+                  <span className="text-emerald-700"><b>{aiReview.machinesMatched != null ? aiReview.machinesMatched : aiReview.lines.filter((l) => l.matched).length}</b> matched to BOM</span>
+                  {aiReview.order_value ? <span className="text-slate-600">Order value <b className="text-slate-900">{money(aiReview.order_value)}</b></span> : null}
+                  {aiReview.currency ? <span className="text-slate-400">{aiReview.currency}</span> : null}
+                </div>
+                {aiReview.duplicate && (
+                  <div className="rounded-lg bg-red-50 border border-red-200 p-2.5 text-xs text-red-700 flex items-start gap-2" data-testid="dp-wiz-ai-review-dup">
+                    <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                    <div>Invoice <span className="font-mono">{aiReview.order_reference}</span> has already been allocated{aiReview.duplicate.dealer ? ` to ${aiReview.duplicate.dealer}` : ''}. You can still apply to review, but you’ll need a new invoice number to allocate.</div>
+                  </div>
+                )}
+                <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-100 bg-white">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-white shadow-sm"><tr className="text-left text-xs text-slate-400 border-b border-slate-100">
+                      <th className="py-1.5 px-3">Machine ({aiReview.lines.length})</th><th className="text-center">BOM</th><th className="text-center">Qty</th><th className="text-right px-3">Unit</th><th />
+                    </tr></thead>
+                    <tbody>
+                      {aiReview.lines.map((l, i) => (
+                        <tr key={i} className="border-b border-slate-50" data-testid={`dp-wiz-ai-review-row-${i}`}>
+                          <td className="py-1.5 px-3 max-w-[280px]">
+                            <span className="font-mono text-xs font-semibold text-slate-800">{l.machine_ref || l.input_ref}</span>
+                            {l.description ? <div className="text-xs text-slate-500 truncate" title={l.description}>{l.description}</div> : null}
+                          </td>
+                          <td className="text-center">
+                            {l.matched
+                              ? <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600"><CheckCircle2 size={12} /> Matched</span>
+                              : <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600"><AlertTriangle size={12} /> Unmatched</span>}
+                          </td>
+                          <td className="text-center">
+                            <input type="number" min="1" data-testid={`dp-wiz-ai-review-qty-${i}`} className="w-14 text-center rounded border border-slate-200 px-1.5 py-1 text-sm tabular-nums"
+                              value={l.quantity} onChange={(e) => setReviewQty(i, e.target.value)} />
+                          </td>
+                          <td className="text-right px-3 tabular-nums text-slate-500">{l.unit_value ? money(l.unit_value) : '—'}</td>
+                          <td className="text-right pr-2">
+                            <button onClick={() => removeReviewLine(i)} data-testid={`dp-wiz-ai-review-remove-${i}`} className="text-slate-300 hover:text-red-500"><Trash2 size={14} /></button>
+                          </td>
+                        </tr>
+                      ))}
+                      {aiReview.lines.length === 0 && <tr><td colSpan={5} className="py-4 text-center text-xs text-slate-400">No machine lines left — discard and try another file.</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+                {aiReview.lines.some((l) => !l.matched) && (
+                  <div className="text-[11px] text-amber-600 flex items-center gap-1"><AlertTriangle size={11} /> Unmatched machines stay editable after applying — use “Find in BOM” to map them.</div>
+                )}
+                <div className="flex items-center gap-2 pt-1">
+                  <button data-testid="dp-wiz-ai-review-discard" onClick={() => { setAiReview(null); if (fileRef.current) fileRef.current.value = ''; }}
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-800 px-3 py-2">
+                    <X size={15} /> Discard
+                  </button>
+                  <button data-testid="dp-wiz-ai-review-apply" onClick={applyAiReview} disabled={aiReview.lines.length === 0}
+                    className="ml-auto inline-flex items-center gap-2 bg-[var(--gx-brand-from)] text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50">
+                    <CheckCircle2 size={16} /> Apply {aiReview.lines.length} machine{aiReview.lines.length === 1 ? '' : 's'} to form
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {aiInfo && (
             <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3 text-xs text-emerald-800 flex items-start gap-2" data-testid="dp-wiz-ai-info">
               <Sparkles size={14} className="mt-0.5 shrink-0" />
@@ -449,6 +619,18 @@ export default function AllocationWizardTab() {
           {rec.plan_used && (
             <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3 text-xs text-emerald-800 flex items-center gap-2" data-testid="dp-wiz-plan-badge">
               <CheckCircle2 size={14} /> Based on Pulse's {rec.cover_years || 5}-year warranty failure plan — the most-likely parts per machine over {rec.cover_years || 5} year{(rec.cover_years || 5) !== 1 ? 's' : ''}, topped up with proven-usage parts to use the remaining allowance.
+            </div>
+          )}
+
+          {rec.intelligence && (rec.intelligence.blend_actuals || (rec.intelligence.trend_sensitivity && rec.intelligence.trend_sensitivity !== 'off')) && (
+            <div className="rounded-lg bg-[var(--gx-brand-from)]/[0.06] border border-[var(--gx-brand-from)]/20 p-3 text-xs text-slate-700 flex items-center gap-2" data-testid="dp-wiz-intel-badge">
+              <Brain size={14} className="text-[var(--gx-brand-from)]" />
+              <span>
+                <b>Smart quantities applied.</b>
+                {rec.intelligence.blend_actuals ? ` Blended ${rec.intelligence.blend_weight_pct}% real usage into the plan.` : ''}
+                {rec.intelligence.trend_sensitivity && rec.intelligence.trend_sensitivity !== 'off' ? ` Adjusted for usage trends (${rec.intelligence.trend_sensitivity} sensitivity).` : ''}
+                {' '}Hover a part’s row reason to see the maths.
+              </span>
             </div>
           )}
 

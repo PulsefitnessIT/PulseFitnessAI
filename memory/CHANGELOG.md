@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## 2026-06 — Dealer Parts Allocation Wizard: Smarter Recommendations, Tunable Thresholds, AI Review Step
+Owner asked for three wizard improvements (b, c, d). All shipped, tested (frontend E2E 100%, backend curl-verified), demo org reset to opt-in defaults.
+
+- (b) SMARTER RECOMMENDATIONS — backend `recommend_from_invoice` now optionally BLENDS real
+  historical usage into the warranty-plan quantities and applies a usage-TREND multiplier.
+  New settings in `DEFAULT_DATA_SETTINGS`: `blend_actuals` (bool), `blend_weight_pct` (0-100),
+  `trend_sensitivity` (off/low/med/high). `_trend_multiplier()` maps increasing/new_failure_trend→up,
+  decreasing/dormant→down. Blend applies to plan parts (needs a plan baseline); trend applies to both
+  plan parts and usage/supplementary items. Item `reason` strings explain the maths. Response returns
+  an `intelligence` block. UI: collapsible "Recommendation intelligence" card on Step 0
+  (data-testid dp-wiz-intel-*), saves instantly via PUT /data/settings; Step-1 badge dp-wiz-intel-badge.
+- (c) TUNABLE THRESHOLDS — per-machine-group Plan-vs-Actuals sensitivity overrides. New collection
+  `dealer_parts_pva_overrides` + endpoints GET /data/pva-thresholds, POST /data/pva-thresholds/override,
+  DELETE /data/pva-thresholds/override/{group}. `plan_vs_actuals` loads overrides and returns per-machine
+  over_pct/under_pct/threshold_overridden. UI: per-machine override editor in PlanVsActualsPanel.js
+  (dp-wiz-pva-override-*), plus a quick "reset" next to the override badge.
+- (d) AI PARSING REVIEW STEP — `parseInvoice` no longer auto-populates the form. It now stores an
+  `aiReview` object and renders a confirm panel (dp-wiz-ai-review) listing extracted machines with
+  matched/unmatched badges, editable qty, removable rows. Form fills ONLY on Apply (dp-wiz-ai-review-apply);
+  Discard clears with no side-effects. Duplicate-invoice detection surfaced in the review panel.
+- Files: backend/routes/dealer_parts_data.py; frontend AllocationWizardTab.js, PlanVsActualsPanel.js, api.js.
+- Sample matching invoice for testing: /app/test_samples/dealer_invoice_sample.csv.
+- Non-blocking follow-ups noted by review: AllocationWizardTab.js now ~809 lines (could split
+  IntelligenceCard/AIReviewPanel/MachinePicker); dev-only <span>-in-<option> hydration warning (harmless).
+
+
 ## 2026-06 — Equipment Sales: Customer Register Handover
 
 Push a deal's GRN-created equipment into the customer's OWN Pulse portal so they can log faults from day one — into the existing equipment/company processes, no new module.

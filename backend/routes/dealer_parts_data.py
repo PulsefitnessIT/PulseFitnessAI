@@ -61,6 +61,7 @@ MACHINE_ALIASES = "dealer_machine_aliases"
 DATA_SETTINGS = "dealer_parts_data_settings"
 WARRANTY_PLAN = "dealer_parts_warranty_plan"
 PRICES = "dealer_parts_prices"
+PVA_OVERRIDES = "dealer_parts_pva_overrides"   # per-machine-group Plan-vs-Actuals sensitivity overrides
 
 DEFAULT_DATA_SETTINGS = {
     "fuzzy_threshold": 0.82,
@@ -73,7 +74,32 @@ DEFAULT_DATA_SETTINGS = {
     "require_human_review_before_recommend": True,
     "plan_actual_over_pct": 50,   # Plan-vs-Actuals: flag "plan too low" when actual ≥ plan + this %
     "plan_actual_under_pct": 50,  # Plan-vs-Actuals: flag "plan too high" when actual ≤ plan − this %
+    # Recommendation intelligence — how the recommended pack quantities are computed:
+    "blend_actuals": False,       # blend real historical usage into the warranty-plan quantities
+    "blend_weight_pct": 40,       # 0-100: weight given to actuals when blending (0 = pure plan)
+    "trend_sensitivity": "off",   # off | low | med | high — scale quantities by each part's usage trend
 }
+
+# Usage-trend → quantity multiplier. Rising failure rates pack a little more,
+# declining/dormant a little less. Sensitivity controls how aggressive this is.
+TREND_FACTORS = {
+    "off": (1.0, 1.0),
+    "low": (1.08, 0.94),
+    "med": (1.15, 0.88),
+    "high": (1.25, 0.80),
+}
+_TREND_UP = {"increasing", "new_failure_trend"}
+_TREND_DOWN = {"decreasing", "dormant"}
+
+
+def _trend_multiplier(trend, sensitivity: str) -> float:
+    up, down = TREND_FACTORS.get((sensitivity or "off").lower(), (1.0, 1.0))
+    t = (trend or "").lower()
+    if t in _TREND_UP:
+        return up
+    if t in _TREND_DOWN:
+        return down
+    return 1.0
 
 CONF_RANK = {
     "exact_code": 100, "normalised_code": 92, "exact_description": 80,
@@ -1122,6 +1148,15 @@ async def update_data_settings(data: dict, user=Depends(get_current_user)):
                 upd[k] = round(min(1000.0, max(0.0, float(upd[k]))), 1)
             except (TypeError, ValueError):
                 upd.pop(k)
+    if "blend_weight_pct" in upd:
+        try:
+            upd["blend_weight_pct"] = int(min(100, max(0, round(float(upd["blend_weight_pct"])))))
+        except (TypeError, ValueError):
+            upd.pop("blend_weight_pct")
+    if "blend_actuals" in upd:
+        upd["blend_actuals"] = bool(upd["blend_actuals"])
+    if "trend_sensitivity" in upd and upd["trend_sensitivity"] not in TREND_FACTORS:
+        upd.pop("trend_sensitivity")
     upd["updated_at"] = _now()
     await db[DATA_SETTINGS].update_one({"organization_id": org}, {"$set": upd}, upsert=True)
     await _audit(org, user, "data_settings_updated", **{k: str(v) for k, v in upd.items()})
@@ -1466,6 +1501,10 @@ async def plan_vs_actuals(data: dict, user=Depends(get_current_user)):
     fuzzy_cutoff = int(settings["fuzzy_threshold"] * 100)
     over_pct = float(settings.get("plan_actual_over_pct", 50) or 50)
     under_pct = float(settings.get("plan_actual_under_pct", 50) or 50)
+    overrides = {}
+    async for o in db[PVA_OVERRIDES].find({"organization_id": org}, {"_id": 0}):
+        overrides[o["machine_group"]] = (
+            float(o.get("over_pct", over_pct)), float(o.get("under_pct", under_pct)))
 
     plan_by_group = await _warranty_plan_by_group(org, tier="platinum")
     if not plan_by_group:
@@ -1510,13 +1549,14 @@ async def plan_vs_actuals(data: dict, user=Depends(get_current_user)):
             comps.setdefault(c["code_norm"], {"code": c["code"], "description": c.get("description")})
 
         rows, covered = [], set()
+        eff_over, eff_under = overrides.get(plan_group, (over_pct, under_pct))
         for p in plan_by_group.get(plan_group, []):
             cn = p["part_code_norm"]
             covered.add(cn)
             plan_pm = round(p.get("total_qty_5y") or 0, 2)
             u = usage_map.get(cn)
             actual_pm, actual_total = _actual_pm(u, n)
-            status, div = _pva_status(plan_pm, actual_pm, over_pct, under_pct)
+            status, div = _pva_status(plan_pm, actual_pm, eff_over, eff_under)
             unit = p.get("sales_price") or price_map.get(cn) or (u.get("avg_cost") if u else 0) or 0
             rows.append({
                 "part_code": p["part_code"], "part_code_norm": cn,
@@ -1562,10 +1602,60 @@ async def plan_vs_actuals(data: dict, user=Depends(get_current_user)):
             "input_ref": ref, "quantity": n, "matched": True,
             "machine_ref": m["top_level_ref"], "machine_description": m.get("description"),
             "machine_group": plan_group, "rows": rows, "summary": summary,
+            "over_pct": eff_over, "under_pct": eff_under,
+            "threshold_overridden": plan_group in overrides,
         })
     total_flagged = sum(mo.get("summary", {}).get("flagged", 0) for mo in machines_out)
     return {"loaded": True, "over_pct": over_pct, "under_pct": under_pct,
+            "overrides": [{"machine_group": g, "over_pct": o, "under_pct": u}
+                          for g, (o, u) in overrides.items()],
             "usage_available": bool(usage_map), "machines": machines_out, "total_flagged": total_flagged}
+
+
+@router.get("/pva-thresholds")
+async def get_pva_thresholds(user=Depends(get_current_user)):
+    """Global Plan-vs-Actuals sensitivity + any per-machine-group overrides."""
+    org = _of(user)
+    s = await _data_settings(org)
+    rows = await db[PVA_OVERRIDES].find({"organization_id": org}, {"_id": 0}).sort("machine_group", 1).to_list(500)
+    return {
+        "global": {"over_pct": float(s.get("plan_actual_over_pct", 50) or 50),
+                   "under_pct": float(s.get("plan_actual_under_pct", 50) or 50)},
+        "overrides": rows,
+    }
+
+
+@router.post("/pva-thresholds/override")
+async def set_pva_threshold_override(data: dict, user=Depends(get_current_user)):
+    """Upsert a per-machine-group sensitivity override so one machine can be flagged
+    more/less aggressively than the global default in Plan vs Actuals."""
+    org = _of(user)
+    grp = (data.get("machine_group") or "").strip()
+    if not grp:
+        raise HTTPException(400, "machine_group is required")
+    try:
+        over = round(min(1000.0, max(0.0, float(data.get("over_pct")))), 1)
+        under = round(min(1000.0, max(0.0, float(data.get("under_pct")))), 1)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "over_pct and under_pct must be numbers")
+    doc = {"organization_id": org, "machine_group": grp, "over_pct": over,
+           "under_pct": under, "updated_at": _now(),
+           "updated_by": user.get("full_name") or user.get("email")}
+    await db[PVA_OVERRIDES].update_one(
+        {"organization_id": org, "machine_group": grp}, {"$set": doc}, upsert=True)
+    await _audit(org, user, "pva_threshold_override_set", machine_group=grp, over_pct=over, under_pct=under)
+    return {"ok": True, "machine_group": grp, "over_pct": over, "under_pct": under}
+
+
+@router.delete("/pva-thresholds/override/{machine_group}")
+async def clear_pva_threshold_override(machine_group: str, user=Depends(get_current_user)):
+    """Remove a machine group's override so it reverts to the global sensitivity."""
+    org = _of(user)
+    r = await db[PVA_OVERRIDES].delete_one({"organization_id": org, "machine_group": machine_group})
+    if not r.deleted_count:
+        raise HTTPException(404, "No override for that machine group")
+    await _audit(org, user, "pva_threshold_override_cleared", machine_group=machine_group)
+    return {"ok": True}
 
 
 @router.post("/warranty-plan/update-part")
@@ -1720,6 +1810,9 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
     settings = await _data_settings(org)
     approved_only = bool(settings.get("require_human_review_before_recommend", True))
     fuzzy_cutoff = int(settings["fuzzy_threshold"] * 100)
+    blend_actuals = bool(settings.get("blend_actuals"))
+    blend_w = float(settings.get("blend_weight_pct", 40) or 0) / 100.0
+    trend_sens = settings.get("trend_sensitivity", "off") or "off"
 
     idx = await _machine_index(org)
 
@@ -1797,6 +1890,9 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
             if base <= 0:
                 return None
             raw = int(base * max(1, int(qty)))
+            tmult = _trend_multiplier(u.get("trend"), trend_sens)
+            if tmult != 1.0 and raw > 0:
+                raw = max(1, int(round(raw * tmult)))
             have = int((held.get(c["code"], 0) or 0) + (allocated.get(c["code"], 0) or 0))
             rec = max(0, raw - have)
             unit = price_map.get(cn) or u.get("avg_cost") or 0
@@ -1805,6 +1901,7 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
                 dup = ("Dealer already holds/allocated %d — none needed." % have if rec == 0
                        else f"Reduced {raw}\u2192{rec}: dealer already holds/allocated {have}.")
             pre = "Supplementary (not in warranty plan): " if source == "supplementary" else ""
+            tnote = (f"Usage trend {u['trend']} — quantity adjusted ×{tmult:g}. " if tmult != 1.0 else "")
             return {
                 "part_sku": c["code"], "part_name": c.get("description") or c["code"],
                 "machine_model": m["top_level_ref"], "bom_qty": c["quantity"],
@@ -1813,7 +1910,7 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
                 "already_held": have, "unit_value": round(unit, 2), "value": round(rec * unit, 2),
                 "total_used": u["total_qty"], "source": source,
                 "reason": (f"{pre}Historically used {u['total_qty']} (trend {u['trend']}, {u['priority']} "
-                           f"priority) for {m['top_level_ref']}. " + dup).strip(),
+                           f"priority) for {m['top_level_ref']}. " + tnote + dup).strip(),
                 "status": "recommended" if rec > 0 else "duplicate_avoided", "dup_flag": bool(dup and rec == 0),
             }
 
@@ -1826,6 +1923,25 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
                 cn = p["part_code_norm"]
                 covered.add(cn)
                 tq = _plan_cover_qty(p, cover_years)
+                plan_tq = tq
+                u = usage_map.get(cn)
+                blend_note = ""
+                if blend_actuals and u and blend_w > 0:
+                    plan_5y = round(p.get("total_qty_5y") or 0, 2)
+                    actual_5y = (u.get("total_qty") or 0) / max(1, int(qty))
+                    blended_5y = plan_5y * (1 - blend_w) + actual_5y * blend_w
+                    tq = round(blended_5y * (plan_tq / plan_5y), 2) if plan_5y > 0 \
+                        else round(blended_5y * cover_years / 5.0, 2)
+                    if abs(tq - plan_tq) >= 0.01:
+                        blend_note = (f"Blended with real usage ({int(blend_w * 100)}% actuals: "
+                                      f"{plan_tq:g}\u2192{tq:g}/machine). ")
+                trend_note = ""
+                if trend_sens != "off" and u:
+                    tmult = _trend_multiplier(u.get("trend"), trend_sens)
+                    if tmult != 1.0:
+                        before = tq
+                        tq = round(tq * tmult, 2)
+                        trend_note = f"Usage trend {u.get('trend')} \u00d7{tmult:g} ({before:g}\u2192{tq:g}/machine). "
                 planned = int(round(tq * max(1, int(qty))))
                 if planned <= 0:
                     continue
@@ -1842,11 +1958,13 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
                     "part_sku": p["part_code"], "part_name": p.get("description") or p["part_code"],
                     "machine_model": m["top_level_ref"], "bom_qty": tq,
                     "priority": prio, "priority_rank": 100 + min(int(round(tq)), 90),
-                    "trend": "warranty_plan", "recommended_qty": rec, "original_qty": planned, "ideal_qty": rec,
+                    "trend": (u.get("trend") if (u and (blend_note or trend_note)) else "warranty_plan"),
+                    "recommended_qty": rec, "original_qty": planned, "ideal_qty": rec,
                     "already_held": have, "unit_value": round(unit, 2), "value": round(rec * unit, 2),
                     "total_used": tq, "source": "warranty_plan",
                     "reason": (f"{cover_years}-year warranty plan (machine {plan_group}): expected {planned} over "
-                               f"{cover_years} year{'s' if cover_years != 1 else ''}. " + dup).strip(),
+                               f"{cover_years} year{'s' if cover_years != 1 else ''}. "
+                               + blend_note + trend_note + dup).strip(),
                     "status": "recommended" if rec > 0 else "duplicate_avoided",
                 })
             # SUPPLEMENTARY: other proven-usage parts, so freed budget sends "other parts"
@@ -1942,6 +2060,10 @@ async def recommend_from_invoice(data: dict, user=Depends(get_current_user)):
         "approved_only_matches": approved_only,
         "parts_total": parts_total, "matched_machine_count": matched_machine_count,
         "usage_relaxed": usage_relaxed, "note": note, "fit_stats": fit, "plan_used": plan_used,
+        "intelligence": {
+            "blend_actuals": blend_actuals, "blend_weight_pct": int(round(blend_w * 100)),
+            "trend_sensitivity": trend_sens,
+        },
     }
 
 

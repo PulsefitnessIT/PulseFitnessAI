@@ -163,6 +163,9 @@ export const dpApi = {
   deleteMachineAlias: (id) => axios.delete(`${BASE}/data/machine-aliases/${id}`, auth()).then((r) => r.data),
   recommendFromInvoice: (data) => axios.post(`${BASE}/data/recommend`, data, auth()).then((r) => r.data),
   planVsActuals: (data) => axios.post(`${BASE}/data/plan-vs-actuals`, data, auth()).then((r) => r.data),
+  pvaThresholds: () => axios.get(`${BASE}/data/pva-thresholds`, auth()).then((r) => r.data),
+  setPvaOverride: (data) => axios.post(`${BASE}/data/pva-thresholds/override`, data, auth()).then((r) => r.data),
+  clearPvaOverride: (grp) => axios.delete(`${BASE}/data/pva-thresholds/override/${encodeURIComponent(grp)}`, auth()).then((r) => r.data),
   updateWarrantyPlanPart: (data) => axios.post(`${BASE}/data/warranty-plan/update-part`, data, auth()).then((r) => r.data),
   dataMonitoring: () => axios.get(`${BASE}/data/monitoring`, auth()).then((r) => r.data),
   aiParseInvoiceFile: async (file, onProgress) => {

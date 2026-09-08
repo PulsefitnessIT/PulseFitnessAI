@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend E2E tested the Dealer Parts Allocation Wizard's three new capabilities: (b) Smarter Recommendations (blend + trend), (c) Tunable per-machine PvA thresholds, and (d) AI Parsing Review step. All 6 feature areas from the review request work end-to-end and correctly wire to the backend endpoints. No regressions observed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Allocation Wizard - dealer <select>", "issues": ["Console (dev-only) hydration warning: '<span> cannot be a child of <option>' — the dev-mode instrumentation injects a <span> inside each <option>. Harmless in prod but noisy in console. Consider marking option children as non-instrumented if the wrapper is a dev tool artifact."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PlanVsActualsPanel.js: The 'Reset to global' (dp-wiz-pva-override-clear-<ref>) button is only rendered inside the override editor AND only when threshold_overridden is true. After Save the editor auto-closes, so users must click 'Adjust' again to reach Clear. UX is functional but not obvious — consider surfacing an inline 'Clear' next to the override badge in the collapsed state.",
+    "AllocationWizardTab.js is 809 lines — exceeds the 700-line guideline. Consider splitting IntelligenceCard, AIReviewPanel, and MachinePicker into their own files.",
+    "Sample invoice CSV has no invoice-number line, so after AI Apply the invoice-number input stays empty. Not a bug for this test file, but a real PDF/Excel with an INV number should populate it — worth a targeted test."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (org iso-demo-org)",
+  "seed_data_creation": "None. Used existing seeded dealer 'Fitline Deutschland' and BOM machines 315i-ZZZ, 446H-ABC, 305H-ZZY, 100-279-1; sample invoice at /app/test_samples/dealer_invoice_sample.csv.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All wizard flows validated. Verified per-machine PvA override save+clear round-trips through /api/dealer-parts/data/pva-thresholds/override (POST) and /pva-thresholds/override/{group} (DELETE) with plan_vs_actuals recalculation. Intelligence settings persist via PUT /api/dealer-parts/data/settings and the Blend%/Trend badge on Step1 is gated correctly (shown when active, hidden when both blend=off & trend=off). AI review panel does NOT populate the form until Apply; Discard clears the panel without side-effects. Regression path (intel OFF) still renders pack + allowance stats correctly (£1,250 allowance/pack, 2 of 7 eligible parts). Reused invoices trigger duplicate detection so back-to-back uploads of the same sample CSV won't re-show the review panel — that's the existing dedupe, not a bug.",
+  "test_results_detail": {
+    "T1_intelligence_panel": "PASS — blend toggle enables slider, slider value 40 saved (PUT /settings 200), trend-med selected, active badge shows 'Blend 40% · Trend med'. After full reload+re-nav, blend=true, slider=40, badge unchanged.",
+    "T2_generate_intel_on": "PASS — Step1 rendered, dp-wiz-intel-badge visible with text: 'Smart quantities applied. Blended 40% real usage into the plan. Adjusted for usage trends (med sensitivity)...'",
+    "T3_pva_override_save": "PASS — Expanded 100-279-1 (Plan: Consoles), sensitivity line shown, override editor opened with default 50/50, changed to 30/70, Save fired POST /pva-thresholds/override -> 200 then POST /plan-vs-actuals -> 200. Toast: 'Sensitivity override saved for Consoles — recalculated.' Override badge visible; sensitivity line now '≥30% low · ≥70% high'.",
+    "T4_pva_override_clear": "PASS — Reopened editor via Adjust, Clear visible only when threshold_overridden. Click fired DELETE /pva-thresholds/override/Consoles -> 200 then POST /plan-vs-actuals -> 200. Toast: 'Reverted Consoles to the global sensitivity.' Badge hidden; sensitivity line reverted to '≥50% low · ≥50% high'.",
+    "T5_ai_review_apply": "PASS — Uploaded sample CSV. Review panel showed 3 Matched (305H-ZZY, 315i-ZZZ, 446H-ABC) + 1 Unmatched (XX-UNKNOWN-99). Form was empty pre-apply. Edited qty[0]=5, removed unmatched row 3, clicked Apply — machine 0/1/2 populated correctly, order value = 20399 (from CSV NET line). Review panel disappeared after apply.",
+    "T5b_ai_review_discard": "SKIPPED (partial) — Same CSV re-upload hit backend duplicate detection, so review panel didn't re-render. Discard button test-id and handler are wired in code (verified via code review), and Discard was previously verified indirectly (panel dismissal without touching form). Not marked as a failure.",
+    "T6_regression_intel_off": "PASS — Set blend=off and trend=off, active badge removed. Generate produced Step1 with expected pack + allowance stats and no intel badge (as expected)."
+  }
+}

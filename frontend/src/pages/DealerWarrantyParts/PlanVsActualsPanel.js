@@ -64,6 +64,33 @@ export default function PlanVsActualsPanel({ lines }) {
   const [overIn, setOverIn] = useState('');
   const [underIn, setUnderIn] = useState('');
   const [savingThresh, setSavingThresh] = useState(false);
+  const [ovEdit, setOvEdit] = useState(null);   // machine_group whose override is being edited
+  const [ovOver, setOvOver] = useState('');
+  const [ovUnder, setOvUnder] = useState('');
+  const [ovSaving, setOvSaving] = useState(false);
+
+  const openOverride = (mac) => {
+    setOvEdit(mac.machine_group);
+    setOvOver(String(mac.over_pct ?? (data?.over_pct ?? 50)));
+    setOvUnder(String(mac.under_pct ?? (data?.under_pct ?? 50)));
+  };
+  const saveOverride = async (grp) => {
+    setOvSaving(true);
+    try {
+      await dpApi.setPvaOverride({ machine_group: grp, over_pct: Number(ovOver) || 0, under_pct: Number(ovUnder) || 0 });
+      setOvEdit(null); await load();
+      notify.success(`Sensitivity override saved for ${grp} — recalculated.`);
+    } catch (e) { notify.error(e?.response?.data?.detail || 'Could not save override (manager access may be required)'); }
+    finally { setOvSaving(false); }
+  };
+  const clearOverride = async (grp) => {
+    setOvSaving(true);
+    try {
+      await dpApi.clearPvaOverride(grp); setOvEdit(null); await load();
+      notify.success(`Reverted ${grp} to the global sensitivity.`);
+    } catch (e) { notify.error(e?.response?.data?.detail || 'Could not clear override'); }
+    finally { setOvSaving(false); }
+  };
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
@@ -237,6 +264,53 @@ export default function PlanVsActualsPanel({ lines }) {
                     </button>
                     {isOpen && !mac.note && (
                       <div className="px-3 pb-3">
+                        <div className="flex items-center gap-2 flex-wrap mb-2 text-[11px]" data-testid={`dp-wiz-pva-sens-${ref}`}>
+                          <span className="text-slate-500">Sensitivity:</span>
+                          <span className="font-semibold text-slate-700">≥{mac.over_pct ?? data.over_pct}% low · ≥{mac.under_pct ?? data.under_pct}% high</span>
+                          {mac.threshold_overridden && <span className="px-1.5 py-0.5 rounded-full bg-[var(--gx-brand-from)]/10 text-[var(--gx-brand-from)] font-semibold" data-testid={`dp-wiz-pva-override-badge-${ref}`}>override</span>}
+                          {mac.threshold_overridden && ovEdit !== mac.machine_group && (
+                            <button data-testid={`dp-wiz-pva-override-quickclear-${ref}`} onClick={() => clearOverride(mac.machine_group)} disabled={ovSaving}
+                              className="inline-flex items-center gap-1 font-semibold text-slate-400 hover:text-red-600">
+                              reset
+                            </button>
+                          )}
+                          {mac.machine_group && (
+                            <button data-testid={`dp-wiz-pva-override-toggle-${ref}`}
+                              onClick={() => (ovEdit === mac.machine_group ? setOvEdit(null) : openOverride(mac))}
+                              className="ml-auto inline-flex items-center gap-1 font-semibold text-slate-500 hover:text-[var(--gx-brand-from)] border border-slate-200 rounded-full px-2 py-0.5">
+                              <SlidersHorizontal size={11} /> {mac.threshold_overridden ? 'Adjust' : 'Override for this machine'}
+                            </button>
+                          )}
+                        </div>
+                        {ovEdit === mac.machine_group && (
+                          <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 flex flex-wrap items-end gap-3 mb-2" data-testid={`dp-wiz-pva-override-editor-${ref}`}>
+                            <label className="text-xs text-slate-600">
+                              <span className="block mb-1 font-semibold">“Plan too low” at ≥</span>
+                              <span className="inline-flex items-center gap-1">
+                                <input type="number" min="0" step="5" data-testid={`dp-wiz-pva-override-over-${ref}`} value={ovOver} onChange={(e) => setOvOver(e.target.value)}
+                                  className="w-20 rounded-md border border-slate-200 px-2 py-1 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--gx-brand-from)]/30" /> % over
+                              </span>
+                            </label>
+                            <label className="text-xs text-slate-600">
+                              <span className="block mb-1 font-semibold">“Plan too high” at ≥</span>
+                              <span className="inline-flex items-center gap-1">
+                                <input type="number" min="0" step="5" data-testid={`dp-wiz-pva-override-under-${ref}`} value={ovUnder} onChange={(e) => setOvUnder(e.target.value)}
+                                  className="w-20 rounded-md border border-slate-200 px-2 py-1 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[var(--gx-brand-from)]/30" /> % under
+                              </span>
+                            </label>
+                            <button data-testid={`dp-wiz-pva-override-save-${ref}`} onClick={() => saveOverride(mac.machine_group)} disabled={ovSaving}
+                              className="inline-flex items-center gap-1 text-xs font-semibold bg-[var(--gx-brand-from)] text-white px-3 py-1.5 rounded-md hover:opacity-90 disabled:opacity-50">
+                              {ovSaving ? 'Saving…' : 'Save override'}
+                            </button>
+                            {mac.threshold_overridden && (
+                              <button data-testid={`dp-wiz-pva-override-clear-${ref}`} onClick={() => clearOverride(mac.machine_group)} disabled={ovSaving}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-red-600 px-2 py-1.5">
+                                Reset to global
+                              </button>
+                            )}
+                            <span className="text-[11px] text-slate-400 w-full">Only affects <b>{mac.machine_group}</b> machines. Other machines keep the global sensitivity.</span>
+                          </div>
+                        )}
                         <div className="overflow-x-auto rounded-lg border border-slate-100">
                           <table className="w-full text-sm">
                             <thead><tr className="text-left text-xs text-slate-400 border-b border-slate-100">
