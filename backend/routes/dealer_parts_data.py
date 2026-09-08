@@ -2210,6 +2210,39 @@ async def data_report_csv(report: str, top_level_ref: str = Query(""), user=Depe
     raise HTTPException(404, "Unknown report")
 
 
+_INV_STOPWORDS = {"DATE", "TOTAL", "NET", "GROSS", "VAT", "PAGE", "NUMBER", "NO", "REF",
+                  "TERMS", "DUE", "QTY", "QUANTITY", "AMOUNT", "BALANCE", "ACCOUNT"}
+_INV_LABELS = [
+    r"tax\s*invoice\s*(?:no\.?|number|num\.?|#)?",
+    r"invoice\s*(?:no\.?|number|num\.?|#)",
+    r"inv\s*(?:no\.?|#)",
+    r"credit\s*note\s*(?:no\.?|number|#)?",
+    r"document\s*(?:no\.?|number|#)?",
+    r"doc\s*(?:no\.?|#)?",
+    r"sales\s*order\s*(?:no\.?|number|#)?",
+    r"order\s*(?:no\.?|number|ref(?:erence)?|#)",
+    r"invoice\s*[:#]",
+]
+_INV_VALUE = r"([A-Za-z0-9][A-Za-z0-9\-\/]{1,23})"
+_DATE_RE = re.compile(r"^\d{1,4}[\-/.]\d{1,2}[\-/.]\d{1,4}$")
+
+
+def _extract_invoice_number(text: str) -> str:
+    """Best-effort pull of an invoice/order number from raw invoice text (PDF or a
+    joined spreadsheet blob). Tries the most specific labels first; the value must
+    contain a digit, not be a date, and not be a stop-word like TOTAL/DATE."""
+    if not text:
+        return ""
+    for lp in _INV_LABELS:
+        pat = re.compile(lp + r"\s*[:#\-.]?\s*" + _INV_VALUE, re.I)
+        for mm in pat.finditer(text):
+            cand = mm.group(1).strip().strip("-/.").upper()
+            if (len(cand) >= 3 and cand not in _INV_STOPWORDS
+                    and any(c.isdigit() for c in cand) and not _DATE_RE.match(cand)):
+                return cand
+    return ""
+
+
 async def _scan_spreadsheet_invoice(org: str, content: bytes, filename: str, idx) -> dict:
     """Deterministically scan EVERY cell of a spreadsheet for values matching a BOM
     machine reference / stock code. Robust to wide raw exports (Sage etc.).
@@ -2235,6 +2268,8 @@ async def _scan_spreadsheet_invoice(org: str, content: bytes, filename: str, idx
     rows = list(spreadsheet_rows(content, filename))
     if not rows:
         return {"lines": [], "order_value": 0, "matched_count": 0}
+    invoice_no = _extract_invoice_number(
+        "\n".join(" ".join(str(c) for c in row if c is not None) for row in rows[:60]))
     header = [str(h or "").lower() for h in rows[0]]
     data = rows[1:] if any(("item" in h or "code" in h or "quantity" in h or "description" in h) for h in header) else rows
 
@@ -2306,6 +2341,7 @@ async def _scan_spreadsheet_invoice(org: str, content: bytes, filename: str, idx
     lines.sort(key=lambda x: (not x["matched"], x["input_ref"]))
     return {
         "lines": lines, "order_value": round(order_value, 2),
+        "order_reference": invoice_no,
         "matched_count": sum(1 for l in lines if l["matched"]),
         "lines_total": len(lines),
         "machines_total": machines_total, "machines_matched": machines_matched,
@@ -2400,6 +2436,7 @@ async def _scan_pdf_invoice(content: bytes, idx) -> dict:
     order_value = invoice_total if invoice_total else line_sum
     return {
         "lines": out_lines, "order_value": round(order_value, 2),
+        "order_reference": _extract_invoice_number(text),
         "invoice_total": invoice_total, "line_sum": line_sum,
         "matched_count": sum(1 for l in out_lines if l["matched"]),
         "lines_total": len(out_lines),
@@ -2427,11 +2464,16 @@ async def _parse_and_match_invoice(org: str, user: dict, content: bytes, filenam
                     f"{mm} machine(s) on {scan['matched_count']} line(s) matched the BOM.")
             if not qcol:
                 note += " No quantity column detected — each row was counted as one machine."
+            order_ref = scan.get("order_reference") or ""
+            if order_ref:
+                note += f" Invoice number {order_ref} detected."
+            dup_info = await _invoice_duplicate_info(org, order_ref)
             return {
                 "available": True, "advisory_only": True, "source": "spreadsheet_scan",
-                "order_reference": "", "currency": "", "order_value": scan["order_value"],
+                "order_reference": order_ref, "currency": "", "order_value": scan["order_value"],
                 "note": note, "lines": scan["lines"], "matched_count": scan["matched_count"],
                 "machines_total": mt, "machines_matched": mm, "lines_total": scan["lines_total"],
+                **dup_info,
             }
         # fall through to LLM if nothing matched deterministically
 
@@ -2447,12 +2489,17 @@ async def _parse_and_match_invoice(org: str, user: dict, content: bytes, filenam
                     f"{mm} machine(s) on {scan['matched_count']} line(s) matched the BOM.")
             if scan.get("invoice_total"):
                 note += f" Order value set to the invoice’s printed total ({scan['invoice_total']:,.2f})."
+            order_ref = scan.get("order_reference") or ""
+            if order_ref:
+                note += f" Invoice number {order_ref} detected."
+            dup_info = await _invoice_duplicate_info(org, order_ref)
             return {
                 "available": True, "advisory_only": True, "source": "pdf_scan",
-                "order_reference": "", "currency": "", "order_value": scan["order_value"],
+                "order_reference": order_ref, "currency": "", "order_value": scan["order_value"],
                 "invoice_total": scan.get("invoice_total"), "line_sum": scan.get("line_sum"),
                 "note": note, "lines": scan["lines"], "matched_count": scan["matched_count"],
                 "machines_total": mt, "machines_matched": mm, "lines_total": scan["lines_total"],
+                **dup_info,
             }
         # fall through to LLM if no item codes matched deterministically
 

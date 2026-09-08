@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 2026-06 — Invoice-number capture for the fast (deterministic) invoice scanners
+- Problem: only the LLM parse path returned an invoice number; the fast deterministic PDF and
+  spreadsheet scanners returned order_reference="", so the wizard's Invoice-number field stayed empty
+  after Apply for the common fast path.
+- Added `_extract_invoice_number(text)` in routes/dealer_parts_data.py — label-driven, most-specific-first
+  (Tax Invoice/Invoice No/Invoice #/Inv/Credit Note/Document/Sales Order/Order Ref), value must contain a
+  digit, isn't a date, isn't a stop-word (TOTAL/DATE/etc). Correctly skips "Invoice Date 12/06/2026".
+- Wired into `_scan_pdf_invoice` (scans extracted text) and `_scan_spreadsheet_invoice` (scans a joined
+  blob of the first 60 rows' cells). `_parse_and_match_invoice` now passes the detected order_reference
+  through for both branches, appends it to the note, and runs `_invoice_duplicate_info` so a repeat
+  invoice number is flagged on upload for these paths too (previously LLM-only).
+- Frontend needed no change — it already maps res.order_reference → aiReview and setInvoiceRef on Apply.
+- Verified via curl on both samples: /app/test_samples/dealer_invoice_sample.csv → INV-2051;
+  /app/test_samples/dealer_invoice_sample.pdf → INV-3090 (order value + matches also correct).
+
+
 ## 2026-06 — Intelligence made the org default (Pulse Fitness Ltd) + Input import fix
 - Owner opted to make wizard intelligence ON by default: `blend_actuals=true, blend_weight_pct=40,
   trend_sensitivity=med`. Set the org-level `dealer_parts_data_settings` doc for Pulse Fitness Ltd
