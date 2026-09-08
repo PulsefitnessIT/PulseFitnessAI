@@ -10,6 +10,7 @@ import {
   Loader2, LogOut, Calendar, Clock, Plane, FileText, ShieldCheck, Download,
   CheckCircle2, AlertCircle, Plus, Trash2, Users,
   Home, Play, Square, Coffee, Sun, Thermometer, ChevronLeft, ChevronRight,
+  ClipboardCheck, PenLine,
 } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 
@@ -167,6 +168,13 @@ function MyDayTab({ H, onGoTo }) {
   }, [H]);
   useEffect(() => { load(); }, [load]);
 
+  const [rtw, setRtw] = useState([]);
+  const loadRtw = useCallback(async () => {
+    try { const r = await axios.get(`${API}/new-starter/portal/rtw-pending`, { headers: H }); setRtw(r.data?.pending || []); }
+    catch { setRtw([]); }
+  }, [H]);
+  useEffect(() => { loadRtw(); }, [loadRtw]);
+
   const punch = async (kind) => {
     setBusy(true); setErr('');
     try { await axios.post(`${API}/new-starter/portal/day/punch`, { kind }, { headers: H }); await load(); }
@@ -210,6 +218,10 @@ function MyDayTab({ H, onGoTo }) {
         <h2 className="text-2xl font-bold text-slate-900">{greet}, {d.first_name}</h2>
         <p className="text-slate-500 text-sm">{fmtDate(d.date)}</p>
       </div>
+
+      {rtw.map((r) => (
+        <RtwAckCard key={r.leave_id} rtw={r} H={H} onDone={loadRtw} />
+      ))}
 
       <Card testId="my-day-today">
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -313,6 +325,76 @@ function MyDayTab({ H, onGoTo }) {
           </div>
         </Card>
       )}
+    </div>
+  );
+}
+
+/* ─────────────── Return-to-work acknowledgement ─────────────── */
+const FIT_LABELS = { yes: 'Fit to return', phased: 'Phased return', no: 'Not yet fit' };
+
+function RtwAckCard({ rtw, H, onDone }) {
+  const [agreed, setAgreed] = useState(false);
+  const [comment, setComment] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  const submit = async () => {
+    if (!agreed) { setErr('Please tick the box to confirm the agreed actions.'); return; }
+    setBusy(true); setErr('');
+    try {
+      await axios.post(`${API}/new-starter/portal/rtw/${rtw.leave_id}/acknowledge`,
+        { agreed: true, comment: comment || null }, { headers: H });
+      await onDone();
+    } catch (e) { setErr(e?.response?.data?.detail || 'Could not submit your sign-off.'); setBusy(false); }
+  };
+
+  return (
+    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm" data-testid={`rtw-ack-card-${rtw.leave_id}`}>
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 rounded-lg bg-emerald-100 p-2 text-emerald-700"><ClipboardCheck size={18} /></div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-slate-900">Return-to-work sign-off</h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {rtw.interviewer ? `${rtw.interviewer} ` : 'Your manager '}completed a return-to-work check for your absence
+            {rtw.start_date ? ` from ${fmtDate(rtw.start_date)}` : ''}{rtw.return_date ? `, returning ${fmtDate(rtw.return_date)}` : ''}.
+            Please confirm the agreed actions below.
+          </p>
+
+          <div className="mt-3 space-y-2 text-sm">
+            {rtw.reason && (
+              <div><span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Reason</span>
+                <div className="text-slate-700">{rtw.reason}</div></div>
+            )}
+            {rtw.fit_to_return && (
+              <div><span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Fitness to return</span>
+                <div className="text-slate-700">{FIT_LABELS[rtw.fit_to_return] || rtw.fit_to_return}{rtw.fit_details ? ` — ${rtw.fit_details}` : ''}</div></div>
+            )}
+            <div><span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Agreed actions</span>
+              <div className="text-slate-700" data-testid={`rtw-ack-actions-${rtw.leave_id}`}>{rtw.agreed_actions || 'No specific actions were recorded.'}</div></div>
+          </div>
+
+          <label className="mt-4 flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
+            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)}
+              data-testid={`rtw-ack-agree-${rtw.leave_id}`} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600" />
+            <span>I confirm I have discussed and agree to the actions recorded above.</span>
+          </label>
+
+          <label className="mt-3 block text-xs font-semibold text-slate-600">Comment (optional)
+            <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2}
+              data-testid={`rtw-ack-comment-${rtw.leave_id}`}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Anything you'd like to add" /></label>
+
+          {err && <div className="mt-2 text-xs text-rose-600" data-testid={`rtw-ack-error-${rtw.leave_id}`}>{err}</div>}
+          <p className="mt-2 text-[11px] text-slate-500">Signing records your name, {'\u0026'} the date {'\u0026'} time as your electronic acknowledgement.</p>
+
+          <div className="mt-3 flex justify-end">
+            <button onClick={submit} disabled={busy} data-testid={`rtw-ack-submit-${rtw.leave_id}`}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold disabled:opacity-60">
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <PenLine size={14} />} Sign {'\u0026'} confirm
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

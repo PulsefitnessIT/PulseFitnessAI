@@ -463,6 +463,71 @@ async def portal_report_absence(body: AbsenceBody, user: dict = Depends(get_curr
             "open_ended": end_date is None}
 
 
+class RtwAckBody(BaseModel):
+    agreed: bool = False
+    comment: str | None = None
+
+
+@router.get("/new-starter/portal/rtw-pending")
+async def portal_rtw_pending(user: dict = Depends(get_current_user_portal)):
+    """Closed sicknesses awaiting the employee's electronic sign-off (§20/§21) —
+    the second signature that matches Pulse's two-signature return-to-work form."""
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    rows = await db.staff_leave_requests.find(
+        {"organization_id": org, "staff_id": staff["id"],
+         "rtw_interview": {"$exists": True},
+         "employee_ack": {"$exists": False}}, {"_id": 0},
+    ).sort("closed_at", -1).to_list(20)
+    out = []
+    for r in rows:
+        rtw = r.get("rtw_interview") or {}
+        out.append({
+            "leave_id": r["id"],
+            "start_date": r.get("start_date"),
+            "return_date": r.get("return_date") or r.get("end_date"),
+            "reason": rtw.get("reason"),
+            "fit_to_return": rtw.get("fit_to_return"),
+            "fit_details": rtw.get("fit_details"),
+            "agreed_actions": rtw.get("agreed_actions"),
+            "interviewer": rtw.get("interviewer"),
+            "completed_at": rtw.get("completed_at"),
+        })
+    return {"pending": out}
+
+
+@router.post("/new-starter/portal/rtw/{leave_id}/acknowledge")
+async def portal_rtw_acknowledge(leave_id: str, body: RtwAckBody,
+                                 user: dict = Depends(get_current_user_portal)):
+    """Employee electronically confirms the agreed return-to-work actions,
+    capturing the second signature (name, email, timestamp) so both sign-offs
+    are recorded per Pulse procedure."""
+    if not body.agreed:
+        raise HTTPException(400, "Please confirm the agreed actions to sign off.")
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    leave = await db.staff_leave_requests.find_one(
+        {"organization_id": org, "staff_id": staff["id"], "id": leave_id}, {"_id": 0})
+    if not leave:
+        raise HTTPException(404, "return-to-work record not found")
+    if not leave.get("rtw_interview"):
+        raise HTTPException(400, "no return-to-work interview to acknowledge")
+    if leave.get("employee_ack"):
+        raise HTTPException(409, "already acknowledged")
+    ack = {
+        "confirmed": True,
+        "comment": (body.comment or "").strip() or None,
+        "employee_name": staff.get("full_name"),
+        "employee_email": user.get("email") or staff.get("email"),
+        "acknowledged_at": _now(),
+    }
+    await db.staff_leave_requests.update_one(
+        {"organization_id": org, "id": leave_id},
+        {"$set": {"employee_ack": ack}},
+    )
+    return {"ok": True, "acknowledged_at": ack["acknowledged_at"]}
+
+
 @router.get("/new-starter/portal/periods")
 async def portal_current_periods(user: dict = Depends(get_current_user_portal)):
     """Open pay periods relevant to the employee + their own submission status."""

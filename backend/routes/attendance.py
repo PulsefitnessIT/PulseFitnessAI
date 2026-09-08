@@ -843,6 +843,44 @@ async def close_absence(leave_id: str, body: ReturnToWorkBody,
     return {"ok": True, "sick_through": new_end, "return_date": body.return_date, "recomputed": n}
 
 
+@router.get("/attendance/rtw/recent")
+async def rtw_recent(days: int = Query(45, ge=1, le=180),
+                     user: dict = Depends(get_current_user)):
+    """Recently closed sicknesses with both sign-off statuses (manager interviewer
+    + employee acknowledgement) so the two-signature form is visible end-to-end."""
+    _require_manager(user)
+    org_id = _org(user)
+    cutoff = (date.today() - timedelta(days=days)).isoformat()
+    rows = await db.staff_leave_requests.find(
+        {"organization_id": org_id, "rtw_interview": {"$exists": True},
+         "closed_at": {"$gte": cutoff}}, {"_id": 0},
+    ).sort("closed_at", -1).to_list(100)
+    ids = list({r.get("staff_id") for r in rows})
+    staff = await db.staff_members.find(
+        {"organization_id": org_id, "id": {"$in": ids}}, {"_id": 0}).to_list(1000)
+    names = {s["id"]: s.get("full_name") for s in staff}
+    out = []
+    for r in rows:
+        rtw = r.get("rtw_interview") or {}
+        ack = r.get("employee_ack") or {}
+        out.append({
+            "leave_id": r["id"],
+            "staff_id": r.get("staff_id"),
+            "full_name": names.get(r.get("staff_id")),
+            "start_date": r.get("start_date"),
+            "return_date": r.get("return_date") or r.get("end_date"),
+            "reason": rtw.get("reason"),
+            "fit_to_return": rtw.get("fit_to_return"),
+            "agreed_actions": rtw.get("agreed_actions"),
+            "interviewer": rtw.get("interviewer"),
+            "manager_signed_at": rtw.get("completed_at") or r.get("closed_at"),
+            "employee_acknowledged": bool(ack.get("confirmed")),
+            "employee_ack_at": ack.get("acknowledged_at"),
+            "employee_comment": ack.get("comment"),
+        })
+    return {"rows": out, "days": days}
+
+
 # ───────────────────────── Attendance board (§26/§27) ─────────────────────────
 
 @router.get("/attendance/board")

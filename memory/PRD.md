@@ -36442,3 +36442,12 @@ Portal User Guide:
 - Region tooltips now explain WHY an area is covered when it's inherited via the county↔postcode bridge. Reps assigned directly on the current layer show as their name; reps inherited from the bridged layer show "Name (via county <X>)" or "Name (via postcode <Y>)".
 - Implementation (CRMTerritoryMap.js): new coverageDetail(type,code) helper mirrors effectiveList but tags each rep with direct/via provenance; used only for the region <title> tooltip. No change to fills/overlaps (same union as the verified bridge).
 - Verification: frontend compiles clean; coverageDetail produces the identical rep set to the already-100%-verified effectiveList (only adds a label). Native SVG <title> tooltips aren't practical to E2E-assert, so self-verified (compile + logic parity) rather than a testing_agent run. PREVIEW change — redeploy to apply on production.
+
+
+## 2026-09-08 — Employee RTW Acknowledgement (two-signature form)
+- Added employee electronic sign-off on Return-to-Work so both signatures are captured (manager interviewer + employee acknowledgement), matching Pulse's two-signature form.
+- Backend (staff_portal.py): `GET /api/new-starter/portal/rtw-pending` (closed sicknesses awaiting employee sign-off), `POST /api/new-starter/portal/rtw/{leave_id}/acknowledge` (agreed flag required, captures name/email/timestamp/optional comment as `employee_ack`; 400 if not agreed, 409 if already acknowledged).
+- Backend (attendance.py): `GET /api/attendance/rtw/recent?days=45` — manager view of both sign-off statuses.
+- Frontend: StaffPortal "My Day" shows an RTW acknowledgement banner (data-testid `rtw-ack-card-<id>`, `rtw-ack-agree-<id>`, `rtw-ack-comment-<id>`, `rtw-ack-submit-<id>`). AttendanceTab board shows "Return-to-work sign-offs" panel (data-testid `attendance-rtw-signoffs`, `rtw-signoff-<id>`, `rtw-signoff-emp-pending-<id>` / `rtw-signoff-emp-done-<id>`).
+- Verified end-to-end via curl + FE screenshot (owner@isodemo.com closes → portal.staff acknowledges → manager panel flips to "Employee ✓"). No email notifications (per user choice 3a).
+

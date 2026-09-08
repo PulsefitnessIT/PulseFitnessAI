@@ -17,6 +17,7 @@ import axios from 'axios';
 import {
   CalendarDays, RefreshCw, AlertTriangle, Users, Layers, IdCard,
   Plus, Trash2, Save, X, Check, Wand2, Loader2, Upload, FileSpreadsheet,
+  ClipboardCheck,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -180,6 +181,64 @@ function BoardView({ headers }) {
         <ReturnToWorkModal row={rtw} headers={headers}
           onClose={() => setRtw(null)} onSaved={() => { setRtw(null); load(); }} />
       )}
+
+      <RtwSignOffsPanel headers={headers} />
+    </div>
+  );
+}
+
+const FIT_LABELS = { yes: 'Fit to return', phased: 'Phased return', no: 'Not yet fit' };
+const fmtDT = (s) => (s ? new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
+const fmtD = (s) => (s ? new Date(s + (s.length === 10 ? 'T00:00:00' : '')).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—');
+
+function RtwSignOffsPanel({ headers }) {
+  const [rows, setRows] = useState(null);
+  const load = useCallback(async () => {
+    try { const r = await axios.get(`${API}/attendance/rtw/recent`, { headers }); setRows(r.data?.rows || []); }
+    catch { setRows([]); }
+  }, [headers]);
+  useEffect(() => { load(); }, [load]);
+
+  if (!rows || !rows.length) return null;
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4" data-testid="attendance-rtw-signoffs">
+      <div className="flex items-center gap-2 mb-3">
+        <ClipboardCheck size={16} className="text-emerald-600" />
+        <h3 className="text-sm font-bold text-slate-900">Return-to-work sign-offs</h3>
+        <span className="text-[11px] text-slate-400">last 45 days · two signatures per Pulse form</span>
+      </div>
+      <div className="space-y-2">
+        {rows.map((r) => (
+          <div key={r.leave_id} data-testid={`rtw-signoff-${r.leave_id}`}
+            className="flex items-center justify-between gap-3 flex-wrap rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-slate-800">{r.full_name || 'Employee'}</div>
+              <div className="text-[11px] text-slate-500">
+                Absent {fmtD(r.start_date)}{r.return_date ? ` · returned ${fmtD(r.return_date)}` : ''}
+                {r.fit_to_return ? ` · ${FIT_LABELS[r.fit_to_return] || r.fit_to_return}` : ''}
+              </div>
+              {r.employee_comment && <div className="text-[11px] text-slate-500 italic mt-0.5">“{r.employee_comment}”</div>}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-700"
+                title={`Manager signed ${fmtDT(r.manager_signed_at)}`}>
+                <Check size={12} /> Manager
+              </span>
+              {r.employee_acknowledged ? (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-700"
+                  data-testid={`rtw-signoff-emp-done-${r.leave_id}`} title={`Employee signed ${fmtDT(r.employee_ack_at)}`}>
+                  <Check size={12} /> Employee
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700"
+                  data-testid={`rtw-signoff-emp-pending-${r.leave_id}`}>
+                  Awaiting employee
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
