@@ -267,6 +267,204 @@ async def portal_cancel_holiday(leave_id: str, user: dict = Depends(get_current_
     return {"ok": True}
 
 
+# ══════════════════ MY DAY + MY TIME (Attendance Spine) ══════════════════
+# Mobile-first employee surface. Reads/writes the ONE daily record via the
+# attendance engine so a clock-in / typed hours / self-reported sickness all
+# resolve into the single source of truth (ENTER ONCE → USE EVERYWHERE).
+
+def _month_bounds(anchor: str) -> tuple[str, str]:
+    d = datetime.fromisoformat(anchor).date() if anchor else date.today()
+    first = d.replace(day=1)
+    nxt = (first + timedelta(days=32)).replace(day=1)
+    last = nxt - timedelta(days=1)
+    return first.isoformat(), last.isoformat()
+
+
+async def _day_state(org_id: str, staff_id: str) -> dict:
+    from routes.staffing_clock import _last_clock_event, _state_from_event
+    ev = await _last_clock_event(staff_id, org_id)
+    return {"clock_state": _state_from_event(ev),
+            "last_punch_at": (ev or {}).get("occurred_at")}
+
+
+@router.get("/new-starter/portal/my-day")
+async def portal_my_day(user: dict = Depends(get_current_user_portal)):
+    from routes.attendance import (
+        recompute_day, _resolve_profile, ATTENDANCE_STATUSES,
+    )
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    today = _today()
+    profile = await _resolve_profile(org, staff)
+    record = await recompute_day(org, staff["id"], today)
+    state = await _day_state(org, staff["id"])
+
+    # This-month totals — recompute past+today (one employee, ≤31 days).
+    m_start, m_end = _month_bounds(today)
+    cur = datetime.fromisoformat(m_start).date()
+    stop = date.today()
+    while cur <= stop:
+        try:
+            await recompute_day(org, staff["id"], cur.isoformat())
+        except Exception:
+            pass
+        cur += timedelta(days=1)
+    rows = await db.attendance_daily.find(
+        {"organization_id": org, "staff_id": staff["id"],
+         "date": {"$gte": m_start, "$lte": m_end}}, {"_id": 0},
+    ).to_list(40)
+    recorded = round(sum(r.get("regular_hours") or 0 for r in rows), 2)
+    expected = round(sum(r.get("expected_hours") or 0 for r in rows
+                         if r.get("expected_status") == "working"), 2)
+    overtime = round(sum((r.get("approved_overtime_hours") or 0) or (r.get("overtime_raw_hours") or 0) for r in rows), 2)
+    missing = sum(1 for r in rows if r.get("actual_status") == "not_confirmed" and r["date"] < today)
+
+    # Upcoming approved leave (next 60 days).
+    horizon = (date.today() + timedelta(days=60)).isoformat()
+    upcoming = await db.staff_leave_requests.find(
+        {"organization_id": org, "staff_id": staff["id"], "status": "approved",
+         "start_date": {"$gte": today, "$lte": horizon}}, {"_id": 0},
+    ).sort("start_date", 1).to_list(10)
+
+    method = profile.get("time_entry_method") or "daily_timesheet"
+    meta = ATTENDANCE_STATUSES.get(record["actual_status"], {})
+    return {
+        "date": today,
+        "first_name": (staff.get("full_name") or "").split(" ")[0] or "there",
+        "time_entry_method": method,
+        "record": record,
+        "status_label": meta.get("label"),
+        "status_color": meta.get("color"),
+        "clock_state": state["clock_state"],
+        "expected_hours_today": record.get("expected_hours"),
+        "month": {"recorded": recorded, "expected": expected,
+                  "overtime": overtime, "missing": missing},
+        "upcoming_leave": upcoming,
+        "statuses": ATTENDANCE_STATUSES,
+    }
+
+
+class PunchBody(BaseModel):
+    kind: str  # clock_in | clock_out | break_start | break_end
+
+
+@router.post("/new-starter/portal/day/punch")
+async def portal_punch(body: PunchBody, user: dict = Depends(get_current_user_portal)):
+    from routes.staffing_clock import (
+        _last_clock_event, _state_from_event, _validate_transition, VALID_PUNCH_KINDS,
+    )
+    from routes.attendance import recompute_day
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    if body.kind not in VALID_PUNCH_KINDS:
+        raise HTTPException(400, "invalid punch kind")
+    last = await _last_clock_event(staff["id"], org)
+    err = _validate_transition(_state_from_event(last), body.kind)
+    if err:
+        raise HTTPException(409, err)
+    now = datetime.now(timezone.utc)
+    event = {"id": str(uuid.uuid4()), "organization_id": org, "staff_id": staff["id"],
+             "kind": body.kind, "occurred_at": now.isoformat(), "source": "staff_portal",
+             "created_by_user_id": user.get("id"), "created_at": _now()}
+    await db.staff_clock_events.insert_one(event.copy())
+    record = await recompute_day(org, staff["id"], now.date().isoformat())
+    return {"ok": True, "clock_state": _state_from_event(event), "record": record}
+
+
+class DayEntryBody(BaseModel):
+    date: str | None = None
+    start: str
+    finish: str
+    break_minutes: int = 0
+
+
+@router.post("/new-starter/portal/day/timesheet")
+async def portal_day_timesheet(body: DayEntryBody, user: dict = Depends(get_current_user_portal)):
+    from routes.attendance import set_employee_entry
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    day = body.date or _today()
+    record = await set_employee_entry(org, staff["id"], day, body.start, body.finish, body.break_minutes)
+    return {"ok": True, "record": record}
+
+
+@router.get("/new-starter/portal/my-time")
+async def portal_my_time(scope: str = Query("week"), anchor: str | None = Query(None),
+                         user: dict = Depends(get_current_user_portal)):
+    from routes.attendance import recompute_day, ATTENDANCE_STATUSES
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    a = anchor or _today()
+    if scope == "month":
+        start, end = _month_bounds(a)
+    else:  # week (Mon–Sun)
+        from routes.staffing_clock import _week_bounds
+        start, end = _week_bounds(a)
+    cur = datetime.fromisoformat(start).date()
+    stop_end = datetime.fromisoformat(end).date()
+    today = date.today()
+    while cur <= min(stop_end, today):
+        try:
+            await recompute_day(org, staff["id"], cur.isoformat())
+        except Exception:
+            pass
+        cur += timedelta(days=1)
+    rows = await db.attendance_daily.find(
+        {"organization_id": org, "staff_id": staff["id"],
+         "date": {"$gte": start, "$lte": end}}, {"_id": 0},
+    ).sort("date", 1).to_list(40)
+    totals = {
+        "worked": round(sum(r.get("regular_hours") or 0 for r in rows), 2),
+        "expected": round(sum(r.get("expected_hours") or 0 for r in rows if r.get("expected_status") == "working"), 2),
+        "overtime": round(sum((r.get("approved_overtime_hours") or 0) or (r.get("overtime_raw_hours") or 0) for r in rows), 2),
+        "holiday": round(sum(r.get("paid_leave_hours") or 0 for r in rows if r.get("actual_status") == "holiday"), 2),
+        "sick": round(sum(r.get("paid_leave_hours") or 0 for r in rows if r.get("actual_status") == "sick"), 2),
+        "missing": sum(1 for r in rows if r.get("actual_status") == "not_confirmed" and r["date"] < _today()),
+    }
+    return {"scope": scope, "start": start, "end": end, "records": rows,
+            "totals": totals, "statuses": ATTENDANCE_STATUSES}
+
+
+class AbsenceBody(BaseModel):
+    absence_type: str = "sick"          # sick | family_leave | other
+    first_day: str
+    expected_return: str | None = None
+    note: str | None = None
+
+
+@router.post("/new-starter/portal/report-absence")
+async def portal_report_absence(body: AbsenceBody, user: dict = Depends(get_current_user_portal)):
+    """Self-reported absence (§19/§20). Sickness reflects immediately: the day
+    becomes SICK and open-ended sick keeps marking forward until closed."""
+    from routes.attendance import apply_leave_to_daily
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    lt_map = {"sick": "sick", "family_leave": "other", "other": "other"}
+    leave_type = lt_map.get(body.absence_type, "sick")
+    # end_date: expected_return - 1 day (return day itself is worked); open if unknown.
+    end_date = None
+    if body.expected_return:
+        try:
+            end_date = (datetime.fromisoformat(body.expected_return).date() - timedelta(days=1)).isoformat()
+            if end_date < body.first_day:
+                end_date = body.first_day
+        except Exception:
+            end_date = None
+    doc = {
+        "id": str(uuid.uuid4()), "organization_id": org, "staff_id": staff["id"],
+        "status": "approved", "self_reported": True, "leave_type": leave_type,
+        "absence_type": body.absence_type, "start_date": body.first_day,
+        "end_date": end_date, "reason": body.note, "created_at": _now(),
+        "requested_via": "staff_portal",
+    }
+    await db.staff_leave_requests.insert_one(doc.copy())
+    days = await apply_leave_to_daily(org, doc)
+    return {"ok": True, "absence_id": doc["id"], "days_marked": days,
+            "open_ended": end_date is None}
+
+
+
+
 @router.get("/new-starter/portal/documents")
 async def portal_documents(user: dict = Depends(get_current_user_portal)):
     staff = await _portal_staff(user)

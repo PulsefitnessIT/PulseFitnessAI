@@ -25,7 +25,7 @@ from fastapi.responses import Response as FileResponse
 from pydantic import BaseModel
 
 from utils.database import db
-from utils.auth import get_current_user, hash_password, create_token, verify_password
+from utils.auth import get_current_user, get_current_user_portal, hash_password, create_token, verify_password
 
 logger = logging.getLogger(__name__)
 
@@ -1542,7 +1542,7 @@ PROGRESS_STEPS = ["forms", "documents", "verification", "policies", "agreements"
 
 
 @router.get("/new-starter/me")
-async def recruit_me(user: dict = Depends(get_current_user)):
+async def recruit_me(user: dict = Depends(get_current_user_portal)):
     case, staff = await _recruit_case(user)
     org = case["organization_id"]; cid = case["id"]
     activated = bool(staff.get("active"))

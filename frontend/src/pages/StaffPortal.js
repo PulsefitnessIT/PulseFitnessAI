@@ -9,6 +9,7 @@ import axios from 'axios';
 import {
   Loader2, LogOut, Calendar, Clock, Plane, FileText, ShieldCheck, Download,
   CheckCircle2, AlertCircle, Plus, Trash2, Users,
+  Home, Play, Square, Coffee, Sun, Thermometer, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 
@@ -29,6 +30,8 @@ async function downloadPdf(url, headers, name) {
 }
 
 const TABS = [
+  ['home', 'Home', Home],
+  ['mytime', 'My Time', Clock],
   ['rota', 'My Rota', Calendar],
   ['timesheets', 'Timesheets', Clock],
   ['holidays', 'Holidays', Plane],
@@ -39,7 +42,7 @@ const TABS = [
 export default function StaffPortal() {
   const [jwt] = useState(() => sessionStorage.getItem('staff_jwt') || '');
   const [me, setMe] = useState(null);
-  const [tab, setTab] = useState('rota');
+  const [tab, setTab] = useState('home');
   const H = jwt ? { Authorization: `Bearer ${jwt}` } : {};
 
   useEffect(() => {
@@ -82,6 +85,8 @@ export default function StaffPortal() {
         </div>
 
         <div className="mt-6">
+          {tab === 'home' && <MyDayTab H={H} onGoTo={setTab} />}
+          {tab === 'mytime' && <MyTimeTab H={H} />}
           {tab === 'rota' && <RotaTab H={H} />}
           {tab === 'timesheets' && <TimesheetsTab H={H} />}
           {tab === 'holidays' && <HolidaysTab H={H} />}
@@ -105,6 +110,271 @@ function Empty({ icon: Icon, title, hint }) {
     </div>
   );
 }
+
+/* ─────────────── Home / My Day ─────────────── */
+function StatusPill({ label, color }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold"
+      style={{ background: `${color || '#94a3b8'}1a`, color: color || '#94a3b8' }}>
+      <span className="w-2 h-2 rounded-full" style={{ background: color || '#94a3b8' }} /> {label}
+    </span>
+  );
+}
+
+function BigAction({ icon: Icon, label, onClick, tone = 'primary', testId, disabled }) {
+  const tones = {
+    primary: { background: CORE, color: '#062a33' },
+    dark: { background: '#0f172a', color: '#fff' },
+    amber: { background: '#f59e0b', color: '#3a2600' },
+    ghost: { background: '#fff', color: '#0f172a', border: '1px solid #e2e8f0' },
+  };
+  return (
+    <button onClick={onClick} disabled={disabled} data-testid={testId}
+      className="flex-1 min-w-[46%] sm:min-w-[30%] inline-flex flex-col items-center justify-center gap-1.5 rounded-2xl px-4 py-5 text-sm font-bold shadow-sm active:scale-[0.98] transition-transform disabled:opacity-50"
+      style={tones[tone]}>
+      <Icon size={22} /> {label}
+    </button>
+  );
+}
+
+function MyDayTab({ H, onGoTo }) {
+  const [d, setD] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [entry, setEntry] = useState(null);    // daily-timesheet inline form
+  const [absence, setAbsence] = useState(null); // report-absence inline form
+  const [err, setErr] = useState('');
+
+  const load = useCallback(async () => {
+    try { const r = await axios.get(`${API}/new-starter/portal/my-day`, { headers: H }); setD(r.data); }
+    catch (e) { setD({ error: e?.response?.data?.detail || 'Could not load your day.' }); }
+  }, [H]);
+  useEffect(() => { load(); }, [load]);
+
+  const punch = async (kind) => {
+    setBusy(true); setErr('');
+    try { await axios.post(`${API}/new-starter/portal/day/punch`, { kind }, { headers: H }); await load(); }
+    catch (e) { setErr(e?.response?.data?.detail || 'Could not record that.'); }
+    setBusy(false);
+  };
+  const saveEntry = async () => {
+    setBusy(true); setErr('');
+    try {
+      await axios.post(`${API}/new-starter/portal/day/timesheet`,
+        { start: entry.start, finish: entry.finish, break_minutes: Number(entry.break_minutes || 0) }, { headers: H });
+      setEntry(null); await load();
+    } catch (e) { setErr(e?.response?.data?.detail || 'Could not save.'); }
+    setBusy(false);
+  };
+  const saveAbsence = async () => {
+    if (!absence.first_day) { setErr('Pick the first day.'); return; }
+    setBusy(true); setErr('');
+    try {
+      await axios.post(`${API}/new-starter/portal/report-absence`,
+        { absence_type: absence.absence_type, first_day: absence.first_day, expected_return: absence.expected_return || null, note: absence.note || null }, { headers: H });
+      setAbsence(null); await load();
+    } catch (e) { setErr(e?.response?.data?.detail || 'Could not report.'); }
+    setBusy(false);
+  };
+
+  if (!d) return <Loader2 className="animate-spin text-cyan-500" />;
+  if (d.error) return <Empty icon={AlertCircle} title="Nothing to show yet" hint={d.error} />;
+
+  const rec = d.record || {};
+  const method = d.time_entry_method;
+  const isClock = method === 'live_clock' || method === 'clock';
+  const state = d.clock_state;
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const m = d.month || {};
+
+  return (
+    <div className="space-y-4" data-testid="staff-my-day">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900">{greet}, {d.first_name}</h2>
+        <p className="text-slate-500 text-sm">{fmtDate(d.date)}</p>
+      </div>
+
+      <Card testId="my-day-today">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-3">
+            <StatusPill label={d.status_label || rec.actual_status} color={d.status_color} />
+            {isClock && state !== 'off' && <span className="text-xs font-semibold text-emerald-600">● {state === 'on_break' ? 'On break' : 'Clocked in'}</span>}
+          </div>
+          <div className="text-sm text-slate-500">
+            {rec.start_time ? `${rec.start_time}–${rec.finish_time || '…'}` : (d.expected_hours_today ? `Expected ${d.expected_hours_today}h` : '')}
+          </div>
+        </div>
+
+        {err && <div className="mt-3 text-sm text-rose-600" data-testid="my-day-error">{err}</div>}
+
+        {/* Primary actions */}
+        <div className="mt-4 flex flex-wrap gap-3">
+          {isClock ? (
+            <>
+              {state === 'off' && <BigAction icon={Play} label="Start my day" tone="primary" testId="my-day-start" onClick={() => punch('clock_in')} disabled={busy} />}
+              {state === 'on_shift' && <>
+                <BigAction icon={Coffee} label="Start break" tone="ghost" testId="my-day-break-start" onClick={() => punch('break_start')} disabled={busy} />
+                <BigAction icon={Square} label="Finish day" tone="dark" testId="my-day-finish" onClick={() => punch('clock_out')} disabled={busy} />
+              </>}
+              {state === 'on_break' && <BigAction icon={Play} label="End break" tone="primary" testId="my-day-break-end" onClick={() => punch('break_end')} disabled={busy} />}
+            </>
+          ) : (
+            <BigAction icon={Clock} label="Enter today's hours" tone="primary" testId="my-day-enter-hours"
+              onClick={() => setEntry({ start: rec.start_time || '09:00', finish: rec.finish_time || '17:00', break_minutes: rec.break_minutes || 30 })} disabled={busy} />
+          )}
+          <BigAction icon={Plane} label="Request holiday" tone="ghost" testId="my-day-request-holiday" onClick={() => onGoTo('holidays')} />
+          <BigAction icon={Thermometer} label="Report absence" tone="amber" testId="my-day-report-absence"
+            onClick={() => setAbsence({ absence_type: 'sick', first_day: d.date, expected_return: '', note: '' })} />
+        </div>
+
+        {/* Inline daily-timesheet form */}
+        {entry && (
+          <div className="mt-4 rounded-xl border border-slate-200 p-4" data-testid="my-day-entry-form">
+            <div className="grid grid-cols-3 gap-2">
+              <label className="text-xs font-semibold text-slate-600">Start
+                <input type="time" value={entry.start} onChange={(e) => setEntry({ ...entry, start: e.target.value })} data-testid="my-day-entry-start" className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm" /></label>
+              <label className="text-xs font-semibold text-slate-600">Finish
+                <input type="time" value={entry.finish} onChange={(e) => setEntry({ ...entry, finish: e.target.value })} data-testid="my-day-entry-finish" className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm" /></label>
+              <label className="text-xs font-semibold text-slate-600">Break (min)
+                <input type="number" value={entry.break_minutes} onChange={(e) => setEntry({ ...entry, break_minutes: e.target.value })} data-testid="my-day-entry-break" className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm" /></label>
+            </div>
+            <div className="mt-3 flex justify-end gap-2">
+              <button onClick={() => setEntry(null)} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-500">Cancel</button>
+              <button onClick={saveEntry} disabled={busy} data-testid="my-day-entry-save" className="px-4 py-2 rounded-lg text-sm font-bold text-white" style={{ background: CORE }}>Save hours</button>
+            </div>
+          </div>
+        )}
+
+        {/* Inline report-absence form */}
+        {absence && (
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/50 p-4" data-testid="my-day-absence-form">
+            <div className="grid sm:grid-cols-2 gap-2">
+              <label className="text-xs font-semibold text-slate-600">Type
+                <select value={absence.absence_type} onChange={(e) => setAbsence({ ...absence, absence_type: e.target.value })} data-testid="my-day-absence-type" className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm">
+                  <option value="sick">Sick</option><option value="family_leave">Family / emergency</option><option value="other">Other authorised</option>
+                </select></label>
+              <label className="text-xs font-semibold text-slate-600">First day
+                <input type="date" value={absence.first_day} onChange={(e) => setAbsence({ ...absence, first_day: e.target.value })} data-testid="my-day-absence-first" className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm" /></label>
+              <label className="text-xs font-semibold text-slate-600">Expected return (optional)
+                <input type="date" value={absence.expected_return} onChange={(e) => setAbsence({ ...absence, expected_return: e.target.value })} data-testid="my-day-absence-return" className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm" /></label>
+              <label className="text-xs font-semibold text-slate-600">Note (optional)
+                <input value={absence.note} onChange={(e) => setAbsence({ ...absence, note: e.target.value })} data-testid="my-day-absence-note" className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm" /></label>
+            </div>
+            <p className="mt-2 text-[11px] text-amber-700">Leave the return date blank if it's unknown — we'll keep marking you absent until you're back.</p>
+            <div className="mt-3 flex justify-end gap-2">
+              <button onClick={() => setAbsence(null)} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-500">Cancel</button>
+              <button onClick={saveAbsence} disabled={busy} data-testid="my-day-absence-save" className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-amber-500">Report absence</button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* This month */}
+      <Card testId="my-day-month">
+        <h3 className="font-bold text-slate-900 mb-3 flex items-center gap-2"><Sun size={16} /> This month</h3>
+        <div className="grid grid-cols-4 gap-2 text-center">
+          {[['Recorded', `${m.recorded ?? 0}h`], ['Expected', `${m.expected ?? 0}h`], ['Overtime', `${m.overtime ?? 0}h`], ['Missing', m.missing ?? 0]].map(([l, v]) => (
+            <div key={l} className="rounded-xl bg-slate-50 py-3">
+              <div className="text-lg font-bold text-slate-900">{v}</div>
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{l}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Upcoming */}
+      {(d.upcoming_leave || []).length > 0 && (
+        <Card testId="my-day-upcoming">
+          <h3 className="font-bold text-slate-900 mb-2">Upcoming</h3>
+          <div className="space-y-1.5">
+            {d.upcoming_leave.map((l) => (
+              <div key={l.id} className="flex items-center justify-between text-sm">
+                <span className="capitalize text-slate-700">{(l.leave_type || 'leave')}</span>
+                <span className="text-slate-500">{fmtDate(l.start_date)}{l.end_date && l.end_date !== l.start_date ? ` – ${fmtDate(l.end_date)}` : ''}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────── My Time (spine) ─────────────── */
+function MyTimeTab({ H }) {
+  const [scope, setScope] = useState('week');
+  const [anchor, setAnchor] = useState(() => new Date().toISOString().slice(0, 10));
+  const [d, setD] = useState(null);
+
+  const load = useCallback(async () => {
+    setD(null);
+    try { const r = await axios.get(`${API}/new-starter/portal/my-time?scope=${scope}&anchor=${anchor}`, { headers: H }); setD(r.data); }
+    catch { setD({ records: [], totals: {} }); }
+  }, [H, scope, anchor]);
+  useEffect(() => { load(); }, [load]);
+
+  const shift = (dir) => {
+    const x = new Date(anchor + 'T00:00:00');
+    x.setDate(x.getDate() + dir * (scope === 'month' ? 30 : 7));
+    setAnchor(x.toISOString().slice(0, 10));
+  };
+
+  const t = d?.totals || {};
+  return (
+    <div className="space-y-4" data-testid="staff-my-time">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex gap-1.5">
+          {['week', 'month'].map((s) => (
+            <button key={s} onClick={() => setScope(s)} data-testid={`my-time-scope-${s}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border capitalize ${scope === s ? 'border-cyan-500 text-cyan-700 bg-cyan-50' : 'border-slate-200 text-slate-500'}`}>{s}</button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => shift(-1)} data-testid="my-time-prev" className="p-1.5 rounded-lg border border-slate-200 text-slate-500"><ChevronLeft size={16} /></button>
+          <span className="text-xs font-semibold text-slate-600">{d ? `${fmtDate(d.start)} – ${fmtDate(d.end)}` : '…'}</span>
+          <button onClick={() => shift(1)} data-testid="my-time-next" className="p-1.5 rounded-lg border border-slate-200 text-slate-500"><ChevronRight size={16} /></button>
+        </div>
+      </div>
+
+      {!d ? <Loader2 className="animate-spin text-cyan-500" /> : (
+        <Card testId="my-time-table">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-slate-400 text-xs uppercase tracking-wide">
+                <tr><th className="text-left py-1.5">Date</th><th className="text-left">Status</th><th className="text-left">Start</th><th className="text-left">Finish</th><th className="text-left">Break</th><th className="text-right">Hours</th></tr>
+              </thead>
+              <tbody>
+                {d.records.map((r) => {
+                  const meta = (d.statuses || {})[r.actual_status] || {};
+                  return (
+                    <tr key={r.date} className="border-t border-slate-100" data-testid={`my-time-row-${r.date}`}>
+                      <td className="py-2 font-semibold text-slate-700">{fmtDate(r.date)}</td>
+                      <td><StatusPill label={meta.label || r.actual_status} color={meta.color} /></td>
+                      <td className="text-slate-600">{r.start_time || '—'}</td>
+                      <td className="text-slate-600">{r.finish_time || '—'}</td>
+                      <td className="text-slate-600">{r.break_minutes ? `${r.break_minutes}m` : '—'}</td>
+                      <td className="text-right font-semibold text-slate-800">{r.regular_hours ? `${r.regular_hours}h` : '—'}</td>
+                    </tr>
+                  );
+                })}
+                {!d.records.length && <tr><td colSpan={6} className="py-6 text-center text-slate-400">No days in this range yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-4 grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
+            {[['Worked', `${t.worked ?? 0}h`], ['Expected', `${t.expected ?? 0}h`], ['Overtime', `${t.overtime ?? 0}h`], ['Holiday', `${t.holiday ?? 0}h`], ['Sick', `${t.sick ?? 0}h`], ['Missing', t.missing ?? 0]].map(([l, v]) => (
+              <div key={l} className="rounded-lg bg-slate-50 py-2">
+                <div className="text-sm font-bold text-slate-900">{v}</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{l}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 
 /* ─────────────── Rota ─────────────── */
 function RotaTab({ H }) {

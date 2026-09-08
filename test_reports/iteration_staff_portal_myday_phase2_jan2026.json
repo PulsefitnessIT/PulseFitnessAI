@@ -1,0 +1,47 @@
+{
+  "summary": "Phase 2 My Day / My Time backend endpoints all pass (6/6 pytest). Frontend is BLOCKED: after successful /staff-login, StaffPortal.js calls GET /api/new-starter/me which is bound to get_current_user (operator-only) and returns 403 'Portal accounts cannot access this resource' for staff-portal JWTs → the portal immediately redirects back to /staff-login. Cannot exercise MyDay / MyTime UI at all until this is fixed.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/new-starter/me",
+        "issue": "Uses get_current_user (operator-only dependency). Portal (staff_portal) JWTs — the ones issued by /api/new-starter/staff-login and the ones StaffPortal.js is designed to use — get HTTP 403 'Portal accounts cannot access this resource'. This blocks the entire Staff Portal from loading (frontend clears sessionStorage and redirects to /staff-login on 403). Should use get_current_user_portal (like the sibling /new-starter/portal/* endpoints do) or the endpoint needs a portal-scoped clone.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Staff Portal load (/staff-portal)",
+        "issue": "Login succeeds and staff_jwt is stored, but the mount-time GET /api/new-starter/me returns 403 so setMe() never runs and the useEffect catch handler wipes staff_jwt and hard-redirects to /staff-login. Result: user is bounced back to the login page repeatedly. Every downstream test (My Day, My Time, Report Absence, Request Holiday) is unreachable until this is fixed.",
+        "affected_selectors": ["staff-my-day", "staff-my-time", "staff-tab-mytime", "my-day-*", "my-time-*"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_staff_portal_myday_jan2026.py",
+    "/app/test_reports/pytest/staff_portal_myday.xml"
+  ],
+  "action_items": [
+    "Switch GET /api/new-starter/me in /app/backend/routes/staff_onboarding_wizard.py (line 1544) from Depends(get_current_user) to Depends(get_current_user_portal). All other /new-starter/portal/* routes already use the portal dependency; /me is the odd one out and it is what the frontend calls at mount.",
+    "After the auth fix, re-run the Playwright pass to verify: (a) staff-my-day renders with greeting/status pill/month card; (b) inline timesheet or clock actions per profile.time_entry_method; (c) my-day-report-absence form fields; (d) my-day-request-holiday jumps to Holidays tab; (e) staff-tab-mytime shows my-time-scope-week/-month/-prev/-next/-table and totals row."
+  ],
+  "critical_code_review_comments": [
+    "routes/staff_onboarding_wizard.py::recruit_me uses the wrong auth dependency for a portal-only surface; every other portal route (staff_portal.py) is on get_current_user_portal. This is the root cause of the redirect loop for activated staff-portal accounts.",
+    "StaffPortal.js could degrade more gracefully — on 403 from /new-starter/me it could keep the JWT and surface an error banner instead of clearing sessionStorage and hard-redirecting (masks backend regressions).",
+    "portal_my_day and portal_my_time recompute up to 31 days on every call; fine for now but consider a range recompute helper to avoid N recompute_day round-trips."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_staff_portal_myday_jan2026.py"
+  ],
+  "success_rate": {"backend": "100% (6/6 pytest — my-day, day/timesheet math, my-time week+month, invalid punch 409, report-absence sick)", "frontend": "0% (blocked by /new-starter/me 403; UI never reaches staff-my-day)"},
+  "test_credentials": "portal.staff@pulsedemo.test / Staff123! (staff-portal JWT via POST /api/new-starter/staff-login).",
+  "seed_data_creation": "None. Cleaned up my own TEST_ absence and the test clock/attendance_daily rows for portal.staff (org iso-demo-org, today) after the run.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend is solid (6/6 tests). Only blocker is the auth dep on /api/new-starter/me. Once switched to get_current_user_portal, the Playwright script in this iteration should light up all data-testids: staff-my-day, my-day-today, my-day-month, my-day-report-absence, my-day-absence-form + fields, my-day-request-holiday (jumps to Holidays), staff-tab-mytime, staff-my-time, my-time-scope-week/-month, my-time-prev/-next, my-time-table. portal.staff time_entry_method resolves to 'clock' currently, so validate my-day-start / my-day-finish flow rather than my-day-enter-hours (or flip the profile.time_entry_method to a timesheet value to test the typed-hours path). If retesting the sick flow, remember to clean up staff_leave_requests (staff_id=SPDEMO_emp_staff, requested_via=staff_portal) + attendance_daily row for today.",
+  "rca of the issue": "PRIMARY BUG: routes/staff_onboarding_wizard.py:1545 declares `recruit_me(user: dict = Depends(get_current_user))`. utils/auth.py:397 get_current_user raises 403 for portal-only users (is_portal_only_user check at line 406-407) — introduced with SEC-001 fix. But /new-starter/me is called by StaffPortal.js on every mount to hydrate `me` (line 50). Portal login populates sessionStorage.staff_jwt (a portal-scoped JWT) → StaffPortal.js GETs /new-starter/me with that JWT → 403 → catch handler wipes staff_jwt + navigates to /staff-login. Reproduction (bash): `curl -s $BASE/api/new-starter/staff-login -H 'Content-Type: application/json' -d '{\"email\":\"portal.staff@pulsedemo.test\",\"password\":\"Staff123!\"}' | jq -r .token` then `curl -s $BASE/api/new-starter/me -H \"Authorization: Bearer <tok>\"` → 403 {\"detail\":\"Portal accounts cannot access this resource\"}. All /api/new-starter/portal/* endpoints already use get_current_user_portal and work fine (verified — my-day 200, my-time 200). MITIGATION: change Depends(get_current_user) → Depends(get_current_user_portal) at staff_onboarding_wizard.py:1545. Route already re-fetches the case/staff via _recruit_case, so it does not rely on operator-only enrichment; the swap is safe."
+}

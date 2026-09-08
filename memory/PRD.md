@@ -1,3 +1,45 @@
+# ═══ 2026-06 · STAFF PORTAL PROGRAMME — PHASE 2: EMPLOYEE MY DAY + MY TIME · testing_agent 100% (BE 6/6 + FE) ═══
+Mobile-first employee surface on the Phase-1 Attendance Spine — record a day in <10s, all writing the ONE
+DailyAttendanceRecord (ENTER ONCE → USE EVERYWHERE). Built into the EXISTING Staff Portal (/staff-portal,
+staff_jwt) — no new login.
+
+BACKEND (routes/staff_portal.py, portal JWT get_current_user_portal + _portal_staff):
+- GET /new-starter/portal/my-day → greeting name, time_entry_method, today's record, clock_state, month
+  summary {recorded,expected,overtime,missing}, upcoming approved leave (60d), statuses.
+- POST /new-starter/portal/day/punch {kind} → clock_in/out/break via staffing_clock FSM (source
+  staff_portal) then recompute_day; invalid transition 409.
+- POST /new-starter/portal/day/timesheet {start,finish,break_minutes} → attendance.set_employee_entry
+  (typed daily hours for the 'Daily Timesheet' method) → recompute. e.g. 08:30–17:00 br30 = 8.0 worked /
+  7.5 regular / 0.5 OT.
+- GET /new-starter/portal/my-time?scope=week|month&anchor= → spine daily rows + totals
+  {worked,expected,overtime,holiday,sick,missing}.
+- POST /new-starter/portal/report-absence {absence_type,first_day,expected_return?,note?} → self-reported
+  absence recorded status=approved+self_reported (sick reflects IMMEDIATELY §19/§20; open-ended marks
+  forward to today; expected_return→end = return-1d) then apply_leave_to_daily fan-out.
+ENGINE (routes/attendance.py): set_employee_entry() stores employee_entry on the day; recompute_day now
+  uses it as working actuals when there's no COMPLETE clock day. Precedence in the working branch:
+  complete clock day > employee typed entry > partial (mid-shift) clock punch. Leave/BH/off still win first.
+FRONTEND (pages/StaffPortal.js): NEW 'Home' (MyDayTab, now the default tab) + 'My Time' (MyTimeTab) tabs.
+  Home: greeting, today status pill, big actions (Start/Break/Finish for clock method OR 'Enter today's
+  hours' inline form for timesheet method), Request Holiday (jumps to Holidays tab), Report Absence inline
+  form (sick/family/other, open-ended note), This-month tiles, Upcoming. My Time: Week/Month toggle +
+  prev/next + day table (status pills, start/finish/break/hours) + totals row. Mobile-first (390px).
+FIX (regression unblock): GET /new-starter/me was Depends(get_current_user) (operator-only) → 403'd ALL
+  portal tokens (recruit + activated staff), so /staff-portal bounced to /staff-login. Swapped to
+  get_current_user_portal (its docstring explicitly names 'GET /auth/me' + staff portal). Operators use
+  /auth/me, unaffected; recruits/staff now load. Verified 200 + portal_name 'Pulse Fitness Staff Portal'.
+VERIFIED: testing_agent FE 100% (mobile) + BE 6/6 pytest; mixed stray-clock+typed-hours edge fixed (typed
+  hours win). Reports iteration_staff_portal_myday_phase2_jan2026.json (found the /me blocker) +
+  iteration_staff_portal_myday_phase2_retest_jan2026.json (all green). Test acct portal.staff@pulsedemo.test
+  / Staff123!.
+NEXT (backlog): post-login launcher (one login → choose Staff Portal or modules); Pay Periods + submit →
+  approve → Payroll Workspace → lock → snapshot → export; Report Absence return-to-work close; Engineer
+  working-day proposal from job timestamps + Service Desk availability; spreadsheet migration importer;
+  Atlas sync (blocked on Citation API); PT/Classes configurable categories in Master Admin.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF PORTAL PROGRAMME — PHASE 1: ATTENDANCE SPINE · testing_agent 100% (BE 9/9 + FE) ═══
 NEW multi-phase programme (87-point brief): unify Staff Timesheets + Manager Attendance spreadsheet +
 Citation Atlas + Payroll into ONE record. Principle: ENTER ONCE → USE EVERYWHERE. Scoped against the

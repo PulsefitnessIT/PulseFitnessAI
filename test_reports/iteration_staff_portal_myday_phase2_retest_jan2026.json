@@ -1,0 +1,41 @@
+{
+  "summary": "RETEST after auth fix (recruit_me -> get_current_user_portal). Full frontend Phase 2 My Day/My Time flows PASS on mobile 390x844. Backend regression 6/6 pytest PASS. Staff Portal now loads correctly at /staff-portal with data-testids intact for all documented flows.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/new-starter/portal/day/timesheet",
+        "issue": "recompute_day blends employee_entry with same-day clock events oddly: when both exist, top-level start_time/finish_time/break_minutes come from clock events (e.g. 17:46/17:47/0) but source is still 'employee_time_entry' and raw_worked_hours=0.0 while employee_entry.worked_hours correctly shows 8.0. The timesheet POST does not clear same-day clock events, so the displayed record misrepresents the entry. Suggest either (a) purging staff_clock_events for the date on timesheet POST, or (b) preferring employee_entry when both present (populate top-level start/finish/break/raw_worked_hours from employee_entry). Also caused pytest pollution when a prior clock UI action leaves events behind (test file has no autouse cleanup for staff_clock_events)."
+      },
+      {
+        "endpoint": "backend/tests/test_staff_portal_myday_jan2026.py",
+        "issue": "Test file lacks a fixture that cleans staff_clock_events / staff_leave_requests (sick, today) / attendance_daily (today) for SPDEMO_emp_staff before/after each test. Tests are order-dependent and fail on any subsequent run because test_report_absence_sick_marks_today leaves an approved sick leave + an attendance_daily row that survives across pytest sessions."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_staff_portal_myday_jan2026.py",
+    "/app/test_reports/pytest/staff_portal_myday_final.xml"
+  ],
+  "action_items": [
+    "Optional: fix recompute_day blending of clock_events with employee_entry so the response is internally consistent (top-level raw_worked_hours should reflect the winning source).",
+    "Optional: add an autouse pytest fixture to test_staff_portal_myday_jan2026.py that wipes staff_clock_events + today's attendance_daily + today's sick leave for SPDEMO_emp_staff, so the suite is repeatable."
+  ],
+  "critical_code_review_comments": [
+    "recompute_day mixes clock events and employee_entry rather than choosing one canonical source per day; leads to a record where source=employee_time_entry but start/finish come from clock and raw_worked_hours=0.",
+    "The regression tests do not clean their own state (staff_clock_events, today's leave, today's attendance_daily) — running the suite twice in a row will fail on day/timesheet math because the first sick-absence test poisons subsequent recomputes."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (6/6 after cleanup)", "frontend": "100% (all documented flows and data-testids present and functional)"},
+  "test_credentials": "portal.staff@pulsedemo.test / Staff123! at /staff-login (POST /api/new-starter/staff-login -> staff-portal JWT).",
+  "seed_data_creation": "None. Cleaned up staff_clock_events (any), staff_leave_requests (requested_via=staff_portal AND sick-today), and attendance_daily (today) for SPDEMO_emp_staff in iso-demo-org after the run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Auth blocker is fully resolved: GET /api/new-starter/me returns 200 with portal_name 'Pulse Fitness Staff Portal' for staff JWTs. Full mobile Playwright pass verified: staff-my-day, my-day-today, my-day-month, my-day-start->my-day-finish->my-day-start clock cycle, my-day-report-absence + absence form (type/first/return/note/save), my-day-request-holiday switches to Holidays tab, staff-tab-mytime->staff-my-time, my-time-scope-week (2 rows) / -month (8 rows), my-time-prev/-next. Backend: run cleanup snippet before pytest (see rca) to make suite idempotent.",
+  "rca_of_the_issue": "Auth RCA (fixed): recruit_me depended on get_current_user which forbids portal-only users; staff JWTs got 403. Fix at staff_onboarding_wizard.py:1545 switched to get_current_user_portal. Verified via curl (200) and full Playwright pass.\n\nNew minor RCA (backend suite): test_day_timesheet_hours_math fails on re-runs because (a) an approved sick leave for today from test_report_absence_sick_marks_today survives across sessions, and (b) UI clock punches (staff_clock_events) from Playwright poison recompute_day. Cleanup snippet:\n\nawait db.staff_clock_events.delete_many({'staff_id':'SPDEMO_emp_staff'})\nawait db.staff_leave_requests.delete_many({'staff_id':'SPDEMO_emp_staff','leave_type':'sick','start_date':<today>})\nawait db.attendance_daily.delete_many({'organization_id':'iso-demo-org','staff_id':'SPDEMO_emp_staff','date':<today>})\n\nAfter cleanup the suite is 6/6 green."
+}

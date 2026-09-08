@@ -374,6 +374,9 @@ async def recompute_day(org_id: str, staff_id: str, date_iso: str,
         elif actuals:
             status = "working"
             source = "employee_time_entry"
+        elif (existing or {}).get("employee_entry"):
+            status = "working"
+            source = "employee_time_entry"
         else:
             status = "not_confirmed"
             source = "working_pattern"
@@ -387,11 +390,19 @@ async def recompute_day(org_id: str, staff_id: str, date_iso: str,
     overtime_raw = 0.0
     paid_leave_hours = 0.0
     if status == "working":
-        if actuals:
-            start, finish, break_min = actuals["start"], actuals["finish"], actuals["break_minutes"]
-            raw_worked = actuals.get("worked_hours") or 0.0
+        # Prefer a COMPLETE clock day; otherwise the employee's typed entry;
+        # otherwise a partial (mid-shift) clock punch.
+        complete_clock = actuals if (actuals and actuals.get("complete")) else None
+        ent = complete_clock or (existing or {}).get("employee_entry") or actuals
+        if ent:
+            start, finish, break_min = ent.get("start"), ent.get("finish"), ent.get("break_minutes") or 0
+            raw_worked = ent.get("worked_hours")
+            if raw_worked is None:
+                sm, fm = _hm_to_minutes(start), _hm_to_minutes(finish)
+                raw_worked = round(max(0.0, (fm - sm - break_min) / 60.0), 2) if (sm is not None and fm is not None) else 0.0
         else:
             start, finish, break_min = expected["start"], expected["finish"], expected["break_minutes"]
+        raw_worked = raw_worked or 0.0
         exp_h = expected["expected_hours"] or 0.0
         regular = min(raw_worked, exp_h) if raw_worked else exp_h
         if raw_worked and raw_worked > exp_h:
@@ -424,6 +435,7 @@ async def recompute_day(org_id: str, staff_id: str, date_iso: str,
         "approved_overtime_hours": (existing or {}).get("approved_overtime_hours", 0.0),
         "paid_leave_hours": round(paid_leave_hours, 2),
         "leave_event_id": leave_id,
+        "employee_entry": (existing or {}).get("employee_entry"),
         "manual_override": (existing or {}).get("manual_override", False),
         "updated_at": _now().isoformat(),
     }
@@ -465,8 +477,30 @@ async def apply_leave_to_daily(org_id: str, leave_doc: dict) -> int:
     return n
 
 
-# ───────────────────────── Pattern endpoints ─────────────────────────
+async def set_employee_entry(org_id: str, staff_id: str, date_iso: str,
+                             start: str | None, finish: str | None,
+                             break_min: int = 0) -> dict:
+    """Employee-typed daily times (the 'Daily Timesheet' method — no live clock).
 
+    Stored on the day's record as ``employee_entry`` so recompute_day treats it
+    as the working actuals (leave / bank holiday still take precedence)."""
+    await _ensure_indexes()
+    entry = {"start": start, "finish": finish, "break_minutes": int(break_min or 0)}
+    sm, fm = _hm_to_minutes(start), _hm_to_minutes(finish)
+    entry["worked_hours"] = round(max(0.0, (fm - sm - int(break_min or 0)) / 60.0), 2) if (sm is not None and fm is not None) else None
+    await db.attendance_daily.update_one(
+        {"organization_id": org_id, "staff_id": staff_id, "date": date_iso},
+        {"$set": {"employee_entry": entry, "organization_id": org_id,
+                  "staff_id": staff_id, "date": date_iso},
+         "$setOnInsert": {"id": str(uuid4()), "created_at": _now().isoformat(),
+                          "history": [], "manual_override": False}},
+        upsert=True,
+    )
+    return await recompute_day(org_id, staff_id, date_iso)
+
+
+
+# ───────────────────────── Pattern endpoints ─────────────────────────
 class PatternBody(BaseModel):
     name: str
     type: str = "standard"
