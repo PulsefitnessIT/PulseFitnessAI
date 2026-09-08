@@ -1,3 +1,34 @@
+# ═══ 2026-06 · STAFF PORTAL PROGRAMME — SPREADSHEET MIGRATION IMPORTER (§74–§76) · testing_agent BE 5/5 + FE 100% ═══
+Import the legacy TIME SHEETS 2026 + Attendance Request workbooks into the spine; match existing employees
+(never duplicate); convert status codes; dry-run preview + reconciliation before commit (§75 — nothing decided
+silently); records tagged with their legacy source (§73/§76).
+- BACKEND routes/migration.py (NEW router, _UNGATED_ROUTERS, manager-gated, multipart UploadFile + openpyxl):
+  • parse_attendance(): grid workbook (sheet per year; columns = dates from row1 month + row2 day; employee rows
+    from row4) → [{name,date,code,status}]. CODE_TO_STATUS: IN→working, HOL→holiday, BH→bank_holiday, SICK→sick,
+    COMP→comp, OFF→off (+UNP/TRN/WFH). Verified: 3387 rows/2026, 19 employees.
+  • parse_timesheet(): one-employee workbook (sheet per month; daily rows d.m.yy start/finish/break/PT/classes/
+    total). Name/Dept read from row1 labels (skips blank-template label bleed); skips 0-hour rows.
+  • Endpoints: POST /migration/attendance/preview|commit, /migration/timesheets/preview|commit (all multipart,
+    ?year for attendance, overwrite_conflicts for timesheets). Preview = reconciliation (matched/unmatched
+    employees, by_status, date_range, sample) NO writes. Commit writes only name-matched staff → attendance_daily
+    (source legacy_attendance, manual_override True so the engine preserves it) / timesheet → set_employee_entry
+    + categories{pt,classes} (source legacy_timesheet). Timesheet preview flags CONFLICT when spine holiday/sick/
+    off day clashes with worked hours; commit skips conflict days unless overwrite_conflicts.
+  • Name matching: normalised full_name (case/space-insensitive); unmatched listed, never auto-created.
+  • Sample files on disk: /app/backend/migration_samples/{attendance_request,timesheets_2026}.xlsx.
+- FRONTEND AttendanceTab.js: new 'Import' sub-view (MigrationView + two ImportCards) — pick .xlsx → Preview
+  (reconciliation panel: rows, matched/unmatched, status breakdown/date range, or employee/days/conflicts) →
+  Commit (shows written/skipped/unmatched). data-testids import-card-*, import-file-*, import-preview-*,
+  import-commit-*, import-preview-result-*, import-commit-result-*, import-conflicts.
+- VERIFIED: testing_agent BE 5/5 pytest + FE 100%; curl proved a matched 'Craig Fisher' commit wrote 205 records
+  incl. SICK days (source legacy_attendance). Report iteration_migration_spreadsheet_jan2026.json. Test imports
+  cleared from iso-demo-org after testing.
+- NOTE (future): original uploaded files are parsed transiently, not yet archived to the document store (§76
+  audit-copy) — add later. Real timesheet files carry data; the shared blank template legitimately yields 0 days.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · PAYROLL WORKSPACE — "APPROVE ALL READY" · curl-verified both paths ═══
 One-click bulk approve so payroll is left only with genuine exceptions.
 - BACKEND routes/payroll.py: POST /payroll/periods/{id}/approve-ready (manager, 409 if locked) → approves every

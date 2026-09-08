@@ -1,0 +1,37 @@
+{
+  "summary": "Tested Spreadsheet Migration (§74–§76) for the Attendance Spine — 4 backend endpoints + FE Import sub-view under Operations → Staffing → Attendance → Import. All 5 pytest cases green. Frontend renders both ImportCards, attendance preview parses 7743 rows (2025+2026 sheets combined) with correct by_status buckets and 19 unmatched employees (expected), and the Commit button appears after preview. Timesheet card renders and preview API returns the expected shape.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_migration_spreadsheet.py",
+    "/app/test_reports/pytest/migration_spreadsheet.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: FE MigrationView does not send `year` form field on preview/commit, so the whole workbook (2025+2026 sheets) is parsed → 7743 rows. If the intent per spec was to default the year to the current one, add `fd.append('year', 2026)` in ImportCard.call() in AttendanceTab.js. Not a bug — backend allows either — but current UI has no way to restrict to a year."
+  ],
+  "critical_code_review_comments": [
+    "routes/migration.py:parse_attendance — good: canonical status map applied; sample capped to 25.",
+    "commit_attendance is idempotent via upsert on (org_id, staff_id, date) — safe to re-run.",
+    "commit_timesheets stores categories.{pt,classes} via a second update_one; also calls set_employee_entry when start/finish provided — no ObjectId leakage.",
+    "AttendanceTab.js ImportCard: `busy` is set to falsy '' on completion, but the `disabled={busy}` still works since '' is falsy. Fine.",
+    "MigrationView does not forward `year` param — see action items."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_migration_spreadsheet.py (created)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "Temp staff_members doc {id: TEST-migr-*, full_name: 'Craig Fisher', organization_id: iso-demo-org, active: true} created and cleaned up in the same pytest fixture (yield + delete). Also deleted any attendance_daily rows with source in {legacy_attendance, legacy_timesheet} for iso-demo-org afterwards. Environment is clean.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend endpoints: /api/migration/{attendance,timesheets}/{preview,commit}. Attendance workbook covers years 2025 and 2026 (two sheets) — 7743 rows total, 2026-only = 3387. Demo staff names never match spreadsheet names by default; insert a temp staff_members row with matching full_name (e.g. Craig Fisher) if a match is required. Blank timesheet template legitimately yields employee_name=null / 0 days, so commit_timesheets returns 400 by design.",
+  "rca of the issue": "N/A — no functional issues found."
+}

@@ -16,7 +16,7 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   CalendarDays, RefreshCw, AlertTriangle, Users, Layers, IdCard,
-  Plus, Trash2, Save, X, Check, Wand2, Loader2,
+  Plus, Trash2, Save, X, Check, Wand2, Loader2, Upload, FileSpreadsheet,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -59,7 +59,7 @@ export default function AttendanceTab({ headers, isManager }) {
   return (
     <div className="space-y-4" data-testid="attendance-tab">
       <div className="flex items-center gap-1.5 flex-wrap">
-        {[['board', 'Attendance Board', CalendarDays], ['patterns', 'Working Patterns', Layers], ['profiles', 'Work Profiles', IdCard]].map(([id, label, Icon]) => (
+        {[['board', 'Attendance Board', CalendarDays], ['patterns', 'Working Patterns', Layers], ['profiles', 'Work Profiles', IdCard], ['import', 'Import', Upload]].map(([id, label, Icon]) => (
           <button key={id} onClick={() => setView(id)} data-testid={`attendance-view-${id}`}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${view === id ? 'border-cyan-500 text-cyan-700 bg-cyan-50' : 'border-slate-200 text-slate-500 hover:text-slate-700'}`}>
             <Icon size={13} /> {label}
@@ -69,6 +69,7 @@ export default function AttendanceTab({ headers, isManager }) {
       {view === 'board' && <BoardView headers={headers} />}
       {view === 'patterns' && <PatternsView headers={headers} />}
       {view === 'profiles' && <ProfilesView headers={headers} />}
+      {view === 'import' && <MigrationView headers={headers} />}
     </div>
   );
 }
@@ -463,3 +464,91 @@ function Field({ label, children }) {
     </label>
   );
 }
+
+/* ─────────────── Migration / Import (§74–§76) ─────────────── */
+function MigrationView({ headers }) {
+  return (
+    <div className="space-y-4" data-testid="attendance-import">
+      <p className="text-sm text-slate-500">Import your legacy spreadsheets into the single source of truth. Preview first — nothing is written until you commit, and existing employees are matched, never duplicated.</p>
+      <div className="grid md:grid-cols-2 gap-4">
+        <ImportCard headers={headers} kind="attendance"
+          title="Attendance Request" hint="The year grid of IN / HOL / BH / SICK / COMP / OFF." />
+        <ImportCard headers={headers} kind="timesheet"
+          title="Timesheets" hint="One employee's month sheets (start/finish/break/PT/classes)." />
+      </div>
+    </div>
+  );
+}
+
+function ImportCard({ headers, kind, title, hint }) {
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState('');
+  const [err, setErr] = useState('');
+  const base = kind === 'attendance' ? 'attendance' : 'timesheets';
+
+  const call = async (action) => {
+    if (!file) { setErr('Choose a file first.'); return; }
+    setBusy(action); setErr('');
+    const fd = new FormData(); fd.append('file', file);
+    try {
+      const r = await axios.post(`${API}/migration/${base}/${action}`, fd,
+        { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
+      if (action === 'preview') { setPreview(r.data); setResult(null); }
+      else { setResult(r.data); }
+    } catch (e) { setErr(e?.response?.data?.detail || 'Failed'); }
+    setBusy('');
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4" data-testid={`import-card-${kind}`}>
+      <div className="flex items-center gap-2 mb-1"><FileSpreadsheet size={16} className="text-cyan-600" /><h3 className="font-bold text-slate-900">{title}</h3></div>
+      <p className="text-xs text-slate-500 mb-3">{hint}</p>
+      <input type="file" accept=".xlsx" onChange={(e) => { setFile(e.target.files[0]); setPreview(null); setResult(null); }} data-testid={`import-file-${kind}`}
+        className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 file:font-semibold" />
+      <div className="mt-3 flex gap-2">
+        <button onClick={() => call('preview')} disabled={busy} data-testid={`import-preview-${kind}`}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold">
+          {busy === 'preview' ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />} Preview</button>
+        {preview && <button onClick={() => call('commit')} disabled={busy} data-testid={`import-commit-${kind}`}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-600 text-white text-xs font-semibold">
+          {busy === 'commit' ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Commit import</button>}
+      </div>
+      {err && <div className="mt-2 text-xs text-rose-600" data-testid={`import-error-${kind}`}>{err}</div>}
+
+      {preview && (
+        <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs" data-testid={`import-preview-result-${kind}`}>
+          {kind === 'attendance' ? (
+            <>
+              <div className="font-semibold text-slate-700">{preview.rows_parsed} rows · {preview.date_range?.from} → {preview.date_range?.to}</div>
+              <div className="mt-1 text-emerald-700">Matched employees: {preview.employees_matched.length}</div>
+              {preview.employees_unmatched.length > 0 && <div className="text-amber-700">Unmatched (will be skipped): {preview.employees_unmatched.join(', ')}</div>}
+              <div className="mt-1 flex gap-2 flex-wrap">{Object.entries(preview.by_status).map(([k, v]) => <span key={k} className="px-1.5 py-0.5 rounded bg-white border border-slate-200">{k}: {v}</span>)}</div>
+            </>
+          ) : (
+            <>
+              <div className="font-semibold text-slate-700">{preview.employee_name || 'No name found'} {preview.employee_matched ? <span className="text-emerald-600">✓ matched</span> : <span className="text-amber-600">not matched</span>}</div>
+              <div className="mt-1">{preview.days_parsed} days · {preview.totals?.hours}h · PT {preview.totals?.pt} · Classes {preview.totals?.classes}</div>
+              {preview.conflicts?.length > 0 && (
+                <div className="mt-2 text-rose-600 font-semibold" data-testid="import-conflicts">⚠ {preview.conflicts.length} conflict(s) — review required:</div>
+              )}
+              {(preview.conflicts || []).slice(0, 5).map((c) => (
+                <div key={c.date} className="text-rose-600">{c.date}: attendance {c.attendance} vs timesheet {c.timesheet_hours}h</div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {result && (
+        <div className="mt-2 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-800" data-testid={`import-commit-result-${kind}`}>
+          {kind === 'attendance'
+            ? <>Imported {result.written} records. Skipped {result.skipped}{result.unmatched?.length ? ` · unmatched: ${result.unmatched.join(', ')}` : ''}.</>
+            : <>Imported {result.written} days for {result.employee}{result.skipped_conflicts ? ` · ${result.skipped_conflicts} conflict day(s) skipped` : ''}.</>}
+        </div>
+      )}
+    </div>
+  );
+}
+
