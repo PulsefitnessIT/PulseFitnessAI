@@ -162,7 +162,7 @@ def _email_shell(title: str, lines: list[str], cta_url: str | None = None, cta_l
 
 
 async def _notify(org, case_id, audience, staff_id, event, message,
-                  email_to=None, email_subject=None, email_html=None):
+                  email_to=None, email_subject=None, email_html=None, attachments=None):
     """Record an in-app notification and (best-effort) send a neutral email."""
     await db.staff_onboarding_notifications.insert_one({
         "id": str(uuid.uuid4()), "organization_id": org, "onboarding_case_id": case_id,
@@ -172,6 +172,7 @@ async def _notify(org, case_id, audience, staff_id, event, message,
     if email_to and email_subject and email_html:
         try:
             await send_email(to=email_to, subject=email_subject, html=email_html,
+                             attachments=attachments,
                              organization_id=org, kind="staff_onboarding")
         except Exception:
             pass
@@ -1331,14 +1332,25 @@ async def activate(case_id: str, user: dict = Depends(get_current_user)):
     if staff2.get("email"):
         inv = await db.staff_onboarding_invites.find_one({"onboarding_case_id": case_id})
         url = f"{FRONTEND_URL}/new-starter/{inv['token']}" if inv else FRONTEND_URL
+        # Attach the Staff Portal handbook PDF with the welcome/login email.
+        handbook_attachment = None
+        try:
+            from routes.staff_portal import _build_handbook_pdf
+            hb = _build_handbook_pdf(staff2.get("preferred_name") or staff2.get("full_name"))
+            handbook_attachment = [{"filename": "pulse-staff-portal-handbook.pdf",
+                                    "content": base64.b64encode(hb).decode("ascii")}]
+        except Exception:
+            handbook_attachment = None
         await _notify(org, case_id, "recruit", c["staff_id"], "activated",
                       "Welcome to the team! Your Staff Portal is now active.",
                       email_to=staff2["email"], email_subject="Welcome to Pulse Fitness — your first day",
                       email_html=_email_shell(f"Welcome, {staff2.get('preferred_name') or staff2.get('full_name')}!",
                           ["Your onboarding is complete and your account is now your Pulse Fitness Staff Portal.",
                            "All your completed documents, offer letter and contract remain available there.",
+                           "We've attached your Staff Portal Handbook (PDF) — a quick guide to logging in and using the portal.",
                            f"Your start date: {ep.get('proposed_start_date') or 'to be confirmed'}."],
-                          cta_url=url, cta_label="Open my Staff Portal"))
+                          cta_url=url, cta_label="Open my Staff Portal"),
+                      attachments=handbook_attachment)
     # Email the audit-ready Onboarding Pack PDF to HR/payroll on activation.
     try:
         await _email_pack_on_activation(org, c, staff2, user)

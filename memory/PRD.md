@@ -36559,3 +36559,9 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Staff handbook: /app/memory/STAFF_PORTAL_HANDBOOK.md (living doc — keep updated as portal features ship) + `GET /api/new-starter/portal/handbook.pdf` (Pulse-branded) downloadable from the portal More sheet (more-handbook).
 - Verified: testing_agent iteration_vehicle_checks_v2_jan2026.json — backend 10/10, frontend 100%. Minor cosmetic note (body overflow computed style after modal close; scrolling unaffected). Test vehicles cleaned.
 
+
+## 2026-09-09 — Handbook auto-attached to welcome email
+- When a staff login is issued (staff-onboarding case `activate`), the "Welcome to Pulse Fitness — your first day" email now attaches the Pulse Staff Portal Handbook PDF.
+- `_notify()` extended with an `attachments` param (forwards to send_email); activate() builds the handbook via `routes.staff_portal._build_handbook_pdf(name)` and passes it base64-encoded. Best-effort/graceful if PDF build fails.
+- Verified: handbook builds (122KB, %PDF), base64 encodes, _notify accepts attachments; backend clean.
+- NOTE: actual email SEND is MOCKED in preview (RESEND_API_KEY invalid) — delivery will work once a valid key is set; the attachment wiring is complete.
