@@ -99,13 +99,15 @@ export default function StaffPortal() {
           </div>
         </div>
 
-        <div className="mt-6 flex gap-1.5 flex-wrap border-b border-slate-200 pb-px">
-          {TABS.map(([id, label, Icon]) => (
-            <button key={id} onClick={() => setTab(id)} data-testid={`staff-tab-${id}`}
-              className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-t-lg -mb-px border-b-2 transition-colors ${tab === id ? 'border-cyan-400 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-              <Icon size={15} /> {label}
-            </button>
-          ))}
+        <div className="mt-6 -mx-4 px-4 border-b border-slate-200">
+          <div className="flex gap-1 sm:gap-1.5 overflow-x-auto scrollbar-hide pb-px" data-testid="staff-tab-bar">
+            {TABS.map(([id, label, Icon]) => (
+              <button key={id} onClick={() => setTab(id)} data-testid={`staff-tab-${id}`}
+                className={`inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-t-lg -mb-px border-b-2 transition-colors ${tab === id ? 'border-cyan-400 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                <Icon size={15} className="shrink-0" /> {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="mt-6">

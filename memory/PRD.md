@@ -36522,3 +36522,10 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Bell (StaffNotificationBell.js) tones added for vehicle_check_due/overdue/defect. Manager escalation links to the Vehicles tab; driver nudge to the portal Vehicle tab.
 - Verified via direct call (forced weekday): escalation routed to line manager (SPDEMO_mgr_user), deduped on re-run (count stays 1), body includes reg + driver + week. Note: escalation only visibly fires Fri–Sun (today Wed = dormant, correct).
 
+
+
+## 2026-09-09 — Staff Portal mobile optimisation
+- Top tab bar (lateral menu) converted from `flex-wrap` (3 stacked rows on mobile) to a single horizontally-scrollable row: `overflow-x-auto scrollbar-hide`, buttons `shrink-0 whitespace-nowrap`, edge-bleed via `-mx-4 px-4` (data-testid staff-tab-bar). Verified at 390px: 1 row, scrollWidth 903 > clientWidth 358 (scrolls); unchanged on desktop.
+- Audited all Staff Portal surfaces at 390px (My Day/RTW card, My Time table, Holidays request+list, Vehicle check form with long tri-state item labels, notification bell sheet): no horizontal overflow, no bunched text, labels wrap cleanly. Notification panel already a full-width fixed sheet on mobile.
+- Pure layout change; verified via screenshots. DVLA service-date sync PARKED (user awaiting DVLA API access).
+
