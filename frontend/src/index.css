@@ -591,6 +591,32 @@ body.has-bottom-banner main.overflow-y-auto {
 .sfb-fade-flat.sfb-fade-right { right: 0; }
 .sfb-fade-flat.sfb-fade-left  { left: 0; }
 
+/* ScrollFadeBar tap-to-page chevrons (opt-in via showChevrons). Sit above
+   the edge fade so tabs can be paged with a tap as well as a swipe. */
+.sfb-chev {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text-muted);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+.sfb-chev:hover { color: var(--theme-text); }
+.sfb-chev-left  { left: 0; }
+.sfb-chev-right { right: 0; }
+.sfb-chev-pill.sfb-chev-left  { left: 1px; }
+.sfb-chev-pill.sfb-chev-right { right: 1px; }
+
 /* Embedded "Request a Part" panel — inherit dashboard theme so form
    fields match light/dark mode instead of rendering white on dark. */
 [data-testid="parts-page"] input,

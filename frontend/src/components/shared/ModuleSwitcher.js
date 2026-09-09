@@ -15,7 +15,7 @@
 import React from 'react';
 import axios from 'axios';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Activity, Calendar, Briefcase, Rocket, MessagesSquare } from 'lucide-react';
+import { Activity, Calendar, Briefcase, Rocket, MessagesSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -220,7 +220,15 @@ export default function ModuleSwitcher({ user, current }) {
        ? 'linear-gradient(to right, transparent 0, black 14px, black 100%)'
        : undefined;
 
+ const page = (dir) => {
+   const el = wrapRef.current;
+   if (!el) return;
+   const amount = Math.max(120, Math.floor(el.clientWidth * 0.7));
+   el.scrollBy({ left: dir * amount, behavior: 'smooth' });
+ };
+
  return (
+ <div className="relative">
  <div
  ref={wrapRef}
  className="gx-module-switcher-wrap max-w-full overflow-x-auto overflow-y-hidden -mx-1 px-1 scroll-smooth scrollbar-hide"
@@ -268,6 +276,29 @@ export default function ModuleSwitcher({ user, current }) {
  );
  })}
  </nav>
+ </div>
+ {edges.left && (
+ <button
+ type="button"
+ aria-label="Scroll modules left"
+ onClick={() => page(-1)}
+ className="sfb-chev sfb-chev-left"
+ data-testid="module-switcher-chev-left"
+ >
+ <ChevronLeft size={15} />
+ </button>
+ )}
+ {edges.right && (
+ <button
+ type="button"
+ aria-label="Scroll modules right"
+ onClick={() => page(1)}
+ className="sfb-chev sfb-chev-right"
+ data-testid="module-switcher-chev-right"
+ >
+ <ChevronRight size={15} />
+ </button>
+ )}
  </div>
  );
 }

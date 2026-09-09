@@ -36782,3 +36782,8 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - PillTabBar (shared module tab bar): same directional fade via data-fade-left/right, plus iOS momentum, gentle scroll-snap and overscroll containment. Files: components/shared/PillTabBar.js, index.css.
 - Mobile sub-tab strip (LiteDashboard) already auto-scrolls the active pill into view (unchanged).
 - Verified on 390px mobile: mask direction = start FADE_RIGHT, mid FADE_LEFT+RIGHT, end FADE_LEFT; last pill (CRM) fully visible at far-right scroll.
+
+## 2026-09-09 — Mobile pill bar tap-to-page chevrons (Iter 288)
+- Added opt-in left/right chevron paging buttons to ScrollFadeBar (showChevrons prop) so the mobile sub-tab pill row (Dashboard/Equipment/Faults/Check Sheets/AI Diagnosis/Docs/Staffing/Reports…) can be paged by tap as well as swipe. Chevrons appear/hide with the overflow edges. Files: components/shared/ScrollFadeBar.js, index.css (.sfb-chev), LiteDashboardPage.js (showChevrons on mobile-tab-pills).
+- Added the same chevrons to ModuleSwitcher (Operations/Memberships/CRM bar) as siblings of the masked scroll element; shown when the bar overflows. File: components/shared/ModuleSwitcher.js.
+- Verified on 390px mobile: right chevron pages tabs (scrollLeft 0->250), left chevron then appears; testids mobile-tab-pills-chev-left/right, module-switcher-chev-left/right.

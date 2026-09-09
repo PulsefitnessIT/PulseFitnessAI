@@ -987,6 +987,7 @@ const LiteDashboardPage = () => {
               scrollRef={pulsePillBarRef}
               variant="flat"
               fadeColor="var(--theme-bg)"
+              showChevrons
               wrapperClassName="md:hidden mb-5 -mx-1 px-1"
               className="flex gap-2 overflow-x-auto scrollbar-hide pb-1"
               style={{ WebkitOverflowScrolling: 'touch' }}
