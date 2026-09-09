@@ -1,3 +1,14 @@
+# ═══ 2026-06 · STAFFING — Owners/Managers can remove (archive) staff · curl+screenshot-verified ═══
+Added a red "Remove" button in HR ▸ People ▸ Profile header (manager-only, not while editing; data-testid
+hr-profile-delete). Confirms, then calls the existing DELETE /staffing/staff/{id} (soft-delete: active=false,
+archived_at) — person drops off active staff list / rota / payroll; history retained; reversible by re-adding.
+HRTab.removeStaff() clears the selection + reloads on success. Backend endpoint already _require_manager-gated.
+Verified: create throwaway staff → DELETE → {ok:true} → no longer in active list (then hard-cleaned). Button
+renders for owner@isodemo. 0 lint errors. REDEPLOY required.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFFING — edit a staff member's email in HR profile · curl+screenshot-verified ═══
 Managers can now edit the email on the HR ▸ People ▸ Profile pane (was read-only).
 - FRONTEND HRTab.js ProfilePanel: editable Email input at the top of the Contact section (data-testid hr-field-email);

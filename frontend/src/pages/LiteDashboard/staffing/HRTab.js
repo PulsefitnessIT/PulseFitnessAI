@@ -229,7 +229,7 @@ function CredsDialog({ creds, onClose }) {
 
 // ─────────────────────── Profile panel ───────────────────────────
 
-function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, inviteBusy }) {
+function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, inviteBusy, onDelete }) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -382,6 +382,14 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-profile-edit">
               <Pencil size={11} /> {t('staffing.hr_edit', 'Edit')}
             </button>
+            {onDelete && (
+              <button type="button" onClick={onDelete}
+                className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5 border"
+                style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444' }} data-testid="hr-profile-delete"
+                title={t('staffing.hr_remove_staff', 'Remove this person from staff')}>
+                <Trash2 size={11} /> {t('staffing.hr_remove', 'Remove')}
+              </button>
+            )}
           </div>
         )}
         {editing && (
@@ -1059,6 +1067,19 @@ export default function HRTab({ headers, isManager }) {
     }
   }, [headers, load, t]);
 
+  const removeStaff = useCallback(async (s) => {
+    if (!s) return;
+    if (!window.confirm(t('staffing.hr_remove_confirm',
+      `Remove ${s.full_name} from staff?\n\nThey'll be taken off the active staff list, rota and payroll. Their historical records are kept and this can be reversed by re-adding them.`))) return;
+    try {
+      await axios.delete(`${API}/staffing/staff/${s.id}`, { headers });
+      setActiveId(null);
+      await load();
+    } catch (e) {
+      window.alert(e.response?.data?.detail || t('staffing.hr_remove_failed', 'Could not remove staff member'));
+    }
+  }, [headers, load, t]);
+
   const filtered = useMemo(() => {
     if (!search.trim()) return staffList;
     const q = search.toLowerCase();
@@ -1182,7 +1203,7 @@ export default function HRTab({ headers, isManager }) {
                   );
                 })}
               </div>
-              {sub === 'profile'      && <ProfilePanel      staffId={active.id} headers={headers} isManager={isManager} onUpdated={load} onInvite={issueCredentials} inviteBusy={credsBusy === active.id} />}
+              {sub === 'profile'      && <ProfilePanel      staffId={active.id} headers={headers} isManager={isManager} onUpdated={load} onInvite={issueCredentials} inviteBusy={credsBusy === active.id} onDelete={() => removeStaff(active)} />}
               {sub === 'documents'    && <DocumentsPanel    staffId={active.id} headers={headers} isManager={isManager} />}
               {sub === 'disciplinary' && <DisciplinaryPanel staffId={active.id} headers={headers} isManager={isManager} />}
               {sub === 'training'     && <TrainingPanel     staffId={active.id} headers={headers} isManager={isManager} />}
