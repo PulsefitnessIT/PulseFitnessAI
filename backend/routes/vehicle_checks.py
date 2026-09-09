@@ -167,6 +167,57 @@ async def _this_week_status(org: str, vehicle_id: str, week: str) -> dict:
             "check_id": doc.get("id")}
 
 
+# Weekly checks are due by Friday (per the Pulse van form). From Friday onward
+# an outstanding check is "overdue" and gets escalated to the line manager.
+CHASE_FROM_WEEKDAY = 4  # Monday=0 … Friday=4
+
+
+def _is_chase_time() -> bool:
+    return date.today().weekday() >= CHASE_FROM_WEEKDAY
+
+
+async def run_vehicle_chase(org: str) -> None:
+    """Opportunistic missed-check chaser (no cron): from Friday, escalate every
+    still-outstanding weekly vehicle check to the driver's line manager, once per
+    vehicle per week (deduped). Fires whenever a driver or manager opens their
+    notifications — idempotent."""
+    if not _is_chase_time():
+        return
+    week = _week_commencing()
+    vehicles = await db.vehicles.find(
+        {"organization_id": org, "active": {"$ne": False}}, {"_id": 0}).to_list(1000)
+    if not vehicles:
+        return
+    veh_ids = [v["id"] for v in vehicles]
+    done = set(await db.vehicle_checks.distinct(
+        "vehicle_id", {"organization_id": org, "week_commencing": week,
+                       "vehicle_id": {"$in": veh_ids},
+                       "status": {"$in": ["submitted", "reviewed"]}}))
+    staff = await db.staff_members.find(
+        {"organization_id": org},
+        {"_id": 0, "id": 1, "full_name": 1, "line_manager_staff_id": 1, "user_id": 1}).to_list(2000)
+    smap = {s["id"]: s for s in staff}
+    for v in vehicles:
+        if v["id"] in done:
+            continue
+        drivers = v.get("driver_staff_ids") or []
+        primary = v.get("primary_driver_staff_id") or (drivers[0] if drivers else None)
+        mgr_uid = None
+        if primary and smap.get(primary):
+            lm_sid = smap[primary].get("line_manager_staff_id")
+            if lm_sid and smap.get(lm_sid):
+                mgr_uid = smap[lm_sid].get("user_id")
+        driver_names = ", ".join(smap[s]["full_name"] for s in drivers if smap.get(s)) or "unassigned"
+        await notify_staff(
+            org=org, recipient_kind="manager", recipient_user_id=mgr_uid,
+            type="vehicle_check_overdue",
+            title="Vehicle check overdue",
+            body=f"{v['reg_no']} ({driver_names}) still has no completed check for the week of {week}.",
+            link="vehicles",
+            dedupe_key=f"veh_chase:{v['id']}:{week}")
+
+
+
 # ════════════════════════════ Templates endpoint ════════════════════════════
 @router.get("/vehicle-checks/templates")
 async def vehicle_templates(user: dict = Depends(get_current_user)):

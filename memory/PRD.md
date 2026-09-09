@@ -36512,3 +36512,13 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Frontend (staffing/VehiclesTab.js): FleetDashboard + StatCard. Four clickable stat cards (checks% → Weekly checks, open defects / not-safe → Defects), an Outstanding-checks chip list, and an Upcoming legal-dates list with overdue/soon colour coding. View toggle now: Overview · Fleet register · Weekly checks · Defects (default Overview). testids: vehicles-dashboard, dash-checks-pct, dash-open-defects, dash-not-safe, dash-expiries, dash-outstanding(-<id>), dash-legal, dash-expiry-<i>.
 - Verified via curl (50% done, 1 open defect, insurance overdue -3d sorted before MOT +10d, outstanding vehicle listed) + desktop screenshot. Test data cleaned up.
 
+
+
+## 2026-09-09 — Missed-Check Chaser (driver reminder + manager escalation)
+- No cron (consistent with the live-nudge engine): opportunistic sweep `run_vehicle_chase(org)` in routes/vehicle_checks.py runs whenever a driver opens portal notifications OR a manager opens staffing notifications.
+- Due date = Friday (per the Pulse van form). `CHASE_FROM_WEEKDAY=4`; `_is_chase_time()` true Fri–Sun.
+- From Friday, each still-outstanding weekly check (active vehicle with no submitted/reviewed check this week) escalates to the primary driver's LINE MANAGER (falls back to unassigned/any manager) as a persistent `vehicle_check_overdue` notification, deduped once per vehicle/week (dedupe_key `veh_chase:<vehicle_id>:<week>`).
+- The driver's own live nudge flips from `vehicle_check_due` ("to complete this week") to `vehicle_check_overdue` ("still outstanding — please complete now") once it's chase time.
+- Bell (StaffNotificationBell.js) tones added for vehicle_check_due/overdue/defect. Manager escalation links to the Vehicles tab; driver nudge to the portal Vehicle tab.
+- Verified via direct call (forced weekday): escalation routed to line manager (SPDEMO_mgr_user), deduped on re-run (count stays 1), body includes reg + driver + week. Note: escalation only visibly fires Fri–Sun (today Wed = dormant, correct).
+

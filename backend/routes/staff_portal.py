@@ -684,6 +684,8 @@ async def portal_notifications(user: dict = Depends(get_current_user_portal)):
             "link": "home"})
 
     # Weekly vehicle checks assigned to me but not yet submitted this week.
+    from routes.vehicle_checks import run_vehicle_chase, _is_chase_time
+    await run_vehicle_chase(org)
     week = (date.today() - timedelta(days=date.today().weekday())).isoformat()
     my_vehicle_ids = await db.vehicles.distinct(
         "id", {"organization_id": org, "active": {"$ne": False}, "driver_staff_ids": staff["id"]})
@@ -694,9 +696,13 @@ async def portal_notifications(user: dict = Depends(get_current_user_portal)):
                            "status": {"$in": ["submitted", "reviewed"]}})
         due = len(set(my_vehicle_ids) - set(done_ids))
         if due > 0:
+            overdue = _is_chase_time()
             nudges.append({
-                "type": "vehicle_check_due", "title": "Weekly vehicle check due",
-                "body": f"{due} vehicle check{'' if due == 1 else 's'} to complete this week.",
+                "type": "vehicle_check_overdue" if overdue else "vehicle_check_due",
+                "title": "Vehicle check overdue" if overdue else "Weekly vehicle check due",
+                "body": (f"{due} vehicle check{'' if due == 1 else 's'} still outstanding — please complete "
+                         f"{'it' if due == 1 else 'them'} now." if overdue
+                         else f"{due} vehicle check{'' if due == 1 else 's'} to complete this week."),
                 "link": "vehicle"})
 
     unread = sum(1 for n in stored if not n.get("read")) + len(nudges)
@@ -725,6 +731,8 @@ async def staffing_notifications(user: dict = Depends(get_current_user)):
     owners see the whole org."""
     _require_hr(user)
     org = _org(user)
+    from routes.vehicle_checks import run_vehicle_chase
+    await run_vehicle_chase(org)
     me = await db.staff_members.find_one(
         {"organization_id": org, "user_id": user.get("id")}, {"_id": 0, "id": 1})
     owner = _is_owner(user)
