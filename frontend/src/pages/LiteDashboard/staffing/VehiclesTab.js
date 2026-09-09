@@ -17,7 +17,7 @@ const STATUS_TONE = {
 const fmtD = (s) => (s ? new Date(s + (s?.length === 10 ? 'T00:00:00' : '')).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—');
 
 export default function VehiclesTab({ headers }) {
-  const [view, setView] = useState('register'); // 'register' | 'checks'
+  const [view, setView] = useState('dashboard'); // 'dashboard' | 'register' | 'checks' | 'defects'
   const [data, setData] = useState(null);
   const [drivers, setDrivers] = useState([]);
   const [edit, setEdit] = useState(null); // vehicle being edited or {} for new
@@ -36,7 +36,7 @@ export default function VehiclesTab({ headers }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="inline-flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--theme-border)' }}>
-          {[['register', 'Fleet register'], ['checks', 'Weekly checks'], ['defects', 'Defects']].map(([id, lab]) => (
+          {[['dashboard', 'Overview'], ['register', 'Fleet register'], ['checks', 'Weekly checks'], ['defects', 'Defects']].map(([id, lab]) => (
             <button key={id} onClick={() => setView(id)} data-testid={`vehicles-view-${id}`}
               className="px-4 py-1.5 text-xs font-semibold"
               style={view === id ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' } : { color: 'var(--theme-text-muted)' }}>{lab}</button>
@@ -54,13 +54,82 @@ export default function VehiclesTab({ headers }) {
         <FleetRegister data={data} onEdit={setEdit} onChanged={load} headers={headers} />
       ) : view === 'checks' ? (
         <WeeklyChecks headers={headers} week={data.week_commencing} onOpen={setDetail} />
-      ) : (
+      ) : view === 'defects' ? (
         <DefectTracker headers={headers} />
+      ) : (
+        <FleetDashboard headers={headers} onGoto={setView} />
       )}
 
       {edit && <VehicleModal vehicle={edit} drivers={drivers} headers={headers} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load(); }} />}
       {importOpen && <ImportModal headers={headers} onClose={() => setImportOpen(false)} onDone={() => { setImportOpen(false); load(); }} />}
       {detail && <CheckDetailModal checkId={detail} headers={headers} onClose={() => setDetail(null)} onReviewed={() => setDetail(null)} />}
+    </div>
+  );
+}
+
+function StatCard({ label, value, sub, tone, testId, onClick }) {
+  return (
+    <button onClick={onClick} disabled={!onClick} data-testid={testId}
+      className="text-left rounded-xl border p-4 disabled:cursor-default hover:shadow-sm transition-shadow"
+      style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
+      <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>{label}</div>
+      <div className="text-2xl font-bold mt-1" style={{ color: tone || 'var(--theme-text)' }}>{value}</div>
+      {sub && <div className="text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>{sub}</div>}
+    </button>
+  );
+}
+
+function FleetDashboard({ headers, onGoto }) {
+  const [d, setD] = useState(null);
+  useEffect(() => { axios.get(`${API}/vehicle-checks/dashboard`, { headers }).then((r) => setD(r.data)).catch(() => setD({ total_vehicles: 0 })); }, [headers]);
+  if (!d) return <Loader2 className="animate-spin" style={{ color: 'var(--color-brand-cyan)' }} />;
+  if (!d.total_vehicles) return <div className="rounded-xl border p-10 text-center text-sm" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>No vehicles yet — add one in the Fleet register to start tracking compliance.</div>;
+
+  const pctTone = d.checks_pct >= 90 ? '#16a34a' : d.checks_pct >= 60 ? '#d97706' : '#dc2626';
+  const expTone = (days) => (days < 0 ? '#dc2626' : days <= 14 ? '#d97706' : 'var(--theme-text)');
+  return (
+    <div className="space-y-4" data-testid="vehicles-dashboard">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard testId="dash-checks-pct" label="Checks done this week" value={`${d.checks_pct}%`} tone={pctTone} sub={`${d.checks_done}/${d.total_vehicles} vehicles · ${d.checks_reviewed} reviewed`} onClick={() => onGoto('checks')} />
+        <StatCard testId="dash-open-defects" label="Open defects" value={d.open_defects} tone={d.open_defects ? '#dc2626' : '#16a34a'} sub={`${d.booked_defects} booked in`} onClick={() => onGoto('defects')} />
+        <StatCard testId="dash-not-safe" label="Flagged not safe" value={d.not_safe} tone={d.not_safe ? '#dc2626' : '#16a34a'} sub="unresolved" onClick={() => onGoto('defects')} />
+        <StatCard testId="dash-expiries" label="Legal dates ≤60 days" value={d.expiries.length} tone={d.expiries.some((e) => e.days < 0) ? '#dc2626' : d.expiries.length ? '#d97706' : '#16a34a'} sub="MOT / tax / insurance / service" />
+      </div>
+
+      <div className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border)' }} data-testid="dash-outstanding">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>Outstanding checks — week {fmtD(d.week_commencing)}</h3>
+          <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{d.outstanding.length} to complete</span>
+        </div>
+        {d.outstanding.length === 0 ? (
+          <div className="text-sm inline-flex items-center gap-1" style={{ color: '#16a34a' }}><Check size={15} /> All vehicles checked this week.</div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {d.outstanding.map((o) => (
+              <span key={o.id} className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid={`dash-outstanding-${o.id}`}>
+                <span className="font-bold uppercase" style={{ color: 'var(--theme-text)' }}>{o.reg_no}</span>
+                {o.driver_names.length ? `· ${o.driver_names.join(', ')}` : '· unassigned'}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border)' }} data-testid="dash-legal">
+        <h3 className="text-sm font-bold mb-2" style={{ color: 'var(--theme-text)' }}>Upcoming MOT / tax / insurance / service</h3>
+        {d.expiries.length === 0 ? (
+          <div className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>Nothing due in the next 60 days.</div>
+        ) : (
+          <div className="space-y-1.5">
+            {d.expiries.map((e, i) => (
+              <div key={i} className="flex items-center justify-between gap-3 text-sm" data-testid={`dash-expiry-${i}`}>
+                <span><span className="font-bold uppercase" style={{ color: 'var(--theme-text)' }}>{e.reg_no}</span> <span style={{ color: 'var(--theme-text-muted)' }}>· {e.kind}</span></span>
+                <span className="font-semibold" style={{ color: expTone(e.days) }}>{e.days < 0 ? `Overdue ${-e.days}d` : e.days === 0 ? 'Due today' : `in ${e.days}d`} <span className="text-xs font-normal" style={{ color: 'var(--theme-text-muted)' }}>({e.date})</span></span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

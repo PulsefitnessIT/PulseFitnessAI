@@ -331,6 +331,79 @@ async def import_vehicles(body: ImportBody, user: dict = Depends(get_current_use
 DEFECT_STATES = {"open", "booked_in", "resolved"}
 
 
+def _days_until(iso: str | None) -> int | None:
+    """Days from today to an ISO/UK date string; None if unparseable."""
+    if not iso:
+        return None
+    s = str(iso).strip()
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d %b %Y", "%d %B %Y"):
+        try:
+            return (datetime.strptime(s, fmt).date() - date.today()).days
+        except ValueError:
+            continue
+    return None
+
+
+@router.get("/vehicle-checks/dashboard")
+async def fleet_dashboard(user: dict = Depends(get_current_user)):
+    """One-glance fleet compliance: this week's check completion, open defects,
+    and upcoming MOT / tax / insurance / service dates — all from existing data."""
+    _require_manager(user)
+    org = _org(user)
+    week = _week_commencing()
+    vehicles = await db.vehicles.find(
+        {"organization_id": org, "active": {"$ne": False}}, {"_id": 0}).to_list(1000)
+    total = len(vehicles)
+    veh_ids = [v["id"] for v in vehicles]
+
+    done_ids = set(await db.vehicle_checks.distinct(
+        "vehicle_id", {"organization_id": org, "week_commencing": week,
+                       "vehicle_id": {"$in": veh_ids},
+                       "status": {"$in": ["submitted", "reviewed"]}}))
+    submitted = len(done_ids)
+    reviewed = await db.vehicle_checks.count_documents(
+        {"organization_id": org, "week_commencing": week, "vehicle_id": {"$in": veh_ids},
+         "status": "reviewed"})
+    pct = round((submitted / total) * 100) if total else 0
+
+    open_defects = await db.vehicle_defects.count_documents({"organization_id": org, "status": "open"})
+    booked_defects = await db.vehicle_defects.count_documents({"organization_id": org, "status": "booked_in"})
+    not_safe = await db.vehicle_defects.count_documents(
+        {"organization_id": org, "status": {"$in": ["open", "booked_in"]}, "safe_to_drive": False})
+
+    outstanding = [
+        {"id": v["id"], "reg_no": v["reg_no"], "make_model": v.get("make_model"),
+         "driver_names": [], "check_type": v.get("check_type")}
+        for v in vehicles if v["id"] not in done_ids
+    ]
+    # driver names for the outstanding list
+    if outstanding:
+        staff = await db.staff_members.find({"organization_id": org}, {"_id": 0, "id": 1, "full_name": 1}).to_list(2000)
+        names = {s["id"]: s.get("full_name") for s in staff}
+        vmap = {v["id"]: v for v in vehicles}
+        for o in outstanding:
+            o["driver_names"] = [names.get(sid) for sid in (vmap[o["id"]].get("driver_staff_ids") or []) if names.get(sid)]
+
+    # upcoming legal dates within 60 days (or overdue)
+    expiries = []
+    for v in vehicles:
+        sr = v.get("service_record") or {}
+        for key, label in (("mot_due", "MOT"), ("tax_status", "Tax"),
+                           ("insurance_expiry", "Insurance"), ("next_service", "Service")):
+            d = _days_until(sr.get(key))
+            if d is not None and d <= 60:
+                expiries.append({"reg_no": v["reg_no"], "make_model": v.get("make_model"),
+                                 "kind": label, "date": sr.get(key), "days": d})
+    expiries.sort(key=lambda x: x["days"])
+
+    return {
+        "week_commencing": week, "total_vehicles": total,
+        "checks_done": submitted, "checks_reviewed": reviewed, "checks_pct": pct,
+        "open_defects": open_defects, "booked_defects": booked_defects, "not_safe": not_safe,
+        "outstanding": outstanding, "expiries": expiries,
+    }
+
+
 @router.get("/vehicle-defects")
 async def list_defects(status: str | None = Query(None), user: dict = Depends(get_current_user)):
     _require_manager(user)

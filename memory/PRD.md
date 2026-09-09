@@ -36504,3 +36504,11 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Frontend (staffing/VehiclesTab.js): new "Defects" sub-view with status filter tabs (counts), each card showing reg, not-safe flag, description, reporter, booking ref/date + resolved note; actions "Mark booked-in" (booking modal: provider ref + date), "Resolve" (with optional note), and "Reopen". testids: vehicles-view-defects, defect-filter-*, defect-<id>, defect-book-*, defect-resolve-*, defect-reopen-*, defect-booking-*.
 - Verified via curl (open→booked_in with VA ref/date→resolved with note; counts update) + desktop screenshot of the Defects list. Demo/test artifacts cleaned up.
 
+
+
+## 2026-09-09 — Fleet Compliance Dashboard (Vehicles Overview)
+- New default "Overview" view in the Staffing → Vehicles console: one-glance fleet compliance.
+- Backend: `GET /api/vehicle-checks/dashboard` returns this week's check completion (checks_done/total, %, reviewed), defect counts (open, booked_in, not_safe), the list of vehicles with an outstanding check (+ driver names), and upcoming legal dates ≤60 days (MOT/tax/insurance/service) sorted soonest-first (overdue negative days). `_days_until()` parses ISO + common UK date formats. All computed from existing vehicles/vehicle_checks/vehicle_defects — no new data.
+- Frontend (staffing/VehiclesTab.js): FleetDashboard + StatCard. Four clickable stat cards (checks% → Weekly checks, open defects / not-safe → Defects), an Outstanding-checks chip list, and an Upcoming legal-dates list with overdue/soon colour coding. View toggle now: Overview · Fleet register · Weekly checks · Defects (default Overview). testids: vehicles-dashboard, dash-checks-pct, dash-open-defects, dash-not-safe, dash-expiries, dash-outstanding(-<id>), dash-legal, dash-expiry-<i>.
+- Verified via curl (50% done, 1 open defect, insurance overdue -3d sorted before MOT +10d, outstanding vehicle listed) + desktop screenshot. Test data cleaned up.
+
