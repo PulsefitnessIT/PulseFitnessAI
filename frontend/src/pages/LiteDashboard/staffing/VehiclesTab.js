@@ -157,7 +157,7 @@ function FleetRegister({ data, onEdit, onChanged, headers }) {
         <tbody>
           {data.vehicles.map((v) => (
             <tr key={v.id} className="border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`vehicle-reg-${v.id}`}>
-              <td className="py-2 px-3 font-bold uppercase" style={{ color: 'var(--theme-text)' }}>{v.reg_no}{v.is_ev && <span className="ml-1 text-[9px] px-1 rounded bg-emerald-100 text-emerald-700">EV</span>}</td>
+              <td className="py-2 px-3 font-bold uppercase" style={{ color: 'var(--theme-text)' }}>{v.reg_no}{v.is_ev && <span className="ml-1 text-[9px] px-1 rounded bg-emerald-100 text-emerald-700">EV</span>}{v.is_hybrid && <span className="ml-1 text-[9px] px-1 rounded bg-amber-100 text-amber-700">HYBRID</span>}</td>
               <td className="py-2 px-3" style={{ color: 'var(--theme-text-muted)' }}>{v.make_model || '—'}</td>
               <td className="py-2 px-3 text-xs uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>{vtLabel(v)}</td>
               <td className="py-2 px-3 text-xs" style={{ color: 'var(--theme-text-muted)' }}>{(v.driver_names || []).join(', ') || <span className="text-amber-600">Unassigned</span>}</td>

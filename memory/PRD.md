@@ -1,3 +1,15 @@
+# ═══ 2026-06 · STAFFING delete button relocated + Vehicle HYBRID badge · screenshot-verified ═══
+1) DELETE STAFF moved out of the profile header into the bottom of the EDIT card (HRTab.js ProfilePanel): only
+   rendered when `editing && isManager && onDelete`, as a red "Remove staff member" button in a bordered danger row
+   with hint "Removes them from the active staff list, rota and payroll. Records are kept." (data-testid unchanged
+   hr-profile-delete). Header no longer shows it. Verified: hidden before Edit, visible at card bottom in edit mode.
+2) VEHICLE HYBRID badge (VehiclesTab.js Fleet register): amber `HYBRID` pill next to reg when v.is_hybrid, mirroring
+   the emerald `EV` pill. Verified rendered for a hybrid vehicle.
+REDEPLOY required.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFFING — Owners/Managers can remove (archive) staff · curl+screenshot-verified ═══
 Added a red "Remove" button in HR ▸ People ▸ Profile header (manager-only, not while editing; data-testid
 hr-profile-delete). Confirms, then calls the existing DELETE /staffing/staff/{id} (soft-delete: active=false,

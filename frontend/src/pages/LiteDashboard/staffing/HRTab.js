@@ -382,14 +382,6 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-profile-edit">
               <Pencil size={11} /> {t('staffing.hr_edit', 'Edit')}
             </button>
-            {onDelete && (
-              <button type="button" onClick={onDelete}
-                className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5 border"
-                style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444' }} data-testid="hr-profile-delete"
-                title={t('staffing.hr_remove_staff', 'Remove this person from staff')}>
-                <Trash2 size={11} /> {t('staffing.hr_remove', 'Remove')}
-              </button>
-            )}
           </div>
         )}
         {editing && (
@@ -562,6 +554,21 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
             <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--theme-text)' }}>{profile.notes || '—'}</p>
           )}
         </div>
+
+        {editing && isManager && onDelete && (
+          <div className="md:col-span-2 mt-3 pt-3 border-t flex items-center justify-between gap-3 flex-wrap"
+            style={{ borderColor: 'var(--theme-border)' }}>
+            <span className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>
+              {t('staffing.hr_remove_hint', 'Removes them from the active staff list, rota and payroll. Records are kept.')}
+            </span>
+            <button type="button" onClick={onDelete}
+              className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5 border shrink-0"
+              style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444' }} data-testid="hr-profile-delete"
+              title={t('staffing.hr_remove_staff', 'Remove this person from staff')}>
+              <Trash2 size={11} /> {t('staffing.hr_remove', 'Remove staff member')}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
