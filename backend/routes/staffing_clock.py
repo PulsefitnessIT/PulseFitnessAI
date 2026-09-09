@@ -506,6 +506,26 @@ async def manual_edit(
 
 # ─────────────────────── Timesheets ──────────────────────────────
 
+def _self_day_hours(entry: dict) -> float:
+    """Hours for a staff-entered day: (finish − start) − break + PT classes.
+    Handles overnight (finish < start) and treats PT-class hours as additive."""
+    try:
+        s, f = entry.get("start"), entry.get("finish")
+        base = 0.0
+        if s and f:
+            sh, sm = (int(x) for x in s.split(":")[:2])
+            fh, fm = (int(x) for x in f.split(":")[:2])
+            mins = (fh * 60 + fm) - (sh * 60 + sm)
+            if mins < 0:
+                mins += 24 * 60
+            base = mins / 60.0
+        base -= float(entry.get("break_minutes") or 0) / 60.0
+        base += float(entry.get("pt_classes") or 0)
+        return round(max(0.0, base), 2)
+    except Exception:
+        return 0.0
+
+
 async def _build_weekly_timesheet(
     org_id: str, staff_id: str, week_start: str, week_end: str,
 ) -> dict:
@@ -607,14 +627,45 @@ async def _build_weekly_timesheet(
             "missing_punch": (in_ev is None) or (out_ev is None),
         })
 
-    # Overtime — if more than scheduled, count the diff (simple model)
-    overtime_h = max(0.0, total_actual - total_scheduled)
+    # Merge staff-entered days (remote / no-rota staff, or extra worked time on
+    # top of a shift). Stored on the persisted timesheet as `self_entries`.
+    saved = await db.staff_timesheets.find_one(
+        {"organization_id": org_id, "staff_id": staff_id, "week_start": week_start},
+        {"_id": 0, "self_entries": 1},
+    )
+    self_entries = (saved or {}).get("self_entries") or {}
+    self_hours = 0.0
+    for d in sorted(self_entries):
+        e = self_entries[d] or {}
+        h = _self_day_hours(e)
+        if h <= 0 and not (e.get("start") or e.get("finish")):
+            continue
+        self_hours += h
+        total_actual += h
+        line_items.append({
+            "source": "self",
+            "date": d,
+            "scheduled_start": None, "scheduled_end": None,
+            "self_start": e.get("start"), "self_finish": e.get("finish"),
+            "break_minutes": int(e.get("break_minutes") or 0),
+            "pt_classes": float(e.get("pt_classes") or 0),
+            "scheduled_hours": 0.0,
+            "actual_hours": h,
+            "late_minutes": 0,
+            "missing_punch": False,
+        })
+    line_items.sort(key=lambda li: (li.get("date") or ""))
+
+    # Overtime — only meaningful against a scheduled roster; self-entry-only
+    # weeks (no shifts) have no "scheduled" baseline, so they're not overtime.
+    overtime_h = max(0.0, total_actual - total_scheduled) if total_scheduled > 0 else 0.0
     return {
         "staff_id": staff_id,
         "week_start": week_start,
         "week_end": week_end,
         "scheduled_hours": round(total_scheduled, 2),
         "actual_hours": round(total_actual, 2),
+        "self_hours": round(self_hours, 2),
         "break_hours": round(total_break, 2),
         "overtime_hours": round(overtime_h, 2),
         "late_total_minutes": total_late_min,
@@ -627,12 +678,19 @@ async def _ensure_timesheet_doc(
 ) -> dict:
     """Build the live timesheet and merge with the persisted approval state."""
     live = await _build_weekly_timesheet(org_id, staff_id, week_start, week_end)
+    st = await db.staff_members.find_one({"id": staff_id}, {"_id": 0, "weekly_hours": 1, "hours_per_week": 1})
+    standard_hours = float((st or {}).get("weekly_hours") or (st or {}).get("hours_per_week") or 0)
     saved = await db.staff_timesheets.find_one(
         {"organization_id": org_id, "staff_id": staff_id, "week_start": week_start},
         {"_id": 0},
     )
     if saved:
-        return {**saved, **live, "id": saved["id"], "approval_status": saved.get("approval_status", "pending"),
+        status = saved.get("approval_status", "pending")
+        return {**saved, **live, "id": saved["id"], "approval_status": status,
+                "standard_hours": standard_hours,
+                "locked": status in ("submitted", "approved"),
+                "employee_signature": saved.get("employee_signature"),
+                "submitted_at": saved.get("submitted_at"),
                 "approved_by": saved.get("approved_by"),
                 "approved_at": saved.get("approved_at"),
                 "dispute_reason": saved.get("dispute_reason")}
@@ -647,7 +705,7 @@ async def _ensure_timesheet_doc(
         "created_at": _now().isoformat(),
     }
     await db.staff_timesheets.insert_one(new_doc.copy())
-    return {**new_doc, **live}
+    return {**new_doc, **live, "standard_hours": standard_hours, "locked": False}
 
 
 @router.get("/staffing/clock/my-timesheet")
@@ -711,6 +769,30 @@ async def approve_timesheet(
     if res.matched_count == 0:
         raise HTTPException(404, "Timesheet not found")
     return {"ok": True}
+
+
+@router.post("/staffing/timesheets/{ts_id}/return")
+async def return_timesheet(
+    ts_id: str, body: dict = Body(default={}),
+    user: dict = Depends(get_current_user),
+):
+    """Manager sends a submitted timesheet back to the employee for edits —
+    unlocks it so they can correct and re-submit."""
+    _require_manager(user)
+    org_id = _org(user)
+    res = await db.staff_timesheets.update_one(
+        {"id": ts_id, "organization_id": org_id},
+        {"$set": {
+            "approval_status": "returned",
+            "returned_by": user.get("email"),
+            "returned_at": _now().isoformat(),
+            "return_reason": (body.get("reason") or "").strip() or "Please review and re-submit.",
+        }},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(404, "Timesheet not found")
+    return {"ok": True}
+
 
 
 @router.post("/staffing/timesheets/{ts_id}/dispute")

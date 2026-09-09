@@ -31,7 +31,7 @@ from pydantic import BaseModel
 
 from utils.database import db
 from utils.auth import get_current_user, get_current_user_portal
-from utils.module_access import org_module_access
+from utils.module_access import org_module_access, resolve_module_access
 
 router = APIRouter()
 
@@ -217,6 +217,80 @@ async def portal_timesheet_edit(body: TimesheetEdit, user: dict = Depends(get_cu
         }},
     )
     return {"ok": True, "status": "disputed"}
+
+
+_EDITABLE_TS = {"pending", "returned", "disputed", "draft", None}
+
+
+class SelfDay(BaseModel):
+    date: str
+    start: str | None = None
+    finish: str | None = None
+    break_minutes: float | None = 0
+    pt_classes: float | None = 0
+
+
+class SelfSave(BaseModel):
+    week_start: str
+    days: list[SelfDay] = []
+
+
+@router.post("/new-starter/portal/timesheet/self-save")
+async def portal_timesheet_self_save(body: SelfSave, user: dict = Depends(get_current_user_portal)):
+    """Employee fills in their own hours for the week (remote / no-rota staff, or
+    extra time on top of a shift). Writes `self_entries` keyed by date. Blocked
+    once the week is submitted/approved (locked)."""
+    staff = await _portal_staff(user)
+    from routes.staffing_clock import _ensure_timesheet_doc, _week_bounds
+    ws, we = _week_bounds(body.week_start)
+    ts = await _ensure_timesheet_doc(staff["organization_id"], staff["id"], ws, we)
+    if ts.get("approval_status") not in _EDITABLE_TS:
+        raise HTTPException(409, "This week is locked for approval. Ask your manager to return it if you need changes.")
+    entries: dict = {}
+    for d in body.days:
+        if not (d.start or d.finish or d.break_minutes or d.pt_classes):
+            continue
+        entries[d.date] = {
+            "start": (d.start or "").strip() or None,
+            "finish": (d.finish or "").strip() or None,
+            "break_minutes": float(d.break_minutes or 0),
+            "pt_classes": float(d.pt_classes or 0),
+        }
+    await db.staff_timesheets.update_one(
+        {"id": ts["id"]},
+        {"$set": {"self_entries": entries, "self_updated_at": _now()}},
+    )
+    fresh = await _ensure_timesheet_doc(staff["organization_id"], staff["id"], ws, we)
+    return _clean(fresh)
+
+
+class SelfSubmit(BaseModel):
+    week_start: str
+    signature: str
+
+
+@router.post("/new-starter/portal/timesheet/submit")
+async def portal_timesheet_submit(body: SelfSubmit, user: dict = Depends(get_current_user_portal)):
+    """Employee signs and submits the week — locks it and flags for the manager
+    to approve in Time Clock ▸ Timesheets."""
+    staff = await _portal_staff(user)
+    sig = (body.signature or "").strip()
+    if not sig:
+        raise HTTPException(400, "Please type your name to sign the timesheet.")
+    from routes.staffing_clock import _ensure_timesheet_doc, _week_bounds
+    ws, we = _week_bounds(body.week_start)
+    ts = await _ensure_timesheet_doc(staff["organization_id"], staff["id"], ws, we)
+    if ts.get("approval_status") in ("submitted", "approved"):
+        raise HTTPException(409, "This week has already been submitted.")
+    await db.staff_timesheets.update_one(
+        {"id": ts["id"]},
+        {"$set": {
+            "approval_status": "submitted",
+            "employee_signature": sig,
+            "submitted_at": _now(),
+        }, "$unset": {"return_reason": "", "dispute_reason": ""}},
+    )
+    return {"ok": True, "status": "submitted"}
 
 
 def _days_between(start: str, end: str) -> int:
@@ -888,16 +962,35 @@ async def portal_access(user: dict = Depends(get_current_user_portal)):
     staff = await _portal_staff(user)
     org = staff["organization_id"]
     prov = await db.staff_access_provisions.find_one({"staff_id": staff["id"]}) or {}
-    granted = set(prov.get("granted_modules") or [])
+    provisioned = set(prov.get("granted_modules") or [])
     avail = await _org_available_modules(org)
     lm_name = staff.get("line_manager_name")
     if not lm_name and staff.get("line_manager_staff_id"):
         lm = await db.staff_members.find_one({"id": staff["line_manager_staff_id"]}, {"_id": 0, "full_name": 1})
         lm_name = (lm or {}).get("full_name")
+    # Reflect the user's ACTUAL live access, not just the onboarding
+    # provisioning record: the 4 gym modules resolve per-user via the module
+    # matrix, and Service Desk / Inventory are per-user capability flags.
+    org_doc = await db.organizations.find_one({"id": org})
+    real = resolve_module_access(user, org_doc)
+
+    def _granted(k: str) -> bool:
+        if k in provisioned:
+            return True
+        if k == "service_desk":
+            return bool(user.get("is_service_desk"))
+        if k == "inventory":
+            return bool(user.get("is_inventory"))
+        return bool(real.get(k))
+
+    modules = [{"key": k, "label": MODULE_LABELS[k], "granted": _granted(k)} for k in avail]
+    any_granted = any(m["granted"] for m in modules)
+    status = prov.get("status") or ("granted" if any_granted
+                                    else ("awaiting_manager" if lm_name else "not_started"))
     return {
         "line_manager": lm_name,
-        "status": prov.get("status") or ("awaiting_manager" if lm_name else "not_started"),
-        "modules": [{"key": k, "label": MODULE_LABELS[k], "granted": k in granted} for k in avail],
+        "status": status,
+        "modules": modules,
         "updated_at": prov.get("updated_at"),
     }
 

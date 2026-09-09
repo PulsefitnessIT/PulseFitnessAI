@@ -4,7 +4,7 @@
  * Tabs: My Rota · Timesheets · Holidays · Documents · System Access.
  * Reuses the existing staffing collections via /api/new-starter/portal/*.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Loader2, LogOut, Calendar, Clock, Plane, FileText, ShieldCheck, Download,
@@ -643,31 +643,116 @@ function RotaTab({ H }) {
 }
 
 /* ─────────────── Timesheets ─────────────── */
+const DOW = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+function selfHoursOf(r) {
+  let base = 0;
+  if (r.start && r.finish) {
+    const [sh, sm] = r.start.split(':').map(Number);
+    const [fh, fm] = r.finish.split(':').map(Number);
+    let mins = (fh * 60 + fm) - (sh * 60 + sm);
+    if (mins < 0) mins += 24 * 60;
+    base = mins / 60;
+  }
+  base -= (Number(r.break_minutes) || 0) / 60;
+  base += Number(r.pt_classes) || 0;
+  return Math.max(0, Math.round(base * 100) / 100);
+}
+
 function TimesheetsTab({ H }) {
   const [week, setWeek] = useState(mondayOf());
   const [ts, setTs] = useState(null);
-  const [note, setNote] = useState('');
+  const [rows, setRows] = useState([]);
+  const [sig, setSig] = useState('');
   const [busy, setBusy] = useState(false);
-  const [ok, setOk] = useState(false);
+  const [savedOk, setSavedOk] = useState(false);
+  const [err, setErr] = useState('');
+
+  const weekDates = useMemo(() => {
+    const base = new Date(week + 'T00:00:00');
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(base); d.setDate(d.getDate() + i);
+      return d.toISOString().slice(0, 10);
+    });
+  }, [week]);
 
   const load = useCallback(() => {
-    setTs(null); setOk(false);
+    setTs(null); setSavedOk(false); setErr('');
     axios.get(`${API}/new-starter/portal/timesheet?week_start=${week}`, { headers: H })
       .then((r) => setTs(r.data)).catch(() => setTs({ line_items: [] }));
   }, [week, H]);
   useEffect(() => { load(); }, [load]);
 
+  // Seed the editable grid from persisted self_entries whenever the week loads.
+  useEffect(() => {
+    if (!ts) return;
+    const se = ts.self_entries || {};
+    setRows(weekDates.map((d) => ({
+      date: d,
+      start: se[d]?.start || '',
+      finish: se[d]?.finish || '',
+      break_minutes: se[d]?.break_minutes ?? '',
+      pt_classes: se[d]?.pt_classes ?? '',
+    })));
+  }, [ts, weekDates]);
+
+  const shiftByDate = useMemo(() => {
+    const m = {};
+    (ts?.line_items || []).filter((li) => li.source !== 'self').forEach((li) => { m[li.date] = li; });
+    return m;
+  }, [ts]);
+
+  const locked = !!ts?.locked;
+  const status = ts?.approval_status || 'pending';
+  const weekTotal = rows.reduce((a, r) => a + selfHoursOf(r), 0)
+    + Object.values(shiftByDate).reduce((a, li) => a + (li.actual_hours || 0), 0);
+
   const shift = (delta) => { const d = new Date(week + 'T00:00:00'); d.setDate(d.getDate() + delta * 7); setWeek(d.toISOString().slice(0, 10)); };
-  const submitEdit = async () => {
-    setBusy(true);
-    try { await axios.post(`${API}/new-starter/portal/timesheet/edit`, { week_start: week, note }, { headers: H }); setOk(true); setNote(''); load(); }
+  const setRow = (i, patch) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+
+  const saveDraft = async () => {
+    setBusy(true); setErr(''); setSavedOk(false);
+    try {
+      const days = rows.filter((r) => r.start || r.finish || r.break_minutes || r.pt_classes)
+        .map((r) => ({ date: r.date, start: r.start || null, finish: r.finish || null,
+          break_minutes: Number(r.break_minutes) || 0, pt_classes: Number(r.pt_classes) || 0 }));
+      const { data } = await axios.post(`${API}/new-starter/portal/timesheet/self-save`, { week_start: week, days }, { headers: H });
+      setTs(data); setSavedOk(true);
+    } catch (e) { setErr(e?.response?.data?.detail || 'Could not save.'); }
     finally { setBusy(false); }
   };
+
+  const submit = async () => {
+    if (!sig.trim()) { setErr('Type your name to sign the timesheet.'); return; }
+    setBusy(true); setErr('');
+    try {
+      await saveDraftSilently();
+      await axios.post(`${API}/new-starter/portal/timesheet/submit`, { week_start: week, signature: sig.trim() }, { headers: H });
+      setSig(''); load();
+    } catch (e) { setErr(e?.response?.data?.detail || 'Could not submit.'); }
+    finally { setBusy(false); }
+  };
+  const saveDraftSilently = async () => {
+    const days = rows.filter((r) => r.start || r.finish || r.break_minutes || r.pt_classes)
+      .map((r) => ({ date: r.date, start: r.start || null, finish: r.finish || null,
+        break_minutes: Number(r.break_minutes) || 0, pt_classes: Number(r.pt_classes) || 0 }));
+    await axios.post(`${API}/new-starter/portal/timesheet/self-save`, { week_start: week, days }, { headers: H });
+  };
+
+  const BANNER = {
+    submitted: ['bg-amber-50 border-amber-200 text-amber-800', 'Submitted — awaiting your manager\u2019s approval. Locked for edits.'],
+    approved: ['bg-emerald-50 border-emerald-200 text-emerald-800', `Approved by ${ts?.approved_by || 'your manager'} \u2713`],
+    returned: ['bg-red-50 border-red-200 text-red-800', `Returned by your manager: ${ts?.return_reason || 'please review and re-submit.'}`],
+  };
+  const banner = BANNER[status];
 
   return (
     <Card testId="staff-timesheets">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-bold text-slate-900">Timesheet</h2>
+        <div>
+          <h2 className="font-bold text-slate-900">My timesheet</h2>
+          <p className="text-xs text-slate-500">Fill in the hours you worked each day, then sign and submit for approval.</p>
+        </div>
         <div className="flex items-center gap-2">
           <button onClick={() => shift(-1)} className="px-2 py-1 rounded border border-slate-300 text-sm" data-testid="ts-prev">‹</button>
           <span className="text-sm font-semibold text-slate-700" data-testid="ts-week">Week of {fmtDate(week)}</span>
@@ -676,38 +761,67 @@ function TimesheetsTab({ H }) {
       </div>
       {!ts ? <Loader2 className="animate-spin text-cyan-500" /> : (
         <>
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            <Stat label="Scheduled" value={`${ts.scheduled_hours ?? 0}h`} />
-            <Stat label="Actual" value={`${ts.actual_hours ?? 0}h`} />
-            <Stat label="Status" value={(ts.approval_status || 'pending')} />
+          {banner && <div className={`mb-3 rounded-lg border px-3 py-2 text-sm ${banner[0]}`} data-testid="ts-banner">{banner[1]}</div>}
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+            <Stat label="Worked" value={`${Math.round(weekTotal * 100) / 100}h`} />
+            <Stat label="Standard" value={`${ts.standard_hours ?? 0}h`} />
+            <Stat label="Overtime" value={`${ts.overtime_hours ?? 0}h`} />
+            <Stat label="Status" value={status} />
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="text-left text-xs text-slate-400">
-                <th className="py-1.5">Date</th><th>Scheduled</th><th>Actual</th><th>Late</th></tr></thead>
-              <tbody data-testid="ts-lines">
-                {(ts.line_items || []).length === 0 && <tr><td colSpan={4} className="py-4 text-slate-400 text-center">No shifts this week.</td></tr>}
-                {(ts.line_items || []).map((li) => (
-                  <tr key={li.shift_id} className="border-t border-slate-100">
-                    <td className="py-2 text-slate-700">{fmtDate(li.date)}</td>
-                    <td className="text-slate-500">{li.scheduled_start}–{li.scheduled_end} ({li.scheduled_hours}h)</td>
-                    <td className={li.missing_punch ? 'text-amber-600' : 'text-slate-700'}>{li.missing_punch ? 'Missing punch' : `${li.actual_hours}h`}</td>
-                    <td className="text-slate-500">{li.late_minutes ? `${li.late_minutes}m` : '—'}</td>
-                  </tr>
-                ))}
+
+          <div className="overflow-x-auto -mx-1">
+            <table className="w-full text-sm min-w-[560px]" data-testid="ts-grid">
+              <thead><tr className="text-left text-[11px] text-slate-400 uppercase">
+                <th className="py-1.5 pl-1">Day</th><th>Start</th><th>Finish</th><th>Break (min)</th><th>PT classes</th><th className="text-right pr-1">Total</th>
+              </tr></thead>
+              <tbody>
+                {rows.map((r, i) => {
+                  const sh = shiftByDate[r.date];
+                  const dt = selfHoursOf(r);
+                  return (
+                    <tr key={r.date} className="border-t border-slate-100 align-middle" data-testid={`ts-row-${i}`}>
+                      <td className="py-2 pl-1">
+                        <div className="font-semibold text-slate-700">{DOW[i]}</div>
+                        <div className="text-[11px] text-slate-400">{fmtDate(r.date)}</div>
+                        {sh && <div className="text-[11px] text-cyan-600 mt-0.5">Rota: {sh.scheduled_start}–{sh.scheduled_end}{sh.actual_hours ? ` · ${sh.actual_hours}h clocked` : ''}</div>}
+                      </td>
+                      <td><input type="time" value={r.start} disabled={locked} onChange={(e) => setRow(i, { start: e.target.value })} data-testid={`ts-start-${i}`} className="w-[104px] rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50 disabled:text-slate-400" /></td>
+                      <td><input type="time" value={r.finish} disabled={locked} onChange={(e) => setRow(i, { finish: e.target.value })} data-testid={`ts-finish-${i}`} className="w-[104px] rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50 disabled:text-slate-400" /></td>
+                      <td><input type="number" min="0" step="5" value={r.break_minutes} disabled={locked} onChange={(e) => setRow(i, { break_minutes: e.target.value })} data-testid={`ts-break-${i}`} className="w-[70px] rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50 disabled:text-slate-400" /></td>
+                      <td><input type="number" min="0" step="0.5" value={r.pt_classes} disabled={locked} onChange={(e) => setRow(i, { pt_classes: e.target.value })} data-testid={`ts-pt-${i}`} className="w-[70px] rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50 disabled:text-slate-400" /></td>
+                      <td className="text-right pr-1 font-semibold text-slate-800" data-testid={`ts-total-${i}`}>{dt ? `${dt}h` : '—'}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
+              <tfoot><tr className="border-t-2 border-slate-200"><td className="py-2 pl-1 font-bold text-slate-900" colSpan={5}>Week total</td><td className="text-right pr-1 font-bold text-slate-900" data-testid="ts-week-total">{Math.round(weekTotal * 100) / 100}h</td></tr></tfoot>
             </table>
           </div>
-          <div className="mt-4 border-t border-slate-200 pt-3">
-            <div className="text-xs font-semibold text-slate-500 mb-1">Something wrong? Request a correction</div>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} data-testid="ts-edit-note" rows={2}
-              placeholder="Describe what needs correcting (e.g. 'I clocked out at 18:00 not 17:30 on Tuesday')."
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            {ok && <div className="text-xs text-emerald-600 mt-1" data-testid="ts-edit-ok">Sent to your manager for review ✓</div>}
-            <button onClick={submitEdit} disabled={busy || !note.trim()} data-testid="ts-edit-submit"
-              className="mt-2 rounded-lg px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-40" style={{ background: CORE }}>
-              {busy ? 'Sending…' : 'Send correction request'}</button>
-          </div>
+
+          {err && <div className="mt-2 text-xs text-red-600" data-testid="ts-error">{err}</div>}
+
+          {!locked && (
+            <div className="mt-4 border-t border-slate-200 pt-3">
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="flex-1 min-w-[180px]">
+                  <span className="text-xs font-semibold text-slate-500">Sign (type your full name)</span>
+                  <input value={sig} onChange={(e) => setSig(e.target.value)} data-testid="ts-signature" placeholder="e.g. Becky Hassell"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                </label>
+                <button onClick={saveDraft} disabled={busy} data-testid="ts-save-draft"
+                  className="rounded-lg px-4 py-2 text-sm font-semibold border border-slate-300 text-slate-700 disabled:opacity-40">
+                  {busy ? 'Saving…' : 'Save draft'}</button>
+                <button onClick={submit} disabled={busy} data-testid="ts-submit"
+                  className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-900 disabled:opacity-40" style={{ background: CORE }}>
+                  Submit for approval</button>
+              </div>
+              {savedOk && <div className="text-xs text-emerald-600 mt-2" data-testid="ts-saved-ok">Draft saved ✓</div>}
+            </div>
+          )}
+          {locked && ts.employee_signature && (
+            <div className="mt-3 text-xs text-slate-500" data-testid="ts-signed-by">Signed by {ts.employee_signature}{ts.submitted_at ? ` · ${fmtDate(ts.submitted_at.slice(0, 10))}` : ''}</div>
+          )}
         </>
       )}
     </Card>

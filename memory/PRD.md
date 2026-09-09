@@ -1,3 +1,32 @@
+# ═══ 2026-06 · STAFF PORTAL — real System Access + fillable timesheet (no shifts required) · curl+screenshot-verified ═══
+1) SYSTEM ACCESS reflected real access. GET /new-starter/portal/access previously only read the HR onboarding
+   `staff_access_provisions` record, so existing users (e.g. Honey Hancock) saw everything "Not granted / Awaiting
+   line manager". Now: the 4 gym modules resolve per-user via resolve_module_access(user, org_doc); Service Desk /
+   Inventory from user.is_service_desk / is_inventory; provisioned modules still count. status='granted' when any
+   real access. Verified owner@isodemo → Operations/Memberships/Marketing/CRM/Service Desk GRANTED, Inventory not.
+2) FILLABLE TIMESHEET (remote / no-rota staff). User choices: entry on ANY day (even shift days), PT-classes adds to
+   the daily total, lock on submit, typed-name signature. Mirrors their paper sheet (Day/Start/Finish/Break/PT/Total
+   + week total, Standard hours).
+   Backend (staffing_clock.py): _self_day_hours() = (finish−start)−break+PT (handles overnight). _build_weekly_timesheet
+   merges staff_timesheets.self_entries into line_items (source:"self") and into actual_hours (ENTER ONCE → flows to
+   My Time + Payroll list_timesheets payable_amount). Overtime only vs a scheduled roster (self-only weeks → 0).
+   _ensure_timesheet_doc stamps standard_hours (staff.weekly_hours/hours_per_week) + locked flag. New manager endpoint
+   POST /staffing/timesheets/{id}/return (reopen submitted → 'returned', editable).
+   Backend (staff_portal.py): POST /new-starter/portal/timesheet/self-save {week_start,days[]} (blocked when locked);
+   POST /new-starter/portal/timesheet/submit {week_start,signature} → status 'submitted' + employee_signature (locked).
+   Editable states: pending/returned/disputed/draft; locked: submitted/approved.
+   Frontend (StaffPortal.js TimesheetsTab): full Mon–Sun editable grid, auto daily+week totals, rota badge on shift
+   days, summary (Worked/Standard/Overtime/Status), Save draft + typed-signature Submit, status banners
+   (submitted/approved/returned w/ reason), locked read-only when submitted/approved.
+   Verified via curl (self-save math 8.5h, submit→lock→409, manager return→editable) AND UI (grid renders, submit
+   shows "Submitted — awaiting approval. Locked", inputs disabled).
+NOTE: redeploy required for production. Manager UI to APPROVE/RETURN submitted self-timesheets already exists in
+   Time Clock ▸ Timesheets (approve endpoint); the new /return endpoint is wired backend-side (add a "Return" button
+   in the manager timesheet console if desired — not yet surfaced in that UI).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFFING + VEHICLES FIXES (4) · curl+screenshot-verified ═══
 1) ADD-STAFF "primary_role must be one of…" bug. HRTab.js AddStaffDialog initialised primary_role:'staff'
    (not a valid role and not in the options), so the <select> DISPLAYED "Manager" while state stayed 'staff' →
