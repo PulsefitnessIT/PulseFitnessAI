@@ -36544,3 +36544,9 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Frontend (staffing/VehiclesTab.js): `downloadCheckPdf()` helper; "PDF" button on each Weekly-checks row (data-testid check-pdf-<id>) and in the check detail modal header (check-detail-pdf). Blob download.
 - Verified: endpoint returns 200 application/pdf (valid %PDF, ~124KB); analyze_file confirmed branded header, meta table, all sections, defect banner (Safe to drive: No), declaration/signature, footer — no layout issues. Buttons confirmed via screenshot. Test data cleaned.
 
+
+
+## 2026-09-09 — Defect photos embedded in Vehicle Check PDF
+- `GET /api/vehicle-checks/{id}/pdf` now fetches uploaded defect photos from object storage (db.files → get_object, category vehicle-photos, capped at 9) and embeds them in a new "Defect photos" section (3-per-row proportional images) placed after the defects block and before the driver declaration. `_build_check_pdf(..., photos_bytes)` extended; failures per-image are skipped gracefully.
+- Verified: PDF grew ~124KB → ~242KB with one photo; document analysis confirmed the "Defect photos" section renders a visible, non-broken image with the declaration correctly below. H&S record is now fully self-contained. Test data + uploaded file cleaned up.
+

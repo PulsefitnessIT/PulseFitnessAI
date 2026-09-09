@@ -549,12 +549,13 @@ FIT_LABEL = {"yes": "Fit to return", "phased": "Phased return", "no": "Not yet f
 ITEM_STATUS_LABEL = {"ok": "OK", "defect": "DEFECT", "na": "N/A"}
 
 
-def _build_check_pdf(check: dict, template: dict, org_company: dict | None) -> bytes:
+def _build_check_pdf(check: dict, template: dict, org_company: dict | None,
+                     photos_bytes: list[bytes] | None = None) -> bytes:
     """Pulse-branded PDF of a completed weekly vehicle check for the H&S file."""
     import io as _io
     from reportlab.lib import colors
     from reportlab.lib.units import mm
-    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, Image
     from utils.pulse_doc_template import (
         pulse_styles, pulse_header, pulse_title, section_label,
         make_pulse_doc, PULSE_NAVY, PULSE_BORDER, PULSE_LIGHT, PULSE_MUTED,
@@ -644,6 +645,29 @@ def _build_check_pdf(check: dict, template: dict, org_company: dict | None) -> b
         story.append(dt)
         story.append(Spacer(1, 4 * mm))
 
+    if photos_bytes:
+        story.append(section_label(s, "Defect photos"))
+        cells = []
+        for raw in photos_bytes:
+            try:
+                cells.append(Image(_io.BytesIO(raw), width=54 * mm, height=40 * mm, kind="proportional"))
+            except Exception:
+                continue
+        if cells:
+            per_row = 3
+            rows = [cells[i:i + per_row] for i in range(0, len(cells), per_row)]
+            for r in rows:
+                while len(r) < per_row:
+                    r.append("")
+            pt = Table(rows, colWidths=[58 * mm] * per_row)
+            pt.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ]))
+            story.append(pt)
+            story.append(Spacer(1, 3 * mm))
+
     decl = check.get("declaration") or {}
     story.append(section_label(s, "Driver declaration"))
     story.append(Paragraph(_esc(template.get("declaration", "")), body))
@@ -671,8 +695,20 @@ async def check_pdf(check_id: str, user: dict = Depends(get_current_user)):
     if not doc:
         raise HTTPException(404, "not found")
     template = _build_template(doc.get("check_type", "vehicle_check"), doc.get("is_ev", False))
+    # Pull uploaded defect photos from object storage so the PDF is self-contained.
+    photos_bytes: list[bytes] = []
+    photo_ids = ((doc.get("photos") or {}).get("defect")) or []
+    for fid in photo_ids[:9]:
+        try:
+            f = await db.files.find_one({"id": fid, "organization_id": org, "category": "vehicle-photos"}, {"_id": 0})
+            if f and f.get("storage_path"):
+                data, _ = get_object(f["storage_path"])
+                if data:
+                    photos_bytes.append(data)
+        except Exception:
+            logger.warning("vehicle PDF: could not load photo %s", fid)
     try:
-        pdf = _build_check_pdf(doc, template, None)
+        pdf = _build_check_pdf(doc, template, None, photos_bytes)
     except Exception as e:
         logger.exception("vehicle check PDF failed")
         raise HTTPException(500, f"Could not generate PDF: {e}")
