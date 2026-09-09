@@ -1,3 +1,18 @@
+# ═══ 2026-06 · STAFFING — edit a staff member's email in HR profile · curl+screenshot-verified ═══
+Managers can now edit the email on the HR ▸ People ▸ Profile pane (was read-only).
+- FRONTEND HRTab.js ProfilePanel: editable Email input at the top of the Contact section (data-testid hr-field-email);
+  on Save it goes into staffPatch → PATCH /staffing/staff/{id}. Shows "This also updates their platform login email."
+  when the person has a linked login (profile.user_id).
+- BACKEND staffing.py update_staff: normalises email (lowercase/trim); blocks collisions with a DIFFERENT account
+  (409); when the staff row has a linked user_id, syncs users.email so the person keeps signing in with the new
+  address. StaffUpdate already carried `email`; the collision guard + login-sync + pre-fetch of the existing row are new.
+- Verified via curl (PATCH email → returns new email; linked login synced) and UI (Email field shows in edit mode).
+  NB: test verified against SPDEMO_emp_staff (portal.staff@pulsedemo.test) then RESTORED both staff + user email +
+  confirmed staff-login still 200. REDEPLOY required for production.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF PORTAL re-skinned to match platform modules · screenshot-verified (desktop+mobile) ═══
 User wanted the Staff Portal to look exactly like the other module consoles (/pulse etc.).
 StaffPortal.js now renders the SAME chrome as LiteDashboardPage:

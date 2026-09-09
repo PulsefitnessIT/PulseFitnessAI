@@ -312,6 +312,7 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
       const staffPatch = {};
       if (Array.isArray(form.site_ids)) staffPatch.site_ids = form.site_ids;
       if (form.primary_role && form.primary_role !== profile.primary_role) staffPatch.primary_role = form.primary_role;
+      if ((form.email || '') !== (profile.email || '')) staffPatch.email = (form.email || '').trim();
       if (Object.keys(staffPatch).length > 0) {
         try {
           await axios.patch(`${API}/staffing/staff/${staffId}`, staffPatch, { headers });
@@ -400,6 +401,21 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 rounded-xl border p-4"
         style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
         <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.hr_contact', 'Contact')}</p>
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_email', 'Email')}</span>
+          {editing ? (
+            <input type="email" value={form.email || ''} onChange={(e) => set('email', e.target.value)}
+              placeholder="name@example.com"
+              className="h-8 rounded-md bg-transparent border px-2 text-sm"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+              data-testid="hr-field-email" />
+          ) : (
+            <span className="text-sm" style={{ color: 'var(--theme-text)' }}>{profile.email || '—'}</span>
+          )}
+          {editing && profile.user_id && (
+            <span className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_email_login_note', 'This also updates their platform login email.')}</span>
+          )}
+        </div>
         <Field label={t('staffing.hr_address1', 'Address line 1')} k="address_line1" />
         <Field label={t('staffing.hr_address2', 'Address line 2')} k="address_line2" />
         <Field label={t('staffing.hr_city', 'City')} k="city" />

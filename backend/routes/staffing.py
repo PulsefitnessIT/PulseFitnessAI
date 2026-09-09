@@ -541,6 +541,25 @@ async def update_staff(staff_id: str, body: StaffUpdate, user: dict = Depends(ge
         # Iter 279c — a manager-set role wins over the Master Admin sync;
         # mark it so the auto-reconcile never clobbers their choice.
         patch["primary_role_source"] = "manual"
+    existing = await db.staff_members.find_one({"id": staff_id, "organization_id": org_id})
+    if not existing:
+        raise HTTPException(404, "staff not found")
+    # Email edit — normalise, block collisions with a *different* account, and
+    # keep the linked platform login (users.email) in step so the person can
+    # still sign in with their updated address.
+    if "email" in patch:
+        new_email = (patch["email"] or "").strip().lower()
+        patch["email"] = new_email
+        linked_uid = existing.get("user_id")
+        if new_email:
+            clash = await db.users.find_one(
+                {"email": safe_regex_exact(new_email), **({"id": {"$ne": linked_uid}} if linked_uid else {})})
+            if clash and not linked_uid:
+                raise HTTPException(409, "Another account already uses that email address.")
+            if clash and linked_uid and clash.get("id") != linked_uid:
+                raise HTTPException(409, "Another account already uses that email address.")
+        if linked_uid and new_email:
+            await db.users.update_one({"id": linked_uid}, {"$set": {"email": new_email}})
     # Iter 216h241 — see create_staff: keep both contracted-hours keys
     # in lock-step so the HR profile and the staff list never disagree.
     if "hours_per_week" in patch and "weekly_hours" not in patch:
