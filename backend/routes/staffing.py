@@ -48,6 +48,57 @@ router = APIRouter()
 
 # ───────────────────────── Helpers ─────────────────────────
 
+def _staff_portal_email_body(
+    *, first_name: str, intro: str, cta_label: str, cta_url: str,
+    creds_html: str | None = None, fallback_note: str | None = None,
+    fallback_url: str | None = None, footer_note: str | None = None,
+) -> str:
+    """Pulse Fitness-branded HTML body for staff-portal login emails.
+
+    Sits inside the co-branded shell added by utils.email.send_email (which
+    supplies the Pulse Fitness header/footer); this renders the padded,
+    on-brand content block with a prominent cyan call-to-action button.
+    """
+    CYAN = "#19CDFF"
+    INK = "#0f172a"
+    button = (
+        '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+        'style="margin:24px 0;"><tr><td '
+        f'style="border-radius:10px;background:{CYAN};">'
+        f'<a href="{cta_url}" target="_blank" '
+        'style="display:inline-block;padding:14px 32px;font-family:Arial,sans-serif;'
+        f'font-size:15px;font-weight:700;color:{INK};text-decoration:none;'
+        'border-radius:10px;">' + cta_label + '</a></td></tr></table>'
+    )
+    creds = (
+        f'<div style="margin:16px 0;padding:14px 18px;background:#f8fafc;'
+        f'border:1px solid #e2e8f0;border-radius:10px;font-size:14px;color:{INK};'
+        f'line-height:1.7;">{creds_html}</div>'
+    ) if creds_html else ""
+    fallback = (
+        f'<p style="font-size:12px;color:#64748b;line-height:1.6;margin:16px 0 0;">'
+        f'{fallback_note}<br>'
+        f'<a href="{fallback_url}" style="color:{CYAN};word-break:break-all;">{fallback_url}</a>'
+        f'</p>'
+    ) if (fallback_note and fallback_url) else ""
+    footer = (
+        f'<p style="font-size:13px;color:#94a3b8;margin:24px 0 0;">{footer_note}</p>'
+    ) if footer_note else ""
+    return (
+        '<div style="padding:32px 30px;font-family:Arial,sans-serif;color:#334155;">'
+        f'<h1 style="font-size:22px;font-weight:800;color:{INK};margin:0 0 6px;">'
+        'Welcome to the Pulse Fitness Staff Portal</h1>'
+        f'<p style="font-size:15px;color:{INK};margin:18px 0 4px;">Hi {first_name},</p>'
+        f'<p style="font-size:15px;line-height:1.7;margin:0;">{intro}</p>'
+        f'{creds}'
+        f'{button}'
+        f'{fallback}'
+        f'{footer}'
+        '</div>'
+    )
+
+
+
 def _role(user: dict) -> str:
     if user.get("is_master_admin") or user.get("is_pulse_admin"):
         return "master_admin"
@@ -664,26 +715,40 @@ async def issue_staff_credentials(
             ).rstrip("/")
             org_name = org.get("name") or "your team"
             subject = f"Your {org_name} staff portal login"
+            first_name = (staff.get("full_name") or "there").split(" ")[0]
+            inviter = user.get("full_name") or "Your manager"
             if use_link and invite_url:
-                html = (
-                    f"<p>Hi {staff.get('full_name') or 'there'},</p>"
-                    f"<p>{user.get('full_name') or 'Your manager'} has invited you to the "
-                    f"<b>{org_name}</b> staff portal.</p>"
-                    f"<p>Set your password to get started:</p>"
-                    f"<p><a href=\"{invite_url}\">{invite_url}</a></p>"
-                    f"<p>This link expires in 72 hours.</p>"
+                html = _staff_portal_email_body(
+                    first_name=first_name,
+                    intro=(f"<strong>{inviter}</strong> has invited you to the "
+                           f"<strong>{org_name}</strong> staff portal — your home for "
+                           "timesheets, rotas, holidays and everything else in one place."),
+                    cta_label="Set your password",
+                    cta_url=invite_url,
+                    fallback_note=(
+                        "If the button doesn't work, copy and paste this link into your browser:"
+                    ),
+                    fallback_url=invite_url,
+                    footer_note="This link expires in 72 hours.",
                 )
             else:
-                html = (
-                    f"<p>Hi {staff.get('full_name') or 'there'},</p>"
-                    f"<p>{user.get('full_name') or 'Your manager'} has created a "
-                    f"staff portal account for you on <b>{org_name}</b>.</p>"
-                    f"<p><b>Email:</b> {email}<br>"
-                    f"<b>Temporary password:</b> <code>{temp_password}</code></p>"
-                    f"<p>Log in here: <a href=\"{site_url}/login\">{site_url}/login</a></p>"
-                    f"<p>You&rsquo;ll be asked to change your password on first login.</p>"
+                html = _staff_portal_email_body(
+                    first_name=first_name,
+                    intro=(f"<strong>{inviter}</strong> has created a "
+                           f"<strong>{org_name}</strong> staff portal account for you. "
+                           "Use the details below to sign in."),
+                    creds_html=(
+                        f"<strong>Email:</strong> {email}<br>"
+                        f"<strong>Temporary password:</strong> "
+                        f"<span style=\"font-family:monospace;background:#f1f5f9;"
+                        f"padding:2px 8px;border-radius:6px;\">{temp_password}</span>"
+                    ),
+                    cta_label="Log in to the staff portal",
+                    cta_url=f"{site_url}/login",
+                    footer_note="You\u2019ll be asked to change your password on first login.",
                 )
-            await send_email(to=email, subject=subject, html=html)
+            await send_email(to=email, subject=subject, html=html,
+                             organization_id=org_id, kind="auth")
             sent = True
         except Exception:
             logger.exception("[staff-credentials] welcome email failed")

@@ -1,3 +1,29 @@
+# ═══ 2026-06 · STAFF PORTAL POLISH — branded login email + back-to-modules + platform theme + sign-out fix · screenshot-verified ═══
+Four staff-portal refinements (single login lives on pulsefitness.ai).
+- BACKEND routes/staffing.py issue-credentials email: new _staff_portal_email_body() renders a Pulse-branded
+  HTML body (cyan #19CDFF "Set your password" CTA button, greeting, fallback link, expiry note) inside the
+  existing co-brand shell; send_email now passed organization_id=org_id + kind="auth" so the org (Pulse Fitness
+  Ltd) logo resolves in the header and it routes on the support domain. Covers both link + temp-password variants.
+- FRONTEND pages/StaffPortal.js:
+  • Sign-out fix (the "login button greyed out, can't sign back in" bug): single-login staff arrive on a PLATFORM
+    token; the old logout only dropped staff_jwt and sent them to /staff-login, leaving the platform token alive so
+    the app still thought they were logged in. New logout() for usingPlatformToken clears token/user_cache/crm_token/
+    member_token/site caches + POST /auth/logout + dispatches gymaxis:auth-changed, then hard-navigates to
+    /login?signedout=1 (their real login). Dedicated /staff-login users unchanged.
+  • "Back to modules" button (data-testid staff-portal-back-modules) in the header → /launch, shown only when
+    usingPlatformToken (came via the launcher).
+  • Theme match: Shell now uses .pulse-font + the platform Pulse Fitness Primary Logo Badge (same asset/treatment as
+    Navbar), h-16 header bar (was a thin bar with pulse-logo-dark.svg + text).
+- FRONTEND components/shared/MfaEnrolPanel.js (NEW): created the previously-missing component referenced by
+  Navbar.js (mandatory MFA enrolment during login) — was a blocking undefined-name lint error. Mirrors LoginPage's
+  /auth/mfa/enrol/setup + /complete flow (QR + code → backup codes → onComplete(loginRes)).
+- VERIFIED (screenshots + programmatic): branded email renders on-brand; owner@isodemo login → /launch → open
+  /staff-portal shows Back-to-modules; Back → /launch; Log out → token=None, lands on /login?signedout=1, Sign In
+  button enabled (bug fixed). FE compiles clean, 0 lint errors.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · ATTENDANCE — RETURN-TO-WORK CLOSE (§20/§21) + RTW INTERVIEW (Pulse form) · curl-verified ═══
 Managers close an open-ended sickness so forward SICK marking stops, capturing Pulse's Return to Work
 Interview electronically (per the uploaded RTW.pdf; §35 electronic sign-off, no scanned signatures).

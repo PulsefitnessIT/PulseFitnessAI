@@ -11,6 +11,7 @@ import AccountPanel from '../../pages/AccountPanel';
 import AccountSettingsModal from './AccountSettingsModal';
 import AreaSwitcher from './AreaSwitcher';
 import CaptchaWidget from './CaptchaWidget';
+import MfaEnrolPanel from './MfaEnrolPanel';
 import axios from 'axios';
 import { useInlineBanner, notify } from '@/components/notifications';
 import { useTranslation } from 'react-i18next';

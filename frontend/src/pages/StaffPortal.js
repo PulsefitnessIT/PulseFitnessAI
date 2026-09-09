@@ -11,6 +11,7 @@ import {
   CheckCircle2, AlertCircle, Plus, Trash2, Users,
   Home, Play, Square, Coffee, Sun, Thermometer, ChevronLeft, ChevronRight,
   ClipboardCheck, PenLine, Truck, Camera, ShieldAlert, Check, X, MoreHorizontal,
+  LayoutGrid,
 } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
@@ -75,7 +76,26 @@ export default function StaffPortal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jwt]);
 
-  const logout = () => { sessionStorage.removeItem('staff_jwt'); window.location.href = '/staff-login'; };
+  // Single-login staff arrive on a platform token — a full sign-out must clear
+  // the platform session (else the app still thinks they're logged in and the
+  // next sign-in is blocked). We clear the platform keys and return them to the
+  // main pulsefitness.ai login (where their single login lives), NOT the
+  // dedicated /staff-login. Dedicated /staff-login users just drop staff_jwt.
+  const logout = () => {
+    if (usingPlatformToken) {
+      try { axios.post(`${API}/auth/logout`, {}).catch(() => {}); } catch { /* ignore */ }
+      ['token', 'user_cache', 'crm_token', 'member_token', 'sites_cache',
+       'active_site_cache', 'active_site_all', 'impersonation_active'].forEach((k) => {
+        try { localStorage.removeItem(k); } catch { /* quota */ }
+      });
+      try { sessionStorage.removeItem('crm_active_session'); } catch { /* ignore */ }
+      try { window.dispatchEvent(new CustomEvent('gymaxis:auth-changed')); } catch { /* ignore */ }
+      window.location.href = '/login?signedout=1';
+      return;
+    }
+    sessionStorage.removeItem('staff_jwt'); window.location.href = '/staff-login';
+  };
+  const backToModules = () => { window.location.href = '/launch'; };
 
   if (!jwt) return null;
   if (!me) return <Shell><div className="flex justify-center mt-24"><Loader2 className="animate-spin text-cyan-500" size={32} /></div></Shell>;
@@ -90,6 +110,11 @@ export default function StaffPortal() {
           </div>
           <div className="flex items-center gap-2">
             {me.activated && <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-semibold">Active employee ✓</span>}
+            {usingPlatformToken && (
+              <button onClick={backToModules} data-testid="staff-portal-back-modules"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:border-slate-400 hover:text-slate-900 transition-colors">
+                <LayoutGrid size={14} /> <span className="hidden sm:inline">Back to modules</span></button>
+            )}
             <StaffNotificationBell
               endpoint={`${API}/new-starter/portal/notifications`}
               readEndpoint={`${API}/new-starter/portal/notifications/read`}
@@ -855,11 +880,16 @@ function AccessTab({ H }) {
 
 function Shell({ children }) {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 pulse-font">
       <div className="bg-white border-b border-slate-200">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-2">
-          <img src="/brand/pulse-logo-dark.svg" alt="Pulse Fitness" className="h-6" onError={(e) => { e.target.style.display = 'none'; }} />
-          <span className="font-bold text-slate-800">Pulse Fitness</span>
+        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center gap-2.5">
+          <img
+            src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg"
+            alt="Pulse Fitness"
+            className="h-10 rounded-md object-cover"
+            style={{ objectPosition: 'center', aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }}
+            data-testid="staff-portal-logo"
+          />
         </div>
       </div>
       {children}
