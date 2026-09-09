@@ -36796,3 +36796,9 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Columns: Day, Date, Start, Finish, Break (mins), PT classes, Hours, Notes + weekly totals (standard/scheduled/actual/overtime) + pay. Libs: openpyxl (xlsx), reportlab (pdf), both already in requirements.
 - Backend files: routes/staffing_clock.py (added notes to line_items, _paper_rows, _ts_xlsx, _ts_pdf, 2 export endpoints). Frontend: TimeClockTab.js (downloadTimesheet helper + buttons).
 - Verified: all 4 endpoints HTTP 200 with valid xlsx/pdf; approved-only guard returns 400; buttons render (desktop screenshot).
+
+## 2026-09-09 — Payroll Pack zip (Iter 290)
+- Added GET /api/staffing/timesheets/payroll-pack?from=&to= (managers). Returns application/zip containing ONE Excel workbook per employee, with a worksheet per APPROVED week whose Monday falls in the range. Uses ?from is normalised to its Monday. 400 with clear message when the range has no approved timesheets.
+- User confirmed: EXCEL (not PDF) inside the zip; free From/To dates defaulting to the current calendar month (monthly submission).
+- Frontend: TimeClockTab.js Weekly Timesheets toolbar now has a cyan "Payroll Pack" button (timesheets-payroll-pack-toggle) opening a From/To panel (payroll-pack-from/to) + Download ZIP (Excel) (payroll-pack-download). Defaults to first/last day of current month.
+- Verified: zip valid (openpyxl), one file per staff named <Name>-<mondayFrom>_to_<to>.xlsx, sheet per week, Notes column present; empty range -> 400; UI renders (desktop screenshot).

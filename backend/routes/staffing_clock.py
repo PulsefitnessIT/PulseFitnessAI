@@ -917,7 +917,7 @@ def _ts_xlsx(sheets: list[dict]) -> bytes:
 
     for sh in sheets:
         ts = sh["ts"]
-        ws = wb.create_sheet(_safe_sheet_title(sh["name"], used))
+        ws = wb.create_sheet(_safe_sheet_title(sh.get("sheet_title") or sh["name"], used))
         ws["A1"] = "Weekly Timesheet"
         ws["A1"].font = title_font
         ws["A2"] = "Employee:"; ws["A2"].font = label_font; ws["B2"] = sh["name"]
@@ -1127,6 +1127,76 @@ async def export_week_timesheets(
     if not sheets:
         raise HTTPException(400, "No approved timesheets for this week yet.")
     return _export_response(format, sheets, f"timesheets-week-{ws}")
+
+
+@router.get("/staffing/timesheets/payroll-pack")
+async def payroll_pack(
+    date_from: str = Query(..., alias="from"),
+    date_to: str = Query(..., alias="to"),
+    user: dict = Depends(get_current_user),
+):
+    """Payroll handover pack — a ZIP with ONE Excel workbook per employee,
+    each containing a worksheet per APPROVED week that falls in the chosen
+    date range (defaults to a calendar month on the client). Managers only."""
+    import io
+    import zipfile
+    from datetime import date as _date
+
+    _require_manager(user)
+    org_id = _org(user)
+    try:
+        d_to = _date.fromisoformat(date_to)
+        mon0 = _date.fromisoformat(_week_bounds(date_from)[0])
+    except Exception:
+        raise HTTPException(400, "Invalid date range.")
+    if mon0 > d_to:
+        raise HTTPException(400, "'From' date must be on or before 'To' date.")
+
+    # Every Monday whose week overlaps the range.
+    weeks: list[str] = []
+    m = mon0
+    while m <= d_to:
+        weeks.append(m.isoformat())
+        m = m + timedelta(days=7)
+    if not weeks:
+        raise HTTPException(400, "Empty date range.")
+
+    staff = await db.staff_members.find(
+        {"organization_id": org_id, "active": True},
+        {"_id": 0, "id": 1, "full_name": 1, "primary_role": 1, "hourly_cost": 1},
+    ).to_list(1000)
+
+    buf = io.BytesIO()
+    used_names: set[str] = set()
+    added = 0
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for s in sorted(staff, key=lambda x: x.get("full_name") or ""):
+            sheets: list[dict] = []
+            for wk in weeks:
+                ws, we = _week_bounds(wk)
+                ts = await _enriched_ts(org_id, s, ws, we)
+                if ts.get("approval_status") == "approved":
+                    sheets.append({"name": s.get("full_name") or "Staff", "sheet_title": ws, "ts": ts})
+            if not sheets:
+                continue
+            base = (s.get("full_name") or "staff").replace(" ", "_")
+            fname = f"{base}"
+            n = 2
+            while fname in used_names:
+                fname = f"{base}_{n}"; n += 1
+            used_names.add(fname)
+            zf.writestr(f"{fname}-{mon0.isoformat()}_to_{date_to}.xlsx", _ts_xlsx(sheets))
+            added += 1
+
+    if added == 0:
+        raise HTTPException(400, "No approved timesheets in this date range yet.")
+
+    from fastapi.responses import Response
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="payroll-pack-{mon0.isoformat()}_to_{date_to}.zip"'},
+    )
 
 
 # ─────────────────────── Kiosks ──────────────────────────────────

@@ -19,7 +19,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Loader2, Check, AlertTriangle, ChevronDown, ChevronRight,
   Plus, Trash2, Pencil, X, ClipboardCheck, Smartphone, RefreshCw,
-  FileSpreadsheet, FileText,
+  FileSpreadsheet, FileText, Package,
 } from 'lucide-react';
 import { useLocalization, formatMoneySync } from '@/utils/localization';
 
@@ -290,6 +290,12 @@ function TimesheetsPanel({ headers }) {
   const [weekStart, setWeekStart] = useState(startOfWeek);
   const [data, setData] = useState(null);
   const [filter, setFilter] = useState('all');
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const [packOpen, setPackOpen] = useState(false);
+  const [packFrom, setPackFrom] = useState(monthStart);
+  const [packTo, setPackTo] = useState(monthEnd);
 
   const load = useCallback(async () => {
     setData(null);
@@ -349,8 +355,40 @@ function TimesheetsPanel({ headers }) {
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="timesheets-export-week-pdf">
             <FileText size={13} /> {t('staffing.tc_week_pdf', 'Week PDF')}
           </button>
+          <button type="button"
+            onClick={() => setPackOpen((v) => !v)}
+            className="h-8 rounded-md px-2.5 text-xs font-bold inline-flex items-center gap-1.5"
+            style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="timesheets-payroll-pack-toggle">
+            <Package size={13} /> {t('staffing.tc_payroll_pack', 'Payroll Pack')}
+          </button>
         </div>
       </div>
+      {packOpen && (
+        <div className="rounded-lg border p-3 flex flex-wrap items-end gap-3"
+          style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-bg)' }} data-testid="payroll-pack-panel">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.tc_pack_from', 'From')}</p>
+            <input type="date" value={packFrom} onChange={(e) => setPackFrom(e.target.value)}
+              className="h-8 rounded-md bg-transparent border px-2 text-xs"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="payroll-pack-from" />
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.tc_pack_to', 'To')}</p>
+            <input type="date" value={packTo} onChange={(e) => setPackTo(e.target.value)}
+              className="h-8 rounded-md bg-transparent border px-2 text-xs"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="payroll-pack-to" />
+          </div>
+          <button type="button" disabled={!packFrom || !packTo || packFrom > packTo}
+            onClick={() => downloadTimesheet(`${API}/staffing/timesheets/payroll-pack?from=${packFrom}&to=${packTo}`, headers, `payroll-pack-${packFrom}_to_${packTo}.zip`)}
+            className="h-8 rounded-md px-3 text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-40"
+            style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="payroll-pack-download">
+            <Package size={13} /> {t('staffing.tc_pack_download', 'Download ZIP (Excel)')}
+          </button>
+          <p className="text-[11px] basis-full" style={{ color: 'var(--theme-text-muted)' }}>
+            {t('staffing.tc_pack_hint', 'One Excel workbook per employee (a sheet per approved week) for every approved timesheet in this range.')}
+          </p>
+        </div>
+      )}
       {!data && <div className="py-3 text-xs inline-flex items-center gap-2" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> {t('staffing.tc_loading', 'Loading…')}</div>}
       {data && rows.length === 0 && (
         <p className="text-xs py-2" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.tc_no_match', 'No timesheets match this filter.')}</p>
