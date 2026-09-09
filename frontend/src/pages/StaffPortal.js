@@ -1058,10 +1058,24 @@ function MyDetailsTab({ me, H }) {
   // We reuse that here; if the parent only has a minimal profile (platform-token
   // staff with no onboarding case), we try a direct fetch, else show a gentle note.
   const [full, setFull] = useState(me && me.forms ? me : null);
+  const [reqs, setReqs] = useState([]);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({});
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const loadReqs = useCallback(() => {
+    axios.get(`${API}/new-starter/portal/detail-change-requests`, { headers: H })
+      .then((r) => setReqs(r.data?.requests || [])).catch(() => setReqs([]));
+  }, [H]);
+
   useEffect(() => {
-    if (me && me.forms) { setFull(me); return; }
-    axios.get(`${API}/new-starter/me`, { headers: H }).then((r) => setFull(r.data)).catch(() => setFull(me || {}));
-  }, [me, H]);
+    if (me && me.forms) setFull(me);
+    else axios.get(`${API}/new-starter/me`, { headers: H }).then((r) => setFull(r.data)).catch(() => setFull(me || {}));
+    loadReqs();
+  }, [me, H, loadReqs]);
+
   if (!full) return <Loader2 className="animate-spin text-cyan-500" />;
 
   const person = full.person || {};
@@ -1069,47 +1083,141 @@ function MyDetailsTab({ me, H }) {
   const nd = (full.forms && full.forms.new_starter && full.forms.new_starter.data) || {};
   const hasData = !!(nd.dob || nd.home_address || nd.ni_number || nd.emergency_contact_name
     || emp.job_title || emp.position || emp.department || emp.proposed_start_date);
+  const pending = reqs.find((r) => r.status === 'pending');
+
+  const startEdit = () => {
+    setForm({
+      home_address: nd.home_address || emp.home_address || '', dob: nd.dob || '',
+      ni_number: nd.ni_number || '', emergency_contact_name: nd.emergency_contact_name || '',
+      emergency_contact_phone: nd.emergency_contact_phone || '', bank_account: nd.bank_account || '',
+    });
+    setNote(''); setMsg(''); setEditing(true);
+  };
+  const setF = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
+  const submit = async () => {
+    setBusy(true); setMsg('');
+    try {
+      const r = await axios.post(`${API}/new-starter/portal/detail-change-request`,
+        { changes: form, note }, { headers: H });
+      setEditing(false); setMsg(`Request sent to HR (${(r.data?.fields || []).length} field(s)).`); loadReqs();
+    } catch (e) {
+      setMsg(e?.response?.data?.detail || 'Could not submit — please try again.');
+    } finally { setBusy(false); }
+  };
+
+  const EDIT_FIELDS = [
+    ['home_address', 'Home address'], ['dob', 'Date of birth'], ['ni_number', 'National Insurance no.'],
+    ['emergency_contact_name', 'Emergency contact name'], ['emergency_contact_phone', 'Emergency contact phone'],
+    ['bank_account', 'Bank account'],
+  ];
 
   return (
     <Card testId="staff-details">
       <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
         <h2 className="font-bold text-slate-900">My details</h2>
-        {full.activated && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">From your sign-up ✓</span>}
+        <div className="flex items-center gap-2">
+          {full.activated && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">From your sign-up ✓</span>}
+          {!editing && (
+            <button onClick={startEdit} disabled={!!pending} data-testid="detail-request-change-btn"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:border-cyan-400 disabled:opacity-40"
+              title={pending ? 'You already have a change request awaiting HR review' : undefined}>
+              <PenLine size={13} /> Request changes
+            </button>
+          )}
+        </div>
       </div>
-      <p className="text-sm text-slate-500 mb-4">The information you provided during your Pulse Fitness sign-up. To change anything, please contact your line manager or HR.</p>
+      <p className="text-sm text-slate-500 mb-4">The information you provided during your Pulse Fitness sign-up. Use “Request changes” to ask HR to update your personal, emergency-contact or payroll details.</p>
 
+      {msg && <div className="rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-800 mb-4" data-testid="detail-request-msg">{msg}</div>}
+      {pending && !editing && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 mb-4" data-testid="detail-pending-banner">
+          A change request is awaiting HR review: {Object.values(pending.changes || {}).map((c) => c.label).join(', ')}.
+        </div>
+      )}
       {!hasData && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 mb-4" data-testid="staff-details-empty">
           Your personal details will appear here once your new-starter sign-up has been completed.
         </div>
       )}
 
-      <DetailSection title="Personal">
-        <DetailRow label="Full name" value={person.full_name} testId="detail-full-name" />
-        <DetailRow label="Preferred name" value={emp.preferred_name} testId="detail-preferred-name" />
-        <DetailRow label="Email" value={person.email} testId="detail-email" />
-        <DetailRow label="Date of birth" value={nd.dob} testId="detail-dob" />
-        <DetailRow label="Home address" value={nd.home_address || emp.home_address} testId="detail-address" />
-        <DetailRow label="National Insurance no." value={mask4(nd.ni_number)} testId="detail-ni" />
-      </DetailSection>
+      {editing ? (
+        <div className="mb-2" data-testid="detail-edit-form">
+          <div className="text-xs font-bold uppercase tracking-wider text-cyan-600 mb-2">Request changes</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {EDIT_FIELDS.map(([k, label]) => (
+              <label key={k} className="block">
+                <span className="text-[11px] text-slate-400 uppercase tracking-wide">{label}</span>
+                <input value={form[k] || ''} onChange={setF(k)} data-testid={`detail-input-${k}`}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-cyan-400 outline-none" />
+              </label>
+            ))}
+          </div>
+          <label className="block mt-3">
+            <span className="text-[11px] text-slate-400 uppercase tracking-wide">Note to HR (optional)</span>
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} data-testid="detail-input-note"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:border-cyan-400 outline-none" />
+          </label>
+          <div className="flex gap-2 mt-3">
+            <button onClick={submit} disabled={busy} data-testid="detail-submit-request"
+              className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg disabled:opacity-50"
+              style={{ background: CORE, color: '#00121a' }}>
+              {busy ? <Loader2 className="animate-spin" size={15} /> : <Check size={15} />} Send to HR
+            </button>
+            <button onClick={() => setEditing(false)} data-testid="detail-cancel-request"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg border border-slate-300 text-slate-600">
+              <X size={15} /> Cancel
+            </button>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">Your current values are pre-filled — edit only what needs changing. HR will review before anything updates.</p>
+        </div>
+      ) : (
+        <>
+          <DetailSection title="Personal">
+            <DetailRow label="Full name" value={person.full_name} testId="detail-full-name" />
+            <DetailRow label="Preferred name" value={emp.preferred_name} testId="detail-preferred-name" />
+            <DetailRow label="Email" value={person.email} testId="detail-email" />
+            <DetailRow label="Date of birth" value={nd.dob} testId="detail-dob" />
+            <DetailRow label="Home address" value={nd.home_address || emp.home_address} testId="detail-address" />
+            <DetailRow label="National Insurance no." value={mask4(nd.ni_number)} testId="detail-ni" />
+          </DetailSection>
 
-      <DetailSection title="Emergency contact">
-        <DetailRow label="Name" value={nd.emergency_contact_name} testId="detail-ec-name" />
-        <DetailRow label="Phone" value={nd.emergency_contact_phone} testId="detail-ec-phone" />
-      </DetailSection>
+          <DetailSection title="Emergency contact">
+            <DetailRow label="Name" value={nd.emergency_contact_name} testId="detail-ec-name" />
+            <DetailRow label="Phone" value={nd.emergency_contact_phone} testId="detail-ec-phone" />
+          </DetailSection>
 
-      <DetailSection title="Payroll">
-        <DetailRow label="Bank account" value={mask4(nd.bank_account)} testId="detail-bank" />
-      </DetailSection>
+          <DetailSection title="Payroll">
+            <DetailRow label="Bank account" value={mask4(nd.bank_account)} testId="detail-bank" />
+          </DetailSection>
 
-      <DetailSection title="Employment">
-        <DetailRow label="Job title" value={emp.job_title || emp.position} testId="detail-job-title" />
-        <DetailRow label="Department" value={emp.department} testId="detail-department" />
-        <DetailRow label="Site / place of work" value={emp.site || emp.place_of_work} testId="detail-site" />
-        <DetailRow label="Start date" value={emp.proposed_start_date} testId="detail-start-date" />
-        <DetailRow label="Employment type" value={emp.employment_type} testId="detail-emp-type" />
-        <DetailRow label="Line manager" value={emp.line_manager} testId="detail-line-manager" />
-      </DetailSection>
+          <DetailSection title="Employment">
+            <DetailRow label="Job title" value={emp.job_title || emp.position} testId="detail-job-title" />
+            <DetailRow label="Department" value={emp.department} testId="detail-department" />
+            <DetailRow label="Site / place of work" value={emp.site || emp.place_of_work} testId="detail-site" />
+            <DetailRow label="Start date" value={emp.proposed_start_date} testId="detail-start-date" />
+            <DetailRow label="Employment type" value={emp.employment_type} testId="detail-emp-type" />
+            <DetailRow label="Line manager" value={emp.line_manager} testId="detail-line-manager" />
+          </DetailSection>
+
+          {reqs.length > 0 && (
+            <div className="mt-2">
+              <div className="text-xs font-bold uppercase tracking-wider text-cyan-600 mb-2">Recent change requests</div>
+              <div className="space-y-2" data-testid="detail-request-history">
+                {reqs.slice(0, 5).map((r) => {
+                  const tone = r.status === 'approved' ? 'bg-emerald-50 text-emerald-700'
+                    : r.status === 'rejected' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700';
+                  return (
+                    <div key={r.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-2.5 text-sm">
+                      <span className="text-slate-600 truncate">{Object.values(r.changes || {}).map((c) => c.label).join(', ')}</span>
+                      <span className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${tone}`}>{(r.status || '').charAt(0).toUpperCase() + (r.status || '').slice(1)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </Card>
   );
 }

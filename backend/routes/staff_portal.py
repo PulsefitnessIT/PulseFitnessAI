@@ -880,6 +880,163 @@ async def portal_notifications_read(user: dict = Depends(get_current_user_portal
     return {"ok": True}
 
 
+# ─────────────── My Details change requests (staff → HR) ───────────────
+# Fields a staff member may request to change from the Staff Portal "My Details"
+# tab. Value → (human label, staff_members field to also update, or None).
+DETAIL_FIELDS = {
+    "home_address": ("Home address", "address"),
+    "dob": ("Date of birth", None),
+    "ni_number": ("National Insurance number", None),
+    "emergency_contact_name": ("Emergency contact name", None),
+    "emergency_contact_phone": ("Emergency contact phone", None),
+    "bank_account": ("Bank account", None),
+}
+
+
+class DetailChangeReq(BaseModel):
+    changes: dict = {}
+    note: str | None = None
+
+
+class DetailRejectReq(BaseModel):
+    reason: str | None = None
+
+
+async def _new_starter_form(staff_id: str):
+    return await db.staff_form_submissions.find_one(
+        {"staff_id": staff_id, "form_key": "new_starter"})
+
+
+@router.post("/new-starter/portal/detail-change-request")
+async def portal_request_detail_change(body: DetailChangeReq,
+                                       user: dict = Depends(get_current_user_portal)):
+    """Staff submit requested changes to their own details; HR is notified to
+    review and update the record. Nothing changes until HR approves."""
+    staff = await _portal_staff(user)
+    org = staff["organization_id"]
+    form = await _new_starter_form(staff["id"])
+    cur = (form or {}).get("data") or {}
+    changes: dict = {}
+    for k, v in (body.changes or {}).items():
+        if k not in DETAIL_FIELDS:
+            continue
+        newv = ("" if v is None else str(v)).strip()
+        oldv = str(cur.get(k) or "")
+        if newv and newv != oldv:
+            changes[k] = {"old": oldv, "new": newv, "label": DETAIL_FIELDS[k][0]}
+    if not changes:
+        raise HTTPException(400, "No changes to submit — update at least one field.")
+    req = {
+        "id": str(uuid.uuid4()), "organization_id": org, "staff_id": staff["id"],
+        "onboarding_case_id": (form or {}).get("onboarding_case_id"),
+        "requested_by_name": staff.get("full_name"), "changes": changes,
+        "note": (body.note or "").strip(), "status": "pending", "created_at": _now(),
+    }
+    await db.staff_detail_change_requests.insert_one(req.copy())
+    fields_txt = ", ".join(c["label"] for c in changes.values())
+    await notify_staff(
+        org=org, recipient_kind="manager", type="detail_change_request",
+        title="Staff detail change request",
+        body=f"{staff.get('full_name')} requested changes to: {fields_txt}.",
+        link="hr")
+    # Best-effort email to owners/managers.
+    try:
+        from utils.email import send_email
+        recips = await db.users.distinct(
+            "email", {"organization_id": org, "role": {"$in": ["owner", "manager", "master_admin"]}})
+        for em in [e for e in recips if e and "@" in e][:10]:
+            await send_email(
+                to=em, subject="Staff detail change request — action needed",
+                html=(f"<p>{staff.get('full_name')} has requested changes to their details "
+                      f"({fields_txt}).</p><p>Please review and update the record in "
+                      f"Operations → Staffing → People.</p>"),
+                organization_id=org, kind="staff_detail_change")
+    except Exception:
+        pass
+    return {"ok": True, "request_id": req["id"], "fields": list(changes.keys())}
+
+
+@router.get("/new-starter/portal/detail-change-requests")
+async def portal_my_detail_requests(user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    items = await db.staff_detail_change_requests.find(
+        {"staff_id": staff["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return {"requests": items, "pending": sum(1 for r in items if r.get("status") == "pending")}
+
+
+@router.get("/staffing/detail-change-requests")
+async def hr_list_detail_requests(status: str = Query("pending"),
+                                  user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    q: dict = {"organization_id": org}
+    if status and status != "all":
+        q["status"] = status
+    items = await db.staff_detail_change_requests.find(q, {"_id": 0}).sort("created_at", -1).to_list(200)
+    for r in items:
+        s = await db.staff_members.find_one({"id": r.get("staff_id")}, {"_id": 0, "full_name": 1, "email": 1}) or {}
+        r["person"] = {"full_name": s.get("full_name"), "email": s.get("email")}
+    pending = await db.staff_detail_change_requests.count_documents({"organization_id": org, "status": "pending"})
+    return {"requests": items, "pending": pending}
+
+
+@router.post("/staffing/detail-change-requests/{req_id}/approve")
+async def hr_approve_detail_request(req_id: str, user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    r = await db.staff_detail_change_requests.find_one({"id": req_id, "organization_id": org})
+    if not r:
+        raise HTTPException(404, "Request not found")
+    if r.get("status") != "pending":
+        raise HTTPException(400, "This request has already been reviewed.")
+    form = await _new_starter_form(r["staff_id"])
+    data = dict((form or {}).get("data") or {})
+    staff_upd: dict = {}
+    for k, c in (r.get("changes") or {}).items():
+        data[k] = c.get("new")
+        _lbl, staff_field = DETAIL_FIELDS.get(k, (None, None))
+        if staff_field:
+            staff_upd[staff_field] = c.get("new")
+    if form:
+        await db.staff_form_submissions.update_one(
+            {"id": form["id"]}, {"$set": {"data": data, "updated_at": _now()}})
+    else:
+        await db.staff_form_submissions.insert_one({
+            "id": str(uuid.uuid4()), "staff_id": r["staff_id"], "organization_id": org,
+            "onboarding_case_id": r.get("onboarding_case_id"), "form_key": "new_starter",
+            "data": data, "created_at": _now(), "updated_at": _now()})
+    if staff_upd:
+        await db.staff_members.update_one({"id": r["staff_id"]}, {"$set": {**staff_upd, "updated_at": _now()}})
+    await db.staff_detail_change_requests.update_one(
+        {"id": req_id}, {"$set": {"status": "approved", "reviewed_by": user.get("full_name"),
+                                  "reviewed_at": _now()}})
+    fields_txt = ", ".join(c.get("label") for c in (r.get("changes") or {}).values())
+    await notify_staff(
+        org=org, recipient_kind="employee", recipient_staff_id=r["staff_id"],
+        type="detail_change_approved", title="Detail change approved",
+        body=f"Your requested changes ({fields_txt}) were approved and updated.", link="details")
+    return {"ok": True}
+
+
+@router.post("/staffing/detail-change-requests/{req_id}/reject")
+async def hr_reject_detail_request(req_id: str, body: DetailRejectReq,
+                                   user: dict = Depends(get_current_user)):
+    _require_hr(user); org = _org(user)
+    r = await db.staff_detail_change_requests.find_one({"id": req_id, "organization_id": org})
+    if not r:
+        raise HTTPException(404, "Request not found")
+    if r.get("status") != "pending":
+        raise HTTPException(400, "This request has already been reviewed.")
+    reason = (body.reason or "").strip()
+    await db.staff_detail_change_requests.update_one(
+        {"id": req_id}, {"$set": {"status": "rejected", "reviewed_by": user.get("full_name"),
+                                  "reviewed_at": _now(), "reject_reason": reason}})
+    await notify_staff(
+        org=org, recipient_kind="employee", recipient_staff_id=r["staff_id"],
+        type="detail_change_rejected", title="Detail change not approved",
+        body="Your requested detail changes were not approved."
+             + (f" Reason: {reason}" if reason else " Please contact HR."), link="details")
+    return {"ok": True}
+
+
 def _is_owner(user: dict) -> bool:
     return bool(user.get("is_master_admin") or user.get("is_pulse_admin")
                 or (user.get("role") or "").lower() == "owner")

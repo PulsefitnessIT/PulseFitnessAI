@@ -1030,6 +1030,77 @@ function JobRolesModal({ headers, onClose, onChanged }) {
 
 
 // ─────────────────────── Hub ─────────────────────────────────────
+function DetailChangeRequestsPanel({ headers, isManager }) {
+  const [reqs, setReqs] = useState([]);
+  const [busy, setBusy] = useState(null);
+  const load = useCallback(() => {
+    axios.get(`${API}/staffing/detail-change-requests?status=pending`, { headers })
+      .then((r) => setReqs(r.data?.requests || [])).catch(() => setReqs([]));
+  }, [headers]);
+  useEffect(() => { load(); }, [load]);
+  if (!isManager || reqs.length === 0) return null;
+
+  const act = async (id, action) => {
+    let body = {};
+    if (action === 'reject') {
+      const reason = window.prompt('Reason for rejecting this change request (optional):', '');
+      if (reason === null) return;
+      body = { reason };
+    }
+    setBusy(id);
+    try {
+      await axios.post(`${API}/staffing/detail-change-requests/${id}/${action}`, body, { headers });
+      load();
+    } catch (e) {
+      window.alert(e.response?.data?.detail || 'Could not update request');
+    } finally { setBusy(null); }
+  };
+
+  return (
+    <div className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="detail-change-requests-panel">
+      <div className="flex items-center gap-2 mb-3">
+        <AlertTriangle size={15} className="text-amber-500" />
+        <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>Staff detail change requests</p>
+        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700" data-testid="detail-requests-count">{reqs.length} pending</span>
+      </div>
+      <div className="space-y-2">
+        {reqs.map((r) => (
+          <div key={r.id} className="rounded-lg border p-3" style={{ borderColor: 'var(--theme-border)' }} data-testid={`detail-request-${r.id}`}>
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>{r.person?.full_name || 'Staff member'}</p>
+                <p className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>{r.person?.email}</p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button type="button" disabled={busy === r.id} onClick={() => act(r.id, 'approve')}
+                  className="h-8 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-50"
+                  style={{ background: '#10B981', color: '#00121a' }} data-testid={`detail-approve-${r.id}`}>
+                  {busy === r.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} Approve & update
+                </button>
+                <button type="button" disabled={busy === r.id} onClick={() => act(r.id, 'reject')}
+                  className="h-8 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1.5 border disabled:opacity-50"
+                  style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid={`detail-reject-${r.id}`}>
+                  <X size={12} /> Reject
+                </button>
+              </div>
+            </div>
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {Object.entries(r.changes || {}).map(([k, c]) => (
+                <div key={k} className="rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-xs">
+                  <div className="text-[10px] uppercase tracking-wide text-slate-400">{c.label}</div>
+                  <div className="text-slate-500 line-through">{c.old || '—'}</div>
+                  <div className="text-slate-800 font-semibold">{c.new}</div>
+                </div>
+              ))}
+            </div>
+            {r.note && <p className="mt-2 text-xs italic" style={{ color: 'var(--theme-text-muted)' }}>“{r.note}”</p>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function HRTab({ headers, isManager }) {
   const { t } = useTranslation();
   const [staffList, setStaffList] = useState([]);
@@ -1127,6 +1198,8 @@ export default function HRTab({ headers, isManager }) {
 
   return (
     <div className="space-y-3" data-testid="hr-tab">
+
+      <DetailChangeRequestsPanel headers={headers} isManager={isManager} />
 
       {isManager && (
         <div className="flex items-center justify-between gap-2 flex-wrap">
