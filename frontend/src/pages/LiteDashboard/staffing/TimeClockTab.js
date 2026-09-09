@@ -19,10 +19,33 @@ import { useTranslation } from 'react-i18next';
 import {
   Loader2, Check, AlertTriangle, ChevronDown, ChevronRight,
   Plus, Trash2, Pencil, X, ClipboardCheck, Smartphone, RefreshCw,
+  FileSpreadsheet, FileText,
 } from 'lucide-react';
 import { useLocalization, formatMoneySync } from '@/utils/localization';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+async function downloadTimesheet(url, headers, fallbackName) {
+  try {
+    const res = await fetch(url, { headers: { Authorization: headers?.Authorization || '' } });
+    if (!res.ok) {
+      let msg = 'Download failed';
+      try { const j = await res.json(); msg = j.detail || msg; } catch { /* non-JSON */ }
+      window.alert(msg);
+      return;
+    }
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename="?([^"]+)"?/);
+    const name = m ? m[1] : fallbackName;
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objUrl; a.download = name; a.click();
+    URL.revokeObjectURL(objUrl);
+  } catch {
+    window.alert('Download failed');
+  }
+}
 
 const STATE_TINT = {
   on_shift: '#10B981',
@@ -155,7 +178,7 @@ function ClockBoard({ headers }) {
   );
 }
 
-function TimesheetRow({ ts, onApprove, onDispute }) {
+function TimesheetRow({ ts, headers, onApprove, onDispute }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const tint = ts.approval_status === 'approved' ? '#10B981'
@@ -235,6 +258,27 @@ function TimesheetRow({ ts, onApprove, onDispute }) {
               </button>
             </div>
           )}
+          {ts.approval_status === 'approved' && (
+            <div className="flex gap-2 pt-1 items-center">
+              <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--theme-text-muted)' }}>
+                {t('staffing.tc_download', 'Download')}:
+              </span>
+              <button type="button"
+                onClick={() => downloadTimesheet(`${API}/staffing/timesheets/${ts.id}/export?format=xlsx`, headers, `timesheet-${ts.id}.xlsx`)}
+                className="h-8 rounded-full px-3 text-[11px] font-bold inline-flex items-center gap-1 border"
+                style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                data-testid={`timesheet-export-xlsx-${ts.id}`}>
+                <FileSpreadsheet size={12} /> {t('staffing.tc_excel', 'Excel')}
+              </button>
+              <button type="button"
+                onClick={() => downloadTimesheet(`${API}/staffing/timesheets/${ts.id}/export?format=pdf`, headers, `timesheet-${ts.id}.pdf`)}
+                className="h-8 rounded-full px-3 text-[11px] font-bold inline-flex items-center gap-1 border"
+                style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                data-testid={`timesheet-export-pdf-${ts.id}`}>
+                <FileText size={12} /> {t('staffing.tc_pdf', 'PDF')}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -270,6 +314,7 @@ function TimesheetsPanel({ headers }) {
   };
 
   const rows = (data?.timesheets || []).filter((item) => filter === 'all' || item.approval_status === filter);
+  const approvedCount = (data?.timesheets || []).filter((item) => item.approval_status === 'approved').length;
 
   return (
     <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="timesheets-panel">
@@ -290,6 +335,20 @@ function TimesheetsPanel({ headers }) {
             <option value="approved">{t('staffing.tc_approved', 'Approved')}</option>
             <option value="disputed">{t('staffing.tc_disputed', 'Disputed')}</option>
           </select>
+          <button type="button" disabled={approvedCount === 0}
+            title={approvedCount === 0 ? t('staffing.tc_no_approved', 'No approved timesheets yet') : undefined}
+            onClick={() => downloadTimesheet(`${API}/staffing/timesheets/export-week?week_start=${weekStart}&format=xlsx`, headers, `timesheets-week-${weekStart}.xlsx`)}
+            className="h-8 rounded-md border px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-40"
+            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="timesheets-export-week-xlsx">
+            <FileSpreadsheet size={13} /> {t('staffing.tc_week_excel', 'Week Excel')}
+          </button>
+          <button type="button" disabled={approvedCount === 0}
+            title={approvedCount === 0 ? t('staffing.tc_no_approved', 'No approved timesheets yet') : undefined}
+            onClick={() => downloadTimesheet(`${API}/staffing/timesheets/export-week?week_start=${weekStart}&format=pdf`, headers, `timesheets-week-${weekStart}.pdf`)}
+            className="h-8 rounded-md border px-2.5 text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-40"
+            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="timesheets-export-week-pdf">
+            <FileText size={13} /> {t('staffing.tc_week_pdf', 'Week PDF')}
+          </button>
         </div>
       </div>
       {!data && <div className="py-3 text-xs inline-flex items-center gap-2" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> {t('staffing.tc_loading', 'Loading…')}</div>}
@@ -297,7 +356,7 @@ function TimesheetsPanel({ headers }) {
         <p className="text-xs py-2" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.tc_no_match', 'No timesheets match this filter.')}</p>
       )}
       <div className="space-y-2">
-        {rows.map((item) => <TimesheetRow key={item.id} ts={item} onApprove={approve} onDispute={dispute} />)}
+        {rows.map((item) => <TimesheetRow key={item.id} ts={item} headers={headers} onApprove={approve} onDispute={dispute} />)}
       </div>
     </div>
   );

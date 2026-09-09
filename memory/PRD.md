@@ -36787,3 +36787,12 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Added opt-in left/right chevron paging buttons to ScrollFadeBar (showChevrons prop) so the mobile sub-tab pill row (Dashboard/Equipment/Faults/Check Sheets/AI Diagnosis/Docs/Staffing/Reports…) can be paged by tap as well as swipe. Chevrons appear/hide with the overflow edges. Files: components/shared/ScrollFadeBar.js, index.css (.sfb-chev), LiteDashboardPage.js (showChevrons on mobile-tab-pills).
 - Added the same chevrons to ModuleSwitcher (Operations/Memberships/CRM bar) as siblings of the masked scroll element; shown when the bar overflows. File: components/shared/ModuleSwitcher.js.
 - Verified on 390px mobile: right chevron pages tabs (scrollLeft 0->250), left chevron then appears; testids mobile-tab-pills-chev-left/right, module-switcher-chev-left/right.
+
+## 2026-09-09 — Timesheet Excel/PDF export (Iter 289)
+- Backlog: REMOVED "Archived Staff View" per user request.
+- Added manager timesheet downloads laid out like the paper Mon-Sun sheet WITH a Notes column. APPROVED timesheets only.
+  - Per-employee: GET /api/staffing/timesheets/{ts_id}/export?format=xlsx|pdf (buttons on the approved row: timesheet-export-xlsx-<id>, timesheet-export-pdf-<id>).
+  - Whole team week: GET /api/staffing/timesheets/export-week?week_start=&format=xlsx|pdf (toolbar buttons: timesheets-export-week-xlsx/pdf; disabled when no approved rows). Excel = one sheet per employee, PDF = one page per employee.
+- Columns: Day, Date, Start, Finish, Break (mins), PT classes, Hours, Notes + weekly totals (standard/scheduled/actual/overtime) + pay. Libs: openpyxl (xlsx), reportlab (pdf), both already in requirements.
+- Backend files: routes/staffing_clock.py (added notes to line_items, _paper_rows, _ts_xlsx, _ts_pdf, 2 export endpoints). Frontend: TimeClockTab.js (downloadTimesheet helper + buttons).
+- Verified: all 4 endpoints HTTP 200 with valid xlsx/pdf; approved-only guard returns 400; buttons render (desktop screenshot).

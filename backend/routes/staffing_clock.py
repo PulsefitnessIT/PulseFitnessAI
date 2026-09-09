@@ -624,6 +624,7 @@ async def _build_weekly_timesheet(
             "actual_hours": round(actual_h, 2),
             "break_minutes": break_minutes,
             "late_minutes": late_min,
+            "notes": sh.get("notes"),
             "missing_punch": (in_ev is None) or (out_ev is None),
         })
 
@@ -652,6 +653,7 @@ async def _build_weekly_timesheet(
             "scheduled_hours": 0.0,
             "actual_hours": h,
             "late_minutes": 0,
+            "notes": e.get("notes"),
             "missing_punch": False,
         })
     line_items.sort(key=lambda li: (li.get("date") or ""))
@@ -826,6 +828,305 @@ async def dispute_timesheet(
         }},
     )
     return {"ok": True}
+
+
+# ─────────────────────── Timesheet exports (Excel / PDF) ─────────
+
+_DOW = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+def _hhmm(iso: str | None) -> str:
+    """ISO datetime → HH:MM (local naive), or '' if unparseable/empty."""
+    if not iso:
+        return ""
+    try:
+        return datetime.fromisoformat(iso).strftime("%H:%M")
+    except Exception:
+        return str(iso)[11:16] if len(str(iso)) >= 16 else ""
+
+
+def _paper_rows(ts: dict) -> list[dict]:
+    """Collapse a timesheet's line items into a Monday→Sunday paper grid —
+    one row per weekday with start/finish, break, PT classes, hours, notes."""
+    from datetime import date as _date
+
+    mon = _date.fromisoformat(ts["week_start"])
+    days: dict[str, dict] = {}
+    order: list[str] = []
+    for i in range(7):
+        d = (mon + timedelta(days=i)).isoformat()
+        order.append(d)
+        days[d] = {
+            "day": _DOW[i], "date": d, "start": "", "finish": "",
+            "break_min": 0, "pt": 0.0, "hours": 0.0, "notes": [],
+        }
+    for li in ts.get("line_items", []):
+        d = li.get("date")
+        if d not in days:
+            continue
+        row = days[d]
+        if li.get("source") == "self":
+            s, f = li.get("self_start"), li.get("self_finish")
+        else:
+            s = _hhmm(li.get("actual_start")) or li.get("scheduled_start") or ""
+            f = _hhmm(li.get("actual_end")) or li.get("scheduled_end") or ""
+        if s and not row["start"]:
+            row["start"] = s
+        if f:
+            row["finish"] = f
+        row["break_min"] += int(li.get("break_minutes") or 0)
+        row["pt"] += float(li.get("pt_classes") or 0)
+        row["hours"] += float(li.get("actual_hours") or 0)
+        if li.get("missing_punch"):
+            row["notes"].append("Missing punch")
+        if li.get("notes"):
+            row["notes"].append(str(li["notes"]))
+    return [{**days[d], "notes": ", ".join(days[d]["notes"])} for d in order]
+
+
+_TS_COLS = ["Day", "Date", "Start", "Finish", "Break (mins)", "PT classes", "Hours", "Notes"]
+
+
+def _safe_sheet_title(name: str, used: set[str]) -> str:
+    base = "".join(c for c in (name or "Staff") if c not in "[]:*?/\\")[:28] or "Staff"
+    title = base
+    n = 2
+    while title in used:
+        title = f"{base[:26]}_{n}"
+        n += 1
+    used.add(title)
+    return title
+
+
+def _ts_xlsx(sheets: list[dict]) -> bytes:
+    """sheets: list of {name, ts}. One worksheet per timesheet."""
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+
+    wb = Workbook()
+    wb.remove(wb.active)
+    thin = Side(style="thin", color="D0D5DD")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    head_fill = PatternFill("solid", fgColor="0B0C10")
+    head_font = Font(bold=True, color="FFFFFF")
+    title_font = Font(bold=True, size=14)
+    label_font = Font(bold=True, color="475467")
+    tot_fill = PatternFill("solid", fgColor="EEF2F6")
+    used: set[str] = set()
+
+    for sh in sheets:
+        ts = sh["ts"]
+        ws = wb.create_sheet(_safe_sheet_title(sh["name"], used))
+        ws["A1"] = "Weekly Timesheet"
+        ws["A1"].font = title_font
+        ws["A2"] = "Employee:"; ws["A2"].font = label_font; ws["B2"] = sh["name"]
+        ws["A3"] = "Role:"; ws["A3"].font = label_font; ws["B3"] = ts.get("primary_role") or ""
+        ws["A4"] = "Week:"; ws["A4"].font = label_font
+        ws["B4"] = f"{ts.get('week_start')} → {ts.get('week_end')}"
+        ws["D2"] = "Status:"; ws["D2"].font = label_font; ws["E2"] = (ts.get("approval_status") or "").title()
+        ws["D3"] = "Approved by:"; ws["D3"].font = label_font; ws["E3"] = ts.get("approved_by") or ""
+        ws["D4"] = "Approved at:"; ws["D4"].font = label_font; ws["E4"] = (ts.get("approved_at") or "")[:16].replace("T", " ")
+
+        hrow = 6
+        for c, col in enumerate(_TS_COLS, start=1):
+            cell = ws.cell(row=hrow, column=c, value=col)
+            cell.fill = head_fill; cell.font = head_font; cell.border = border
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+        r = hrow + 1
+        for row in _paper_rows(ts):
+            vals = [row["day"], row["date"], row["start"], row["finish"],
+                    row["break_min"], round(row["pt"], 2), round(row["hours"], 2), row["notes"]]
+            for c, v in enumerate(vals, start=1):
+                cell = ws.cell(row=r, column=c, value=v)
+                cell.border = border
+                if c in (3, 4, 5, 6, 7):
+                    cell.alignment = Alignment(horizontal="center")
+            r += 1
+        # Totals row
+        tot = ws.cell(row=r, column=1, value="TOTAL")
+        tot.font = Font(bold=True)
+        for c in range(1, 9):
+            ws.cell(row=r, column=c).fill = tot_fill
+            ws.cell(row=r, column=c).border = border
+        ws.cell(row=r, column=5, value=round(ts.get("break_hours", 0) * 60)).alignment = Alignment(horizontal="center")
+        ws.cell(row=r, column=7, value=round(ts.get("actual_hours", 0), 2)).alignment = Alignment(horizontal="center")
+        ws.cell(row=r, column=7).font = Font(bold=True)
+
+        # Summary block
+        s = r + 2
+        summary = [
+            ("Standard hours", round(ts.get("standard_hours", 0), 2)),
+            ("Scheduled hours", round(ts.get("scheduled_hours", 0), 2)),
+            ("Actual hours", round(ts.get("actual_hours", 0), 2)),
+            ("Overtime hours", round(ts.get("overtime_hours", 0), 2)),
+            ("Pay", ts.get("payable_amount", 0)),
+        ]
+        for i, (lab, val) in enumerate(summary):
+            ws.cell(row=s + i, column=1, value=lab).font = label_font
+            ws.cell(row=s + i, column=2, value=val)
+
+        widths = [12, 12, 9, 9, 12, 11, 9, 40]
+        for i, w in enumerate(widths, start=1):
+            ws.column_dimensions[chr(64 + i)].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def _ts_pdf(sheets: list[dict]) -> bytes:
+    """sheets: list of {name, ts}. One page per timesheet."""
+    import io
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (
+        SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak,
+    )
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=landscape(A4),
+        leftMargin=14 * mm, rightMargin=14 * mm, topMargin=12 * mm, bottomMargin=12 * mm,
+    )
+    styles = getSampleStyleSheet()
+    h_style = ParagraphStyle("h", parent=styles["Title"], fontSize=16, spaceAfter=4)
+    meta = ParagraphStyle("m", parent=styles["Normal"], fontSize=9, textColor=colors.HexColor("#475467"))
+    cell = ParagraphStyle("c", parent=styles["Normal"], fontSize=8, leading=10)
+    story: list = []
+
+    for idx, sh in enumerate(sheets):
+        ts = sh["ts"]
+        if idx > 0:
+            story.append(PageBreak())
+        story.append(Paragraph("Weekly Timesheet", h_style))
+        story.append(Paragraph(
+            f"<b>{sh['name']}</b> &nbsp;·&nbsp; {ts.get('primary_role') or ''} &nbsp;·&nbsp; "
+            f"Week {ts.get('week_start')} → {ts.get('week_end')} &nbsp;·&nbsp; "
+            f"Status: {(ts.get('approval_status') or '').title()}"
+            + (f" &nbsp;·&nbsp; Approved by {ts.get('approved_by')}" if ts.get("approved_by") else ""),
+            meta,
+        ))
+        story.append(Spacer(1, 6))
+
+        data = [_TS_COLS]
+        for row in _paper_rows(ts):
+            data.append([
+                row["day"], row["date"], row["start"] or "—", row["finish"] or "—",
+                str(row["break_min"]), f"{row['pt']:g}", f"{row['hours']:.2f}",
+                Paragraph(row["notes"] or "", cell),
+            ])
+        data.append(["TOTAL", "", "", "", str(round(ts.get("break_hours", 0) * 60)), "",
+                     f"{ts.get('actual_hours', 0):.2f}", ""])
+        col_w = [24 * mm, 24 * mm, 18 * mm, 18 * mm, 22 * mm, 20 * mm, 18 * mm, 105 * mm]
+        tbl = Table(data, colWidths=col_w, repeatRows=1)
+        tbl.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0B0C10")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#D0D5DD")),
+            ("ALIGN", (2, 0), (6, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#EEF2F6")),
+            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#FAFBFC")]),
+        ]))
+        story.append(tbl)
+        story.append(Spacer(1, 8))
+        story.append(Paragraph(
+            f"Standard: <b>{ts.get('standard_hours', 0):g}h</b> &nbsp;|&nbsp; "
+            f"Scheduled: <b>{ts.get('scheduled_hours', 0):g}h</b> &nbsp;|&nbsp; "
+            f"Actual: <b>{ts.get('actual_hours', 0):g}h</b> &nbsp;|&nbsp; "
+            f"Overtime: <b>{ts.get('overtime_hours', 0):g}h</b>",
+            meta,
+        ))
+
+    doc.build(story)
+    return buf.getvalue()
+
+
+async def _enriched_ts(org_id: str, staff: dict, ws: str, we: str) -> dict:
+    ts = await _ensure_timesheet_doc(org_id, staff["id"], ws, we)
+    rate = float(staff.get("hourly_cost") or 0)
+    ts["staff_name"] = staff.get("full_name")
+    ts["primary_role"] = staff.get("primary_role")
+    ts["payable_amount"] = round(ts.get("actual_hours", 0) * rate, 2)
+    return ts
+
+
+def _export_response(fmt: str, sheets: list[dict], filename: str):
+    from fastapi.responses import Response
+
+    fmt = (fmt or "xlsx").lower()
+    if fmt == "pdf":
+        return Response(
+            content=_ts_pdf(sheets),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}.pdf"'},
+        )
+    return Response(
+        content=_ts_xlsx(sheets),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}.xlsx"'},
+    )
+
+
+@router.get("/staffing/timesheets/{ts_id}/export")
+async def export_timesheet(
+    ts_id: str,
+    format: str = Query("xlsx"),
+    user: dict = Depends(get_current_user),
+):
+    """Download ONE approved timesheet as Excel or PDF, laid out like the
+    paper Mon→Sun sheet (managers only, approved only)."""
+    _require_manager(user)
+    org_id = _org(user)
+    saved = await db.staff_timesheets.find_one(
+        {"id": ts_id, "organization_id": org_id}, {"_id": 0, "staff_id": 1, "week_start": 1, "approval_status": 1},
+    )
+    if not saved:
+        raise HTTPException(404, "Timesheet not found")
+    if saved.get("approval_status") != "approved":
+        raise HTTPException(400, "Only approved timesheets can be downloaded.")
+    staff = await db.staff_members.find_one(
+        {"id": saved["staff_id"], "organization_id": org_id},
+        {"_id": 0, "id": 1, "full_name": 1, "primary_role": 1, "hourly_cost": 1},
+    )
+    if not staff:
+        raise HTTPException(404, "Staff not found")
+    ws, we = _week_bounds(saved["week_start"])
+    ts = await _enriched_ts(org_id, staff, ws, we)
+    name = (staff.get("full_name") or "staff").replace(" ", "_")
+    return _export_response(format, [{"name": staff.get("full_name") or "Staff", "ts": ts}],
+                            f"timesheet-{name}-{ws}")
+
+
+@router.get("/staffing/timesheets/export-week")
+async def export_week_timesheets(
+    week_start: str = Query(...),
+    format: str = Query("xlsx"),
+    user: dict = Depends(get_current_user),
+):
+    """Download the whole team's APPROVED timesheets for a week as one
+    Excel workbook (a sheet each) or PDF (a page each). Managers only."""
+    _require_manager(user)
+    org_id = _org(user)
+    ws, we = _week_bounds(week_start)
+    staff = await db.staff_members.find(
+        {"organization_id": org_id, "active": True},
+        {"_id": 0, "id": 1, "full_name": 1, "primary_role": 1, "hourly_cost": 1},
+    ).to_list(1000)
+    sheets: list[dict] = []
+    for s in sorted(staff, key=lambda x: x.get("full_name") or ""):
+        ts = await _enriched_ts(org_id, s, ws, we)
+        if ts.get("approval_status") == "approved":
+            sheets.append({"name": s.get("full_name") or "Staff", "ts": ts})
+    if not sheets:
+        raise HTTPException(400, "No approved timesheets for this week yet.")
+    return _export_response(format, sheets, f"timesheets-week-{ws}")
 
 
 # ─────────────────────── Kiosks ──────────────────────────────────
