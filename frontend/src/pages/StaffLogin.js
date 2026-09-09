@@ -10,9 +10,22 @@ const fmtErr = (d) => (typeof d === 'string' ? d : Array.isArray(d) ? d.map((e) 
 
 function Shell({ children }) {
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl p-8 border border-slate-200">
-        {children}
+    <div className="min-h-screen bg-slate-50 pulse-font flex flex-col">
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center gap-2.5">
+          <img
+            src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg"
+            alt="Pulse Fitness"
+            className="h-10 rounded-md object-cover"
+            style={{ objectPosition: 'center', aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }}
+            data-testid="staff-login-logo"
+          />
+        </div>
+      </div>
+      <div className="flex-1 flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md rounded-2xl bg-white shadow-xl p-8 border border-slate-200">
+          {children}
+        </div>
       </div>
     </div>
   );
