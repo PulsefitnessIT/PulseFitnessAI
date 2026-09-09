@@ -36529,3 +36529,11 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Audited all Staff Portal surfaces at 390px (My Day/RTW card, My Time table, Holidays request+list, Vehicle check form with long tri-state item labels, notification bell sheet): no horizontal overflow, no bunched text, labels wrap cleanly. Notification panel already a full-width fixed sheet on mobile.
 - Pure layout change; verified via screenshots. DVLA service-date sync PARKED (user awaiting DVLA API access).
 
+
+
+## 2026-09-09 — Staff Portal app-style bottom nav (mobile)
+- Added a fixed bottom navigation on phones (`sm:hidden`): Home · My Time · Holidays · Vehicle · More, active tab highlighted cyan, safe-area inset padding. PRIMARY_TABS = home/mytime/vehicle/holidays.
+- "More" opens a slide-up bottom sheet (staff-more-sheet) with the secondary tabs (My Rota, Timesheets, Documents, System Access) in a 2-col grid; More highlights when a secondary tab is active.
+- Top scrollable tab bar now `hidden sm:block` (desktop/tablet only); content container padded `pb-28 sm:pb-8` so the bar never overlaps. Desktop verified unchanged (top bar shown, bottom nav display:none).
+- testids: staff-bottom-nav, bottom-nav-<id>, bottom-nav-more, staff-more-sheet, more-nav-<id>, more-sheet-close. Verified via mobile + desktop screenshots; frontend compiles clean.
+

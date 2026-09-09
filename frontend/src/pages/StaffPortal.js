@@ -10,7 +10,7 @@ import {
   Loader2, LogOut, Calendar, Clock, Plane, FileText, ShieldCheck, Download,
   CheckCircle2, AlertCircle, Plus, Trash2, Users,
   Home, Play, Square, Coffee, Sun, Thermometer, ChevronLeft, ChevronRight,
-  ClipboardCheck, PenLine, Truck, Camera, ShieldAlert, Check, X,
+  ClipboardCheck, PenLine, Truck, Camera, ShieldAlert, Check, X, MoreHorizontal,
 } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
@@ -41,11 +41,13 @@ const TABS = [
   ['documents', 'Documents', FileText],
   ['access', 'System Access', ShieldCheck],
 ];
+const PRIMARY_TABS = ['home', 'mytime', 'vehicle', 'holidays'];
 
 export default function StaffPortal() {
   const [jwt] = useState(() => sessionStorage.getItem('staff_jwt') || localStorage.getItem('token') || '');
   const [me, setMe] = useState(null);
   const [tab, setTab] = useState('home');
+  const [moreOpen, setMoreOpen] = useState(false);
   const H = jwt ? { Authorization: `Bearer ${jwt}` } : {};
   const usingPlatformToken = !sessionStorage.getItem('staff_jwt') && !!localStorage.getItem('token');
 
@@ -80,7 +82,7 @@ export default function StaffPortal() {
 
   return (
     <Shell>
-      <div className="max-w-5xl mx-auto py-8 px-4" data-testid="staff-portal">
+      <div className="max-w-5xl mx-auto pt-8 pb-28 sm:pb-8 px-4" data-testid="staff-portal">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Staff Portal</h1>
@@ -99,7 +101,7 @@ export default function StaffPortal() {
           </div>
         </div>
 
-        <div className="mt-6 -mx-4 px-4 border-b border-slate-200">
+        <div className="mt-6 -mx-4 px-4 border-b border-slate-200 hidden sm:block">
           <div className="flex gap-1 sm:gap-1.5 overflow-x-auto scrollbar-hide pb-px" data-testid="staff-tab-bar">
             {TABS.map(([id, label, Icon]) => (
               <button key={id} onClick={() => setTab(id)} data-testid={`staff-tab-${id}`}
@@ -121,7 +123,63 @@ export default function StaffPortal() {
           {tab === 'access' && <AccessTab H={H} />}
         </div>
       </div>
+
+      <BottomNav tab={tab} setTab={setTab} onMore={() => setMoreOpen(true)} />
+      {moreOpen && <MoreSheet tab={tab} setTab={(t) => { setTab(t); setMoreOpen(false); }} onClose={() => setMoreOpen(false)} />}
     </Shell>
+  );
+}
+
+function BottomNav({ tab, setTab, onMore }) {
+  const primary = TABS.filter(([id]) => PRIMARY_TABS.includes(id));
+  const moreActive = !PRIMARY_TABS.includes(tab);
+  return (
+    <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-slate-200 pb-[env(safe-area-inset-bottom)]"
+      data-testid="staff-bottom-nav">
+      <div className="grid grid-cols-5">
+        {primary.map(([id, label, Icon]) => {
+          const active = tab === id;
+          return (
+            <button key={id} onClick={() => setTab(id)} data-testid={`bottom-nav-${id}`}
+              className={`flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold transition-colors ${active ? 'text-cyan-600' : 'text-slate-400'}`}>
+              <Icon size={20} className="shrink-0" />
+              <span className="truncate max-w-full">{label}</span>
+            </button>
+          );
+        })}
+        <button onClick={onMore} data-testid="bottom-nav-more"
+          className={`flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold transition-colors ${moreActive ? 'text-cyan-600' : 'text-slate-400'}`}>
+          <MoreHorizontal size={20} className="shrink-0" />
+          <span>More</span>
+        </button>
+      </div>
+    </nav>
+  );
+}
+
+function MoreSheet({ tab, setTab, onClose }) {
+  const rest = TABS.filter(([id]) => !PRIMARY_TABS.includes(id));
+  return (
+    <div className="sm:hidden fixed inset-0 z-50 flex items-end bg-black/40" onClick={onClose} data-testid="staff-more-sheet">
+      <div className="w-full rounded-t-2xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-200" />
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-bold text-slate-900">More</span>
+          <button onClick={onClose} className="text-slate-400" data-testid="more-sheet-close"><X size={18} /></button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {rest.map(([id, label, Icon]) => {
+            const active = tab === id;
+            return (
+              <button key={id} onClick={() => setTab(id)} data-testid={`more-nav-${id}`}
+                className={`flex items-center gap-2 rounded-xl border px-3 py-3 text-sm font-semibold transition-colors ${active ? 'border-cyan-300 bg-cyan-50 text-cyan-700' : 'border-slate-200 text-slate-600'}`}>
+                <Icon size={18} className="shrink-0" /> {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
 
