@@ -881,8 +881,8 @@ function AccessTab({ H }) {
 function Shell({ children }) {
   return (
     <div className="min-h-screen bg-slate-50 pulse-font">
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center gap-2.5">
+      <div style={{ backgroundColor: '#000000' }} className="border-b border-white/10">
+        <div className="max-w-5xl mx-auto px-4 h-20 flex items-center gap-2.5">
           <img
             src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg"
             alt="Pulse Fitness"
