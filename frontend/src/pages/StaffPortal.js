@@ -11,6 +11,7 @@ import {
   CheckCircle2, AlertCircle, Plus, Trash2, Users,
   Home, Play, Square, Coffee, Sun, Thermometer, ChevronLeft, ChevronRight,
   ClipboardCheck, PenLine, Truck, Camera, ShieldAlert, Check, X, MoreHorizontal,
+  IdCard,
 } from 'lucide-react';
 import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
 import Navbar from '../components/shared/Navbar';
@@ -41,6 +42,7 @@ const TABS = [
   ['vehicle', 'Vehicle', Truck],
   ['documents', 'Documents', FileText],
   ['access', 'System Access', ShieldCheck],
+  ['details', 'My Details', IdCard],
 ];
 const PRIMARY_TABS = ['home', 'mytime', 'vehicle', 'holidays'];
 
@@ -159,6 +161,7 @@ export default function StaffPortal() {
             {tab === 'vehicle' && <VehicleTab H={H} jwt={jwt} />}
             {tab === 'documents' && <DocumentsTab H={H} />}
             {tab === 'access' && <AccessTab H={H} />}
+            {tab === 'details' && <MyDetailsTab me={me} H={H} />}
           </div>
         </div>
       </div>
@@ -1022,6 +1025,91 @@ function AccessTab({ H }) {
           ))}
         </div>
       )}
+    </Card>
+  );
+}
+
+
+/* ─────────────── My Details (populated from the new-starter sign-up) ─────────────── */
+function mask4(v) {
+  const s = String(v || '').replace(/\s+/g, '');
+  if (!s) return '';
+  if (s.length <= 4) return '••••';
+  return '•••• ' + s.slice(-4);
+}
+function DetailRow({ label, value, testId }) {
+  return (
+    <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3" data-testid={testId}>
+      <div className="text-[11px] text-slate-400 uppercase tracking-wide">{label}</div>
+      <div className="text-sm font-semibold text-slate-800 break-words">{value ? value : <span className="text-slate-400 font-normal">Not provided</span>}</div>
+    </div>
+  );
+}
+function DetailSection({ title, children }) {
+  return (
+    <div className="mb-5">
+      <div className="text-xs font-bold uppercase tracking-wider text-cyan-600 mb-2">{title}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{children}</div>
+    </div>
+  );
+}
+function MyDetailsTab({ me, H }) {
+  // The Staff Portal already loads /new-starter/me for onboarding-origin staff.
+  // We reuse that here; if the parent only has a minimal profile (platform-token
+  // staff with no onboarding case), we try a direct fetch, else show a gentle note.
+  const [full, setFull] = useState(me && me.forms ? me : null);
+  useEffect(() => {
+    if (me && me.forms) { setFull(me); return; }
+    axios.get(`${API}/new-starter/me`, { headers: H }).then((r) => setFull(r.data)).catch(() => setFull(me || {}));
+  }, [me, H]);
+  if (!full) return <Loader2 className="animate-spin text-cyan-500" />;
+
+  const person = full.person || {};
+  const emp = full.employment || {};
+  const nd = (full.forms && full.forms.new_starter && full.forms.new_starter.data) || {};
+  const hasData = !!(nd.dob || nd.home_address || nd.ni_number || nd.emergency_contact_name
+    || emp.job_title || emp.position || emp.department || emp.proposed_start_date);
+
+  return (
+    <Card testId="staff-details">
+      <div className="flex items-start justify-between gap-3 mb-1 flex-wrap">
+        <h2 className="font-bold text-slate-900">My details</h2>
+        {full.activated && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">From your sign-up ✓</span>}
+      </div>
+      <p className="text-sm text-slate-500 mb-4">The information you provided during your Pulse Fitness sign-up. To change anything, please contact your line manager or HR.</p>
+
+      {!hasData && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 mb-4" data-testid="staff-details-empty">
+          Your personal details will appear here once your new-starter sign-up has been completed.
+        </div>
+      )}
+
+      <DetailSection title="Personal">
+        <DetailRow label="Full name" value={person.full_name} testId="detail-full-name" />
+        <DetailRow label="Preferred name" value={emp.preferred_name} testId="detail-preferred-name" />
+        <DetailRow label="Email" value={person.email} testId="detail-email" />
+        <DetailRow label="Date of birth" value={nd.dob} testId="detail-dob" />
+        <DetailRow label="Home address" value={nd.home_address || emp.home_address} testId="detail-address" />
+        <DetailRow label="National Insurance no." value={mask4(nd.ni_number)} testId="detail-ni" />
+      </DetailSection>
+
+      <DetailSection title="Emergency contact">
+        <DetailRow label="Name" value={nd.emergency_contact_name} testId="detail-ec-name" />
+        <DetailRow label="Phone" value={nd.emergency_contact_phone} testId="detail-ec-phone" />
+      </DetailSection>
+
+      <DetailSection title="Payroll">
+        <DetailRow label="Bank account" value={mask4(nd.bank_account)} testId="detail-bank" />
+      </DetailSection>
+
+      <DetailSection title="Employment">
+        <DetailRow label="Job title" value={emp.job_title || emp.position} testId="detail-job-title" />
+        <DetailRow label="Department" value={emp.department} testId="detail-department" />
+        <DetailRow label="Site / place of work" value={emp.site || emp.place_of_work} testId="detail-site" />
+        <DetailRow label="Start date" value={emp.proposed_start_date} testId="detail-start-date" />
+        <DetailRow label="Employment type" value={emp.employment_type} testId="detail-emp-type" />
+        <DetailRow label="Line manager" value={emp.line_manager} testId="detail-line-manager" />
+      </DetailSection>
     </Card>
   );
 }

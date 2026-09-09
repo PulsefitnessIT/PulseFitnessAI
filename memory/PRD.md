@@ -36802,3 +36802,10 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - User confirmed: EXCEL (not PDF) inside the zip; free From/To dates defaulting to the current calendar month (monthly submission).
 - Frontend: TimeClockTab.js Weekly Timesheets toolbar now has a cyan "Payroll Pack" button (timesheets-payroll-pack-toggle) opening a From/To panel (payroll-pack-from/to) + Download ZIP (Excel) (payroll-pack-download). Defaults to first/last day of current month.
 - Verified: zip valid (openpyxl), one file per staff named <Name>-<mondayFrom>_to_<to>.xlsx, sheet per week, Notes column present; empty range -> 400; UI renders (desktop screenshot).
+
+## 2026-09-09 — Staff Portal "My Details" tab (Iter 291)
+- Added "My Details" as the LAST tab on the Staff Portal lateral menu (pill bar desktop + "More" sheet on mobile). File: frontend/src/pages/StaffPortal.js (TABS, MyDetailsTab component, testid staff-tab-details / more-nav-details / staff-details).
+- Populated entirely from the new-starter SIGN-UP data via the existing GET /api/new-starter/me (person, employment_proposal, forms.new_starter.data). No backend change needed.
+- Sections: Personal (name, preferred name, email, DOB, home address, NI masked), Emergency contact (name, phone), Payroll (bank account masked last-4), Employment (job title, department, site, start date, employment type, line manager). Read-only with a "contact HR to change" note; shows a gentle empty-state until sign-up completed.
+- Demo data: seeded new_starter form + richer employment_proposal for portal.staff@pulsedemo.test / Staff123! (Alex Rivera, SPDEMO_case) so the tab demonstrates fully.
+- Verified desktop + 390px mobile (no horizontal overflow); all detail testids resolve with correct masked values.
