@@ -36776,3 +36776,9 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 ## 2026-09-09 — Mobile Navbar fixes (Iter 284)
 - Added "Switch area" to the mobile hamburger menu (was desktop-only). Renders only when the user can reach 2+ areas. File: frontend/src/components/shared/Navbar.js (mobile menu block).
 - Removed the mobile "Dashboard" button for Pulse users — aligned visibility with desktop (`!isOnDashboard && !isOnPulse && !showPulseBrand`). Pulse users now rely on Switch Area + pill tabs. Verified on 390px mobile viewport (owner@isodemo.com).
+
+## 2026-09-09 — Mobile pill bar swipe polish (Iter 287)
+- ModuleSwitcher (Operations/Memberships/CRM bar): replaced the static both-sided fade with a DIRECTIONAL fade (only the side with hidden pills is faded) so the first/last pill is never clipped at the ends. Added auto-scroll of the active pill into view on mount/route change, plus overscroll-behavior-x:contain + touch-action:pan-x for smooth momentum swipe without triggering browser back. File: components/shared/ModuleSwitcher.js.
+- PillTabBar (shared module tab bar): same directional fade via data-fade-left/right, plus iOS momentum, gentle scroll-snap and overscroll containment. Files: components/shared/PillTabBar.js, index.css.
+- Mobile sub-tab strip (LiteDashboard) already auto-scrolls the active pill into view (unchanged).
+- Verified on 390px mobile: mask direction = start FADE_RIGHT, mid FADE_LEFT+RIGHT, end FADE_LEFT; last pill (CRM) fully visible at far-right scroll.

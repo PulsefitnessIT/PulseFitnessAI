@@ -648,16 +648,34 @@ body.has-bottom-banner main.overflow-y-auto {
   scrollbar-width: none;
   -ms-overflow-style: none;
   scroll-behavior: smooth;
-  /* Fade the outer 24px at each edge so clipped pills gain a visual cue.
-     The mask is only active when the track is actually scrollable — we
-     toggle `data-scrollable` via JS. */
+  /* Smooth momentum swipe on iOS/Android and keep the horizontal swipe
+     from triggering browser back/forward navigation. */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  /* Gentle snap so a swipe never leaves a pill half-hidden at the edge. */
+  scroll-snap-type: x proximity;
+  scroll-padding-left: 0.25rem;
+  scroll-padding-right: 0.25rem;
+}
+.pill-tab-bar__track > * { scroll-snap-align: start; }
+.pill-tab-bar__track::-webkit-scrollbar { display: none; }
+
+/* Edge fades are DIRECTIONAL — driven by data-fade-left / data-fade-right
+   (set by PillTabBar from its scroll position). We only fade the side that
+   still has hidden content, so once you reach an end the first/last pill is
+   fully opaque and never looks clipped or hidden off-screen. */
+.pill-tab-bar__track[data-fade-left="true"][data-fade-right="true"] {
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
           mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
 }
-.pill-tab-bar__track::-webkit-scrollbar { display: none; }
-.pill-tab-bar__track:not([data-scrollable="true"]) {
-  -webkit-mask-image: none;
-          mask-image: none;
+.pill-tab-bar__track[data-fade-left="true"][data-fade-right="false"] {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 100%);
+          mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 100%);
+}
+.pill-tab-bar__track[data-fade-left="false"][data-fade-right="true"] {
+  -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 24px), transparent 100%);
+          mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 24px), transparent 100%);
 }
 
 /* Chevron affordances — rendered only when track is scrollable. */

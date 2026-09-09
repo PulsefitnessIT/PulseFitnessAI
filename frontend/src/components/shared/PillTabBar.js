@@ -89,6 +89,8 @@ export default function PillTabBar({
         onScroll={update}
         aria-label={ariaLabel}
         className="pill-tab-bar__track"
+        data-fade-left={showLeft ? 'true' : 'false'}
+        data-fade-right={showRight ? 'true' : 'false'}
       >
         {children}
       </nav>

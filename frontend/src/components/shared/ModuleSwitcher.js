@@ -104,7 +104,7 @@ export default function ModuleSwitcher({ user, current }) {
  const navigate = useNavigate();
  const { t } = useTranslation();
  const wrapRef = React.useRef(null);
- const [scrollable, setScrollable] = React.useState(false);
+ const [edges, setEdges] = React.useState({ left: false, right: false });
  // Iter 215d5 — rewrite module paths per brand context so Operations
  // takes Pulse Fitness users to `/dashboard` and Pulse users to `/pulse`.
  const operationsPath = resolveOperationsPath(user, location.pathname);
@@ -131,17 +131,43 @@ export default function ModuleSwitcher({ user, current }) {
    .filter((m) => moduleOn(m.accessKey))
    .map((m) => (m.id === 'operations' ? { ...m, path: operationsPath } : m));
 
- // Toggle scrollable state on mount + resize so the edge-fade + chevrons
- // (future) only render when the track actually overflows.
+ // Toggle edge state on mount + resize + scroll so the fade only masks the
+ // side that still has hidden pills — the active/last pill is never faded
+ // once you swipe to that end.
  React.useEffect(() => {
  const el = wrapRef.current;
  if (!el) return;
- const check = () => setScrollable(el.scrollWidth > el.clientWidth + 1);
+ const check = () => {
+   const maxScroll = el.scrollWidth - el.clientWidth;
+   setEdges({
+     left: el.scrollLeft > 1,
+     right: maxScroll > 1 && el.scrollLeft < maxScroll - 1,
+   });
+ };
  check();
+ el.addEventListener('scroll', check, { passive: true });
  const ro = new ResizeObserver(check);
  ro.observe(el);
- return () => ro.disconnect();
+ window.addEventListener('resize', check);
+ return () => {
+   el.removeEventListener('scroll', check);
+   ro.disconnect();
+   window.removeEventListener('resize', check);
+ };
  }, [available.length]);
+
+ // Bring the active module pill into view on mount / route change so users
+ // arriving on an off-screen module (e.g. CRM at the far right on mobile)
+ // always see where they are.
+ React.useLayoutEffect(() => {
+ const el = wrapRef.current;
+ if (!el) return;
+ const pill = el.querySelector('[aria-current="page"]');
+ if (pill && typeof pill.scrollIntoView === 'function') {
+   pill.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+ }
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [current, location.pathname, available.length]);
 
  if (available.length < 2) return null;
 
@@ -185,24 +211,31 @@ export default function ModuleSwitcher({ user, current }) {
  // Back-compat — accept legacy prop values "pulse" / "mod".
  if (active === 'pulse') active = 'operations';
 
+ const anyOverflow = edges.left || edges.right;
+ const maskImage = edges.left && edges.right
+   ? 'linear-gradient(to right, transparent 0, black 14px, black calc(100% - 14px), transparent 100%)'
+   : edges.right
+     ? 'linear-gradient(to right, black 0, black calc(100% - 14px), transparent 100%)'
+     : edges.left
+       ? 'linear-gradient(to right, transparent 0, black 14px, black 100%)'
+       : undefined;
+
  return (
  <div
  ref={wrapRef}
  className="gx-module-switcher-wrap max-w-full overflow-x-auto overflow-y-hidden -mx-1 px-1 scroll-smooth scrollbar-hide"
  style={{
  WebkitOverflowScrolling: 'touch',
- // Iter 215c5 → c6: conditional fade. Only apply the mask when the
- // track overflows (measured by the ResizeObserver above) so desktop
- // users with all 4 pills fitting don't see a subtle fade for no
- // reason. Matches the PillTabBar behaviour used in every module.
- maskImage: scrollable
- ? 'linear-gradient(to right, transparent 0, black 14px, black calc(100% - 14px), transparent 100%)'
- : undefined,
- WebkitMaskImage: scrollable
- ? 'linear-gradient(to right, transparent 0, black 14px, black calc(100% - 14px), transparent 100%)'
- : undefined,
+ // Keep the horizontal swipe from triggering browser back/forward.
+ overscrollBehaviorX: 'contain',
+ touchAction: 'pan-x',
+ // Iter 215c5 → c6 → 287: DIRECTIONAL fade. Only mask the side that still
+ // has hidden pills, so the active/last pill is fully opaque once you swipe
+ // to that end (never looks clipped off-screen). No mask when it all fits.
+ maskImage,
+ WebkitMaskImage: maskImage,
  }}
- data-scrollable={scrollable ? 'true' : 'false'}
+ data-scrollable={anyOverflow ? 'true' : 'false'}
  >
  <nav
  aria-label="Module switcher"
