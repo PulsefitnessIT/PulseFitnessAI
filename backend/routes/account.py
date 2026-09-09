@@ -559,7 +559,7 @@ async def invite_team_member(body: dict, user: dict = Depends(get_current_user))
         "avatar_url": None,
         "organization_id": user.get("organization_id"),
         "invited_by": user["id"],
-        "must_change_password": True,
+        "must_change_password": parsed["delivery"] != "reset_link",
         "allowed_site_ids": parsed["allowed_site_ids"],
         "created_at": now_iso,
     }

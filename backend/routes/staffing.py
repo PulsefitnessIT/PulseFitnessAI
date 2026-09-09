@@ -645,7 +645,7 @@ async def issue_staff_credentials(
         "organization_id": org_id,
         "role": mapped_role,
         "staff_member_id": staff_id,
-        "must_change_password": True,
+        "must_change_password": not use_link,
         "created_at": now_iso,
     }
     existing = await db.users.find_one({"email": email}, {"_id": 0})
@@ -654,7 +654,7 @@ async def issue_staff_credentials(
         # lose their password. Never downgrade an elevated role.
         keep_elevated = existing.get("role") in {"owner", "manager", "master_admin", "pulse_master_admin"}
         update = {
-            "must_change_password": True,
+            "must_change_password": not use_link,
             "staff_member_id": staff_id,
             "organization_id": existing.get("organization_id") or org_id,
             "role": existing.get("role") if keep_elevated else mapped_role,

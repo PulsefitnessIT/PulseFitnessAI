@@ -947,6 +947,8 @@ async def reset_password(body: dict, request: Request) -> dict:
         {"$set": {
             "password": hashed,
             "password_updated_at": now_iso,
+            "must_change_password": False,
+            "temp_password_expires_at": None,
         }},
     )
     crm_res = await db.crm_users.update_one(
@@ -1014,6 +1016,18 @@ async def get_me(user: dict = Depends(get_current_user_portal)) -> dict:
     features = await get_enabled_features(user)
     module_access = resolve_module_access(user, org)
 
+    # Staff Portal access — a person is "staff" if a staff_members row is linked
+    # to them by user_id OR email (case-insensitive), scoped to their org. Drives
+    # the "Staff Portal" entry in the Switch-area menu across the platform.
+    _sp_or = [{"user_id": user.get("id")}]
+    if user.get("email"):
+        _sp_or.append({"email": {"$regex": f"^{re.escape(user['email'])}$", "$options": "i"}})
+    _sp_q = {"$or": _sp_or}
+    if user.get("organization_id"):
+        _sp_q["organization_id"] = user["organization_id"]
+    _staff_link = await db.staff_members.find_one(_sp_q, {"_id": 0, "active": 1})
+    has_staff_portal = bool(_staff_link and _staff_link.get("active", True))
+
     # Iter — operator-vs-system org discriminator. A master admin whose OWN
     # org is a real operator company (Pulse Fitness Ltd — has a real account
     # type or enabled modules, or is the pinned operator) lands on the
@@ -1043,6 +1057,7 @@ async def get_me(user: dict = Depends(get_current_user_portal)) -> dict:
         "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
         "is_service_desk": user.get('is_service_desk', False),
         "is_inventory": user.get('is_inventory', False),
+        "has_staff_portal": has_staff_portal,
         # Site Staff Shared Login — flags the shared kiosk account so the
         # Operations fault flow enforces the mandatory "who is logging
         # this fault?" staff dropdown and the UI hides management areas.

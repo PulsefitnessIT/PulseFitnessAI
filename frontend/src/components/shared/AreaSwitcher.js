@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutGrid, ChevronDown, Headphones, HardHat, Activity, Check, Boxes } from 'lucide-react';
+import { LayoutGrid, ChevronDown, Headphones, HardHat, Activity, Check, Boxes, CalendarClock } from 'lucide-react';
 
 /**
  * Iter 283 — "Switch area" button.
@@ -42,6 +42,12 @@ function accessibleAreas(user) {
   const canEngineer = isMaster || user.role === 'engineer' || user.is_engineer === true || !!user.engineer_id;
   if (canEngineer) areas.push({ id: 'engineer', label: 'Engineer app', path: '/svc/engineer', icon: HardHat });
 
+  // Staff Portal — anyone with an employee record in the staffing register
+  // (resolved server-side into user.has_staff_portal).
+  if (user.has_staff_portal === true) {
+    areas.push({ id: 'staff-portal', label: 'Staff Portal', path: '/staff-portal', icon: CalendarClock });
+  }
+
   return areas;
 }
 
@@ -50,6 +56,7 @@ function currentAreaId(pathname) {
   if (p.startsWith('/inventory') || p.startsWith('/service-desk/inventory')) return 'inventory';
   if (p.startsWith('/service-desk')) return 'service-desk';
   if (p.startsWith('/svc/engineer') || p.startsWith('/engineer')) return 'engineer';
+  if (p.startsWith('/staff-portal')) return 'staff-portal';
   return 'main';
 }
 

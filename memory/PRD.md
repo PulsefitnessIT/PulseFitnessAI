@@ -1,3 +1,26 @@
+# ═══ 2026-06 · STAFF PORTAL — Switch-area entry + "temporary password" login-loop fix · curl+screenshot-verified ═══
+Three linked changes:
+(a) STAFF ACCESS = anyone in the staffing register. /auth/me now returns has_staff_portal (staff_members linked by
+    user_id OR email, case-insensitive, org-scoped, active). Backed by the earlier _resolve_staff_for_user /
+    _portal_staff lenient+self-heal fix so staff-login and portal load agree.
+(b) SWITCH AREA. components/shared/AreaSwitcher.js adds a "Staff Portal" entry (CalendarClock icon → /staff-portal,
+    data-testid area-switcher-staff-portal) whenever user.has_staff_portal===true; currentAreaId maps /staff-portal.
+    Verified: owner@isodemo (staff + service desk) sees Main app · Service Desk · Inventory · Staff Portal.
+(c) LOGIN LOOP FIX ("You signed in with a temporary password" after already setting one via the invite link).
+    Root cause: issue-credentials (staffing.py) and team-invite (account.py) set must_change_password:True even for
+    reset_link delivery, and /auth/reset-password never cleared it — so after the user set a permanent password via
+    the link, login kept forcing the change-password screen, and the emailed temp password no longer matched
+    ("Current (temporary) password is incorrect"), trapping them.
+    Fix: /auth/reset-password now also sets must_change_password:False + temp_password_expires_at:None; and both
+    invite paths set must_change_password = (delivery != reset_link). Verified via curl: seeded user with
+    must_change_password:True → reset via token → flag cleared to False.
+    REMEDIATION for anyone ALREADY trapped in production (e.g. Beck.Hassell@pulsefitness.com): use "Forgot your
+    password?" to get a fresh link — the fixed reset endpoint clears the flag. (No prod DB access from preview.)
+NOTE: redeploy required to ship to production.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF PORTAL ACCESS FIX — "This account does not have a staff portal" (email/user_id linkage) · curl-verified ═══
 Root cause: /new-starter/staff-login matched the employee's staff_members record ONLY by user_id, while the
 launcher probe (/staffing/me/portal-access) matched by user_id OR email. An employee whose staff row was linked
