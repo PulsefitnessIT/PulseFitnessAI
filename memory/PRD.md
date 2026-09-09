@@ -36537,3 +36537,10 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Top scrollable tab bar now `hidden sm:block` (desktop/tablet only); content container padded `pb-28 sm:pb-8` so the bar never overlaps. Desktop verified unchanged (top bar shown, bottom nav display:none).
 - testids: staff-bottom-nav, bottom-nav-<id>, bottom-nav-more, staff-more-sheet, more-nav-<id>, more-sheet-close. Verified via mobile + desktop screenshots; frontend compiles clean.
 
+
+
+## 2026-09-09 — Vehicle Check PDF records (H&S file)
+- Managers can download any vehicle check as a Pulse-branded PDF. Backend `GET /api/vehicle-checks/{check_id}/pdf` (manager-only, literal route placed before `{check_id}`) builds a reportlab PDF via the shared `utils/pulse_doc_template` toolkit (pulse_header/title/section_label/make_pulse_doc + standard compliance footer). Content: driver/vehicle meta table, every checklist section with OK/DEFECT/N-A (colour-coded), defects/corrective-action block (safe-to-drive etc.), and the driver declaration with typed signature + timestamp (+ manager review line when reviewed).
+- Frontend (staffing/VehiclesTab.js): `downloadCheckPdf()` helper; "PDF" button on each Weekly-checks row (data-testid check-pdf-<id>) and in the check detail modal header (check-detail-pdf). Blob download.
+- Verified: endpoint returns 200 application/pdf (valid %PDF, ~124KB); analyze_file confirmed branded header, meta table, all sections, defect banner (Safe to drive: No), declaration/signature, footer — no layout issues. Buttons confirmed via screenshot. Test data cleaned.
+

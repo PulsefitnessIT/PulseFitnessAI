@@ -545,6 +545,144 @@ async def export_csv(week: str | None = Query(None), user: dict = Depends(get_cu
                     headers={"Content-Disposition": f"attachment; filename=vehicle-checks-{week or 'all'}.csv"})
 
 
+FIT_LABEL = {"yes": "Fit to return", "phased": "Phased return", "no": "Not yet fit"}
+ITEM_STATUS_LABEL = {"ok": "OK", "defect": "DEFECT", "na": "N/A"}
+
+
+def _build_check_pdf(check: dict, template: dict, org_company: dict | None) -> bytes:
+    """Pulse-branded PDF of a completed weekly vehicle check for the H&S file."""
+    import io as _io
+    from reportlab.lib import colors
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+    from utils.pulse_doc_template import (
+        pulse_styles, pulse_header, pulse_title, section_label,
+        make_pulse_doc, PULSE_NAVY, PULSE_BORDER, PULSE_LIGHT, PULSE_MUTED,
+    )
+
+    s = pulse_styles()
+    buf = _io.BytesIO()
+    doc = make_pulse_doc(buf, f"Vehicle Check {check.get('details', {}).get('reg_no', '')}", company=org_company)
+    body = s["body"]
+    story = [pulse_header(s, org_company)]
+    story += pulse_title(s, template["title"],
+                         f"Registration {check.get('details', {}).get('reg_no', '—')} · "
+                         f"Week commencing {check.get('week_commencing', '—')}")
+    story.append(Spacer(1, 6 * mm))
+
+    det = check.get("details", {})
+    mr = check.get("manager_review") or {}
+    meta = [
+        ["Driver", check.get("driver_name") or det.get("driver_name") or "—",
+         "Make / model", det.get("make_model") or "—"],
+        ["Odometer", det.get("odometer") or "—", "Check completed", check.get("submitted_at", "—")[:10] if check.get("submitted_at") else "—"],
+        ["Status", (check.get("status") or "—").replace("_", " ").title(),
+         "Reviewed by", mr.get("reviewer") or "Not yet reviewed"],
+    ]
+    mt = Table(meta, colWidths=[26 * mm, 60 * mm, 30 * mm, 58 * mm])
+    mt.setStyle(TableStyle([
+        ("FONT", (0, 0), (-1, -1), "Helvetica", 8.5),
+        ("FONT", (0, 0), (0, -1), "Helvetica-Bold", 8.5),
+        ("FONT", (2, 0), (2, -1), "Helvetica-Bold", 8.5),
+        ("TEXTCOLOR", (0, 0), (0, -1), PULSE_NAVY),
+        ("TEXTCOLOR", (2, 0), (2, -1), PULSE_NAVY),
+        ("BACKGROUND", (0, 0), (-1, -1), PULSE_LIGHT),
+        ("BOX", (0, 0), (-1, -1), 0.5, PULSE_BORDER),
+        ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.white),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    story.append(mt)
+    story.append(Spacer(1, 5 * mm))
+
+    items = check.get("items") or {}
+    for sec in template["sections"]:
+        story.append(section_label(s, sec["title"]))
+        rows = []
+        for it in sec["items"]:
+            st = items.get(it["id"], "")
+            rows.append([Paragraph(it["label"], body), ITEM_STATUS_LABEL.get(st, "—")])
+        t = Table(rows, colWidths=[150 * mm, 24 * mm])
+        style = [
+            ("FONT", (0, 0), (-1, -1), "Helvetica", 8.5),
+            ("FONT", (1, 0), (1, -1), "Helvetica-Bold", 8.5),
+            ("ALIGN", (1, 0), (1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LINEBELOW", (0, 0), (-1, -1), 0.4, PULSE_BORDER),
+            ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]
+        for i, it in enumerate(sec["items"]):
+            st = items.get(it["id"], "")
+            if st == "defect":
+                style.append(("TEXTCOLOR", (1, i), (1, i), colors.HexColor("#dc2626")))
+            elif st == "ok":
+                style.append(("TEXTCOLOR", (1, i), (1, i), colors.HexColor("#16a34a")))
+            else:
+                style.append(("TEXTCOLOR", (1, i), (1, i), PULSE_MUTED))
+        t.setStyle(TableStyle(style))
+        story.append(t)
+        story.append(Spacer(1, 4 * mm))
+
+    df = check.get("defect") or {}
+    if check.get("has_defects") or df.get("details"):
+        story.append(section_label(s, "Defects / corrective action"))
+        yn = lambda v: "Yes" if v is True else "No" if v is False else "—"
+        story.append(Paragraph(_esc(df.get("details") or "No description provided."), body))
+        story.append(Spacer(1, 2 * mm))
+        drow = [["Safe to drive", yn(df.get("safe_to_drive")), "Manager told", yn(df.get("manager_told")),
+                 "Provider contacted", yn(df.get("provider_contacted")), "Repair booked", yn(df.get("repair_booked"))]]
+        dt = Table(drow, colWidths=[24 * mm, 12 * mm, 22 * mm, 12 * mm, 30 * mm, 12 * mm, 22 * mm, 12 * mm])
+        dt.setStyle(TableStyle([
+            ("FONT", (0, 0), (-1, -1), "Helvetica", 8),
+            ("FONT", (0, 0), (0, 0), "Helvetica-Bold", 8),
+            ("TEXTCOLOR", (0, 0), (0, 0), PULSE_NAVY),
+            ("BOX", (0, 0), (-1, -1), 0.5, PULSE_BORDER),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        story.append(dt)
+        story.append(Spacer(1, 4 * mm))
+
+    decl = check.get("declaration") or {}
+    story.append(section_label(s, "Driver declaration"))
+    story.append(Paragraph(_esc(template.get("declaration", "")), body))
+    story.append(Spacer(1, 2 * mm))
+    sig = f"Signed: <b>{_esc(decl.get('driver_name') or check.get('driver_name') or '—')}</b> · {(decl.get('at') or '')[:19].replace('T', ' ')}"
+    story.append(Paragraph(sig, body))
+    if mr.get("reviewer"):
+        story.append(Spacer(1, 1 * mm))
+        story.append(Paragraph(f"Manager review: <b>{_esc(mr.get('reviewer'))}</b> · {(mr.get('at') or '')[:19].replace('T', ' ')}"
+                               + (f" — {_esc(mr.get('notes'))}" if mr.get("notes") else ""), body))
+
+    doc.build(story)
+    return buf.getvalue()
+
+
+def _esc(text) -> str:
+    return (str(text or "")).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+@router.get("/vehicle-checks/{check_id}/pdf")
+async def check_pdf(check_id: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    doc = await db.vehicle_checks.find_one({"organization_id": org, "id": check_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "not found")
+    template = _build_template(doc.get("check_type", "vehicle_check"), doc.get("is_ev", False))
+    try:
+        pdf = _build_check_pdf(doc, template, None)
+    except Exception as e:
+        logger.exception("vehicle check PDF failed")
+        raise HTTPException(500, f"Could not generate PDF: {e}")
+    reg = (doc.get("details") or {}).get("reg_no", "vehicle").replace(" ", "")
+    fname = f"vehicle-check-{reg}-{doc.get('week_commencing', '')}.pdf"
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f"attachment; filename={fname}"})
+
+
+
 @router.get("/vehicle-checks/{check_id}")
 async def check_detail(check_id: str, user: dict = Depends(get_current_user)):
     _require_manager(user)

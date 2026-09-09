@@ -10,6 +10,14 @@ import { Truck, Plus, ShieldAlert, FileDown, Link2, Loader2, X, Check, Trash2 } 
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : '');
+
+async function downloadCheckPdf(checkId, headers) {
+  const r = await axios.get(`${API}/vehicle-checks/${checkId}/pdf`, { headers, responseType: 'blob' });
+  const url = URL.createObjectURL(r.data);
+  const a = document.createElement('a'); a.href = url; a.download = `vehicle-check-${checkId}.pdf`; a.click();
+  URL.revokeObjectURL(url);
+}
+
 const CHECK_LABEL = { van_maintenance: 'Van Maintenance', vehicle_check: 'Vehicle Check' };
 const STATUS_TONE = {
   due: '#F59E0B', in_progress: '#0EA5E9', submitted: '#10B981', reviewed: '#10B981',
@@ -200,7 +208,10 @@ function WeeklyChecks({ headers, week, onOpen }) {
                   <td className="py-2 px-3" style={{ color: 'var(--theme-text-muted)' }}>{c.driver_name}</td>
                   <td className="py-2 px-3"><span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${STATUS_TONE[c.status] || '#94a3b8'}22`, color: STATUS_TONE[c.status] || '#94a3b8' }}>{c.status}</span></td>
                   <td className="py-2 px-3">{c.has_defects ? <span className="inline-flex items-center gap-1 text-rose-600 text-xs font-semibold"><ShieldAlert size={13} /> {c.defect?.safe_to_drive === false ? 'Not safe' : 'Yes'}</span> : <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>None</span>}</td>
-                  <td className="py-2 px-3 text-right"><button onClick={() => onOpen(c.id)} data-testid={`check-open-${c.id}`} className="text-[11px] font-semibold underline" style={{ color: 'var(--color-brand-cyan)' }}>Open</button></td>
+                  <td className="py-2 px-3 text-right whitespace-nowrap">
+                    <button onClick={() => downloadCheckPdf(c.id, headers)} data-testid={`check-pdf-${c.id}`} title="Download PDF" className="inline-flex items-center gap-1 text-[11px] font-semibold mr-3" style={{ color: 'var(--theme-text-muted)' }}><FileDown size={13} /> PDF</button>
+                    <button onClick={() => onOpen(c.id)} data-testid={`check-open-${c.id}`} className="text-[11px] font-semibold underline" style={{ color: 'var(--color-brand-cyan)' }}>Open</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -456,7 +467,10 @@ function CheckDetailModal({ checkId, headers, onClose, onReviewed }) {
       <div className="flex items-center justify-between mb-3">
         <div><h3 className="font-bold text-slate-900 uppercase">{d.details?.reg_no}</h3>
           <div className="text-xs text-slate-500">{d.driver_name} · week {fmtD(d.week_commencing)} · {CHECK_LABEL[d.check_type]}</div></div>
-        <button onClick={onClose} className="text-slate-400"><X size={18} /></button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => downloadCheckPdf(checkId, headers)} data-testid="check-detail-pdf" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><FileDown size={13} /> PDF</button>
+          <button onClick={onClose} className="text-slate-400"><X size={18} /></button>
+        </div>
       </div>
       {d.has_defects && (
         <div className="rounded-lg bg-rose-50 border border-rose-200 p-3 mb-3" data-testid="check-detail-defect">
