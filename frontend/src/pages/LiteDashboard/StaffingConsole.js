@@ -58,6 +58,8 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 // proper Title Case ("sales_manager" → "Sales Manager").
 function humanizeRole(role) {
   if (!role) return '—';
+  const ACRONYMS = { hr: 'HR', it: 'IT', crm: 'CRM' };
+  if (ACRONYMS[String(role).toLowerCase()]) return ACRONYMS[String(role).toLowerCase()];
   return String(role).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 

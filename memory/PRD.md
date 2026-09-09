@@ -1,3 +1,11 @@
+# ═══ 2026-06 · STAFFING cosmetic — role label acronyms (HR/IT/CRM) · screenshot-verified ═══
+humanizeRole() in HRTab.js + StaffingConsole.js now special-cases {hr:'HR', it:'IT', crm:'CRM'} so the HR role
+renders "HR" (was "Hr"). Departments already display verbatim (HR/IT/CRM/iGym) from the DEPARTMENTS constant.
+Verified: role dropdown shows ['…','HR','Manager','Payroll',…,'Other']. REDEPLOY required.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFFING — Manage-roles modal centering (BUG), HR+Payroll roles, Departments · testing_agent-verified ═══
 1) BUG FIX (Manage job roles card appeared down the screen): JobRolesModal in HRTab.js was `fixed inset-0` but not
    portaled, so a transformed ancestor offset it. Wrapped its return in createPortal(..., document.body). Testing
