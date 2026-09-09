@@ -36772,3 +36772,7 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - `_notify()` extended with an `attachments` param (forwards to send_email); activate() builds the handbook via `routes.staff_portal._build_handbook_pdf(name)` and passes it base64-encoded. Best-effort/graceful if PDF build fails.
 - Verified: handbook builds (122KB, %PDF), base64 encodes, _notify accepts attachments; backend clean.
 - NOTE: actual email SEND is MOCKED in preview (RESEND_API_KEY invalid) — delivery will work once a valid key is set; the attachment wiring is complete.
+
+## 2026-09-09 — Mobile Navbar fixes (Iter 284)
+- Added "Switch area" to the mobile hamburger menu (was desktop-only). Renders only when the user can reach 2+ areas. File: frontend/src/components/shared/Navbar.js (mobile menu block).
+- Removed the mobile "Dashboard" button for Pulse users — aligned visibility with desktop (`!isOnDashboard && !isOnPulse && !showPulseBrand`). Pulse users now rely on Switch Area + pill tabs. Verified on 390px mobile viewport (owner@isodemo.com).
