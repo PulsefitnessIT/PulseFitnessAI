@@ -462,7 +462,7 @@ function ImportModal({ headers, onClose, onDone }) {
 
       <div className="rounded-xl border border-slate-200 p-4 mb-4" data-testid="import-csv-block">
         <div className="font-semibold text-slate-800 text-sm mb-1">Bulk import from spreadsheet (CSV)</div>
-        <p className="text-xs text-slate-500 mb-3">Download the template, fill in every column (reg, make/model, vehicle type, supplier, odometer, driver emails, MOT/tax/insurance/service dates), then upload. Drivers are matched to staff by email.</p>
+        <p className="text-xs text-slate-500 mb-3">Download the template, fill in every column (reg, make/model, vehicle type, supplier, odometer, the driver's name and/or email, MOT/tax/insurance/service dates), then upload. Assign the vehicle to a person by putting their <strong>name</strong> in the <code>driver_names</code> column (or their email in <code>driver_emails</code>) — both are matched to your staff.</p>
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={downloadTemplate} data-testid="import-template-btn" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border border-slate-300 text-slate-700"><FileDown size={13} /> Download CSV template</button>
           <label className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 text-slate-900 cursor-pointer" style={{ background: 'var(--color-brand-cyan)' }} data-testid="import-csv-label">

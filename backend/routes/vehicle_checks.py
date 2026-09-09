@@ -397,7 +397,7 @@ async def import_vehicles(body: ImportBody, user: dict = Depends(get_current_use
 
 
 CSV_COLUMNS = ["reg_no", "make_model", "vehicle_type", "provider", "odometer",
-               "driver_emails", "next_service", "mot_due", "tax_status",
+               "driver_names", "driver_emails", "next_service", "mot_due", "tax_status",
                "insurance_expiry", "mileage_due", "service_ref", "notes"]
 
 
@@ -407,11 +407,12 @@ async def import_template(user: dict = Depends(get_current_user)):
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(CSV_COLUMNS)
+    # Row 1 assigns the driver by NAME; row 2 assigns by EMAIL — either works.
     w.writerow(["AB12 CDE", "Ford Transit Custom", "van", "Vanarama", "48210",
-                "driver1@company.com;driver2@company.com", "2026-11-01", "2027-01-10",
+                "Alex Rivera;Sam Patel", "", "2026-11-01", "2027-01-10",
                 "Taxed", "2026-12-31", "60000", "SR-1234", "Blue light kit fitted"])
     w.writerow(["EV70 XYZ", "Tesla Model Y", "electric_car", "", "12000",
-                "driver3@company.com", "", "2027-03-01", "Taxed", "2026-10-15", "", "", ""])
+                "", "driver3@company.com", "", "2027-03-01", "Taxed", "2026-10-15", "", "", ""])
     return Response(content=buf.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": "attachment; filename=vehicle-import-template.csv"})
 
@@ -419,7 +420,7 @@ async def import_template(user: dict = Depends(get_current_user)):
 @router.post("/vehicles/import-csv")
 async def import_csv(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
     """Bulk-import company vehicles from a CSV (see /vehicles/import-template.csv).
-    Drivers are matched to existing staff_members by email — no people re-keyed."""
+    Drivers are matched to existing staff_members by name OR email — no people re-keyed."""
     _require_manager(user)
     org = _org(user)
     raw = await file.read()
@@ -428,7 +429,7 @@ async def import_csv(file: UploadFile = File(...), user: dict = Depends(get_curr
     except UnicodeDecodeError:
         text = raw.decode("latin-1")
     reader = csv.DictReader(io.StringIO(text))
-    # staff email → id map
+    # staff email → id and name → id maps
     staff = await db.staff_members.find({"organization_id": org}, {"_id": 0, "id": 1, "email": 1, "full_name": 1}).to_list(5000)
     by_email = {(s.get("email") or "").strip().lower(): s["id"] for s in staff if s.get("email")}
     by_name = {(s.get("full_name") or "").strip().lower(): s["id"] for s in staff if s.get("full_name")}
@@ -441,14 +442,20 @@ async def import_csv(file: UploadFile = File(...), user: dict = Depends(get_curr
             skipped += 1
             continue
         vt = _normalise_type(row.get("vehicle_type") or "car")
-        driver_ids, unmatched = [], []
-        for tok in (row.get("driver_emails") or "").replace(",", ";").split(";"):
-            tok = tok.strip()
-            if not tok:
-                continue
+        # Assign drivers from EITHER the driver_names or driver_emails column.
+        driver_ids, unmatched, seen = [], [], set()
+        tokens = []
+        for _col in ("driver_names", "driver_emails"):
+            for tok in (row.get(_col) or "").replace(",", ";").split(";"):
+                tok = tok.strip()
+                if tok:
+                    tokens.append(tok)
+        for tok in tokens:
             sid = by_email.get(tok.lower()) or by_name.get(tok.lower())
             if sid:
-                driver_ids.append(sid)
+                if sid not in seen:
+                    seen.add(sid)
+                    driver_ids.append(sid)
             else:
                 unmatched.append(tok)
         if unmatched:

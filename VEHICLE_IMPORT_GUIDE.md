@@ -25,7 +25,8 @@ Staffing console → **Vehicles** tab → **Import from engineers** button →
 | `vehicle_type` | – | One of `car`, `electric_car`, `van`, `electric_van`, `lorry`. Default `car`. Sets which weekly checklist the driver completes. |
 | `provider` | – | Supplier / lease company / garage, e.g. `Vanarama`. (This is a **supplier**, not a check type.) |
 | `odometer` | – | Current mileage |
-| `driver_emails` | – | One or more assigned drivers, matched to staff by **email**. Separate multiple with `;` (or `,`). The **first** becomes the primary driver and their registration is written back to their engineer profile. |
+| `driver_names` | – | **Who the vehicle is assigned to** — one or more staff **names**, e.g. `Alex Rivera;Sam Patel`. Matched to your staff register (case-insensitive). Separate multiple with `;` (or `,`). The **first** name becomes the primary driver. |
+| `driver_emails` | – | Alternative way to assign drivers — matched to staff by **email**. Use this *or* `driver_names` (or both); names and emails are combined and de-duplicated. |
 | `next_service` | – | Date `YYYY-MM-DD` (or `DD/MM/YYYY`) |
 | `mot_due` | – | Date — feeds the compliance dashboard's expiry list |
 | `tax_status` | – | e.g. `Taxed` / `SORN` / a due date |
@@ -35,8 +36,10 @@ Staffing console → **Vehicles** tab → **Import from engineers** button →
 | `notes` | – | Free text (e.g. equipment fitted) |
 
 ## Matching & rules
-- **Drivers**: matched to `staff_members` by email (case-insensitive), falling back
-  to full name. Unmatched emails are listed as row errors and left unassigned.
+- **Drivers (who the car is assigned to)**: put the person's **name** in `driver_names`
+  and/or their **email** in `driver_emails`. Both are matched to your `staff_members`
+  register (case-insensitive); the first driver becomes the primary. Anything that
+  doesn't match an existing staff member is listed as a row error and left unassigned.
 - **Duplicates**: a reg already active in the register is skipped (never overwritten).
 - **Engineer sync**: the primary driver's registration is pushed to their Service
   Desk engineer profile automatically.
