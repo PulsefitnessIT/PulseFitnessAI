@@ -1,0 +1,32 @@
+{
+  "summary": "Verified the Jan 2026 Vehicle Check overhaul end-to-end. Backend 10/10 pytest pass: templates return 5 keys (car/electric_car/van/electric_van/lorry) with correct sections (electric_car → 'Electric Vehicle Checks'; lorry → 'Lorry / HGV Checks'; provider_label = 'Supplier / garage'); creating vehicles of each vehicle_type persists on create+register; CSV template download works; CSV import creates good rows, skips duplicate registrations, and reports unmatched driver emails as row errors; staff handbook PDF returns 200 application/pdf with %PDF-1 header; legacy check_type (van_maintenance / vehicle_check) still accepted. Frontend UI (desktop 1920x800 and mobile 390x844): Add-vehicle modal is now rendered via createPortal to document.body (parent=BODY), full-viewport backdrop (fixed, 1920x800 / 390x844, z-index=1000, bg-black/…), header 'Add vehicle' fully visible (y=109 desktop, y=52 mobile — not clipped), body overflow=hidden while modal open (scroll locked). Modal contains vm-vehicle-type dropdown (default 'Car') and vm-provider (labelled 'Supplier / garage') — 'Check type' label and 'Electric vehicle' checkbox are gone. Import modal (vehicle-import-modal) shows import-template-btn and import-csv-input. Mobile Staff Portal bottom-nav-more opens staff-more-sheet with visible 'Staff Portal Handbook (PDF)' more-handbook button; direct PDF fetch returns 200 application/pdf %PDF header. No 'Vanarama' appears as a check type anywhere (it remains as a supplier placeholder inside 'Supplier / garage' input, which is now correct).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Vehicle modal (manager)", "issues": ["After closing the Add vehicle modal, body computed style shows overflow='hidden auto' instead of the pre-open value. Cosmetic — page still scrolls; recommend saving/restoring the previous inline overflow when unlocking scroll."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_vehicle_v2_jan2026.py",
+    "/app/test_reports/pytest/vehicle_v2_jan2026.xml"
+  ],
+  "action_items": [
+    "(Nice-to-have) Preserve the pre-open document.body inline overflow value in VehiclesTab modal so the scroll-lock cleanup is a perfect restore, not a hard-coded 'auto'."
+  ],
+  "critical_code_review_comments": [
+    "routes/vehicle_checks.py has grown to ~1040 lines — split into modules: templates.py (VEHICLE_TYPES/_build_template), csv_import.py (import-template + import-csv), defects.py, portal.py. Improves maintainability and testability.",
+    "CSV import: unmatched driver emails are pushed to errors but the row is still inserted with driver_ids empty. Consider surfacing this in the response as 'partial' rather than lumping into 'errors' (which currently double-counts as 'created' + 'errors').",
+    "vehicle_type field is duplicated as both vehicle_type and check_type on every insert for legacy support — fine, but add a background migration to drop check_type once all clients moved, and add a Pydantic Literal validator on VehicleBody.vehicle_type to reject junk earlier (currently only invalid via _normalise_type fallback to 'car').",
+    "Staff handbook PDF: _build_handbook_pdf regenerates the full PDF on every request — consider caching bytes at import time if HANDBOOK_SECTIONS is static."
+  ],
+  "updated_files": ["/app/backend/tests/test_vehicle_v2_jan2026.py"],
+  "success_rate": {"backend": "100% (10/10 new tests)", "frontend": "100% (modal portal + backdrop + testids + CSV block + handbook sheet all verified on both viewports)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!  ·  portal.staff@pulsedemo.test / Staff123!",
+  "seed_data_creation": "Test creates & cleans up ephemeral vehicles prefixed ZZ (ZZCA/ZZEL/ZZVA/ZZEV/ZZLO/ZZCSV/ZZDUP/ZZBAD/ZZLEG).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "New regression file /app/backend/tests/test_vehicle_v2_jan2026.py complements test_vehicle_checks.py. UI portal fix confirmed: [data-testid=vehicle-modal] parent is BODY; full-viewport backdrop with z-index=1000; body overflow locked. Mobile bottom-nav-more → staff-more-sheet → more-handbook works and PDF endpoint /api/new-starter/portal/handbook.pdf returns 200 application/pdf %PDF.",
+  "rca of the issue": "Original modal clipping bug — a Tailwind fixed backdrop nested inside an ancestor with transform:translate created a new containing block, so position:fixed no longer positioned against the viewport, leaving the backdrop bounded by the ancestor and cropping the modal top. Fix (verified) is createPortal(<Modal/>, document.body) so the fixed element resolves against the viewport again, plus body.style.overflow='hidden' for scroll lock on open."
+}

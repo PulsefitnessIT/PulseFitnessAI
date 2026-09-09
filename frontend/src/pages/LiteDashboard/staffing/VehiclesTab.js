@@ -5,11 +5,14 @@
  * engineer vehicle_reg (import) — no data is duplicated.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { Truck, Plus, ShieldAlert, FileDown, Link2, Loader2, X, Check, Trash2 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : '');
+const VEHICLE_TYPE_LABEL = { car: 'Car', electric_car: 'Electric Car', van: 'Van', electric_van: 'Electric Van', lorry: 'Lorry / HGV', van_maintenance: 'Van', vehicle_check: 'Car' };
+const vtLabel = (v) => VEHICLE_TYPE_LABEL[v?.vehicle_type || v?.check_type] || 'Vehicle';
 
 async function downloadCheckPdf(checkId, headers) {
   const r = await axios.get(`${API}/vehicle-checks/${checkId}/pdf`, { headers, responseType: 'blob' });
@@ -18,7 +21,6 @@ async function downloadCheckPdf(checkId, headers) {
   URL.revokeObjectURL(url);
 }
 
-const CHECK_LABEL = { van_maintenance: 'Van Maintenance', vehicle_check: 'Vehicle Check' };
 const STATUS_TONE = {
   due: '#F59E0B', in_progress: '#0EA5E9', submitted: '#10B981', reviewed: '#10B981',
 };
@@ -150,14 +152,14 @@ function FleetRegister({ data, onEdit, onChanged, headers }) {
       <table className="w-full text-sm">
         <thead><tr className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
           <th className="text-left py-2 px-3">Reg</th><th className="text-left py-2 px-3">Make/Model</th>
-          <th className="text-left py-2 px-3">Check type</th><th className="text-left py-2 px-3">Drivers</th>
+          <th className="text-left py-2 px-3">Vehicle type</th><th className="text-left py-2 px-3">Drivers</th>
           <th className="text-left py-2 px-3">This week</th><th className="w-20" /></tr></thead>
         <tbody>
           {data.vehicles.map((v) => (
             <tr key={v.id} className="border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`vehicle-reg-${v.id}`}>
               <td className="py-2 px-3 font-bold uppercase" style={{ color: 'var(--theme-text)' }}>{v.reg_no}{v.is_ev && <span className="ml-1 text-[9px] px-1 rounded bg-emerald-100 text-emerald-700">EV</span>}</td>
               <td className="py-2 px-3" style={{ color: 'var(--theme-text-muted)' }}>{v.make_model || '—'}</td>
-              <td className="py-2 px-3 text-xs uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>{CHECK_LABEL[v.check_type]}</td>
+              <td className="py-2 px-3 text-xs uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>{vtLabel(v)}</td>
               <td className="py-2 px-3 text-xs" style={{ color: 'var(--theme-text-muted)' }}>{(v.driver_names || []).join(', ') || <span className="text-amber-600">Unassigned</span>}</td>
               <td className="py-2 px-3">
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${STATUS_TONE[v.this_week?.status] || '#94a3b8'}22`, color: STATUS_TONE[v.this_week?.status] || '#94a3b8' }} data-testid={`vehicle-week-${v.id}`}>
@@ -317,10 +319,16 @@ function BookingForm({ onSubmit }) {
 }
 
 function Modal({ children, onClose, testId, wide }) {
-  return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 p-4" onClick={onClose} data-testid={testId}>
-      <div className={`w-full ${wide ? 'max-w-2xl' : 'max-w-lg'} max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl`} onClick={(e) => e.stopPropagation()}>{children}</div>
-    </div>
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex items-start sm:items-center justify-center bg-black/60 p-4 overflow-y-auto" onClick={onClose} data-testid={testId}>
+      <div className={`w-full ${wide ? 'max-w-2xl' : 'max-w-lg'} my-4 sm:my-8 max-h-[92vh] overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl`} onClick={(e) => e.stopPropagation()}>{children}</div>
+    </div>,
+    document.body,
   );
 }
 
@@ -328,7 +336,7 @@ function VehicleModal({ vehicle, drivers, headers, onClose, onSaved }) {
   const isNew = !vehicle.id;
   const [f, setF] = useState({
     reg_no: vehicle.reg_no || '', make_model: vehicle.make_model || '',
-    check_type: vehicle.check_type || 'vehicle_check', is_ev: !!vehicle.is_ev,
+    vehicle_type: vehicle.vehicle_type || vehicle.check_type || 'car',
     provider: vehicle.provider || '', driver_staff_ids: vehicle.driver_staff_ids || [],
     primary_driver_staff_id: vehicle.primary_driver_staff_id || null,
     odometer: vehicle.odometer || '', service_record: vehicle.service_record || {},
@@ -363,16 +371,17 @@ function VehicleModal({ vehicle, drivers, headers, onClose, onSaved }) {
           <input value={f.reg_no} onChange={(e) => setF((p) => ({ ...p, reg_no: e.target.value }))} data-testid="vm-reg" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 uppercase" /></label>
         <label className="block"><span className="text-xs text-slate-500">Make / model</span>
           <input value={f.make_model} onChange={(e) => setF((p) => ({ ...p, make_model: e.target.value }))} data-testid="vm-model" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-        <label className="block"><span className="text-xs text-slate-500">Check type</span>
-          <select value={f.check_type} onChange={(e) => setF((p) => ({ ...p, check_type: e.target.value }))} data-testid="vm-check-type" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
-            <option value="vehicle_check">Vehicle Check (company car/van)</option>
-            <option value="van_maintenance">Van Maintenance (Vanarama)</option>
-          </select></label>
-        <div className="flex items-end gap-4">
-          <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={f.is_ev} onChange={(e) => setF((p) => ({ ...p, is_ev: e.target.checked }))} data-testid="vm-ev" className="h-4 w-4" /> Electric vehicle</label>
-        </div>
-        <label className="block"><span className="text-xs text-slate-500">Provider / garage</span>
-          <input value={f.provider} onChange={(e) => setF((p) => ({ ...p, provider: e.target.value }))} placeholder={f.check_type === 'van_maintenance' ? 'Vanarama' : ''} data-testid="vm-provider" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+        <label className="block"><span className="text-xs text-slate-500">Vehicle type</span>
+          <select value={f.vehicle_type} onChange={(e) => setF((p) => ({ ...p, vehicle_type: e.target.value }))} data-testid="vm-vehicle-type" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+            <option value="car">Car</option>
+            <option value="electric_car">Electric Car</option>
+            <option value="van">Van</option>
+            <option value="electric_van">Electric Van</option>
+            <option value="lorry">Lorry / HGV</option>
+          </select>
+          <span className="text-[11px] text-slate-400">The weekly checklist matches the vehicle type.</span></label>
+        <label className="block"><span className="text-xs text-slate-500">Supplier / garage</span>
+          <input value={f.provider} onChange={(e) => setF((p) => ({ ...p, provider: e.target.value }))} placeholder="e.g. Vanarama" data-testid="vm-provider" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
         <label className="block"><span className="text-xs text-slate-500">Odometer</span>
           <input value={f.odometer} onChange={(e) => setF((p) => ({ ...p, odometer: e.target.value }))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
       </div>
@@ -424,18 +433,56 @@ function ImportModal({ headers, onClose, onDone }) {
   const [cands, setCands] = useState(null);
   const [sel, setSel] = useState({});
   const [busy, setBusy] = useState(false);
+  const [csvResult, setCsvResult] = useState(null);
+  const [csvErr, setCsvErr] = useState('');
   useEffect(() => { axios.get(`${API}/vehicles/import-candidates`, { headers }).then((r) => setCands(r.data.candidates || [])).catch(() => setCands([])); }, [headers]);
   const doImport = async () => {
     setBusy(true);
-    const items = (cands || []).filter((c) => sel[c.reg_no]).map((c) => ({ reg_no: c.reg_no, staff_id: c.staff_id, check_type: 'van_maintenance' }));
+    const items = (cands || []).filter((c) => sel[c.reg_no]).map((c) => ({ reg_no: c.reg_no, staff_id: c.staff_id, vehicle_type: 'van' }));
     await axios.post(`${API}/vehicles/import`, { items }, { headers });
     onDone();
   };
+  const downloadTemplate = async () => {
+    const r = await axios.get(`${API}/vehicles/import-template.csv`, { headers, responseType: 'blob' });
+    const url = URL.createObjectURL(r.data); const a = document.createElement('a'); a.href = url; a.download = 'vehicle-import-template.csv'; a.click(); URL.revokeObjectURL(url);
+  };
+  const uploadCsv = async (file) => {
+    if (!file) return;
+    setBusy(true); setCsvErr(''); setCsvResult(null);
+    const fd = new FormData(); fd.append('file', file);
+    try {
+      const r = await axios.post(`${API}/vehicles/import-csv`, fd, { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
+      setCsvResult(r.data);
+    } catch (e) { setCsvErr(e?.response?.data?.detail || 'CSV import failed.'); }
+    finally { setBusy(false); }
+  };
   return (
-    <Modal onClose={onClose} testId="vehicle-import-modal">
-      <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-slate-900 flex items-center gap-2"><Link2 size={18} /> Import from engineer profiles</h3><button onClick={onClose} className="text-slate-400"><X size={18} /></button></div>
+    <Modal onClose={onClose} testId="vehicle-import-modal" wide>
+      <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-slate-900 flex items-center gap-2"><Link2 size={18} /> Import vehicles</h3><button onClick={onClose} className="text-slate-400"><X size={18} /></button></div>
+
+      <div className="rounded-xl border border-slate-200 p-4 mb-4" data-testid="import-csv-block">
+        <div className="font-semibold text-slate-800 text-sm mb-1">Bulk import from spreadsheet (CSV)</div>
+        <p className="text-xs text-slate-500 mb-3">Download the template, fill in every column (reg, make/model, vehicle type, supplier, odometer, driver emails, MOT/tax/insurance/service dates), then upload. Drivers are matched to staff by email.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={downloadTemplate} data-testid="import-template-btn" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border border-slate-300 text-slate-700"><FileDown size={13} /> Download CSV template</button>
+          <label className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 text-slate-900 cursor-pointer" style={{ background: 'var(--color-brand-cyan)' }} data-testid="import-csv-label">
+            <Plus size={13} /> Upload CSV
+            <input type="file" accept=".csv,text/csv" className="hidden" data-testid="import-csv-input" onChange={(e) => uploadCsv(e.target.files[0])} />
+          </label>
+        </div>
+        {csvErr && <div className="mt-2 text-xs text-rose-600" data-testid="import-csv-error">{csvErr}</div>}
+        {csvResult && (
+          <div className="mt-3 text-xs" data-testid="import-csv-result">
+            <div className="font-semibold text-emerald-700">Imported {csvResult.created} vehicle(s){csvResult.skipped ? `, skipped ${csvResult.skipped} duplicate(s)` : ''}.</div>
+            {(csvResult.errors || []).length > 0 && <ul className="mt-1 list-disc pl-4 text-amber-700">{csvResult.errors.map((er, i) => <li key={i}>{er}</li>)}</ul>}
+            <button onClick={onDone} className="mt-2 underline font-semibold" style={{ color: 'var(--color-brand-cyan)' }}>Done — refresh register</button>
+          </div>
+        )}
+      </div>
+
+      <div className="font-semibold text-slate-800 text-sm mb-2">Or link from engineer profiles</div>
       {!cands ? <Loader2 className="animate-spin text-cyan-500" /> : cands.length === 0 ? (
-        <div className="text-sm text-slate-500 py-6 text-center">No engineer registrations to import — everything's already in the register.</div>
+        <div className="text-sm text-slate-500 py-4 text-center">No engineer registrations to import — everything's already in the register.</div>
       ) : (
         <div className="space-y-2">
           {cands.map((c) => (
@@ -466,7 +513,7 @@ function CheckDetailModal({ checkId, headers, onClose, onReviewed }) {
     <Modal onClose={onClose} testId="check-detail-modal" wide>
       <div className="flex items-center justify-between mb-3">
         <div><h3 className="font-bold text-slate-900 uppercase">{d.details?.reg_no}</h3>
-          <div className="text-xs text-slate-500">{d.driver_name} · week {fmtD(d.week_commencing)} · {CHECK_LABEL[d.check_type]}</div></div>
+          <div className="text-xs text-slate-500">{d.driver_name} · week {fmtD(d.week_commencing)} · {vtLabel(d)}</div></div>
         <div className="flex items-center gap-2">
           <button onClick={() => downloadCheckPdf(checkId, headers)} data-testid="check-detail-pdf" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><FileDown size={13} /> PDF</button>
           <button onClick={onClose} className="text-slate-400"><X size={18} /></button>

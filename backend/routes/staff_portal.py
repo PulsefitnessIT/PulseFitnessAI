@@ -26,6 +26,7 @@ import uuid
 from datetime import datetime, timezone, date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from utils.database import db
@@ -320,6 +321,78 @@ async def portal_holiday_preview(start: str = Query(...), end: str = Query(...),
         return {"working_days": 0, "bank_holidays": 0}
     wd = await count_working_days(staff["organization_id"], staff, start, end)
     return {"working_days": wd["working_days"], "bank_holidays": wd["bank_holidays"]}
+
+
+HANDBOOK_SECTIONS = [
+    ("Signing in", [
+        "Open the Staff Portal link in your welcome email and sign in with the details provided.",
+        "On a phone the portal works like an app — add it to your home screen for one-tap access.",
+        "After login, choose the Staff Portal or another module from the launcher."]),
+    ("Getting around (mobile)", [
+        "A fixed bottom bar gives you the main areas: Home, My Time, Holidays, Vehicle and More.",
+        "'More' holds Rota, Timesheets, Documents and System Access.",
+        "The bell (top right) shows reminders and updates — tap an item to jump straight to it."]),
+    ("My Day (Home)", [
+        "Record your day in seconds: start/finish, breaks, working from home, sick and more.",
+        "If you've been off sick, confirm the agreed return-to-work actions here."]),
+    ("My Time", [
+        "Review your week or month of daily records and submit your timesheet for the period.",
+        "A reminder appears if any days are missing confirmed hours."]),
+    ("Holidays", [
+        "Request holiday by picking your dates — the portal auto-calculates the working days "
+        "(excluding weekends and bank holidays) and shows what's left of your allowance.",
+        "Requests go to your line manager to approve; you're notified of the decision."]),
+    ("Vehicle checks (drivers)", [
+        "If a vehicle is assigned to you, complete its weekly check in the Vehicle tab.",
+        "Your name, registration and vehicle details are pre-filled. Mark each item OK / Defect / N/A.",
+        "The checklist matches your vehicle type (car, electric car, van or lorry).",
+        "For any defect (or if it's not safe to drive), describe it, add a photo and submit — "
+        "your manager is alerted automatically.",
+        "Tick the declaration and Submit. Checks are due weekly (by Friday); you'll be reminded "
+        "if one is outstanding."]),
+    ("Documents & System Access", [
+        "View your documents and the platform modules you have access to."]),
+    ("Need help?", [
+        "Contact your line manager or the Pulse HR team."]),
+]
+
+
+def _build_handbook_pdf(full_name: str | None) -> bytes:
+    import io as _io
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, Spacer, ListFlowable, ListItem
+    from utils.pulse_doc_template import (
+        pulse_styles, pulse_header, pulse_title, section_label, make_pulse_doc,
+    )
+    s = pulse_styles()
+    buf = _io.BytesIO()
+    doc = make_pulse_doc(buf, "Staff Portal Handbook")
+    story = [pulse_header(s, None)]
+    story += pulse_title(s, "Staff Portal Handbook",
+                         f"Welcome{(' ' + full_name) if full_name else ''} — your quick guide to the Pulse Fitness Staff Portal")
+    story.append(Spacer(1, 5 * mm))
+    esc = lambda t: str(t).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    for i, (title, points) in enumerate(HANDBOOK_SECTIONS, start=1):
+        story.append(section_label(s, f"{i}. {title}"))
+        story.append(ListFlowable(
+            [ListItem(Paragraph(esc(p), s["body"]), leftIndent=10) for p in points],
+            bulletType="bullet", start="•"))
+        story.append(Spacer(1, 3 * mm))
+    doc.build(story)
+    return buf.getvalue()
+
+
+@router.get("/new-starter/portal/handbook.pdf")
+async def portal_handbook(user: dict = Depends(get_current_user_portal)):
+    """Pulse-branded employee handbook PDF for the Staff Portal."""
+    staff = await _portal_staff(user)
+    try:
+        pdf = _build_handbook_pdf(staff.get("full_name"))
+    except Exception as e:
+        raise HTTPException(500, f"Could not generate handbook: {e}")
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": "attachment; filename=pulse-staff-portal-handbook.pdf"})
+
 
 
 @router.delete("/new-starter/portal/holidays/{leave_id}")

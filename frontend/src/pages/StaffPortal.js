@@ -125,7 +125,7 @@ export default function StaffPortal() {
       </div>
 
       <BottomNav tab={tab} setTab={setTab} onMore={() => setMoreOpen(true)} />
-      {moreOpen && <MoreSheet tab={tab} setTab={(t) => { setTab(t); setMoreOpen(false); }} onClose={() => setMoreOpen(false)} />}
+      {moreOpen && <MoreSheet tab={tab} jwt={jwt} setTab={(t) => { setTab(t); setMoreOpen(false); }} onClose={() => setMoreOpen(false)} />}
     </Shell>
   );
 }
@@ -157,8 +157,14 @@ function BottomNav({ tab, setTab, onMore }) {
   );
 }
 
-function MoreSheet({ tab, setTab, onClose }) {
+function MoreSheet({ tab, setTab, onClose, jwt }) {
   const rest = TABS.filter(([id]) => !PRIMARY_TABS.includes(id));
+  const downloadHandbook = async () => {
+    try {
+      const r = await axios.get(`${API}/new-starter/portal/handbook.pdf`, { headers: { Authorization: `Bearer ${jwt}` }, responseType: 'blob' });
+      const url = URL.createObjectURL(r.data); const a = document.createElement('a'); a.href = url; a.download = 'pulse-staff-portal-handbook.pdf'; a.click(); URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+  };
   return (
     <div className="sm:hidden fixed inset-0 z-50 flex items-end bg-black/40" onClick={onClose} data-testid="staff-more-sheet">
       <div className="w-full rounded-t-2xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -178,6 +184,10 @@ function MoreSheet({ tab, setTab, onClose }) {
             );
           })}
         </div>
+        <button onClick={downloadHandbook} data-testid="more-handbook"
+          className="mt-3 w-full flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-3 text-sm font-semibold text-slate-600">
+          <FileText size={16} /> Staff Portal Handbook (PDF)
+        </button>
       </div>
     </div>
   );
@@ -859,7 +869,8 @@ function Shell({ children }) {
 
 
 /* ─────────────── Vehicle checks ─────────────── */
-const CHECK_TYPE_LABEL = { van_maintenance: 'Van Maintenance', vehicle_check: 'Vehicle Check' };
+const CHECK_TYPE_LABEL = { car: 'Car', electric_car: 'Electric Car', van: 'Van', electric_van: 'Electric Van', lorry: 'Lorry / HGV', van_maintenance: 'Van', vehicle_check: 'Car' };
+const vType = (v) => CHECK_TYPE_LABEL[v?.vehicle_type || v?.check_type] || 'Vehicle';
 const VSTATUS = {
   due: ['Due this week', 'bg-amber-50 text-amber-700 border-amber-200'],
   in_progress: ['In progress', 'bg-sky-50 text-sky-700 border-sky-200'],
@@ -894,7 +905,7 @@ function VehicleTab({ H, jwt }) {
                 <span className="rounded-xl bg-slate-900 text-white p-2.5"><Truck size={18} /></span>
                 <div className="min-w-0">
                   <div className="font-bold text-slate-900 uppercase tracking-wide">{v.reg_no}</div>
-                  <div className="text-xs text-slate-500 truncate">{v.make_model || CHECK_TYPE_LABEL[v.check_type]} · {CHECK_TYPE_LABEL[v.check_type]}{v.is_ev ? ' · EV' : ''}</div>
+                  <div className="text-xs text-slate-500 truncate">{v.make_model || vType(v)} · {vType(v)}</div>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">

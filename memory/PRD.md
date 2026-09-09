@@ -36550,3 +36550,12 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - `GET /api/vehicle-checks/{id}/pdf` now fetches uploaded defect photos from object storage (db.files → get_object, category vehicle-photos, capped at 9) and embeds them in a new "Defect photos" section (3-per-row proportional images) placed after the defects block and before the driver declaration. `_build_check_pdf(..., photos_bytes)` extended; failures per-image are skipped gracefully.
 - Verified: PDF grew ~124KB → ~242KB with one photo; document analysis confirmed the "Defect photos" section renders a visible, non-broken image with the declaration correctly below. H&S record is now fully self-contained. Test data + uploaded file cleaned up.
 
+
+
+## 2026-09-09 — Vehicles: modal fix, Vehicle Type model, CSV import, PDF handbook
+- BUG FIX: VehiclesTab modals were clipped and the backdrop didn't cover the screen (an ancestor transform broke position:fixed). Shared `Modal` now renders via `createPortal(document.body)` at z-[1000] with a full-viewport backdrop + body scroll-lock. Verified by testing_agent at 1920 & 390.
+- "Check type" → "Vehicle type". Backend `VEHICLE_TYPES` = car, electric_car, van, electric_van, lorry; `_build_template(vehicle_type)` builds the matching checklist (EV section for electric types; Lorry/HGV section adds tachograph/load-security/coupling/air-lines/side-guards). `_normalise_type` maps legacy check_type (van_maintenance→van, vehicle_check→car). VehicleBody now uses `vehicle_type` (dropped check_type/is_ev + the Vanarama default). Provider relabelled "Supplier / garage".
+- CSV import: `GET /api/vehicles/import-template.csv` (all columns) + `POST /api/vehicles/import-csv` (matches drivers by email, skips duplicate regs, reports row errors, syncs primary driver reg to engineer). Import modal now has a CSV block (download template + upload) alongside engineer-linking. Guide: /app/VEHICLE_IMPORT_GUIDE.md.
+- Staff handbook: /app/memory/STAFF_PORTAL_HANDBOOK.md (living doc — keep updated as portal features ship) + `GET /api/new-starter/portal/handbook.pdf` (Pulse-branded) downloadable from the portal More sheet (more-handbook).
+- Verified: testing_agent iteration_vehicle_checks_v2_jan2026.json — backend 10/10, frontend 100%. Minor cosmetic note (body overflow computed style after modal close; scrolling unaffected). Test vehicles cleaned.
+

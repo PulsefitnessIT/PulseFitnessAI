@@ -83,41 +83,65 @@ _EV = [
 ]
 
 
-def _build_template(check_type: str, is_ev: bool) -> dict:
-    if check_type == "van_maintenance":
-        sections = [
-            _section("exterior", "Exterior", _EXTERIOR_VAN),
-            _section("under_bonnet", "Under the Bonnet", _UNDER_BONNET),
-            _section("interior", "Interior & Operation", _INTERIOR),
-        ]
-        photos = ["Cab", "Nearside", "Offside", "Rear"]
-        provider_label = "Vanarama"
-        declaration = ("I confirm that I have completed the vehicle checks and reported all known "
-                       "defects. If the vehicle appears unsafe or unroadworthy, I will not drive it "
-                       "until advice or repair confirms it is safe.")
-    else:
-        sections = [
-            _section("exterior", "Exterior", _EXTERIOR_VEHICLE),
-            _section("under_bonnet", "Under the Bonnet", _UNDER_BONNET),
-            _section("interior", "Interior & Operation", _INTERIOR),
-            _section("safety_tech", "Safety Equipment & Technology", _SAFETY_TECH),
-        ]
-        if is_ev:
-            sections.append(_section("ev", "Electric Vehicle Checks", _EV))
-        photos = ["Interior/Cab", "Nearside", "Offside", "Front", "Rear"]
-        provider_label = "Provider / garage"
-        declaration = ("I confirm that I have completed this weekly vehicle check and reported all "
-                       "known defects. If the vehicle appears unsafe or unroadworthy, I will not "
-                       "drive it until advice or repair confirms it is safe.")
+_LORRY_EXTRA = [
+    "Tachograph — working and correctly calibrated; card inserted where required.",
+    "Load security — load evenly distributed, secured and within weight limits; straps/curtains sound.",
+    "Coupling / fifth wheel / tow hitch — secure, greased and locked where applicable.",
+    "Air lines & brake connections — connected, undamaged and leak-free.",
+    "Side guards, under-run bars & markings — fitted, secure and undamaged.",
+]
+
+# vehicle_type → template configuration
+VEHICLE_TYPES = {
+    "car": {"label": "Car", "ev": False, "sections": [
+        ("exterior", "Exterior", "_EXTERIOR_VEHICLE"), ("under_bonnet", "Under the Bonnet", "_UNDER_BONNET"),
+        ("interior", "Interior & Operation", "_INTERIOR"), ("safety_tech", "Safety Equipment & Technology", "_SAFETY_TECH")]},
+    "electric_car": {"label": "Electric Car", "ev": True, "sections": [
+        ("exterior", "Exterior", "_EXTERIOR_VEHICLE"), ("under_bonnet", "Under the Bonnet", "_UNDER_BONNET"),
+        ("interior", "Interior & Operation", "_INTERIOR"), ("safety_tech", "Safety Equipment & Technology", "_SAFETY_TECH"),
+        ("ev", "Electric Vehicle Checks", "_EV")]},
+    "van": {"label": "Van", "ev": False, "sections": [
+        ("exterior", "Exterior", "_EXTERIOR_VAN"), ("under_bonnet", "Under the Bonnet", "_UNDER_BONNET"),
+        ("interior", "Interior & Operation", "_INTERIOR"), ("safety_tech", "Safety Equipment & Technology", "_SAFETY_TECH")]},
+    "electric_van": {"label": "Electric Van", "ev": True, "sections": [
+        ("exterior", "Exterior", "_EXTERIOR_VAN"), ("under_bonnet", "Under the Bonnet", "_UNDER_BONNET"),
+        ("interior", "Interior & Operation", "_INTERIOR"), ("safety_tech", "Safety Equipment & Technology", "_SAFETY_TECH"),
+        ("ev", "Electric Vehicle Checks", "_EV")]},
+    "lorry": {"label": "Lorry / HGV", "ev": False, "sections": [
+        ("exterior", "Exterior", "_EXTERIOR_VAN"), ("under_bonnet", "Under the Bonnet", "_UNDER_BONNET"),
+        ("interior", "Interior & Operation", "_INTERIOR"), ("safety_tech", "Safety Equipment & Technology", "_SAFETY_TECH"),
+        ("lorry", "Lorry / HGV Checks", "_LORRY_EXTRA")]},
+}
+_LEGACY_TYPE = {"van_maintenance": "van", "vehicle_check": "car"}
+VEHICLE_TYPE_LABELS = {k: v["label"] for k, v in VEHICLE_TYPES.items()}
+
+
+def _normalise_type(vehicle_type: str | None, is_ev: bool = False) -> str:
+    vt = (vehicle_type or "").strip().lower()
+    vt = _LEGACY_TYPE.get(vt, vt)
+    if vt in ("vehicle_check", "car") and is_ev:
+        vt = "electric_car"
+    return vt if vt in VEHICLE_TYPES else "car"
+
+
+def _build_template(vehicle_type: str, is_ev: bool = False) -> dict:
+    vt = _normalise_type(vehicle_type, is_ev)
+    cfg = VEHICLE_TYPES[vt]
+    label_map = {"_EXTERIOR_VAN": _EXTERIOR_VAN, "_EXTERIOR_VEHICLE": _EXTERIOR_VEHICLE,
+                 "_UNDER_BONNET": _UNDER_BONNET, "_INTERIOR": _INTERIOR,
+                 "_SAFETY_TECH": _SAFETY_TECH, "_EV": _EV, "_LORRY_EXTRA": _LORRY_EXTRA}
+    sections = [_section(key, title, label_map[items_ref]) for key, title, items_ref in cfg["sections"]]
     return {
-        "check_type": check_type,
-        "title": "Van Maintenance — Weekly Vehicle Check" if check_type == "van_maintenance"
-                 else "Weekly Company Vehicle Check",
+        "vehicle_type": vt,
+        "check_type": vt,  # legacy alias
+        "title": f"Weekly {cfg['label']} Check",
         "sections": sections,
-        "photo_slots": photos,
-        "provider_label": provider_label,
-        "declaration": declaration,
-        "is_ev": is_ev,
+        "photo_slots": ["Nearside", "Offside", "Front", "Rear"],
+        "provider_label": "Supplier / garage",
+        "declaration": ("I confirm that I have completed this weekly vehicle check and reported all "
+                        "known defects. If the vehicle appears unsafe or unroadworthy, I will not "
+                        "drive it until advice or repair confirms it is safe."),
+        "is_ev": cfg["ev"],
     }
 
 
@@ -125,7 +149,7 @@ def _all_item_ids(template: dict) -> list[str]:
     return [it["id"] for s in template["sections"] for it in s["items"]]
 
 
-CHECK_TYPES = {"van_maintenance", "vehicle_check"}
+CHECK_TYPES = set(VEHICLE_TYPES.keys())
 
 
 # ──────────────────────────────── Helpers ────────────────────────────────
@@ -221,19 +245,14 @@ async def run_vehicle_chase(org: str) -> None:
 # ════════════════════════════ Templates endpoint ════════════════════════════
 @router.get("/vehicle-checks/templates")
 async def vehicle_templates(user: dict = Depends(get_current_user)):
-    return {
-        "van_maintenance": _build_template("van_maintenance", False),
-        "vehicle_check": _build_template("vehicle_check", False),
-        "vehicle_check_ev": _build_template("vehicle_check", True),
-    }
+    return {vt: _build_template(vt) for vt in VEHICLE_TYPES}
 
 
 # ═══════════════════════════ Vehicle registry (mgr) ═══════════════════════════
 class VehicleBody(BaseModel):
     reg_no: str
     make_model: str = ""
-    check_type: str = "vehicle_check"
-    is_ev: bool = False
+    vehicle_type: str = "car"
     provider: str = ""
     driver_staff_ids: list[str] = []
     primary_driver_staff_id: str | None = None
@@ -260,8 +279,7 @@ async def list_vehicles(user: dict = Depends(get_current_user)):
 async def create_vehicle(body: VehicleBody, user: dict = Depends(get_current_user)):
     _require_manager(user)
     org = _org(user)
-    if body.check_type not in CHECK_TYPES:
-        raise HTTPException(400, "invalid check_type")
+    vt = _normalise_type(body.vehicle_type)
     reg = body.reg_no.strip().upper()
     if not reg:
         raise HTTPException(400, "Registration is required.")
@@ -269,8 +287,8 @@ async def create_vehicle(body: VehicleBody, user: dict = Depends(get_current_use
     doc = {
         "id": str(uuid.uuid4()), "organization_id": org, "active": True,
         "reg_no": reg, "make_model": body.make_model.strip(),
-        "check_type": body.check_type, "is_ev": bool(body.is_ev),
-        "provider": body.provider.strip() or ("Vanarama" if body.check_type == "van_maintenance" else ""),
+        "vehicle_type": vt, "check_type": vt, "is_ev": VEHICLE_TYPES[vt]["ev"],
+        "provider": body.provider.strip(),
         "driver_staff_ids": body.driver_staff_ids,
         "primary_driver_staff_id": primary,
         "odometer": body.odometer.strip(),
@@ -287,13 +305,12 @@ async def create_vehicle(body: VehicleBody, user: dict = Depends(get_current_use
 async def update_vehicle(vehicle_id: str, body: VehicleBody, user: dict = Depends(get_current_user)):
     _require_manager(user)
     org = _org(user)
-    if body.check_type not in CHECK_TYPES:
-        raise HTTPException(400, "invalid check_type")
+    vt = _normalise_type(body.vehicle_type)
     reg = body.reg_no.strip().upper()
     primary = body.primary_driver_staff_id or (body.driver_staff_ids[0] if body.driver_staff_ids else None)
     upd = {
         "reg_no": reg, "make_model": body.make_model.strip(),
-        "check_type": body.check_type, "is_ev": bool(body.is_ev),
+        "vehicle_type": vt, "check_type": vt, "is_ev": VEHICLE_TYPES[vt]["ev"],
         "provider": body.provider.strip(),
         "driver_staff_ids": body.driver_staff_ids,
         "primary_driver_staff_id": primary,
@@ -365,17 +382,94 @@ async def import_vehicles(body: ImportBody, user: dict = Depends(get_current_use
         if await db.vehicles.find_one({"organization_id": org, "reg_no": reg, "active": {"$ne": False}}):
             continue
         sid = it.get("staff_id")
+        vt = _normalise_type(it.get("vehicle_type") or it.get("check_type") or "van")
         await db.vehicles.insert_one({
             "id": str(uuid.uuid4()), "organization_id": org, "active": True,
             "reg_no": reg, "make_model": it.get("make_model", ""),
-            "check_type": it.get("check_type", "van_maintenance"),
-            "is_ev": False, "provider": "Vanarama" if it.get("check_type", "van_maintenance") == "van_maintenance" else "",
+            "vehicle_type": vt, "check_type": vt, "is_ev": VEHICLE_TYPES[vt]["ev"],
+            "provider": "",
             "driver_staff_ids": [sid] if sid else [],
             "primary_driver_staff_id": sid, "odometer": "", "service_record": {},
             "notes": "Imported from engineer profile", "created_at": _now(),
         })
         created += 1
     return {"ok": True, "created": created}
+
+
+CSV_COLUMNS = ["reg_no", "make_model", "vehicle_type", "provider", "odometer",
+               "driver_emails", "next_service", "mot_due", "tax_status",
+               "insurance_expiry", "mileage_due", "service_ref", "notes"]
+
+
+@router.get("/vehicles/import-template.csv")
+async def import_template(user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(CSV_COLUMNS)
+    w.writerow(["AB12 CDE", "Ford Transit Custom", "van", "Vanarama", "48210",
+                "driver1@company.com;driver2@company.com", "2026-11-01", "2027-01-10",
+                "Taxed", "2026-12-31", "60000", "SR-1234", "Blue light kit fitted"])
+    w.writerow(["EV70 XYZ", "Tesla Model Y", "electric_car", "", "12000",
+                "driver3@company.com", "", "2027-03-01", "Taxed", "2026-10-15", "", "", ""])
+    return Response(content=buf.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=vehicle-import-template.csv"})
+
+
+@router.post("/vehicles/import-csv")
+async def import_csv(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    """Bulk-import company vehicles from a CSV (see /vehicles/import-template.csv).
+    Drivers are matched to existing staff_members by email — no people re-keyed."""
+    _require_manager(user)
+    org = _org(user)
+    raw = await file.read()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("latin-1")
+    reader = csv.DictReader(io.StringIO(text))
+    # staff email → id map
+    staff = await db.staff_members.find({"organization_id": org}, {"_id": 0, "id": 1, "email": 1, "full_name": 1}).to_list(5000)
+    by_email = {(s.get("email") or "").strip().lower(): s["id"] for s in staff if s.get("email")}
+    by_name = {(s.get("full_name") or "").strip().lower(): s["id"] for s in staff if s.get("full_name")}
+    created, skipped, errors = 0, 0, []
+    for i, row in enumerate(reader, start=2):
+        reg = (row.get("reg_no") or "").strip().upper()
+        if not reg:
+            continue
+        if await db.vehicles.find_one({"organization_id": org, "reg_no": reg, "active": {"$ne": False}}):
+            skipped += 1
+            continue
+        vt = _normalise_type(row.get("vehicle_type") or "car")
+        driver_ids, unmatched = [], []
+        for tok in (row.get("driver_emails") or "").replace(",", ";").split(";"):
+            tok = tok.strip()
+            if not tok:
+                continue
+            sid = by_email.get(tok.lower()) or by_name.get(tok.lower())
+            if sid:
+                driver_ids.append(sid)
+            else:
+                unmatched.append(tok)
+        if unmatched:
+            errors.append(f"Row {i} ({reg}): driver not found — {', '.join(unmatched)}")
+        primary = driver_ids[0] if driver_ids else None
+        sr = {k: (row.get(k) or "").strip() for k in ("next_service", "mot_due", "tax_status", "insurance_expiry", "mileage_due", "service_ref") if (row.get(k) or "").strip()}
+        await db.vehicles.insert_one({
+            "id": str(uuid.uuid4()), "organization_id": org, "active": True,
+            "reg_no": reg, "make_model": (row.get("make_model") or "").strip(),
+            "vehicle_type": vt, "check_type": vt, "is_ev": VEHICLE_TYPES[vt]["ev"],
+            "provider": (row.get("provider") or "").strip(),
+            "driver_staff_ids": driver_ids, "primary_driver_staff_id": primary,
+            "odometer": (row.get("odometer") or "").strip(),
+            "service_record": sr, "notes": (row.get("notes") or "").strip(),
+            "created_at": _now(),
+        })
+        if primary:
+            await _sync_engineer_reg(org, primary, reg)
+        created += 1
+    return {"ok": True, "created": created, "skipped": skipped, "errors": errors}
+
 
 
 # ═══════════════════════════ Defect tracker (mgr) ═══════════════════════════
@@ -694,7 +788,7 @@ async def check_pdf(check_id: str, user: dict = Depends(get_current_user)):
     doc = await db.vehicle_checks.find_one({"organization_id": org, "id": check_id}, {"_id": 0})
     if not doc:
         raise HTTPException(404, "not found")
-    template = _build_template(doc.get("check_type", "vehicle_check"), doc.get("is_ev", False))
+    template = _build_template(doc.get("vehicle_type") or doc.get("check_type", "car"), doc.get("is_ev", False))
     # Pull uploaded defect photos from object storage so the PDF is self-contained.
     photos_bytes: list[bytes] = []
     photo_ids = ((doc.get("photos") or {}).get("defect")) or []
@@ -726,7 +820,7 @@ async def check_detail(check_id: str, user: dict = Depends(get_current_user)):
     doc = await db.vehicle_checks.find_one({"organization_id": org, "id": check_id}, {"_id": 0})
     if not doc:
         raise HTTPException(404, "not found")
-    doc["template"] = _build_template(doc.get("check_type", "vehicle_check"), doc.get("is_ev", False))
+    doc["template"] = _build_template(doc.get("vehicle_type") or doc.get("check_type", "car"), doc.get("is_ev", False))
     return doc
 
 
@@ -775,13 +869,13 @@ async def portal_get_check(vehicle_id: str = Query(...), week: str | None = Quer
         raise HTTPException(404, "vehicle not found")
     if staff["id"] not in (veh.get("driver_staff_ids") or []):
         raise HTTPException(403, "This vehicle isn't assigned to you.")
-    template = _build_template(veh.get("check_type", "vehicle_check"), veh.get("is_ev", False))
+    template = _build_template(veh.get("vehicle_type") or veh.get("check_type", "car"), veh.get("is_ev", False))
     existing = await db.vehicle_checks.find_one(
         {"organization_id": org, "vehicle_id": vehicle_id, "week_commencing": week}, {"_id": 0})
     if not existing:
         existing = {
             "vehicle_id": vehicle_id, "week_commencing": week,
-            "check_type": veh.get("check_type"), "is_ev": veh.get("is_ev", False),
+            "check_type": veh.get("vehicle_type") or veh.get("check_type"), "vehicle_type": veh.get("vehicle_type") or veh.get("check_type"), "is_ev": veh.get("is_ev", False),
             "driver_staff_id": staff["id"], "driver_name": staff.get("full_name"),
             "details": {"reg_no": veh.get("reg_no"), "make_model": veh.get("make_model"),
                         "odometer": veh.get("odometer", ""), "date": date.today().isoformat()},
@@ -809,7 +903,7 @@ async def _upsert_check(user, body: SaveCheckBody, submit: bool):
         raise HTTPException(404, "vehicle not found")
     if staff["id"] not in (veh.get("driver_staff_ids") or []):
         raise HTTPException(403, "This vehicle isn't assigned to you.")
-    template = _build_template(veh.get("check_type", "vehicle_check"), veh.get("is_ev", False))
+    template = _build_template(veh.get("vehicle_type") or veh.get("check_type", "car"), veh.get("is_ev", False))
     all_ids = _all_item_ids(template)
     items = {k: v for k, v in (body.items or {}).items() if k in all_ids and v in ("ok", "defect", "na")}
     has_defects = any(v == "defect" for v in items.values())
@@ -830,7 +924,7 @@ async def _upsert_check(user, body: SaveCheckBody, submit: bool):
         {"organization_id": org, "vehicle_id": body.vehicle_id, "week_commencing": week}, {"_id": 0})
     set_doc = {
         "organization_id": org, "vehicle_id": body.vehicle_id, "week_commencing": week,
-        "check_type": veh.get("check_type"), "is_ev": veh.get("is_ev", False),
+        "check_type": veh.get("vehicle_type") or veh.get("check_type"), "vehicle_type": veh.get("vehicle_type") or veh.get("check_type"), "is_ev": veh.get("is_ev", False),
         "driver_staff_id": staff["id"], "driver_name": staff.get("full_name"),
         "details": {**(body.details or {}),
                     "reg_no": veh.get("reg_no"), "make_model": veh.get("make_model")},
