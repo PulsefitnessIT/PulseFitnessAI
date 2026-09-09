@@ -1,3 +1,24 @@
+# ═══ 2026-06 · STAFF PORTAL re-skinned to match platform modules · screenshot-verified (desktop+mobile) ═══
+User wanted the Staff Portal to look exactly like the other module consoles (/pulse etc.).
+StaffPortal.js now renders the SAME chrome as LiteDashboardPage:
+- Shared <Navbar/> (black bar: pulse logo, org name, dark-mode toggle, EN, Switch area — which includes the
+  Staff Portal entry we added — and the user avatar dropdown with Log out). Rendered when usingPlatformToken.
+  Dedicated /staff-login sessions (staff_jwt, no platform session) get a matching black <FallbackBar/> with logo +
+  Log out, since Switch-area/avatar need the platform session.
+- Root uses style={{background:'var(--theme-bg)'}} + pt-24 + max-w-7xl mx-auto px-4 sm:px-6 lg:px-8, mirroring the
+  modules (dark-mode aware chrome).
+- Header: h1 "Staff Portal" (text-2xl sm:text-4xl pulse-font-heading, var(--theme-text)) + "Welcome back, {name}"
+  (var(--theme-text-muted)), with Active-employee badge + StaffNotificationBell + long-format date on the right.
+- Desktop tabs: shared <PillTabBar> with cyan (--color-brand-cyan / --color-ink) active pills — identical to the
+  module tab bar. Mobile keeps the app-style bottom nav (BottomNav) per the earlier explicit request.
+- Removed the old bespoke black logo bar (Shell), the body-level Back-to-modules / Log out / LanguageSwitcher
+  (now handled by Navbar). Removed unused imports (LayoutGrid, LanguageSwitcher).
+Verified: owner@isodemo → /staff-portal shows platform Navbar + Switch area + avatar, pill tabs, matching header;
+mobile 390px has no horizontal overflow and retains bottom nav. 0 lint errors, compiles clean. REDEPLOY required.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF PORTAL — real System Access + fillable timesheet (no shifts required) · curl+screenshot-verified ═══
 1) SYSTEM ACCESS reflected real access. GET /new-starter/portal/access previously only read the HR onboarding
    `staff_access_provisions` record, so existing users (e.g. Honey Hancock) saw everything "Not granted / Awaiting

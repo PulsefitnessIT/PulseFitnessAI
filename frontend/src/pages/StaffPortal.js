@@ -11,10 +11,10 @@ import {
   CheckCircle2, AlertCircle, Plus, Trash2, Users,
   Home, Play, Square, Coffee, Sun, Thermometer, ChevronLeft, ChevronRight,
   ClipboardCheck, PenLine, Truck, Camera, ShieldAlert, Check, X, MoreHorizontal,
-  LayoutGrid,
 } from 'lucide-react';
-import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
+import Navbar from '../components/shared/Navbar';
+import PillTabBar from '../components/shared/PillTabBar';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const CORE = '#19CDFF';
@@ -95,63 +95,97 @@ export default function StaffPortal() {
     }
     sessionStorage.removeItem('staff_jwt'); window.location.href = '/staff-login';
   };
-  const backToModules = () => { window.location.href = '/launch'; };
-
   if (!jwt) return null;
-  if (!me) return <Shell><div className="flex justify-center mt-24"><Loader2 className="animate-spin text-cyan-500" size={32} /></div></Shell>;
+
+  const dateStr = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  if (!me) {
+    return (
+      <div className="min-h-screen overflow-x-hidden pulse-font" style={{ background: 'var(--theme-bg)' }} data-portal="staff">
+        {usingPlatformToken ? <Navbar /> : <FallbackBar onLogout={logout} />}
+        <div className="pt-24 flex justify-center"><Loader2 className="animate-spin text-cyan-500" size={32} /></div>
+      </div>
+    );
+  }
 
   return (
-    <Shell>
-      <div className="max-w-5xl mx-auto pt-8 pb-28 sm:pb-8 px-4" data-testid="staff-portal">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Staff Portal</h1>
-            <p className="text-slate-500 text-sm">Hello {me.person?.full_name} — {me.employment?.job_title || me.employment?.position || 'welcome aboard'}.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {me.activated && <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-semibold">Active employee ✓</span>}
-            {usingPlatformToken && (
-              <button onClick={backToModules} data-testid="staff-portal-back-modules"
-                className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:border-slate-400 hover:text-slate-900 transition-colors">
-                <LayoutGrid size={14} /> <span className="hidden sm:inline">Back to modules</span></button>
-            )}
-            <StaffNotificationBell
-              endpoint={`${API}/new-starter/portal/notifications`}
-              readEndpoint={`${API}/new-starter/portal/notifications/read`}
-              headers={H} onNavigate={setTab} />
-            <LanguageSwitcher />
-            <button onClick={logout} data-testid="staff-portal-logout"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:border-slate-400">
-              <LogOut size={14} /> Log out</button>
-          </div>
-        </div>
+    <div className="min-h-screen overflow-x-hidden pulse-font" style={{ background: 'var(--theme-bg)' }} data-portal="staff" data-testid="staff-portal-root">
+      {usingPlatformToken ? <Navbar /> : <FallbackBar onLogout={logout} />}
 
-        <div className="mt-6 -mx-4 px-4 border-b border-slate-200 hidden sm:block">
-          <div className="flex gap-1 sm:gap-1.5 overflow-x-auto scrollbar-hide pb-px" data-testid="staff-tab-bar">
-            {TABS.map(([id, label, Icon]) => (
-              <button key={id} onClick={() => setTab(id)} data-testid={`staff-tab-${id}`}
-                className={`inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-t-lg -mb-px border-b-2 transition-colors ${tab === id ? 'border-cyan-400 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-                <Icon size={15} className="shrink-0" /> {label}
-              </button>
-            ))}
+      <div className="pt-24 pb-28 sm:pb-12 module-fade-in">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" data-testid="staff-portal">
+          {/* Header — same layout as the other modules */}
+          <div className="mb-6">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <h1 className="text-2xl sm:text-4xl tracking-tight font-semibold mb-1 pulse-font-heading leading-tight break-words" style={{ color: 'var(--theme-text)' }}>
+                  Staff Portal
+                </h1>
+                <p className="pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>Welcome back, {me.person?.full_name}</p>
+              </div>
+              <div className="flex items-center gap-3 shrink-0 mt-1.5">
+                {me.activated && <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold whitespace-nowrap">Active employee ✓</span>}
+                <StaffNotificationBell
+                  endpoint={`${API}/new-starter/portal/notifications`}
+                  readEndpoint={`${API}/new-starter/portal/notifications/read`}
+                  headers={H} onNavigate={setTab} />
+                <div className="hidden sm:block text-sm pulse-font-body" style={{ color: 'var(--theme-text-muted)' }} data-testid="staff-today-date">{dateStr}</div>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="mt-6">
-          {tab === 'home' && <MyDayTab H={H} onGoTo={setTab} />}
-          {tab === 'mytime' && <MyTimeTab H={H} />}
-          {tab === 'rota' && <RotaTab H={H} />}
-          {tab === 'timesheets' && <TimesheetsTab H={H} />}
-          {tab === 'holidays' && <HolidaysTab H={H} />}
-          {tab === 'vehicle' && <VehicleTab H={H} jwt={jwt} />}
-          {tab === 'documents' && <DocumentsTab H={H} />}
-          {tab === 'access' && <AccessTab H={H} />}
+          {/* Desktop pill tabs — identical styling to the module consoles */}
+          <PillTabBar className="mb-6 w-full hidden md:block" activeId={tab} testId="staff-dashboard-tabs" ariaLabel="Staff portal sections">
+            {TABS.map(([id, label, Icon]) => {
+              const isActive = tab === id;
+              return (
+                <button key={id} data-pill-id={id} onClick={() => setTab(id)} data-testid={`staff-tab-${id}`}
+                  className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-colors whitespace-nowrap"
+                  style={isActive
+                    ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
+                    : { color: 'var(--theme-text-muted)', background: 'transparent' }}>
+                  <Icon size={14} /> {label}
+                </button>
+              );
+            })}
+          </PillTabBar>
+
+          <div className="mt-2">
+            {tab === 'home' && <MyDayTab H={H} onGoTo={setTab} />}
+            {tab === 'mytime' && <MyTimeTab H={H} />}
+            {tab === 'rota' && <RotaTab H={H} />}
+            {tab === 'timesheets' && <TimesheetsTab H={H} />}
+            {tab === 'holidays' && <HolidaysTab H={H} />}
+            {tab === 'vehicle' && <VehicleTab H={H} jwt={jwt} />}
+            {tab === 'documents' && <DocumentsTab H={H} />}
+            {tab === 'access' && <AccessTab H={H} />}
+          </div>
         </div>
       </div>
 
       <BottomNav tab={tab} setTab={setTab} onMore={() => setMoreOpen(true)} />
       {moreOpen && <MoreSheet tab={tab} jwt={jwt} setTab={(t) => { setTab(t); setMoreOpen(false); }} onClose={() => setMoreOpen(false)} />}
-    </Shell>
+    </div>
+  );
+}
+
+/* Fallback top bar for dedicated /staff-login sessions (no platform session, so
+   the shared Navbar's Switch-area / avatar aren't available). Mirrors the
+   platform's black header. */
+function FallbackBar({ onLogout }) {
+  return (
+    <div style={{ backgroundColor: '#000000' }} className="border-b border-white/10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+        <img
+          src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg"
+          alt="Pulse Fitness" className="h-10 rounded-md object-cover"
+          style={{ objectPosition: 'center', aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }}
+          data-testid="staff-portal-logo" />
+        <button onClick={onLogout} data-testid="staff-portal-logout"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border border-white/20 text-white/90 hover:bg-white/10">
+          <LogOut size={14} /> Log out</button>
+      </div>
+    </div>
   );
 }
 
@@ -989,25 +1023,6 @@ function AccessTab({ H }) {
         </div>
       )}
     </Card>
-  );
-}
-
-function Shell({ children }) {
-  return (
-    <div className="min-h-screen bg-slate-50 pulse-font">
-      <div style={{ backgroundColor: '#000000' }} className="border-b border-white/10">
-        <div className="max-w-5xl mx-auto px-4 h-20 flex items-center gap-2.5">
-          <img
-            src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg"
-            alt="Pulse Fitness"
-            className="h-10 rounded-md object-cover"
-            style={{ objectPosition: 'center', aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }}
-            data-testid="staff-portal-logo"
-          />
-        </div>
-      </div>
-      {children}
-    </div>
   );
 }
 
