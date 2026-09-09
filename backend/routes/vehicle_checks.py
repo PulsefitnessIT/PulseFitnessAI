@@ -327,6 +327,57 @@ async def import_vehicles(body: ImportBody, user: dict = Depends(get_current_use
     return {"ok": True, "created": created}
 
 
+# ═══════════════════════════ Defect tracker (mgr) ═══════════════════════════
+DEFECT_STATES = {"open", "booked_in", "resolved"}
+
+
+@router.get("/vehicle-defects")
+async def list_defects(status: str | None = Query(None), user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    q: dict = {"organization_id": org}
+    if status in DEFECT_STATES:
+        q["status"] = status
+    rows = await db.vehicle_defects.find(q, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    counts = {
+        s: await db.vehicle_defects.count_documents({"organization_id": org, "status": s})
+        for s in ("open", "booked_in", "resolved")
+    }
+    return {"defects": rows, "counts": counts}
+
+
+class DefectUpdate(BaseModel):
+    status: str
+    booking_ref: str | None = None
+    booking_date: str | None = None
+    note: str | None = None
+
+
+@router.patch("/vehicle-defects/{defect_id}")
+async def update_defect(defect_id: str, body: DefectUpdate, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    if body.status not in DEFECT_STATES:
+        raise HTTPException(400, "invalid status")
+    doc = await db.vehicle_defects.find_one({"organization_id": org, "id": defect_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "defect not found")
+    now = _now()
+    upd: dict = {"status": body.status, "updated_at": now, "updated_by": user.get("email")}
+    if body.status == "booked_in":
+        upd["booked_at"] = now
+        if body.booking_ref is not None:
+            upd["booking_ref"] = body.booking_ref.strip()
+        if body.booking_date is not None:
+            upd["booking_date"] = body.booking_date.strip()
+    if body.status == "resolved":
+        upd["resolved_at"] = now
+        if body.note is not None:
+            upd["resolved_note"] = body.note.strip()
+    await db.vehicle_defects.update_one({"organization_id": org, "id": defect_id}, {"$set": upd})
+    return {"ok": True, "status": body.status}
+
+
 # ═══════════════════════ Weekly register + review (mgr) ═══════════════════════
 @router.get("/vehicle-checks/register")
 async def check_register(week: str | None = Query(None), status: str | None = Query(None),

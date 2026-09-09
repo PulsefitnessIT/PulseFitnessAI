@@ -36496,3 +36496,11 @@ Frontend:
 
 Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail later fixed: nudge now intersects with active assigned vehicles), frontend 100% smoke. Verified via curl + screenshots (staff form, manager detail modal with defect). Two robustness fixes applied post-test: nudge counting + draft photo preservation.
 
+
+
+## 2026-09-09 — Vehicle Defect Tracker (close the loop)
+- Managers now track each vehicle defect through open → booked-in → resolved.
+- Backend (routes/vehicle_checks.py): `GET /api/vehicle-defects?status=` (returns defects + counts {open,booked_in,resolved}); `PATCH /api/vehicle-defects/{id}` transitions status, capturing booking_ref + booking_date on booked_in and resolved_note + resolved_at on resolved (reopen supported). States: open|booked_in|resolved. Defects are auto-created on a vehicle-check submit with a fault (existing `vehicle_defects` collection) — no new source.
+- Frontend (staffing/VehiclesTab.js): new "Defects" sub-view with status filter tabs (counts), each card showing reg, not-safe flag, description, reporter, booking ref/date + resolved note; actions "Mark booked-in" (booking modal: provider ref + date), "Resolve" (with optional note), and "Reopen". testids: vehicles-view-defects, defect-filter-*, defect-<id>, defect-book-*, defect-resolve-*, defect-reopen-*, defect-booking-*.
+- Verified via curl (open→booked_in with VA ref/date→resolved with note; counts update) + desktop screenshot of the Defects list. Demo/test artifacts cleaned up.
+

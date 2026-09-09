@@ -36,7 +36,7 @@ export default function VehiclesTab({ headers }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="inline-flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--theme-border)' }}>
-          {[['register', 'Fleet register'], ['checks', 'Weekly checks']].map(([id, lab]) => (
+          {[['register', 'Fleet register'], ['checks', 'Weekly checks'], ['defects', 'Defects']].map(([id, lab]) => (
             <button key={id} onClick={() => setView(id)} data-testid={`vehicles-view-${id}`}
               className="px-4 py-1.5 text-xs font-semibold"
               style={view === id ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' } : { color: 'var(--theme-text-muted)' }}>{lab}</button>
@@ -52,8 +52,10 @@ export default function VehiclesTab({ headers }) {
 
       {view === 'register' ? (
         <FleetRegister data={data} onEdit={setEdit} onChanged={load} headers={headers} />
-      ) : (
+      ) : view === 'checks' ? (
         <WeeklyChecks headers={headers} week={data.week_commencing} onOpen={setDetail} />
+      ) : (
+        <DefectTracker headers={headers} />
       )}
 
       {edit && <VehicleModal vehicle={edit} drivers={drivers} headers={headers} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); load(); }} />}
@@ -136,6 +138,100 @@ function WeeklyChecks({ headers, week, onOpen }) {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+const DEFECT_TONE = { open: '#dc2626', booked_in: '#d97706', resolved: '#16a34a' };
+const DEFECT_LABEL = { open: 'Open', booked_in: 'Booked in', resolved: 'Resolved' };
+
+function DefectTracker({ headers }) {
+  const [status, setStatus] = useState('open');
+  const [data, setData] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+  const [booking, setBooking] = useState(null); // defect being booked-in
+  const load = useCallback(() => {
+    const qs = status === 'all' ? '' : `?status=${status}`;
+    axios.get(`${API}/vehicle-defects${qs}`, { headers }).then((r) => setData(r.data)).catch(() => setData({ defects: [], counts: {} }));
+  }, [status, headers]);
+  useEffect(() => { load(); }, [load]);
+
+  const setState = async (id, newStatus, extra = {}) => {
+    setBusyId(id);
+    try { await axios.patch(`${API}/vehicle-defects/${id}`, { status: newStatus, ...extra }, { headers }); setBooking(null); load(); }
+    finally { setBusyId(null); }
+  };
+
+  const counts = data?.counts || {};
+  return (
+    <div className="space-y-3" data-testid="vehicles-defects">
+      <div className="flex items-center gap-2 flex-wrap">
+        {[['open', `Open (${counts.open ?? 0})`], ['booked_in', `Booked in (${counts.booked_in ?? 0})`], ['resolved', `Resolved (${counts.resolved ?? 0})`], ['all', 'All']].map(([id, lab]) => (
+          <button key={id} onClick={() => setStatus(id)} data-testid={`defect-filter-${id}`}
+            className="px-3 py-1.5 text-xs font-semibold rounded-full border"
+            style={status === id ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', borderColor: 'transparent' } : { borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{lab}</button>
+        ))}
+      </div>
+      {!data ? <Loader2 className="animate-spin" style={{ color: 'var(--color-brand-cyan)' }} /> : data.defects.length === 0 ? (
+        <div className="rounded-xl border p-10 text-center text-sm" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>No {status === 'all' ? '' : DEFECT_LABEL[status]?.toLowerCase()} defects. 🎉</div>
+      ) : (
+        <div className="space-y-2">
+          {data.defects.map((d) => (
+            <div key={d.id} className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border)' }} data-testid={`defect-${d.id}`}>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold uppercase" style={{ color: 'var(--theme-text)' }}>{d.reg_no}</span>
+                    {d.safe_to_drive === false && <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600"><ShieldAlert size={12} /> Not safe</span>}
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${DEFECT_TONE[d.status]}22`, color: DEFECT_TONE[d.status] }}>{DEFECT_LABEL[d.status]}</span>
+                  </div>
+                  <p className="text-sm mt-1" style={{ color: 'var(--theme-text)' }}>{d.details || 'No description provided.'}</p>
+                  <div className="text-[11px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>
+                    Reported by {d.reported_by || '—'}
+                    {d.booking_ref && ` · Ref ${d.booking_ref}`}{d.booking_date && ` · Booked ${fmtD(d.booking_date)}`}
+                    {d.resolved_note && ` · ${d.resolved_note}`}
+                  </div>
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  {d.status === 'open' && (
+                    <button onClick={() => setBooking(d)} disabled={busyId === d.id} data-testid={`defect-book-${d.id}`}
+                      className="text-[11px] font-semibold rounded-full px-3 py-1.5 text-white" style={{ background: '#d97706' }}>Mark booked-in</button>
+                  )}
+                  {d.status !== 'resolved' && (
+                    <button onClick={() => setState(d.id, 'resolved')} disabled={busyId === d.id} data-testid={`defect-resolve-${d.id}`}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-3 py-1.5 text-white bg-emerald-600">{busyId === d.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} Resolve</button>
+                  )}
+                  {d.status === 'resolved' && (
+                    <button onClick={() => setState(d.id, 'open')} disabled={busyId === d.id} data-testid={`defect-reopen-${d.id}`}
+                      className="text-[11px] font-semibold rounded-full px-3 py-1.5 border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>Reopen</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {booking && (
+        <Modal onClose={() => setBooking(null)} testId="defect-booking-modal">
+          <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-slate-900">Book in repair — {booking.reg_no}</h3><button onClick={() => setBooking(null)} className="text-slate-400"><X size={18} /></button></div>
+          <BookingForm onSubmit={(ref, dt) => setState(booking.id, 'booked_in', { booking_ref: ref, booking_date: dt })} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function BookingForm({ onSubmit }) {
+  const [ref, setRef] = useState('');
+  const [dt, setDt] = useState('');
+  return (
+    <div className="space-y-3 text-sm">
+      <label className="block"><span className="text-xs text-slate-500">Provider / garage reference</span>
+        <input value={ref} onChange={(e) => setRef(e.target.value)} data-testid="defect-booking-ref" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="e.g. Vanarama ref" /></label>
+      <label className="block"><span className="text-xs text-slate-500">Booking date</span>
+        <input type="date" value={dt} onChange={(e) => setDt(e.target.value)} data-testid="defect-booking-date" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+      <div className="flex justify-end"><button onClick={() => onSubmit(ref, dt)} data-testid="defect-booking-save" className="px-4 py-2 rounded-lg text-sm font-bold text-slate-900" style={{ background: 'var(--color-brand-cyan)' }}>Save booking</button></div>
     </div>
   );
 }
