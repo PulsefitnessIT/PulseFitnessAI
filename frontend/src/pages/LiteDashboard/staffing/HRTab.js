@@ -27,9 +27,9 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 function AddStaffDialog({ headers, onClose, onCreated }) {
   const { t } = useTranslation();
-  const [roles, setRoles] = useState(['manager', 'staff']);
+  const [roles, setRoles] = useState(['manager']);
   const [form, setForm] = useState({
-    full_name: '', email: '', primary_role: 'staff',
+    full_name: '', email: '', primary_role: 'manager',
     contract_type: 'part_time', hours_per_week: 0, hourly_cost: 0,
   });
   const [saving, setSaving] = useState(false);
@@ -40,7 +40,13 @@ function AddStaffDialog({ headers, onClose, onCreated }) {
       try {
         const { data } = await axios.get(`${API}/staffing/roles`, { headers });
         const list = data.all || data.valid || data.platform_defaults || [];
-        if (list.length) setRoles(list);
+        if (list.length) {
+          setRoles(list);
+          // Keep the selected role valid — the <select> otherwise *displays* the
+          // first option while state holds an invalid value (e.g. "staff"),
+          // which the backend then rejects.
+          setForm((f) => (list.includes(f.primary_role) ? f : { ...f, primary_role: list[0] }));
+        }
       } catch { /* keep defaults */ }
     })();
   }, [headers]);

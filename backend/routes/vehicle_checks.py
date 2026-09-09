@@ -259,6 +259,11 @@ class VehicleBody(BaseModel):
     odometer: str = ""
     service_record: dict = {}
     notes: str = ""
+    # Explicit powertrain flags. is_ev, when set, overrides the type-derived
+    # default and drives the EV section of the weekly checklist; is_hybrid is
+    # an informational flag on the fleet record.
+    is_ev: bool | None = None
+    is_hybrid: bool = False
 
 
 @router.get("/vehicles")
@@ -284,10 +289,11 @@ async def create_vehicle(body: VehicleBody, user: dict = Depends(get_current_use
     if not reg:
         raise HTTPException(400, "Registration is required.")
     primary = body.primary_driver_staff_id or (body.driver_staff_ids[0] if body.driver_staff_ids else None)
+    is_ev = body.is_ev if body.is_ev is not None else VEHICLE_TYPES[vt]["ev"]
     doc = {
         "id": str(uuid.uuid4()), "organization_id": org, "active": True,
         "reg_no": reg, "make_model": body.make_model.strip(),
-        "vehicle_type": vt, "check_type": vt, "is_ev": VEHICLE_TYPES[vt]["ev"],
+        "vehicle_type": vt, "check_type": vt, "is_ev": is_ev, "is_hybrid": body.is_hybrid,
         "provider": body.provider.strip(),
         "driver_staff_ids": body.driver_staff_ids,
         "primary_driver_staff_id": primary,
@@ -308,9 +314,10 @@ async def update_vehicle(vehicle_id: str, body: VehicleBody, user: dict = Depend
     vt = _normalise_type(body.vehicle_type)
     reg = body.reg_no.strip().upper()
     primary = body.primary_driver_staff_id or (body.driver_staff_ids[0] if body.driver_staff_ids else None)
+    is_ev = body.is_ev if body.is_ev is not None else VEHICLE_TYPES[vt]["ev"]
     upd = {
         "reg_no": reg, "make_model": body.make_model.strip(),
-        "vehicle_type": vt, "check_type": vt, "is_ev": VEHICLE_TYPES[vt]["ev"],
+        "vehicle_type": vt, "check_type": vt, "is_ev": is_ev, "is_hybrid": body.is_hybrid,
         "provider": body.provider.strip(),
         "driver_staff_ids": body.driver_staff_ids,
         "primary_driver_staff_id": primary,

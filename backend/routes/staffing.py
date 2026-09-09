@@ -2055,6 +2055,10 @@ async def list_staff_roles(user: dict = Depends(get_current_user)):
                      if isinstance(r, str) and r.strip()})
     catalogue = [*BUSINESS_DEFAULT_ROLES, *[c for c in custom if c.lower() not in
                  {d.lower() for d in BUSINESS_DEFAULT_ROLES}]]
+    # Alphabetical (case-insensitive) with "other" pinned to the bottom.
+    catalogue = sorted([r for r in catalogue if r.lower() != "other"],
+                       key=lambda r: r.replace("_", " ").lower())
+    catalogue += [r for r in [*BUSINESS_DEFAULT_ROLES, *custom] if r.lower() == "other"][:1]
     return {
         "platform_defaults": list(BUSINESS_DEFAULT_ROLES),
         "custom": custom,

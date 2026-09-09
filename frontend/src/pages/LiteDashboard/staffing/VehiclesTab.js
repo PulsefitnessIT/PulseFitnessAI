@@ -54,7 +54,7 @@ export default function VehiclesTab({ headers }) {
         </div>
         {view === 'register' && (
           <div className="flex gap-2">
-            <button onClick={() => setImportOpen(true)} data-testid="vehicles-import-btn" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><Link2 size={13} /> Import from engineers</button>
+            <button onClick={() => setImportOpen(true)} data-testid="vehicles-import-btn" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><Link2 size={13} /> Import Vehicle Details</button>
             <button onClick={() => setEdit({})} data-testid="vehicles-add-btn" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}><Plus size={13} /> Add vehicle</button>
           </div>
         )}
@@ -341,6 +341,8 @@ function VehicleModal({ vehicle, drivers, headers, onClose, onSaved }) {
     primary_driver_staff_id: vehicle.primary_driver_staff_id || null,
     odometer: vehicle.odometer || '', service_record: vehicle.service_record || {},
     notes: vehicle.notes || '',
+    is_ev: vehicle.is_ev ?? ((vehicle.vehicle_type || vehicle.check_type || '').startsWith('electric')),
+    is_hybrid: vehicle.is_hybrid ?? false,
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -384,6 +386,19 @@ function VehicleModal({ vehicle, drivers, headers, onClose, onSaved }) {
           <input value={f.provider} onChange={(e) => setF((p) => ({ ...p, provider: e.target.value }))} placeholder="e.g. Vanarama" data-testid="vm-provider" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
         <label className="block"><span className="text-xs text-slate-500">Odometer</span>
           <input value={f.odometer} onChange={(e) => setF((p) => ({ ...p, odometer: e.target.value }))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-5" data-testid="vm-powertrain">
+        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Powertrain</span>
+        <label className="flex items-center gap-2 text-sm cursor-pointer text-slate-700">
+          <input type="checkbox" checked={!!f.is_ev} onChange={(e) => setF((p) => ({ ...p, is_ev: e.target.checked }))} data-testid="vm-is-ev" className="h-4 w-4" />
+          Electric (EV)
+        </label>
+        <label className="flex items-center gap-2 text-sm cursor-pointer text-slate-700">
+          <input type="checkbox" checked={!!f.is_hybrid} onChange={(e) => setF((p) => ({ ...p, is_hybrid: e.target.checked }))} data-testid="vm-is-hybrid" className="h-4 w-4" />
+          Hybrid
+        </label>
+        <span className="text-[11px] text-slate-400 basis-full">Tick EV to add the electric-vehicle section to the weekly checklist.</span>
       </div>
 
       <div className="mt-4">

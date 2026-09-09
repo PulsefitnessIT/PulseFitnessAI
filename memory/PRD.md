@@ -1,3 +1,23 @@
+# ═══ 2026-06 · STAFFING + VEHICLES FIXES (4) · curl+screenshot-verified ═══
+1) ADD-STAFF "primary_role must be one of…" bug. HRTab.js AddStaffDialog initialised primary_role:'staff'
+   (not a valid role and not in the options), so the <select> DISPLAYED "Manager" while state stayed 'staff' →
+   backend 400 on submit. Fixed: default primary_role:'manager', roles init ['manager'], and on /staffing/roles
+   load reconcile — if the current value isn't in the list, snap to list[0]. Verified: dialog now shows Manager AND
+   state value === 'manager'; create_staff({primary_role:'manager'}) → 200.
+2) ROLE ORDER. GET /staffing/roles `all` now returns roles alphabetically (case-insensitive, "_"→space) with
+   "other" pinned last. Verified: [administrator, director, engineer, manager, receptionist, sales_manager,
+   supervisor, technician, other].
+3) VEHICLE EV/HYBRID. vehicle_checks.py VehicleBody gains is_ev (bool|None, overrides type-derived default & drives
+   the EV checklist section) + is_hybrid (bool). create/update persist both. VehiclesTab VehicleModal adds a
+   POWERTRAIN row with "Electric (EV)" + "Hybrid" tickboxes (testids vm-is-ev / vm-is-hybrid); is_ev pre-ticks for
+   electric_* types. Verified: Car + is_ev=true + is_hybrid=true persisted.
+4) BUTTON RENAME. Fleet register "Import from engineers" → "Import Vehicle Details" (VehiclesTab, testid
+   vehicles-import-btn). Verified on screen.
+NOTE: redeploy required to ship to production.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF PORTAL — Switch-area entry + "temporary password" login-loop fix · curl+screenshot-verified ═══
 Three linked changes:
 (a) STAFF ACCESS = anyone in the staffing register. /auth/me now returns has_staff_portal (staff_members linked by
