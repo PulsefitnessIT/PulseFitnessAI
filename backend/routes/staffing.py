@@ -190,7 +190,8 @@ VALID_ROLES = {"instructor", "pt", "manager", "reception", "cleaner", "maintenan
 # keep their label and never fail validation.
 BUSINESS_DEFAULT_ROLES = [
     "manager", "engineer", "technician", "sales_manager",
-    "administrator", "receptionist", "supervisor", "director", "other",
+    "administrator", "receptionist", "supervisor", "director",
+    "hr", "payroll", "other",
 ]
 _LEGACY_GYM_ROLES = {
     "instructor", "pt", "reception", "cleaner",
@@ -198,6 +199,14 @@ _LEGACY_GYM_ROLES = {
 }
 # Validation superset — anything in here is an accepted primary_role.
 VALID_ROLES = set(BUSINESS_DEFAULT_ROLES) | _LEGACY_GYM_ROLES
+
+# Company departments — staff are assigned one so they can be grouped/filtered
+# in the People sidebar. De-duplicated and served alphabetically.
+DEPARTMENTS = sorted({
+    "Logistics", "Service", "Service Admin", "Sales", "Design & Build", "CRM",
+    "Design", "Technical", "IT", "Accounts", "HR", "Payroll", "iGym",
+    "Production", "Install", "Stores", "Warehouse", "Sales Admin",
+}, key=lambda d: d.lower())
 
 
 def _staff_role_from_platform_role(role, allowed: set) -> str:
@@ -299,6 +308,7 @@ class StaffCreate(BaseModel):
     phone: str | None = None
     active: bool = True
     notes: str | None = None
+    department: str | None = None
 
 
 class StaffUpdate(BaseModel):
@@ -316,6 +326,7 @@ class StaffUpdate(BaseModel):
     phone: str | None = None
     active: bool | None = None
     notes: str | None = None
+    department: str | None = None
 
 
 class ShiftCreate(BaseModel):
@@ -2085,6 +2096,14 @@ async def list_staff_roles(user: dict = Depends(get_current_user)):
         # Full validation set (incl. legacy) — exposed for completeness.
         "valid": sorted(await _allowed_roles_for(org_id)),
     }
+
+
+@router.get("/staffing/departments")
+async def list_departments(user: dict = Depends(get_current_user)):
+    """Company departments (alphabetical) for grouping/filtering staff."""
+    _org(user)
+    return {"departments": DEPARTMENTS}
+
 
 
 class StaffRoleAdd(BaseModel):

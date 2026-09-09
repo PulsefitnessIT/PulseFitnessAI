@@ -1,0 +1,29 @@
+{
+  "summary": "Retested HR Department save/refresh regression + reconfirmed 3 features. Login owner@isodemo.com → /pulse → Operations ▸ Staffing ▸ People (HR). All 4 target checks PASS: (1) Selected Alex Rivera, Edit, set hr-field-department=Logistics, Save → sidebar row (hr-staff-list) now shows 'Logistics' badge WITHOUT a manual reload; Employment section shows Department=Logistics. (2) Applying hr-dept-filter=Logistics keeps Alex Rivera in the filtered list (no 'No staff match'). (3) 'Manage job roles' modal opens perfectly centered (measured center_y=540 in 1080 viewport, offset=0). (4) hr-dept-filter options match the expected alphabetical de-duped list exactly: ['All departments','Accounts','CRM','Design','Design & Build','HR','iGym','Install','IT','Logistics','Payroll','Production','Sales','Sales Admin','Service','Service Admin','Stores','Technical','Warehouse']. (5) Role dropdown (hr-primary-role) includes HR + Payroll; alphabetical (current role prepended) with 'Other' last: ['Fitness Instructor','Administrator','Director','Engineer','Hr','Manager','Payroll','Receptionist','Sales Manager','Supervisor','Technician','Other','+ Add new role…'].",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST/PATCH under hr-profile-save", "issue": "Console shows a 400 during save (likely the HR-profile PATCH). The best-effort try/catch keeps the staff PATCH working and the sidebar refresh happens correctly, but the 400 on the HR-profile call is worth investigating so the underlying request doesn't silently fail."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Investigate the 400 response from the HR-profile PATCH observed during hr-profile-save (non-fatal; staff PATCH still succeeds and sidebar refreshes, but the HR profile update may be silently failing)."
+  ],
+  "critical_code_review_comments": [
+    "HRTab.js is 1264 lines - consider splitting Hub/ProfilePanel/JobRolesModal into separate files.",
+    "Role option list shows 'Hr' (title-cased) instead of 'HR' - humanizeRole should uppercase known acronyms (HR, IT)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (backend skipped per request)", "frontend": "100% (4/4 target checks pass)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "Alex Rivera department set to 'Logistics' during test (reversible via re-edit).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression from previous iteration (iteration_hr_dept_and_modal_center_jan2026.json) is confirmed fixed: after saving a department on ProfilePanel, sidebar refetch is awaited and the badge appears without reload; filter by Logistics now finds the person. Only outstanding minor note is a 400 seen on save console for the HR-profile PATCH which is caught by the best-effort try/catch."
+}

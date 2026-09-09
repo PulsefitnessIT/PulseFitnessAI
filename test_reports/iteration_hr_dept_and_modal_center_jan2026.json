@@ -1,0 +1,41 @@
+{
+  "summary": "Frontend-only test of Operations > Staffing > People (HR) for: (1) Manage-job-roles modal centering bug fix, (2) HR + Payroll job roles, (3) Department filter dropdown, (4) Department assign/persist in staff edit card. Modal is now correctly centered. HR & Payroll present in all role lists (alphabetical, Other last). Department filter has full 18-item alphabetical de-duped list. Department PATCH persists in profile view. However a frontend refresh bug was found: after saving a new department the SIDEBAR STAFF LIST is not refetched, so filtering by that department returns 'No staff match.' even though the profile Employment section shows the new department.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "HRTab sidebar list", "issue": "After profile Save with a new department, the sidebar staff row still displays the old department and dept-filter cannot find the staff member. Sidebar list is not refetched after PATCH /api/staffing/staff/{id}. Profile Employment section does update correctly.", "selector": "[data-testid=hr-staff-*] , [data-testid=hr-dept-filter]", "priority": "HIGH"},
+      {"component": "Role dropdowns (Add staff + Profile Edit + Job-Roles modal)", "issue": "'HR' is rendered as 'Hr' (title-cased by humanizeRole). Spec asks for 'HR'. Cosmetic only.", "selector": "[data-testid=hr-add-staff-role],[data-testid=hr-primary-role],[data-testid=job-roles-modal]", "priority": "LOW"},
+      {"component": "Testid naming vs review spec", "issue": "Review spec mentions data-testid 'hr-field-role' but implementation uses 'hr-add-staff-role' (in Add-staff dialog) and 'hr-primary-role' (in Profile Edit). No element has the id hr-field-role. Functionality present under different ids; consider aliasing if external tests rely on hr-field-role.", "selector": "hr-field-role (missing)", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Assign department -> filter by department", "issue": "Save persists to profile but sidebar list not refreshed; selecting the same department in hr-dept-filter shows 'No staff match.' Verified with Alex Rivera set to Logistics: profile Employment shows Logistics, sidebar row shows old 'Operations', filter=Logistics -> empty list.", "affected_selectors": ["[data-testid=hr-dept-filter]", "[data-testid^=hr-staff-]"]}
+    ],
+    "design_issues": []
+  },
+  "verified_pass": [
+    "BUG FIX: Manage-job-roles modal is centered at (960,540) on 1920x1080 viewport (== viewport center). createPortal to document.body confirmed.",
+    "hr-add-staff-role options (alphabetical, Other last): ['Administrator','Director','Engineer','Hr','Manager','Payroll','Receptionist','Sales Manager','Supervisor','Technician','Other'] - includes HR and Payroll",
+    "hr-primary-role (profile edit) options include HR and Payroll, alphabetical, Other last (excluding leading current-role and trailing '+ Add new role…')",
+    "hr-dept-filter has the exact 18-item list: All departments + Accounts, CRM, Design, Design & Build, HR, iGym, Install, IT, Logistics, Payroll, Production, Sales, Sales Admin, Service, Service Admin, Stores, Technical, Warehouse (alphabetical, de-duplicated)",
+    "hr-field-department in edit card contains the same 18 departments + '— None —' first",
+    "Department save writes through to Profile Employment section (Logistics shown after save)"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Refresh the staff list (refetch or optimistic update) after successful PATCH /api/staffing/staff/{id} so the sidebar row shows the new department and dept-filter can find the person. This is the main functional gap for Feature 4 of this request.",
+    "(Optional cosmetic) Special-case 'HR' in humanizeRole so it renders as 'HR' instead of 'Hr'.",
+    "(Optional) Add alias data-testid 'hr-field-role' to the profile-edit role select if external tooling/spec depends on it."
+  ],
+  "critical_code_review_comments": [
+    "HRTab.js is ~1261 lines — consider splitting AddStaffModal / ProfilePanel / JobRolesModal into separate files (>700 line guideline).",
+    "After ProfilePanel save, ensure the parent Hub state (staff list) is invalidated so dependent UI (sidebar rows, dept filter results) reflects the new department."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "80%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "Temporarily set Alex Rivera department to Logistics then reverted to '— None —' via profile edit.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Primary bug fix (modal centering) is verified. Focus retest on sidebar refresh after saving department: pick a staff member, edit -> set department -> save -> confirm sidebar row updates AND hr-dept-filter finds them. Note the review spec mentions data-testid 'hr-field-role' but actual ids are 'hr-add-staff-role' and 'hr-primary-role'.",
+  "rca of the issue": "ProfilePanel's PATCH success handler likely updates local profile state only; it does not trigger a re-fetch of the parent Hub's staff list. As a result, the sidebar rows and derived dept-filter results continue to show the pre-save department. Fix by lifting a refresh callback (e.g. onSaved prop) and calling the staff-list loader after a successful save, or by mutating the item in the parent list state."
+}

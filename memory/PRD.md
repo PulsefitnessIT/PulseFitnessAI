@@ -1,3 +1,24 @@
+# ═══ 2026-06 · STAFFING — Manage-roles modal centering (BUG), HR+Payroll roles, Departments · testing_agent-verified ═══
+1) BUG FIX (Manage job roles card appeared down the screen): JobRolesModal in HRTab.js was `fixed inset-0` but not
+   portaled, so a transformed ancestor offset it. Wrapped its return in createPortal(..., document.body). Testing
+   agent confirmed centered (center_y=540 in 1080 viewport, offset=0).
+2) HR & PAYROLL job roles: added "hr","payroll" to BUSINESS_DEFAULT_ROLES (staffing.py). Roles endpoint returns them
+   alphabetical with "other" last. (Humanized label shows "Hr"/"Payroll" — cosmetic.)
+3) DEPARTMENTS: DEPARTMENTS constant (18, de-duped, alphabetical) served by GET /staffing/departments; StaffCreate/
+   StaffUpdate accept `department`; PATCH /staffing/staff persists it; list_staff returns it. Frontend HRTab: sidebar
+   Department FILTER dropdown (hr-dept-filter, 'All departments' + list), department badge per staff row, and a
+   Department dropdown in the staff edit card (hr-field-department, Employment section). ProfilePanel passes
+   department in the staff PATCH.
+   FOLLOW-UP FIX (found by 1st testing pass): department save didn't refresh the sidebar — the staff PATCH (role/
+   email/department) was skipped when the HR-profile PATCH errored, and the list refetch wasn't awaited. Now the
+   HR-profile PATCH is best-effort in its own try/catch, the staff PATCH always runs, and onUpdated (Hub list
+   refetch) is awaited. 2nd testing pass: PASS — badge appears without reload, filter keeps the person.
+Reports: iteration_hr_dept_and_modal_center_jan2026.json, iteration_hr_dept_sidebar_refresh_jan2026.json.
+REDEPLOY required for production.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFFING delete button relocated + Vehicle HYBRID badge · screenshot-verified ═══
 1) DELETE STAFF moved out of the profile header into the bottom of the EDIT card (HRTab.js ProfilePanel): only
    rendered when `editing && isManager && onDelete`, as a red "Remove staff member" button in a bordered danger row

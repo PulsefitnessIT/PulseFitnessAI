@@ -229,7 +229,7 @@ function CredsDialog({ creds, onClose }) {
 
 // ─────────────────────── Profile panel ───────────────────────────
 
-function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, inviteBusy, onDelete }) {
+function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, inviteBusy, onDelete, departments = [] }) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -308,19 +308,23 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
       if (typeof payload.hours_per_week === 'string') {
         payload.hours_per_week = parseFloat(payload.hours_per_week) || null;
       }
-      await axios.patch(`${API}/staffing/hr/profile/${staffId}`, payload, { headers });
+      // HR-profile save is best-effort — a failure here must NOT skip the
+      // staff-record save (role / email / department), which is what feeds
+      // the sidebar list and filters.
+      try {
+        await axios.patch(`${API}/staffing/hr/profile/${staffId}`, payload, { headers });
+      } catch (profErr) { window.alert(profErr.response?.data?.detail || t('staffing.hr_profile_save_failed', 'Profile details save failed')); }
       const staffPatch = {};
       if (Array.isArray(form.site_ids)) staffPatch.site_ids = form.site_ids;
       if (form.primary_role && form.primary_role !== profile.primary_role) staffPatch.primary_role = form.primary_role;
       if ((form.email || '') !== (profile.email || '')) staffPatch.email = (form.email || '').trim();
+      if ((form.department || '') !== (profile.department || '')) staffPatch.department = form.department || '';
       if (Object.keys(staffPatch).length > 0) {
-        try {
-          await axios.patch(`${API}/staffing/staff/${staffId}`, staffPatch, { headers });
-        } catch (siteErr) { window.alert(siteErr.response?.data?.detail || t('staffing.hr_role_site_save_failed', 'Role / site allocation save failed')); }
+        await axios.patch(`${API}/staffing/staff/${staffId}`, staffPatch, { headers });
       }
       setEditing(false);
-      load();
-      onUpdated && onUpdated();
+      await load();
+      if (onUpdated) await onUpdated();
     } catch (e) { window.alert(e.response?.data?.detail || t('staffing.hr_save_failed', 'Save failed')); }
     setSaving(false);
   };
@@ -482,6 +486,19 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
             </select>
           ) : (
             <span className="text-sm" style={{ color: 'var(--theme-text)' }}>{profile.contract_type || '—'}</span>
+          )}
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_department', 'Department')}</span>
+          {editing ? (
+            <select value={form.department || ''} onChange={(e) => set('department', e.target.value || null)}
+              className="h-8 rounded-md bg-transparent border px-2 text-sm"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="hr-field-department">
+              <option value="">{t('staffing.hr_no_department', '— None —')}</option>
+              {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          ) : (
+            <span className="text-sm" style={{ color: 'var(--theme-text)' }}>{profile.department || '—'}</span>
           )}
         </div>
         <Field label={t('staffing.hr_hours_week', 'Hours / week')} k="hours_per_week" type="number" />
@@ -915,7 +932,7 @@ function JobRolesModal({ headers, onClose, onChanged }) {
     setBusy(false);
   };
 
-  return (
+  return createPortal((
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }} data-testid="job-roles-modal">
       <div className="w-full max-w-md rounded-2xl border shadow-xl flex flex-col max-h-[85vh]"
         style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
@@ -1006,7 +1023,7 @@ function JobRolesModal({ headers, onClose, onChanged }) {
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 
@@ -1037,6 +1054,13 @@ export default function HRTab({ headers, isManager }) {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => { localStorage.setItem('staffing.hr.sub', sub); }, [sub]);
+
+  const [departments, setDepartments] = useState([]);
+  const [deptFilter, setDeptFilter] = useState('');
+  useEffect(() => {
+    axios.get(`${API}/staffing/departments`, { headers })
+      .then((r) => setDepartments(r.data.departments || [])).catch(() => {});
+  }, [headers]);
 
   // Invite a staff member to the platform login (issues an invite link if they
   // have an email, otherwise a one-shot temp password). Their Staffing job role
@@ -1088,10 +1112,14 @@ export default function HRTab({ headers, isManager }) {
   }, [headers, load, t]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return staffList;
-    const q = search.toLowerCase();
-    return staffList.filter((s) => (s.full_name || '').toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q));
-  }, [staffList, search]);
+    let list = staffList;
+    if (deptFilter) list = list.filter((s) => (s.department || '') === deptFilter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((s) => (s.full_name || '').toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q));
+    }
+    return list;
+  }, [staffList, search, deptFilter]);
 
   const active = filtered.find((s) => s.id === activeId) || filtered[0];
 
@@ -1159,6 +1187,15 @@ export default function HRTab({ headers, isManager }) {
               </button>
             )}
           </div>
+          <div className="px-2 pb-2 border-b" style={{ borderColor: 'var(--theme-border)' }}>
+            <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)}
+              className="w-full h-8 rounded-md bg-transparent border px-2 text-xs"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+              data-testid="hr-dept-filter">
+              <option value="">{t('staffing.hr_all_departments', 'All departments')}</option>
+              {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
           <div className="flex-1 overflow-y-auto" data-testid="hr-staff-list">
             {loading && (
               <div className="p-3 inline-flex items-center gap-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>
@@ -1179,7 +1216,10 @@ export default function HRTab({ headers, isManager }) {
                   }}
                   data-testid={`hr-staff-row-${s.id}`}>
                   <p className="text-sm font-bold truncate" style={{ color: 'var(--theme-text)' }}>{s.full_name}</p>
-                  <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(s.primary_role)}</p>
+                  <p className="text-[10px] uppercase tracking-wider flex items-center gap-1.5 flex-wrap" style={{ color: 'var(--theme-text-muted)' }}>
+                    {humanizeRole(s.primary_role)}
+                    {s.department && <span className="normal-case text-[9px] px-1 rounded" style={{ background: 'rgba(25,205,255,0.15)', color: 'var(--color-brand-cyan)' }}>{s.department}</span>}
+                  </p>
                 </button>
               );
             })}
@@ -1210,7 +1250,7 @@ export default function HRTab({ headers, isManager }) {
                   );
                 })}
               </div>
-              {sub === 'profile'      && <ProfilePanel      staffId={active.id} headers={headers} isManager={isManager} onUpdated={load} onInvite={issueCredentials} inviteBusy={credsBusy === active.id} onDelete={() => removeStaff(active)} />}
+              {sub === 'profile'      && <ProfilePanel      staffId={active.id} headers={headers} isManager={isManager} onUpdated={load} onInvite={issueCredentials} inviteBusy={credsBusy === active.id} onDelete={() => removeStaff(active)} departments={departments} />}
               {sub === 'documents'    && <DocumentsPanel    staffId={active.id} headers={headers} isManager={isManager} />}
               {sub === 'disciplinary' && <DisciplinaryPanel staffId={active.id} headers={headers} isManager={isManager} />}
               {sub === 'training'     && <TrainingPanel     staffId={active.id} headers={headers} isManager={isManager} />}
