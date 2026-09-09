@@ -1,3 +1,24 @@
+# ═══ 2026-06 · STAFF PORTAL ACCESS FIX — "This account does not have a staff portal" (email/user_id linkage) · curl-verified ═══
+Root cause: /new-starter/staff-login matched the employee's staff_members record ONLY by user_id, while the
+launcher probe (/staffing/me/portal-access) matched by user_id OR email. An employee whose staff row was linked
+by email (or had a null/stale user_id) authenticated fine but was wrongly refused with 403 "This account does not
+have a staff portal." (reported live for honey.hancock@pulsefitness.com on Pulse Fitness Ltd).
+Fix:
+- backend/routes/staff_onboarding_wizard.py: new _resolve_staff_for_user(user) — resolves staff by user_id, then
+  falls back to email (case-insensitive, org-scoped) and SELF-HEALS the user_id link. Used by staff_login and
+  forgot_password.
+- backend/routes/staff_portal.py _portal_staff(): same lenient resolution + self-heal, so the platform-token
+  (launcher) path also loads the portal instead of 404 "No staff record".
+- Verified via curl: happy path OK; with user_id deliberately unset the login now succeeds by email and restores
+  the user_id link. Backend healthy.
+NOTE: A redeploy is required to ship this to production (deploy was already in flight when the fix landed).
+CAVEAT: If a person has NO staff_members row at all in Pulse Fitness Ltd, they still can't access — they must be
+added to the staffing register (Staffing → People). Open question to user: auto-provision org members without a
+staff record?
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF PORTAL POLISH — branded login email + back-to-modules + platform theme + sign-out fix · screenshot-verified ═══
 Four staff-portal refinements (single login lives on pulsefitness.ai).
 - BACKEND routes/staffing.py issue-credentials email: new _staff_portal_email_body() renders a Pulse-branded

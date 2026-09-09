@@ -86,8 +86,22 @@ def _org(user: dict) -> str:
 
 
 async def _portal_staff(user: dict) -> dict:
-    """Resolve the staff_members doc for a logged-in staff-portal user."""
+    """Resolve the staff_members doc for a logged-in staff-portal user.
+
+    Matches by user_id, falling back to email (case-insensitive, org-scoped) so
+    employees whose record was linked by email still get in; self-heals the
+    user_id link when resolved by email.
+    """
     staff = await db.staff_members.find_one({"user_id": user.get("id")})
+    if not staff:
+        email = (user.get("email") or "").strip()
+        if email:
+            q = {"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}}
+            if user.get("organization_id"):
+                q["organization_id"] = user["organization_id"]
+            staff = await db.staff_members.find_one(q)
+            if staff and staff.get("user_id") != user.get("id"):
+                await db.staff_members.update_one({"id": staff["id"]}, {"$set": {"user_id": user.get("id")}})
     if not staff:
         raise HTTPException(404, "No staff record for this account.")
     return staff

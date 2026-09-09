@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import secrets
+import re
 import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -1492,6 +1493,30 @@ class ResetBody(BaseModel):
     password: str
 
 
+async def _resolve_staff_for_user(user: dict) -> dict | None:
+    """Find the employee's staff_members record for a signed-in platform user.
+
+    A person is "staff" if a staff_members row is linked to them by user_id OR by
+    email (case-insensitive), scoped to their org. Historically /staff-login only
+    matched user_id, so employees whose record was linked by email (or had a null/
+    stale user_id) were wrongly told "This account does not have a staff portal".
+    When we resolve by email we self-heal the user_id link so it's fast next time.
+    """
+    staff = await db.staff_members.find_one({"user_id": user["id"]})
+    if staff:
+        return staff
+    email = (user.get("email") or "").strip()
+    if not email:
+        return None
+    q = {"email": {"$regex": f"^{re.escape(email)}$", "$options": "i"}}
+    if user.get("organization_id"):
+        q["organization_id"] = user["organization_id"]
+    staff = await db.staff_members.find_one(q)
+    if staff and staff.get("user_id") != user["id"]:
+        await db.staff_members.update_one({"id": staff["id"]}, {"$set": {"user_id": user["id"]}})
+    return staff
+
+
 @router.post("/new-starter/staff-login")
 async def staff_login(body: StaffLoginBody):
     """Activated employees (and recruits) log in with email + password at /staff-login."""
@@ -1499,7 +1524,7 @@ async def staff_login(body: StaffLoginBody):
     user = await db.users.find_one({"email": email}) if email else None
     if not user or not user.get("password") or not verify_password(body.password or "", user["password"]):
         raise HTTPException(401, "Incorrect email or password.")
-    staff = await db.staff_members.find_one({"user_id": user["id"]})
+    staff = await _resolve_staff_for_user(user)
     if not staff:
         raise HTTPException(403, "This account does not have a staff portal.")
     token = create_token(user["id"], expires_hours=24)
@@ -1513,7 +1538,7 @@ async def forgot_password(body: ForgotBody):
     email = (body.email or "").strip().lower()
     user = await db.users.find_one({"email": email}) if email else None
     if user and user.get("password"):
-        staff = await db.staff_members.find_one({"user_id": user["id"]})
+        staff = await _resolve_staff_for_user(user)
         if staff:
             reset_token = secrets.token_urlsafe(32)
             await db.staff_password_resets.insert_one({
