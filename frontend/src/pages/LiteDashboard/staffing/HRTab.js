@@ -486,6 +486,7 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
       } catch (profErr) { window.alert(profErr.response?.data?.detail || t('staffing.hr_profile_save_failed', 'Profile details save failed')); }
       const staffPatch = {};
       if (Array.isArray(form.site_ids)) staffPatch.site_ids = form.site_ids;
+      if ((form.full_name || '').trim() && (form.full_name || '').trim() !== (profile.full_name || '')) staffPatch.full_name = (form.full_name || '').trim();
       if (form.primary_role && form.primary_role !== profile.primary_role) staffPatch.primary_role = form.primary_role;
       if ((form.email || '') !== (profile.email || '')) staffPatch.email = (form.email || '').trim();
       if ((form.department || '') !== (profile.department || '')) staffPatch.department = form.department || '';
@@ -568,6 +569,21 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 rounded-xl border p-4"
         style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
         <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.hr_contact', 'Contact')}</p>
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_full_name', 'Full name')}</span>
+          {editing ? (
+            <input type="text" value={form.full_name || ''} onChange={(e) => set('full_name', e.target.value)}
+              placeholder={t('staffing.hr_name_ph', 'e.g. Jane Doe')}
+              className="h-8 rounded-md bg-transparent border px-2 text-sm"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+              data-testid="hr-field-full_name" />
+          ) : (
+            <span className="text-sm" style={{ color: 'var(--theme-text)' }}>{profile.full_name || '—'}</span>
+          )}
+          {editing && profile.user_id && (
+            <span className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_name_login_note', 'This also updates their platform login display name.')}</span>
+          )}
+        </div>
         <div className="flex flex-col gap-1 md:col-span-2">
           <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_email', 'Email')}</span>
           {editing ? (

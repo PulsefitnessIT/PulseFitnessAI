@@ -415,8 +415,60 @@ async def list_staff(include_inactive: bool = Query(False), user: dict = Depends
     if not _is_manager(user):
         sid = await _my_staff_id_async(user, org_id)
         q["id"] = sid or "__none__"
+    else:
+        # RBAC scope (Issue 2/4): Owners / HR / Payroll see EVERYONE; other
+        # managers only see staff in their OWN department + site(s). Keeps the
+        # People/rota/comms lists scoped to what a line manager is responsible
+        # for while leadership retains a full view.
+        scope = await _staff_visibility_scope(user, org_id)
+        if scope:
+            q.update(scope)
     rows = await db.staff_members.find(q, {"_id": 0}).sort("full_name", 1).to_list(1000)
     return {"staff": rows, "role": _role(user)}
+
+
+# Job roles that get a company-wide view of the staff register regardless of
+# their own department/site (in addition to platform owners / master admins).
+_SEE_ALL_STAFF_JOB_ROLES = {"hr", "payroll", "director", "owner"}
+
+
+async def _staff_visibility_scope(user: dict, org_id: str) -> dict | None:
+    """Return a Mongo query fragment restricting a manager's view of the staff
+    register, or None when they may see everyone.
+
+    Owners / master admins → None (see all). Managers whose own staff job role
+    is HR / Payroll / Director → None (see all). Any other manager is scoped to
+    their OWN department AND site(s): staff must share the manager's department
+    and be allocated to one of the manager's sites (staff with no site
+    restriction count as present at every site)."""
+    if _role(user) in {"owner", "master_admin"}:
+        return None
+    me = await db.staff_members.find_one(
+        {"organization_id": org_id, "$or": [
+            c for c in (
+                {"user_id": user.get("id")} if user.get("id") else None,
+                {"email": (user.get("email") or "").lower()} if user.get("email") else None,
+            ) if c
+        ] or [{"id": "__never__"}]},
+        {"_id": 0, "primary_role": 1, "department": 1, "site_ids": 1},
+    )
+    job_role = ((me or {}).get("primary_role") or "").strip().lower()
+    if job_role in _SEE_ALL_STAFF_JOB_ROLES:
+        return None
+    clauses: list[dict] = []
+    my_dept = ((me or {}).get("department") or "").strip()
+    if my_dept:
+        clauses.append({"department": my_dept})
+    my_sites = (me or {}).get("site_ids") or user.get("allowed_site_ids") or []
+    if my_sites:
+        clauses.append({"$or": [
+            {"site_ids": {"$in": my_sites}},
+            {"site_ids": {"$size": 0}},
+            {"site_ids": {"$exists": False}},
+        ]})
+    if not clauses:
+        return None  # no dept/site set on the manager → don't hide anyone
+    return {"$and": clauses} if len(clauses) > 1 else clauses[0]
 
 
 async def _ensure_staff_for_org_users(org_id: str) -> int:
@@ -620,6 +672,23 @@ async def update_staff(staff_id: str, body: StaffUpdate, user: dict = Depends(ge
                 raise HTTPException(409, "Another account already uses that email address.")
         if linked_uid and new_email:
             await db.users.update_one({"id": linked_uid}, {"$set": {"email": new_email}})
+    # Name edit — keep the linked platform login + CRM display name in step so
+    # Master Admin / CRM never disagree with the staff register.
+    if "full_name" in patch:
+        new_name = (patch["full_name"] or "").strip()
+        if not new_name:
+            patch.pop("full_name", None)  # never blank an existing name
+        else:
+            patch["full_name"] = new_name
+            linked_uid = existing.get("user_id")
+            name_q = None
+            if linked_uid:
+                name_q = {"id": linked_uid}
+            elif (existing.get("email") or "").strip():
+                name_q = {"email": safe_regex_exact(existing["email"].strip().lower())}
+            if name_q:
+                await db.users.update_one(name_q, {"$set": {"full_name": new_name}})
+                await db.crm_users.update_one(name_q, {"$set": {"full_name": new_name}})
     # Iter 216h241 — see create_staff: keep both contracted-hours keys
     # in lock-step so the HR profile and the staff list never disagree.
     if "hours_per_week" in patch and "weekly_hours" not in patch:

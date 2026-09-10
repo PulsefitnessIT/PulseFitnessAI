@@ -1,3 +1,32 @@
+# ═══ 2026-06 · RBAC EPIC pass 3 — Issue 1 (verified) + Issue 4 (staffing scope) + EDIT NAMES · curl/DB-verified ═══
+User: "Continue with the issues. Added — Staffing — ability to edit names." Chose "continue with your recommendations".
+DONE — EDIT STAFF NAMES:
+  - FE HRTab.js ProfilePanel: editable "Full name" input at top of Contact section (data-testid hr-field-full_name),
+    only in edit mode; note "This also updates their platform login display name." when profile.user_id present.
+    save() adds full_name to staffPatch when changed (trim + != current).
+  - BE staffing.py update_staff: when full_name in patch → trims; drops the key if blank (never wipes a name);
+    syncs the linked login display name on BOTH db.users + db.crm_users (by user_id, else by email). StaffUpdate
+    already carried full_name.
+  - VERIFIED curl+DB: PATCH {full_name:"ZZ Renamed Person"} → staff + linked users.full_name both updated. Cleaned up.
+DONE — Issue 4 (staffing list scoped by department + site):
+  - BE staffing.py list_staff: for managers, new _staff_visibility_scope(user, org_id). Owners/master_admin → see all;
+    manager whose OWN staff job role is in {hr, payroll, director, owner} → see all; any other manager → scoped to
+    their OWN department AND site(s) ($and of {department: myDept} + {site_ids $in mySites | empty | missing}).
+    Manager with no dept/site set → unscoped (don't hide anyone). Scope resolved from the manager's own
+    staff_members row (department, site_ids) falling back to user.allowed_site_ids.
+  - Affects ALL GET /staffing/staff consumers (People/rota/comms/templates/orgchart) — intended: a line manager
+    manages only their dept/site; leadership keeps the full view.
+  - VERIFIED (direct scope test vs iso-demo-org): owner→None; scoped manager (Fitness+site-a)→ visible 1 of 11;
+    hr job role→None.
+VERIFIED/NO-CHANGE — Issue 1 (managers default to minimal modules): _ensure_staff_account_shell already provisions
+  shells with is_service_desk/is_inventory/is_master_admin = False and NO module_overrides grants. Core 4 modules
+  stay org-wide by design (user chose to keep this); Service Desk/Inventory + module_overrides revokes in the
+  Master Admin per-user matrix are the source of truth. No code change needed.
+NOTE: REDEPLOY required for production. FE compiles clean.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · RBAC EPIC (4 items) — pass 2: Issue 3 DONE (staffing users auto-provisioned + drawer no longer 404s) ═══
 DONE — Issue 3 (staffing-created managers/staff invisible/unmanageable in Master Admin):
   - Root cause: create_staff only wrote staff_members (no db.users row); Master Admin drawer called
