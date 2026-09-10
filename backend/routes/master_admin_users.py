@@ -23,6 +23,7 @@ this file imports `require_master_admin`, `assert_user_in_pulse_scope`,
 from datetime import datetime, timedelta, timezone
 import logging
 import os
+import re
 import secrets
 import uuid
 from typing import Optional
@@ -96,6 +97,19 @@ async def issue_user_invite_link(user_id: str, user: dict = Depends(get_current_
 
 
 # ───────────── module-access diagnostics (Iter 278f) ─────────────
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
+
+
+def _require_complete_email(value: str) -> str:
+    """Reject truncated / malformed emails (e.g. 'name@pulsefitness' with no
+    TLD) so a user is never created/edited with an address their login can't
+    key on — the root cause of module permissions appearing not to save."""
+    email = (value or "").strip().lower()
+    if not _EMAIL_RE.match(email):
+        raise HTTPException(status_code=422, detail="A complete, valid email address is required (e.g. name@company.com).")
+    return email
+
+
 _MODULE_META = {
     "operations":  ("Operations", "Service desk, equipment, faults"),
     "memberships": ("Memberships", "Members, classes, billing"),
@@ -467,6 +481,7 @@ async def add_user_to_organization(org_id: str, body: dict = Body(...), user: di
     invite_mode = not password
     if not email or not full_name:
         raise HTTPException(status_code=400, detail="email and full_name are required")
+    email = _require_complete_email(email)
 
     # Iter 216h25 — return existing user_id + collection in the 409
     # payload so the frontend toast can render a "Jump to this user"
@@ -951,7 +966,7 @@ async def admin_edit_user(user_id: str, body: dict = Body(...), user: dict = Dep
     allowed = {"full_name", "email", "role", "job_title", "phone", "module_overrides", "allowed_site_ids"}
     updates = {k: v for k, v in body.items() if k in allowed and v is not None}
     if "email" in updates:
-        updates["email"] = updates["email"].lower().strip()
+        updates["email"] = _require_complete_email(updates["email"])
 
     if "allowed_site_ids" in updates:
         raw = updates["allowed_site_ids"] or []
@@ -1012,6 +1027,17 @@ async def admin_edit_user(user_id: str, body: dict = Body(...), user: dict = Dep
         result = await db.crm_users.update_one({"id": user_id}, {"$set": updates})
     if result.modified_count == 0:
         raise HTTPException(404, "User not found")
+    # Keep module_overrides consistent across BOTH the Service Portal and CRM
+    # rows for this person (matched by email) so a per-user revoke can't appear
+    # to "un-save" — the drawer/list and the login resolver read whichever row
+    # exists, and they must agree. Iter 2026-06.
+    if "module_overrides" in updates:
+        row = (await db.users.find_one({"id": user_id}, {"_id": 0, "email": 1})
+               or await db.crm_users.find_one({"id": user_id}, {"_id": 0, "email": 1}) or {})
+        em = (row.get("email") or "").strip().lower()
+        if em:
+            await db.users.update_many({"email": em}, {"$set": {"module_overrides": updates["module_overrides"]}})
+            await db.crm_users.update_many({"email": em}, {"$set": {"module_overrides": updates["module_overrides"]}})
     # Iter 220au · F-19 — kill every active session for the edited user
     # whenever a field that affects authorisation has been mutated.
     # Without this, a user whose role was just demoted could keep

@@ -1,3 +1,33 @@
+# ═══ 2026-06 · P0 module-save bug (incomplete-email RCA) + Bulk Module Grant · backend+UI verified ═══
+User: (1) Master Admin People → module permissions: unticking a module doesn't stick (re-ticks on return).
+(2) Bulk Module Grant for new starters.
+RCA (bug): db.users has a UNIQUE email index (no same-email dupes) and the save+list path is correct for clean
+data (proven by direct-call harness). The screenshot showed a TRUNCATED email ("chris.pennington@pulsefitness", no
+.com) → the record edited doesn't line up with what the login resolver / merged list key on, so the toggle appears
+not to save. Root fix = enforce complete emails in Master Admin too + keep module_overrides consistent across the
+users↔crm rows.
+DONE — P0 fix:
+  - BE master_admin_users.py: _require_complete_email (regex, 422). add_user_to_organization + admin_edit_user now
+    reject incomplete/malformed emails. After saving module_overrides, FAN it to BOTH db.users and db.crm_users rows
+    with the same email so the two collections never disagree (verified: users+crm both = {operations:False}; edit
+    with 'x@pulsefitness' → 422).
+  - FE AdminOrganizations.js: isCompleteEmail(); Add-user + Edit-user email fields turn red with a hint and the
+    Add/Save button is DISABLED until a complete email (forces fixing the malformed address so permissions stick).
+  - NOTE: Master Admin is MFA-gated so the drawer couldn't be screenshot-tested; logic mirrors the staffing pattern
+    already tested + backend verified via direct calls.
+DONE — Bulk Module Grant:
+  - BE staffing.py: POST /api/staffing/staff/module-access/bulk {staff_ids, grant[], revoke[]} — per-user scope,
+    writes both collections, returns {updated, skipped_no_login, skipped_org_off}. Verified via direct call + e2e
+    HTTP (owner@isodemo, updated=2).
+  - FE HRTab.js: new BulkModulesDialog + "Bulk" button in the HR list header. Pick staff (checkboxes + Select all)
+    → choose Grant/Revoke per module (Operations/Memberships/Marketing/CRM/Service Desk/Inventory) → Apply. Result
+    summary shows skipped (no login / org-off). Screenshot-verified rendering + selection.
+NOTE: REDEPLOY required for production. In prod, correcting chris.pennington's email (add the missing .com) will let
+his module permissions save correctly.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · Staffing per-staff MODULE SELECTOR + mandatory complete-EMAIL validation · testing_agent 100% ═══
 User: (1) In Staffing ▸ Edit Staff, below the edit box and above Delete/Termination wizard, add a Module selector so
 Owners/Managers/HR can grant/remove module access without Master Admin. (2) Stop staff being saved with an

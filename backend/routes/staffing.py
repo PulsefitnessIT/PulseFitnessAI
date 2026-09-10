@@ -820,6 +820,66 @@ async def staff_module_revoke(staff_id: str, module: str, user: dict = Depends(g
     return payload
 
 
+class BulkModuleAccess(BaseModel):
+    staff_ids: list[str]
+    grant: list[str] = Field(default_factory=list)
+    revoke: list[str] = Field(default_factory=list)
+
+
+@router.post("/staffing/staff/module-access/bulk")
+async def staff_module_bulk(body: BulkModuleAccess, user: dict = Depends(get_current_user)):
+    """Apply the SAME module set to several staff at once (e.g. onboarding a
+    batch of new starters). Per-user scope only, same rules as the single
+    grant/revoke endpoints."""
+    _require_manager(user)
+    org_id = _org(user)
+    from utils.module_access import org_module_access
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
+    org_acc = org_module_access(org)
+    grant = [m for m in body.grant if m in _STAFF_MODULE_KEYS]
+    revoke = [m for m in body.revoke if m in _STAFF_MODULE_KEYS]
+    if not body.staff_ids or (not grant and not revoke):
+        raise HTTPException(400, "Pick at least one staff member and one module change.")
+    result = {"updated": 0, "skipped_no_login": [], "skipped_org_off": []}
+    for sid in body.staff_ids:
+        sm = await db.staff_members.find_one({"id": sid, "organization_id": org_id}, {"_id": 0, "user_id": 1, "full_name": 1})
+        if not sm:
+            continue
+        uid = sm.get("user_id")
+        target = await db.users.find_one({"id": uid}, {"_id": 0}) if uid else None
+        if not target:
+            target = await db.crm_users.find_one({"id": uid}, {"_id": 0}) if uid else None
+        if not target:
+            result["skipped_no_login"].append(sm.get("full_name") or sid)
+            continue
+        overrides = {**(target.get("module_overrides") or {})}
+        flags: dict = {}
+        for mod in grant:
+            if mod in _STAFF_MODULE_FLAGS:
+                flags[_STAFF_MODULE_FLAGS[mod]] = True
+            elif not org_acc.get(mod):
+                if mod not in result["skipped_org_off"]:
+                    result["skipped_org_off"].append(mod)
+            else:
+                overrides[mod] = True
+        for mod in revoke:
+            if mod in _STAFF_MODULE_FLAGS:
+                flags[_STAFF_MODULE_FLAGS[mod]] = False
+            else:
+                overrides[mod] = False
+        upd = {"module_overrides": overrides, **flags}
+        await db.users.update_one({"id": uid}, {"$set": upd})
+        await db.crm_users.update_one({"id": uid}, {"$set": upd})
+        result["updated"] += 1
+    try:
+        from routes.master_admin import log_activity
+        await log_activity("staff_module_bulk", f"{user.get('email')} bulk module change on {result['updated']} staff (grant={grant}, revoke={revoke})", user.get("email"), "staff", "bulk")
+    except Exception:  # noqa: BLE001
+        pass
+    return result
+
+
+
 
 
 @router.patch("/staffing/staff/{staff_id}")

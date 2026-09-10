@@ -33,6 +33,11 @@ import OrgIntegrationsTab from './OrgIntegrationsTab';
 // "Network unreachable" toast.
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+// Complete-email guard (mirrors backend _require_complete_email) — a user must
+// never be created/edited with a truncated address, which is what makes module
+// permissions appear not to save.
+const isCompleteEmail = (v) => /^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$/.test((v || '').trim());
+
 // ── Iter 215ar — module checkbox grid + reveal-password helpers ─────
 // Iter 216f — colour values are intentionally hex literals here because
 // they're consumed as inline `style={{color}}` props on `<Icon>` components
@@ -1832,7 +1837,8 @@ useEffect(() => {
  <div className="space-y-4 mt-2">
  <div>
  <Label className="text-zinc-600 text-xs">Email *</Label>
- <Input value={userForm.email} onChange={e => setUserForm({ ...userForm, email: e.target.value })} placeholder="user@company.com" className="mt-1" data-testid="add-user-email" />
+ <Input value={userForm.email} onChange={e => setUserForm({ ...userForm, email: e.target.value })} placeholder="user@company.com" className={`mt-1 ${userForm.email && !isCompleteEmail(userForm.email) ? 'border-red-500 focus-visible:ring-red-500' : ''}`} data-testid="add-user-email" />
+ {userForm.email && !isCompleteEmail(userForm.email) && <p className="mt-1 text-[11px] text-red-600" data-testid="add-user-email-hint">Enter a complete email, e.g. name@company.com</p>}
  </div>
  <div>
  <Label className="text-zinc-600 text-xs">Full Name *</Label>
@@ -1968,7 +1974,7 @@ useEffect(() => {
  <Input type="password" value={userForm.password} onChange={e => setUserForm({ ...userForm, password: e.target.value })} placeholder="Min 12 chars (leave blank for invite link)" className="mt-1" data-testid="add-user-password" />
  </div>
  </details>
- <Button className="w-full" onClick={handleAddUser} disabled={addingUser || !userForm.email || !userForm.full_name} data-testid="add-user-submit">
+ <Button className="w-full" onClick={handleAddUser} disabled={addingUser || !isCompleteEmail(userForm.email) || !userForm.full_name} data-testid="add-user-submit">
  {addingUser ? <Loader2 size={14} className="animate-spin mr-1" /> : <UserPlus size={14} className="mr-1" />}
  {userForm.password ? 'Add User' : 'Add User & Generate Invite Link'}
  </Button>
@@ -1989,7 +1995,8 @@ useEffect(() => {
  </div>
  <div>
  <Label className="text-zinc-600 text-xs">Email</Label>
- <Input value={editingUser.email || ''} onChange={e => setEditingUser({ ...editingUser, email: e.target.value })} className="mt-1" data-testid="edit-user-email" />
+ <Input value={editingUser.email || ''} onChange={e => setEditingUser({ ...editingUser, email: e.target.value })} className={`mt-1 ${!isCompleteEmail(editingUser.email) ? 'border-red-500 focus-visible:ring-red-500' : ''}`} data-testid="edit-user-email" />
+ {!isCompleteEmail(editingUser.email) && <p className="mt-1 text-[11px] text-red-600" data-testid="edit-user-email-hint">Complete this email (e.g. name@company.com) to save — an incomplete address stops permissions saving.</p>}
  </div>
  <div>
  <Label className="text-zinc-600 text-xs">Job Title</Label>
@@ -2401,7 +2408,7 @@ useEffect(() => {
  <p className="text-[10px] text-zinc-400">User will be forced to change this on next sign-in.</p>
  </div>
 
- <Button className="w-full" disabled={savingUser} data-testid="save-user-edit-btn"
+ <Button className="w-full" disabled={savingUser || !isCompleteEmail(editingUser.email)} data-testid="save-user-edit-btn"
  onClick={async () => {
  setSavingUser(true);
  if (onEditUser) await onEditUser(editingUser.id, { full_name: editingUser.full_name, email: editingUser.email, role: editingUser.role, job_title: editingUser.job_title, phone: editingUser.phone, module_overrides: editingUser.module_overrides });

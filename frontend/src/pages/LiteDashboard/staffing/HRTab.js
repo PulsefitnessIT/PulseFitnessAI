@@ -155,6 +155,113 @@ function AddStaffDialog({ headers, onClose, onCreated }) {
 }
 
 
+const BULK_MODULES = [
+  { key: 'operations', label: 'Operations' },
+  { key: 'memberships', label: 'Memberships' },
+  { key: 'marketing', label: 'Marketing' },
+  { key: 'crm', label: 'CRM' },
+  { key: 'service_desk', label: 'Service Desk' },
+  { key: 'inventory', label: 'Inventory & Distribution' },
+];
+
+// Apply the same module grant/revoke set to several staff at once — built for
+// onboarding a batch of new starters without opening each profile.
+function BulkModulesDialog({ headers, staff, onClose, onApplied }) {
+  const { t } = useTranslation();
+  const [picked, setPicked] = useState(() => new Set());
+  const [choices, setChoices] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  const list = (staff || []).filter((s) => s.active !== false);
+
+  const toggleStaff = (id) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const allPicked = list.length > 0 && picked.size === list.length;
+  const setChoice = (key, val) => setChoices((c) => ({ ...c, [key]: c[key] === val ? undefined : val }));
+
+  const grant = Object.entries(choices).filter(([, v]) => v === 'grant').map(([k]) => k);
+  const revoke = Object.entries(choices).filter(([, v]) => v === 'revoke').map(([k]) => k);
+  const canApply = picked.size > 0 && (grant.length || revoke.length) && !busy;
+
+  const apply = async () => {
+    setBusy(true); setResult(null);
+    try {
+      const { data } = await axios.post(`${API}/staffing/staff/module-access/bulk`,
+        { staff_ids: [...picked], grant, revoke }, { headers });
+      setResult(data);
+      await onApplied?.();
+    } catch (e) { window.alert(e?.response?.data?.detail || t('staffing.hr_bulk_failed', 'Bulk update failed')); }
+    setBusy(false);
+  };
+
+  return createPortal((
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4" onClick={onClose} data-testid="hr-bulk-modules-backdrop">
+      <div className="rounded-2xl border p-5 w-full max-w-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}
+        style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }} data-testid="hr-bulk-modules-dialog">
+        <div className="flex items-center justify-between mb-1">
+          <div className="text-sm font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t('staffing.hr_bulk_modules', 'Bulk module access')}</div>
+          <button type="button" onClick={onClose} data-testid="hr-bulk-modules-close"><X size={16} style={{ color: 'var(--theme-text-muted)' }} /></button>
+        </div>
+        <p className="text-[11px] mb-3" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_bulk_hint', 'Pick the people, choose what to grant or revoke, then apply — perfect for onboarding a group of new starters at once.')}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_bulk_people', 'People')} ({picked.size})</span>
+              <button type="button" onClick={() => setPicked(allPicked ? new Set() : new Set(list.map((s) => s.id)))}
+                className="text-[11px] font-semibold" style={{ color: 'var(--color-brand-cyan)' }} data-testid="hr-bulk-select-all">
+                {allPicked ? t('staffing.hr_bulk_clear', 'Clear all') : t('staffing.hr_bulk_all', 'Select all')}
+              </button>
+            </div>
+            <div className="rounded-lg border max-h-64 overflow-y-auto" style={{ borderColor: 'var(--theme-border)' }}>
+              {list.map((s) => (
+                <label key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 border-b cursor-pointer text-sm" style={{ borderColor: 'var(--theme-border)' }} data-testid={`hr-bulk-staff-${s.id}`}>
+                  <input type="checkbox" checked={picked.has(s.id)} onChange={() => toggleStaff(s.id)} data-testid={`hr-bulk-staff-check-${s.id}`} />
+                  <span className="truncate" style={{ color: 'var(--theme-text)' }}>{s.full_name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_bulk_modules_label', 'Modules')}</span>
+            <div className="space-y-1.5 mt-1">
+              {BULK_MODULES.map((m) => (
+                <div key={m.key} className="flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5" style={{ borderColor: 'var(--theme-border)' }} data-testid={`hr-bulk-module-${m.key}`}>
+                  <span className="text-sm" style={{ color: 'var(--theme-text)' }}>{m.label}</span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button type="button" onClick={() => setChoice(m.key, 'grant')}
+                      className="h-6 px-2 rounded-full text-[10px] font-bold border"
+                      style={choices[m.key] === 'grant' ? { borderColor: 'rgba(16,185,129,0.45)', color: '#059669', background: 'rgba(16,185,129,0.12)' } : { borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
+                      data-testid={`hr-bulk-grant-${m.key}`}>{t('staffing.hr_grant', 'Grant')}</button>
+                    <button type="button" onClick={() => setChoice(m.key, 'revoke')}
+                      className="h-6 px-2 rounded-full text-[10px] font-bold border"
+                      style={choices[m.key] === 'revoke' ? { borderColor: 'rgba(239,68,68,0.45)', color: '#EF4444', background: 'rgba(239,68,68,0.10)' } : { borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}
+                      data-testid={`hr-bulk-revoke-${m.key}`}>{t('staffing.hr_revoke', 'Revoke')}</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        {result && (
+          <div className="mt-3 rounded-lg border p-2.5 text-[11px]" style={{ borderColor: 'rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.08)', color: 'var(--theme-text)' }} data-testid="hr-bulk-result">
+            {t('staffing.hr_bulk_done', 'Updated {{n}} staff.', { n: result.updated })}
+            {result.skipped_no_login?.length ? ` ${t('staffing.hr_bulk_skipped_login', 'Skipped (no login yet):')} ${result.skipped_no_login.join(', ')}.` : ''}
+            {result.skipped_org_off?.length ? ` ${t('staffing.hr_bulk_skipped_org', 'Not enabled for org:')} ${result.skipped_org_off.join(', ')}.` : ''}
+          </div>
+        )}
+        <div className="flex justify-end gap-2 pt-3">
+          <button type="button" onClick={onClose} className="px-3 py-2 rounded-lg text-xs font-bold border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-bulk-cancel">{t('staffing.hr_close', 'Close')}</button>
+          <button type="button" onClick={apply} disabled={!canApply}
+            className="px-3 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-50"
+            style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="hr-bulk-apply">
+            {busy ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} {t('staffing.hr_bulk_apply', 'Apply to selected')}
+          </button>
+        </div>
+      </div>
+    </div>
+  ), document.body);
+}
+
+
 const SUB_TABS = [
   { id: 'profile',      labelKey: 'staffing.hr_tab_profile',      labelDefault: 'Profile',      icon: User },
   { id: 'documents',    labelKey: 'staffing.hr_tab_documents',    labelDefault: 'Documents',    icon: FileText },
@@ -1408,6 +1515,7 @@ export default function HRTab({ headers, isManager }) {
   const [loading, setLoading] = useState(true);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [showBulk, setShowBulk] = useState(false);
   const [credsDialog, setCredsDialog] = useState(null);
   const [credsBusy, setCredsBusy] = useState(null);
   const [reconciling, setReconciling] = useState(false);
@@ -1538,6 +1646,14 @@ export default function HRTab({ headers, isManager }) {
           onCreated={async (newId) => { await load(); if (newId) setActiveId(newId); }}
         />
       )}
+      {showBulk && (
+        <BulkModulesDialog
+          headers={headers}
+          staff={staffList}
+          onClose={() => setShowBulk(false)}
+          onApplied={async () => { await load(); }}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-3 rounded-xl border overflow-hidden"
         style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)', minHeight: '600px' }}>
@@ -1551,6 +1667,14 @@ export default function HRTab({ headers, isManager }) {
                 style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
                 data-testid="hr-search" />
             </div>
+            {isManager && (
+              <button type="button" onClick={() => setShowBulk(true)}
+                className="h-8 px-2.5 rounded-md text-xs font-bold inline-flex items-center gap-1 shrink-0 border"
+                style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+                data-testid="hr-bulk-modules-btn" title={t('staffing.hr_bulk_modules', 'Bulk module access')}>
+                <ShieldAlert size={13} /> {t('staffing.hr_bulk', 'Bulk')}
+              </button>
+            )}
             {isManager && (
               <button type="button" onClick={() => setShowAdd(true)}
                 className="h-8 px-2.5 rounded-md text-xs font-bold inline-flex items-center gap-1 shrink-0"
