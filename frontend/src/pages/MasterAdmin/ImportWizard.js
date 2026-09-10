@@ -155,7 +155,7 @@ const ImportWizard = ({ presetOrgId = null, projectId = null, projectStepKey = n
           )}
           {creatingTenant && (
             <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800" data-testid="iw-tenant-note">
-              Each row creates a new <strong>Lite</strong> customer organisation (base modules: Operations, Memberships, CRM, Marketing) <strong>and</strong> a matching, linked company in the Pulse&nbsp;Fitness&nbsp;Ltd CRM. Existing customers (matched by name) are skipped, not duplicated.
+              Each row creates a new <strong>Lite</strong> customer organisation (<strong>Operations only</strong> — dashboard, equipment &amp; faults, no AI) <strong>and</strong> a matching, linked company in the Pulse&nbsp;Fitness&nbsp;Ltd CRM. Memberships, CRM, Marketing and AI unlock when the customer upgrades to Pro. Existing customers (matched by name) are skipped, not duplicated.
             </div>
           )}
           {importType && (

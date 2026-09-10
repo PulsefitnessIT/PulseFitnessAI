@@ -15,6 +15,10 @@ DONE (1) — DELETE RELOCATION (testing_agent frontend 100%):
     canDelete = isMasterAdmin || isOwner. (CRM user role is NOT authoritative for ownership.)
 
 DONE (2) — CUSTOMER-TENANT IMPORT (backend direct-call verified; Master Admin MFA-gated so no UI screenshot):
+  CLARIFIED with user: "Lite" = Operations ONLY (dashboard, equipment, faults, NO AI). Memberships/CRM/Marketing +
+  everything else unlock only on a paid Pro upgrade. So imported tenants are created with enabled_modules=['operations']
+  (NOT the 4 base modules). account_type='lite' already: (a) defaults bolt-ons OFF at runtime (utils/module_access),
+  (b) BLOCKS AI (utils/ai_access.require_ai_access → 403 unless active Pro trial), (c) defaults supplier to Pulse.
   - Analysis: the mature bulk import (master_admin_bulk_import.py) + Import Centre wizard (onboarding_import.py) only
     write rows INTO an existing target org — NEITHER creates Organisations. db.organizations (Master Admin tenants)
     and db.crm2_companies (front-end CRM) are SEPARATE stores.

@@ -123,9 +123,11 @@ TYPE_REGISTRY = {
 }
 
 
-# Base modules every imported customer starts on (Lite tier). The customer
-# upgrades to add anything beyond these once they've paid.
-BASE_TENANT_MODULES = ["operations", "memberships", "crm", "marketing"]
+# Imported customers start on true LITE = Operations only (dashboard,
+# equipment & faults; NO AI — enforced by utils.ai_access.require_ai_access).
+# Memberships / CRM / Marketing and everything else unlock only on a paid
+# Pro upgrade.
+LITE_TENANT_MODULES = ["operations"]
 
 
 def _type_or_404(t: str) -> dict:
@@ -405,7 +407,7 @@ async def _commit_customer_tenants(body: CommitBody, user: dict, spec: dict) -> 
     report = {"created": 0, "updated": 0, "skipped": 0, "failed": 0, "errors": []}
     operator_org_id = await _resolve_operator_company_org_id()
     operator_site_id = await get_primary_site_id(operator_org_id) if operator_org_id else None
-    enabled_modules = _normalize_modules(BASE_TENANT_MODULES, None)
+    enabled_modules = _normalize_modules(LITE_TENANT_MODULES, None)
     portal_type = _derive_portal_type(enabled_modules)
     seen_names: set = set()
 
@@ -441,6 +443,7 @@ async def _commit_customer_tenants(body: CommitBody, user: dict, spec: dict) -> 
                 "id": org_id, "name": name,
                 "portal_type": portal_type,
                 "enabled_modules": list(enabled_modules),
+                "modules": {"operations": {"enabled": True, "tier": "lite", "source": "admin"}},
                 "subscription_tier": "free",
                 "account_type": "lite",
                 "status": "active",
