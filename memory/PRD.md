@@ -1,3 +1,20 @@
+# ═══ 2026-06 · STAFFING HR — two prod bugs on the profile Employment editor · testing-agent 3/3 PASS ═══
+Both were FRONTEND-only (backend PATCH/GET verified fine via curl).
+1. HOURS/WEEK LOST FOCUS after one digit — root cause: the `Field` component was defined INSIDE ProfilePanel's
+   render body, so every keystroke re-render gave it a new identity → React remounted the <input> → focus lost.
+   FIX: hoisted `Field` to module scope, fed by a new `ProfileFieldCtx` (Provider wraps ProfilePanel's return);
+   call sites unchanged. Input identity now stable → focus retained.
+2. CONTRACT TYPE "didn't save" — root cause: the profile dropdown options (permanent/fixed_term/zero_hours/…)
+   did NOT include the Add-staff dialog's values (part_time/full_time/contractor), so a saved value with no
+   matching <option> rendered as "—" and looked unsaved. FIX: unified CONTRACT_TYPES superset + contractLabel();
+   profile select defensively appends the current value if absent; Add-staff options now carry explicit value=.
+   Also fixed a dup React key ('none') when contract_type is undefined.
+- VERIFIED (testing_agent, frontend): hours '40' typed in one go keeps focus; contract 'permanent'+hours persist
+  across save/reload; Add-staff part_time shows on reopen. Throwaway test row cleaned up. Compiles clean.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF PORTAL — handbook refreshed + in-app "Help & Tutorials" tab · curl + Playwright PASS ═══
 User asked if the staff-portal user manual was up to date (it wasn't) and to surface it in-app.
 - staff_portal.py HANDBOOK_SECTIONS rewritten (single source of truth for both PDF + in-app guide): expanded

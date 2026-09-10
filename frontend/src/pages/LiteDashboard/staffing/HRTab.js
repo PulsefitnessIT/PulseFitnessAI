@@ -11,7 +11,7 @@
  *   • Disciplinary— incidents + warnings (manager-only writes)
  *   • Training    — learning history (alongside Phase S4 certs)
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
@@ -130,7 +130,7 @@ function AddStaffDialog({ headers, onClose, onCreated }) {
                 className="w-full rounded-lg px-3 py-2 text-sm border"
                 style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
                 data-testid="hr-add-staff-contract">
-                {['full_time', 'part_time', 'casual', 'contractor'].map((c) => <option key={c}>{c}</option>)}
+                {['full_time', 'part_time', 'permanent', 'fixed_term', 'casual', 'zero_hours', 'contractor', 'self_employed', 'apprentice'].map((c) => <option key={c} value={c}>{contractLabel(c)}</option>)}
               </select>
             </div>
           </div>
@@ -158,7 +158,46 @@ const SUB_TABS = [
   { id: 'training',     labelKey: 'staffing.hr_tab_training',     labelDefault: 'Training',     icon: GraduationCap },
 ];
 
-const CONTRACT_TYPES = ['', 'permanent', 'fixed_term', 'casual', 'zero_hours', 'self_employed', 'apprentice'];
+// Unified contract types — must be a superset so a value chosen anywhere
+// (Add-staff dialog or profile) always has a matching <option>; otherwise the
+// select silently renders "—" and looks unsaved.
+const CONTRACT_TYPES = ['', 'full_time', 'part_time', 'permanent', 'fixed_term', 'casual', 'zero_hours', 'contractor', 'self_employed', 'apprentice'];
+const contractLabel = (c) => (c ? c.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()) : '—');
+
+// Stable, module-level HR profile field (context-fed) so typing never remounts
+// the input — defining it inside ProfilePanel dropped focus after each keystroke.
+const ProfileFieldCtx = createContext(null);
+function Field({ label, k, type = 'text', list }) {
+  const { form, set, editing, profile } = useContext(ProfileFieldCtx);
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{label}</span>
+      {editing ? (
+        type === 'date' ? (
+          <DatePicker
+            value={form[k] || ''}
+            onChange={(iso) => set(k, iso || null)}
+            placeholder="DD/MM/YYYY"
+            inputClassName="h-8 px-1"
+            testid={`hr-field-${k}`}
+          />
+        ) : (
+          <input type={type}
+            value={form[k] ?? ''}
+            onChange={(e) => set(k, e.target.value)}
+            list={list}
+            className="h-8 rounded-md bg-transparent border px-2 text-sm"
+            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+            data-testid={`hr-field-${k}`} />
+        )
+      ) : (
+        <span className="text-sm" style={{ color: 'var(--theme-text)' }}>
+          {type === 'date' ? (formatDDMMYYYY(profile[k]) || '—') : (profile[k] || '—')}
+        </span>
+      )}
+    </div>
+  );
+}
 const RTW_STATUSES = ['', 'verified', 'pending', 'expired'];
 const DOC_KINDS = ['contract', 'id', 'onboarding', 'training', 'policy', 'other'];
 const SEVERITIES = ['informal', 'verbal', 'written', 'final', 'suspension', 'dismissal'];
@@ -464,36 +503,8 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
     return <div className="py-6 inline-flex items-center gap-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> {t('staffing.hr_loading', 'Loading…')}</div>;
   }
 
-  const Field = ({ label, k, type = 'text', list }) => (
-    <div className="flex flex-col gap-1">
-      <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{label}</span>
-      {editing ? (
-        type === 'date' ? (
-          <DatePicker
-            value={form[k] || ''}
-            onChange={(iso) => set(k, iso || null)}
-            placeholder="DD/MM/YYYY"
-            inputClassName="h-8 px-1"
-            testid={`hr-field-${k}`}
-          />
-        ) : (
-          <input type={type}
-            value={form[k] || ''}
-            onChange={(e) => set(k, e.target.value)}
-            list={list}
-            className="h-8 rounded-md bg-transparent border px-2 text-sm"
-            style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
-            data-testid={`hr-field-${k}`} />
-        )
-      ) : (
-        <span className="text-sm" style={{ color: 'var(--theme-text)' }}>
-          {type === 'date' ? (formatDDMMYYYY(profile[k]) || '—') : (profile[k] || '—')}
-        </span>
-      )}
-    </div>
-  );
-
   return (
+    <ProfileFieldCtx.Provider value={{ form, set, editing, profile }}>
     <div className="space-y-4" data-testid="hr-profile-panel">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-3">
@@ -634,7 +645,10 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
             <select value={form.contract_type || ''} onChange={(e) => set('contract_type', e.target.value || null)}
               className="h-8 rounded-md bg-transparent border px-2 text-sm"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="hr-field-contract_type">
-              {CONTRACT_TYPES.map((c) => <option key={c} value={c}>{c || '—'}</option>)}
+              {(form.contract_type && !CONTRACT_TYPES.includes(form.contract_type)
+                ? [...CONTRACT_TYPES, form.contract_type]
+                : CONTRACT_TYPES)
+                .map((c) => <option key={c || 'none'} value={c || ''}>{contractLabel(c)}</option>)}
             </select>
           ) : (
             <span className="text-sm" style={{ color: 'var(--theme-text)' }}>{profile.contract_type || '—'}</span>
@@ -765,6 +779,7 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
       </div>
       {isManager && <OffboardingSection staffId={staffId} headers={headers} staffName={profile.full_name} onUpdated={onUpdated} />}
     </div>
+    </ProfileFieldCtx.Provider>
   );
 }
 

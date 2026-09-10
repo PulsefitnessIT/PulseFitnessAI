@@ -1,0 +1,27 @@
+{
+  "summary": "Verified both frontend bugs fixed in Staffing > People > HR profile Employment editor. (1) hours_per_week input keeps focus when typing consecutive digits ('40' typed in one go, focus retained). (2) contract_type persists after save and reload: PATCH via hr-profile-save saved 'permanent' and hours=40 on Alex Rivera; navigating away and reopening the profile shows 'permanent' / '40'. Regression on Add Staff dialog: created a new staff with contract_type=part_time via hr-add-staff-save; on reopen, dropdown shows 'part_time'. All three tests PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "HR tab (any page under Staffing)", "issues": ["React console warning repeated: 'Encountered two children with the same key' — non-blocking but should be cleaned up (likely in the staff list or a select's options)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional cleanup: fix the duplicate React key warning observed on Staffing pages (non-blocking)."
+  ],
+  "critical_code_review_comments": [
+    "HRTab.js correctly hoists the `Field` component to module scope and passes state via ProfileFieldCtx — this is the right fix pattern to avoid remounts causing focus loss.",
+    "Contract type PATCH pipeline (frontend + backend whitelisting in staffing_hr.py) is coherent; UI now reads/writes the same enum values (permanent, part_time, contractor, ...)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (3/3 targeted scenarios)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Created one throwaway staff member via Add Staff dialog (name 'HRBug Tester <ts>', contract=part_time) for regression verification. Left in DB (harmless test row).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "To reach the HR editor: login -> Operations -> Staffing tab -> sub-tab 'People' -> sub-tab 'HR' (data-testids: staffing-tab-people, staffing-subtab-hr). Select a staff row (hr-staff-row-<id>), click hr-profile-edit, then use hr-field-contract_type (select) and hr-field-hours_per_week (number input). Save via hr-profile-save. Add dialog: hr-add-staff-btn -> hr-add-staff-dialog -> hr-add-staff-name/email + hr-add-staff-contract -> hr-add-staff-save.",
+  "rca of the issue": "BUG2 root cause was defining the `Field` component inside `ProfilePanel`'s render body, causing React to unmount/remount on every keystroke re-render and blowing away input focus. Fix: hoist `Field` to module scope and feed state via a Context (`ProfileFieldCtx`). BUG1 root cause was the contract_type value not being persisted end-to-end (backend PATCH whitelist + unified CONTRACT_TYPES/contractLabel mapping in the UI); both sides now agree on the value set and the dropdown re-hydrates correctly on reload."
+}
