@@ -1588,6 +1588,15 @@ async def recruit_me(user: dict = Depends(get_current_user_portal)):
     org = case["organization_id"]; cid = case["id"]
     activated = bool(staff.get("active"))
     forms = {f["form_key"]: _strip(f) for f in await db.staff_form_submissions.find({"onboarding_case_id": cid}).to_list(50)}
+    # Unify: canonical personal fields live on staff_members. Overlay them onto
+    # the new_starter form copy so My Details always reflects the single source
+    # of truth (fixes any historical drift).
+    from utils.personal_sync import staff_to_form_patch
+    canon = staff_to_form_patch(staff)
+    if canon:
+        ns = forms.get("new_starter") or {"form_key": "new_starter", "data": {}}
+        ns["data"] = {**(ns.get("data") or {}), **canon}
+        forms["new_starter"] = ns
     docs = [_strip(d) for d in await db.staff_onboarding_documents.find({"onboarding_case_id": cid, "is_deleted": {"$ne": True}}).to_list(100)]
     policies = [_strip(p) for p in await db.staff_policy_versions.find({"organization_id": org}).to_list(50)]
     acks = {a["policy_key"]: _strip(a) for a in await db.staff_policy_acknowledgements.find({"onboarding_case_id": cid}).to_list(50)}
@@ -1630,6 +1639,11 @@ async def save_form(body: FormSave, user: dict = Depends(get_current_user)):
         payload["id"] = str(uuid.uuid4()); payload["created_at"] = _now()
         await db.staff_form_submissions.insert_one(payload)
     await _audit(case["organization_id"], case["id"], "form_submitted", user, document=body.form_key)
+    # Unify: mirror personal fields into the canonical staff_members record so
+    # the HR profile and My Details never drift from the sign-up form.
+    if body.form_key == "new_starter":
+        from utils.personal_sync import sync_from_form
+        await sync_from_form(db, case["organization_id"], staff["id"], body.data or {})
     return {"ok": True}
 
 

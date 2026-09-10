@@ -991,12 +991,8 @@ async def hr_approve_detail_request(req_id: str, user: dict = Depends(get_curren
         raise HTTPException(400, "This request has already been reviewed.")
     form = await _new_starter_form(r["staff_id"])
     data = dict((form or {}).get("data") or {})
-    staff_upd: dict = {}
     for k, c in (r.get("changes") or {}).items():
         data[k] = c.get("new")
-        _lbl, staff_field = DETAIL_FIELDS.get(k, (None, None))
-        if staff_field:
-            staff_upd[staff_field] = c.get("new")
     if form:
         await db.staff_form_submissions.update_one(
             {"id": form["id"]}, {"$set": {"data": data, "updated_at": _now()}})
@@ -1005,8 +1001,14 @@ async def hr_approve_detail_request(req_id: str, user: dict = Depends(get_curren
             "id": str(uuid.uuid4()), "staff_id": r["staff_id"], "organization_id": org,
             "onboarding_case_id": r.get("onboarding_case_id"), "form_key": "new_starter",
             "data": data, "created_at": _now(), "updated_at": _now()})
-    if staff_upd:
-        await db.staff_members.update_one({"id": r["staff_id"]}, {"$set": {**staff_upd, "updated_at": _now()}})
+    # Unify: write the approved values into the canonical staff_members record
+    # (single source of truth) so the HR profile reflects them too.
+    from utils.personal_sync import form_to_staff_patch
+    changed = {k: c.get("new") for k, c in (r.get("changes") or {}).items()}
+    staff_patch = form_to_staff_patch(changed)
+    if staff_patch:
+        staff_patch["updated_at"] = _now()
+        await db.staff_members.update_one({"id": r["staff_id"]}, {"$set": staff_patch})
     await db.staff_detail_change_requests.update_one(
         {"id": req_id}, {"$set": {"status": "approved", "reviewed_by": user.get("full_name"),
                                   "reviewed_at": _now()}})

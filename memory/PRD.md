@@ -36836,3 +36836,11 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Frontend: HRTab.js OffboardingSection at bottom of ProfilePanel (managers) — start form, in-progress checklist toggles, Complete & revoke access button. testids offboarding-section/start/inprogress/complete-btn/item-<key>.
 - Verified full flow via curl (start→patch→login200→complete→staff archived+login revoked→login403) and UI screenshot.
 ### Remaining from founder audit: #3 unify personal-data source (onboarding forms vs HR profile), #4 unified Employee File export.
+
+## 2026-09-10 — Unify personal data: single source of truth (Iter 295)
+- Canonical store = staff_members (HR-profile fields embedded there). The new_starter form keeps a mirrored copy for the sign-up wizard + My Details.
+- New util utils/personal_sync.py: PERSONAL_MAP (dob<->date_of_birth, ni_number, home_address<->address_line1, emergency_contact_name/phone, bank_account(+last4)); form_to_staff_patch, staff_to_form_patch, sync_from_form, sync_from_staff.
+- Wired at ALL write paths: (1) onboarding PUT /new-starter/forms new_starter -> sync_from_form; (2) PATCH /staffing/hr/profile -> sync_from_staff (mirrors HR edits back to form); (3) staff detail-change approve -> form_to_staff_patch writes canonical staff_members. Read overlay: GET /new-starter/me overlays canonical staff fields onto new_starter form data so My Details always shows the source of truth (fixes historical drift).
+- Verified bidirectionally via curl: HR edit -> My Details reflects; staff change-request approve -> HR profile + My Details reflect. All converge on staff_members.
+- Note: HR profile stores bank as last4 only; onboarding stores full bank_account. Bank mirrors form->staff (full + derived last4); HR editing last4 does not push back to full (cannot reconstruct) — acceptable.
+- Remaining from founder audit: #4 unified Employee File export (PDF/Excel across whole lifecycle).

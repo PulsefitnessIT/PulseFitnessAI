@@ -235,6 +235,10 @@ async def update_profile(
     await db.staff_members.update_one(
         {"id": staff_id, "organization_id": org_id}, {"$set": patch},
     )
+    # Unify: mirror the personal fields HR just edited back into the sign-up
+    # form data so the Staff Portal My Details tab stays in sync.
+    from utils.personal_sync import sync_from_staff
+    await sync_from_staff(db, org_id, staff_id, patch)
     return await db.staff_members.find_one({"id": staff_id}, {"_id": 0})
 
 
