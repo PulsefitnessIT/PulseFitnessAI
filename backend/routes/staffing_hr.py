@@ -61,6 +61,7 @@ from routes.staffing import (
     _now,
     _org,
     _require_manager,
+    _resolve_staff_login_flags,
 )
 
 logger = logging.getLogger(__name__)
@@ -200,6 +201,9 @@ async def get_profile(staff_id: str, user: dict = Depends(get_current_user)):
     org_id = _org(user)
     await _check_view_scope(user, org_id, staff_id)
     sm = await _staff_or_404(org_id, staff_id)
+    # Recognise whether this person already has / was sent a platform login so
+    # the UI can show "Re-issue login" vs "Invite to platform".
+    await _resolve_staff_login_flags(org_id, [sm])
     # Safe profile: scrub sensitive fields for non-managers about *themselves* only.
     if not _is_manager(user):
         for k in ("bank_sort_code", "bank_account_last4", "ni_number"):

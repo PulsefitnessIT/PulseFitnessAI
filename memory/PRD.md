@@ -1,3 +1,22 @@
+# ═══ 2026-06 · STAFFING — recognise who already has a platform login (Invite→Re-issue) · curl/DB-verified ═══
+User: the "Invite to platform" button must flip to "Re-issue login" once a person already has / was sent login
+details (e.g. Kevin Barnett already logs in but showed "Invite to platform" because he never went through the
+Staffing invite flow, so portal_credentials_issued_at was never stamped).
+- BE staffing.py: NEW _login_from_account(staff, account) → True when portal_credentials_issued_at is set OR a
+  linked account exists that ISN'T just the non-loginable auto-shell placeholder (created_via='staffing_auto_shell'
+  + must_set_password + login_status none → still counts as NOT invited). NEW _resolve_staff_login_flags(org_id,
+  rows) batch-stamps each row's `has_login` from db.users (fallback db.crm_users) via a single $in lookup.
+  • list_staff stamps has_login on every row (managers only). get_profile (staffing_hr.py) stamps has_login too.
+- FE HRTab.js ProfilePanel invite button + StaffingConsole.js staff-row button now key off
+  (has_login || portal_credentials_issued_at): show "Re-issue login" / "Re-issue" when they already have a login,
+  "Invite to platform" / "Send login" only when they don't.
+- VERIFIED (iso-demo-org): 9/10 real-login staff → has_login True (button = Re-issue) though issued=False; "Jamie
+  Fox" (linked user_id has no matching account) → has_login False (button = Invite). FE compiles clean.
+NOTE: REDEPLOY required for production.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · RBAC EPIC pass 3 — Issue 1 (verified) + Issue 4 (staffing scope) + EDIT NAMES · curl/DB-verified ═══
 User: "Continue with the issues. Added — Staffing — ability to edit names." Chose "continue with your recommendations".
 DONE — EDIT STAFF NAMES:

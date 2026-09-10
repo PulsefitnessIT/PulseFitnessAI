@@ -527,9 +527,9 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
               className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5 border disabled:opacity-50"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)', background: 'var(--theme-surface)' }}
               data-testid="staff-issue-creds-btn"
-              title={profile.portal_credentials_issued_at ? t('staffing.hr_reissue_login', 'Re-issue platform login') : t('staffing.hr_invite_platform', 'Invite this person to the platform login')}>
+              title={(profile.has_login || profile.portal_credentials_issued_at) ? t('staffing.hr_reissue_login', 'Re-issue platform login') : t('staffing.hr_invite_platform', 'Invite this person to the platform login')}>
               {inviteBusy ? <Loader2 size={11} className="animate-spin" /> : <KeyRound size={11} />}
-              {profile.portal_credentials_issued_at ? t('staffing.hr_reissue_login_short', 'Re-issue login') : t('staffing.hr_invite_platform_short', 'Invite to platform')}
+              {(profile.has_login || profile.portal_credentials_issued_at) ? t('staffing.hr_reissue_login_short', 'Re-issue login') : t('staffing.hr_invite_platform_short', 'Invite to platform')}
             </button>
             <button type="button" onClick={() => setEditing(true)}
               className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5 border"

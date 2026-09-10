@@ -811,12 +811,12 @@ function StaffTab({ headers }) {
                       className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-md px-2 py-1 border disabled:opacity-50"
                       style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)', background: 'var(--theme-surface)' }}
                       data-testid={`staff-issue-creds-${s.id}`}
-                      title={s.portal_credentials_issued_at ? t('staffing.sc_reissue_pw_title', 'Re-issue portal password') : t('staffing.sc_send_login_title', 'Send portal login')}
+                      title={(s.has_login || s.portal_credentials_issued_at) ? t('staffing.sc_reissue_pw_title', 'Re-issue portal password') : t('staffing.sc_send_login_title', 'Send portal login')}
                     >
                       {credsBusy === s.id
                         ? <Loader2 size={11} className="animate-spin" />
                         : <KeyRound size={11} />}
-                      {s.portal_credentials_issued_at ? t('staffing.sc_reissue', 'Re-issue') : t('staffing.sc_send_login', 'Send login')}
+                      {(s.has_login || s.portal_credentials_issued_at) ? t('staffing.sc_reissue', 'Re-issue') : t('staffing.sc_send_login', 'Send login')}
                     </button>
                   </td>
                   <td className="py-2 px-2 text-right"><button type="button" onClick={() => archive(s.id)} className="opacity-60 hover:opacity-100" data-testid={`staff-archive-${s.id}`}><Trash2 size={12} /></button></td>

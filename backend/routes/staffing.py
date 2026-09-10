@@ -424,6 +424,8 @@ async def list_staff(include_inactive: bool = Query(False), user: dict = Depends
         if scope:
             q.update(scope)
     rows = await db.staff_members.find(q, {"_id": 0}).sort("full_name", 1).to_list(1000)
+    if _is_manager(user):
+        await _resolve_staff_login_flags(org_id, rows)
     return {"staff": rows, "role": _role(user)}
 
 
@@ -636,6 +638,55 @@ async def _ensure_staff_account_shell(staff: dict) -> None:
     except Exception as exc:  # noqa: BLE001
         import logging
         logging.getLogger(__name__).warning("staff account shell provisioning failed: %s", exc)
+
+
+def _login_from_account(staff: dict, account: dict | None) -> bool:
+    """True when a staff member has ALREADY been sent / has a usable platform
+    login — so the UI shows "Re-issue login" instead of "Invite to platform".
+
+    Signals (any → True):
+      • portal_credentials_issued_at stamped (invite/creds sent from Staffing), OR
+      • a linked account exists that isn't just the non-loginable auto-shell
+        placeholder (an auto-shell awaiting its first invite has
+        created_via='staffing_auto_shell' + must_set_password + login_status
+        'none' → still counts as NOT invited).
+    """
+    if staff.get("portal_credentials_issued_at"):
+        return True
+    if not account:
+        return False
+    is_pending_shell = (
+        account.get("created_via") == "staffing_auto_shell"
+        and bool(account.get("must_set_password"))
+        and (account.get("login_status") in (None, "none"))
+    )
+    return not is_pending_shell
+
+
+async def _resolve_staff_login_flags(org_id: str, rows: list[dict]) -> None:
+    """Batch-stamp each staff row with `has_login` from its linked account
+    (db.users, falling back to db.crm_users), in place."""
+    if not rows:
+        return
+    uids = [r.get("user_id") for r in rows if r.get("user_id")]
+    emails = [(r.get("email") or "").strip().lower() for r in rows if r.get("email")]
+    proj = {"_id": 0, "id": 1, "email": 1, "created_via": 1,
+            "must_set_password": 1, "login_status": 1, "active": 1}
+    acct_by_id: dict = {}
+    acct_by_email: dict = {}
+    for coll in (db.users, db.crm_users):
+        cur = coll.find(
+            {"$or": [{"id": {"$in": uids}}, {"email": {"$in": emails}}]}, proj)
+        async for a in cur:
+            if a.get("id") and a["id"] not in acct_by_id:
+                acct_by_id[a["id"]] = a
+            em = (a.get("email") or "").strip().lower()
+            if em and em not in acct_by_email:
+                acct_by_email[em] = a
+    for r in rows:
+        acct = acct_by_id.get(r.get("user_id")) or acct_by_email.get((r.get("email") or "").strip().lower())
+        r["has_login"] = _login_from_account(r, acct)
+
 
 
 @router.patch("/staffing/staff/{staff_id}")
