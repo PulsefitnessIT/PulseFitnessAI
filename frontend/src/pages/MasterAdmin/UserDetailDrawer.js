@@ -97,6 +97,17 @@ const ModuleAccessSection = ({ userId, headers }) => {
   const fix = async (m) => {
     setFixing(m.key);
     try {
+      // Access-flag toggles (Service Desk / Inventory) — grant or revoke the
+      // flag that drives the user's Switch-area.
+      if (m.fix_action === 'grant_flag' || m.fix_action === 'revoke_flag') {
+        const isRevoke = m.fix_action === 'revoke_flag';
+        const { data } = await axios.post(
+          `${API_BASE}/master-admin/users/${userId}/module-access/${m.key}/${isRevoke ? 'revoke' : 'grant'}`,
+          {}, { headers });
+        setData(data); fetchAudit();
+        toast.success(isRevoke ? `${m.label} access removed` : `${m.label} access granted`);
+        return;
+      }
       const { data } = await axios.post(
         `${API_BASE}/master-admin/users/${userId}/module-access/${m.key}/grant`,
         {}, { headers });
@@ -169,7 +180,10 @@ const ModuleAccessSection = ({ userId, headers }) => {
                       <Wand2 size={11} />
                       {fixing === m.key
                         ? 'Fixing…'
-                        : m.fix_action === 'grant_org' ? `Enable ${m.label} for org` : 'Restore access'}
+                        : m.fix_action === 'grant_org' ? `Enable ${m.label} for org`
+                          : m.fix_action === 'grant_flag' ? `Enable ${m.label}`
+                            : m.fix_action === 'revoke_flag' ? `Remove ${m.label}`
+                              : 'Restore access'}
                     </button>
                   )}
                 </div>

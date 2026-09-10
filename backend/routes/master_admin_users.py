@@ -126,6 +126,9 @@ async def get_user_module_access(user_id: str, user: dict = Depends(get_current_
     return _module_access_payload(target, org)
 
 
+_FLAG_MODULES = {"service_desk": "is_service_desk", "inventory": "is_inventory"}
+
+
 def _module_access_payload(target: dict, org: Optional[dict]) -> dict:
     """Build the per-module access diagnostics for a user + their org."""
     from utils.module_access import (
@@ -166,19 +169,22 @@ def _module_access_payload(target: dict, org: Optional[dict]) -> dict:
             "fix_action": action,  # null | "grant_org" | "restore_user"
         })
 
-    # Informational (non-org-module) access flags the People drawer should show:
-    #   • Service Desk hub access   • Engineer app access
+    # Grantable access flags — these drive the Switch-area (Service Desk /
+    # Inventory) and are NOT covered by org module access or Owner "full
+    # access", so they stay toggleable per-user even for privileged users.
     role = (target.get("role") or "").lower()
-    has_desk = bool(target.get("is_service_desk"))
     has_engineer = role == "engineer" or bool(target.get("is_engineer")) or bool(target.get("engineer_id"))
-    if privileged:
-        has_desk = True
-    modules.append({
-        "key": "service_desk", "label": "Service Desk", "blurb": "Service Desk hub (/service-desk)",
-        "org_enabled": True, "user_access": has_desk or privileged,
-        "reason": ("Full access — " + priv_label) if privileged else ("Service Desk member" if has_desk else "No Service Desk access"),
-        "fix_action": None, "informational": True,
-    })
+    for fkey, flabel, fblurb, ffield in (
+        ("service_desk", "Service Desk", "Service Desk hub (/service-desk)", "is_service_desk"),
+        ("inventory", "Inventory & Distribution", "Inventory & distribution (/inventory)", "is_inventory"),
+    ):
+        on = bool(target.get(ffield))
+        modules.append({
+            "key": fkey, "label": flabel, "blurb": fblurb,
+            "org_enabled": True, "user_access": on,
+            "reason": f"{flabel} access granted" if on else f"No {flabel} access",
+            "fix_action": "revoke_flag" if on else "grant_flag",
+        })
     modules.append({
         "key": "engineer", "label": "Engineer app", "blurb": "Field engineer app (/engineer)",
         "org_enabled": True, "user_access": has_engineer or privileged,
@@ -204,7 +210,7 @@ async def grant_user_module_access(user_id: str, module: str, user: dict = Depen
     Returns the refreshed diagnostics so the drawer updates in place."""
     require_master_admin(user)
     await assert_user_in_pulse_scope(user, user_id)
-    if module not in {"operations", "memberships", "marketing", "crm"}:
+    if module not in {"operations", "memberships", "marketing", "crm", "service_desk", "inventory"}:
         raise HTTPException(400, "Unknown module")
 
     target = await db.users.find_one({"id": user_id}, {"_id": 0})
@@ -216,6 +222,22 @@ async def grant_user_module_access(user_id: str, module: str, user: dict = Depen
 
     org_id = target.get("organization_id")
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0}) if org_id else None
+
+    # Access flags (Service Desk / Inventory) drive the Switch-area and are NOT
+    # covered by org module access or Owner "full access", so they are granted
+    # per-user by setting the flag on the user row (both collections).
+    if module in _FLAG_MODULES:
+        field = _FLAG_MODULES[module]
+        await db.users.update_one({"id": user_id}, {"$set": {field: True}})
+        await db.crm_users.update_one({"id": user_id}, {"$set": {field: True}})
+        target[field] = True
+        _lbl = "Service Desk" if module == "service_desk" else "Inventory & Distribution"
+        await log_activity("module_access.grant_flag",
+                           f"Granted {_lbl} to {target.get('full_name') or target.get('email') or user_id}",
+                           user.get("email") or "master_admin", "user", user_id)
+        p = _module_access_payload(target, org)
+        p["result"] = "granted_flag"
+        return p
 
     from utils.module_access import org_module_access, resolve_module_access
     org_on = bool(org_module_access(org).get(module))
@@ -264,7 +286,7 @@ async def revoke_user_module_access(user_id: str, module: str,
     "user" re-applies the per-staff block, "both" does both."""
     require_master_admin(user)
     await assert_user_in_pulse_scope(user, user_id)
-    if module not in {"operations", "memberships", "marketing", "crm"}:
+    if module not in {"operations", "memberships", "marketing", "crm", "service_desk", "inventory"}:
         raise HTTPException(400, "Unknown module")
     scope = (body or {}).get("scope", "user")
     if scope not in {"org", "user", "both"}:
@@ -283,6 +305,17 @@ async def revoke_user_module_access(user_id: str, module: str,
     actor = user.get("email") or "master_admin"
     org_name = (org or {}).get("name") or org_id or "organisation"
     target_name = target.get("full_name") or target.get("email") or user_id
+
+    # Access flags (Service Desk / Inventory) — clear the flag on both rows.
+    if module in _FLAG_MODULES:
+        field = _FLAG_MODULES[module]
+        await db.users.update_one({"id": user_id}, {"$set": {field: False}})
+        await db.crm_users.update_one({"id": user_id}, {"$set": {field: False}})
+        target[field] = False
+        _lbl = "Service Desk" if module == "service_desk" else "Inventory & Distribution"
+        await log_activity("module_access.revoke_flag",
+                           f"Removed {_lbl} from {target_name}", actor, "user", user_id)
+        return _module_access_payload(target, org)
 
     if scope in ("org", "both") and org:
         await _set_org_module_enabled(org_id, org, module, False)

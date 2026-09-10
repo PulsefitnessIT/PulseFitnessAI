@@ -1,3 +1,30 @@
+# ═══ 2026-06 · RBAC EPIC (4 items) — pass 1: Issue 2 DONE (Service Desk + Inventory grantable → Switch-area) ═══
+User reported 4 interrelated access-control items (prod). Decisions: per-user module toggles drive Switch-area;
+auto-provision staffing users defaulting to minimal; staffing visibility scoped by department+site; Owner/HR/
+Payroll see all. Order: 3→2→1→4 (do 2+3 first).
+DONE — Issue 2 (Service Desk + Inventory not selectable / not in Switch-area):
+  - Root cause: Master Admin per-user module matrix only toggled the 4 core modules (operations/memberships/
+    marketing/crm); Service Desk was a READ-ONLY "informational" row and Inventory/Staff Portal weren't listed,
+    so the flags (is_service_desk / is_inventory) that drive AreaSwitcher were never settable.
+  - master_admin_users.py: added _FLAG_MODULES; _module_access_payload now emits Service Desk + Inventory as
+    GRANTABLE rows (fix_action grant_flag/revoke_flag based on the user's flag, toggleable even for Owners since
+    these aren't covered by "Owner full access"). grant/revoke endpoints accept service_desk|inventory and
+    set/clear is_service_desk / is_inventory on BOTH db.users + db.crm_users.
+  - UserDetailDrawer.js: fix() handles grant_flag/revoke_flag (POST grant|revoke); button labels
+    "Enable/Remove {module}".
+  - /auth/me already passes is_service_desk/is_inventory → AreaSwitcher shows Service Desk + Inventory areas.
+  - VERIFIED (direct DB+payload against a real user): grant→flags True→rows show revoke_flag & /auth/me exposes
+    both True; revoke→False→grant_flag. Frontend compiles. Flags cleaned up after test. REDEPLOY needed.
+STILL TODO (next passes):
+  - Issue 3 (P0 next): staffing-created managers/staff have NO db.users row → Master Admin drawer 404s
+    ("No account row"). Fix = AUTO-PROVISION a login + module-access record on create_staff, default minimal.
+    NOTE: this is AUTH provisioning → MUST route through integration_expert before coding; needs its own tests.
+  - Issue 1: managers default to no modules; per-user toggles are source of truth (matrix now supports the flags).
+  - Issue 4: staffing list scoped by department + site for managers; Owner/HR/Payroll see all.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFFING HR — two prod bugs on the profile Employment editor · testing-agent 3/3 PASS ═══
 Both were FRONTEND-only (backend PATCH/GET verified fine via curl).
 1. HOURS/WEEK LOST FOCUS after one digit — root cause: the `Field` component was defined INSIDE ProfilePanel's
