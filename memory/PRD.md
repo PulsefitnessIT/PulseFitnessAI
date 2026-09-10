@@ -1,3 +1,15 @@
+# ═══ 2026-06 · STAFFING — login-status chip on each staff row · screenshot-verified (desktop + mobile) ═══
+Follow-on to the Invite→Re-issue change. HRTab.js sidebar staff rows now show a small pill next to role/department:
+green "Login active" (has_login || portal_credentials_issued_at) or grey "Not invited" otherwise
+(data-testid hr-staff-login-badge-<id>). Reuses the existing per-row `has_login` flag from list_staff — no new API.
+Rendered inside the existing flex-wrap line so it wraps cleanly on mobile.
+VERIFIED: owner@isodemo → Staffing → People → HR shows 10 badges (9 "Login active", 1 "Not invited" = Jamie Fox);
+"Re-issue login" button correct on the profile. 390px: no new horizontal overflow (only the pre-existing scrollable
+module pill bar). REDEPLOY required for production.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFFING — recognise who already has a platform login (Invite→Re-issue) · curl/DB-verified ═══
 User: the "Invite to platform" button must flip to "Re-issue login" once a person already has / was sent login
 details (e.g. Kevin Barnett already logs in but showed "Invite to platform" because he never went through the

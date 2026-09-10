@@ -1507,6 +1507,9 @@ export default function HRTab({ headers, isManager }) {
                       <p className="text-[10px] uppercase tracking-wider flex items-center gap-1.5 flex-wrap" style={{ color: 'var(--theme-text-muted)' }}>
                         {humanizeRole(s.primary_role)}
                         {s.department && <span className="normal-case text-[9px] px-1 rounded" style={{ background: 'rgba(25,205,255,0.15)', color: 'var(--color-brand-cyan)' }}>{s.department}</span>}
+                        {(s.has_login || s.portal_credentials_issued_at)
+                          ? <span className="normal-case text-[9px] px-1.5 rounded-full font-semibold inline-flex items-center gap-1" style={{ background: 'rgba(16,185,129,0.16)', color: '#059669' }} data-testid={`hr-staff-login-badge-${s.id}`}><span className="h-1.5 w-1.5 rounded-full" style={{ background: '#059669' }} />{t('staffing.hr_login_active', 'Login active')}</span>
+                          : <span className="normal-case text-[9px] px-1.5 rounded-full font-semibold inline-flex items-center gap-1" style={{ background: 'rgba(148,163,184,0.18)', color: 'var(--theme-text-muted)' }} data-testid={`hr-staff-login-badge-${s.id}`}><span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--theme-text-muted)' }} />{t('staffing.hr_not_invited', 'Not invited')}</span>}
                       </p>
                     </div>
                   </div>
