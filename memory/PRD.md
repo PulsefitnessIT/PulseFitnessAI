@@ -36824,3 +36824,15 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Backend (routes/staff_portal.py): POST /api/new-starter/portal/photo (staff/recruit, get_current_user_portal), DELETE same; public proxy GET /api/staffing/staff/{staff_id}/photo streams bytes (non-sensitive, unguessable UUID). Stores photo_url + photo_path on staff_members so it flows into /staffing/staff list & HR profile automatically. Added person.photo_url to /api/new-starter/me.
 - Frontend: StaffPortal.js MyDetailsTab photo block (detail-photo-block/img/btn/input) + photoSrc helper; NewStarterPortal.js reusable StaffPhotoUpload in YourDetails; HRTab.js list-row avatar (hr-staff-avatar-<id>) + profile-card avatar (hr-profile-avatar) with initials fallback; photoUrl passed from active row.
 - Verified: upload->/me->public proxy (200 image/jpeg)->staff list photo_url; UI screenshots My Details photo + HR list/profile avatars (naturalWidth 384). Sign-up field uses same component/endpoint.
+
+## 2026-09-10 — Lifecycle hardening: leaver security + offboarding workflow (Iter 294)
+### #1 Leaver login revocation (SECURITY FIX)
+- Portal logins (/new-starter/staff-login and /new-starter/login) now reject when users.active is False (403 "no longer active"). Recruits keep active=True so unaffected.
+- Archiving a staff member (DELETE /staffing/staff/{id}) now also disables the users auth record (active:false) + sets tokens_revoked_before=now epoch → invalidates any LIVE portal/platform JWT immediately (existing _load_user_core cutoff). PATCH staff active:true re-enables login on rehire.
+- Verified: seeded temp staff, logged in (200), archived → old token 401 (revoked), re-login 403, platform login 403.
+### #2 Offboarding / Leaver workflow (routes/staffing_hr.py)
+- Collection staff_offboarding_cases. Endpoints (managers): GET /staffing/offboarding (list + in_progress count), GET/POST /staffing/offboarding/{staff_id} start, PATCH (checklist/notes/reason/last_working_day/exit_interview_notes), POST .../{id}/complete.
+- 10-item checklist (keys, uniform, equipment, vehicle, revoke building, revoke systems, final timesheet, flag final pay, exit interview, P45). Complete → sets termination_date=last_working_day + reason + lifecycle_stage=leaver, archives staff, REVOKES login (reuses active+tokens_revoked_before). Checklist is a guide (can complete before all ticked).
+- Frontend: HRTab.js OffboardingSection at bottom of ProfilePanel (managers) — start form, in-progress checklist toggles, Complete & revoke access button. testids offboarding-section/start/inprogress/complete-btn/item-<key>.
+- Verified full flow via curl (start→patch→login200→complete→staff archived+login revoked→login403) and UI screenshot.
+### Remaining from founder audit: #3 unify personal-data source (onboarding forms vs HR profile), #4 unified Employee File export.

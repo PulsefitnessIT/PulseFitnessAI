@@ -555,6 +555,9 @@ async def update_staff(staff_id: str, body: StaffUpdate, user: dict = Depends(ge
     existing = await db.staff_members.find_one({"id": staff_id, "organization_id": org_id})
     if not existing:
         raise HTTPException(404, "staff not found")
+    # Rehire/restore — flipping a staff member back to active re-enables their login.
+    if patch.get("active") is True and existing.get("user_id"):
+        await db.users.update_one({"id": existing["user_id"]}, {"$set": {"active": True}})
     # Email edit — normalise, block collisions with a *different* account, and
     # keep the linked platform login (users.email) in step so the person can
     # still sign in with their updated address.
@@ -596,9 +599,21 @@ async def update_staff(staff_id: str, body: StaffUpdate, user: dict = Depends(ge
 async def archive_staff(staff_id: str, user: dict = Depends(get_current_user)):
     _require_manager(user)
     org_id = _org(user)
-    res = await db.staff_members.update_one({"id": staff_id, "organization_id": org_id}, {"$set": {"active": False, "archived_at": _now().isoformat()}})
-    if res.matched_count == 0:
+    existing = await db.staff_members.find_one({"id": staff_id, "organization_id": org_id}, {"_id": 0, "user_id": 1})
+    if not existing:
         raise HTTPException(404, "staff not found")
+    await db.staff_members.update_one(
+        {"id": staff_id, "organization_id": org_id},
+        {"$set": {"active": False, "archived_at": _now().isoformat(), "lifecycle_stage": "leaver"}})
+    # Revoke the person's login: disable the auth record and invalidate any
+    # live JWT (portal or platform) via the tokens_revoked_before cutoff.
+    uid = existing.get("user_id")
+    if uid:
+        await db.users.update_one(
+            {"id": uid},
+            {"$set": {"active": False,
+                      "tokens_revoked_before": int(_now().timestamp()),
+                      "updated_at": _now().isoformat()}})
     return {"ok": True}
 
 

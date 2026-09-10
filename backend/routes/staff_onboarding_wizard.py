@@ -1440,6 +1440,8 @@ async def recruit_login(body: AcceptInvite, response: Response):
         raise HTTPException(400, "Please set up your portal password first.")
     if not verify_password(body.password or "", user["password"]):
         raise HTTPException(401, "Incorrect password — please try again.")
+    if user.get("active") is False:
+        raise HTTPException(403, "This account is no longer active. Please contact your manager.")
     token = create_token(uid, expires_hours=24)
     return {"token": token, "user": {"id": uid, "full_name": staff.get("full_name"), "role": "recruit"}}
 
@@ -1527,6 +1529,8 @@ async def staff_login(body: StaffLoginBody):
     staff = await _resolve_staff_for_user(user)
     if not staff:
         raise HTTPException(403, "This account does not have a staff portal.")
+    if user.get("active") is False:
+        raise HTTPException(403, "This account is no longer active. Please contact your manager.")
     token = create_token(user["id"], expires_hours=24)
     return {"token": token, "user": {"id": user["id"], "full_name": staff.get("full_name"),
                                      "role": user.get("role"), "activated": bool(staff.get("active"))}}

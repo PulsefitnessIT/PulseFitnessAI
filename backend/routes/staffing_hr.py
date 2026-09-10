@@ -468,3 +468,145 @@ async def delete_training(rec_id: str, user: dict = Depends(get_current_user)):
     if res.matched_count == 0:
         raise HTTPException(404, "Record not found")
     return {"ok": True}
+
+
+
+# ═════════════════ Offboarding / Leaver workflow ═════════════════
+# A guided leaver process: HR records the last working day + reason, works
+# through a return-of-property / access-revocation checklist, then completes
+# the case — which archives the staff record, sets the termination fields and
+# REVOKES the person's login (auth record disabled + live JWTs invalidated).
+
+OFFBOARDING_CHECKLIST = [
+    ("return_keys", "Return keys / entry fob"),
+    ("return_uniform", "Return uniform / PPE"),
+    ("return_equipment", "Return equipment (laptop, phone, tools)"),
+    ("return_vehicle", "Return company vehicle"),
+    ("revoke_building", "Revoke building / gym access"),
+    ("revoke_systems", "Revoke portal & system access"),
+    ("final_timesheet", "Final timesheet approved"),
+    ("final_pay", "Flag final pay to payroll"),
+    ("exit_interview", "Exit interview completed"),
+    ("p45", "P45 / leaver documents issued"),
+]
+
+
+class OffboardStart(BaseModel):
+    reason: str | None = None
+    last_working_day: str | None = None
+    notice_date: str | None = None
+
+
+class OffboardPatch(BaseModel):
+    checklist: dict | None = None
+    notes: str | None = None
+    reason: str | None = None
+    last_working_day: str | None = None
+    exit_interview_notes: str | None = None
+
+
+def _new_checklist() -> list[dict]:
+    return [{"key": k, "label": lbl, "done": False, "done_at": None} for k, lbl in OFFBOARDING_CHECKLIST]
+
+
+@router.get("/staffing/offboarding")
+async def list_offboarding(status: str = Query("all"), user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    q: dict = {"organization_id": org_id}
+    if status and status != "all":
+        q["status"] = status
+    rows = await db.staff_offboarding_cases.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
+    for r in rows:
+        s = await db.staff_members.find_one({"id": r.get("staff_id")}, {"_id": 0, "full_name": 1, "primary_role": 1, "photo_url": 1}) or {}
+        r["person"] = {"full_name": s.get("full_name"), "primary_role": s.get("primary_role"), "photo_url": s.get("photo_url")}
+    in_progress = await db.staff_offboarding_cases.count_documents({"organization_id": org_id, "status": "in_progress"})
+    return {"cases": rows, "in_progress": in_progress}
+
+
+@router.get("/staffing/offboarding/{staff_id}")
+async def get_offboarding(staff_id: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    case = await db.staff_offboarding_cases.find_one({"staff_id": staff_id, "organization_id": org_id}, {"_id": 0})
+    return {"exists": bool(case), "case": case}
+
+
+@router.post("/staffing/offboarding/{staff_id}/start")
+async def start_offboarding(staff_id: str, body: OffboardStart, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    staff = await _staff_or_404(org_id, staff_id)
+    existing = await db.staff_offboarding_cases.find_one({"staff_id": staff_id, "organization_id": org_id})
+    if existing and existing.get("status") == "in_progress":
+        return _strip(existing)
+    case = {
+        "id": str(uuid4()), "organization_id": org_id, "staff_id": staff_id,
+        "staff_name": staff.get("full_name"), "status": "in_progress",
+        "reason": (body.reason or "").strip(), "last_working_day": body.last_working_day,
+        "notice_date": body.notice_date, "checklist": _new_checklist(),
+        "notes": "", "exit_interview_notes": "",
+        "initiated_by": user.get("full_name"), "created_at": _now().isoformat(),
+        "completed_at": None, "completed_by": None,
+    }
+    await db.staff_offboarding_cases.replace_one(
+        {"staff_id": staff_id, "organization_id": org_id}, case, upsert=True)
+    return _strip(case)
+
+
+@router.patch("/staffing/offboarding/{staff_id}")
+async def update_offboarding(staff_id: str, body: OffboardPatch, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    case = await db.staff_offboarding_cases.find_one({"staff_id": staff_id, "organization_id": org_id})
+    if not case:
+        raise HTTPException(404, "No offboarding case — start one first.")
+    if case.get("status") == "complete":
+        raise HTTPException(400, "This offboarding has already been completed.")
+    patch: dict = {}
+    if body.checklist is not None:
+        items = case.get("checklist") or _new_checklist()
+        now = _now().isoformat()
+        for it in items:
+            if it["key"] in body.checklist:
+                it["done"] = bool(body.checklist[it["key"]])
+                it["done_at"] = now if it["done"] else None
+        patch["checklist"] = items
+    for fld in ("notes", "reason", "last_working_day", "exit_interview_notes"):
+        val = getattr(body, fld)
+        if val is not None:
+            patch[fld] = val.strip() if isinstance(val, str) else val
+    patch["updated_at"] = _now().isoformat()
+    await db.staff_offboarding_cases.update_one({"id": case["id"]}, {"$set": patch})
+    return await db.staff_offboarding_cases.find_one({"id": case["id"]}, {"_id": 0})
+
+
+@router.post("/staffing/offboarding/{staff_id}/complete")
+async def complete_offboarding(staff_id: str, user: dict = Depends(get_current_user)):
+    """Finalise the leaver: set termination fields, archive the staff record and
+    REVOKE their login (auth disabled + live sessions invalidated)."""
+    _require_manager(user)
+    org_id = _org(user)
+    case = await db.staff_offboarding_cases.find_one({"staff_id": staff_id, "organization_id": org_id})
+    if not case:
+        raise HTTPException(404, "No offboarding case — start one first.")
+    if case.get("status") == "complete":
+        raise HTTPException(400, "This offboarding has already been completed.")
+    staff = await _staff_or_404(org_id, staff_id)
+    lwd = case.get("last_working_day")
+    await db.staff_members.update_one(
+        {"id": staff_id, "organization_id": org_id},
+        {"$set": {"active": False, "archived_at": _now().isoformat(), "lifecycle_stage": "leaver",
+                  "termination_date": lwd, "termination_reason": case.get("reason"),
+                  "updated_at": _now().isoformat()}})
+    uid = staff.get("user_id")
+    if uid:
+        await db.users.update_one(
+            {"id": uid},
+            {"$set": {"active": False, "tokens_revoked_before": int(_now().timestamp()),
+                      "updated_at": _now().isoformat()}})
+    await db.staff_offboarding_cases.update_one(
+        {"id": case["id"]},
+        {"$set": {"status": "complete", "completed_at": _now().isoformat(),
+                  "completed_by": user.get("full_name"), "access_revoked": bool(uid)}})
+    return {"ok": True, "access_revoked": bool(uid), "termination_date": lwd}

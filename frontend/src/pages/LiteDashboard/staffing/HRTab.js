@@ -18,7 +18,7 @@ import { useTranslation } from 'react-i18next';
 import {
   User, FileText, ShieldAlert, GraduationCap, Loader2, Plus, Pencil,
   Trash2, X, Check, Search, AlertTriangle,
-  ExternalLink, Briefcase, UserPlus, KeyRound, Copy,
+  ExternalLink, Briefcase, UserPlus, KeyRound, Copy, LogOut, ClipboardCheck,
 } from 'lucide-react';
 import { RELATIONSHIP_OPTIONS } from '@/utils/crmDropdowns';
 import DatePicker, { formatDDMMYYYY } from '@/components/shared/DatePicker';
@@ -231,6 +231,110 @@ function CredsDialog({ creds, onClose }) {
 }
 
 // ─────────────────────── Profile panel ───────────────────────────
+
+function OffboardingSection({ staffId, headers, staffName, onUpdated }) {
+  const [c, setC] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [start, setStart] = useState({ last_working_day: '', reason: '' });
+  const load = useCallback(() => {
+    axios.get(`${API}/staffing/offboarding/${staffId}`, { headers })
+      .then((r) => setC(r.data)).catch(() => setC({ exists: false }));
+  }, [staffId, headers]);
+  useEffect(() => { load(); }, [load]);
+  if (!c) return null;
+  const kase = c.case;
+  const th = { borderColor: 'var(--theme-border)', color: 'var(--theme-text)' };
+
+  const begin = async () => {
+    setBusy(true);
+    try { await axios.post(`${API}/staffing/offboarding/${staffId}/start`, start, { headers }); load(); }
+    finally { setBusy(false); }
+  };
+  const toggle = async (key, val) => {
+    await axios.patch(`${API}/staffing/offboarding/${staffId}`, { checklist: { [key]: val } }, { headers }); load();
+  };
+  const setField = async (patch) => {
+    await axios.patch(`${API}/staffing/offboarding/${staffId}`, patch, { headers }); load();
+  };
+  const complete = async () => {
+    if (!window.confirm(`Complete offboarding for ${staffName}?\n\nThis archives them and revokes their portal + platform login. It cannot be undone from here.`)) return;
+    setBusy(true);
+    try { await axios.post(`${API}/staffing/offboarding/${staffId}/complete`, {}, { headers }); load(); onUpdated && onUpdated(); }
+    catch (e) { window.alert(e.response?.data?.detail || 'Could not complete offboarding'); }
+    finally { setBusy(false); }
+  };
+
+  const wrap = (children) => (
+    <div className="rounded-xl border p-4 mt-2" style={{ borderColor: 'var(--theme-border)' }} data-testid="offboarding-section">
+      <div className="flex items-center gap-2 mb-3">
+        <LogOut size={15} className="text-rose-500" />
+        <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>Offboarding / Leaver</p>
+      </div>
+      {children}
+    </div>
+  );
+
+  if (kase && kase.status === 'complete') {
+    return wrap(
+      <div className="flex items-center gap-2 flex-wrap text-sm" data-testid="offboarding-complete">
+        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Left the company</span>
+        <span style={{ color: 'var(--theme-text-muted)' }}>Last working day: <b style={{ color: 'var(--theme-text)' }}>{kase.last_working_day || '—'}</b></span>
+        {kase.reason && <span style={{ color: 'var(--theme-text-muted)' }}>· {kase.reason}</span>}
+        {kase.access_revoked && <span className="text-xs text-emerald-600 font-semibold">· Login revoked ✓</span>}
+      </div>,
+    );
+  }
+
+  if (!kase) {
+    return wrap(
+      <div className="space-y-3" data-testid="offboarding-start">
+        <p className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>Start the leaver process — record the last working day and reason, then work through the checklist.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <label className="block"><span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>Last working day</span>
+            <input type="date" value={start.last_working_day} onChange={(e) => setStart((p) => ({ ...p, last_working_day: e.target.value }))}
+              className="mt-1 w-full h-8 rounded-md bg-transparent border px-2 text-xs" style={th} data-testid="offboarding-lwd" /></label>
+          <label className="block"><span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>Reason</span>
+            <input value={start.reason} onChange={(e) => setStart((p) => ({ ...p, reason: e.target.value }))} placeholder="e.g. Resignation"
+              className="mt-1 w-full h-8 rounded-md bg-transparent border px-2 text-xs" style={th} data-testid="offboarding-reason" /></label>
+        </div>
+        <button type="button" onClick={begin} disabled={busy} data-testid="offboarding-start-btn"
+          className="h-8 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1.5 border disabled:opacity-50"
+          style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444' }}>
+          {busy ? <Loader2 size={12} className="animate-spin" /> : <LogOut size={12} />} Begin offboarding
+        </button>
+      </div>,
+    );
+  }
+
+  const items = kase.checklist || [];
+  const doneCount = items.filter((i) => i.done).length;
+  return wrap(
+    <div className="space-y-3" data-testid="offboarding-inprogress">
+      <div className="flex items-center gap-2 flex-wrap text-sm">
+        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">In progress · {doneCount}/{items.length} done</span>
+        <span style={{ color: 'var(--theme-text-muted)' }}>Last day:</span>
+        <input type="date" defaultValue={kase.last_working_day || ''} onBlur={(e) => setField({ last_working_day: e.target.value })}
+          className="h-7 rounded-md bg-transparent border px-2 text-xs" style={th} data-testid="offboarding-lwd-edit" />
+        <input defaultValue={kase.reason || ''} onBlur={(e) => setField({ reason: e.target.value })} placeholder="Reason"
+          className="h-7 rounded-md bg-transparent border px-2 text-xs" style={th} data-testid="offboarding-reason-edit" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+        {items.map((it) => (
+          <label key={it.key} className="flex items-center gap-2 text-sm cursor-pointer rounded-md border px-3 py-2" style={{ borderColor: 'var(--theme-border)' }} data-testid={`offboarding-item-${it.key}`}>
+            <input type="checkbox" checked={!!it.done} onChange={(e) => toggle(it.key, e.target.checked)} data-testid={`offboarding-check-${it.key}`} />
+            <span style={{ color: it.done ? 'var(--theme-text-muted)' : 'var(--theme-text)', textDecoration: it.done ? 'line-through' : 'none' }}>{it.label}</span>
+          </label>
+        ))}
+      </div>
+      <button type="button" onClick={complete} disabled={busy} data-testid="offboarding-complete-btn"
+        className="h-9 px-4 rounded-md text-sm font-bold inline-flex items-center gap-1.5 disabled:opacity-50"
+        style={{ background: '#EF4444', color: '#fff' }}>
+        {busy ? <Loader2 size={14} className="animate-spin" /> : <ClipboardCheck size={14} />} Complete offboarding & revoke access
+      </button>
+      <p className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>Completing archives the record, sets their leaving date and revokes their login. The checklist is a guide — you can complete before every box is ticked.</p>
+    </div>,
+  );
+}
 
 function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, inviteBusy, onDelete, departments = [], photoUrl }) {
   const { t } = useTranslation();
@@ -597,6 +701,7 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
           </div>
         )}
       </div>
+      {isManager && <OffboardingSection staffId={staffId} headers={headers} staffName={profile.full_name} onUpdated={onUpdated} />}
     </div>
   );
 }
