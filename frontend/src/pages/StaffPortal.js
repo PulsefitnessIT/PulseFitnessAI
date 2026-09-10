@@ -11,7 +11,7 @@ import {
   CheckCircle2, AlertCircle, Plus, Trash2, Users,
   Home, Play, Square, Coffee, Sun, Thermometer, ChevronLeft, ChevronRight,
   ClipboardCheck, PenLine, Truck, Camera, ShieldAlert, Check, X, MoreHorizontal,
-  IdCard,
+  IdCard, HelpCircle, BookOpen,
 } from 'lucide-react';
 import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
 import Navbar from '../components/shared/Navbar';
@@ -46,6 +46,7 @@ const TABS = [
   ['documents', 'Documents', FileText],
   ['access', 'System Access', ShieldCheck],
   ['details', 'My Details', IdCard],
+  ['help', 'Help & Tutorials', HelpCircle],
 ];
 const PRIMARY_TABS = ['home', 'mytime', 'vehicle', 'holidays'];
 
@@ -165,6 +166,7 @@ export default function StaffPortal() {
             {tab === 'documents' && <DocumentsTab H={H} />}
             {tab === 'access' && <AccessTab H={H} />}
             {tab === 'details' && <MyDetailsTab me={me} H={H} />}
+            {tab === 'help' && <HelpTab jwt={jwt} H={H} />}
           </div>
         </div>
       </div>
@@ -260,6 +262,57 @@ function MoreSheet({ tab, setTab, onClose, jwt }) {
 
 function Card({ children, testId }) {
   return <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5" data-testid={testId}>{children}</div>;
+}
+
+function HelpTab({ jwt, H }) {
+  const [sections, setSections] = useState(null);
+  const [dl, setDl] = useState(false);
+  useEffect(() => {
+    axios.get(`${API}/new-starter/portal/handbook-guide`, { headers: H })
+      .then((r) => setSections(r.data.sections || []))
+      .catch(() => setSections([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const download = async () => {
+    setDl(true);
+    try { await downloadPdf(`${API}/new-starter/portal/handbook.pdf`, { Authorization: `Bearer ${jwt}` }, 'pulse-staff-portal-handbook.pdf'); }
+    catch { /* ignore */ } finally { setDl(false); }
+  };
+  return (
+    <Card testId="staff-help">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2"><BookOpen size={18} className="text-cyan-500" /> Help &amp; Tutorials</h2>
+          <p className="text-sm text-slate-500 mt-0.5">Quick guides for every part of your Staff Portal.</p>
+        </div>
+        <button onClick={download} disabled={dl} data-testid="help-download-handbook"
+          className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          {dl ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Handbook PDF
+        </button>
+      </div>
+      {sections === null ? (
+        <div className="flex items-center gap-2 text-slate-400 text-sm"><Loader2 size={16} className="animate-spin" /> Loading guides…</div>
+      ) : sections.length === 0 ? (
+        <p className="text-sm text-slate-500">Guides are unavailable right now — please download the handbook PDF above.</p>
+      ) : (
+        <div className="space-y-2.5">
+          {sections.map((s, i) => (
+            <details key={i} className="group rounded-xl border border-slate-200 open:border-cyan-200 open:bg-cyan-50/40 transition-colors" open={i === 0} data-testid={`help-section-${i}`}>
+              <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 text-sm font-semibold text-slate-800 list-none select-none">
+                <span className="inline-flex items-center gap-2"><HelpCircle size={16} className="text-cyan-500 shrink-0" /> {s.title}</span>
+                <ChevronRight size={16} className="text-slate-400 transition-transform group-open:rotate-90 shrink-0" />
+              </summary>
+              <ul className="px-5 pb-4 space-y-1.5">
+                {(s.points || []).map((p, j) => (
+                  <li key={j} className="flex gap-2 text-sm text-slate-600"><span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-cyan-400" /><span>{p}</span></li>
+                ))}
+              </ul>
+            </details>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
 }
 function Empty({ icon: Icon, title, hint }) {
   return (

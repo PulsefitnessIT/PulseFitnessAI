@@ -1,3 +1,20 @@
+# ═══ 2026-06 · STAFF PORTAL — handbook refreshed + in-app "Help & Tutorials" tab · curl + Playwright PASS ═══
+User asked if the staff-portal user manual was up to date (it wasn't) and to surface it in-app.
+- staff_portal.py HANDBOOK_SECTIONS rewritten (single source of truth for both PDF + in-app guide): expanded
+  My Time (typing hours/breaks/PT, signing "Type name to sign here", submit/lock); NEW "Van check & daily notes
+  (field engineers)"; NEW "My Details" (view info, request changes→HR approval, upload profile photo); fixed the
+  mobile 'More' list to include My Details + Help & Tutorials; added a "Help & Tutorials" section. 11 sections.
+- NEW GET /new-starter/portal/handbook-guide returns the sections as JSON (portal-authed) so the in-app guide
+  always matches the downloadable handbook.pdf.
+- FRONTEND StaffPortal.js: new TABS entry ['help','Help & Tutorials',HelpCircle] (auto-appears in desktop pill
+  bar + mobile More sheet). New <HelpTab> renders the guide as an accordion (details/summary) + "Handbook PDF"
+  download button (works on desktop too, not just the mobile More sheet).
+- VERIFIED: guide JSON = 11 sections incl. new ones; handbook.pdf still 200/valid; frontend compiles; Playwright
+  confirmed the Help tab renders all 11 sections + download button (RESULT PASS).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · PROD FIXES BATCH (Switch-area race, sig placeholder, engineer van-check+notes, vehicle PDF) ═══
 Five items reported against production (pulsefitness.ai). All fixed in code; REDEPLOY required.
 1. SWITCH-AREA RACE (Navbar): /auth/login returns a "thin" user WITHOUT server-computed `has_staff_portal`, and

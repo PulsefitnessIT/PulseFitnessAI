@@ -425,14 +425,25 @@ HANDBOOK_SECTIONS = [
         "After login, choose the Staff Portal or another module from the launcher."]),
     ("Getting around (mobile)", [
         "A fixed bottom bar gives you the main areas: Home, My Time, Holidays, Vehicle and More.",
-        "'More' holds Rota, Timesheets, Documents and System Access.",
+        "'More' holds My Rota, Timesheets, Documents, System Access, My Details and Help & Tutorials.",
         "The bell (top right) shows reminders and updates — tap an item to jump straight to it."]),
     ("My Day (Home)", [
         "Record your day in seconds: start/finish, breaks, working from home, sick and more.",
         "If you've been off sick, confirm the agreed return-to-work actions here."]),
-    ("My Time", [
-        "Review your week or month of daily records and submit your timesheet for the period.",
-        "A reminder appears if any days are missing confirmed hours."]),
+    ("My Time (timesheets)", [
+        "Review your week or month of daily records in one place.",
+        "Type your hours for each day — start, finish, break minutes and any PT classes; the daily "
+        "and weekly totals work themselves out automatically.",
+        "When the week looks right, sign it off by typing your full name in the signature box "
+        "('Type name to sign here') and submit it to your manager.",
+        "A reminder appears if any days are missing confirmed hours. Once you submit (or it's "
+        "approved) the week is locked."]),
+    ("Van check & daily notes (field engineers)", [
+        "If you're a field engineer, your timesheet shows two extra fields on each day.",
+        "Tick 'Van check' on every day you completed your vehicle check.",
+        "Use the day's 'Notes' box for a short line about the day (e.g. 'Site A callout, M62 delay').",
+        "Your van checks and notes are shown to your manager when they review the week and appear "
+        "on the timesheet PDF/Excel."]),
     ("Holidays", [
         "Request holiday by picking your dates — the portal auto-calculates the working days "
         "(excluding weekends and bank holidays) and shows what's left of your allowance.",
@@ -445,8 +456,18 @@ HANDBOOK_SECTIONS = [
         "your manager is alerted automatically.",
         "Tick the declaration and Submit. Checks are due weekly (by Friday); you'll be reminded "
         "if one is outstanding."]),
+    ("My Details", [
+        "See the personal and payroll information we hold for you — contact details, emergency "
+        "contact and bank details.",
+        "Need something changed? Request an update (for example a new address, bank details or "
+        "emergency contact) and it's sent to HR to approve — you'll see a 'pending' note until "
+        "it's actioned.",
+        "Add a profile photo so managers can put a face to the name — tap your photo to upload a headshot."]),
     ("Documents & System Access", [
         "View your documents and the platform modules you have access to."]),
+    ("Help & Tutorials", [
+        "This section holds these quick guides and lets you download the full Staff Portal "
+        "Handbook (PDF) any time."]),
     ("Need help?", [
         "Contact your line manager or the Pulse HR team."]),
 ]
@@ -487,6 +508,14 @@ async def portal_handbook(user: dict = Depends(get_current_user_portal)):
         raise HTTPException(500, f"Could not generate handbook: {e}")
     return Response(content=pdf, media_type="application/pdf",
                     headers={"Content-Disposition": "attachment; filename=pulse-staff-portal-handbook.pdf"})
+
+
+@router.get("/new-starter/portal/handbook-guide")
+async def portal_handbook_guide(user: dict = Depends(get_current_user_portal)):
+    """Handbook content as JSON — powers the in-app Help & Tutorials tab so it
+    always matches the downloadable PDF (single source of truth)."""
+    await _portal_staff(user)
+    return {"sections": [{"title": t, "points": list(p)} for t, p in HANDBOOK_SECTIONS]}
 
 
 
