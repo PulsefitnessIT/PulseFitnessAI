@@ -1,3 +1,30 @@
+# ═══ 2026-06 · Staffing per-staff MODULE SELECTOR + mandatory complete-EMAIL validation · testing_agent 100% ═══
+User: (1) In Staffing ▸ Edit Staff, below the edit box and above Delete/Termination wizard, add a Module selector so
+Owners/Managers/HR can grant/remove module access without Master Admin. (2) Stop staff being saved with an
+incomplete email — field red until complete, Save/Add disabled until a valid email is entered (across the platform).
+DONE — MODULE SELECTOR (per-user scope only; org-wide stays Owner/Master-Admin):
+  - BE staffing.py: 3 new endpoints (manager-gated, same-org):
+    GET /api/staffing/staff/{id}/module-access, POST .../{module}/grant, POST .../{module}/revoke.
+    Reuses master_admin_users._module_access_payload. Core modules (operations/memberships/marketing/crm) toggle
+    the per-user module_overrides (grant requires org-level enabled, else 400); service_desk/inventory toggle the
+    is_service_desk/is_inventory flags on users + crm_users; engineer = informational. No-login staff → payload
+    with no_login+note. curl-verified: revoke/grant operations + grant service_desk work.
+  - FE HRTab.js: new StaffModulesPanel rendered when editing && isManager, placed BELOW the edit grid and ABOVE the
+    Remove-staff block + Offboarding section. Rows with Grant/Revoke buttons (data-testid staff-module-toggle-<key>,
+    staff-module-row-<key>, staff-modules-panel/-nologin). Changes apply immediately (independent of profile Save).
+DONE — EMAIL VALIDATION (complete email now MANDATORY):
+  - BE staffing.py: _EMAIL_RE + _require_complete_email → create_staff & update_staff reject empty/incomplete email
+    with 422 (verified: 'chris.pennington@pulsefitne' → 422, no email → 422, valid → 200). Email was previously
+    optional; now required as the login identity.
+  - FE HRTab.js: isCompleteEmail() helper. Add dialog + Profile edit → red border + red hint
+    (hr-add-staff-email-hint / hr-field-email-hint) and Save/Add disabled until a complete email. Add-staff email
+    label changed from "(optional)" to "(required — becomes their login)".
+  - TESTED: testing_agent frontend 100% pass, no issues (toggles persist + revert; email gating works on Add+Edit).
+NOTE: REDEPLOY required for production.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · Login-status → green DOT + "Remove everywhere" now purges staffing (Kevin Barnett orphans) ═══
 User asks: (1) shrink "Login active" chip to a green dot in the top-right of the name box with a hover tooltip;
 (2) delete all data for kevin.barnett@pulsefitness.com from PRODUCTION — re-onboarding left orphans and the HR/

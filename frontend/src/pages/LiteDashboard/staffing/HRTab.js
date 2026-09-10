@@ -77,6 +77,7 @@ function AddStaffDialog({ headers, onClose, onCreated }) {
 
   const submit = async () => {
     if (!form.full_name.trim()) { setErr(t('staffing.hr_name_required', 'Name is required')); return; }
+    if (!isCompleteEmail(form.email)) { setErr(t('staffing.hr_email_required', 'A complete email address is required')); return; }
     setSaving(true); setErr('');
     try {
       const { data } = await axios.post(`${API}/staffing/staff`, form, { headers });
@@ -107,12 +108,15 @@ function AddStaffDialog({ headers, onClose, onCreated }) {
               data-testid="hr-add-staff-name" />
           </div>
           <div>
-            <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_email', 'Email')} <span className="opacity-60 normal-case font-normal">{t('staffing.hr_email_hint', '(optional — links to existing user)')}</span></label>
-            <input placeholder="jane@example.com" value={form.email}
+            <label className="block text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_email', 'Email')} <span className="normal-case font-normal" style={{ color: '#EF4444' }}>{t('staffing.hr_email_req_hint', '(required — becomes their login)')}</span></label>
+            <input placeholder="jane@example.com" type="email" value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="w-full rounded-lg px-3 py-2 text-sm border"
-              style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+              style={{ background: 'var(--theme-bg)', borderColor: isCompleteEmail(form.email) ? 'var(--theme-border)' : '#EF4444', color: 'var(--theme-text)' }}
               data-testid="hr-add-staff-email" />
+            {!isCompleteEmail(form.email) && (
+              <p className="mt-1 text-[10px]" style={{ color: '#EF4444' }} data-testid="hr-add-staff-email-hint">{t('staffing.hr_email_incomplete', 'Enter a complete email, e.g. name@company.com')}</p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -138,7 +142,7 @@ function AddStaffDialog({ headers, onClose, onCreated }) {
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className="px-3 py-2 rounded-lg text-xs font-bold border"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-add-staff-cancel">{t('staffing.hr_cancel', 'Cancel')}</button>
-            <button type="button" onClick={submit} disabled={saving}
+            <button type="button" onClick={submit} disabled={saving || !form.full_name.trim() || !isCompleteEmail(form.email)}
               className="px-3 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-50"
               style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="hr-add-staff-save">
               {saving ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />} {t('staffing.hr_add_staff', 'Add staff')}
@@ -163,6 +167,9 @@ const SUB_TABS = [
 // select silently renders "—" and looks unsaved.
 const CONTRACT_TYPES = ['', 'full_time', 'part_time', 'permanent', 'fixed_term', 'casual', 'zero_hours', 'contractor', 'self_employed', 'apprentice'];
 const contractLabel = (c) => (c ? c.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()) : '—');
+// A complete email is required to save a staff member anywhere — it becomes
+// their platform login identity. Mirrors the backend `_is_complete_email`.
+const isCompleteEmail = (v) => /^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$/.test((v || '').trim());
 
 // Stable, module-level HR profile field (context-fed) so typing never remounts
 // the input — defining it inside ProfilePanel dropped focus after each keystroke.
@@ -398,6 +405,83 @@ function OffboardingSection({ staffId, headers, staffName, onUpdated }) {
   );
 }
 
+// Per-staff module access — mirrors the Master Admin "Module Permissions"
+// panel but lets Owners/Managers/HR grant & remove access without opening
+// Master Admin. Changes apply immediately (independent of the profile Save).
+function StaffModulesPanel({ staffId, headers }) {
+  const { t } = useTranslation();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API}/staffing/staff/${staffId}/module-access`, { headers });
+      setData(res.data);
+    } catch { setData(null); }
+    setLoading(false);
+  }, [staffId, headers]);
+  useEffect(() => { load(); }, [load]);
+
+  const toggle = async (mod, on) => {
+    setBusy(mod);
+    try {
+      const verb = on ? 'grant' : 'revoke';
+      const res = await axios.post(`${API}/staffing/staff/${staffId}/module-access/${mod}/${verb}`, {}, { headers });
+      setData(res.data);
+    } catch (e) { window.alert(e?.response?.data?.detail || t('staffing.hr_module_change_failed', 'Could not change access')); }
+    setBusy(null);
+  };
+
+  const btn = (m, on) => (
+    <button type="button" disabled={busy === m.key} onClick={() => toggle(m.key, !on)}
+      className="h-7 rounded-full px-3 text-[11px] font-bold inline-flex items-center gap-1.5 border disabled:opacity-50 shrink-0"
+      style={on
+        ? { borderColor: 'rgba(16,185,129,0.45)', color: '#059669', background: 'rgba(16,185,129,0.10)' }
+        : { borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+      data-testid={`staff-module-toggle-${m.key}`}>
+      {busy === m.key ? <Loader2 size={11} className="animate-spin" /> : on ? <Check size={11} /> : <Plus size={11} />}
+      {on ? t('staffing.hr_revoke', 'Revoke') : t('staffing.hr_grant', 'Grant')}
+    </button>
+  );
+
+  return (
+    <div className="md:col-span-2 mt-3 pt-3 border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid="staff-modules-panel">
+      <p className="text-[10px] uppercase tracking-[0.14em] font-bold mb-1" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.hr_module_access', 'Module access')}</p>
+      <p className="text-[11px] mb-3" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_module_access_hint', 'Give or remove this person’s access to modules — no need to open Master Admin.')}</p>
+      {loading && <div className="text-xs inline-flex items-center gap-2" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={12} className="animate-spin" /> {t('staffing.hr_loading', 'Loading…')}</div>}
+      {!loading && data?.no_login && (
+        <div className="rounded-lg border p-3 text-[11px]" style={{ borderColor: 'rgba(245,158,11,0.4)', color: 'var(--theme-text-muted)', background: 'rgba(245,158,11,0.08)' }} data-testid="staff-modules-nologin">{data.note}</div>
+      )}
+      {!loading && data && !data.no_login && (
+        <div className="space-y-1.5">
+          {(data.modules || []).map((m) => {
+            const isFlag = m.key === 'service_desk' || m.key === 'inventory';
+            const on = !!m.user_access;
+            let right;
+            if (m.informational) right = <span className="text-[10px] font-bold uppercase shrink-0" style={{ color: on ? '#059669' : 'var(--theme-text-muted)' }}>{on ? t('staffing.hr_yes', 'Yes') : t('staffing.hr_no', 'No')}</span>;
+            else if (isFlag) right = btn(m, on);
+            else if (data.is_privileged) right = <span className="text-[10px] shrink-0" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_full_access', 'Full access')}</span>;
+            else if (!m.org_enabled) right = <span className="text-[10px] shrink-0" style={{ color: 'var(--theme-text-muted)' }} title={t('staffing.hr_org_off_hint', 'Ask an owner or Master Admin to enable this for the organisation first.')}>{t('staffing.hr_org_off', 'Not enabled for org')}</span>;
+            else right = btn(m, on);
+            return (
+              <div key={m.key} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--theme-border)' }} data-testid={`staff-module-row-${m.key}`}>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>{m.label}</p>
+                  <p className="text-[10px] truncate" style={{ color: 'var(--theme-text-muted)' }}>{m.blurb || m.reason}</p>
+                </div>
+                {right}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, inviteBusy, onDelete, departments = [], photoUrl }) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState(null);
@@ -557,9 +641,10 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
             <button type="button" onClick={() => { setEditing(false); setForm(profile); }}
               className="h-8 rounded-full border px-3 text-xs font-bold"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-profile-cancel">{t('staffing.hr_cancel', 'Cancel')}</button>
-            <button type="button" onClick={save} disabled={saving}
+            <button type="button" onClick={save} disabled={saving || !isCompleteEmail(form.email)}
               className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-60"
-              style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="hr-profile-save">
+              style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="hr-profile-save"
+              title={!isCompleteEmail(form.email) ? t('staffing.hr_email_required', 'A complete email address is required') : undefined}>
               {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} {t('staffing.hr_save', 'Save')}
             </button>
           </div>
@@ -590,10 +675,13 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
             <input type="email" value={form.email || ''} onChange={(e) => set('email', e.target.value)}
               placeholder="name@example.com"
               className="h-8 rounded-md bg-transparent border px-2 text-sm"
-              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+              style={{ borderColor: isCompleteEmail(form.email) ? 'var(--theme-border)' : '#EF4444', color: 'var(--theme-text)' }}
               data-testid="hr-field-email" />
           ) : (
             <span className="text-sm" style={{ color: 'var(--theme-text)' }}>{profile.email || '—'}</span>
+          )}
+          {editing && !isCompleteEmail(form.email) && (
+            <span className="text-[10px]" style={{ color: '#EF4444' }} data-testid="hr-field-email-hint">{t('staffing.hr_email_incomplete', 'Enter a complete email, e.g. name@company.com')}</span>
           )}
           {editing && profile.user_id && (
             <span className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_email_login_note', 'This also updates their platform login email.')}</span>
@@ -777,6 +865,10 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
             <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--theme-text)' }}>{profile.notes || '—'}</p>
           )}
         </div>
+
+        {editing && isManager && (
+          <StaffModulesPanel staffId={staffId} headers={headers} />
+        )}
 
         {editing && isManager && onDelete && (
           <div className="md:col-span-2 mt-3 pt-3 border-t flex items-center justify-between gap-3 flex-wrap"

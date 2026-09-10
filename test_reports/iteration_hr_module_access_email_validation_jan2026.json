@@ -1,0 +1,16 @@
+{
+  "summary": "Validated HR tab (Operations → Staffing → People → HR) two features as owner@isodemo.com: (1) StaffModulesPanel with per-staff Grant/Revoke toggles for operations, memberships, marketing, crm, service_desk, inventory rendered below profile and above Remove/Offboarding — toggling operations flipped Revoke→Grant→Revoke (persisted after refresh) and service_desk Grant→Revoke→Grant (persisted); no error alerts. (2) Email validation on Edit and Add: incomplete/empty emails show red hint (data-testid=hr-field-email-hint / hr-add-staff-email-hint) and Save/Add button (hr-profile-save / hr-add-staff-save) is disabled; complete emails clear the hint and enable the button. Original staff email restored; Add dialog cancelled (no staff created).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Verified with staff row 'Portal Staff' (portal.staff@pulsedemo.test). Toggles persist via /api/staffing/staff/{id}/module-access grant|revoke endpoints. Restored operations and service_desk to original states after toggling.",
+  "rca of the issue": "N/A - no issues found"
+}

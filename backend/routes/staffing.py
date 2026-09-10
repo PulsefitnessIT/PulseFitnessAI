@@ -32,6 +32,7 @@ import csv
 import io
 import logging
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -124,6 +125,23 @@ def _org(user: dict) -> str:
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+# A pragmatic "complete email" check — requires local@domain.tld with a real
+# TLD. Used to stop staff being saved with a truncated / incomplete address
+# (e.g. "chris.pennington@pulsefitne"), which breaks their platform login.
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
+
+
+def _is_complete_email(value: str | None) -> bool:
+    return bool(_EMAIL_RE.match((value or "").strip()))
+
+
+def _require_complete_email(value: str | None) -> str:
+    email = (value or "").strip().lower()
+    if not _is_complete_email(email):
+        raise HTTPException(422, "A complete, valid email address is required (e.g. name@company.com).")
+    return email
 
 
 def _clean(doc: dict) -> dict:
@@ -574,6 +592,8 @@ async def create_staff(body: StaffCreate, user: dict = Depends(get_current_user)
     allowed = await _allowed_roles_for(org_id)
     if body.primary_role not in allowed:
         raise HTTPException(400, f"primary_role must be one of {sorted(allowed)}")
+    # A complete email is mandatory — it becomes their platform login identity.
+    body.email = _require_complete_email(body.email)
     doc = {
         "id": str(uuid4()),
         "organization_id": org_id,
@@ -688,6 +708,119 @@ async def _resolve_staff_login_flags(org_id: str, rows: list[dict]) -> None:
         r["has_login"] = _login_from_account(r, acct)
 
 
+# ─────────────── Per-staff module access (Owner / Manager / HR) ───────────────
+# Lets managers grant / revoke a staff member's module access straight from the
+# HR profile, mirroring the Master Admin "Module Permissions" panel — WITHOUT
+# needing Master Admin. Scope is strictly PER-USER: managers can revoke a core
+# module for one person, or grant the Service Desk / Inventory flags. They can
+# NOT change org-wide entitlements (that stays an Owner/Master-Admin decision).
+
+_STAFF_MODULE_FLAGS = {"service_desk": "is_service_desk", "inventory": "is_inventory"}
+_STAFF_CORE_MODULES = {"operations", "memberships", "marketing", "crm"}
+_STAFF_MODULE_KEYS = _STAFF_CORE_MODULES | set(_STAFF_MODULE_FLAGS)
+
+
+async def _staff_for_module_access(staff_id: str, user: dict):
+    """Authorise the caller and resolve (staff_member, linked_user, org)."""
+    _require_manager(user)
+    org_id = _org(user)
+    sm = await db.staff_members.find_one({"id": staff_id, "organization_id": org_id}, {"_id": 0})
+    if not sm:
+        raise HTTPException(404, "staff not found")
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
+    target = None
+    if sm.get("user_id"):
+        target = await db.users.find_one({"id": sm["user_id"]}, {"_id": 0})
+        if not target:
+            target = await db.crm_users.find_one({"id": sm["user_id"]}, {"_id": 0})
+    return sm, target, org
+
+
+@router.get("/staffing/staff/{staff_id}/module-access")
+async def staff_module_access(staff_id: str, user: dict = Depends(get_current_user)):
+    from routes.master_admin_users import _module_access_payload
+    sm, target, org = await _staff_for_module_access(staff_id, user)
+    if not target:
+        synth = {
+            "id": sm.get("user_id") or f"staff:{staff_id}",
+            "email": sm.get("email") or "", "full_name": sm.get("full_name"),
+            "role": _platform_role_from_staff_role(sm.get("primary_role")),
+            "organization_id": sm.get("organization_id"),
+            "is_service_desk": False, "is_inventory": False,
+        }
+        payload = _module_access_payload(synth, org)
+        payload["no_login"] = True
+        payload["note"] = "This person has no login yet — issue login details from the profile to manage module access."
+        return payload
+    return _module_access_payload(target, org)
+
+
+@router.post("/staffing/staff/{staff_id}/module-access/{module}/grant")
+async def staff_module_grant(staff_id: str, module: str, user: dict = Depends(get_current_user)):
+    from routes.master_admin_users import _module_access_payload
+    from routes.master_admin import log_activity
+    from utils.module_access import org_module_access
+    if module not in _STAFF_MODULE_KEYS:
+        raise HTTPException(400, "Unknown module")
+    sm, target, org = await _staff_for_module_access(staff_id, user)
+    if not target:
+        raise HTTPException(400, "Issue login details for this person first, then set module access.")
+    uid = target["id"]
+    name = target.get("full_name") or target.get("email") or uid
+    if module in _STAFF_MODULE_FLAGS:
+        field = _STAFF_MODULE_FLAGS[module]
+        await db.users.update_one({"id": uid}, {"$set": {field: True}})
+        await db.crm_users.update_one({"id": uid}, {"$set": {field: True}})
+        target[field] = True
+    else:
+        if not org_module_access(org).get(module):
+            raise HTTPException(400, "This module isn't enabled for your organisation. Ask an owner or Master Admin to enable it first.")
+        overrides = {**(target.get("module_overrides") or {})}
+        overrides[module] = True
+        await db.users.update_one({"id": uid}, {"$set": {"module_overrides": overrides}})
+        await db.crm_users.update_one({"id": uid}, {"$set": {"module_overrides": overrides}})
+        target["module_overrides"] = overrides
+    try:
+        await log_activity("staff_module_grant", f"{user.get('email')} granted {module} to {name}", user.get("email"), "user", uid)
+    except Exception:  # noqa: BLE001
+        pass
+    payload = _module_access_payload(target, org)
+    payload["result"] = "granted"
+    return payload
+
+
+@router.post("/staffing/staff/{staff_id}/module-access/{module}/revoke")
+async def staff_module_revoke(staff_id: str, module: str, user: dict = Depends(get_current_user)):
+    from routes.master_admin_users import _module_access_payload
+    from routes.master_admin import log_activity
+    if module not in _STAFF_MODULE_KEYS:
+        raise HTTPException(400, "Unknown module")
+    sm, target, org = await _staff_for_module_access(staff_id, user)
+    if not target:
+        raise HTTPException(400, "Issue login details for this person first, then set module access.")
+    uid = target["id"]
+    name = target.get("full_name") or target.get("email") or uid
+    if module in _STAFF_MODULE_FLAGS:
+        field = _STAFF_MODULE_FLAGS[module]
+        await db.users.update_one({"id": uid}, {"$set": {field: False}})
+        await db.crm_users.update_one({"id": uid}, {"$set": {field: False}})
+        target[field] = False
+    else:
+        overrides = {**(target.get("module_overrides") or {})}
+        overrides[module] = False  # per-user revoke (org entitlement untouched)
+        await db.users.update_one({"id": uid}, {"$set": {"module_overrides": overrides}})
+        await db.crm_users.update_one({"id": uid}, {"$set": {"module_overrides": overrides}})
+        target["module_overrides"] = overrides
+    try:
+        await log_activity("staff_module_revoke", f"{user.get('email')} revoked {module} from {name}", user.get("email"), "user", uid)
+    except Exception:  # noqa: BLE001
+        pass
+    payload = _module_access_payload(target, org)
+    payload["result"] = "revoked"
+    return payload
+
+
+
 
 @router.patch("/staffing/staff/{staff_id}")
 async def update_staff(staff_id: str, body: StaffUpdate, user: dict = Depends(get_current_user)):
@@ -712,6 +845,8 @@ async def update_staff(staff_id: str, body: StaffUpdate, user: dict = Depends(ge
     # still sign in with their updated address.
     if "email" in patch:
         new_email = (patch["email"] or "").strip().lower()
+        # Never let an edit blank out or truncate the login email.
+        new_email = _require_complete_email(new_email)
         patch["email"] = new_email
         linked_uid = existing.get("user_id")
         if new_email:
