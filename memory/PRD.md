@@ -1,3 +1,13 @@
+# ═══ 2026-06 · Copy-password button on Service Desk grant/send (Master Admin) ═══
+Follow-on to the no-auto-email change. AdminOrganizations.js Edit-User Service Desk row now shows a dismissible
+amber card with the temporary password + a one-click Copy button (data-testid edit-user-service-desk-copy /
+-temp-value) whenever a grant provisions a new login or "Send login" runs. copyDeskTemp() uses navigator.clipboard
+with a window.prompt fallback; button flips to "Copied ✓" for 2.5s. deskTemp state cleared on revoke. Card only
+shows for the currently-open user. FE parses + compiles clean. REDEPLOY required for production.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · Service Desk grant no longer auto-emails temp password + email header never shows broken images ═══
 User: (1) Granting/revoking Service Desk in the module selector auto-sent a temp-password email — should only send
 when they press a button. (2) The email "looks dodgy" with broken images.

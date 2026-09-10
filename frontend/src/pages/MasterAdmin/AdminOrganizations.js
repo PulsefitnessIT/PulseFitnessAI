@@ -438,6 +438,8 @@ const AdminOrganizations = ({
  const [savingUser, setSavingUser] = useState(false);
  // Iter 280 — inline Service Desk grant/revoke toggle in the Edit-User drawer.
  const [deskBusy, setDeskBusy] = useState(false);
+ const [deskTemp, setDeskTemp] = useState(null);
+ const [deskCopied, setDeskCopied] = useState(false);
  // Inventory & Distribution grant/revoke toggle (its own additive capability).
  const [invBusy, setInvBusy] = useState(false);
  // Iter 215bi — temp password from in-dialog reset, surfaced inline.
@@ -2132,9 +2134,12 @@ useEffect(() => {
       const { data } = await axios.post(`${API}/master-admin/service-desk/members/${path}`, payload, { headers: { Authorization: `Bearer ${tk}` } });
       setEditingUser({ ...editingUser, is_service_desk: grant });
       if (grant && data?.provisioned && data?.temp_password) {
-        notify.success(`Service Desk access granted. Temp password: ${data.temp_password} — no email was sent. Use "Send login" to email it.`);
+        setDeskTemp({ email: editingUser.email, password: data.temp_password });
+        setDeskCopied(false);
+        notify.success(`Service Desk access granted — no email sent. Copy the temporary password below or press "Send login".`);
       } else {
         notify.success(grant ? `Granted Service Desk access to ${editingUser.email} (no email sent)` : `Revoked Service Desk access from ${editingUser.email}`);
+        if (!grant) setDeskTemp(null);
       }
     } catch (err) {
       notifyApiError(notify, err, grant ? 'Grant failed' : 'Revoke failed');
@@ -2149,14 +2154,27 @@ useEffect(() => {
     try {
       const tk = localStorage.getItem('token');
       const { data } = await axios.post(`${API}/master-admin/service-desk/members/send-invite`, { email: editingUser.email }, { headers: { Authorization: `Bearer ${tk}` } });
-      notify.success(data?.email_sent ? `Login details emailed to ${editingUser.email}` : `Could not email — temp password: ${data?.temp_password || 'n/a'}`);
+      if (data?.temp_password) { setDeskTemp({ email: editingUser.email, password: data.temp_password }); setDeskCopied(false); }
+      notify.success(data?.email_sent ? `Login details emailed to ${editingUser.email}` : `Could not email — copy the temporary password below instead`);
     } catch (err) {
       notifyApiError(notify, err, 'Send failed');
     } finally {
       setDeskBusy(false);
     }
   };
+  const copyDeskTemp = async () => {
+    if (!deskTemp?.password) return;
+    try {
+      await navigator.clipboard.writeText(deskTemp.password);
+      setDeskCopied(true);
+      notify.success('Temporary password copied');
+      setTimeout(() => setDeskCopied(false), 2500);
+    } catch {
+      window.prompt('Copy the temporary password:', deskTemp.password);
+    }
+  };
   const ServiceDeskRow = () => (
+    <>
     <div className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-md" data-testid="edit-user-info-row-service-desk">
       <div className="min-w-0">
         <p className="text-[12px] font-medium text-zinc-800">Service Desk</p>
@@ -2191,6 +2209,21 @@ useEffect(() => {
         </div>
       )}
     </div>
+    {deskTemp && deskTemp.email === editingUser.email && (
+      <div className="mx-2 mb-1 rounded-md border px-2.5 py-2 bg-amber-50 border-amber-200" data-testid="edit-user-service-desk-temp">
+        <p className="text-[10px] uppercase tracking-wide text-amber-700 font-bold mb-1">Temporary password (not emailed)</p>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 text-[13px] font-mono text-zinc-900 bg-white border border-amber-200 rounded px-2 py-1 truncate" data-testid="edit-user-service-desk-temp-value">{deskTemp.password}</code>
+          <button type="button" onClick={copyDeskTemp}
+            className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md border border-zinc-300 text-zinc-700 bg-white hover:bg-zinc-50 shrink-0"
+            data-testid="edit-user-service-desk-copy">
+            {deskCopied ? <CheckCircle2 size={12} className="text-emerald-600" /> : <Copy size={12} />} {deskCopied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+        <p className="text-[10px] text-amber-700 mt-1">Share this securely. It expires in 7 days and must be changed on first sign-in.</p>
+      </div>
+    )}
+    </>
   );
   const hasInv = !!(editingUser.is_inventory || editingUser.is_service_desk || editingUser.role === 'service_desk');
   const toggleInv = async () => {
