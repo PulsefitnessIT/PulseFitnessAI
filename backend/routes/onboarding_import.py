@@ -15,9 +15,11 @@ endpoints; this engine fills the gaps and gives every type the same UX.
 import csv
 import io
 import logging
+import os
 import re
+import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -333,6 +335,7 @@ class CommitBody(BaseModel):
     dedupe_action: str = "skip"         # skip | update | create
     project_id: Optional[str] = None
     project_step_key: Optional[str] = None
+    send_welcome: bool = False          # customer_orgs only — email a set-password welcome
 
 
 async def _resolve_operator_company_org_id() -> Optional[str]:
@@ -393,6 +396,57 @@ async def _ensure_crm_company_mirror(operator_org_id: str, tenant_org_id: str,
     return company["id"]
 
 
+async def _send_customer_welcome(user_id: str, email: str, full_name: str,
+                                 org_id: str, company_name: str, actor: dict) -> bool:
+    """Email a newly-imported customer a secure 'set your password' link plus
+    a getting-started nudge, a Browse-modules link and a Help & Tutorials link.
+    Reuses the invite-token mechanism (db.password_reset_tokens, kind='invite',
+    72h). Never emails a raw password. Returns True if the send succeeded."""
+    token = secrets.token_urlsafe(32)
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=72)).isoformat()
+    await db.password_reset_tokens.insert_one({
+        "token": token, "user_id": user_id, "email": email,
+        "expires_at": expires_at, "used": False, "kind": "invite",
+        "issued_by": actor.get("email", "system"), "created_at": _now(),
+    })
+    base = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    set_pw_url = f"{base}/reset-password?token={token}"
+    modules_url = f"{base}/choose-plan"
+    help_url = f"{base}/help"
+    first = (full_name or "there").split(" ")[0]
+    html = f"""
+    <div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a2e;line-height:1.55;">
+      <h2 style="margin:0 0 12px;">Welcome to Pulse Fitness, {first}</h2>
+      <p>Your account for <strong>{company_name}</strong> is ready. You're on our
+         <strong>Lite</strong> plan — Operations (dashboard, equipment &amp; faults) is included free.</p>
+      <p style="margin:20px 0;">
+        <a href="{set_pw_url}" style="background:#0055FF;color:#fff;text-decoration:none;
+           padding:12px 22px;border-radius:8px;font-weight:600;display:inline-block;">
+           Set your password &amp; sign in</a>
+      </p>
+      <p style="font-size:13px;color:#555;">Your login email is <strong>{email}</strong>.
+         This link is valid for 72 hours.</p>
+      <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
+      <p>Want more than Operations? Every module is a standalone subscription —
+         add Memberships, CRM or Marketing (and unlock AI on Operations) whenever you're ready:</p>
+      <p><a href="{modules_url}" style="color:#0055FF;font-weight:600;">Browse modules &amp; upgrade →</a></p>
+      <p>New to the platform? <a href="{help_url}" style="color:#0055FF;font-weight:600;">Visit Help &amp; Tutorials →</a></p>
+      <p style="font-size:13px;color:#777;margin-top:20px;">Need a hand? Just reply to this email and our team will help.</p>
+    </div>
+    """
+    try:
+        from utils.email import send_email
+        await send_email(
+            to=email,
+            subject=f"Welcome to Pulse Fitness — set up {company_name}",
+            html=html, organization_id=org_id, kind="invite",
+        )
+        return True
+    except Exception:
+        logger.warning("welcome email failed for %s", email, exc_info=True)
+        return False
+
+
 async def _commit_customer_tenants(body: CommitBody, user: dict, spec: dict) -> dict:
     """Create a Lite platform Organisation per row AND a linked CRM Company
     under the operator company, so each customer lands in BOTH Master Admin
@@ -404,7 +458,8 @@ async def _commit_customer_tenants(body: CommitBody, user: dict, spec: dict) -> 
     )
     from utils.sites_isolation import get_primary_site_id
 
-    report = {"created": 0, "updated": 0, "skipped": 0, "failed": 0, "errors": []}
+    report = {"created": 0, "updated": 0, "skipped": 0, "failed": 0, "errors": [],
+              "welcome_sent": 0, "welcome_no_email": 0, "welcome_failed": 0}
     operator_org_id = await _resolve_operator_company_org_id()
     operator_site_id = await get_primary_site_id(operator_org_id) if operator_org_id else None
     enabled_modules = _normalize_modules(LITE_TENANT_MODULES, None)
@@ -473,6 +528,21 @@ async def _commit_customer_tenants(body: CommitBody, user: dict, spec: dict) -> 
                 logger.warning("primary contact provisioning failed for %s", name)
             if operator_org_id:
                 await _ensure_crm_company_mirror(operator_org_id, org_id, doc, operator_site_id, user)
+            # Optional welcome email with a secure set-password link.
+            if body.send_welcome:
+                cemail = org_doc["primary_contact_email"]
+                if cemail:
+                    owner_u = (await db.users.find_one({"email": cemail}, {"_id": 0, "id": 1, "full_name": 1})
+                               or await db.crm_users.find_one({"email": cemail}, {"_id": 0, "id": 1, "full_name": 1}))
+                    if owner_u:
+                        ok = await _send_customer_welcome(
+                            owner_u["id"], cemail, owner_u.get("full_name") or name,
+                            org_id, name, user)
+                        report["welcome_sent" if ok else "welcome_failed"] += 1
+                    else:
+                        report["welcome_failed"] += 1
+                else:
+                    report["welcome_no_email"] += 1
             try:
                 await log_activity(
                     "org_created", f"Imported customer tenant: {name} (Lite)",

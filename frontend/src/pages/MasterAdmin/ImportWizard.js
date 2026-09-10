@@ -25,6 +25,7 @@ const ImportWizard = ({ presetOrgId = null, projectId = null, projectStepKey = n
   const [mapping, setMapping] = useState({});
   const [validation, setValidation] = useState(null);
   const [dedupeAction, setDedupeAction] = useState('skip');
+  const [sendWelcome, setSendWelcome] = useState(false);
   const [report, setReport] = useState(null);
   const [busy, setBusy] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
@@ -41,7 +42,7 @@ const ImportWizard = ({ presetOrgId = null, projectId = null, projectStepKey = n
   }, [presetOrgId]);
 
   const reset = () => {
-    setStep(0); setAnalysis(null); setMapping({}); setValidation(null); setReport(null); setDedupeAction('skip');
+    setStep(0); setAnalysis(null); setMapping({}); setValidation(null); setReport(null); setDedupeAction('skip'); setSendWelcome(false);
   };
 
   const downloadTemplate = async () => {
@@ -103,6 +104,7 @@ const ImportWizard = ({ presetOrgId = null, projectId = null, projectStepKey = n
       const { data } = await axios.post(`${API}/onboarding/import/commit`, {
         import_type: importType, mapping, rows: analysis.rows, organization_id: orgId,
         dedupe_action: dedupeAction, project_id: projectId, project_step_key: projectStepKey,
+        send_welcome: sendWelcome,
       });
       setReport(data.report);
       setStep(3);
@@ -286,6 +288,19 @@ const ImportWizard = ({ presetOrgId = null, projectId = null, projectStepKey = n
             </Select>
           </div>
 
+          {creatingTenant && (
+            <label className="flex items-start gap-2.5 rounded-lg border border-blue-200 bg-blue-50 p-3 cursor-pointer" data-testid="iw-send-welcome-row">
+              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-blue-600"
+                     checked={sendWelcome} onChange={(e) => setSendWelcome(e.target.checked)}
+                     data-testid="iw-send-welcome" />
+              <span className="text-xs text-blue-800">
+                <strong>Send welcome emails</strong> — each new customer with a contact email gets a secure
+                “set your password” link, plus links to browse modules and the Help &amp; Tutorials.
+                Customers without an email are created but not emailed.
+              </span>
+            </label>
+          )}
+
           <div className="flex justify-between">
             <Button variant="outline" onClick={() => setStep(1)}><ArrowLeft size={14} className="mr-1.5" /> Back</Button>
             <Button disabled={busy} onClick={runCommit} data-testid="iw-commit-btn">
@@ -309,6 +324,13 @@ const ImportWizard = ({ presetOrgId = null, projectId = null, projectStepKey = n
           {report.errors?.length > 0 && (
             <div className="max-w-md mx-auto text-left text-xs text-red-600 bg-red-50 rounded-lg p-3 max-h-32 overflow-y-auto">
               {report.errors.slice(0, 20).map((e, i) => <div key={i}>Row {e.row}: {e.errors.join('; ')}</div>)}
+            </div>
+          )}
+          {(report.welcome_sent > 0 || report.welcome_no_email > 0 || report.welcome_failed > 0) && (
+            <div className="max-w-md mx-auto text-xs text-zinc-600 bg-zinc-50 rounded-lg p-3" data-testid="iw-welcome-summary">
+              Welcome emails: <strong className="text-emerald-600">{report.welcome_sent} sent</strong>
+              {report.welcome_no_email > 0 && <> · <strong className="text-amber-600">{report.welcome_no_email} had no email</strong></>}
+              {report.welcome_failed > 0 && <> · <strong className="text-red-600">{report.welcome_failed} failed</strong></>}
             </div>
           )}
           <Button variant="outline" onClick={reset} data-testid="iw-restart"><RotateCcw size={14} className="mr-1.5" /> Import more</Button>

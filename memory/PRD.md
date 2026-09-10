@@ -1,3 +1,31 @@
+# ═══ 2026-06 · POST-IMPORT WELCOME EMAIL (secure set-password link, opt-in per import) ═══
+User choices: (1) deliver login via a "set your password" SECURE LINK (never a raw password); (2) send ONLY when a
+"Send welcome emails" checkbox is ticked on the import; (3) email includes login email + getting-started line +
+"Browse modules / upgrade" link + Help & Tutorials link.
+DONE (backend direct-harness verified; email SENDER patched in test since Resend unverified in preview):
+  - onboarding_import.py: CommitBody.send_welcome (bool, default False). New _send_customer_welcome(user_id, email,
+    full_name, org_id, company_name, actor): mints an invite token in db.password_reset_tokens (kind="invite", 72h) —
+    SAME mechanism as master_admin_users issue_user_invite_link — and emails HTML with:
+      • set-password link  {FRONTEND_URL}/reset-password?token=<t>
+      • browse modules      {FRONTEND_URL}/choose-plan
+      • help & tutorials    {FRONTEND_URL}/help
+    via utils.email.send_email(kind="invite", organization_id=<tenant org> for co-branding). Wrapped in try/except so
+    a Resend failure never fails the import.
+  - _commit_customer_tenants: after provisioning the owner login (_ensure_primary_contact_user), when send_welcome is
+    on it resolves the owner user by primary_contact_email and sends. Report now carries welcome_sent /
+    welcome_no_email / welcome_failed. Rows without a contact email create the org+CRM company but get NO login/email
+    (counted as welcome_no_email).
+  - ImportWizard.js: sendWelcome state + "Send welcome emails" checkbox on the Review step (tenant imports only,
+    data-testid iw-send-welcome), passed as send_welcome in the commit payload; Done step shows the welcome summary
+    (data-testid iw-welcome-summary).
+  VERIFIED (harness): 2 tenants → 1 welcome sent (contact email present, link+modules+help all in body, invite token
+  created unused), 1 counted welcome_no_email. Set-password link uses the proven /reset-password?token flow.
+  BLOCKER (unchanged): real delivery needs a valid production RESEND_API_KEY + verified sender domain — won't send in
+  preview. REDEPLOY required.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STANDALONE PER-MODULE BILLING (mix & match) — remove "Pro-first" gate + fix module fulfilment ═══
 User (with plans-page screenshot): pricing is per-module standalone subscriptions — Operations/"Pulse Fitness Pro"
 £69 (incl AI), CRM £69, Marketing £49, Memberships £79 — mix & match, cancel anytime. NOT a single Lite→Pro upgrade.
