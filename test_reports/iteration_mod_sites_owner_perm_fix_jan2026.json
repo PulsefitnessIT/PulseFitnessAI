@@ -1,0 +1,16 @@
+{
+  "summary": "Verified permissions fix for MOD Sites (CRM → Companies). Owner (owner@isodemo.com, role=owner) can now open MOD Sites panel without 403. Backend GET /api/master-admin/mod-estate/site-readiness returns 200 for both owner and manager. Frontend modal opens and lists 5 MOD sites (Aldershot Garrison Gym, Kifaru, MOD Test Site, Nyati, ZZ QA MOD RAF). No 'Only owners, managers or an admin...' error appears.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!; manager@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend: curl GET /api/master-admin/mod-estate/site-readiness with owner bearer → 200, response has keys estate_id/sites/totals with 5 sites. Manager also 200. Negative check with pure staff/member skipped (no such seeded account in iso-demo org). Frontend: /login → owner creds → /launch → /crm → Companies tab (default) → 'MOD Sites' button top-right opens modal with sites list, no permission error.",
+  "rca of the issue": "Endpoints mod_site_readiness and mod_site_equipment_by_category were gated with require_master_admin; fix replaced with _can_manage_mod_site which allows operator roles owner/manager/director/admin/administrator/general_manager/gm in addition to master/pulse admin, matching DELETE site permission model. Verified fix is live."
+}

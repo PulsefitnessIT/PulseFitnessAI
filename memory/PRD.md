@@ -1,3 +1,22 @@
+# ═══ 2026-06 · FIX: CRM MOD Sites blocked for owners/managers/admins (testing_agent 100%) + notes on delete/sync ═══
+BUG: CRM → Companies → "MOD Sites" showed "Only owners, managers or an admin can manage MOD sites" even for an
+OWNER (Lee Somers). RCA: GET /master-admin/mod-estate/site-readiness (loaded first) + /site/{id}/equipment-by-category
+were gated with require_master_admin (platform-only), while the DELETE site endpoint already used the role-based
+_can_manage_mod_site. Owners/managers/admin staff aren't master admins → 403.
+FIX (master_admin_mod_estate.py): both GET endpoints now use _can_manage_mod_site; that helper widened to
+{owner, manager, director, admin, administrator, general_manager, gm} + is_master_admin/is_pulse_admin.
+VERIFIED: testing_agent 100% — owner@isodemo opens MOD Sites (5 sites), owner+manager GET → 200; no permission error.
+OPEN (answered, not built this turn):
+  - CRM company delete: backend DELETE /crm/v2/companies/{id} ALREADY allows CRM operators (with step-up re-auth).
+    There is NO delete-company button in the CRM Companies UI — that's the missing piece to add (owner-gated).
+  - Master Admin orgs vs CRM Companies: these are SEPARATE stores — Master Admin manages db.organizations (platform
+    tenants); the CRM Companies tab reads db.crm2_companies. A bulk import via Master Admin will NOT auto-appear in
+    the front-end CRM Companies list unless we build a sync/mapping (org → crm2_company). Needs a decision before the
+    main import. Recommend: a one-way sync that upserts a crm2_company per imported org (name, type, site, contacts).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · Module access BEFORE sign-in + remove roles note + fix "User not found" for no-login staff ═══
 User: (1) set module access before a staff member signs in (else they may briefly get modules they shouldn't);
 (2) remove the "Roles set in Master Admin pull through…" note; (3) some staff missing module access on profiles;

@@ -602,7 +602,8 @@ async def mod_site_readiness(estate_id: str = DEFAULT_ESTATE_ID,
     checklist. For each site returns counts + ready flags for Equipment,
     Staff, Suppliers, Documents and Check Sheets so HQ can see, at a glance,
     what each site still needs before going live."""
-    require_master_admin(user)
+    if not _can_manage_mod_site(user):
+        raise HTTPException(status_code=403, detail="Only owners, managers or an admin can manage MOD sites.")
     return await _compute_estate_readiness(estate_id)
 
 
@@ -612,7 +613,8 @@ async def mod_site_equipment_by_category(site_id: str, category: str = Query(...
     """Drill-down for the 'Kit by category' chip on a MOD site card: the actual
     machines that make up a category count. Category is coalesced the same way
     the readiness aggregation does (category → equipment_type → 'Uncategorised')."""
-    require_master_admin(user)
+    if not _can_manage_mod_site(user):
+        raise HTTPException(status_code=403, detail="Only owners, managers or an admin can manage MOD sites.")
     want = (category or "").strip().lower()
     docs = await db.equipment.find(
         {"organization_id": site_id, "archived": {"$ne": True}},
@@ -647,10 +649,14 @@ async def mod_site_equipment_by_category(site_id: str, category: str = Query(...
 
 
 def _can_manage_mod_site(user: dict) -> bool:
-    """Owners/managers (operator roles) and master admins may remove a site."""
+    """Owners/managers/admins (operator roles) and master admins may manage
+    MOD sites. Admin staff need this too, so it isn't master-admin only."""
     if user.get("is_master_admin") or user.get("is_pulse_admin"):
         return True
-    return (user.get("role") or "").lower() in {"owner", "manager", "director", "admin"}
+    return (user.get("role") or "").lower() in {
+        "owner", "manager", "director", "admin", "administrator",
+        "general_manager", "gm",
+    }
 
 
 @router.patch("/master-admin/mod-estate/equipment/{equipment_id}")
