@@ -38,11 +38,16 @@ router = APIRouter()
 # we fall back to an inline recurring price so checkout still works in
 # dev/test. Pence amounts mirror the ModuleAccessGate marketing copy.
 MODULE_PLANS = {
-    "memberships": {"name": "Memberships", "amount_pennies": 5900,
+    # Operations = "Pulse Fitness Pro" — paying for it adds AI triage + full
+    # engineer ops to the free Operations baseline (flips account_type
+    # lite → pulse_pro so utils.ai_access unlocks AI). Standalone like the rest.
+    "operations": {"name": "Operations (Pulse Fitness Pro)", "amount_pennies": 6900,
+                   "price_env": "STRIPE_PRICE_OPERATIONS", "price_env_annual": "STRIPE_PRICE_OPERATIONS_ANNUAL"},
+    "memberships": {"name": "Memberships", "amount_pennies": 7900,
                     "price_env": "STRIPE_PRICE_MEMBERSHIPS", "price_env_annual": "STRIPE_PRICE_MEMBERSHIPS_ANNUAL"},
-    "crm": {"name": "CRM", "amount_pennies": 4900,
+    "crm": {"name": "CRM", "amount_pennies": 6900,
             "price_env": "STRIPE_PRICE_CRM", "price_env_annual": "STRIPE_PRICE_CRM_ANNUAL"},
-    "marketing": {"name": "Marketing", "amount_pennies": 3900,
+    "marketing": {"name": "Marketing", "amount_pennies": 4900,
                   "price_env": "STRIPE_PRICE_MARKETING", "price_env_annual": "STRIPE_PRICE_MARKETING_ANNUAL"},
 }
 
@@ -269,8 +274,8 @@ async def create_module_checkout(
         raise HTTPException(400, f"module must be one of {list(MODULE_PLANS)}")
 
     org = await _resolve_org(user)
-    if (org.get("account_type") or "").lower() == "lite":
-        raise HTTPException(400, "Upgrade to Pulse Pro before subscribing to a bolt-on.")
+    # Standalone model — every module is its own subscription (mix & match).
+    # No requirement to buy Operations Pro first.
     cfg = (org.get("modules") or {}).get(module) or {}
     if cfg.get("enabled") and cfg.get("source") == "paid":
         raise HTTPException(400, f"{MODULE_PLANS[module]['name']} is already subscribed.")
@@ -369,18 +374,28 @@ async def module_purchase_status(session_id: str, user: dict = Depends(get_curre
             {"session_id": session_id},
             {"$set": {"payment_status": "paid", "completed_at": now}},
         )
+        set_doc = {
+            f"modules.{module}.enabled": True,
+            f"modules.{module}.source": "paid",
+            f"modules.{module}.tier": "pro",
+            f"module_subscriptions.{module}.stripe_customer_id": session.get("customer"),
+            f"module_subscriptions.{module}.stripe_subscription_id": session.get("subscription"),
+            f"module_subscriptions.{module}.started_at": now,
+            f"module_subscriptions.{module}.interval": txn.get("interval"),
+            "updated_at": now,
+        }
+        # Operations = "Pulse Fitness Pro": paying for it must unlock AI, which
+        # utils.ai_access gates on account_type. Flip lite → pulse_pro (never
+        # touches bolt-on modules, which stay independently gated).
+        if module == "operations":
+            org_now = await db.organizations.find_one(
+                {"id": txn["organization_id"]}, {"_id": 0, "account_type": 1})
+            if (org_now or {}).get("account_type") == "lite":
+                set_doc["account_type"] = "pulse_pro"
+                set_doc["previous_account_type"] = "lite"
         await db.organizations.update_one(
             {"id": txn["organization_id"]},
-            {"$set": {
-                f"modules.{module}.enabled": True,
-                f"modules.{module}.source": "paid",
-                f"modules.{module}.tier": "pro",
-                f"module_subscriptions.{module}.stripe_customer_id": session.get("customer"),
-                f"module_subscriptions.{module}.stripe_subscription_id": session.get("subscription"),
-                f"module_subscriptions.{module}.started_at": now,
-                f"module_subscriptions.{module}.interval": txn.get("interval"),
-                "updated_at": now,
-            }},
+            {"$set": set_doc},
         )
         await db.account_change_audit.insert_one({
             "id": f"subscribe-{txn['organization_id']}-{module}-{int(_now().timestamp())}",

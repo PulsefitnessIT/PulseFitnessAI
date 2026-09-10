@@ -1,3 +1,38 @@
+# ═══ 2026-06 · STANDALONE PER-MODULE BILLING (mix & match) — remove "Pro-first" gate + fix module fulfilment ═══
+User (with plans-page screenshot): pricing is per-module standalone subscriptions — Operations/"Pulse Fitness Pro"
+£69 (incl AI), CRM £69, Marketing £49, Memberships £79 — mix & match, cancel anytime. NOT a single Lite→Pro upgrade.
+Chose option A: any module unlocks purely by its own paid subscription; paying for Operations is what adds AI.
+FINDINGS: the REAL checkout is POST /payments/checkout/flex (routes/payments.py) + /payments/pricing (already lists
+operations £69/crm £49/marketing £49/memberships £29 — live prices come from Stripe Price IDs via utils.stripe_catalog;
+user will verify Stripe). The flex MODULE checkout had NO Pro-first gate (good) BUT module purchases were NEVER
+FULFILLED — both /payments/status and the checkout.session.completed webhook only handled `package_id` (which module
+buys don't set), so a paid CRM/Operations purchase charged the card but never flipped modules.<key>.enabled. BUG.
+DONE (all backend, direct-harness verified):
+  - routes/payments.py: NEW _activate_module_subscription(user_id, module_id, session_id, session) → sets
+    modules.<id>={enabled:true,source:"paid",tier:"pro"} + module_subscriptions.<id>.*; for module_id=="operations"
+    flips account_type lite→pulse_pro so utils.ai_access unlocks AI (bolt-ons untouched). Wired into BOTH
+    _handle_checkout_completed (metadata.plan_kind=="module" + module_id + paid → unlock, idempotent) AND the
+    /payments/status poll fallback (branch on payment.plan_kind=="module"; guarded the legacy package_id path so a
+    module txn no longer KeyErrors).
+  - routes/master_admin_orgs.py: REMOVED the is_lite→bolt-ons-forced-off rule in update_org_features (admins can now
+    enable any module for a Lite org) and stopped update_org_subscription(→lite) from wiping paid bolt-ons (account_type
+    now only governs Operations AI; CRM/Memberships/Marketing survive a tier change; enabled_modules recomputed from
+    what's actually on).
+  - routes/module_trials.py (secondary /me/module-purchase path, kept consistent): added `operations` to MODULE_PLANS
+    (£69, STRIPE_PRICE_OPERATIONS), removed the "Upgrade to Pulse Pro before subscribing" lite gate, and made the paid
+    status endpoint flip account_type for operations. Fallback amounts aligned toward the plans page.
+  - Runtime model recap (utils/module_access._org_module_access): a bolt-on with source admin/paid is granted for ANY
+    account_type INCLUDING lite → standalone purchase works without leaving Lite; AI (utils/ai_access) still keyed on
+    account_type=='lite' → only Operations purchase (→pulse_pro) unlocks AI.
+  VERIFIED (harness): buy CRM alone → CRM on, org stays lite, AI blocked, memberships/marketing off; then buy
+  Operations → account_type pulse_pro, AI allowed, CRM unchanged. Both webhook + status-poll fulfilment paths tested.
+  NOTE: live Stripe checkout can't be e2e-tested in preview (needs a real card); fulfilment logic verified directly.
+  Prices shown to customers come from Stripe Price IDs — user to confirm they match the plans page (Ops£69/CRM£69/
+  Mktg£49/Memberships£79). REDEPLOY required.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · CRM delete-company relocation (owner-gated) + Master Admin CUSTOMER-TENANT IMPORT (both stores) ═══
 User asks: (1) CRM company Delete button → move to the BOTTOM of the Edit modal, show to Owners + Master Admins,
 confirm before deleting. (2) The "main import" must land in BOTH the front-end Pulse Fitness Ltd CRM (staff access

@@ -390,23 +390,21 @@ async def update_org_subscription(org_id: str, body: dict = Body(...), user: dic
     elif tier not in _GYMAXIS_TIERS:
         raise HTTPException(status_code=400, detail=f"Invalid tier: {tier}")
 
-    # Lite = free Operations only. Downgrading to Lite auto-disables every
-    # bolt-on module (CRM / Memberships / Marketing / Staffing / Reporting);
-    # they become re-enableable only on Pro. (Comms lives inside the bolt-ons.)
+    # Standalone module model — account_type only governs the Operations
+    # tier (lite = Operations without AI; pulse_pro = Operations + AI). It no
+    # longer strips paid/admin bolt-ons: CRM / Memberships / Marketing are
+    # independent subscriptions and must survive an Operations tier change.
+    # We only ensure Operations itself stays enabled and drop its AI tier.
     if updates.get("account_type") == "lite":
         org_doc = await db.organizations.find_one({"id": org_id}, {"_id": 0, "modules": 1})
-        mods = (org_doc or {}).get("modules") or {}
-        new_mods = {}
-        for k, v in mods.items():
-            if isinstance(v, dict):
-                new_mods[k] = {**v, "enabled": (k == "operations")}
-            else:
-                new_mods[k] = v
+        new_mods = dict((org_doc or {}).get("modules") or {})
         ops = new_mods.get("operations")
         new_mods["operations"] = {**(ops if isinstance(ops, dict) else {}), "enabled": True, "tier": "lite"}
         updates["modules"] = new_mods
-        updates["enabled_modules"] = ["operations"]
-        updates["portal_type"] = "service_portal"
+        # Recompute the legacy enabled_modules array from what's actually on.
+        still_on = [k for k, v in new_mods.items() if isinstance(v, dict) and v.get("enabled")]
+        updates["enabled_modules"] = _normalize_modules(still_on or ["operations"], None)
+        updates["portal_type"] = _derive_portal_type(updates["enabled_modules"])
 
     result = await db.organizations.update_one({"id": org_id}, {"$set": updates})
     if result.matched_count == 0:
@@ -441,11 +439,12 @@ async def update_org_features(org_id: str, body: dict = Body(...), user: dict = 
         k: (v if isinstance(v, dict) else {"enabled": bool(v), "tier": "pro"})
         for k, v in old_modules.items()
     }
-    is_lite = (org or {}).get("account_type") == "lite"
+    # Standalone module model — every module is its own subscription, so a
+    # Lite org CAN have any bolt-on enabled (paid or admin-granted). We no
+    # longer force bolt-ons off just because account_type == "lite".
     # MOD organisations run the Operations portal ONLY — CRM / Memberships /
     # Marketing can never be enabled for them (mirrors the create-org lock).
     is_mod = bool((org or {}).get("is_mod")) or (org or {}).get("account_type") in {"mod_site", "mod_branch", "mod_org"}
-    _BOLT_ON_MODULES = {"crm", "memberships", "marketing", "staffing", "reporting"}
 
     set_doc: dict = {}
     unset_doc: dict = {"features_preset": ""}
@@ -471,9 +470,6 @@ async def update_org_features(org_id: str, body: dict = Body(...), user: dict = 
             tier = cfg.get("tier") if cfg.get("tier") in {"lite", "pro", "enterprise"} else (old_modules.get(m_key) or {}).get("tier", "pro")
             existing = old_modules.get(m_key) or {}
             enabled = bool(cfg.get("enabled", existing.get("enabled", False)))
-            # Lite orgs cannot enable bolt-on modules — Pro only.
-            if is_lite and m_key in _BOLT_ON_MODULES:
-                enabled = False
             # MOD orgs are Operations-only — force every other module off.
             if is_mod and m_key != "operations":
                 enabled = False
@@ -497,8 +493,6 @@ async def update_org_features(org_id: str, body: dict = Body(...), user: dict = 
                     entry["leisure_enabled"] = bool(cfg["leisure_enabled"])
                 if entry.get("business_enabled") or entry.get("leisure_enabled"):
                     entry["enabled"] = True
-            if is_lite and m_key in _BOLT_ON_MODULES:
-                entry["enabled"] = False
             if is_mod and m_key != "operations":
                 entry["enabled"] = False
                 entry["business_enabled"] = False

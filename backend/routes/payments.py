@@ -345,7 +345,11 @@ async def check_payment_status(session_id: str, user: dict = Depends(get_current
     try:
         session = stripe.checkout.Session.retrieve(session_id)
         if session.payment_status == "paid" and payment["payment_status"] != "paid":
-            await _activate_subscription(user["id"], payment["package_id"], session_id, user["email"], payment["package_name"], payment["amount"])
+            if payment.get("plan_kind") == "module":
+                module_id = (payment.get("metadata") or {}).get("module_id", "")
+                await _activate_module_subscription(user["id"], module_id, session_id, session)
+            elif payment.get("package_id"):
+                await _activate_subscription(user["id"], payment["package_id"], session_id, user["email"], payment.get("package_name", ""), payment.get("amount", 0))
             payment["payment_status"] = "paid"
         elif session.status == "expired":
             await db.payment_transactions.update_one({"session_id": session_id}, {"$set": {"payment_status": "expired"}})
@@ -385,6 +389,17 @@ async def _handle_checkout_completed(data: dict) -> None:
         # Stripe fired completion before the payment cleared (or it never will).
         # Leave the trial flag untouched so the org keeps the proper trial state.
         logger.info(f"[Trial] Skipped premature conversion for org {trial_org_id} (payment_status={data.get('payment_status')})")
+        return
+
+    # Standalone module subscription (mix-and-match). Module purchases carry
+    # metadata.module_id (no package_id), so unlock the module directly.
+    module_id = metadata.get("module_id")
+    if metadata.get("plan_kind") == "module" and module_id and payment_paid:
+        existing = await db.payment_transactions.find_one({"session_id": session_id, "payment_status": "paid"})
+        if existing:
+            return
+        if metadata.get("user_id"):
+            await _activate_module_subscription(metadata["user_id"], module_id, session_id, data)
         return
 
     user_id = metadata.get("user_id")
@@ -619,3 +634,43 @@ async def _activate_subscription(user_id: str, package_id: str, session_id: str,
     )
     from utils.audit import audit_log
     await audit_log("subscription_payment", user_id, email, "payment", session_id, f"Subscribed to {package_name} (£{amount}/mo)")
+
+
+async def _activate_module_subscription(user_id: str, module_id: str, session_id: str, session: dict | None = None) -> None:
+    """Unlock a single STANDALONE module subscription (mix-and-match model).
+
+    Every module is bought on its own — no bundle/Pro-first requirement.
+    Paying for Operations ("Pulse Fitness Pro") flips the org lite → pulse_pro
+    so AI unlocks (utils.ai_access gates AI on account_type); the other three
+    just set their per-module flag. Idempotent + safe to call from both the
+    Stripe webhook and the status-poll fallback."""
+    module_id = (module_id or "").lower()
+    if module_id not in ("operations", "memberships", "marketing", "crm"):
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    await db.payment_transactions.update_one(
+        {"session_id": session_id},
+        {"$set": {"payment_status": "paid", "paid_at": now}},
+    )
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "organization_id": 1, "email": 1})
+    org_id = (user or {}).get("organization_id")
+    if not org_id:
+        return
+    set_doc = {
+        f"modules.{module_id}.enabled": True,
+        f"modules.{module_id}.source": "paid",
+        f"modules.{module_id}.tier": "pro",
+        f"module_subscriptions.{module_id}.stripe_subscription_id": (session or {}).get("subscription"),
+        f"module_subscriptions.{module_id}.stripe_customer_id": (session or {}).get("customer"),
+        f"module_subscriptions.{module_id}.started_at": now,
+        "updated_at": now,
+    }
+    if module_id == "operations":
+        org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "account_type": 1})
+        if (org or {}).get("account_type") == "lite":
+            set_doc["account_type"] = "pulse_pro"
+            set_doc["previous_account_type"] = "lite"
+    await db.organizations.update_one({"id": org_id}, {"$set": set_doc})
+    from utils.audit import audit_log
+    await audit_log("module_subscription_paid", user_id, (user or {}).get("email", ""),
+                    "payment", session_id, f"Subscribed to {module_id} module")
