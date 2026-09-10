@@ -1124,6 +1124,10 @@ _DELETE_CASCADE_SPECS = [
     # Without this, hard-deleting an engineer leaves an orphaned ACTIVE
     # svc_engineers row behind.
     ("svc_engineers",         "id"),
+    # Iter 2026-06 — staffing register row (matched by linked login id OR
+    # email). Without this a deleted user leaves an orphaned staff_members
+    # row that breaks the HR/legacy screen and blocks re-onboarding.
+    ("staff_members",         "user_or_email"),
 ]
 
 
@@ -1138,6 +1142,11 @@ def _build_cascade_query(shape: str, user_id: str, target_email: str) -> dict:
         return {"$or": [{"actor_id": user_id}, {"target_id": user_id}]}
     if shape == "email":
         return {"email": target_email}
+    if shape == "user_or_email":
+        ors: list = [{"user_id": user_id}]
+        if target_email:
+            ors.append({"email": target_email})
+        return {"$or": ors}
     return {shape: user_id}
 
 

@@ -406,6 +406,27 @@ async def hard_purge_user_by_email(email: str = Query(...), user: dict = Depends
         email_filter, {"_id": 0, "id": 1, "email": 1, "role": 1, "organization_id": 1},
     ).to_list(length=20)
     matched.extend({**m, "_collection": "crm_users"} for m in matched_crm)
+    # ── Staffing cascade (Iter 2026-06) ───────────────────────────────
+    # The old purge left orphaned staff_members + staffing sub-records
+    # behind (keyed by staff_id, not email), which broke the HR/legacy
+    # screen and blocked clean re-onboarding. Resolve every staff_members
+    # row for this person — by email OR by any matched login id — then
+    # cascade all per-staff collections.
+    matched_uids = [m["id"] for m in matched if m.get("id")]
+    staff_or = [email_filter]
+    if matched_uids:
+        staff_or.append({"user_id": {"$in": matched_uids}})
+    staff_filter = {"$or": staff_or}
+    staff_rows = await db.staff_members.find(
+        staff_filter, {"_id": 0, "id": 1}).to_list(length=100)
+    staff_ids = [s["id"] for s in staff_rows if s.get("id")]
+    _STAFF_CHILD_COLLS = [
+        "staff_timesheets", "staff_leave_requests", "staff_shifts",
+        "staff_swap_requests", "staff_disciplinary", "staff_training",
+        "staff_documents", "staff_onboarding_cases", "staff_offboarding_cases",
+        "staff_certs", "staff_clock_events", "staff_time_logs", "staff_tasks",
+        "staff_form_submissions", "staff_access_provisions",
+    ]
     try:
         from routes.master_admin import log_activity
         await log_activity(
@@ -426,8 +447,25 @@ async def hard_purge_user_by_email(email: str = Query(...), user: dict = Depends
         "signup_drafts": (await db.signup_drafts.delete_many(email_filter)).deleted_count,
         "signup_journey_jobs": (await db.signup_journey_jobs.delete_many({"to_email": email_clean})).deleted_count,
         "tour_bookings": (await db.tour_bookings.delete_many({"member_email": email_clean})).deleted_count,
+        "staff_members": (await db.staff_members.delete_many(staff_filter)).deleted_count,
     }
-    return {"ok": True, "email": email_clean, "matched_rows": len(matched), "deleted": deleted}
+    if staff_ids:
+        for coll in _STAFF_CHILD_COLLS:
+            try:
+                n = (await getattr(db, coll).delete_many({"staff_id": {"$in": staff_ids}})).deleted_count
+                if n:
+                    deleted[coll] = n
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Purge cascade on %s failed: %s", coll, exc)
+        # Org-chart node(s) referencing this staff member.
+        try:
+            n = (await db.org_chart_nodes.delete_many({"staff_id": {"$in": staff_ids}})).deleted_count
+            if n:
+                deleted["org_chart_nodes"] = n
+        except Exception:  # noqa: BLE001
+            pass
+    return {"ok": True, "email": email_clean, "matched_rows": len(matched),
+            "staff_rows": len(staff_ids), "deleted": deleted}
 
 
 @router.put("/master-admin/pulse-admins/{user_id}/org-memberships")

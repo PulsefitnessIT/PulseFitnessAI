@@ -1490,13 +1490,24 @@ export default function HRTab({ headers, isManager }) {
               const on = s.id === active?.id;
               return (
                 <button key={s.id} type="button" onClick={() => setActiveId(s.id)}
-                  className="w-full text-left px-3 py-2 border-b transition-colors"
+                  className="relative w-full text-left px-3 py-2 border-b transition-colors"
                   style={{
                     background: on ? 'rgba(25,205,255,0.10)' : 'transparent',
                     borderColor: 'var(--theme-border)',
                   }}
                   data-testid={`hr-staff-row-${s.id}`}>
-                  <div className="flex items-center gap-2.5">
+                  {(() => {
+                    const active = !!(s.has_login || s.portal_credentials_issued_at);
+                    return (
+                      <span
+                        className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-black/40"
+                        title={active ? t('staffing.hr_login_active', 'Login active') : t('staffing.hr_not_invited', 'Not invited')}
+                        style={{ background: active ? '#10b981' : 'transparent', border: active ? 'none' : '1.5px solid var(--theme-text-muted)', boxShadow: active ? '0 0 0 3px rgba(16,185,129,0.18)' : 'none' }}
+                        data-testid={`hr-staff-login-badge-${s.id}`}
+                      />
+                    );
+                  })()}
+                  <div className="flex items-center gap-2.5 pr-4">
                     <div className="h-8 w-8 rounded-full overflow-hidden shrink-0 flex items-center justify-center border" style={{ borderColor: 'var(--theme-border)', background: 'rgba(25,205,255,0.12)' }}>
                       {s.photo_url
                         ? <img src={hrPhotoSrc(s.photo_url)} alt="" className="h-full w-full object-cover" data-testid={`hr-staff-avatar-${s.id}`} />
@@ -1507,9 +1518,6 @@ export default function HRTab({ headers, isManager }) {
                       <p className="text-[10px] uppercase tracking-wider flex items-center gap-1.5 flex-wrap" style={{ color: 'var(--theme-text-muted)' }}>
                         {humanizeRole(s.primary_role)}
                         {s.department && <span className="normal-case text-[9px] px-1 rounded" style={{ background: 'rgba(25,205,255,0.15)', color: 'var(--color-brand-cyan)' }}>{s.department}</span>}
-                        {(s.has_login || s.portal_credentials_issued_at)
-                          ? <span className="normal-case text-[9px] px-1.5 rounded-full font-semibold inline-flex items-center gap-1" style={{ background: 'rgba(16,185,129,0.16)', color: '#059669' }} data-testid={`hr-staff-login-badge-${s.id}`}><span className="h-1.5 w-1.5 rounded-full" style={{ background: '#059669' }} />{t('staffing.hr_login_active', 'Login active')}</span>
-                          : <span className="normal-case text-[9px] px-1.5 rounded-full font-semibold inline-flex items-center gap-1" style={{ background: 'rgba(148,163,184,0.18)', color: 'var(--theme-text-muted)' }} data-testid={`hr-staff-login-badge-${s.id}`}><span className="h-1.5 w-1.5 rounded-full" style={{ background: 'var(--theme-text-muted)' }} />{t('staffing.hr_not_invited', 'Not invited')}</span>}
                       </p>
                     </div>
                   </div>

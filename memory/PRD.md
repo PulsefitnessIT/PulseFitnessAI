@@ -1,3 +1,27 @@
+# ═══ 2026-06 · Login-status → green DOT + "Remove everywhere" now purges staffing (Kevin Barnett orphans) ═══
+User asks: (1) shrink "Login active" chip to a green dot in the top-right of the name box with a hover tooltip;
+(2) delete all data for kevin.barnett@pulsefitness.com from PRODUCTION — re-onboarding left orphans and the HR/
+legacy screen 404s.
+DONE (1) — HRTab.js staff rows: chip replaced by an absolutely-positioned dot (top-2 right-2), green (#10b981 +
+soft glow) when has_login, hollow grey ring when not; native title tooltip "Login active"/"Not invited";
+data-testid hr-staff-login-badge-<id> kept. Row is now relative + content pr-4. Screenshot-verified (10 dots).
+DONE (2) ROOT CAUSE — both purge paths omitted staffing collections:
+  - pulse_master_admin.py hard_purge_user_by_email (the UI "Remove everywhere"): now resolves staff_members by
+    email OR by matched login ids, deletes them, and cascades per-staff children by staff_id across
+    staff_timesheets, staff_leave_requests, staff_shifts, staff_swap_requests, staff_disciplinary, staff_training,
+    staff_documents, staff_onboarding_cases, staff_offboarding_cases, staff_certs, staff_clock_events,
+    staff_time_logs, staff_tasks, staff_form_submissions, staff_access_provisions, + org_chart_nodes. Catches
+    email-only orphans (no users row). Returns staff_rows + per-collection deleted counts.
+  - master_admin_users.py hard-delete cascade: added ("staff_members","user_or_email") shape (fallback path).
+  - VERIFIED in preview: seeded user + 2 staff_members (one email-only orphan) + timesheet + leave + org node →
+    purge deleted ALL (users1 staff_members2 ts1 leave1 node1), nothing left.
+PRODUCTION LIMITATION: agent tools write only to PREVIEW db; production writes must go through the deployed app.
+  Fix needs REDEPLOY, then Master Admin ▸ People ▸ "Remove everywhere" on kevin.barnett@pulsefitness.com fully wipes
+  him. Deployer debug (read-only) queued to inventory Kevin's current prod rows for confirmation.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFFING — login-status chip on each staff row · screenshot-verified (desktop + mobile) ═══
 Follow-on to the Invite→Re-issue change. HRTab.js sidebar staff rows now show a small pill next to role/department:
 green "Login active" (has_login || portal_credentials_issued_at) or grey "Not invited" otherwise
