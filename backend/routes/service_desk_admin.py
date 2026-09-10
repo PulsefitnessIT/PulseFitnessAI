@@ -225,6 +225,9 @@ async def grant_service_desk(
     pulse_scoped = _require_desk_admin(user)
     email = (body.get("email") or "").strip().lower()
     brand = (body.get("brand") or "gymaxis").lower()
+    # Only email the temp password when the admin EXPLICITLY asks to (they can
+    # press "Send login" afterwards). Granting access must never auto-send.
+    do_send = bool(body.get("send_email"))
     if brand not in ("gymaxis", "pulse") or pulse_scoped:
         brand = "pulse" if pulse_scoped else "gymaxis"
     if not email:
@@ -267,7 +270,7 @@ async def grant_service_desk(
             "active": True, "created_at": now_iso, "last_login": None,
         }
         await db.users.insert_one(new_doc)
-        email_sent = await _send_service_desk_invite(email, full_name, temp_password, brand)
+        email_sent = await _send_service_desk_invite(email, full_name, temp_password, brand) if do_send else False
         await log_desk_action(
             user, "desk.grant_crm", "user", user_id,
             f"Provisioned {brand} Service Desk login for CRM contact {email}",
@@ -353,3 +356,39 @@ async def revoke_service_desk(
         f"Revoked Service Desk role from {email}",
     )
     return {"success": True, "email": email}
+
+
+@router.post("/members/send-invite")
+async def send_service_desk_invite(
+    body: dict = Body(...),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Explicitly (re)send Service Desk login details — issues a FRESH temp
+    password and emails it. Only fires when the admin presses "Send login".
+    Body: {email: str}."""
+    pulse_scoped = _require_desk_admin(user)
+    email = (body.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+    target = await db.users.find_one({"email": email}, {"_id": 0})
+    if not target or not target.get("is_service_desk"):
+        raise HTTPException(status_code=404, detail=f"Service Desk user {email} not found")
+    brand = (target.get("service_desk_brand") or ("pulse" if pulse_scoped else "gymaxis")).lower()
+    if pulse_scoped and (brand != "pulse" or target.get("is_master_admin")):
+        raise HTTPException(status_code=404, detail=f"User {email} not found")
+    temp_password = _generate_temp_password()
+    await db.users.update_one(
+        {"id": target["id"]},
+        {"$set": {
+            "password": hash_password(temp_password),
+            "must_change_password": True,
+            "temp_password_expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+        }},
+    )
+    full_name = sanitise_string(target.get("full_name") or email.split("@")[0])
+    email_sent = await _send_service_desk_invite(email, full_name, temp_password, brand)
+    await log_desk_action(
+        user, "desk.send_invite", "user", target["id"],
+        f"Sent Service Desk login details to {email}",
+    )
+    return {"success": True, "email": email, "email_sent": email_sent, "temp_password": temp_password}

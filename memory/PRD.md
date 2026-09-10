@@ -1,3 +1,30 @@
+# ═══ 2026-06 · Service Desk grant no longer auto-emails temp password + email header never shows broken images ═══
+User: (1) Granting/revoking Service Desk in the module selector auto-sent a temp-password email — should only send
+when they press a button. (2) The email "looks dodgy" with broken images.
+RCA: (1) AdminOrganizations Edit-User Service Desk toggle → POST /master-admin/service-desk/members/grant, which for
+a CRM-only contact PROVISIONS a login and unconditionally called _send_service_desk_invite (service_desk_admin.py
+L270). (2) EVERY email is auto-wrapped (utils/email.py wrap_branded, even with org_id=None) and the header ALWAYS
+emitted <img src=GYMAXIS_LOGO_MARK> (+ operator logo); when a logo URL 403s in the client → broken-image icon.
+DONE (1) — grant never auto-emails:
+  - BE service_desk_admin.py grant_service_desk: new body flag send_email (default False); invite only sent when
+    True. Always returns provisioned + temp_password so the admin can copy/send. NEW endpoint
+    POST /master-admin/service-desk/members/send-invite {email} → issues a FRESH temp password + emails it (the
+    explicit "Send login" action). Inventory grant checked — never emailed.
+  - FE AdminOrganizations.js: Grant shows the temp password in a toast ("no email was sent"); NEW "Send login" button
+    (data-testid edit-user-service-desk-send, confirm dialog) on the Service Desk row calls send-invite.
+  - VERIFIED (direct): grant w/o send_email → invite NOT called, provisioned, temp_password returned; send-invite →
+    invite called, email_sent True.
+DONE (2) — no broken images:
+  - BE utils/email.py: NEW cached _img_ok(url) (httpx GET Range 0-0, image/* + <400). _resolve_co_brand blanks any
+    gym_logo / partner mark that isn't reachable; _header_html renders a clean TEXT wordmark ("Pulse Fitness AI")
+    instead of an <img> when the mark is blank. Applies to the org_id=None path too (the Service Desk email).
+  - VERIFIED (direct): reachable mark → <img>; unreachable → text wordmark, zero <img>.
+NOTE: REDEPLOY required for production. Master Admin drawer is MFA-gated (couldn't screenshot-test the UI); backend
+logic verified via direct calls.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · P0 module-save bug (incomplete-email RCA) + Bulk Module Grant · backend+UI verified ═══
 User: (1) Master Admin People → module permissions: unticking a module doesn't stick (re-ticks on return).
 (2) Bulk Module Grant for new starters.

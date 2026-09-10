@@ -2129,11 +2129,29 @@ useEffect(() => {
       const tk = localStorage.getItem('token');
       const path = grant ? 'grant' : 'revoke';
       const payload = grant ? { email: editingUser.email, brand: deskBrand } : { email: editingUser.email };
-      await axios.post(`${API}/master-admin/service-desk/members/${path}`, payload, { headers: { Authorization: `Bearer ${tk}` } });
+      const { data } = await axios.post(`${API}/master-admin/service-desk/members/${path}`, payload, { headers: { Authorization: `Bearer ${tk}` } });
       setEditingUser({ ...editingUser, is_service_desk: grant });
-      notify.success(grant ? `Granted Service Desk access to ${editingUser.email}` : `Revoked Service Desk access from ${editingUser.email}`);
+      if (grant && data?.provisioned && data?.temp_password) {
+        notify.success(`Service Desk access granted. Temp password: ${data.temp_password} — no email was sent. Use "Send login" to email it.`);
+      } else {
+        notify.success(grant ? `Granted Service Desk access to ${editingUser.email} (no email sent)` : `Revoked Service Desk access from ${editingUser.email}`);
+      }
     } catch (err) {
       notifyApiError(notify, err, grant ? 'Grant failed' : 'Revoke failed');
+    } finally {
+      setDeskBusy(false);
+    }
+  };
+  const sendDeskLogin = async () => {
+    if (!editingUser.email) return;
+    if (!window.confirm(`Email Service Desk login details (a fresh temporary password) to ${editingUser.email}?`)) return;
+    setDeskBusy(true);
+    try {
+      const tk = localStorage.getItem('token');
+      const { data } = await axios.post(`${API}/master-admin/service-desk/members/send-invite`, { email: editingUser.email }, { headers: { Authorization: `Bearer ${tk}` } });
+      notify.success(data?.email_sent ? `Login details emailed to ${editingUser.email}` : `Could not email — temp password: ${data?.temp_password || 'n/a'}`);
+    } catch (err) {
+      notifyApiError(notify, err, 'Send failed');
     } finally {
       setDeskBusy(false);
     }
@@ -2147,16 +2165,30 @@ useEffect(() => {
       {editingUser.is_master_admin ? (
         <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
       ) : (
-        <button
-          type="button"
-          onClick={toggleDesk}
-          disabled={deskBusy}
-          className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md border transition-colors disabled:opacity-50 shrink-0 ${hasDesk ? 'border-red-200 text-red-600 bg-red-50 hover:bg-red-100' : 'border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100'}`}
-          data-testid="edit-user-service-desk-toggle"
-        >
-          {deskBusy ? <Loader2 size={11} className="animate-spin" /> : (hasDesk ? <MinusCircle size={11} /> : <CheckCircle2 size={11} />)}
-          {deskBusy ? 'Saving…' : (hasDesk ? 'Revoke' : 'Grant')}
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {hasDesk && (
+            <button
+              type="button"
+              onClick={sendDeskLogin}
+              disabled={deskBusy}
+              className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors disabled:opacity-50"
+              data-testid="edit-user-service-desk-send"
+              title="Email a fresh temporary password to this user"
+            >
+              <Mail size={11} /> Send login
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={toggleDesk}
+            disabled={deskBusy}
+            className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md border transition-colors disabled:opacity-50 ${hasDesk ? 'border-red-200 text-red-600 bg-red-50 hover:bg-red-100' : 'border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100'}`}
+            data-testid="edit-user-service-desk-toggle"
+          >
+            {deskBusy ? <Loader2 size={11} className="animate-spin" /> : (hasDesk ? <MinusCircle size={11} /> : <CheckCircle2 size={11} />)}
+            {deskBusy ? 'Saving…' : (hasDesk ? 'Revoke' : 'Grant')}
+          </button>
+        </div>
       )}
     </div>
   );

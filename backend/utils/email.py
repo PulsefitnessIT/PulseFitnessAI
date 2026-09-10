@@ -46,6 +46,32 @@ PULSE_FITNESS_LOGO = (
     "iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg"
 )
 
+# Cache image-reachability so we never render a broken <img> in an email. A
+# logo host that 403s / 404s (a recurring problem — customer-assets, stale
+# marks) falls back to a clean text wordmark instead of a broken-image icon,
+# which is what made emails look "dodgy". Checked once per URL per process.
+_IMG_OK_CACHE: dict = {}
+
+
+async def _img_ok(url: str) -> bool:
+    if not url:
+        return False
+    if url.startswith("data:"):
+        return True
+    if url in _IMG_OK_CACHE:
+        return _IMG_OK_CACHE[url]
+    ok = False
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=3.0, follow_redirects=True) as client:
+            resp = await client.get(url, headers={"Range": "bytes=0-0"})
+            ctype = resp.headers.get("content-type", "")
+            ok = resp.status_code < 400 and ctype.startswith("image/")
+    except Exception:
+        ok = False
+    _IMG_OK_CACHE[url] = ok
+    return ok
+
 
 def _abs_url(maybe_relative: str | None) -> str:
     """Convert /api/account/logo/{id} or /api/public/files/{id} into a
@@ -72,7 +98,7 @@ async def _resolve_co_brand(organization_id: str | None) -> dict:
     """
     gym_logo = ""
     gym_name = "Pulse Fitness"
-    partner_logo = GYMAXIS_LOGO_MARK
+    partner_logo = GYMAXIS_LOGO_MARK if await _img_ok(GYMAXIS_LOGO_MARK) else ""
     partner_name = "Pulse Fitness AI"
     if not organization_id:
         return {"gym_logo": "", "gym_name": "", "partner_logo": partner_logo, "partner_name": partner_name}
@@ -87,9 +113,11 @@ async def _resolve_co_brand(organization_id: str | None) -> dict:
         return {"gym_logo": "", "gym_name": "", "partner_logo": partner_logo, "partner_name": partner_name}
     gym_name = (org.get("name") or "").strip() or gym_name
     gym_logo = _abs_url(org.get("logo_url") or "")
-    # Full white-label: all tenants get the Pulse Fitness AI platform mark.
-    partner_logo = GYMAXIS_LOGO_MARK
     partner_name = "Pulse Fitness AI"
+    # Never emit an <img> that won't load — blank it so the header falls back
+    # to a clean text wordmark instead of a broken-image icon.
+    if gym_logo and not await _img_ok(gym_logo):
+        gym_logo = ""
     return {
         "gym_logo": gym_logo, "gym_name": gym_name,
         "partner_logo": partner_logo, "partner_name": partner_name,
@@ -103,7 +131,7 @@ def _header_html(brand: dict, accent: str = "#0055FF") -> str:
     the header readable in both light + dark email clients."""
     gym_logo = brand.get("gym_logo") or ""
     gym_name = brand.get("gym_name") or ""
-    partner_logo = brand.get("partner_logo") or GYMAXIS_LOGO_MARK
+    partner_logo = brand.get("partner_logo") or ""
     partner_name = brand.get("partner_name") or "Pulse Fitness"
     if gym_logo:
         left_block = (
@@ -124,6 +152,9 @@ def _header_html(brand: dict, accent: str = "#0055FF") -> str:
     right_block = (
         f'<img src="{partner_logo}" alt="{partner_name}" style="max-height:30px;max-width:140px;'
         f'vertical-align:middle;border:0;" />'
+    ) if partner_logo else (
+        f'<span style="color:#0A0A0A;font-weight:800;font-size:15px;letter-spacing:-0.01em;'
+        f'font-family:Arial,sans-serif;vertical-align:middle;">{partner_name}</span>'
     )
     return (
         '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
