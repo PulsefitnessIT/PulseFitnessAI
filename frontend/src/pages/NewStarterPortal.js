@@ -2,14 +2,56 @@
  * NewStarterPortal — secure recruit portal (invite → set password → onboarding).
  * Route: /new-starter/:token. Same account becomes the Staff Portal after activation.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import {
   Loader2, Upload, CheckCircle2, FileText, ShieldCheck, PenLine, Send, Circle, Download,
-  X, AlertCircle, BookOpen, LogOut,
+  X, AlertCircle, BookOpen, LogOut, Camera,
 } from 'lucide-react';
+
+// Resolve a stored photo_url (relative "/api/..." proxy path or data: URI) to a
+// browser-loadable src.
+const photoSrc = (u) => (u ? (u.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${u}` : u) : '');
+
+function StaffPhotoUpload({ H, currentUrl, onUploaded, label = 'Profile photo', hint }) {
+  const ref = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const [url, setUrl] = useState(currentUrl || '');
+  const [err, setErr] = useState('');
+  useEffect(() => { setUrl(currentUrl || ''); }, [currentUrl]);
+  const pick = () => ref.current && ref.current.click();
+  const onFile = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setBusy(true); setErr('');
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const r = await axios.post(`${API}/new-starter/portal/photo`, fd, { headers: { ...H } });
+      setUrl(r.data.photo_url); onUploaded && onUploaded(r.data.photo_url);
+    } catch (e2) {
+      setErr(e2?.response?.data?.detail || 'Could not upload photo.');
+    } finally { setBusy(false); if (ref.current) ref.current.value = ''; }
+  };
+  return (
+    <div className="flex items-center gap-4" data-testid="staff-photo-upload">
+      <div className="h-20 w-20 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+        {url ? <img src={photoSrc(url)} alt="Headshot" className="h-full w-full object-cover" data-testid="staff-photo-img" />
+             : <Camera size={26} className="text-slate-400" />}
+      </div>
+      <div>
+        <div className="text-sm font-semibold text-slate-800">{label}</div>
+        {hint && <div className="text-xs text-slate-500 mb-1">{hint}</div>}
+        <input ref={ref} type="file" accept="image/*" className="hidden" onChange={onFile} data-testid="staff-photo-input" />
+        <button type="button" onClick={pick} disabled={busy} data-testid="staff-photo-btn"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:border-cyan-400 disabled:opacity-50">
+          {busy ? <Loader2 size={13} className="animate-spin" /> : <Camera size={13} />} {url ? 'Change photo' : 'Add photo'}
+        </button>
+        {err && <div className="text-xs text-rose-600 mt-1">{err}</div>}
+      </div>
+    </div>
+  );
+}
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -161,6 +203,10 @@ function YourDetails({ H, me, reload }) {
   const save = async () => { setBusy(true); try { await axios.put(`${API}/new-starter/forms`, { form_key: 'new_starter', data: f }, { headers: H }); setOk(true); reload(); } finally { setBusy(false); } };
   return (
     <Section title="Your Details, Emergency Contact & Payroll" icon={FileText} testId="nsp-details" secId="forms">
+      <div className="mb-4 pb-4 border-b border-slate-100">
+        <StaffPhotoUpload H={H} currentUrl={me.person?.photo_url}
+          hint="A clear headshot so your manager can put a face to your name." />
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <PortalField label="Home address" k="home_address" value={f.home_address} onChange={set('home_address')} />
         <PortalField label="Date of birth" k="dob" type="date" value={f.dob} onChange={set('dob')} />

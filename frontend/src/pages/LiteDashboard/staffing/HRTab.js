@@ -24,6 +24,7 @@ import { RELATIONSHIP_OPTIONS } from '@/utils/crmDropdowns';
 import DatePicker, { formatDDMMYYYY } from '@/components/shared/DatePicker';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const hrPhotoSrc = (u) => (u ? (u.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${u}` : u) : '');
 
 function AddStaffDialog({ headers, onClose, onCreated }) {
   const { t } = useTranslation();
@@ -231,7 +232,7 @@ function CredsDialog({ creds, onClose }) {
 
 // ─────────────────────── Profile panel ───────────────────────────
 
-function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, inviteBusy, onDelete, departments = [] }) {
+function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, inviteBusy, onDelete, departments = [], photoUrl }) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -367,9 +368,16 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
   return (
     <div className="space-y-4" data-testid="hr-profile-panel">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div>
-          <p className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{profile.full_name}</p>
-          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(profile.primary_role)} · {profile.email || t('staffing.hr_no_email', 'no email on file')}</p>
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-full overflow-hidden shrink-0 flex items-center justify-center border" style={{ borderColor: 'var(--theme-border)', background: 'rgba(25,205,255,0.12)' }}>
+            {(photoUrl || profile.photo_url)
+              ? <img src={hrPhotoSrc(photoUrl || profile.photo_url)} alt="" className="h-full w-full object-cover" data-testid="hr-profile-avatar" />
+              : <span className="text-sm font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{(profile.full_name || '?').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()}</span>}
+          </div>
+          <div>
+            <p className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{profile.full_name}</p>
+            <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{humanizeRole(profile.primary_role)} · {profile.email || t('staffing.hr_no_email', 'no email on file')}</p>
+          </div>
         </div>
         {isManager && !editing && (
           <div className="flex gap-2">
@@ -1290,11 +1298,20 @@ export default function HRTab({ headers, isManager }) {
                     borderColor: 'var(--theme-border)',
                   }}
                   data-testid={`hr-staff-row-${s.id}`}>
-                  <p className="text-sm font-bold truncate" style={{ color: 'var(--theme-text)' }}>{s.full_name}</p>
-                  <p className="text-[10px] uppercase tracking-wider flex items-center gap-1.5 flex-wrap" style={{ color: 'var(--theme-text-muted)' }}>
-                    {humanizeRole(s.primary_role)}
-                    {s.department && <span className="normal-case text-[9px] px-1 rounded" style={{ background: 'rgba(25,205,255,0.15)', color: 'var(--color-brand-cyan)' }}>{s.department}</span>}
-                  </p>
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-full overflow-hidden shrink-0 flex items-center justify-center border" style={{ borderColor: 'var(--theme-border)', background: 'rgba(25,205,255,0.12)' }}>
+                      {s.photo_url
+                        ? <img src={hrPhotoSrc(s.photo_url)} alt="" className="h-full w-full object-cover" data-testid={`hr-staff-avatar-${s.id}`} />
+                        : <span className="text-[10px] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{(s.full_name || '?').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()}</span>}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold truncate" style={{ color: 'var(--theme-text)' }}>{s.full_name}</p>
+                      <p className="text-[10px] uppercase tracking-wider flex items-center gap-1.5 flex-wrap" style={{ color: 'var(--theme-text-muted)' }}>
+                        {humanizeRole(s.primary_role)}
+                        {s.department && <span className="normal-case text-[9px] px-1 rounded" style={{ background: 'rgba(25,205,255,0.15)', color: 'var(--color-brand-cyan)' }}>{s.department}</span>}
+                      </p>
+                    </div>
+                  </div>
                 </button>
               );
             })}
@@ -1325,7 +1342,7 @@ export default function HRTab({ headers, isManager }) {
                   );
                 })}
               </div>
-              {sub === 'profile'      && <ProfilePanel      staffId={active.id} headers={headers} isManager={isManager} onUpdated={load} onInvite={issueCredentials} inviteBusy={credsBusy === active.id} onDelete={() => removeStaff(active)} departments={departments} />}
+              {sub === 'profile'      && <ProfilePanel      staffId={active.id} headers={headers} isManager={isManager} onUpdated={load} onInvite={issueCredentials} inviteBusy={credsBusy === active.id} onDelete={() => removeStaff(active)} departments={departments} photoUrl={active.photo_url} />}
               {sub === 'documents'    && <DocumentsPanel    staffId={active.id} headers={headers} isManager={isManager} />}
               {sub === 'disciplinary' && <DisciplinaryPanel staffId={active.id} headers={headers} isManager={isManager} />}
               {sub === 'training'     && <TrainingPanel     staffId={active.id} headers={headers} isManager={isManager} />}

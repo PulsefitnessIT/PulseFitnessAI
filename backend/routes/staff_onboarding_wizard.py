@@ -1605,7 +1605,8 @@ async def recruit_me(user: dict = Depends(get_current_user_portal)):
     return {
         "portal_name": "Pulse Fitness Staff Portal" if activated else "Pulse Fitness New Starter Portal",
         "activated": activated, "status": case.get("status"), "submitted": bool(case.get("submitted")),
-        "person": {"full_name": staff.get("full_name"), "email": staff.get("email")},
+        "person": {"full_name": staff.get("full_name"), "email": staff.get("email"),
+                   "photo_url": staff.get("photo_url")},
         "employment": case.get("employment_proposal", {}), "progress": progress, "steps": PROGRESS_STEPS,
         "forms": forms, "documents": docs, "policies": policies, "acknowledgements": acks,
         "agreements": agreements, "agreement_state": agr_state,

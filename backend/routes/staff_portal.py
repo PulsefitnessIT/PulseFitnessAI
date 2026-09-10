@@ -23,13 +23,15 @@ from __future__ import annotations
 
 import re
 import uuid
+import io
+import base64
 from datetime import datetime, timezone, date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Body, Query
+from fastapi import APIRouter, Depends, HTTPException, Body, Query, File, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from utils.database import db
+from utils.database import db, put_object, get_object, APP_NAME
 from utils.auth import get_current_user, get_current_user_portal
 from utils.module_access import org_module_access, resolve_module_access
 
@@ -1035,6 +1037,78 @@ async def hr_reject_detail_request(req_id: str, body: DetailRejectReq,
         body="Your requested detail changes were not approved."
              + (f" Reason: {reason}" if reason else " Please contact HR."), link="details")
     return {"ok": True}
+
+
+def _process_headshot(raw: bytes) -> bytes:
+    from PIL import Image
+    img = Image.open(io.BytesIO(raw)); img.load(); img = img.convert("RGB")
+    w, h = img.size
+    side = min(w, h)
+    left = (w - side) // 2
+    top = (h - side) // 2
+    img = img.crop((left, top, left + side, top + side)).resize((384, 384), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=82, optimize=True)
+    return buf.getvalue()
+
+
+async def _save_staff_photo(staff: dict, raw: bytes) -> str:
+    if not raw:
+        raise HTTPException(400, "Empty file")
+    if len(raw) > 12 * 1024 * 1024:
+        raise HTTPException(413, "Photo must be 12 MB or smaller")
+    try:
+        compressed = _process_headshot(raw)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(400, "Could not read that image — please upload a JPG or PNG.")
+    sid = staff["id"]
+    path = f"{APP_NAME}/staff-photos/{sid}/{uuid.uuid4()}.jpg"
+    photo_path = None
+    try:
+        put_object(path, compressed, "image/jpeg")
+        photo_path = path
+        photo_url = f"/api/staffing/staff/{sid}/photo?v={uuid.uuid4().hex[:8]}"
+    except Exception:
+        # Object-store outage → inline data URI so the headshot still round-trips.
+        photo_url = "data:image/jpeg;base64," + base64.b64encode(compressed).decode("ascii")
+    await db.staff_members.update_one(
+        {"id": sid}, {"$set": {"photo_url": photo_url, "photo_path": photo_path, "updated_at": _now()}})
+    return photo_url
+
+
+@router.post("/new-starter/portal/photo")
+async def portal_upload_photo(file: UploadFile = File(...),
+                              user: dict = Depends(get_current_user_portal)):
+    """Staff (and recruits during sign-up) upload/replace their own headshot."""
+    staff = await _portal_staff(user)
+    url = await _save_staff_photo(staff, await file.read())
+    return {"photo_url": url}
+
+
+@router.delete("/new-starter/portal/photo")
+async def portal_delete_photo(user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    await db.staff_members.update_one(
+        {"id": staff["id"]}, {"$set": {"photo_url": None, "photo_path": None}})
+    return {"ok": True}
+
+
+@router.get("/staffing/staff/{staff_id}/photo")
+async def serve_staff_photo(staff_id: str) -> Response:
+    """Public streaming proxy for a staff headshot (non-sensitive; embedded in
+    <img> tags in the Staff Portal and Staffing → People)."""
+    rec = await db.staff_members.find_one({"id": staff_id}, {"_id": 0, "photo_path": 1})
+    path = (rec or {}).get("photo_path")
+    if not path:
+        raise HTTPException(404, "No photo")
+    try:
+        data, ct = get_object(path)
+    except Exception:
+        raise HTTPException(404, "Photo not available")
+    return Response(content=data, media_type=ct or "image/jpeg",
+                    headers={"Cache-Control": "public, max-age=600"})
 
 
 def _is_owner(user: dict) -> bool:

@@ -4,7 +4,7 @@
  * Tabs: My Rota · Timesheets · Holidays · Documents · System Access.
  * Reuses the existing staffing collections via /api/new-starter/portal/*.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import {
   Loader2, LogOut, Calendar, Clock, Plane, FileText, ShieldCheck, Download,
@@ -19,6 +19,9 @@ import PillTabBar from '../components/shared/PillTabBar';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const CORE = '#19CDFF';
+
+// Resolve a stored photo_url (relative "/api/..." proxy path or data: URI).
+const photoSrc = (u) => (u ? (u.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${u}` : u) : '');
 
 function mondayOf(d = new Date()) {
   const x = new Date(d); x.setHours(0, 0, 0, 0);
@@ -1064,6 +1067,9 @@ function MyDetailsTab({ me, H }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [photo, setPhoto] = useState('');
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const fileRef = useRef(null);
 
   const loadReqs = useCallback(() => {
     axios.get(`${API}/new-starter/portal/detail-change-requests`, { headers: H })
@@ -1081,6 +1087,18 @@ function MyDetailsTab({ me, H }) {
   const person = full.person || {};
   const emp = full.employment || {};
   const nd = (full.forms && full.forms.new_starter && full.forms.new_starter.data) || {};
+  const photoUrl = photo || person.photo_url || '';
+  const onPhoto = async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    setPhotoBusy(true); setMsg('');
+    try {
+      const fd = new FormData(); fd.append('file', f);
+      const r = await axios.post(`${API}/new-starter/portal/photo`, fd, { headers: { ...H } });
+      setPhoto(r.data.photo_url); setMsg('Profile photo updated.');
+    } catch (err) {
+      setMsg(err?.response?.data?.detail || 'Could not upload photo.');
+    } finally { setPhotoBusy(false); if (fileRef.current) fileRef.current.value = ''; }
+  };
   const hasData = !!(nd.dob || nd.home_address || nd.ni_number || nd.emergency_contact_name
     || emp.job_title || emp.position || emp.department || emp.proposed_start_date);
   const pending = reqs.find((r) => r.status === 'pending');
@@ -1127,6 +1145,23 @@ function MyDetailsTab({ me, H }) {
         </div>
       </div>
       <p className="text-sm text-slate-500 mb-4">The information you provided during your Pulse Fitness sign-up. Use “Request changes” to ask HR to update your personal, emergency-contact or payroll details.</p>
+
+      <div className="flex items-center gap-4 mb-5 pb-5 border-b border-slate-100" data-testid="detail-photo-block">
+        <div className="h-20 w-20 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+          {photoUrl
+            ? <img src={photoSrc(photoUrl)} alt="Your headshot" className="h-full w-full object-cover" data-testid="detail-photo-img" />
+            : <span className="text-xl font-bold text-slate-400" data-testid="detail-photo-initials">{(person.full_name || '?').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()}</span>}
+        </div>
+        <div>
+          <div className="text-sm font-semibold text-slate-800">Profile photo</div>
+          <div className="text-xs text-slate-500 mb-1">A clear headshot your manager sees next to your name.</div>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPhoto} data-testid="detail-photo-input" />
+          <button type="button" onClick={() => fileRef.current && fileRef.current.click()} disabled={photoBusy} data-testid="detail-photo-btn"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:border-cyan-400 disabled:opacity-50">
+            {photoBusy ? <Loader2 size={13} className="animate-spin" /> : <Camera size={13} />} {photoUrl ? 'Change photo' : 'Add photo'}
+          </button>
+        </div>
+      </div>
 
       {msg && <div className="rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-800 mb-4" data-testid="detail-request-msg">{msg}</div>}
       {pending && !editing && (

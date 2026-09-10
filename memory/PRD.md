@@ -36817,3 +36817,10 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Frontend: StaffPortal.js MyDetailsTab (Request changes edit form prefilled, pending banner, disabled while pending, request history). HRTab.js DetailChangeRequestsPanel at top of People/HR showing old→new diff + note with Approve & update / Reject (rejection reason via prompt).
 - Reconciliation of user choices: they picked "notify HR, edit manually" but also "approve applies values" + "notify staff on approve/reject" — so an Approve button auto-applies (per those choices); HR can still edit the People profile manually anytime.
 - Verified end-to-end via curl (submit->list->approve->/me reflects new values, staff+manager bells fire, pending->0) and UI screenshots (HR panel, staff pending banner + edit form) desktop + 390px mobile, no overflow.
+
+## 2026-09-10 — Profile headshot (Iter 293)
+- Staff upload/replace their own headshot (no approval) from My Details AND during New Starter sign-up; managers see it as an avatar in Staffing → People list + on the profile card.
+- Storage: Emergent object storage (utils.database put_object/get_object), NOT base64. Compressed to 384x384 JPEG (PIL centre-crop). Falls back to inline data URI only on object-store outage.
+- Backend (routes/staff_portal.py): POST /api/new-starter/portal/photo (staff/recruit, get_current_user_portal), DELETE same; public proxy GET /api/staffing/staff/{staff_id}/photo streams bytes (non-sensitive, unguessable UUID). Stores photo_url + photo_path on staff_members so it flows into /staffing/staff list & HR profile automatically. Added person.photo_url to /api/new-starter/me.
+- Frontend: StaffPortal.js MyDetailsTab photo block (detail-photo-block/img/btn/input) + photoSrc helper; NewStarterPortal.js reusable StaffPhotoUpload in YourDetails; HRTab.js list-row avatar (hr-staff-avatar-<id>) + profile-card avatar (hr-profile-avatar) with initials fallback; photoUrl passed from active row.
+- Verified: upload->/me->public proxy (200 image/jpeg)->staff list photo_url; UI screenshots My Details photo + HR list/profile avatars (naturalWidth 384). Sign-up field uses same component/endpoint.
