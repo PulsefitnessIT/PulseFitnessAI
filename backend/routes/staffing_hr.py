@@ -73,7 +73,7 @@ PROFILE_FIELDS = {
     "date_of_birth", "ni_number", "contract_type", "hours_per_week",
     "hire_date", "termination_date", "termination_reason",
     "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relationship",
-    "bank_name", "bank_sort_code", "bank_account_last4",
+    "bank_name", "bank_sort_code", "bank_account", "bank_account_last4",
     "right_to_work_status", "notes",
 }
 
@@ -96,6 +96,7 @@ class ProfileUpdate(BaseModel):
     emergency_contact_relationship: str | None = None
     bank_name: str | None = None
     bank_sort_code: str | None = None
+    bank_account: str | None = None
     bank_account_last4: str | None = None
     right_to_work_status: str | None = None
     notes: str | None = None
@@ -232,6 +233,10 @@ async def update_profile(
     # writes ``hours_per_week``) never disagree.
     if "hours_per_week" in patch:
         patch["weekly_hours"] = patch["hours_per_week"]
+    # Full account number edited → refresh the derived last-4 display field.
+    if "bank_account" in patch:
+        from utils.personal_sync import _last4
+        patch["bank_account_last4"] = _last4(patch["bank_account"])
     await db.staff_members.update_one(
         {"id": staff_id, "organization_id": org_id}, {"$set": patch},
     )

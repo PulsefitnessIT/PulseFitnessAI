@@ -26,6 +26,10 @@ import DatePicker, { formatDDMMYYYY } from '@/components/shared/DatePicker';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const hrPhotoSrc = (u) => (u ? (u.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${u}` : u) : '');
+const maskAccount = (full, last4) => {
+  const l4 = last4 || String(full || '').replace(/\s+/g, '').slice(-4);
+  return l4 ? `•••• ${l4}` : '••••';
+};
 
 async function downloadHrFile(url, headers, fallbackName) {
   try {
@@ -362,6 +366,7 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [sites, setSites] = useState([]);
+  const [revealAcct, setRevealAcct] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -426,7 +431,7 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
         'date_of_birth', 'ni_number', 'contract_type', 'hours_per_week',
         'hire_date', 'termination_date', 'termination_reason',
         'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship',
-        'bank_name', 'bank_sort_code', 'bank_account_last4',
+        'bank_name', 'bank_sort_code', 'bank_account',
         'right_to_work_status', 'notes',
       ];
       const payload = {};
@@ -706,7 +711,31 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
         <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold mt-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.hr_bank', 'Bank (payroll)')}</p>
         <Field label={t('staffing.hr_bank_name', 'Bank name')} k="bank_name" />
         <Field label={t('staffing.hr_sort_code', 'Sort code')} k="bank_sort_code" />
-        <Field label={t('staffing.hr_account_last4', 'Account last 4')} k="bank_account_last4" />
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_account_number', 'Account number')}</span>
+          {editing ? (
+            <input type="text" inputMode="numeric" value={form.bank_account || ''}
+              onChange={(e) => set('bank_account', e.target.value)}
+              placeholder={t('staffing.hr_account_ph', 'e.g. 12345678')}
+              className="h-8 rounded-md bg-transparent border px-2 text-sm"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+              data-testid="hr-field-bank_account" />
+          ) : (
+            <span className="text-sm inline-flex items-center gap-2" style={{ color: 'var(--theme-text)' }}>
+              <span data-testid="hr-bank-account-value">
+                {(profile.bank_account || profile.bank_account_last4)
+                  ? (revealAcct && profile.bank_account ? profile.bank_account : maskAccount(profile.bank_account, profile.bank_account_last4))
+                  : '—'}
+              </span>
+              {profile.bank_account && (
+                <button type="button" onClick={() => setRevealAcct((v) => !v)} data-testid="hr-bank-account-reveal"
+                  className="text-[10px] font-semibold" style={{ color: 'var(--color-brand-cyan)' }}>
+                  {revealAcct ? t('staffing.hr_hide', 'Hide') : t('staffing.hr_reveal', 'Reveal')}
+                </button>
+              )}
+            </span>
+          )}
+        </div>
 
         <div className="md:col-span-2 mt-2">
           <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>{t('staffing.hr_notes', 'Notes')}</span>

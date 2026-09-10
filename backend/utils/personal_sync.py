@@ -18,6 +18,8 @@ PERSONAL_MAP = [
     ("home_address", "address_line1"),
     ("emergency_contact_name", "emergency_contact_name"),
     ("emergency_contact_phone", "emergency_contact_phone"),
+    ("bank_name", "bank_name"),
+    ("sort_code", "bank_sort_code"),
     ("bank_account", "bank_account"),
 ]
 

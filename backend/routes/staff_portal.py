@@ -891,6 +891,8 @@ DETAIL_FIELDS = {
     "ni_number": ("National Insurance number", None),
     "emergency_contact_name": ("Emergency contact name", None),
     "emergency_contact_phone": ("Emergency contact phone", None),
+    "bank_name": ("Bank name", None),
+    "sort_code": ("Sort code", None),
     "bank_account": ("Bank account", None),
 }
 

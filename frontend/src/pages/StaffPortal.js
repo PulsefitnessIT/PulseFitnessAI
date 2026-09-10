@@ -1107,7 +1107,8 @@ function MyDetailsTab({ me, H }) {
     setForm({
       home_address: nd.home_address || emp.home_address || '', dob: nd.dob || '',
       ni_number: nd.ni_number || '', emergency_contact_name: nd.emergency_contact_name || '',
-      emergency_contact_phone: nd.emergency_contact_phone || '', bank_account: nd.bank_account || '',
+      emergency_contact_phone: nd.emergency_contact_phone || '',
+      bank_name: nd.bank_name || '', sort_code: nd.sort_code || '', bank_account: nd.bank_account || '',
     });
     setNote(''); setMsg(''); setEditing(true);
   };
@@ -1126,7 +1127,7 @@ function MyDetailsTab({ me, H }) {
   const EDIT_FIELDS = [
     ['home_address', 'Home address'], ['dob', 'Date of birth'], ['ni_number', 'National Insurance no.'],
     ['emergency_contact_name', 'Emergency contact name'], ['emergency_contact_phone', 'Emergency contact phone'],
-    ['bank_account', 'Bank account'],
+    ['bank_name', 'Bank name'], ['sort_code', 'Sort code'], ['bank_account', 'Bank account'],
   ];
 
   return (
@@ -1222,6 +1223,8 @@ function MyDetailsTab({ me, H }) {
           </DetailSection>
 
           <DetailSection title="Payroll">
+            <DetailRow label="Bank name" value={nd.bank_name} testId="detail-bank-name" />
+            <DetailRow label="Sort code" value={nd.sort_code} testId="detail-sort-code" />
             <DetailRow label="Bank account" value={mask4(nd.bank_account)} testId="detail-bank" />
           </DetailSection>
 

@@ -1,3 +1,27 @@
+# ═══ 2026-06 · STAFFING — BANK DETAIL PARITY (full bank details round-trip) · curl+DB-verified both ways ═══
+Backlog Task 5 (P2). Bank details now round-trip between the HR profile and the staff "My Details" tab
+exactly like DOB/NI/address, via utils/personal_sync.py (single canonical source = staff_members).
+- personal_sync.PERSONAL_MAP: added ("bank_name","bank_name") and ("sort_code","bank_sort_code") alongside
+  the existing ("bank_account","bank_account") (which auto-derives bank_account_last4). So all three bank
+  fields mirror BOTH ways (HR edit → new_starter form data; staff request → canonical staff_members).
+- staffing_hr.py: ProfileUpdate + PROFILE_FIELDS gained full `bank_account`; update_profile derives
+  bank_account_last4 from it (utils.personal_sync._last4) and already calls sync_from_staff → mirrors to form.
+- staff_portal.py DETAIL_FIELDS: staff can now request changes to bank_name + sort_code (+ bank_account) from
+  My Details; approve writes both form + canonical via form_to_staff_patch.
+- FRONTEND HRTab.js ProfilePanel Bank (payroll) section: replaced the manual "Account last 4" field with a
+  full "Account number" input (data-testid hr-field-bank_account); read view shows it MASKED (•••• 1234) with
+  a Reveal/Hide toggle (data-testid hr-bank-account-reveal, hr-bank-account-value) per user's security choice.
+  save() now sends bank_account (server re-derives last4).
+- FRONTEND StaffPortal.js My Details: edit form + display gained Bank name + Sort code (EDIT_FIELDS,
+  DetailRows detail-bank-name / detail-sort-code); account still masked.
+- VERIFIED curl+DB: HR PATCH {bank_name,bank_sort_code,bank_account:87654321} → staff_members last4 4321 +
+  form data {bank_name,sort_code,bank_account} mirrored. Staff change-request {Monzo,04-00-04,11223344} →
+  HR approve → staff_members last4 3344 + form mirrored. Frontend compiles clean. QA data cleaned up.
+  REDEPLOY required for production.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFFING cosmetic — role label acronyms (HR/IT/CRM) · screenshot-verified ═══
 humanizeRole() in HRTab.js + StaffingConsole.js now special-cases {hr:'HR', it:'IT', crm:'CRM'} so the HR role
 renders "HR" (was "Hr"). Departments already display verbatim (HR/IT/CRM/iGym) from the DEPARTMENTS constant.
