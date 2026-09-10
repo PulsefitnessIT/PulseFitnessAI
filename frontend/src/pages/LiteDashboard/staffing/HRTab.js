@@ -19,12 +19,31 @@ import {
   User, FileText, ShieldAlert, GraduationCap, Loader2, Plus, Pencil,
   Trash2, X, Check, Search, AlertTriangle,
   ExternalLink, Briefcase, UserPlus, KeyRound, Copy, LogOut, ClipboardCheck,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { RELATIONSHIP_OPTIONS } from '@/utils/crmDropdowns';
 import DatePicker, { formatDDMMYYYY } from '@/components/shared/DatePicker';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const hrPhotoSrc = (u) => (u ? (u.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${u}` : u) : '');
+
+async function downloadHrFile(url, headers, fallbackName) {
+  try {
+    const res = await fetch(url, { headers: { Authorization: headers?.Authorization || '' } });
+    if (!res.ok) {
+      let msg = 'Download failed';
+      try { const j = await res.json(); msg = j.detail || msg; } catch { /* non-JSON */ }
+      window.alert(msg); return;
+    }
+    const cd = res.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename="?([^"]+)"?/);
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objUrl; a.download = m ? m[1] : fallbackName; a.click();
+    URL.revokeObjectURL(objUrl);
+  } catch { window.alert('Download failed'); }
+}
 
 function AddStaffDialog({ headers, onClose, onCreated }) {
   const { t } = useTranslation();
@@ -499,6 +518,20 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
               className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5 border"
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-profile-edit">
               <Pencil size={11} /> {t('staffing.hr_edit', 'Edit')}
+            </button>
+            <button type="button"
+              onClick={() => downloadHrFile(`${API}/staffing/staff/${staffId}/employee-file?format=pdf`, headers, `employee-file-${staffId}.pdf`)}
+              className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5 border"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="employee-file-pdf"
+              title="Full employee file (PDF) — for audits / SARs">
+              <FileText size={11} /> File PDF
+            </button>
+            <button type="button"
+              onClick={() => downloadHrFile(`${API}/staffing/staff/${staffId}/employee-file?format=xlsx`, headers, `employee-file-${staffId}.xlsx`)}
+              className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5 border"
+              style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="employee-file-xlsx"
+              title="Full employee file (Excel)">
+              <FileSpreadsheet size={11} /> File Excel
             </button>
           </div>
         )}

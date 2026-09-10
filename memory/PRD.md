@@ -36844,3 +36844,17 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Verified bidirectionally via curl: HR edit -> My Details reflects; staff change-request approve -> HR profile + My Details reflect. All converge on staff_members.
 - Note: HR profile stores bank as last4 only; onboarding stores full bank_account. Bank mirrors form->staff (full + derived last4); HR editing last4 does not push back to full (cannot reconstruct) — acceptable.
 - Remaining from founder audit: #4 unified Employee File export (PDF/Excel across whole lifecycle).
+
+## 2026-09-10 — Employee File export — founder audit #4 COMPLETE (Iter 296)
+- One-click full employee file for audits/SARs: GET /api/staffing/staff/{staff_id}/employee-file?format=pdf|xlsx (managers). Files: routes/staffing_hr.py (_employee_file_data, _emp_xlsx, _emp_pdf, endpoint).
+- Sections: Personal + Employment + Onboarding (from staff_members canonical + staff_onboarding_cases employment_proposal/offer/contract), Documents (staff_documents), Attendance & Pay (staff_timesheets weeks computed via _ensure_timesheet_doc, hours+overtime+status+pay, totals), Leave (staff_leave_requests), Disciplinary (staff_disciplinary), Training (staff_training).
+- PDF: reportlab (KV two-col tables + section tables). Excel: openpyxl (Summary sheet + one sheet per table section).
+- Frontend: HRTab.js ProfilePanel header buttons File PDF / File Excel (data-testid employee-file-pdf / employee-file-xlsx) + downloadHrFile helper.
+- Verified: PDF 
+## 2026-09-10 — Employee File export — founder audit #4 COMPLETE (Iter 296)
+- One-click full employee file for audits/SARs: GET /api/staffing/staff/{staff_id}/employee-file?format=pdf|xlsx (managers). Files: routes/staffing_hr.py (_employee_file_data, _emp_xlsx, _emp_pdf, endpoint).
+- Sections: Personal + Employment + Onboarding (staff_members canonical + staff_onboarding_cases employment_proposal/offer/contract), Documents (staff_documents), Attendance & Pay (staff_timesheets weeks computed via _ensure_timesheet_doc: hours+overtime+status+pay, totals), Leave (staff_leave_requests), Disciplinary (staff_disciplinary), Training (staff_training).
+- PDF: reportlab (KV two-col + section tables). Excel: openpyxl (Summary sheet + one sheet per table section).
+- Frontend: HRTab.js ProfilePanel header buttons File PDF / File Excel (data-testid employee-file-pdf / employee-file-xlsx) + downloadHrFile helper.
+- Verified: PDF %PDF 200; XLSX 200 with sheets [Summary, Documents, Attendance & Pay, Leave, Disciplinary, Training]; buttons render (screenshot).
+- FOUNDER AUDIT ROADMAP COMPLETE: #1 leaver login revocation, #2 offboarding workflow, #3 unified personal data, #4 employee file export.

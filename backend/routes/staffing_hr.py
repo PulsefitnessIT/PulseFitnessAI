@@ -614,3 +614,182 @@ async def complete_offboarding(staff_id: str, user: dict = Depends(get_current_u
         {"$set": {"status": "complete", "completed_at": _now().isoformat(),
                   "completed_by": user.get("full_name"), "access_revoked": bool(uid)}})
     return {"ok": True, "access_revoked": bool(uid), "termination_date": lwd}
+
+
+# ═════════════════ Full Employee File export (PDF / Excel) ═════════════════
+# One-click, audit/SAR-ready record spanning personal + employment + onboarding
+# + documents + attendance/pay + leave + disciplinary + training.
+
+def _fv(v):
+    return "" if v is None else str(v)
+
+
+async def _employee_file_data(org_id: str, staff: dict) -> dict:
+    sid = staff["id"]
+    case = await db.staff_onboarding_cases.find_one({"staff_id": sid, "organization_id": org_id}) or {}
+    emp = case.get("employment_proposal") or {}
+    rate = float(staff.get("hourly_cost") or 0)
+
+    kv = [
+        ("Personal", [
+            ("Full name", staff.get("full_name")),
+            ("Date of birth", staff.get("date_of_birth")),
+            ("National Insurance", staff.get("ni_number")),
+            ("Email", staff.get("email")),
+            ("Address", ", ".join([x for x in [staff.get("address_line1"), staff.get("address_line2"),
+                                               staff.get("city"), staff.get("postcode")] if x])),
+            ("Emergency contact", staff.get("emergency_contact_name")),
+            ("Emergency phone", staff.get("emergency_contact_phone")),
+            ("Emergency relationship", staff.get("emergency_contact_relationship")),
+            ("Bank", staff.get("bank_name")),
+            ("Sort code", staff.get("bank_sort_code")),
+            ("Account (last 4)", staff.get("bank_account_last4")),
+        ]),
+        ("Employment", [
+            ("Primary role", staff.get("primary_role")),
+            ("Department", staff.get("department")),
+            ("Job title", emp.get("job_title") or emp.get("position")),
+            ("Employment type", emp.get("employment_type") or staff.get("contract_type")),
+            ("Line manager", emp.get("line_manager")),
+            ("Hours / week", staff.get("hours_per_week") or emp.get("hours_per_week")),
+            ("Hourly rate", f"£{rate:.2f}" if rate else ""),
+            ("Hire / start date", staff.get("hire_date") or emp.get("proposed_start_date")),
+            ("Right to work", staff.get("right_to_work_status")),
+            ("Status", "Leaver" if staff.get("active") is False else "Active"),
+            ("Termination date", staff.get("termination_date")),
+            ("Termination reason", staff.get("termination_reason")),
+        ]),
+        ("Onboarding", [
+            ("Case status", case.get("status")),
+            ("Forms submitted", "Yes" if case.get("submitted") else "No"),
+            ("Offer status", (case.get("offer") or {}).get("status")),
+            ("Contract status", (case.get("contract") or {}).get("status")),
+            ("Paperwork complete", "Yes" if case.get("paperwork_complete") else "No"),
+            ("Activated at", (case.get("activated_at") or "")[:16].replace("T", " ")),
+        ]),
+    ]
+
+    docs = await db.staff_documents.find({"staff_id": sid, "organization_id": org_id}, {"_id": 0}).to_list(200)
+    leave = await db.staff_leave_requests.find({"staff_id": sid, "organization_id": org_id}, {"_id": 0}).sort("start_date", -1).to_list(200)
+    disc = await db.staff_disciplinary.find({"staff_id": sid, "organization_id": org_id}, {"_id": 0}).sort("occurred_at", -1).to_list(200)
+    train = await db.staff_training.find({"staff_id": sid, "organization_id": org_id}, {"_id": 0}).sort("completed_at", -1).to_list(200)
+
+    # Attendance & pay — compute per recent stored week.
+    pay_rows, tot_hours, tot_pay = [], 0.0, 0.0
+    try:
+        from routes.staffing_clock import _ensure_timesheet_doc, _week_bounds
+        weeks = await db.staff_timesheets.find({"staff_id": sid, "organization_id": org_id}, {"_id": 0, "week_start": 1}).sort("week_start", -1).to_list(16)
+        for w in weeks:
+            ws, we = _week_bounds(w["week_start"])
+            ts = await _ensure_timesheet_doc(org_id, sid, ws, we)
+            ah = round(ts.get("actual_hours", 0), 2)
+            pay = round(ah * rate, 2)
+            tot_hours += ah; tot_pay += pay
+            pay_rows.append([ws, f"{ah:.2f}", f"{ts.get('overtime_hours', 0):g}",
+                             (ts.get("approval_status") or "").title(), f"£{pay:.2f}"])
+    except Exception:
+        pass
+
+    tables = [
+        ("Documents", ["Name", "Type", "Expires", "Notes"],
+         [[d.get("name"), d.get("kind"), d.get("expires_at"), d.get("notes")] for d in docs]),
+        ("Attendance & Pay", ["Week", "Hours", "Overtime", "Status", "Pay"],
+         pay_rows + ([["TOTAL", f"{tot_hours:.2f}", "", "", f"£{tot_pay:.2f}"]] if pay_rows else [])),
+        ("Leave", ["Type", "From", "To", "Status", "Reason"],
+         [[l.get("leave_type"), l.get("start_date"), l.get("end_date"), l.get("status"), l.get("reason")] for l in leave]),
+        ("Disciplinary", ["Date", "Severity", "Summary", "Actions agreed", "Resolved"],
+         [[d.get("occurred_at"), d.get("severity"), d.get("summary"), d.get("actions_agreed"), d.get("resolved_at")] for d in disc]),
+        ("Training", ["Course", "Provider", "Completed", "Expires", "Score"],
+         [[t.get("course_name"), t.get("provider"), t.get("completed_at"), t.get("expires_at"), t.get("score")] for t in train]),
+    ]
+    return {"name": staff.get("full_name") or "Employee", "kv": kv, "tables": tables}
+
+
+def _emp_xlsx(f: dict) -> bytes:
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    wb = Workbook(); wb.remove(wb.active)
+    thin = Side(style="thin", color="D0D5DD"); border = Border(thin, thin, thin, thin)
+    head = PatternFill("solid", fgColor="0B0C10"); hfont = Font(bold=True, color="FFFFFF")
+    lab = Font(bold=True, color="475467")
+    ws = wb.create_sheet("Summary")
+    ws["A1"] = f"EMPLOYEE FILE — {f['name']}"; ws["A1"].font = Font(bold=True, size=15)
+    r = 3
+    for title, kvs in f["kv"]:
+        ws.cell(r, 1, title).font = Font(bold=True, size=12, color="0E7490"); r += 1
+        for k, v in kvs:
+            ws.cell(r, 1, k).font = lab; ws.cell(r, 2, v if v is None else str(v)); r += 1
+        r += 1
+    ws.column_dimensions["A"].width = 26; ws.column_dimensions["B"].width = 52
+    for title, cols, rows in f["tables"]:
+        sh = wb.create_sheet(title[:28])
+        for c, col in enumerate(cols, 1):
+            cell = sh.cell(1, c, col); cell.fill = head; cell.font = hfont; cell.border = border
+        for i, row in enumerate(rows, 2):
+            for c, val in enumerate(row, 1):
+                cell = sh.cell(i, c, "" if val is None else str(val)); cell.border = border
+        for c in range(1, len(cols) + 1):
+            sh.column_dimensions[chr(64 + c)].width = 22
+    buf = io.BytesIO(); wb.save(buf); return buf.getvalue()
+
+
+def _emp_pdf(f: dict) -> bytes:
+    import io
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=14 * mm, rightMargin=14 * mm, topMargin=12 * mm, bottomMargin=12 * mm)
+    styles = getSampleStyleSheet()
+    h1 = ParagraphStyle("h1", parent=styles["Title"], fontSize=16, spaceAfter=6)
+    h2 = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=11, textColor=colors.HexColor("#0E7490"), spaceBefore=8, spaceAfter=3)
+    cell = ParagraphStyle("c", parent=styles["Normal"], fontSize=8, leading=10)
+    story = [Paragraph(f"Employee File — {f['name']}", h1)]
+    for title, kvs in f["kv"]:
+        story.append(Paragraph(title, h2))
+        data = [[Paragraph(f"<b>{k}</b>", cell), Paragraph(_fv(v), cell)] for k, v in kvs]
+        t = Table(data, colWidths=[55 * mm, 122 * mm])
+        t.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#E5E7EB")),
+                               ("VALIGN", (0, 0), (-1, -1), "TOP"), ("FONTSIZE", (0, 0), (-1, -1), 8)]))
+        story.append(t)
+    for title, cols, rows in f["tables"]:
+        story.append(Paragraph(f"{title} ({len(rows)})", h2))
+        if not rows:
+            story.append(Paragraph("<i>No records.</i>", cell)); continue
+        data = [cols] + [[Paragraph(_fv(x), cell) for x in row] for row in rows]
+        n = len(cols); w = (182 * mm) / n
+        t = Table(data, colWidths=[w] * n, repeatRows=1)
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0B0C10")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#D0D5DD")),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#FAFBFC")]),
+        ]))
+        story.append(t)
+        story.append(Spacer(1, 4))
+    doc.build(story)
+    return buf.getvalue()
+
+
+@router.get("/staffing/staff/{staff_id}/employee-file")
+async def export_employee_file(staff_id: str, format: str = Query("pdf"),
+                               user: dict = Depends(get_current_user)):
+    """Download a full employee file (PDF or Excel) for audits / SARs."""
+    _require_manager(user)
+    org_id = _org(user)
+    staff = await _staff_or_404(org_id, staff_id)
+    f = await _employee_file_data(org_id, staff)
+    from fastapi.responses import Response
+    safe = (staff.get("full_name") or "employee").replace(" ", "_")
+    if (format or "pdf").lower() == "xlsx":
+        return Response(content=_emp_xlsx(f),
+                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        headers={"Content-Disposition": f'attachment; filename="employee-file-{safe}.xlsx"'})
+    return Response(content=_emp_pdf(f), media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="employee-file-{safe}.pdf"'})
