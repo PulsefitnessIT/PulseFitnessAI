@@ -1,3 +1,29 @@
+# ═══ 2026-06 · PROD FIXES BATCH (Switch-area race, sig placeholder, engineer van-check+notes, vehicle PDF) ═══
+Five items reported against production (pulsefitness.ai). All fixed in code; REDEPLOY required.
+1. SWITCH-AREA RACE (Navbar): /auth/login returns a "thin" user WITHOUT server-computed `has_staff_portal`, and
+   App.js login() never re-hydrated → AreaSwitcher saw <2 areas and hid until a full reload (clicking CRM). FIX:
+   login() now calls GET /auth/me right after setUser(thin) so has_staff_portal + module flags land immediately.
+2. SIGNATURE PLACEHOLDER (StaffPortal.js): "e.g. Becky Hassell" → "Type name to sign here". Playwright-verified.
+3. ENGINEER VAN-CHECK + PER-DAY NOTES (timesheets): only for engineers (_is_engineer: is_engineer flag OR
+   role/department/job_title contains "engineer").
+   - Backend: SelfDay gains van_check(bool)+notes(str); self-save persists them (keeps a day even if it has only
+     a tick/note); _build_weekly_timesheet self line-item carries van_check; _ensure_timesheet_doc attaches
+     is_engineer; _paper_rows carries van_check; _ts_xlsx & _ts_pdf add a "Van check" column (+Notes wraps) ONLY
+     when is_engineer. GET /portal/timesheet + self-save both return is_engineer.
+   - Frontend StaffPortal grid: per-day van-check checkbox + notes input, shown only when ts.is_engineer; payload
+     + row seeding include them. Manager TimeClockTab detail adds Van check + Notes columns for engineers.
+   - VERIFIED: portal self-save→GET round-trip (van_check+notes+is_engineer persist); XLSX has Van check header +
+     Yes + note text for eng, absent for non-eng; PDF (analyze_file) shows Van check(Yes/—)+Notes, no overlap.
+     Demo staff test flag reverted.
+4. VEHICLE-CHECK PDF OVERLAP (pulse_doc_template.py): title/subtitle collided. title leading 28→32 +spaceAfter,
+   and pulse_title() adds a 2mm Spacer before the subtitle. analyze_file confirms clean separation.
+5. VEHICLE-CHECK PDF FILENAME (vehicle_checks.py): now vehicle-check-{Driver-Name}-{REG}-{completed-date}.pdf
+   (completed = submitted_at date, falls back to week_commencing).
+Frontend compiles clean.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · SECURITY INCIDENT — Stripe live key leak triage (git history) · code verified clean ═══
 Stripe emailed that live key sk_live_…CyZ0dW was public + deactivated; asked to rotate ALL live keys.
 Codebase audit results:

@@ -218,11 +218,13 @@ function TimesheetRow({ ts, headers, onApprove, onDispute }) {
                   <th className="text-left font-semibold py-1">{t('staffing.tc_col_actual', 'Actual')}</th>
                   <th className="text-right font-semibold py-1">{t('staffing.tc_col_hours', 'Hours')}</th>
                   <th className="text-right font-semibold py-1">{t('staffing.tc_col_late', 'Late')}</th>
+                  {ts.is_engineer && <th className="text-center font-semibold py-1">{t('staffing.tc_col_van', 'Van check')}</th>}
+                  {ts.is_engineer && <th className="text-left font-semibold py-1">{t('staffing.tc_col_notes', 'Notes')}</th>}
                 </tr>
               </thead>
               <tbody>
-                {ts.line_items.map((li) => (
-                  <tr key={li.shift_id} className="border-t" style={{ borderColor: 'var(--theme-border)' }}>
+                {ts.line_items.map((li, li_idx) => (
+                  <tr key={li.shift_id || `li-${li_idx}`} className="border-t" style={{ borderColor: 'var(--theme-border)' }}>
                     <td className="py-1.5">{li.date}</td>
                     <td className="py-1.5 tabular-nums">{li.scheduled_start}–{li.scheduled_end}</td>
                     <td className="py-1.5 tabular-nums">
@@ -234,6 +236,8 @@ function TimesheetRow({ ts, headers, onApprove, onDispute }) {
                     <td className="py-1.5 text-right tabular-nums" style={{ color: li.late_minutes > 0 ? '#EF4444' : 'var(--theme-text-muted)' }}>
                       {li.late_minutes > 0 ? `${li.late_minutes}m` : '—'}
                     </td>
+                    {ts.is_engineer && <td className="py-1.5 text-center">{li.van_check ? '✓' : '—'}</td>}
+                    {ts.is_engineer && <td className="py-1.5" style={{ color: 'var(--theme-text-muted)' }}>{li.notes || '—'}</td>}
                   </tr>
                 ))}
               </tbody>

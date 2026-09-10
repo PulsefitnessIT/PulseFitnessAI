@@ -230,6 +230,8 @@ class SelfDay(BaseModel):
     finish: str | None = None
     break_minutes: float | None = 0
     pt_classes: float | None = 0
+    van_check: bool | None = False
+    notes: str | None = None
 
 
 class SelfSave(BaseModel):
@@ -250,13 +252,16 @@ async def portal_timesheet_self_save(body: SelfSave, user: dict = Depends(get_cu
         raise HTTPException(409, "This week is locked for approval. Ask your manager to return it if you need changes.")
     entries: dict = {}
     for d in body.days:
-        if not (d.start or d.finish or d.break_minutes or d.pt_classes):
+        note = (d.notes or "").strip()
+        if not (d.start or d.finish or d.break_minutes or d.pt_classes or d.van_check or note):
             continue
         entries[d.date] = {
             "start": (d.start or "").strip() or None,
             "finish": (d.finish or "").strip() or None,
             "break_minutes": float(d.break_minutes or 0),
             "pt_classes": float(d.pt_classes or 0),
+            "van_check": bool(d.van_check),
+            "notes": note or None,
         }
     await db.staff_timesheets.update_one(
         {"id": ts["id"]},

@@ -733,6 +733,8 @@ function TimesheetsTab({ H }) {
       finish: se[d]?.finish || '',
       break_minutes: se[d]?.break_minutes ?? '',
       pt_classes: se[d]?.pt_classes ?? '',
+      van_check: se[d]?.van_check || false,
+      notes: se[d]?.notes || '',
     })));
   }, [ts, weekDates]);
 
@@ -743,6 +745,7 @@ function TimesheetsTab({ H }) {
   }, [ts]);
 
   const locked = !!ts?.locked;
+  const isEng = !!ts?.is_engineer;
   const status = ts?.approval_status || 'pending';
   const weekTotal = rows.reduce((a, r) => a + selfHoursOf(r), 0)
     + Object.values(shiftByDate).reduce((a, li) => a + (li.actual_hours || 0), 0);
@@ -753,9 +756,10 @@ function TimesheetsTab({ H }) {
   const saveDraft = async () => {
     setBusy(true); setErr(''); setSavedOk(false);
     try {
-      const days = rows.filter((r) => r.start || r.finish || r.break_minutes || r.pt_classes)
+      const days = rows.filter((r) => r.start || r.finish || r.break_minutes || r.pt_classes || r.van_check || (r.notes && r.notes.trim()))
         .map((r) => ({ date: r.date, start: r.start || null, finish: r.finish || null,
-          break_minutes: Number(r.break_minutes) || 0, pt_classes: Number(r.pt_classes) || 0 }));
+          break_minutes: Number(r.break_minutes) || 0, pt_classes: Number(r.pt_classes) || 0,
+          van_check: !!r.van_check, notes: (r.notes || '').trim() || null }));
       const { data } = await axios.post(`${API}/new-starter/portal/timesheet/self-save`, { week_start: week, days }, { headers: H });
       setTs(data); setSavedOk(true);
     } catch (e) { setErr(e?.response?.data?.detail || 'Could not save.'); }
@@ -773,9 +777,10 @@ function TimesheetsTab({ H }) {
     finally { setBusy(false); }
   };
   const saveDraftSilently = async () => {
-    const days = rows.filter((r) => r.start || r.finish || r.break_minutes || r.pt_classes)
+    const days = rows.filter((r) => r.start || r.finish || r.break_minutes || r.pt_classes || r.van_check || (r.notes && r.notes.trim()))
       .map((r) => ({ date: r.date, start: r.start || null, finish: r.finish || null,
-        break_minutes: Number(r.break_minutes) || 0, pt_classes: Number(r.pt_classes) || 0 }));
+        break_minutes: Number(r.break_minutes) || 0, pt_classes: Number(r.pt_classes) || 0,
+        van_check: !!r.van_check, notes: (r.notes || '').trim() || null }));
     await axios.post(`${API}/new-starter/portal/timesheet/self-save`, { week_start: week, days }, { headers: H });
   };
 
@@ -811,9 +816,12 @@ function TimesheetsTab({ H }) {
           </div>
 
           <div className="overflow-x-auto -mx-1">
-            <table className="w-full text-sm min-w-[560px]" data-testid="ts-grid">
+            <table className={`w-full text-sm ${isEng ? 'min-w-[760px]' : 'min-w-[560px]'}`} data-testid="ts-grid">
               <thead><tr className="text-left text-[11px] text-slate-400 uppercase">
-                <th className="py-1.5 pl-1">Day</th><th>Start</th><th>Finish</th><th>Break (min)</th><th>PT classes</th><th className="text-right pr-1">Total</th>
+                <th className="py-1.5 pl-1">Day</th><th>Start</th><th>Finish</th><th>Break (min)</th><th>PT classes</th>
+                {isEng && <th>Van check</th>}
+                {isEng && <th>Notes</th>}
+                <th className="text-right pr-1">Total</th>
               </tr></thead>
               <tbody>
                 {rows.map((r, i) => {
@@ -830,12 +838,14 @@ function TimesheetsTab({ H }) {
                       <td><input type="time" value={r.finish} disabled={locked} onChange={(e) => setRow(i, { finish: e.target.value })} data-testid={`ts-finish-${i}`} className="w-[104px] rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50 disabled:text-slate-400" /></td>
                       <td><input type="number" min="0" step="5" value={r.break_minutes} disabled={locked} onChange={(e) => setRow(i, { break_minutes: e.target.value })} data-testid={`ts-break-${i}`} className="w-[70px] rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50 disabled:text-slate-400" /></td>
                       <td><input type="number" min="0" step="0.5" value={r.pt_classes} disabled={locked} onChange={(e) => setRow(i, { pt_classes: e.target.value })} data-testid={`ts-pt-${i}`} className="w-[70px] rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50 disabled:text-slate-400" /></td>
+                      {isEng && <td className="text-center"><input type="checkbox" checked={!!r.van_check} disabled={locked} onChange={(e) => setRow(i, { van_check: e.target.checked })} data-testid={`ts-van-${i}`} className="h-4 w-4 accent-cyan-500 disabled:opacity-40" /></td>}
+                      {isEng && <td><input type="text" value={r.notes || ''} disabled={locked} onChange={(e) => setRow(i, { notes: e.target.value })} data-testid={`ts-notes-${i}`} placeholder="Notes" className="w-[170px] rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50 disabled:text-slate-400" /></td>}
                       <td className="text-right pr-1 font-semibold text-slate-800" data-testid={`ts-total-${i}`}>{dt ? `${dt}h` : '—'}</td>
                     </tr>
                   );
                 })}
               </tbody>
-              <tfoot><tr className="border-t-2 border-slate-200"><td className="py-2 pl-1 font-bold text-slate-900" colSpan={5}>Week total</td><td className="text-right pr-1 font-bold text-slate-900" data-testid="ts-week-total">{Math.round(weekTotal * 100) / 100}h</td></tr></tfoot>
+              <tfoot><tr className="border-t-2 border-slate-200"><td className="py-2 pl-1 font-bold text-slate-900" colSpan={isEng ? 7 : 5}>Week total</td><td className="text-right pr-1 font-bold text-slate-900" data-testid="ts-week-total">{Math.round(weekTotal * 100) / 100}h</td></tr></tfoot>
             </table>
           </div>
 
@@ -846,7 +856,7 @@ function TimesheetsTab({ H }) {
               <div className="flex flex-wrap items-end gap-3">
                 <label className="flex-1 min-w-[180px]">
                   <span className="text-xs font-semibold text-slate-500">Sign (type your full name)</span>
-                  <input value={sig} onChange={(e) => setSig(e.target.value)} data-testid="ts-signature" placeholder="e.g. Becky Hassell"
+                  <input value={sig} onChange={(e) => setSig(e.target.value)} data-testid="ts-signature" placeholder="Type name to sign here"
                     className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
                 </label>
                 <button onClick={saveDraft} disabled={busy} data-testid="ts-save-draft"

@@ -639,7 +639,7 @@ async def _build_weekly_timesheet(
     for d in sorted(self_entries):
         e = self_entries[d] or {}
         h = _self_day_hours(e)
-        if h <= 0 and not (e.get("start") or e.get("finish")):
+        if h <= 0 and not (e.get("start") or e.get("finish") or e.get("van_check") or e.get("notes")):
             continue
         self_hours += h
         total_actual += h
@@ -653,6 +653,7 @@ async def _build_weekly_timesheet(
             "scheduled_hours": 0.0,
             "actual_hours": h,
             "late_minutes": 0,
+            "van_check": bool(e.get("van_check")),
             "notes": e.get("notes"),
             "missing_punch": False,
         })
@@ -675,13 +676,30 @@ async def _build_weekly_timesheet(
     }
 
 
+def _is_engineer(staff: dict) -> bool:
+    """Engineer detection for the van-check/notes timesheet features. Matches an
+    explicit flag or any role/department/title mentioning "engineer"."""
+    if not staff:
+        return False
+    if staff.get("is_engineer") is True:
+        return True
+    blob = " ".join(str(staff.get(k) or "") for k in
+                    ("primary_role", "department", "job_title", "role")).lower()
+    return "engineer" in blob
+
+
 async def _ensure_timesheet_doc(
     org_id: str, staff_id: str, week_start: str, week_end: str,
 ) -> dict:
     """Build the live timesheet and merge with the persisted approval state."""
     live = await _build_weekly_timesheet(org_id, staff_id, week_start, week_end)
-    st = await db.staff_members.find_one({"id": staff_id}, {"_id": 0, "weekly_hours": 1, "hours_per_week": 1})
+    st = await db.staff_members.find_one(
+        {"id": staff_id},
+        {"_id": 0, "weekly_hours": 1, "hours_per_week": 1,
+         "primary_role": 1, "department": 1, "job_title": 1, "role": 1, "is_engineer": 1},
+    )
     standard_hours = float((st or {}).get("weekly_hours") or (st or {}).get("hours_per_week") or 0)
+    is_engineer = _is_engineer(st or {})
     saved = await db.staff_timesheets.find_one(
         {"organization_id": org_id, "staff_id": staff_id, "week_start": week_start},
         {"_id": 0},
@@ -690,6 +708,7 @@ async def _ensure_timesheet_doc(
         status = saved.get("approval_status", "pending")
         return {**saved, **live, "id": saved["id"], "approval_status": status,
                 "standard_hours": standard_hours,
+                "is_engineer": is_engineer,
                 "locked": status in ("submitted", "approved"),
                 "employee_signature": saved.get("employee_signature"),
                 "submitted_at": saved.get("submitted_at"),
@@ -707,7 +726,7 @@ async def _ensure_timesheet_doc(
         "created_at": _now().isoformat(),
     }
     await db.staff_timesheets.insert_one(new_doc.copy())
-    return {**new_doc, **live, "standard_hours": standard_hours, "locked": False}
+    return {**new_doc, **live, "standard_hours": standard_hours, "is_engineer": is_engineer, "locked": False}
 
 
 @router.get("/staffing/clock/my-timesheet")
@@ -858,7 +877,7 @@ def _paper_rows(ts: dict) -> list[dict]:
         order.append(d)
         days[d] = {
             "day": _DOW[i], "date": d, "start": "", "finish": "",
-            "break_min": 0, "pt": 0.0, "hours": 0.0, "notes": [],
+            "break_min": 0, "pt": 0.0, "hours": 0.0, "van_check": False, "notes": [],
         }
     for li in ts.get("line_items", []):
         d = li.get("date")
@@ -877,6 +896,8 @@ def _paper_rows(ts: dict) -> list[dict]:
         row["break_min"] += int(li.get("break_minutes") or 0)
         row["pt"] += float(li.get("pt_classes") or 0)
         row["hours"] += float(li.get("actual_hours") or 0)
+        if li.get("van_check"):
+            row["van_check"] = True
         if li.get("missing_punch"):
             row["notes"].append("Missing punch")
         if li.get("notes"):
@@ -929,25 +950,38 @@ def _ts_xlsx(sheets: list[dict], brand: dict | None = None) -> bytes:
         ws.cell(3 + o, 4, "Approved by:").font = label_font; ws.cell(3 + o, 5, ts.get("approved_by") or "")
         ws.cell(4 + o, 4, "Approved at:").font = label_font; ws.cell(4 + o, 5, (ts.get("approved_at") or "")[:16].replace("T", " "))
 
+        is_eng = bool(ts.get("is_engineer"))
+        cols = ["Day", "Date", "Start", "Finish", "Break (mins)", "PT classes", "Hours"]
+        if is_eng:
+            cols.append("Van check")
+        cols.append("Notes")
+        ncols = len(cols)
+        notes_col = ncols
+
         hrow = 6 + o
-        for c, col in enumerate(_TS_COLS, start=1):
+        for c, col in enumerate(cols, start=1):
             cell = ws.cell(row=hrow, column=c, value=col)
             cell.fill = head_fill; cell.font = head_font; cell.border = border
             cell.alignment = Alignment(horizontal="center", vertical="center")
         r = hrow + 1
         for row in _paper_rows(ts):
             vals = [row["day"], row["date"], row["start"], row["finish"],
-                    row["break_min"], round(row["pt"], 2), round(row["hours"], 2), row["notes"]]
+                    row["break_min"], round(row["pt"], 2), round(row["hours"], 2)]
+            if is_eng:
+                vals.append("Yes" if row.get("van_check") else "—")
+            vals.append(row["notes"])
             for c, v in enumerate(vals, start=1):
                 cell = ws.cell(row=r, column=c, value=v)
                 cell.border = border
-                if c in (3, 4, 5, 6, 7):
+                if c == notes_col:
+                    cell.alignment = Alignment(wrap_text=True, vertical="top")
+                elif c >= 3:
                     cell.alignment = Alignment(horizontal="center")
             r += 1
         # Totals row
         tot = ws.cell(row=r, column=1, value="TOTAL")
         tot.font = Font(bold=True)
-        for c in range(1, 9):
+        for c in range(1, ncols + 1):
             ws.cell(row=r, column=c).fill = tot_fill
             ws.cell(row=r, column=c).border = border
         ws.cell(row=r, column=5, value=round(ts.get("break_hours", 0) * 60)).alignment = Alignment(horizontal="center")
@@ -967,7 +1001,10 @@ def _ts_xlsx(sheets: list[dict], brand: dict | None = None) -> bytes:
             ws.cell(row=s + i, column=1, value=lab).font = label_font
             ws.cell(row=s + i, column=2, value=val)
 
-        widths = [12, 12, 9, 9, 12, 11, 9, 40]
+        widths = [12, 12, 9, 9, 12, 11, 9]
+        if is_eng:
+            widths.append(11)
+        widths.append(40)
         for i, w in enumerate(widths, start=1):
             ws.column_dimensions[chr(64 + i)].width = w
 
@@ -1014,24 +1051,40 @@ def _ts_pdf(sheets: list[dict], brand: dict | None = None) -> bytes:
         ))
         story.append(Spacer(1, 6))
 
-        data = [_TS_COLS]
+        is_eng = bool(ts.get("is_engineer"))
+        cols = ["Day", "Date", "Start", "Finish", "Break (mins)", "PT classes", "Hours"]
+        if is_eng:
+            cols.append("Van check")
+        cols.append("Notes")
+        data = [cols]
         for row in _paper_rows(ts):
-            data.append([
+            vals = [
                 row["day"], row["date"], row["start"] or "—", row["finish"] or "—",
                 str(row["break_min"]), f"{row['pt']:g}", f"{row['hours']:.2f}",
-                Paragraph(row["notes"] or "", cell),
-            ])
-        data.append(["TOTAL", "", "", "", str(round(ts.get("break_hours", 0) * 60)), "",
-                     f"{ts.get('actual_hours', 0):.2f}", ""])
-        col_w = [24 * mm, 24 * mm, 18 * mm, 18 * mm, 22 * mm, 20 * mm, 18 * mm, 105 * mm]
+            ]
+            if is_eng:
+                vals.append("Yes" if row.get("van_check") else "—")
+            vals.append(Paragraph(row["notes"] or "", cell))
+            data.append(vals)
+        totals = ["TOTAL", "", "", "", str(round(ts.get("break_hours", 0) * 60)), "",
+                  f"{ts.get('actual_hours', 0):.2f}"]
+        if is_eng:
+            totals.append("")
+        totals.append("")
+        data.append(totals)
+        if is_eng:
+            col_w = [22 * mm, 22 * mm, 16 * mm, 16 * mm, 20 * mm, 18 * mm, 16 * mm, 18 * mm, 89 * mm]
+        else:
+            col_w = [24 * mm, 24 * mm, 18 * mm, 18 * mm, 22 * mm, 20 * mm, 18 * mm, 105 * mm]
         tbl = Table(data, colWidths=col_w, repeatRows=1)
+        center_end = 7 if is_eng else 6
         tbl.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0B0C10")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
             ("FONTSIZE", (0, 0), (-1, -1), 8),
             ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#D0D5DD")),
-            ("ALIGN", (2, 0), (6, -1), "CENTER"),
+            ("ALIGN", (2, 0), (center_end, -1), "CENTER"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#EEF2F6")),
             ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),

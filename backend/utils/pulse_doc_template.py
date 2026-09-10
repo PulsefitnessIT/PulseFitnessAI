@@ -77,8 +77,8 @@ def pulse_styles() -> dict:
         "tagline": ps("tagline", fontSize=8, leading=10, textColor=PULSE_BLUE,
                       fontName="Helvetica-Bold"),
         "co": ps("co", fontSize=8, leading=11, textColor=PULSE_MUTED, alignment=TA_RIGHT),
-        "title": ps("title", fontSize=26, leading=28, textColor=PULSE_NAVY,
-                    fontName="Helvetica-Bold", alignment=TA_LEFT),
+        "title": ps("title", fontSize=26, leading=32, textColor=PULSE_NAVY,
+                    fontName="Helvetica-Bold", alignment=TA_LEFT, spaceAfter=2),
         "metalabel": ps("metalabel", fontSize=8.5, leading=12, textColor=PULSE_MUTED,
                         fontName="Helvetica-Bold"),
         "metaval": ps("metaval", fontSize=8.5, leading=12, textColor=PULSE_TEXT,
@@ -191,8 +191,12 @@ def make_pulse_doc(buf, title: str, *, is_mod: bool = False,
 
 def pulse_title(s: dict, title: str, subtitle: str | None = None) -> list:
     """Standard document title (navy) + optional muted subtitle line."""
+    from reportlab.platypus import Spacer
+    from reportlab.lib.units import mm
     flow = [Paragraph(_esc(title), s["title"])]
     if subtitle:
+        # Small gap so the subtitle never rides up into the title's descenders.
+        flow.append(Spacer(1, 2 * mm))
         flow.append(Paragraph(subtitle, s["muted"]))
     return flow
 

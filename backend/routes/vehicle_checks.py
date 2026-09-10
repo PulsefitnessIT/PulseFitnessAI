@@ -821,7 +821,10 @@ async def check_pdf(check_id: str, user: dict = Depends(get_current_user)):
         logger.exception("vehicle check PDF failed")
         raise HTTPException(500, f"Could not generate PDF: {e}")
     reg = (doc.get("details") or {}).get("reg_no", "vehicle").replace(" ", "")
-    fname = f"vehicle-check-{reg}-{doc.get('week_commencing', '')}.pdf"
+    driver = doc.get("driver_name") or (doc.get("details") or {}).get("driver_name") or "driver"
+    driver_safe = "".join(ch if (ch.isalnum() or ch in "-_") else "-" for ch in driver).strip("-") or "driver"
+    completed = (doc.get("submitted_at") or "")[:10] or doc.get("week_commencing", "")
+    fname = f"vehicle-check-{driver_safe}-{reg}-{completed}.pdf"
     return Response(content=pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f"attachment; filename={fname}"})
 

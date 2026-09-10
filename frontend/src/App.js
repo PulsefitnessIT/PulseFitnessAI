@@ -772,6 +772,11 @@ function App() {
  setUser(userData);
  loadBranding('cookie', userData?.role);
  loadSites('cookie', userData?.role);
+ // The /auth/login payload is "thin" — it omits server-computed fields like
+ // `has_staff_portal` and full module access. Re-hydrate from /auth/me right
+ // away so area/module gating (e.g. the "Switch area" button) renders
+ // immediately instead of only after the next full page load.
+ axios.get(`${API}/auth/me`).then((res) => { if (res.data) setUser(res.data); }).catch(() => {});
  window.dispatchEvent(new Event('pwa-check-install'));
  };
 
