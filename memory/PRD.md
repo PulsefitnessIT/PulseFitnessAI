@@ -1,3 +1,24 @@
+# ═══ 2026-06 · SECURITY INCIDENT — Stripe live key leak triage (git history) · code verified clean ═══
+Stripe emailed that live key sk_live_…CyZ0dW was public + deactivated; asked to rotate ALL live keys.
+Codebase audit results:
+- CURRENT working tree CLEAN: backend/.env holds only sk_test_; NO sk_live_/pk_live_ in any tracked source.
+- .gitignore correctly ignores .env/.env.*/*.env; NO .env is tracked by git; NO git remote configured.
+- Scrubbed the last partial ref `sk_live_…GAMXfE` → `sk_live_…<redacted>` in this PRD.
+- EXPOSURE = GIT HISTORY: commit b4f62e88 ("restore from versioned backup") contains backend/.env with a FULL
+  live secret (sk_live_51RefQ…), full live publishable (pk_live_51RefQ…) and live webhook secret (whsec_…).
+  The CyZ0dW key itself is NOT in this repo's history — leaked via another channel — but 51RefQ… is compromised.
+- Emergent secret-scanner scans FULL history and BLOCKS a GitHub push if secrets are present, so the historical
+  .env was almost certainly never pushed via "Save to GitHub".
+OPEN USER ACTIONS (cannot be done by agent):
+  1) Rotate ALL Stripe live keys in the Stripe Dashboard (CyZ0dW already dead; roll 51RefQ… too); put the new key
+     ONLY in .env / Manage Publishes → Secrets (never commit); redeploy.
+  2) Email support@emergent.sh (job ID + Stripe email) to purge the historical .env from git history — no
+     self-service filter-repo/BFG procedure is documented and .git is platform-managed (do NOT rewrite manually).
+  3) Review Stripe Dashboard API logs for unauthorised activity.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · GLOBAL FIX — bottom banners never cover modal dialogs (z-index/stacking overlap) · live-preview PASS ═══
 Go-live blocker. The cookie-consent banner (and PWA install prompt) could sit over the bottom of a dialog and
 obscure its action buttons — a first-visit ("day one") bug caused by modal z-index being trapped in a lower
@@ -36160,7 +36181,7 @@ Wired the ModuleAccessGate "trial used" screen so an org owner can convert an ex
 - **Backend** (`routes/module_trials.py`): added `POST /api/me/module-purchase/checkout` (Stripe Checkout, `mode="subscription"`) + `GET /api/me/module-purchase/status/{session_id}` (poll → on `paid` set `modules.<mod>.{enabled:true, source:"paid"}` + store `module_subscriptions.<mod>.{stripe_customer_id, stripe_subscription_id}` + audit). Mirrors the verified raw-SDK pattern in `service_provider_billing.py`: server-side prices only (`MODULE_PLANS`: memberships £59 / crm £49 / marketing £39 per month, recurring Price IDs `STRIPE_PRICE_MEMBERSHIPS/CRM/MARKETING` + `_ANNUAL`, inline price_data fallback), `payment_transactions` ledger, `stripe_idem_key` idempotency, idempotent paid-processing.
 - **Frontend** (`ModuleAccessGate.js`): "trial used" branch now shows a live "Subscribe £X/mo" button (owner-only) → posts checkout → redirects to Stripe → on return polls status and refreshes access. crm/memberships/marketing all wired.
 - **Verified:** validation branches return clean 400s (Lite org → "Upgrade to Pulse Pro first"; invalid module → 400); frontend compiles; post-paid DB state keeps the module unlocked (source="paid", unaffected by trial expiry — unit-tested in resolve_module_access scenario 4).
-- **⚠️ BLOCKER — NOT fully E2E tested:** The live Stripe key in `backend/.env` (`STRIPE_API_KEY=sk_live_...GAMXfE`) is **EXPIRED** (`api_key_expired` 401 from Stripe). This blocks the actual checkout for THIS new flow AND every other existing Stripe flow in the app. The pod test placeholder `sk_test_emergent` only works via the `emergentintegrations` library, not the raw `stripe` SDK the app uses. **ACTION REQUIRED: the user must rotate their Stripe live secret key in the Stripe Dashboard and update `STRIPE_API_KEY` in backend/.env**, after which the subscribe flow works end-to-end.
+- **⚠️ BLOCKER — NOT fully E2E tested:** The live Stripe key in `backend/.env` (`STRIPE_API_KEY=sk_live_…<redacted>`) is **EXPIRED** (`api_key_expired` 401 from Stripe). This blocks the actual checkout for THIS new flow AND every other existing Stripe flow in the app. The pod test placeholder `sk_test_emergent` only works via the `emergentintegrations` library, not the raw `stripe` SDK the app uses. **ACTION REQUIRED: the user must rotate their Stripe live secret key in the Stripe Dashboard and update `STRIPE_API_KEY` in backend/.env**, after which the subscribe flow works end-to-end.
 
 ---
 ## Fix: Operations Dashboard "Quick Actions" keys — AI Diagnosis gating (Jun 29, 2026)
