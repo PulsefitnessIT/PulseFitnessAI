@@ -110,6 +110,40 @@ async def get_user_module_access(user_id: str, user: dict = Depends(get_current_
     access plus a plain-English reason, so a master admin can instantly see
     WHY someone can or can't reach a module (e.g. CRM lock-outs)."""
     require_master_admin(user)
+
+    # No-login staff (id "staff:<id>") — resolve to their linked account if one
+    # exists, otherwise return a read-only view so the drawer shows their
+    # modules (all minimal) with a clear "issue credentials" note instead of a
+    # 404 "no account row" error.
+    staff_rec = None
+    if user_id.startswith("staff:"):
+        staff_rec = await db.staff_members.find_one({"id": user_id[6:]}, {"_id": 0})
+        if not staff_rec:
+            raise HTTPException(status_code=404, detail="Staff not found")
+        if staff_rec.get("user_id"):
+            user_id = staff_rec["user_id"]
+            staff_rec = None
+
+    if staff_rec is not None:
+        try:
+            from routes.staffing import _platform_role_from_staff_role
+            role = _platform_role_from_staff_role(staff_rec.get("primary_role"))
+        except Exception:  # noqa: BLE001
+            role = "staff"
+        org = None
+        if staff_rec.get("organization_id"):
+            org = await db.organizations.find_one({"id": staff_rec["organization_id"]}, {"_id": 0})
+        synth = {
+            "id": user_id, "email": staff_rec.get("email") or "",
+            "full_name": staff_rec.get("full_name"), "role": role,
+            "organization_id": staff_rec.get("organization_id"),
+            "is_service_desk": False, "is_inventory": False,
+        }
+        payload = _module_access_payload(synth, org)
+        payload["no_login"] = True
+        payload["note"] = "This person has no login yet — issue credentials from Staffing to manage their module access."
+        return payload
+
     await assert_user_in_pulse_scope(user, user_id)
 
     target = await db.users.find_one({"id": user_id}, {"_id": 0})

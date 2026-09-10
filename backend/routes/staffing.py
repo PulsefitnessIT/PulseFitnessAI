@@ -537,7 +537,53 @@ async def create_staff(body: StaffCreate, user: dict = Depends(get_current_user)
         doc["hours_per_week"] = h
         doc["weekly_hours"] = h
     await db.staff_members.insert_one(doc.copy())
+    await _ensure_staff_account_shell(doc)
     return _clean(doc)
+
+
+async def _ensure_staff_account_shell(staff: dict) -> None:
+    """Auto-provision a NON-LOGINABLE platform account for a newly added staff
+    member so Master Admin can see and manage their module access. The account
+    starts with MINIMAL access (no elevated module flags) and an unusable
+    random-sentinel password, so it cannot be logged into until real
+    credentials are issued via /staffing/staff/{id}/credentials. Never blocks
+    staff creation (best-effort)."""
+    try:
+        email = (staff.get("email") or "").strip().lower()
+        if not email:
+            return  # no email → keep as a "no-login" staff row (drawer handles it)
+        existing = await db.users.find_one({"email": email}, {"_id": 0, "id": 1})
+        if not existing:
+            existing = await db.crm_users.find_one({"email": email}, {"_id": 0, "id": 1})
+        if existing:
+            # Already has a login — just link the staff record to it.
+            await db.staff_members.update_one({"id": staff["id"]}, {"$set": {"user_id": existing["id"]}})
+            return
+        from utils.auth import hash_password
+        import secrets
+        uid = str(uuid4())
+        shell = {
+            "id": uid,
+            "email": email,
+            "full_name": staff.get("full_name") or email,
+            "organization_id": staff.get("organization_id"),
+            "role": _platform_role_from_staff_role(staff.get("primary_role")),
+            "password": hash_password(secrets.token_urlsafe(24)),  # unusable sentinel
+            "active": True,
+            "is_master_admin": False,
+            "is_pulse_admin": False,
+            "is_service_desk": False,
+            "is_inventory": False,
+            "must_set_password": True,   # login blocked until credentials issued
+            "login_status": "none",
+            "created_at": _now().isoformat(),
+            "created_via": "staffing_auto_shell",
+        }
+        await db.users.insert_one(shell.copy())
+        await db.staff_members.update_one({"id": staff["id"]}, {"$set": {"user_id": uid}})
+    except Exception as exc:  # noqa: BLE001
+        import logging
+        logging.getLogger(__name__).warning("staff account shell provisioning failed: %s", exc)
 
 
 @router.patch("/staffing/staff/{staff_id}")

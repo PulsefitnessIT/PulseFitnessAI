@@ -1,3 +1,25 @@
+# ═══ 2026-06 · RBAC EPIC (4 items) — pass 2: Issue 3 DONE (staffing users auto-provisioned + drawer no longer 404s) ═══
+DONE — Issue 3 (staffing-created managers/staff invisible/unmanageable in Master Admin):
+  - Root cause: create_staff only wrote staff_members (no db.users row); Master Admin drawer called
+    /module-access/staff:{id} → 404 "No account row".
+  - staffing.py create_staff → _ensure_staff_account_shell(): when the staff has an EMAIL and no existing
+    login, auto-provisions a NON-LOGINABLE db.users shell (role via _platform_role_from_staff_role, org,
+    MINIMAL flags is_service_desk/is_inventory False, is_master_admin False, must_set_password True,
+    created_via 'staffing_auto_shell') with a bcrypt SENTINEL password (hash of secrets.token_urlsafe(24)) so
+    /login can never authenticate it until real creds are issued via /staffing/staff/{id}/credentials. Links
+    staff_members.user_id → shell. Best-effort (never blocks staff creation). Auth pattern per integration_expert
+    JWT playbook (reused utils.auth.hash_password; no new libs; login path untouched).
+  - master_admin_users.py get_user_module_access: handles "staff:<id>" ids — resolves to the linked account if
+    present, else returns a read-only payload (all modules off) + no_login flag + note instead of 404.
+  - UserDetailDrawer.js: shows an amber "no login yet — issue credentials" note and hides grant buttons when
+    no_login.
+  - VERIFIED (API + DB): creating a staff with email spawns the shell (role manager, minimal flags, sentinel
+    pw, must_set_password), staff.user_id linked; login attempt → 401. Frontend compiles. Test data cleaned.
+  - NOTE: legacy staff created BEFORE this fix still show as no-login (graceful note); a backfill could
+    provision shells for them if desired.
+STILL TODO: Issue 1 (managers default to no modules — matrix is now the source of truth) ·
+  Issue 4 (staffing list scoped by department + site for managers; Owner/HR/Payroll see all).
+
 # ═══ 2026-06 · RBAC EPIC (4 items) — pass 1: Issue 2 DONE (Service Desk + Inventory grantable → Switch-area) ═══
 User reported 4 interrelated access-control items (prod). Decisions: per-user module toggles drive Switch-area;
 auto-provision staffing users defaulting to minimal; staffing visibility scoped by department+site; Owner/HR/

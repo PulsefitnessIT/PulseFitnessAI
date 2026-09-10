@@ -155,6 +155,11 @@ const ModuleAccessSection = ({ userId, headers }) => {
             </div>
           </div>
           <div className="space-y-1.5">
+            {data.no_login && (
+              <div className="rounded-md border px-2.5 py-2 text-[11px] leading-snug" style={{ borderColor: '#FDE68A', background: '#FFFBEB', color: '#92400E' }} data-testid="module-access-no-login">
+                {data.note || 'This person has no login yet — issue credentials from Staffing to manage their module access.'}
+              </div>
+            )}
             {data.modules.map((m) => (
               <div key={m.key} className="rounded-md border px-2.5 py-2" style={{ borderColor: '#F4F4F5' }} data-testid={`module-access-row-${m.key}`}>
                 <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
@@ -169,7 +174,7 @@ const ModuleAccessSection = ({ userId, headers }) => {
                   <span className="text-[10px]" style={{ color: m.user_access ? '#16a34a' : (m.org_enabled ? '#d97706' : '#a1a1aa') }}>
                     {m.reason}
                   </span>
-                  {m.fix_action && (
+                  {m.fix_action && !data.no_login && (
                     <button
                       onClick={() => fix(m)}
                       disabled={fixing === m.key}
