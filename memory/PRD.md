@@ -1,3 +1,24 @@
+# ═══ 2026-06 · GLOBAL FIX — bottom banners never cover modal dialogs (z-index/stacking overlap) · live-preview PASS ═══
+Go-live blocker. The cookie-consent banner (and PWA install prompt) could sit over the bottom of a dialog and
+obscure its action buttons — a first-visit ("day one") bug caused by modal z-index being trapped in a lower
+ancestor stacking context (non-portaled modals) while the banner competed at root level; the PWA banner was
+also z-[200], genuinely ABOVE most modals (z-[70]–[120]).
+Root-cause, app-wide fix (no per-modal refactor):
+- NEW utils/useAnyModalOpen.js: a shared singleton MutationObserver that detects ANY on-screen modal — any
+  rendered `fixed inset-0` overlay (the convention every dialog here uses) OR `role="dialog"`/`aria-modal`
+  (Radix/shadcn) — debounced via rAF; sets body[data-modal-open] and notifies subscribers. Banners tag
+  themselves `data-bottom-banner` so they're excluded from detection.
+- CookieConsent.js: subscribes; returns null while a modal is open (yields), reappears when it closes.
+- PWAInstallPrompt.js: install-banner block gated on !anyModalOpen; z-[200] → z-40 (same bottom-banner layer
+  as the cookie banner, always below modals which start at z-50); tagged data-bottom-banner. iOS guide (itself
+  a modal) unaffected.
+- VERIFIED on live preview (standalone Playwright): baseline banner present → inject `fixed inset-0` modal →
+  banner gone + body.modalOpen=1 → remove → banner back + flag cleared → inject role=dialog → banner gone.
+  RESULT: PASS. Frontend compiles clean. REDEPLOY required for production.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFFING — COMPANY BRANDING on exports (Employee File + payroll/timesheets) · curl + PDF-analysis verified ═══
 Backlog Task 4 (P2). Generated documents now carry the org's logo + name so they're client-ready.
 - NEW utils/export_branding.py: resolve_export_brand(db, org_id) → {name, logo_bytes} with priority

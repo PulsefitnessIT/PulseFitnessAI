@@ -11,6 +11,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Shield } from 'lucide-react';
 import { setBottomBannerVisible } from '@/utils/bottomBanner';
+import { useAnyModalOpen } from '@/utils/useAnyModalOpen';
 
 function detectIsPulse() {
   if (typeof window === 'undefined') return false;
@@ -26,6 +27,7 @@ function detectIsPulse() {
 const CookieConsent = () => {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
+  const anyModalOpen = useAnyModalOpen();
   const isPulse = useMemo(() => detectIsPulse(), []);
   const accent = isPulse ? 'var(--pulse-primary)' : 'var(--color-brand-blue)';
   const accentHover = isPulse ? 'var(--pulse-primary-hover)' : 'var(--color-brand-blue-hover)';
@@ -54,9 +56,11 @@ const CookieConsent = () => {
   };
 
   if (!visible) return null;
+  // Yield to any open modal/dialog so we never cover its action buttons.
+  if (anyModalOpen) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 p-4 pointer-events-none" data-testid="cookie-consent-banner" data-brand={isPulse ? 'pulse' : 'gymaxis'}>
+    <div className="fixed bottom-0 left-0 right-0 z-40 p-4 pointer-events-none" data-bottom-banner="cookie" data-testid="cookie-consent-banner" data-brand={isPulse ? 'pulse' : 'gymaxis'}>
       <div className="max-w-4xl mx-auto bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 pointer-events-auto">
         <Shield size={20} className="shrink-0 mt-1 sm:mt-0" style={{ color: accent }} />
         <div className="flex-1">

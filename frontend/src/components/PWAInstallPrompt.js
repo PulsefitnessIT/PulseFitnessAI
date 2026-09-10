@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Download, X, Share, Plus, Smartphone } from 'lucide-react';
 import { useAuth } from '@/App';
 import { setBottomBannerVisible } from '@/utils/bottomBanner';
+import { useAnyModalOpen } from '@/utils/useAnyModalOpen';
 
 function isIOS() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -13,6 +14,7 @@ function isStandalone() {
 
 export default function PWAInstallPrompt() {
   const auth = useAuth();
+  const anyModalOpen = useAnyModalOpen();
   const onServiceDesk = typeof window !== 'undefined'
     && window.location.pathname.toLowerCase().startsWith('/service-desk');
   const isPulse = auth?.user?.account_type === 'pulse_pro' || auth?.user?.account_type === 'lite';
@@ -106,9 +108,12 @@ export default function PWAInstallPrompt() {
 
   return (
     <>
-      {/* Install Banner */}
+      {/* Install Banner — hidden while any modal/dialog is open so it never
+          sits over a dialog's buttons. */}
+      {!anyModalOpen && (
       <div
-        className="fixed bottom-4 left-4 right-4 z-[200] mx-auto max-w-md animate-in slide-in-from-bottom-4 pointer-events-none"
+        className="fixed bottom-4 left-4 right-4 z-40 mx-auto max-w-md animate-in slide-in-from-bottom-4 pointer-events-none"
+        data-bottom-banner="pwa"
         data-testid="pwa-install-banner"
       >
         <div className="rounded-2xl p-4 shadow-2xl border pointer-events-auto"
@@ -160,6 +165,7 @@ export default function PWAInstallPrompt() {
           </div>
         </div>
       </div>
+      )}
 
       {/* iOS Instructions Modal */}
       {showIOSGuide && (
