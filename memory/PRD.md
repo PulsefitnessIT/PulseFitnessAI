@@ -1,3 +1,23 @@
+# ═══ 2026-06 · STAFFING — COMPANY BRANDING on exports (Employee File + payroll/timesheets) · curl + PDF-analysis verified ═══
+Backlog Task 4 (P2). Generated documents now carry the org's logo + name so they're client-ready.
+- NEW utils/export_branding.py: resolve_export_brand(db, org_id) → {name, logo_bytes} with priority
+  document-branding profile logo → org.logo_path (object storage) → org.logo_url (http) → DEFAULT Pulse
+  Fitness badge (same asset the app UI uses; in-process URL cache). Plus pdf_brand_header() (logo left +
+  org name right + accent divider, prepended to a ReportLab story) and xlsx_brand_band() (anchors the logo
+  top-right + org name, returns a 4-row offset so callers push content below it).
+- staffing_hr.py: _emp_pdf/_emp_xlsx take brand; export_employee_file resolves it. PDF gets the brand strip
+  above "Employee File — {name}"; Summary sheet gets the brand band above the title.
+- staffing_clock.py: _ts_pdf/_ts_xlsx + _export_response take brand (per page / per worksheet). export_timesheet,
+  export-week and payroll-pack (zip of Excel) all resolve + pass brand → every weekly sheet/page is branded.
+- Per-org (not hard-coded Pulse): shows the org's own logo/name when configured; falls back to the Pulse badge.
+  No frontend change (export buttons already exist).
+- VERIFIED: employee-file PDF 200 (valid %PDF) + XLSX embeds xl/media/image1.jpeg; _ts_pdf/_ts_xlsx render with
+  logo. analyze_file confirmed header = Pulse logo top-left, "Iso Demo Fitness" top-right, divider above title,
+  no overlap. REDEPLOY required for production.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFFING — BANK DETAIL PARITY (full bank details round-trip) · curl+DB-verified both ways ═══
 Backlog Task 5 (P2). Bank details now round-trip between the HR profile and the staff "My Details" tab
 exactly like DOB/NI/address, via utils/personal_sync.py (single canonical source = staff_members).

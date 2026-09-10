@@ -710,17 +710,20 @@ async def _employee_file_data(org_id: str, staff: dict) -> dict:
     return {"name": staff.get("full_name") or "Employee", "kv": kv, "tables": tables}
 
 
-def _emp_xlsx(f: dict) -> bytes:
+def _emp_xlsx(f: dict, brand: dict | None = None) -> bytes:
     import io
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from utils.export_branding import xlsx_brand_band
     wb = Workbook(); wb.remove(wb.active)
     thin = Side(style="thin", color="D0D5DD"); border = Border(thin, thin, thin, thin)
     head = PatternFill("solid", fgColor="0B0C10"); hfont = Font(bold=True, color="FFFFFF")
     lab = Font(bold=True, color="475467")
     ws = wb.create_sheet("Summary")
-    ws["A1"] = f"EMPLOYEE FILE — {f['name']}"; ws["A1"].font = Font(bold=True, size=15)
-    r = 3
+    o = xlsx_brand_band(ws, brand)
+    tr = o + 1
+    ws.cell(tr, 1, f"EMPLOYEE FILE — {f['name']}").font = Font(bold=True, size=15)
+    r = tr + 2
     for title, kvs in f["kv"]:
         ws.cell(r, 1, title).font = Font(bold=True, size=12, color="0E7490"); r += 1
         for k, v in kvs:
@@ -739,20 +742,21 @@ def _emp_xlsx(f: dict) -> bytes:
     buf = io.BytesIO(); wb.save(buf); return buf.getvalue()
 
 
-def _emp_pdf(f: dict) -> bytes:
+def _emp_pdf(f: dict, brand: dict | None = None) -> bytes:
     import io
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from utils.export_branding import pdf_brand_header
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=14 * mm, rightMargin=14 * mm, topMargin=12 * mm, bottomMargin=12 * mm)
     styles = getSampleStyleSheet()
     h1 = ParagraphStyle("h1", parent=styles["Title"], fontSize=16, spaceAfter=6)
     h2 = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=11, textColor=colors.HexColor("#0E7490"), spaceBefore=8, spaceAfter=3)
     cell = ParagraphStyle("c", parent=styles["Normal"], fontSize=8, leading=10)
-    story = [Paragraph(f"Employee File — {f['name']}", h1)]
+    story = pdf_brand_header(brand) + [Paragraph(f"Employee File — {f['name']}", h1)]
     for title, kvs in f["kv"]:
         story.append(Paragraph(title, h2))
         data = [[Paragraph(f"<b>{k}</b>", cell), Paragraph(_fv(v), cell)] for k, v in kvs]
@@ -790,11 +794,13 @@ async def export_employee_file(staff_id: str, format: str = Query("pdf"),
     org_id = _org(user)
     staff = await _staff_or_404(org_id, staff_id)
     f = await _employee_file_data(org_id, staff)
+    from utils.export_branding import resolve_export_brand
+    brand = await resolve_export_brand(db, org_id)
     from fastapi.responses import Response
     safe = (staff.get("full_name") or "employee").replace(" ", "_")
     if (format or "pdf").lower() == "xlsx":
-        return Response(content=_emp_xlsx(f),
+        return Response(content=_emp_xlsx(f, brand),
                         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         headers={"Content-Disposition": f'attachment; filename="employee-file-{safe}.xlsx"'})
-    return Response(content=_emp_pdf(f), media_type="application/pdf",
+    return Response(content=_emp_pdf(f, brand), media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="employee-file-{safe}.pdf"'})

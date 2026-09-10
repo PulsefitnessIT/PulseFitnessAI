@@ -898,11 +898,12 @@ def _safe_sheet_title(name: str, used: set[str]) -> str:
     return title
 
 
-def _ts_xlsx(sheets: list[dict]) -> bytes:
+def _ts_xlsx(sheets: list[dict], brand: dict | None = None) -> bytes:
     """sheets: list of {name, ts}. One worksheet per timesheet."""
     import io
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from utils.export_branding import xlsx_brand_band
 
     wb = Workbook()
     wb.remove(wb.active)
@@ -918,17 +919,17 @@ def _ts_xlsx(sheets: list[dict]) -> bytes:
     for sh in sheets:
         ts = sh["ts"]
         ws = wb.create_sheet(_safe_sheet_title(sh.get("sheet_title") or sh["name"], used))
-        ws["A1"] = "Weekly Timesheet"
-        ws["A1"].font = title_font
-        ws["A2"] = "Employee:"; ws["A2"].font = label_font; ws["B2"] = sh["name"]
-        ws["A3"] = "Role:"; ws["A3"].font = label_font; ws["B3"] = ts.get("primary_role") or ""
-        ws["A4"] = "Week:"; ws["A4"].font = label_font
-        ws["B4"] = f"{ts.get('week_start')} → {ts.get('week_end')}"
-        ws["D2"] = "Status:"; ws["D2"].font = label_font; ws["E2"] = (ts.get("approval_status") or "").title()
-        ws["D3"] = "Approved by:"; ws["D3"].font = label_font; ws["E3"] = ts.get("approved_by") or ""
-        ws["D4"] = "Approved at:"; ws["D4"].font = label_font; ws["E4"] = (ts.get("approved_at") or "")[:16].replace("T", " ")
+        o = xlsx_brand_band(ws, brand)
+        ws.cell(1 + o, 1, "Weekly Timesheet").font = title_font
+        ws.cell(2 + o, 1, "Employee:").font = label_font; ws.cell(2 + o, 2, sh["name"])
+        ws.cell(3 + o, 1, "Role:").font = label_font; ws.cell(3 + o, 2, ts.get("primary_role") or "")
+        ws.cell(4 + o, 1, "Week:").font = label_font
+        ws.cell(4 + o, 2, f"{ts.get('week_start')} → {ts.get('week_end')}")
+        ws.cell(2 + o, 4, "Status:").font = label_font; ws.cell(2 + o, 5, (ts.get("approval_status") or "").title())
+        ws.cell(3 + o, 4, "Approved by:").font = label_font; ws.cell(3 + o, 5, ts.get("approved_by") or "")
+        ws.cell(4 + o, 4, "Approved at:").font = label_font; ws.cell(4 + o, 5, (ts.get("approved_at") or "")[:16].replace("T", " "))
 
-        hrow = 6
+        hrow = 6 + o
         for c, col in enumerate(_TS_COLS, start=1):
             cell = ws.cell(row=hrow, column=c, value=col)
             cell.fill = head_fill; cell.font = head_font; cell.border = border
@@ -975,7 +976,7 @@ def _ts_xlsx(sheets: list[dict]) -> bytes:
     return buf.getvalue()
 
 
-def _ts_pdf(sheets: list[dict]) -> bytes:
+def _ts_pdf(sheets: list[dict], brand: dict | None = None) -> bytes:
     """sheets: list of {name, ts}. One page per timesheet."""
     import io
     from reportlab.lib import colors
@@ -985,6 +986,7 @@ def _ts_pdf(sheets: list[dict]) -> bytes:
     from reportlab.platypus import (
         SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak,
     )
+    from utils.export_branding import pdf_brand_header
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -1001,6 +1003,7 @@ def _ts_pdf(sheets: list[dict]) -> bytes:
         ts = sh["ts"]
         if idx > 0:
             story.append(PageBreak())
+        story.extend(pdf_brand_header(brand))
         story.append(Paragraph("Weekly Timesheet", h_style))
         story.append(Paragraph(
             f"<b>{sh['name']}</b> &nbsp;·&nbsp; {ts.get('primary_role') or ''} &nbsp;·&nbsp; "
@@ -1057,18 +1060,18 @@ async def _enriched_ts(org_id: str, staff: dict, ws: str, we: str) -> dict:
     return ts
 
 
-def _export_response(fmt: str, sheets: list[dict], filename: str):
+def _export_response(fmt: str, sheets: list[dict], filename: str, brand: dict | None = None):
     from fastapi.responses import Response
 
     fmt = (fmt or "xlsx").lower()
     if fmt == "pdf":
         return Response(
-            content=_ts_pdf(sheets),
+            content=_ts_pdf(sheets, brand),
             media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="{filename}.pdf"'},
         )
     return Response(
-        content=_ts_xlsx(sheets),
+        content=_ts_xlsx(sheets, brand),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}.xlsx"'},
     )
@@ -1100,8 +1103,10 @@ async def export_timesheet(
     ws, we = _week_bounds(saved["week_start"])
     ts = await _enriched_ts(org_id, staff, ws, we)
     name = (staff.get("full_name") or "staff").replace(" ", "_")
+    from utils.export_branding import resolve_export_brand
+    brand = await resolve_export_brand(db, org_id)
     return _export_response(format, [{"name": staff.get("full_name") or "Staff", "ts": ts}],
-                            f"timesheet-{name}-{ws}")
+                            f"timesheet-{name}-{ws}", brand)
 
 
 @router.get("/staffing/timesheets/export-week")
@@ -1126,7 +1131,9 @@ async def export_week_timesheets(
             sheets.append({"name": s.get("full_name") or "Staff", "ts": ts})
     if not sheets:
         raise HTTPException(400, "No approved timesheets for this week yet.")
-    return _export_response(format, sheets, f"timesheets-week-{ws}")
+    from utils.export_branding import resolve_export_brand
+    brand = await resolve_export_brand(db, org_id)
+    return _export_response(format, sheets, f"timesheets-week-{ws}", brand)
 
 
 @router.get("/staffing/timesheets/payroll-pack")
@@ -1166,6 +1173,9 @@ async def payroll_pack(
         {"_id": 0, "id": 1, "full_name": 1, "primary_role": 1, "hourly_cost": 1},
     ).to_list(1000)
 
+    from utils.export_branding import resolve_export_brand
+    brand = await resolve_export_brand(db, org_id)
+
     buf = io.BytesIO()
     used_names: set[str] = set()
     added = 0
@@ -1185,7 +1195,7 @@ async def payroll_pack(
             while fname in used_names:
                 fname = f"{base}_{n}"; n += 1
             used_names.add(fname)
-            zf.writestr(f"{fname}-{mon0.isoformat()}_to_{date_to}.xlsx", _ts_xlsx(sheets))
+            zf.writestr(f"{fname}-{mon0.isoformat()}_to_{date_to}.xlsx", _ts_xlsx(sheets, brand))
             added += 1
 
     if added == 0:
