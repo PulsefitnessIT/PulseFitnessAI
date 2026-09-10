@@ -443,6 +443,12 @@ async def list_staff(include_inactive: bool = Query(False), user: dict = Depends
             q.update(scope)
     rows = await db.staff_members.find(q, {"_id": 0}).sort("full_name", 1).to_list(1000)
     if _is_manager(user):
+        # Backfill non-loginable shells for any staff (with an email) that has
+        # no linked login yet — so they become real users in Master Admin and
+        # their module access can be set before they ever sign in.
+        for r in rows:
+            if not r.get("user_id") and (r.get("email") or "").strip():
+                await _ensure_staff_account_shell(r)
         await _resolve_staff_login_flags(org_id, rows)
     return {"staff": rows, "role": _role(user)}
 
@@ -721,19 +727,40 @@ _STAFF_MODULE_KEYS = _STAFF_CORE_MODULES | set(_STAFF_MODULE_FLAGS)
 
 
 async def _staff_for_module_access(staff_id: str, user: dict):
-    """Authorise the caller and resolve (staff_member, linked_user, org)."""
+    """Authorise the caller and resolve (staff_member, linked_user, org).
+
+    Provisions the non-loginable account shell ON DEMAND when the staff member
+    has no login yet, so managers can set module access BEFORE the person ever
+    signs in — the access is stored on the shell and applied at first login."""
     _require_manager(user)
     org_id = _org(user)
     sm = await db.staff_members.find_one({"id": staff_id, "organization_id": org_id}, {"_id": 0})
     if not sm:
         raise HTTPException(404, "staff not found")
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0})
-    target = None
-    if sm.get("user_id"):
-        target = await db.users.find_one({"id": sm["user_id"]}, {"_id": 0})
-        if not target:
-            target = await db.crm_users.find_one({"id": sm["user_id"]}, {"_id": 0})
+    target = await _ensure_staff_login_target(sm)
     return sm, target, org
+
+
+async def _ensure_staff_login_target(sm: dict) -> dict | None:
+    """Return the staff member's linked platform account, provisioning a
+    non-loginable shell if one doesn't exist yet (requires an email). Returns
+    None only when there's no email to key a login on."""
+    uid = sm.get("user_id")
+    if uid:
+        found = (await db.users.find_one({"id": uid}, {"_id": 0})
+                 or await db.crm_users.find_one({"id": uid}, {"_id": 0}))
+        if found:
+            return found
+    if (sm.get("email") or "").strip():
+        await _ensure_staff_account_shell(sm)
+        refreshed = await db.staff_members.find_one({"id": sm["id"]}, {"_id": 0, "user_id": 1})
+        new_uid = (refreshed or {}).get("user_id")
+        if new_uid:
+            sm["user_id"] = new_uid
+            return (await db.users.find_one({"id": new_uid}, {"_id": 0})
+                    or await db.crm_users.find_one({"id": new_uid}, {"_id": 0}))
+    return None
 
 
 @router.get("/staffing/staff/{staff_id}/module-access")
@@ -846,12 +873,11 @@ async def staff_module_bulk(body: BulkModuleAccess, user: dict = Depends(get_cur
         if not sm:
             continue
         uid = sm.get("user_id")
-        target = await db.users.find_one({"id": uid}, {"_id": 0}) if uid else None
-        if not target:
-            target = await db.crm_users.find_one({"id": uid}, {"_id": 0}) if uid else None
+        target = await _ensure_staff_login_target(sm)
         if not target:
             result["skipped_no_login"].append(sm.get("full_name") or sid)
             continue
+        uid = target["id"]
         overrides = {**(target.get("module_overrides") or {})}
         flags: dict = {}
         for mod in grant:

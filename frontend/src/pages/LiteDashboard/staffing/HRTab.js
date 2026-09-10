@@ -1608,10 +1608,7 @@ export default function HRTab({ headers, isManager }) {
       <DetailChangeRequestsPanel headers={headers} isManager={isManager} />
 
       {isManager && (
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-            {t('staffing.hr_roles_note', 'Roles set in Master Admin pull through automatically — managers can override them per person below.')}
-          </p>
+        <div className="flex items-center justify-end gap-2 flex-wrap">
           <div className="flex items-center gap-2 shrink-0">
             <button type="button" onClick={reconcileRoles} disabled={reconciling}
               className="h-8 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1.5 border disabled:opacity-50"

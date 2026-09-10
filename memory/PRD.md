@@ -1,3 +1,27 @@
+# ═══ 2026-06 · Module access BEFORE sign-in + remove roles note + fix "User not found" for no-login staff ═══
+User: (1) set module access before a staff member signs in (else they may briefly get modules they shouldn't);
+(2) remove the "Roles set in Master Admin pull through…" note; (3) some staff missing module access on profiles;
+(4) 4 staff (Richard Sheen, Chris Pennington, Dave Martin, Tim Daffurn) "can't be found as users" though in Master
+Admin + staffing HR — is there a staff limit? (NO limit.)
+RCA: staff with no db.users login row → module panel showed "no login yet" (couldn't pre-set access) AND Master
+Admin surfaced them as synthetic "staff:<id>" rows whose edit 404'd ("User not found"). No DB cap exists.
+DONE:
+  - BE staffing.py: NEW _ensure_staff_login_target(sm) provisions the non-loginable shell ON DEMAND (needs an email)
+    and returns the account. _staff_for_module_access + bulk now use it → module access is settable BEFORE sign-in
+    (stored on the shell, applied at first login); "no login yet" now only shows for staff with NO email. list_staff
+    (managers) backfills shells for any staff with an email but no user_id → they become real users everywhere.
+  - BE master_admin_users.py admin_edit_user: resolves synthetic "staff:<id>" ids → provisions/links the real login
+    then applies the edit, so no-login staff (the 4) are editable instead of 404. (422 only if they have no email.)
+  - FE HRTab.js: removed the "Roles set in Master Admin pull through automatically…" note (kept Fix login roles /
+    Manage job roles buttons, right-aligned).
+  - VERIFIED (direct): shell-less staff → module GET provisions shell + returns 7 modules (no_login cleared);
+    admin_edit_user('staff:<id>', {role}) → success, role applied. FE compiles clean.
+NOTE: REDEPLOY required. In prod, opening People / editing those 4 will auto-provision their logins; fix Chris
+Pennington's truncated email (missing .com) via his profile.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · Copy-password button on Service Desk grant/send (Master Admin) ═══
 Follow-on to the no-auto-email change. AdminOrganizations.js Edit-User Service Desk row now shows a dismissible
 amber card with the temporary password + a one-click Copy button (data-testid edit-user-service-desk-copy /

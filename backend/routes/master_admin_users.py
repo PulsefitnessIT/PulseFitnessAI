@@ -962,6 +962,22 @@ async def get_all_users(user: dict = Depends(get_current_user), brand: str = "al
 async def admin_edit_user(user_id: str, body: dict = Body(...), user: dict = Depends(get_current_user)):
     """Master admin edits user details: name, email, role, job_title, module_overrides."""
     require_master_admin(user)
+    # No-login staff surface in the list as synthetic "staff:<id>" rows. Editing
+    # one (e.g. changing their role) used to 404 ("User not found"). Resolve it
+    # to a real login, provisioning the non-loginable shell on demand so the
+    # edit lands and they stop being un-editable.
+    if user_id.startswith("staff:"):
+        sm = await db.staff_members.find_one({"id": user_id[6:]}, {"_id": 0})
+        if not sm:
+            raise HTTPException(404, "Staff member not found")
+        try:
+            from routes.staffing import _ensure_staff_login_target
+            resolved = await _ensure_staff_login_target(sm)
+        except Exception:
+            resolved = None
+        if not resolved:
+            raise HTTPException(422, "This staff member has no email, so no login can be created. Add a complete email to their profile first.")
+        user_id = resolved["id"]
     await assert_user_in_pulse_scope(user, user_id)
     allowed = {"full_name", "email", "role", "job_title", "phone", "module_overrides", "allowed_site_ids"}
     updates = {k: v for k, v in body.items() if k in allowed and v is not None}
