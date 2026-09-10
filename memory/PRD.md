@@ -1,3 +1,44 @@
+# ═══ 2026-06 · CRM delete-company relocation (owner-gated) + Master Admin CUSTOMER-TENANT IMPORT (both stores) ═══
+User asks: (1) CRM company Delete button → move to the BOTTOM of the Edit modal, show to Owners + Master Admins,
+confirm before deleting. (2) The "main import" must land in BOTH the front-end Pulse Fitness Ltd CRM (staff access
+customer records) AND Master Admin (manage/troubleshoot). Decisions: import a spreadsheet ONCE via Master Admin;
+each customer becomes BOTH a platform Organisation AND a linked CRM Company under Pulse Fitness Ltd; customers start
+on LITE with base modules only (operations, memberships, crm, marketing).
+
+DONE (1) — DELETE RELOCATION (testing_agent frontend 100%):
+  - CRMCompanies.js CompanyDetail: header Delete button REMOVED. New "Danger zone" section at the BOTTOM of the
+    Edit Company modal (data-testid company-delete-section) with red "Delete company" (company-delete-btn), rendered
+    only when canDelete. deleteCompany() uses window.confirm then DELETE /crm/v2/companies/{id} (backend ALSO enforces
+    step-up re-auth §18 — the FE "Confirm it's you" modal handles it; enter session password to complete).
+  - GATING FIX: owner@isodemo has CRM role='manager' but PLATFORM role='owner'. So CRMApp.js now derives isOwner from
+    the PLATFORM user (mainAuth.user) role ∈ {owner, org_owner} (or is_org_owner) and passes isOwner via CRMContext.
+    canDelete = isMasterAdmin || isOwner. (CRM user role is NOT authoritative for ownership.)
+
+DONE (2) — CUSTOMER-TENANT IMPORT (backend direct-call verified; Master Admin MFA-gated so no UI screenshot):
+  - Analysis: the mature bulk import (master_admin_bulk_import.py) + Import Centre wizard (onboarding_import.py) only
+    write rows INTO an existing target org — NEITHER creates Organisations. db.organizations (Master Admin tenants)
+    and db.crm2_companies (front-end CRM) are SEPARATE stores.
+  - NEW import type in onboarding_import.py TYPE_REGISTRY: "customer_orgs" (label "Customers (new tenants)",
+    creates_tenant=True). Fields: name(req), primary_contact_name/email/phone, website, address, city, postcode,
+    sector, customer_account_number (+ alias auto-map). BASE_TENANT_MODULES=[operations,memberships,crm,marketing].
+  - commit() branches to _commit_customer_tenants() when creates_tenant: per row → create a LITE platform org
+    (enabled_modules=base, account_type='lite', created_via='customer_orgs_import'), best-effort provision the
+    primary-contact owner login (_ensure_primary_contact_user → they can log in later), AND upsert a linked CRM
+    Company (_ensure_crm_company_mirror) under the operator company (is_operator_company=Pulse Fitness Ltd,
+    3ece2d0c-57ea-4acd-a6b4-d748478ed117) with type='customer', linked_organization_id=<tenant org>, site stamped
+    to the operator head office. Dedupe by org NAME (case-insensitive) across ALL orgs — existing customers are
+    SKIPPED (never duplicated); a re-run still ensures the CRM mirror exists. validate() + _existing_dupe_keys()
+    special-case creates_tenant to flag existing orgs. CommitBody.organization_id now Optional.
+  - FE ImportWizard.js: types carry creates_tenant; for a tenant type the Target-customer selector is HIDDEN, the
+    Upload button no longer requires an org, and a blue note explains the Lite/base-modules + linked-CRM behaviour.
+    Surface: Master Admin → Bulk Imports → "Import Centre" wizard → type "Customers (new tenants)".
+  - VERIFIED (harness): 2 new rows → 2 lite orgs (base modules) + 2 linked CRM companies under Pulse Fitness Ltd +
+    owner users provisioned; existing "Pulse Fitness Ltd" row skipped; re-run created 0, no duplicates. Cleaned up.
+NOTE: REDEPLOY required for production. The step-up on company delete means prod users must confirm their password.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · FIX: CRM MOD Sites blocked for owners/managers/admins (testing_agent 100%) + notes on delete/sync ═══
 BUG: CRM → Companies → "MOD Sites" showed "Only owners, managers or an admin can manage MOD sites" even for an
 OWNER (Lee Somers). RCA: GET /master-admin/mod-estate/site-readiness (loaded first) + /site/{id}/equipment-by-category

@@ -893,6 +893,11 @@ export default function CRMApp() {
   // the CRM's own auth context if no main session is available (e.g.
   // direct CRM login without SSO).
   const platformUser = mainAuth?.user || user;
+  // Account ownership lives on the PLATFORM user (the CRM user row is often
+  // role='manager' even for the account owner). Owners (and master admins)
+  // can delete CRM companies.
+  const isOwner = ['owner', 'org_owner'].includes(String(platformUser?.role || '').toLowerCase())
+    || !!platformUser?.is_org_owner;
   const platformLogout = () => {
     if (mainAuth?.logout) mainAuth.logout();
     else logout();
@@ -900,7 +905,7 @@ export default function CRMApp() {
   const showShell = !!platformUser;
 
   return (
-    <CRMContext.Provider value={{ user, isMasterAdmin, API, headers, logout, activeTab, setActiveTab, navigateTo, navTarget, setNavTarget, theme, isDark, c, t, staffFilter, setStaffFilter, activeMode, modes: crmModesData.modes, canInventory: canCapability(platformUser, 'view_inventory') }}>
+    <CRMContext.Provider value={{ user, isMasterAdmin, isOwner, API, headers, logout, activeTab, setActiveTab, navigateTo, navTarget, setNavTarget, theme, isDark, c, t, staffFilter, setStaffFilter, activeMode, modes: crmModesData.modes, canInventory: canCapability(platformUser, 'view_inventory') }}>
       <div
         className={`min-h-screen overflow-x-hidden pulse-font-body module-fade-in ${!isPulseBrandedCRM && !isDark ? 'theme-gymaxis' : ''}`}
         style={{ background: c.bg }}

@@ -1294,7 +1294,10 @@ function AddCoverageModal({ companyId, state, onClose, onSaved, API, headers, c,
 
 /* ═══ COMPANY DETAIL ═══ */
 function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveTab, navigateTo }) {
-  const { isMasterAdmin } = useCRM();
+  const { isMasterAdmin, isOwner } = useCRM();
+  // Owners (and Master Admins) can delete a company. Delete lives at the
+  // bottom of the Edit modal (owner-gated) with a confirmation prompt.
+  const canDelete = isMasterAdmin || isOwner;
   const [company, setCompany] = useState(null);
   const [activeSection, setActiveSection] = useState('overview');
   const [showAddNote, setShowAddNote] = useState(false);
@@ -1602,9 +1605,10 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
   };
 
   const deleteCompany = async () => {
-    if (!window.confirm(`Delete "${company.name}"? This permanently removes the company and cannot be undone.`)) return;
+    if (!window.confirm(`Delete "${company.name}"?\n\nThis permanently removes the company and cannot be undone.`)) return;
     try {
       await axios.delete(`${API}/crm/v2/companies/${companyId}`, { headers: headers() });
+      setShowEdit(false);
       onBack();
     } catch (e) { window.alert(e?.response?.data?.detail || 'Could not delete company'); }
   };
@@ -1711,11 +1715,6 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
           <button onClick={openEdit} className="px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="company-edit-btn">
             <Edit2 size={12} className="inline mr-1" /> Edit
           </button>
-          {isMasterAdmin && (
-            <button onClick={deleteCompany} className="px-3 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-red-500/10" style={{ borderColor: 'var(--color-danger-alt)', color: 'var(--color-danger-alt)' }} data-testid="company-delete-btn">
-              <Trash2 size={12} className="inline mr-1" /> Delete
-            </button>
-          )}
           <button onClick={() => setShowAddNote(true)} className="px-3 py-1.5 bg-[var(--color-info-ios)] text-white text-xs font-medium rounded-md hover:bg-[var(--color-brand-blue-deep)]" data-testid="add-activity-btn">
             <Plus size={12} className="inline mr-1" /> Log Activity
           </button>
@@ -2194,6 +2193,19 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
                 {savingEdit ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
+            {canDelete && (
+              <div className="mt-6 pt-4 border-t rounded-lg" style={{ borderColor: 'var(--color-danger-alt)' }} data-testid="company-delete-section">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold" style={{ color: 'var(--color-danger-alt)' }}>Danger zone</p>
+                    <p className="text-[11px]" style={{ color: c.textDim }}>Permanently deletes this company and cannot be undone.</p>
+                  </div>
+                  <button onClick={deleteCompany} className="px-3 py-1.5 text-xs font-semibold rounded-md border transition-all hover:bg-red-500/10" style={{ borderColor: 'var(--color-danger-alt)', color: 'var(--color-danger-alt)' }} data-testid="company-delete-btn">
+                    <Trash2 size={12} className="inline mr-1" /> Delete company
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -1,0 +1,23 @@
+{
+  "summary": "Verified CRM Delete-company UI relocation for owner@isodemo.com (platform role=owner). Created throwaway company 'ZZ QA Delete Test Co' via CRM > Companies > New Company. Confirmed: (1) Company detail header shows ONLY Connect portal / Edit / Log Activity — NO Delete button. (2) Edit modal opened via Edit button shows a red 'Danger zone' section at the BOTTOM (below Save Changes) with data-testid=company-delete-section (count=1) and red button data-testid=company-delete-btn (count=1). (3) Clicking Delete company fires window.confirm() dialog (auto-accepted) and calls DELETE /api/crm/v2/companies/{id}. The backend additionally requires a step-up password re-auth (Confirm it's you modal) — after entering IsoDemo123!, the delete succeeds, modal closes, and CompanyDetail navigates back to Companies list. (4) 'ZZ QA Delete Test Co' no longer appears in the companies list (0 occurrences). Owner gating via isOwner (platform role) is working correctly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Spec asked for 'browser confirm dialog then delete'. Implementation adds a step-up password re-auth modal after the window.confirm (backend returns 401/403 on DELETE without step-up token). This is a stricter security posture than the spec — main agent should confirm this is intentional. It works end-to-end when the correct password is entered.",
+    "CRMCompanies.js is 2559 lines — consider splitting CompanyDetail, EditCompany modal, DangerZone section into separate modules for maintainability."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (platform role=owner, CRM role=manager — isOwner correctly sourced from platform session)",
+  "seed_data_creation": "Created and then deleted throwaway company 'ZZ QA Delete Test Co' — cleaned up as part of the test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Delete-company UI relocation verified end-to-end. Only note: DELETE endpoint requires step-up password re-auth in addition to window.confirm; enter the current session password in the 'Confirm it's you' modal to complete deletion.",
+  "rca of the issue": "N/A — no bugs found. All 4 acceptance criteria from the review request passed."
+}

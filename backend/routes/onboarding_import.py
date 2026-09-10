@@ -92,7 +92,40 @@ TYPE_REGISTRY = {
         ],
         "defaults": {},
     },
+    # Iter 2026-06 — Customer tenant import. Unlike the other types (which
+    # write rows into ONE existing org's collection), each row here CREATES a
+    # brand-new platform Organisation (Lite tier, base modules only) AND a
+    # linked CRM Company under the operator company ("Pulse Fitness Ltd") so
+    # the same customer lands in BOTH the front-end CRM and Master Admin.
+    "customer_orgs": {
+        "label": "Customers (new tenants)",
+        "collection": "organizations",
+        "dedupe_keys": ["name"],
+        "creates_tenant": True,
+        "fields": [
+            F("name", "Customer / company name", required=True,
+              aliases=["company", "organisation", "organization", "account", "customer name", "customer", "company name"]),
+            F("primary_contact_name", "Primary contact", aliases=["contact", "contact name", "owner name", "primary contact"]),
+            F("primary_contact_email", "Contact email",
+              aliases=["email", "email address", "owner email", "contact email"], kind="email"),
+            F("primary_contact_phone", "Contact phone",
+              aliases=["phone", "telephone", "mobile", "tel", "contact phone"], kind="phone"),
+            F("website", "Website", aliases=["url", "web", "web site"]),
+            F("address", "Address", aliases=["location", "address line 1", "address_line1", "street"]),
+            F("city", "City", aliases=["town"]),
+            F("postcode", "Postcode", aliases=["post code", "zip", "zip code", "postal code"]),
+            F("sector", "Sector", aliases=["industry", "type", "vertical"]),
+            F("customer_account_number", "Account number",
+              aliases=["account number", "customer number", "sage customer number", "account code", "customer account number"]),
+        ],
+        "defaults": {},
+    },
 }
+
+
+# Base modules every imported customer starts on (Lite tier). The customer
+# upgrades to add anything beyond these once they've paid.
+BASE_TENANT_MODULES = ["operations", "memberships", "crm", "marketing"]
 
 
 def _type_or_404(t: str) -> dict:
@@ -109,6 +142,7 @@ async def import_types(user: dict = Depends(get_current_user)) -> dict:
     _require_pulse_or_master(user)
     return {"types": [
         {"id": t, "label": s["label"], "dedupe_keys": s["dedupe_keys"],
+         "creates_tenant": bool(s.get("creates_tenant")),
          "fields": [{"key": f["key"], "label": f["label"], "required": f["required"], "kind": f["kind"]} for f in s["fields"]]}
         for t, s in TYPE_REGISTRY.items()
     ]}
@@ -125,7 +159,15 @@ async def import_template(import_type: str, user: dict = Depends(get_current_use
         "name": "Acme Service Co", "membership_type": "Monthly", "joined_at": "2026-01-15",
         "supplier_type": "Maintenance", "address": "1 High St, London", "notes": "",
         "contact_person": "John Doe", "linkedin": "",
+        # customer_orgs
+        "primary_contact_name": "Jane Smith", "primary_contact_email": "jane@acmegym.com",
+        "primary_contact_phone": "+44 20 7946 0000", "website": "https://acmegym.com",
+        "city": "London", "postcode": "SW1A 1AA", "sector": "Health & Fitness",
+        "customer_account_number": "ACME01",
     }
+    # For the customer-tenant template, give a gym-flavoured example name.
+    if import_type == "customer_orgs":
+        example = {**example, "name": "Acme Gym Ltd", "address": "12 Fitness Way"}
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(headers)
@@ -215,6 +257,15 @@ def _validate_doc(doc: dict, spec: dict) -> list:
 
 async def _existing_dupe_keys(spec: dict, org_id: Optional[str], docs: list) -> set:
     """Return the set of dedupe-key signatures already present in the DB."""
+    # Customer-tenant imports dedupe against ALL platform organisations by
+    # name (there is no single target org — each row creates one).
+    if spec.get("creates_tenant"):
+        names = [(d.get("name") or "").strip().lower() for d in docs if d.get("name")]
+        if not names:
+            return set()
+        existing = await db.organizations.find({}, {"_id": 0, "name": 1}).to_list(50000)
+        present = {(e.get("name") or "").strip().lower() for e in existing if e.get("name")}
+        return {f"name:{n}" for n in names if n in present}
     if not org_id:
         return set()
     coll = db[spec["collection"]]
@@ -276,10 +327,173 @@ class CommitBody(BaseModel):
     import_type: str
     mapping: dict
     rows: list
-    organization_id: str
+    organization_id: Optional[str] = None
     dedupe_action: str = "skip"         # skip | update | create
     project_id: Optional[str] = None
     project_step_key: Optional[str] = None
+
+
+async def _resolve_operator_company_org_id() -> Optional[str]:
+    """The operator company ('Pulse Fitness Ltd') that owns the front-end CRM."""
+    op = await db.organizations.find_one({"is_operator_company": True}, {"_id": 0, "id": 1})
+    return op["id"] if op else None
+
+
+async def _ensure_crm_company_mirror(operator_org_id: str, tenant_org_id: str,
+                                     doc: dict, site_id: str, user: dict) -> str:
+    """Upsert a CRM Company (crm2_companies) under the operator company,
+    linked to the imported customer tenant so it appears in the front-end
+    CRM Companies list. Deduped by linked_organization_id then by name."""
+    import re as _re
+    name = (doc.get("name") or "").strip()
+    email = (doc.get("primary_contact_email") or "").strip().lower()
+    fields = {
+        "linked_organization_id": tenant_org_id,
+        "linked_at": _now(),
+        "type": "customer",
+        "website": doc.get("website", ""),
+        "phone": doc.get("primary_contact_phone", ""),
+        "email": email,
+        "address": doc.get("address", ""),
+        "address_line1": doc.get("address", ""),
+        "city": doc.get("city", ""),
+        "postcode": doc.get("postcode", ""),
+        "sector": doc.get("sector", ""),
+        "company_number": "",
+        "updated_at": _now(),
+    }
+    existing = await db.crm2_companies.find_one(
+        {"organization_id": operator_org_id, "$or": [
+            {"linked_organization_id": tenant_org_id},
+            {"name": {"$regex": f"^{_re.escape(name)}$", "$options": "i"}},
+        ]},
+        {"_id": 0, "id": 1},
+    )
+    if existing:
+        await db.crm2_companies.update_one({"id": existing["id"]}, {"$set": fields})
+        return existing["id"]
+    company = {
+        "id": str(uuid.uuid4()),
+        "organization_id": operator_org_id,
+        "site_id": site_id or "",
+        "name": name,
+        "status": "active",
+        "account_owner_id": user.get("id"),
+        "account_owner_name": user.get("full_name", ""),
+        "owner_id": user.get("id"),
+        "owner_name": user.get("full_name", ""),
+        "tags": [], "directors": [], "notes": "",
+        "imported_via": "customer_orgs_import",
+        "created_at": _now(),
+        **fields,
+    }
+    await db.crm2_companies.insert_one(company)
+    return company["id"]
+
+
+async def _commit_customer_tenants(body: CommitBody, user: dict, spec: dict) -> dict:
+    """Create a Lite platform Organisation per row AND a linked CRM Company
+    under the operator company, so each customer lands in BOTH Master Admin
+    and the front-end CRM."""
+    import re as _re
+    from routes.master_admin import (
+        _normalize_modules, _derive_portal_type, merge_address,
+        _ensure_primary_contact_user, log_activity,
+    )
+    from utils.sites_isolation import get_primary_site_id
+
+    report = {"created": 0, "updated": 0, "skipped": 0, "failed": 0, "errors": []}
+    operator_org_id = await _resolve_operator_company_org_id()
+    operator_site_id = await get_primary_site_id(operator_org_id) if operator_org_id else None
+    enabled_modules = _normalize_modules(BASE_TENANT_MODULES, None)
+    portal_type = _derive_portal_type(enabled_modules)
+    seen_names: set = set()
+
+    for idx, row in enumerate(body.rows):
+        doc = _build_doc(row, body.mapping, spec)
+        errs = _validate_doc(doc, spec)
+        if errs:
+            report["failed"] += 1
+            report["errors"].append({"row": idx + 1, "errors": errs})
+            continue
+        name = (doc.get("name") or "").strip()
+        key = name.lower()
+        if key in seen_names:
+            report["skipped"] += 1
+            continue
+        seen_names.add(key)
+
+        existing = await db.organizations.find_one(
+            {"name": {"$regex": f"^{_re.escape(name)}$", "$options": "i"}},
+            {"_id": 0, "id": 1},
+        )
+        try:
+            if existing:
+                # Org already exists — never duplicate a tenant. Still make sure
+                # a linked CRM Company mirror exists so it shows in the front-end.
+                if operator_org_id:
+                    await _ensure_crm_company_mirror(operator_org_id, existing["id"], doc, operator_site_id, user)
+                report["skipped"] += 1
+                continue
+
+            org_id = str(uuid.uuid4())
+            org_doc = {
+                "id": org_id, "name": name,
+                "portal_type": portal_type,
+                "enabled_modules": list(enabled_modules),
+                "subscription_tier": "free",
+                "account_type": "lite",
+                "status": "active",
+                "created_at": _now(),
+                "company_code": str(uuid.uuid4())[:8].upper(),
+                "industry": doc.get("sector", ""),
+                "website": doc.get("website", ""),
+                "phone": doc.get("primary_contact_phone", ""),
+                "primary_contact_name": doc.get("primary_contact_name", ""),
+                "primary_contact_email": (doc.get("primary_contact_email") or "").strip().lower(),
+                "primary_contact_phone": doc.get("primary_contact_phone", ""),
+                "customer_account_number": doc.get("customer_account_number", ""),
+                **merge_address({
+                    "address_line1": doc.get("address", ""),
+                    "city": doc.get("city", ""),
+                    "postcode": doc.get("postcode", ""),
+                }),
+                "notes": "",
+                "features": {},
+                "created_via": "customer_orgs_import",
+            }
+            await db.organizations.insert_one(org_doc)
+            # Best-effort owner provisioning so they can log in later.
+            try:
+                await _ensure_primary_contact_user(org_doc, user)
+            except Exception:
+                logger.warning("primary contact provisioning failed for %s", name)
+            if operator_org_id:
+                await _ensure_crm_company_mirror(operator_org_id, org_id, doc, operator_site_id, user)
+            try:
+                await log_activity(
+                    "org_created", f"Imported customer tenant: {name} (Lite)",
+                    user.get("email", "system"), "organization", org_id,
+                )
+            except Exception:
+                pass
+            report["created"] += 1
+        except Exception as e:  # noqa: BLE001
+            report["failed"] += 1
+            report["errors"].append({"row": idx + 1, "errors": [str(e)]})
+
+    try:
+        await db.onboarding_audit_events.insert_one({
+            "id": str(uuid.uuid4()),
+            "project_id": body.project_id,
+            "action": "customer_tenants_imported",
+            "detail": {"report": report, "operator_org_id": operator_org_id},
+            "actor_email": user.get("email"), "at": _now(),
+        })
+    except Exception:
+        logger.exception("customer tenant import audit failed")
+
+    return {"report": report}
 
 
 @router.post("/onboarding/import/commit")
@@ -288,6 +502,12 @@ async def commit(body: CommitBody, user: dict = Depends(get_current_user)) -> di
     spec = _type_or_404(body.import_type)
     if body.dedupe_action not in {"skip", "update", "create"}:
         raise HTTPException(status_code=400, detail="Invalid dedupe_action")
+
+    # Customer-tenant import — each row creates a platform Organisation +
+    # a linked CRM Company under the operator company. No target org needed.
+    if spec.get("creates_tenant"):
+        return await _commit_customer_tenants(body, user, spec)
+
     org = await db.organizations.find_one({"id": body.organization_id}, {"_id": 0, "id": 1})
     if not org:
         raise HTTPException(status_code=404, detail="Target organisation not found")

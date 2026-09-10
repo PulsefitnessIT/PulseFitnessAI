@@ -112,6 +112,7 @@ const ImportWizard = ({ presetOrgId = null, projectId = null, projectStepKey = n
   };
 
   const typeSpec = types.find((t) => t.id === importType);
+  const creatingTenant = !!typeSpec?.creates_tenant;
   const requiredOk = typeSpec ? typeSpec.fields.filter((f) => f.required).every((f) => mapping[f.key]) : false;
 
   return (
@@ -141,7 +142,7 @@ const ImportWizard = ({ presetOrgId = null, projectId = null, projectStepKey = n
               </SelectContent>
             </Select>
           </div>
-          {!presetOrgId && (
+          {!presetOrgId && !creatingTenant && (
             <div>
               <Label className="text-xs">Target customer</Label>
               <Select value={orgId} onValueChange={setOrgId}>
@@ -150,6 +151,11 @@ const ImportWizard = ({ presetOrgId = null, projectId = null, projectStepKey = n
                   {orgs.map((o) => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+          {creatingTenant && (
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800" data-testid="iw-tenant-note">
+              Each row creates a new <strong>Lite</strong> customer organisation (base modules: Operations, Memberships, CRM, Marketing) <strong>and</strong> a matching, linked company in the Pulse&nbsp;Fitness&nbsp;Ltd CRM. Existing customers (matched by name) are skipped, not duplicated.
             </div>
           )}
           {importType && (
@@ -163,7 +169,7 @@ const ImportWizard = ({ presetOrgId = null, projectId = null, projectStepKey = n
           <input ref={fileRef} type="file" accept=".csv" className="hidden"
                  onChange={(e) => onFile(e.target.files?.[0])} data-testid="iw-file-input" />
           <Button
-            disabled={!importType || !orgId || busy}
+            disabled={!importType || (!orgId && !creatingTenant) || busy}
             onClick={() => fileRef.current?.click()}
             data-testid="iw-upload-btn"
           >
