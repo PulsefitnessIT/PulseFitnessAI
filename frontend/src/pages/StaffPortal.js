@@ -179,21 +179,28 @@ export default function StaffPortal() {
 
 /* Fallback top bar for dedicated /staff-login sessions (no platform session, so
    the shared Navbar's Switch-area / avatar aren't available). Mirrors the
-   platform's black header. */
+   platform's black header exactly — same fixed positioning, height, black
+   background, Proxima Nova type, container width and Pulse lockup — so spacing
+   and fonts stay continuous with the standard header. */
 function FallbackBar({ onLogout }) {
   return (
-    <div style={{ backgroundColor: '#000000' }} className="border-b border-white/10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-        <img
-          src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg"
-          alt="Pulse Fitness" className="h-10 rounded-md object-cover"
-          style={{ objectPosition: 'center', aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }}
-          data-testid="staff-portal-logo" />
-        <button onClick={onLogout} data-testid="staff-portal-logout"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border border-white/20 text-white/90 hover:bg-white/10">
-          <LogOut size={14} /> Log out</button>
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/10"
+      style={{ backgroundColor: '#000000', fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif" }}>
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="flex justify-between items-center h-20">
+          <div className="flex items-center space-x-2.5">
+            <img
+              src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg"
+              alt="Pulse Fitness" className="h-10 rounded-md object-cover"
+              style={{ objectPosition: 'center', aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }}
+              data-testid="staff-portal-logo" />
+          </div>
+          <button onClick={onLogout} data-testid="staff-portal-logout"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border border-white/20 text-white/90 hover:bg-white/10 transition-colors">
+            <LogOut size={14} /> Log out</button>
+        </div>
       </div>
-    </div>
+    </nav>
   );
 }
 

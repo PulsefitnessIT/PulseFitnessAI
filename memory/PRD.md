@@ -1,3 +1,18 @@
+# ═══ 2026-06 · STAFF-LOGIN FALLBACK HEADER — MATCHED TO STANDARD HEADER (FE compile; visual by-construction) ═══
+The dedicated /staff-login session header (StaffPortal.js FallbackBar, shown when !usingPlatformToken) was an in-flow
+black `<div>` with `px-4 sm:px-6 lg:px-8`, default font, and no fixed positioning — but the content wrapper uses
+`pt-24` (sized for a FIXED bar), so staff-login users got the 80px bar PLUS a ~96px gap, and the font differed from the
+platform. Rewrote FallbackBar to mirror the shared Navbar EXACTLY: `<nav className="fixed top-0 left-0 right-0 z-50
+border-b border-white/10">`, `backgroundColor:#000`, `fontFamily:'Proxima Nova','Inter',system-ui`, inner
+`max-w-7xl mx-auto px-4` + `flex justify-between items-center h-20`, same Pulse lockup logo treatment
+(clipPath inset), logout button unchanged. Because it's now fixed like Navbar, the existing `pt-24` offset applies
+identically → spacing continuous across both header branches. VERIFIED: JSX parse + frontend compile clean. NOTE: the
+live FallbackBar state needs a dedicated /staff-login shared-login session (no documented individual staff password in
+test_credentials.md), so it was verified by construction against the already-screenshotted Navbar rather than a live
+browser shot.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · LAUNCHER / STAFF-PORTAL CHOOSER — STANDARD HEADER + TYPOGRAPHY CONSISTENCY (FE screenshot desktop+mobile) ═══
 The /launch post-login chooser (the "Welcome back, <name>" page with Staff Portal / Operations / … cards) previously
 rendered with NO platform header and hardcoded slate/cyan Tailwind colours + non-platform type — breaking continuity.
