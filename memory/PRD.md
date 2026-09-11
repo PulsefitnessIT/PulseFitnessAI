@@ -1,3 +1,18 @@
+# ═══ 2026-06 · LAUNCHER / STAFF-PORTAL CHOOSER — STANDARD HEADER + TYPOGRAPHY CONSISTENCY (FE screenshot desktop+mobile) ═══
+The /launch post-login chooser (the "Welcome back, <name>" page with Staff Portal / Operations / … cards) previously
+rendered with NO platform header and hardcoded slate/cyan Tailwind colours + non-platform type — breaking continuity.
+Fixed in pages/LauncherPage.js: added the shared `<Navbar/>` (fixed top-0 h-20, same header as every other module —
+logo, theme toggle, language, Dashboard, Switch area, avatar) with `pt-24` content offset; swapped the page to
+`pulse-font` on `var(--theme-bg)`; header now uses the same module-heading scale as StaffPortal
+(text-2xl sm:text-4xl tracking-tight font-semibold pulse-font-heading, `--theme-text`) with `pulse-font-body`
+`--theme-text-muted` subtitle and a cyan eyebrow; cards restyled onto `--theme-surface`/`--theme-border`/
+`--theme-card-shadow` with `pulse-font-heading` titles. Loading state also themed. VERIFIED via screenshots at 1920 and
+390px (no horizontal overflow). NOTE: the Staff Portal page itself (pages/StaffPortal.js) already renders `<Navbar/>`
+for platform sessions and a matching black FallbackBar only for dedicated /staff-login sessions (no platform token) —
+left as-is (a full Navbar there needs the platform session it doesn't have).
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · AFTERSALES ONBOARDING — MULTI-FILE MERGE + LARGE-FILE HANDLING (BE curl-verified + FE smoke) ═══
 Drop several files (spreadsheets AND invoices) for ONE customer, merged into a single estate before commit. Built for
 large estates: split a big file and add the parts.
