@@ -2525,6 +2525,8 @@ async def _contract_fact_sheet(org_id, contract):
     cycle = anniv.strftime("%Y") if anniv else str(now.year)
     rpi = await db.crm2_afs_rpi_reviews.find_one({**of, "contract_id": cid, "cycle": cycle}, _PUBLIC)
 
+    cust_email, cust_name = await _contract_customer_email(contract, of)
+
     # Recent service-desk history for this contract (Voice of Customer) —
     # so the assistant can reference recent visits, faults and open work.
     since_12m = (now - timedelta(days=365)).strftime("%Y-%m-%d")
@@ -2574,6 +2576,8 @@ async def _contract_fact_sheet(org_id, contract):
         "service_cases_open": cases_open,
         "service_cases_12m": cases_12m,
         "recent_cases": recent_cases,
+        "customer_email": cust_email,
+        "customer_name": cust_name,
     }
 
 
@@ -2765,3 +2769,92 @@ async def ai_assistant(body: AfsAiIn, user=Depends(get_crm_user)):
                        extra={"email_type": body.email_type, "has_question": bool(body.question)})
     return {"text": text, "mode": body.mode, "email_type": body.email_type,
             "facts": facts, "generated_at": _now()}
+
+
+
+async def _contract_customer_email(contract, of):
+    """Best-effort resolve a customer contact for a contract — company primary
+    contact first, then the linked operations org owner. UI can override."""
+    cid = contract.get("company_id")
+    if cid:
+        co = await db.crm2_companies.find_one({"id": cid, **of}, {"_id": 0})
+        if co:
+            for k in ("primary_contact_email", "contact_email", "email"):
+                v = (co.get(k) or "").strip()
+                if "@" in v:
+                    return v, (co.get("primary_contact_name") or co.get("name") or "")
+            for ct in (co.get("contacts") or []):
+                v = (ct.get("email") or "").strip()
+                if "@" in v:
+                    return v, ct.get("name") or ""
+    linked = contract.get("linked_organization_id")
+    if linked:
+        owner = await db.users.find_one(
+            {"organization_id": linked, "role": {"$in": ["owner", "org_owner"]}},
+            {"_id": 0, "email": 1, "full_name": 1})
+        if owner and "@" in (owner.get("email") or ""):
+            return owner["email"], owner.get("full_name") or ""
+    return "", ""
+
+
+def _text_to_html(text):
+    """Turn a plain-text email draft into simple branded HTML (paragraphs +
+    bullet lists). send_email() adds the Pulse branded header/footer."""
+    import html as _h
+    out, bullets = [], []
+
+    def flush():
+        if bullets:
+            out.append("<ul style='margin:8px 0;padding-left:20px'>"
+                       + "".join(f"<li>{_h.escape(b)}</li>" for b in bullets) + "</ul>")
+            bullets.clear()
+
+    for ln in (text or "").split("\n"):
+        s = ln.strip()
+        if not s:
+            flush(); continue
+        if s.startswith(("- ", "* ", "• ")):
+            bullets.append(s[2:].strip())
+        else:
+            flush()
+            out.append(f"<p style='margin:10px 0'>{_h.escape(s)}</p>")
+    flush()
+    return "".join(out)
+
+
+class AfsAiSendIn(BaseModel):
+    contract_id: str
+    subject: str
+    body: str
+    to_email: Optional[str] = None
+    to_name: Optional[str] = None
+
+
+@router.post("/ai/assistant/send-email")
+async def ai_assistant_send(body: AfsAiSendIn, user=Depends(get_crm_user)):
+    """Send an AI-drafted customer email via the branded Resend flow. Preview
+    uses a test key so delivery shows 'failed' but the send TRIGGERS + AUDITS;
+    real delivery happens in production."""
+    of = _of(user)
+    contract = await db.crm2_contracts.find_one({"id": body.contract_id, **of}, _PUBLIC)
+    if not contract:
+        raise HTTPException(404, "Contract not found")
+    email = (body.to_email or "").strip()
+    name = (body.to_name or "").strip()
+    if "@" not in email:
+        email, resolved_name = await _contract_customer_email(contract, of)
+        name = name or resolved_name
+    if "@" not in email:
+        raise HTTPException(400, "A customer email address is required to send this email.")
+    text_body = (body.body or "").strip()
+    if not text_body:
+        raise HTTPException(400, "The email body is empty.")
+    subject = (body.subject or "").strip() or f"Your Pulse Fitness maintenance contract — {contract.get('contract_number')}"
+    html = _text_to_html(text_body)
+
+    from utils.email import send_email
+    sent = await send_email(email, subject, html, organization_id=_org(user),
+                            category="service", kind="afs_ai_email")
+    await record_audit(entity_type="afs_ai_assistant", entity_id=body.contract_id, action="send_email",
+                       user=user, extra={"to": email, "sent": bool(sent), "subject": subject})
+    return {"sent": bool(sent), "to": email, "subject": subject}

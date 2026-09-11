@@ -1808,6 +1808,9 @@ function AIAssistantTab({ API, headers, c, isDark }) {
   const [result, setResult] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [sendTo, setSendTo] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendMsg, setSendMsg] = useState('');
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -1821,24 +1824,46 @@ function AIAssistantTab({ API, headers, c, isDark }) {
 
   useEffect(() => {
     if (!contractId) { setFacts(null); return; }
-    setFacts(null); setResult('');
+    setFacts(null); setResult(''); setSendMsg('');
     axios.get(`${API}/crm/v2/aftersales/ai/contracts/${contractId}/context`, { headers: headers() })
-      .then(r => setFacts(r.data.facts)).catch(() => setFacts(null));
+      .then(r => { setFacts(r.data.facts); setSendTo(r.data.facts?.customer_email || ''); })
+      .catch(() => setFacts(null));
   }, [API, headers, contractId]);
 
   const generate = async () => {
     if (!contractId) return;
-    setBusy(true); setErr(''); setResult('');
+    setBusy(true); setErr(''); setResult(''); setSendMsg('');
     try {
       const body = { contract_id: contractId, mode };
       if (mode === 'email') { body.email_type = emailType; body.instruction = instruction; }
       if (mode === 'question') body.question = question;
       const r = await axios.post(`${API}/crm/v2/aftersales/ai/assistant`, body, { headers: headers() });
       setResult(r.data.text || '');
-      if (r.data.facts) setFacts(r.data.facts);
+      if (r.data.facts) { setFacts(r.data.facts); if (!sendTo) setSendTo(r.data.facts.customer_email || ''); }
     } catch (e) {
       setErr(e?.response?.data?.detail || 'Generation failed. Please try again.');
     } finally { setBusy(false); }
+  };
+
+  const sendEmail = async () => {
+    const lines = result.split('\n');
+    let subject = '';
+    const bodyLines = [];
+    let subjectDone = false;
+    for (const ln of lines) {
+      const m = !subjectDone && ln.match(/^\s*subject\s*:\s*(.+)$/i);
+      if (m) { subject = m[1].trim(); subjectDone = true; continue; }
+      bodyLines.push(ln);
+    }
+    const bodyText = bodyLines.join('\n').trim();
+    setSending(true); setSendMsg('');
+    try {
+      const r = await axios.post(`${API}/crm/v2/aftersales/ai/assistant/send-email`,
+        { contract_id: contractId, subject, body: bodyText, to_email: sendTo }, { headers: headers() });
+      setSendMsg(r.data.sent ? `Sent to ${r.data.to}` : `Queued to ${r.data.to} — delivery is only live in production`);
+    } catch (e) {
+      setSendMsg(e?.response?.data?.detail || 'Send failed. Please try again.');
+    } finally { setSending(false); }
   };
 
   const copyResult = async () => {
@@ -1962,6 +1987,22 @@ function AIAssistantTab({ API, headers, c, isDark }) {
           <p className="text-[11px] mt-2" style={{ color: c.textDim }}>
             Editable draft — review before sending. Figures are drawn from the live contract record.
           </p>
+          {mode === 'email' && (
+            <div className="mt-3 pt-3 border-t flex flex-wrap items-center gap-2" style={{ borderColor: c.border }} data-testid="afs-ai-send-row">
+              <Mail size={14} style={{ color: c.textDim }} />
+              <input data-testid="afs-ai-send-to" type="email" value={sendTo} onChange={e => setSendTo(e.target.value)}
+                placeholder="customer@email.com"
+                className="flex-1 min-w-[180px] px-3 py-2 rounded-lg text-sm"
+                style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
+              <button data-testid="afs-ai-send" onClick={sendEmail} disabled={sending || !sendTo.trim() || !result.trim()}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold transition-opacity"
+                style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: (sending || !sendTo.trim() || !result.trim()) ? 0.5 : 1 }}>
+                {sending ? <RotateCw size={14} className="animate-spin" /> : <Share2 size={14} />}
+                {sending ? 'Sending…' : 'Send to customer'}
+              </button>
+              {sendMsg && <span data-testid="afs-ai-send-msg" className="text-xs w-full" style={{ color: c.textDim }}>{sendMsg}</span>}
+            </div>
+          )}
         </Card>
       )}
     </div>
