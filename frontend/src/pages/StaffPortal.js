@@ -11,10 +11,11 @@ import {
   CheckCircle2, AlertCircle, Plus, Trash2, Users,
   Home, Play, Square, Coffee, Sun, Thermometer, ChevronLeft, ChevronRight,
   ClipboardCheck, PenLine, Truck, Camera, ShieldAlert, Check, X, MoreHorizontal,
-  IdCard, HelpCircle, BookOpen,
+  IdCard, HelpCircle, BookOpen, Receipt, Car, PoundSterling, Upload, Send,
 } from 'lucide-react';
 import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
 import Navbar from '../components/shared/Navbar';
+import ExpensesTab from './StaffExpensesTab';
 import PillTabBar from '../components/shared/PillTabBar';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -42,6 +43,7 @@ const TABS = [
   ['rota', 'My Rota', Calendar],
   ['timesheets', 'Timesheets', Clock],
   ['holidays', 'Holidays', Plane],
+  ['expenses', 'Expenses', Receipt],
   ['vehicle', 'Vehicle', Truck],
   ['documents', 'Documents', FileText],
   ['access', 'System Access', ShieldCheck],
@@ -162,6 +164,7 @@ export default function StaffPortal() {
             {tab === 'rota' && <RotaTab H={H} />}
             {tab === 'timesheets' && <TimesheetsTab H={H} />}
             {tab === 'holidays' && <HolidaysTab H={H} />}
+            {tab === 'expenses' && <ExpensesTab H={H} />}
             {tab === 'vehicle' && <VehicleTab H={H} jwt={jwt} />}
             {tab === 'documents' && <DocumentsTab H={H} />}
             {tab === 'access' && <AccessTab H={H} />}

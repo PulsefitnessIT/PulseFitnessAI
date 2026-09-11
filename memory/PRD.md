@@ -1,3 +1,34 @@
+# ═══ 2026-06 · STAFF PORTAL — EXPENSES (monthly claim, Pulse template) (BE curl full lifecycle + FE screenshot) ═══
+Brought expenses into the Staff Portal, modelled on the Pulse Fitness "Employee expenses" spreadsheet. USER CHOICES:
+exact template mileage rates (1a), prefilled Name/Department + Car Registration + claim month (2a), the customer's own
+Nominal list from the sample (Expenses - Claire Briscall.xlsx), Net/VAT/Total per line with a "No VAT on receipt" toggle
+(4a), approval = line manager → finance reimburse (5a). Reuses the staff-portal auth + notifications + object storage +
+the existing receipt OCR (routes/expenses/common.ocr_receipt).
+  - Backend (routes/staff_portal.py, appended; collection `staff_expense_claims`): constants EXP_MILEAGE_RATES
+    (rate1 £0.55 / rate2 £0.25 / rate3 £0.17 / rate4 −£0.17 / rate5 Tesla £0.075), EXP_NOMINALS (16 from sample),
+    EXP_DEPARTMENTS (19 from sample). Helpers _exp_recalc (miles×rate; net+vat, vat zeroed when no_vat; grand total).
+    Endpoints (get_current_user_portal): GET /new-starter/portal/expenses/config, GET /expenses (list),
+    POST /expenses (create draft), GET/PUT /expenses/{id} (edit only when draft|rejected), POST /expenses/{id}/receipt
+    (put_object store + best-effort AI autofill suggestion), GET /expenses/{id}/receipt/{rid}, POST /expenses/{id}/submit
+    (→submitted, notifies line manager), DELETE /expenses/{id}. Review (get_current_user, HR_ROLES):
+    GET /new-starter/expenses/review/pending, POST review/{id}/approve|reject|reimburse (notify employee bell).
+    Added `from typing import Optional` import.
+  - FE (pages/StaffExpensesTab.js, imported into StaffPortal.js as ExpensesTab; new TABS entry ['expenses','Expenses',
+    Receipt], rendered {tab==='expenses'}): list of claims + status badges; guided editor — prefilled Name, Department
+    dropdown, Claim month, Car registration; 5 mileage rate rows (enter miles → £ auto-calc); itemised expense lines
+    (date, nominal dropdown, description, Net/VAT + No-VAT toggle, line total, receipt photo upload w/ AI autofill);
+    sticky running grand total; Save draft / Submit. testids: staff-expenses(-edit), exp-new/-save/-submit/-back,
+    exp-name/-department/-month/-car-reg, exp-mileage-<key>/exp-miles-<key>/exp-mileage-total, exp-add-line/
+    exp-line-<i> (date/nominal/desc/net/vat/novat/total/receipt/remove), exp-grand-total, exp-status.
+  VERIFIED: BE curl full lifecycle (100mi@£0.55 − 50mi@£0.17 = £46.50 mileage; £25+£5 + £8 no-VAT = £38; grand £84.50;
+    submit → pending(1) → approve → reimburse); FE desktop screenshot (100mi → £55.00 auto-calc, header/mileage/line/
+    total all render with platform typography). Test data purged. NOTE: mileage rate values match the FIRST template
+    (0.55/0.25/0.17/-0.17/0.075) per user's 1a choice; the Claire sample had older values (0.45/0.25/0.15/-0.15/0.04).
+    On mobile the Expenses tab sits under "More" (desktop pill bar is md+ only). Manager/finance review endpoints are
+    live but the manager-side review UI (Staffing console) is not yet built — next step.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · ONBOARDING MERGE — REMOVE A FILE (BE curl + FE browser verified) ═══
 Undo a single added file from a merge session before commit. `_append_to_session` now tags every appended row with a
 `source_id` (also stored on the sources[] entry). NEW: DELETE /crm/v2/aftersales/onboarding/{id}/sources/{source_id}

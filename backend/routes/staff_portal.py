@@ -30,6 +30,7 @@ from datetime import datetime, timezone, date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Body, Query, File, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
+from typing import Optional
 
 from utils.database import db, put_object, get_object, APP_NAME
 from utils.auth import get_current_user, get_current_user_portal
@@ -1428,3 +1429,319 @@ async def grant_report_modules(staff_id: str, body: ModuleGrant,
             user_set["is_inventory"] = "inventory" in granted
         await db.users.update_one({"id": report["user_id"]}, {"$set": user_set})
     return {"ok": True, "granted_modules": granted}
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# STAFF PORTAL — EXPENSES (monthly claim, modelled on the Pulse Fitness
+# template). Guided, dummy-proof: prefilled name/department, pick a mileage
+# rate + enter miles (£ auto-calcs), itemised lines with a nominal code and
+# Net/VAT/Total (+ "no VAT on receipt" toggle), receipt photos with AI autofill,
+# then submit → line manager approves → finance marks reimbursed.
+# ══════════════════════════════════════════════════════════════════════════
+EXP_MILEAGE_RATES = [
+    {"key": "rate1", "label": "Personal car — first miles", "rate": 0.55},
+    {"key": "rate2", "label": "Personal car — reduced rate", "rate": 0.25},
+    {"key": "rate3", "label": "Company car — without fuel card", "rate": 0.17},
+    {"key": "rate4", "label": "Company car — with fuel card", "rate": -0.17},
+    {"key": "rate5", "label": "Tesla / electric vehicle", "rate": 0.075},
+]
+EXP_NOMINALS = [
+    "Miscellaneous Expenses", "Airfare", "Train fares", "Hotel", "Entertaining Clients",
+    "Entertaining Staff", "Meals/Drinks", "Parking, tolls and other vehicle costs", "Taxi's",
+    "Stationery", "Computer consumables", "Postage", "Telecoms", "Rent", "Fuel", "Vehicle Servicing",
+]
+EXP_DEPARTMENTS = [
+    "Accounts", "Assembly", "D&B", "Product Design", "Directors", "Install", "IT", "Marketing",
+    "Production", "Quality", "Refurbishment", "Rock", "Sales", "Sales Admin", "Service",
+    "Service Admin", "Stores", "Technical", "Warehouse",
+]
+_EXP_RATE_BY_KEY = {r["key"]: r for r in EXP_MILEAGE_RATES}
+
+
+def _exp_num(v):
+    try:
+        return round(float(v), 2)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _exp_recalc(claim: dict) -> dict:
+    mileage = []
+    m_total = 0.0
+    for m in (claim.get("mileage") or []):
+        base = _EXP_RATE_BY_KEY.get(m.get("key"))
+        if not base:
+            continue
+        miles = _exp_num(m.get("miles"))
+        amount = round(miles * base["rate"], 2)
+        m_total += amount
+        mileage.append({"key": base["key"], "label": base["label"], "rate": base["rate"],
+                        "miles": miles, "amount": amount})
+    claim["mileage"] = mileage
+    claim["mileage_total"] = round(m_total, 2)
+
+    lines, e_total = [], 0.0
+    for ln in (claim.get("lines") or []):
+        net = _exp_num(ln.get("net"))
+        no_vat = bool(ln.get("no_vat"))
+        vat = 0.0 if no_vat else _exp_num(ln.get("vat"))
+        total = round(net + vat, 2)
+        e_total += total
+        lines.append({"date": (ln.get("date") or "")[:10], "description": (ln.get("description") or "").strip(),
+                      "nominal": ln.get("nominal") or "", "net": net, "vat": vat, "no_vat": no_vat,
+                      "total": total, "receipt_id": ln.get("receipt_id")})
+    claim["lines"] = lines
+    claim["expenses_total"] = round(e_total, 2)
+    claim["grand_total"] = round(m_total + e_total, 2)
+    return claim
+
+
+def _exp_public(claim: dict) -> dict:
+    return {k: v for k, v in claim.items() if k not in ("_id", "receipts")}
+
+
+@router.get("/new-starter/portal/expenses/config")
+async def portal_expenses_config(user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    return {"mileage_rates": EXP_MILEAGE_RATES, "nominals": EXP_NOMINALS, "departments": EXP_DEPARTMENTS,
+            "staff": {"name": staff.get("full_name") or staff.get("name") or "",
+                      "department": await _department(staff)}}
+
+
+@router.get("/new-starter/portal/expenses")
+async def portal_expenses_list(user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    rows = await db.staff_expense_claims.find(
+        {"organization_id": staff["organization_id"], "staff_person_id": staff["id"]},
+        {"_id": 0, "receipts": 0, "mileage": 0, "lines": 0}).sort("created_at", -1).to_list(200)
+    return {"claims": rows}
+
+
+class ExpClaimCreate(BaseModel):
+    claim_month: str
+    car_registration: str = ""
+
+
+@router.post("/new-starter/portal/expenses")
+async def portal_expenses_create(body: ExpClaimCreate, user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    claim = {
+        "id": str(uuid.uuid4()), "organization_id": staff["organization_id"],
+        "staff_person_id": staff["id"], "staff_name": staff.get("full_name") or staff.get("name") or "",
+        "department": await _department(staff), "car_registration": (body.car_registration or "").strip(),
+        "claim_month": body.claim_month, "status": "draft",
+        "mileage": [], "lines": [], "receipts": {},
+        "mileage_total": 0.0, "expenses_total": 0.0, "grand_total": 0.0,
+        "created_at": _now(), "updated_at": _now(),
+    }
+    await db.staff_expense_claims.insert_one(claim.copy())
+    return _exp_public(claim)
+
+
+@router.get("/new-starter/portal/expenses/{claim_id}")
+async def portal_expenses_get(claim_id: str, user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    claim = await db.staff_expense_claims.find_one(
+        {"id": claim_id, "organization_id": staff["organization_id"], "staff_person_id": staff["id"]})
+    if not claim:
+        raise HTTPException(404, "Claim not found")
+    return _exp_public(claim)
+
+
+class ExpClaimUpdate(BaseModel):
+    car_registration: Optional[str] = None
+    claim_month: Optional[str] = None
+    department: Optional[str] = None
+    mileage: Optional[list] = None
+    lines: Optional[list] = None
+
+
+@router.put("/new-starter/portal/expenses/{claim_id}")
+async def portal_expenses_update(claim_id: str, body: ExpClaimUpdate,
+                                 user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    claim = await db.staff_expense_claims.find_one(
+        {"id": claim_id, "organization_id": staff["organization_id"], "staff_person_id": staff["id"]})
+    if not claim:
+        raise HTTPException(404, "Claim not found")
+    if claim.get("status") not in ("draft", "rejected"):
+        raise HTTPException(409, "This claim has been submitted and can't be edited.")
+    if body.car_registration is not None:
+        claim["car_registration"] = body.car_registration.strip()
+    if body.claim_month is not None:
+        claim["claim_month"] = body.claim_month
+    if body.department is not None:
+        claim["department"] = body.department
+    if body.mileage is not None:
+        claim["mileage"] = body.mileage
+    if body.lines is not None:
+        claim["lines"] = body.lines
+    _exp_recalc(claim)
+    claim["updated_at"] = _now()
+    await db.staff_expense_claims.update_one({"id": claim_id}, {"$set": {
+        "car_registration": claim["car_registration"], "claim_month": claim["claim_month"],
+        "department": claim["department"], "mileage": claim["mileage"], "lines": claim["lines"],
+        "mileage_total": claim["mileage_total"], "expenses_total": claim["expenses_total"],
+        "grand_total": claim["grand_total"], "updated_at": claim["updated_at"]}})
+    return _exp_public(claim)
+
+
+@router.post("/new-starter/portal/expenses/{claim_id}/receipt")
+async def portal_expenses_receipt(claim_id: str, file: UploadFile = File(...),
+                                  user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    claim = await db.staff_expense_claims.find_one(
+        {"id": claim_id, "organization_id": staff["organization_id"], "staff_person_id": staff["id"]})
+    if not claim:
+        raise HTTPException(404, "Claim not found")
+    data = await file.read()
+    if len(data) > 15 * 1024 * 1024:
+        raise HTTPException(413, "Receipt too large (max 15MB).")
+    rid = str(uuid.uuid4())
+    ext = (file.filename or "jpg").rsplit(".", 1)[-1][:5] or "jpg"
+    path = f"{APP_NAME}/staff-expense-receipts/{staff['organization_id']}/{rid}.{ext}"
+    put_object(path, data, file.content_type or "image/jpeg")
+    receipts = claim.get("receipts") or {}
+    receipts[rid] = {"path": path, "content_type": file.content_type or "image/jpeg", "filename": file.filename}
+    await db.staff_expense_claims.update_one({"id": claim_id}, {"$set": {"receipts": receipts, "updated_at": _now()}})
+
+    # Optional AI autofill (best-effort — never blocks the upload).
+    ocr = None
+    try:
+        import base64 as _b64
+        from routes.expenses.common import ocr_receipt
+        ocr = await ocr_receipt(_b64.b64encode(data).decode("ascii"))
+    except Exception:
+        ocr = None
+    suggestion = None
+    if isinstance(ocr, dict) and ocr.get("is_receipt"):
+        gross = _exp_num(ocr.get("total_amount") or 0)
+        tax = _exp_num(ocr.get("tax_amount") or 0)
+        suggestion = {"date": (ocr.get("date") or "")[:10],
+                      "description": (ocr.get("merchant_name") or "").strip(),
+                      "net": round(gross - tax, 2) if gross else 0.0, "vat": tax, "no_vat": tax == 0}
+    return {"receipt_id": rid, "suggestion": suggestion}
+
+
+@router.get("/new-starter/portal/expenses/{claim_id}/receipt/{receipt_id}")
+async def portal_expenses_receipt_get(claim_id: str, receipt_id: str,
+                                      user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    claim = await db.staff_expense_claims.find_one(
+        {"id": claim_id, "organization_id": staff["organization_id"]})
+    if not claim:
+        raise HTTPException(404, "Claim not found")
+    meta = (claim.get("receipts") or {}).get(receipt_id)
+    if not meta:
+        raise HTTPException(404, "Receipt not found")
+    data = get_object(meta["path"])
+    return Response(content=data, media_type=meta.get("content_type") or "image/jpeg")
+
+
+@router.post("/new-starter/portal/expenses/{claim_id}/submit")
+async def portal_expenses_submit(claim_id: str, user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    claim = await db.staff_expense_claims.find_one(
+        {"id": claim_id, "organization_id": staff["organization_id"], "staff_person_id": staff["id"]})
+    if not claim:
+        raise HTTPException(404, "Claim not found")
+    if claim.get("status") not in ("draft", "rejected"):
+        raise HTTPException(409, "This claim has already been submitted.")
+    if not claim.get("mileage") and not claim.get("lines"):
+        raise HTTPException(400, "Add at least one mileage entry or expense line before submitting.")
+    org = staff["organization_id"]
+    await db.staff_expense_claims.update_one({"id": claim_id}, {"$set": {
+        "status": "submitted", "submitted_at": _now(), "updated_at": _now(), "review_note": ""}})
+    mgr_uid = await _line_manager_user_id(org, staff)
+    await notify_staff(org=org, recipient_kind="manager", recipient_user_id=mgr_uid,
+                       type="expense_claim", title="Expense claim to review",
+                       body=f"{claim.get('staff_name')} submitted a {claim.get('claim_month')} expense claim "
+                            f"for £{claim.get('grand_total', 0):.2f}.",
+                       link="/staffing?tab=expenses")
+    return {"status": "submitted"}
+
+
+@router.delete("/new-starter/portal/expenses/{claim_id}")
+async def portal_expenses_delete(claim_id: str, user: dict = Depends(get_current_user_portal)):
+    staff = await _portal_staff(user)
+    claim = await db.staff_expense_claims.find_one(
+        {"id": claim_id, "organization_id": staff["organization_id"], "staff_person_id": staff["id"]})
+    if not claim:
+        raise HTTPException(404, "Claim not found")
+    if claim.get("status") not in ("draft", "rejected"):
+        raise HTTPException(409, "Only draft claims can be deleted.")
+    await db.staff_expense_claims.delete_one({"id": claim_id})
+    return {"deleted": True}
+
+
+# ── Manager / finance review (platform session) ─────────────────────────────
+@router.get("/new-starter/expenses/review/pending")
+async def expenses_review_pending(user: dict = Depends(get_current_user)):
+    if (user.get("role") not in HR_ROLES) and not user.get("is_master_admin"):
+        raise HTTPException(403, "Not authorised")
+    org = user.get("organization_id")
+    rows = await db.staff_expense_claims.find(
+        {"organization_id": org, "status": {"$in": ["submitted", "approved"]}},
+        {"_id": 0, "receipts": 0}).sort("submitted_at", 1).to_list(500)
+    return {"claims": rows}
+
+
+class ExpReview(BaseModel):
+    note: Optional[str] = ""
+
+
+async def _exp_notify_owner(org: str, claim: dict, title: str, body: str):
+    await notify_staff(org=org, recipient_kind="employee", recipient_staff_id=claim.get("staff_person_id"),
+                       type="expense_claim", title=title, body=body, link="?tab=expenses")
+
+
+@router.post("/new-starter/expenses/review/{claim_id}/approve")
+async def expenses_review_approve(claim_id: str, user: dict = Depends(get_current_user)):
+    if (user.get("role") not in HR_ROLES) and not user.get("is_master_admin"):
+        raise HTTPException(403, "Not authorised")
+    org = user.get("organization_id")
+    claim = await db.staff_expense_claims.find_one({"id": claim_id, "organization_id": org})
+    if not claim:
+        raise HTTPException(404, "Claim not found")
+    if claim.get("status") != "submitted":
+        raise HTTPException(409, "Only submitted claims can be approved.")
+    await db.staff_expense_claims.update_one({"id": claim_id}, {"$set": {
+        "status": "approved", "approved_by": user.get("id"), "approved_at": _now(), "updated_at": _now()}})
+    await _exp_notify_owner(org, claim, "Expense claim approved",
+                            f"Your {claim.get('claim_month')} claim (£{claim.get('grand_total', 0):.2f}) was approved and is awaiting reimbursement.")
+    return {"status": "approved"}
+
+
+@router.post("/new-starter/expenses/review/{claim_id}/reject")
+async def expenses_review_reject(claim_id: str, body: ExpReview, user: dict = Depends(get_current_user)):
+    if (user.get("role") not in HR_ROLES) and not user.get("is_master_admin"):
+        raise HTTPException(403, "Not authorised")
+    org = user.get("organization_id")
+    claim = await db.staff_expense_claims.find_one({"id": claim_id, "organization_id": org})
+    if not claim:
+        raise HTTPException(404, "Claim not found")
+    if claim.get("status") not in ("submitted", "approved"):
+        raise HTTPException(409, "This claim can't be rejected in its current state.")
+    await db.staff_expense_claims.update_one({"id": claim_id}, {"$set": {
+        "status": "rejected", "review_note": (body.note or "").strip(),
+        "reviewed_by": user.get("id"), "reviewed_at": _now(), "updated_at": _now()}})
+    await _exp_notify_owner(org, claim, "Expense claim returned",
+                            f"Your {claim.get('claim_month')} claim was returned: {(body.note or 'please review and resubmit').strip()}")
+    return {"status": "rejected"}
+
+
+@router.post("/new-starter/expenses/review/{claim_id}/reimburse")
+async def expenses_review_reimburse(claim_id: str, user: dict = Depends(get_current_user)):
+    if (user.get("role") not in HR_ROLES) and not user.get("is_master_admin"):
+        raise HTTPException(403, "Not authorised")
+    org = user.get("organization_id")
+    claim = await db.staff_expense_claims.find_one({"id": claim_id, "organization_id": org})
+    if not claim:
+        raise HTTPException(404, "Claim not found")
+    if claim.get("status") != "approved":
+        raise HTTPException(409, "Only approved claims can be marked reimbursed.")
+    await db.staff_expense_claims.update_one({"id": claim_id}, {"$set": {
+        "status": "reimbursed", "reimbursed_by": user.get("id"), "reimbursed_at": _now(), "updated_at": _now()}})
+    await _exp_notify_owner(org, claim, "Expense claim reimbursed",
+                            f"Your {claim.get('claim_month')} claim (£{claim.get('grand_total', 0):.2f}) has been marked as paid.")
+    return {"status": "reimbursed"}
