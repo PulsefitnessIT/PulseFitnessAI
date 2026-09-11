@@ -1,0 +1,39 @@
+{
+  "summary": "Phase 3 (Agreement Builder + Activation Engine) tested end-to-end. BACKEND: 12/12 pytest tests PASS covering the full lifecycle (build-quote-from-estate -> accept -> agreements/from-quote -> generate -> sign -> activate -> contracts/{id}/schedules), idempotency (preparing an agreement twice from the same accepted quote returns the SAME agreement — verified id equality), guards (activate-before-signed = 400, sign without authority_confirmed = 400), monthly Direct Debit health flag (payment_method=monthly adds 'Direct Debit mandate required'; direct_debit_received=true clears it), platinum wording-conflict governance (health reason present; PATCH resolve_wording=true clears it), and dashboard counters (agreements_awaiting_signature + contracts_ready_to_activate visible under cards). Activation step-set fully verified: duplicate_check, contract_record, asset_cover (>0 assets covered), service_schedule (2 visits), billing_schedule (>=1 invoice), direct_debit, sicon_sync queued, sage_sync queued. Contract schedules endpoint returns active contract, service.required=2 with next_due populated, billing rows present. FRONTEND: full UI flow works. Corporate mode -> Aftersales Contracts -> Agreements sub-tab renders 3 rows (1 draft PF-MA-AD0BDD platinum + 2 pre-existing active gold agreements). Detail view shows afs-ag-status, afs-ag-health ('Contract Ready'), Schedule 1/2/3 cards (parties+sites, agreement+payment options, equipment groups with serial counts + line totals), afs-ag-payment dropdown. Action bar shows correct button per status: Draft->afs-ag-generate, Ready->afs-ag-open-sign, Signed->afs-ag-activate. Sign form (afs-ag-sign-form) submit button (afs-sign-submit) is CORRECTLY DISABLED until afs-sign-authority checkbox is ticked (verified programmatically: disabled=True before, disabled=False after). Full UI flow Generate->Sign->Activate completed on the draft agreement: status pill moved Draft->Ready->Signed->Active, afs-ag-activation checklist appeared showing all 8 steps (duplicate_check warned about existing PF-MA-0EA57D as expected, contract_record/asset_cover/service_schedule/billing_schedule/direct_debit ok, sicon/sage queued). REGRESSION: Phase-1 deterministic pricing (200H Console 6 Series 3 x2 gold = £688.74) STILL passes; Phase-2 build-quote-from-estate STILL works; all Aftersales sub-tabs (Dashboard, Build Quote, Agreements, Contracts & Renewals, Pricing & Rules, Equipment Review, Supportability) render. Two Phase-1/2 tests failed only because of stale hard-coded expectations that this Phase-3 run naturally invalidated (dashboard ACV moved £165k->£168,966 after Phase-3 created a new active contract; supportability decisions written by earlier phases now allow 7/16 auto-priced instead of 6/16). These are TEST DATA drift, not product bugs.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Corporate CRM shell (any tab)", "issues": ["React hydration warning in console: 'In HTML, <span> cannot be a child of <option>.' — a <select> in one of the Corporate sub-tabs is rendering a <span> inside an <option>. Non-blocking but noisy. Likely in an icon+label render inside a <select>. Worth grepping for '<option' and any child JSX."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_aftersales_phase3_jan2026.py",
+    "/app/test_reports/pytest/aftersales_phase3_jan2026.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: refresh the hard-coded £165,000 ACV assertion in tests/test_aftersales_contracts_jan2026.py::test_dashboard_cards to compute expected ACV from crm2_contracts, and refresh the '6 priced' expectation in tests/test_aftersales_phase2_jan2026.py::test_build_confidence_and_shape to accept the current count or reset supportability decisions in setUp. These are stale test expectations, not product bugs.",
+    "OPTIONAL: fix the '<span> cannot be a child of <option>' hydration warning by moving any icon out of the <option> element in a Corporate-mode <select>.",
+    "OPTIONAL cleanup left in DB (not blocking future tests): 1 extra active contract PF-MA-AD0BDD (platinum) and its schedules/billing rows created by this run + a second gold agreement/contract from earlier manual testing. Not harmful; agreements-from-same-quote guard is idempotent."
+  ],
+  "critical_code_review_comments": [
+    "routes/crm_aftersales.py is now 1546 lines — well over the 700-line soft cap. Splitting recommended: aftersales_pricing.py, aftersales_supportability.py, aftersales_estate_quotes.py, aftersales_agreements.py (Phase 3), aftersales_dashboard.py.",
+    "activate_agreement re-runs the full activation on every call (upserts contract, service schedule, billing, sets sicon/sage back to 'pending'). If the endpoint is hit twice, sync status regresses from any subsequent state back to 'pending'. Consider guarding: if already active, return current state + steps unless a re-activate flag is passed.",
+    "duplicate_check ignores agreements that are themselves currently being activated (only excludes source_agreement_id == this one). If two agreements for the same company are activated near-simultaneously, both may 'pass' the duplicate check. Low probability but worth noting.",
+    "AftersalesApp.js is 939 lines — approaching the split threshold; AgreementsTab could be extracted."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_aftersales_phase3_jan2026.py"
+  ],
+  "success_rate": {"backend": "100% (12/12 Phase-3 pytest)", "frontend": "100% — all data-testids present, full generate/sign/activate flow works, authority-gate enforced client-side"},
+  "test_credentials": "CRM: owner@isodemo.com / IsoDemo123! -> POST /api/crm/auth/login -> {token}. Test company id 'iso-cA' (AlphaCo). UI: /crm, switch to Corporate area.",
+  "seed_data_creation": "None seeded. Test run built its own gold + platinum saved quotes from AlphaCo estate via /build-quote-from-estate with save=true, and drove them through the full lifecycle. Two active contracts + agreements now exist for iso-cA (one from prior manual testing PF-MA-0EA57D, one from earlier gold test run PF-MA-3CDA07, one new platinum PF-MA-AD0BDD from this run). Guards behaved correctly (idempotent prepare, duplicate_check warning surfaced).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest: cd /app/backend && REACT_APP_BACKEND_URL=$(grep REACT_APP_BACKEND_URL /app/frontend/.env|cut -d= -f2) pytest tests/test_aftersales_phase3_jan2026.py -v. Uses CRM token via /api/crm/auth/login. Idempotent: reuses agreements from prior runs (prepare-agreement is idempotent per quote). Phase-1 test test_dashboard_cards and Phase-2 test test_build_confidence_and_shape are STALE (hard-coded £165k ACV and 6-priced count). Not product regressions — data has moved on. Key FE data-testids for Phase 3: afs-tab-agreements, afs-ag-quote, afs-ag-start, afs-ag-payment, afs-ag-prepare, afs-ag-row-{id}, afs-agreement-detail, afs-ag-status, afs-ag-health, afs-ag-s1/s2/s3, afs-ag-dd, afs-ag-resolve-wording, afs-ag-generate, afs-ag-open-sign, afs-ag-sign-form, afs-sign-name/position/email/authority/submit, afs-ag-activate, afs-ag-activation, afs-ag-back. FE quirk: session cookie is fragile between runs — always re-login via the email/password fields and click 'Corporate' area toggle.",
+  "rca_of_the_issue": "N/A — no functional bugs found in Phase 3. The two regression failures traced back to hard-coded expected values in older tests (ACV=£165000, priced=6) that are correct at Phase-1/2 time but stale after Phase-3 test runs mutate crm2_contracts and supportability decisions. Recommend making those two assertions self-computed rather than hard-coded."
+}

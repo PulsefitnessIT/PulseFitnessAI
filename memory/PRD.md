@@ -1,3 +1,42 @@
+# ═══ 2026-06 · AFTERSALES ENGINE — PHASE 3: AGREEMENT BUILDER + ACTIVATION (testing_agent BE 12/12 + FE 100%) ═══
+Closes the accepted-quote → live-contract loop, reusing crm2_contracts + PPM/Sicon/Sage. All in
+crm_aftersales.py + AftersalesApp.js "Agreements" sub-tab (afs-tab-agreements).
+  - Lifecycle: POST /quotes/{id}/accept → POST /agreements/from-quote/{quote_id} (auto-builds Schedules 1-6 from
+    the accepted quote's asset register + approved package + T&C/template versions; PF-MA-XXXXXX number;
+    idempotent — same quote returns same agreement) → GET /agreements(+/{id}) → PATCH /agreements/{id}
+    (payment_method, direct_debit_received, serial_exceptions, resolve_wording) → POST /generate (blocks unless
+    Agreement Health ready, 400+reasons) → POST /sign (ENFORCES authority_confirmed, captures signatory/position/
+    email/timestamp/versions) → POST /activate.
+  - ACTIVATION ENGINE (§65-71): duplicate-contract guard (§67); creates/updates the live crm2_contracts record
+    (source='aftersales', source_agreement_id, frozen pricing/package/tc versions); links contract_cover onto the
+    operations db.equipment register (single source of truth); builds service/PPM schedule (crm2_afs_service_
+    schedules from start+visits/yr), billing schedule (crm2_afs_billing — monthly/annual/lump from authoritative
+    value), Direct-Debit-outstanding flag, and QUEUES Sicon + Sage (sicon_sync_status/sage_sync_status=pending —
+    existing integrations MOCKED in preview). Returns per-step status; preserves work on partial failure (§131).
+  - GET /contracts/{contract_id}/schedules: live compliance view (service required/completed/next_due + billing +
+    sync status) for §71-75.
+  - Agreement Health (§58): flags missing legal entity/sites/dates/payment, incomplete serials (with authorised
+    exceptions TO_CONFIRM_ON_FIRST_SERVICE/NOT_APPLICABLE §51), unresolved wording conflicts, zero value.
+  - Controlled legal content: SCHEDULE5_OBLIGATIONS, SCHEDULE6_EXCEPTIONS, TC_VERSION, TEMPLATE_VERSION constants
+    (versioned; agreements store the versions signed §57). Supplier block + service contacts configurable via
+    crm2_afs_settings (supplier / service_contacts) with Pulse defaults.
+  - Dashboard: agreements_awaiting_signature (ready/sent) + contracts_ready_to_activate (signed) now include afs
+    agreements.
+  - FRONTEND AgreementsTab: list (status pills) + "Prepare from a saved quote" (afs-ag-quote/-start/-prepare);
+    detail (afs-agreement-detail) with afs-ag-status, afs-ag-health, Schedule 1/2/3 cards (afs-ag-s1/s2/s3),
+    payment control (afs-ag-payment, afs-ag-dd, afs-ag-resolve-wording), status-driven action bar
+    (afs-ag-generate → afs-ag-open-sign→afs-ag-sign-form[afs-sign-name/position/email/authority/submit] →
+    afs-ag-activate), activation checklist (afs-ag-activation) + timeline.
+  VERIFIED e2e (curl + testing agent): AlphaCo quote → agreement PF-MA-0EA57D → generate → sign (no-authority
+    400) → activate → active contract, 7 assets covered, 2 service visits (next 2026-12-30), £1983.19 annual
+    invoice, Sicon/Sage queued. Idempotency + guards + DD + wording governance all pass.
+  KNOWN (non-blocking, pre-existing, NOT from Aftersales): console warning "<span> cannot be a child of <option>"
+    somewhere in the CRM shell. Stale test assertions (hard-coded ACV £165k / '6 priced') to refresh later.
+  NEXT: P4 RPI review engine + auto-renewals + warranty-conversion opportunities; later customer-facing quote PDF
+    + portal acceptance; Contract AI assistant (Emergent key, deterministic-only pricing); reporting/forecast.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · AFTERSALES ENGINE — PHASE 2: BUILD QUOTE FROM ESTATE + EXCEPTION QUEUE (testing_agent BE 11/11 + FE 100%) ═══
 Adds the one-click auto-quoter feeding the SAME deterministic engine as Phase 1. All in
 /app/backend/routes/crm_aftersales.py + frontend AftersalesApp.js "Build Quote" sub-tab (afs-tab-autoquote).

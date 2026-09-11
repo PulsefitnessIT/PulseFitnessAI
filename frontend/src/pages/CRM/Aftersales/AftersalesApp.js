@@ -17,7 +17,7 @@ import CRMContracts from '../CRMContracts';
 import {
   LayoutDashboard, SlidersHorizontal, Wrench, ShieldCheck, RefreshCw, AlertTriangle,
   Clock, FileSignature, Calculator, Plus, Trash2, Check, Search, TrendingUp, Shield,
-  Zap, Building2, Rocket,
+  Zap, Building2, Rocket, FileCheck2, PenLine, CheckCircle2, Circle,
 } from 'lucide-react';
 
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -27,6 +27,7 @@ const pct = (v) => (Number(v || 0) * 100).toFixed(2).replace(/\.00$/, '') + '%';
 const SUB_TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'autoquote', label: 'Build Quote', icon: Zap },
+  { id: 'agreements', label: 'Agreements', icon: FileCheck2 },
   { id: 'contracts', label: 'Contracts & Renewals', icon: Shield },
   { id: 'pricing', label: 'Pricing & Rules', icon: SlidersHorizontal },
   { id: 'equipment', label: 'Equipment Review', icon: Wrench },
@@ -689,12 +690,230 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
   );
 }
 
+// ───────────────────────────────────────────────────────── Agreements + Activation
+const AG_STATUS = {
+  draft: { label: 'Draft', color: 'var(--color-text-faint-alt)' },
+  ready: { label: 'Ready', color: 'var(--color-info-ios)' },
+  sent: { label: 'Sent', color: 'var(--color-info-ios)' },
+  signed: { label: 'Signed', color: 'var(--color-accent-purple)' },
+  active: { label: 'Active', color: 'var(--color-success-alt)' },
+  activation_attention: { label: 'Activation Attention', color: 'var(--color-danger)' },
+};
+
+function AgreementsTab({ API, headers, c, isDark }) {
+  const [agreements, setAgreements] = useState([]);
+  const [quotes, setQuotes] = useState([]);
+  const [detail, setDetail] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [newQuoteId, setNewQuoteId] = useState('');
+  const [startDate, setStartDate] = useState('2026-07-01');
+  const [payMethod, setPayMethod] = useState('annual');
+  const [visits, setVisits] = useState(2);
+  const [sign, setSign] = useState({ signatory_name: '', position: '', email: '', authority_confirmed: false });
+  const [showSign, setShowSign] = useState(false);
+  const inpStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text };
+
+  const load = useCallback(() => {
+    Promise.all([
+      axios.get(`${API}/crm/v2/aftersales/agreements`, { headers: headers() }),
+      axios.get(`${API}/crm/v2/aftersales/quotes`, { headers: headers() }),
+    ]).then(([a, q]) => {
+      setAgreements(a.data.agreements || []);
+      setQuotes((q.data.quotes || []).filter(x => ['draft', 'accepted'].includes(x.status)));
+    });
+  }, [API, headers]);
+  useEffect(load, [load]);
+
+  const openDetail = (id) => axios.get(`${API}/crm/v2/aftersales/agreements/${id}`, { headers: headers() }).then(r => { setDetail(r.data); setShowSign(false); });
+  const refreshDetail = () => detail && openDetail(detail.id);
+
+  const prepare = async () => {
+    if (!newQuoteId) return;
+    setBusy(true);
+    try {
+      const r = await axios.post(`${API}/crm/v2/aftersales/agreements/from-quote/${newQuoteId}`,
+        { start_date: startDate, payment_method: payMethod, visits_per_year: Number(visits) }, { headers: headers() });
+      setNewQuoteId(''); load(); openDetail(r.data.id);
+    } finally { setBusy(false); }
+  };
+  const patch = async (body) => { await axios.patch(`${API}/crm/v2/aftersales/agreements/${detail.id}`, body, { headers: headers() }); refreshDetail(); };
+  const generate = async () => { setBusy(true); try { await axios.post(`${API}/crm/v2/aftersales/agreements/${detail.id}/generate`, {}, { headers: headers() }); refreshDetail(); load(); } catch (e) { alert((e.response?.data?.detail?.reasons || ['Not ready']).join('\n')); } finally { setBusy(false); } };
+  const doSign = async () => {
+    setBusy(true);
+    try { await axios.post(`${API}/crm/v2/aftersales/agreements/${detail.id}/sign`, sign, { headers: headers() }); setShowSign(false); refreshDetail(); load(); }
+    catch (e) { alert(e.response?.data?.detail || 'Sign failed'); } finally { setBusy(false); }
+  };
+  const activate = async () => { setBusy(true); try { await axios.post(`${API}/crm/v2/aftersales/agreements/${detail.id}/activate`, {}, { headers: headers() }); refreshDetail(); load(); } finally { setBusy(false); } };
+
+  const stepIcon = (st) => st === 'ok' ? <CheckCircle2 size={13} style={{ color: 'var(--color-success-alt)' }} />
+    : st === 'warning' ? <AlertTriangle size={13} style={{ color: 'var(--color-accent-amber)' }} />
+      : st === 'queued' ? <Clock size={13} style={{ color: 'var(--color-info-ios)' }} />
+        : <Circle size={13} style={{ color: c.textDim }} />;
+
+  // ── Detail view ──
+  if (detail) {
+    const ag = detail;
+    const s = ag.schedules || {};
+    const health = ag.health || { ready: false, reasons: [] };
+    const st = AG_STATUS[ag.status] || AG_STATUS.draft;
+    const unresolvedWording = (ag.wording_conflicts || []).filter(w => w.status !== 'resolved');
+    return (
+      <div data-testid="afs-agreement-detail">
+        <button data-testid="afs-ag-back" onClick={() => setDetail(null)} className="text-xs mb-3" style={{ color: c.textDim }}>← Back to agreements</button>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-extrabold" style={{ color: c.text }}>{ag.agreement_number}</h2>
+            <p className="text-sm" style={{ color: c.textDim }}>{ag.company_name} · {ag.contract_type} · {gbp(ag.annual_value)}/yr · {ag.term_years}yr</p>
+          </div>
+          <span data-testid="afs-ag-status" className="text-xs font-bold px-3 py-1.5 rounded-lg" style={{ background: st.color + '22', color: st.color }}>{st.label}</span>
+        </div>
+
+        {/* Health */}
+        <Card c={c} isDark={isDark} testId="afs-ag-health" className="mb-3">
+          <div className="flex items-center gap-2 mb-1">
+            {health.ready ? <CheckCircle2 size={16} style={{ color: 'var(--color-success-alt)' }} /> : <AlertTriangle size={16} style={{ color: 'var(--color-accent-amber)' }} />}
+            <p className="text-sm font-bold" style={{ color: health.ready ? 'var(--color-success-alt)' : 'var(--color-accent-amber)' }}>{health.ready ? 'Contract Ready' : `${health.reasons.length} item(s) require attention`}</p>
+          </div>
+          {health.reasons.map((r, i) => <p key={i} className="text-xs ml-6" style={{ color: c.textDim }}>• {r}</p>)}
+        </Card>
+
+        {/* Controls */}
+        <Card c={c} isDark={isDark} className="mb-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="text-xs" style={{ color: c.textDim }}>Payment method
+              <select data-testid="afs-ag-payment" value={ag.payment_method || 'annual'} onChange={e => patch({ payment_method: e.target.value })} className="block mt-1 px-2 py-1.5 text-sm rounded-md" style={inpStyle}>
+                <option value="annual">Annual</option><option value="monthly">Monthly (Direct Debit)</option><option value="lump_sum">Lump Sum</option></select></label>
+            {ag.payment_method === 'monthly' && (
+              <label className="text-xs flex items-center gap-1.5" style={{ color: c.textDim }}>
+                <input data-testid="afs-ag-dd" type="checkbox" checked={!!ag.direct_debit_received} onChange={e => patch({ direct_debit_received: e.target.checked })} /> DD mandate received</label>
+            )}
+            {unresolvedWording.length > 0 && (
+              <button data-testid="afs-ag-resolve-wording" onClick={() => patch({ resolve_wording: true })} className="text-xs px-3 py-1.5 rounded-md" style={{ background: 'var(--color-danger)22', color: 'var(--color-danger)' }}>Approve wording ({unresolvedWording.length})</button>
+            )}
+          </div>
+        </Card>
+
+        {/* Schedules */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
+          <Card c={c} isDark={isDark} testId="afs-ag-s1">
+            <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: c.textDim }}>Schedule 1 — Parties & Sites</p>
+            <p className="text-sm" style={{ color: c.text }}><b>Supplier:</b> {s.schedule1_parties?.supplier?.name}</p>
+            <p className="text-sm" style={{ color: c.text }}><b>Customer:</b> {s.schedule1_parties?.customer?.legal_name || '—'}</p>
+            <p className="text-xs mt-1" style={{ color: c.textDim }}>{(s.schedule1_parties?.sites || []).map(x => x.name).join(', ')}</p>
+          </Card>
+          <Card c={c} isDark={isDark} testId="afs-ag-s2">
+            <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: c.textDim }}>Schedule 2 — Agreement & Payment</p>
+            <p className="text-sm" style={{ color: c.text }}>{s.schedule2_agreement?.agreement_type}</p>
+            <p className="text-xs" style={{ color: c.textDim }}>{ag.start_date} → {ag.end_date}</p>
+            <div className="text-xs mt-1" style={{ color: c.textDim }}>Monthly {gbp(s.schedule2_agreement?.payment_options?.monthly)} · Annual {gbp(s.schedule2_agreement?.payment_options?.annual)} · Lump {gbp(s.schedule2_agreement?.payment_options?.lump_sum)}</div>
+          </Card>
+        </div>
+        <Card c={c} isDark={isDark} testId="afs-ag-s3" className="mb-3">
+          <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: c.textDim }}>Schedule 3 — Equipment</p>
+          <table className="w-full text-sm"><tbody>
+            {(s.schedule3_equipment || []).map((row, i) => (
+              <tr key={i} className="border-t" style={{ borderColor: c.border }}>
+                <td className="py-1.5" style={{ color: c.text }}>{row.quantity} × {row.machine}</td>
+                <td className="py-1.5 text-xs" style={{ color: row.serials_assigned < row.serials_expected ? 'var(--color-accent-amber)' : c.textDim }}>serials {row.serials_assigned}/{row.serials_expected}</td>
+                <td className="py-1.5 text-right" style={{ color: c.text }}>{gbp(row.annual_total)}</td>
+              </tr>
+            ))}
+          </tbody></table>
+        </Card>
+
+        {/* Sign panel */}
+        {showSign && (
+          <Card c={c} isDark={isDark} testId="afs-ag-sign-form" className="mb-3">
+            <p className="text-sm font-bold mb-2" style={{ color: c.text }}>Electronic Signature</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+              <input data-testid="afs-sign-name" placeholder="Signatory name" value={sign.signatory_name} onChange={e => setSign(x => ({ ...x, signatory_name: e.target.value }))} className="px-2 py-1.5 text-sm rounded-md" style={inpStyle} />
+              <input data-testid="afs-sign-position" placeholder="Position" value={sign.position} onChange={e => setSign(x => ({ ...x, position: e.target.value }))} className="px-2 py-1.5 text-sm rounded-md" style={inpStyle} />
+              <input data-testid="afs-sign-email" placeholder="Email" value={sign.email} onChange={e => setSign(x => ({ ...x, email: e.target.value }))} className="px-2 py-1.5 text-sm rounded-md" style={inpStyle} />
+            </div>
+            <label className="text-xs flex items-center gap-2 mb-2" style={{ color: c.textDim }}>
+              <input data-testid="afs-sign-authority" type="checkbox" checked={sign.authority_confirmed} onChange={e => setSign(x => ({ ...x, authority_confirmed: e.target.checked }))} />
+              I confirm I have authority to sign this agreement on behalf of the customer.</label>
+            <button data-testid="afs-sign-submit" onClick={doSign} disabled={busy || !sign.signatory_name || !sign.authority_confirmed} className="text-sm px-4 py-2 rounded-md font-semibold disabled:opacity-40" style={{ background: 'var(--color-accent-purple)', color: '#fff' }}>Sign agreement</button>
+          </Card>
+        )}
+
+        {/* Activation steps */}
+        {ag.activation_steps && (
+          <Card c={c} isDark={isDark} testId="afs-ag-activation" className="mb-3">
+            <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: c.textDim }}>Activation</p>
+            {ag.activation_steps.map((step, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs py-0.5" style={{ color: c.text }}>{stepIcon(step.status)} {step.step.replace(/_/g, ' ')} {step.detail ? <span style={{ color: c.textDim }}>— {step.detail}</span> : null}</div>
+            ))}
+            {ag.contract_id && <p className="text-[11px] mt-2" style={{ color: 'var(--color-success-alt)' }}>Live contract {ag.agreement_number} created.</p>}
+          </Card>
+        )}
+
+        {/* Action bar */}
+        <div className="flex flex-wrap gap-2">
+          {ag.status === 'draft' && <button data-testid="afs-ag-generate" onClick={generate} disabled={busy || !health.ready} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold disabled:opacity-40" style={{ background: 'var(--color-info-ios)', color: '#fff' }}><FileCheck2 size={16} /> Generate Agreement</button>}
+          {(ag.status === 'ready' || ag.status === 'sent') && <button data-testid="afs-ag-open-sign" onClick={() => setShowSign(true)} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-accent-purple)', color: '#fff' }}><PenLine size={16} /> Review & Sign</button>}
+          {ag.status === 'signed' && <button data-testid="afs-ag-activate" onClick={activate} disabled={busy} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-success-alt)', color: '#fff' }}><Rocket size={16} /> Activate Contract</button>}
+        </div>
+
+        {/* Timeline */}
+        {ag.timeline && (
+          <div className="mt-4">
+            <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Timeline</p>
+            {ag.timeline.slice().reverse().map((t, i) => <p key={i} className="text-xs" style={{ color: c.textDim }}>{(t.at || '').slice(0, 16).replace('T', ' ')} — {t.event}</p>)}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── List view ──
+  return (
+    <div data-testid="afs-agreements">
+      <Card c={c} isDark={isDark} className="mb-4">
+        <p className="text-sm font-bold mb-2" style={{ color: c.text }}>Prepare agreement from an accepted quote</p>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="text-xs flex-1 min-w-[220px]" style={{ color: c.textDim }}>Quote
+            <select data-testid="afs-ag-quote" value={newQuoteId} onChange={e => setNewQuoteId(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm rounded-md" style={inpStyle}>
+              <option value="">Select a saved quote…</option>
+              {quotes.map(q => <option key={q.id} value={q.id}>{q.quote_number} · {q.company_name} · {gbp0(q.summary?.final_annual)} ({q.status})</option>)}
+            </select></label>
+          <label className="text-xs" style={{ color: c.textDim }}>Start date
+            <input data-testid="afs-ag-start" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="block mt-1 px-2 py-2 text-sm rounded-md" style={inpStyle} /></label>
+          <label className="text-xs" style={{ color: c.textDim }}>Payment
+            <select value={payMethod} onChange={e => setPayMethod(e.target.value)} className="block mt-1 px-2 py-2 text-sm rounded-md" style={inpStyle}>
+              <option value="annual">Annual</option><option value="monthly">Monthly</option><option value="lump_sum">Lump Sum</option></select></label>
+          <label className="text-xs" style={{ color: c.textDim }}>Visits/yr
+            <input type="number" min="1" value={visits} onChange={e => setVisits(e.target.value)} className="block mt-1 w-16 px-2 py-2 text-sm rounded-md" style={inpStyle} /></label>
+          <button data-testid="afs-ag-prepare" onClick={prepare} disabled={!newQuoteId || busy} className="px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-40" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>{busy ? '…' : 'Prepare Agreement'}</button>
+        </div>
+      </Card>
+
+      <div className="rounded-xl border overflow-hidden" style={{ borderColor: c.border }} data-testid="afs-agreements-list">
+        {agreements.length === 0 && <p className="text-sm text-center py-10" style={{ color: c.textDim }}>No agreements yet — prepare one from a saved quote above.</p>}
+        {agreements.map(ag => {
+          const st = AG_STATUS[ag.status] || AG_STATUS.draft;
+          return (
+            <button key={ag.id} data-testid={`afs-ag-row-${ag.id}`} onClick={() => openDetail(ag.id)} className="w-full flex items-center gap-3 p-3 border-t text-left" style={{ borderColor: c.border }}>
+              <FileCheck2 size={16} style={{ color: st.color }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold" style={{ color: c.text }}>{ag.agreement_number} · {ag.company_name}</p>
+                <p className="text-xs" style={{ color: c.textDim }}>{ag.contract_type} · {gbp(ag.annual_value)}/yr · {ag.start_date || 'no dates'}</p>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-1 rounded" style={{ background: st.color + '22', color: st.color }}>{st.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ───────────────────────────────────────────────────────── Shell
 export default function AftersalesApp() {
   const crm = useCRM();
   const { API, headers, c, isDark } = crm;
   const [tab, setTab] = useState('dashboard');
-  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab }[tab];
+  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, agreements: AgreementsTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab }[tab];
   return (
     <div data-testid="afs-app">
       <div className="mb-4">

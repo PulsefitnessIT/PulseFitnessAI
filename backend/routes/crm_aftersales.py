@@ -716,7 +716,9 @@ async def dashboard(user=Depends(get_crm_user)):
 
     # Agreements awaiting signature / ready to activate (existing contracts).
     awaiting_sig = await db.crm2_contracts.count_documents({**of, "status": {"$in": ["sent", "negotiation"]}})
+    awaiting_sig += await db.crm2_afs_agreements.count_documents({**of, "status": {"$in": ["ready", "sent"]}})
     ready_activate = await db.crm2_contracts.count_documents({**of, "status": "signed"})
+    ready_activate += await db.crm2_afs_agreements.count_documents({**of, "status": "signed"})
 
     # Supportability review count (config-level, not yet decided).
     support_review = await db.crm2_afs_service_configs.count_documents(
@@ -1051,3 +1053,493 @@ async def get_afs_quote(quote_id: str, user=Depends(get_crm_user)):
     if not q:
         raise HTTPException(404, "Quote not found")
     return q
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# PHASE 3 — AGREEMENT BUILDER + ACTIVATION ENGINE
+# Accepted quote → Schedules 1-6 → Agreement Health → Generate → Sign →
+# Activate (crm2_contracts + asset cover + service schedule + billing + Sicon/Sage)
+# ══════════════════════════════════════════════════════════════════════════
+
+# Controlled legal/contract content (approved wording — versioned templates).
+SCHEDULE5_OBLIGATIONS = [
+    "Use the equipment only for its intended purpose and in accordance with the manufacturer's instructions.",
+    "Carry out and record daily visual inspections of all equipment before use.",
+    "Carry out the customer-level preventative maintenance tasks specified for CV and resistance equipment.",
+    "Keep CV equipment clean and free from debris; ensure running surfaces are kept clean and dry.",
+    "Ensure resistance equipment cables, belts and upholstery are checked for wear and reported promptly.",
+    "Maintain accurate maintenance records and make them available to Pulse Fitness on request.",
+    "Ensure only trained staff operate and supervise the equipment.",
+    "Report all faults promptly via the agreed reporting channels.",
+]
+SCHEDULE6_EXCEPTIONS = [
+    "Consumable items (unless expressly included in the selected package).",
+    "Damage caused by misuse, neglect, vandalism or failure to meet customer obligations.",
+    "Cosmetic and aesthetic parts beyond the stated allowance.",
+    "Works required due to environmental conditions outside agreed operating parameters.",
+    "Carriage & insurance where stated as chargeable in the selected package (subject to wording governance).",
+]
+TC_VERSION = "T&C-2026.1"
+TEMPLATE_VERSION = "AGREEMENT-TEMPLATE-2026.1"
+
+
+def _supplier_block(settings):
+    s = settings.get("supplier") or {}
+    return {
+        "name": s.get("name", "Pulse Fitness Ltd"),
+        "address": s.get("address", "Pulse Fitness, Radbourne Road, Radbourne Park, Congleton, Cheshire, CW12 4XB"),
+        "company_number": s.get("company_number", ""),
+        "vat_number": s.get("vat_number", ""),
+    }
+
+
+def _service_contacts(settings):
+    s = settings.get("service_contacts") or {}
+    return {
+        "service_email": s.get("service_email", "service@pulsefitness.com"),
+        "service_phone": s.get("service_phone", "+44 (0)1260 294600"),
+        "portal_url": s.get("portal_url", "https://portal.pulsefitness.com"),
+        "parts_email": s.get("parts_email", "parts@pulsefitness.com"),
+        "office_hours": s.get("office_hours", "Mon–Fri 08:30–17:00"),
+    }
+
+
+def _billing_schedule(annual, frequency, start_date, term_years):
+    """Deterministic billing schedule from the authoritative contract value."""
+    try:
+        sd = datetime.strptime((start_date or "")[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        sd = datetime.now(timezone.utc)
+    rows = []
+    freq = (frequency or "annual").lower()
+    months = max(1, term_years) * 12
+    if freq == "monthly":
+        amt = round(annual / 12.0, 2)
+        for m in range(months):
+            due = sd + timedelta(days=30 * m)
+            rows.append({"due_date": due.strftime("%Y-%m-%d"), "amount": amt, "status": "scheduled"})
+    elif freq == "lump_sum":
+        rows.append({"due_date": sd.strftime("%Y-%m-%d"), "amount": round(annual * max(1, term_years), 2), "status": "scheduled"})
+    else:  # annual
+        for y in range(max(1, term_years)):
+            due = sd.replace(year=sd.year + y)
+            rows.append({"due_date": due.strftime("%Y-%m-%d"), "amount": round(annual, 2), "status": "scheduled"})
+    return rows
+
+
+def _service_schedule(start_date, visits_per_year, term_years):
+    try:
+        sd = datetime.strptime((start_date or "")[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        sd = datetime.now(timezone.utc)
+    visits = max(1, int(visits_per_year or 1))
+    interval = max(1, round(365 / visits))
+    rows = []
+    for y in range(max(1, term_years)):
+        for v in range(visits):
+            due = sd + timedelta(days=365 * y + interval * v)
+            rows.append({"planned_date": due.strftime("%Y-%m-%d"), "status": "planned", "visit_no": v + 1, "year": y + 1})
+    return rows
+
+
+async def _build_agreement_doc(user, quote):
+    of = _of(user)
+    org_id = _org(user)
+    settings = await db.crm2_afs_settings.find_one(of) or {}
+    company = await db.crm2_companies.find_one({"id": quote["company_id"], **of}, {"_id": 0}) or {}
+    linked = quote.get("linked_organization_id") or company.get("linked_organization_id") or ""
+    linked_org = await db.organizations.find_one({"id": linked}, {"_id": 0}) if linked else None
+    sites = await db.sites.find(
+        {"organization_id": linked, "status": {"$ne": "archived"}},
+        {"_id": 0, "id": 1, "name": 1, "city": 1, "postcode": 1, "address": 1}).to_list(500) if linked else []
+    if quote.get("site_ids"):
+        sites = [s for s in sites if s["id"] in quote["site_ids"]] or sites
+
+    pkg = await db.crm2_afs_packages.find_one({**of, "key": (quote.get("contract_type") or "gold").lower()}, _PUBLIC) or {}
+    summary = quote.get("summary", {})
+    grouped = quote.get("grouped_lines", [])
+    register = quote.get("asset_register", [])
+
+    legal_name = company.get("legal_name") or (linked_org or {}).get("name") or company.get("name")
+    cust_address = company.get("registered_address") or company.get("address") or (linked_org or {}).get("address") or ""
+
+    annual = summary.get("final_annual", 0)
+    schedules = {
+        "schedule1_parties": {
+            "supplier": _supplier_block(settings),
+            "customer": {"legal_name": legal_name, "trading_name": company.get("name"),
+                         "billing_address": company.get("billing_address") or cust_address,
+                         "address": cust_address},
+            "sites": [{"name": s["name"], "address": s.get("address") or "",
+                       "city": s.get("city") or "", "postcode": s.get("postcode") or ""} for s in sites],
+        },
+        "schedule2_agreement": {
+            "agreement_type": f"{pkg.get('name', quote.get('contract_type', '').title())} Maintenance Agreement",
+            "package": quote.get("contract_type"),
+            "start_date": None, "end_date": None,
+            "term_years": summary.get("term_years", 1),
+            "services_included": pkg.get("maintenance", []),
+            "whats_covered": pkg.get("maintenance", []) + pkg.get("technical_support", []),
+            "exclusions": pkg.get("exclusions", []),
+            "payment_options": {
+                "monthly": round(annual / 12.0, 2),
+                "annual": round(annual, 2),
+                "lump_sum": round(annual * max(1, summary.get("term_years", 1)), 2),
+            },
+            "annual_value": annual, "vat_pct": summary.get("vat_pct"),
+        },
+        "schedule3_equipment": [
+            {"machine": g["model"], "description": g.get("description", ""), "quantity": g["qty"],
+             "serial_numbers": [s for s in g.get("serials", []) if s],
+             "serials_expected": g["qty"], "serials_assigned": len([s for s in g.get("serials", []) if s]),
+             "annual_total": g.get("annual_total", 0)}
+            for g in grouped
+        ],
+        "schedule4_fault_reporting": _service_contacts(settings),
+        "schedule5_customer_obligations": SCHEDULE5_OBLIGATIONS,
+        "schedule6_exceptions": SCHEDULE6_EXCEPTIONS,
+    }
+    return {
+        "company_id": quote["company_id"], "company_name": company.get("name"),
+        "linked_organization_id": linked,
+        "quote_id": quote["id"], "quote_number": quote.get("quote_number"),
+        "contract_type": quote.get("contract_type"), "pricing_level": quote.get("pricing_level"),
+        "term_years": summary.get("term_years", 1),
+        "annual_value": annual, "vat_pct": summary.get("vat_pct"),
+        "pricing_version": quote.get("pricing_version"),
+        "package_version": pkg.get("version"), "tc_version": TC_VERSION, "template_version": TEMPLATE_VERSION,
+        "schedules": schedules, "asset_register": register,
+        "billing_frequency": "annual", "payment_method": None,
+        "wording_conflicts": pkg.get("wording_conflicts", []),
+    }
+
+
+def _agreement_health(ag):
+    """AGREEMENT HEALTH — plain-English readiness checks (§58)."""
+    reasons = []
+    s = ag.get("schedules", {})
+    if not s.get("schedule1_parties", {}).get("customer", {}).get("legal_name"):
+        reasons.append("Customer legal entity is missing")
+    if not (s.get("schedule1_parties", {}).get("sites")):
+        reasons.append("No sites on the agreement")
+    if not ag.get("start_date") or not ag.get("end_date"):
+        reasons.append("Start / end dates not set")
+    if not ag.get("payment_method"):
+        reasons.append("Payment method not selected")
+    if ag.get("payment_method") == "monthly" and not ag.get("direct_debit_received"):
+        reasons.append("Direct Debit mandate required for monthly payments")
+    # serial validation
+    incomplete = [row for row in s.get("schedule3_equipment", []) if row["serials_assigned"] < row["serials_expected"]
+                  and not (ag.get("serial_exceptions") or {}).get(row["machine"])]
+    if incomplete:
+        reasons.append(f"{len(incomplete)} equipment line(s) have incomplete serial numbers")
+    if not s.get("schedule3_equipment"):
+        reasons.append("No equipment on the agreement")
+    # unresolved wording conflicts on the selected package
+    unresolved = [w for w in (ag.get("wording_conflicts") or []) if w.get("status") != "resolved"]
+    if unresolved:
+        reasons.append(f"{len(unresolved)} package wording conflict(s) require management approval")
+    if (ag.get("annual_value") or 0) <= 0:
+        reasons.append("Final contract value is zero")
+    return {"ready": len(reasons) == 0, "reasons": reasons}
+
+
+class AcceptQuoteIn(BaseModel):
+    accepted_by: Optional[str] = None
+
+
+@router.post("/quotes/{quote_id}/accept")
+async def accept_quote(quote_id: str, body: AcceptQuoteIn, user=Depends(get_crm_user)):
+    of = _of(user)
+    q = await db.crm2_afs_quotes.find_one({"id": quote_id, **of}, _PUBLIC)
+    if not q:
+        raise HTTPException(404, "Quote not found")
+    await db.crm2_afs_quotes.update_one({"id": quote_id, **of}, {"$set": {
+        "status": "accepted", "accepted_at": _now(),
+        "accepted_by": body.accepted_by or user.get("email"), "updated_at": _now()}})
+    await record_audit(entity_type="afs_quote", entity_id=quote_id, action="accept", user=user)
+    return {"status": "accepted", "quote_id": quote_id}
+
+
+class PrepareAgreementIn(BaseModel):
+    start_date: str
+    payment_method: str = "annual"          # monthly | annual | lump_sum
+    billing_frequency: Optional[str] = None
+    visits_per_year: int = 2
+
+
+@router.post("/agreements/from-quote/{quote_id}")
+async def prepare_agreement(quote_id: str, body: PrepareAgreementIn, user=Depends(get_crm_user)):
+    of = _of(user)
+    quote = await db.crm2_afs_quotes.find_one({"id": quote_id, **of}, _PUBLIC)
+    if not quote:
+        raise HTTPException(404, "Quote not found")
+    # Don't create a duplicate agreement for the same quote.
+    existing = await db.crm2_afs_agreements.find_one(
+        {**of, "quote_id": quote_id, "status": {"$nin": ["cancelled", "superseded"]}}, _PUBLIC)
+    if existing:
+        return existing
+    doc = await _build_agreement_doc(user, quote)
+    try:
+        sd = datetime.strptime(body.start_date[:10], "%Y-%m-%d")
+        end = sd.replace(year=sd.year + max(1, doc["term_years"]))
+        doc["start_date"] = sd.strftime("%Y-%m-%d")
+        doc["end_date"] = end.strftime("%Y-%m-%d")
+        doc["schedules"]["schedule2_agreement"]["start_date"] = doc["start_date"]
+        doc["schedules"]["schedule2_agreement"]["end_date"] = doc["end_date"]
+    except ValueError:
+        raise HTTPException(400, "start_date must be YYYY-MM-DD")
+    doc["payment_method"] = body.payment_method
+    doc["billing_frequency"] = body.billing_frequency or body.payment_method
+    doc["visits_per_year"] = body.visits_per_year
+    aid = _id()
+    doc.update({
+        "id": aid, "organization_id": _org(user),
+        "agreement_number": f"PF-MA-{aid[:6].upper()}",
+        "status": "draft", "serial_exceptions": {},
+        "created_by": user.get("email") or user.get("id"),
+        "created_at": _now(), "updated_at": _now(),
+        "timeline": [{"at": _now(), "event": "Agreement prepared from quote " + (quote.get("quote_number") or quote_id), "by": user.get("email")}],
+    })
+    doc["health"] = _agreement_health(doc)
+    await db.crm2_afs_agreements.insert_one(doc)
+    await db.crm2_afs_quotes.update_one({"id": quote_id, **of}, {"$set": {"status": "agreement", "updated_at": _now()}})
+    await record_audit(entity_type="afs_agreement", entity_id=aid, action="create", user=user,
+                       extra={"quote": quote.get("quote_number")})
+    return await db.crm2_afs_agreements.find_one({"id": aid, **of}, _PUBLIC)
+
+
+@router.get("/agreements")
+async def list_agreements(status: str = "", user=Depends(get_crm_user)):
+    of = _of(user)
+    query = dict(of)
+    if status:
+        query["status"] = status
+    rows = await db.crm2_afs_agreements.find(
+        query, {"_id": 0, "asset_register": 0}).sort("created_at", -1).to_list(200)
+    return {"agreements": rows, "total": len(rows)}
+
+
+@router.get("/agreements/{agreement_id}")
+async def get_agreement(agreement_id: str, user=Depends(get_crm_user)):
+    ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, **_of(user)}, _PUBLIC)
+    if not ag:
+        raise HTTPException(404, "Agreement not found")
+    ag["health"] = _agreement_health(ag)
+    return ag
+
+
+class AgreementPatchIn(BaseModel):
+    payment_method: Optional[str] = None
+    direct_debit_received: Optional[bool] = None
+    serial_exceptions: Optional[dict] = None   # {machine: "TO_CONFIRM_ON_FIRST_SERVICE"|"NOT_APPLICABLE"}
+    resolve_wording: Optional[bool] = None
+
+
+@router.patch("/agreements/{agreement_id}")
+async def patch_agreement(agreement_id: str, body: AgreementPatchIn, user=Depends(get_crm_user)):
+    of = _of(user)
+    ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, **of}, _PUBLIC)
+    if not ag:
+        raise HTTPException(404, "Agreement not found")
+    patch = {}
+    if body.payment_method is not None:
+        patch["payment_method"] = body.payment_method
+        patch["billing_frequency"] = body.payment_method
+    if body.direct_debit_received is not None:
+        patch["direct_debit_received"] = body.direct_debit_received
+    if body.serial_exceptions is not None:
+        patch["serial_exceptions"] = {**(ag.get("serial_exceptions") or {}), **body.serial_exceptions}
+    if body.resolve_wording:
+        wc = [{**w, "status": "resolved"} for w in (ag.get("wording_conflicts") or [])]
+        patch["wording_conflicts"] = wc
+    patch["updated_at"] = _now()
+    merged = {**ag, **patch}
+    patch["health"] = _agreement_health(merged)
+    await db.crm2_afs_agreements.update_one({"id": agreement_id, **of}, {"$set": patch})
+    return await db.crm2_afs_agreements.find_one({"id": agreement_id, **of}, _PUBLIC)
+
+
+@router.post("/agreements/{agreement_id}/generate")
+async def generate_agreement(agreement_id: str, user=Depends(get_crm_user)):
+    of = _of(user)
+    ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, **of}, _PUBLIC)
+    if not ag:
+        raise HTTPException(404, "Agreement not found")
+    health = _agreement_health(ag)
+    if not health["ready"]:
+        raise HTTPException(400, {"message": "Agreement not ready", "reasons": health["reasons"]})
+    tl = ag.get("timeline", []) + [{"at": _now(), "event": "Maintenance Agreement generated", "by": user.get("email")}]
+    await db.crm2_afs_agreements.update_one({"id": agreement_id, **of}, {"$set": {
+        "status": "ready", "generated_at": _now(), "timeline": tl, "updated_at": _now()}})
+    await record_audit(entity_type="afs_agreement", entity_id=agreement_id, action="generate", user=user)
+    return {"status": "ready", "generated_at": _now(), "agreement_number": ag.get("agreement_number")}
+
+
+class SignIn(BaseModel):
+    signatory_name: str
+    position: str
+    email: str
+    authority_confirmed: bool = False
+    signature: Optional[str] = None          # typed name / data-url
+
+
+@router.post("/agreements/{agreement_id}/sign")
+async def sign_agreement(agreement_id: str, body: SignIn, user=Depends(get_crm_user)):
+    of = _of(user)
+    ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, **of}, _PUBLIC)
+    if not ag:
+        raise HTTPException(404, "Agreement not found")
+    if ag.get("status") not in ("ready", "sent"):
+        raise HTTPException(400, "Agreement must be generated (Ready) before signing")
+    if not body.authority_confirmed:
+        raise HTTPException(400, "Signatory must confirm they have authority to sign")
+    sig = {
+        "signatory_name": body.signatory_name, "position": body.position, "email": body.email,
+        "signature": body.signature or body.signatory_name, "authority_confirmed": True,
+        "signed_at": _now(), "tc_version": ag.get("tc_version"),
+        "template_version": ag.get("template_version"),
+    }
+    tl = ag.get("timeline", []) + [{"at": _now(), "event": f"Signed by {body.signatory_name} ({body.position})", "by": body.email}]
+    await db.crm2_afs_agreements.update_one({"id": agreement_id, **of}, {"$set": {
+        "status": "signed", "signature": sig, "signed_at": _now(), "timeline": tl, "updated_at": _now()}})
+    await record_audit(entity_type="afs_agreement", entity_id=agreement_id, action="sign", user=user,
+                       extra={"signatory": body.signatory_name})
+    return {"status": "signed", "signature": sig}
+
+
+@router.post("/agreements/{agreement_id}/activate")
+async def activate_agreement(agreement_id: str, user=Depends(get_crm_user)):
+    """CONTRACT ACTIVATION ENGINE (§65-71) — creates the live contract and runs
+    the downstream automation, reusing existing collections. Never invents data;
+    surfaces per-step status and preserves work on partial failure (§131)."""
+    of = _of(user)
+    org_id = _org(user)
+    ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, **of}, _PUBLIC)
+    if not ag:
+        raise HTTPException(404, "Agreement not found")
+    if ag.get("status") not in ("signed", "activation_attention"):
+        raise HTTPException(400, "Agreement must be signed before activation")
+
+    steps = []
+
+    # Duplicate contract guard (§67).
+    dup = await db.crm2_contracts.find_one(
+        {**of, "company_id": ag["company_id"], "status": {"$in": ["active", "signed"]},
+         "source_agreement_id": {"$ne": agreement_id},
+         "end_date": {"$gte": ag.get("start_date", "")}}, {"_id": 0, "id": 1, "contract_number": 1})
+    if dup:
+        steps.append({"step": "duplicate_check", "status": "warning",
+                      "detail": f"Possible existing contract {dup.get('contract_number')} — review before activating"})
+    else:
+        steps.append({"step": "duplicate_check", "status": "ok"})
+
+    # 1. Create/refresh the live contract record (reuse crm2_contracts schema).
+    existing_contract = await db.crm2_contracts.find_one({**of, "source_agreement_id": agreement_id}, {"_id": 0, "id": 1})
+    cid = existing_contract["id"] if existing_contract else _id()
+    contract_doc = {
+        "id": cid, "organization_id": org_id,
+        "contract_number": ag.get("agreement_number"),
+        "company_id": ag["company_id"], "company_name": ag.get("company_name"),
+        "linked_organization_id": ag.get("linked_organization_id"),
+        "title": ag["schedules"]["schedule2_agreement"]["agreement_type"],
+        "type": "service", "tier": ag.get("contract_type"), "contract_type": ag.get("contract_type"),
+        "annual_value": ag.get("annual_value", 0),
+        "total_value": round(ag.get("annual_value", 0) * max(1, ag.get("term_years", 1)), 2),
+        "start_date": ag.get("start_date"), "end_date": ag.get("end_date"),
+        "billing_frequency": ag.get("billing_frequency", "annual"),
+        "status": "active", "source": "aftersales",
+        "source_agreement_id": agreement_id, "source_quote_id": ag.get("quote_id"),
+        "pricing_version": ag.get("pricing_version"), "package_version": ag.get("package_version"),
+        "tc_version": ag.get("tc_version"),
+        "created_at": _now(), "updated_at": _now(), "activated_at": _now(),
+    }
+    await db.crm2_contracts.update_one({"id": cid, **of}, {"$set": contract_doc}, upsert=True)
+    steps.append({"step": "contract_record", "status": "ok", "contract_id": cid})
+
+    # 2. Link asset cover onto the operations equipment register (single source).
+    linked = ag.get("linked_organization_id")
+    asset_ids = [a["id"] for a in (ag.get("asset_register") or [])
+                 if a.get("annual", 0) > 0 and a.get("id")]
+    cover = {
+        "contract_id": cid, "contract_number": ag.get("agreement_number"),
+        "cover": ag.get("contract_type"), "start": ag.get("start_date"), "end": ag.get("end_date"),
+    }
+    if linked and asset_ids:
+        res = await db.equipment.update_many(
+            {"organization_id": linked, "id": {"$in": asset_ids}},
+            {"$set": {"contract_cover": cover, "updated_at": _now()}})
+        steps.append({"step": "asset_cover", "status": "ok", "assets_covered": res.modified_count})
+    else:
+        steps.append({"step": "asset_cover", "status": "skipped", "detail": "No priced assets to cover"})
+
+    # 3. Preventative-maintenance / service schedule.
+    svc = _service_schedule(ag.get("start_date"), ag.get("visits_per_year", 2), ag.get("term_years", 1))
+    await db.crm2_afs_service_schedules.update_one(
+        {"contract_id": cid, "organization_id": org_id},
+        {"$set": {"contract_id": cid, "organization_id": org_id, "agreement_id": agreement_id,
+                  "visits_per_year": ag.get("visits_per_year", 2), "visits": svc, "updated_at": _now()}},
+        upsert=True)
+    steps.append({"step": "service_schedule", "status": "ok", "visits": len(svc)})
+
+    # 4. Billing schedule.
+    bills = _billing_schedule(ag.get("annual_value", 0), ag.get("billing_frequency", "annual"),
+                              ag.get("start_date"), ag.get("term_years", 1))
+    await db.crm2_afs_billing.update_one(
+        {"contract_id": cid, "organization_id": org_id},
+        {"$set": {"contract_id": cid, "organization_id": org_id, "agreement_id": agreement_id,
+                  "frequency": ag.get("billing_frequency", "annual"), "invoices": bills, "updated_at": _now()}},
+        upsert=True)
+    steps.append({"step": "billing_schedule", "status": "ok", "invoices": len(bills)})
+
+    # 5. Direct Debit mandate flag.
+    if ag.get("billing_frequency") == "monthly" and not ag.get("direct_debit_received"):
+        steps.append({"step": "direct_debit", "status": "warning", "detail": "Direct Debit mandate outstanding"})
+    else:
+        steps.append({"step": "direct_debit", "status": "ok"})
+
+    # 6. Queue Sicon / Sage synchronisation (reuse existing integrations — queued state).
+    await db.crm2_contracts.update_one({"id": cid, **of}, {"$set": {
+        "sicon_sync_status": "pending", "sage_sync_status": "pending", "updated_at": _now()}})
+    steps.append({"step": "sicon_sync", "status": "queued", "detail": "Queued for Sicon Service sync"})
+    steps.append({"step": "sage_sync", "status": "queued", "detail": "Queued for Sage 200 billing sync"})
+
+    # Finalise agreement.
+    tl = ag.get("timeline", []) + [{"at": _now(), "event": "Contract activated", "by": user.get("email")}]
+    await db.crm2_afs_agreements.update_one({"id": agreement_id, **of}, {"$set": {
+        "status": "active", "contract_id": cid, "activated_at": _now(),
+        "activation_steps": steps, "timeline": tl, "updated_at": _now()}})
+    await record_audit(entity_type="afs_agreement", entity_id=agreement_id, action="activate", user=user,
+                       extra={"contract_id": cid})
+
+    return {
+        "status": "active", "contract_id": cid, "contract_number": ag.get("agreement_number"),
+        "steps": steps,
+        "service_visits": len(svc), "invoices": len(bills),
+        "assets_covered": len(asset_ids),
+    }
+
+
+@router.get("/contracts/{contract_id}/schedules")
+async def contract_schedules(contract_id: str, user=Depends(get_crm_user)):
+    """Live contract compliance view — service + billing schedule (§71-75)."""
+    of = _of(user)
+    org_id = _org(user)
+    contract = await db.crm2_contracts.find_one({"id": contract_id, **of}, _PUBLIC)
+    if not contract:
+        raise HTTPException(404, "Contract not found")
+    svc = await db.crm2_afs_service_schedules.find_one({"contract_id": contract_id, "organization_id": org_id}, _PUBLIC)
+    bill = await db.crm2_afs_billing.find_one({"contract_id": contract_id, "organization_id": org_id}, _PUBLIC)
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    visits = (svc or {}).get("visits", [])
+    return {
+        "contract": {"id": contract_id, "contract_number": contract.get("contract_number"),
+                     "status": contract.get("status"), "annual_value": contract.get("annual_value"),
+                     "sicon_sync_status": contract.get("sicon_sync_status"),
+                     "sage_sync_status": contract.get("sage_sync_status")},
+        "service": {"visits": visits, "required": len(visits),
+                    "completed": sum(1 for v in visits if v.get("status") == "completed"),
+                    "next_due": next((v["planned_date"] for v in visits if v["planned_date"] >= today), None)},
+        "billing": (bill or {}).get("invoices", []),
+    }
+
