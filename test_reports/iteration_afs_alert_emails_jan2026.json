@@ -1,0 +1,26 @@
+{
+  "summary": "E2E test of Aftersales alert email + digest + 'Send to customer' quote email (Jan 2026 enhancement to Task 3). Backend: 5/5 pytest tests passed — PUT/GET /aftersales/settings persists alert_email='coordinator@isodemo.com'; empty PUT is a no-op; POST /alerts/run after clearing existing afs_alerts creates fresh warranty+RPI tasks and produces exactly one digest email_send_events row with subject 'Pulse Aftersales: N new maintenance reminder(s)' addressed to coordinator@isodemo.com; a second run with nothing new returns digests_sent=0 (no spammy re-send); POST /quotes/{id}/send-email returns {sent, to, shortcode, url} where url ends /aq/<shortcode> and audits an email_send_events row; validation returns 400 'A customer email address is required' when email is missing/invalid. Preview Resend key => sent:false / status:'failed' as expected — feature-level pass is TRIGGER+AUDIT.\n\nFrontend: logged into CRM as owner@isodemo.com → Corporate → Aftersales Contracts → Dashboard. The 'Alerts & reminders' panel has afs-alerts-email-row/-input/-save; typing 'coordinator@isodemo.com' + Save shows 'Saved ✓'; reload persists value in the input. Agreements sub-tab shows a Customer quotes card with 9 rows each having a working afs-quote-email-<id> button; clicking the first row triggers the send (no JS error, briefly shows 'Sent ✓' then reverts per 3.5s timeout per code). No page errors related to the feature.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_afs_alert_emails_jan2026.py",
+    "/app/test_reports/pytest/afs_alert_emails_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "utils/afs_alerts._resolve_alert_recipients: correctly parses comma/semicolon separated list and dedupes case-insensitively; falls back to org owners then managers — solid.",
+    "run_afs_alerts_once now returns digests_sent and only emails when new alerts were created — matches spec (no spam on empty sweeps).",
+    "routes/crm_aftersales.send_afs_quote_email: mints stable shortcode when absent, updates portal_contact_email/valid_until/status, records audit — good. PDF render failure silently drops attachment (attachments=None) — acceptable graceful degradation but consider logging the exception.",
+    "Email validation uses simple '@' check — matches spec but a stricter regex would be safer. Not blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_afs_alert_emails_jan2026.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (CRM /api/crm/auth/login, Corporate mode)",
+  "seed_data_creation": "Test cleared iso-demo-org afs_alerts (activities+notifications) so a fresh digest could be triggered. 9 saved quotes already existed for AlphaCo — first row (AFS-2026-7C4C7) used for the frontend send-to-customer click.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After this run the alert_email is set to 'coordinator@isodemo.com' and iso-demo-org has fresh open warranty+RPI alerts (created during digest test). Preview Resend key means EVERY email_send_events row will be status='failed' — do NOT treat that as a bug; TRIGGER+AUDIT is the pass condition.",
+  "rca of the issue": "N/A — no bugs found."
+}

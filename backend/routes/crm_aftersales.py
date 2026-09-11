@@ -72,8 +72,27 @@ async def get_settings(user=Depends(get_crm_user)):
                 {"max_pct": 100, "role": "director", "label": "Director approval"},
             ],
             "renewal_windows_days": [180, 120, 90, 60, 30],
+            "alert_email": "",
         }
+    s.setdefault("alert_email", "")
     return s
+
+
+class SettingsUpdate(BaseModel):
+    alert_email: Optional[str] = None
+    vat_pct: Optional[float] = None
+    default_pricing_level: Optional[str] = None
+
+
+@router.put("/settings")
+async def update_settings(body: SettingsUpdate, user=Depends(get_crm_user)):
+    of = _of(user)
+    patch = {k: v for k, v in body.dict().items() if v is not None}
+    if not patch:
+        return await get_settings(user)
+    patch["updated_at"] = _now()
+    await db.crm2_afs_settings.update_one(of, {"$set": patch, "$setOnInsert": {"organization_id": _org(user)}}, upsert=True)
+    return await get_settings(user)
 
 
 @router.get("/ruleset")
@@ -1111,6 +1130,73 @@ async def afs_quote_portal_link(quote_id: str, body: PortalLinkIn, user=Depends(
     frontend = os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or ""
     return {"shortcode": shortcode, "url": f"{frontend}/aq/{shortcode}", "valid_until": valid_until,
             "status": patch.get("status", q.get("status"))}
+
+
+class SendQuoteEmailIn(BaseModel):
+    contact_email: Optional[str] = None
+    contact_name: Optional[str] = None
+    valid_days: int = 30
+    attach_pdf: bool = True
+
+
+@router.post("/quotes/{quote_id}/send-email")
+async def send_afs_quote_email(quote_id: str, body: SendQuoteEmailIn, user=Depends(get_crm_user)):
+    """Email the customer their acceptance link (with the branded PDF attached).
+    Commercial only. Mints a portal link if one doesn't exist yet."""
+    of = _of(user)
+    q = await db.crm2_afs_quotes.find_one({"id": quote_id, **of}, _PUBLIC)
+    if not q:
+        raise HTTPException(404, "Quote not found")
+    email = (body.contact_email or q.get("portal_contact_email") or "").strip()
+    if "@" not in email:
+        raise HTTPException(400, "A customer email address is required to send this quote.")
+    contact_name = (body.contact_name or q.get("portal_contact_name") or "").strip()
+    shortcode = q.get("public_shortcode") or secrets.token_urlsafe(8)[:10]
+    valid_until = (datetime.now(timezone.utc) + timedelta(days=max(1, body.valid_days))).isoformat()
+    patch = {"public_shortcode": shortcode, "valid_until": valid_until,
+             "portal_contact_email": email, "portal_contact_name": contact_name,
+             "emailed_at": _now(), "updated_at": _now()}
+    if q.get("status") in (None, "draft"):
+        patch["status"] = "sent"
+        patch["sent_at"] = _now()
+    await db.crm2_afs_quotes.update_one({"id": quote_id, **of}, {"$set": patch})
+
+    frontend = os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or ""
+    link = f"{frontend}/aq/{shortcode}"
+    summary = q.get("summary", {}) or {}
+    tier = (q.get("contract_type") or "gold").title()
+    greeting = f"Hi {contact_name.split()[0]}," if contact_name else "Hello,"
+    html = (
+        f"<p>{greeting}</p>"
+        f"<p>Please find your Pulse Fitness <strong>{tier} maintenance quotation</strong> "
+        f"(<strong>{q.get('quote_number')}</strong>) attached as a PDF.</p>"
+        f"<p style='font-size:15px'>Annual value: <strong>£{float(summary.get('final_annual') or 0):,.2f}</strong> "
+        f"(£{float(summary.get('final_annual_inc_vat') or 0):,.2f} inc VAT).</p>"
+        f"<p>You can review the full quote and <strong>accept or decline online</strong> here:</p>"
+        f"<p style='margin:22px 0'><a href='{link}' "
+        f"style='background:#0B3D91;color:#fff;text-decoration:none;padding:12px 22px;"
+        f"border-radius:10px;font-weight:700;display:inline-block'>Review &amp; respond to your quote</a></p>"
+        f"<p style='color:#777;font-size:12px'>If the button doesn't work, paste this link into your browser:<br>{link}</p>")
+    attachments = None
+    if body.attach_pdf:
+        try:
+            from utils.afs_quote_pdf import render_afs_quote_pdf
+            import base64
+            pdf = await render_afs_quote_pdf(q, organization_id=_org(user))
+            attachments = [{"filename": f"{q.get('quote_number', 'quote')}.pdf",
+                            "content": base64.b64encode(pdf).decode("ascii")}]
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning("AFS quote PDF render failed for %s; sending without attachment", quote_id, exc_info=True)
+            attachments = None
+
+    from utils.email import send_email
+    sent = await send_email(email, f"Your Pulse Fitness maintenance quote — {q.get('quote_number')}",
+                            html, attachments=attachments, organization_id=_org(user),
+                            category="service", kind="afs_quote")
+    await record_audit(entity_type="afs_quote", entity_id=quote_id, action="send_email", user=user,
+                       extra={"to": email, "sent": bool(sent)})
+    return {"sent": bool(sent), "to": email, "shortcode": shortcode, "url": link}
 
 
 # ══════════════════════════════════════════════════════════════════════════

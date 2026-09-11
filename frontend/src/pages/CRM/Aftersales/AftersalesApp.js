@@ -19,7 +19,7 @@ import {
   Clock, FileSignature, Calculator, Plus, Trash2, Check, Search, TrendingUp, Shield,
   Zap, Building2, Rocket, FileCheck2, PenLine, CheckCircle2, Circle,
   CalendarClock, Receipt, ChevronDown, ChevronRight, RotateCw, MinusCircle,
-  FileText, Share2, Bell,
+  FileText, Share2, Bell, Mail,
 } from 'lucide-react';
 
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -57,10 +57,14 @@ function DashboardTab({ API, headers, c, isDark }) {
   const [loading, setLoading] = useState(true);
   const [alerts, setAlerts] = useState({ alerts: [], counts: {} });
   const [scanning, setScanning] = useState(false);
+  const [alertEmail, setAlertEmail] = useState('');
+  const [savedEmail, setSavedEmail] = useState(false);
 
   const loadAlerts = useCallback(() => {
     axios.get(`${API}/crm/v2/aftersales/alerts`, { headers: headers() })
       .then(r => setAlerts(r.data)).catch(() => setAlerts({ alerts: [], counts: {} }));
+    axios.get(`${API}/crm/v2/aftersales/settings`, { headers: headers() })
+      .then(r => setAlertEmail(r.data.alert_email || '')).catch(() => {});
   }, [API, headers]);
 
   const load = useCallback((attempt = 0) => {
@@ -84,6 +88,10 @@ function DashboardTab({ API, headers, c, isDark }) {
   const dismissAlert = async (id) => {
     await axios.post(`${API}/crm/v2/aftersales/alerts/${id}/dismiss`, {}, { headers: headers() });
     loadAlerts();
+  };
+  const saveAlertEmail = async () => {
+    await axios.put(`${API}/crm/v2/aftersales/settings`, { alert_email: alertEmail }, { headers: headers() });
+    setSavedEmail(true); setTimeout(() => setSavedEmail(false), 2500);
   };
 
   if (loading) return <Spinner />;
@@ -146,6 +154,17 @@ function DashboardTab({ API, headers, c, isDark }) {
           <button data-testid="afs-alerts-scan" onClick={runScan} disabled={scanning}
             className="text-xs px-3 py-1.5 rounded-md border inline-flex items-center gap-1.5 disabled:opacity-50" style={{ borderColor: c.border, color: c.text }}>
             <Search size={13} /> {scanning ? 'Scanning…' : 'Run scan now'}
+          </button>
+        </div>
+        <div className="flex items-center gap-2 mb-3 flex-wrap" data-testid="afs-alerts-email-row">
+          <Mail size={13} style={{ color: c.textDim }} />
+          <span className="text-xs" style={{ color: c.textDim }}>Email alerts to</span>
+          <input data-testid="afs-alerts-email-input" type="text" value={alertEmail}
+            onChange={e => setAlertEmail(e.target.value)} placeholder="coordinator@company.com (blank = org owners)"
+            className="text-xs px-2 py-1 rounded-md border flex-1 min-w-[180px]" style={{ background: isDark ? '#0d0d0d' : '#fff', borderColor: c.border, color: c.text }} />
+          <button data-testid="afs-alerts-email-save" onClick={saveAlertEmail}
+            className="text-xs px-3 py-1 rounded-md" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
+            {savedEmail ? 'Saved ✓' : 'Save'}
           </button>
         </div>
         <div className="space-y-2" data-testid="afs-alerts-list">
@@ -959,6 +978,22 @@ function AgreementsTab({ API, headers, c, isDark }) {
       load();
     } catch { alert('Could not create the acceptance link.'); }
   };
+  const [emailBusy, setEmailBusy] = useState(null);
+  const [emailedId, setEmailedId] = useState(null);
+  const sendQuoteEmail = async (q) => {
+    let email = q.portal_contact_email;
+    if (!email || !email.includes('@')) {
+      email = window.prompt(`Send quote ${q.quote_number} to which customer email?`, email || '');
+    }
+    if (!email || !email.includes('@')) return;
+    setEmailBusy(q.id);
+    try {
+      await axios.post(`${API}/crm/v2/aftersales/quotes/${q.id}/send-email`, { contact_email: email }, { headers: headers() });
+      setEmailedId(q.id); setTimeout(() => setEmailedId(null), 3500);
+      load();
+    } catch (e) { alert(e?.response?.data?.detail || 'Could not send the quote email.'); }
+    finally { setEmailBusy(null); }
+  };
 
   const openDetail = (id) => axios.get(`${API}/crm/v2/aftersales/agreements/${id}`, { headers: headers() }).then(r => { setDetail(r.data); setShowSign(false); });
   const refreshDetail = () => detail && openDetail(detail.id);
@@ -1134,6 +1169,10 @@ function AgreementsTab({ API, headers, c, isDark }) {
                     <button data-testid={`afs-quote-pdf-${q.id}`} onClick={() => viewQuotePdf(q.id)}
                       className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md" style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
                       <FileText size={13} /> PDF
+                    </button>
+                    <button data-testid={`afs-quote-email-${q.id}`} onClick={() => sendQuoteEmail(q)} disabled={emailBusy === q.id}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md disabled:opacity-50" style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+                      <Mail size={13} /> {emailedId === q.id ? 'Sent ✓' : (emailBusy === q.id ? 'Sending…' : 'Send to customer')}
                     </button>
                     <button data-testid={`afs-quote-link-${q.id}`} onClick={() => makePortalLink(q.id)}
                       className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-md" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>

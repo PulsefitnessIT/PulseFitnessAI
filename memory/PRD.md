@@ -1,3 +1,26 @@
+# ═══ 2026-06 · AFTERSALES ENGINE — EMAIL THE ALERTS + SEND QUOTE TO CUSTOMER (Task 3 enhancement) (testing_agent BE 5/5 + FE 100%) ═══
+Wires the existing Resend send_email util into the Aftersales engine (production Resend is live; preview uses a
+test key so sends TRIGGER + AUDIT to db.email_send_events but show status 'failed' — real delivery only in prod).
+  - Coordinator digest: utils/afs_alerts.py — _resolve_alert_recipients (configurable settings.alert_email,
+    comma/semicolon list, else org owners→managers) + _send_alert_digest (ONE branded email per sweep listing all
+    NEW warranty+RPI alerts, category='service'). run_afs_alerts_once now collects created alerts, returns
+    digests_sent, and only emails when NEW alerts were created (no spam on empty sweeps). Digest sent both from the
+    6h background loop and the manual 'Run scan now'.
+  - Settings: NEW PUT /api/crm/v2/aftersales/settings {alert_email?, vat_pct?, default_pricing_level?} (upsert);
+    GET /settings now always returns alert_email (default '').
+  - Customer quote email: NEW POST /quotes/{id}/send-email {contact_email?, contact_name?, valid_days, attach_pdf}
+    — mints/reuses the /aq/<shortcode> link, renders the branded PDF (utils/afs_quote_pdf) as a base64 Resend
+    attachment, emails the customer a CTA to review/accept online (category='service'), stores portal_contact_email/
+    emailed_at, audits. 400 when no valid email. PDF-render failure degrades gracefully (logs + sends without attach).
+  - FE (AftersalesApp.js): DashboardTab alerts panel now has an 'Email alerts to' row (afs-alerts-email-row/-input/
+    -save → PUT /settings). AgreementsTab Customer quotes rows have a 'Send to customer' button (afs-quote-email-<id>)
+    that prompts for an email if none stored, POSTs send-email, shows Sending…/Sent ✓.
+  VERIFIED (testing_agent BE 5/5 pytest + FE 100%, plus curl): alert_email persists; scan after clearing →
+    digests_sent 1 + email_send_events 'Pulse Aftersales: 2 new maintenance reminder(s)' → coordinator@isodemo.com;
+    re-run digests_sent 0; quote send-email returns {sent,to,url,shortcode} + audit; 400 on bad email; FE input
+    save + send button work. Test at /app/backend/tests/test_afs_alert_emails_jan2026.py. NOTE all preview email
+    statuses are 'failed' (test key) — TRIGGER+AUDIT is the pass condition; delivery confirmed only in production.
+
 # ═══ 2026-06 · AFTERSALES ENGINE — WARRANTY & RPI REMINDERS (Task 3, P1) (testing_agent BE 5/5 + FE 100%) ═══
 Auto-creates coordinator tasks (crm2_activities) + notifications (crm2_notifications) as two signals cross the
 180/120/90-day windows. Background sweep every 6h + manual "Run scan now". USER CHOICES: one task per company per
