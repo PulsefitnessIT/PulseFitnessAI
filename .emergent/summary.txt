@@ -1,177 +1,151 @@
-<analysis>**original_problem_statement**: 
-1. Improve the Dealer Parts Allocation Wizard with Plan vs Actuals reporting, tunable thresholds, AI parse mapping memory, 1-5 year cover period options, intelligence blending, invoice number capture, and upfront duplicate guards.
-2. Fix MOD Service Portal bugs.
-3. Fix CRM Fetch company by website to handle bot-protected sites and international postcodes, and add an Account Manager selection for companies.
-4. Integrate Service Desk: Add Service Desk to the global Module Switcher, allow CRM Companies to pull through as Service Desk Customers.
-PRODUCT REQUIREMENTS: Deliver a robust, interconnected Service Desk and CRM experience, finalize the Allocation Wizard's intelligence capabilities, and harden the MOD Portal's UX.
+<analysis>**original_problem_statement**: Design and build a new Pulse Fitness Staff Portal replacing the current fragmented attendance, timesheets, and HR leave processes. The core architecture must operate on ENTER ONCE → USE EVERYWHERE. PRODUCT REQUIREMENTS: Deliver an Attendance Spine, an Employee My Day portal, Post-Login Module Launcher, Payroll Workspace, Spreadsheet Data Migration tool, digital Return-To-Work integration, Leave workflows, Notifications, comprehensive Fleet Compliance/Vehicle Checking, and ensure mobile-first usability. 
+*Recent Addition*: Master Admin Customer Tenant Import & Standalone Billing. Allow Master Admins to import customers via spreadsheet, provisioning them as both platform Tenants (Organizations) and CRM Companies on a Lite (Operations-only, no AI) tier, with the ability to purchase modular add-ons (CRM, Memberships, Marketing) independently.
 
 **User's preferred language**: English (INSTRUCT next agent to respond in English only)
 
-**what currently exists?**: 
-A mature React + FastAPI CRM and Operations platform. Core capabilities include a highly advanced Dealer Parts Allocation Wizard, strict MOD Portal validation, and a robust CRM. Features global international postcode lookups via Zippopotam.us. Module entitlements are strictly scoped by org (), with Master Admin providing top-level governance via inline MFA step-up authentication. Cross-login between the main platform and CRM is supported. The Dealer Parts Allocation Wizard now includes smart recommendation blending (actuals + trends), per-machine threshold overrides, upfront AI review steps with duplicate validation gates, and deterministic invoice number extraction. 
+**what currently exists?**: A mature React + FastAPI CRM and Operations platform. It includes a fully unified Staff Portal and a robust Master Admin RBAC system. Recently implemented features include unified Master Admin Customer Import (creates both platform tenant and CRM company simultaneously), true standalone per-module billing (removing the requirement to purchase Pro before other modules), and a post-import secure welcome email flow (sending set-password links to newly imported contacts).
 
 **Last working item**: 
-    - Last item agent was working: Upgrading the duplicate invoice guard. Moved the invoice already used warning directly into the AI review panel (before clicking Apply), complete with a prominent red banner and a required checkbox acknowledgement to un-gate the Apply button.
+    - Last item agent was working: Building a Post-Import Welcome email flow. Added an opt-in checkbox to the Import Wizard that dispatches a secure set your password link (via Resend) to newly imported customer contacts, including links to module purchasing and the help centre.
     - Status: USER VERIFICATION PENDING
     - Agent Testing Done: Y
-    - Which testing method agent to use?: NA (already verified via backend curl and frontend compilation check)
+    - Which testing method agent to use?: NA (Completed and verified via python test script). Next agent to await user instructions or approval.
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:  
-  Issue 1: Production SENDER_EMAIL delivery verification (P1)
-     - Attempted fixes: Pending verification on live environment.
-     - Next debug checklist: Await user input on production email delivery tests.
-     - Why fix this issue and what will be achieved with the fix?: Ensures operational emails reach customers.
-     - Status: BLOCKED
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix: NA
-     - Blocked on other issue: User action required on live server
-
-  Issue 2: Live Sage 200 / Sicon Integrations Live Credential Flow (P2)
-     - Status: BLOCKED
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix: Backend
-     - Blocked on other issue: User action required
-
-  Issue 3: Invalid RESEND_API_KEY in preview environment (P2)
-     - Attempted fixes: Backend logic succeeds, but Resend API rejects the placeholder key.
-     - Next debug checklist: Inject a valid Resend key in the preview environment  or request from the user.
+  Issue 1: Production SENDER_EMAIL delivery verification (Resend) (P1)
+     - Attempted fixes: Agent implemented the welcome email flow using .
+     - Next debug checklist: Await user input on production email delivery tests (requires valid Resend API key and sender domain in the production environment).
+     - Why fix this issue and what will be achieved with the fix?: Ensures welcome emails and password resets actually reach customers.
      - Status: BLOCKED
      - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix: Backend
-     - Blocked on other issue: Valid API key required from user.
+     - Should Test frontend/backend/both after fix: NA
+     - Blocked on other issue: User providing API credentials
 
-  Issue 4: Platform tenant-registry records verification (P2)
-     - Next debug checklist: Ask user if the two companies (, ) sitting under the AI-Admin org are real customers that need re-attaching, or if they are meant to be platform tenant-registry records.
+  Issue 2: Platform tenant-registry records verification (P2)
+     - Attempted fixes: None yet.
+     - Next debug checklist: Ask user if the two companies sitting under the AI-Admin org are real customers that need re-attaching, or if they are meant to be platform tenant-registry records.
+     - Why fix this issue and what will be achieved with the fix?: Cleans up data hierarchy.
      - Status: USER VERIFICATION PENDING
      - Is recurring issue? N
      - Should Test frontend/backend/both after fix: NA
 
-  Issue 5: Git history containing old sensitive data (P2)
-     - Next debug checklist: Run a history purge (BFG/filter-repo).
-     - Status: NOT STARTED
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix: NA
-
-  Issue 6: Unique Index Guard (P2)
-     - Next debug checklist: Add a unique index on  in MongoDB.
-     - Status: NOT STARTED
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix: Backend
-
 **In progress Task List**: 
-  None
+None actively in-code.
 
-**Upcoming and Future Tasks**:
+**Upcoming and Future Tasks**
     Upcoming Tasks:
-    - Task 1: Offline Engineer Support for Blue Light Wizard (P0): Needs offline caching/sync capability for Fire Stations with no cell signal.
-    - Task 2: Calibration Trend Reporting / Capex Integration (§48/§49) (P1): Flag when treadmill models repeatedly need adjustment or fail.
+    - Task 1: Resend Welcome Email UI button (P1): Add a button on the customer row in Master Admin to allow staff to manually re-trigger the secure set-password link if a customer misses the initial import email. (Suggested by agent, pending user approval).
     
     Future Tasks:
-    - Task 3: Complete i18n localization for remaining Engineer App files.
-    - Task 4: Dictation Widget Locale.
-    - Task 5: Sicon Equipment API Auto-Import & Write-back.
-    - Task 6: Interactive-hotspot version for exploded drawings.
+    - Task 2: Offline Engineer Support for Blue Light Wizard (P1): Needs offline caching/sync capability for Fire Stations with no cell signal.
+    - Task 3: Field Engineers App Sync (§12/§13) (P1): Sync Engineer App activity to propose working day times in Staff Portal.
+    - Task 4: Branded Payslips (P2): Turn each approved week into a clean, branded per-employee payslip PDF.
+    - Task 5: Employment Defaults (P2): Let managers set a default contract type + weekly hours per role.
+    - Task 6: Contract On File List (P2): Show contract type + weekly hours as columns in the HR staff list.
+    - Task 7: Profile Save Toast (P2): Show a clear Saved confirmation on the profile.
+    - Task 8: Weekly Van Summary (P2): Show a van checks: 4/5 days badge on the timesheet.
+    - Task 9: Van Check Link (P2): Link the daily van-check tick to the actual Vehicle Check document.
+    - Task 10: Manager Handbook (P2): Create a manager-side guide covering approvals, offboarding and payroll.
+    - Task 11: Short Video Clips (P2): Add 20-second screen-recording walkthroughs to Help & Tutorials.
+    - Task 12: Search The Guide (P2): Let staff type a keyword to jump straight to the right help section.
 
-**Completed work in this session**:
-- Verified Master Admin Service Desk provisioning bug fix (DONE)
-- Implemented Dealer Parts Allocation Wizard smart recommendation blending (40% actuals) and medium trend sensitivity logic (DONE)
-- Added per-machine-group Plan vs Actuals threshold overrides (DONE)
-- Added AI review step (card) before dropzone in the wizard (DONE)
-- Made Intelligence (blend + trend) default for Pulse Fitness Ltd and demo orgs (DONE)
-- Fixed missing  import blocking compilation in  (DONE)
-- Added deterministic extraction of invoice numbers from PDFs/Excel to auto-fill after Apply (DONE)
-- Upgraded Duplicate Guard to surface in AI review panel before Apply, requiring checkbox acknowledgment (DONE)
+**Completed work in this session**
+- Relocated CRM Company Delete button from the header to the bottom of the Edit Modal, gated to platform  + Master Admins, with confirmation prompt (DONE).
+- Implemented  Master Admin bulk import to create BOTH a platform Organization tenant and a linked CRM Company under Pulse Fitness Ltd (DONE).
+- Enforced strict Lite tier logic for new imports: Operations only, AI features blocked (returns 403), bolt-on modules disabled until paid (DONE).
+- Refactored billing to support true standalone, mix-and-match per-module purchasing (Operations, CRM, Memberships, Marketing) without requiring a Pro base subscription (DONE).
+- Fixed payment fulfillment paths ( webhook and polling) to correctly unlock modules upon Stripe checkout completion (DONE).
+- Built opt-in Post-Import Welcome Email flow in the Import Wizard to send secure set-password links to newly imported contacts (DONE).
 
-**Earlier issues found/mentioned but not fixed**:
-   - Issue 1: Global Modal Stacking Contexts (z-index issues)
-     - Debug checklist: A cookie banner/PWA prompt overlaps modal dialogs (like the CRM New Company Create button). Requires an app-wide Modal Portal refactor.
-     - Why to solve this issue and what will be achieved with this?: Unblocks obscured buttons at the bottom of forms.
-     - Should Test frontend/backend/both after fix: Frontend
-     - Is recurring issue? Y
+**Earlier issues found/mentioned but not fixed**
+   Issue 1: Stripe Live Key in Git History
+   - Debug checklist: The user MUST email  to purge commit  from the remote repository. The agent cannot do this.
+   - Why to solve this issue and what will be achieved with this?: Remediates a security exposure flagged by Stripe.
+   - Should Test frontend/backend/both after fix: NA
+   - Is recurring issue? N
 
-**Known issue recurrence from previous fork**:
-  - Issue recurrence in previous fork: React Rules of Hooks violations (Recurrence count: 2) - RESOLVED 
-  - Issue recurrence in previous fork: Babel JS string duplication (Tail Corruption) (Recurrence count: 21+) - RESOLVED
-  - Issue recurrence in previous fork: OOM (Out of Memory) dev server crashing (Recurrence count: 3) - RESOLVED
+**Known issue recurrence from previous fork**
+  - Issue recurrence in previous fork: Invalid RESEND_API_KEY in preview environment (production delivery unverified)
+  - Recurrence count: 5
+  - Status: BLOCKED
 
-**Code Architecture**:
+**Code Architecture**
 /app
-├── backend/routes/ (dealer_parts_data.py, crm_website_recognize.py, auth.py, crm_auth.py, staff_portal.py, service_desk_admin.py)
-├── backend/utils/ (headless_fetch.py, postcodes_client.py, auth_guards.py)
-├── frontend/src/pages/DealerWarrantyParts/ (AllocationWizardTab.js, PlanVsActualsPanel.js)
-├── frontend/src/pages/LiteDashboard/ (LiteDialogs.js)
-├── frontend/src/pages/MasterAdmin/ (AdminOrganizations.js)
-├── frontend/src/pages/CRM/ (CRMCompanies.js, CRMPermissions.js)
-├── frontend/src/components/shared/ (ModuleSwitcher.js, AreaSwitcher.js)
+├── backend/routes/ (onboarding_import.py, payments.py, master_admin_orgs.py, crm_permissions.py, crm_v2.py)
+├── backend/utils/ (email.py, module_access.py, ai_access.py)
+├── frontend/src/pages/MasterAdmin/ (ImportWizard.js)
+├── frontend/src/pages/CRM/ (CRMCompanies.js)
+├── frontend/src/components/pulse/ (PulseModulePricing.js)
 
-**Key Technical Concepts**:
-React, FastAPI, MongoDB, Playwright (Headless Chromium), MFA Step-Up Authentication, JWT, Zippopotam.us API, Reportlab (PDF).
+**Key Technical Concepts**
+React, FastAPI, MongoDB. 
+- **Standalone Module Billing**: Modules (Operations, CRM, Marketing, Memberships) are purchased independently via Stripe. Operations Pro is required for AI access, but not required to purchase CRM/Marketing/Memberships.
+- **Tenant Import Architecture**: The unified  pushes . It provisions an entry in  (the tenant),  (the CRM mirror), and  (admin login if an email is provided).
 
-**key DB schema**:
-  - : Main platform login accounts.  links to the company.
-  - : CRM-specific profiles. Uses  for unified passwords.
-  - : Platform tenants (e.g. Pulse Fitness Ltd ).
-  - : Allocation wizard tenant settings.
-  - : Allocation wizard target quantities.
-  - : Equipment breakdown.
-  - : Parsed job history records.
+**key DB schema**
+  - : Core platform tenants (account_type=lite or pulse_pro).
+  - : CRM records linked to organizations.
+  - : Core platform auth records.
+  - : CRM-specific auth records.
 
-**changes in tech stack**:
-  - None this session. (Playwright + headless Chromium browser previously added to backend).
+**changes in tech stack**
+  - None.
 
-**All files of reference**: 
-  -  (Added blend/trend intelligence, deterministic invoice number extraction, and threshold overrides).
-  -  (Added AI review card, intelligence badge, duplicate guard acknowledgement checkbox).
-  -  (Added per-machine override UI).
-  -  (Fixed compilation-blocking missing  import).
+**All files of reference** 
+  -  (Company deletion UI logic relocated)
+  -  (Tenant import logic, welcome email dispatch)
+  -  (Wizard UI, send-welcome checkbox added)
+  -  (Stripe flex checkout and module unlock fulfillment)
+  -  (Module overrides, bolt-on un-gating)
 
 **Areas that need refactoring**: 
-  - App-wide modal placement (needs standardized React Portals) to avoid z-index overlapping with PWA/cookie banners.
+  - Payment Webhook & Polling: Fulfillment logic now cleanly handles module unlocks, but keep an eye on  if adding more granular subscription tiers, as it handles both package bundles and individual modules.
 
-**key api endpoints**:
-  -  (Applies smart blends/trends)
-  -  (Applies global and per-machine group thresholds)
-  -  (Uses fast deterministic extraction for CSVs and PDFs to capture invoice IDs)
+**key api endpoints**
+  -  (Executes the data/tenant import)
+  -  (Generates Stripe session for standalone modules)
+  -  (Deletes CRM company, gated to owner/master admin)
 
-**Critical Info for New Agent**: 
-  - Domain Model: The primary tenant is **Pulse Fitness Ltd** (). The Pulse Fitness AI Admin () tenant is strictly a master-admin login container.
-  - Test Data Context: The  data (warranty plan, BOM machines, settings) lives under **** in the dev preview, but settings defaults have been applied to both  and .
-  - Master Admin security uses an **inline Step-Up MFA flow** () rather than hard 401 sign-outs.
+**Critical Info for New Agent**
+  - **Lite Tier Definition**: Out of the box,  grants access to Operations (Dashboard, Equipment, Faults) but **strictly blocks AI**. Memberships, Marketing, and CRM are off.
+  - **Billing Model**: The app uses a mix-and-match model. Customers can buy just CRM, just Marketing, etc. They do *not* need to be on Operations Pro to buy bolt-ons. 
+  - **Welcome Emails**: Password generation for imported users does *not* send plaintext passwords. It uses the  logic to mint a secure, one-time invite/reset token sent via .
 
-**documents and test reports created in this job**: 
+**documents and test reports created in this job** 
   - 
-  -  (Updated test sample)
+  - 
 
-**Last 10 User Messages and any pending HUMAN messages**: 
- 1. *[User]*: Confirmed Service desk provisioning bug fix is verified. Requested to prioritize Dealer Parts Allocation Wizard improvements. (COMPLETED)
- 2. *[User]*: Selected specific features (b, c, d) for the Wizard. (COMPLETED)
- 3. *[User]*: Asked to Make Intelligence Default: Turn blend + trend on by default across the org and asked if it still nets against current stock. (COMPLETED)
- 4. *[User]*: Authorized setting Blend to 40%, Trend to Medium, strictly for Pulse Fitness Ltd. (COMPLETED)
- 5. *[User]*: Requested Invoice Number Capture to reliably pull the invoice number from PDFs/Excel to auto-fill after Apply. (COMPLETED)
- 6. *[User]*: Requested Duplicate Guard on Apply to surface the invoice already used warning directly in the AI review panel before Apply. (COMPLETED)
-*(No pending human messages)*
+**Last 10 User Messages and any pending HUMAN messages** 
+ 1. *[User]*: Requested CRM Owner Delete button be moved to the bottom of the Edit modal with confirmation; clarified main import needs to create both CRM companies and Master Admin Organizations.
+ 2. *[User]*: Approved agent plan.
+ 3. *[User]*: Clarified customers start as Lite tenants and upgrade to buy base modules.
+ 4. *[User]*: Asked what Lite includes.
+ 5. *[User]*: Confirmed Lite = Operations only (no AI). Upgrades unlock Pro (AI) and other features.
+ 6. *[User]*: Shared screenshot showing every module is standalone (mix & match), clarifying the billing model.
+ 7. *[User]*: Confirmed option A (true standalone per-module purchase).
+ 8. *[User]*: Asked if post-import welcome emails will include login details for customers to buy modules.
+ 9. *[User]*: Requested the login email contain a secure Set your password link, sent only when a checkbox is ticked during import, and include a link to Help/Tutorials. (COMPLETED - Final Finish Tool Called)
 
-**Project Health Check**:
-  Broken: Global Modal Stacking/z-index overlaps.
-  Mocked: Sage 200 Integration, Resend Email Delivery (Preview Env).
+**Project Health Check:**
+Broken: None.
+Mocked: Sage 200 Integration, Resend Email Delivery (Preview Env), Citation Atlas HR API, DVLA Service.
 
-**3rd Party Integrations**: 
-  - OpenAI GPT-4o / Claude Sonnet 4.6 — uses Emergent LLM Key
+**3rd Party Integrations** 
+  - OpenAI / Claude — uses Emergent LLM Key
   - Stripe (Payments) — requires User API Key
   - Resend (Emails) — requires User API Key
 
-**Testing status**:
-  - Testing agent used after significant changes: YES
+**Testing status**
+  - Testing agent used after significant changes: YES (Frontend CRM Company Delete flow verified).
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: 
-  - Known regressions: None
+  - Test files created: , , ,  (Local harness scripts)
+  - Known regressions: None detected.
 
-**Credentials to test flow**:
-  -  (Master admin - Note: Has MFA Enabled)
-  -  (CRM / Portal / Service Desk user)
+**Credentials to test flow:**
+  -  (Manager / Master Admin tests)
+  -  (Employee UI tests)
   - Password in 
 
-**What agent forgot to execute**:
-- The agent explicitly deferred Git history purging (BFG/filter-repo) and  unique index guards. 
-- The React Portals refactor for resolving Global Modal Stacking contexts/z-index overlap remains untouched.</analysis>
+**What agent forgot to execute**
+The agent successfully completed all requested tasks, including the explicit billing logic changes and the import logic fixes. No items were forgotten. A recommendation for a manual Resend Welcome Email button was left for user consideration.</analysis>

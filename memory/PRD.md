@@ -1,3 +1,97 @@
+# ═══ 2026-06 · AFTERSALES ENGINE — PHASE 2: BUILD QUOTE FROM ESTATE + EXCEPTION QUEUE (testing_agent BE 11/11 + FE 100%) ═══
+Adds the one-click auto-quoter feeding the SAME deterministic engine as Phase 1. All in
+/app/backend/routes/crm_aftersales.py + frontend AftersalesApp.js "Build Quote" sub-tab (afs-tab-autoquote).
+  - REFACTOR: extracted shared async _compute_quote(org_id, lines, contract_type, pricing_level, discount, term,
+    vat, has_customer, has_site) used by BOTH POST /pricing/calculate (manual) and the estate auto-quoter — single
+    engine (§14). Phase-1 figures unchanged (688.7412 / 895.36 / 805.82 / 2417.46 all re-verified).
+  - _resolve_config: when an asset has no console, now prefers a PRICEABLE config (rrp>0, not RRP-hold, approved)
+    instead of the first legacy stub — so bare assets map to their real reference RRP.
+  - _annotate_asset(org, eq): matches equipment→service config + supportability memory → pricing_status ∈
+    {SUPPORTED, PROVISIONAL, RRP_REQUIRED, NOT_ELIGIBLE, NOT_MATCHED, SUPPORTABILITY_REVIEW}.
+  - GET /estate/{company_id}: loads the CRM company's LINKED operations estate (db.sites + db.equipment for
+    linked_organization_id — reuses the existing linkage), annotates every asset, groups by site with counts.
+  - POST /build-quote-from-estate {company_id, site_ids?, contract_type, pricing_level, term_years,
+    quote_discount_pct, save}: loads eligible assets for the selected sites, prices via _compute_quote (NEVER
+    invents — RRP/unmatched assets price to 0 and become exceptions), groups priced assets by config_id for the
+    COMMERCIAL view (qty + serials retained = asset-level truth §20/§50), stamps per-asset annual, classifies
+    EXCEPTIONS (RRP_REQUIRED / SUPPORTABILITY / NOT_ELIGIBLE / NOT_MATCHED / PROVISIONAL §22/§99), computes
+    confidence (READY_FOR_REVIEW / REVIEW_REQUIRED / CANNOT_AUTO_QUOTE) + pct_automatically_priced. save=true
+    persists a draft to crm2_afs_quotes (AFS-YYYY-XXXXX, frozen pricing_version) — dashboard quotes_to_prepare
+    now counts these.
+  - GET /quotes (+ /quotes/{id}) — list/read aftersales draft quotes.
+  - FRONTEND AutoQuoteTab: customer picker (afs-aq-company) → estate sites as toggle chips (afs-aq-site-<id>) →
+    "Build Quote From Estate" (afs-aq-build) → result: confidence/pct/exceptions/annual cards
+    (afs-aq-confidence/-pct/-exceptions/-annual), Commercial grouped lines + pricing summary (afs-aq-groups) with
+    "Save as draft quote" (afs-aq-save → afs-aq-saved), and an EXCEPTION QUEUE (afs-aq-exception-queue,
+    afs-aq-exc-<i>) with inline resolution: set approved RRP (afs-aq-rrp-<i> + afs-aq-rrp-save-<i> → PUT
+    /service-configs/{id}) or "Approve as supported" (afs-aq-approve-<i> → POST /supportability/decisions) — each
+    action RE-BUILDS the quote so the coordinator clears exceptions and watches pct rise.
+  VERIFIED: AlphaCo (iso-cA, 20 Pulse assets) gold build = 6/20 priced, £1938.19 gold_base, REVIEW_REQUIRED,
+    groups 260G×2 £892.80 / 220G×2 £554.28 etc.; RRP override re-prices (6→7); approve-supported clears
+    PROVISIONAL; save persists. bug fixed en-route: group/asset annual keyed on config_id (asset console blank).
+  NOTES (optional/cosmetic, non-functional): pct denominator reflects the SELECTED-site estate; dashboard
+    quotes_to_prepare is nested under cards.*. NEXT: P3 Agreement→Activation; P4 RPI + auto-renewals + warranty
+    conversion; later Contract AI assistant.
+─────────────────────────────────────────────────────────────────────────────
+
+
+# ═══ 2026-06 · AFTERSALES CONTRACT AUTOMATION ENGINE — PHASE 1 (testing_agent 100% BE 14/14 + FE) ═══
+NEW EPIC (135-section brief): turn the existing CRM/Contracts/Quotes/Assets/Service-Desk into an Aftersales
+Contract Automation Engine. RULE #1: reuse, never duplicate. User confirmed: (a) new top-level CRM tab
+"Aftersales Contracts" (Corporate mode); (b) start with Phase 1; (c) seed defaults but editable; (d) AI via
+Emergent key (later phase); (e) parse the REAL uploaded workbook (never invent prices).
+MERGE (user follow-up): the old standalone "Contracts" tab was MERGED into "Aftersales Contracts" — the CRMContracts
+workspace is now the "Contracts & Renewals" sub-tab; no separate Contracts tab (case 'contracts' + 'aftersales' both
+render AftersalesApp; NAV item renamed; navigateTo contract->aftersales; MEMBERS_HIDDEN_TABS adds aftersales).
+
+DELIVERED PHASE 1 (all backend verified via curl matching the source spreadsheet EXACTLY):
+  - SEED /app/backend/scripts/seed_aftersales_pricing.py — deterministic parse of
+    /app/backend/scripts/data/contract_quoting.xlsx into crm2_afs_* collections (org-scoped, default iso-demo-org,
+    idempotent, seed_source='contract_quoting_xlsx'). Imported: 7 rate_groups, 3 contract_types
+    (Silver factor 0.8 / Gold 1.0 / Platinum 1.3), 7 console_rules, 490 service_configs, 4012 skus,
+    532 legacy_crosswalk, 3 packages (Silver/Gold/Platinum from the Maintenance Agreement Packages brief),
+    initial pricing version + settings (vat 0.20, discount thresholds coordinator<=5 / SM<=10 / Director>10,
+    renewal windows 180/120/90/60/30). Re-run: cd /app/backend && PYTHONPATH=/app/backend python
+    scripts/seed_aftersales_pricing.py  (env AFS_ORG_ID to target another org).
+  - ROUTER /app/backend/routes/crm_aftersales.py (prefix /crm/v2/aftersales, get_crm_user auth, registered in
+    route_registry/crm.py). Endpoints: GET settings|ruleset|versions|packages|wording-conflicts;
+    PUT rate-groups/{id}, contract-types/{id}, packages/{id}, service-configs/{id} (each write SNAPSHOTS a new
+    pricing version so historic quotes freeze); GET service-configs(+/stats), skus, legacy/resolve;
+    POST pricing/calculate (THE single deterministic engine); supportability statuses|decisions(CRUD)|evaluate;
+    GET dashboard + priorities.
+  - PRICING ENGINE (matches Pulse Quote Builder): per line
+    annual_unit_gold = RRP × RateGroup%[standard|preferred|minimum] × ConsoleMult + rate_fixed + console_fixed;
+    × qty = gold line; Σ = gold_base_annual; × contract factor = contract_type_annual; − quote_discount%
+    = final_annual; monthly=/12; term_total=×years; VAT separate. VERIFIED: 200H·Console 6 (Series 3) ×2 Gold
+    = unit 344.3706 / line 688.7412 / final £688.74 / monthly £57.40; Platinum ×1.3 = £895.36; +10% discount
+    = £805.82; term×3 = £2417.46. NEVER invents prices: legacy/no-RRP config → annual 0 + Quote Health
+    REVIEW/BLOCKED "Manual RRP required". Quote Health also flags provisional configs + discount-approval role +
+    customer/site required.
+  - SUPPORTABILITY: 6 statuses (fully_supported/supported_with_exclusions/limited_support/manual_review/
+    do_not_contract/third_party_review); decision MEMORY keyed by manufacturer+model+console (reused on future
+    quotes); evaluate() = memory → service-config heuristics (never rejects on age alone; falls back to manual_review).
+  - WORDING GOVERNANCE: Platinum carriage-&-insurance conflict seeded as unresolved (package sheet says INCLUDED vs
+    master agreement chargeable) — surfaced, not silently resolved.
+  - FRONTEND /app/frontend/src/pages/CRM/Aftersales/AftersalesApp.js — sub-tabs Dashboard (command-centre cards +
+    My Priorities), Contracts & Renewals (embeds CRMContracts), Pricing & Rules (editable rate groups /
+    contract-type adjustments / packages + version history + wording-conflict banner), Equipment Review (Service
+    Config browser + LIVE deterministic quote calculator), Supportability (evaluator + decision-memory CRUD).
+    data-testids: afs-app, afs-subnav, afs-tab-<id>, afs-dashboard, afs-card-*, afs-priorities/-<i>, afs-pricing,
+    afs-ct-<key>/-input/-save, afs-rg-<key>, afs-pkg-<key>, afs-wording-conflict, afs-versions, afs-equipment,
+    afs-cfg-search/-add-<id>/-stat-*, afs-calculator, afs-calc-type/-level/-discount/-term/-final/-health/-reasons,
+    afs-supportability, afs-eval-*, afs-dec-*, afs-decisions-list.
+  BUGS FIXED during build: (1) regex metachar match on "Console 6 (Series 3)" → added _eq()/re.escape; (2) contract
+    types seed grabbed junk rows → require numeric factor cell; (3) /priorities 500 (async for over .to_list) →
+    for … in await …to_list(); (4) record_audit signature (keyword args) on 5 call-sites [testing agent].
+  ACCESS: Aftersales Contracts only shows in CRM CORPORATE mode (hidden in Members). CRM uses a SEPARATE crm_token
+    (platform token → 401 on /crm/v2/*). Test: owner@isodemo.com / IsoDemo123! → /crm → Corporate → Aftersales Contracts.
+  NOT YET BUILT (next phases, agreed): P2 "Build Quote From Estate" one-click auto-quote + exception queue feeding
+    existing CPQ (crm_quotes); P3 Agreement builder (auto Schedules 1-6 from accepted quote) + e-sign + activation
+    engine (links assets/PPM/billing/Sicon/Sage); P4 RPI review engine + auto-renewal + warranty-conversion
+    opportunities; later: Contract AI assistant (Emergent key, deterministic-only pricing), reporting/forecast.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · POST-IMPORT WELCOME EMAIL (secure set-password link, opt-in per import) ═══
 User choices: (1) deliver login via a "set your password" SECURE LINK (never a raw password); (2) send ONLY when a
 "Send welcome emails" checkbox is ticked on the import; (3) email includes login email + getting-started line +
@@ -21433,7 +21527,7 @@ So any external bookmarks or stray copy-paste links keep working:
   redirects + scan the rest of the codebase for any remaining links
   to the dead paths (`/legal/privacy`, `/legal/terms`).
 * `make regression` → **385 passed, 14 skipped** (up from 379).
-* Live smoke against `https://allocation-wizard-ai.preview.emergentagent.com`:
+* Live smoke against `https://fitness-onboarding-3.preview.emergentagent.com`:
   * `/legal/privacy`     → final URL `/privacy` ✅
   * `/legal/terms`       → final URL `/terms` ✅
   * `/forgot-password`   → final URL `/reset-password` ✅
@@ -32005,7 +32099,7 @@ P6 — final phase of the Master Admin redesign blueprint. Replaces ad-hoc "Add 
   8-10. Backend endpoint calls verified.
   11. Created user appears in unified directory.
   12. Regression: People → Directory still works.
-- **Main agent live smoke**: signed in as `admin@gymaxisai.com`, ran full 5-step flow, created `Wizard Test User`, received invite URL `https://allocation-wizard-ai.preview.emergentagent.com/reset-password?token=l47KegLXL2FI…`.
+- **Main agent live smoke**: signed in as `admin@gymaxisai.com`, ran full 5-step flow, created `Wizard Test User`, received invite URL `https://fitness-onboarding-3.preview.emergentagent.com/reset-password?token=l47KegLXL2FI…`.
 
 ### Pulse Master Admin guardrails
 - 'GymAxis Master Admin' role tile hidden.

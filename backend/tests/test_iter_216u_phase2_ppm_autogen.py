@@ -22,7 +22,7 @@ from tests.conftest import (
 )
 
 # Use the same URL pattern as conftest.py
-API_BASE_URL = os.environ.get("TEST_API_URL", "https://allocation-wizard-ai.preview.emergentagent.com")
+API_BASE_URL = os.environ.get("TEST_API_URL", "https://fitness-onboarding-3.preview.emergentagent.com")
 BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or API_BASE_URL).rstrip("/")
 
 

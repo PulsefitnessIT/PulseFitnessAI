@@ -17,7 +17,7 @@ from types import SimpleNamespace
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL") or
-       "https://allocation-wizard-ai.preview.emergentagent.com").rstrip("/")
+       "https://fitness-onboarding-3.preview.emergentagent.com").rstrip("/")
 
 
 def _login(email, pwd):

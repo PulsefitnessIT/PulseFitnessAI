@@ -5,7 +5,7 @@
     "ui_bugs": [
       {
         "component": "CRMMODQuoteWizard step-4 <iframe>",
-        "issue": "Chromium logs a Content Security Policy violation: \"Framing 'blob:https://allocation-wizard-ai.preview.emergentagent.com/...' violates the following CSP directive: frame-src 'self' https://challenges.cloudflare.com https://hcaptcha.com https://js.stripe.com...\". The iframe element receives the correct blob src but the browser refuses to render the PDF inside it, so the preview panel appears blank (only the outer border/header are visible). The Download PDF link still works and downloads a valid application/pdf. Fix: add 'blob:' to the frame-src CSP directive (e.g. index.html <meta http-equiv=\"Content-Security-Policy\"> or the server response header) so the freshly-generated PDF renders inline in the preview iframe.",
+        "issue": "Chromium logs a Content Security Policy violation: \"Framing 'blob:https://fitness-onboarding-3.preview.emergentagent.com/...' violates the following CSP directive: frame-src 'self' https://challenges.cloudflare.com https://hcaptcha.com https://js.stripe.com...\". The iframe element receives the correct blob src but the browser refuses to render the PDF inside it, so the preview panel appears blank (only the outer border/header are visible). The Download PDF link still works and downloads a valid application/pdf. Fix: add 'blob:' to the frame-src CSP directive (e.g. index.html <meta http-equiv=\"Content-Security-Policy\"> or the server response header) so the freshly-generated PDF renders inline in the preview iframe.",
         "selector": "[data-testid=\"mod-pdf-preview\"] iframe",
         "priority": "MEDIUM"
       }

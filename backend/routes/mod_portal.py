@@ -3058,7 +3058,7 @@ def _hq_provision_email_html(site: dict, username: str, new_password: str) -> st
       <tr><td style="padding:8px 14px;background:#0A0B10;color:#19CDFF;border:1px solid #0A0B10;font-size:11px;font-weight:800;text-transform:uppercase;">Site code</td>
           <td style="padding:8px 14px;background:#0A0B10;color:#fff;border:1px solid #0A0B10;font-family:ui-monospace,Menlo,monospace;font-weight:700;">{new_password}</td></tr>
     </table>
-    <p style="color:#6E7476;font-size:13px;margin-top:18px;">Share this with the on-site PTI via a secure channel. Sign in at <a href="https://allocation-wizard-ai.preview.emergentagent.com/MODService" style="color:#19CDFF;">/MODService</a> using the username + site code.</p>
+    <p style="color:#6E7476;font-size:13px;margin-top:18px;">Share this with the on-site PTI via a secure channel. Sign in at <a href="https://fitness-onboarding-3.preview.emergentagent.com/MODService" style="color:#19CDFF;">/MODService</a> using the username + site code.</p>
   </div>
 </div>"""
 

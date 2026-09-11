@@ -26,7 +26,7 @@ import CRMDemoTour from './CRMDemoTour';
 import CRMTenders from './CRMTenders';
 import CRMCalendar from './CRMCalendar';
 import CRMTerritories from './CRMTerritories';
-import CRMContracts from './CRMContracts';
+import AftersalesApp from './Aftersales/AftersalesApp';
 import CRMForecast from './CRMForecast';
 import CRMReports from './CRMReports';
 import CRMPermissions from './CRMPermissions';
@@ -92,7 +92,7 @@ const NAV_ITEMS = [
   // "Pulse Fitness Limited" tenant + every other paying Pulse Pro org
   // missed out despite the master admin toggling Tender Engine ON.
   { id: 'tenders', labelKey: 'crm.tenders', icon: Award, featureFlag: 'crm_tenders' },
-  { id: 'contracts', labelKey: 'crm.contracts', icon: Shield, featureFlag: 'crm_documents' },
+  { id: 'aftersales', labelKey: 'crm.aftersales', label: 'Aftersales Contracts', icon: Shield, featureFlag: 'crm_documents' },
   // Iter 215de — record-level + field-level permissions (admin only).
   { id: 'permissions', labelKey: 'crm.permissions', icon: EyeOff, adminOnly: true, hideFromBar: true },
   // Hidden from the bar but still routable via contextual entry points.
@@ -108,7 +108,7 @@ const NAV_ITEMS = [
 // explicitly asked to drop Tenders + Territories; Contracts, Forecast and
 // Quotes are the other B2B-sales artefacts a gym managing members never uses.
 const MEMBERS_HIDDEN_TABS = new Set([
-  'quotes', 'tenders', 'territories', 'contracts', 'forecast',
+  'quotes', 'tenders', 'territories', 'contracts', 'forecast', 'aftersales',
 ]);
 
 // In the Members environment a few tabs read better with gym-native labels
@@ -736,7 +736,7 @@ export default function CRMApp() {
   const [navTarget, setNavTarget] = useState(null); // {type: 'company', id: '...'}
 
   const navigateTo = useCallback((entityType, entityId, extra) => {
-    const tabMap = { company: 'companies', contact: 'contacts', opportunity: 'pipeline', deal: 'pipeline', case: 'dashboard', task: 'inbox', quote: 'quotes', contract: 'contracts', tender: 'tenders' };
+    const tabMap = { company: 'companies', contact: 'contacts', opportunity: 'pipeline', deal: 'pipeline', case: 'dashboard', task: 'inbox', quote: 'quotes', contract: 'aftersales', tender: 'tenders' };
     const tab = tabMap[entityType] || 'dashboard';
     if (MEMBERS_HIDDEN_TABS.has(tab)) setActiveMode('business');
     setNavTarget({ type: entityType, id: entityId, ...(extra || {}) });
@@ -872,7 +872,8 @@ export default function CRMApp() {
       case 'workflows': return <CRMWorkflows />;
       case 'quotes': return <CRMCPQ />;
       case 'quote-compare': return <CRMQuoteCompare />;
-      case 'contracts': return <CRMContracts />;
+      case 'contracts': return <AftersalesApp />;
+      case 'aftersales': return <AftersalesApp />;
       case 'documents': return <CRMDocuments />;
       case 'tenders': return <CRMTenders />;
       case 'ai-tools': return <CRMAITools />;

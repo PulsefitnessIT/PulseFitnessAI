@@ -25,7 +25,7 @@ import pytest
 
 BASE = os.environ.get(
     "TEST_BASE_URL",
-    "https://allocation-wizard-ai.preview.emergentagent.com",
+    "https://fitness-onboarding-3.preview.emergentagent.com",
 )
 
 EXPECTED_BREAKDOWN_KEYS = {

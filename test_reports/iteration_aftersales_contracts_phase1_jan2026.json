@@ -1,0 +1,35 @@
+{
+  "summary": "Phase 1 of Aftersales Contract Automation Engine tested end-to-end. Backend: 14/14 pytest cases pass. Frontend: CRM Corporate mode shows a single 'Aftersales Contracts' tab (no standalone 'Contracts' tab); all 5 sub-tabs render (Dashboard, Contracts & Renewals, Pricing & Rules, Equipment Review, Supportability). Dashboard shows £165,000 ACV / 1 active contract / 453 supportability reviews / 1 wording conflict. Deterministic engine verified from UI: Gold 200H · Console 6 (Series 3) x2 = £688.74 final / £57.40 monthly / £137.75 VAT — matches spreadsheet exactly. Platinum + 10% discount surfaces REVIEW REQUIRED with 'Manual RRP required' and 'Service Manager approval' reasons. Contracts & Renewals sub-tab embeds the existing CRMContracts workspace correctly (£165,000 active contract listed). Supportability evaluate for 200C returns Manual Review; decision memory record + list + delete work. Fixed a real backend defect (record_audit signature mismatch) that was 500'ing 3 PUT/POST endpoints.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_aftersales_contracts_jan2026.py",
+    "/app/test_reports/pytest/aftersales_jan2026.xml"
+  ],
+  "action_items": [
+    "No functional action items — feature works as specified. Main agent may wish to review the 5 record_audit(...) call-sites in /app/backend/routes/crm_aftersales.py that were converted from positional to keyword-only args to match utils/crm_audit.record_audit() signature."
+  ],
+  "critical_code_review_comments": [
+    "BUG FIXED BY TESTER: All 5 record_audit(...) calls in routes/crm_aftersales.py used positional args, but utils/crm_audit.record_audit() is keyword-only (defined with `*`). This caused 500s on PUT /rate-groups/{id}, PUT /contract-types/{id}, PUT /packages/{id}, PUT /service-configs/{id}, POST /supportability/decisions. Converted all call-sites to keyword form (entity_type=, entity_id=, action=, user=, before=, after=, summary=, extra=). Also normalised action verbs to 'update'/'create' so change diffs are generated.",
+    "routes/crm_aftersales.py is 777 lines — approaching the 700-line soft cap. Consider splitting into aftersales_pricing.py, aftersales_supportability.py, aftersales_dashboard.py.",
+    "Rate-group PUT + contract-type PUT auto-derive one of adjustment_pct/pricing_factor from the other, but small floating-point drift (0.1 vs 0.09999…) means naive equality checks in the FE could show 'dirty' state. Consider rounding on write."
+  ],
+  "updated_files": [
+    "/app/backend/routes/crm_aftersales.py",
+    "/app/backend/tests/test_aftersales_contracts_jan2026.py"
+  ],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100% (all sub-tabs + calculator + supportability verified)"},
+  "test_credentials": "CRM: owner@isodemo.com / IsoDemo123! (Corporate mode, org iso-demo-org). Platform login via /login then /crm.",
+  "seed_data_creation": "None — used the already-seeded crm2_afs_* data from scripts/seed_aftersales_pricing.py for org iso-demo-org. Tests are idempotent (restore original values after mutation) and only add a TESTMODEL_JAN2026 supportability decision via FE test which was deleted at end.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest at /app/backend/tests/test_aftersales_contracts_jan2026.py — run with `cd /app/backend && REACT_APP_BACKEND_URL=$(grep REACT /app/frontend/.env|cut -d= -f2) pytest tests/test_aftersales_contracts_jan2026.py -v`. The tests mutate contract-types + rate-groups then restore, so re-running is safe. Frontend sub-tab data-testids: afs-tab-{dashboard,contracts,pricing,equipment,supportability}, afs-calculator with afs-calc-type (SELECT), afs-calc-discount, afs-calc-final, afs-calc-health. Nav item: [data-testid='crm-nav-aftersales'] only visible in Corporate mode.",
+  "rca_of_the_issue": "record_audit() in utils/crm_audit.py is declared with `*` making all args keyword-only. All 5 call-sites in crm_aftersales.py passed positional args → TypeError → 500. The exception was NOT caught (record_audit's own try/except is inside the function body, but the signature check happens before). Fix: convert all call-sites to keyword form. Reproduction (pre-fix): `curl -X PUT $API/crm/v2/aftersales/rate-groups/{id} -d '{\"standard_pct\":0.101}' -H 'Auth: Bearer $CRM_TOKEN'` → 500 with backend log 'record_audit() takes 0 positional arguments but 6 were given'."
+}
