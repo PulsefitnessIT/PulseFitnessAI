@@ -529,12 +529,23 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [rrpEdit, setRrpEdit] = useState({});
+  const [warrantyOpps, setWarrantyOpps] = useState([]);
   const inpStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text };
 
   useEffect(() => {
     axios.get(`${API}/crm/v2/companies?limit=200`, { headers: headers() })
       .then(r => setCompanies(r.data.companies || r.data || [])).catch(() => setCompanies([]));
+    axios.get(`${API}/crm/v2/aftersales/revenue/warranty-opportunities?window_days=365`, { headers: headers() })
+      .then(r => setWarrantyOpps(r.data.opportunities || [])).catch(() => setWarrantyOpps([]));
   }, [API, headers]);
+
+  const buildProposal = useCallback((opp) => {
+    setBusy(true);
+    setCompanyId(opp.company_id);
+    axios.post(`${API}/crm/v2/aftersales/revenue/warranty-opportunities/${opp.company_id}/build-proposal`,
+      { window_days: 365, contract_type: contractType, pricing_level: level, term_years: Number(term), quote_discount_pct: Number(discount), save: true },
+      { headers: headers() }).then(r => setResult(r.data)).finally(() => setBusy(false));
+  }, [API, headers, contractType, level, term, discount]);
 
   const loadEstate = useCallback((cid) => {
     setEstate(null); setResult(null);
@@ -577,6 +588,32 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
 
   return (
     <div data-testid="afs-autoquote">
+      {warrantyOpps.length > 0 && (
+        <div className="mb-4" data-testid="afs-warranty-opps">
+          <div className="flex items-center gap-2 mb-2">
+            <Building2 size={16} style={{ color: 'var(--color-accent-amber)' }} />
+            <p className="text-sm font-bold" style={{ color: c.text }}>Warranty → Maintenance Opportunities</p>
+            <span className="text-[11px]" style={{ color: c.textDim }}>expiring warranties ready to convert</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {warrantyOpps.map(o => (
+              <Card key={o.company_id} c={c} isDark={isDark} testId={`afs-warranty-${o.company_id}`}>
+                <p className="text-sm font-bold" style={{ color: c.text }}>{o.company_name}</p>
+                <p className="text-xs mb-1" style={{ color: c.textDim }}>{o.assets_ending_warranty} assets ending warranty · from {o.earliest_expiry}{o.days_to_earliest != null ? ` (${o.days_to_earliest}d)` : ''}</p>
+                <p className="text-lg font-extrabold" style={{ color: 'var(--color-success-alt)' }}>{gbp0(o.estimated_annual_value)}<span className="text-[10px] font-normal" style={{ color: c.textDim }}> est. annual</span></p>
+                <div className="flex items-center gap-2 text-[10px] mt-1 mb-2" style={{ color: c.textDim }}>
+                  <span style={{ color: 'var(--color-success-alt)' }}>{o.supportability.supported} ok</span>·
+                  <span style={{ color: 'var(--color-accent-amber)' }}>{o.supportability.review} review</span>
+                </div>
+                <button data-testid={`afs-warranty-build-${o.company_id}`} onClick={() => buildProposal(o)} disabled={busy}
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-bold" style={{ background: 'var(--color-accent-amber)', color: 'var(--color-ink)' }}>
+                  <Rocket size={13} /> Build Maintenance Proposal
+                </button>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
       <Card c={c} isDark={isDark} className="mb-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
           <label className="text-xs" style={{ color: c.textDim }}>Customer

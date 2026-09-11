@@ -899,11 +899,13 @@ async def estate(company_id: str, user=Depends(get_crm_user)):
 class BuildFromEstateIn(BaseModel):
     company_id: str
     site_ids: Optional[List[str]] = None          # None/empty = all sites
+    asset_ids: Optional[List[str]] = None          # restrict to specific assets (e.g. warranty conversion)
     contract_type: str = "gold"
     pricing_level: str = "standard"
     term_years: int = 1
     quote_discount_pct: float = 0.0
     save: bool = False
+    source: str = "auto_estate"
 
 
 @router.post("/build-quote-from-estate")
@@ -925,8 +927,9 @@ async def build_quote_from_estate(body: BuildFromEstateIn, user=Depends(get_crm_
         {"_id": 0, "id": 1, "name": 1, "model": 1, "model_code": 1, "console_type": 1,
          "serial_number": 1, "site_id": 1, "warranty_expiry": 1}).to_list(5000)
     annotated = [await _annotate_asset(org_id, e) for e in equipment]
-
-    # Exclude assets we must NOT price silently; price the rest.
+    if body.asset_ids:
+        _wanted = set(body.asset_ids)
+        annotated = [a for a in annotated if a.get("id") in _wanted]
     priceable = [a for a in annotated if a["pricing_status"] in ("SUPPORTED", "PROVISIONAL", "RRP_REQUIRED")]
     lines = [{"config_id": a["config_id"], "model": a["model"], "console_type": a["console_type"], "qty": 1}
              for a in priceable]
@@ -1017,7 +1020,7 @@ async def build_quote_from_estate(body: BuildFromEstateIn, user=Depends(get_crm_
             "linked_organization_id": linked, "site_ids": body.site_ids or [],
             "contract_type": body.contract_type, "pricing_level": body.pricing_level,
             "term_years": body.term_years, "quote_discount_pct": body.quote_discount_pct,
-            "status": "draft", "source": "auto_estate",
+            "status": "draft", "source": body.source,
             "confidence": confidence, "pct_automatically_priced": pct_priced,
             "exception_count": len(exceptions), "exceptions": exceptions,
             "grouped_lines": grouped, "asset_register": annotated,
@@ -1542,4 +1545,109 @@ async def contract_schedules(contract_id: str, user=Depends(get_crm_user)):
                     "next_due": next((v["planned_date"] for v in visits if v["planned_date"] >= today), None)},
         "billing": (bill or {}).get("invoices", []),
     }
+
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# WARRANTY-TO-MAINTENANCE — revenue opportunity engine (§90-91)
+# Turns every expiring Pulse warranty into a ready-made maintenance proposal.
+# Live scan (no auto-contact); coordinator reviews and one-click builds a quote.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _parse_dt(v):
+    try:
+        return datetime.fromisoformat((v or "").replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return None
+
+
+@router.get("/revenue/warranty-opportunities")
+async def warranty_opportunities(window_days: int = 365, user=Depends(get_crm_user)):
+    """Scan the estate for assets whose warranty ends within the window and are
+    NOT already under maintenance cover, grouped by customer, with an estimated
+    renewal value (priced by the deterministic engine — never invented)."""
+    of = _of(user)
+    org_id = _org(user)
+    now = datetime.now(timezone.utc)
+    horizon = now + timedelta(days=max(1, window_days))
+
+    companies = await db.crm2_companies.find(of, {"_id": 0}).to_list(1000)
+    opps = []
+    for company in companies:
+        linked = await _resolve_linked_org_for_company(company, user)
+        if not linked:
+            continue
+        equipment = await db.equipment.find(
+            {"organization_id": linked},
+            {"_id": 0, "id": 1, "name": 1, "model": 1, "model_code": 1, "console_type": 1,
+             "serial_number": 1, "site_id": 1, "warranty_expiry": 1, "contract_cover": 1}).to_list(5000)
+        expiring = []
+        for e in equipment:
+            if e.get("contract_cover"):
+                continue
+            d = _parse_dt(e.get("warranty_expiry"))
+            if d and now <= d <= horizon:
+                expiring.append(e)
+        if not expiring:
+            continue
+        annotated = [await _annotate_asset(org_id, e) for e in expiring]
+        priceable = [{"config_id": a["config_id"], "qty": 1} for a in annotated
+                     if a["pricing_status"] in ("SUPPORTED", "PROVISIONAL")]
+        est = await _compute_quote(org_id, priceable, "gold", "standard") if priceable else {"summary": {"final_annual": 0}}
+        dates = sorted(_parse_dt(e.get("warranty_expiry")) for e in expiring)
+        supp = {"supported": sum(1 for a in annotated if a["pricing_status"] == "SUPPORTED"),
+                "review": sum(1 for a in annotated if a["pricing_status"] in ("RRP_REQUIRED", "PROVISIONAL", "SUPPORTABILITY_REVIEW", "NOT_MATCHED")),
+                "not_eligible": sum(1 for a in annotated if a["pricing_status"] == "NOT_ELIGIBLE")}
+        opps.append({
+            "company_id": company["id"], "company_name": company.get("name"),
+            "linked_organization_id": linked,
+            "assets_ending_warranty": len(expiring),
+            "asset_ids": [a["id"] for a in annotated],
+            "earliest_expiry": dates[0].strftime("%Y-%m-%d") if dates else None,
+            "latest_expiry": dates[-1].strftime("%Y-%m-%d") if dates else None,
+            "days_to_earliest": (dates[0] - now).days if dates else None,
+            "estimated_annual_value": est["summary"]["final_annual"],
+            "supportability": supp,
+        })
+    opps.sort(key=lambda o: (o["days_to_earliest"] if o["days_to_earliest"] is not None else 9999))
+    return {"opportunities": opps, "count": len(opps), "window_days": window_days}
+
+
+class WarrantyProposalIn(BaseModel):
+    window_days: int = 365
+    contract_type: str = "gold"
+    pricing_level: str = "standard"
+    term_years: int = 1
+    quote_discount_pct: float = 0.0
+    save: bool = True
+
+
+@router.post("/revenue/warranty-opportunities/{company_id}/build-proposal")
+async def build_warranty_proposal(company_id: str, body: WarrantyProposalIn, user=Depends(get_crm_user)):
+    """One-click: build a maintenance proposal for a customer's warranty-expiring
+    assets, reusing the SAME deterministic auto-quoter."""
+    of = _of(user)
+    org_id = _org(user)
+    company = await db.crm2_companies.find_one({"id": company_id, **of}, {"_id": 0})
+    if not company:
+        raise HTTPException(404, "Company not found")
+    linked = await _resolve_linked_org_for_company(company, user)
+    if not linked:
+        raise HTTPException(400, "Company has no linked operations organisation.")
+    now = datetime.now(timezone.utc)
+    horizon = now + timedelta(days=max(1, body.window_days))
+    equipment = await db.equipment.find(
+        {"organization_id": linked}, {"_id": 0, "id": 1, "warranty_expiry": 1, "contract_cover": 1}).to_list(5000)
+    asset_ids = [e["id"] for e in equipment
+                 if not e.get("contract_cover") and (lambda d: d and now <= d <= horizon)(_parse_dt(e.get("warranty_expiry")))]
+    if not asset_ids:
+        raise HTTPException(400, "No warranty-expiring assets found in this window.")
+    build = BuildFromEstateIn(
+        company_id=company_id, asset_ids=asset_ids, contract_type=body.contract_type,
+        pricing_level=body.pricing_level, term_years=body.term_years,
+        quote_discount_pct=body.quote_discount_pct, save=body.save, source="warranty_conversion")
+    result = await build_quote_from_estate(build, user)
+    result["source"] = "warranty_conversion"
+    result["warranty_assets"] = len(asset_ids)
+    return result
 

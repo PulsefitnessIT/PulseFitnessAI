@@ -1,3 +1,27 @@
+# ═══ 2026-06 · AFTERSALES ENGINE — WARRANTY-TO-MAINTENANCE revenue engine (§90-91) (self-verified: API parity + full UI) ═══
+Turns every expiring Pulse warranty into a ready-made maintenance proposal. Reuses the deterministic auto-quoter.
+  - GET /crm/v2/aftersales/revenue/warranty-opportunities?window_days=365 — LIVE scan (no auto-contact) across CRM
+    companies with a linked operations org; finds db.equipment whose warranty_expiry is FUTURE and within the
+    window AND NOT already under contract_cover; groups by customer; prices priceable assets via _compute_quote for
+    an ESTIMATED annual value (never invented); returns cards: company, assets_ending_warranty, asset_ids,
+    earliest/latest expiry, days_to_earliest, estimated_annual_value, supportability {supported/review/not_eligible}.
+  - POST /revenue/warranty-opportunities/{company_id}/build-proposal {window_days,contract_type,pricing_level,
+    term_years,quote_discount_pct,save} — one-click: gathers the warranty-expiring, uncovered asset_ids and calls
+    the SAME build_quote_from_estate (source='warranty_conversion'), returning the full auto-quote (confidence /
+    exceptions / grouped lines / summary) and saving an AFS- draft.
+  - Extended BuildFromEstateIn with asset_ids (restrict to a subset) + source; build_quote_from_estate filters to
+    asset_ids when provided.
+  - FRONTEND: AutoQuoteTab (Build Quote tab) now shows a "Warranty → Maintenance Opportunities" panel at the top
+    (afs-warranty-opps, afs-warranty-<companyId>, afs-warranty-build-<companyId>). Clicking Build Maintenance
+    Proposal runs the proposal and renders it in the SAME result panel (afs-aq-result) with the exception queue.
+  VERIFIED: AlphaCo scan = 4 warranty-expiring assets, earliest 2027-03-12 (181d), est £446.40; proposal returns
+    REVIEW_REQUIRED 1/4 priced £446.40 (260G) with 3 NOT_MATCHED + 1 PROVISIONAL exceptions — scan/proposal parity
+    exact. Already-EXPIRED warranties correctly excluded (only future expiries surface as opportunities).
+  NOTE: scan estimate uses gold/standard; proposal uses the chosen package. Only companies with a linked ops org
+    are scanned. NEXT: RPI review engine + auto-renewals (P4 remainder); customer quote PDF + portal acceptance.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · AFTERSALES ENGINE — PHASE 3: AGREEMENT BUILDER + ACTIVATION (testing_agent BE 12/12 + FE 100%) ═══
 Closes the accepted-quote → live-contract loop, reusing crm2_contracts + PPM/Sicon/Sage. All in
 crm_aftersales.py + AftersalesApp.js "Agreements" sub-tab (afs-tab-agreements).
