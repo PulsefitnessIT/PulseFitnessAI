@@ -66,6 +66,7 @@ from routes.master_admin_theme import router as master_admin_theme_router
 from routes.master_admin_custom_domains import router as master_admin_custom_domains_router
 from routes.public_host_config import router as public_host_config_router
 from routes.public_quote import router as public_quote_router
+from routes.public_afs_quote import router as public_afs_quote_router
 from routes.public_demo_request import router as public_demo_request_router
 from routes.activation_events import router as activation_events_router
 from routes.master_admin_documents_lib import router as master_admin_documents_lib_router
@@ -192,6 +193,7 @@ def register_admin(api_router: APIRouter) -> None:
         onboarding_ai_router,
         onboarding_phase5_router,
         public_quote_router,
+        public_afs_quote_router,
         public_demo_request_router,
     ):
         api_router.include_router(r)

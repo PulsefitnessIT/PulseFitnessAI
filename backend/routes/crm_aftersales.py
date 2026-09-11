@@ -14,11 +14,15 @@ imported Pulse workbook (crm2_afs_* collections). AI never invents prices —
 figures come only from these authorised rules or an authorised manual override.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import uuid
 import re
+import io
+import os
+import secrets
 
 from utils.database import db
 from routes.crm_auth import get_crm_user
@@ -1058,6 +1062,57 @@ async def get_afs_quote(quote_id: str, user=Depends(get_crm_user)):
     return q
 
 
+@router.get("/quotes/{quote_id}/pdf")
+async def afs_quote_pdf(quote_id: str, user=Depends(get_crm_user)):
+    q = await db.crm2_afs_quotes.find_one({"id": quote_id, **_of(user)}, _PUBLIC)
+    if not q:
+        raise HTTPException(404, "Quote not found")
+    from utils.afs_quote_pdf import render_afs_quote_pdf
+    pdf = await render_afs_quote_pdf(q, organization_id=_org(user))
+    return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
+                             headers={"Content-Disposition": f'inline; filename="{q.get("quote_number", "quote")}.pdf"'})
+
+
+class PortalLinkIn(BaseModel):
+    valid_days: int = 30
+    contact_name: Optional[str] = None
+    contact_email: Optional[str] = None
+
+
+@router.post("/quotes/{quote_id}/portal-link")
+async def afs_quote_portal_link(quote_id: str, body: PortalLinkIn, user=Depends(get_crm_user)):
+    """Mint (or reuse) a no-login customer acceptance link for an aftersales quote.
+    Commercial customers only — MOD keeps its existing SOR portal flow."""
+    of = _of(user)
+    q = await db.crm2_afs_quotes.find_one({"id": quote_id, **of}, _PUBLIC)
+    if not q:
+        raise HTTPException(404, "Quote not found")
+    if q.get("status") in ("accepted", "agreement", "declined"):
+        # already progressed — still return the existing link if present
+        shortcode = q.get("public_shortcode")
+    else:
+        shortcode = q.get("public_shortcode")
+    if not shortcode:
+        shortcode = secrets.token_urlsafe(8)[:10]
+    valid_until = (datetime.now(timezone.utc) + timedelta(days=max(1, body.valid_days))).isoformat()
+    patch = {
+        "public_shortcode": shortcode, "valid_until": valid_until,
+        "portal_contact_name": (body.contact_name or "").strip(),
+        "portal_contact_email": (body.contact_email or "").strip(),
+        "updated_at": _now(),
+    }
+    # Only advance a fresh draft to "sent"; never regress an accepted/agreement quote.
+    if q.get("status") in (None, "draft"):
+        patch["status"] = "sent"
+        patch["sent_at"] = _now()
+    await db.crm2_afs_quotes.update_one({"id": quote_id, **of}, {"$set": patch})
+    await record_audit(entity_type="afs_quote", entity_id=quote_id, action="portal_link", user=user,
+                       extra={"shortcode": shortcode})
+    frontend = os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or ""
+    return {"shortcode": shortcode, "url": f"{frontend}/aq/{shortcode}", "valid_until": valid_until,
+            "status": patch.get("status", q.get("status"))}
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # PHASE 3 — AGREEMENT BUILDER + ACTIVATION ENGINE
 # Accepted quote → Schedules 1-6 → Agreement Health → Generate → Sign →
@@ -1145,9 +1200,8 @@ def _service_schedule(start_date, visits_per_year, term_years):
     return rows
 
 
-async def _build_agreement_doc(user, quote):
-    of = _of(user)
-    org_id = _org(user)
+async def _build_agreement_doc(org_id, quote):
+    of = {"organization_id": org_id}
     settings = await db.crm2_afs_settings.find_one(of) or {}
     company = await db.crm2_companies.find_one({"id": quote["company_id"], **of}, {"_id": 0}) or {}
     linked = quote.get("linked_organization_id") or company.get("linked_organization_id") or ""
@@ -1271,45 +1325,66 @@ class PrepareAgreementIn(BaseModel):
     visits_per_year: int = 2
 
 
+async def _insert_agreement_from_quote(org_id, quote, actor, *, start_date=None,
+                                       payment_method="annual", billing_frequency=None,
+                                       visits_per_year=2, timeline_note=None):
+    """Shared: build + insert a DRAFT agreement from a saved quote. Idempotent —
+    returns any existing non-cancelled agreement for the same quote. Used by the
+    coordinator (prepare) and by public portal acceptance (auto-prep)."""
+    of = {"organization_id": org_id}
+    existing = await db.crm2_afs_agreements.find_one(
+        {**of, "quote_id": quote["id"], "status": {"$nin": ["cancelled", "superseded"]}}, _PUBLIC)
+    if existing:
+        return existing
+    doc = await _build_agreement_doc(org_id, quote)
+    if start_date:
+        sd = datetime.strptime(start_date[:10], "%Y-%m-%d")
+        end = sd.replace(year=sd.year + max(1, doc["term_years"]))
+        doc["start_date"] = sd.strftime("%Y-%m-%d")
+        doc["end_date"] = end.strftime("%Y-%m-%d")
+        doc["schedules"]["schedule2_agreement"]["start_date"] = doc["start_date"]
+        doc["schedules"]["schedule2_agreement"]["end_date"] = doc["end_date"]
+    doc["payment_method"] = payment_method
+    doc["billing_frequency"] = billing_frequency or payment_method
+    doc["visits_per_year"] = visits_per_year
+    aid = _id()
+    doc.update({
+        "id": aid, "organization_id": org_id,
+        "agreement_number": f"PF-MA-{aid[:6].upper()}",
+        "status": "draft", "serial_exceptions": {},
+        "created_by": actor,
+        "created_at": _now(), "updated_at": _now(),
+        "timeline": [{"at": _now(),
+                      "event": timeline_note or ("Agreement prepared from quote " + (quote.get("quote_number") or quote["id"])),
+                      "by": actor}],
+    })
+    doc["health"] = _agreement_health(doc)
+    await db.crm2_afs_agreements.insert_one(doc)
+    await db.crm2_afs_quotes.update_one({"id": quote["id"], **of}, {"$set": {"status": "agreement", "updated_at": _now()}})
+    return await db.crm2_afs_agreements.find_one({"id": aid, **of}, _PUBLIC)
+
+
 @router.post("/agreements/from-quote/{quote_id}")
 async def prepare_agreement(quote_id: str, body: PrepareAgreementIn, user=Depends(get_crm_user)):
     of = _of(user)
     quote = await db.crm2_afs_quotes.find_one({"id": quote_id, **of}, _PUBLIC)
     if not quote:
         raise HTTPException(404, "Quote not found")
-    # Don't create a duplicate agreement for the same quote.
     existing = await db.crm2_afs_agreements.find_one(
         {**of, "quote_id": quote_id, "status": {"$nin": ["cancelled", "superseded"]}}, _PUBLIC)
     if existing:
         return existing
-    doc = await _build_agreement_doc(user, quote)
     try:
-        sd = datetime.strptime(body.start_date[:10], "%Y-%m-%d")
-        end = sd.replace(year=sd.year + max(1, doc["term_years"]))
-        doc["start_date"] = sd.strftime("%Y-%m-%d")
-        doc["end_date"] = end.strftime("%Y-%m-%d")
-        doc["schedules"]["schedule2_agreement"]["start_date"] = doc["start_date"]
-        doc["schedules"]["schedule2_agreement"]["end_date"] = doc["end_date"]
+        datetime.strptime(body.start_date[:10], "%Y-%m-%d")
     except ValueError:
         raise HTTPException(400, "start_date must be YYYY-MM-DD")
-    doc["payment_method"] = body.payment_method
-    doc["billing_frequency"] = body.billing_frequency or body.payment_method
-    doc["visits_per_year"] = body.visits_per_year
-    aid = _id()
-    doc.update({
-        "id": aid, "organization_id": _org(user),
-        "agreement_number": f"PF-MA-{aid[:6].upper()}",
-        "status": "draft", "serial_exceptions": {},
-        "created_by": user.get("email") or user.get("id"),
-        "created_at": _now(), "updated_at": _now(),
-        "timeline": [{"at": _now(), "event": "Agreement prepared from quote " + (quote.get("quote_number") or quote_id), "by": user.get("email")}],
-    })
-    doc["health"] = _agreement_health(doc)
-    await db.crm2_afs_agreements.insert_one(doc)
-    await db.crm2_afs_quotes.update_one({"id": quote_id, **of}, {"$set": {"status": "agreement", "updated_at": _now()}})
-    await record_audit(entity_type="afs_agreement", entity_id=aid, action="create", user=user,
+    ag = await _insert_agreement_from_quote(
+        _org(user), quote, user.get("email") or user.get("id"),
+        start_date=body.start_date, payment_method=body.payment_method,
+        billing_frequency=body.billing_frequency, visits_per_year=body.visits_per_year)
+    await record_audit(entity_type="afs_agreement", entity_id=ag["id"], action="create", user=user,
                        extra={"quote": quote.get("quote_number")})
-    return await db.crm2_afs_agreements.find_one({"id": aid, **of}, _PUBLIC)
+    return ag
 
 
 @router.get("/agreements")

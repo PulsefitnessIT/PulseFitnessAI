@@ -209,6 +209,7 @@ const ServiceOpsEngineerBranding = lazy(() => import('@/pages/ServiceOps/Enginee
 const ServiceOpsSafetyTemplateAdmin = lazy(() => import('@/pages/ServiceOps/SafetyTemplateAdmin'));
 const ServiceOpsEngineerRatings = lazy(() => import('@/pages/ServiceOps/Engineer/EngineerRatings'));
 const PublicQuoteAcceptPage = lazy(() => import('@/pages/PublicQuoteAcceptPage'));
+const PublicAfsQuoteAcceptPage = lazy(() => import('@/pages/PublicAfsQuoteAcceptPage'));
 const _MODSiteDashboard = lazy(() => import('@/pages/MODPortal/MODSiteDashboard'));
 const _MODProDashboard = lazy(() => import('@/pages/MODPortal/MODProDashboard'));
 const MODServiceLogin = lazy(() => import('@/pages/MODPortal/MODServiceLogin'));
@@ -596,6 +597,7 @@ export default function AppRoutes({ user, login }) {
 
       {/* ─── Public no-login quote-accept landing ─── */}
       <Route path="/q/:shortcode" element={<PublicQuoteAcceptPage />} />
+      <Route path="/aq/:shortcode" element={<PublicAfsQuoteAcceptPage />} />
 
       {/* Iter 216h75 — Partner Engineer Network (Phase 1) — Iter 216h110: MOD-blocked */}
       <Route path="/partner-engineer" element={user ? <MODForbidden><PartnerDashboard /></MODForbidden> : <Navigate to="/login?next=/partner-engineer" replace />} />

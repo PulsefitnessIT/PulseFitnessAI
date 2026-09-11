@@ -1,3 +1,40 @@
+# ═══ 2026-06 · AFTERSALES ENGINE — CUSTOMER QUOTE PDF + PORTAL ACCEPTANCE (Task 1, P0) (testing_agent BE 9/9 + FE 100%) ═══
+Commercial customers can now receive a branded Aftersales quote PDF and accept/decline it via a no-login link;
+acceptance auto-prepares a draft agreement. USER DECISION: MOD stays on its EXISTING SOR portal flow — ONLY
+commercial is wired into the Aftersales pipeline (crm2_afs_quotes → crm2_afs_agreements). Do NOT route AFS
+quotes through the MOD portal.
+  - PDF: NEW utils/afs_quote_pdf.py (build_afs_quote_pdf / render_afs_quote_pdf) — branded via pulse_doc_template;
+    renders package/tier, grouped equipment lines, annual/monthly/term/VAT totals + package coverage. Deterministic
+    (figures straight off the stored quote — never invented).
+  - CRM endpoints (crm_aftersales.py): GET /quotes/{id}/pdf (StreamingResponse application/pdf); POST
+    /quotes/{id}/portal-link {valid_days,contact_name?,contact_email?} → mints/reuses public_shortcode, advances a
+    fresh draft to 'sent', returns {shortcode, url=FRONTEND_URL/aq/<sc>, valid_until}.
+  - Refactor: _build_agreement_doc(user,quote) → _build_agreement_doc(org_id,quote); NEW shared
+    _insert_agreement_from_quote(org_id, quote, actor, start_date?, payment_method, ...) used by BOTH the
+    coordinator's prepare_agreement AND public acceptance (idempotent — one agreement per quote).
+  - Public router NEW routes/public_afs_quote.py (prefix /public/afs, NO auth, registered in route_registry/admin.py):
+    GET /quote/{sc} (redacted view + expired flag), GET /quote/{sc}/pdf, POST /quote/{sc}/accept
+    {name,signature_data_url?,note?} → sets portal_status='accepted' + signature, then auto-creates the draft
+    agreement (created_by 'portal:<name>'), POST /quote/{sc}/decline {name,reason?}. Gating uses a dedicated
+    portal_status field (independent of pipeline status which advances to 'agreement'); second accept / accept-after-
+    decline / decline-after-accept all → HTTP 410; expired link → 410.
+  - FE public page /app/frontend/src/pages/PublicAfsQuoteAcceptPage.js at route /aq/:shortcode (AppRoutes.js) —
+    Pulse-navy→cyan header, equipment table, pricing, PDF download, signature pad, accept/decline + confirmation.
+    testids afs-public-page/-quote-number/-lines/-totals/-pdf/-accept-section/-name/-signature-pad/-accept-btn/
+    -decline-btn/-decline-name/-accepted-confirmation/-declined-confirmation/-expired.
+  - FE CRM AgreementsTab (AftersalesApp.js): NEW "Customer quotes" card (afs-customer-quotes) listing every saved
+    quote (afs-quote-row-<id>) with a status chip (draft/sent/accepted/declined/agreement), a PDF button
+    (afs-quote-pdf-<id>, fetched as blob + opened) and Create/Copy acceptance link (afs-quote-link-<id> → shows
+    afs-quote-linkurl-<id>, auto-copies).
+  VERIFIED (testing_agent BE 9/9 pytest + FE 100%, plus curl): AlphaCo quote AFS-2026-* → PDF 200 %PDF; portal-link
+    draft→sent; public view redacted; accept → PF-MA-* draft agreement created_by 'portal:Dan Hayes'; 410 guards;
+    decline path. FE: Customer quotes card + Create link; /aq/<sc> accept-with-signature → confirmation, reload
+    persists; decline → declined confirmation. Test at /app/backend/tests/test_afs_customer_quote_portal_jan2026.py.
+  NOTE: acceptance link is generated + copied by the coordinator (email delivery via Resend is MOCKED in preview).
+  NEXT: warranty/RPI task+notification automation (180/120/90 windows, Task 3, P1).
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · AFTERSALES ENGINE — LIVE CONTRACT COMPLIANCE VIEW (testing_agent FE 100%) ═══
 Backlog Task 2 (P1). Surfaces every active contract's service compliance, billing status and Sicon/Sage
 sync inside the "Contracts & Renewals" sub-tab. All in crm_aftersales.py + AftersalesApp.js.

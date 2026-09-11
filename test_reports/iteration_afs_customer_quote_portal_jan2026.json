@@ -1,0 +1,32 @@
+{
+  "summary": "Full E2E test of Aftersales 'Customer Quote PDF & Portal Acceptance' (Task 1, P0). Backend pytest: 9/9 pass covering build-quote-from-estate save, CRM PDF, mint portal-link (draft->sent), public GET (redacted view), public PDF, accept (agreement PF-MA-... created_by 'portal:...', quote portal_status=accepted), double-accept 410, decline-after-accept 410, decline flow + accept-after-decline 410. Frontend: CRM Aftersales Contracts -> Agreements sub-tab shows Customer quotes card with rows, PDF & Copy link buttons; Create link surfaces URL. Public /aq/<shortcode>: all testids present (page, quote-number, lines, totals, pdf, accept-section, name, signature-pad, accept-btn, decline-btn). Accept flow with drawn signature -> accepted-confirmation; reload shows confirmation only (no form). Decline flow -> decline-section -> declined-confirmation. All 12 acceptance criteria met.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "PublicAfsQuoteAcceptPage - Decline section", "issues": ["The 'Your name' input inside the decline section has no data-testid (accept section has afs-public-name but decline section reuses a separate un-tested input). Confirm-decline button is disabled until it is filled; consider adding data-testid='afs-public-decline-name' to make E2E deterministic."]},
+      {"screen": "PublicAfsQuoteAcceptPage - after accept/decline reload", "issues": ["After acceptance/decline, on reload the page renders only the confirmation card without the outer afs-public-page wrapper testid. Confirmation testid still visible so functionally OK, but wrapping the confirmation state under afs-public-page would keep test selectors consistent."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_afs_customer_quote_portal_jan2026.py",
+    "/app/test_reports/pytest/afs_portal_jan2026.xml"
+  ],
+  "action_items": [
+    "(Nice-to-have) Add data-testid='afs-public-decline-name' to the Your-name input inside the decline section for deterministic automation.",
+    "(Nice-to-have) Keep the afs-public-page wrapper around the accepted/declined confirmation states so all public routes share a single root testid."
+  ],
+  "critical_code_review_comments": [
+    "Guards work correctly: portal_status is enforced independently of pipeline status; second accept and accept-after-decline both return HTTP 410 as expected.",
+    "Public endpoints correctly redact CRM-only fields (no internal ids/notes leaking).",
+    "Agreement created_by starts with 'portal:' — clear audit trail for portal-originated agreements."
+  ],
+  "updated_files": ["/app/backend/tests/test_afs_customer_quote_portal_jan2026.py"],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% (all listed testids + accept + decline + reload persistence verified)"},
+  "test_credentials": "CRM: owner@isodemo.com / IsoDemo123! at POST /api/crm/auth/login. Company iso-cA for building quotes.",
+  "seed_data_creation": "Created ~4 fresh AFS quotes for iso-cA during this run (build-quote-from-estate save:true). Portal links minted: zNCPSujqYC (CRM UI test, unused), jD_ZQm6WEH (accepted via UI -> AFS-2026-82FD8), eMB9u1ZECf (unused decline attempt), o1hYh1K6cI (declined via UI -> AFS-2026-7C4C7).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Feature is fully working end-to-end. Backend pytest at /app/backend/tests/test_afs_customer_quote_portal_jan2026.py is idempotent (mints fresh quotes each run). Only cosmetic testid gaps noted (decline-section name input, wrapper after confirmation)."
+}

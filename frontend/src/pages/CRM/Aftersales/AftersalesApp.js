@@ -19,6 +19,7 @@ import {
   Clock, FileSignature, Calculator, Plus, Trash2, Check, Search, TrendingUp, Shield,
   Zap, Building2, Rocket, FileCheck2, PenLine, CheckCircle2, Circle,
   CalendarClock, Receipt, ChevronDown, ChevronRight, RotateCw, MinusCircle,
+  FileText, Share2,
 } from 'lucide-react';
 
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -847,6 +848,9 @@ const AG_STATUS = {
 function AgreementsTab({ API, headers, c, isDark }) {
   const [agreements, setAgreements] = useState([]);
   const [quotes, setQuotes] = useState([]);
+  const [allQuotes, setAllQuotes] = useState([]);
+  const [portalLinks, setPortalLinks] = useState({});
+  const [copiedId, setCopiedId] = useState(null);
   const [detail, setDetail] = useState(null);
   const [busy, setBusy] = useState(false);
   const [newQuoteId, setNewQuoteId] = useState('');
@@ -863,10 +867,32 @@ function AgreementsTab({ API, headers, c, isDark }) {
       axios.get(`${API}/crm/v2/aftersales/quotes`, { headers: headers() }),
     ]).then(([a, q]) => {
       setAgreements(a.data.agreements || []);
-      setQuotes((q.data.quotes || []).filter(x => ['draft', 'accepted'].includes(x.status)));
+      const qs = q.data.quotes || [];
+      setAllQuotes(qs);
+      setQuotes(qs.filter(x => ['draft', 'accepted'].includes(x.status)));
+      setPortalLinks(prev => {
+        const next = { ...prev };
+        qs.forEach(x => { if (x.public_shortcode) next[x.id] = `${window.location.origin}/aq/${x.public_shortcode}`; });
+        return next;
+      });
     });
   }, [API, headers]);
   useEffect(load, [load]);
+
+  const viewQuotePdf = async (id) => {
+    try {
+      const r = await axios.get(`${API}/crm/v2/aftersales/quotes/${id}/pdf`, { headers: headers(), responseType: 'blob' });
+      window.open(URL.createObjectURL(r.data), '_blank');
+    } catch { alert('Could not open the quote PDF.'); }
+  };
+  const makePortalLink = async (id) => {
+    try {
+      const r = await axios.post(`${API}/crm/v2/aftersales/quotes/${id}/portal-link`, { valid_days: 30 }, { headers: headers() });
+      setPortalLinks(p => ({ ...p, [id]: r.data.url }));
+      try { await navigator.clipboard.writeText(r.data.url); setCopiedId(id); setTimeout(() => setCopiedId(null), 2500); } catch {}
+      load();
+    } catch { alert('Could not create the acceptance link.'); }
+  };
 
   const openDetail = (id) => axios.get(`${API}/crm/v2/aftersales/agreements/${id}`, { headers: headers() }).then(r => { setDetail(r.data); setShowSign(false); });
   const refreshDetail = () => detail && openDetail(detail.id);
@@ -1011,8 +1037,54 @@ function AgreementsTab({ API, headers, c, isDark }) {
   }
 
   // ── List view ──
+  const QUOTE_STATUS = {
+    draft: { label: 'Draft', color: 'var(--color-text-faint-alt)' },
+    sent: { label: 'Sent to customer', color: 'var(--color-info-ios)' },
+    accepted: { label: 'Accepted', color: 'var(--color-success-alt)' },
+    declined: { label: 'Declined', color: 'var(--color-danger-alt, #EF4444)' },
+    agreement: { label: 'Agreement prepared', color: 'var(--color-accent-purple)' },
+  };
   return (
     <div data-testid="afs-agreements">
+      {/* Customer quotes — PDF + acceptance link (commercial portal) */}
+      <Card c={c} isDark={isDark} className="mb-4" testId="afs-customer-quotes">
+        <p className="text-sm font-bold mb-1" style={{ color: c.text }}>Customer quotes</p>
+        <p className="text-xs mb-3" style={{ color: c.textDim }}>Download the branded PDF or share a secure link for the customer to accept &amp; sign online.</p>
+        {allQuotes.length === 0 ? (
+          <p className="text-xs" style={{ color: c.textDim }}>No saved quotes yet — build one in the Build Quote tab.</p>
+        ) : (
+          <div className="space-y-2">
+            {allQuotes.map(q => {
+              const ps = q.portal_status || q.status;
+              const st = QUOTE_STATUS[ps] || QUOTE_STATUS.draft;
+              const link = portalLinks[q.id];
+              return (
+                <div key={q.id} data-testid={`afs-quote-row-${q.id}`} className="p-3 rounded-lg border" style={{ borderColor: c.border }}>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold" style={{ color: c.text }}>{q.quote_number}</span>
+                    <span className="text-xs" style={{ color: c.textDim }}>· {q.company_name} · {gbp0(q.summary?.final_annual)}/yr</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: st.color + '22', color: st.color }}>{st.label}</span>
+                    <div className="flex-1" />
+                    <button data-testid={`afs-quote-pdf-${q.id}`} onClick={() => viewQuotePdf(q.id)}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md" style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+                      <FileText size={13} /> PDF
+                    </button>
+                    <button data-testid={`afs-quote-link-${q.id}`} onClick={() => makePortalLink(q.id)}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-md" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
+                      <Share2 size={13} /> {copiedId === q.id ? 'Copied ✓' : (link ? 'Copy link' : 'Create link')}
+                    </button>
+                  </div>
+                  {link && (
+                    <div className="mt-2 text-[11px] font-mono px-2 py-1 rounded truncate" data-testid={`afs-quote-linkurl-${q.id}`}
+                         style={{ background: isDark ? 'var(--color-ink-alt)' : 'var(--color-neutral-100)', color: c.textDim }}>{link}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
       <Card c={c} isDark={isDark} className="mb-4">
         <p className="text-sm font-bold mb-2" style={{ color: c.text }}>Prepare agreement from an accepted quote</p>
         <div className="flex flex-wrap items-end gap-2">
