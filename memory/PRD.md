@@ -1,6 +1,11 @@
 # ═══ 2026-06 · AFTERSALES ENGINE — LIVE CONTRACT COMPLIANCE VIEW (testing_agent FE 100%) ═══
 Backlog Task 2 (P1). Surfaces every active contract's service compliance, billing status and Sicon/Sage
 sync inside the "Contracts & Renewals" sub-tab. All in crm_aftersales.py + AftersalesApp.js.
+DECISION (2026-06, user): for the upcoming Portal Acceptance (Task 1, P0), MOD stays on its EXISTING SOR
+  in-portal accept/e-sign (crm2_quotes quote_kind='mod_sor' → mod_service_contract activation, in
+  mod_portal.py /mod/site/quotes*). ONLY commercial customers get wired into the Aftersales pipeline
+  (crm2_afs_quotes → crm2_afs_agreements → crm2_contracts), reusing the public accept flow in
+  public_quote.py. Do NOT route Aftersales quotes through the MOD portal.
   - BE: NEW GET /crm/v2/aftersales/contracts/compliance — for every active crm2_contracts row, joins
     crm2_afs_service_schedules + crm2_afs_billing (single $in batch, no per-contract N+1) and returns
     service {has_schedule, required, completed, overdue, next_due, state}, billing {has_schedule, total,
