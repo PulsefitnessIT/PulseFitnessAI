@@ -1,3 +1,35 @@
+# ═══ 2026-06 · AFTERSALES ENGINE — WARRANTY & RPI REMINDERS (Task 3, P1) (testing_agent BE 5/5 + FE 100%) ═══
+Auto-creates coordinator tasks (crm2_activities) + notifications (crm2_notifications) as two signals cross the
+180/120/90-day windows. Background sweep every 6h + manual "Run scan now". USER CHOICES: one task per company per
+window (not per asset); both background + manual; surfaced in a new "Alerts & reminders" panel on the Aftersales
+Dashboard.
+  - Worker: NEW utils/afs_alerts.py — run_afs_alerts_once(organization_id?) + run_forever(6h).
+    (1) WARRANTY: uncovered assets (contract_cover false) in db.equipment whose warranty_expiry is within a window,
+        grouped ONE task per company per window (count = assets within that window, earliest expiry shown), linking
+        to the warranty-to-maintenance proposal builder. (2) RPI: active crm2_contracts whose next anniversary
+        (_next_anniversary) falls within a window and whose crm2_afs_rpi_reviews cycle isn't 'approved'.
+        _window_for(days) returns the TIGHTEST crossed window (90→120→180) → one task per window as the item escalates.
+        _emit dedupes on a stable dedupe_key (afs:warranty:<company>:<window> / afs:rpi:<contract>:<cycle>:<window>) so
+        it NEVER double-creates, even after dismissal. FIX: _parse now forces tz-aware (date-only YYYY-MM-DD from
+        fromisoformat was naive → silently failed the tz comparison).
+  - Endpoints (crm_aftersales.py end): GET /alerts?status=open → {alerts[], counts{warranty,rpi,open_total,
+    unread_notifications}}; POST /alerts/run → manual org-scoped sweep (idempotent); POST /alerts/{activity_id}/dismiss
+    → status='done' + marks linked notifications read (rescan won't recreate — by design).
+  - Startup: server.py registers the background loop after ppm-rollover ([afs-alerts] loop started, AFS_ALERTS_HOURS=6).
+  - FE DashboardTab (AftersalesApp.js): NEW "Alerts & reminders" panel (afs-alerts-panel) between action cards and
+    Priorities — count badge, "Run scan now" (afs-alerts-scan), list (afs-alerts-list) with ≤Nd threshold badge +
+    WARRANTY/RPI type badge + subject/body + Done dismiss (afs-alert-dismiss-<id>); empty state afs-alerts-empty.
+  VERIFIED (testing_agent BE 5/5 pytest + FE 100%, plus curl): warranty T90 alert for AlphaCo (3 machines), RPI T180
+    for PF-MA-CMPDEMO; idempotent (2nd run 0/0); dismiss + notification-read; rescan no-recreate; 404 on bad id;
+    panel renders + scan + dismiss + empty state. Test at /app/backend/tests/test_afs_alerts.py.
+  NOTE: notification delivery is in-app only (crm2_notifications); no external email/push send in preview.
+  DEMO DATA: WARRDEMO-1..3 uncovered assets (warranty 2026-12-05) on iso-demo-org; PF-MA-CMPDEMO contract. Reopen
+    alerts for a demo: db.crm2_activities.update_many({source:'afs_alerts'},{$set:{status:'open'}}).
+  NEXT (backlog): Configurable follow-ups/reminders (Task 4, P2); mid-term amendments (Task 5, P2); discount approval
+    routing (Task 6, P2); Contract AI assistant (Task 7, P2); profitability/forecast reporting (Task 8, P3).
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · AFTERSALES ENGINE — CUSTOMER QUOTE PDF + PORTAL ACCEPTANCE (Task 1, P0) (testing_agent BE 9/9 + FE 100%) ═══
 Commercial customers can now receive a branded Aftersales quote PDF and accept/decline it via a no-login link;
 acceptance auto-prepares a draft agreement. USER DECISION: MOD stays on its EXISTING SOR portal flow — ONLY

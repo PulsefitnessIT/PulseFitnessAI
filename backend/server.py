@@ -622,6 +622,16 @@ async def _full_boot() -> None:
     except Exception as e:
         logger.error(f"ppm rollover loop start failed: {e}")
 
+    # Aftersales proactive alerts — warranty + RPI reminders at 180/120/90d.
+    # Idempotent (dedupe_key), so re-runs are no-ops.
+    try:
+        from utils.afs_alerts import run_forever as _afs_alerts_loop
+        _afs_hours = int(os.environ.get("AFS_ALERTS_HOURS", "6"))
+        asyncio.create_task(_afs_alerts_loop(_afs_hours))
+        logger.info("[afs-alerts] loop started (%dh)", _afs_hours)
+    except Exception as e:
+        logger.error(f"afs alerts loop start failed: {e}")
+
     # Iter 220af — Daily SEO Autopilot. Picks the next queued keyword
     # at 09:00 Europe/London and generates + publishes an article.
     # Idempotent via the ``seo_autopilot_runs`` daily stamp. Disable

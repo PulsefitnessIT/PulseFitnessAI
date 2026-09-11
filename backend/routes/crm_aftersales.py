@@ -1969,3 +1969,53 @@ async def build_renewal(contract_id: str, body: RenewalBuildIn, user=Depends(get
     }
     return result
 
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# PROACTIVE ALERTS (§Task 3) — warranty + RPI reminders at 180/120/90 windows.
+# Auto-creates coordinator tasks (crm2_activities) + notifications.
+# ══════════════════════════════════════════════════════════════════════════
+
+@router.get("/alerts")
+async def list_afs_alerts(status: str = "open", limit: int = 100, user=Depends(get_crm_user)):
+    """Coordinator-facing list of warranty + RPI reminder tasks for this org."""
+    of = _of(user)
+    query = {**of, "source": "afs_alerts"}
+    if status and status != "all":
+        query["status"] = status
+    alerts = await db.crm2_activities.find(query, _PUBLIC).sort("created_at", -1).to_list(max(1, min(limit, 300)))
+    open_alerts = await db.crm2_activities.find(
+        {**of, "source": "afs_alerts", "status": "open"}, {"_id": 0, "type": 1}).to_list(1000)
+    unread = await db.crm2_notifications.count_documents({**of, "type": "aftersales_alert", "read": False})
+    return {
+        "alerts": alerts,
+        "counts": {
+            "warranty": sum(1 for a in open_alerts if a.get("type") == "warranty_alert"),
+            "rpi": sum(1 for a in open_alerts if a.get("type") == "rpi_review_due"),
+            "open_total": len(open_alerts),
+            "unread_notifications": unread,
+        },
+    }
+
+
+@router.post("/alerts/run")
+async def run_afs_alerts(user=Depends(get_crm_user)):
+    """Manual 'Run scan now' — same sweep the background worker runs, scoped to
+    this org. Idempotent (dedupe_key prevents duplicates)."""
+    from utils.afs_alerts import run_afs_alerts_once
+    res = await run_afs_alerts_once(_org(user))
+    await record_audit(entity_type="afs_alerts", entity_id="scan", action="run", user=user, extra=res)
+    return res
+
+
+@router.post("/alerts/{activity_id}/dismiss")
+async def dismiss_afs_alert(activity_id: str, user=Depends(get_crm_user)):
+    of = _of(user)
+    r = await db.crm2_activities.update_one(
+        {"id": activity_id, **of, "source": "afs_alerts"},
+        {"$set": {"status": "done", "dismissed_at": _now(), "dismissed_by": user.get("email"), "updated_at": _now()}})
+    if not r.matched_count:
+        raise HTTPException(404, "Alert not found")
+    await db.crm2_notifications.update_many(
+        {**of, "activity_id": activity_id}, {"$set": {"read": True}})
+    return {"status": "done", "id": activity_id}

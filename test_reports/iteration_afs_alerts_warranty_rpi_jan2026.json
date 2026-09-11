@@ -1,0 +1,24 @@
+{
+  "summary": "Full E2E test of Aftersales 'Warranty & RPI Reminders' feature (Task 3). Backend: 5/5 pytest tests passed covering GET /alerts baseline, POST /alerts/run + idempotency (2nd run returns 0/0), alert row schema (type, threshold_days, subject, body, status='open', source='afs_alerts'), unread_notifications count, dismiss (200 + linked notification marked read + rescan does not recreate), dismiss non-existent → 404. Both a warranty_alert and an rpi_review_due were observed in the open list as per seed data. Frontend: logged into CRM as owner@isodemo.com → Corporate mode → Aftersales Contracts → Dashboard sub-tab; the 'Alerts & reminders' panel (afs-alerts-panel) rendered between action cards and My Priorities Today with 2 alert rows, working 'Run scan now' button (afs-alerts-scan), dismiss buttons (afs-alert-dismiss-<id>) that remove rows, and the afs-alerts-empty state correctly shown after dismissing all. No console errors related to the feature (only expected pre-login 401s).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_afs_alerts.py",
+    "/app/test_reports/pytest/afs_alerts_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "utils/afs_alerts.py _parse: correctly handles both ISO datetimes and date-only YYYY-MM-DD (fix noted in request is present).",
+    "GET /alerts counts.open_total is computed from a separate list capped to 1000 rows — fine for current scale, but consider count_documents for large orgs.",
+    "Dismiss handler marks all linked notifications read via activity_id — correct."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_afs_alerts.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (CRM /api/crm/auth/login, Corporate mode)",
+  "seed_data_creation": "Reopened 1 dismissed alert after backend tests (db.crm2_activities update_many status=done→open) so the frontend UI still had rows to interact with. Frontend test dismissed both alerts; open_total = 0 after run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All alerts in iso-demo-org are currently DISMISSED (status=done) after frontend test. To restore open alerts for UI demo, run: db.crm2_activities.update_many({source:'afs_alerts'},{$set:{status:'open'}}). Rescan alone will NOT recreate them (dedupe persists across statuses — by design)."
+}

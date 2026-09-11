@@ -19,7 +19,7 @@ import {
   Clock, FileSignature, Calculator, Plus, Trash2, Check, Search, TrendingUp, Shield,
   Zap, Building2, Rocket, FileCheck2, PenLine, CheckCircle2, Circle,
   CalendarClock, Receipt, ChevronDown, ChevronRight, RotateCw, MinusCircle,
-  FileText, Share2,
+  FileText, Share2, Bell,
 } from 'lucide-react';
 
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -55,6 +55,13 @@ function DashboardTab({ API, headers, c, isDark }) {
   const [cards, setCards] = useState(null);
   const [priorities, setPriorities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [alerts, setAlerts] = useState({ alerts: [], counts: {} });
+  const [scanning, setScanning] = useState(false);
+
+  const loadAlerts = useCallback(() => {
+    axios.get(`${API}/crm/v2/aftersales/alerts`, { headers: headers() })
+      .then(r => setAlerts(r.data)).catch(() => setAlerts({ alerts: [], counts: {} }));
+  }, [API, headers]);
 
   const load = useCallback((attempt = 0) => {
     setLoading(true);
@@ -67,7 +74,17 @@ function DashboardTab({ API, headers, c, isDark }) {
         else { setCards({}); setLoading(false); }
       });
   }, [API, headers]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); loadAlerts(); }, [load, loadAlerts]);
+
+  const runScan = async () => {
+    setScanning(true);
+    try { await axios.post(`${API}/crm/v2/aftersales/alerts/run`, {}, { headers: headers() }); loadAlerts(); }
+    finally { setScanning(false); }
+  };
+  const dismissAlert = async (id) => {
+    await axios.post(`${API}/crm/v2/aftersales/alerts/${id}/dismiss`, {}, { headers: headers() });
+    loadAlerts();
+  };
 
   if (loading) return <Spinner />;
   const CARDS = [
@@ -114,6 +131,55 @@ function DashboardTab({ API, headers, c, isDark }) {
           </Card>
         ))}
       </div>
+      {/* Alerts & reminders — warranty + RPI at 180/120/90 windows */}
+      <div data-testid="afs-alerts-panel" className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Bell size={15} style={{ color: 'var(--color-accent-amber)' }} />
+            <h3 className="text-sm font-bold" style={{ color: c.text }}>Alerts &amp; reminders</h3>
+            {(alerts.counts?.open_total > 0) && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--color-accent-amber)22', color: 'var(--color-accent-amber)' }}>
+                {alerts.counts.warranty || 0} warranty · {alerts.counts.rpi || 0} RPI
+              </span>
+            )}
+          </div>
+          <button data-testid="afs-alerts-scan" onClick={runScan} disabled={scanning}
+            className="text-xs px-3 py-1.5 rounded-md border inline-flex items-center gap-1.5 disabled:opacity-50" style={{ borderColor: c.border, color: c.text }}>
+            <Search size={13} /> {scanning ? 'Scanning…' : 'Run scan now'}
+          </button>
+        </div>
+        <div className="space-y-2" data-testid="afs-alerts-list">
+          {(alerts.alerts || []).filter(a => a.status === 'open').length === 0 ? (
+            <Card c={c} isDark={isDark} testId="afs-alerts-empty">
+              <p className="text-sm" style={{ color: c.textDim }}>No open warranty or RPI reminders. Run a scan to check for warranties or contract anniversaries entering the 180/120/90-day windows.</p>
+            </Card>
+          ) : (
+            (alerts.alerts || []).filter(a => a.status === 'open').map((a) => {
+              const isWarranty = a.type === 'warranty_alert';
+              const col = a.threshold_days <= 90 ? 'var(--color-danger)' : a.threshold_days <= 120 ? 'var(--color-accent-amber)' : 'var(--color-info-ios)';
+              return (
+                <div key={a.id} data-testid={`afs-alert-${a.id}`} className="flex items-start gap-3 p-3 rounded-lg border"
+                     style={{ background: isDark ? '#0d0d0d' : '#fff', borderColor: c.border }}>
+                  <span className="mt-0.5 shrink-0">{isWarranty ? <ShieldCheck size={16} style={{ color: col }} /> : <TrendingUp size={16} style={{ color: col }} />}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: col + '22', color: col }}>≤{a.threshold_days}d</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: isDark ? '#1a1a1a' : 'var(--color-neutral-100)', color: c.textDim }}>{isWarranty ? 'WARRANTY' : 'RPI REVIEW'}</span>
+                      <span className="text-sm font-semibold truncate" style={{ color: c.text }}>{a.subject}</span>
+                    </div>
+                    <p className="text-xs mt-0.5" style={{ color: c.textDim }}>{a.body}</p>
+                  </div>
+                  <button data-testid={`afs-alert-dismiss-${a.id}`} onClick={() => dismissAlert(a.id)}
+                    className="shrink-0 text-xs px-2 py-1 rounded-md border inline-flex items-center gap-1" style={{ borderColor: c.border, color: c.textDim }}>
+                    <Check size={12} /> Done
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
       {/* Priorities */}
       <h3 className="text-sm font-bold mb-2" style={{ color: c.text }}>My Priorities Today</h3>
       <div data-testid="afs-priorities" className="space-y-2">
