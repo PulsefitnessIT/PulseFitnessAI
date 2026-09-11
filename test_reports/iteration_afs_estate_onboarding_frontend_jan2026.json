@@ -1,0 +1,59 @@
+{
+  "summary": "Frontend-only verification of the NEW 'Onboard Estate' importer wizard in CRM Corporate → Aftersales Contracts, plus a smoke regression of every Aftersales sub-tab. Wizard drove the real 707-row Wiltshire workbook end-to-end (upload → analyse → map → build → review edits → commit) and matched the backend's curl-verified numbers exactly. All 11 Aftersales sub-tabs render, the AlphaCo demo contract (PF-MA-CMPDEMO) still appears in Contracts & Renewals compliance, Reports shows ARR/forecast, and AI Assistant still generates a contract summary.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "EstateOnboarding step 2 (sheet select)", "issues": ["Dev-only hydration warning in console: '<span> cannot be a child of <option>'. Caused by the visual-editor instrumentation wrapping dynamic option text in a <span>. Not a runtime bug, but the warning noise is worth flagging."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "CLEAN UP QA DATA: The wizard committed a real estate under customer name 'ZZ QA Onboard Co'. It created 17 sites, 707 equipment records, and 17 DRAFT contracts numbered PF-MA-IMP-2609-01 through PF-MA-IMP-2609-17 (all in Iso Demo Fitness org). Purge before demo/prod cutover.",
+    "(Optional) suppress or work around the <span>-in-<option> hydration warning from the visual-editor instrumentation."
+  ],
+  "critical_code_review_comments": [
+    "AftersalesApp.js SUB_TABS includes 'contracts' but TabComp map excludes it — it is handled via a special-case ternary in the shell (line 2037). Works, but easy to break; consider putting the ContractsTab component in the map or making the ternary explicit with a comment.",
+    "EstateOnboarding.js is self-contained and clean (377 lines). Good use of data-testid throughout. Only nit: the 'exceptionsOnly' default is true — first-time users may not realise there are more rows until they untoggle."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (platform login → auto-authenticates CRM)",
+  "seed_data_creation": "Committed via wizard: customer 'ZZ QA Onboard Co' → 17 sites, 707 equipment, 17 draft contracts (PF-MA-IMP-2609-01 … -17). Main agent must clean this up.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Wiltshire test file downloaded to /tmp/wiltshire.xlsx (public URL still works). Wizard testids: afs-onb, afs-onb-file, afs-onb-analyze, afs-onb-customer, afs-onb-sheet, afs-onb-tier, afs-onb-grouping, afs-onb-map-<field>, afs-onb-build, afs-onb-summary, afs-onb-s-{assets|sites|matched|exceptions|inherited|pulse|chosen|status}, afs-onb-exc-toggle, afs-onb-incl-<i>, afs-onb-use-<i>, afs-onb-serial-<i>, afs-onb-cost-<i>, afs-onb-commit, afs-onb-done, afs-onb-done-{sites|equipment|contracts}. Aftersales entry: /crm → click Corporate → click [data-testid=crm-nav-aftersales] → click [data-testid=afs-tab-onboarding]. Note: platform login is at /login and auto-issues the CRM token (no separate CRM login needed via the UI). Each new browser session loses cookies so keep the whole flow in a single automation call.",
+  "verification_evidence": {
+    "step2_analyse": "Suggested sheet 'Master Register' (709 rows), all 13 canonical columns auto-mapped, header row 2.",
+    "step3_build_stats": {
+      "assets": 707,
+      "sites": 17,
+      "matched_to_pulse": 402,
+      "needs_review": 322,
+      "inherited_annual_gbp": 111501.69,
+      "pulse_annual_gbp": 92433.53,
+      "chosen_annual_gbp": 111721.04,
+      "on_contract_vs_warranty": "319 / 362"
+    },
+    "step3_edits_reactive_summary": {
+      "toggle_include_off": "Assets 707 → 706 (immediate)",
+      "use_dropdown_inherited_to_pulse": "Chosen annual £111,721.04 → £111,620.28",
+      "missing_serial_input": "Value saved on blur (PATCH accepted, no error)"
+    },
+    "step4_commit": {"sites": 17, "equipment": 707, "draft_contracts": 17, "contract_ids": "PF-MA-IMP-2609-01…-17"},
+    "regression_subtabs_load": {
+      "dashboard": "OK — ACV £174,480, 2 active contracts, 452 supportability reviews",
+      "autoquote": "OK",
+      "onboarding": "OK",
+      "agreements": "OK",
+      "renewals": "OK",
+      "contracts": "OK — AlphaCo + PF-MA-CMPDEMO present in body text",
+      "ai": "OK — contract selector shows demo contracts, Summarise coverage generates a response (~6.7k char body after ~15s)",
+      "reports": "OK — ARR £174,480, 12-month forecast rendered, expiring contracts list rendered",
+      "pricing": "OK",
+      "equipment": "OK",
+      "supportability": "OK"
+    }
+  }
+}

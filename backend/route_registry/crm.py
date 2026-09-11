@@ -24,6 +24,7 @@ from routes.crm_contract_workspace import (
 )
 from routes.crm_lead_conversion import router as crm_lead_conversion_router
 from routes.crm_aftersales import router as crm_aftersales_router
+from routes.crm_afs_onboarding import router as crm_afs_onboarding_router
 from routes.crm_modes import router as crm_modes_router
 from routes.crm_territories import router as crm_territories_router
 from routes.crm_audit import router as crm_audit_router
@@ -62,6 +63,7 @@ def register_crm(api_router: APIRouter) -> None:
         crm_contract_workspace_router, crm_contract_engineer_router,
         crm_lead_conversion_router,
         crm_aftersales_router,
+        crm_afs_onboarding_router,
         crm_modes_router, crm_territories_router,
         crm_audit_router, crm_permissions_router, crm_forecast_router,
         crm_picklists_router, crm_stakeholders_router, crm_products_router,

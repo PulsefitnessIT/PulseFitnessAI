@@ -1,3 +1,38 @@
+# ═══ 2026-06 · AFTERSALES ENGINE — NEW-CUSTOMER ESTATE ONBOARDING IMPORTER (testing_agent FE 100% + BE curl; #5 lifecycle regression PASS) ═══
+Turn a messy inherited customer workbook/invoice into a clean Pulse estate + grouped DRAFT contracts. Built from the
+real Wiltshire Council file (707 assets, 17 sites, mixed makes, "Worn away" serials, missing costs). USER CHOICES
+(1c,2c,3c,4b,5c): both spreadsheet + invoice-PDF routes into one review queue (spreadsheet built first); side-by-side
+inherited-vs-Pulse pricing (coordinator picks per line); flexible grouping (per-site / master / per-status); a DEDICATED
+importer inside the Aftersales app (new 'Onboard Estate' sub-tab); review/exception queue before commit, Pulse-matched
+rows auto-priced + third-party left to inherited/manual. Pricing 100% deterministic — reuses _compute_quote; never
+invents a price (unmatched/RRP-less → Pulse 0 → falls back to inherited, flagged).
+  - Backend NEW routes/crm_afs_onboarding.py (prefix /crm/v2/aftersales/onboarding, get_crm_user, registered in
+    route_registry/crm.py). Flow + endpoints: POST /analyze (multipart .xlsx → openpyxl; per-sheet header-row DETECTION
+    by keyword score; deterministic column auto-map _auto_map via _MAP_HINTS; stores file_b64 + import doc in
+    crm2_afs_onboarding); POST /{id}/build (re-parse chosen sheet w/ column_map, _clean_row normalises dates/costs/
+    serials, _match_row matches model→config via _config_index + _norm_model_tokens — strips "260G-6.0-DRST/Fusion"→
+    "260G", tries model THEN make tokens for swapped columns; ONE _compute_quote call prices all rows deterministically,
+    per-asset pulse_annual = annual_line_gold × tier factor; _row_exceptions flags missing_serial/unmatched_model/
+    no_pulse_price/missing_cost/blank_make_model; _summarise totals + Contract/Warranty split); PATCH /{id}/rows
+    (resolve exceptions: fix serial/cost, include toggle, chosen_price inherited|pulse, manual config_id match →
+    re-prices); POST /{id}/commit (creates lite customer org + crm2_companies mirror linked to it + db.sites per site
+    + db.equipment register + grouped DRAFT crm2_contracts carrying chosen value, links equipment contract_cover; status
+    'committed', idempotent 409); GET /imports, GET /{id}, GET /util/config-search (manual-match picker).
+  - Frontend NEW EstateOnboarding.js (sub-tab 'onboarding' in AftersalesApp.js): 4-step wizard upload→map→review→done.
+    testids afs-onb, -file/-analyze/-dropzone, -customer/-sheet/-tier/-grouping, -map-<field>, -build, -summary +
+    -s-{assets|sites|matched|exceptions|inherited|pulse|chosen|status}, -exceptions/-exc-toggle, -row-<i>/-incl-<i>/
+    -use-<i>/-serial-<i>/-cost-<i>, -commit, -done/-done-{sites|equipment|contracts}, -restart.
+  VERIFIED (testing_agent FE 100% + BE curl, then QA data PURGED): analyze auto-mapped all 13 cols, header row 2;
+    build → 707 assets/17 sites/402 matched/322 exceptions/inherited £111,501.69 vs Pulse £92,433.53; patch reactive
+    (include off 707→706, use→pulse re-totals, serial saved); commit → 17 sites/707 equipment/17 draft contracts
+    (PF-MA-IMP-YYMM-NN). #5 REGRESSION: all 11 sub-tabs render, AlphaCo PF-MA-CMPDEMO compliance intact, Reports ARR
+    £174,480, AI Assistant still summarises. Report iteration_afs_estate_onboarding_frontend_jan2026.json.
+  KNOWN (pre-existing cosmetic): '<span> in <option>' dev hydration warning (visual-editor instrumentation) on the
+    sheet dropdown — not a runtime bug. NEXT (backlog): invoice/agreement PDF uploader into the same queue (reuse the
+    equipment_import AI extractor); activate imported drafts to switch on service/billing schedules; real Sage/Sicon push.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · AFTERSALES ENGINE — CONTRACT AI ASSISTANT (Task 7, P2) (testing_agent FE 100%; BE curl-verified) ═══
 Deterministic-GROUNDED AI assistant over a single active contract. The model (Claude Sonnet 4.6 via EMERGENT_LLM_KEY)
 ONLY writes prose from a fact sheet we assemble from live records — it is instructed to NEVER invent a figure, date,

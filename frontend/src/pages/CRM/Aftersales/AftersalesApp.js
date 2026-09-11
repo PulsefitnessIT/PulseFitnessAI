@@ -14,12 +14,13 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useCRM } from '../CRMApp';
 import CRMContracts from '../CRMContracts';
+import EstateOnboarding from './EstateOnboarding';
 import {
   LayoutDashboard, SlidersHorizontal, Wrench, ShieldCheck, RefreshCw, AlertTriangle,
   Clock, FileSignature, Calculator, Plus, Trash2, Check, Search, TrendingUp, Shield,
   Zap, Building2, Rocket, FileCheck2, PenLine, CheckCircle2, Circle,
   CalendarClock, Receipt, ChevronDown, ChevronRight, RotateCw, MinusCircle,
-  FileText, Share2, Bell, Mail, X, Sparkles, Copy, MessageSquare,
+  FileText, Share2, Bell, Mail, X, Sparkles, Copy, MessageSquare, FileSpreadsheet,
 } from 'lucide-react';
 
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -29,6 +30,7 @@ const pct = (v) => (Number(v || 0) * 100).toFixed(2).replace(/\.00$/, '') + '%';
 const SUB_TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'autoquote', label: 'Build Quote', icon: Zap },
+  { id: 'onboarding', label: 'Onboard Estate', icon: FileSpreadsheet },
   { id: 'agreements', label: 'Agreements', icon: FileCheck2 },
   { id: 'renewals', label: 'Renewals & RPI', icon: RefreshCw },
   { id: 'contracts', label: 'Contracts & Renewals', icon: Shield },
@@ -2014,7 +2016,7 @@ export default function AftersalesApp() {
   const crm = useCRM();
   const { API, headers, c, isDark } = crm;
   const [tab, setTab] = useState('dashboard');
-  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, agreements: AgreementsTab, renewals: RenewalsRpiTab, ai: AIAssistantTab, reports: ReportsTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab }[tab];
+  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, onboarding: EstateOnboarding, agreements: AgreementsTab, renewals: RenewalsRpiTab, ai: AIAssistantTab, reports: ReportsTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab }[tab];
   return (
     <div data-testid="afs-app">
       <div className="mb-4">
