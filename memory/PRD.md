@@ -1,3 +1,28 @@
+# ═══ 2026-06 · AFTERSALES ENGINE — FOLLOW-UP CHASERS (Task 4) (testing_agent BE 5/5 + FE 100%) ═══
+Auto-emails customers a reminder about a SENT-but-unsigned quote as it nears expiry, and notifies the coordinator
+when a quote expires unsigned. USER CHOICES: trigger at N DAYS-BEFORE-EXPIRY (default 14 then 5, configurable),
+one reminder per window (never duplicated), link-only email (no PDF re-attach), + in-app coordinator alert on expiry.
+Background 6h sweep + manual "Run follow-ups now". Delivery via existing Resend send_email (real in prod; preview
+test key logs 'failed').
+  - Worker (utils/afs_alerts.py): _chase_days (settings.quote_chase_days comma list, default sorted (5,14)),
+    _chase_window (TIGHTEST ascending — 5 before 14), _send_quote_reminder (link-only, category='service'),
+    run_quote_chasers_once — scans quotes with public_shortcode + portal_contact_email + portal_status NOT
+    accepted/declined; if past valid_until → coordinator 'quote_expired' alert via _emit (dedupe
+    afs:quote_expired:<id>) + sets quote.expired_notified; else picks the tightest crossed chase window not already
+    in quote.chases_sent, emails the customer, appends the window. Wired into run_forever after the alerts sweep.
+    BUG FIXED: default _chase_days returned [14,5] UNSORTED so _chase_window matched 14 first — now sorts ascending
+    in both places (verified CHASE-3D → [5]).
+  - Endpoints (crm_aftersales.py): POST /quotes/chasers/run (manual, org-scoped, idempotent); PUT /settings now
+    accepts quote_chase_days; GET /settings defaults it to '14,5'.
+  - FE (AftersalesApp.js AgreementsTab): Customer quotes card follow-ups row (afs-chasers-row) — chase-days
+    input+Save (afs-chase-days-input/-save), 'Run follow-ups now' (afs-chasers-run) + result (afs-chasers-result);
+    per sent-unsigned row an expiry pill (afs-quote-expiry-<id>, red ≤5d / amber ≤14d / 'expired') + reminded
+    badge (afs-quote-chased-<id>).
+  VERIFIED (testing_agent BE 5/5 pytest + FE 100%, plus curl): chasers_sent 2 (CHASE-12D→[14], CHASE-3D→[5]);
+    dedupe re-run 0; CHASE-EXP → quote_expired alert + expired_notified; scope excludes accepted/declined/no-email;
+    FE controls + pills render. Test at /app/backend/tests/test_afs_quote_chasers_jan2026.py. Preview emails 'failed'
+    (test key) — delivery only in production.
+
 # ═══ 2026-06 · AFTERSALES ENGINE — EMAIL THE ALERTS + SEND QUOTE TO CUSTOMER (Task 3 enhancement) (testing_agent BE 5/5 + FE 100%) ═══
 Wires the existing Resend send_email util into the Aftersales engine (production Resend is live; preview uses a
 test key so sends TRIGGER + AUDIT to db.email_send_events but show status 'failed' — real delivery only in prod).

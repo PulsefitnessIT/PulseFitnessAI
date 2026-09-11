@@ -994,6 +994,31 @@ function AgreementsTab({ API, headers, c, isDark }) {
     } catch (e) { alert(e?.response?.data?.detail || 'Could not send the quote email.'); }
     finally { setEmailBusy(null); }
   };
+  const [chaseDays, setChaseDays] = useState('14,5');
+  const [chaseSaved, setChaseSaved] = useState(false);
+  const [chasersBusy, setChasersBusy] = useState(false);
+  const [chaserResult, setChaserResult] = useState(null);
+  useEffect(() => {
+    axios.get(`${API}/crm/v2/aftersales/settings`, { headers: headers() })
+      .then(r => setChaseDays(r.data.quote_chase_days || '14,5')).catch(() => {});
+  }, [API, headers]);
+  const saveChaseDays = async () => {
+    await axios.put(`${API}/crm/v2/aftersales/settings`, { quote_chase_days: chaseDays }, { headers: headers() });
+    setChaseSaved(true); setTimeout(() => setChaseSaved(false), 2500);
+  };
+  const runChasers = async () => {
+    setChasersBusy(true);
+    try {
+      const r = await axios.post(`${API}/crm/v2/aftersales/quotes/chasers/run`, {}, { headers: headers() });
+      setChaserResult(r.data); setTimeout(() => setChaserResult(null), 5000); load();
+    } catch { alert('Could not run follow-ups.'); }
+    finally { setChasersBusy(false); }
+  };
+  const daysUntil = (s) => {
+    if (!s) return null;
+    const d = new Date(s); if (isNaN(d)) return null;
+    return Math.round((d - new Date()) / 86400000);
+  };
 
   const openDetail = (id) => axios.get(`${API}/crm/v2/aftersales/agreements/${id}`, { headers: headers() }).then(r => { setDetail(r.data); setShowSign(false); });
   const refreshDetail = () => detail && openDetail(detail.id);
@@ -1151,6 +1176,20 @@ function AgreementsTab({ API, headers, c, isDark }) {
       <Card c={c} isDark={isDark} className="mb-4" testId="afs-customer-quotes">
         <p className="text-sm font-bold mb-1" style={{ color: c.text }}>Customer quotes</p>
         <p className="text-xs mb-3" style={{ color: c.textDim }}>Download the branded PDF or share a secure link for the customer to accept &amp; sign online.</p>
+        <div className="flex items-center gap-2 mb-3 flex-wrap" data-testid="afs-chasers-row">
+          <Clock size={13} style={{ color: c.textDim }} />
+          <span className="text-xs" style={{ color: c.textDim }}>Chase unsigned quotes at (days before expiry)</span>
+          <input data-testid="afs-chase-days-input" type="text" value={chaseDays} onChange={e => setChaseDays(e.target.value)}
+            placeholder="14,5" className="text-xs px-2 py-1 rounded-md border w-24" style={{ background: isDark ? '#0d0d0d' : '#fff', borderColor: c.border, color: c.text }} />
+          <button data-testid="afs-chase-days-save" onClick={saveChaseDays}
+            className="text-xs px-3 py-1 rounded-md border" style={{ borderColor: c.border, color: c.text }}>{chaseSaved ? 'Saved ✓' : 'Save'}</button>
+          <div className="flex-1" />
+          <button data-testid="afs-chasers-run" onClick={runChasers} disabled={chasersBusy}
+            className="text-xs px-3 py-1.5 rounded-md inline-flex items-center gap-1.5 disabled:opacity-50" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
+            <Mail size={13} /> {chasersBusy ? 'Sending…' : 'Run follow-ups now'}
+          </button>
+          {chaserResult && <span className="text-[11px]" data-testid="afs-chasers-result" style={{ color: c.textDim }}>{chaserResult.chasers_sent} reminder(s), {chaserResult.expired_notified} expired</span>}
+        </div>
         {allQuotes.length === 0 ? (
           <p className="text-xs" style={{ color: c.textDim }}>No saved quotes yet — build one in the Build Quote tab.</p>
         ) : (
@@ -1165,6 +1204,20 @@ function AgreementsTab({ API, headers, c, isDark }) {
                     <span className="text-sm font-semibold" style={{ color: c.text }}>{q.quote_number}</span>
                     <span className="text-xs" style={{ color: c.textDim }}>· {q.company_name} · {gbp0(q.summary?.final_annual)}/yr</span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: st.color + '22', color: st.color }}>{st.label}</span>
+                    {(() => {
+                      const d = daysUntil(q.valid_until);
+                      const unsigned = q.public_shortcode && !['accepted', 'declined'].includes(q.portal_status);
+                      if (unsigned && d != null) {
+                        const col = d < 0 ? 'var(--color-danger, #EF4444)' : d <= 5 ? 'var(--color-danger, #EF4444)' : d <= 14 ? 'var(--color-accent-amber, #E0972A)' : c.textDim;
+                        return <span data-testid={`afs-quote-expiry-${q.id}`} className="text-[10px] font-semibold px-2 py-0.5 rounded" style={{ background: col + '22', color: col }}>{d < 0 ? 'expired' : `expires in ${d}d`}</span>;
+                      }
+                      return null;
+                    })()}
+                    {(q.chases_sent || []).length > 0 && (
+                      <span data-testid={`afs-quote-chased-${q.id}`} className="text-[10px] px-2 py-0.5 rounded" style={{ background: isDark ? '#1a1a1a' : 'var(--color-neutral-100)', color: c.textDim }}>
+                        reminded {q.chases_sent.map(x => `${x}d`).join(', ')}
+                      </span>
+                    )}
                     <div className="flex-1" />
                     <button data-testid={`afs-quote-pdf-${q.id}`} onClick={() => viewQuotePdf(q.id)}
                       className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md" style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>

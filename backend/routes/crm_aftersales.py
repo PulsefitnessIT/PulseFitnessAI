@@ -73,13 +73,16 @@ async def get_settings(user=Depends(get_crm_user)):
             ],
             "renewal_windows_days": [180, 120, 90, 60, 30],
             "alert_email": "",
+            "quote_chase_days": "14,5",
         }
     s.setdefault("alert_email", "")
+    s.setdefault("quote_chase_days", "14,5")
     return s
 
 
 class SettingsUpdate(BaseModel):
     alert_email: Optional[str] = None
+    quote_chase_days: Optional[str] = None
     vat_pct: Optional[float] = None
     default_pricing_level: Optional[str] = None
 
@@ -2091,6 +2094,17 @@ async def run_afs_alerts(user=Depends(get_crm_user)):
     from utils.afs_alerts import run_afs_alerts_once
     res = await run_afs_alerts_once(_org(user))
     await record_audit(entity_type="afs_alerts", entity_id="scan", action="run", user=user, extra=res)
+    return res
+
+
+@router.post("/quotes/chasers/run")
+async def run_afs_quote_chasers(user=Depends(get_crm_user)):
+    """Manual 'Run follow-ups now' — emails reminders to customers whose sent
+    quotes are nearing expiry (Day 14/5 by default) and notifies the coordinator
+    of any that expired unsigned. Idempotent per (quote, window)."""
+    from utils.afs_alerts import run_quote_chasers_once
+    res = await run_quote_chasers_once(_org(user))
+    await record_audit(entity_type="afs_quote_chasers", entity_id="run", action="run", user=user, extra=res)
     return res
 
 

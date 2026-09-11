@@ -1,0 +1,22 @@
+{
+  "summary": "Verified Task 4 Aftersales Follow-up Chasers end-to-end. Backend: pytest 5/5 pass covering settings persistence (quote_chase_days default '14,5'), fresh run sends chasers_sent≥2 with correct tightest-window mapping (CHASE-12D→[14], CHASE-3D→[5]), expired quote marked & 'quote_expired' coordinator alert emitted, and dedupe run returns 0/0. Frontend: Agreements sub-tab shows chasers row with chase-days input+Save (Saved ✓ marker), 'Run follow-ups now' button rendering afs-chasers-result summary, and per-quote expiry pills (12d amber / 3d red / 'expired') + reminded 14d / reminded 5d badges. All required data-testids present and functional.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_afs_quote_chasers_jan2026.py",
+    "/app/test_reports/pytest/afs_chasers_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "afs_alerts._chase_window sorts chase_days ascending each call — minor: could sort once in _chase_days caller; not a correctness issue.",
+    "run_quote_chasers_once uses (now - vu).days for days_left — a quote crossing exactly at midnight could round to same window; acceptable given dedupe per (quote,window)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (CRM login, org iso-demo-org)",
+  "seed_data_creation": "Reset seeded chase_demo quotes (CHASE-12D/CHASE-3D/CHASE-EXP) via fixture before fresh run; delete prior afs:quote_expired:<id> dedupe activities.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After running these tests, seeded chase_demo quotes have chases_sent recorded ([14] for CHASE-12D, [5] for CHASE-3D) and CHASE-EXP has expired_notified=true. To re-run and observe a fresh count, use the reset_seed fixture pattern in test file. Frontend requires Corporate mode toggle (auto-clicked by test) and Aftersales Contracts → Agreements sub-tab.",
+  "rca of the issue": "N/A — all pass. Prior bug (tightest window losing to 14) already fixed by sorting _chase_days and iterating ascending in _chase_window; verified by test asserting CHASE-3D.chases_sent == [5]."
+}

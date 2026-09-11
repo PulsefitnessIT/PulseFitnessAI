@@ -276,6 +276,122 @@ async def run_afs_alerts_once(organization_id: str | None = None, *, send_digest
     return res
 
 
+# ── Quote follow-up chasers ────────────────────────────────────────────────
+DEFAULT_CHASE_DAYS = (14, 5)
+
+
+def _chase_days(settings: dict):
+    raw = (settings or {}).get("quote_chase_days")
+    if not raw:
+        return sorted(DEFAULT_CHASE_DAYS)
+    if isinstance(raw, str):
+        try:
+            days = [int(x) for x in raw.replace(";", ",").split(",") if x.strip()]
+        except ValueError:
+            days = list(DEFAULT_CHASE_DAYS)
+    else:
+        days = [int(x) for x in raw]
+    return sorted({d for d in days if d > 0}) or sorted(DEFAULT_CHASE_DAYS)
+
+
+def _chase_window(days_left: int, chase_days):
+    """Tightest chase threshold the quote currently sits in (e.g. 5 before 14)."""
+    for t in sorted(chase_days):  # ascending — tightest first
+        if days_left <= t:
+            return t
+    return None
+
+
+async def _send_quote_reminder(org_id: str, quote: dict, days_left: int) -> bool:
+    from utils.email import send_email
+    email = (quote.get("portal_contact_email") or "").strip()
+    if "@" not in email:
+        return False
+    import os
+    frontend = os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or ""
+    link = f"{frontend}/aq/{quote.get('public_shortcode')}"
+    name = (quote.get("portal_contact_name") or "").strip()
+    greeting = f"Hi {name.split()[0]}," if name else "Hello,"
+    summary = quote.get("summary", {}) or {}
+    when = "today" if days_left <= 0 else (f"in {days_left} day" + ("s" if days_left != 1 else ""))
+    html = (
+        f"<p>{greeting}</p>"
+        f"<p>A quick reminder that your Pulse Fitness maintenance quotation "
+        f"<strong>{quote.get('quote_number')}</strong> (£{float(summary.get('final_annual') or 0):,.2f}/yr) "
+        f"is still awaiting your response and <strong>expires {when}</strong>.</p>"
+        f"<p style='margin:22px 0'><a href='{link}' "
+        f"style='background:#0B3D91;color:#fff;text-decoration:none;padding:12px 22px;"
+        f"border-radius:10px;font-weight:700;display:inline-block'>Review &amp; respond now</a></p>"
+        f"<p style='color:#777;font-size:12px'>If the button doesn't work, paste this into your browser:<br>{link}</p>")
+    subject = f"Reminder: your Pulse maintenance quote {quote.get('quote_number')} expires {when}"
+    return bool(await send_email(email, subject, html, organization_id=org_id,
+                                 category="service", kind="afs_quote_chase"))
+
+
+async def run_quote_chasers_once(organization_id: str | None = None, *, send: bool = True) -> dict:
+    now = datetime.now(timezone.utc)
+    org_ids = [organization_id] if organization_id else await db.crm2_companies.distinct("organization_id")
+    res = {"chasers_sent": 0, "expired_notified": 0, "orgs_scanned": 0}
+    for org_id in org_ids:
+        if not org_id:
+            continue
+        res["orgs_scanned"] += 1
+        settings = await db.crm2_afs_settings.find_one({"organization_id": org_id}, {"_id": 0, "quote_chase_days": 1}) or {}
+        chase_days = _chase_days(settings)
+        cursor = db.crm2_afs_quotes.find({
+            "organization_id": org_id,
+            "public_shortcode": {"$exists": True, "$ne": None},
+            "portal_contact_email": {"$exists": True, "$nin": [None, ""]},
+            "portal_status": {"$nin": ["accepted", "declined"]},
+        }, {"_id": 0})
+        async for q in cursor:
+            vu = _parse(q.get("valid_until"))
+            if not vu:
+                continue
+            days_left = (vu - now).days
+            if vu <= now:
+                if not q.get("expired_notified"):
+                    name = q.get("company_name") or q.get("quote_number") or "Quote"
+                    act = await _emit(
+                        org_id, dedupe_key=f"afs:quote_expired:{q['id']}",
+                        activity={
+                            "type": "quote_expired", "priority": "medium",
+                            "company_id": q.get("company_id", ""), "quote_id": q["id"],
+                            "subject": f"Quote expired unsigned: {q.get('quote_number')}",
+                            "body": (f"Quote {q.get('quote_number')} for {name} expired on "
+                                     f"{str(q.get('valid_until'))[:10]} without being accepted or declined. "
+                                     f"Follow up or re-issue."),
+                            "action": {"type": "reissue_quote", "quote_id": q["id"]},
+                        },
+                        notification={
+                            "title": f"{name}: quote expired unsigned",
+                            "message": f"Quote {q.get('quote_number')} expired {str(q.get('valid_until'))[:10]} with no response.",
+                            "entity_type": "quote", "entity_id": q["id"], "entity_name": name,
+                            "priority": "medium",
+                        })
+                    await db.crm2_afs_quotes.update_one({"id": q["id"], "organization_id": org_id},
+                                                        {"$set": {"expired_notified": True, "updated_at": _now_iso()}})
+                    if act:
+                        res["expired_notified"] += 1
+                continue
+            window = _chase_window(days_left, chase_days)
+            if window is None:
+                continue
+            chases = set(q.get("chases_sent") or [])
+            if window in chases:
+                continue
+            ok = True
+            if send:
+                ok = await _send_quote_reminder(org_id, q, days_left)
+            chases.add(window)
+            await db.crm2_afs_quotes.update_one(
+                {"id": q["id"], "organization_id": org_id},
+                {"$set": {"chases_sent": sorted(chases), "last_chased_at": _now_iso(),
+                          "last_chase_window": window, "updated_at": _now_iso()}})
+            res["chasers_sent"] += 1
+    return res
+
+
 async def run_forever(interval_hours: int = 6):
     interval = max(1, int(interval_hours)) * 3600
     await asyncio.sleep(60)
@@ -286,7 +402,13 @@ async def run_forever(interval_hours: int = 6):
                 logger.info("[afs-alerts] sweep: %s", r)
         except Exception:
             logger.warning("[afs-alerts] sweep error", exc_info=True)
+        try:
+            c = await run_quote_chasers_once()
+            if c.get("chasers_sent") or c.get("expired_notified"):
+                logger.info("[afs-alerts] chasers: %s", c)
+        except Exception:
+            logger.warning("[afs-alerts] chaser error", exc_info=True)
         await asyncio.sleep(interval)
 
 
-__all__ = ["run_afs_alerts_once", "run_forever"]
+__all__ = ["run_afs_alerts_once", "run_quote_chasers_once", "run_forever"]
