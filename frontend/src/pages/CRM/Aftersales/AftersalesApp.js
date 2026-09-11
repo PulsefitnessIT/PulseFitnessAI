@@ -32,6 +32,7 @@ const SUB_TABS = [
   { id: 'agreements', label: 'Agreements', icon: FileCheck2 },
   { id: 'renewals', label: 'Renewals & RPI', icon: RefreshCw },
   { id: 'contracts', label: 'Contracts & Renewals', icon: Shield },
+  { id: 'reports', label: 'Reports', icon: TrendingUp },
   { id: 'pricing', label: 'Pricing & Rules', icon: SlidersHorizontal },
   { id: 'equipment', label: 'Equipment Review', icon: Wrench },
   { id: 'supportability', label: 'Supportability', icon: ShieldCheck },
@@ -1319,6 +1320,123 @@ function SyncBadge({ label, status, testId }) {
   );
 }
 
+function ReportsTab({ API, headers, c, isDark }) {
+  const [data, setData] = useState(null);
+  const [labourRate, setLabourRate] = useState('75');
+  const [ratio, setRatio] = useState('50');
+  const [saved, setSaved] = useState(false);
+
+  const load = useCallback(() => {
+    axios.get(`${API}/crm/v2/aftersales/reports`, { headers: headers() })
+      .then(r => {
+        setData(r.data);
+        setLabourRate(String(r.data.high_claim?.labour_rate ?? 75));
+        setRatio(String(Math.round((r.data.high_claim?.ratio_threshold ?? 0.5) * 100)));
+      }).catch(() => setData({ forecast: {}, high_claim: {} }));
+  }, [API, headers]);
+  useEffect(() => { load(); }, [load]);
+
+  const saveSettings = async () => {
+    await axios.put(`${API}/crm/v2/aftersales/settings`,
+      { labour_rate: parseFloat(labourRate) || 75, high_claim_ratio: (parseFloat(ratio) || 50) / 100 },
+      { headers: headers() });
+    setSaved(true); setTimeout(() => setSaved(false), 2000); load();
+  };
+
+  if (!data) return <Spinner />;
+  const f = data.forecast || {}; const hc = data.high_claim || {};
+  const maxMonth = Math.max(1, ...(f.months || []).map(m => m.amount));
+  const stat = (label, val, testId, color) => (
+    <div className="p-4 rounded-xl border" data-testid={testId} style={{ background: isDark ? '#111' : 'var(--color-neutral-50)', borderColor: c.border }}>
+      <div className="text-2xl font-extrabold" style={{ color: color || c.text }}>{val}</div>
+      <div className="text-[11px] font-medium mt-0.5" style={{ color: c.textDim }}>{label}</div>
+    </div>
+  );
+
+  return (
+    <div data-testid="afs-reports">
+      <div className="mb-2">
+        <h2 className="text-lg font-bold" style={{ color: c.text }}>Profitability &amp; forecast</h2>
+        <p className="text-xs" style={{ color: c.textDim }}>Recurring-revenue forecast and high-claim contract warnings — from live billing &amp; service-desk data.</p>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        {stat('Annual recurring revenue', gbp0(f.arr), 'afs-reports-arr', 'var(--color-success-alt)')}
+        {stat('Active contracts', f.active_contracts || 0, 'afs-reports-active')}
+        {stat('Forecast next 12 mo', gbp0(f.total_12m), 'afs-reports-total12m', 'var(--color-brand-cyan)')}
+        {stat('High-claim warnings', hc.flagged_count || 0, 'afs-reports-flagged', (hc.flagged_count ? 'var(--color-danger, #EF4444)' : c.text))}
+      </div>
+
+      <Card c={c} isDark={isDark} className="mb-6" testId="afs-reports-forecast">
+        <p className="text-sm font-bold mb-3" style={{ color: c.text }}>12-month recurring-revenue forecast</p>
+        <div className="space-y-1.5">
+          {(f.months || []).map(m => (
+            <div key={m.month} data-testid={`afs-report-month-${m.month}`} className="flex items-center gap-3">
+              <span className="text-xs w-16 shrink-0" style={{ color: c.textDim }}>{m.month}</span>
+              <div className="flex-1 h-4 rounded" style={{ background: isDark ? '#0d0d0d' : 'var(--color-neutral-100)' }}>
+                <div className="h-4 rounded" style={{ width: `${Math.round(m.amount / maxMonth * 100)}%`, minWidth: m.amount > 0 ? '4px' : '0', background: 'var(--color-brand-cyan)' }} />
+              </div>
+              <span className="text-xs w-20 text-right tabular-nums" style={{ color: c.text }}>{gbp0(m.amount)}</span>
+            </div>
+          ))}
+        </div>
+        {(f.expiring_soon || []).length > 0 && (
+          <div className="mt-4 pt-3 border-t" style={{ borderColor: c.border }} data-testid="afs-reports-expiring">
+            <p className="text-xs font-bold mb-1.5" style={{ color: c.textDim }}>Expiring in next 12 months ({f.expiring_soon.length})</p>
+            {f.expiring_soon.map(e => (
+              <div key={e.contract_id} className="flex justify-between text-xs" style={{ color: c.text }}>
+                <span>{e.company_name} · {e.contract_number}</span>
+                <span style={{ color: c.textDim }}>{e.end_date} · {gbp0(e.annual_value)}/yr</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Card c={c} isDark={isDark} testId="afs-reports-highclaim">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <p className="text-sm font-bold" style={{ color: c.text }}>High-claim contract warnings</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs" style={{ color: c.textDim }}>Labour £/hr</span>
+            <input data-testid="afs-reports-labour-rate" type="number" value={labourRate} onChange={e => setLabourRate(e.target.value)}
+              className="text-xs px-2 py-1 rounded-md border w-16" style={{ background: isDark ? '#0d0d0d' : '#fff', borderColor: c.border, color: c.text }} />
+            <span className="text-xs" style={{ color: c.textDim }}>Flag at ≥</span>
+            <input data-testid="afs-reports-ratio" type="number" value={ratio} onChange={e => setRatio(e.target.value)}
+              className="text-xs px-2 py-1 rounded-md border w-14" style={{ background: isDark ? '#0d0d0d' : '#fff', borderColor: c.border, color: c.text }} />
+            <span className="text-xs" style={{ color: c.textDim }}>%</span>
+            <button data-testid="afs-reports-save" onClick={saveSettings}
+              className="text-xs px-3 py-1 rounded-md" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>{saved ? 'Saved ✓' : 'Save'}</button>
+          </div>
+        </div>
+        {(hc.contracts || []).length === 0 ? (
+          <p className="text-xs" style={{ color: c.textDim }}>No reactive/repair service cases logged against active contracts in the last 12 months.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-xs" style={{ color: c.textDim }}>
+                <th className="text-left py-1.5">Contract</th><th className="text-right py-1.5">Annual</th>
+                <th className="text-right py-1.5">Claims</th><th className="text-right py-1.5">Est. claim cost</th>
+                <th className="text-right py-1.5">Margin</th><th className="text-right py-1.5"></th>
+              </tr></thead>
+              <tbody>
+                {hc.contracts.map(r => (
+                  <tr key={r.contract_id} data-testid={`afs-highclaim-row-${r.contract_id}`} className="border-t" style={{ borderColor: c.border }}>
+                    <td className="py-2" style={{ color: c.text }}>{r.company_name}<br /><span className="text-[10px]" style={{ color: c.textDim }}>{r.contract_number}</span></td>
+                    <td className="py-2 text-right tabular-nums" style={{ color: c.textDim }}>{gbp0(r.annual_value)}</td>
+                    <td className="py-2 text-right tabular-nums" style={{ color: c.text }}>{r.claim_count}</td>
+                    <td className="py-2 text-right tabular-nums" style={{ color: c.text }}>{gbp0(r.est_claim_cost)}</td>
+                    <td className="py-2 text-right tabular-nums font-semibold" style={{ color: r.margin_pct != null && r.margin_pct < 50 ? 'var(--color-danger, #EF4444)' : 'var(--color-success-alt)' }}>{r.margin_pct != null ? `${r.margin_pct}%` : '—'}</td>
+                    <td className="py-2 text-right">{r.flagged && <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: 'var(--color-danger, #EF4444)22', color: 'var(--color-danger, #EF4444)' }}><AlertTriangle size={11} /> HIGH</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 function AmendModal({ contractId, API, headers, c, isDark, onClose, onApplied }) {
   const [data, setData] = useState(null);
   const [action, setAction] = useState('add');
@@ -1632,7 +1750,7 @@ export default function AftersalesApp() {
   const crm = useCRM();
   const { API, headers, c, isDark } = crm;
   const [tab, setTab] = useState('dashboard');
-  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, agreements: AgreementsTab, renewals: RenewalsRpiTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab }[tab];
+  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, agreements: AgreementsTab, renewals: RenewalsRpiTab, reports: ReportsTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab }[tab];
   return (
     <div data-testid="afs-app">
       <div className="mb-4">

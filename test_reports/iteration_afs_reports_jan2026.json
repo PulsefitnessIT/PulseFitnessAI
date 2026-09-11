@@ -1,0 +1,22 @@
+{
+  "summary": "Full end-to-end testing of new Aftersales Profitability & Forecast Reporting feature (Task 8). Backend and frontend both fully working. 4/4 pytest cases pass and Playwright UI flow (login → Corporate → Aftersales Contracts → Reports sub-tab → edit labour rate & threshold → save → recompute) passes. All spec numbers match: ARR £174,480; active_contracts=2; total_12m=£1,400; AlphaCo est_claim_cost=£2,675 @ 75/hr (36.3% margin, flagged HIGH); recompute to £3,890 @ 120/hr; expiring_soon length 2; 12 month rows rendered as proportional bars. PPM cases correctly excluded. Settings persisted and reset to defaults (75.0/0.5) after tests.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_afs_reports_jan2026.py",
+    "/app/test_reports/pytest/afs_reports_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AftersalesApp.js is now 1777 lines — approaching split threshold; ReportsTab could be its own module for maintainability.",
+    "SUB_TABS list contains 'contracts' id but TabComp map has no 'contracts' entry (unrelated to Reports feature, existing gap)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (CRM, org iso-demo-org)",
+  "seed_data_creation": "None. Used existing report_demo seed data. Settings reset to labour_rate=75.0, high_claim_ratio=0.5 after tests.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "GET /api/crm/v2/aftersales/reports returns forecast+high_claim as spec'd. PUT /settings accepts labour_rate & high_claim_ratio and reports recompute uses them. UI selectors used: afs-tab-reports, afs-reports, afs-reports-arr/active/total12m/flagged, afs-reports-forecast, afs-report-month-YYYY-MM, afs-reports-highclaim, afs-highclaim-row-<contract_id>, afs-reports-labour-rate, afs-reports-ratio, afs-reports-save. Save button transitions to 'Saved ✓' for ~2 seconds then reverts. Cookie banner may need dismissal ('Essential Only').",
+  "rca of the issue": "No issues to RCA."
+}

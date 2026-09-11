@@ -74,15 +74,21 @@ async def get_settings(user=Depends(get_crm_user)):
             "renewal_windows_days": [180, 120, 90, 60, 30],
             "alert_email": "",
             "quote_chase_days": "14,5",
+            "labour_rate": 75.0,
+            "high_claim_ratio": 0.5,
         }
     s.setdefault("alert_email", "")
     s.setdefault("quote_chase_days", "14,5")
+    s.setdefault("labour_rate", 75.0)
+    s.setdefault("high_claim_ratio", 0.5)
     return s
 
 
 class SettingsUpdate(BaseModel):
     alert_email: Optional[str] = None
     quote_chase_days: Optional[str] = None
+    labour_rate: Optional[float] = None
+    high_claim_ratio: Optional[float] = None
     vat_pct: Optional[float] = None
     default_pricing_level: Optional[str] = None
 
@@ -1919,6 +1925,120 @@ async def list_amendments(contract_id: str, user=Depends(get_crm_user)):
     rows = await db.crm2_afs_amendments.find(
         {"contract_id": contract_id, **of}, _PUBLIC).sort("created_at", -1).to_list(200)
     return {"amendments": rows, "count": len(rows)}
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# PROFITABILITY & FORECAST REPORTING (§Task 8) — 12-month recurring-revenue
+# forecast (from billing schedules) + high-claim contract warnings (svc_cases).
+# ══════════════════════════════════════════════════════════════════════════
+
+def _month_key(y, m):
+    return f"{y:04d}-{m:02d}"
+
+
+def _add_months(dt, n):
+    idx = dt.month - 1 + n
+    return dt.year + idx // 12, idx % 12 + 1
+
+
+def _part_value(p):
+    if not isinstance(p, dict):
+        return 0.0
+    for k in ("total", "line_total", "cost", "price_total"):
+        if p.get(k) not in (None, ""):
+            try:
+                return float(p[k])
+            except (ValueError, TypeError):
+                pass
+    unit = p.get("unit_price") or p.get("price") or p.get("unit_cost") or 0
+    qty = p.get("qty") or p.get("quantity") or 1
+    try:
+        return float(unit) * float(qty)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+@router.get("/reports")
+async def profitability_report(user=Depends(get_crm_user)):
+    """Deterministic reporting: 12-month recurring-revenue forecast (actual
+    scheduled invoices) + high-claim contract warnings (reactive/repair cases)."""
+    of = _of(user)
+    org_id = _org(user)
+    settings = await db.crm2_afs_settings.find_one(of, {"_id": 0, "labour_rate": 1, "high_claim_ratio": 1}) or {}
+    labour_rate = float(settings.get("labour_rate") or 75.0)
+    ratio = float(settings.get("high_claim_ratio") or 0.5)
+    now = datetime.now(timezone.utc)
+    today = now.strftime("%Y-%m-%d")
+
+    contracts = await db.crm2_contracts.find(
+        {**of, "status": "active"},
+        {"_id": 0, "id": 1, "contract_number": 1, "company_name": 1, "title": 1,
+         "annual_value": 1, "end_date": 1, "contract_type": 1, "tier": 1}).to_list(1000)
+    ids = [c["id"] for c in contracts]
+    arr = round(sum(float(c.get("annual_value") or 0) for c in contracts), 2)
+
+    # ── Forecast: sum scheduled invoices per month over the next 12 months ──
+    month_keys = [_month_key(*_add_months(now, i)) for i in range(12)]
+    buckets = {k: 0.0 for k in month_keys}
+    horizon_end = _month_key(*_add_months(now, 12))
+    start_key = month_keys[0]
+    if ids:
+        async for b in db.crm2_afs_billing.find(
+                {"organization_id": org_id, "contract_id": {"$in": ids}}, {"_id": 0, "invoices": 1}):
+            for inv in b.get("invoices", []):
+                if inv.get("status") == "paid":
+                    continue
+                mk = (inv.get("due_date") or "")[:7]
+                if start_key <= mk < horizon_end and mk in buckets:
+                    buckets[mk] = round(buckets[mk] + float(inv.get("amount") or 0), 2)
+    months = [{"month": k, "amount": round(buckets[k], 2)} for k in month_keys]
+    total_12m = round(sum(buckets.values()), 2)
+
+    horizon_date = (now + timedelta(days=365)).strftime("%Y-%m-%d")
+    expiring = sorted(
+        [{"contract_id": c["id"], "contract_number": c.get("contract_number"),
+          "company_name": c.get("company_name") or c.get("title"),
+          "annual_value": c.get("annual_value", 0), "end_date": c.get("end_date")}
+         for c in contracts if today <= (c.get("end_date") or "") <= horizon_date],
+        key=lambda x: x["end_date"] or "")
+
+    # ── High-claim: reactive/repair cases in the trailing 12 months ──
+    since = (now - timedelta(days=365)).strftime("%Y-%m-%d")
+    claim_rows = []
+    for c in contracts:
+        cases = await db.svc_cases.find(
+            {"organization_id": org_id, "contract_id": c["id"],
+             "case_type": {"$in": ["reactive", "repair"]},
+             "created_at": {"$gte": since}},
+            {"_id": 0, "estimated_minutes": 1, "allocated_parts": 1, "case_type": 1}).to_list(1000)
+        if not cases:
+            continue
+        labour_minutes = sum(float(x.get("estimated_minutes") or 0) for x in cases)
+        parts_cost = round(sum(_part_value(p) for x in cases for p in (x.get("allocated_parts") or [])), 2)
+        est_cost = round(labour_minutes / 60.0 * labour_rate + parts_cost, 2)
+        annual = float(c.get("annual_value") or 0)
+        margin = round(annual - est_cost, 2)
+        margin_pct = round(margin / annual * 100, 1) if annual > 0 else None
+        flagged = (annual > 0 and est_cost >= annual * ratio) or (annual <= 0 and est_cost > 0)
+        claim_rows.append({
+            "contract_id": c["id"], "contract_number": c.get("contract_number"),
+            "company_name": c.get("company_name") or c.get("title"),
+            "annual_value": round(annual, 2), "claim_count": len(cases),
+            "labour_minutes": labour_minutes, "parts_cost": parts_cost,
+            "est_claim_cost": est_cost, "est_margin": margin, "margin_pct": margin_pct,
+            "flagged": flagged,
+        })
+    claim_rows.sort(key=lambda r: (r["est_claim_cost"] / r["annual_value"]) if r["annual_value"] else 9e9, reverse=True)
+
+    return {
+        "forecast": {"arr": arr, "active_contracts": len(contracts),
+                     "months": months, "total_12m": total_12m, "expiring_soon": expiring},
+        "high_claim": {"labour_rate": labour_rate, "ratio_threshold": ratio,
+                       "contracts": claim_rows,
+                       "flagged_count": sum(1 for r in claim_rows if r["flagged"])},
+        "generated_at": _now(),
+    }
+
 
 
 

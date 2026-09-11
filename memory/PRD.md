@@ -1,3 +1,22 @@
+# ═══ 2026-06 · AFTERSALES ENGINE — PROFITABILITY & FORECAST REPORTING (Task 8, P3) (testing_agent BE 4/4 + FE 100%) ═══
+New "Reports" sub-tab: 12-month recurring-revenue forecast + high-claim contract warnings, all deterministic from
+live billing + service-desk data. USER CHOICES: forecast from ACTUAL scheduled invoices; a claim = reactive+repair
+svc_cases only (exclude PPM); est claim cost = labour (estimated_minutes/60 × rate) + parts (allocated_parts line
+values); default labour £75/hr, flag when est cost ≥ 50% of annual value; labour rate + threshold EDITABLE.
+  - Backend (crm_aftersales.py): GET /reports (profitability_report). Forecast: 12 monthly buckets summing non-paid
+    scheduled invoices (crm2_afs_billing) over the next 12 months + ARR (Σ active annual_values) + active count +
+    expiring_soon (end_date within 12mo). High-claim: per active contract, svc_cases (case_type reactive/repair,
+    trailing 365d, matched by contract_id) → labour_minutes, parts_cost (_part_value handles total/unit_price×qty),
+    est_claim_cost, margin, margin_pct, flagged (est ≥ annual×ratio). Helpers _month_key/_add_months/_part_value.
+    Settings: labour_rate (75.0) + high_claim_ratio (0.5) added to GET/PUT /settings.
+  - FE (AftersalesApp.js): ReportsTab — 4 headline tiles (afs-reports-arr/-active/-total12m/-flagged), 12-month
+    forecast bars (afs-reports-forecast, afs-report-month-YYYY-MM), expiring list, high-claim table
+    (afs-reports-highclaim, afs-highclaim-row-<cid> with red HIGH badge), editable labour rate + threshold
+    (afs-reports-labour-rate/-ratio/-save). New SUB_TABS 'reports' entry → ReportsTab.
+  VERIFIED (testing_agent BE 4/4 pytest + FE 100%, plus curl): ARR £174,480, 2 active, total_12m £1,400, 2 expiring;
+    AlphaCo flagged est £2,675 (36.3% margin) @ £75/hr → recompute £3,890 @ £120/hr; PPM excluded; settings persist.
+    Test /app/backend/tests/test_afs_reports_jan2026.py. DEMO: 4 report_demo svc_cases on AFSCOMPLDEMO-contract-1.
+
 # ═══ 2026-06 · AFTERSALES ENGINE — MID-TERM AMENDMENTS (Task 5) (testing_agent BE 11/11 + FE 100%) ═══
 Add/remove equipment on an ACTIVE contract with deterministic pro-rata pricing (reuses the pricing engine — no
 invented prices). USER CHOICES: pro-rata to the NEXT anniversary; regenerate remaining UNPAID invoices at the new
