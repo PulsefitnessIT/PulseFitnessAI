@@ -1711,6 +1711,217 @@ async def contract_schedules(contract_id: str, user=Depends(get_crm_user)):
     }
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# MID-TERM AMENDMENTS (§Task 5) — add/remove equipment on a live contract with
+# deterministic pro-rata pricing. Reuses the pricing engine + billing helpers.
+# ══════════════════════════════════════════════════════════════════════════
+
+async def _price_assets(org_id, assets, contract_type):
+    """Deterministic per-asset annual at the contract's tier (no extra discount)."""
+    lines = [{"model": a.get("model") or a.get("model_code") or "",
+              "console_type": a.get("console_type") or "", "qty": 1} for a in assets]
+    if not lines:
+        return [], 0.0, []
+    res = await _compute_quote(org_id, lines, contract_type=contract_type,
+                               pricing_level="standard", quote_discount_pct=0)
+    factor = res["summary"]["contract_factor"]
+    priced = []
+    for a, ln in zip(assets, res["lines"]):
+        annual = round(float(ln.get("annual_line_gold", 0)) * factor, 2)
+        priced.append({
+            "asset_id": a.get("id"), "name": a.get("name"),
+            "model": a.get("model") or a.get("model_code") or "",
+            "console_type": a.get("console_type") or "",
+            "serial_number": a.get("serial_number", ""), "site_id": a.get("site_id"),
+            "annual": annual, "status": ln.get("status"),
+        })
+    return priced, round(res["summary"]["contract_type_annual"], 2), res.get("warnings", [])
+
+
+async def _amendment_context(contract, org_id):
+    """Return (linked_org, covered_assets, coverable_assets) from the register."""
+    linked = contract.get("linked_organization_id")
+    if not linked:
+        return None, [], []
+    equipment = await db.equipment.find(
+        {"organization_id": linked},
+        {"_id": 0, "id": 1, "name": 1, "model": 1, "model_code": 1, "console_type": 1,
+         "serial_number": 1, "site_id": 1, "contract_cover": 1}).to_list(5000)
+    covered, coverable = [], []
+    for e in equipment:
+        cover = e.get("contract_cover")
+        if isinstance(cover, dict) and cover.get("contract_id") == contract["id"]:
+            covered.append(e)
+        elif not cover:
+            coverable.append(e)
+    return linked, covered, coverable
+
+
+@router.get("/contracts/{contract_id}/amendable-assets")
+async def amendable_assets(contract_id: str, user=Depends(get_crm_user)):
+    of = _of(user)
+    org_id = _org(user)
+    contract = await db.crm2_contracts.find_one({"id": contract_id, **of}, _PUBLIC)
+    if not contract:
+        raise HTTPException(404, "Contract not found")
+    linked, covered, coverable = await _amendment_context(contract, org_id)
+    ct = contract.get("contract_type") or contract.get("tier") or "gold"
+    covered_priced, _, _ = await _price_assets(org_id, covered, ct)
+    coverable_priced, _, _ = await _price_assets(org_id, coverable, ct)
+    now = datetime.now(timezone.utc)
+    anniv = _next_anniversary(contract.get("start_date"), now)
+    return {
+        "contract": {"id": contract_id, "contract_number": contract.get("contract_number"),
+                     "contract_type": ct, "annual_value": contract.get("annual_value", 0),
+                     "end_date": contract.get("end_date"),
+                     "next_anniversary": anniv.strftime("%Y-%m-%d") if anniv else None,
+                     "billing_frequency": contract.get("billing_frequency", "annual")},
+        "covered": covered_priced, "coverable": coverable_priced,
+        "linked_organization_id": linked,
+    }
+
+
+class AmendmentIn(BaseModel):
+    action: str  # "add" | "remove"
+    asset_ids: List[str]
+    effective_date: Optional[str] = None
+
+
+async def _compute_amendment(contract, org_id, body: "AmendmentIn"):
+    if body.action not in ("add", "remove"):
+        raise HTTPException(400, "action must be 'add' or 'remove'")
+    if not body.asset_ids:
+        raise HTTPException(400, "Select at least one machine")
+    eff = (body.effective_date or datetime.now(timezone.utc).strftime("%Y-%m-%d"))[:10]
+    try:
+        eff_dt = datetime.strptime(eff, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except ValueError:
+        raise HTTPException(400, "effective_date must be YYYY-MM-DD")
+    linked, covered, coverable = await _amendment_context(contract, org_id)
+    pool = {a["id"]: a for a in (covered if body.action == "remove" else coverable)}
+    selected = [pool[i] for i in body.asset_ids if i in pool]
+    if not selected:
+        raise HTTPException(400, "None of the selected machines are valid for this action")
+    ct = contract.get("contract_type") or contract.get("tier") or "gold"
+    priced, delta_annual, warnings = await _price_assets(org_id, selected, ct)
+    anniv = _next_anniversary(contract.get("start_date"), eff_dt)
+    days_remaining = max(0, (anniv - eff_dt).days) if anniv else 0
+    pro_rata = round(delta_annual * days_remaining / 365.0, 2)
+    signed = 1 if body.action == "add" else -1
+    current_annual = round(float(contract.get("annual_value") or 0), 2)
+    new_annual = round(current_annual + signed * delta_annual, 2)
+    return {
+        "action": body.action, "effective_date": eff, "linked_organization_id": linked,
+        "next_anniversary": anniv.strftime("%Y-%m-%d") if anniv else None,
+        "days_remaining": days_remaining, "lines": priced,
+        "delta_annual": round(signed * delta_annual, 2),
+        "pro_rata_amount": round(signed * pro_rata, 2),
+        "current_annual": current_annual, "new_annual": new_annual,
+        "warnings": warnings, "selected_ids": [a["id"] for a in selected],
+    }
+
+
+@router.post("/contracts/{contract_id}/amendments/preview")
+async def preview_amendment(contract_id: str, body: AmendmentIn, user=Depends(get_crm_user)):
+    of = _of(user)
+    contract = await db.crm2_contracts.find_one({"id": contract_id, **of}, _PUBLIC)
+    if not contract:
+        raise HTTPException(404, "Contract not found")
+    return await _compute_amendment(contract, _org(user), body)
+
+
+@router.post("/contracts/{contract_id}/amendments")
+async def apply_amendment(contract_id: str, body: AmendmentIn, user=Depends(get_crm_user)):
+    of = _of(user)
+    org_id = _org(user)
+    contract = await db.crm2_contracts.find_one({"id": contract_id, **of}, _PUBLIC)
+    if not contract:
+        raise HTTPException(404, "Contract not found")
+    if contract.get("status") != "active":
+        raise HTTPException(400, "Only active contracts can be amended")
+    calc = await _compute_amendment(contract, org_id, body)
+    linked = calc["linked_organization_id"]
+    ids = calc["selected_ids"]
+
+    # 1. Update asset cover on the operations register (single source).
+    if body.action == "add":
+        cover = {"contract_id": contract_id, "contract_number": contract.get("contract_number"),
+                 "cover": contract.get("contract_type"), "start": calc["effective_date"],
+                 "end": contract.get("end_date")}
+        await db.equipment.update_many({"organization_id": linked, "id": {"$in": ids}},
+                                       {"$set": {"contract_cover": cover, "updated_at": _now()}})
+    else:
+        await db.equipment.update_many({"organization_id": linked, "id": {"$in": ids}},
+                                       {"$set": {"contract_cover": None, "updated_at": _now()}})
+
+    # 2. Adjust the authoritative contract value.
+    new_annual = calc["new_annual"]
+    term_years = max(1, contract.get("term_years", 1) or 1)
+    await db.crm2_contracts.update_one({"id": contract_id, **of}, {"$set": {
+        "annual_value": new_annual, "total_value": round(new_annual * term_years, 2),
+        "last_amended_at": _now(), "updated_at": _now()}})
+
+    # 3. Rebuild billing — keep paid/past, regenerate future unpaid at new annual,
+    #    prepend a one-off pro-rata adjustment.
+    bill = await db.crm2_afs_billing.find_one({"contract_id": contract_id, "organization_id": org_id}, _PUBLIC)
+    invoices = (bill or {}).get("invoices", [])
+    freq = (bill or {}).get("frequency") or contract.get("billing_frequency", "annual")
+    eff = calc["effective_date"]
+    if freq == "monthly":
+        new_amt = round(new_annual / 12.0, 2)
+    elif freq == "lump_sum":
+        new_amt = round(new_annual * term_years, 2)
+    else:
+        new_amt = round(new_annual, 2)
+    rebuilt = []
+    for inv in invoices:
+        if (inv.get("status") == "paid" or inv.get("type") == "pro_rata_amendment"
+                or (inv.get("due_date") or "") < eff):
+            rebuilt.append(inv)
+        else:
+            rebuilt.append({**inv, "amount": new_amt})
+    if calc["pro_rata_amount"] != 0:
+        rebuilt.append({"due_date": eff, "amount": calc["pro_rata_amount"], "status": "scheduled",
+                        "type": "pro_rata_amendment",
+                        "note": f"Pro-rata {body.action} ({calc['days_remaining']}d to anniversary)"})
+    rebuilt.sort(key=lambda i: i.get("due_date") or "")
+    await db.crm2_afs_billing.update_one(
+        {"contract_id": contract_id, "organization_id": org_id},
+        {"$set": {"contract_id": contract_id, "organization_id": org_id, "frequency": freq,
+                  "invoices": rebuilt, "updated_at": _now()}}, upsert=True)
+
+    # 4. Re-queue Sicon/Sage sync (value + cover changed).
+    await db.crm2_contracts.update_one({"id": contract_id, **of}, {"$set": {
+        "sicon_sync_status": "pending", "sage_sync_status": "pending"}})
+
+    # 5. Persist the amendment history record.
+    amd = {
+        "id": _id(), "organization_id": org_id, "contract_id": contract_id,
+        "contract_number": contract.get("contract_number"),
+        "action": body.action, "effective_date": eff,
+        "next_anniversary": calc["next_anniversary"], "days_remaining": calc["days_remaining"],
+        "asset_ids": ids, "lines": calc["lines"],
+        "delta_annual": calc["delta_annual"], "pro_rata_amount": calc["pro_rata_amount"],
+        "previous_annual": calc["current_annual"], "new_annual": new_annual,
+        "created_by": user.get("email") or user.get("id"), "created_at": _now(),
+    }
+    await db.crm2_afs_amendments.insert_one(dict(amd))
+    await record_audit(entity_type="afs_contract", entity_id=contract_id, action="amend", user=user,
+                       extra={"action": body.action, "assets": len(ids), "new_annual": new_annual})
+    amd.pop("_id", None)
+    return {"amendment": amd, "new_annual_value": new_annual,
+            "pro_rata_amount": calc["pro_rata_amount"], "assets_changed": len(ids)}
+
+
+@router.get("/contracts/{contract_id}/amendments")
+async def list_amendments(contract_id: str, user=Depends(get_crm_user)):
+    of = _of(user)
+    rows = await db.crm2_afs_amendments.find(
+        {"contract_id": contract_id, **of}, _PUBLIC).sort("created_at", -1).to_list(200)
+    return {"amendments": rows, "count": len(rows)}
+
+
+
 def _service_compliance(visits, today):
     """Summarise a service schedule into a compliance snapshot."""
     if not visits:

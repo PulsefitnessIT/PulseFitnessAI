@@ -19,7 +19,7 @@ import {
   Clock, FileSignature, Calculator, Plus, Trash2, Check, Search, TrendingUp, Shield,
   Zap, Building2, Rocket, FileCheck2, PenLine, CheckCircle2, Circle,
   CalendarClock, Receipt, ChevronDown, ChevronRight, RotateCw, MinusCircle,
-  FileText, Share2, Bell, Mail,
+  FileText, Share2, Bell, Mail, X,
 } from 'lucide-react';
 
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1319,10 +1319,134 @@ function SyncBadge({ label, status, testId }) {
   );
 }
 
-function ComplianceCard({ row, API, headers, c, isDark }) {
+function AmendModal({ contractId, API, headers, c, isDark, onClose, onApplied }) {
+  const [data, setData] = useState(null);
+  const [action, setAction] = useState('add');
+  const [selected, setSelected] = useState({});
+  const [effDate, setEffDate] = useState(new Date().toISOString().slice(0, 10));
+  const [preview, setPreview] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [history, setHistory] = useState([]);
+
+  const load = useCallback(() => {
+    axios.get(`${API}/crm/v2/aftersales/contracts/${contractId}/amendable-assets`, { headers: headers() })
+      .then(r => setData(r.data)).catch(() => setData({ covered: [], coverable: [] }));
+    axios.get(`${API}/crm/v2/aftersales/contracts/${contractId}/amendments`, { headers: headers() })
+      .then(r => setHistory(r.data.amendments || [])).catch(() => {});
+  }, [API, headers, contractId]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { setSelected({}); setPreview(null); }, [action]);
+
+  const list = data ? (action === 'add' ? data.coverable : data.covered) : [];
+  const ids = Object.keys(selected).filter(k => selected[k]);
+
+  const doPreview = async () => {
+    if (!ids.length) return;
+    setBusy(true);
+    try {
+      const r = await axios.post(`${API}/crm/v2/aftersales/contracts/${contractId}/amendments/preview`,
+        { action, asset_ids: ids, effective_date: effDate }, { headers: headers() });
+      setPreview(r.data);
+    } catch (e) { alert(e?.response?.data?.detail || 'Preview failed'); }
+    finally { setBusy(false); }
+  };
+  const doApply = async () => {
+    if (!ids.length) return;
+    setBusy(true);
+    try {
+      await axios.post(`${API}/crm/v2/aftersales/contracts/${contractId}/amendments`,
+        { action, asset_ids: ids, effective_date: effDate }, { headers: headers() });
+      onApplied && onApplied();
+      onClose();
+    } catch (e) { alert(e?.response?.data?.detail || 'Apply failed'); }
+    finally { setBusy(false); }
+  };
+
+  const panel = isDark ? '#111' : '#fff';
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} data-testid="afs-amend-modal">
+      <div className="w-full max-w-2xl max-h-[88vh] overflow-y-auto rounded-2xl p-5" style={{ background: panel, border: `1px solid ${c.border}` }}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Calculator size={16} style={{ color: 'var(--color-brand-cyan)' }} />
+            <h3 className="text-base font-bold" style={{ color: c.text }}>Amend contract</h3>
+          </div>
+          <button data-testid="afs-amend-close" onClick={onClose} className="p-1 rounded-md" style={{ color: c.textDim }}><X size={18} /></button>
+        </div>
+        {data && (
+          <p className="text-xs mb-3" style={{ color: c.textDim }}>
+            {data.contract?.contract_number} · current {gbp0(data.contract?.annual_value)}/yr · pro-rata to {data.contract?.next_anniversary || 'anniversary'}
+          </p>
+        )}
+        <div className="flex gap-1.5 mb-3">
+          <button data-testid="afs-amend-tab-add" onClick={() => setAction('add')}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5"
+            style={action === 'add' ? { background: 'var(--color-success-alt)', color: '#fff' } : { background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+            <Plus size={13} /> Add equipment
+          </button>
+          <button data-testid="afs-amend-tab-remove" onClick={() => setAction('remove')}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5"
+            style={action === 'remove' ? { background: 'var(--color-danger-alt, #EF4444)', color: '#fff' } : { background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+            <Trash2 size={13} /> Remove equipment
+          </button>
+        </div>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs" style={{ color: c.textDim }}>Effective date</span>
+          <input data-testid="afs-amend-effective-date" type="date" value={effDate} onChange={e => { setEffDate(e.target.value); setPreview(null); }}
+            className="text-xs px-2 py-1 rounded-md border" style={{ background: isDark ? '#0d0d0d' : '#fff', borderColor: c.border, color: c.text }} />
+        </div>
+        <div className="rounded-lg border mb-3 max-h-56 overflow-y-auto" style={{ borderColor: c.border }} data-testid="afs-amend-asset-list">
+          {!data ? <Spinner /> : list.length === 0 ? (
+            <p className="text-xs p-3" style={{ color: c.textDim }}>{action === 'add' ? 'No uncovered machines available on this site.' : 'No machines currently covered by this contract.'}</p>
+          ) : list.map(a => (
+            <label key={a.asset_id} data-testid={`afs-amend-asset-${a.asset_id}`} className="flex items-center gap-2 px-3 py-2 border-b cursor-pointer" style={{ borderColor: c.border }}>
+              <input type="checkbox" checked={!!selected[a.asset_id]} onChange={e => { setSelected(s => ({ ...s, [a.asset_id]: e.target.checked })); setPreview(null); }} />
+              <span className="text-sm flex-1" style={{ color: c.text }}>{a.model}{a.console_type ? ` · ${a.console_type}` : ''} {a.serial_number ? <span style={{ color: c.textDim }}>({a.serial_number})</span> : null}</span>
+              <span className="text-xs font-semibold" style={{ color: c.textDim }}>{gbp(a.annual)}/yr</span>
+            </label>
+          ))}
+        </div>
+        {preview && (
+          <div className="rounded-lg p-3 mb-3 text-sm" data-testid="afs-amend-preview-result" style={{ background: isDark ? '#0d0d0d' : 'var(--color-neutral-50)', border: `1px solid ${c.border}` }}>
+            <div className="flex justify-between" style={{ color: c.textDim }}><span>Annual change</span><span className="font-semibold" style={{ color: c.text }}>{preview.delta_annual >= 0 ? '+' : ''}{gbp(preview.delta_annual)}</span></div>
+            <div className="flex justify-between" style={{ color: c.textDim }}><span>One-off pro-rata ({preview.days_remaining}d to anniversary)</span><span className="font-semibold" style={{ color: preview.pro_rata_amount < 0 ? 'var(--color-danger-alt, #EF4444)' : c.text }}>{preview.pro_rata_amount >= 0 ? '+' : ''}{gbp(preview.pro_rata_amount)}</span></div>
+            <div className="flex justify-between border-t pt-1 mt-1" style={{ borderColor: c.border }}><span style={{ color: c.text }}>New annual value</span><span className="font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{gbp(preview.new_annual)}</span></div>
+          </div>
+        )}
+        <div className="flex gap-2">
+          <button data-testid="afs-amend-preview-btn" onClick={doPreview} disabled={busy || !ids.length}
+            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50" style={{ background: 'transparent', color: c.text, border: `1px solid ${c.border}` }}>
+            {busy ? '…' : `Preview (${ids.length})`}
+          </button>
+          <button data-testid="afs-amend-apply-btn" onClick={doApply} disabled={busy || !ids.length || !preview}
+            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
+            Confirm amendment
+          </button>
+        </div>
+        {history.length > 0 && (
+          <div className="mt-4" data-testid="afs-amend-history">
+            <h4 className="text-xs font-bold uppercase mb-1.5" style={{ color: c.textDim }}>Amendment history</h4>
+            <ul className="space-y-1">
+              {history.map(h => (
+                <li key={h.id} className="text-xs flex justify-between" style={{ color: c.textDim }}>
+                  <span>{h.effective_date} · {h.action} {h.asset_ids?.length} machine(s)</span>
+                  <span>{h.delta_annual >= 0 ? '+' : ''}{gbp(h.delta_annual)} → {gbp0(h.new_annual)}/yr</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+function ComplianceCard({ row, API, headers, c, isDark, onChanged }) {
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [amendOpen, setAmendOpen] = useState(false);
   const cid = row.contract_id;
   const svc = row.service || {};
   const bill = row.billing || {};
@@ -1385,6 +1509,14 @@ function ComplianceCard({ row, API, headers, c, isDark }) {
           {loading ? <Spinner /> : detail?.error ? (
             <p className="text-xs py-3" style={{ color: 'var(--color-danger-alt, #EF4444)' }}>Could not load schedule.</p>
           ) : (
+            <>
+            <div className="flex justify-end pt-3">
+              <button data-testid={`afs-amend-open-${cid}`} onClick={() => setAmendOpen(true)}
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"
+                style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
+                <Calculator size={13} /> Amend contract
+              </button>
+            </div>
             <div className="grid md:grid-cols-2 gap-4 pt-3">
               <div>
                 <h4 className="text-xs font-bold uppercase mb-2" style={{ color: c.textDim }}>Service visits</h4>
@@ -1421,8 +1553,14 @@ function ComplianceCard({ row, API, headers, c, isDark }) {
                 )}
               </div>
             </div>
+            </>
           )}
         </div>
+      )}
+      {amendOpen && (
+        <AmendModal contractId={cid} API={API} headers={headers} c={c} isDark={isDark}
+          onClose={() => setAmendOpen(false)}
+          onApplied={() => { setDetail(null); onChanged && onChanged(); }} />
       )}
     </div>
   );
@@ -1481,7 +1619,7 @@ function LiveCompliancePanel({ API, headers, c, isDark }) {
       ) : (
         <div className="space-y-3">
           {(data.contracts || []).map(row => (
-            <ComplianceCard key={row.contract_id} row={row} API={API} headers={headers} c={c} isDark={isDark} />
+            <ComplianceCard key={row.contract_id} row={row} API={API} headers={headers} c={c} isDark={isDark} onChanged={load} />
           ))}
         </div>
       )}

@@ -1,0 +1,26 @@
+{
+  "summary": "Task 5 — Mid-term Amendments (add/remove equipment with deterministic pro-rata pricing). Backend: 11/11 pytest tests PASS including the critical regression that a previous pro_rata_amendment invoice line is preserved unchanged after a subsequent amendment. Frontend: modal opens with all documented data-testids, per-asset prices render (260G £446.40, 220G £277.14, 250X £257.99 etc.), Confirm is disabled until Preview is run, Preview shows Annual change / one-off pro-rata / new annual, amendment history renders after apply, and compliance card refreshes to the new annual (£4,308/yr after test-run mutations).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_afs_amendments_jan2026.py",
+    "/app/test_reports/pytest/afs_amendments_jan2026.xml"
+  ],
+  "action_items": [
+    "State on AFSCOMPLDEMO-contract-1 has been MUTATED by apply tests: annual_value≈4307.87, 2x 220G added, 1x 260G removed, +ve and -ve pro_rata_amendment lines in billing, 2 amendment history records. Main agent should reset per the note (annual_value/total_value=4200, delete crm2_afs_amendments for this contract, restore 6-invoice billing doc, reset contract_cover to just 2x 260G) before shipping."
+  ],
+  "critical_code_review_comments": [
+    "apply_amendment regenerates future unpaid invoices correctly but the pro_rata_amount is stored with the correct sign (+ for add, - for remove). Consider clarifying invoice 'amount' semantics for downstream Sage sync — negative amounts on 'scheduled' credit lines may need explicit invoice_type=='credit_note' in the mock.",
+    "_price_assets calls _compute_quote with quote_discount_pct=0 — correct for amendments (no per-quote discount), matches deterministic pricing.",
+    "Apply endpoint recomputes _compute_amendment which re-reads cover; safe from double-apply because previously-added assets have already moved to covered and won't be in the coverable pool on retry."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_afs_amendments_jan2026.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (CRM login at /crm)",
+  "seed_data_creation": "None. Used the existing AFSCOMPLDEMO-contract-1 clean baseline. Note: tests mutate this contract; reset instructions in action_items.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression test /app/backend/tests/test_afs_amendments_jan2026.py depends on a CLEAN AFSCOMPLDEMO-contract-1 baseline (annual 4200, monthly, 6 invoices £350 with 2 paid, exactly 2x 260G covered, ≥2 uncovered 220G @ £277.14). If the file is re-run without reset, expect the baseline test to fail. Env var REACT_APP_BACKEND_URL must be exported when running from /app/backend."
+}
