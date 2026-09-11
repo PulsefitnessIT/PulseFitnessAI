@@ -18,6 +18,7 @@ import {
   LayoutDashboard, SlidersHorizontal, Wrench, ShieldCheck, RefreshCw, AlertTriangle,
   Clock, FileSignature, Calculator, Plus, Trash2, Check, Search, TrendingUp, Shield,
   Zap, Building2, Rocket, FileCheck2, PenLine, CheckCircle2, Circle,
+  CalendarClock, Receipt, ChevronDown, ChevronRight, RotateCw, MinusCircle,
 } from 'lucide-react';
 
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1051,6 +1052,213 @@ function AgreementsTab({ API, headers, c, isDark }) {
   );
 }
 
+// ───────────────────────────────────────────────────────── Live Compliance
+const SYNC_META = {
+  synced: { label: 'Synced', color: 'var(--color-success-alt)', icon: CheckCircle2 },
+  ok: { label: 'Synced', color: 'var(--color-success-alt)', icon: CheckCircle2 },
+  pending: { label: 'Pending', color: 'var(--color-warning-alt, #F59E0B)', icon: Clock },
+  queued: { label: 'Queued', color: 'var(--color-warning-alt, #F59E0B)', icon: Clock },
+  failed: { label: 'Failed', color: 'var(--color-danger-alt, #EF4444)', icon: AlertTriangle },
+  not_synced: { label: 'Not synced', color: 'var(--color-text-faint-alt)', icon: MinusCircle },
+};
+
+function CompliancePill({ tone, icon: Icon, children, testId }) {
+  const map = {
+    ok: 'var(--color-success-alt)',
+    warn: 'var(--color-warning-alt, #F59E0B)',
+    bad: 'var(--color-danger-alt, #EF4444)',
+    neutral: 'var(--color-text-faint-alt)',
+  };
+  const col = map[tone] || map.neutral;
+  return (
+    <span data-testid={testId} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md"
+          style={{ background: `${col}18`, color: col }}>
+      {Icon && <Icon size={12} />} {children}
+    </span>
+  );
+}
+
+function SyncBadge({ label, status, testId }) {
+  const m = SYNC_META[status] || SYNC_META.not_synced;
+  const Icon = m.icon;
+  return (
+    <span data-testid={testId} className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md"
+          style={{ background: `${m.color}14`, color: m.color }}>
+      <Icon size={12} /> {label}: {m.label}
+    </span>
+  );
+}
+
+function ComplianceCard({ row, API, headers, c, isDark }) {
+  const [open, setOpen] = useState(false);
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const cid = row.contract_id;
+  const svc = row.service || {};
+  const bill = row.billing || {};
+
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next && !detail) {
+      setLoading(true);
+      try {
+        const res = await axios.get(`${API}/crm/v2/aftersales/contracts/${cid}/schedules`, { headers: headers() });
+        setDetail(res.data);
+      } catch { setDetail({ error: true }); }
+      setLoading(false);
+    }
+  };
+
+  const svcTone = !svc.has_schedule ? 'neutral' : (svc.overdue ? 'bad' : (svc.state === 'complete' ? 'ok' : 'ok'));
+  const billTone = !bill.has_schedule ? 'neutral' : (bill.overdue ? 'bad' : 'ok');
+
+  return (
+    <div data-testid={`afs-compliance-card-${cid}`} className="rounded-xl border overflow-hidden"
+         style={{ background: isDark ? '#111' : 'var(--color-neutral-50)', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
+      <button data-testid={`afs-compliance-expand-${cid}`} onClick={toggle}
+              className="w-full text-left p-4 flex flex-col gap-3 hover:opacity-95 transition-opacity">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              {open ? <ChevronDown size={16} style={{ color: c.textDim }} /> : <ChevronRight size={16} style={{ color: c.textDim }} />}
+              <span className="font-bold truncate" style={{ color: c.text }}>{row.company_name}</span>
+              {row.tier && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0"
+                                  style={{ background: 'var(--color-brand-cyan)22', color: 'var(--color-brand-cyan)' }}>{row.tier}</span>}
+            </div>
+            <div className="text-xs mt-0.5 ml-6" style={{ color: c.textDim }}>
+              {row.contract_number || '—'} · expires {row.end_date || '—'}
+            </div>
+          </div>
+          <span className="text-sm font-bold shrink-0" style={{ color: 'var(--color-success-alt)' }}>{gbp0(row.annual_value)}/yr</span>
+        </div>
+        <div className="flex flex-wrap gap-2 ml-6">
+          <CompliancePill tone={svcTone} icon={svc.overdue ? AlertTriangle : CalendarClock} testId={`afs-compliance-service-${cid}`}>
+            {!svc.has_schedule ? 'No service schedule'
+              : svc.overdue ? `Service: ${svc.overdue} overdue`
+              : `Service: ${svc.completed}/${svc.required} done`}
+            {svc.has_schedule && svc.next_due ? ` · next ${svc.next_due}` : ''}
+          </CompliancePill>
+          <CompliancePill tone={billTone} icon={bill.overdue ? AlertTriangle : Receipt} testId={`afs-compliance-billing-${cid}`}>
+            {!bill.has_schedule ? 'No billing schedule'
+              : bill.overdue ? `Billing: ${bill.overdue} overdue`
+              : `Billing: ${bill.paid}/${bill.total} paid`}
+            {bill.has_schedule && bill.next_due ? ` · next ${bill.next_due} ${bill.next_amount != null ? gbp(bill.next_amount) : ''}` : ''}
+          </CompliancePill>
+          <SyncBadge label="Sicon" status={row.sicon_sync_status} testId={`afs-compliance-sicon-${cid}`} />
+          <SyncBadge label="Sage" status={row.sage_sync_status} testId={`afs-compliance-sage-${cid}`} />
+        </div>
+      </button>
+      {open && (
+        <div data-testid={`afs-compliance-detail-${cid}`} className="px-4 pb-4 pt-1 ml-6 border-t"
+             style={{ borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
+          {loading ? <Spinner /> : detail?.error ? (
+            <p className="text-xs py-3" style={{ color: 'var(--color-danger-alt, #EF4444)' }}>Could not load schedule.</p>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4 pt-3">
+              <div>
+                <h4 className="text-xs font-bold uppercase mb-2" style={{ color: c.textDim }}>Service visits</h4>
+                {(detail?.service?.visits || []).length === 0 ? (
+                  <p className="text-xs" style={{ color: c.textMuted }}>No visits scheduled yet.</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {(detail.service.visits || []).map((v, i) => (
+                      <li key={i} className="flex items-center justify-between text-xs" style={{ color: c.text }}>
+                        <span>Visit {v.visit_no} (yr {v.year}) · {v.planned_date}</span>
+                        <span className="font-semibold" style={{ color: v.status === 'completed' ? 'var(--color-success-alt)' : (v.planned_date < new Date().toISOString().slice(0, 10) ? 'var(--color-danger-alt, #EF4444)' : c.textDim) }}>
+                          {v.status === 'completed' ? 'Completed' : (v.planned_date < new Date().toISOString().slice(0, 10) ? 'Overdue' : 'Planned')}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div>
+                <h4 className="text-xs font-bold uppercase mb-2" style={{ color: c.textDim }}>Invoices</h4>
+                {(detail?.billing || []).length === 0 ? (
+                  <p className="text-xs" style={{ color: c.textMuted }}>No invoices scheduled yet.</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {(detail.billing || []).map((b, i) => (
+                      <li key={i} className="flex items-center justify-between text-xs" style={{ color: c.text }}>
+                        <span>{b.due_date} · {gbp(b.amount)}</span>
+                        <span className="font-semibold" style={{ color: b.status === 'paid' ? 'var(--color-success-alt)' : (b.due_date < new Date().toISOString().slice(0, 10) ? 'var(--color-danger-alt, #EF4444)' : c.textDim) }}>
+                          {b.status === 'paid' ? 'Paid' : (b.due_date < new Date().toISOString().slice(0, 10) ? 'Overdue' : 'Scheduled')}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LiveCompliancePanel({ API, headers, c, isDark }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    axios.get(`${API}/crm/v2/aftersales/contracts/compliance`, { headers: headers() })
+      .then(res => setData(res.data))
+      .catch(() => setData({ contracts: [], totals: {} }))
+      .finally(() => setLoading(false));
+  }, [API, headers]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const totals = data?.totals || {};
+  const chips = [
+    { label: 'Active contracts', value: totals.active || 0, tone: 'neutral' },
+    { label: 'Service overdue', value: totals.service_overdue || 0, tone: totals.service_overdue ? 'bad' : 'ok' },
+    { label: 'Billing overdue', value: totals.billing_overdue || 0, tone: totals.billing_overdue ? 'bad' : 'ok' },
+    { label: 'Sync pending', value: totals.sync_pending || 0, tone: totals.sync_pending ? 'warn' : 'ok' },
+  ];
+
+  return (
+    <div data-testid="afs-compliance-panel" className="mb-6">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h2 className="text-lg font-bold" style={{ color: c.text }}>Live compliance</h2>
+          <p className="text-xs" style={{ color: c.textDim }}>Service visits, billing and Sicon/Sage sync across every active contract.</p>
+        </div>
+        <button data-testid="afs-compliance-refresh" onClick={load}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+          <RotateCw size={13} /> Refresh
+        </button>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" data-testid="afs-compliance-stats">
+        {chips.map(ch => (
+          <div key={ch.label} className="p-3 rounded-xl border"
+               style={{ background: isDark ? '#111' : 'var(--color-neutral-50)', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
+            <div className="text-2xl font-extrabold"
+                 style={{ color: ch.tone === 'bad' ? 'var(--color-danger-alt, #EF4444)' : ch.tone === 'warn' ? 'var(--color-warning-alt, #F59E0B)' : c.text }}>{ch.value}</div>
+            <div className="text-[11px] font-medium mt-0.5" style={{ color: c.textDim }}>{ch.label}</div>
+          </div>
+        ))}
+      </div>
+      {loading ? <Spinner /> : (data?.contracts || []).length === 0 ? (
+        <div data-testid="afs-compliance-empty" className="p-6 rounded-xl border text-center text-sm"
+             style={{ background: isDark ? '#111' : 'var(--color-neutral-50)', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.textDim }}>
+          No active contracts to monitor yet. Activate an agreement to start tracking compliance here.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {(data.contracts || []).map(row => (
+            <ComplianceCard key={row.contract_id} row={row} API={API} headers={headers} c={c} isDark={isDark} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ───────────────────────────────────────────────────────── Shell
 export default function AftersalesApp() {
   const crm = useCRM();
@@ -1075,7 +1283,7 @@ export default function AftersalesApp() {
         ))}
       </div>
       {tab === 'contracts'
-        ? <CRMContracts />
+        ? <><LiveCompliancePanel API={API} headers={headers} c={c} isDark={isDark} /><CRMContracts /></>
         : <TabComp API={API} headers={headers} c={c} isDark={isDark} />}
     </div>
   );

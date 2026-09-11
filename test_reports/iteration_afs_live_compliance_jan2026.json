@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only test of new 'Live compliance' panel in CRM Aftersales Contracts > Contracts & Renewals sub-tab. Logged in as owner@isodemo.com, Corporate mode, opened Aftersales Contracts tab and clicked afs-tab-contracts. Verified all 7 acceptance criteria pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (CRM)",
+  "seed_data_creation": "Used pre-seeded AFSCOMPLDEMO-contract-1 (AlphaCo Site A) plus existing Example Fire & Rescue Service contract.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Live compliance panel renders correctly with stats (2 Active, 1 Service overdue, 1 Billing overdue, 1 Sync pending). AlphaCo card shows Service:overdue next 2026-11-10, Billing:overdue next 2026-10-06 £350, Sicon:Pending, Sage:Synced. Fire & Rescue card shows neutral 'No service schedule'/'No billing schedule' and Sicon/Sage 'Not synced'. Expand lazy-loads detail with 3 visits (Completed/Overdue/Planned) and 6 invoices (2 Paid, 1 Overdue, 3 Scheduled). Refresh button works. contracts-list still present below panel. Two harmless 404 console errors observed (likely unrelated static resource).",
+  "verification_details": {
+    "compliance_panel_present": true,
+    "stats_text": "2 Active contracts / 1 Service overdue / 1 Billing overdue / 1 Sync pending",
+    "alphaco_card_pills": {"service": "1 overdue · next 2026-11-10", "billing": "1 overdue · next 2026-10-06 £350.00", "sicon": "Pending", "sage": "Synced"},
+    "fire_rescue_card": {"service": "No service schedule", "billing": "No billing schedule", "sicon": "Not synced", "sage": "Not synced"},
+    "expand_detail_visits": "3 (Completed, Overdue, Planned)",
+    "expand_detail_invoices": "6 (2 Paid, 1 Overdue, 3 Scheduled)",
+    "refresh_button": "works",
+    "contracts_list_below": true
+  }
+}

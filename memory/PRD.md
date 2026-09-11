@@ -1,3 +1,33 @@
+# ═══ 2026-06 · AFTERSALES ENGINE — LIVE CONTRACT COMPLIANCE VIEW (testing_agent FE 100%) ═══
+Backlog Task 2 (P1). Surfaces every active contract's service compliance, billing status and Sicon/Sage
+sync inside the "Contracts & Renewals" sub-tab. All in crm_aftersales.py + AftersalesApp.js.
+  - BE: NEW GET /crm/v2/aftersales/contracts/compliance — for every active crm2_contracts row, joins
+    crm2_afs_service_schedules + crm2_afs_billing (single $in batch, no per-contract N+1) and returns
+    service {has_schedule, required, completed, overdue, next_due, state}, billing {has_schedule, total,
+    paid, overdue, paid_to_date, next_due, next_amount, state}, sicon/sage sync status, + org totals
+    {active, service_overdue, billing_overdue, sync_pending, sync_failed, no_schedule}. Overdue = a
+    planned visit/unpaid invoice whose date < today. Contracts with no schedule → neutral 'no_schedule'.
+    Helpers _service_compliance / _billing_compliance. Reuses existing collections — no data duplication.
+    Expand detail reuses the pre-existing GET /contracts/{id}/schedules.
+  - FE: LiveCompliancePanel (data-testid afs-compliance-panel) rendered ABOVE <CRMContracts/> when
+    tab==='contracts'. 4 stat tiles (afs-compliance-stats), one ComplianceCard per contract
+    (afs-compliance-card-<cid>) with colour pills afs-compliance-service/-billing-<cid> (✓/⚠ overdue/
+    neutral no-schedule) + SyncBadge afs-compliance-sicon/-sage-<cid> (Synced/Pending/Failed/Not synced).
+    Card header (afs-compliance-expand-<cid>) toggles a lazy-loaded detail (afs-compliance-detail-<cid>)
+    listing every visit (Completed/Overdue/Planned) + invoice (Paid/Overdue/Scheduled). Refresh button
+    afs-compliance-refresh. Empty state afs-compliance-empty.
+  VERIFIED (testing_agent FE 100%, 7/7): AlphaCo demo card → Service 1 overdue next 2026-11-10, Billing 1
+    overdue next 2026-10-06 £350, Sicon Pending, Sage Synced; Fire & Rescue → neutral no-schedule +
+    Not synced; expand shows 3 visits + 6 invoices; refresh works; contracts-list intact below.
+  DEMO DATA: /tmp/seed_compliance_demo.py seeded active contract AFSCOMPLDEMO-contract-1 (AlphaCo, gold,
+    £4,200/yr) with a 3-visit schedule (1 done/1 overdue/1 upcoming) + 6 monthly invoices (2 paid/1
+    overdue/3 scheduled), sicon=pending, sage=synced. Cleanup: db.crm2_contracts.delete_many({_demo_tag:
+    'afs_compliance_demo'}) + the CID's rows in crm2_afs_service_schedules / crm2_afs_billing.
+  NEXT: customer-facing quote PDF + portal acceptance (Task 1, P0); warranty/RPI task+notification
+    automation (180/120/90 windows, Task 3, P1).
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · AFTERSALES ENGINE — P4: RPI REVIEW ENGINE + AUTO-RENEWALS (§78-85) (self-verified API + UI) ═══
 Final major piece. crm_aftersales.py + AftersalesApp.js "Renewals & RPI" sub-tab (afs-tab-renewals).
   - RPI (never hard-codes inflation): GET /rpi/reviews?window_days — for each active contract computes the NEXT

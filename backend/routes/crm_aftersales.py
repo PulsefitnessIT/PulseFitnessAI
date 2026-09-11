@@ -1547,6 +1547,94 @@ async def contract_schedules(contract_id: str, user=Depends(get_crm_user)):
     }
 
 
+def _service_compliance(visits, today):
+    """Summarise a service schedule into a compliance snapshot."""
+    if not visits:
+        return {"has_schedule": False, "required": 0, "completed": 0, "overdue": 0,
+                "next_due": None, "state": "no_schedule"}
+    completed = sum(1 for v in visits if v.get("status") == "completed")
+    overdue = sum(1 for v in visits
+                  if v.get("status") != "completed" and (v.get("planned_date") or "") < today)
+    upcoming = sorted((v.get("planned_date") for v in visits
+                       if v.get("status") != "completed" and (v.get("planned_date") or "") >= today))
+    state = "overdue" if overdue else ("complete" if completed >= len(visits) else "on_track")
+    return {"has_schedule": True, "required": len(visits), "completed": completed,
+            "overdue": overdue, "next_due": upcoming[0] if upcoming else None, "state": state}
+
+
+def _billing_compliance(invoices, today):
+    """Summarise a billing schedule into a compliance snapshot."""
+    if not invoices:
+        return {"has_schedule": False, "total": 0, "paid": 0, "overdue": 0,
+                "paid_to_date": 0.0, "next_due": None, "next_amount": None, "state": "no_schedule"}
+    paid = sum(1 for i in invoices if i.get("status") == "paid")
+    paid_to_date = round(sum(float(i.get("amount") or 0) for i in invoices if i.get("status") == "paid"), 2)
+    overdue = sum(1 for i in invoices
+                  if i.get("status") != "paid" and (i.get("due_date") or "") < today)
+    upcoming = sorted((i for i in invoices
+                       if i.get("status") != "paid" and (i.get("due_date") or "") >= today),
+                      key=lambda i: i.get("due_date") or "")
+    nxt = upcoming[0] if upcoming else None
+    state = "overdue" if overdue else ("settled" if paid >= len(invoices) else "on_track")
+    return {"has_schedule": True, "total": len(invoices), "paid": paid, "overdue": overdue,
+            "paid_to_date": paid_to_date, "next_due": (nxt or {}).get("due_date"),
+            "next_amount": (nxt or {}).get("amount"), "state": state}
+
+
+@router.get("/contracts/compliance")
+async def contracts_compliance(user=Depends(get_crm_user)):
+    """Live compliance snapshot for every active contract — service visits due,
+    billing status and Sicon/Sage sync — aggregated for the Contracts & Renewals
+    tab. Reuses the same schedule collections as the per-contract view."""
+    of = _of(user)
+    org_id = _org(user)
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    contracts = await db.crm2_contracts.find(
+        {**of, "status": "active"},
+        {"_id": 0, "id": 1, "contract_number": 1, "company_name": 1, "title": 1,
+         "tier": 1, "contract_type": 1, "annual_value": 1, "start_date": 1, "end_date": 1,
+         "billing_frequency": 1, "sicon_sync_status": 1, "sage_sync_status": 1}).sort("end_date", 1).to_list(500)
+    ids = [c["id"] for c in contracts]
+    svc_map, bill_map = {}, {}
+    if ids:
+        async for s in db.crm2_afs_service_schedules.find(
+                {"organization_id": org_id, "contract_id": {"$in": ids}}, _PUBLIC):
+            svc_map[s["contract_id"]] = s.get("visits", [])
+        async for b in db.crm2_afs_billing.find(
+                {"organization_id": org_id, "contract_id": {"$in": ids}}, _PUBLIC):
+            bill_map[b["contract_id"]] = b.get("invoices", [])
+
+    rows, totals = [], {"active": len(contracts), "service_overdue": 0, "billing_overdue": 0,
+                        "sync_pending": 0, "sync_failed": 0, "no_schedule": 0}
+    for c in contracts:
+        cid = c["id"]
+        service = _service_compliance(svc_map.get(cid, []), today)
+        billing = _billing_compliance(bill_map.get(cid, []), today)
+        sicon = c.get("sicon_sync_status") or "not_synced"
+        sage = c.get("sage_sync_status") or "not_synced"
+        if service["overdue"]:
+            totals["service_overdue"] += 1
+        if billing["overdue"]:
+            totals["billing_overdue"] += 1
+        if "pending" in (sicon, sage):
+            totals["sync_pending"] += 1
+        if "failed" in (sicon, sage):
+            totals["sync_failed"] += 1
+        if not service["has_schedule"] and not billing["has_schedule"]:
+            totals["no_schedule"] += 1
+        rows.append({
+            "contract_id": cid, "contract_number": c.get("contract_number"),
+            "company_name": c.get("company_name") or c.get("title") or "Contract",
+            "tier": c.get("contract_type") or c.get("tier"),
+            "annual_value": c.get("annual_value", 0),
+            "start_date": c.get("start_date"), "end_date": c.get("end_date"),
+            "billing_frequency": c.get("billing_frequency"),
+            "service": service, "billing": billing,
+            "sicon_sync_status": sicon, "sage_sync_status": sage,
+        })
+    return {"contracts": rows, "count": len(rows), "totals": totals, "generated_at": _now()}
+
+
 
 # ══════════════════════════════════════════════════════════════════════════
 # WARRANTY-TO-MAINTENANCE — revenue opportunity engine (§90-91)
