@@ -41,6 +41,7 @@ function Card({ children, c, isDark, className = '', testId }) {
 
 export default function EstateOnboarding({ API, headers, c, isDark }) {
   const [step, setStep] = useState('upload'); // upload | map | review | done
+  const [sourceType, setSourceType] = useState('spreadsheet'); // spreadsheet | pdf
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [file, setFile] = useState(null);
@@ -117,6 +118,25 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
     } finally { setBusy(false); }
   };
 
+  const doAnalyzePdf = async () => {
+    if (!file) return;
+    if (!customer.trim()) { setErr('Enter the customer name for this invoice.'); return; }
+    setBusy(true); setErr('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('customer_name', customer.trim());
+      fd.append('contract_type', tier);
+      fd.append('grouping', grouping);
+      const r = await axios.post(`${API}/crm/v2/aftersales/onboarding/analyze-pdf`, fd, { headers: headers() });
+      setImportId(r.data.import_id);
+      setReview(r.data);
+      setStep('review');
+    } catch (e) {
+      setErr(e?.response?.data?.detail || 'Could not read that invoice. Try a clearer PDF or use the spreadsheet route.');
+    } finally { setBusy(false); }
+  };
+
   const reset = () => {
     setStep('upload'); setFile(null); setAnalysis(null); setImportId(''); setReview(null);
     setDone(null); setCustomer(''); setErr('');
@@ -165,19 +185,72 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
       {/* STEP 1 — UPLOAD */}
       {step === 'upload' && (
         <Card c={c} isDark={isDark}>
+          <div className="flex gap-2 mb-4" data-testid="afs-onb-source">
+            {[['spreadsheet', 'Inventory spreadsheet', FileSpreadsheet], ['pdf', 'Invoice / agreement (PDF)', UploadCloud]].map(([id, label, Icon]) => (
+              <button key={id} data-testid={`afs-onb-source-${id}`}
+                onClick={() => { setSourceType(id); setFile(null); setErr(''); }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium"
+                style={sourceType === id
+                  ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
+                  : { background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+                <Icon size={14} /> {label}
+              </button>
+            ))}
+          </div>
+
+          {sourceType === 'pdf' && (
+            <div className="grid md:grid-cols-3 gap-3 mb-4">
+              <div>
+                <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Customer name</label>
+                <input data-testid="afs-onb-pdf-customer" value={customer} onChange={e => setCustomer(e.target.value)}
+                  placeholder="e.g. Riverside Leisure Trust"
+                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Package tier</label>
+                <select data-testid="afs-onb-pdf-tier" value={tier} onChange={e => setTier(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                  <option value="silver">Silver</option><option value="gold">Gold</option><option value="platinum">Platinum</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Group contracts by</label>
+                <select data-testid="afs-onb-pdf-grouping" value={grouping} onChange={e => setGrouping(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                  <option value="master">One master contract</option>
+                  <option value="per_site">One contract per site</option>
+                  <option value="per_status">Split by Contract vs Warranty</option>
+                </select>
+              </div>
+            </div>
+          )}
+
           <label className="block p-8 rounded-xl border-2 border-dashed text-center cursor-pointer"
             style={{ borderColor: c.border }} data-testid="afs-onb-dropzone">
-            <input type="file" accept=".xlsx,.xls" className="hidden" data-testid="afs-onb-file"
+            <input type="file" accept={sourceType === 'pdf' ? '.pdf' : '.xlsx,.xls'} className="hidden" data-testid="afs-onb-file"
               onChange={e => setFile(e.target.files?.[0] || null)} />
             <UploadCloud size={30} className="mx-auto mb-2" style={{ color: 'var(--color-brand-cyan)' }} />
-            <p className="text-sm font-semibold" style={{ color: c.text }}>{file ? file.name : 'Choose an .xlsx inventory / invoice'}</p>
-            <p className="text-xs mt-1" style={{ color: c.textDim }}>Any layout — we detect the sheet and columns for you</p>
+            <p className="text-sm font-semibold" style={{ color: c.text }}>
+              {file ? file.name : (sourceType === 'pdf' ? 'Choose a prior invoice / agreement (.pdf)' : 'Choose an .xlsx inventory')}
+            </p>
+            <p className="text-xs mt-1" style={{ color: c.textDim }}>
+              {sourceType === 'pdf' ? 'AI reads what they currently pay — you review before anything is created' : 'Any layout — we detect the sheet and columns for you'}
+            </p>
           </label>
-          <button data-testid="afs-onb-analyze" onClick={doAnalyze} disabled={!file || busy}
-            className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold"
-            style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: (!file || busy) ? 0.5 : 1 }}>
-            {busy ? <RotateCw size={15} className="animate-spin" /> : <ArrowRight size={15} />} Analyse file
-          </button>
+
+          {sourceType === 'spreadsheet' ? (
+            <button data-testid="afs-onb-analyze" onClick={doAnalyze} disabled={!file || busy}
+              className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold"
+              style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: (!file || busy) ? 0.5 : 1 }}>
+              {busy ? <RotateCw size={15} className="animate-spin" /> : <ArrowRight size={15} />} Analyse file
+            </button>
+          ) : (
+            <button data-testid="afs-onb-extract" onClick={doAnalyzePdf} disabled={!file || busy}
+              className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold"
+              style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: (!file || busy) ? 0.5 : 1 }}>
+              {busy ? <RotateCw size={15} className="animate-spin" /> : <ArrowRight size={15} />} {busy ? 'Reading invoice…' : 'Extract invoice'}
+            </button>
+          )}
         </Card>
       )}
 
@@ -334,7 +407,9 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
               {busy ? <RotateCw size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
               Create estate &amp; draft contracts
             </button>
-            <button onClick={() => setStep('map')} className="text-xs font-medium" style={{ color: c.textDim }}>Back to mapping</button>
+            <button onClick={() => setStep(review.source === 'invoice_pdf' ? 'upload' : 'map')} className="text-xs font-medium" style={{ color: c.textDim }}>
+              {review.source === 'invoice_pdf' ? 'Start over' : 'Back to mapping'}
+            </button>
           </div>
         </div>
       )}

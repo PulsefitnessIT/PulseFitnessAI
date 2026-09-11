@@ -1,3 +1,29 @@
+# ═══ 2026-06 · AFTERSALES ONBOARDING — INVOICE/AGREEMENT PDF PATH (BE curl-verified + FE smoke) ═══
+Adds a second ingestion route into the SAME estate-onboarding review queue: upload a prior supplier's maintenance
+invoice/agreement PDF → AI extracts what the customer currently pays → flows through the identical match → dual-price
+→ exception → commit pipeline. AI reads figures ONLY off the document; the Pulse price still comes from the
+deterministic engine (never invented).
+  - Backend (crm_afs_onboarding.py): refactored row assembly into shared `_assemble_and_price(org_id, cleans,
+    contract_type, pricing_level)` (used by BOTH spreadsheet build and PDF path). NEW: `_INVOICE_PROMPT`,
+    `_extract_invoice(pdf_bytes)` (reuses equipment_import `_extract_pdf_text` + `_pdf_to_image_base64s` for scanned,
+    utils.ai_guardrails.sanitize_prompt, claude-haiku-4-5 via EMERGENT_LLM_KEY → strict JSON {customer_name, site_name,
+    currency, lines[{description,make,model,serial,quantity,amount,amount_basis}]}), `_invoice_line_to_cleans`
+    (expands qty→per-asset rows, monthly×12→annual, splits line total per unit, serial on first only), endpoint
+    POST /onboarding/analyze-pdf (multipart file + Form customer_name/contract_type/grouping → extract → assemble →
+    persist import doc source='invoice_pdf' status='reviewed' → returns the same review payload). PATCH/commit
+    endpoints unchanged (shared).
+  - FE (EstateOnboarding.js): upload step now has a source toggle (afs-onb-source-spreadsheet / -pdf). PDF route shows
+    customer/tier/grouping inputs (afs-onb-pdf-customer/-tier/-grouping) + .pdf dropzone + 'Extract invoice'
+    (afs-onb-extract) → jumps straight to the review step (skips column mapping). Review 'Back' button → 'Start over'
+    for PDF source.
+  VERIFIED (BE curl with a generated maintenance invoice, then docs purged): extracted 5 lines → 8 assets (treadmill
+    qty 2 expanded, 1st serial kept / 2nd flagged missing_serial), matched 260G/280G/250G, Matrix + bench NOT_MATCHED
+    exceptions, VAT/Total correctly excluded, inherited £699.00 vs Pulse £1,548.99. FE smoke: tab + PDF toggle render
+    (screenshot). Frontend + backend compile clean. NEXT (backlog): activate imported drafts (service/billing on),
+    warranty-status assets → warranty-to-maintenance pipeline, real Sage/Sicon push.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · AFTERSALES ENGINE — NEW-CUSTOMER ESTATE ONBOARDING IMPORTER (testing_agent FE 100% + BE curl; #5 lifecycle regression PASS) ═══
 Turn a messy inherited customer workbook/invoice into a clean Pulse estate + grouped DRAFT contracts. Built from the
 real Wiltshire Council file (707 assets, 17 sites, mixed makes, "Worn away" serials, missing costs). USER CHOICES

@@ -269,6 +269,40 @@ def _row_exceptions(clean, status):
     return ex
 
 
+async def _assemble_and_price(org_id, cleans, contract_type, pricing_level):
+    """Shared row builder used by BOTH the spreadsheet and invoice/PDF paths:
+    match each clean asset → deterministic Pulse price (one engine call) →
+    dual-price + exceptions + default chosen price. Returns the review rows."""
+    idx = await _config_index(org_id)
+    rows, lines = [], []
+    for clean in cleans:
+        cfg, matched_code, status = _match_row(idx, clean["model"], clean["make"])
+        rows.append({
+            "index": len(rows), "clean": clean,
+            "match": {"config_id": (cfg or {}).get("id"), "matched_code": matched_code,
+                      "pricing_status": status,
+                      "config_name": (cfg or {}).get("display_name") or (cfg or {}).get("service_name")},
+            "inherited": {"annual": clean["annual_cost"],
+                          "monthly": clean["monthly_cost"] or (round(clean["annual_cost"] / 12, 2) if clean["annual_cost"] else None)},
+            "pulse": {"annual": 0.0},
+            "exceptions": _row_exceptions(clean, status),
+            "include": True,
+            "chosen_price": "inherited",
+        })
+        lines.append({"config_id": (cfg or {}).get("id"), "qty": 1} if cfg else {"model": "__none__", "qty": 1})
+
+    if lines:
+        quote = await _compute_quote(org_id, lines, contract_type=contract_type, pricing_level=pricing_level)
+        factor = float(quote["summary"].get("contract_factor", 1.0) or 1.0)
+        for r, pl in zip(rows, quote["lines"]):
+            r["pulse"]["annual"] = round(float(pl.get("annual_line_gold", 0) or 0) * factor, 2)
+            if r["pulse"]["annual"] <= 0 and r["inherited"]["annual"]:
+                r["chosen_price"] = "inherited"
+            elif r["pulse"]["annual"] > 0 and r["chosen_price"] == "inherited" and not r["inherited"]["annual"]:
+                r["chosen_price"] = "pulse"
+    return rows
+
+
 class BuildIn(BaseModel):
     sheet_name: str
     header_row: int = 2
@@ -298,6 +332,7 @@ async def build(import_id: str, body: BuildIn, user=Depends(get_crm_user)):
 
     idx = await _config_index(org_id)
     rows, lines = [], []
+    cleans = []
     for vals in ws.iter_rows(min_row=body.header_row + 1, values_only=True):
         vals = list(vals)
         if not any(v not in (None, "") for v in vals[:14]):
@@ -305,33 +340,8 @@ async def build(import_id: str, body: BuildIn, user=Depends(get_crm_user)):
         clean = _clean_row(vals, body.column_map)
         if not clean["description"] and not clean["model"] and not clean["make"]:
             continue
-        cfg, matched_code, status = _match_row(idx, clean["model"], clean["make"])
-        rows.append({
-            "index": len(rows), "clean": clean,
-            "match": {"config_id": (cfg or {}).get("id"), "matched_code": matched_code,
-                      "pricing_status": status,
-                      "config_name": (cfg or {}).get("display_name") or (cfg or {}).get("service_name")},
-            "inherited": {"annual": clean["annual_cost"],
-                          "monthly": clean["monthly_cost"] or (round(clean["annual_cost"] / 12, 2) if clean["annual_cost"] else None)},
-            "pulse": {"annual": 0.0},
-            "exceptions": _row_exceptions(clean, status),
-            "include": True,
-            "chosen_price": "inherited",  # default: administer at the price they already pay
-        })
-        lines.append({"config_id": (cfg or {}).get("id"), "qty": 1} if cfg else {"model": "__none__", "qty": 1})
-
-    # Deterministic Pulse pricing in ONE engine call (per-asset annual = gold line × tier factor).
-    if lines:
-        quote = await _compute_quote(org_id, lines, contract_type=body.contract_type,
-                                     pricing_level=body.pricing_level)
-        factor = float(quote["summary"].get("contract_factor", 1.0) or 1.0)
-        for r, pl in zip(rows, quote["lines"]):
-            r["pulse"]["annual"] = round(float(pl.get("annual_line_gold", 0) or 0) * factor, 2)
-            # If Pulse can't price it, default the chosen price to the inherited cost.
-            if r["pulse"]["annual"] <= 0 and r["inherited"]["annual"]:
-                r["chosen_price"] = "inherited"
-            elif r["pulse"]["annual"] > 0 and r["chosen_price"] == "inherited" and not r["inherited"]["annual"]:
-                r["chosen_price"] = "pulse"
+        cleans.append(clean)
+    rows = await _assemble_and_price(org_id, cleans, body.contract_type, body.pricing_level)
 
     summary = _summarise(rows)
     await db.crm2_afs_onboarding.update_one({"id": import_id, **of}, {"$set": {
@@ -343,6 +353,156 @@ async def build(import_id: str, body: BuildIn, user=Depends(get_crm_user)):
                        extra={"rows": len(rows), "customer": body.customer_name})
     return {"import_id": import_id, "customer_name": body.customer_name.strip(),
             "grouping": body.grouping, "summary": summary, "rows": rows}
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# INVOICE / AGREEMENT PDF PATH — AI-extract what the customer currently pays,
+# then feed the SAME review queue (match → dual-price → exceptions → commit).
+# The AI only reads figures off the document; it never sets the Pulse price.
+# ══════════════════════════════════════════════════════════════════════════
+_INVOICE_PROMPT = """You are extracting equipment and pricing from a gym / fitness MAINTENANCE or SERVICE
+CONTRACT invoice or agreement. Extract ONLY what is written on the document — never invent prices, models,
+serials or quantities.
+
+Return STRICT JSON only (no markdown, no commentary):
+{
+ "customer_name": string|null,
+ "site_name": string|null,
+ "currency": string,
+ "lines": [
+   {
+     "description": string,
+     "make": string|null,
+     "model": string|null,
+     "serial": string|null,
+     "quantity": number,
+     "amount": number|null,
+     "amount_basis": "annual"|"monthly"|"one_off"|"unknown"
+   }
+ ]
+}
+Rules: "amount" is the price shown for that line (number only, no currency symbol). If the document shows
+only a single total with no per-line breakdown, return ONE line summarising the cover with that total as
+"amount". Do NOT return VAT, subtotal or total-only rows as equipment lines. Default quantity to 1.
+TEXT:
+{pdf_text}"""
+
+
+async def _extract_invoice(pdf_bytes):
+    from utils.database import EMERGENT_LLM_KEY
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(503, "AI extraction is not configured (missing LLM key).")
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    from routes.equipment_import import _extract_pdf_text, _pdf_to_image_base64s
+    from utils.ai_guardrails import sanitize_prompt
+    import json as _json
+
+    text = ""
+    try:
+        text = _extract_pdf_text(pdf_bytes)
+    except HTTPException:
+        text = ""
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY, session_id=f"afs_inv_{uuid.uuid4().hex[:8]}",
+        system_message="You extract structured data from maintenance invoices. Return ONLY valid JSON.",
+    ).with_model("anthropic", "claude-haiku-4-5")
+
+    if text and len(text) >= 50:
+        prompt = _INVOICE_PROMPT.replace("{pdf_text}", sanitize_prompt(text, max_chars=100000))
+        raw = await chat.send_message(UserMessage(text=prompt))
+    else:
+        from emergentintegrations.llm.chat import ImageContent
+        imgs = _pdf_to_image_base64s(pdf_bytes)
+        prompt = _INVOICE_PROMPT.replace("{pdf_text}", "(image-based invoice — read the attached page(s))")
+        raw = await chat.send_message(UserMessage(
+            text=prompt, file_contents=[ImageContent(image_base64=b) for b in imgs]))
+
+    raw = (raw or "").strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?\n?", "", raw)
+        raw = re.sub(r"\n?```$", "", raw)
+    return _json.loads(raw)
+
+
+def _invoice_line_to_cleans(ln, site):
+    """Expand one extracted invoice line into per-asset clean rows (qty split)."""
+    qty = ln.get("quantity") or 1
+    try:
+        qty = max(1, min(int(qty), 50))
+    except (ValueError, TypeError):
+        qty = 1
+    per_annual = None
+    amt = ln.get("amount")
+    if amt not in (None, ""):
+        try:
+            a = float(amt)
+            basis = (ln.get("amount_basis") or "unknown").lower()
+            if basis == "monthly":
+                a *= 12
+            per_annual = round(a / qty, 2)
+        except (ValueError, TypeError):
+            per_annual = None
+    cleans = []
+    for k in range(qty):
+        cleans.append({
+            "site_code": "", "site_name": site or "Site",
+            "description": _str(ln.get("description")), "make": _str(ln.get("make")),
+            "model": _str(ln.get("model")), "serial": _str(ln.get("serial")) if k == 0 else "",
+            "install_date": None, "warranty_end": None, "warranty_status": "",
+            "contract_start": None, "annual_cost": per_annual,
+            "monthly_cost": (round(per_annual / 12, 2) if per_annual else None),
+            "notes": f"basis:{(ln.get('amount_basis') or 'unknown')}",
+        })
+    return cleans
+
+
+@router.post("/analyze-pdf")
+async def analyze_pdf(file: UploadFile = File(...), customer_name: str = Form(""),
+                      contract_type: str = Form("gold"), grouping: str = Form("master"),
+                      user=Depends(get_crm_user)):
+    """Upload a prior supplier's invoice / agreement PDF. AI extracts what the
+    customer currently pays; the lines flow into the same review queue."""
+    of = _of(user)
+    org_id = _org(user)
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "Empty file.")
+    if len(raw) > 25 * 1024 * 1024:
+        raise HTTPException(413, "File too large (max 25MB).")
+    try:
+        data = await _extract_invoice(raw)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(502, f"Could not read the invoice: {e}")
+
+    lines = data.get("lines") or []
+    if not lines:
+        raise HTTPException(422, "No equipment/pricing lines were found in that document.")
+    cust = (customer_name or data.get("customer_name") or "Imported customer").strip()
+    site = (data.get("site_name") or cust).strip()
+
+    cleans = []
+    for ln in lines:
+        cleans.extend(_invoice_line_to_cleans(ln, site))
+    rows = await _assemble_and_price(org_id, cleans, contract_type, "standard")
+    summary = _summarise(rows)
+
+    doc = {
+        "id": _id(), "organization_id": org_id, "created_by": user.get("email"),
+        "created_at": _now(), "updated_at": _now(), "status": "reviewed",
+        "source": "invoice_pdf", "filename": file.filename,
+        "customer_name": cust, "contract_type": contract_type, "pricing_level": "standard",
+        "grouping": grouping, "rows": rows, "summary": summary,
+        "extracted": {"customer_name": data.get("customer_name"), "site_name": data.get("site_name"),
+                      "currency": data.get("currency"), "line_count": len(lines)},
+    }
+    await db.crm2_afs_onboarding.insert_one(dict(doc))
+    await record_audit(entity_type="afs_onboarding", entity_id=doc["id"], action="analyze_pdf", user=user,
+                       extra={"customer": cust, "lines": len(lines), "rows": len(rows)})
+    doc.pop("_id", None)
+    return {"import_id": doc["id"], "source": "invoice_pdf", "customer_name": cust,
+            "grouping": grouping, "extracted": doc["extracted"], "summary": summary, "rows": rows}
 
 
 def _row_value(r):
