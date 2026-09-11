@@ -2525,6 +2525,29 @@ async def _contract_fact_sheet(org_id, contract):
     cycle = anniv.strftime("%Y") if anniv else str(now.year)
     rpi = await db.crm2_afs_rpi_reviews.find_one({**of, "contract_id": cid, "cycle": cycle}, _PUBLIC)
 
+    # Recent service-desk history for this contract (Voice of Customer) —
+    # so the assistant can reference recent visits, faults and open work.
+    since_12m = (now - timedelta(days=365)).strftime("%Y-%m-%d")
+    open_states = {"closed", "invoiced", "cancelled", "resolved"}
+    all_cases = await db.svc_cases.find(
+        {**of, "contract_id": cid},
+        {"_id": 0, "reference": 1, "title": 1, "status": 1, "case_type": 1,
+         "fault_code": 1, "fault_category": 1, "priority": 1, "asset_name": 1,
+         "site_name": 1, "created_at": 1, "closed_at": 1}).sort("created_at", -1).to_list(500)
+    recent_cases = [{
+        "reference": x.get("reference"),
+        "title": x.get("title") or x.get("fault_category") or x.get("case_type"),
+        "case_type": x.get("case_type"),
+        "fault_code": x.get("fault_code"),
+        "priority": x.get("priority"),
+        "asset_name": x.get("asset_name"),
+        "status": x.get("status"),
+        "created_at": (x.get("created_at") or "")[:10],
+        "closed_at": (x.get("closed_at") or "")[:10] or None,
+    } for x in all_cases[:6]]
+    cases_open = sum(1 for x in all_cases if (x.get("status") or "").lower() not in open_states)
+    cases_12m = sum(1 for x in all_cases if (x.get("created_at") or "")[:10] >= since_12m)
+
     return {
         "contract_number": contract.get("contract_number"),
         "company_name": contract.get("company_name") or contract.get("title") or "Customer",
@@ -2547,6 +2570,10 @@ async def _contract_fact_sheet(org_id, contract):
         "rpi_review": ({"status": rpi.get("status"), "rpi_pct": rpi.get("rpi_pct"),
                         "proposed_value": rpi.get("proposed_value"),
                         "effective_date": rpi.get("effective_date")} if rpi else None),
+        "service_cases_total": len(all_cases),
+        "service_cases_open": cases_open,
+        "service_cases_12m": cases_12m,
+        "recent_cases": recent_cases,
     }
 
 
@@ -2605,6 +2632,24 @@ def _facts_to_text(f):
                      f"{_gbp(r.get('proposed_value'))}, effective {r.get('effective_date') or 'n/a'}.")
     else:
         lines.append("RPI review: none proposed for the current cycle.")
+
+    rc = f.get("recent_cases") or []
+    lines.append(f"Service history: {f.get('service_cases_total', 0)} case(s) logged against this contract "
+                 f"({f.get('service_cases_open', 0)} currently open, {f.get('service_cases_12m', 0)} in the last 12 months).")
+    if rc:
+        lines.append("Most recent service cases (newest first):")
+        for x in rc:
+            bits = [x.get("reference") or "case", x.get("title") or x.get("case_type") or "service"]
+            if x.get("fault_code"):
+                bits.append(f"fault {x['fault_code']}")
+            if x.get("asset_name"):
+                bits.append(x["asset_name"])
+            meta = f"{x.get('status') or ''}; logged {x.get('created_at') or 'n/a'}"
+            if x.get("closed_at"):
+                meta += f"; closed {x['closed_at']}"
+            lines.append(f"  - {' · '.join(bits)} ({meta})")
+    else:
+        lines.append("Service history: no service cases recorded against this contract.")
     return "\n".join(lines)
 
 
@@ -2689,7 +2734,8 @@ async def ai_assistant(body: AfsAiIn, user=Depends(get_crm_user)):
     if body.mode == "summary":
         task = ("Write a concise plain-English summary of this maintenance contract's coverage for the "
                 "coordinator: the package and what it covers, the equipment covered, service commitments, "
-                "billing and term, and any RPI review status. Keep it factual and skimmable.")
+                "billing and term, any RPI review status, and a short note on recent service history "
+                "(recent cases / faults) if any are present. Keep it factual and skimmable.")
     elif body.mode == "email":
         brief = _EMAIL_BRIEFS.get((body.email_type or "general"), _EMAIL_BRIEFS["general"])
         extra = f"\nAdditional instruction from the coordinator: {body.instruction.strip()}" if (body.instruction or "").strip() else ""

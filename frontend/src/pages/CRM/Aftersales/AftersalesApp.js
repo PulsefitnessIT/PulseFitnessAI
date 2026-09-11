@@ -1765,6 +1765,7 @@ function FactSheet({ facts, c, isDark }) {
     </div>
   );
   const s = facts.service || {}; const b = facts.billing || {}; const r = facts.rpi_review;
+  const rc = facts.recent_cases || [];
   return (
     <div className="text-xs space-y-0.5" data-testid="afs-ai-factsheet">
       {row('Contract', facts.contract_number)}
@@ -1777,6 +1778,20 @@ function FactSheet({ facts, c, isDark }) {
       {s.has_schedule ? row('Service', `${s.completed}/${s.required} done · ${s.overdue} overdue · next ${s.next_due || 'n/a'}`) : row('Service', 'none recorded')}
       {b.has_schedule ? row('Billing', `${b.paid}/${b.total} paid · next ${gbp(b.next_amount)} ${b.next_due || ''}`) : row('Billing', 'none recorded')}
       {row('RPI review', r ? `${r.status} · ${r.rpi_pct}% → ${gbp(r.proposed_value)}` : 'none proposed')}
+      {row('Service cases', `${facts.service_cases_total || 0} logged · ${facts.service_cases_open || 0} open · ${facts.service_cases_12m || 0} in 12mo`)}
+      {rc.length > 0 && (
+        <div className="pt-1 mt-1 border-t" style={{ borderColor: c.border }} data-testid="afs-ai-recent-cases">
+          <span style={{ color: c.textDim }}>Recent cases</span>
+          <div className="mt-0.5 space-y-0.5">
+            {rc.map((x, i) => (
+              <div key={i} className="flex justify-between gap-3">
+                <span style={{ color: c.text }}>{x.reference ? x.reference + ' · ' : ''}{x.title || x.case_type}{x.fault_code ? ` · ${x.fault_code}` : ''}</span>
+                <span className="text-right" style={{ color: c.textDim }}>{x.status} · {x.created_at}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
