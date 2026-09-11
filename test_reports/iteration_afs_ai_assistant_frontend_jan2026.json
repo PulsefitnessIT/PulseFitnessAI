@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only verification of the new Aftersales 'AI Assistant' sub-tab. All 7 acceptance criteria pass end-to-end against Claude via /api/crm/v2/aftersales/ai/assistant using AlphaCo (Site A) PF-MA-CMPDEMO as the primary contract. Fact sheet, three modes (summary/email/question), copy-flip, and disabled-state gating all behave as specified. Figures in generated text are traceable to the fact sheet (£4,200.00 annual, Gold, £350.00 next invoice on 2026-10-01).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AI Assistant tab", "issues": ["Console hydration warning: <span> nested inside <option> for the contract dropdown (line ~1864 of AftersalesApp.js). Cosmetic React warning caused by the visual-edit wrapper, not user-visible, but should be cleaned up."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "canGen guard in AIAssistantTab uses `emailType !== 'general'`, matching EMAIL_TYPES id 'general' whose label is 'Other (use my instruction)'. Wording in the task spec says \"when email type is 'Other'\" — implementation is correct; just a naming mismatch between id and label that could confuse future readers.",
+    "Contract dropdown rendering triggers a hydration warning (<span> inside <option>). Wrap dynamic content differently or strip data-ve wrappers for option children."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not tested)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (login at /login, then /crm, Corporate mode, Aftersales Contracts nav)",
+  "seed_data_creation": "None — used existing seeded contracts AlphaCo (PF-MA-CMPDEMO) and Example Fire & Rescue (CTR-BLFRS1).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "AI Assistant tab is fully wired. data-testids verified: afs-tab-ai, afs-ai, afs-ai-contract, afs-ai-facts-toggle, afs-ai-factsheet, afs-ai-mode-{summary,email,question}, afs-ai-email-type, afs-ai-instruction, afs-ai-question, afs-ai-generate, afs-ai-result, afs-ai-output, afs-ai-copy, afs-ai-error. Claude latency ~5-10s per call; use timeout>=30s. Disabled logic: question mode with empty question, and email mode with emailType='general' and empty instruction.",
+  "verified_flows": [
+    "Login → /crm → Corporate → Aftersales Contracts → AI Assistant tab renders (afs-ai visible)",
+    "Contract picker lists 2 active contracts; selecting AlphaCo loads fact sheet",
+    "Show/hide facts toggle reveals afs-ai-factsheet with contract#, package Gold, £4,200.00 annual, term 2026-02-23→2027-02-23, 2 machines, service 1/3 done, billing 2/6 paid next £350.00 2026-10-01",
+    "Summarise coverage → afs-ai-output contains £4,200.00 and Gold package (grounded)",
+    "Draft email (Renewal reminder) → afs-ai-output has Subject line and professional body citing PF-MA-CMPDEMO, £4,200.00, 23 February 2027",
+    "Ask a question ('When is the next invoice due?') → grounded answer: '1 October 2026, for £350.00' — matches fact sheet exactly",
+    "Copy button flips Copy → Copied (2s)",
+    "Generate disabled: question mode empty question = TRUE; email mode general+empty instruction = TRUE"
+  ]
+}

@@ -24,7 +24,7 @@ import io
 import os
 import secrets
 
-from utils.database import db
+from utils.database import db, EMERGENT_LLM_KEY
 from routes.crm_auth import get_crm_user
 from utils.crm_audit import record_audit
 
@@ -2450,3 +2450,272 @@ async def dismiss_afs_alert(activity_id: str, user=Depends(get_crm_user)):
     await db.crm2_notifications.update_many(
         {**of, "activity_id": activity_id}, {"$set": {"read": True}})
     return {"status": "done", "id": activity_id}
+
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# CONTRACT AI ASSISTANT (Task 7) — deterministic-grounded coverage summaries,
+# customer-email drafts and grounded Q&A. The model ONLY writes prose from the
+# fact sheet we assemble here; it is instructed NEVER to invent a figure, date,
+# quantity or coverage term. All numbers come from the live contract records.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _gbp(v):
+    try:
+        return "£{:,.2f}".format(float(v or 0))
+    except (ValueError, TypeError):
+        return "£0.00"
+
+
+async def _resolve_linked_org(contract, of):
+    linked = contract.get("linked_organization_id")
+    if linked:
+        return linked
+    cid = contract.get("company_id")
+    if cid:
+        company = await db.crm2_companies.find_one({"id": cid, **of}, {"_id": 0, "linked_organization_id": 1})
+        if company:
+            return company.get("linked_organization_id")
+    return None
+
+
+async def _contract_fact_sheet(org_id, contract):
+    """Assemble a 100% deterministic fact sheet for one contract — the ONLY
+    ground truth the assistant is allowed to use."""
+    of = {"organization_id": org_id}
+    cid = contract["id"]
+    now = datetime.now(timezone.utc)
+    today = now.strftime("%Y-%m-%d")
+    tier = (contract.get("contract_type") or contract.get("tier") or "").lower()
+
+    pkg = await db.crm2_afs_packages.find_one({**of, "key": tier}, _PUBLIC) or {}
+
+    covered = []
+    linked = await _resolve_linked_org(contract, of)
+    if linked:
+        equipment = await db.equipment.find(
+            {"organization_id": linked},
+            {"_id": 0, "name": 1, "model": 1, "model_code": 1, "console_type": 1,
+             "serial_number": 1, "contract_cover": 1}).to_list(5000)
+        for e in equipment:
+            cover = e.get("contract_cover")
+            if isinstance(cover, dict) and cover.get("contract_id") == cid:
+                covered.append({
+                    "name": e.get("name") or e.get("model") or e.get("model_code"),
+                    "model": e.get("model") or e.get("model_code"),
+                    "serial_number": e.get("serial_number"),
+                    "console_type": e.get("console_type"),
+                })
+
+    svc = await db.crm2_afs_service_schedules.find_one({**of, "contract_id": cid}, _PUBLIC) or {}
+    visits = svc.get("visits", [])
+    service = _service_compliance(visits, today)
+    upcoming_visits = sorted(
+        [v for v in visits if v.get("status") != "completed" and (v.get("planned_date") or "") >= today],
+        key=lambda v: v.get("planned_date") or "")[:4]
+
+    bill = await db.crm2_afs_billing.find_one({**of, "contract_id": cid}, _PUBLIC) or {}
+    invoices = bill.get("invoices", [])
+    billing = _billing_compliance(invoices, today)
+    upcoming_invoices = sorted(
+        [i for i in invoices if i.get("status") != "paid" and (i.get("due_date") or "") >= today],
+        key=lambda i: i.get("due_date") or "")[:4]
+
+    anniv = _next_anniversary(contract.get("start_date"), now)
+    cycle = anniv.strftime("%Y") if anniv else str(now.year)
+    rpi = await db.crm2_afs_rpi_reviews.find_one({**of, "contract_id": cid, "cycle": cycle}, _PUBLIC)
+
+    return {
+        "contract_number": contract.get("contract_number"),
+        "company_name": contract.get("company_name") or contract.get("title") or "Customer",
+        "status": contract.get("status"),
+        "package": pkg.get("name") or (tier.title() if tier else "Maintenance"),
+        "package_description": pkg.get("description"),
+        "package_coverage": pkg.get("coverage"),
+        "annual_value": contract.get("annual_value", 0),
+        "total_value": contract.get("total_value"),
+        "billing_frequency": contract.get("billing_frequency") or "annual",
+        "start_date": contract.get("start_date"),
+        "end_date": contract.get("end_date"),
+        "next_anniversary": anniv.strftime("%Y-%m-%d") if anniv else None,
+        "covered_equipment_count": len(covered),
+        "covered_equipment": covered,
+        "service": service,
+        "upcoming_visits": [{"planned_date": v.get("planned_date"), "status": v.get("status")} for v in upcoming_visits],
+        "billing": billing,
+        "upcoming_invoices": [{"due_date": i.get("due_date"), "amount": i.get("amount"), "status": i.get("status")} for i in upcoming_invoices],
+        "rpi_review": ({"status": rpi.get("status"), "rpi_pct": rpi.get("rpi_pct"),
+                        "proposed_value": rpi.get("proposed_value"),
+                        "effective_date": rpi.get("effective_date")} if rpi else None),
+    }
+
+
+def _facts_to_text(f):
+    """Render the fact sheet as a compact text block for the model prompt."""
+    lines = [
+        f"Contract number: {f['contract_number']}",
+        f"Customer: {f['company_name']}",
+        f"Contract status: {f['status']}",
+        f"Package: {f['package']}" + (f" — {f['package_description']}" if f.get('package_description') else ""),
+    ]
+    if f.get("package_coverage"):
+        lines.append(f"Package coverage terms: {f['package_coverage']}")
+    lines.append(f"Annual value: {_gbp(f['annual_value'])} (billed {f['billing_frequency']})")
+    if f.get("total_value"):
+        lines.append(f"Total contract value: {_gbp(f['total_value'])}")
+    lines.append(f"Contract term: {f.get('start_date') or 'n/a'} to {f.get('end_date') or 'n/a'}")
+    lines.append(f"Next anniversary / RPI review point: {f.get('next_anniversary') or 'n/a'}")
+
+    ce = f.get("covered_equipment") or []
+    lines.append(f"Covered equipment ({f['covered_equipment_count']} machines):")
+    if ce:
+        for e in ce[:40]:
+            bits = [e.get("name") or "Machine"]
+            if e.get("serial_number"):
+                bits.append(f"S/N {e['serial_number']}")
+            if e.get("console_type"):
+                bits.append(str(e["console_type"]))
+            lines.append("  - " + " · ".join(bits))
+        if len(ce) > 40:
+            lines.append(f"  - (+{len(ce) - 40} more)")
+    else:
+        lines.append("  - (no equipment cover records available in the system)")
+
+    s = f.get("service") or {}
+    if s.get("has_schedule"):
+        lines.append(f"Service schedule: {s.get('completed', 0)} of {s.get('required', 0)} visits completed, "
+                     f"{s.get('overdue', 0)} overdue, next visit due {s.get('next_due') or 'n/a'}.")
+        for v in f.get("upcoming_visits") or []:
+            lines.append(f"  - Upcoming visit: {v.get('planned_date')}")
+    else:
+        lines.append("Service schedule: none recorded.")
+
+    b = f.get("billing") or {}
+    if b.get("has_schedule"):
+        lines.append(f"Billing: {b.get('paid', 0)} of {b.get('total', 0)} invoices paid ({_gbp(b.get('paid_to_date'))} to date), "
+                     f"{b.get('overdue', 0)} overdue. Next invoice {_gbp(b.get('next_amount'))} due {b.get('next_due') or 'n/a'}.")
+        for i in f.get("upcoming_invoices") or []:
+            lines.append(f"  - Upcoming invoice: {_gbp(i.get('amount'))} due {i.get('due_date')}")
+    else:
+        lines.append("Billing: no invoice schedule recorded.")
+
+    r = f.get("rpi_review")
+    if r:
+        lines.append(f"RPI review ({r.get('status')}): proposed {r.get('rpi_pct')}% increase to "
+                     f"{_gbp(r.get('proposed_value'))}, effective {r.get('effective_date') or 'n/a'}.")
+    else:
+        lines.append("RPI review: none proposed for the current cycle.")
+    return "\n".join(lines)
+
+
+_AI_SYSTEM = (
+    "You are the Pulse Fitness Aftersales assistant, helping a maintenance-contracts coordinator. "
+    "You will be given a CONTRACT FACTS block. You must use ONLY those facts. "
+    "NEVER invent, estimate, round differently or change any figure, price, date, quantity, serial "
+    "number or coverage term. If a needed detail is not in the facts, say it is not available in the "
+    "system and suggest checking the contract record — do not guess. All money is in GBP (£). "
+    "Write in clear, professional British English. Do not use markdown headings or asterisks; use plain "
+    "paragraphs and simple hyphen bullet points where helpful."
+)
+
+_EMAIL_BRIEFS = {
+    "renewal_reminder": "Draft a friendly renewal-reminder email to the customer. Note the contract end date, "
+                        "the package and current annual value, and invite them to renew or discuss options. "
+                        "Do not quote a new renewal price unless it is in the facts.",
+    "rpi_increase": "Draft an email explaining the upcoming RPI (inflation-linked) price review. State the current "
+                    "annual value, the proposed percentage and new value, and the effective date, taken only from "
+                    "the RPI review facts. If no RPI review is present, say a review has not yet been proposed.",
+    "service_due": "Draft an email letting the customer know their next preventative service visit is coming up, "
+                   "using the next-visit date from the facts, and confirming what their package covers.",
+    "welcome": "Draft a warm welcome / onboarding email confirming their new maintenance cover — package, covered "
+               "equipment count, annual value, billing frequency and term dates, and how to raise a service request.",
+    "coverage_confirmation": "Draft an email confirming exactly what their contract covers — package, covered "
+                             "equipment and service commitments — for the customer's records.",
+    "general": "Draft the customer email the coordinator has asked for, grounded only in the facts.",
+}
+
+
+class AfsAiIn(BaseModel):
+    contract_id: str
+    mode: str  # "summary" | "email" | "question"
+    email_type: Optional[str] = None
+    instruction: Optional[str] = None
+    question: Optional[str] = None
+
+
+@router.get("/ai/contracts")
+async def ai_contract_list(user=Depends(get_crm_user)):
+    """Active contracts available to the AI assistant (picker)."""
+    of = _of(user)
+    rows = await db.crm2_contracts.find(
+        {**of, "status": "active"},
+        {"_id": 0, "id": 1, "contract_number": 1, "company_name": 1, "title": 1,
+         "contract_type": 1, "tier": 1, "annual_value": 1, "end_date": 1}).sort("end_date", 1).to_list(1000)
+    return {"contracts": [{
+        "id": r["id"], "contract_number": r.get("contract_number"),
+        "company_name": r.get("company_name") or r.get("title") or "Contract",
+        "tier": r.get("contract_type") or r.get("tier"),
+        "annual_value": r.get("annual_value", 0), "end_date": r.get("end_date"),
+    } for r in rows]}
+
+
+@router.get("/ai/contracts/{contract_id}/context")
+async def ai_contract_context(contract_id: str, user=Depends(get_crm_user)):
+    """The deterministic fact sheet the assistant is grounded on (for preview)."""
+    of = _of(user)
+    contract = await db.crm2_contracts.find_one({"id": contract_id, **of}, _PUBLIC)
+    if not contract:
+        raise HTTPException(404, "Contract not found")
+    facts = await _contract_fact_sheet(_org(user), contract)
+    return {"facts": facts, "generated_at": _now()}
+
+
+@router.post("/ai/assistant")
+async def ai_assistant(body: AfsAiIn, user=Depends(get_crm_user)):
+    """Deterministic-grounded assistant: coverage summary, customer-email draft
+    or grounded Q&A. Figures come only from the contract fact sheet."""
+    if body.mode not in ("summary", "email", "question"):
+        raise HTTPException(400, "mode must be summary, email or question")
+    of = _of(user)
+    contract = await db.crm2_contracts.find_one({"id": body.contract_id, **of}, _PUBLIC)
+    if not contract:
+        raise HTTPException(404, "Contract not found")
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(503, "AI assistant is not configured (missing LLM key).")
+
+    facts = await _contract_fact_sheet(_org(user), contract)
+    facts_text = _facts_to_text(facts)
+
+    if body.mode == "summary":
+        task = ("Write a concise plain-English summary of this maintenance contract's coverage for the "
+                "coordinator: the package and what it covers, the equipment covered, service commitments, "
+                "billing and term, and any RPI review status. Keep it factual and skimmable.")
+    elif body.mode == "email":
+        brief = _EMAIL_BRIEFS.get((body.email_type or "general"), _EMAIL_BRIEFS["general"])
+        extra = f"\nAdditional instruction from the coordinator: {body.instruction.strip()}" if (body.instruction or "").strip() else ""
+        task = (brief + extra + "\nStart with a 'Subject:' line, then the email body. Address the customer "
+                "politely, sign off as the Pulse Fitness Aftersales team, and keep it professional and warm.")
+    else:  # question
+        q = (body.question or "").strip()
+        if not q:
+            raise HTTPException(400, "Please provide a question.")
+        task = (f"Answer the coordinator's question using only the contract facts. If the facts don't contain "
+                f"the answer, say so.\n\nQuestion: {q}")
+
+    prompt = f"CONTRACT FACTS:\n{facts_text}\n\n---\nTASK:\n{task}"
+
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"afs_ai_{body.contract_id}_{uuid.uuid4().hex[:8]}",
+            system_message=_AI_SYSTEM,
+        ).with_model("anthropic", "claude-sonnet-4-6")
+        text = (await chat.send_message(UserMessage(text=prompt))).strip()
+    except Exception as e:
+        raise HTTPException(502, f"AI generation failed: {e}")
+
+    await record_audit(entity_type="afs_ai_assistant", entity_id=body.contract_id, action=body.mode, user=user,
+                       extra={"email_type": body.email_type, "has_question": bool(body.question)})
+    return {"text": text, "mode": body.mode, "email_type": body.email_type,
+            "facts": facts, "generated_at": _now()}

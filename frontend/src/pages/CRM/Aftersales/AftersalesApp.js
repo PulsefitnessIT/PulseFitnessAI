@@ -19,7 +19,7 @@ import {
   Clock, FileSignature, Calculator, Plus, Trash2, Check, Search, TrendingUp, Shield,
   Zap, Building2, Rocket, FileCheck2, PenLine, CheckCircle2, Circle,
   CalendarClock, Receipt, ChevronDown, ChevronRight, RotateCw, MinusCircle,
-  FileText, Share2, Bell, Mail, X,
+  FileText, Share2, Bell, Mail, X, Sparkles, Copy, MessageSquare,
 } from 'lucide-react';
 
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -32,6 +32,7 @@ const SUB_TABS = [
   { id: 'agreements', label: 'Agreements', icon: FileCheck2 },
   { id: 'renewals', label: 'Renewals & RPI', icon: RefreshCw },
   { id: 'contracts', label: 'Contracts & Renewals', icon: Shield },
+  { id: 'ai', label: 'AI Assistant', icon: Sparkles },
   { id: 'reports', label: 'Reports', icon: TrendingUp },
   { id: 'pricing', label: 'Pricing & Rules', icon: SlidersHorizontal },
   { id: 'equipment', label: 'Equipment Review', icon: Wrench },
@@ -1745,12 +1746,219 @@ function LiveCompliancePanel({ API, headers, c, isDark }) {
   );
 }
 
+// ───────────────────────────────────────────────────────── AI Assistant
+const EMAIL_TYPES = [
+  { id: 'renewal_reminder', label: 'Renewal reminder' },
+  { id: 'rpi_increase', label: 'RPI / price-review explainer' },
+  { id: 'service_due', label: 'Service visit due' },
+  { id: 'welcome', label: 'Welcome / onboarding' },
+  { id: 'coverage_confirmation', label: 'Coverage confirmation' },
+  { id: 'general', label: 'Other (use my instruction)' },
+];
+
+function FactSheet({ facts, c, isDark }) {
+  if (!facts) return null;
+  const row = (k, v) => (
+    <div className="flex justify-between gap-3 py-0.5">
+      <span style={{ color: c.textDim }}>{k}</span>
+      <span className="text-right font-medium" style={{ color: c.text }}>{v}</span>
+    </div>
+  );
+  const s = facts.service || {}; const b = facts.billing || {}; const r = facts.rpi_review;
+  return (
+    <div className="text-xs space-y-0.5" data-testid="afs-ai-factsheet">
+      {row('Contract', facts.contract_number)}
+      {row('Customer', facts.company_name)}
+      {row('Package', facts.package)}
+      {row('Annual value', gbp(facts.annual_value) + ' · ' + (facts.billing_frequency || 'annual'))}
+      {row('Term', `${facts.start_date || 'n/a'} → ${facts.end_date || 'n/a'}`)}
+      {row('Next anniversary', facts.next_anniversary || 'n/a')}
+      {row('Covered equipment', `${facts.covered_equipment_count} machines`)}
+      {s.has_schedule ? row('Service', `${s.completed}/${s.required} done · ${s.overdue} overdue · next ${s.next_due || 'n/a'}`) : row('Service', 'none recorded')}
+      {b.has_schedule ? row('Billing', `${b.paid}/${b.total} paid · next ${gbp(b.next_amount)} ${b.next_due || ''}`) : row('Billing', 'none recorded')}
+      {row('RPI review', r ? `${r.status} · ${r.rpi_pct}% → ${gbp(r.proposed_value)}` : 'none proposed')}
+    </div>
+  );
+}
+
+function AIAssistantTab({ API, headers, c, isDark }) {
+  const [contracts, setContracts] = useState([]);
+  const [contractId, setContractId] = useState('');
+  const [facts, setFacts] = useState(null);
+  const [showFacts, setShowFacts] = useState(false);
+  const [mode, setMode] = useState('summary');
+  const [emailType, setEmailType] = useState('renewal_reminder');
+  const [instruction, setInstruction] = useState('');
+  const [question, setQuestion] = useState('');
+  const [result, setResult] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    axios.get(`${API}/crm/v2/aftersales/ai/contracts`, { headers: headers() })
+      .then(r => {
+        const list = r.data.contracts || [];
+        setContracts(list);
+        if (list.length && !contractId) setContractId(list[0].id);
+      }).catch(() => setContracts([]));
+  }, [API, headers]); // eslint-disable-line
+
+  useEffect(() => {
+    if (!contractId) { setFacts(null); return; }
+    setFacts(null); setResult('');
+    axios.get(`${API}/crm/v2/aftersales/ai/contracts/${contractId}/context`, { headers: headers() })
+      .then(r => setFacts(r.data.facts)).catch(() => setFacts(null));
+  }, [API, headers, contractId]);
+
+  const generate = async () => {
+    if (!contractId) return;
+    setBusy(true); setErr(''); setResult('');
+    try {
+      const body = { contract_id: contractId, mode };
+      if (mode === 'email') { body.email_type = emailType; body.instruction = instruction; }
+      if (mode === 'question') body.question = question;
+      const r = await axios.post(`${API}/crm/v2/aftersales/ai/assistant`, body, { headers: headers() });
+      setResult(r.data.text || '');
+      if (r.data.facts) setFacts(r.data.facts);
+    } catch (e) {
+      setErr(e?.response?.data?.detail || 'Generation failed. Please try again.');
+    } finally { setBusy(false); }
+  };
+
+  const copyResult = async () => {
+    try { await navigator.clipboard.writeText(result); } catch { /* noop */ }
+    setCopied(true); setTimeout(() => setCopied(false), 2000);
+  };
+
+  const modeBtn = (id, label, Icon) => (
+    <button data-testid={`afs-ai-mode-${id}`} onClick={() => { setMode(id); setResult(''); }}
+      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+      style={mode === id
+        ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
+        : { background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+      <Icon size={14} /> {label}
+    </button>
+  );
+  const canGen = contractId && (mode !== 'question' || question.trim()) && (mode !== 'email' || emailType !== 'general' || instruction.trim());
+
+  return (
+    <div data-testid="afs-ai">
+      <div className="mb-3">
+        <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: c.text }}>
+          <Sparkles size={18} style={{ color: 'var(--color-brand-cyan)' }} /> Contract AI Assistant
+        </h2>
+        <p className="text-xs" style={{ color: c.textDim }}>
+          Summaries, customer-email drafts and answers — grounded strictly in this contract's live data. The
+          assistant never invents prices, dates or coverage; every figure comes from the record.
+        </p>
+      </div>
+
+      <Card c={c} isDark={isDark} className="mb-4">
+        <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Contract</label>
+        <select data-testid="afs-ai-contract" value={contractId} onChange={e => setContractId(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg text-sm mb-1"
+          style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+          {contracts.length === 0 && <option value="">No active contracts</option>}
+          {contracts.map(ct => (
+            <option key={ct.id} value={ct.id}>{ct.company_name} · {ct.contract_number} · {gbp(ct.annual_value)}/yr</option>
+          ))}
+        </select>
+        {facts && (
+          <div className="mt-2">
+            <button data-testid="afs-ai-facts-toggle" onClick={() => setShowFacts(v => !v)}
+              className="inline-flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--color-brand-cyan)' }}>
+              {showFacts ? <ChevronDown size={13} /> : <ChevronRight size={13} />} {showFacts ? 'Hide' : 'Show'} the facts the assistant will use
+            </button>
+            {showFacts && (
+              <div className="mt-2 p-3 rounded-lg border" style={{ borderColor: c.border, background: isDark ? '#0d0d0d' : 'var(--color-neutral-50)' }}>
+                <FactSheet facts={facts} c={c} isDark={isDark} />
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+
+      <div className="flex flex-wrap gap-2 mb-4" data-testid="afs-ai-modes">
+        {modeBtn('summary', 'Summarise coverage', FileText)}
+        {modeBtn('email', 'Draft customer email', Mail)}
+        {modeBtn('question', 'Ask a question', MessageSquare)}
+      </div>
+
+      {mode === 'email' && (
+        <Card c={c} isDark={isDark} className="mb-4">
+          <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Email type</label>
+          <select data-testid="afs-ai-email-type" value={emailType} onChange={e => setEmailType(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg text-sm mb-3"
+            style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+            {EMAIL_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+          </select>
+          <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>
+            Extra instruction {emailType === 'general' ? '(required)' : '(optional)'}
+          </label>
+          <textarea data-testid="afs-ai-instruction" value={instruction} onChange={e => setInstruction(e.target.value)}
+            rows={2} placeholder="e.g. mention we're introducing weekend visits from March"
+            className="w-full px-3 py-2 rounded-lg text-sm resize-y"
+            style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
+        </Card>
+      )}
+
+      {mode === 'question' && (
+        <Card c={c} isDark={isDark} className="mb-4">
+          <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Your question</label>
+          <input data-testid="afs-ai-question" value={question} onChange={e => setQuestion(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && canGen) generate(); }}
+            placeholder="e.g. When is the next invoice due and how much is it?"
+            className="w-full px-3 py-2 rounded-lg text-sm"
+            style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
+        </Card>
+      )}
+
+      <button data-testid="afs-ai-generate" onClick={generate} disabled={!canGen || busy}
+        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-opacity"
+        style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: (!canGen || busy) ? 0.5 : 1 }}>
+        {busy ? <RotateCw size={15} className="animate-spin" /> : <Sparkles size={15} />}
+        {busy ? 'Generating…' : mode === 'summary' ? 'Summarise coverage' : mode === 'email' ? 'Draft email' : 'Get answer'}
+      </button>
+
+      {err && (
+        <div data-testid="afs-ai-error" className="mt-4 p-3 rounded-lg text-sm flex items-center gap-2"
+          style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--color-danger, #EF4444)' }}>
+          <AlertTriangle size={15} /> {err}
+        </div>
+      )}
+
+      {result && (
+        <Card c={c} isDark={isDark} className="mt-4" testId="afs-ai-result">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-bold" style={{ color: c.text }}>
+              {mode === 'summary' ? 'Coverage summary' : mode === 'email' ? 'Draft email' : 'Answer'}
+            </p>
+            <button data-testid="afs-ai-copy" onClick={copyResult}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium"
+              style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+              {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          <textarea data-testid="afs-ai-output" value={result} onChange={e => setResult(e.target.value)}
+            rows={Math.min(24, Math.max(8, result.split('\n').length + 2))}
+            className="w-full px-3 py-2 rounded-lg text-sm resize-y font-normal leading-relaxed"
+            style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}`, whiteSpace: 'pre-wrap' }} />
+          <p className="text-[11px] mt-2" style={{ color: c.textDim }}>
+            Editable draft — review before sending. Figures are drawn from the live contract record.
+          </p>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 // ───────────────────────────────────────────────────────── Shell
 export default function AftersalesApp() {
   const crm = useCRM();
   const { API, headers, c, isDark } = crm;
   const [tab, setTab] = useState('dashboard');
-  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, agreements: AgreementsTab, renewals: RenewalsRpiTab, reports: ReportsTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab }[tab];
+  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, agreements: AgreementsTab, renewals: RenewalsRpiTab, ai: AIAssistantTab, reports: ReportsTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab }[tab];
   return (
     <div data-testid="afs-app">
       <div className="mb-4">

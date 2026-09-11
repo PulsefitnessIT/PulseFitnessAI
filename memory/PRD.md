@@ -1,3 +1,36 @@
+# ═══ 2026-06 · AFTERSALES ENGINE — CONTRACT AI ASSISTANT (Task 7, P2) (testing_agent FE 100%; BE curl-verified) ═══
+Deterministic-GROUNDED AI assistant over a single active contract. The model (Claude Sonnet 4.6 via EMERGENT_LLM_KEY)
+ONLY writes prose from a fact sheet we assemble from live records — it is instructed to NEVER invent a figure, date,
+quantity, serial or coverage term. USER CHOICES: all 3 capabilities (summary + email + Q&A), a new 'AI Assistant'
+sub-tab, Claude Sonnet 4.6, DRAFT-TEXT-ONLY (no Resend send button).
+  - Backend (crm_aftersales.py, appended): `_resolve_linked_org` (contract.linked_organization_id → else via
+    company_id→crm2_companies.linked_organization_id); `_contract_fact_sheet(org_id, contract)` assembles the ground
+    truth — contract basics, package (crm2_afs_packages by tier key) name/description/coverage, covered equipment
+    (db.equipment contract_cover.contract_id==cid on the linked org), service compliance + next 4 visits
+    (_service_compliance), billing compliance + next 4 invoices (_billing_compliance), RPI review for the current
+    cycle. `_facts_to_text` renders it as a compact prompt block; `_gbp` formats money. Strict system prompt
+    `_AI_SYSTEM` + `_EMAIL_BRIEFS` (renewal_reminder / rpi_increase / service_due / welcome / coverage_confirmation /
+    general). Endpoints: GET /ai/contracts (active-contract picker), GET /ai/contracts/{id}/context (fact sheet
+    preview), POST /ai/assistant {contract_id, mode: summary|email|question, email_type?, instruction?, question?} →
+    builds facts, calls Claude (send_message, non-streaming), returns {text, mode, facts, generated_at}. 400 on bad
+    mode / empty question; 404 unknown contract; 503 if no LLM key; 502 on generation failure. Audited
+    (entity_type afs_ai_assistant).
+  - FE (AftersalesApp.js): new SUB_TABS {id:'ai', 'AI Assistant', Sparkles} + TabComp mapping. AIAssistantTab —
+    contract picker (afs-ai-contract), collapsible fact sheet (afs-ai-facts-toggle → afs-ai-factsheet via FactSheet),
+    3 mode buttons (afs-ai-mode-summary/-email/-question), email-type dropdown (afs-ai-email-type) + instruction
+    textarea (afs-ai-instruction), question input (afs-ai-question), Generate (afs-ai-generate, disabled until valid),
+    result card (afs-ai-result) with editable output (afs-ai-output) + Copy (afs-ai-copy), error (afs-ai-error).
+  VERIFIED (testing_agent FE 100% 7/7 + BE curl): AlphaCo PF-MA-CMPDEMO → summary cites £4,200.00 / Gold / covered
+    260G treadmills / 1-of-3 visits / 2-of-6 invoices; renewal email has Subject + body citing 23 Feb 2027; Q 'next
+    invoice?' → '1 October 2026, £350.00' (exact match to facts); belts-covered? → correctly 'excluded'. Empty
+    question → 400. Report /app/test_reports/iteration_afs_ai_assistant_frontend_jan2026.json.
+  KNOWN (pre-existing, cosmetic, NOT from this feature): '<span> in <option>' hydration console warning on the
+    contract dropdown — an artefact of the visual-edit wrapper, not user-visible.
+  AFTERSALES BACKLOG NOW: Task 6 (discount approval routing) CANCELLED by user. All P0-P3 + AI assistant done.
+    Remaining: production Resend delivery verification (needs prod deploy + valid RESEND_API_KEY); real Sicon/Sage push.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · AFTERSALES ENGINE — PROFITABILITY & FORECAST REPORTING (Task 8, P3) (testing_agent BE 4/4 + FE 100%) ═══
 New "Reports" sub-tab: 12-month recurring-revenue forecast + high-claim contract warnings, all deterministic from
 live billing + service-desk data. USER CHOICES: forecast from ACTUAL scheduled invoices; a claim = reactive+repair
