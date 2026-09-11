@@ -1,3 +1,32 @@
+# ═══ 2026-06 · AFTERSALES ENGINE — P4: RPI REVIEW ENGINE + AUTO-RENEWALS (§78-85) (self-verified API + UI) ═══
+Final major piece. crm_aftersales.py + AftersalesApp.js "Renewals & RPI" sub-tab (afs-tab-renewals).
+  - RPI (never hard-codes inflation): GET /rpi/reviews?window_days — for each active contract computes the NEXT
+    anniversary (from start_date), current value, existing review, due flag (<=window). POST /rpi/reviews/{contract_id}
+    {rpi_pct, source, effective_date?} → proposed_value = current*(1+pct/100), stored per anniversary cycle
+    (crm2_afs_rpi_reviews, status 'proposed'). POST /rpi/reviews/{review_id}/approve → applies the increase to the
+    live crm2_contracts.annual_value (rpi_last_review + rpi_effective_date) + audit. Figure is ALWAYS entered
+    manually with a source recorded (§80).
+  - RENEWALS: GET /renewals/pipeline?window_days — active contracts within the expiry window (carry forward company/
+    value/dates + any linked renewal quote). POST /renewals/{contract_id}/build → reuses build_quote_from_estate
+    against the CURRENT estate (source='renewal', tagged renews_contract_id), returns the full auto-quote PLUS
+    renewal_comparison {previous_annual, proposed_annual, change_amount, change_pct} (§84). Gracefully errors if the
+    contract's company has no linked operations org.
+  - FRONTEND RenewalsRpiTab: RPI list (afs-rpi-<cid>, inline afs-rpi-input/-set/-approve showing proposed +%+eff+
+    status) and Renewal pipeline (afs-renewal-<id>, afs-renewal-build → afs-renewal-result showing Previous→Proposed
+    +change%). 
+  VERIFIED: Fire & Rescue RPI 3.2% → £165,000 → £170,280 approved & applied to contract; pipeline reflects new value;
+    renewal build shows correct no-estate message for that (unlinked) contract. NOTE: approving RPI permanently
+    changed the seeded demo contract value to £170,280 (realistic workflow outcome). AlphaCo has a linked estate but
+    no active contract, so a full renew-with-estate demo needs an active AlphaCo contract (data, not code).
+  AFTERSALES ENGINE STATUS: P1 (pricing/supportability/dashboard) ✓, P2 (Build Quote From Estate + exceptions) ✓,
+    P3 (Agreement→Activation) ✓, Warranty-to-Maintenance ✓, P4 (RPI + Renewals) ✓. Sicon/Sage MOCKED (queued).
+  REMAINING BACKLOG: customer-facing quote PDF + portal acceptance; live contract compliance view inside Contracts &
+    Renewals; warranty/RPI task+notification automation (180/120/90/60/30 windows); Contract AI assistant (Emergent
+    key, deterministic-only pricing); reporting/forecast; real Sicon/Sage push; refresh 2 stale test assertions;
+    pre-existing '<span> in <option>' console warning in CRM shell.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · AFTERSALES ENGINE — WARRANTY-TO-MAINTENANCE revenue engine (§90-91) (self-verified: API parity + full UI) ═══
 Turns every expiring Pulse warranty into a ready-made maintenance proposal. Reuses the deterministic auto-quoter.
   - GET /crm/v2/aftersales/revenue/warranty-opportunities?window_days=365 — LIVE scan (no auto-contact) across CRM

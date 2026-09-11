@@ -1651,3 +1651,158 @@ async def build_warranty_proposal(company_id: str, body: WarrantyProposalIn, use
     result["warranty_assets"] = len(asset_ids)
     return result
 
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# RPI REVIEW ENGINE (§78-81) — never hard-codes an inflation figure.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _next_anniversary(start_date, now):
+    d = _parse_dt(start_date if "T" in (start_date or "") else (start_date or "") + "T00:00:00+00:00")
+    if not d:
+        return None
+    anniv = d.replace(year=now.year)
+    if anniv < now:
+        anniv = anniv.replace(year=now.year + 1)
+    return anniv
+
+
+@router.get("/rpi/reviews")
+async def rpi_reviews(window_days: int = 60, user=Depends(get_crm_user)):
+    of = _of(user)
+    now = datetime.now(timezone.utc)
+    rows = []
+    async for cc in db.crm2_contracts.find({**of, "status": "active"},
+                                            {"_id": 0, "id": 1, "company_name": 1, "contract_number": 1,
+                                             "annual_value": 1, "start_date": 1, "end_date": 1}):
+        anniv = _next_anniversary(cc.get("start_date"), now)
+        if not anniv:
+            continue
+        cycle = anniv.strftime("%Y")
+        review = await db.crm2_afs_rpi_reviews.find_one({**of, "contract_id": cc["id"], "cycle": cycle}, _PUBLIC)
+        days = (anniv - now).days
+        rows.append({
+            "contract_id": cc["id"], "contract_number": cc.get("contract_number"),
+            "company_name": cc.get("company_name"), "current_annual_value": cc.get("annual_value", 0),
+            "anniversary_date": anniv.strftime("%Y-%m-%d"), "days_to_anniversary": days,
+            "cycle": cycle, "due": days <= window_days,
+            "review": review,
+        })
+    rows.sort(key=lambda r: r["days_to_anniversary"])
+    return {"reviews": rows, "due_count": sum(1 for r in rows if r["due"] and not (r["review"] or {}).get("status") == "approved")}
+
+
+class RpiSetIn(BaseModel):
+    rpi_pct: float
+    source: str = "Manual entry"
+    effective_date: Optional[str] = None
+
+
+@router.post("/rpi/reviews/{contract_id}")
+async def set_rpi_review(contract_id: str, body: RpiSetIn, user=Depends(get_crm_user)):
+    of = _of(user)
+    cc = await db.crm2_contracts.find_one({"id": contract_id, **of}, _PUBLIC)
+    if not cc:
+        raise HTTPException(404, "Contract not found")
+    now = datetime.now(timezone.utc)
+    anniv = _next_anniversary(cc.get("start_date"), now)
+    cycle = anniv.strftime("%Y") if anniv else str(now.year)
+    current = cc.get("annual_value", 0)
+    proposed = round(current * (1 + body.rpi_pct / 100.0), 2)
+    doc = {
+        "organization_id": _org(user), "contract_id": contract_id, "cycle": cycle,
+        "previous_value": current, "rpi_pct": body.rpi_pct, "proposed_value": proposed,
+        "source": body.source, "effective_date": body.effective_date or (anniv.strftime("%Y-%m-%d") if anniv else None),
+        "anniversary_date": anniv.strftime("%Y-%m-%d") if anniv else None,
+        "status": "proposed", "updated_at": _now(), "created_by": user.get("email"),
+    }
+    existing = await db.crm2_afs_rpi_reviews.find_one({"organization_id": _org(user), "contract_id": contract_id, "cycle": cycle}, _PUBLIC)
+    if existing:
+        doc["id"] = existing["id"]
+        await db.crm2_afs_rpi_reviews.update_one({"id": existing["id"]}, {"$set": doc})
+    else:
+        doc["id"] = _id(); doc["created_at"] = _now()
+        await db.crm2_afs_rpi_reviews.insert_one(doc)
+    await record_audit(entity_type="afs_rpi", entity_id=doc["id"], action="propose", user=user,
+                       extra={"contract": contract_id, "rpi_pct": body.rpi_pct, "proposed": proposed})
+    return await db.crm2_afs_rpi_reviews.find_one({"id": doc["id"]}, _PUBLIC)
+
+
+@router.post("/rpi/reviews/{review_id}/approve")
+async def approve_rpi_review(review_id: str, user=Depends(get_crm_user)):
+    of = _of(user)
+    r = await db.crm2_afs_rpi_reviews.find_one({"id": review_id, **of}, _PUBLIC)
+    if not r:
+        raise HTTPException(404, "RPI review not found")
+    await db.crm2_afs_rpi_reviews.update_one({"id": review_id}, {"$set": {
+        "status": "approved", "approved_by": user.get("email"), "approved_at": _now(), "updated_at": _now()}})
+    # Apply the increase to the live contract effective from the effective date.
+    await db.crm2_contracts.update_one({"id": r["contract_id"], **of}, {"$set": {
+        "annual_value": r["proposed_value"], "rpi_last_review": _now(),
+        "rpi_effective_date": r.get("effective_date"), "updated_at": _now()}})
+    await record_audit(entity_type="afs_rpi", entity_id=review_id, action="approve", user=user,
+                       extra={"contract": r["contract_id"], "old": r["previous_value"], "new": r["proposed_value"]})
+    return {"status": "approved", "contract_id": r["contract_id"], "new_annual_value": r["proposed_value"]}
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# RENEWALS (§82-85) — carry forward, reconcile CURRENT estate, compare.
+# ══════════════════════════════════════════════════════════════════════════
+
+@router.get("/renewals/pipeline")
+async def renewals_pipeline(window_days: int = 120, user=Depends(get_crm_user)):
+    of = _of(user)
+    now = datetime.now(timezone.utc)
+    horizon = (now + timedelta(days=max(1, window_days))).strftime("%Y-%m-%d")
+    today = now.strftime("%Y-%m-%d")
+    rows = []
+    async for cc in db.crm2_contracts.find(
+        {**of, "status": "active", "end_date": {"$lte": horizon, "$gte": today}},
+        {"_id": 0, "id": 1, "company_id": 1, "company_name": 1, "annual_value": 1,
+         "end_date": 1, "tier": 1, "contract_type": 1, "contract_number": 1}).sort("end_date", 1):
+        try:
+            days = (datetime.strptime(cc["end_date"][:10], "%Y-%m-%d").replace(tzinfo=timezone.utc) - now).days
+        except (ValueError, KeyError):
+            days = None
+        renewal = await db.crm2_afs_quotes.find_one(
+            {**of, "source": "renewal", "renews_contract_id": cc["id"]}, {"_id": 0, "id": 1, "quote_number": 1, "summary": 1})
+        rows.append({**cc, "days_to_expiry": days, "renewal_quote": renewal})
+    return {"renewals": rows, "count": len(rows)}
+
+
+class RenewalBuildIn(BaseModel):
+    contract_type: Optional[str] = None
+    pricing_level: str = "standard"
+    term_years: int = 1
+    quote_discount_pct: float = 0.0
+
+
+@router.post("/renewals/{contract_id}/build")
+async def build_renewal(contract_id: str, body: RenewalBuildIn, user=Depends(get_crm_user)):
+    of = _of(user)
+    cc = await db.crm2_contracts.find_one({"id": contract_id, **of}, _PUBLIC)
+    if not cc:
+        raise HTTPException(404, "Contract not found")
+    if not cc.get("company_id"):
+        raise HTTPException(400, "Contract has no linked customer to renew.")
+    build = BuildFromEstateIn(
+        company_id=cc["company_id"], contract_type=(body.contract_type or cc.get("contract_type") or cc.get("tier") or "gold"),
+        pricing_level=body.pricing_level, term_years=body.term_years,
+        quote_discount_pct=body.quote_discount_pct, save=True, source="renewal")
+    result = await build_quote_from_estate(build, user)
+    # Tag the saved renewal quote back to the contract.
+    if result.get("saved_quote_id"):
+        await db.crm2_afs_quotes.update_one(
+            {"id": result["saved_quote_id"], **of},
+            {"$set": {"renews_contract_id": contract_id, "updated_at": _now()}})
+    prev = cc.get("annual_value", 0)
+    proposed = result["summary"]["final_annual"]
+    change = round(proposed - prev, 2)
+    result["renewal_comparison"] = {
+        "previous_annual": prev, "proposed_annual": proposed,
+        "change_amount": change,
+        "change_pct": round((change / prev * 100.0), 2) if prev else None,
+        "renews_contract_id": contract_id, "contract_number": cc.get("contract_number"),
+    }
+    return result
+

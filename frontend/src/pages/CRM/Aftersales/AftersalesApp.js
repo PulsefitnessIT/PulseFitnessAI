@@ -28,6 +28,7 @@ const SUB_TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'autoquote', label: 'Build Quote', icon: Zap },
   { id: 'agreements', label: 'Agreements', icon: FileCheck2 },
+  { id: 'renewals', label: 'Renewals & RPI', icon: RefreshCw },
   { id: 'contracts', label: 'Contracts & Renewals', icon: Shield },
   { id: 'pricing', label: 'Pricing & Rules', icon: SlidersHorizontal },
   { id: 'equipment', label: 'Equipment Review', icon: Wrench },
@@ -727,6 +728,111 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
   );
 }
 
+// ───────────────────────────────────────────────────────── Renewals & RPI
+function RenewalsRpiTab({ API, headers, c, isDark }) {
+  const [rpi, setRpi] = useState([]);
+  const [renewals, setRenewals] = useState([]);
+  const [edit, setEdit] = useState({});
+  const [renResult, setRenResult] = useState({});
+  const [busy, setBusy] = useState('');
+  const inpStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text };
+
+  const load = useCallback(() => {
+    Promise.all([
+      axios.get(`${API}/crm/v2/aftersales/rpi/reviews?window_days=200`, { headers: headers() }),
+      axios.get(`${API}/crm/v2/aftersales/renewals/pipeline?window_days=200`, { headers: headers() }),
+    ]).then(([a, b]) => { setRpi(a.data.reviews || []); setRenewals(b.data.renewals || []); });
+  }, [API, headers]);
+  useEffect(load, [load]);
+
+  const setRpiPct = async (cid) => {
+    const pct = Number(edit[cid]); if (!pct) return;
+    setBusy('rpi-' + cid);
+    try { await axios.post(`${API}/crm/v2/aftersales/rpi/reviews/${cid}`, { rpi_pct: pct, source: 'Manual entry' }, { headers: headers() }); load(); } finally { setBusy(''); }
+  };
+  const approveRpi = async (rid) => { setBusy('rpi-' + rid); try { await axios.post(`${API}/crm/v2/aftersales/rpi/reviews/${rid}/approve`, {}, { headers: headers() }); load(); } finally { setBusy(''); } };
+  const buildRenewal = async (cid) => {
+    setBusy('ren-' + cid);
+    try { const r = await axios.post(`${API}/crm/v2/aftersales/renewals/${cid}/build`, {}, { headers: headers() }); setRenResult(x => ({ ...x, [cid]: r.data })); load(); }
+    catch (e) { setRenResult(x => ({ ...x, [cid]: { error: e.response?.data?.detail || 'Build failed' } })); } finally { setBusy(''); }
+  };
+
+  return (
+    <div data-testid="afs-renewals" className="space-y-6">
+      {/* RPI */}
+      <div>
+        <div className="flex items-center gap-2 mb-2"><TrendingUp size={16} style={{ color: 'var(--color-accent-amber)' }} /><h3 className="text-sm font-bold" style={{ color: c.text }}>RPI Reviews</h3><span className="text-[11px]" style={{ color: c.textDim }}>index-linked increases (figure entered manually — never assumed)</span></div>
+        <div className="space-y-2" data-testid="afs-rpi-list">
+          {rpi.length === 0 && <p className="text-sm py-4 text-center" style={{ color: c.textDim }}>No active contracts to review.</p>}
+          {rpi.map(r => {
+            const rev = r.review;
+            return (
+              <Card key={r.contract_id} c={c} isDark={isDark} testId={`afs-rpi-${r.contract_id}`}>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex-1 min-w-[180px]">
+                    <p className="text-sm font-semibold" style={{ color: c.text }}>{r.company_name} {r.due && <span className="text-[9px] px-1.5 py-0.5 rounded ml-1" style={{ background: 'var(--color-accent-amber)22', color: 'var(--color-accent-amber)' }}>DUE</span>}</p>
+                    <p className="text-xs" style={{ color: c.textDim }}>Anniversary {r.anniversary_date} ({r.days_to_anniversary}d) · current {gbp(r.current_annual_value)}</p>
+                  </div>
+                  {(!rev || rev.status !== 'approved') && (
+                    <div className="flex items-center gap-1.5">
+                      <input data-testid={`afs-rpi-input-${r.contract_id}`} type="number" step="0.1" placeholder="RPI %" value={edit[r.contract_id] ?? (rev?.rpi_pct ?? '')} onChange={e => setEdit(x => ({ ...x, [r.contract_id]: e.target.value }))} className="w-20 px-2 py-1 text-sm rounded-md text-right" style={inpStyle} />
+                      <button data-testid={`afs-rpi-set-${r.contract_id}`} onClick={() => setRpiPct(r.contract_id)} disabled={busy === 'rpi-' + r.contract_id} className="text-xs px-2.5 py-1.5 rounded-md" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>Calculate</button>
+                    </div>
+                  )}
+                  {rev && (
+                    <div className="text-right">
+                      <p className="text-sm font-bold" style={{ color: rev.status === 'approved' ? 'var(--color-success-alt)' : c.text }}>{gbp(rev.proposed_value)} <span className="text-[10px] font-normal" style={{ color: c.textDim }}>(+{rev.rpi_pct}%)</span></p>
+                      <p className="text-[10px]" style={{ color: c.textDim }}>eff {rev.effective_date} · {rev.status}</p>
+                    </div>
+                  )}
+                  {rev && rev.status === 'proposed' && (
+                    <button data-testid={`afs-rpi-approve-${r.contract_id}`} onClick={() => approveRpi(rev.id)} disabled={busy === 'rpi-' + rev.id} className="text-xs px-3 py-1.5 rounded-md font-semibold" style={{ background: 'var(--color-success-alt)', color: '#fff' }}>Approve</button>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Renewals */}
+      <div>
+        <div className="flex items-center gap-2 mb-2"><RefreshCw size={16} style={{ color: 'var(--color-info-ios)' }} /><h3 className="text-sm font-bold" style={{ color: c.text }}>Renewal Pipeline</h3><span className="text-[11px]" style={{ color: c.textDim }}>contracts approaching expiry — renew against the CURRENT estate</span></div>
+        <div className="space-y-2" data-testid="afs-renewals-list">
+          {renewals.length === 0 && <p className="text-sm py-4 text-center" style={{ color: c.textDim }}>No contracts due for renewal in the window.</p>}
+          {renewals.map(r => {
+            const res = renResult[r.id];
+            return (
+              <Card key={r.id} c={c} isDark={isDark} testId={`afs-renewal-${r.id}`}>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex-1 min-w-[180px]">
+                    <p className="text-sm font-semibold" style={{ color: c.text }}>{r.company_name}</p>
+                    <p className="text-xs" style={{ color: c.textDim }}>Ends {r.end_date} ({r.days_to_expiry}d) · current {gbp(r.annual_value)}</p>
+                  </div>
+                  <button data-testid={`afs-renewal-build-${r.id}`} onClick={() => buildRenewal(r.id)} disabled={busy === 'ren-' + r.id} className="text-xs px-3 py-1.5 rounded-md font-semibold inline-flex items-center gap-1.5" style={{ background: 'var(--color-info-ios)', color: '#fff' }}><Rocket size={13} /> {busy === 'ren-' + r.id ? 'Building…' : 'Build Renewal'}</button>
+                </div>
+                {res && res.error && <p className="text-xs mt-2" style={{ color: 'var(--color-accent-amber)' }}>{res.error}</p>}
+                {res && res.renewal_comparison && (
+                  <div className="mt-2 pt-2 border-t flex flex-wrap items-center gap-4 text-sm" style={{ borderColor: c.border }} data-testid={`afs-renewal-result-${r.id}`}>
+                    <span style={{ color: c.textDim }}>Previous <b style={{ color: c.text }}>{gbp(res.renewal_comparison.previous_annual)}</b></span>
+                    <span style={{ color: c.textDim }}>Proposed <b style={{ color: 'var(--color-success-alt)' }}>{gbp(res.renewal_comparison.proposed_annual)}</b></span>
+                    {res.renewal_comparison.change_pct != null && (
+                      <span style={{ color: res.renewal_comparison.change_amount >= 0 ? 'var(--color-success-alt)' : 'var(--color-danger)' }}>
+                        {res.renewal_comparison.change_amount >= 0 ? '+' : ''}{gbp(res.renewal_comparison.change_amount)} ({res.renewal_comparison.change_pct}%)
+                      </span>
+                    )}
+                    <span className="text-[11px]" style={{ color: c.textDim }}>{res.assets_priced}/{res.assets_total} priced · {res.exception_count} exceptions · saved {res.quote_number}</span>
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ───────────────────────────────────────────────────────── Agreements + Activation
 const AG_STATUS = {
   draft: { label: 'Draft', color: 'var(--color-text-faint-alt)' },
@@ -950,7 +1056,7 @@ export default function AftersalesApp() {
   const crm = useCRM();
   const { API, headers, c, isDark } = crm;
   const [tab, setTab] = useState('dashboard');
-  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, agreements: AgreementsTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab }[tab];
+  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, agreements: AgreementsTab, renewals: RenewalsRpiTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab }[tab];
   return (
     <div data-testid="afs-app">
       <div className="mb-4">
