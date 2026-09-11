@@ -133,8 +133,12 @@ def _sheet_meta(ws):
 @router.post("/analyze")
 async def analyze(file: UploadFile = File(...), user=Depends(get_crm_user)):
     raw = await file.read()
-    if len(raw) > 20 * 1024 * 1024:
-        raise HTTPException(413, "File too large (max 20MB).")
+    # A staged spreadsheet is base64'd into its import doc; keep it well under
+    # MongoDB's 16MB document ceiling. For anything bigger, split it and use
+    # multi-file merge (drop several files into one estate).
+    if len(raw) > 10 * 1024 * 1024:
+        raise HTTPException(413, "That spreadsheet is over 10MB. Split it into smaller files and use "
+                                 "'Merge multiple files' to combine them into one estate.")
     try:
         wb = _read_workbook(raw)
     except Exception as e:
@@ -655,22 +659,26 @@ async def commit(import_id: str, user=Depends(get_crm_user)):
 
     # 3) Sites (one per distinct site name) under the customer org.
     site_ids = {}
+    site_docs = []
     for r in rows:
         sn = r["clean"]["site_name"] or "Unassigned site"
         if sn not in site_ids:
             sid = _id()
             site_ids[sn] = sid
-            await db.sites.insert_one({
+            site_docs.append({
                 "id": sid, "organization_id": cust_org_id, "name": sn,
                 "site_code": r["clean"]["site_code"] or None, "status": "active",
                 "created_via": "afs_estate_onboarding", "created_at": _now(), "updated_at": _now()})
+    if site_docs:
+        await db.sites.insert_many(site_docs)
 
-    # 4) Equipment register rows.
+    # 4) Equipment register rows (batched insert_many — scales to large estates).
+    eq_docs = []
     for r in rows:
         c = r["clean"]
         eid = _id()
         r["_equipment_id"] = eid
-        await db.equipment.insert_one({
+        eq_docs.append({
             "id": eid, "organization_id": cust_org_id,
             "site_id": site_ids.get(c["site_name"]),
             "name": c["description"] or c["model"] or "Equipment",
@@ -679,6 +687,8 @@ async def commit(import_id: str, user=Depends(get_crm_user)):
             "install_date": c["install_date"], "warranty_expiry": c["warranty_end"],
             "source": "afs_estate_onboarding", "contract_cover": None,
             "created_at": _now(), "updated_at": _now()})
+    for i in range(0, len(eq_docs), 500):
+        await db.equipment.insert_many(eq_docs[i:i + 500])
 
     # 5) Grouped DRAFT contracts, carrying the chosen (inherited/Pulse) value.
     groups: Dict[str, List[dict]] = {}
@@ -754,3 +764,126 @@ async def config_search(q: str = "", limit: int = 20, user=Depends(get_crm_user)
         query, {"_id": 0, "id": 1, "model": 1, "console_type": 1, "display_name": 1,
                 "service_name": 1, "rrp_snapshot": 1, "manual_rrp_override": 1}).limit(max(1, min(limit, 50))).to_list(50)
     return {"configs": cfgs}
+
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# MULTI-FILE MERGE — one customer, several files (spreadsheets + invoices)
+# merged into a single estate before commit. Scales to large estates by
+# splitting big files and appending each; nothing is stored beyond parsed rows.
+# ══════════════════════════════════════════════════════════════════════════
+_MAX_MERGED_ROWS = 8000
+
+
+async def _append_to_session(session, new_rows, source_meta):
+    rows = (session.get("rows") or []) + new_rows
+    if len(rows) > _MAX_MERGED_ROWS:
+        raise HTTPException(413, f"This estate would exceed {_MAX_MERGED_ROWS} assets. "
+                                 f"Commit what you have, then start another import for the rest.")
+    for i, r in enumerate(rows):
+        r["index"] = i
+    sources = (session.get("sources") or []) + [source_meta]
+    summary = _summarise(rows)
+    await db.crm2_afs_onboarding.update_one(
+        {"id": session["id"]}, {"$set": {"rows": rows, "sources": sources,
+                                         "summary": summary, "updated_at": _now()}})
+    return {"summary": summary, "sources": sources, "added": len(new_rows), "total": len(rows)}
+
+
+class SessionIn(BaseModel):
+    customer_name: str
+    contract_type: str = "gold"
+    grouping: str = "per_site"
+
+
+@router.post("/session")
+async def create_session(body: SessionIn, user=Depends(get_crm_user)):
+    if not body.customer_name.strip():
+        raise HTTPException(400, "Enter the customer name.")
+    doc = {
+        "id": _id(), "organization_id": _org(user), "created_by": user.get("email"),
+        "created_at": _now(), "updated_at": _now(), "status": "reviewed", "source": "merged",
+        "customer_name": body.customer_name.strip(), "contract_type": body.contract_type,
+        "pricing_level": "standard", "grouping": body.grouping,
+        "rows": [], "sources": [], "summary": _summarise([]),
+    }
+    await db.crm2_afs_onboarding.insert_one(dict(doc))
+    return {"import_id": doc["id"], "customer_name": doc["customer_name"],
+            "contract_type": body.contract_type, "grouping": body.grouping,
+            "summary": doc["summary"], "sources": []}
+
+
+class AppendSheetIn(BaseModel):
+    source_import_id: str          # a scratch doc created by /analyze (holds the file)
+    sheet_name: str
+    header_row: int = 2
+    column_map: Dict[str, int]
+
+
+@router.post("/{import_id}/append-spreadsheet")
+async def append_spreadsheet(import_id: str, body: AppendSheetIn, user=Depends(get_crm_user)):
+    of = _of(user)
+    org_id = _org(user)
+    session = await db.crm2_afs_onboarding.find_one({"id": import_id, "source": "merged", **of})
+    if not session:
+        raise HTTPException(404, "Merge session not found")
+    scratch = await db.crm2_afs_onboarding.find_one({"id": body.source_import_id, **of})
+    if not scratch or not scratch.get("file_b64"):
+        raise HTTPException(404, "Uploaded file not found — re-upload it.")
+    wb = _read_workbook(base64.b64decode(scratch["file_b64"]))
+    if body.sheet_name not in wb.sheetnames:
+        raise HTTPException(400, "Sheet not found in the uploaded file.")
+    ws = wb[body.sheet_name]
+    cleans = []
+    for vals in ws.iter_rows(min_row=body.header_row + 1, values_only=True):
+        vals = list(vals)
+        if not any(v not in (None, "") for v in vals[:14]):
+            continue
+        clean = _clean_row(vals, body.column_map)
+        if not clean["description"] and not clean["model"] and not clean["make"]:
+            continue
+        cleans.append(clean)
+    rows = await _assemble_and_price(org_id, cleans, session.get("contract_type", "gold"),
+                                     session.get("pricing_level", "standard"))
+    res = await _append_to_session(session, rows,
+                                   {"filename": scratch.get("filename"), "type": "spreadsheet",
+                                    "rows": len(rows), "added_at": _now()})
+    await db.crm2_afs_onboarding.delete_one({"id": body.source_import_id, **of})  # drop scratch (frees the stored file)
+    await record_audit(entity_type="afs_onboarding", entity_id=import_id, action="append_spreadsheet",
+                       user=user, extra={"file": scratch.get("filename"), "rows": len(rows)})
+    return res
+
+
+@router.post("/{import_id}/append-pdf")
+async def append_pdf(import_id: str, file: UploadFile = File(...), user=Depends(get_crm_user)):
+    of = _of(user)
+    org_id = _org(user)
+    session = await db.crm2_afs_onboarding.find_one({"id": import_id, "source": "merged", **of})
+    if not session:
+        raise HTTPException(404, "Merge session not found")
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "Empty file.")
+    if len(raw) > 25 * 1024 * 1024:
+        raise HTTPException(413, "File too large (max 25MB).")
+    try:
+        data = await _extract_invoice(raw)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(502, f"Could not read the invoice: {e}")
+    lines = data.get("lines") or []
+    if not lines:
+        raise HTTPException(422, "No equipment/pricing lines were found in that document.")
+    site = (data.get("site_name") or session.get("customer_name") or "Site").strip()
+    cleans = []
+    for ln in lines:
+        cleans.extend(_invoice_line_to_cleans(ln, site))
+    rows = await _assemble_and_price(org_id, cleans, session.get("contract_type", "gold"),
+                                     session.get("pricing_level", "standard"))
+    res = await _append_to_session(session, rows,
+                                   {"filename": file.filename, "type": "invoice_pdf",
+                                    "rows": len(rows), "added_at": _now()})
+    await record_audit(entity_type="afs_onboarding", entity_id=import_id, action="append_pdf",
+                       user=user, extra={"file": file.filename, "lines": len(lines), "rows": len(rows)})
+    return res

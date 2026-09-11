@@ -57,6 +57,14 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
   const [exceptionsOnly, setExceptionsOnly] = useState(true);
   const [done, setDone] = useState(null);
 
+  // multi-file merge
+  const [mergeSummary, setMergeSummary] = useState(null);
+  const [mergeSources, setMergeSources] = useState([]);
+  const [mergeScratch, setMergeScratch] = useState(null); // {import_id, sheets, column_map, ...}
+  const [mergeSheet, setMergeSheet] = useState('');
+  const [mergeHeaderRow, setMergeHeaderRow] = useState(2);
+  const [mergeMap, setMergeMap] = useState({});
+
   const sheetMeta = analysis?.sheets?.find(s => s.name === sheetName);
 
   const doAnalyze = async () => {
@@ -140,6 +148,64 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
   const reset = () => {
     setStep('upload'); setFile(null); setAnalysis(null); setImportId(''); setReview(null);
     setDone(null); setCustomer(''); setErr('');
+    setMergeSummary(null); setMergeSources([]); setMergeScratch(null); setMergeMap({});
+  };
+
+  const startSession = async () => {
+    if (!customer.trim()) { setErr('Enter the customer name.'); return; }
+    setBusy(true); setErr('');
+    try {
+      const r = await axios.post(`${API}/crm/v2/aftersales/onboarding/session`,
+        { customer_name: customer.trim(), contract_type: tier, grouping }, { headers: headers() });
+      setImportId(r.data.import_id); setMergeSummary(r.data.summary); setMergeSources(r.data.sources || []);
+    } catch (e) { setErr(e?.response?.data?.detail || 'Could not start the merge session.'); }
+    finally { setBusy(false); }
+  };
+
+  const mergeAnalyzeSheet = async () => {
+    if (!file) return;
+    setBusy(true); setErr('');
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const r = await axios.post(`${API}/crm/v2/aftersales/onboarding/analyze`, fd, { headers: headers() });
+      setMergeScratch(r.data); setMergeSheet(r.data.suggested_sheet);
+      setMergeHeaderRow(r.data.suggested_header_row); setMergeMap(r.data.column_map || {});
+    } catch (e) { setErr(e?.response?.data?.detail || 'Could not read that spreadsheet.'); }
+    finally { setBusy(false); }
+  };
+
+  const mergeAddSpreadsheet = async () => {
+    setBusy(true); setErr('');
+    try {
+      const r = await axios.post(`${API}/crm/v2/aftersales/onboarding/${importId}/append-spreadsheet`, {
+        source_import_id: mergeScratch.import_id, sheet_name: mergeSheet, header_row: Number(mergeHeaderRow),
+        column_map: Object.fromEntries(Object.entries(mergeMap).map(([k, v]) => [k, Number(v)])),
+      }, { headers: headers() });
+      setMergeSummary(r.data.summary); setMergeSources(r.data.sources);
+      setMergeScratch(null); setFile(null);
+    } catch (e) { setErr(e?.response?.data?.detail || 'Could not add that spreadsheet.'); }
+    finally { setBusy(false); }
+  };
+
+  const mergeAddPdf = async () => {
+    if (!file) return;
+    setBusy(true); setErr('');
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const r = await axios.post(`${API}/crm/v2/aftersales/onboarding/${importId}/append-pdf`, fd, { headers: headers() });
+      setMergeSummary(r.data.summary); setMergeSources(r.data.sources); setFile(null);
+    } catch (e) { setErr(e?.response?.data?.detail || 'Could not read that invoice.'); }
+    finally { setBusy(false); }
+  };
+
+  const goToMergeReview = async () => {
+    setBusy(true); setErr('');
+    try {
+      const r = await axios.get(`${API}/crm/v2/aftersales/onboarding/${importId}`, { headers: headers() });
+      setReview({ rows: r.data.rows || [], summary: r.data.summary, source: 'merged' });
+      setStep('review');
+    } catch (e) { setErr(e?.response?.data?.detail || 'Could not load the estate.'); }
+    finally { setBusy(false); }
   };
 
   const stat = (label, val, testId, color) => (
@@ -185,8 +251,8 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
       {/* STEP 1 — UPLOAD */}
       {step === 'upload' && (
         <Card c={c} isDark={isDark}>
-          <div className="flex gap-2 mb-4" data-testid="afs-onb-source">
-            {[['spreadsheet', 'Inventory spreadsheet', FileSpreadsheet], ['pdf', 'Invoice / agreement (PDF)', UploadCloud]].map(([id, label, Icon]) => (
+          <div className="flex flex-wrap gap-2 mb-4" data-testid="afs-onb-source">
+            {[['spreadsheet', 'Inventory spreadsheet', FileSpreadsheet], ['pdf', 'Invoice / agreement (PDF)', UploadCloud], ['merge', 'Merge multiple files', Building2]].map(([id, label, Icon]) => (
               <button key={id} data-testid={`afs-onb-source-${id}`}
                 onClick={() => { setSourceType(id); setFile(null); setErr(''); }}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium"
@@ -198,58 +264,187 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
             ))}
           </div>
 
-          {sourceType === 'pdf' && (
-            <div className="grid md:grid-cols-3 gap-3 mb-4">
-              <div>
-                <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Customer name</label>
-                <input data-testid="afs-onb-pdf-customer" value={customer} onChange={e => setCustomer(e.target.value)}
-                  placeholder="e.g. Riverside Leisure Trust"
-                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
-              </div>
-              <div>
-                <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Package tier</label>
-                <select data-testid="afs-onb-pdf-tier" value={tier} onChange={e => setTier(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
-                  <option value="silver">Silver</option><option value="gold">Gold</option><option value="platinum">Platinum</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Group contracts by</label>
-                <select data-testid="afs-onb-pdf-grouping" value={grouping} onChange={e => setGrouping(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
-                  <option value="master">One master contract</option>
-                  <option value="per_site">One contract per site</option>
-                  <option value="per_status">Split by Contract vs Warranty</option>
-                </select>
-              </div>
-            </div>
+          {(sourceType === 'spreadsheet' || sourceType === 'pdf') && (
+            <>
+              {sourceType === 'pdf' && (
+                <div className="grid md:grid-cols-3 gap-3 mb-4">
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Customer name</label>
+                    <input data-testid="afs-onb-pdf-customer" value={customer} onChange={e => setCustomer(e.target.value)}
+                      placeholder="e.g. Riverside Leisure Trust"
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Package tier</label>
+                    <select data-testid="afs-onb-pdf-tier" value={tier} onChange={e => setTier(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                      <option value="silver">Silver</option><option value="gold">Gold</option><option value="platinum">Platinum</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Group contracts by</label>
+                    <select data-testid="afs-onb-pdf-grouping" value={grouping} onChange={e => setGrouping(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                      <option value="master">One master contract</option>
+                      <option value="per_site">One contract per site</option>
+                      <option value="per_status">Split by Contract vs Warranty</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <label className="block p-8 rounded-xl border-2 border-dashed text-center cursor-pointer"
+                style={{ borderColor: c.border }} data-testid="afs-onb-dropzone">
+                <input type="file" accept={sourceType === 'pdf' ? '.pdf' : '.xlsx,.xls'} className="hidden" data-testid="afs-onb-file"
+                  onChange={e => setFile(e.target.files?.[0] || null)} />
+                <UploadCloud size={30} className="mx-auto mb-2" style={{ color: 'var(--color-brand-cyan)' }} />
+                <p className="text-sm font-semibold" style={{ color: c.text }}>
+                  {file ? file.name : (sourceType === 'pdf' ? 'Choose a prior invoice / agreement (.pdf)' : 'Choose an .xlsx inventory')}
+                </p>
+                <p className="text-xs mt-1" style={{ color: c.textDim }}>
+                  {sourceType === 'pdf' ? 'AI reads what they currently pay — you review before anything is created' : 'Any layout — we detect the sheet and columns for you'}
+                </p>
+              </label>
+
+              {sourceType === 'spreadsheet' ? (
+                <button data-testid="afs-onb-analyze" onClick={doAnalyze} disabled={!file || busy}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold"
+                  style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: (!file || busy) ? 0.5 : 1 }}>
+                  {busy ? <RotateCw size={15} className="animate-spin" /> : <ArrowRight size={15} />} Analyse file
+                </button>
+              ) : (
+                <button data-testid="afs-onb-extract" onClick={doAnalyzePdf} disabled={!file || busy}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold"
+                  style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: (!file || busy) ? 0.5 : 1 }}>
+                  {busy ? <RotateCw size={15} className="animate-spin" /> : <ArrowRight size={15} />} {busy ? 'Reading invoice…' : 'Extract invoice'}
+                </button>
+              )}
+            </>
           )}
 
-          <label className="block p-8 rounded-xl border-2 border-dashed text-center cursor-pointer"
-            style={{ borderColor: c.border }} data-testid="afs-onb-dropzone">
-            <input type="file" accept={sourceType === 'pdf' ? '.pdf' : '.xlsx,.xls'} className="hidden" data-testid="afs-onb-file"
-              onChange={e => setFile(e.target.files?.[0] || null)} />
-            <UploadCloud size={30} className="mx-auto mb-2" style={{ color: 'var(--color-brand-cyan)' }} />
-            <p className="text-sm font-semibold" style={{ color: c.text }}>
-              {file ? file.name : (sourceType === 'pdf' ? 'Choose a prior invoice / agreement (.pdf)' : 'Choose an .xlsx inventory')}
-            </p>
-            <p className="text-xs mt-1" style={{ color: c.textDim }}>
-              {sourceType === 'pdf' ? 'AI reads what they currently pay — you review before anything is created' : 'Any layout — we detect the sheet and columns for you'}
-            </p>
-          </label>
+          {sourceType === 'merge' && (
+            <div data-testid="afs-onb-merge">
+              {!importId ? (
+                <div className="grid md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Customer name</label>
+                    <input data-testid="afs-onb-merge-customer" value={customer} onChange={e => setCustomer(e.target.value)}
+                      placeholder="e.g. Wiltshire Council"
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Package tier</label>
+                    <select data-testid="afs-onb-merge-tier" value={tier} onChange={e => setTier(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                      <option value="silver">Silver</option><option value="gold">Gold</option><option value="platinum">Platinum</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Group contracts by</label>
+                    <select data-testid="afs-onb-merge-grouping" value={grouping} onChange={e => setGrouping(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                      <option value="per_site">One contract per site</option>
+                      <option value="master">One master contract</option>
+                      <option value="per_status">Split by Contract vs Warranty</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-3">
+                    <button data-testid="afs-onb-merge-start" onClick={startSession} disabled={busy || !customer.trim()}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold"
+                      style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: (busy || !customer.trim()) ? 0.5 : 1 }}>
+                      {busy ? <RotateCw size={15} className="animate-spin" /> : <ArrowRight size={15} />} Start merge for {customer.trim() || 'customer'}
+                    </button>
+                    <p className="text-xs mt-2" style={{ color: c.textDim }}>
+                      Add several spreadsheets and/or invoices for one customer, then review and commit them as a single estate.
+                      Big file? Split it and add the parts here.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* running totals */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {stat('Assets so far', mergeSummary?.included || 0, 'afs-onb-merge-assets')}
+                    {stat('Sites', mergeSummary?.sites || 0, 'afs-onb-merge-sites')}
+                    {stat('Matched to Pulse', mergeSummary?.matched || 0, 'afs-onb-merge-matched', 'var(--color-success-alt)')}
+                    {stat('Chosen annual', gbp(mergeSummary?.chosen_annual || 0), 'afs-onb-merge-annual', 'var(--color-brand-cyan)')}
+                  </div>
 
-          {sourceType === 'spreadsheet' ? (
-            <button data-testid="afs-onb-analyze" onClick={doAnalyze} disabled={!file || busy}
-              className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold"
-              style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: (!file || busy) ? 0.5 : 1 }}>
-              {busy ? <RotateCw size={15} className="animate-spin" /> : <ArrowRight size={15} />} Analyse file
-            </button>
-          ) : (
-            <button data-testid="afs-onb-extract" onClick={doAnalyzePdf} disabled={!file || busy}
-              className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold"
-              style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: (!file || busy) ? 0.5 : 1 }}>
-              {busy ? <RotateCw size={15} className="animate-spin" /> : <ArrowRight size={15} />} {busy ? 'Reading invoice…' : 'Extract invoice'}
-            </button>
+                  {/* sources added */}
+                  <div data-testid="afs-onb-merge-sources">
+                    <p className="text-xs font-bold mb-1" style={{ color: c.textDim }}>Files added ({mergeSources.length})</p>
+                    {mergeSources.length === 0
+                      ? <p className="text-xs" style={{ color: c.textDim }}>No files added yet — add a spreadsheet or invoice below.</p>
+                      : mergeSources.map((s, i) => (
+                        <div key={i} className="flex justify-between text-xs py-0.5" style={{ color: c.text }}>
+                          <span>{s.type === 'invoice_pdf' ? '📄' : '📊'} {s.filename || 'file'}</span>
+                          <span style={{ color: c.textDim }}>{s.rows} assets</span>
+                        </div>
+                      ))}
+                  </div>
+
+                  {/* add another file */}
+                  <div className="p-3 rounded-lg border" style={{ borderColor: c.border }}>
+                    <label className="block p-4 rounded-lg border-2 border-dashed text-center cursor-pointer mb-2"
+                      style={{ borderColor: c.border }}>
+                      <input type="file" accept=".xlsx,.xls,.pdf" className="hidden" data-testid="afs-onb-merge-file"
+                        onChange={e => { setFile(e.target.files?.[0] || null); setMergeScratch(null); }} />
+                      <p className="text-xs font-semibold" style={{ color: c.text }}>{file ? file.name : 'Add a spreadsheet or invoice (.xlsx / .pdf)'}</p>
+                    </label>
+                    {file && /\.pdf$/i.test(file.name) && (
+                      <button data-testid="afs-onb-merge-add-pdf" onClick={mergeAddPdf} disabled={busy}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold"
+                        style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: busy ? 0.5 : 1 }}>
+                        {busy ? <RotateCw size={14} className="animate-spin" /> : <ArrowRight size={14} />} {busy ? 'Reading invoice…' : 'Add invoice to estate'}
+                      </button>
+                    )}
+                    {file && !/\.pdf$/i.test(file.name) && !mergeScratch && (
+                      <button data-testid="afs-onb-merge-analyze" onClick={mergeAnalyzeSheet} disabled={busy}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold"
+                        style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: busy ? 0.5 : 1 }}>
+                        {busy ? <RotateCw size={14} className="animate-spin" /> : <ArrowRight size={14} />} Analyse &amp; map
+                      </button>
+                    )}
+                    {mergeScratch && (
+                      <div className="mt-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs" style={{ color: c.textDim }}>Sheet</span>
+                          <select data-testid="afs-onb-merge-sheet" value={mergeSheet}
+                            onChange={e => { setMergeSheet(e.target.value); const m = mergeScratch.sheets?.find(s => s.name === e.target.value); if (m) setMergeHeaderRow(m.header_row); }}
+                            className="px-2 py-1 rounded text-xs" style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                            {mergeScratch.sheets.map(s => <option key={s.name} value={s.name}>{s.name} ({s.n_rows})</option>)}
+                          </select>
+                        </div>
+                        <div className="grid sm:grid-cols-2 gap-1.5 mb-2">
+                          {CANON.map(f => (
+                            <div key={f.id} className="flex items-center gap-2">
+                              <span className="text-[11px] w-28 shrink-0" style={{ color: c.textDim }}>{f.label}</span>
+                              <select data-testid={`afs-onb-merge-map-${f.id}`} value={mergeMap[f.id] ?? ''}
+                                onChange={e => setMergeMap(m => { const n = { ...m }; if (e.target.value === '') delete n[f.id]; else n[f.id] = Number(e.target.value); return n; })}
+                                className="flex-1 px-2 py-1 rounded text-[11px]" style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                                <option value="">— not in file —</option>
+                                {((mergeScratch.sheets.find(s => s.name === mergeSheet) || {}).headers || []).map((h, i) => <option key={i} value={i}>{h || `Column ${i + 1}`}</option>)}
+                              </select>
+                            </div>
+                          ))}
+                        </div>
+                        <button data-testid="afs-onb-merge-add-sheet" onClick={mergeAddSpreadsheet} disabled={busy}
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold"
+                          style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: busy ? 0.5 : 1 }}>
+                          {busy ? <RotateCw size={14} className="animate-spin" /> : <ArrowRight size={14} />} Add to estate
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <button data-testid="afs-onb-merge-review" onClick={goToMergeReview} disabled={busy || (mergeSummary?.included || 0) === 0}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold"
+                    style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: (busy || (mergeSummary?.included || 0) === 0) ? 0.5 : 1 }}>
+                    <ArrowRight size={15} /> Review estate ({mergeSummary?.included || 0} assets)
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </Card>
       )}

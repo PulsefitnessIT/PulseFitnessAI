@@ -1,3 +1,27 @@
+# ═══ 2026-06 · AFTERSALES ONBOARDING — MULTI-FILE MERGE + LARGE-FILE HANDLING (BE curl-verified + FE smoke) ═══
+Drop several files (spreadsheets AND invoices) for ONE customer, merged into a single estate before commit. Built for
+large estates: split a big file and add the parts.
+  - Backend (crm_afs_onboarding.py): shared `_assemble_and_price` reused. NEW merge endpoints: POST /session
+    {customer_name,contract_type,grouping} → empty merged import doc (source='merged'); POST /{id}/append-spreadsheet
+    {source_import_id (a scratch /analyze doc),sheet_name,header_row,column_map} → parse+assemble+APPEND, then DELETE
+    the scratch doc (frees the stored file); POST /{id}/append-pdf (multipart) → extract+assemble+APPEND.
+    `_append_to_session` concatenates rows, re-indexes, tracks sources[], recomputes summary; guard _MAX_MERGED_ROWS=8000.
+    PATCH/commit unchanged (operate on the merged doc). LARGE-FILE handling: (1) /analyze stage cap tightened to 10MB
+    (base64-in-Mongo stays under the 16MB doc ceiling) with a message pointing to multi-file merge; (2) commit now uses
+    batched insert_many (sites in one call, equipment in 500-chunks) — 715 assets committed in 0.22s (was per-row
+    insert_one). GET /{id} returns rows for the review step.
+  - FE (EstateOnboarding.js): 3rd source toggle 'Merge multiple files' (afs-onb-source-merge). Panel: start session
+    (afs-onb-merge-customer/-tier/-grouping/-start) → running totals (afs-onb-merge-assets/-sites/-matched/-annual) +
+    files-added list (afs-onb-merge-sources) + add-file area (afs-onb-merge-file; PDF → afs-onb-merge-add-pdf; xlsx →
+    afs-onb-merge-analyze → sheet select afs-onb-merge-sheet + compact map afs-onb-merge-map-<field> → afs-onb-merge-
+    add-sheet) → afs-onb-merge-review loads the merged rows into the existing Review step → commit.
+  VERIFIED (BE curl, then purged): session + append Wiltshire (707) + append invoice (8) = 715 assets / 18 sites /
+    406 matched / inherited £112,200.69; commit 18 sites/715 equipment/18 contracts in 0.22s. FE smoke: merge toggle →
+    start session → running tiles + add-file + review button all render (screenshot). Both compile clean (fixed a
+    dropped </Card> during the edit). KNOWN pre-existing cosmetic <span>-in-<option> dev warning (visual-editor).
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · AFTERSALES ONBOARDING — INVOICE/AGREEMENT PDF PATH (BE curl-verified + FE smoke) ═══
 Adds a second ingestion route into the SAME estate-onboarding review queue: upload a prior supplier's maintenance
 invoice/agreement PDF → AI extracts what the customer currently pays → flows through the identical match → dual-price
