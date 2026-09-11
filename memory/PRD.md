@@ -1,3 +1,16 @@
+# ═══ 2026-06 · ONBOARDING MERGE — REMOVE A FILE (BE curl + FE browser verified) ═══
+Undo a single added file from a merge session before commit. `_append_to_session` now tags every appended row with a
+`source_id` (also stored on the sources[] entry). NEW: DELETE /crm/v2/aftersales/onboarding/{id}/sources/{source_id}
+→ drops that file's rows + its source entry, re-indexes remaining rows, recomputes summary; 409 if already committed;
+idempotent (unknown id → 200, no change). FE (EstateOnboarding.js): each file in the merge sources list
+(afs-onb-merge-source-<i>) now has an ✕ remove button (afs-onb-merge-remove-<i>) → removeMergeSource(source_id) →
+updates running totals + list. VERIFIED: curl (711 assets/2 files → remove spreadsheet → 4 assets/1 file, summary
+recomputed £550; unknown id → 200) and BROWSER (merge session → add invoice = 4 assets + ✕ shown → click ✕ → 0 assets,
+'Files added (0)'). NOTE: mid-task the frontend dev server hit a transient Node OOM during recompile (env issue, not
+code) — resolved with `supervisorctl restart frontend`; compiled clean after.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · STAFF-LOGIN FALLBACK HEADER — MATCHED TO STANDARD HEADER (FE compile; visual by-construction) ═══
 The dedicated /staff-login session header (StaffPortal.js FallbackBar, shown when !usingPlatformToken) was an in-flow
 black `<div>` with `px-4 sm:px-6 lg:px-8`, default font, and no fixed positioning — but the content wrapper uses

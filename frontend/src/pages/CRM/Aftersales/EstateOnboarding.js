@@ -9,7 +9,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import {
   UploadCloud, FileSpreadsheet, RotateCw, AlertTriangle, CheckCircle2,
-  ArrowRight, Building2, Wrench,
+  ArrowRight, Building2, Wrench, X,
 } from 'lucide-react';
 
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -198,6 +198,15 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
     finally { setBusy(false); }
   };
 
+  const removeMergeSource = async (sourceId) => {
+    setBusy(true); setErr('');
+    try {
+      const r = await axios.delete(`${API}/crm/v2/aftersales/onboarding/${importId}/sources/${sourceId}`, { headers: headers() });
+      setMergeSummary(r.data.summary); setMergeSources(r.data.sources);
+    } catch (e) { setErr(e?.response?.data?.detail || 'Could not remove that file.'); }
+    finally { setBusy(false); }
+  };
+
   const goToMergeReview = async () => {
     setBusy(true); setErr('');
     try {
@@ -376,9 +385,16 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
                     {mergeSources.length === 0
                       ? <p className="text-xs" style={{ color: c.textDim }}>No files added yet — add a spreadsheet or invoice below.</p>
                       : mergeSources.map((s, i) => (
-                        <div key={i} className="flex justify-between text-xs py-0.5" style={{ color: c.text }}>
-                          <span>{s.type === 'invoice_pdf' ? '📄' : '📊'} {s.filename || 'file'}</span>
-                          <span style={{ color: c.textDim }}>{s.rows} assets</span>
+                        <div key={i} className="flex justify-between items-center gap-2 text-xs py-0.5" style={{ color: c.text }} data-testid={`afs-onb-merge-source-${i}`}>
+                          <span className="truncate">{s.type === 'invoice_pdf' ? '📄' : '📊'} {s.filename || 'file'}</span>
+                          <span className="flex items-center gap-2 shrink-0">
+                            <span style={{ color: c.textDim }}>{s.rows} assets</span>
+                            <button data-testid={`afs-onb-merge-remove-${i}`} onClick={() => removeMergeSource(s.source_id)} disabled={busy}
+                              title="Remove this file" aria-label="Remove this file"
+                              className="p-1 rounded hover:bg-black/10 disabled:opacity-40" style={{ color: 'var(--color-danger, #EF4444)' }}>
+                              <X size={13} />
+                            </button>
+                          </span>
                         </div>
                       ))}
                   </div>

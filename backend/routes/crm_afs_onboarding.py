@@ -776,6 +776,10 @@ _MAX_MERGED_ROWS = 8000
 
 
 async def _append_to_session(session, new_rows, source_meta):
+    source_id = _id()
+    source_meta = {**source_meta, "source_id": source_id}
+    for r in new_rows:
+        r["source_id"] = source_id
     rows = (session.get("rows") or []) + new_rows
     if len(rows) > _MAX_MERGED_ROWS:
         raise HTTPException(413, f"This estate would exceed {_MAX_MERGED_ROWS} assets. "
@@ -787,7 +791,31 @@ async def _append_to_session(session, new_rows, source_meta):
     await db.crm2_afs_onboarding.update_one(
         {"id": session["id"]}, {"$set": {"rows": rows, "sources": sources,
                                          "summary": summary, "updated_at": _now()}})
-    return {"summary": summary, "sources": sources, "added": len(new_rows), "total": len(rows)}
+    return {"summary": summary, "sources": sources, "added": len(new_rows),
+            "total": len(rows), "source_id": source_id}
+
+
+@router.delete("/{import_id}/sources/{source_id}")
+async def remove_source(import_id: str, source_id: str, user=Depends(get_crm_user)):
+    """Undo a single added file from a merge session before commit — drops that
+    file's rows and its source entry, then re-indexes and re-totals."""
+    of = _of(user)
+    session = await db.crm2_afs_onboarding.find_one({"id": import_id, "source": "merged", **of})
+    if not session:
+        raise HTTPException(404, "Merge session not found")
+    if session.get("status") == "committed":
+        raise HTTPException(409, "This import has already been committed.")
+    rows = [r for r in (session.get("rows") or []) if r.get("source_id") != source_id]
+    for i, r in enumerate(rows):
+        r["index"] = i
+    sources = [s for s in (session.get("sources") or []) if s.get("source_id") != source_id]
+    summary = _summarise(rows)
+    await db.crm2_afs_onboarding.update_one(
+        {"id": import_id, **of}, {"$set": {"rows": rows, "sources": sources,
+                                           "summary": summary, "updated_at": _now()}})
+    await record_audit(entity_type="afs_onboarding", entity_id=import_id, action="remove_source",
+                       user=user, extra={"source_id": source_id, "remaining": len(rows)})
+    return {"summary": summary, "sources": sources, "total": len(rows)}
 
 
 class SessionIn(BaseModel):
