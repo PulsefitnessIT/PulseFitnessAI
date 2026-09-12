@@ -5,7 +5,7 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
-import { Download, CheckCircle2, Undo2, BadgePoundSterling, RotateCw, Receipt, FileSpreadsheet, FileArchive, ChevronDown, ChevronRight, Paperclip } from 'lucide-react';
+import { Download, CheckCircle2, Undo2, BadgePoundSterling, RotateCw, Receipt, FileSpreadsheet, FileArchive, ChevronDown, ChevronRight, Paperclip, AlertTriangle, Copy, ScanLine } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -33,6 +33,16 @@ const STATUS = {
   reimbursed: { label: 'Reimbursed', c: '#059669' },
   rejected: { label: 'Returned', c: '#dc2626' },
 };
+const FLAG_META = {
+  missing_receipt: { label: 'Missing receipt', icon: Paperclip, c: '#d97706' },
+  duplicate: { label: 'Possible duplicate', icon: Copy, c: '#dc2626' },
+  low_scan: { label: 'Low-confidence scan', icon: ScanLine, c: '#b45309' },
+  over_threshold: { label: 'Over threshold', icon: BadgePoundSterling, c: '#7c3aed' },
+};
+function FLAG_META_ICON({ id }) {
+  const Icon = (FLAG_META[id] || {}).icon || AlertTriangle;
+  return <Icon size={12} />;
+}
 
 export default function StaffExpenseReview({ headers }) {
   const [months, setMonths] = useState([]);
@@ -42,6 +52,8 @@ export default function StaffExpenseReview({ headers }) {
   const [err, setErr] = useState('');
   const [includeReimbursed, setIncludeReimbursed] = useState(false);
   const [expanded, setExpanded] = useState({});
+  const [filter, setFilter] = useState('all');
+  const [flagThreshold, setFlagThreshold] = useState(500);
 
   const dl = (blob, filename, type) => {
     const url = URL.createObjectURL(new Blob([blob], { type }));
@@ -58,6 +70,7 @@ export default function StaffExpenseReview({ headers }) {
       ]);
       setMonths(m.data.months || []);
       setClaims(p.data.claims || []);
+      if (p.data.flag_threshold != null) setFlagThreshold(p.data.flag_threshold);
       if (!month && m.data.months?.length) setMonth(m.data.months[0].month);
     } catch { setErr('Could not load claims.'); }
   }, [headers, month]);
@@ -158,11 +171,49 @@ export default function StaffExpenseReview({ headers }) {
       {err && <div className="mb-3 p-3 rounded-lg text-sm bg-red-50 text-red-700" data-testid="exp-review-error">{err}</div>}
 
       <p className="font-semibold text-slate-800 mb-2">Claims to review</p>
-      {claims.length === 0 ? (
-        <div className="p-6 text-center rounded-xl border border-slate-200 text-slate-500 text-sm" data-testid="exp-review-empty">No claims awaiting review.</div>
-      ) : (
-        <div className="space-y-2">
-          {claims.map((c) => {
+
+      {/* Needs-attention filter */}
+      {claims.length > 0 && (() => {
+        const count = (f) => f === 'all' ? claims.length
+          : f === 'attention' ? claims.filter((c) => (c.flags || []).length > 0).length
+          : claims.filter((c) => (c.flags || []).includes(f)).length;
+        const chips = [
+          { id: 'all', label: 'All' },
+          { id: 'attention', label: 'Needs attention' },
+          { id: 'missing_receipt', label: 'Missing receipt' },
+          { id: 'duplicate', label: 'Duplicate' },
+          { id: 'low_scan', label: 'Low-confidence scan' },
+          { id: 'over_threshold', label: `Over ${gbp(flagThreshold)}` },
+        ];
+        return (
+          <div className="flex flex-wrap gap-2 mb-3" data-testid="exp-review-filters">
+            {chips.map((ch) => {
+              const n = count(ch.id);
+              const active = filter === ch.id;
+              return (
+                <button key={ch.id} onClick={() => setFilter(ch.id)} data-testid={`exp-filter-${ch.id}`}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${active ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-300'}`}>
+                  {ch.id !== 'all' && ch.id !== 'attention' && <FLAG_META_ICON id={ch.id} />}
+                  {ch.label}
+                  <span className={`ml-0.5 px-1.5 rounded-full text-[10px] ${active ? 'bg-white/20' : 'bg-slate-100'}`}>{n}</span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
+      {(() => {
+        const shown = filter === 'all' ? claims
+          : filter === 'attention' ? claims.filter((c) => (c.flags || []).length > 0)
+          : claims.filter((c) => (c.flags || []).includes(filter));
+        return claims.length === 0 ? (
+          <div className="p-6 text-center rounded-xl border border-slate-200 text-slate-500 text-sm" data-testid="exp-review-empty">No claims awaiting review.</div>
+        ) : shown.length === 0 ? (
+          <div className="p-6 text-center rounded-xl border border-slate-200 text-slate-500 text-sm" data-testid="exp-review-filter-empty">No claims match this filter. 🎉</div>
+        ) : (
+          <div className="space-y-2">
+            {shown.map((c) => {
             const s = STATUS[c.status] || STATUS.submitted;
             const lines = c.lines || [];
             const receiptLines = lines.filter((l) => l.receipt_id);
@@ -176,6 +227,21 @@ export default function StaffExpenseReview({ headers }) {
                     <div className="text-xs font-semibold mt-0.5" style={{ color: s.c }}>{s.label}
                       {receiptLines.length > 0 && <span className="ml-2 text-slate-400 font-normal"><Paperclip size={11} className="inline" /> {receiptLines.length} receipt{receiptLines.length > 1 ? 's' : ''}</span>}
                     </div>
+                    {(c.flags || []).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1.5" data-testid={`exp-review-flags-${c.id}`}>
+                        {(c.flags || []).map((f) => {
+                          const meta = FLAG_META[f] || { label: f, icon: AlertTriangle, c: '#64748b' };
+                          const Icon = meta.icon;
+                          return (
+                            <span key={f} data-testid={`exp-flag-${f}-${c.id}`}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                              style={{ background: `${meta.c}14`, color: meta.c }}>
+                              <Icon size={10} /> {meta.label}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setExpanded((e) => ({ ...e, [c.id]: !e[c.id] }))} data-testid={`exp-review-toggle-${c.id}`}
@@ -236,8 +302,9 @@ export default function StaffExpenseReview({ headers }) {
               </div>
             );
           })}
-        </div>
-      )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

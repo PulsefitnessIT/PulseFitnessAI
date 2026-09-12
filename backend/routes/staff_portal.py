@@ -1683,6 +1683,10 @@ async def portal_expenses_receipt(claim_id: str, file: UploadFile = File(...),
     else:
         reason = "ok"
     scan = {"confidence": conf, "reason": reason, "retake": reason != "ok"}
+    # Persist scan quality on the receipt so managers can flag low-confidence scans.
+    await db.staff_expense_claims.update_one(
+        {"id": claim_id},
+        {"$set": {f"receipts.{rid}.ocr_confidence": conf, f"receipts.{rid}.ocr_reason": reason}})
     return {"receipt_id": rid, "suggestion": suggestion, "scan": scan}
 
 
@@ -1743,10 +1747,51 @@ async def expenses_review_pending(user: dict = Depends(get_current_user)):
     if (user.get("role") not in HR_ROLES) and not user.get("is_master_admin"):
         raise HTTPException(403, "Not authorised")
     org = user.get("organization_id")
+    threshold = 500.0
+    settings = await db.staff_expense_settings.find_one({"organization_id": org}, {"_id": 0}) or {}
+    if isinstance(settings.get("flag_threshold"), (int, float)):
+        threshold = float(settings["flag_threshold"])
     rows = await db.staff_expense_claims.find(
         {"organization_id": org, "status": {"$in": ["submitted", "approved"]}},
-        {"_id": 0, "receipts": 0}).sort("submitted_at", 1).to_list(500)
-    return {"claims": rows}
+        {"_id": 0}).sort("submitted_at", 1).to_list(500)
+    for c in rows:
+        c["flags"] = _exp_flags(c, threshold)
+        c.pop("receipts", None)  # don't ship storage paths to the client
+    return {"claims": rows, "flag_threshold": threshold}
+
+
+def _exp_flags(claim: dict, threshold: float) -> list[str]:
+    """Which 'needs attention' signals apply to a claim (manager review)."""
+    flags = []
+    lines = claim.get("lines") or []
+    receipts = claim.get("receipts") or {}
+    # Missing receipt: a real expense line with no photo attached
+    if any((float(l.get("total") or 0) > 0 or float(l.get("net") or 0) > 0) and not l.get("receipt_id")
+           for l in lines):
+        flags.append("missing_receipt")
+    # Duplicate: two lines with same merchant + date + amount
+    seen = {}
+    for l in lines:
+        m = (l.get("description") or "").strip().lower()
+        d = (l.get("date") or "")[:10]
+        amt = round(float(l.get("total") or 0), 2)
+        if m and d and amt > 0:
+            key = (m, d, amt)
+            if key in seen:
+                flags.append("duplicate")
+                break
+            seen[key] = True
+    # Low-confidence scan: any receipt the AI struggled to read
+    for meta in receipts.values():
+        conf = meta.get("ocr_confidence")
+        rsn = meta.get("ocr_reason")
+        if (isinstance(conf, (int, float)) and conf < 0.55) or (rsn and rsn not in ("ok", None)):
+            flags.append("low_scan")
+            break
+    # Over threshold
+    if float(claim.get("grand_total") or 0) >= threshold:
+        flags.append("over_threshold")
+    return flags
 
 
 def _exp_require_hr(user: dict):
