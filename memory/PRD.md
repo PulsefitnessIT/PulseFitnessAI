@@ -38005,3 +38005,10 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Frontend (AftersalesApp.js → Contracts & Renewals tab): "Export all for Sage" button (afs-finance-export-all) + per-contract FinanceSyncBlock (afs-finance-sync-<cid>) with CSV/JSON export, "Sync now" (retry) and "Mark synced" (manual reconcile).
 - Verified: extended lifecycle e2e now 24/24 (activation/amend/rpi all enqueue; export CSV/JSON 200; mark-synced flips contract to synced). Env-flip unit-tested (unconfigured=awaiting_credentials, configured=real POST attempt). UI confirmed via screenshot. All test artifacts cleaned from demo org.
 - TO GO LIVE: add the 2 required env vars (SICON_WEBAPI_BASE_URL + SICON_WEBAPI_KEY) to backend/.env once the Sage partner provides them, confirm the Sicon WebAPI sales-order path/schema against their version guide, then redeploy — activation will auto-post.
+
+## 2026-09-12 — Finance Sync DASHBOARD (finance-only view) added
+- New Aftersales sub-tab **Finance Sync** (afs-tab-finance → FinanceDashboard) listing EVERY active contract's Sage/Sicon posting status merged with the outbox (synced / queued / failed / no_order).
+- KPI chips: Active contracts, Synced to Sage, Outstanding, £ Value outstanding + Sicon live-connection badge.
+- Per-row actions: Sync now (retry/enqueue), CSV export, Mark synced. Header: **Export outstanding** (bulk) + Export all.
+- Backend added: GET /finance/dashboard (all active contracts + status + totals), POST /finance/sync/enqueue-outstanding (generates orders for every not-yet-synced contract), and export/all now supports status='outstanding' (queued+failed). "Export outstanding" auto-enqueues no_order/failed contracts first, then downloads the CSV — a true "everything not in Sage yet" export.
+- Verified: dashboard lists all active contracts with correct statuses/totals; enqueue-outstanding generated 2 orders (skipped 1 synced); outstanding CSV exported valid Sales-Order lines; UI confirmed via screenshot. All test data cleaned from demo org (2 pre-existing demo contracts preserved, statuses reset).

@@ -34,6 +34,7 @@ const SUB_TABS = [
   { id: 'agreements', label: 'Agreements', icon: FileCheck2 },
   { id: 'renewals', label: 'Renewals & RPI', icon: RefreshCw },
   { id: 'contracts', label: 'Contracts & Renewals', icon: Shield },
+  { id: 'finance', label: 'Finance Sync', icon: Receipt },
   { id: 'ai', label: 'AI Assistant', icon: Sparkles },
   { id: 'reports', label: 'Reports', icon: TrendingUp },
   { id: 'pricing', label: 'Pricing & Rules', icon: SlidersHorizontal },
@@ -1644,6 +1645,183 @@ function FinanceSyncBlock({ contractId, API, headers, c, status, onChanged }) {
   );
 }
 
+const FIN_META = {
+  synced: { label: 'Synced to Sage', color: 'var(--color-success-alt)', icon: CheckCircle2 },
+  queued: { label: 'Queued', color: 'var(--color-warning-alt, #F59E0B)', icon: Clock },
+  failed: { label: 'Failed', color: 'var(--color-danger-alt, #EF4444)', icon: AlertTriangle },
+  no_order: { label: 'No order yet', color: 'var(--color-text-faint-alt)', icon: MinusCircle },
+};
+
+function FinanceDashboard({ API, headers, c, isDark }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState('');
+
+  const load = useCallback(() => {
+    setLoading(true);
+    axios.get(`${API}/crm/v2/aftersales/finance/dashboard`, { headers: headers() })
+      .then(r => setData(r.data))
+      .catch(() => setData({ contracts: [], totals: {} }))
+      .finally(() => setLoading(false));
+  }, [API, headers]);
+  useEffect(() => { load(); }, [load]);
+
+  const exportCsv = async (scope) => {
+    setBusy('exp-' + scope);
+    try {
+      if (scope === 'outstanding') {
+        await axios.post(`${API}/crm/v2/aftersales/finance/sync/enqueue-outstanding`, {}, { headers: headers() });
+      }
+      const qs = scope === 'outstanding' ? '?status=outstanding' : '';
+      const r = await axios.get(`${API}/crm/v2/aftersales/finance/sync/export/all${qs}`,
+        { headers: headers(), responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'text/csv' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = `sicon-sales-orders-${scope}-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      if (scope === 'outstanding') await load();
+    } catch { alert(scope === 'outstanding' ? 'Nothing outstanding to export.' : 'Nothing to export yet.'); }
+    setBusy('');
+  };
+  const rowAction = async (cid, kind) => {
+    setBusy(cid + kind);
+    try {
+      if (kind === 'retry') {
+        await axios.post(`${API}/crm/v2/aftersales/finance/sync/${cid}/retry`, {}, { headers: headers() });
+      } else if (kind === 'mark') {
+        const ref = window.prompt('Sage/Sicon Sales Order reference (optional):', '');
+        if (ref === null) { setBusy(''); return; }
+        await axios.post(`${API}/crm/v2/aftersales/finance/sync/${cid}/mark-synced`, { external_ref: ref || null }, { headers: headers() });
+      } else if (kind === 'csv') {
+        const r = await axios.get(`${API}/crm/v2/aftersales/finance/sync/${cid}/export?format=csv`, { headers: headers(), responseType: 'blob' });
+        const url = URL.createObjectURL(new Blob([r.data], { type: 'text/csv' }));
+        const a = document.createElement('a'); a.href = url; a.download = `sicon-${cid}.csv`;
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); setBusy(''); return;
+      }
+      await load();
+    } catch { alert('Action failed.'); }
+    setBusy('');
+  };
+
+  const t = data?.totals || {};
+  const rows = data?.contracts || [];
+  const chips = [
+    { label: 'Active contracts', value: t.total || 0, tone: 'neutral' },
+    { label: 'Synced to Sage', value: t.synced || 0, tone: 'ok' },
+    { label: 'Outstanding', value: t.outstanding || 0, tone: t.outstanding ? 'warn' : 'ok' },
+    { label: 'Value outstanding', value: gbp0(t.value_outstanding || 0), tone: t.outstanding ? 'warn' : 'ok' },
+  ];
+
+  return (
+    <div data-testid="afs-finance-dashboard">
+      <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+        <div>
+          <h2 className="text-lg font-bold" style={{ color: c.text }}>Finance sync — Sage 200 (via Sicon)</h2>
+          <p className="text-xs" style={{ color: c.textDim }}>
+            Every active contract's Sales Order posting status.{' '}
+            <span data-testid="afs-finance-live-badge" style={{ color: data?.live_connected ? 'var(--color-success-alt)' : 'var(--color-warning-alt, #F59E0B)', fontWeight: 600 }}>
+              {data?.live_connected ? 'Sicon WebAPI connected — auto-posting' : 'Sicon WebAPI not connected — export for import'}
+            </span>
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button data-testid="afs-finance-refresh" onClick={load}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+            style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+            <RotateCw size={13} /> Refresh
+          </button>
+          <button data-testid="afs-finance-export-outstanding" onClick={() => exportCsv('outstanding')} disabled={!!busy}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+            style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
+            <FileSpreadsheet size={13} /> Export outstanding
+          </button>
+          <button data-testid="afs-finance-export-all-dash" onClick={() => exportCsv('all')} disabled={!!busy}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+            style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+            <FileSpreadsheet size={13} /> Export all
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" data-testid="afs-finance-stats">
+        {chips.map(ch => (
+          <div key={ch.label} className="p-3 rounded-xl border"
+            style={{ background: isDark ? '#111' : 'var(--color-neutral-50)', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)' }}>
+            <div className="text-2xl font-extrabold"
+              style={{ color: ch.tone === 'warn' ? 'var(--color-warning-alt, #F59E0B)' : ch.tone === 'ok' ? 'var(--color-success-alt)' : c.text }}>{ch.value}</div>
+            <div className="text-[11px] font-medium mt-0.5" style={{ color: c.textDim }}>{ch.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {loading ? <Spinner /> : rows.length === 0 ? (
+        <div data-testid="afs-finance-empty" className="p-6 rounded-xl border text-center text-sm"
+          style={{ background: isDark ? '#111' : 'var(--color-neutral-50)', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.textDim }}>
+          No active contracts yet. Activate an agreement to start posting to Sage.
+        </div>
+      ) : (
+        <div className="rounded-xl border overflow-hidden" style={{ borderColor: c.border }}>
+          <table className="w-full text-sm" data-testid="afs-finance-table">
+            <thead>
+              <tr style={{ background: isDark ? '#0d0d0d' : 'var(--color-neutral-50)', color: c.textDim }}>
+                <th className="text-left font-semibold px-3 py-2">Customer / Contract</th>
+                <th className="text-right font-semibold px-3 py-2">Annual</th>
+                <th className="text-left font-semibold px-3 py-2">Sage status</th>
+                <th className="text-right font-semibold px-3 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(r => {
+                const m = FIN_META[r.status] || FIN_META.no_order;
+                const Icon = m.icon;
+                const noOrder = r.status === 'no_order';
+                return (
+                  <tr key={r.contract_id} data-testid={`afs-finance-row-${r.contract_id}`}
+                    className="border-t" style={{ borderColor: c.border }}>
+                    <td className="px-3 py-2">
+                      <div className="font-semibold" style={{ color: c.text }}>{r.company_name || 'Contract'}</div>
+                      <div className="text-[11px]" style={{ color: c.textDim }}>
+                        {r.contract_number || '—'}{r.contract_type ? ` · ${r.contract_type}` : ''}{r.external_ref ? ` · SO ${r.external_ref}` : ''}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-right font-semibold" style={{ color: c.text }}>{gbp0(r.annual_value)}</td>
+                    <td className="px-3 py-2">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md" style={{ background: `${m.color}14`, color: m.color }}>
+                        <Icon size={12} /> {m.label}
+                      </span>
+                      {r.status === 'failed' && r.last_error && <div className="text-[10px] mt-1" style={{ color: 'var(--color-danger-alt, #EF4444)' }}>{String(r.last_error).slice(0, 80)}</div>}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button data-testid={`afs-finance-row-sync-${r.contract_id}`} onClick={() => rowAction(r.contract_id, 'retry')} disabled={!!busy}
+                          className="text-[11px] font-semibold px-2 py-1 rounded-md inline-flex items-center gap-1" style={{ border: `1px solid ${c.border}`, color: c.textDim }}>
+                          <RotateCw size={12} className={busy === r.contract_id + 'retry' ? 'animate-spin' : ''} /> {noOrder ? 'Create & sync' : 'Sync now'}
+                        </button>
+                        {!noOrder && (
+                          <button data-testid={`afs-finance-row-csv-${r.contract_id}`} onClick={() => rowAction(r.contract_id, 'csv')} disabled={!!busy}
+                            className="text-[11px] font-semibold px-2 py-1 rounded-md inline-flex items-center gap-1" style={{ border: `1px solid ${c.border}`, color: c.textDim }}>
+                            <FileSpreadsheet size={12} /> CSV
+                          </button>
+                        )}
+                        {r.status !== 'synced' && !noOrder && (
+                          <button data-testid={`afs-finance-row-mark-${r.contract_id}`} onClick={() => rowAction(r.contract_id, 'mark')} disabled={!!busy}
+                            className="text-[11px] font-semibold px-2 py-1 rounded-md inline-flex items-center gap-1" style={{ background: 'var(--color-success-alt)', color: '#fff' }}>
+                            <CheckCircle2 size={12} /> Mark synced
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ComplianceCard({ row, API, headers, c, isDark, onChanged }) {
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState(null);
@@ -2115,7 +2293,7 @@ export default function AftersalesApp() {
   const crm = useCRM();
   const { API, headers, c, isDark } = crm;
   const [tab, setTab] = useState('dashboard');
-  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, onboarding: EstateOnboarding, agreements: AgreementsTab, renewals: RenewalsRpiTab, ai: AIAssistantTab, reports: ReportsTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab }[tab];
+  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, onboarding: EstateOnboarding, agreements: AgreementsTab, renewals: RenewalsRpiTab, ai: AIAssistantTab, reports: ReportsTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab, finance: FinanceDashboard }[tab];
   return (
     <div data-testid="afs-app">
       <div className="mb-4">

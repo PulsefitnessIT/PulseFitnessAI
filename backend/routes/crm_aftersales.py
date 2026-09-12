@@ -2231,18 +2231,86 @@ async def finance_sync_export_one(contract_id: str, format: str = "csv", user=De
 
 @router.get("/finance/sync/export/all")
 async def finance_sync_export_all(status: str = "", user=Depends(get_crm_user)):
-    """One-click Sage/Sicon-ready CSV of every queued/active contract Sales Order."""
+    """One-click Sage/Sicon-ready CSV of contract Sales Orders.
+    status='outstanding' → only queued + failed (not yet posted to Sage)."""
     of = _of(user)
     q = dict(of)
-    if status:
+    if status == "outstanding":
+        q["status"] = {"$in": ["queued", "failed"]}
+    elif status:
         q["status"] = status
     items = await db.crm2_afs_finance_sync.find(q, _PUBLIC).sort("updated_at", -1).to_list(1000)
     if not items:
         raise HTTPException(404, "Nothing to export yet")
     csv_bytes = _sales_order_csv(items)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    tag = "outstanding-" if status == "outstanding" else ""
     return Response(content=csv_bytes, media_type="text/csv",
-                    headers={"Content-Disposition": f'attachment; filename="sicon-sales-orders-{stamp}.csv"'})
+                    headers={"Content-Disposition": f'attachment; filename="sicon-sales-orders-{tag}{stamp}.csv"'})
+
+
+@router.post("/finance/sync/enqueue-outstanding")
+async def finance_enqueue_outstanding(user=Depends(get_crm_user)):
+    """Generate/refresh a Sicon Sales Order for every active contract not yet
+    synced to Sage (no_order / queued / failed) so 'Export outstanding' captures
+    them all. Attempts a live push per contract if Sicon is configured."""
+    from utils.finance_sync import enqueue_finance_sync
+    of = _of(user)
+    org_id = _org(user)
+    contracts = await db.crm2_contracts.find(
+        {**of, "status": "active"}, {"_id": 0, "id": 1}).to_list(1000)
+    synced_cids = set()
+    async for s in db.crm2_afs_finance_sync.find({**of, "status": "synced"}, {"_id": 0, "contract_id": 1}):
+        synced_cids.add(s["contract_id"])
+    enqueued = 0
+    for c in contracts:
+        if c["id"] in synced_cids:
+            continue
+        await enqueue_finance_sync(org_id, c["id"], "bulk_enqueue", user.get("email"))
+        enqueued += 1
+    return {"enqueued": enqueued, "skipped_synced": len(synced_cids)}
+
+
+@router.get("/finance/dashboard")
+async def finance_dashboard(user=Depends(get_crm_user)):
+    """Finance-only view — EVERY active contract with its Sage/Sicon posting
+    status (merged with the finance-sync outbox). Contracts activated before the
+    sync layer, or never posted, show as 'no_order' and can be pushed/exported."""
+    from utils.finance_sync import finance_provider_configured
+    of = _of(user)
+    contracts = await db.crm2_contracts.find(
+        {**of, "status": "active"},
+        {"_id": 0, "id": 1, "contract_number": 1, "company_name": 1, "annual_value": 1,
+         "billing_frequency": 1, "end_date": 1, "contract_type": 1, "tier": 1}).sort("company_name", 1).to_list(1000)
+    sync_by_cid = {}
+    async for s in db.crm2_afs_finance_sync.find(of, _PUBLIC):
+        sync_by_cid[s["contract_id"]] = s
+    rows = []
+    totals = {"total": len(contracts), "synced": 0, "queued": 0, "failed": 0,
+              "no_order": 0, "outstanding": 0, "value_outstanding": 0.0}
+    for c in contracts:
+        s = sync_by_cid.get(c["id"])
+        status = (s or {}).get("status") or "no_order"
+        payload = (s or {}).get("payload") or {}
+        net = payload.get("net_total")
+        row = {
+            "contract_id": c["id"], "contract_number": c.get("contract_number"),
+            "company_name": c.get("company_name"),
+            "contract_type": c.get("contract_type") or c.get("tier"),
+            "annual_value": c.get("annual_value", 0),
+            "billing_frequency": c.get("billing_frequency"), "end_date": c.get("end_date"),
+            "status": status, "net_total": net, "lines": len(payload.get("lines") or []),
+            "external_ref": (s or {}).get("external_ref"),
+            "last_event": (s or {}).get("last_event"), "last_error": (s or {}).get("last_error"),
+            "synced_at": (s or {}).get("synced_at"), "updated_at": (s or {}).get("updated_at"),
+        }
+        rows.append(row)
+        totals[status] = totals.get(status, 0) + 1
+        if status in ("queued", "failed", "no_order"):
+            totals["outstanding"] += 1
+            totals["value_outstanding"] = round(totals["value_outstanding"] + float(c.get("annual_value") or 0), 2)
+    return {"contracts": rows, "totals": totals, "provider": "sicon",
+            "live_connected": finance_provider_configured(), "generated_at": _now()}
 
 
 @router.post("/finance/sync/{contract_id}/retry")
