@@ -102,10 +102,18 @@ export default function ExpensesTab({ H }) {
   const linesTotal = (claim?.lines || []).reduce((s, l) => s + (Number(l.net) || 0) + (l.no_vat ? 0 : (Number(l.vat) || 0)), 0);
   const grand = mileageTotal + linesTotal;
 
-  const setLine = (i, patch) => setClaim((c) => ({ ...c, lines: c.lines.map((l, j) => (j === i ? { ...l, ...patch } : l)) }));
+  const setLine = (i, patch) => setClaim((c) => ({ ...c, lines: c.lines.map((l, j) => (j === i ? { ...l, ...patch, ...('_dup' in patch ? {} : { _dup: false }) } : l)) }));
   const addLine = () => setClaim((c) => ({ ...c, lines: [...(c.lines || []), { date: '', description: '', nominal: cfg?.nominals?.[0] || '', net: '', vat: '', no_vat: false, total: 0 }] }));
   const removeLine = (i) => setClaim((c) => ({ ...c, lines: c.lines.filter((_, j) => j !== i) }));
   const setMiles = (i, miles) => setClaim((c) => ({ ...c, mileage: c.mileage.map((m, j) => (j === i ? { ...m, miles } : m)) }));
+
+  // Same receipt already on the claim? (same merchant + date + amount)
+  const lineTotal = (l) => (Number(l.net) || 0) + (l.no_vat ? 0 : (Number(l.vat) || 0));
+  const sameLine = (a, b) => {
+    const am = (a.description || '').trim().toLowerCase(), bm = (b.description || '').trim().toLowerCase();
+    const at = lineTotal(a), bt = lineTotal(b);
+    return !!am && am === bm && !!a.date && (a.date || '') === (b.date || '') && at > 0 && Math.abs(at - bt) < 0.01;
+  };
 
   // Oldest first; lines without a date sink to the bottom.
   const byDate = (a, b) => {
@@ -150,13 +158,17 @@ export default function ExpensesTab({ H }) {
     try {
       const r = await axios.post(`${API}/new-starter/portal/expenses/${claim.id}/receipt`, fd, { headers: H });
       const s = r.data.suggestion || {};
-      setLine(i, {
-        receipt_id: r.data.receipt_id, _uploading: false,
+      const filled = {
         date: s.date || claim.lines[i].date, description: s.description || claim.lines[i].description,
-        nominal: s.nominal || claim.lines[i].nominal,
         net: s.net != null ? s.net : claim.lines[i].net, vat: s.vat != null ? s.vat : claim.lines[i].vat,
         no_vat: s.no_vat != null ? s.no_vat : claim.lines[i].no_vat,
+      };
+      const dup = (claim.lines || []).some((l, j) => j !== i && sameLine(filled, l));
+      setLine(i, {
+        receipt_id: r.data.receipt_id, _uploading: false,
+        nominal: s.nominal || claim.lines[i].nominal, _dup: dup, ...filled,
       });
+      if (dup) setErr('Heads up: this receipt looks like one already on your claim (same merchant, date & amount).');
       setTimeout(sortLinesByDate, 0);
     } catch { setLine(i, { _uploading: false }); setErr('Receipt upload failed.'); }
   };
@@ -166,7 +178,8 @@ export default function ExpensesTab({ H }) {
     const list = Array.from(files || []);
     if (!list.length) return;
     setBusy(true); setErr(''); setMsg('');
-    let added = 0;
+    let added = 0, dups = 0;
+    const working = [...(claim.lines || [])];
     for (const file of list) {
       try {
         const fd = new FormData(); fd.append('file', file);
@@ -178,14 +191,19 @@ export default function ExpensesTab({ H }) {
           net: s.net != null ? s.net : '', vat: s.vat != null ? s.vat : '',
           no_vat: s.no_vat != null ? s.no_vat : false, total: 0, receipt_id: r.data.receipt_id,
         };
-        setClaim((c) => ({ ...c, lines: [...(c.lines || []), line] }));
+        line._dup = working.some((l) => sameLine(line, l));
+        if (line._dup) dups += 1;
+        working.push(line);
         added += 1;
       } catch { /* skip this file, keep going */ }
     }
-    setTimeout(sortLinesByDate, 0);
+    setClaim((c) => ({ ...c, lines: [...working].sort(byDate) }));
     setBusy(false);
-    if (added) { setMsg(added === 1 ? 'Receipt added' : `${added} receipts added`); setTimeout(() => setMsg(''), 2000); }
-    else setErr('Could not read those receipts — try adding a line manually.');
+    if (dups) setErr(dups === 1
+      ? 'Heads up: one receipt looks like a duplicate (same merchant, date & amount) — check the flagged line.'
+      : `Heads up: ${dups} receipts look like duplicates — check the flagged lines.`);
+    if (added) { setMsg(added === 1 ? 'Receipt added' : `${added} receipts added`); setTimeout(() => setMsg(''), 2500); }
+    else if (!dups) setErr('Could not read those receipts — try adding a line manually.');
   };
 
   const inputCls = 'w-full px-2.5 py-2 rounded-lg text-sm';
@@ -320,7 +338,12 @@ export default function ExpensesTab({ H }) {
         ) : (
           <div className="space-y-3">
             {claim.lines.map((l, i) => (
-              <div key={i} className="p-3 rounded-lg border" style={{ borderColor: 'var(--theme-border)' }} data-testid={`exp-line-${i}`}>
+              <div key={i} className="p-3 rounded-lg border" style={{ borderColor: l._dup ? '#f59e0b' : 'var(--theme-border)', background: l._dup ? 'rgba(245,158,11,0.06)' : 'transparent' }} data-testid={`exp-line-${i}`}>
+                {l._dup && (
+                  <div className="flex items-center gap-1.5 text-xs font-semibold mb-2" style={{ color: '#d97706' }} data-testid={`exp-line-dup-${i}`}>
+                    <AlertCircle size={13} /> Possible duplicate — same merchant, date &amp; amount as another line. Remove it if it's the same receipt.
+                  </div>
+                )}
                 <div className="grid sm:grid-cols-2 gap-2">
                   <input type="date" value={l.date || ''} disabled={!editable} onChange={(e) => setLine(i, { date: e.target.value })} className={inputCls} style={inputStyle} data-testid={`exp-line-date-${i}`} />
                   <select value={l.nominal || ''} disabled={!editable} onChange={(e) => setLine(i, { nominal: e.target.value })} className={inputCls} style={inputStyle} data-testid={`exp-line-nominal-${i}`}>

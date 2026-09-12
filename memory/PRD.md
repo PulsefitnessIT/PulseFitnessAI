@@ -38019,3 +38019,9 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Receipt images stored in Emergent object storage (existing put_object; 15MB cap). Each line now shows a small **receipt thumbnail** (ReceiptThumb, blob-loaded, click to open full image).
 - Files: backend routes/staff_portal.py (_exp_guess_nominal, _EXP_NOMINAL_KEYWORDS, date sort in _exp_recalc, nominal in receipt suggestion — hardened for dict line_items + category_suggestion). Frontend pages/StaffExpensesTab.js (snapNewReceipts, sortLinesByDate, byDate, Snap/Sort buttons with capture="environment" multiple, ReceiptThumb, nominal autofill).
 - Verified end-to-end via portal API (portal.staff@pulsedemo.test/Staff123!): synthetic Costa receipt → date/merchant/net/VAT/confidence 0.95; Shell fuel receipt → net £48.33 VAT £9.67 nominal "Fuel"; PUT save re-sorts 3 out-of-order lines to date order (undated last). Mobile UI screenshot confirms Snap receipt / Sort by date / Add manually buttons. Test data cleaned.
+
+## 2026-09-12 — Staff Expenses: duplicate receipt guard
+- When snapping a receipt (Snap receipt batch OR per-line replace), the app now warns if it matches a line already on the claim — same merchant (description), same date, and same total amount (net+VAT within £0.01).
+- Flagged line shows an amber border + "Possible duplicate — same merchant, date & amount as another line" badge (data-testid exp-line-dup-{i}); a summary "Heads up…" message also appears. Non-blocking — staff decide whether to remove it.
+- Client-side (StaffExpensesTab.js): sameLine()/lineTotal() helpers; dup check in snapNewReceipts (against a running working[] so in-batch dupes are caught) and uploadReceipt (skips self). setLine clears the _dup flag when the user edits date/desc/net/vat. _dup is UI-only (not persisted).
+- Verified via mobile UI: uploading the same Shell receipt twice → 2nd line flagged duplicate; both extracted Shell/02-05-2026/£48.33/£9.67. Test drafts cleaned up.
