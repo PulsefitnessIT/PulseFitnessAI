@@ -38037,3 +38037,11 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Receipt OCR now returns a `scan` signal {confidence, reason, retake}. retake=True when: OCR unreadable/empty ("unreadable"), not a receipt ("not_receipt"), confidence < 0.55 ("low_confidence"), or missing date/amount ("incomplete").
 - Frontend (StaffExpensesTab.js): flagged line shows an amber nudge with a reason-specific message + a "Re-take photo" camera link (data-testid exp-line-lowscan-{i} / exp-line-retake-{i}); line border/bg turns amber; a summary error banner appears after Snap. Line stays editable so staff can fill manually. _lowscan is UI-only, cleared when the user edits the line.
 - Backend: routes/staff_portal.py portal_expenses_receipt returns scan. Verified via API: fuel receipt → confidence 0.95/ok/retake false; blank image → unreadable/retake true; blurry → not_receipt/retake true. Mobile UI screenshot confirms the nudge + Re-take link. Test drafts cleaned up.
+
+## 2026-09-12 — Merged Staffing "Expenses" + "Staff Expenses" into one tab
+- Rationale (user): field service engineers are now staff and use the staff-portal expenses; the old Service Desk expenses cockpit is being retired from this surface.
+- StaffingConsole.js: removed the duplicate `expenses` tab (DeskExpenses render + tab config + import). Kept the single tab (leaf id still `staff-expenses` so the submit-notification deep link /platform/staffing?tab=staff-expenses keeps working) and relabelled it **"Expenses"**.
+- StaffExpenseReview.js panel heading relabelled "Staff Expenses" → "Expenses"; subtitle now "Approve staff and engineer claims…".
+- No features lost on the retained system (monthly claims, mileage, receipt thumbnails + ZIP evidence, duplicate guard, blurry-scan nudge, payroll CSV + Pulse XLSX). DeskExpenses component + /api/expenses/* backend remain in the codebase (untouched) for the engineer app.
+- Verified via screenshot: Staffing sub-nav now shows one "Expenses" tab (old DeskExpenses tab gone, desk-expenses testid absent); renders payroll export (CSV/XLSX/receipts-ZIP) + review queue. Frontend compiles.
+- FOLLOW-UP the user mentioned they'll handle: hide the Expenses option inside the engineer (Service Desk) app so engineers submit via the staff portal.

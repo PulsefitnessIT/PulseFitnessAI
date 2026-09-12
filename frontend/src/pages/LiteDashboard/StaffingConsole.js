@@ -49,7 +49,6 @@ import AIWorkforceTab from '@/pages/LiteDashboard/staffing/AIWorkforceTab';
 import MODStaffTransferTab from '@/pages/LiteDashboard/staffing/MODStaffTransferTab';
 import MODStaffTab from '@/pages/LiteDashboard/staffing/MODStaffTab';
 import SiteStaffManager from '@/pages/LiteDashboard/staffing/SiteStaffManager';
-import DeskExpenses from '@/pages/ServiceDesk/DeskExpenses';
 import ProductTour from '@/components/shared/ProductTour';
 import { useLocalization, formatMoneySync, getCachedLocalization } from '@/utils/localization';
 
@@ -106,9 +105,9 @@ const GROUPS_ALL = [
     { id: 'ai',          label: 'AI Insights', icon: Sparkles,  roles: MGR },
   ] },
   { id: 'payroll',  label: 'Payroll',  icon: PoundSterling, leaf: 'payroll',  roles: MGR },
-  // Expenses moved in from the Operations bar, right after Payroll.
-  { id: 'expenses', label: 'Expenses', icon: Wallet,        leaf: 'expenses', roles: MGR },
-  { id: 'staff-expenses', label: 'Staff Expenses', icon: Wallet, leaf: 'staff-expenses', roles: MGR },
+  // Expenses: unified staff-portal claims (engineers are staff too — the old
+  // Service Desk "Expenses" cockpit was merged in here to avoid a duplicate tab).
+  { id: 'staff-expenses', label: 'Expenses', icon: Wallet, leaf: 'staff-expenses', roles: MGR },
   // Comms = Announcements + Handover Diary (combined per request).
   { id: 'comms', label: 'Comms', icon: MessageSquare, children: [
     { id: 'announce', label: 'Announcements',  icon: Megaphone,     roles: ALL },
@@ -326,7 +325,6 @@ export default function StaffingConsole() {
         {tab === 'market'      && <MarketTab      headers={headers} isManager={isManager} />}
         {tab === 'performance' && <PerformanceTab headers={headers} />}
         {tab === 'payroll'     && <PayrollWorkspaceTab headers={headers} />}
-        {tab === 'expenses'    && <DeskExpenses />}
         {tab === 'staff-expenses' && <StaffExpenseReview headers={headers} />}
         {tab === 'live'        && <LiveFloorTab   headers={headers} />}
         {tab === 'rules'       && <RulesTab       headers={headers} />}

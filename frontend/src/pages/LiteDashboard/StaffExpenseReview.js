@@ -123,8 +123,8 @@ export default function StaffExpenseReview({ headers }) {
 
   return (
     <div data-testid="staff-expense-review">
-      <h2 className="text-lg font-bold mb-1 flex items-center gap-2"><Receipt size={18} className="text-cyan-600" /> Staff Expenses</h2>
-      <p className="text-sm text-slate-500 mb-4">Approve staff claims and export approved claims for payroll.</p>
+      <h2 className="text-lg font-bold mb-1 flex items-center gap-2"><Receipt size={18} className="text-cyan-600" /> Expenses</h2>
+      <p className="text-sm text-slate-500 mb-4">Approve staff and engineer claims, and export approved claims for payroll.</p>
 
       {/* Payroll export bar */}
       <div className="p-4 rounded-xl border border-slate-200 bg-white mb-5" data-testid="exp-payroll-export">
