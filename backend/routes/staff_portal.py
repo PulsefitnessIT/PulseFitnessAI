@@ -1668,7 +1668,22 @@ async def portal_expenses_receipt(claim_id: str, file: UploadFile = File(...),
                       "description": merchant,
                       "net": round(gross - tax, 2) if gross else 0.0, "vat": tax, "no_vat": tax == 0,
                       "nominal": _exp_guess_nominal(merchant, ocr.get("category_suggestion") or "", li_text)}
-    return {"receipt_id": rid, "suggestion": suggestion}
+
+    # Scan-quality signal → prompt a re-take when the photo was hard to read.
+    conf = ocr.get("confidence") if isinstance(ocr, dict) else None
+    conf = float(conf) if isinstance(conf, (int, float)) else None
+    if not isinstance(ocr, dict) or not ocr:
+        reason = "unreadable"
+    elif ocr.get("is_receipt") is False:
+        reason = "not_receipt"
+    elif conf is not None and conf < 0.55:
+        reason = "low_confidence"
+    elif not (ocr.get("total_amount") and ocr.get("date")):
+        reason = "incomplete"
+    else:
+        reason = "ok"
+    scan = {"confidence": conf, "reason": reason, "retake": reason != "ok"}
+    return {"receipt_id": rid, "suggestion": suggestion, "scan": scan}
 
 
 @router.get("/new-starter/portal/expenses/{claim_id}/receipt/{receipt_id}")
