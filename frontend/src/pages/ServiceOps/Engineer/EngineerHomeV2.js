@@ -24,7 +24,7 @@ import {
   Wrench, FileText, AlertTriangle, Clock, Package, MessageCircle, Boxes, RotateCcw,
   CheckCircle2, Bell, TrendingUp, Calendar, RefreshCw, Loader2, PlayCircle, ChevronRight, Plus,
   ReceiptPoundSterling as Receipt, FileSignature,
-  CreditCard, Hand, Users, Menu, Sun, Navigation, ListChecks, Wand2, X, Wallet,
+  CreditCard, Hand, Users, Menu, Sun, Navigation, ListChecks, Wand2, X,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import EngineerAccountSettings from './EngineerAccountSettings';
@@ -496,9 +496,7 @@ export default function EngineerHomeV2() {
                 <QuickAction icon={Boxes} label={t('service.eng_home_qa_stock', 'Stock')}
                              testid="qa-parts"
                              onClick={() => navigate('/svc/engineer/stock')} />
-                <QuickAction icon={Wallet} label={t('service.eng_home_qa_expenses', 'Expenses')}
-                             testid="qa-expenses"
-                             onClick={() => navigate('/svc/engineer/expenses')} />
+                {/* Expenses removed — engineers now submit via the Staff Portal (staff expenses). */}
                 {/* — Other — */}
                 <QuickAction icon={FileSignature} label={t('service.eng_home_qa_report', 'Send report')}
                              testid="qa-report"

@@ -38045,3 +38045,8 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - No features lost on the retained system (monthly claims, mileage, receipt thumbnails + ZIP evidence, duplicate guard, blurry-scan nudge, payroll CSV + Pulse XLSX). DeskExpenses component + /api/expenses/* backend remain in the codebase (untouched) for the engineer app.
 - Verified via screenshot: Staffing sub-nav now shows one "Expenses" tab (old DeskExpenses tab gone, desk-expenses testid absent); renders payroll export (CSV/XLSX/receipts-ZIP) + review queue. Frontend compiles.
 - FOLLOW-UP the user mentioned they'll handle: hide the Expenses option inside the engineer (Service Desk) app so engineers submit via the staff portal.
+
+## 2026-09-12 — Hid Expenses entry in the engineer (Service Desk) app
+- Removed the "Expenses" QuickAction (testid qa-expenses → /svc/engineer/expenses) from the engineer home (pages/ServiceOps/Engineer/EngineerHomeV2.js) so field engineers submit via the Staff Portal expenses instead. Removed the now-unused Wallet import.
+- Left intact (different feature, not an entry point): the job-profitability/margin widget in EngineerJobDetailV2 (reads /api/expenses/job/{id}/profitability). The EngineerExpenses.js route/component and /api/expenses/* backend remain in the codebase but are now unlinked from the engineer home.
+- Verified: no other links to /svc/engineer/expenses; frontend compiles cleanly. Visual screenshot not captured (engineer home needs an engineer/MFA'd-admin session not readily available) — change is a single nav-item removal.
