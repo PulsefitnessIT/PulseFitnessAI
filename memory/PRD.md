@@ -37985,3 +37985,12 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Nominal→Sage code map mirrors the master sheet (7060 Misc … 7315 Fuel/Mileage repayment, 7073 Mileage claim, 2201 VAT).
 - Frontend: StaffExpenseReview.js — new emerald "Download Excel (Pulse layout)" button (data-testid exp-export-xlsx-btn) next to Download CSV; downloadXlsx() handler.
 - Verified end-to-end via curl with a seeded approved claim (org iso-demo-org): HTTP 200, correct xlsx MIME + filename, every cell value correct/deterministic (mileage totals, per-nominal analysis, VAT, Total Claim, summary row). Frontend compiled successfully.
+
+## 2026-09-12 — Aftersales FULL-LIFECYCLE regression (go-live proof) — 18/18 PASS
+- Reusable script: /app/tests/afs_lifecycle_e2e.py (drives the live CRM API; set API_URL to REACT_APP_BACKEND_URL, uses owner@isodemo.com CRM login, company AlphaCo/iso-cA). Sends a browser User-Agent (WAF blocks default urllib UA → 403).
+- Proved one contract flows end-to-end with every linked module and deterministic pricing:
+  Estate(23 assets, 7 priceable) → build+save Quote (£1983.19) → Accept → Agreement (links quote, PF-MA-…) → auto-resolve serial-exceptions/wording → Ready → Generate → Sign → **Activate** (contract created; asset_cover stamped on ops equipment register; service schedule 2 visits; billing schedule 1 invoice; Sicon+Sage queued; all steps ok) → Schedules view → **Amendment** (remove 1 machine → £1536.79, pro-rata + billing rebuilt) → **RPI** (+3.6% → £1592.11, applied to live contract) → **Renewal** (rebuilds from current estate £1983.19, quote tagged renews_contract_id).
+- Determinism confirmed: renewal re-priced the same estate/tier back to the original £1983.19.
+- Endpoints exercised (prefix /api/crm/v2/aftersales): estate/{id}, build-quote-from-estate, quotes/{id}/accept, agreements/from-quote/{id}, PATCH agreements/{id}, agreements/{id}/{generate,sign,activate}, contracts/{id}/schedules, contracts/{id}/amendable-assets, amendments/preview, amendments, rpi/reviews/{cid}, rpi/reviews/{rid}/approve, renewals/{cid}/build.
+- Test artifacts created in the demo org were fully cleaned up afterwards (quotes/agreements/contracts/amendments/rpi/schedules/billing deleted; equipment contract_cover reset). Estate returned to pre-test state.
+- Note: Sicon/Sage sync remains a QUEUED mock (no live finance API) — the only downstream gap before real go-live.
