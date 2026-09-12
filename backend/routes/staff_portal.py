@@ -1683,10 +1683,12 @@ async def portal_expenses_receipt(claim_id: str, file: UploadFile = File(...),
     else:
         reason = "ok"
     scan = {"confidence": conf, "reason": reason, "retake": reason != "ok"}
-    # Persist scan quality on the receipt so managers can flag low-confidence scans.
+    ocr_total = _exp_num(ocr.get("total_amount")) if isinstance(ocr, dict) else 0.0
+    # Persist scan quality + read total so managers can flag low scans / amount mismatches.
     await db.staff_expense_claims.update_one(
         {"id": claim_id},
-        {"$set": {f"receipts.{rid}.ocr_confidence": conf, f"receipts.{rid}.ocr_reason": reason}})
+        {"$set": {f"receipts.{rid}.ocr_confidence": conf, f"receipts.{rid}.ocr_reason": reason,
+                  f"receipts.{rid}.ocr_total": round(ocr_total, 2) if ocr_total else None}})
     return {"receipt_id": rid, "suggestion": suggestion, "scan": scan}
 
 
@@ -1787,6 +1789,18 @@ def _exp_flags(claim: dict, threshold: float) -> list[str]:
         rsn = meta.get("ocr_reason")
         if (isinstance(conf, (int, float)) and conf < 0.55) or (rsn and rsn not in ("ok", None)):
             flags.append("low_scan")
+            break
+    # Amount mismatch: typed net+VAT differs from the receipt's photographed total
+    for l in lines:
+        rid = l.get("receipt_id")
+        if not rid:
+            continue
+        ocr_total = (receipts.get(rid) or {}).get("ocr_total")
+        if not isinstance(ocr_total, (int, float)) or ocr_total <= 0:
+            continue
+        typed = round(float(l.get("net") or 0) + (0 if l.get("no_vat") else float(l.get("vat") or 0)), 2)
+        if typed > 0 and abs(typed - float(ocr_total)) > 0.05:
+            flags.append("amount_mismatch")
             break
     # Over threshold
     if float(claim.get("grand_total") or 0) >= threshold:

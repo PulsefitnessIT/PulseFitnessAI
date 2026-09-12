@@ -38057,3 +38057,8 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Backend: staff_portal.py _exp_flags(); GET /new-starter/expenses/review/pending now returns per-claim `flags[]` + `flag_threshold` (receipts meta stripped from response). Receipt upload persists ocr_confidence/ocr_reason.
 - Frontend (StaffExpenseReview.js): filter chips (All / Needs attention / Missing receipt / Duplicate / Low-confidence scan / Over £X) each with live counts; per-claim colour-coded flag badges (data-testid exp-review-filters, exp-filter-{id}, exp-review-flags-{cid}, exp-flag-{flag}-{cid}).
 - Verified end-to-end: a seeded claim triggered all 4 flags (grand £520 ≥ £500); manager UI screenshot shows the chip bar with counts and the Needs-attention filter active. Test claim cleaned up.
+
+## 2026-09-12 — Added "Amount mismatch" flag
+- New manager flag: **amount_mismatch** — when a line's typed net+VAT differs (> £0.05) from the receipt's photographed total. Receipt upload now persists ocr_total on the receipt meta; _exp_flags compares per line with a receipt.
+- Frontend: added to FLAG_META (Scale icon, rose) + filter chip "Amount mismatch" + per-claim badge.
+- Verified: typed £36 vs receipt £58 → flags ['amount_mismatch']; typed £48.33+£9.67=£58 → no flag. Test claims cleaned up. Both compile.

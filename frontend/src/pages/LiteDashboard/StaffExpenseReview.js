@@ -5,7 +5,7 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
-import { Download, CheckCircle2, Undo2, BadgePoundSterling, RotateCw, Receipt, FileSpreadsheet, FileArchive, ChevronDown, ChevronRight, Paperclip, AlertTriangle, Copy, ScanLine } from 'lucide-react';
+import { Download, CheckCircle2, Undo2, BadgePoundSterling, RotateCw, Receipt, FileSpreadsheet, FileArchive, ChevronDown, ChevronRight, Paperclip, AlertTriangle, Copy, ScanLine, Scale } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -37,6 +37,7 @@ const FLAG_META = {
   missing_receipt: { label: 'Missing receipt', icon: Paperclip, c: '#d97706' },
   duplicate: { label: 'Possible duplicate', icon: Copy, c: '#dc2626' },
   low_scan: { label: 'Low-confidence scan', icon: ScanLine, c: '#b45309' },
+  amount_mismatch: { label: 'Amount mismatch', icon: Scale, c: '#be123c' },
   over_threshold: { label: 'Over threshold', icon: BadgePoundSterling, c: '#7c3aed' },
 };
 function FLAG_META_ICON({ id }) {
@@ -183,6 +184,7 @@ export default function StaffExpenseReview({ headers }) {
           { id: 'missing_receipt', label: 'Missing receipt' },
           { id: 'duplicate', label: 'Duplicate' },
           { id: 'low_scan', label: 'Low-confidence scan' },
+          { id: 'amount_mismatch', label: 'Amount mismatch' },
           { id: 'over_threshold', label: `Over ${gbp(flagThreshold)}` },
         ];
         return (
