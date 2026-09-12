@@ -591,7 +591,7 @@ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
  <>
  {/* Iter 284 — Switch Area now in the mobile hamburger menu (header is
      too condensed on mobile). Renders only when 2+ areas are reachable. */}
- <div className="pb-1" onClick={() => setMobileMenuOpen(false)}>
+ <div className="pb-1">
  <AreaSwitcher user={user} tone="header" className="w-full" />
  </div>
  {/* Dashboard button hidden for Pulse users on mobile (parity with desktop) —

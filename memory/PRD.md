@@ -38062,3 +38062,8 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - New manager flag: **amount_mismatch** — when a line's typed net+VAT differs (> £0.05) from the receipt's photographed total. Receipt upload now persists ocr_total on the receipt meta; _exp_flags compares per line with a receipt.
 - Frontend: added to FLAG_META (Scale icon, rose) + filter chip "Amount mismatch" + per-claim badge.
 - Verified: typed £36 vs receipt £58 → flags ['amount_mismatch']; typed £48.33+£9.67=£58 → no flag. Test claims cleaned up. Both compile.
+
+## 2026-09-12 — BUGFIX: mobile "Switch area" did nothing
+- Root cause: in Navbar.js the mobile hamburger wrapped <AreaSwitcher> in `<div onClick={() => setMobileMenuOpen(false)}>`. Tapping the "Switch area" toggle bubbled to that wrapper and closed the whole hamburger menu, unmounting AreaSwitcher + its just-opened dropdown → nothing appeared.
+- Fix: removed the wrapper onClick (selecting an area does a full window.location.href navigation, so no manual close needed; picking the current area just closes the dropdown via its own overlay).
+- Verified on 390px mobile: open hamburger → tap "Switch area" → dropdown opens (Main app ✓ / Staff Portal etc.), chevron rotates, hamburger stays open. Reported from a screen recording (Lee Somers, Operations→Expenses). Fix is global to the Navbar mobile menu.
