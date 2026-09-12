@@ -25,8 +25,11 @@ def call(method, path, token=None, body=None):
         req.add_header("Authorization", "Bearer " + token)
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
-            raw = r.read().decode()
-            return r.status, (json.loads(raw) if raw else {})
+            raw = r.read().decode("utf-8-sig", errors="replace")
+            try:
+                return r.status, (json.loads(raw) if raw else {})
+            except json.JSONDecodeError:
+                return r.status, {"_raw_len": len(raw), "_nonjson": True}
     except urllib.error.HTTPError as e:
         raw = e.read().decode()
         try:
@@ -163,6 +166,32 @@ st, rn = call("POST", f"/api/crm/v2/aftersales/renewals/{contract_id}/build", to
 cmp = rn.get("renewal_comparison") or {}
 rec("renewal_build", st == 200 and cmp.get("renews_contract_id") == contract_id and rn.get("saved_quote_id"),
     f"prev={cmp.get('previous_annual')} proposed={cmp.get('proposed_annual')} change={cmp.get('change_amount')} quote={rn.get('quote_number')}")
+
+# 16. Finance sync (Sage via Sicon) — outbox captured on activation/amend/rpi
+st, fl = call("GET", "/api/crm/v2/aftersales/finance/sync", token)
+mine = [i for i in (fl.get("items") or []) if i.get("contract_id") == contract_id]
+rec("finance_outbox_present", st == 200 and len(mine) == 1,
+    f"items={fl.get('count')} live_connected={fl.get('live_connected')} totals={fl.get('totals')}")
+
+st, fd = call("GET", f"/api/crm/v2/aftersales/finance/sync/{contract_id}", token)
+pl = fd.get("payload") or {}
+rec("finance_payload", st == 200 and pl.get("document_type") == "sales_order" and len(pl.get("lines") or []) > 0,
+    f"status={fd.get('status')} lines={len(pl.get('lines') or [])} net={pl.get('net_total')} events={[h.get('event') for h in (fd.get('history') or [])]}")
+
+# CSV export (file handoff finance can import today)
+st, _ = call("GET", f"/api/crm/v2/aftersales/finance/sync/{contract_id}/export?format=csv", token)
+rec("finance_export_csv", st == 200, f"status={st}")
+st, _ = call("GET", "/api/crm/v2/aftersales/finance/sync/export/all", token)
+rec("finance_export_all", st == 200, f"status={st}")
+
+# Manual reconcile (finance imported → record Sicon ref)
+st, mk = call("POST", f"/api/crm/v2/aftersales/finance/sync/{contract_id}/mark-synced", token,
+              {"external_ref": "SO-QA-0001", "note": "QA reconcile"})
+rec("finance_mark_synced", st == 200 and mk.get("status") == "synced", f"ref={mk.get('external_ref')}")
+# verify contract now reports synced on the compliance view
+st, sc3 = call("GET", f"/api/crm/v2/aftersales/contracts/{contract_id}/schedules", token)
+rec("finance_status_on_contract", (sc3.get("contract") or {}).get("sicon_sync_status") == "synced",
+    f"sicon={(sc3.get('contract') or {}).get('sicon_sync_status')}")
 
 # summary
 print("\n==== LIFECYCLE SUMMARY ====")

@@ -1563,6 +1563,87 @@ function AmendModal({ contractId, API, headers, c, isDark, onClose, onApplied })
 }
 
 
+function FinanceSyncBlock({ contractId, API, headers, c, status, onChanged }) {
+  const [busy, setBusy] = useState('');
+  const [msg, setMsg] = useState('');
+
+  const dl = async (fmt) => {
+    setBusy('dl');
+    try {
+      const r = await axios.get(`${API}/crm/v2/aftersales/finance/sync/${contractId}/export?format=${fmt}`,
+        { headers: headers(), responseType: 'blob' });
+      const type = fmt === 'json' ? 'application/json' : 'text/csv';
+      const url = URL.createObjectURL(new Blob([r.data], { type }));
+      const a = document.createElement('a');
+      a.href = url; a.download = `sicon-${contractId}.${fmt}`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch { setMsg('Nothing to export yet.'); }
+    setBusy('');
+  };
+  const retry = async () => {
+    setBusy('retry'); setMsg('');
+    try {
+      const r = await axios.post(`${API}/crm/v2/aftersales/finance/sync/${contractId}/retry`, {}, { headers: headers() });
+      setMsg(r.data.status === 'synced' ? 'Posted to Sicon ✔'
+        : r.data.status === 'awaiting_credentials' ? 'Queued — connect Sicon to auto-post, or export.'
+        : `Sync failed: ${r.data.detail || 'see logs'}`);
+      onChanged && onChanged();
+    } catch { setMsg('Retry failed.'); }
+    setBusy('');
+  };
+  const markSynced = async () => {
+    const ref = window.prompt('Enter the Sage/Sicon Sales Order reference (optional):', '');
+    if (ref === null) return;
+    setBusy('mark'); setMsg('');
+    try {
+      await axios.post(`${API}/crm/v2/aftersales/finance/sync/${contractId}/mark-synced`,
+        { external_ref: ref || null }, { headers: headers() });
+      setMsg('Marked as synced ✔'); onChanged && onChanged();
+    } catch { setMsg('Could not update.'); }
+    setBusy('');
+  };
+
+  const label = status === 'synced' ? 'Synced to Sage (via Sicon)'
+    : status === 'failed' ? 'Sync failed — retry or export'
+    : 'Queued — export for Sage, or connect Sicon to auto-post';
+  const col = status === 'synced' ? 'var(--color-success-alt)'
+    : status === 'failed' ? 'var(--color-danger-alt, #EF4444)' : 'var(--color-warning-alt, #F59E0B)';
+
+  return (
+    <div data-testid={`afs-finance-sync-${contractId}`} className="mt-3 p-3 rounded-lg border"
+         style={{ borderColor: c.border }}>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: col }}>
+          <Receipt size={13} /> Finance sync (Sage 200 · Sicon): {label}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button data-testid={`afs-finance-export-csv-${contractId}`} onClick={() => dl('csv')} disabled={!!busy}
+            className="text-[11px] font-semibold px-2.5 py-1 rounded-md inline-flex items-center gap-1"
+            style={{ border: `1px solid ${c.border}`, color: c.textDim }}>
+            <FileSpreadsheet size={12} /> CSV
+          </button>
+          <button data-testid={`afs-finance-export-json-${contractId}`} onClick={() => dl('json')} disabled={!!busy}
+            className="text-[11px] font-semibold px-2.5 py-1 rounded-md inline-flex items-center gap-1"
+            style={{ border: `1px solid ${c.border}`, color: c.textDim }}>
+            <FileText size={12} /> JSON
+          </button>
+          <button data-testid={`afs-finance-retry-${contractId}`} onClick={retry} disabled={!!busy}
+            className="text-[11px] font-semibold px-2.5 py-1 rounded-md inline-flex items-center gap-1"
+            style={{ border: `1px solid ${c.border}`, color: c.textDim }}>
+            <RotateCw size={12} className={busy === 'retry' ? 'animate-spin' : ''} /> Sync now
+          </button>
+          <button data-testid={`afs-finance-mark-${contractId}`} onClick={markSynced} disabled={!!busy}
+            className="text-[11px] font-semibold px-2.5 py-1 rounded-md inline-flex items-center gap-1"
+            style={{ background: 'var(--color-success-alt)', color: '#fff' }}>
+            <CheckCircle2 size={12} /> Mark synced
+          </button>
+        </div>
+      </div>
+      {msg && <p className="text-[11px] mt-2" style={{ color: c.textDim }}>{msg}</p>}
+    </div>
+  );
+}
+
 function ComplianceCard({ row, API, headers, c, isDark, onChanged }) {
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState(null);
@@ -1638,6 +1719,8 @@ function ComplianceCard({ row, API, headers, c, isDark, onChanged }) {
                 <Calculator size={13} /> Amend contract
               </button>
             </div>
+            <FinanceSyncBlock contractId={cid} API={API} headers={headers} c={c}
+              status={row.sicon_sync_status} onChanged={onChanged} />
             <div className="grid md:grid-cols-2 gap-4 pt-3">
               <div>
                 <h4 className="text-xs font-bold uppercase mb-2" style={{ color: c.textDim }}>Service visits</h4>
@@ -1716,11 +1799,27 @@ function LiveCompliancePanel({ API, headers, c, isDark }) {
           <h2 className="text-lg font-bold" style={{ color: c.text }}>Live compliance</h2>
           <p className="text-xs" style={{ color: c.textDim }}>Service visits, billing and Sicon/Sage sync across every active contract.</p>
         </div>
+        <div className="flex items-center gap-2">
         <button data-testid="afs-compliance-refresh" onClick={load}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
                 style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
           <RotateCw size={13} /> Refresh
         </button>
+        <button data-testid="afs-finance-export-all" onClick={async () => {
+                  try {
+                    const r = await axios.get(`${API}/crm/v2/aftersales/finance/sync/export/all`,
+                      { headers: headers(), responseType: 'blob' });
+                    const url = URL.createObjectURL(new Blob([r.data], { type: 'text/csv' }));
+                    const a = document.createElement('a');
+                    a.href = url; a.download = `sicon-sales-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+                    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+                  } catch { alert('Nothing to export yet.'); }
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
+          <FileSpreadsheet size={13} /> Export all for Sage
+        </button>
+        </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" data-testid="afs-compliance-stats">
         {chips.map(ch => (

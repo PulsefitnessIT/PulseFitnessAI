@@ -14,7 +14,7 @@ imported Pulse workbook (crm2_afs_* collections). AI never invents prices —
 figures come only from these authorised rules or an authorised manual override.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
@@ -1671,11 +1671,23 @@ async def activate_agreement(agreement_id: str, user=Depends(get_crm_user)):
     else:
         steps.append({"step": "direct_debit", "status": "ok"})
 
-    # 6. Queue Sicon / Sage synchronisation (reuse existing integrations — queued state).
-    await db.crm2_contracts.update_one({"id": cid, **of}, {"$set": {
-        "sicon_sync_status": "pending", "sage_sync_status": "pending", "updated_at": _now()}})
-    steps.append({"step": "sicon_sync", "status": "queued", "detail": "Queued for Sicon Service sync"})
-    steps.append({"step": "sage_sync", "status": "queued", "detail": "Queued for Sage 200 billing sync"})
+    # 6. Finance sync — capture a Sicon-ready Sales Order into the outbox and
+    #    push live if the Sicon WebAPI is configured (else queued for export).
+    from utils.finance_sync import enqueue_finance_sync, finance_provider_configured
+    fin = await enqueue_finance_sync(org_id, cid, "activation", user.get("email") or user.get("id"))
+    if fin["status"] == "synced":
+        steps.append({"step": "sicon_sync", "status": "ok",
+                      "detail": f"Posted Sales Order to Sicon ({fin.get('external_ref') or 'ok'})"})
+        steps.append({"step": "sage_sync", "status": "ok", "detail": "Billing posted via Sicon"})
+    elif fin["status"] == "failed":
+        steps.append({"step": "sicon_sync", "status": "warning",
+                      "detail": f"Sicon push failed — queued for export ({fin.get('detail')})"})
+        steps.append({"step": "sage_sync", "status": "warning", "detail": "Awaiting Sicon retry"})
+    else:  # awaiting_credentials
+        detail = ("Sales Order queued — connect Sicon WebAPI to auto-post, or export for finance import"
+                  if not finance_provider_configured() else "Queued for Sicon sync")
+        steps.append({"step": "sicon_sync", "status": "queued", "detail": detail})
+        steps.append({"step": "sage_sync", "status": "queued", "detail": "Billing queued for Sage via Sicon"})
 
     # Finalise agreement.
     tl = ag.get("timeline", []) + [{"at": _now(), "event": "Contract activated", "by": user.get("email")}]
@@ -1896,9 +1908,9 @@ async def apply_amendment(contract_id: str, body: AmendmentIn, user=Depends(get_
         {"$set": {"contract_id": contract_id, "organization_id": org_id, "frequency": freq,
                   "invoices": rebuilt, "updated_at": _now()}}, upsert=True)
 
-    # 4. Re-queue Sicon/Sage sync (value + cover changed).
-    await db.crm2_contracts.update_one({"id": contract_id, **of}, {"$set": {
-        "sicon_sync_status": "pending", "sage_sync_status": "pending"}})
+    # 4. Re-sync finance — refresh the Sicon Sales Order with the new value/billing.
+    from utils.finance_sync import enqueue_finance_sync
+    await enqueue_finance_sync(org_id, contract_id, "amendment", user.get("email") or user.get("id"))
 
     # 5. Persist the amendment history record.
     amd = {
@@ -2130,6 +2142,151 @@ async def contracts_compliance(user=Depends(get_crm_user)):
     return {"contracts": rows, "count": len(rows), "totals": totals, "generated_at": _now()}
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# FINANCE SYNC (Sage 200 via Sicon WebAPI) — durable outbox of Sicon-ready
+# Sales Orders. Auto-posts live when SICON_WEBAPI_* env is set; otherwise queued
+# for a one-click Sage-ready export (CSV/JSON) finance imports today. §Task-Sage
+# ══════════════════════════════════════════════════════════════════════════
+
+@router.get("/finance/sync")
+async def finance_sync_list(status: str = "", user=Depends(get_crm_user)):
+    from utils.finance_sync import finance_provider_configured
+    of = _of(user)
+    q = dict(of)
+    if status:
+        q["status"] = status
+    rows = await db.crm2_afs_finance_sync.find(
+        q, {"_id": 0, "payload": 0, "history": 0}).sort("updated_at", -1).to_list(500)
+    totals = {"queued": 0, "synced": 0, "failed": 0}
+    for r in rows:
+        totals[r.get("status", "queued")] = totals.get(r.get("status", "queued"), 0) + 1
+    return {"items": rows, "count": len(rows), "totals": totals,
+            "provider": "sicon", "live_connected": finance_provider_configured()}
+
+
+@router.get("/finance/sync/{contract_id}")
+async def finance_sync_get(contract_id: str, user=Depends(get_crm_user)):
+    doc = await db.crm2_afs_finance_sync.find_one({"contract_id": contract_id, **_of(user)}, _PUBLIC)
+    if not doc:
+        raise HTTPException(404, "No finance-sync record for this contract yet")
+    return doc
+
+
+def _sales_order_rows(items: list[dict]) -> list[dict]:
+    """Flatten outbox Sales Orders → one CSV row per order line (Sage/Sicon import)."""
+    out = []
+    for it in items:
+        p = it.get("payload") or {}
+        cust = p.get("customer") or {}
+        con = p.get("contract") or {}
+        for ln in p.get("lines") or []:
+            out.append({
+                "customer_reference": cust.get("reference", ""),
+                "customer_name": cust.get("name", ""),
+                "customer_email": cust.get("email") or "",
+                "contract_number": con.get("number", ""),
+                "contract_type": con.get("type", ""),
+                "document_type": p.get("document_type", "sales_order"),
+                "line_due_date": ln.get("due_date", ""),
+                "description": ln.get("description", ""),
+                "nominal_code": ln.get("nominal_code", ""),
+                "tax_code": ln.get("tax_code", ""),
+                "net_amount": ln.get("net_amount", 0),
+                "currency": p.get("currency", "GBP"),
+                "external_id": p.get("external_id", ""),
+                "sync_status": it.get("status", ""),
+                "sicon_ref": it.get("external_ref") or "",
+            })
+    return out
+
+
+def _sales_order_csv(items: list[dict]) -> bytes:
+    import csv
+    cols = ["customer_reference", "customer_name", "customer_email", "contract_number",
+            "contract_type", "document_type", "line_due_date", "description", "nominal_code",
+            "tax_code", "net_amount", "currency", "external_id", "sync_status", "sicon_ref"]
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=cols)
+    w.writeheader()
+    for row in _sales_order_rows(items):
+        w.writerow(row)
+    return buf.getvalue().encode("utf-8-sig")
+
+
+@router.get("/finance/sync/{contract_id}/export")
+async def finance_sync_export_one(contract_id: str, format: str = "csv", user=Depends(get_crm_user)):
+    doc = await db.crm2_afs_finance_sync.find_one({"contract_id": contract_id, **_of(user)}, _PUBLIC)
+    if not doc:
+        raise HTTPException(404, "No finance-sync record for this contract yet")
+    num = re.sub(r"[^A-Za-z0-9]+", "-", doc.get("contract_number") or contract_id).strip("-")
+    if format == "json":
+        import json
+        body = json.dumps(doc.get("payload") or {}, indent=2).encode("utf-8")
+        return Response(content=body, media_type="application/json",
+                        headers={"Content-Disposition": f'attachment; filename="sicon-{num}.json"'})
+    csv_bytes = _sales_order_csv([doc])
+    return Response(content=csv_bytes, media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="sicon-{num}.csv"'})
+
+
+@router.get("/finance/sync/export/all")
+async def finance_sync_export_all(status: str = "", user=Depends(get_crm_user)):
+    """One-click Sage/Sicon-ready CSV of every queued/active contract Sales Order."""
+    of = _of(user)
+    q = dict(of)
+    if status:
+        q["status"] = status
+    items = await db.crm2_afs_finance_sync.find(q, _PUBLIC).sort("updated_at", -1).to_list(1000)
+    if not items:
+        raise HTTPException(404, "Nothing to export yet")
+    csv_bytes = _sales_order_csv(items)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    return Response(content=csv_bytes, media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="sicon-sales-orders-{stamp}.csv"'})
+
+
+@router.post("/finance/sync/{contract_id}/retry")
+async def finance_sync_retry(contract_id: str, user=Depends(get_crm_user)):
+    from utils.finance_sync import enqueue_finance_sync
+    contract = await db.crm2_contracts.find_one({"id": contract_id, **_of(user)}, {"_id": 0, "id": 1})
+    if not contract:
+        raise HTTPException(404, "Contract not found")
+    res = await enqueue_finance_sync(_org(user), contract_id, "manual_retry", user.get("email"))
+    await record_audit(entity_type="afs_finance_sync", entity_id=contract_id, action="retry", user=user,
+                       extra={"status": res.get("status")})
+    return res
+
+
+class FinanceMarkSyncedIn(BaseModel):
+    external_ref: Optional[str] = None
+    note: Optional[str] = None
+
+
+@router.post("/finance/sync/{contract_id}/mark-synced")
+async def finance_sync_mark_synced(contract_id: str, body: FinanceMarkSyncedIn,
+                                   user=Depends(get_crm_user)):
+    """Manual reconcile — finance imported the Sales Order into Sage/Sicon and
+    records the resulting reference (marks the outbox + contract as synced)."""
+    of = _of(user)
+    doc = await db.crm2_afs_finance_sync.find_one({"contract_id": contract_id, **of}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "No finance-sync record for this contract yet")
+    hist = (doc.get("history") or [])[-19:] + [{
+        "at": _now(), "event": "manual_mark_synced", "status": "synced",
+        "detail": body.note or f"Reconciled by {user.get('email')}", "by": user.get("email")}]
+    await db.crm2_afs_finance_sync.update_one(
+        {"contract_id": contract_id, **of},
+        {"$set": {"status": "synced", "external_ref": body.external_ref or doc.get("external_ref"),
+                  "synced_at": _now(), "last_error": None, "history": hist, "updated_at": _now()}})
+    await db.crm2_contracts.update_one({"id": contract_id, **of}, {"$set": {
+        "sicon_sync_status": "synced", "sage_sync_status": "synced",
+        "finance_sync_status": "synced", "updated_at": _now()}})
+    await record_audit(entity_type="afs_finance_sync", entity_id=contract_id, action="mark_synced",
+                       user=user, extra={"external_ref": body.external_ref})
+    return {"status": "synced", "external_ref": body.external_ref or doc.get("external_ref")}
+
+
+
 
 # ══════════════════════════════════════════════════════════════════════════
 # WARRANTY-TO-MAINTENANCE — revenue opportunity engine (§90-91)
@@ -2323,6 +2480,9 @@ async def approve_rpi_review(review_id: str, user=Depends(get_crm_user)):
     await db.crm2_contracts.update_one({"id": r["contract_id"], **of}, {"$set": {
         "annual_value": r["proposed_value"], "rpi_last_review": _now(),
         "rpi_effective_date": r.get("effective_date"), "updated_at": _now()}})
+    # Re-sync finance so Sicon carries the new (RPI-uplifted) contract value.
+    from utils.finance_sync import enqueue_finance_sync
+    await enqueue_finance_sync(_org(user), r["contract_id"], "rpi", user.get("email"))
     await record_audit(entity_type="afs_rpi", entity_id=review_id, action="approve", user=user,
                        extra={"contract": r["contract_id"], "old": r["previous_value"], "new": r["proposed_value"]})
     return {"status": "approved", "contract_id": r["contract_id"], "new_annual_value": r["proposed_value"]}
