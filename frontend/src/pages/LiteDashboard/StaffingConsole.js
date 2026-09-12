@@ -36,6 +36,7 @@ import TimeClockTab from '@/pages/LiteDashboard/staffing/TimeClockTab';
 import MyClockTab from '@/pages/LiteDashboard/staffing/MyClockTab';
 import CommsTab from '@/pages/LiteDashboard/staffing/CommsTab';
 import OperationsTab from '@/pages/LiteDashboard/staffing/OperationsTab';
+import StaffExpenseReview from '@/pages/LiteDashboard/StaffExpenseReview';
 import HRTab from '@/pages/LiteDashboard/staffing/HRTab';
 import StaffOnboarding from '@/pages/LiteDashboard/staffing/StaffOnboarding';
 import TeamAccessTab from '@/pages/LiteDashboard/staffing/TeamAccessTab';
@@ -107,6 +108,7 @@ const GROUPS_ALL = [
   { id: 'payroll',  label: 'Payroll',  icon: PoundSterling, leaf: 'payroll',  roles: MGR },
   // Expenses moved in from the Operations bar, right after Payroll.
   { id: 'expenses', label: 'Expenses', icon: Wallet,        leaf: 'expenses', roles: MGR },
+  { id: 'staff-expenses', label: 'Staff Expenses', icon: Wallet, leaf: 'staff-expenses', roles: MGR },
   // Comms = Announcements + Handover Diary (combined per request).
   { id: 'comms', label: 'Comms', icon: MessageSquare, children: [
     { id: 'announce', label: 'Announcements',  icon: Megaphone,     roles: ALL },
@@ -325,6 +327,7 @@ export default function StaffingConsole() {
         {tab === 'performance' && <PerformanceTab headers={headers} />}
         {tab === 'payroll'     && <PayrollWorkspaceTab headers={headers} />}
         {tab === 'expenses'    && <DeskExpenses />}
+        {tab === 'staff-expenses' && <StaffExpenseReview headers={headers} />}
         {tab === 'live'        && <LiveFloorTab   headers={headers} />}
         {tab === 'rules'       && <RulesTab       headers={headers} />}
         {tab === 'announce'    && <AnnouncementsTab headers={headers} isManager={isManager} />}

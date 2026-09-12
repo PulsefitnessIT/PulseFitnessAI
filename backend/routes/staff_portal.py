@@ -1657,7 +1657,7 @@ async def portal_expenses_submit(claim_id: str, user: dict = Depends(get_current
                        type="expense_claim", title="Expense claim to review",
                        body=f"{claim.get('staff_name')} submitted a {claim.get('claim_month')} expense claim "
                             f"for £{claim.get('grand_total', 0):.2f}.",
-                       link="/staffing?tab=expenses")
+                       link="/platform/staffing?tab=staff-expenses")
     return {"status": "submitted"}
 
 
@@ -1745,3 +1745,60 @@ async def expenses_review_reimburse(claim_id: str, user: dict = Depends(get_curr
     await _exp_notify_owner(org, claim, "Expense claim reimbursed",
                             f"Your {claim.get('claim_month')} claim (£{claim.get('grand_total', 0):.2f}) has been marked as paid.")
     return {"status": "reimbursed"}
+
+
+# ── Payroll export (finance): approved claims for a month → CSV ─────────────
+@router.get("/new-starter/expenses/review/export-months")
+async def expenses_export_months(user: dict = Depends(get_current_user)):
+    if (user.get("role") not in HR_ROLES) and not user.get("is_master_admin"):
+        raise HTTPException(403, "Not authorised")
+    org = user.get("organization_id")
+    rows = await db.staff_expense_claims.find(
+        {"organization_id": org, "status": {"$in": ["approved", "reimbursed"]}},
+        {"_id": 0, "claim_month": 1, "status": 1, "grand_total": 1}).to_list(5000)
+    agg = {}
+    for r in rows:
+        m = r.get("claim_month") or "Unknown"
+        a = agg.setdefault(m, {"month": m, "approved": 0, "reimbursed": 0, "total": 0.0})
+        a[r["status"]] = a.get(r["status"], 0) + 1
+        a["total"] = round(a["total"] + float(r.get("grand_total") or 0), 2)
+    return {"months": sorted(agg.values(), key=lambda x: x["month"], reverse=True)}
+
+
+@router.get("/new-starter/expenses/review/export")
+async def expenses_export_csv(month: str = Query(...), include_reimbursed: bool = Query(False),
+                              user: dict = Depends(get_current_user)):
+    if (user.get("role") not in HR_ROLES) and not user.get("is_master_admin"):
+        raise HTTPException(403, "Not authorised")
+    org = user.get("organization_id")
+    statuses = ["approved", "reimbursed"] if include_reimbursed else ["approved"]
+    claims = await db.staff_expense_claims.find(
+        {"organization_id": org, "claim_month": month, "status": {"$in": statuses}},
+        {"_id": 0, "receipts": 0}).sort("staff_name", 1).to_list(5000)
+
+    import csv
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Employee", "Department", "Car Reg", "Claim Month", "Status", "Type",
+                "Date", "Description", "Nominal", "Miles", "Rate", "Net", "VAT", "Total", "Claim Total"])
+    grand = 0.0
+    for c in claims:
+        base = [c.get("staff_name", ""), c.get("department", ""), c.get("car_registration", ""),
+                c.get("claim_month", ""), c.get("status", "")]
+        ct = round(float(c.get("grand_total") or 0), 2)
+        grand += ct
+        for m in (c.get("mileage") or []):
+            if not m.get("miles"):
+                continue
+            w.writerow(base + ["Mileage", "", m.get("label", ""), "", m.get("miles"),
+                               m.get("rate"), "", "", m.get("amount"), ct])
+        for ln in (c.get("lines") or []):
+            w.writerow(base + ["Expense", ln.get("date", ""), ln.get("description", ""),
+                               ln.get("nominal", ""), "", "", ln.get("net"),
+                               (0 if ln.get("no_vat") else ln.get("vat")), ln.get("total"), ct])
+    w.writerow([])
+    w.writerow(["", "", "", "", "", "", "", "", "", "", "", "", "", "TOTAL", round(grand, 2)])
+    csv_bytes = buf.getvalue().encode("utf-8-sig")
+    safe_month = re.sub(r"[^A-Za-z0-9]+", "-", month).strip("-")
+    return Response(content=csv_bytes, media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="expenses-{safe_month}.csv"'})

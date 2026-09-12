@@ -1,3 +1,26 @@
+# ═══ 2026-06 · STAFF EXPENSES — PAYROLL EXPORT + MANAGER REVIEW UI (BE curl verified; FE compile) ═══
+Finance can one-click export approved staff expense claims for a month to CSV, and managers/finance now have a review
+screen (approve / return / mark reimbursed) — the previously API-only loop now has a UI.
+  - Backend (routes/staff_portal.py): GET /new-starter/expenses/review/export-months (distinct claim_month for
+    approved+reimbursed, counts + £ totals); GET /new-starter/expenses/review/export?month=&include_reimbursed= →
+    CSV (text/csv, utf-8-sig BOM for Excel, Content-Disposition attachment). CSV columns: Employee, Department, Car Reg,
+    Claim Month, Status, Type (Mileage/Expense), Date, Description, Nominal, Miles, Rate, Net, VAT, Total, Claim Total;
+    one row per mileage-rate-used + one per expense line, trailing TOTAL row. HR_ROLES/master-admin gated. Also fixed
+    the submit notification deep-link → /platform/staffing?tab=staff-expenses.
+  - FE (pages/LiteDashboard/StaffExpenseReview.js; wired into StaffingConsole.js as new GROUPS_ALL leaf
+    {id:'staff-expenses', 'Staff Expenses', leaf:'staff-expenses', roles:MGR} + render {tab==='staff-expenses'}):
+    payroll export bar (month dropdown w/ counts+totals, include-reimbursed toggle, Download CSV via axios blob) +
+    review list of submitted/approved claims with Approve / Return / Mark reimbursed. testids: staff-expense-review,
+    exp-payroll-export, exp-export-month/-incl-paid/-btn, exp-review-<id>, exp-approve/-reject/-reimburse-<id>.
+  VERIFIED: BE curl full flow — create→submit→approve→export-months ([July 2025, 1 approved, £106])→export CSV
+    (mileage 120mi@£0.55=£66 + £40 train no-VAT, TOTAL £106, Excel BOM). Test data purged. FE compiled successfully
+    (webpack) + JSX parses; tab wired like existing leaves. NOTE: could not capture a live authenticated screenshot of
+    the review tab this session — the dev server OOM-recompiled twice (env, not code) and /login hit rate limits so
+    /platform/staffing showed the unauthenticated marketing preview. Verified by construction + compile; recommend a
+    quick live check or testing_agent pass before finance rollout. StaffingConsole route = /platform/staffing.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · STAFF PORTAL — EXPENSES (monthly claim, Pulse template) (BE curl full lifecycle + FE screenshot) ═══
 Brought expenses into the Staff Portal, modelled on the Pulse Fitness "Employee expenses" spreadsheet. USER CHOICES:
 exact template mileage rates (1a), prefilled Name/Department + Car Registration + claim month (2a), the customer's own
