@@ -37977,3 +37977,11 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Frontend: HRTab.js ProfilePanel header buttons File PDF / File Excel (data-testid employee-file-pdf / employee-file-xlsx) + downloadHrFile helper.
 - Verified: PDF %PDF 200; XLSX 200 with sheets [Summary, Documents, Attendance & Pay, Leave, Disciplinary, Training]; buttons render (screenshot).
 - FOUNDER AUDIT ROADMAP COMPLETE: #1 leaver login revocation, #2 offboarding workflow, #3 unified personal data, #4 employee file export.
+
+## 2026-09-12 — Staff Expenses: Payroll export in Pulse .xlsx layout (Iter fork)
+- Added a second payroll export for approved staff expense claims in the EXACT Pulse "Employee Expenses" master spreadsheet layout (.xlsx), alongside the existing flat CSV.
+- Endpoint: GET /api/new-starter/expenses/review/export-xlsx?month=&include_reimbursed= (managers/HR only). Backend: routes/staff_portal.py — _build_expenses_xlsx() + EXP_NOMINAL_CODES / _EXP_ANALYSIS_ROWS.
+- Workbook = one formatted sheet per employee claim (title banner, Name/Department/Car Reg, 5 mileage rate rows, itemised expense lines rows 21-50, Total Claim, and an auto-totalled "Nominal Analysis code" table incl. Mileage claim/repayment split + VAT row), with orange input cells (#FFCC99) and £ number formats. Plus a "Summary" cover tab (per-employee mileage/expenses/total + grand total). Empty month -> Summary + "No claims" tab.
+- Nominal→Sage code map mirrors the master sheet (7060 Misc … 7315 Fuel/Mileage repayment, 7073 Mileage claim, 2201 VAT).
+- Frontend: StaffExpenseReview.js — new emerald "Download Excel (Pulse layout)" button (data-testid exp-export-xlsx-btn) next to Download CSV; downloadXlsx() handler.
+- Verified end-to-end via curl with a seeded approved claim (org iso-demo-org): HTTP 200, correct xlsx MIME + filename, every cell value correct/deterministic (mileage totals, per-nominal analysis, VAT, Total Claim, summary row). Frontend compiled successfully.

@@ -1457,6 +1457,16 @@ EXP_DEPARTMENTS = [
 ]
 _EXP_RATE_BY_KEY = {r["key"]: r for r in EXP_MILEAGE_RATES}
 
+# Nominal → Sage account code, mirroring the Pulse "Nominal Analysis code" table
+# in the master Employee Expenses spreadsheet (single source for the .xlsx export).
+EXP_NOMINAL_CODES = {
+    "Miscellaneous Expenses": 7060, "Airfare": 7062, "Train fares": 7062, "Hotel": 7063,
+    "Entertaining Clients": 7064, "Entertaining Staff": 7065, "Meals/Drinks": 7066,
+    "Parking, tolls and other vehicle costs": 7067, "Taxi's": 7068, "Stationery": 7069,
+    "Computer consumables": 7070, "Postage": 7071, "Telecoms": 7072, "Fuel": 7315,
+    "Vehicle Servicing": 7320, "Rent": 7200,
+}
+
 
 def _exp_num(v):
     try:
@@ -1802,3 +1812,219 @@ async def expenses_export_csv(month: str = Query(...), include_reimbursed: bool 
     safe_month = re.sub(r"[^A-Za-z0-9]+", "-", month).strip("-")
     return Response(content=csv_bytes, media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="expenses-{safe_month}.csv"'})
+
+
+# Bottom "Nominal Analysis code" table order — matches the Pulse master sheet.
+_EXP_ANALYSIS_ROWS = [
+    "Miscellaneous Expenses", "Airfare", "Train fares", "Hotel", "Entertaining Clients",
+    "Entertaining Staff", "Meals/Drinks", "Parking, tolls and other vehicle costs", "Taxi's",
+    "Stationery", "Computer consumables", "Postage", "Telecoms", "Mileage claim",
+    "Mileage claim repayment", "Fuel", "Vehicle Servicing", "Rent",
+]
+_EXP_ANALYSIS_CODES = {**EXP_NOMINAL_CODES, "Mileage claim": 7073, "Mileage claim repayment": 7315}
+
+
+def _build_expenses_xlsx(month: str, claims: list[dict]) -> bytes:
+    """One formatted sheet per employee claim, replicating the Pulse master
+    'Employee Expenses' spreadsheet (orange input cells, £ formats, itemised
+    lines, auto-totalled Nominal Analysis code table), plus a summary cover tab."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    GBP = '"£"#,##0.00'
+    orange = PatternFill("solid", fgColor="FFCC99")
+    grey = PatternFill("solid", fgColor="F2F2F2")
+    band = PatternFill("solid", fgColor="1F3A5F")
+    thin = Side(style="thin", color="BFBFBF")
+    box = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    wb = Workbook()
+
+    # ── Summary cover tab ──
+    cover = wb.active
+    cover.title = "Summary"
+    cover["A1"] = f"Pulse Fitness — Staff Expenses · {month}"
+    cover["A1"].font = Font(bold=True, size=16, color="1F3A5F")
+    cover.merge_cells("A1:E1")
+    heads = ["Employee", "Department", "Mileage (£)", "Expenses (£)", "Total (£)"]
+    for i, h in enumerate(heads, start=1):
+        c = cover.cell(row=3, column=i, value=h)
+        c.font = Font(bold=True, color="FFFFFF"); c.fill = band
+        c.alignment = Alignment(horizontal="center"); c.border = box
+    r = 4
+    g_mile = g_exp = g_total = 0.0
+    for c in claims:
+        m = round(float(c.get("mileage_total") or 0), 2)
+        e = round(float(c.get("expenses_total") or 0), 2)
+        t = round(float(c.get("grand_total") or 0), 2)
+        g_mile += m; g_exp += e; g_total += t
+        cover.cell(row=r, column=1, value=c.get("staff_name", "")).border = box
+        cover.cell(row=r, column=2, value=c.get("department", "")).border = box
+        for col, val in ((3, m), (4, e), (5, t)):
+            cc = cover.cell(row=r, column=col, value=val)
+            cc.number_format = GBP; cc.border = box
+        r += 1
+    tot = cover.cell(row=r, column=2, value="TOTAL"); tot.font = Font(bold=True)
+    tot.alignment = Alignment(horizontal="right")
+    for col, val in ((3, g_mile), (4, g_exp), (5, g_total)):
+        cc = cover.cell(row=r, column=col, value=round(val, 2))
+        cc.number_format = GBP; cc.font = Font(bold=True); cc.fill = grey
+    for col, w in (("A", 26), ("B", 18), ("C", 14), ("D", 14), ("E", 14)):
+        cover.column_dimensions[col].width = w
+
+    used_names: dict[str, int] = {}
+
+    def _sheet_name(name: str) -> str:
+        base = re.sub(r"[\\/*?:\[\]]", " ", (name or "Employee")).strip()[:28] or "Employee"
+        n = used_names.get(base, 0) + 1
+        used_names[base] = n
+        return base if n == 1 else f"{base[:26]} {n}"
+
+    for claim in claims:
+        ws = wb.create_sheet(title=_sheet_name(claim.get("staff_name")))
+        for col, w in (("A", 12), ("B", 46), ("C", 30), ("D", 16), ("E", 10), ("F", 12),
+                       ("J", 14), ("M", 30)):
+            ws.column_dimensions[col].width = w
+
+        ws["A1"] = "Pulse Fitness Limited - Expense Claim"
+        ws["A1"].font = Font(bold=True, size=18, color="1F3A5F")
+        ws.merge_cells("A1:F1"); ws.row_dimensions[1].height = 28
+
+        def lbl(addr, text, **kw):
+            c = ws[addr]; c.value = text
+            c.font = Font(bold=kw.get("bold", True), size=kw.get("size", 10))
+            if kw.get("center"):
+                c.alignment = Alignment(horizontal="center")
+            return c
+
+        def inp(addr, val, numfmt=None):
+            c = ws[addr]; c.value = val; c.fill = orange; c.border = box
+            if numfmt:
+                c.number_format = numfmt
+            return c
+
+        lbl("A3", "Name"); inp("B3", claim.get("staff_name", "")); lbl("C3", "(Required)", bold=False, size=9)
+        lbl("D3", "Date:"); ws["E3"] = month; ws["E3"].alignment = Alignment(horizontal="center")
+        lbl("A4", "Department"); inp("B4", claim.get("department", ""))
+        lbl("C4", "(Choose from Drop Down)", bold=False, size=9)
+        lbl("A6", "Car Registration"); inp("B6", claim.get("car_registration", ""))
+        lbl("C6", "(Required)", bold=False, size=9)
+
+        lbl("C9", "Miles claimed", center=True); lbl("D9", "Rate per mile", center=True)
+        lbl("E9", "Total", center=True)
+        mile_by_key = {m.get("key"): m for m in (claim.get("mileage") or [])}
+        for i in range(5):
+            row = 10 + i
+            key = f"rate{i + 1}"
+            base = _EXP_RATE_BY_KEY.get(key, {})
+            m = mile_by_key.get(key, {})
+            lbl(f"A{row}", f"Rate {i + 1}", size=9, center=True)
+            ws[f"B{row}"] = m.get("label") or base.get("label", "")
+            ws[f"B{row}"].font = Font(size=10)
+            inp(f"C{row}", round(float(m.get("miles") or 0), 2))
+            d = ws[f"D{row}"]; d.value = m.get("rate", base.get("rate", 0)); d.number_format = GBP
+            d.alignment = Alignment(horizontal="center")
+            e = ws[f"E{row}"]; e.value = round(float(m.get("amount") or 0), 2); e.number_format = GBP
+
+        mileage_total = round(float(claim.get("mileage_total") or 0), 2)
+        lbl("D16", "Mileage claim (£)", center=True)
+        ws["D16"].fill = grey
+        e16 = ws["E16"]; e16.value = mileage_total; e16.number_format = GBP; e16.fill = grey
+        ws["D18"] = "if receipt is without VAT - put amount in NET"
+        ws["D18"].font = Font(italic=True, size=9, color="808080")
+
+        for col, text in (("A", "Date"), ("B", "Description of Expense"),
+                          ("C", "Nominal (choose from drop down)"), ("D", "Net"),
+                          ("E", "VAT"), ("F", "Total")):
+            c = ws[f"{col}20"]; c.value = text; c.font = Font(bold=True, size=10)
+            c.alignment = Alignment(horizontal="center"); c.fill = grey; c.border = box
+
+        lines = claim.get("lines") or []
+        for i in range(30):  # rows 21-50
+            row = 21 + i
+            ln = lines[i] if i < len(lines) else None
+            inp(f"A{row}", (ln.get("date", "") if ln else ""))
+            inp(f"B{row}", (ln.get("description", "") if ln else ""))
+            inp(f"C{row}", (ln.get("nominal", "") if ln else ""))
+            net = round(float(ln.get("net") or 0), 2) if ln else None
+            vat = (0.0 if (ln and ln.get("no_vat")) else round(float(ln.get("vat") or 0), 2)) if ln else None
+            inp(f"D{row}", net, GBP)
+            inp(f"E{row}", vat, GBP)
+            f = ws[f"F{row}"]
+            f.value = round(float(ln.get("total") or 0), 2) if ln else None
+            f.number_format = GBP; f.border = box
+
+        d52 = ws["D52"]; d52.value = "Total Claim"; d52.font = Font(bold=True)
+        d52.alignment = Alignment(horizontal="right"); d52.fill = grey
+        f52 = ws["F52"]; f52.value = round(float(claim.get("grand_total") or 0), 2)
+        f52.number_format = GBP; f52.font = Font(bold=True, size=12); f52.fill = grey
+
+        # ── Nominal Analysis code (auto-totalled from this claim's lines) ──
+        net_by_nom: dict[str, float] = {}
+        vat_total = 0.0
+        for ln in lines:
+            nom = ln.get("nominal") or ""
+            net_by_nom[nom] = round(net_by_nom.get(nom, 0.0) + float(ln.get("net") or 0), 2)
+            if not ln.get("no_vat"):
+                vat_total += float(ln.get("vat") or 0)
+        mile_pos = round(sum(float(m.get("amount") or 0) for m in (claim.get("mileage") or [])
+                             if float(m.get("amount") or 0) > 0), 2)
+        mile_neg = round(sum(float(m.get("amount") or 0) for m in (claim.get("mileage") or [])
+                             if float(m.get("amount") or 0) < 0), 2)
+
+        lbl("C54", "Nominal Analysis code", center=True); ws["C54"].fill = grey
+        lbl("J54", "List of Deptartments", center=True); ws["J54"].fill = grey
+        lbl("M54", "Nominals", center=True); ws["M54"].fill = grey
+        row = 55
+        for nom in _EXP_ANALYSIS_ROWS:
+            ws[f"C{row}"] = nom; ws[f"C{row}"].font = Font(size=10)
+            ws[f"D{row}"] = _EXP_ANALYSIS_CODES.get(nom, "")
+            ws[f"D{row}"].alignment = Alignment(horizontal="center")
+            if nom == "Mileage claim":
+                amt = mile_pos
+            elif nom == "Mileage claim repayment":
+                amt = mile_neg
+            else:
+                amt = net_by_nom.get(nom, 0.0)
+            e = ws[f"E{row}"]; e.value = round(amt, 2); e.number_format = GBP
+            row += 1
+        ws[f"C{row}"] = "VAT"; ws[f"D{row}"] = 2201
+        ws[f"D{row}"].alignment = Alignment(horizontal="center")
+        ev = ws[f"E{row}"]; ev.value = round(vat_total, 2); ev.number_format = GBP
+
+        for i, dep in enumerate(EXP_DEPARTMENTS):
+            ws[f"J{56 + i}"] = dep; ws[f"J{56 + i}"].font = Font(size=10)
+        for i, nom in enumerate(EXP_NOMINALS):
+            ws[f"M{56 + i}"] = nom; ws[f"M{56 + i}"].font = Font(size=10)
+
+    if len(wb.sheetnames) == 1:  # summary only → no claims; add a note tab
+        note = wb.create_sheet("No claims")
+        note["A1"] = f"No approved expense claims for {month}."
+
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()
+
+
+@router.get("/new-starter/expenses/review/export-xlsx")
+async def expenses_export_xlsx(month: str = Query(...), include_reimbursed: bool = Query(False),
+                               user: dict = Depends(get_current_user)):
+    """Payroll export in the exact Pulse spreadsheet layout (.xlsx) — one
+    formatted sheet per employee, ready to file with finance."""
+    if (user.get("role") not in HR_ROLES) and not user.get("is_master_admin"):
+        raise HTTPException(403, "Not authorised")
+    org = user.get("organization_id")
+    statuses = ["approved", "reimbursed"] if include_reimbursed else ["approved"]
+    claims = await db.staff_expense_claims.find(
+        {"organization_id": org, "claim_month": month, "status": {"$in": statuses}},
+        {"_id": 0, "receipts": 0}).sort("staff_name", 1).to_list(5000)
+    try:
+        xlsx = _build_expenses_xlsx(month, claims)
+    except Exception as e:
+        raise HTTPException(500, f"Could not build spreadsheet: {e}")
+    safe_month = re.sub(r"[^A-Za-z0-9]+", "-", month).strip("-")
+    return Response(
+        content=xlsx,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="Employee-Expenses-{safe_month}.xlsx"'})

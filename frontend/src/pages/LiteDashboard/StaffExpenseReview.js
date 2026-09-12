@@ -5,7 +5,7 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
-import { Download, CheckCircle2, Undo2, BadgePoundSterling, RotateCw, Receipt } from 'lucide-react';
+import { Download, CheckCircle2, Undo2, BadgePoundSterling, RotateCw, Receipt, FileSpreadsheet } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -59,6 +59,21 @@ export default function StaffExpenseReview({ headers }) {
     finally { setBusy(''); }
   };
 
+  const downloadXlsx = async () => {
+    if (!month) return;
+    setBusy('export-xlsx'); setErr('');
+    try {
+      const r = await axios.get(`${API}/new-starter/expenses/review/export-xlsx`, {
+        headers, params: { month, include_reimbursed: includeReimbursed }, responseType: 'blob',
+      });
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = `Employee-Expenses-${month.replace(/[^A-Za-z0-9]+/g, '-')}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch { setErr('Excel export failed.'); }
+    finally { setBusy(''); }
+  };
+
   return (
     <div data-testid="staff-expense-review">
       <h2 className="text-lg font-bold mb-1 flex items-center gap-2"><Receipt size={18} className="text-cyan-600" /> Staff Expenses</h2>
@@ -80,6 +95,10 @@ export default function StaffExpenseReview({ headers }) {
           <button onClick={downloadCsv} disabled={!month || busy === 'export'} data-testid="exp-export-btn"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-cyan-600 text-white disabled:opacity-50">
             {busy === 'export' ? <RotateCw size={15} className="animate-spin" /> : <Download size={15} />} Download CSV
+          </button>
+          <button onClick={downloadXlsx} disabled={!month || busy === 'export-xlsx'} data-testid="exp-export-xlsx-btn"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white disabled:opacity-50">
+            {busy === 'export-xlsx' ? <RotateCw size={15} className="animate-spin" /> : <FileSpreadsheet size={15} />} Download Excel (Pulse layout)
           </button>
         </div>
       </div>
