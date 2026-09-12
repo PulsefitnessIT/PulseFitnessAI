@@ -1,3 +1,30 @@
+# ═══ 2026-06 · STAFF PORTAL RELEASE CERT + MODSERVICE DOMAIN MODE (verified) ═══
+
+## Staff Portal — release hardening (DONE, testing_agent 100%)
+- Full Staff→Manager expenses e2e regression PASSED: backend 12/12, frontend 100%
+  (report: /app/test_reports/iteration_staff_expenses_e2e_release_jan2026.json).
+- Mobile 390px audit: staff editor already clean; fixed Manager Review action-button group
+  (StaffExpenseReview.js) → flex-wrap w-full sm:w-auto flex-1 so View/Approve/Return/Reimburse
+  share width and wrap cleanly at 390px (no component overflow).
+- Payroll receipts ZIP polish: export-months now returns per-month `receipts` count
+  (Mongo aggregation, $objectToArray/$size — no blob load); "Download all receipts (ZIP)" button
+  disables when the selected month has 0 receipts (exp-export-receipts-btn).
+
+## MODService standalone DOMAIN — env-driven mode (DONE, self-verified BE+FE+mobile)
+Decision: NOT a duplicated codebase. Platform guidance = two branded domains need two deployments,
+so we run ONE codebase → two Emergent deployments (shared Atlas DB), and an env flag flips the MOD one.
+- frontend/src/utils/portalMode.js — isModServiceMode(): REACT_APP_PORTAL_MODE=modservice OR host modservice.*
+  OR ?portal=modservice (sticky session; ?portal=pulse clears). COMMERCIAL_URL (default https://pulsefitness.ai).
+- AppRoutes.js — root "/" renders <MODServiceLogin/> in modservice mode (else PulseLandingPage); /login → "/".
+- MODServiceLogin.js — commercial/staff 403 (portal mismatch) → friendly block (mod-login-commercial-block)
+  + "Go to Pulse Fitness" CTA (mod-login-commercial-cta → COMMERCIAL_URL). MOD + master admin sign in normally.
+- backend/routes/auth.py — portal='mod' gate widened: allow is_master_admin in addition to MOD users
+  (integration_expert consulted first). Verified: master admin→MFA challenge (allowed), commercial→403, MOD→token.
+- Verified: root landing (desktop+mobile, no overflow), commercial block, MOD user login→MOD dashboard,
+  normal .ai mode unaffected. Deployment steps: /app/memory/MODSERVICE_DEPLOYMENT.md.
+- Preview test: <preview>/?portal=modservice (MOD mode) · /?portal=pulse (back to normal).
+
+
 # ═══ 2026-06 · STAFF EXPENSES — PAYROLL EXPORT + MANAGER REVIEW UI (BE curl verified; FE compile) ═══
 Finance can one-click export approved staff expense claims for a month to CSV, and managers/finance now have a review
 screen (approve / return / mark reimbursed) — the previously API-only loop now has a UI.

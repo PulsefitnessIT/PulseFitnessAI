@@ -21,6 +21,7 @@ import axios from 'axios';
 import { useAuth } from '@/App';
 import { useSignedOutNotice } from '@/hooks/useSignedOutNotice';import { Loader2, ShieldCheck, ArrowRight, Lock, Mail, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { useSeo } from '@/utils/seo';
+import { COMMERCIAL_URL } from '@/utils/portalMode';
 
 // ── Official artwork (user-supplied) ──────────────────────────────
 const _PULSE_LOGO = 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg';
@@ -69,6 +70,9 @@ export default function MODServiceLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // A commercial/staff account tried to sign in on the MOD portal — show a
+  // friendly block that points them to pulsefitness.ai rather than a raw 403.
+  const [blockedCommercial, setBlockedCommercial] = useState(false);
   // Iter 216h118 — Mandatory MFA flow handling for MOD HQ (mod_org /
   // mod_branch) accounts. The /auth/login response either contains a
   // direct ``token`` or one of:
@@ -131,7 +135,14 @@ export default function MODServiceLogin() {
       }
       completeLoginFromResponse(data);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid credentials');
+      const status = err.response?.status;
+      const detail = err.response?.data?.detail || '';
+      // Commercial/staff account on the MOD portal → friendly redirect notice.
+      if (status === 403 && /MOD Service Portal/i.test(detail)) {
+        setBlockedCommercial(true);
+      } else {
+        setError(detail || 'Invalid credentials');
+      }
     } finally {
       setBusy(false);
     }
@@ -306,20 +317,52 @@ export default function MODServiceLogin() {
               <span aria-hidden="true" className="absolute right-0 top-0 w-[3px] h-10 rounded-b" style={{ background: PULSE.primary }} />
 
               <div className="text-[10px] uppercase font-bold mb-2" style={{ color: PULSE.primaryDeep, letterSpacing: '0.32em' }}>
-                {mfaStage ? 'Multi-factor' : 'Sign in'}
+                {blockedCommercial ? 'Wrong portal' : (mfaStage ? 'Multi-factor' : 'Sign in')}
               </div>
               <h2 className="text-2xl sm:text-[28px] font-extrabold tracking-tight leading-tight" style={{ color: PULSE.black, letterSpacing: '-0.01em' }}>
-                {mfaStage === 'verify' && 'Enter authenticator code'}
-                {mfaStage === 'enrol_confirm' && 'Enrol MFA'}
-                {mfaStage === 'enrol_setup' && 'Preparing MFA…'}
-                {!mfaStage && 'Service credentials'}
+                {blockedCommercial && 'This portal is for MOD sites'}
+                {!blockedCommercial && mfaStage === 'verify' && 'Enter authenticator code'}
+                {!blockedCommercial && mfaStage === 'enrol_confirm' && 'Enrol MFA'}
+                {!blockedCommercial && mfaStage === 'enrol_setup' && 'Preparing MFA…'}
+                {!blockedCommercial && !mfaStage && 'Service credentials'}
               </h2>
               <p className="mt-2 text-[13px] leading-relaxed" style={{ color: PULSE.greyDark }}>
-                {mfaStage === 'verify' && 'Open your authenticator app and enter the 6-digit code for this account.'}
-                {mfaStage === 'enrol_confirm' && 'Scan the QR with Google Authenticator / Authy, then enter the 6-digit code.'}
-                {mfaStage === 'enrol_setup' && 'Generating QR code…'}
-                {!mfaStage && 'Use the email issued by your unit, or the site code for shared kiosk logins.'}
+                {blockedCommercial && 'Your account is a standard Pulse Fitness account, not a MOD Service account. Please sign in on the main Pulse Fitness portal instead.'}
+                {!blockedCommercial && mfaStage === 'verify' && 'Open your authenticator app and enter the 6-digit code for this account.'}
+                {!blockedCommercial && mfaStage === 'enrol_confirm' && 'Scan the QR with Google Authenticator / Authy, then enter the 6-digit code.'}
+                {!blockedCommercial && mfaStage === 'enrol_setup' && 'Generating QR code…'}
+                {!blockedCommercial && !mfaStage && 'Use the email issued by your unit, or the site code for shared kiosk logins.'}
               </p>
+
+              {/* ── Commercial/staff account signed in on the MOD portal ── */}
+              {blockedCommercial && (
+                <div className="mt-6 space-y-4" data-testid="mod-login-commercial-block">
+                  <a
+                    href={COMMERCIAL_URL}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg font-extrabold py-3 text-[13px] uppercase transition-all"
+                    style={{
+                      background: PULSE.primary,
+                      color: PULSE.black,
+                      letterSpacing: '0.14em',
+                      boxShadow: '0 8px 22px -8px rgba(102, 204, 255, 0.55), inset 0 1px 0 rgba(255,255,255,0.5)',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = PULSE.primaryHover; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = PULSE.primary; }}
+                    data-testid="mod-login-commercial-cta"
+                  >
+                    <ArrowRight size={14} /> Go to Pulse Fitness
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => { setBlockedCommercial(false); setError(''); setPassword(''); }}
+                    className="w-full text-[11px] font-semibold underline-offset-2 hover:underline"
+                    style={{ color: PULSE.greyDark }}
+                    data-testid="mod-login-commercial-back"
+                  >
+                    Back to MOD sign in
+                  </button>
+                </div>
+              )}
 
               {/* ── Stage: enrol_confirm — QR + secret + code input ── */}
               {mfaStage === 'enrol_confirm' && (
@@ -378,7 +421,7 @@ export default function MODServiceLogin() {
               )}
 
               {/* ── Stage: default — email + password ── */}
-              {!mfaStage && (
+              {!mfaStage && !blockedCommercial && (
               <div className="mt-6 space-y-4">
                 <label className="block">
                   <span className="text-[10.5px] uppercase font-bold" style={{ color: PULSE.greyDark, letterSpacing: '0.18em' }}>
@@ -445,7 +488,7 @@ export default function MODServiceLogin() {
               )}
 
               <div className="mt-4 space-y-4">
-                {error && (
+                {error && !blockedCommercial && (
                   <div
                     className="rounded-lg text-xs px-3 py-2.5"
                     style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C' }}
@@ -464,6 +507,7 @@ export default function MODServiceLogin() {
                     color: PULSE.black,
                     letterSpacing: '0.22em',
                     boxShadow: '0 8px 22px -8px rgba(102, 204, 255, 0.55), inset 0 1px 0 rgba(255,255,255,0.5)',
+                    display: blockedCommercial ? 'none' : undefined,
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.background = PULSE.primaryHover; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = PULSE.primary; }}

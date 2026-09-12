@@ -714,6 +714,9 @@ async def login(credentials: UserLogin, request: Request, response: Response) ->
     # account_type alone locked out legitimately-created MOD users whose
     # account_type field was never stamped (Iter — MOD login fix).
     is_mod_user = user_at.startswith("mod_") or bool(user.get("is_mod_user"))
+    # Master admins may sign in on the MOD Service Portal for support and the
+    # HQ import/monitoring console, in addition to genuine MOD accounts.
+    is_master = bool(user.get("is_master_admin"))
     # Self-heal: a flagged MOD user missing account_type gets it backfilled from
     # their org so downstream MOD route-guards/features stay consistent.
     if is_mod_user and not user_at.startswith("mod_"):
@@ -727,7 +730,7 @@ async def login(credentials: UserLogin, request: Request, response: Response) ->
             {"id": user.get("id")}, {"$set": {"account_type": healed_at, "is_mod_user": True}},
         )
         user["account_type"] = healed_at
-    if requested_portal == "mod" and not is_mod_user:
+    if requested_portal == "mod" and not is_mod_user and not is_master:
         await _record_failed_login_with_trust(
             credentials.email, request,
             reason="portal_mismatch_not_mod",

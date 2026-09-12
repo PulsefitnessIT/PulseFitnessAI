@@ -1,0 +1,38 @@
+{
+  "summary": "Full E2E regression of Staff Portal Expenses + Manager/Finance Review at 390px mobile viewport. Backend: 12/12 pytest cases pass covering staff create/update/receipt/submit and manager pending/approve/reimburse/reject and all payroll exports (CSV, XLSX, per-claim receipts ZIP, monthly receipts ZIP, export-months). Frontend: staff mobile editor and manager review both render with NO horizontal overflow at 390px. Mileage auto-calc (120 miles rate1 -> £66.00) and grand total (£66.00 mileage + £70.00 expenses = £136.00 legacy demo claim) work. Filter chips filter correctly (Missing receipt narrows 2->1). Export CSV / XLSX return 200 with correct content-types. Action buttons (View detail / Approve / Return) wrap cleanly on the mobile claim card. One console hydration warning noted (span inside option in payroll month picker) — cosmetic only.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/new-starter/expenses/review/receipts.zip", "issue": "Returns 404 when there are no receipts to include for the selected month. UI already displays 'No receipts to download for this month.' so the button should probably be disabled when count=0 to avoid the 404 network call; alternatively return an empty zip with 200."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "StaffExpenseReview (Payroll export month picker)", "issue": "React hydration warning: <span> cannot be a child of <option>. Caused by Visual-Editor dynamic wrapping around option text at StaffExpenseReview.js line ~150. Cosmetic (dev-mode warning only).", "selector": "[data-testid=exp-export-month]", "priority": "LOW"},
+      {"component": "StaffExpenseReview Receipts ZIP button", "issue": "'Download all receipts (ZIP)' button remains enabled even when the panel says 'No receipts to download for this month.' — clicking it triggers a 404 network response.", "selector": "[data-testid=exp-export-receipts-btn]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_staff_expenses_e2e_jan2026.py",
+    "/app/test_reports/pytest/staff_expenses_e2e.xml"
+  ],
+  "action_items": [
+    "(Optional/LOW) Disable exp-export-receipts-btn when receipts_count==0, or make backend return 200 with an empty zip instead of 404.",
+    "(Optional/LOW) Remove the <span> wrapper inside <option> in StaffExpenseReview month picker to silence hydration warning."
+  ],
+  "critical_code_review_comments": [
+    "routes/staff_portal.py is ~2250 lines and mixes many concerns (portal expenses + manager review + xlsx builder + zip helpers). Consider splitting the expenses domain into a dedicated router module for maintainability.",
+    "_exp_flags iterates receipts and lines multiple times; fine for MVP volumes but worth memoising for large payrolls."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_staff_expenses_e2e_jan2026.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Staff: portal.staff@pulsedemo.test / Staff123!  Owner: owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "Created 2 new draft/submitted claims via the API during the pytest run (2026-01 approved+reimbursed, 2026-02 rejected). The prior seeded September 2026 £136 Alex Rivera claim (Missing receipt) still appears correctly in the manager review list.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend expense endpoints all live under /api/new-starter/... (portal creator/mutator via staff JWT, manager review via platform JWT). Owner /api/auth/login is rate-limited (429) — use _retry_post helper in test_staff_expenses_e2e_jan2026.py or reuse the token. To land the owner on the expenses leaf, set localStorage['staffing.activeLeaf:iso-owner']='staff-expenses' then navigate /dashboard and click [data-testid=mobile-pill-staffing]. Cookie banner ('Essential Only') can block the login submit on first load — dismiss it before filling the form."
+}

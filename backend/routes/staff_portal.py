@@ -1979,15 +1979,18 @@ async def expenses_export_months(user: dict = Depends(get_current_user)):
     if (user.get("role") not in HR_ROLES) and not user.get("is_master_admin"):
         raise HTTPException(403, "Not authorised")
     org = user.get("organization_id")
-    rows = await db.staff_expense_claims.find(
-        {"organization_id": org, "status": {"$in": ["approved", "reimbursed"]}},
-        {"_id": 0, "claim_month": 1, "status": 1, "grand_total": 1}).to_list(5000)
+    rows = await db.staff_expense_claims.aggregate([
+        {"$match": {"organization_id": org, "status": {"$in": ["approved", "reimbursed"]}}},
+        {"$project": {"_id": 0, "claim_month": 1, "status": 1, "grand_total": 1,
+                      "receipt_count": {"$size": {"$objectToArray": {"$ifNull": ["$receipts", {}]}}}}},
+    ]).to_list(5000)
     agg = {}
     for r in rows:
         m = r.get("claim_month") or "Unknown"
-        a = agg.setdefault(m, {"month": m, "approved": 0, "reimbursed": 0, "total": 0.0})
+        a = agg.setdefault(m, {"month": m, "approved": 0, "reimbursed": 0, "total": 0.0, "receipts": 0})
         a[r["status"]] = a.get(r["status"], 0) + 1
         a["total"] = round(a["total"] + float(r.get("grand_total") or 0), 2)
+        a["receipts"] = a.get("receipts", 0) + int(r.get("receipt_count") or 0)
     return {"months": sorted(agg.values(), key=lambda x: x["month"], reverse=True)}
 
 

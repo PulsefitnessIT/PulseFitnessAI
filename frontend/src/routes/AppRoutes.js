@@ -214,6 +214,9 @@ const _MODSiteDashboard = lazy(() => import('@/pages/MODPortal/MODSiteDashboard'
 const _MODProDashboard = lazy(() => import('@/pages/MODPortal/MODProDashboard'));
 const MODServiceLogin = lazy(() => import('@/pages/MODPortal/MODServiceLogin'));
 const MODConfirmFixPage = lazy(() => import('@/pages/MODPortal/MODConfirmFixPage'));
+// MODService deployment mode — flips the public landing to the MOD sign-in.
+// eslint-disable-next-line import/first
+import { isModServiceMode } from '@/utils/portalMode';
 const MembershipsConsole = lazy(() => import('@/pages/Memberships/MembershipsConsole'));
 const MemberPortal = lazy(() => import('@/pages/Memberships/MemberPortal'));
 const MemberClaimPage = lazy(() => import('@/pages/Memberships/MemberClaimPage'));
@@ -365,8 +368,15 @@ export default function AppRoutes({ user, login }) {
                 : (user.is_pulse_admin && user.org_is_operator)
                     ? <Navigate to="/dashboard" replace />
                     : <LiteDashboardPage />)
-          : <PulseLandingPage onLogin={(d) => login(d.token, d.user)} />
+          : (isModServiceMode()
+              ? <MODServiceLogin />
+              : <PulseLandingPage onLogin={(d) => login(d.token, d.user)} />)
       } />
+      {/* MODService mode: keep the commercial /login marketing entry from being
+          the public face of the MOD domain — bounce it to the MOD sign-in. */}
+      {isModServiceMode() && (
+        <Route path="/login" element={<Navigate to="/" replace />} />
+      )}
       <Route path="/m/:slug/join" element={<JoinPage />} />
       <Route path="/m/:slug/join/success" element={<JoinSuccess />} />
       {/* Iter 216h83 — public live tracking (no auth, token-gated) */}

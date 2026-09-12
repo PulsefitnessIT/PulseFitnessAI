@@ -161,7 +161,8 @@ export default function StaffExpenseReview({ headers }) {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white disabled:opacity-50">
             {busy === 'export-xlsx' ? <RotateCw size={15} className="animate-spin" /> : <FileSpreadsheet size={15} />} Download Excel (Pulse layout)
           </button>
-          <button onClick={downloadMonthReceipts} disabled={!month || busy === 'zip-month'} data-testid="exp-export-receipts-btn"
+          <button onClick={downloadMonthReceipts} disabled={!month || busy === 'zip-month' || !(months.find((m) => m.month === month)?.receipts)} data-testid="exp-export-receipts-btn"
+            title={month && !(months.find((m) => m.month === month)?.receipts) ? 'No receipts attached for this month' : ''}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-white disabled:opacity-50">
             {busy === 'zip-month' ? <RotateCw size={15} className="animate-spin" /> : <FileArchive size={15} />} Download all receipts (ZIP)
           </button>
@@ -245,26 +246,26 @@ export default function StaffExpenseReview({ headers }) {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                     <button onClick={() => setExpanded((e) => ({ ...e, [c.id]: !e[c.id] }))} data-testid={`exp-review-toggle-${c.id}`}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold border border-slate-300 text-slate-700">
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold border border-slate-300 text-slate-700 flex-1 sm:flex-none">
                       {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {isOpen ? 'Hide' : 'View'} detail
                     </button>
                     {c.status === 'submitted' && (
                       <>
                         <button onClick={() => act(c.id, 'approve', 'approve')} disabled={busy} data-testid={`exp-approve-${c.id}`}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-cyan-600 text-white disabled:opacity-50">
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-cyan-600 text-white disabled:opacity-50 flex-1 sm:flex-none">
                           <CheckCircle2 size={14} /> Approve
                         </button>
                         <button onClick={() => act(c.id, 'reject', 'reject')} disabled={busy} data-testid={`exp-reject-${c.id}`}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold border border-slate-300 text-slate-700 disabled:opacity-50">
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold border border-slate-300 text-slate-700 disabled:opacity-50 flex-1 sm:flex-none">
                           <Undo2 size={14} /> Return
                         </button>
                       </>
                     )}
                     {c.status === 'approved' && (
                       <button onClick={() => act(c.id, 'reimburse', 'reimburse')} disabled={busy} data-testid={`exp-reimburse-${c.id}`}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white disabled:opacity-50">
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white disabled:opacity-50 flex-1 sm:flex-none">
                         <BadgePoundSterling size={14} /> Mark reimbursed
                       </button>
                     )}
