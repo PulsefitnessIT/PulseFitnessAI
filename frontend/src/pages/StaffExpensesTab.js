@@ -9,7 +9,7 @@ import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import {
   Receipt, Car, PoundSterling, Plus, Trash2, Upload, Send, Loader2,
-  ArrowLeft, CheckCircle2, AlertCircle, RotateCw,
+  ArrowLeft, CheckCircle2, AlertCircle, RotateCw, Camera, ArrowDownUp,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -26,6 +26,25 @@ const STATUS = {
 function Badge({ status }) {
   const s = STATUS[status] || STATUS.draft;
   return <span className="px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: s.bg, color: s.c }} data-testid="exp-status">{s.label}</span>;
+}
+
+function ReceiptThumb({ claimId, receiptId, H }) {
+  const [url, setUrl] = useState('');
+  const [bad, setBad] = useState(false);
+  useEffect(() => {
+    let active = true; let obj;
+    axios.get(`${API}/new-starter/portal/expenses/${claimId}/receipt/${receiptId}`, { headers: H, responseType: 'blob' })
+      .then((r) => { if (!active) return; obj = URL.createObjectURL(r.data); setUrl(obj); })
+      .catch(() => setBad(true));
+    return () => { active = false; if (obj) URL.revokeObjectURL(obj); };
+  }, [claimId, receiptId, H]);
+  if (bad || !url) return null;
+  return (
+    <a href={url} target="_blank" rel="noreferrer" data-testid={`exp-receipt-thumb-${receiptId}`} title="View receipt">
+      <img src={url} alt="receipt" onError={() => setBad(true)}
+        className="w-10 h-10 rounded-md object-cover border" style={{ borderColor: 'var(--theme-border)' }} />
+    </a>
+  );
 }
 
 export default function ExpensesTab({ H }) {
@@ -88,6 +107,15 @@ export default function ExpensesTab({ H }) {
   const removeLine = (i) => setClaim((c) => ({ ...c, lines: c.lines.filter((_, j) => j !== i) }));
   const setMiles = (i, miles) => setClaim((c) => ({ ...c, mileage: c.mileage.map((m, j) => (j === i ? { ...m, miles } : m)) }));
 
+  // Oldest first; lines without a date sink to the bottom.
+  const byDate = (a, b) => {
+    const da = a.date || '', dbb = b.date || '';
+    if (!da && !dbb) return 0;
+    if (!da) return 1; if (!dbb) return -1;
+    return da < dbb ? -1 : da > dbb ? 1 : 0;
+  };
+  const sortLinesByDate = () => setClaim((c) => ({ ...c, lines: [...(c.lines || [])].sort(byDate) }));
+
   const save = async () => {
     setBusy(true); setErr(''); setMsg('');
     try {
@@ -125,10 +153,39 @@ export default function ExpensesTab({ H }) {
       setLine(i, {
         receipt_id: r.data.receipt_id, _uploading: false,
         date: s.date || claim.lines[i].date, description: s.description || claim.lines[i].description,
+        nominal: s.nominal || claim.lines[i].nominal,
         net: s.net != null ? s.net : claim.lines[i].net, vat: s.vat != null ? s.vat : claim.lines[i].vat,
         no_vat: s.no_vat != null ? s.no_vat : claim.lines[i].no_vat,
       });
+      setTimeout(sortLinesByDate, 0);
     } catch { setLine(i, { _uploading: false }); setErr('Receipt upload failed.'); }
+  };
+
+  // Snap one or more receipts → each becomes a new, AI-filled line, then date-sorted.
+  const snapNewReceipts = async (files) => {
+    const list = Array.from(files || []);
+    if (!list.length) return;
+    setBusy(true); setErr(''); setMsg('');
+    let added = 0;
+    for (const file of list) {
+      try {
+        const fd = new FormData(); fd.append('file', file);
+        const r = await axios.post(`${API}/new-starter/portal/expenses/${claim.id}/receipt`, fd, { headers: H });
+        const s = r.data.suggestion || {};
+        const line = {
+          date: s.date || '', description: s.description || '',
+          nominal: s.nominal || cfg?.nominals?.[0] || '',
+          net: s.net != null ? s.net : '', vat: s.vat != null ? s.vat : '',
+          no_vat: s.no_vat != null ? s.no_vat : false, total: 0, receipt_id: r.data.receipt_id,
+        };
+        setClaim((c) => ({ ...c, lines: [...(c.lines || []), line] }));
+        added += 1;
+      } catch { /* skip this file, keep going */ }
+    }
+    setTimeout(sortLinesByDate, 0);
+    setBusy(false);
+    if (added) { setMsg(added === 1 ? 'Receipt added' : `${added} receipts added`); setTimeout(() => setMsg(''), 2000); }
+    else setErr('Could not read those receipts — try adding a line manually.');
   };
 
   const inputCls = 'w-full px-2.5 py-2 rounded-lg text-sm';
@@ -241,13 +298,25 @@ export default function ExpensesTab({ H }) {
 
       {/* Expense lines */}
       <div className="p-4 rounded-xl border mb-4" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }} data-testid="exp-lines">
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
           <p className="font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>Expenses</p>
-          {editable && <button data-testid="exp-add-line" onClick={addLine} className="inline-flex items-center gap-1.5 text-sm font-semibold px-2.5 py-1.5 rounded-lg" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}><Plus size={13} /> Add expense</button>}
+          {editable && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <label data-testid="exp-snap-receipt" className="inline-flex items-center gap-1.5 text-sm font-semibold px-2.5 py-1.5 rounded-lg cursor-pointer" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: busy ? 0.5 : 1 }}>
+                {busy ? <RotateCw size={13} className="animate-spin" /> : <Camera size={13} />} Snap receipt
+                <input type="file" accept="image/*" capture="environment" multiple className="hidden" disabled={busy}
+                  onChange={(e) => { snapNewReceipts(e.target.files); e.target.value = ''; }} />
+              </label>
+              <button data-testid="exp-sort-date" onClick={sortLinesByDate} className="inline-flex items-center gap-1.5 text-sm font-semibold px-2.5 py-1.5 rounded-lg" style={{ background: 'transparent', color: 'var(--theme-text)', border: '1px solid var(--theme-border)' }}>
+                <ArrowDownUp size={13} /> Sort by date
+              </button>
+              <button data-testid="exp-add-line" onClick={addLine} className="inline-flex items-center gap-1.5 text-sm font-semibold px-2.5 py-1.5 rounded-lg" style={{ background: 'transparent', color: 'var(--theme-text)', border: '1px solid var(--theme-border)' }}><Plus size={13} /> Add manually</button>
+            </div>
+          )}
         </div>
-        <p className="text-xs pulse-font-body mb-3" style={{ color: 'var(--theme-text-muted)' }}>Snap a receipt and we'll try to fill it in for you. Tick "No VAT on receipt" if there's no VAT shown.</p>
+        <p className="text-xs pulse-font-body mb-3" style={{ color: 'var(--theme-text-muted)' }}>Tap <strong>Snap receipt</strong> to photograph one or more receipts — we read the date, amount, VAT and category and add them in date order. Tick "No VAT on receipt" if there's no VAT shown.</p>
         {(claim.lines || []).length === 0 ? (
-          <p className="text-sm py-3" style={{ color: 'var(--theme-text-muted)' }}>No expenses added. {editable ? 'Tap "Add expense" to add one.' : ''}</p>
+          <p className="text-sm py-3" style={{ color: 'var(--theme-text-muted)' }}>No expenses yet. {editable ? 'Tap "Snap receipt" to photograph one — we\'ll fill it in for you.' : ''}</p>
         ) : (
           <div className="space-y-3">
             {claim.lines.map((l, i) => (
@@ -278,15 +347,21 @@ export default function ExpensesTab({ H }) {
                 </div>
                 {editable && (
                   <div className="flex items-center gap-3 mt-2">
+                    {l.receipt_id && <ReceiptThumb claimId={claim.id} receiptId={l.receipt_id} H={H} />}
                     <label className="inline-flex items-center gap-1.5 text-xs font-medium cursor-pointer" style={{ color: 'var(--color-brand-cyan)' }} data-testid={`exp-line-receipt-${i}`}>
                       {l._uploading ? <RotateCw size={13} className="animate-spin" /> : <Upload size={13} />}
-                      {l.receipt_id ? 'Receipt attached ✓ — replace' : 'Add receipt photo'}
+                      {l.receipt_id ? 'Replace receipt' : 'Add receipt photo'}
                       <input type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => uploadReceipt(i, e.target.files?.[0])} />
                     </label>
                     <button onClick={() => removeLine(i)} className="ml-auto text-xs" style={{ color: '#dc2626' }} data-testid={`exp-line-remove-${i}`}><Trash2 size={13} className="inline" /> Remove</button>
                   </div>
                 )}
-                {!editable && l.receipt_id && <div className="text-xs mt-2" style={{ color: 'var(--theme-text-muted)' }}>Receipt attached ✓</div>}
+                {!editable && l.receipt_id && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <ReceiptThumb claimId={claim.id} receiptId={l.receipt_id} H={H} />
+                    <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Receipt attached ✓</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>

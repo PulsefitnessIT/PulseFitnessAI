@@ -1500,10 +1500,41 @@ def _exp_recalc(claim: dict) -> dict:
         lines.append({"date": (ln.get("date") or "")[:10], "description": (ln.get("description") or "").strip(),
                       "nominal": ln.get("nominal") or "", "net": net, "vat": vat, "no_vat": no_vat,
                       "total": total, "receipt_id": ln.get("receipt_id")})
+    # Keep the sheet in date order (oldest first); lines without a date sink to the bottom.
+    lines.sort(key=lambda l: (l["date"] == "", l["date"]))
     claim["lines"] = lines
     claim["expenses_total"] = round(e_total, 2)
     claim["grand_total"] = round(m_total + e_total, 2)
     return claim
+
+
+# Keyword → nominal category, so a snapped receipt can pre-pick the right code.
+_EXP_NOMINAL_KEYWORDS = [
+    ("Fuel", ["fuel", "petrol", "diesel", "unleaded", "shell", "esso", "bp ", "texaco", "gulf", "gas station"]),
+    ("Train fares", ["train", "rail", "trainline", "lner", "avanti", "gwr", "northern rail", "national rail", "tfl rail"]),
+    ("Airfare", ["airline", "airways", "flight", "ryanair", "easyjet", "british airways", "jet2", "airport"]),
+    ("Hotel", ["hotel", "premier inn", "travelodge", "holiday inn", "marriott", "hilton", "b&b", "accommodation", "lodge"]),
+    ("Taxi's", ["taxi", "uber", "bolt", "cab", "addison lee", "minicab"]),
+    ("Parking, tolls and other vehicle costs", ["parking", "car park", "ncp", "toll", "congestion", "dart charge", "ringo", "paybyphone"]),
+    ("Meals/Drinks", ["restaurant", "cafe", "coffee", "costa", "starbucks", "pret", "greggs", "mcdonald", "kfc", "subway", "nando", "meal", "lunch", "dinner", "pub", "bar ", "food", "deli", "bakery"]),
+    ("Stationery", ["stationery", "rymans", "wh smith", "paperchase", "office supplies", "staples"]),
+    ("Computer consumables", ["currys", "pc world", "cartridge", "toner", "ink", "usb", "keyboard", "mouse", "laptop", "computer", "apple store"]),
+    ("Postage", ["post office", "royal mail", "postage", "stamps", "parcelforce", "dpd", "hermes", "evri", "courier"]),
+    ("Telecoms", ["vodafone", "o2", "ee ", "three", "telecom", "mobile", "phone bill", "broadband", "sim"]),
+    ("Entertaining Clients", ["client entertainment", "entertaining client"]),
+    ("Entertaining Staff", ["staff entertainment", "team lunch", "staff social"]),
+    ("Vehicle Servicing", ["mot", "service", "garage", "kwik fit", "halfords", "tyre", "vehicle repair", "car service"]),
+]
+
+
+def _exp_guess_nominal(*texts: str) -> str:
+    hay = " ".join(t for t in texts if t).lower()
+    if not hay.strip():
+        return ""
+    for nominal, keywords in _EXP_NOMINAL_KEYWORDS:
+        if any(kw in hay for kw in keywords):
+            return nominal
+    return ""
 
 
 def _exp_public(claim: dict) -> dict:
@@ -1627,9 +1658,15 @@ async def portal_expenses_receipt(claim_id: str, file: UploadFile = File(...),
     if isinstance(ocr, dict) and ocr.get("is_receipt"):
         gross = _exp_num(ocr.get("total_amount") or 0)
         tax = _exp_num(ocr.get("tax_amount") or 0)
+        merchant = (ocr.get("merchant_name") or "").strip()
+        li = ocr.get("line_items") or []
+        li_text = " ".join(
+            (x.get("description") or "") if isinstance(x, dict) else str(x) for x in li
+        ) if isinstance(li, list) else str(li)
         suggestion = {"date": (ocr.get("date") or "")[:10],
-                      "description": (ocr.get("merchant_name") or "").strip(),
-                      "net": round(gross - tax, 2) if gross else 0.0, "vat": tax, "no_vat": tax == 0}
+                      "description": merchant,
+                      "net": round(gross - tax, 2) if gross else 0.0, "vat": tax, "no_vat": tax == 0,
+                      "nominal": _exp_guess_nominal(merchant, ocr.get("category_suggestion") or "", li_text)}
     return {"receipt_id": rid, "suggestion": suggestion}
 
 
