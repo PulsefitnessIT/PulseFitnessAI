@@ -24,6 +24,7 @@ from __future__ import annotations
 import re
 import uuid
 import io
+import zipfile
 import base64
 from datetime import datetime, timezone, date, timedelta
 
@@ -1681,8 +1682,8 @@ async def portal_expenses_receipt_get(claim_id: str, receipt_id: str,
     meta = (claim.get("receipts") or {}).get(receipt_id)
     if not meta:
         raise HTTPException(404, "Receipt not found")
-    data = get_object(meta["path"])
-    return Response(content=data, media_type=meta.get("content_type") or "image/jpeg")
+    data, ctype = get_object(meta["path"])
+    return Response(content=data, media_type=meta.get("content_type") or ctype or "image/jpeg")
 
 
 @router.post("/new-starter/portal/expenses/{claim_id}/submit")
@@ -1731,6 +1732,110 @@ async def expenses_review_pending(user: dict = Depends(get_current_user)):
         {"organization_id": org, "status": {"$in": ["submitted", "approved"]}},
         {"_id": 0, "receipts": 0}).sort("submitted_at", 1).to_list(500)
     return {"claims": rows}
+
+
+def _exp_require_hr(user: dict):
+    if (user.get("role") not in HR_ROLES) and not user.get("is_master_admin"):
+        raise HTTPException(403, "Not authorised")
+
+
+def _safe(s: str, fallback: str = "receipt") -> str:
+    s = re.sub(r"[^A-Za-z0-9._-]+", "-", (s or "").strip()).strip("-")
+    return s or fallback
+
+
+def _receipt_labels(claim: dict) -> dict:
+    """Map receipt_id → a human evidence filename stem from its expense line."""
+    out = {}
+    for ln in (claim.get("lines") or []):
+        rid = ln.get("receipt_id")
+        if not rid:
+            continue
+        parts = [ln.get("date") or "", ln.get("description") or "", f"{ln.get('total', 0):.2f}"]
+        out[rid] = _safe("_".join(p for p in parts if p), rid)
+    return out
+
+
+@router.get("/new-starter/expenses/review/{claim_id}/receipt/{receipt_id}")
+async def expenses_review_receipt(claim_id: str, receipt_id: str, user: dict = Depends(get_current_user)):
+    """Manager/finance view of a single receipt image (platform session)."""
+    _exp_require_hr(user)
+    claim = await db.staff_expense_claims.find_one(
+        {"id": claim_id, "organization_id": user.get("organization_id")})
+    if not claim:
+        raise HTTPException(404, "Claim not found")
+    meta = (claim.get("receipts") or {}).get(receipt_id)
+    if not meta:
+        raise HTTPException(404, "Receipt not found")
+    data, ctype = get_object(meta["path"])
+    return Response(content=data, media_type=meta.get("content_type") or ctype or "image/jpeg")
+
+
+def _zip_claim_receipts(zf: zipfile.ZipFile, claim: dict, folder: str = ""):
+    labels = _receipt_labels(claim)
+    used = set()
+    for rid, meta in (claim.get("receipts") or {}).items():
+        try:
+            data, _ = get_object(meta["path"])
+        except Exception:
+            continue
+        ext = (meta.get("filename") or meta.get("path") or "jpg").rsplit(".", 1)[-1][:5] or "jpg"
+        stem = labels.get(rid) or _safe(rid)
+        name = f"{stem}.{ext}"
+        n = 1
+        while (folder + name) in used:
+            n += 1
+            name = f"{stem}-{n}.{ext}"
+        used.add(folder + name)
+        zf.writestr(folder + name, data)
+
+
+@router.get("/new-starter/expenses/review/{claim_id}/receipts.zip")
+async def expenses_review_receipts_zip(claim_id: str, user: dict = Depends(get_current_user)):
+    """Download all receipts for one claim as a ZIP (evidence for accounts)."""
+    _exp_require_hr(user)
+    claim = await db.staff_expense_claims.find_one(
+        {"id": claim_id, "organization_id": user.get("organization_id")})
+    if not claim:
+        raise HTTPException(404, "Claim not found")
+    if not (claim.get("receipts") or {}):
+        raise HTTPException(404, "No receipts attached to this claim.")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        _zip_claim_receipts(zf, claim)
+    fname = _safe(f"receipts-{claim.get('staff_name', '')}-{claim.get('claim_month', '')}", "receipts") + ".zip"
+    return Response(content=buf.getvalue(), media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
+@router.get("/new-starter/expenses/review/receipts.zip")
+async def expenses_review_receipts_zip_month(month: str = Query(...), include_reimbursed: bool = Query(False),
+                                             user: dict = Depends(get_current_user)):
+    """Download every receipt for a month's approved claims as one ZIP, foldered
+    per employee — a full evidence pack for accounts."""
+    _exp_require_hr(user)
+    org = user.get("organization_id")
+    statuses = ["approved", "reimbursed"] if include_reimbursed else ["approved"]
+    claims = await db.staff_expense_claims.find(
+        {"organization_id": org, "claim_month": month, "status": {"$in": statuses}}).sort("staff_name", 1).to_list(2000)
+    claims = [c for c in claims if (c.get("receipts") or {})]
+    if not claims:
+        raise HTTPException(404, "No receipts to download for that month.")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        used_folders = set()
+        for c in claims:
+            base = _safe(c.get("staff_name") or "staff", "staff")
+            folder = base
+            n = 1
+            while folder in used_folders:
+                n += 1
+                folder = f"{base}-{n}"
+            used_folders.add(folder)
+            _zip_claim_receipts(zf, c, folder=folder + "/")
+    fname = _safe(f"Receipts-{month}", "Receipts") + ".zip"
+    return Response(content=buf.getvalue(), media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="{fname}"'})
 
 
 class ExpReview(BaseModel):
