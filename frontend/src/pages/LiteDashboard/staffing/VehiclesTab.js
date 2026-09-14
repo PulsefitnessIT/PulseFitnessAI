@@ -269,6 +269,7 @@ function DefectTracker({ headers }) {
   const [data, setData] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [booking, setBooking] = useState(null); // defect being booked-in
+  const token = String(headers?.Authorization || headers?.authorization || '').replace(/^Bearer\s+/i, '');
   const load = useCallback(() => {
     const qs = status === 'all' ? '' : `?status=${status}`;
     axios.get(`${API}/vehicle-defects${qs}`, { headers }).then((r) => setData(r.data)).catch(() => setData({ defects: [], counts: {} }));
@@ -299,12 +300,22 @@ function DefectTracker({ headers }) {
             <div key={d.id} className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border)' }} data-testid={`defect-${d.id}`}>
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold uppercase" style={{ color: 'var(--theme-text)' }}>{d.reg_no}</span>
+                    {(d.priority === 'critical' || d.escalated) && <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: '#dc2626' }} data-testid={`defect-critical-${d.id}`}><ShieldAlert size={12} /> CRITICAL</span>}
                     {d.safe_to_drive === false && <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600"><ShieldAlert size={12} /> Not safe</span>}
                     <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${DEFECT_TONE[d.status]}22`, color: DEFECT_TONE[d.status] }}>{DEFECT_LABEL[d.status]}</span>
                   </div>
-                  <p className="text-sm mt-1" style={{ color: 'var(--theme-text)' }}>{d.details || 'No description provided.'}</p>
+                  <p className="text-sm mt-1 whitespace-pre-line" style={{ color: 'var(--theme-text)' }}>{d.details || 'No description provided.'}</p>
+                  {(d.photo_ids || []).length > 0 && (
+                    <div className="flex gap-2 mt-2 flex-wrap" data-testid={`defect-photos-${d.id}`}>
+                      {d.photo_ids.map((fid) => (
+                        <a key={fid} href={`${API}/vehicle-checks/photo/${fid}?auth=${token}`} target="_blank" rel="noreferrer">
+                          <img src={`${API}/vehicle-checks/photo/${fid}?auth=${token}`} alt="defect" className="h-16 w-16 object-cover rounded-lg border" style={{ borderColor: 'var(--theme-border)' }} />
+                        </a>
+                      ))}
+                    </div>
+                  )}
                   <div className="text-[11px] mt-1" style={{ color: 'var(--theme-text-muted)' }}>
                     Reported by {d.reported_by || '—'}
                     {d.booking_ref && ` · Ref ${d.booking_ref}`}{d.booking_date && ` · Booked ${fmtD(d.booking_date)}`}

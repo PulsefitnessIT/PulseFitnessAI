@@ -1,3 +1,19 @@
+# ═══ 2026-06 · VEHICLE DEFECTS — auto-escalation + mandatory photo (verified) ═══
+- Photo On Defect (mandatory): submitting a check with any defect now REQUIRES ≥1 defect photo. Backend
+  vehicle_checks.py _upsert_check validates effective defect photos (sent now OR already on the check) → 400
+  "Please add at least one photo of the defect…". Frontend StaffPortal.js VehicleCheckForm blocks submit + shows a
+  red "Add defect photo — required" label/hint (testid vehicle-defect-photo-label).
+- Defect Auto-Escalation: on submit with defects, a tracked repair job (vehicle_defects) is UPSERTED by check_id
+  (no duplicates on re-submit) and enriched with: priority ("critical" when not-safe else "normal"), escalated flag,
+  photo_ids, item_notes, week_commencing, and a combined details string (general + per-item notes). Alerts: not-safe
+  broadcasts to ALL managers (notify_staff recipient_user_id=None, type vehicle_defect_critical, 🚨 title, deduped by
+  check_id); routine defect → line manager (type vehicle_defect). Manager Defects tab (VehiclesTab.js DefectTracker)
+  shows a red CRITICAL badge (testid defect-critical-{id}) + defect photo thumbnails (testid defect-photos-{id},
+  served via /vehicle-checks/photo/{id}?auth=token) + whitespace-pre-line details.
+- E2E verified: submit-without-photo=400; with-photo=200; defect record priority=critical/escalated/photos=1/item_notes;
+  broadcast critical notification (recipient_user_id=None); manager UI shows CRITICAL + thumbnail.
+
+
 # ═══ 2026-06 · VEHICLE CHECKS — per-item defect notes, date-range search, friendly PDF name (verified) ═══
 - Per-item defect notes: marking a check item "Defect" reveals a rose-bordered note field (StaffPortal.js VehicleCheckForm;
   state itemNotes; testid vehicle-item-note-{id}). Stored on the check as `item_notes` (vehicle_checks.py SaveCheckBody +

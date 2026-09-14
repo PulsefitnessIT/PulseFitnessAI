@@ -979,6 +979,12 @@ async def _upsert_check(user, body: SaveCheckBody, submit: bool):
     defect = body.defect or {}
     not_safe = defect.get("safe_to_drive") is False
 
+    existing = await db.vehicle_checks.find_one(
+        {"organization_id": org, "vehicle_id": body.vehicle_id, "week_commencing": week}, {"_id": 0})
+    incoming_photos = body.photos or {}
+    # Effective defect photos = those sent now, or those already stored on the check.
+    defect_photo_ids = list(incoming_photos.get("defect") or ((existing or {}).get("photos") or {}).get("defect") or [])
+
     if submit:
         missing = [i for i in all_ids if i not in items]
         if missing:
@@ -987,10 +993,10 @@ async def _upsert_check(user, body: SaveCheckBody, submit: bool):
             raise HTTPException(400, "Driver name is required.")
         if (has_defects or not_safe) and not (defect.get("details") or "").strip():
             raise HTTPException(400, "Please describe the defect before submitting.")
+        if (has_defects or not_safe) and not defect_photo_ids:
+            raise HTTPException(400, "Please add at least one photo of the defect before submitting.")
 
     now = _now()
-    existing = await db.vehicle_checks.find_one(
-        {"organization_id": org, "vehicle_id": body.vehicle_id, "week_commencing": week}, {"_id": 0})
     set_doc = {
         "organization_id": org, "vehicle_id": body.vehicle_id, "week_commencing": week,
         "check_type": veh.get("vehicle_type") or veh.get("check_type"), "vehicle_type": veh.get("vehicle_type") or veh.get("check_type"), "is_ev": veh.get("is_ev", False),
@@ -1001,7 +1007,6 @@ async def _upsert_check(user, body: SaveCheckBody, submit: bool):
         "has_defects": has_defects or not_safe, "updated_at": now,
     }
     # Don't wipe previously-uploaded photos when a save omits them.
-    incoming_photos = body.photos or {}
     if incoming_photos.get("vehicle") or incoming_photos.get("defect"):
         set_doc["photos"] = incoming_photos
     elif not existing:
@@ -1031,22 +1036,48 @@ async def _upsert_check(user, body: SaveCheckBody, submit: bool):
         await db.vehicles.update_one({"organization_id": org, "id": body.vehicle_id}, {"$set": {"odometer": odo}})
 
     if submit and (has_defects or not_safe):
-        # Raise a maintenance record + ping the line manager — no duplicate keying.
-        await db.vehicle_defects.insert_one({
-            "id": str(uuid.uuid4()), "organization_id": org, "vehicle_id": body.vehicle_id,
-            "check_id": check_id, "reg_no": veh.get("reg_no"), "make_model": veh.get("make_model"),
+        # Raise/refresh a tracked repair job + escalate — no duplicate keying.
+        priority = "critical" if not_safe else "normal"
+        labelmap = {it["id"]: it["label"] for sec in template["sections"] for it in sec["items"]}
+        item_lines = [f"{labelmap.get(k, k)}: {v}" for k, v in item_notes.items()]
+        full_details = (defect.get("details") or "").strip()
+        if item_lines:
+            full_details = (full_details + "\n" if full_details else "") + "\n".join(item_lines)
+        defect_fields = {
+            "organization_id": org, "vehicle_id": body.vehicle_id, "check_id": check_id,
+            "reg_no": veh.get("reg_no"), "make_model": veh.get("make_model"),
             "reported_by_staff_id": staff["id"], "reported_by": staff.get("full_name"),
-            "details": defect.get("details", ""), "safe_to_drive": defect.get("safe_to_drive"),
-            "provider": veh.get("provider", ""), "status": "open", "created_at": now,
-        })
-        mgr_uid = await _line_manager_user_id(org, staff)
-        await notify_staff(
-            org=org, recipient_kind="manager", recipient_user_id=mgr_uid,
-            type="vehicle_defect",
-            title=("⚠ Vehicle not safe to drive" if not_safe else "Vehicle defect reported"),
-            body=f"{staff.get('full_name')} reported a defect on {veh.get('reg_no')} "
-                 f"({veh.get('make_model') or veh.get('check_type')}): {(defect.get('details') or '').strip()[:120]}",
-            link="vehicles")
+            "details": full_details, "item_notes": item_notes,
+            "safe_to_drive": defect.get("safe_to_drive"),
+            "priority": priority, "escalated": bool(not_safe),
+            "photo_ids": defect_photo_ids, "week_commencing": week,
+            "provider": veh.get("provider", ""),
+        }
+        existing_defect = await db.vehicle_defects.find_one(
+            {"organization_id": org, "check_id": check_id}, {"_id": 0, "id": 1})
+        if existing_defect:
+            await db.vehicle_defects.update_one(
+                {"organization_id": org, "check_id": check_id}, {"$set": {**defect_fields, "updated_at": now}})
+        else:
+            await db.vehicle_defects.insert_one({**defect_fields, "id": str(uuid.uuid4()), "status": "open", "created_at": now})
+        # Alert managers. "Not safe" broadcasts to every manager so it can't slip;
+        # a routine defect goes to the driver's line manager.
+        veh_label = f"{veh.get('reg_no')} ({veh.get('make_model') or veh.get('check_type')})"
+        snippet = (defect.get("details") or full_details or "").strip().replace("\n", " ")[:140]
+        if not_safe:
+            await notify_staff(
+                org=org, recipient_kind="manager", recipient_user_id=None,
+                type="vehicle_defect_critical",
+                title="🚨 Vehicle NOT SAFE to drive — action needed",
+                body=f"{staff.get('full_name')} grounded {veh_label}: {snippet}",
+                link="vehicles", dedupe_key=f"vdefect-crit-{check_id}")
+        else:
+            mgr_uid = await _line_manager_user_id(org, staff)
+            await notify_staff(
+                org=org, recipient_kind="manager", recipient_user_id=mgr_uid,
+                type="vehicle_defect", title="Vehicle defect reported",
+                body=f"{staff.get('full_name')} reported a defect on {veh_label}: {snippet}",
+                link="vehicles", dedupe_key=f"vdefect-{check_id}")
     return {"ok": True, "check_id": check_id, "status": set_doc["status"], "has_defects": set_doc["has_defects"]}
 
 

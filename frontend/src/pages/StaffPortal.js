@@ -1446,6 +1446,7 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
   const submit = () => {
     if (!declaration) { setErr('Please confirm the declaration before submitting.'); return; }
     if (answered < allIds.length) { setErr(`Please answer all ${allIds.length} checks (${answered} done).`); return; }
+    if (hasDefects && (photos.defect || []).length === 0) { setErr('Please add at least one photo of the defect before submitting.'); return; }
     persist(true);
   };
 
@@ -1539,10 +1540,16 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
             <YesNo label="Repair booked?" value={defect.repair_booked} disabled={locked} onChange={(v) => setDefect((p) => ({ ...p, repair_booked: v }))} testId="vehicle-repair-booked" />
           </div>
           {!locked && (
-            <label className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer">
-              <Camera size={14} /> Add defect photo
-              <input type="file" accept="image/*" capture="environment" className="hidden" data-testid="vehicle-defect-photo" onChange={(e) => e.target.files[0] && uploadPhoto(e.target.files[0], 'defect')} />
-            </label>
+            <div className="mt-3">
+              <label data-testid="vehicle-defect-photo-label"
+                className={`inline-flex items-center gap-2 text-xs font-bold cursor-pointer px-3 py-2 rounded-lg border transition-colors ${(photos.defect || []).length ? 'border-emerald-300 text-emerald-700 bg-emerald-50' : 'border-rose-300 text-rose-700 bg-rose-50'}`}>
+                <Camera size={14} /> {(photos.defect || []).length ? 'Add another photo' : 'Add defect photo — required'}
+                <input type="file" accept="image/*" capture="environment" className="hidden" data-testid="vehicle-defect-photo" onChange={(e) => e.target.files[0] && uploadPhoto(e.target.files[0], 'defect')} />
+              </label>
+              {(photos.defect || []).length === 0 && (
+                <p className="mt-1 text-[11px] text-rose-500">A photo of the fault is required so your manager can see it before booking the repair.</p>
+              )}
+            </div>
           )}
           {(photos.defect || []).length > 0 && (
             <div className="flex gap-2 mt-2 flex-wrap">
