@@ -1,3 +1,15 @@
+# ═══ 2026-06 · VEHICLE CHECKS — bulk PDF ZIP for H&S audit (verified) ═══
+- New GET /api/vehicle-checks/export-zip?week=|date_from=&date_to= (manager-gated): zips every completed
+  (submitted/reviewed) check's PDF in the range, each file named per driver+date via _check_pdf_filename
+  ("Vehicle Check - {Driver} - {Reg} - {YYYY-MM-DD}.pdf"; duplicate names get " (n)"). ZIP named
+  "Vehicle Checks - {range}.zip". 404 when the range is empty. Refactored shared _render_check_pdf +
+  _check_pdf_filename helpers (reused by the single-PDF endpoint). Added `import zipfile`.
+- Frontend WeeklyChecks (VehiclesTab.js): "Download all PDFs (ZIP)" button (testid vehicles-export-zip) next to
+  Export CSV; honours the current Week OR From/To date range; parses Content-Disposition for the filename; shows a
+  friendly alert on empty range.
+- Verified: ZIP for today = 1 valid PDF correctly named; out-of-range = 404; button + range pickers render.
+
+
 # ═══ 2026-06 · VEHICLE DEFECTS — auto-escalation + mandatory photo (verified) ═══
 - Photo On Defect (mandatory): submitting a check with any defect now REQUIRES ≥1 defect photo. Backend
   vehicle_checks.py _upsert_check validates effective defect photos (sent now OR already on the check) → 400

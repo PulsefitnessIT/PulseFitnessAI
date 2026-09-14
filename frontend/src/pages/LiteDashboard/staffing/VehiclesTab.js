@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
-import { Truck, Plus, ShieldAlert, FileDown, Link2, Loader2, X, Check, Trash2 } from 'lucide-react';
+import { Truck, Plus, ShieldAlert, FileDown, FileArchive, Link2, Loader2, X, Check, Trash2 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : '');
@@ -202,6 +202,21 @@ function WeeklyChecks({ headers, week, onOpen }) {
     const url = URL.createObjectURL(r.data); const a = document.createElement('a');
     a.href = url; a.download = `vehicle-checks-${ranged ? `${from || 'start'}_to_${to || 'now'}` : wk}.csv`; a.click();
   };
+  const [zipBusy, setZipBusy] = useState(false);
+  const exportZip = async () => {
+    setZipBusy(true);
+    try {
+      const qs = ranged ? `?date_from=${from || ''}&date_to=${to || ''}` : `?week=${wk}`;
+      const r = await axios.get(`${API}/vehicle-checks/export-zip${qs}`, { headers, responseType: 'blob' });
+      const cd = r.headers['content-disposition'] || '';
+      const m = cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+      const name = m ? decodeURIComponent(m[1]) : `Vehicle Checks - ${ranged ? `${from || 'start'} to ${to || 'now'}` : wk}.zip`;
+      const url = URL.createObjectURL(r.data); const a = document.createElement('a');
+      a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(e?.response?.status === 404 ? 'No completed checks in this range.' : 'Could not build the ZIP.');
+    } finally { setZipBusy(false); }
+  };
   return (
     <div className="space-y-3" data-testid="vehicles-checks">
       <div className="flex items-end gap-2 flex-wrap">
@@ -229,6 +244,7 @@ function WeeklyChecks({ headers, week, onOpen }) {
             className="pb-2 text-[11px] font-semibold underline" style={{ color: 'var(--color-brand-cyan)' }}>Clear range</button>
         )}
         <button onClick={exportCsv} data-testid="vehicles-export" className="ml-auto inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border self-end" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><FileDown size={13} /> Export CSV</button>
+        <button onClick={exportZip} disabled={zipBusy} data-testid="vehicles-export-zip" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 self-end text-white disabled:opacity-60" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>{zipBusy ? <Loader2 size={13} className="animate-spin" /> : <FileArchive size={13} />} Download all PDFs (ZIP)</button>
       </div>
       {!rows ? <Loader2 className="animate-spin" style={{ color: 'var(--color-brand-cyan)' }} /> : rows.length === 0 ? (
         <div className="rounded-xl border p-10 text-center text-sm" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{ranged ? 'No checks completed in this date range.' : 'No checks submitted for this week yet.'}</div>

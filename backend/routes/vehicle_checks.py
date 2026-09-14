@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import csv
 import io
+import zipfile
 import logging
 import uuid
 from datetime import date, datetime, timedelta, timezone
@@ -842,18 +843,20 @@ def _esc(text) -> str:
     return (str(text or "")).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-@router.get("/vehicle-checks/{check_id}/pdf")
-async def check_pdf(check_id: str, user: dict = Depends(get_current_user)):
-    _require_manager(user)
-    org = _org(user)
-    doc = await db.vehicle_checks.find_one({"organization_id": org, "id": check_id}, {"_id": 0})
-    if not doc:
-        raise HTTPException(404, "not found")
+def _check_pdf_filename(doc: dict) -> str:
+    """Human-friendly H&S file name: 'Vehicle Check - Jane Smith - AB12CDE - 2026-09-12.pdf'."""
+    reg = (doc.get("details") or {}).get("reg_no", "vehicle").replace(" ", "")
+    driver = doc.get("driver_name") or (doc.get("details") or {}).get("driver_name") or "Driver"
+    completed = (doc.get("submitted_at") or "")[:10] or doc.get("week_commencing", "")
+    _safe = lambda t: "".join(ch for ch in str(t) if ch.isalnum() or ch in " -_").strip()
+    return " ".join(f"Vehicle Check - {_safe(driver)} - {_safe(reg)} - {completed}.pdf".split())
+
+
+async def _render_check_pdf(doc: dict, org: str) -> bytes:
+    """Build a self-contained PDF for a check, embedding its defect photos."""
     template = _build_template(doc.get("vehicle_type") or doc.get("check_type", "car"), doc.get("is_ev", False))
-    # Pull uploaded defect photos from object storage so the PDF is self-contained.
     photos_bytes: list[bytes] = []
-    photo_ids = ((doc.get("photos") or {}).get("defect")) or []
-    for fid in photo_ids[:9]:
+    for fid in (((doc.get("photos") or {}).get("defect")) or [])[:9]:
         try:
             f = await db.files.find_one({"id": fid, "organization_id": org, "category": "vehicle-photos"}, {"_id": 0})
             if f and f.get("storage_path"):
@@ -862,19 +865,62 @@ async def check_pdf(check_id: str, user: dict = Depends(get_current_user)):
                     photos_bytes.append(data)
         except Exception:
             logger.warning("vehicle PDF: could not load photo %s", fid)
+    return _build_check_pdf(doc, template, None, photos_bytes)
+
+
+@router.get("/vehicle-checks/{check_id}/pdf")
+async def check_pdf(check_id: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    doc = await db.vehicle_checks.find_one({"organization_id": org, "id": check_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "not found")
     try:
-        pdf = _build_check_pdf(doc, template, None, photos_bytes)
+        pdf = await _render_check_pdf(doc, org)
     except Exception as e:
         logger.exception("vehicle check PDF failed")
         raise HTTPException(500, f"Could not generate PDF: {e}")
-    reg = (doc.get("details") or {}).get("reg_no", "vehicle").replace(" ", "")
-    driver = doc.get("driver_name") or (doc.get("details") or {}).get("driver_name") or "Driver"
-    completed = (doc.get("submitted_at") or "")[:10] or doc.get("week_commencing", "")
-    # Human-friendly name for the H&S file: "Vehicle Check - Jane Smith - AB12CDE - 2026-09-12.pdf"
-    _safe = lambda t: "".join(ch for ch in str(t) if ch.isalnum() or ch in " -_").strip()
-    fname = " ".join(f"Vehicle Check - {_safe(driver)} - {_safe(reg)} - {completed}.pdf".split())
+    fname = _check_pdf_filename(doc)
     return Response(content=pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
+@router.get("/vehicle-checks/export-zip")
+async def export_checks_zip(week: str | None = Query(None),
+                            date_from: str | None = Query(None), date_to: str | None = Query(None),
+                            user: dict = Depends(get_current_user)):
+    """Zip of every completed check's PDF in a date range — one file per check,
+    each named per driver + completion date, for the H&S audit file."""
+    _require_manager(user)
+    org = _org(user)
+    q: dict = {"organization_id": org, "status": {"$in": ["submitted", "reviewed"]}}
+    if week:
+        q["week_commencing"] = week
+    _apply_date_range(q, date_from, date_to)
+    sort_key = "submitted_at" if (date_from or date_to) else "week_commencing"
+    rows = await db.vehicle_checks.find(q, {"_id": 0}).sort(sort_key, -1).to_list(2000)
+    if not rows:
+        raise HTTPException(404, "No completed checks in this range.")
+    buf = io.BytesIO()
+    used: dict[str, int] = {}
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for doc in rows:
+            try:
+                pdf = await _render_check_pdf(doc, org)
+            except Exception:
+                logger.exception("zip: could not render check %s", doc.get("id"))
+                continue
+            name = _check_pdf_filename(doc)
+            if name in used:
+                used[name] += 1
+                name = name[:-4] + f" ({used[name]}).pdf"
+            else:
+                used[name] = 1
+            zf.writestr(name, pdf)
+    rlabel = week or (f"{date_from or 'start'} to {date_to or 'now'}" if (date_from or date_to) else "all")
+    zname = f"Vehicle Checks - {rlabel}.zip"
+    return Response(content=buf.getvalue(), media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="{zname}"'})
 
 
 
