@@ -44,3 +44,13 @@ while commercial/staff users stay on `pulsefitness.ai`. One codebase, one databa
 
 ## Cost note
 Second deployment = +50 credits/month min (Starter). See support guidance in chat.
+
+## Update — hide /MODService on the commercial domain (done)
+Now that the MOD deployment is live, the commercial (pulsefitness.ai) deployment forwards
+its MOD login routes to the dedicated MOD domain so there is ONE canonical MOD entry point:
+- /MODService, /MODService/login, /modservice  → 302 to REACT_APP_MODSERVICE_URL
+  (default https://modservice.pulsefitness.com) — only when NOT in MODService mode.
+- On the MOD deployment itself these still render the branded MOD login (unchanged).
+- /mod/confirm-fix/:token (email action deep-link) is intentionally left working on BOTH domains.
+Code: frontend/src/utils/portalMode.js (MODSERVICE_URL) + routes/AppRoutes.js (ExternalRedirect).
+Activate: Save to Github → Re-publish the pulsefitness.ai deployment.

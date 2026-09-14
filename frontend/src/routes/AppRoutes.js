@@ -12,7 +12,7 @@
  * are all declared here. Auth gates are inline so each surface can
  * negotiate its own redirect.
  */
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/App';
 import EngineerErrorBoundary from '@/components/shared/EngineerErrorBoundary';
@@ -216,7 +216,14 @@ const MODServiceLogin = lazy(() => import('@/pages/MODPortal/MODServiceLogin'));
 const MODConfirmFixPage = lazy(() => import('@/pages/MODPortal/MODConfirmFixPage'));
 // MODService deployment mode — flips the public landing to the MOD sign-in.
 // eslint-disable-next-line import/first
-import { isModServiceMode } from '@/utils/portalMode';
+import { isModServiceMode, MODSERVICE_URL } from '@/utils/portalMode';
+
+/** Sends the browser to an external URL (used to forward the commercial
+ *  domain's /MODService routes to the dedicated MOD deployment). */
+function ExternalRedirect({ to }) {
+  useEffect(() => { window.location.replace(to); }, [to]);
+  return null;
+}
 const MembershipsConsole = lazy(() => import('@/pages/Memberships/MembershipsConsole'));
 const MemberPortal = lazy(() => import('@/pages/Memberships/MemberPortal'));
 const MemberClaimPage = lazy(() => import('@/pages/Memberships/MemberClaimPage'));
@@ -494,11 +501,14 @@ export default function AppRoutes({ user, login }) {
       {/* Trial-ending email destination — login-gated paid checkout, no free-trial offer (iter 221) */}
       <Route path="/choose-plan" element={user ? <ChoosePlanPage /> : <Navigate to="/login?next=/choose-plan" replace />} />
 
-      {/* Iter 216h109 — MOD Service portal (branded login). */}
-      <Route path="/MODService" element={<MODServiceLogin />} />
-      <Route path="/MODService/login" element={<MODServiceLogin />} />
+      {/* Iter 216h109 — MOD Service portal (branded login).
+          On the commercial (pulsefitness.ai) deployment these forward to the
+          dedicated MOD deployment so there is one canonical MOD entry point.
+          On the MOD deployment itself they render the branded login. */}
+      <Route path="/MODService" element={isModServiceMode() ? <MODServiceLogin /> : <ExternalRedirect to={MODSERVICE_URL} />} />
+      <Route path="/MODService/login" element={isModServiceMode() ? <MODServiceLogin /> : <ExternalRedirect to={MODSERVICE_URL} />} />
       <Route path="/mod/confirm-fix/:token" element={<MODConfirmFixPage />} />
-      <Route path="/modservice" element={<Navigate to="/MODService" replace />} />
+      <Route path="/modservice" element={isModServiceMode() ? <Navigate to="/MODService" replace /> : <ExternalRedirect to={MODSERVICE_URL} />} />
 
       {/* ─── Public utility ─── */}
       <Route path="/supplier/case/:token" element={<div className="pulse-font" style={{ display: 'contents' }}><SupplierCasePage /></div>} />

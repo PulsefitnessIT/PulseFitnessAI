@@ -37,3 +37,8 @@ export function isModServiceMode() {
 /** Public URL of the commercial (pulsefitness.ai) experience — used to bounce
  *  commercial/staff users who land on the MODService portal by mistake. */
 export const COMMERCIAL_URL = process.env.REACT_APP_COMMERCIAL_URL || 'https://pulsefitness.ai';
+
+/** Public URL of the dedicated MOD Service deployment. On the commercial
+ *  deployment the /MODService login routes forward here so there is a single
+ *  canonical MOD entry point. */
+export const MODSERVICE_URL = process.env.REACT_APP_MODSERVICE_URL || 'https://modservice.pulsefitness.com';
