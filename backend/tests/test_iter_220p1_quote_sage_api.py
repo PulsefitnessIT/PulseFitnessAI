@@ -10,7 +10,7 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://fitness-onboarding-3.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://mod-only-deploy.preview.emergentagent.com").rstrip("/")
 EMAIL = "admin@gymaxisai.com"
 PASSWORD = "MasterAdmin123!"
 

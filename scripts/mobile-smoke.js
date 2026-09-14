@@ -13,7 +13,7 @@
  *      reachable without horizontal scroll
  *
  * Designed to be run by the test-agent or by hand:
- *   node scripts/mobile-smoke.js [--base=https://fitness-onboarding-3.preview.emergentagent.com] [--email=...] [--password=...]
+ *   node scripts/mobile-smoke.js [--base=https://mod-only-deploy.preview.emergentagent.com] [--email=...] [--password=...]
  *
  * Exits with code 0 if all checks pass, 1 otherwise. Writes a JSON
  * report to /app/test_reports/mobile_smoke_${timestamp}.json so future

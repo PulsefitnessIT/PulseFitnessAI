@@ -11,8 +11,8 @@
   },
   "test_results": {
     "test1_module_selector_ui": "PASS — all 4 modules pre-selected (operations/memberships/crm/marketing each show trial-module-<key>-check); subtitle shows 'Every module unlocked for 3 days'; badge text contains 'all modules unlocked'; deselecting operations removes its check and badge changes to '3 modules selected'; deselecting all four + submit shows inline error 'Please choose at least one module to trial.' via trial-modal-error.",
-    "test2_memberships_only_signup": "PASS — registered uitest+mem199132@example.com with ONLY memberships selected, completed step1 (auto Turnstile dev token) → step2 profile completion (primary contact + company addresses, GB country) → trial-step2-submit → final URL https://fitness-onboarding-3.preview.emergentagent.com/memberships (NOT /dashboard).",
-    "test3_all_modules_signup": "PASS — registered uitest+all840903@example.com with all 4 modules selected (default), completed both steps → final URL https://fitness-onboarding-3.preview.emergentagent.com/dashboard.",
+    "test2_memberships_only_signup": "PASS — registered uitest+mem199132@example.com with ONLY memberships selected, completed step1 (auto Turnstile dev token) → step2 profile completion (primary contact + company addresses, GB country) → trial-step2-submit → final URL https://mod-only-deploy.preview.emergentagent.com/memberships (NOT /dashboard).",
+    "test3_all_modules_signup": "PASS — registered uitest+all840903@example.com with all 4 modules selected (default), completed both steps → final URL https://mod-only-deploy.preview.emergentagent.com/dashboard.",
     "test4_login_routing_memberonly": "PASS — logged in as memberonly.trial@example.com / TrialTest123! at /login (testids gx-login-email, gx-login-password) → final URL .../memberships (Member Only Gym memberships studio dashboard rendered, NOT operations /dashboard). Core fix for nncheer@icloud.com confusion is verified."
   },
   "test_report_links": [],

@@ -48,7 +48,7 @@
   ],
   "updated_files": [],
   "success_rate": {"backend": "n/a", "frontend": "0% — bug reproduces deterministically on every retry; current suppressCloseRef fix has zero observable effect because the close fires from a path that doesn't go through onOpenChange"},
-  "test_credentials": "owner@isodemo.com / IsoDemo123! at https://fitness-onboarding-3.preview.emergentagent.com/login. Dismiss cookie banner ('Essential Only') and PWA install prompt ('Later') post-login. Operations tab is default; click Faults sub-tab; click 'Log New Fault' button.",
+  "test_credentials": "owner@isodemo.com / IsoDemo123! at https://mod-only-deploy.preview.emergentagent.com/login. Dismiss cookie banner ('Essential Only') and PWA install prompt ('Later') post-login. Operations tab is default; click Faults sub-tab; click 'Log New Fault' button.",
   "seed_data_creation": "/tmp/upload_test/photo_{1..4}.png (40x40 PNGs via PIL).",
   "retest_needed": true,
   "should_main_agent_self_test": false,

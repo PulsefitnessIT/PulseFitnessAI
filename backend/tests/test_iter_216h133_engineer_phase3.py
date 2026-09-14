@@ -19,7 +19,7 @@ import pytest
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL")
-       or "https://fitness-onboarding-3.preview.emergentagent.com").rstrip("/")
+       or "https://mod-only-deploy.preview.emergentagent.com").rstrip("/")
 DB_NAME = os.environ.get("DB_NAME") or "test_database"
 
 

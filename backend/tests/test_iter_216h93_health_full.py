@@ -13,7 +13,7 @@ import requests
 BASE_URL = (
     os.environ.get("REACT_APP_BACKEND_URL")
     or os.environ.get("TEST_API_URL")
-    or "https://fitness-onboarding-3.preview.emergentagent.com"
+    or "https://mod-only-deploy.preview.emergentagent.com"
 ).rstrip("/")
 
 ADMIN_EMAIL = "admin@gymaxisai.com"
