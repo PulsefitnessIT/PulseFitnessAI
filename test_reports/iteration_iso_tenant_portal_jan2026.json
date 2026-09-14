@@ -1,0 +1,34 @@
+{
+  "summary": "Backend-only cross-tenant / portal isolation security test for PulseFitness.ai (commercial vs MOD vs master-admin). Ran 25 parametrized checks. 24/25 pass. All critical MOD data endpoints (dashboard, service-providers, quotes, equipment, staff) correctly reject commercial user with 403. All master-admin endpoints reject both commercial and normal MOD users with 401/403. Unauthenticated calls uniformly 401/403. MOD user cannot see foreign commercial data (Third Space / iso markers absent) on /api/equipment, /api/faults, /api/memberships, /api/dashboard. Cross-record fetches with non-owned IDs return 403/404. ONE finding: GET /api/mod/me returns 200 for a commercial (non-MOD) user, leaking that user's OWN org context (id=iso-demo-org, name=Iso Demo Fitness) through the MOD-portal surface. No other tenant's MOD data is disclosed, so this is NOT a cross-tenant data breach, but it is a portal-scoping / defence-in-depth gap — every other /api/mod/site/* endpoint calls _require_mod_site(user); /api/mod/me only calls get_current_user.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/mod/me",
+        "issue": "Commercial (non-MOD) authenticated user receives 200 with their own org context. Priority HIGH (portal-isolation defence-in-depth), NOT CRITICAL (no MOD-tenant data leaked). All other /api/mod/site/* endpoints correctly enforce MOD scope via _require_mod_site."
+      }
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iso_tenant_portal_jan2026.py",
+    "/app/test_reports/pytest/iso_tenant_portal.xml"
+  ],
+  "action_items": [
+    "Add a MOD-scope guard to GET /api/mod/me in backend/routes/mod_portal.py (line 383). Replace `user: dict = Depends(get_current_user)` with a call to `_require_mod_site(user)` (or `_require_mod(user)`) so commercial / non-MOD accounts receive 403 instead of 200. This aligns /mod/me with every sibling MOD endpoint and closes a portal-scoping gap flagged by ISO1."
+  ],
+  "critical_code_review_comments": [
+    "mod_portal.py:383 /mod/me lacks MOD account_type/org guard — inconsistency with all other /mod/site/* handlers that enforce _require_mod_site.",
+    "Login rate-limiter is aggressive (~4 attempts/min per email) and returned 429 during the first suite run — mitigated in tests by portal-aware caching and pacing. Not a bug, but flag for future test authors."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iso_tenant_portal_jan2026.py"
+  ],
+  "success_rate": {"backend": "96% (24/25)", "frontend": "n/a"},
+  "test_credentials": "Commercial: owner@isodemo.com / IsoDemo123! (org iso-demo-org / Iso Demo Fitness, account_type=full). MOD site user: test@army.mod.test / ModTest123! — MUST log in with body {\"email\":..,\"password\":..,\"portal\":\"mod\"}; plain login returns 403 with message 'MOD personnel accounts must sign in via the MOD Service Portal at /MODService.'",
+  "seed_data_creation": "None — used existing seeded accounts.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Re-run pytest backend/tests/test_iso_tenant_portal_jan2026.py after main agent patches /api/mod/me. If additional MOD sub-routes (mod_aser, mod_incidents, mod_compliance, crm_mod_quote) need coverage, extend MOD_ENDPOINTS list in the same file. Note MOD login requires portal='mod' JSON field; tokens are cached per-portal to survive 429 rate-limits (space calls or wait 30-45s between fresh logins).",
+  "rca of the issue": "Endpoint GET /api/mod/me (backend/routes/mod_portal.py line 383-401) declares only `user: dict = Depends(get_current_user)` and immediately calls `_org_of(user)` which returns the user's own organization regardless of account_type. Every other MOD site endpoint (e.g. /mod/site/dashboard line 404) instead calls `_require_mod_site(user)` which raises 403 for non-MOD accounts. Reproduction: (1) POST /api/auth/login {email:'owner@isodemo.com',password:'IsoDemo123!'} → token; (2) GET /api/mod/me with Bearer token → HTTP 200 with body {\"org\":{\"id\":\"iso-demo-org\",\"account_type\":\"full\",...},\"user\":{...}}. Mitigation: change signature to depend on `_require_mod_site` (or an equivalent MOD-role guard) so non-MOD accounts get HTTP 403. Impact: LOW-MEDIUM — the endpoint only echoes the caller's own org, so no cross-tenant leak, but it violates the strict portal-boundary promise and gives a commercial account a working MOD-shaped response it should never receive."
+}

@@ -383,7 +383,7 @@ async def _ai_triage(
 @router.get("/mod/me")
 async def mod_whoami(user: dict = Depends(get_current_user)):
     """Return the MOD org context (site/branch/org) for the current user."""
-    org = await _org_of(user)
+    org = await _require_mod_site(user)
     return {
         "org": {
             "id": org["id"],
