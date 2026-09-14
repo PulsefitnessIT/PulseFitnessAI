@@ -12,8 +12,9 @@
  * are all declared here. Auth gates are inline so each surface can
  * negotiate its own redirect.
  */
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { hardenModServiceSeo } from '@/utils/modServiceSeo';
 import { useAuth } from '@/App';
 import EngineerErrorBoundary from '@/components/shared/EngineerErrorBoundary';
 import { moduleHomePath } from '@/utils/moduleHome';
@@ -349,6 +350,10 @@ export default function AppRoutes({ user, login }) {
   const location = useLocation();
   const { activeSite, allSitesMode } = useAuth();
   const isEngineerRoute = /^\/svc\/engineer/.test(location.pathname);
+  // MODService filter-hardening: strip any residual `pulsefitness.ai` from the
+  // static <head> meta/canonical/JSON-LD so the MOD domain serves zero ".ai"
+  // strings. No-op on the commercial deployment (isModServiceMode() === false).
+  useEffect(() => { hardenModServiceSeo(); }, [location.pathname]);
   // Multi-site isolation — remount the active page when the site changes
   // so every module re-fetches its now site-scoped data (brief: key tied
   // to the active site). Route navigation within a site is unaffected.

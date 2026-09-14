@@ -539,7 +539,7 @@ export default function MODServiceLogin() {
                 <p className="text-[11px] leading-relaxed pt-1" style={{ color: PULSE.greyDark }}>
                   Trouble signing in? Contact your unit PTI or
                   <a
-                    href="mailto:support@pulsefitness.ai"
+                    href="mailto:support@modservice.pulsefitness.com"
                     className="ml-1 font-semibold underline-offset-2 hover:underline"
                     style={{ color: PULSE.primaryDeep }}
                   >
