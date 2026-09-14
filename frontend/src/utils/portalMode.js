@@ -7,8 +7,10 @@
  * which flips the public entry point to the MOD Service Portal sign-in.
  *
  * Detection order:
- *   1. Build/runtime env flag  (set on the MODService deployment only)
- *   2. Host-based             (modservice.* domain)
+ *   1. Build/runtime env flag  (REACT_APP_PORTAL_MODE=modservice, if it can be set)
+ *   2. Host-based             (the custom domain modservice.*, OR this deployment's
+ *      own *.emergent.host subdomain when it is named for MOD — so MOD mode works
+ *      on the temporary deploy URL too, before the custom domain is live)
  *   3. Preview override        ?portal=modservice  (sticky for the session,
  *      so we can verify the MODService experience in the .ai preview before
  *      the real domain is live). ?portal=pulse clears it.
@@ -18,7 +20,9 @@ export function isModServiceMode() {
     if ((process.env.REACT_APP_PORTAL_MODE || '').toLowerCase() === 'modservice') return true;
 
     const host = (typeof window !== 'undefined' ? window.location.hostname : '').toLowerCase();
-    if (host.startsWith('modservice.')) return true;
+    // Custom domain (modservice.pulsefitness.com) OR the MOD deployment's own
+    // emergent.host subdomain (e.g. mod-only-deploy.emergent.host / mod-service-*).
+    if (host.includes('modservice') || host.startsWith('mod-only') || host.startsWith('mod-service')) return true;
 
     if (typeof window !== 'undefined') {
       const q = (new URLSearchParams(window.location.search).get('portal') || '').toLowerCase();
