@@ -1,3 +1,19 @@
+# ═══ 2026-06 · VEHICLE CHECKS — per-item defect notes, date-range search, friendly PDF name (verified) ═══
+- Per-item defect notes: marking a check item "Defect" reveals a rose-bordered note field (StaffPortal.js VehicleCheckForm;
+  state itemNotes; testid vehicle-item-note-{id}). Stored on the check as `item_notes` (vehicle_checks.py SaveCheckBody +
+  _upsert_check, kept only for items currently = defect). Rendered in the PDF as a full-width rose sub-row beneath each
+  defect item (wrapped Paragraph → no overlap). Verified via PyMuPDF render + pdfminer text.
+- Vehicle-check PDF filename now human-friendly for the H&S file: `Vehicle Check - {Driver} - {Reg} - {YYYY-MM-DD}.pdf`
+  (quoted Content-Disposition). Frontend downloadCheckPdf (VehiclesTab.js) now parses Content-Disposition instead of
+  forcing a generic name.
+- Date-range search for the manager Weekly-checks register: backend /vehicle-checks/register + /export.csv accept
+  date_from/date_to (filter submitted_at, ISO lexicographic; sort by submitted_at when ranged). Frontend WeeklyChecks has
+  Week OR From/To date pickers (testids vehicles-date-from / vehicles-date-to / vehicles-range-clear) + a Completed column.
+  export.csv adds a "Defect notes" column summarising item_notes + general defect.
+- E2E verified: submit with item_notes → register(date range today)=1, out-of-range=0 → PDF filename correct + note present.
+- Demo data added: vehicle AB12 CDE assigned to Alex Rivera (SPDEMO_emp_staff) in iso-demo-org.
+
+
 # ═══ 2026-06 · STAFF PORTAL RELEASE CERT + MODSERVICE DOMAIN MODE (verified) ═══
 
 ## Staff Portal — release hardening (DONE, testing_agent 100%)

@@ -611,8 +611,22 @@ async def update_defect(defect_id: str, body: DefectUpdate, user: dict = Depends
 
 
 # ═══════════════════════ Weekly register + review (mgr) ═══════════════════════
+def _apply_date_range(q: dict, date_from: str | None, date_to: str | None) -> None:
+    """Filter vehicle checks by date of completion (submitted_at) using ISO
+    lexicographic range. Drafts (no submitted_at) are naturally excluded."""
+    if not (date_from or date_to):
+        return
+    rng: dict = {}
+    if date_from:
+        rng["$gte"] = f"{date_from}T00:00:00"
+    if date_to:
+        rng["$lte"] = f"{date_to}T23:59:59.999999+00:00"
+    q["submitted_at"] = rng
+
+
 @router.get("/vehicle-checks/register")
 async def check_register(week: str | None = Query(None), status: str | None = Query(None),
+                         date_from: str | None = Query(None), date_to: str | None = Query(None),
                          user: dict = Depends(get_current_user)):
     _require_manager(user)
     org = _org(user)
@@ -621,36 +635,48 @@ async def check_register(week: str | None = Query(None), status: str | None = Qu
         q["week_commencing"] = week
     if status:
         q["status"] = status
-    rows = await db.vehicle_checks.find(q, {"_id": 0}).sort("week_commencing", -1).to_list(1000)
+    _apply_date_range(q, date_from, date_to)
+    sort_key = "submitted_at" if (date_from or date_to) else "week_commencing"
+    rows = await db.vehicle_checks.find(q, {"_id": 0}).sort(sort_key, -1).to_list(1000)
     return {"checks": rows}
 
 
 @router.get("/vehicle-checks/export.csv")
-async def export_csv(week: str | None = Query(None), user: dict = Depends(get_current_user)):
+async def export_csv(week: str | None = Query(None),
+                     date_from: str | None = Query(None), date_to: str | None = Query(None),
+                     user: dict = Depends(get_current_user)):
     _require_manager(user)
     org = _org(user)
     q: dict = {"organization_id": org}
     if week:
         q["week_commencing"] = week
-    rows = await db.vehicle_checks.find(q, {"_id": 0}).sort("week_commencing", -1).to_list(5000)
+    _apply_date_range(q, date_from, date_to)
+    sort_key = "submitted_at" if (date_from or date_to) else "week_commencing"
+    rows = await db.vehicle_checks.find(q, {"_id": 0}).sort(sort_key, -1).to_list(5000)
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["Week", "Reg", "Make/Model", "Check type", "Driver", "Status",
-                "Defects", "Safe to drive", "Odometer", "Submitted", "Reviewed by"])
+                "Defects", "Safe to drive", "Defect notes", "Odometer", "Submitted", "Reviewed by"])
     for r in rows:
         rv = r.get("manager_review") or {}
         df = r.get("defect") or {}
+        inotes = r.get("item_notes") or {}
+        note_summary = " | ".join(f"{k}: {v}" for k, v in inotes.items() if (v or "").strip())
+        if df.get("details"):
+            note_summary = (note_summary + " | " if note_summary else "") + f"General: {df.get('details')}"
         w.writerow([
             r.get("week_commencing"), (r.get("details") or {}).get("reg_no"),
             (r.get("details") or {}).get("make_model"), r.get("check_type"),
             r.get("driver_name"), r.get("status"),
             "Yes" if r.get("has_defects") else "No",
             {True: "Yes", False: "No"}.get(df.get("safe_to_drive"), ""),
+            note_summary,
             (r.get("details") or {}).get("odometer"),
             r.get("submitted_at", ""), rv.get("reviewer", ""),
         ])
+    rlabel = week or (f"{date_from or 'start'}_to_{date_to or 'now'}" if (date_from or date_to) else "all")
     return Response(content=buf.getvalue(), media_type="text/csv",
-                    headers={"Content-Disposition": f"attachment; filename=vehicle-checks-{week or 'all'}.csv"})
+                    headers={"Content-Disposition": f"attachment; filename=vehicle-checks-{rlabel}.csv"})
 
 
 FIT_LABEL = {"yes": "Fit to return", "phased": "Phased return", "no": "Not yet fit"}
@@ -664,6 +690,7 @@ def _build_check_pdf(check: dict, template: dict, org_company: dict | None,
     from reportlab.lib import colors
     from reportlab.lib.units import mm
     from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, Image
+    from reportlab.lib.styles import ParagraphStyle
     from utils.pulse_doc_template import (
         pulse_styles, pulse_header, pulse_title, section_label,
         make_pulse_doc, PULSE_NAVY, PULSE_BORDER, PULSE_LIGHT, PULSE_MUTED,
@@ -706,29 +733,49 @@ def _build_check_pdf(check: dict, template: dict, org_company: dict | None,
     story.append(Spacer(1, 5 * mm))
 
     items = check.get("items") or {}
+    item_notes = check.get("item_notes") or {}
+    note_style = ParagraphStyle(
+        "vc_note", parent=body, fontName="Helvetica-Oblique", fontSize=8,
+        leading=10.5, textColor=colors.HexColor("#b91c1c"), leftIndent=4)
     for sec in template["sections"]:
         story.append(section_label(s, sec["title"]))
         rows = []
+        row_meta = []  # per-row: ("item", status) | ("note",)
         for it in sec["items"]:
             st = items.get(it["id"], "")
             rows.append([Paragraph(it["label"], body), ITEM_STATUS_LABEL.get(st, "—")])
+            row_meta.append(("item", st))
+            note = (item_notes.get(it["id"]) or "").strip()
+            if st == "defect" and note:
+                rows.append([Paragraph(f"<b>Defect note:</b> {_esc(note)}", note_style), ""])
+                row_meta.append(("note",))
         t = Table(rows, colWidths=[150 * mm, 24 * mm])
         style = [
             ("FONT", (0, 0), (-1, -1), "Helvetica", 8.5),
             ("FONT", (1, 0), (1, -1), "Helvetica-Bold", 8.5),
             ("ALIGN", (1, 0), (1, -1), "CENTER"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("LINEBELOW", (0, 0), (-1, -1), 0.4, PULSE_BORDER),
             ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ]
-        for i, it in enumerate(sec["items"]):
-            st = items.get(it["id"], "")
-            if st == "defect":
-                style.append(("TEXTCOLOR", (1, i), (1, i), colors.HexColor("#dc2626")))
-            elif st == "ok":
-                style.append(("TEXTCOLOR", (1, i), (1, i), colors.HexColor("#16a34a")))
+        for i, meta in enumerate(row_meta):
+            if meta[0] == "note":
+                # Full-width, rose-tinted note row — Paragraph wraps so it never overlaps.
+                style.append(("SPAN", (0, i), (1, i)))
+                style.append(("BACKGROUND", (0, i), (1, i), colors.HexColor("#fef2f2")))
+                style.append(("VALIGN", (0, i), (1, i), "TOP"))
+                style.append(("LEFTPADDING", (0, i), (1, i), 10))
+                style.append(("TOPPADDING", (0, i), (1, i), 2))
+                style.append(("BOTTOMPADDING", (0, i), (1, i), 5))
+                style.append(("LINEBELOW", (0, i), (1, i), 0.4, PULSE_BORDER))
             else:
-                style.append(("TEXTCOLOR", (1, i), (1, i), PULSE_MUTED))
+                st = meta[1]
+                style.append(("LINEBELOW", (0, i), (-1, i), 0.4, PULSE_BORDER))
+                if st == "defect":
+                    style.append(("TEXTCOLOR", (1, i), (1, i), colors.HexColor("#dc2626")))
+                elif st == "ok":
+                    style.append(("TEXTCOLOR", (1, i), (1, i), colors.HexColor("#16a34a")))
+                else:
+                    style.append(("TEXTCOLOR", (1, i), (1, i), PULSE_MUTED))
         t.setStyle(TableStyle(style))
         story.append(t)
         story.append(Spacer(1, 4 * mm))
@@ -821,12 +868,13 @@ async def check_pdf(check_id: str, user: dict = Depends(get_current_user)):
         logger.exception("vehicle check PDF failed")
         raise HTTPException(500, f"Could not generate PDF: {e}")
     reg = (doc.get("details") or {}).get("reg_no", "vehicle").replace(" ", "")
-    driver = doc.get("driver_name") or (doc.get("details") or {}).get("driver_name") or "driver"
-    driver_safe = "".join(ch if (ch.isalnum() or ch in "-_") else "-" for ch in driver).strip("-") or "driver"
+    driver = doc.get("driver_name") or (doc.get("details") or {}).get("driver_name") or "Driver"
     completed = (doc.get("submitted_at") or "")[:10] or doc.get("week_commencing", "")
-    fname = f"vehicle-check-{driver_safe}-{reg}-{completed}.pdf"
+    # Human-friendly name for the H&S file: "Vehicle Check - Jane Smith - AB12CDE - 2026-09-12.pdf"
+    _safe = lambda t: "".join(ch for ch in str(t) if ch.isalnum() or ch in " -_").strip()
+    fname = " ".join(f"Vehicle Check - {_safe(driver)} - {_safe(reg)} - {completed}.pdf".split())
     return Response(content=pdf, media_type="application/pdf",
-                    headers={"Content-Disposition": f"attachment; filename={fname}"})
+                    headers={"Content-Disposition": f'attachment; filename="{fname}"'})
 
 
 
@@ -896,7 +944,7 @@ async def portal_get_check(vehicle_id: str = Query(...), week: str | None = Quer
             "driver_staff_id": staff["id"], "driver_name": staff.get("full_name"),
             "details": {"reg_no": veh.get("reg_no"), "make_model": veh.get("make_model"),
                         "odometer": veh.get("odometer", ""), "date": date.today().isoformat()},
-            "items": {}, "defect": {}, "photos": {"vehicle": {}, "defect": []},
+            "items": {}, "item_notes": {}, "defect": {}, "photos": {"vehicle": {}, "defect": []},
             "declaration": {}, "status": "due",
         }
     return {"vehicle": veh, "template": template, "check": existing, "week_commencing": week}
@@ -907,6 +955,7 @@ class SaveCheckBody(BaseModel):
     week_commencing: str | None = None
     details: dict = {}
     items: dict = {}
+    item_notes: dict = {}
     defect: dict = {}
     photos: dict = {}
 
@@ -924,6 +973,9 @@ async def _upsert_check(user, body: SaveCheckBody, submit: bool):
     all_ids = _all_item_ids(template)
     items = {k: v for k, v in (body.items or {}).items() if k in all_ids and v in ("ok", "defect", "na")}
     has_defects = any(v == "defect" for v in items.values())
+    # Per-item defect notes — kept only for items currently marked as a defect.
+    item_notes = {k: (v or "").strip() for k, v in (body.item_notes or {}).items()
+                  if items.get(k) == "defect" and (v or "").strip()}
     defect = body.defect or {}
     not_safe = defect.get("safe_to_drive") is False
 
@@ -945,7 +997,7 @@ async def _upsert_check(user, body: SaveCheckBody, submit: bool):
         "driver_staff_id": staff["id"], "driver_name": staff.get("full_name"),
         "details": {**(body.details or {}),
                     "reg_no": veh.get("reg_no"), "make_model": veh.get("make_model")},
-        "items": items, "defect": defect,
+        "items": items, "defect": defect, "item_notes": item_notes,
         "has_defects": has_defects or not_safe, "updated_at": now,
     }
     # Don't wipe previously-uploaded photos when a save omits them.

@@ -1404,6 +1404,7 @@ function TriState({ value, onChange, testId }) {
 function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
   const [d, setD] = useState(null);
   const [items, setItems] = useState({});
+  const [itemNotes, setItemNotes] = useState({});
   const [details, setDetails] = useState({});
   const [defect, setDefect] = useState({});
   const [photos, setPhotos] = useState({ vehicle: {}, defect: [] });
@@ -1418,6 +1419,7 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
       setD(r.data);
       const c = r.data.check || {};
       setItems(c.items || {});
+      setItemNotes(c.item_notes || {});
       setDetails({ ...c.details, driver_name: (c.details?.driver_name) || r.data.check?.driver_name });
       setDefect(c.defect || {});
       setPhotos(c.photos || { vehicle: {}, defect: [] });
@@ -1432,7 +1434,7 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
 
   const persist = async (submit) => {
     setBusy(true); setErr(''); setSaved('');
-    const body = { vehicle_id: vehicleId, details, items, defect, photos };
+    const body = { vehicle_id: vehicleId, details, items, item_notes: itemNotes, defect, photos };
     try {
       const url = submit ? 'submit' : 'save';
       const r = await axios.post(`${API}/new-starter/portal/vehicle-check/${url}`, body, { headers: H });
@@ -1497,12 +1499,31 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
         <Card key={s.key} testId={`vehicle-section-${s.key}`}>
           <h3 className="font-bold text-slate-900 mb-3">{s.title}</h3>
           <div className="space-y-2.5">
-            {s.items.map((it) => (
-              <div key={it.id} className="flex items-start justify-between gap-3">
-                <span className="text-sm text-slate-700 flex-1">{it.label}</span>
-                <TriState value={items[it.id]} onChange={locked ? () => {} : (v) => setItem(it.id, v)} testId={`vehicle-item-${it.id}`} />
-              </div>
-            ))}
+            {s.items.map((it) => {
+              const isDef = items[it.id] === 'defect';
+              return (
+                <div key={it.id} className={`rounded-lg transition-colors ${isDef ? 'bg-rose-50/40 -mx-2 px-2 py-1.5' : ''}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-sm text-slate-700 flex-1">{it.label}</span>
+                    <TriState value={items[it.id]} onChange={locked ? () => {} : (v) => setItem(it.id, v)} testId={`vehicle-item-${it.id}`} />
+                  </div>
+                  {isDef && (
+                    <div className="mt-2 rounded-lg border border-rose-200 bg-white p-2.5 shadow-sm animate-in fade-in slide-in-from-top-1 duration-200" data-testid={`vehicle-item-note-wrap-${it.id}`}>
+                      <label className="flex items-center gap-1.5 text-[11px] font-bold text-rose-600 mb-1.5 uppercase tracking-wide">
+                        <ShieldAlert size={13} /> Defect note
+                        <span className="normal-case font-medium text-rose-400">— what exactly is wrong?</span>
+                      </label>
+                      <textarea
+                        value={itemNotes[it.id] || ''} disabled={locked}
+                        onChange={(e) => setItemNotes((p) => ({ ...p, [it.id]: e.target.value }))}
+                        rows={2} data-testid={`vehicle-item-note-${it.id}`}
+                        placeholder={`Describe the fault with "${it.label}" — location, severity, any reference…`}
+                        className="w-full rounded-md border border-rose-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-300/60 focus:border-rose-300 disabled:bg-slate-50 disabled:text-slate-500" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </Card>
       ))}

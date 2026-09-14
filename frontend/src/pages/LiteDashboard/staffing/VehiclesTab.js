@@ -16,8 +16,11 @@ const vtLabel = (v) => VEHICLE_TYPE_LABEL[v?.vehicle_type || v?.check_type] || '
 
 async function downloadCheckPdf(checkId, headers) {
   const r = await axios.get(`${API}/vehicle-checks/${checkId}/pdf`, { headers, responseType: 'blob' });
+  const cd = r.headers['content-disposition'] || '';
+  const m = cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+  const name = m ? decodeURIComponent(m[1]) : `vehicle-check-${checkId}.pdf`;
   const url = URL.createObjectURL(r.data);
-  const a = document.createElement('a'); a.href = url; a.download = `vehicle-check-${checkId}.pdf`; a.click();
+  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
   URL.revokeObjectURL(url);
 }
 
@@ -181,33 +184,67 @@ function FleetRegister({ data, onEdit, onChanged, headers }) {
 
 function WeeklyChecks({ headers, week, onOpen }) {
   const [wk, setWk] = useState(week);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [rows, setRows] = useState(null);
-  const load = useCallback(() => { axios.get(`${API}/vehicle-checks/register?week=${wk}`, { headers }).then((r) => setRows(r.data.checks || [])).catch(() => setRows([])); }, [wk, headers]);
+  const ranged = !!(from || to);
+  const load = useCallback(() => {
+    const qs = ranged
+      ? `?date_from=${from || ''}&date_to=${to || ''}`
+      : `?week=${wk}`;
+    axios.get(`${API}/vehicle-checks/register${qs}`, { headers })
+      .then((r) => setRows(r.data.checks || [])).catch(() => setRows([]));
+  }, [wk, from, to, ranged, headers]);
   useEffect(() => { load(); }, [load]);
   const exportCsv = async () => {
-    const r = await axios.get(`${API}/vehicle-checks/export.csv?week=${wk}`, { headers, responseType: 'blob' });
-    const url = URL.createObjectURL(r.data); const a = document.createElement('a'); a.href = url; a.download = `vehicle-checks-${wk}.csv`; a.click();
+    const qs = ranged ? `?date_from=${from || ''}&date_to=${to || ''}` : `?week=${wk}`;
+    const r = await axios.get(`${API}/vehicle-checks/export.csv${qs}`, { headers, responseType: 'blob' });
+    const url = URL.createObjectURL(r.data); const a = document.createElement('a');
+    a.href = url; a.download = `vehicle-checks-${ranged ? `${from || 'start'}_to_${to || 'now'}` : wk}.csv`; a.click();
   };
   return (
     <div className="space-y-3" data-testid="vehicles-checks">
-      <div className="flex items-center gap-2 flex-wrap">
-        <input type="date" value={wk} onChange={(e) => setWk(e.target.value)} data-testid="vehicles-week" className="rounded-lg px-3 py-1.5 text-sm border" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} />
-        <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Week commencing (any date in the week)</span>
-        <button onClick={exportCsv} data-testid="vehicles-export" className="ml-auto inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><FileDown size={13} /> Export CSV</button>
+      <div className="flex items-end gap-2 flex-wrap">
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold" style={{ color: 'var(--theme-text-muted)' }}>Week commencing</span>
+          <input type="date" value={wk} disabled={ranged} onChange={(e) => setWk(e.target.value)} data-testid="vehicles-week"
+            className="rounded-lg px-3 py-1.5 text-sm border disabled:opacity-40"
+            style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} />
+        </label>
+        <span className="pb-2 text-[11px] font-semibold" style={{ color: 'var(--theme-text-muted)' }}>or date range</span>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold" style={{ color: 'var(--theme-text-muted)' }}>From</span>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} data-testid="vehicles-date-from"
+            className="rounded-lg px-3 py-1.5 text-sm border"
+            style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold" style={{ color: 'var(--theme-text-muted)' }}>To</span>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} data-testid="vehicles-date-to"
+            className="rounded-lg px-3 py-1.5 text-sm border"
+            style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} />
+        </label>
+        {ranged && (
+          <button onClick={() => { setFrom(''); setTo(''); }} data-testid="vehicles-range-clear"
+            className="pb-2 text-[11px] font-semibold underline" style={{ color: 'var(--color-brand-cyan)' }}>Clear range</button>
+        )}
+        <button onClick={exportCsv} data-testid="vehicles-export" className="ml-auto inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border self-end" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><FileDown size={13} /> Export CSV</button>
       </div>
       {!rows ? <Loader2 className="animate-spin" style={{ color: 'var(--color-brand-cyan)' }} /> : rows.length === 0 ? (
-        <div className="rounded-xl border p-10 text-center text-sm" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>No checks submitted for this week yet.</div>
+        <div className="rounded-xl border p-10 text-center text-sm" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{ranged ? 'No checks completed in this date range.' : 'No checks submitted for this week yet.'}</div>
       ) : (
         <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--theme-border)' }}>
           <table className="w-full text-sm">
             <thead><tr className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
               <th className="text-left py-2 px-3">Reg</th><th className="text-left py-2 px-3">Driver</th>
+              <th className="text-left py-2 px-3">Completed</th>
               <th className="text-left py-2 px-3">Status</th><th className="text-left py-2 px-3">Defects</th><th className="w-16" /></tr></thead>
             <tbody>
               {rows.map((c) => (
                 <tr key={c.id} className="border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`check-row-${c.id}`}>
                   <td className="py-2 px-3 font-bold uppercase" style={{ color: 'var(--theme-text)' }}>{c.details?.reg_no}</td>
                   <td className="py-2 px-3" style={{ color: 'var(--theme-text-muted)' }}>{c.driver_name}</td>
+                  <td className="py-2 px-3" style={{ color: 'var(--theme-text-muted)' }}>{c.submitted_at ? fmtD(c.submitted_at.slice(0, 10)) : '—'}</td>
                   <td className="py-2 px-3"><span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${STATUS_TONE[c.status] || '#94a3b8'}22`, color: STATUS_TONE[c.status] || '#94a3b8' }}>{c.status}</span></td>
                   <td className="py-2 px-3">{c.has_defects ? <span className="inline-flex items-center gap-1 text-rose-600 text-xs font-semibold"><ShieldAlert size={13} /> {c.defect?.safe_to_drive === false ? 'Not safe' : 'Yes'}</span> : <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>None</span>}</td>
                   <td className="py-2 px-3 text-right whitespace-nowrap">
