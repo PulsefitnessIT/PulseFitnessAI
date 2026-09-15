@@ -1,0 +1,35 @@
+meta {
+  name: PutOne
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/api/v1/SiconService/Appointment/{{appointmentId}}/TimeBooking/{{timeBookingId}}
+  body: json
+  auth: inherit
+}
+
+params:query {
+  companyId: {{companyId}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "employeeIds": [{{employeeId}}],
+    "startDate": "2026-01-01T09:00:00",
+    "endDate": "2026-01-01T17:00:00",
+    "costingHours": null,
+    "chargingHours": null,
+    "chargeRate": null,
+    "isEstimate": false
+  }
+}
+
+docs {
+  Body matches TimeBookingRequestModel. Only supplied fields are applied on update.
+}

@@ -1,0 +1,41 @@
+meta {
+  name: PutOne
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/v1/SiconService/Case/{{caseId}}/TrackingNote/{{trackingNoteId}}
+  body: json
+  auth: inherit
+}
+
+params:query {
+  companyId: {{companyId}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "siSMCaseTrackingNoteId": {{trackingNoteId}},
+    "note": "Example tracking note",
+    "time": null,
+    "status": "",
+    "statusId": {{statusId}},
+    "appointmentId": null,
+    "visibleToEngineer": true,
+    "visibleToCustomer": false,
+    "reassignedToCaseOwnerId": null,
+    "reassignedToInternalTeamId": null,
+    "reassignedToExternalTeamId": null,
+    "latitude": null,
+    "longitude": null
+  }
+}
+
+docs {
+  Body matches TrackingNoteModel. Only supplied fields are applied on update.
+}

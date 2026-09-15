@@ -1,0 +1,16 @@
+vars {
+  baseUrl: http://localhost:51080
+  username: Administrator
+  companyId: 2
+  BEARER_TOKEN: 
+}
+
+vars:secret [
+  password
+]
+
+docs {
+  password is read from the collection .env (SICON_PASSWORD) — never committed.
+  Run Auth > Authenticate to populate BEARER_TOKEN. Confirm the exact auth path
+  against the Sicon.WebApi.Platform collection Sicon provided.
+}

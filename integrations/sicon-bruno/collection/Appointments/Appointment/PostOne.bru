@@ -1,0 +1,53 @@
+meta {
+  name: PostOne
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/SiconService/Appointment
+  body: json
+  auth: inherit
+}
+
+params:query {
+  companyId: {{companyId}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "siconAppointmentId": 0,
+    "siSMCaseId": {{caseId}},
+    "appointmentType": "Work",
+    "parentWorkAppointmentId": null,
+    "subject": "Example appointment",
+    "description": "",
+    "workBriefing": "",
+    "employeeIds": [{{employeeId}}],
+    "chargeRateId": null,
+    "labelId": null,
+    "colour": "",
+    "confirmed": false,
+    "scheduledStartDate": "2026-01-01T09:00:00",
+    "scheduledEndDate": "2026-01-01T17:00:00",
+    "appointmentComplete": false,
+    "workDoneDescription": "",
+    "workDoneAcknowledged": false,
+    "furtherAction": "",
+    "furtherActionAcknowledged": false,
+    "arrivalSignee": "",
+    "departureSignee": "",
+    "arrivalLatitude": null,
+    "arrivalLongitude": null,
+    "departureLatitude": null,
+    "departureLongitude": null
+  }
+}
+
+docs {
+  Body matches AppointmentModel. Set caseId (and employeeId if assigning resources) before posting.
+}

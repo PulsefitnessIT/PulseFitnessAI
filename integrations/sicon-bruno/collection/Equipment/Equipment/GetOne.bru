@@ -1,0 +1,15 @@
+meta {
+  name: GetOne
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/SiconService/Equipment/{{equipmentId}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  companyId: {{companyId}}
+}

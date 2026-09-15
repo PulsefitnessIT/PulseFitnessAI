@@ -1,0 +1,41 @@
+meta {
+  name: PostOne
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/SiconService/Case/{{caseId}}/TrackingNote
+  body: json
+  auth: inherit
+}
+
+params:query {
+  companyId: {{companyId}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "siSMCaseTrackingNoteId": 0,
+    "note": "Example tracking note",
+    "time": null,
+    "status": "",
+    "statusId": {{statusId}},
+    "appointmentId": null,
+    "visibleToEngineer": true,
+    "visibleToCustomer": false,
+    "reassignedToCaseOwnerId": null,
+    "reassignedToInternalTeamId": null,
+    "reassignedToExternalTeamId": null,
+    "latitude": null,
+    "longitude": null
+  }
+}
+
+docs {
+  Body matches TrackingNoteModel. Parent case comes from the path caseId. Set statusId before posting.
+}

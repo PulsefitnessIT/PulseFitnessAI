@@ -1,0 +1,15 @@
+meta {
+  name: Ping
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/SiconService/Ping
+  body: none
+  auth: none
+}
+
+docs {
+  Anonymous connectivity check. Does not require Bearer token or companyId.
+}
