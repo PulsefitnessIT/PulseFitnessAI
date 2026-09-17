@@ -76,6 +76,7 @@ PROFILE_FIELDS = {
     "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relationship",
     "bank_name", "bank_sort_code", "bank_account", "bank_account_last4",
     "right_to_work_status", "notes",
+    "dbs_number", "dbs_expiry_date",
 }
 
 
@@ -101,6 +102,8 @@ class ProfileUpdate(BaseModel):
     bank_account_last4: str | None = None
     right_to_work_status: str | None = None
     notes: str | None = None
+    dbs_number: str | None = None
+    dbs_expiry_date: str | None = None
 
 
 class DocumentCreate(BaseModel):

@@ -119,7 +119,7 @@ const GROUPS_ALL = [
 ];
 
 
-export default function StaffingConsole() {
+export default function StaffingConsole({ hideBell = false } = {}) {
   const { t } = useTranslation();
   const { user } = useAuth();
   useLocalization();  // warm currency cache
@@ -257,10 +257,12 @@ export default function StaffingConsole() {
         helpId={isManager ? 'staffing-overview' : 'staffing-marketplace'}
         testId="staffing-header"
         actions={isManager ? (
-          <StaffNotificationBell
-            endpoint={`${API}/staffing/notifications`}
-            readEndpoint={`${API}/staffing/notifications/read`}
-            headers={headers} onNavigate={setTab} />
+          hideBell ? null : (
+            <StaffNotificationBell
+              endpoint={`${API}/staffing/notifications`}
+              readEndpoint={`${API}/staffing/notifications/read`}
+              headers={headers} onNavigate={setTab} />
+          )
         ) : (
           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] px-3 py-1 rounded-full" style={{ background: 'rgba(25,205,255,0.1)', color: 'var(--color-brand-cyan)' }} data-testid="staffing-staff-badge">
             {t('staffing.sc_staff_view', 'Staff view')}

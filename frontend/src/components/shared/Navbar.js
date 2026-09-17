@@ -12,6 +12,7 @@ import AccountSettingsModal from './AccountSettingsModal';
 import AreaSwitcher from './AreaSwitcher';
 import CaptchaWidget from './CaptchaWidget';
 import MfaEnrolPanel from './MfaEnrolPanel';
+import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
 import axios from 'axios';
 import { useInlineBanner, notify } from '@/components/notifications';
 import { useTranslation } from 'react-i18next';
@@ -566,6 +567,17 @@ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
  </div>
  
  <div className="md:hidden flex items-center gap-2">
+ {user && ['owner', 'manager', 'master_admin', 'pulse_master_admin'].includes(user.role) && (isOnDashboard || isOnPulse) && (
+ <StaffNotificationBell
+ endpoint={`${API}/staffing/notifications`}
+ readEndpoint={`${API}/staffing/notifications/read`}
+ headers={{ Authorization: `Bearer ${localStorage.getItem('token') || ''}` }}
+ onNavigate={(leaf) => {
+ try { if (leaf && user?.id) localStorage.setItem(`staffing.activeLeaf:${user.id}`, leaf); } catch { /* ignore */ }
+ window.dispatchEvent(new CustomEvent('gymaxis-jump', { detail: { mode: 'operations', target: 'staffing' } }));
+ }}
+ />
+ )}
  <button
  onClick={toggleTheme}
  className="theme-toggle-btn"

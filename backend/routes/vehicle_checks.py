@@ -260,6 +260,15 @@ class VehicleBody(BaseModel):
     odometer: str = ""
     service_record: dict = {}
     notes: str = ""
+    # Fleet manager fields (from the company fleet register spreadsheet).
+    fleet_department: str = ""     # Head Office / Installations / Service Engineers / Design & Build / Install …
+    driver_label: str = ""         # free-text driver/pool label when not a linked staff member
+    lease_company: str = ""        # e.g. LEX Auto Lease, Vanarama, Arval
+    lease_end_date: str = ""       # ISO yyyy-mm-dd
+    fuel_card_number: str = ""
+    dart: str = ""                 # DART Charge account / ref
+    congestion: str = ""           # Congestion charge account / ref
+    m6_toll: str = ""              # M6 Toll account / ref
     # Explicit powertrain flags. is_ev, when set, overrides the type-derived
     # default and drives the EV section of the weekly checklist; is_hybrid is
     # an informational flag on the fleet record.
@@ -301,6 +310,14 @@ async def create_vehicle(body: VehicleBody, user: dict = Depends(get_current_use
         "odometer": body.odometer.strip(),
         "service_record": body.service_record or {},
         "notes": body.notes.strip(),
+        "fleet_department": body.fleet_department.strip(),
+        "driver_label": body.driver_label.strip(),
+        "lease_company": body.lease_company.strip(),
+        "lease_end_date": body.lease_end_date.strip(),
+        "fuel_card_number": body.fuel_card_number.strip(),
+        "dart": body.dart.strip(),
+        "congestion": body.congestion.strip(),
+        "m6_toll": body.m6_toll.strip(),
         "created_at": _now(),
     }
     await db.vehicles.insert_one(doc.copy())
@@ -325,6 +342,14 @@ async def update_vehicle(vehicle_id: str, body: VehicleBody, user: dict = Depend
         "odometer": body.odometer.strip(),
         "service_record": body.service_record or {},
         "notes": body.notes.strip(),
+        "fleet_department": body.fleet_department.strip(),
+        "driver_label": body.driver_label.strip(),
+        "lease_company": body.lease_company.strip(),
+        "lease_end_date": body.lease_end_date.strip(),
+        "fuel_card_number": body.fuel_card_number.strip(),
+        "dart": body.dart.strip(),
+        "congestion": body.congestion.strip(),
+        "m6_toll": body.m6_toll.strip(),
         "updated_at": _now(),
     }
     r = await db.vehicles.update_one({"organization_id": org, "id": vehicle_id}, {"$set": upd})

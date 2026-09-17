@@ -47,6 +47,7 @@ import i18n from '@/i18n';
 import PillTabBar from '../components/shared/PillTabBar';
 import ScrollFadeBar from '../components/shared/ScrollFadeBar';
 import ModuleSwitcher from '../components/shared/ModuleSwitcher';
+import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
 import CrossModuleTipsBanner from '../components/shared/CrossModuleTipsBanner';
 import PulseProUpgradeCta from '../components/shared/PulseProUpgradeCta';
 import { useUploadQueue } from '../components/shared/UploadQueue';
@@ -955,32 +956,51 @@ const LiteDashboardPage = () => {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {/* Desktop tab bar — canonical PillTabBar so overflow
                 auto-scrolls the active tab into view (fixing last
-                options being hidden behind the rounded border). */}
-            <PillTabBar
-              className="mb-6 w-full hidden md:block"
-              activeId={activeTab}
-              testId="pulse-dashboard-tabs"
-              ariaLabel="Operations sections"
-            >
-              {TABS.map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    data-pill-id={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-colors whitespace-nowrap"
-                    style={isActive
-                      ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
-                      : { color: 'var(--theme-text-muted)', background: 'transparent' }}
-                    data-testid={`lite-tab-${tab.id}`}
-                  >
-                    {Icon && <Icon size={14} />} {tab.label}
-                  </button>
-                );
-              })}
-            </PillTabBar>
+                options being hidden behind the rounded border). The
+                staffing notification bell sits at the right of this
+                Operations bar so managers see pending items in ANY tab. */}
+            <div className="hidden md:flex items-center gap-3 mb-6">
+              <div className="flex-1 min-w-0">
+                <PillTabBar
+                  className="w-full"
+                  activeId={activeTab}
+                  testId="pulse-dashboard-tabs"
+                  ariaLabel="Operations sections"
+                >
+                  {TABS.map(tab => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        data-pill-id={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-colors whitespace-nowrap"
+                        style={isActive
+                          ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
+                          : { color: 'var(--theme-text-muted)', background: 'transparent' }}
+                        data-testid={`lite-tab-${tab.id}`}
+                      >
+                        {Icon && <Icon size={14} />} {tab.label}
+                      </button>
+                    );
+                  })}
+                </PillTabBar>
+              </div>
+              {isManagerial && (
+                <div className="shrink-0" data-testid="operations-bell">
+                  <StaffNotificationBell
+                    endpoint={`${API}/staffing/notifications`}
+                    readEndpoint={`${API}/staffing/notifications/read`}
+                    headers={headers}
+                    onNavigate={(leaf) => {
+                      try { if (leaf && user?.id) localStorage.setItem(`staffing.activeLeaf:${user.id}`, leaf); } catch { /* ignore */ }
+                      setActiveTab('staffing');
+                    }}
+                  />
+                </div>
+              )}
+            </div>
 
             {/* Mobile: scrollable pill tabs — identical to Memberships console */}
             <ScrollFadeBar
@@ -1136,7 +1156,7 @@ const LiteDashboardPage = () => {
             )}
             {isPro && (
               <TabsContent value="staffing" data-testid="staffing-content">
-                <StaffingConsole />
+                <StaffingConsole hideBell />
               </TabsContent>
             )}
             {/* Iter 241 — the orphan gym-floor TabsContent was removed:

@@ -324,17 +324,36 @@ async def _mint_invite_link(user_id: str, email: str, issued_by_email: str = "sy
     from datetime import timedelta as _td
     token = _secrets.token_urlsafe(32)
     expires_at = (datetime.now(timezone.utc) + _td(hours=72)).isoformat()
+    email_l = (email or "").strip().lower()
+    # Re-issue bulletproofing: invalidate every prior unused link for this
+    # user so the new one is the only live link (match user_id OR email).
+    await db.password_reset_tokens.update_many(
+        {"$or": [{"user_id": user_id}, {"email": email_l}], "used": False},
+        {"$set": {
+            "used": True,
+            "archived_at": datetime.now(timezone.utc).isoformat(),
+            "archived_reason": "superseded_by_reissue",
+        }},
+    )
     await db.password_reset_tokens.insert_one({
         "token": token,
         "user_id": user_id,
-        "email": email,
+        "email": email_l,
         "expires_at": expires_at,
         "used": False,
         "kind": "invite",
         "issued_by": issued_by_email,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
-    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    # Brand-aware URL so production links never point at the preview host
+    # (different DB → "Invalid or expired reset token").
+    from utils.brand_urls import app_url_for_org
+    org = None
+    u = (await db.users.find_one({"id": user_id}, {"_id": 0, "organization_id": 1})
+         or await db.crm_users.find_one({"id": user_id}, {"_id": 0, "organization_id": 1}))
+    if u and u.get("organization_id"):
+        org = await db.organizations.find_one({"id": u["organization_id"]}, {"_id": 0, "account_type": 1})
+    frontend_url = app_url_for_org(org)
     return {
         "invite_url": f"{frontend_url}/reset-password?token={token}",
         "expires_at": expires_at,

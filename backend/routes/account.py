@@ -132,21 +132,47 @@ async def _issue_reset_token(target_user: dict, issued_by_email: str) -> dict:
     invite-link endpoint so the owner-side flow is identical."""
     token = secrets.token_urlsafe(32)
     expires_at = (datetime.now(timezone.utc) + _td(hours=72)).isoformat()
+    user_id = target_user["id"]
+    email = (target_user.get("email") or "").strip().lower()
+    # Bulletproofing (re-issue): the moment a NEW link is minted, every
+    # prior still-unused invite/reset token for this person becomes inert.
+    # This guarantees the freshly-emailed link is the ONLY live one, so a
+    # re-issue can never leave a stale/ambiguous link in the wild. Match on
+    # user_id OR email so a re-created account shell can't orphan old rows.
+    await db.password_reset_tokens.update_many(
+        {"$or": [{"user_id": user_id}, {"email": email}], "used": False},
+        {"$set": {
+            "used": True,
+            "archived_at": datetime.now(timezone.utc).isoformat(),
+            "archived_reason": "superseded_by_reissue",
+        }},
+    )
     await db.password_reset_tokens.insert_one({
         "token": token,
-        "user_id": target_user["id"],
-        "email": target_user.get("email", ""),
+        "user_id": user_id,
+        "email": email,
         "expires_at": expires_at,
         "used": False,
         "kind": "invite",
         "issued_by": issued_by_email,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
-    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    # Brand-aware, production-safe URL. NEVER use the raw FRONTEND_URL here:
+    # in production it points at the preview host, which hits a DIFFERENT
+    # database than the one that minted the token, so the link resolves to
+    # "Invalid or expired reset token". app_url_for_org resolves the correct
+    # live brand domain (pulsefitness.ai) so the link hits THIS DB.
+    from utils.brand_urls import app_url_for_org
+    org = None
+    u = (await db.users.find_one({"id": user_id}, {"_id": 0, "organization_id": 1})
+         or await db.crm_users.find_one({"id": user_id}, {"_id": 0, "organization_id": 1}))
+    if u and u.get("organization_id"):
+        org = await db.organizations.find_one({"id": u["organization_id"]}, {"_id": 0, "account_type": 1})
+    frontend_url = app_url_for_org(org)
     return {
         "invite_url": f"{frontend_url}/reset-password?token={token}",
         "expires_at": expires_at,
-        "email": target_user.get("email", ""),
+        "email": email,
     }
 
 

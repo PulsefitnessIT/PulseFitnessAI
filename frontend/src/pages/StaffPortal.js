@@ -132,7 +132,6 @@ export default function StaffPortal() {
                 <p className="pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>Welcome back, {me.person?.full_name}</p>
               </div>
               <div className="flex items-center gap-3 shrink-0 mt-1.5">
-                {me.activated && <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold whitespace-nowrap">Active employee ✓</span>}
                 <StaffNotificationBell
                   endpoint={`${API}/new-starter/portal/notifications`}
                   readEndpoint={`${API}/new-starter/portal/notifications/read`}
@@ -1365,13 +1364,14 @@ function VehicleTab({ H, jwt }) {
         const [label, cls] = VSTATUS[v.this_week?.status] || VSTATUS.due;
         return (
           <button key={v.id} onClick={() => setOpenId(v.id)} data-testid={`vehicle-card-${v.id}`}
-            className="w-full text-left rounded-2xl bg-white border border-slate-200 shadow-sm p-5 hover:border-cyan-300 transition-colors">
+            className="w-full text-left rounded-2xl border shadow-sm p-5 hover:border-cyan-300 transition-colors"
+            style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <span className="rounded-xl bg-slate-900 text-white p-2.5"><Truck size={18} /></span>
                 <div className="min-w-0">
-                  <div className="font-bold text-slate-900 uppercase tracking-wide">{v.reg_no}</div>
-                  <div className="text-xs text-slate-500 truncate">{v.make_model || vType(v)} · {vType(v)}</div>
+                  <div className="font-bold uppercase tracking-wide" style={{ color: 'var(--theme-text)' }}>{v.reg_no}</div>
+                  <div className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>{v.make_model || vType(v)} · {vType(v)}</div>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -1379,6 +1379,16 @@ function VehicleTab({ H, jwt }) {
                 <span className={`text-[11px] font-semibold px-2 py-1 rounded-full border ${cls}`} data-testid={`vehicle-status-${v.id}`}>{label}</span>
               </div>
             </div>
+            {(v.lease_company || v.lease_end_date || v.fuel_card_number || v.service_record?.mot_due || v.dart || v.congestion || v.m6_toll) && (
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`vehicle-info-${v.id}`}>
+                {[['Lease company', v.lease_company], ['Lease end', v.lease_end_date ? fmtDate(v.lease_end_date) : ''], ['MOT due', v.service_record?.mot_due ? fmtDate(v.service_record.mot_due) : ''], ['Fuel card', v.fuel_card_number], ['DART', v.dart], ['Congestion', v.congestion], ['M6 Toll', v.m6_toll]].filter(([, val]) => val).map(([lab, val]) => (
+                  <div key={lab}>
+                    <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>{lab}</div>
+                    <div className="text-xs font-medium" style={{ color: 'var(--theme-text)' }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </button>
         );
       })}

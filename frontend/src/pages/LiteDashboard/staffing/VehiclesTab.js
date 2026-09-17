@@ -147,37 +147,78 @@ function FleetDashboard({ headers, onGoto }) {
   );
 }
 
-function FleetRegister({ data, onEdit, onChanged, headers }) {
-  const del = async (id) => { if (!window.confirm('Remove this vehicle from the register?')) return; await axios.delete(`${API}/vehicles/${id}`, { headers }); onChanged(); };
-  if (!data.vehicles.length) return <div className="rounded-xl border p-10 text-center text-sm" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>No vehicles yet. Add one or import from engineer profiles.</div>;
+const DEPARTMENTS = ['Management', 'Head Office', 'Installations', 'Service Engineers', 'Design & Build', 'Install'];
+
+function Section({ title, children }) {
   return (
-    <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--theme-border)' }} data-testid="vehicles-register">
-      <table className="w-full text-sm">
-        <thead><tr className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>
-          <th className="text-left py-2 px-3">Reg</th><th className="text-left py-2 px-3">Make/Model</th>
-          <th className="text-left py-2 px-3">Vehicle type</th><th className="text-left py-2 px-3">Drivers</th>
-          <th className="text-left py-2 px-3">This week</th><th className="w-20" /></tr></thead>
-        <tbody>
-          {data.vehicles.map((v) => (
-            <tr key={v.id} className="border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`vehicle-reg-${v.id}`}>
-              <td className="py-2 px-3 font-bold uppercase" style={{ color: 'var(--theme-text)' }}>{v.reg_no}{v.is_ev && <span className="ml-1 text-[9px] px-1 rounded bg-emerald-100 text-emerald-700">EV</span>}{v.is_hybrid && <span className="ml-1 text-[9px] px-1 rounded bg-amber-100 text-amber-700">HYBRID</span>}</td>
-              <td className="py-2 px-3" style={{ color: 'var(--theme-text-muted)' }}>{v.make_model || '—'}</td>
-              <td className="py-2 px-3 text-xs uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>{vtLabel(v)}</td>
-              <td className="py-2 px-3 text-xs" style={{ color: 'var(--theme-text-muted)' }}>{(v.driver_names || []).join(', ') || <span className="text-amber-600">Unassigned</span>}</td>
-              <td className="py-2 px-3">
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${STATUS_TONE[v.this_week?.status] || '#94a3b8'}22`, color: STATUS_TONE[v.this_week?.status] || '#94a3b8' }} data-testid={`vehicle-week-${v.id}`}>
-                  {v.this_week?.has_defects && <ShieldAlert size={11} />}
-                  {{ due: 'Due', in_progress: 'In progress', submitted: 'Submitted', reviewed: 'Reviewed' }[v.this_week?.status] || 'Due'}
-                </span>
-              </td>
-              <td className="py-2 px-3 text-right whitespace-nowrap">
-                <button onClick={() => onEdit(v)} data-testid={`vehicle-edit-${v.id}`} className="text-[11px] font-semibold underline mr-2" style={{ color: 'var(--color-brand-cyan)' }}>Edit</button>
-                <button onClick={() => del(v.id)} data-testid={`vehicle-del-${v.id}`} className="text-slate-400 hover:text-rose-500"><Trash2 size={13} /></button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-bg)' }}>
+      <div className="text-[11px] font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--color-brand-cyan)' }}>{title}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">{children}</div>
+    </div>
+  );
+}
+function TInput({ label, value, onChange, type = 'text', placeholder, upper, testid, span }) {
+  return (
+    <label className={`block ${span ? 'sm:col-span-2' : ''}`}>
+      <span className="text-[11px] font-semibold" style={{ color: 'var(--theme-text-muted)' }}>{label}</span>
+      <input type={type} value={value || ''} onChange={onChange} placeholder={placeholder}
+        className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm ${upper ? 'uppercase' : ''}`}
+        style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}
+        data-testid={testid} />
+    </label>
+  );
+}
+
+function FleetRegister({ data, onEdit, onChanged, headers }) {
+  const del = async (id, e) => { e.stopPropagation(); if (!window.confirm('Remove this vehicle from the register?')) return; await axios.delete(`${API}/vehicles/${id}`, { headers }); onChanged(); };
+  if (!data.vehicles.length) return <div className="rounded-xl border p-10 text-center text-sm" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>No vehicles yet. Add one or import from engineer profiles.</div>;
+  const groups = {};
+  data.vehicles.forEach((v) => { const d = v.fleet_department || 'Unassigned department'; (groups[d] = groups[d] || []).push(v); });
+  const order = Object.keys(groups).sort((a, b) => {
+    const ia = DEPARTMENTS.indexOf(a), ib = DEPARTMENTS.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
+  });
+  return (
+    <div className="space-y-5" data-testid="vehicles-register">
+      {order.map((dep) => (
+        <div key={dep} data-testid={`fleet-dept-${dep}`}>
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--color-brand-cyan)' }}>{dep}</h3>
+            <span className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>{groups[dep].length} vehicle{groups[dep].length === 1 ? '' : 's'}</span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {groups[dep].map((v) => (
+              <button key={v.id} onClick={() => onEdit(v)} data-testid={`vehicle-reg-${v.id}`}
+                className="text-left rounded-xl border p-3 hover:shadow-md transition-shadow"
+                style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-bold uppercase flex items-center gap-1.5" style={{ color: 'var(--theme-text)' }}>
+                      {v.reg_no}
+                      {v.is_ev && <span className="text-[9px] px-1 rounded bg-emerald-100 text-emerald-700">EV</span>}
+                      {v.is_hybrid && <span className="text-[9px] px-1 rounded bg-amber-100 text-amber-700">HYB</span>}
+                    </div>
+                    <div className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>{v.make_model || vtLabel(v)}</div>
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: `${STATUS_TONE[v.this_week?.status] || '#94a3b8'}22`, color: STATUS_TONE[v.this_week?.status] || '#94a3b8' }} data-testid={`vehicle-week-${v.id}`}>
+                    {v.this_week?.has_defects && <ShieldAlert size={10} />}
+                    {{ due: 'Due', in_progress: 'In progress', submitted: 'Submitted', reviewed: 'Reviewed' }[v.this_week?.status] || 'Due'}
+                  </span>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <span className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>
+                    {(v.driver_names || []).join(', ') || v.driver_label || <span className="text-amber-600">Unassigned</span>}
+                  </span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    {v.lease_end_date && <span className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>Lease {fmtD(v.lease_end_date)}</span>}
+                    <span onClick={(e) => del(v.id, e)} data-testid={`vehicle-del-${v.id}`} className="text-slate-400 hover:text-rose-500 cursor-pointer"><Trash2 size={13} /></span>
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -382,7 +423,7 @@ function BookingForm({ onSubmit }) {
   );
 }
 
-function Modal({ children, onClose, testId, wide }) {
+function Modal({ children, onClose, testId, wide, themed }) {
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -390,7 +431,9 @@ function Modal({ children, onClose, testId, wide }) {
   }, []);
   return createPortal(
     <div className="fixed inset-0 z-[1000] flex items-start sm:items-center justify-center bg-black/60 p-4 overflow-y-auto" onClick={onClose} data-testid={testId}>
-      <div className={`w-full ${wide ? 'max-w-2xl' : 'max-w-lg'} my-4 sm:my-8 max-h-[92vh] overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl`} onClick={(e) => e.stopPropagation()}>{children}</div>
+      <div className={`w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} my-4 sm:my-8 max-h-[92vh] overflow-y-auto rounded-2xl p-5 shadow-2xl ${themed ? '' : 'bg-white'}`}
+        style={themed ? { background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' } : undefined}
+        onClick={(e) => e.stopPropagation()}>{children}</div>
     </div>,
     document.body,
   );
@@ -403,6 +446,12 @@ function VehicleModal({ vehicle, drivers, headers, onClose, onSaved }) {
     vehicle_type: vehicle.vehicle_type || vehicle.check_type || 'car',
     provider: vehicle.provider || '', driver_staff_ids: vehicle.driver_staff_ids || [],
     primary_driver_staff_id: vehicle.primary_driver_staff_id || null,
+    driver_label: vehicle.driver_label || '',
+    fleet_department: vehicle.fleet_department || '',
+    lease_company: vehicle.lease_company || '',
+    lease_end_date: vehicle.lease_end_date || '',
+    fuel_card_number: vehicle.fuel_card_number || '',
+    dart: vehicle.dart || '', congestion: vehicle.congestion || '', m6_toll: vehicle.m6_toll || '',
     odometer: vehicle.odometer || '', service_record: vehicle.service_record || {},
     notes: vehicle.notes || '',
     is_ev: vehicle.is_ev ?? ((vehicle.vehicle_type || vehicle.check_type || '').startsWith('electric')),
@@ -410,6 +459,7 @@ function VehicleModal({ vehicle, drivers, headers, onClose, onSaved }) {
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const sr = f.service_record || {};
   const setSr = (k, v) => setF((p) => ({ ...p, service_record: { ...p.service_record, [k]: v } }));
   const toggleDriver = (id) => setF((p) => {
@@ -426,83 +476,106 @@ function VehicleModal({ vehicle, drivers, headers, onClose, onSaved }) {
       onSaved();
     } catch (e) { setErr(e?.response?.data?.detail || 'Save failed.'); setBusy(false); }
   };
+  const cellStyle = { background: 'var(--theme-surface)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' };
   return (
-    <Modal onClose={onClose} testId="vehicle-modal" wide>
+    <Modal onClose={onClose} testId="vehicle-modal" wide themed>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-slate-900 flex items-center gap-2"><Truck size={18} /> {isNew ? 'Add vehicle' : 'Edit vehicle'}</h3>
-        <button onClick={onClose} className="text-slate-400"><X size={18} /></button>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-        <label className="block"><span className="text-xs text-slate-500">Registration *</span>
-          <input value={f.reg_no} onChange={(e) => setF((p) => ({ ...p, reg_no: e.target.value }))} data-testid="vm-reg" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 uppercase" /></label>
-        <label className="block"><span className="text-xs text-slate-500">Make / model</span>
-          <input value={f.make_model} onChange={(e) => setF((p) => ({ ...p, make_model: e.target.value }))} data-testid="vm-model" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-        <label className="block"><span className="text-xs text-slate-500">Vehicle type</span>
-          <select value={f.vehicle_type} onChange={(e) => setF((p) => ({ ...p, vehicle_type: e.target.value }))} data-testid="vm-vehicle-type" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
-            <option value="car">Car</option>
-            <option value="electric_car">Electric Car</option>
-            <option value="van">Van</option>
-            <option value="electric_van">Electric Van</option>
-            <option value="lorry">Lorry / HGV</option>
-          </select>
-          <span className="text-[11px] text-slate-400">The weekly checklist matches the vehicle type.</span></label>
-        <label className="block"><span className="text-xs text-slate-500">Supplier / garage</span>
-          <input value={f.provider} onChange={(e) => setF((p) => ({ ...p, provider: e.target.value }))} placeholder="e.g. Vanarama" data-testid="vm-provider" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-        <label className="block"><span className="text-xs text-slate-500">Odometer</span>
-          <input value={f.odometer} onChange={(e) => setF((p) => ({ ...p, odometer: e.target.value }))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-5" data-testid="vm-powertrain">
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Powertrain</span>
-        <label className="flex items-center gap-2 text-sm cursor-pointer text-slate-700">
-          <input type="checkbox" checked={!!f.is_ev} onChange={(e) => setF((p) => ({ ...p, is_ev: e.target.checked }))} data-testid="vm-is-ev" className="h-4 w-4" />
-          Electric (EV)
-        </label>
-        <label className="flex items-center gap-2 text-sm cursor-pointer text-slate-700">
-          <input type="checkbox" checked={!!f.is_hybrid} onChange={(e) => setF((p) => ({ ...p, is_hybrid: e.target.checked }))} data-testid="vm-is-hybrid" className="h-4 w-4" />
-          Hybrid
-        </label>
-        <span className="text-[11px] text-slate-400 basis-full">Tick EV to add the electric-vehicle section to the weekly checklist.</span>
-      </div>
-
-      <div className="mt-4">
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Assign drivers</span>
-        <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100" data-testid="vm-drivers">
-          {drivers.map((s) => {
-            const on = f.driver_staff_ids.includes(s.id);
-            return (
-              <div key={s.id} className="flex items-center justify-between px-3 py-2">
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" checked={on} onChange={() => toggleDriver(s.id)} data-testid={`vm-driver-${s.id}`} className="h-4 w-4" />
-                  <span className="text-slate-700">{s.full_name}</span>
-                  {s.department && <span className="text-[11px] text-slate-400">· {s.department}</span>}
-                </label>
-                {on && (
-                  <button onClick={() => setF((p) => ({ ...p, primary_driver_staff_id: s.id }))} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${f.primary_driver_staff_id === s.id ? 'bg-cyan-100 text-cyan-700' : 'text-slate-400 border border-slate-200'}`}>
-                    {f.primary_driver_staff_id === s.id ? 'Primary ✓' : 'Set primary'}
-                  </button>
-                )}
-              </div>
-            );
-          })}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="rounded-xl p-2" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}><Truck size={18} /></span>
+          <div className="min-w-0">
+            <h3 className="font-bold uppercase truncate" style={{ color: 'var(--theme-text)' }}>{f.reg_no || (isNew ? 'Add vehicle' : 'Vehicle')}</h3>
+            <div className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>{f.make_model || vtLabel(f)}{f.fleet_department ? ` · ${f.fleet_department}` : ''}</div>
+          </div>
         </div>
-        <p className="text-[11px] text-slate-400 mt-1">The primary driver's registration is written back to their engineer profile automatically.</p>
+        <button onClick={onClose} style={{ color: 'var(--theme-text-muted)' }}><X size={18} /></button>
       </div>
 
-      <details className="mt-4">
-        <summary className="text-xs font-semibold text-slate-500 cursor-pointer">Service / MOT / legal record (optional)</summary>
-        <div className="grid grid-cols-2 gap-3 mt-2 text-sm">
-          {[['next_service', 'Next service'], ['mot_due', 'MOT due'], ['tax_status', 'Tax status'], ['insurance_expiry', 'Insurance expiry'], ['mileage_due', 'Mileage due'], ['service_ref', 'Service ref.']].map(([k, lab]) => (
-            <label key={k} className="block"><span className="text-xs text-slate-500">{lab}</span>
-              <input value={sr[k] || ''} onChange={(e) => setSr(k, e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" /></label>
-          ))}
-        </div>
-      </details>
+      <div className="space-y-3">
+        <Section title="Vehicle details">
+          <TInput label="Registration *" value={f.reg_no} onChange={(e) => set('reg_no', e.target.value)} upper testid="vm-reg" />
+          <TInput label="Make / model" value={f.make_model} onChange={(e) => set('make_model', e.target.value)} testid="vm-model" />
+          <label className="block">
+            <span className="text-[11px] font-semibold" style={{ color: 'var(--theme-text-muted)' }}>Vehicle type</span>
+            <select value={f.vehicle_type} onChange={(e) => set('vehicle_type', e.target.value)} data-testid="vm-vehicle-type"
+              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={cellStyle}>
+              <option value="car">Car</option><option value="electric_car">Electric Car</option>
+              <option value="van">Van</option><option value="electric_van">Electric Van</option><option value="lorry">Lorry / HGV</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-[11px] font-semibold" style={{ color: 'var(--theme-text-muted)' }}>Department</span>
+            <input list="fleet-departments" value={f.fleet_department} onChange={(e) => set('fleet_department', e.target.value)} placeholder="e.g. Service Engineers" data-testid="vm-department"
+              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={cellStyle} />
+            <datalist id="fleet-departments">{DEPARTMENTS.map((d) => <option key={d} value={d} />)}</datalist>
+          </label>
+          <TInput label="Odometer" value={f.odometer} onChange={(e) => set('odometer', e.target.value)} />
+          <div className="sm:col-span-2 flex flex-wrap items-center gap-5" data-testid="vm-powertrain">
+            <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>Powertrain</span>
+            <label className="flex items-center gap-2 cursor-pointer" style={{ color: 'var(--theme-text)' }}>
+              <input type="checkbox" checked={!!f.is_ev} onChange={(e) => set('is_ev', e.target.checked)} data-testid="vm-is-ev" className="h-4 w-4" /> Electric (EV)
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer" style={{ color: 'var(--theme-text)' }}>
+              <input type="checkbox" checked={!!f.is_hybrid} onChange={(e) => set('is_hybrid', e.target.checked)} data-testid="vm-is-hybrid" className="h-4 w-4" /> Hybrid
+            </label>
+            <span className="text-[11px] basis-full" style={{ color: 'var(--theme-text-muted)' }}>Tick EV to add the electric-vehicle section to the weekly checklist.</span>
+          </div>
+        </Section>
+
+        <Section title="Assigned driver">
+          <div className="sm:col-span-2">
+            <div className="max-h-40 overflow-y-auto rounded-lg border divide-y" style={{ borderColor: 'var(--theme-border)' }} data-testid="vm-drivers">
+              {drivers.length === 0 && <div className="px-3 py-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>No staff to assign yet — use the driver label below.</div>}
+              {drivers.map((s) => {
+                const on = f.driver_staff_ids.includes(s.id);
+                return (
+                  <div key={s.id} className="flex items-center justify-between px-3 py-2">
+                    <label className="flex items-center gap-2 cursor-pointer" style={{ color: 'var(--theme-text)' }}>
+                      <input type="checkbox" checked={on} onChange={() => toggleDriver(s.id)} data-testid={`vm-driver-${s.id}`} className="h-4 w-4" />
+                      <span>{s.full_name}</span>{s.department && <span className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>· {s.department}</span>}
+                    </label>
+                    {on && <button onClick={() => set('primary_driver_staff_id', s.id)} className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={f.primary_driver_staff_id === s.id ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' } : { border: '1px solid var(--theme-border)', color: 'var(--theme-text-muted)' }}>{f.primary_driver_staff_id === s.id ? 'Primary ✓' : 'Set primary'}</button>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <TInput label="Driver label (pool / leased / unlinked)" value={f.driver_label} onChange={(e) => set('driver_label', e.target.value)} placeholder="e.g. Pool Car, Leased, Install" span testid="vm-driver-label" />
+        </Section>
+
+        <Section title="Lease & finance">
+          <TInput label="Lease / finance company" value={f.lease_company} onChange={(e) => set('lease_company', e.target.value)} placeholder="e.g. LEX Auto Lease" testid="vm-lease-company" />
+          <TInput label="Lease end date" type="date" value={f.lease_end_date} onChange={(e) => set('lease_end_date', e.target.value)} testid="vm-lease-end" />
+          <TInput label="Supplier / garage (repairs)" value={f.provider} onChange={(e) => set('provider', e.target.value)} placeholder="e.g. Vanarama" testid="vm-provider" span />
+        </Section>
+
+        <Section title="Fuel card & tolls">
+          <TInput label="Fuel card number" value={f.fuel_card_number} onChange={(e) => set('fuel_card_number', e.target.value)} testid="vm-fuel-card" />
+          <TInput label="DART Charge" value={f.dart} onChange={(e) => set('dart', e.target.value)} testid="vm-dart" />
+          <TInput label="Congestion charge" value={f.congestion} onChange={(e) => set('congestion', e.target.value)} testid="vm-congestion" />
+          <TInput label="M6 Toll" value={f.m6_toll} onChange={(e) => set('m6_toll', e.target.value)} testid="vm-m6" />
+        </Section>
+
+        <Section title="Legal & service">
+          <TInput label="MOT due" type="date" value={sr.mot_due} onChange={(e) => setSr('mot_due', e.target.value)} testid="vm-mot" />
+          <TInput label="Next service" type="date" value={sr.next_service} onChange={(e) => setSr('next_service', e.target.value)} testid="vm-next-service" />
+          <TInput label="Insurance expiry" type="date" value={sr.insurance_expiry} onChange={(e) => setSr('insurance_expiry', e.target.value)} testid="vm-insurance" />
+          <TInput label="Tax status" value={sr.tax_status} onChange={(e) => setSr('tax_status', e.target.value)} placeholder="e.g. Taxed / SORN" />
+          <TInput label="Mileage due" value={sr.mileage_due} onChange={(e) => setSr('mileage_due', e.target.value)} />
+          <TInput label="Service ref." value={sr.service_ref} onChange={(e) => setSr('service_ref', e.target.value)} />
+        </Section>
+
+        <Section title="Notes">
+          <label className="block sm:col-span-2">
+            <textarea value={f.notes} onChange={(e) => set('notes', e.target.value)} rows={2} data-testid="vm-notes" placeholder="Anything else worth recording…"
+              className="w-full rounded-lg border px-3 py-2 text-sm" style={cellStyle} />
+          </label>
+        </Section>
+      </div>
 
       {err && <div className="mt-3 text-xs text-rose-600" data-testid="vm-error">{err}</div>}
       <div className="mt-4 flex justify-end gap-2">
-        <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 border border-slate-200">Cancel</button>
-        <button onClick={save} disabled={busy} data-testid="vm-save" className="px-4 py-2 rounded-lg text-sm font-bold text-slate-900" style={{ background: 'var(--color-brand-cyan)' }}>{busy ? 'Saving…' : 'Save vehicle'}</button>
+        <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm font-semibold border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>Cancel</button>
+        <button onClick={save} disabled={busy} data-testid="vm-save" className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>{busy ? 'Saving…' : 'Save vehicle'}</button>
       </div>
     </Modal>
   );

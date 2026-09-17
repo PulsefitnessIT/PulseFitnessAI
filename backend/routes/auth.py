@@ -930,43 +930,53 @@ async def reset_password(body: dict, request: Request) -> dict:
     validate_password_strength(new_password)
     await assert_password_not_breached(new_password)
 
-    reset_doc = await db.password_reset_tokens.find_one({"token": token, "used": False}, {"_id": 0})
+    reset_doc = await db.password_reset_tokens.find_one({"token": token}, {"_id": 0})
     if not reset_doc:
-        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+        # Token string not present in THIS database at all. The usual cause
+        # is a link that was truncated/mangled by an email client, or an
+        # older environment. Give an actionable message, not a scary one.
+        raise HTTPException(status_code=400, detail="This reset link is invalid. Please use your most recent link, or request a new one from your manager.")
+    if reset_doc.get("used"):
+        raise HTTPException(status_code=400, detail="This reset link has already been used or was replaced by a newer link. Please open your most recent invite email, or ask for a fresh link.")
 
     expires_at = datetime.fromisoformat(reset_doc["expires_at"]) if isinstance(reset_doc["expires_at"], str) else reset_doc["expires_at"].replace(tzinfo=timezone.utc)
     if datetime.now(timezone.utc) > expires_at:
-        raise HTTPException(status_code=400, detail="Reset token has expired")
+        raise HTTPException(status_code=400, detail="This reset link has expired. Please request a new one.")
 
     hashed = hash_password(new_password)
     now_iso = datetime.now(timezone.utc).isoformat()
+    reset_email = (reset_doc.get("email") or "").strip().lower()
+    users_set = {
+        "password": hashed,
+        "password_updated_at": now_iso,
+        "must_change_password": False,
+        "temp_password_expires_at": None,
+    }
+    crm_set = {
+        "password": hashed,
+        "password_updated_at": now_iso,
+        "cross_login_provisioned": True,
+    }
     # Iter 279 — update the password in BOTH collections keyed by user_id.
     # CRM-only accounts (created by Master Admin in a CRM-capable org) have
     # no `users` row until first login, so a `users`-only update silently
-    # did nothing — which is exactly why the emailed reset link "didn't
-    # work" for them. Both collections use identical bcrypt hashing.
-    users_res = await db.users.update_one(
-        {"id": reset_doc["user_id"]},
-        {"$set": {
-            "password": hashed,
-            "password_updated_at": now_iso,
-            "must_change_password": False,
-            "temp_password_expires_at": None,
-        }},
-    )
-    crm_res = await db.crm_users.update_one(
-        {"id": reset_doc["user_id"]},
-        {"$set": {
-            "password": hashed,
-            "password_updated_at": now_iso,
-            "cross_login_provisioned": True,
-        }},
-    )
+    # did nothing. Both collections use identical bcrypt hashing.
+    users_res = await db.users.update_one({"id": reset_doc["user_id"]}, {"$set": users_set})
+    crm_res = await db.crm_users.update_one({"id": reset_doc["user_id"]}, {"$set": crm_set})
+    # Bulletproofing — if the account shell was re-created with a NEW id
+    # between minting the link and redeeming it (so the stored user_id no
+    # longer resolves), fall back to matching by email so the reset still
+    # lands on the live account instead of a phantom/orphaned row.
+    if users_res.matched_count == 0 and crm_res.matched_count == 0 and reset_email:
+        email_pat = {"$regex": f"^{re.escape(reset_email)}$", "$options": "i"}
+        users_res = await db.users.update_one({"email": email_pat}, {"$set": users_set})
+        crm_res = await db.crm_users.update_one({"email": email_pat}, {"$set": crm_set})
     if users_res.matched_count == 0 and crm_res.matched_count == 0:
         logger.warning(
-            "[PASSWORD RESET] Token valid but no user row found for user_id=%s",
-            reset_doc.get("user_id"),
+            "[PASSWORD RESET] Token valid but no user row found for user_id=%s email=%s",
+            reset_doc.get("user_id"), reset_email,
         )
+        raise HTTPException(status_code=400, detail="We couldn't find the account for this link. Please ask your manager to re-issue your login.")
     await db.password_reset_tokens.update_one({"token": token}, {"$set": {"used": True, "used_at": datetime.now(timezone.utc).isoformat()}})
 
     # Iter 216h29 — auto-archive every other still-unused invite token

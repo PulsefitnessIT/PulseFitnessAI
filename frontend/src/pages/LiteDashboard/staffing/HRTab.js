@@ -663,6 +663,7 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
         'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship',
         'bank_name', 'bank_sort_code', 'bank_account',
         'right_to_work_status', 'notes',
+        'dbs_number', 'dbs_expiry_date',
       ];
       const payload = {};
       fields.forEach((k) => { if (form[k] !== undefined && form[k] !== null) payload[k] = form[k]; });
@@ -932,6 +933,22 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
           )}
         </div>
         <Field label={t('staffing.hr_ni_number', 'NI number')} k="ni_number" />
+
+        <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold mt-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.hr_dbs', 'Enhanced DBS')}</p>
+        <Field label={t('staffing.hr_dbs_number', 'DBS certificate number')} k="dbs_number" />
+        <Field label={t('staffing.hr_dbs_expiry', 'DBS expiry date')} k="dbs_expiry_date" type="date" />
+        {profile.dbs_expiry_date && (() => {
+          const exp = new Date(profile.dbs_expiry_date + 'T00:00:00');
+          const days = Math.ceil((exp - new Date()) / 86400000);
+          const tone = days < 0 ? '#dc2626' : days <= 30 ? '#d97706' : '#16a34a';
+          const label = days < 0 ? `Expired ${-days} day${-days === 1 ? '' : 's'} ago` : days === 0 ? 'Expires today' : `Expires in ${days} day${days === 1 ? '' : 's'}`;
+          return (
+            <span className="md:col-span-2 inline-flex items-center gap-1.5 text-[11px] font-semibold rounded-full px-2.5 py-1 w-fit"
+              style={{ background: `${tone}1a`, color: tone }} data-testid="hr-dbs-status">
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: tone }} /> {label}
+            </span>
+          );
+        })()}
 
         <p className="md:col-span-2 text-[10px] uppercase tracking-[0.14em] font-bold mt-2" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.hr_bank', 'Bank (payroll)')}</p>
         <Field label={t('staffing.hr_bank_name', 'Bank name')} k="bank_name" />

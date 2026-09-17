@@ -55,14 +55,14 @@ function Badge({ status, statuses }) {
 export default function AttendanceTab({ headers, isManager }) {
   const [view, setView] = useState('board');
   if (!isManager) {
-    return <div className="text-sm text-slate-500" data-testid="attendance-mgr-only">Managers and owners only.</div>;
+    return <div className="text-sm text-slate-500 dark:text-slate-400" data-testid="attendance-mgr-only">Managers and owners only.</div>;
   }
   return (
     <div className="space-y-4" data-testid="attendance-tab">
       <div className="flex items-center gap-1.5 flex-wrap">
         {[['board', 'Attendance Board', CalendarDays], ['patterns', 'Working Patterns', Layers], ['profiles', 'Work Profiles', IdCard], ['import', 'Import', Upload]].map(([id, label, Icon]) => (
           <button key={id} onClick={() => setView(id)} data-testid={`attendance-view-${id}`}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${view === id ? 'border-cyan-500 text-cyan-700 bg-cyan-50' : 'border-slate-200 text-slate-500 hover:text-slate-700'}`}>
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${view === id ? 'border-cyan-500 text-cyan-700 bg-cyan-50' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-200'}`}>
             <Icon size={13} /> {label}
           </button>
         ))}
@@ -108,9 +108,9 @@ function BoardView({ headers }) {
   return (
     <div className="space-y-4">
       <div className="flex items-end gap-3 flex-wrap">
-        <label className="text-xs font-semibold text-slate-600">Date
+        <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Date
           <input type="date" value={day} onChange={(e) => setDay(e.target.value)} data-testid="attendance-board-date"
-            className="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+            className="mt-1 block rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm" /></label>
         <button onClick={load} data-testid="attendance-board-refresh"
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold">
           {loading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Refresh
@@ -119,9 +119,9 @@ function BoardView({ headers }) {
 
       <div className="grid grid-cols-2 md:grid-cols-6 gap-2" data-testid="attendance-board-summary">
         {tiles.map(([label, val, color]) => (
-          <div key={label} className="rounded-xl border border-slate-200 p-3 bg-white">
+          <div key={label} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 bg-white dark:bg-slate-900">
             <div className="text-2xl font-bold" style={{ color }}>{val ?? 0}</div>
-            <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{label}</div>
+            <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{label}</div>
           </div>
         ))}
       </div>
@@ -132,9 +132,9 @@ function BoardView({ headers }) {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+          <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">
             <tr>
               <th className="text-left px-3 py-2">Employee</th>
               <th className="text-left px-3 py-2">Status</th>
@@ -148,13 +148,13 @@ function BoardView({ headers }) {
           <tbody>
             {(data?.rows || []).map((r) => (
               <tr key={r.staff_id} data-testid={`attendance-row-${r.staff_id}`}
-                className={`border-t border-slate-100 ${r.is_exception ? 'bg-amber-50/40' : ''}`}>
-                <td className="px-3 py-2 font-semibold text-slate-800">{r.full_name}
+                className={`border-t border-slate-100 dark:border-slate-700 ${r.is_exception ? 'bg-amber-50/40' : ''}`}>
+                <td className="px-3 py-2 font-semibold text-slate-800 dark:text-slate-100">{r.full_name}
                   {r.department && <span className="ml-2 text-[11px] text-slate-400">{r.department}</span>}</td>
                 <td className="px-3 py-2"><Badge status={r.status} statuses={statuses} /></td>
-                <td className="px-3 py-2 text-slate-600">{r.start_time || '—'}</td>
-                <td className="px-3 py-2 text-slate-600">{r.finish_time || '—'}</td>
-                <td className="px-3 py-2 text-slate-600">{r.regular_hours ? `${r.regular_hours}h` : (r.expected_hours ? `${r.expected_hours}h exp` : '—')}</td>
+                <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{r.start_time || '—'}</td>
+                <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{r.finish_time || '—'}</td>
+                <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{r.regular_hours ? `${r.regular_hours}h` : (r.expected_hours ? `${r.expected_hours}h exp` : '—')}</td>
                 <td className="px-3 py-2 text-[11px] text-slate-400">{r.manual_override ? 'manager' : (r.source || '').replace(/_/g, ' ')}</td>
                 <td className="px-3 py-2 text-right whitespace-nowrap">
                   {r.status === 'sick' && r.leave_event_id && (
@@ -201,23 +201,23 @@ function RtwSignOffsPanel({ headers }) {
 
   if (!rows || !rows.length) return null;
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4" data-testid="attendance-rtw-signoffs">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4" data-testid="attendance-rtw-signoffs">
       <div className="flex items-center gap-2 mb-3">
         <ClipboardCheck size={16} className="text-emerald-600" />
-        <h3 className="text-sm font-bold text-slate-900">Return-to-work sign-offs</h3>
+        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Return-to-work sign-offs</h3>
         <span className="text-[11px] text-slate-400">last 45 days · two signatures per Pulse form</span>
       </div>
       <div className="space-y-2">
         {rows.map((r) => (
           <div key={r.leave_id} data-testid={`rtw-signoff-${r.leave_id}`}
-            className="flex items-center justify-between gap-3 flex-wrap rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
+            className="flex items-center justify-between gap-3 flex-wrap rounded-lg border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2">
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-slate-800">{r.full_name || 'Employee'}</div>
-              <div className="text-[11px] text-slate-500">
+              <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">{r.full_name || 'Employee'}</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">
                 Absent {fmtD(r.start_date)}{r.return_date ? ` · returned ${fmtD(r.return_date)}` : ''}
                 {r.fit_to_return ? ` · ${FIT_LABELS[r.fit_to_return] || r.fit_to_return}` : ''}
               </div>
-              {r.employee_comment && <div className="text-[11px] text-slate-500 italic mt-0.5">“{r.employee_comment}”</div>}
+              {r.employee_comment && <div className="text-[11px] text-slate-500 dark:text-slate-400 italic mt-0.5">“{r.employee_comment}”</div>}
             </div>
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-700"
@@ -264,30 +264,30 @@ function CorrectModal({ row, statuses, headers, onClose, onSaved }) {
 
   return createPortal(
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4" data-testid="attendance-correct-modal">
-      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-2xl">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-bold text-slate-900">Correct — {row.full_name}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Correct — {row.full_name}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:text-slate-300"><X size={18} /></button>
         </div>
-        <label className="block text-xs font-semibold text-slate-600 mb-2">Status
+        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Status
           <select value={status} onChange={(e) => setStatus(e.target.value)} data-testid="attendance-correct-status"
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm">
             {Object.entries(statuses).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
           </select></label>
         <div className="grid grid-cols-2 gap-2 mb-2">
-          <label className="block text-xs font-semibold text-slate-600">Start
+          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">Start
             <input type="time" value={start} onChange={(e) => setStart(e.target.value)} data-testid="attendance-correct-start"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
-          <label className="block text-xs font-semibold text-slate-600">Finish
+              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm" /></label>
+          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">Finish
             <input type="time" value={finish} onChange={(e) => setFinish(e.target.value)} data-testid="attendance-correct-finish"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm" /></label>
         </div>
-        <label className="block text-xs font-semibold text-slate-600 mb-3">Reason (required)
+        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-3">Reason (required)
           <input value={reason} onChange={(e) => setReason(e.target.value)} data-testid="attendance-correct-reason"
-            placeholder="Why is this being changed?" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+            placeholder="Why is this being changed?" className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm" /></label>
         {err && <div className="text-xs text-rose-600 mb-2" data-testid="attendance-correct-error">{err}</div>}
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600">Cancel</button>
+          <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 dark:text-slate-300">Cancel</button>
           <button onClick={save} disabled={saving} data-testid="attendance-correct-save"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-cyan-600 text-white text-sm font-semibold disabled:opacity-60">
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save correction
@@ -317,44 +317,44 @@ function ReturnToWorkModal({ row, headers, onClose, onSaved }) {
   const FIT = [['yes', 'Fit to return'], ['phased', 'Yes — phased return'], ['no', 'Not fit']];
   return createPortal(
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4" data-testid="attendance-rtw-modal">
-      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-1">
-          <h3 className="text-base font-bold text-slate-900">Return to Work — {row.full_name}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Return to Work — {row.full_name}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:text-slate-300"><X size={18} /></button>
         </div>
         <p className="text-[11px] text-slate-400 mb-3">Private &amp; confidential · complete on the employee's return.</p>
 
-        <label className="block text-xs font-semibold text-slate-600 mb-2">First day back
+        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">First day back
           <input type="date" value={rd} onChange={(e) => setRd(e.target.value)} data-testid="attendance-rtw-date"
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm" /></label>
 
-        <label className="block text-xs font-semibold text-slate-600 mb-2">Reason for absence
+        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Reason for absence
           <input value={reason} onChange={(e) => setReason(e.target.value)} data-testid="attendance-rtw-reason"
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm" /></label>
 
         <div className="mb-2">
-          <div className="text-xs font-semibold text-slate-600 mb-1">Fit to return?</div>
+          <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Fit to return?</div>
           <div className="flex gap-1.5 flex-wrap">
             {FIT.map(([k, l]) => (
               <button key={k} onClick={() => setFit(k)} data-testid={`attendance-rtw-fit-${k}`}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border ${fit === k ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500'}`}>{l}</button>
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border ${fit === k ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}>{l}</button>
             ))}
           </div>
         </div>
         {(fit === 'phased' || fit === 'no') && (
-          <label className="block text-xs font-semibold text-slate-600 mb-2">Please give details
+          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Please give details
             <input value={fitDetails} onChange={(e) => setFitDetails(e.target.value)} data-testid="attendance-rtw-fit-details"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+              className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm" /></label>
         )}
 
-        <label className="block text-xs font-semibold text-slate-600 mb-3">Agreed actions to avoid further absence
+        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-3">Agreed actions to avoid further absence
           <textarea value={actions} onChange={(e) => setActions(e.target.value)} data-testid="attendance-rtw-actions" rows={2}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
+            className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm" /></label>
 
         {err && <div className="text-xs text-rose-600 mb-2" data-testid="attendance-rtw-error">{err}</div>}
         <p className="text-[11px] text-slate-400 mb-3">Submitting records your electronic sign-off as interviewer (name, role, date &amp; time).</p>
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600">Cancel</button>
+          <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 dark:text-slate-300">Cancel</button>
           <button onClick={save} disabled={saving} data-testid="attendance-rtw-save"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold disabled:opacity-60">
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Close &amp; record
@@ -400,16 +400,16 @@ function PatternsView({ headers }) {
         <button onClick={() => setEditing({ name: '', type: 'standard', days: blankDays() })} data-testid="attendance-pattern-new"
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-600 text-white text-xs font-semibold"><Plus size={13} /> New pattern</button>
         <button onClick={seed} disabled={busy} data-testid="attendance-pattern-seed"
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold">
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold">
           {busy ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />} Seed default patterns</button>
       </div>
 
       <div className="grid md:grid-cols-2 gap-3">
         {patterns.map((p) => (
-          <div key={p.id} className="rounded-xl border border-slate-200 bg-white p-4" data-testid={`attendance-pattern-${p.id}`}>
+          <div key={p.id} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4" data-testid={`attendance-pattern-${p.id}`}>
             <div className="flex items-start justify-between">
               <div>
-                <div className="font-semibold text-slate-800">{p.name}</div>
+                <div className="font-semibold text-slate-800 dark:text-slate-100">{p.name}</div>
                 <div className="text-[11px] uppercase tracking-wide text-slate-400">{p.type}</div>
               </div>
               <div className="flex gap-2">
@@ -419,7 +419,7 @@ function PatternsView({ headers }) {
             </div>
             <div className="mt-2 flex gap-1 flex-wrap">
               {(p.days || []).filter((d) => d.working).map((d) => (
-                <span key={d.dow} className="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-600">{DOW[d.dow]} {d.start}–{d.finish}</span>
+                <span key={d.dow} className="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 dark:text-slate-300">{DOW[d.dow]} {d.start}–{d.finish}</span>
               ))}
             </div>
           </div>
@@ -429,45 +429,45 @@ function PatternsView({ headers }) {
 
       {editing && createPortal(
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4" data-testid="attendance-pattern-modal">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-base font-bold text-slate-900">{editing.id ? 'Edit' : 'New'} working pattern</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">{editing.id ? 'Edit' : 'New'} working pattern</h3>
               <button onClick={() => setEditing(null)} className="text-slate-400"><X size={18} /></button>
             </div>
             <div className="grid grid-cols-2 gap-2 mb-3">
-              <label className="block text-xs font-semibold text-slate-600">Name
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">Name
                 <input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} data-testid="attendance-pattern-name"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></label>
-              <label className="block text-xs font-semibold text-slate-600">Type
+                  className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm" /></label>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">Type
                 <select value={editing.type} onChange={(e) => setEditing({ ...editing, type: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                  className="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm">
                   {['standard', 'shift', 'part_time', 'engineer', 'flexible', 'custom'].map((t) => <option key={t} value={t}>{t}</option>)}
                 </select></label>
             </div>
             <div className="space-y-1.5">
               {editing.days.map((d, i) => (
                 <div key={d.dow} className="flex items-center gap-2 text-xs">
-                  <label className="w-24 flex items-center gap-1.5 font-semibold text-slate-600">
+                  <label className="w-24 flex items-center gap-1.5 font-semibold text-slate-600 dark:text-slate-300">
                     <input type="checkbox" checked={d.working} data-testid={`attendance-pattern-day-${d.dow}`}
                       onChange={(e) => { const days = [...editing.days]; days[i] = { ...d, working: e.target.checked }; setEditing({ ...editing, days }); }} />
                     {DOW[d.dow]}</label>
                   <input type="time" value={d.start || ''} disabled={!d.working}
                     onChange={(e) => { const days = [...editing.days]; days[i] = { ...d, start: e.target.value }; setEditing({ ...editing, days }); }}
-                    className="rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50" />
+                    className="rounded border border-slate-300 dark:border-slate-600 px-2 py-1 disabled:bg-slate-50 dark:bg-slate-800" />
                   <input type="time" value={d.finish || ''} disabled={!d.working}
                     onChange={(e) => { const days = [...editing.days]; days[i] = { ...d, finish: e.target.value }; setEditing({ ...editing, days }); }}
-                    className="rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50" />
+                    className="rounded border border-slate-300 dark:border-slate-600 px-2 py-1 disabled:bg-slate-50 dark:bg-slate-800" />
                   <input type="number" value={d.break_minutes || 0} disabled={!d.working} title="Break minutes"
                     onChange={(e) => { const days = [...editing.days]; days[i] = { ...d, break_minutes: Number(e.target.value) }; setEditing({ ...editing, days }); }}
-                    className="w-16 rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50" />
+                    className="w-16 rounded border border-slate-300 dark:border-slate-600 px-2 py-1 disabled:bg-slate-50 dark:bg-slate-800" />
                   <input type="number" step="0.25" value={d.expected_hours || 0} disabled={!d.working} title="Expected hours"
                     onChange={(e) => { const days = [...editing.days]; days[i] = { ...d, expected_hours: Number(e.target.value) }; setEditing({ ...editing, days }); }}
-                    className="w-16 rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50" />
+                    className="w-16 rounded border border-slate-300 dark:border-slate-600 px-2 py-1 disabled:bg-slate-50 dark:bg-slate-800" />
                 </div>
               ))}
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setEditing(null)} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600">Cancel</button>
+              <button onClick={() => setEditing(null)} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 dark:text-slate-300">Cancel</button>
               <button onClick={save} data-testid="attendance-pattern-save" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-cyan-600 text-white text-sm font-semibold"><Save size={14} /> Save</button>
             </div>
           </div>
@@ -508,9 +508,9 @@ function ProfilesView({ headers }) {
 
   return (
     <div className="space-y-3" data-testid="attendance-profiles">
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+          <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wide">
             <tr>
               <th className="text-left px-3 py-2">Employee</th>
               <th className="text-left px-3 py-2">Payroll #</th>
@@ -523,14 +523,14 @@ function ProfilesView({ headers }) {
           </thead>
           <tbody>
             {data.profiles.map((p) => (
-              <tr key={p.staff_id} className="border-t border-slate-100" data-testid={`attendance-profile-${p.staff_id}`}>
-                <td className="px-3 py-2 font-semibold text-slate-800">{p.full_name}
+              <tr key={p.staff_id} className="border-t border-slate-100 dark:border-slate-700" data-testid={`attendance-profile-${p.staff_id}`}>
+                <td className="px-3 py-2 font-semibold text-slate-800 dark:text-slate-100">{p.full_name}
                   {p.job_title && <span className="ml-2 text-[11px] text-slate-400">{p.job_title}</span>}</td>
-                <td className="px-3 py-2 text-slate-600">{p.payroll_number || '—'}</td>
-                <td className="px-3 py-2 text-slate-600">{patName(p.working_pattern_id) || 'Default'}</td>
-                <td className="px-3 py-2 text-slate-600">{p.standard_daily_hours ?? '—'}</td>
-                <td className="px-3 py-2 text-slate-600">{REGION_LABEL[p.bank_holiday_region] || p.bank_holiday_region}</td>
-                <td className="px-3 py-2 text-slate-600">{(TIME_ENTRY.find((t) => t[0] === p.time_entry_method) || [])[1] || p.time_entry_method}</td>
+                <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{p.payroll_number || '—'}</td>
+                <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{patName(p.working_pattern_id) || 'Default'}</td>
+                <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{p.standard_daily_hours ?? '—'}</td>
+                <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{REGION_LABEL[p.bank_holiday_region] || p.bank_holiday_region}</td>
+                <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{(TIME_ENTRY.find((t) => t[0] === p.time_entry_method) || [])[1] || p.time_entry_method}</td>
                 <td className="px-3 py-2 text-right">
                   <button onClick={() => setEditing({ ...p })} data-testid={`attendance-profile-edit-${p.staff_id}`}
                     className="text-xs font-semibold text-cyan-700 hover:underline">Edit</button>
@@ -543,45 +543,45 @@ function ProfilesView({ headers }) {
 
       {editing && createPortal(
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4" data-testid="attendance-profile-modal">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-base font-bold text-slate-900">Work profile — {editing.full_name}</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Work profile — {editing.full_name}</h3>
               <button onClick={() => setEditing(null)} className="text-slate-400"><X size={18} /></button>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Field label="Payroll number"><input value={editing.payroll_number || ''} data-testid="attendance-profile-payroll"
-                onChange={(e) => setEditing({ ...editing, payroll_number: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Field>
+                onChange={(e) => setEditing({ ...editing, payroll_number: e.target.value })} className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm" /></Field>
               <Field label="Job title"><input value={editing.job_title || ''}
-                onChange={(e) => setEditing({ ...editing, job_title: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Field>
+                onChange={(e) => setEditing({ ...editing, job_title: e.target.value })} className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm" /></Field>
               <Field label="Working pattern"><select value={editing.working_pattern_id || ''} data-testid="attendance-profile-pattern"
-                onChange={(e) => setEditing({ ...editing, working_pattern_id: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                onChange={(e) => setEditing({ ...editing, working_pattern_id: e.target.value })} className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm">
                 <option value="">Default (from hours)</option>
                 {data.patterns.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select></Field>
               <Field label="Standard daily hours"><input type="number" step="0.25" value={editing.standard_daily_hours ?? ''}
-                onChange={(e) => setEditing({ ...editing, standard_daily_hours: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" /></Field>
+                onChange={(e) => setEditing({ ...editing, standard_daily_hours: e.target.value })} className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm" /></Field>
               <Field label="Bank holiday region"><select value={editing.bank_holiday_region || ''} data-testid="attendance-profile-region"
-                onChange={(e) => setEditing({ ...editing, bank_holiday_region: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                onChange={(e) => setEditing({ ...editing, bank_holiday_region: e.target.value })} className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm">
                 {(data.regions || []).map((r) => <option key={r} value={r}>{REGION_LABEL[r] || r}</option>)}
               </select></Field>
               <Field label="Time entry method"><select value={editing.time_entry_method || ''} data-testid="attendance-profile-time-entry"
-                onChange={(e) => setEditing({ ...editing, time_entry_method: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                onChange={(e) => setEditing({ ...editing, time_entry_method: e.target.value })} className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm">
                 {TIME_ENTRY.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </select></Field>
               <Field label="Overtime rule"><select value={editing.overtime_rule || ''}
-                onChange={(e) => setEditing({ ...editing, overtime_rule: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                onChange={(e) => setEditing({ ...editing, overtime_rule: e.target.value })} className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm">
                 {OT_RULES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </select></Field>
               <Field label="Employment status"><select value={editing.employment_status || 'active'}
-                onChange={(e) => setEditing({ ...editing, employment_status: e.target.value })} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                onChange={(e) => setEditing({ ...editing, employment_status: e.target.value })} className="w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm">
                 {['active', 'probation', 'leaver', 'on_leave'].map((s) => <option key={s} value={s}>{s}</option>)}
               </select></Field>
-              <label className="col-span-2 flex items-center gap-2 text-xs font-semibold text-slate-600">
+              <label className="col-span-2 flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
                 <input type="checkbox" checked={!!editing.overtime_eligibility} data-testid="attendance-profile-ot-eligible"
                   onChange={(e) => setEditing({ ...editing, overtime_eligibility: e.target.checked })} /> Eligible for overtime</label>
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setEditing(null)} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600">Cancel</button>
+              <button onClick={() => setEditing(null)} className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 dark:text-slate-300">Cancel</button>
               <button onClick={save} data-testid="attendance-profile-save" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-cyan-600 text-white text-sm font-semibold"><Save size={14} /> Save profile</button>
             </div>
           </div>
@@ -592,7 +592,7 @@ function ProfilesView({ headers }) {
 
 function Field({ label, children }) {
   return (
-    <label className="block text-xs font-semibold text-slate-600">
+    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
       <span className="block mb-1">{label}</span>{children}
     </label>
   );
@@ -602,7 +602,7 @@ function Field({ label, children }) {
 function MigrationView({ headers }) {
   return (
     <div className="space-y-4" data-testid="attendance-import">
-      <p className="text-sm text-slate-500">Import your legacy spreadsheets into the single source of truth. Preview first — nothing is written until you commit, and existing employees are matched, never duplicated.</p>
+      <p className="text-sm text-slate-500 dark:text-slate-400">Import your legacy spreadsheets into the single source of truth. Preview first — nothing is written until you commit, and existing employees are matched, never duplicated.</p>
       <div className="grid md:grid-cols-2 gap-4">
         <ImportCard headers={headers} kind="attendance"
           title="Attendance Request" hint="The year grid of IN / HOL / BH / SICK / COMP / OFF." />
@@ -635,14 +635,14 @@ function ImportCard({ headers, kind, title, hint }) {
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4" data-testid={`import-card-${kind}`}>
-      <div className="flex items-center gap-2 mb-1"><FileSpreadsheet size={16} className="text-cyan-600" /><h3 className="font-bold text-slate-900">{title}</h3></div>
-      <p className="text-xs text-slate-500 mb-3">{hint}</p>
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4" data-testid={`import-card-${kind}`}>
+      <div className="flex items-center gap-2 mb-1"><FileSpreadsheet size={16} className="text-cyan-600" /><h3 className="font-bold text-slate-900 dark:text-slate-100">{title}</h3></div>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">{hint}</p>
       <input type="file" accept=".xlsx" onChange={(e) => { setFile(e.target.files[0]); setPreview(null); setResult(null); }} data-testid={`import-file-${kind}`}
-        className="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 file:font-semibold" />
+        className="block w-full text-xs text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 dark:text-slate-200 file:font-semibold" />
       <div className="mt-3 flex gap-2">
         <button onClick={() => call('preview')} disabled={busy} data-testid={`import-preview-${kind}`}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold">
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold">
           {busy === 'preview' ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />} Preview</button>
         {preview && <button onClick={() => call('commit')} disabled={busy} data-testid={`import-commit-${kind}`}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-cyan-600 text-white text-xs font-semibold">
@@ -651,17 +651,17 @@ function ImportCard({ headers, kind, title, hint }) {
       {err && <div className="mt-2 text-xs text-rose-600" data-testid={`import-error-${kind}`}>{err}</div>}
 
       {preview && (
-        <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs" data-testid={`import-preview-result-${kind}`}>
+        <div className="mt-3 rounded-lg bg-slate-50 dark:bg-slate-800 p-3 text-xs" data-testid={`import-preview-result-${kind}`}>
           {kind === 'attendance' ? (
             <>
-              <div className="font-semibold text-slate-700">{preview.rows_parsed} rows · {preview.date_range?.from} → {preview.date_range?.to}</div>
+              <div className="font-semibold text-slate-700 dark:text-slate-200">{preview.rows_parsed} rows · {preview.date_range?.from} → {preview.date_range?.to}</div>
               <div className="mt-1 text-emerald-700">Matched employees: {preview.employees_matched.length}</div>
               {preview.employees_unmatched.length > 0 && <div className="text-amber-700">Unmatched (will be skipped): {preview.employees_unmatched.join(', ')}</div>}
-              <div className="mt-1 flex gap-2 flex-wrap">{Object.entries(preview.by_status).map(([k, v]) => <span key={k} className="px-1.5 py-0.5 rounded bg-white border border-slate-200">{k}: {v}</span>)}</div>
+              <div className="mt-1 flex gap-2 flex-wrap">{Object.entries(preview.by_status).map(([k, v]) => <span key={k} className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">{k}: {v}</span>)}</div>
             </>
           ) : (
             <>
-              <div className="font-semibold text-slate-700">{preview.employee_name || 'No name found'} {preview.employee_matched ? <span className="text-emerald-600">✓ matched</span> : <span className="text-amber-600">not matched</span>}</div>
+              <div className="font-semibold text-slate-700 dark:text-slate-200">{preview.employee_name || 'No name found'} {preview.employee_matched ? <span className="text-emerald-600">✓ matched</span> : <span className="text-amber-600">not matched</span>}</div>
               <div className="mt-1">{preview.days_parsed} days · {preview.totals?.hours}h · PT {preview.totals?.pt} · Classes {preview.totals?.classes}</div>
               {preview.conflicts?.length > 0 && (
                 <div className="mt-2 text-rose-600 font-semibold" data-testid="import-conflicts">⚠ {preview.conflicts.length} conflict(s) — review required:</div>
