@@ -248,3 +248,12 @@ Extends the existing CRM CPQ (Quotes) Equipment Sales workflow — no new module
 - **Staff Portal**: removed the "Active employee ✓" badge.
 - **Dark mode**: fixed white cards bleeding into dark mode on Attendance/Payroll tabs (dark: tokens) and themed the vehicle modal + register + staff vehicle card.
 - Test login for Pulse Fitness Ltd operations: portal@pulsefitness.ltd / PulseFleet123! (route '/').
+
+## 2026-06 (b) — Staff portal DBS, vehicle 2-options, fleet fines, exports & mobile polish
+- Staff Portal "My details" now shows a **Compliance** section with Enhanced DBS number + expiry (via /new-starter/me compliance).
+- Staff Portal vehicle card split into **two actions**: "Vehicle details" (expands lease/MOT/service + fines) and "Complete check".
+- **Fleet fines**: vehicle detail modal has a Fines section — add (type/date/value/paid + scan upload), toggle paid, view scan, delete. Assigned driver sees fines on their portal. Backend: fines array on vehicle + endpoints (add/patch/delete) + /vehicles/fine-upload (object storage). Curl-verified.
+- **Fleet Register export**: "Export / Print (CSV)" button → GET /api/vehicles/export.csv (all fields). Verified.
+- **Notification bell** restyled transparent/theme-aware (no more white box on the dark header); mobile dropdown lowered (top-24) so the title clears the header.
+- **Mobile**: Staffing secondary sub-tab bar now horizontally scrollable (no more bunched rows).
+- Testing agent: frontend 100% (bell, mobile panel, sub-tab scroll, CSV export, fines CRUD).

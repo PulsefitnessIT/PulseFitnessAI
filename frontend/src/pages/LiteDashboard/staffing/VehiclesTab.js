@@ -606,7 +606,7 @@ function VehicleModal({ vehicle, drivers, headers, onClose, onSaved }) {
                     <span className="flex items-center gap-2 shrink-0">
                       {fi.file_id && <a href={`${API}/vehicle-checks/photo/${fi.file_id}?auth=${token()}`} target="_blank" rel="noreferrer" className="underline" style={{ color: 'var(--color-brand-cyan)' }}>View</a>}
                       <button type="button" onClick={() => toggleFine(fi.id, !fi.paid)} data-testid={`vm-fine-toggle-${fi.id}`} className={`px-2 py-0.5 rounded-full font-semibold ${fi.paid ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{fi.paid ? 'Paid' : 'Unpaid'}</button>
-                      <button type="button" onClick={() => delFine(fi.id)} className="text-slate-400 hover:text-rose-500"><Trash2 size={13} /></button>
+                      <button type="button" onClick={() => delFine(fi.id)} data-testid={`vm-fine-delete-${fi.id}`} className="text-slate-400 hover:text-rose-500"><Trash2 size={13} /></button>
                     </span>
                   </div>
                 ))}
