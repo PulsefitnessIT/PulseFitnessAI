@@ -106,7 +106,7 @@ function FleetDashboard({ headers, onGoto }) {
         <StatCard testId="dash-checks-pct" label="Checks done this week" value={`${d.checks_pct}%`} tone={pctTone} sub={`${d.checks_done}/${d.total_vehicles} vehicles · ${d.checks_reviewed} reviewed`} onClick={() => onGoto('checks')} />
         <StatCard testId="dash-open-defects" label="Open defects" value={d.open_defects} tone={d.open_defects ? '#dc2626' : '#16a34a'} sub={`${d.booked_defects} booked in`} onClick={() => onGoto('defects')} />
         <StatCard testId="dash-not-safe" label="Flagged not safe" value={d.not_safe} tone={d.not_safe ? '#dc2626' : '#16a34a'} sub="unresolved" onClick={() => onGoto('defects')} />
-        <StatCard testId="dash-expiries" label="Legal dates ≤60 days" value={d.expiries.length} tone={d.expiries.some((e) => e.days < 0) ? '#dc2626' : d.expiries.length ? '#d97706' : '#16a34a'} sub="MOT / tax / insurance / service" />
+        <StatCard testId="dash-expiries" label="Legal dates ≤60 days" value={d.expiries.length} tone={d.expiries.some((e) => e.days < 0) ? '#dc2626' : d.expiries.length ? '#d97706' : '#16a34a'} sub="MOT / tax / insurance / service / lease" />
       </div>
 
       <div className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border)' }} data-testid="dash-outstanding">
@@ -129,7 +129,7 @@ function FleetDashboard({ headers, onGoto }) {
       </div>
 
       <div className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border)' }} data-testid="dash-legal">
-        <h3 className="text-sm font-bold mb-2" style={{ color: 'var(--theme-text)' }}>Upcoming MOT / tax / insurance / service</h3>
+        <h3 className="text-sm font-bold mb-2" style={{ color: 'var(--theme-text)' }}>Upcoming MOT / tax / insurance / service / lease renewals</h3>
         {d.expiries.length === 0 ? (
           <div className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>Nothing due in the next 60 days.</div>
         ) : (

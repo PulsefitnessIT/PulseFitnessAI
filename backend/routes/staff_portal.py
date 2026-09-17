@@ -1188,6 +1188,43 @@ async def staffing_notifications(user: dict = Depends(get_current_user)):
             "body": f"{pending} leave request{'' if pending == 1 else 's'} need your review.",
             "link": "leave"})
 
+    # DBS Expiry Watch — Enhanced DBS certificates expiring within 60 days
+    # (or already expired). Field/remote staff must hold a valid Enhanced
+    # DBS, so this surfaces to managers as an ongoing weekly reminder in the
+    # bell until the certificate is renewed.
+    dbs_q: dict = {"organization_id": org, "dbs_expiry_date": {"$nin": ["", None]}}
+    if not owner and me:
+        rep_ids = await db.staff_members.distinct(
+            "id", {"organization_id": org, "line_manager_staff_id": me["id"]})
+        dbs_q["id"] = {"$in": rep_ids or ["__none__"]}
+    dbs_staff = await db.staff_members.find(
+        dbs_q, {"_id": 0, "full_name": 1, "dbs_expiry_date": 1}).to_list(2000)
+
+    def _dbs_days(val):
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+            try:
+                return (datetime.strptime(str(val).strip(), fmt).date() - datetime.now(timezone.utc).date()).days
+            except ValueError:
+                continue
+        return None
+
+    expiring = []
+    for s in dbs_staff:
+        dd = _dbs_days(s.get("dbs_expiry_date"))
+        if dd is not None and dd <= 60:
+            expiring.append((s.get("full_name") or "A staff member", dd))
+    if expiring:
+        expiring.sort(key=lambda x: x[1])
+        names = ", ".join(n for n, _ in expiring[:3])
+        more = f" +{len(expiring) - 3} more" if len(expiring) > 3 else ""
+        overdue = any(dd < 0 for _, dd in expiring)
+        nudges.append({
+            "type": "dbs_expired" if overdue else "dbs_expiry",
+            "title": "Enhanced DBS expired" if overdue else "Enhanced DBS expiring",
+            "body": (f"{len(expiring)} staff DBS "
+                     f"{'need attention (some expired)' if overdue else 'expiring within 60 days'}: {names}{more}."),
+            "link": "hr"})
+
     unread = sum(1 for n in stored if not n.get("read")) + len(nudges)
     return {"notifications": stored, "nudges": nudges, "unread": unread}
 

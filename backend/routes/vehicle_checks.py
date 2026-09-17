@@ -579,6 +579,12 @@ async def fleet_dashboard(user: dict = Depends(get_current_user)):
             if d is not None and d <= 60:
                 expiries.append({"reg_no": v["reg_no"], "make_model": v.get("make_model"),
                                  "kind": label, "date": sr.get(key), "days": d})
+        # Lease end date (top-level fleet field) — flag renewals within 60 days.
+        led = v.get("lease_end_date")
+        dl = _days_until(led)
+        if dl is not None and dl <= 60:
+            expiries.append({"reg_no": v["reg_no"], "make_model": v.get("make_model"),
+                             "kind": "Lease", "date": led, "days": dl})
     expiries.sort(key=lambda x: x["days"])
 
     return {
