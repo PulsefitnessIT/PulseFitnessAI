@@ -908,6 +908,19 @@ const LiteDashboardPage = () => {
                 <p className="pulse-font-body mb-3" style={{ color: 'var(--theme-text-muted)' }}>{t('dashboard.welcome', 'Welcome back')}, {user?.full_name}</p>
               </div>
               <div className="flex items-center gap-3 shrink-0 mt-1.5">
+                {isManagerial && (
+                  <div className="hidden md:block" data-testid="operations-bell">
+                    <StaffNotificationBell
+                      endpoint={`${API}/staffing/notifications`}
+                      readEndpoint={`${API}/staffing/notifications/read`}
+                      headers={headers}
+                      onNavigate={(leaf) => {
+                        try { if (leaf && user?.id) localStorage.setItem(`staffing.activeLeaf:${user.id}`, leaf); } catch { /* ignore */ }
+                        setActiveTab('staffing');
+                      }}
+                    />
+                  </div>
+                )}
                 {/* Iter 216i — site switcher (multi-site Pulse Pro only).
                     Hidden automatically by the component when sites.length<2.
                     Iter 237 — Pulse Master Admins (role pulse_master_admin /
@@ -956,51 +969,32 @@ const LiteDashboardPage = () => {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {/* Desktop tab bar — canonical PillTabBar so overflow
                 auto-scrolls the active tab into view (fixing last
-                options being hidden behind the rounded border). The
-                staffing notification bell sits at the right of this
-                Operations bar so managers see pending items in ANY tab. */}
-            <div className="hidden md:flex items-center gap-3 mb-6">
-              <div className="flex-1 min-w-0">
-                <PillTabBar
-                  className="w-full"
-                  activeId={activeTab}
-                  testId="pulse-dashboard-tabs"
-                  ariaLabel="Operations sections"
-                >
-                  {TABS.map(tab => {
-                    const Icon = tab.icon;
-                    const isActive = activeTab === tab.id;
-                    return (
-                      <button
-                        key={tab.id}
-                        data-pill-id={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-colors whitespace-nowrap"
-                        style={isActive
-                          ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
-                          : { color: 'var(--theme-text-muted)', background: 'transparent' }}
-                        data-testid={`lite-tab-${tab.id}`}
-                      >
-                        {Icon && <Icon size={14} />} {tab.label}
-                      </button>
-                    );
-                  })}
-                </PillTabBar>
-              </div>
-              {isManagerial && (
-                <div className="shrink-0" data-testid="operations-bell">
-                  <StaffNotificationBell
-                    endpoint={`${API}/staffing/notifications`}
-                    readEndpoint={`${API}/staffing/notifications/read`}
-                    headers={headers}
-                    onNavigate={(leaf) => {
-                      try { if (leaf && user?.id) localStorage.setItem(`staffing.activeLeaf:${user.id}`, leaf); } catch { /* ignore */ }
-                      setActiveTab('staffing');
-                    }}
-                  />
-                </div>
-              )}
-            </div>
+                options being hidden behind the rounded border). */}
+            <PillTabBar
+              className="mb-6 w-full hidden md:block"
+              activeId={activeTab}
+              testId="pulse-dashboard-tabs"
+              ariaLabel="Operations sections"
+            >
+              {TABS.map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    data-pill-id={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-colors whitespace-nowrap"
+                    style={isActive
+                      ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
+                      : { color: 'var(--theme-text-muted)', background: 'transparent' }}
+                    data-testid={`lite-tab-${tab.id}`}
+                  >
+                    {Icon && <Icon size={14} />} {tab.label}
+                  </button>
+                );
+              })}
+            </PillTabBar>
 
             {/* Mobile: scrollable pill tabs — identical to Memberships console */}
             <ScrollFadeBar
