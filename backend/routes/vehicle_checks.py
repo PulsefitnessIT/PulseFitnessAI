@@ -367,6 +367,88 @@ async def delete_vehicle(vehicle_id: str, user: dict = Depends(get_current_user)
     return {"ok": True}
 
 
+@router.get("/vehicles/export.csv")
+async def export_vehicles_csv(user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    rows = await db.vehicles.find({"organization_id": org, "active": {"$ne": False}}, {"_id": 0}).sort("fleet_department", 1).to_list(1000)
+    staff = await db.staff_members.find({"organization_id": org}, {"_id": 0, "id": 1, "full_name": 1}).to_list(2000)
+    names = {s["id"]: s.get("full_name") for s in staff}
+    import csv as _csv, io as _io
+    buf = _io.StringIO(); w = _csv.writer(buf)
+    w.writerow(["Department", "Reg", "Make/Model", "Type", "Driver", "Lease company", "Lease end", "Fuel card",
+                "DART", "Congestion", "M6 Toll", "MOT due", "Tax", "Insurance", "Next service", "Service ref",
+                "Odometer", "Open fines", "Notes"])
+    for v in rows:
+        sr = v.get("service_record") or {}
+        drv = ", ".join([names.get(i) for i in (v.get("driver_staff_ids") or []) if names.get(i)]) or v.get("driver_label") or ""
+        open_fines = sum(1 for f in (v.get("fines") or []) if not f.get("paid"))
+        w.writerow([v.get("fleet_department", ""), v.get("reg_no", ""), v.get("make_model", ""), v.get("vehicle_type", ""),
+                    drv, v.get("lease_company", ""), v.get("lease_end_date", ""), v.get("fuel_card_number", ""),
+                    v.get("dart", ""), v.get("congestion", ""), v.get("m6_toll", ""), sr.get("mot_due", ""),
+                    sr.get("tax_status", ""), sr.get("insurance_expiry", ""), sr.get("next_service", ""),
+                    sr.get("service_ref", ""), v.get("odometer", ""), open_fines, v.get("notes", "")])
+    from fastapi.responses import Response as _Resp
+    return _Resp(content=buf.getvalue(), media_type="text/csv",
+                 headers={"Content-Disposition": 'attachment; filename="Fleet Register.csv"'})
+
+
+class FineBody(BaseModel):
+    kind: str = ""
+    date: str = ""
+    value: str = ""
+    paid: bool = False
+    file_id: str | None = None
+    notes: str = ""
+
+
+@router.post("/vehicles/fine-upload")
+async def upload_fine_doc(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    data = await file.read()
+    ct = file.content_type or "application/octet-stream"
+    fname = file.filename or "fine"
+    ext = fname.rsplit(".", 1)[-1][:8] if "." in fname else "bin"
+    path = f"{APP_NAME}/vehicle-fines/{org}/{uuid.uuid4()}.{ext}"
+    result = put_object(path, data, ct)
+    fid = str(uuid.uuid4())
+    await db.files.insert_one({"id": fid, "organization_id": org, "category": "vehicle-photos",
+                               "storage_path": result["path"], "content_type": ct, "created_at": _now()})
+    return {"file_id": fid}
+
+
+@router.post("/vehicles/{vehicle_id}/fines")
+async def add_fine(vehicle_id: str, body: FineBody, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    fine = {"id": str(uuid.uuid4()), "kind": body.kind.strip(), "date": body.date.strip(),
+            "value": body.value.strip(), "paid": bool(body.paid), "file_id": body.file_id,
+            "notes": body.notes.strip(), "created_at": _now()}
+    r = await db.vehicles.update_one({"organization_id": org, "id": vehicle_id}, {"$push": {"fines": fine}})
+    if not r.matched_count:
+        raise HTTPException(404, "vehicle not found")
+    return fine
+
+
+@router.patch("/vehicles/{vehicle_id}/fines/{fine_id}")
+async def update_fine(vehicle_id: str, fine_id: str, body: dict, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    await db.vehicles.update_one(
+        {"organization_id": org, "id": vehicle_id, "fines.id": fine_id},
+        {"$set": {"fines.$.paid": bool(body.get("paid"))}})
+    return {"ok": True}
+
+
+@router.delete("/vehicles/{vehicle_id}/fines/{fine_id}")
+async def delete_fine(vehicle_id: str, fine_id: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    await db.vehicles.update_one({"organization_id": org, "id": vehicle_id}, {"$pull": {"fines": {"id": fine_id}}})
+    return {"ok": True}
+
+
 @router.get("/vehicles/driver-options")
 async def driver_options(user: dict = Depends(get_current_user)):
     _require_manager(user)

@@ -58,6 +58,7 @@ export default function VehiclesTab({ headers }) {
         {view === 'register' && (
           <div className="flex gap-2">
             <button onClick={() => setImportOpen(true)} data-testid="vehicles-import-btn" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><Link2 size={13} /> Import Vehicle Details</button>
+            <button onClick={async () => { const r = await axios.get(`${API}/vehicles/export.csv`, { headers, responseType: 'blob' }); const url = URL.createObjectURL(r.data); const a = document.createElement('a'); a.href = url; a.download = 'Fleet Register.csv'; a.click(); URL.revokeObjectURL(url); }} data-testid="vehicles-export-csv" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><FileDown size={13} /> Export / Print (CSV)</button>
             <button onClick={() => setEdit({})} data-testid="vehicles-add-btn" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}><Plus size={13} /> Add vehicle</button>
           </div>
         )}
@@ -459,6 +460,35 @@ function VehicleModal({ vehicle, drivers, headers, onClose, onSaved }) {
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [fines, setFines] = useState(vehicle.fines || []);
+  const [nf, setNf] = useState({ kind: '', date: '', value: '', paid: false, file_id: null });
+  const [fineBusy, setFineBusy] = useState(false);
+  const uploadFine = async (file) => {
+    if (!file) return;
+    setFineBusy(true);
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const r = await axios.post(`${API}/vehicles/fine-upload`, fd, { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
+      setNf((p) => ({ ...p, file_id: r.data.file_id }));
+    } catch { setErr('Fine document upload failed.'); } finally { setFineBusy(false); }
+  };
+  const addFine = async () => {
+    if (!nf.kind.trim()) { setErr('Enter the fine type first.'); return; }
+    setFineBusy(true); setErr('');
+    try {
+      const r = await axios.post(`${API}/vehicles/${vehicle.id}/fines`, nf, { headers });
+      setFines((p) => [...p, r.data]); setNf({ kind: '', date: '', value: '', paid: false, file_id: null });
+    } catch (e) { setErr(e?.response?.data?.detail || 'Could not add fine.'); } finally { setFineBusy(false); }
+  };
+  const toggleFine = async (fid, paid) => {
+    await axios.patch(`${API}/vehicles/${vehicle.id}/fines/${fid}`, { paid }, { headers });
+    setFines((p) => p.map((f) => (f.id === fid ? { ...f, paid } : f)));
+  };
+  const delFine = async (fid) => {
+    if (!window.confirm('Remove this fine?')) return;
+    await axios.delete(`${API}/vehicles/${vehicle.id}/fines/${fid}`, { headers });
+    setFines((p) => p.filter((f) => f.id !== fid));
+  };
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const sr = f.service_record || {};
   const setSr = (k, v) => setF((p) => ({ ...p, service_record: { ...p.service_record, [k]: v } }));
@@ -561,6 +591,43 @@ function VehicleModal({ vehicle, drivers, headers, onClose, onSaved }) {
             <textarea value={f.notes} onChange={(e) => set('notes', e.target.value)} rows={2} data-testid="vm-notes" placeholder="Anything else worth recording…"
               className="w-full rounded-lg border px-3 py-2 text-sm" style={cellStyle} />
           </label>
+        </Section>
+
+        <Section title="Fines">
+          {isNew ? (
+            <div className="sm:col-span-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>Save the vehicle first, then reopen it to log fines.</div>
+          ) : (
+            <>
+              <div className="sm:col-span-2 space-y-2" data-testid="vm-fines-list">
+                {fines.length === 0 && <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No fines logged.</div>}
+                {fines.map((fi) => (
+                  <div key={fi.id} className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs" style={{ borderColor: 'var(--theme-border)' }} data-testid={`vm-fine-${fi.id}`}>
+                    <span style={{ color: 'var(--theme-text)' }}><span className="font-semibold">{fi.kind || 'Fine'}</span>{fi.date ? ` · ${fmtD(fi.date)}` : ''}{fi.value ? ` · £${fi.value}` : ''}</span>
+                    <span className="flex items-center gap-2 shrink-0">
+                      {fi.file_id && <a href={`${API}/vehicle-checks/photo/${fi.file_id}?auth=${token()}`} target="_blank" rel="noreferrer" className="underline" style={{ color: 'var(--color-brand-cyan)' }}>View</a>}
+                      <button type="button" onClick={() => toggleFine(fi.id, !fi.paid)} data-testid={`vm-fine-toggle-${fi.id}`} className={`px-2 py-0.5 rounded-full font-semibold ${fi.paid ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{fi.paid ? 'Paid' : 'Unpaid'}</button>
+                      <button type="button" onClick={() => delFine(fi.id)} className="text-slate-400 hover:text-rose-500"><Trash2 size={13} /></button>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <TInput label="Fine type" value={nf.kind} onChange={(e) => setNf((p) => ({ ...p, kind: e.target.value }))} placeholder="e.g. Speeding, Parking, Bus lane" testid="vm-fine-kind" />
+              <TInput label="Date" type="date" value={nf.date} onChange={(e) => setNf((p) => ({ ...p, date: e.target.value }))} testid="vm-fine-date" />
+              <TInput label="Value (£)" value={nf.value} onChange={(e) => setNf((p) => ({ ...p, value: e.target.value }))} placeholder="e.g. 60" testid="vm-fine-value" />
+              <div className="flex items-end gap-3">
+                <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--theme-text)' }}>
+                  <input type="checkbox" checked={nf.paid} onChange={(e) => setNf((p) => ({ ...p, paid: e.target.checked }))} data-testid="vm-fine-paid" className="h-4 w-4" /> Paid
+                </label>
+                <label className="inline-flex items-center gap-1 text-xs font-semibold rounded-lg px-3 py-2 border cursor-pointer" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="vm-fine-upload-label">
+                  {fineBusy ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} className="rotate-180" />} {nf.file_id ? 'Scan attached' : 'Scan fine'}
+                  <input type="file" accept="image/*,application/pdf" className="hidden" data-testid="vm-fine-file" onChange={(e) => uploadFine(e.target.files[0])} />
+                </label>
+              </div>
+              <div className="sm:col-span-2 flex justify-end">
+                <button type="button" onClick={addFine} disabled={fineBusy} data-testid="vm-fine-add" className="inline-flex items-center gap-1 text-xs font-bold rounded-full px-3 py-1.5" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}><Plus size={13} /> Add fine</button>
+              </div>
+            </>
+          )}
         </Section>
       </div>
 

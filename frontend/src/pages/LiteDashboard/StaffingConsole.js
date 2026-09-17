@@ -295,14 +295,14 @@ export default function StaffingConsole({ hideBell = false } = {}) {
       {/* Secondary sub-tab bar (only when the active group has children) */}
       {subTabs.length > 0 && (
         <div
-          className="flex items-center gap-1.5 flex-wrap -mt-2"
+          className="flex items-center gap-1.5 flex-nowrap overflow-x-auto scrollbar-hide -mt-2 -mx-1 px-1"
           data-testid="staffing-subtabs"
         >
           {subTabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap border"
+              className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap border"
               style={tab === id
                 ? { background: 'rgba(25,205,255,0.12)', color: 'var(--color-brand-cyan)', borderColor: 'var(--color-brand-cyan)' }
                 : { color: 'var(--theme-text-muted)', background: 'transparent', borderColor: 'var(--theme-border)' }}

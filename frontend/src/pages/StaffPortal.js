@@ -1158,6 +1158,7 @@ function MyDetailsTab({ me, H }) {
 
   const person = full.person || {};
   const emp = full.employment || {};
+  const comp = full.compliance || {};
   const nd = (full.forms && full.forms.new_starter && full.forms.new_starter.data) || {};
   const photoUrl = photo || person.photo_url || '';
   const onPhoto = async (e) => {
@@ -1309,6 +1310,13 @@ function MyDetailsTab({ me, H }) {
             <DetailRow label="Line manager" value={emp.line_manager} testId="detail-line-manager" />
           </DetailSection>
 
+          {(comp.dbs_number || comp.dbs_expiry_date) && (
+            <DetailSection title="Compliance">
+              <DetailRow label="Enhanced DBS number" value={comp.dbs_number} testId="detail-dbs-number" />
+              <DetailRow label="DBS expiry" value={comp.dbs_expiry_date ? fmtDate(comp.dbs_expiry_date) : ''} testId="detail-dbs-expiry" />
+            </DetailSection>
+          )}
+
           {reqs.length > 0 && (
             <div className="mt-2">
               <div className="text-xs font-bold uppercase tracking-wider text-cyan-600 mb-2">Recent change requests</div>
@@ -1360,38 +1368,75 @@ function VehicleTab({ H, jwt }) {
   return (
     <div className="space-y-3" data-testid="staff-vehicle-tab">
       <p className="text-sm text-slate-500">Complete your weekly vehicle check. Week commencing <strong>{fmtDate(data.week_commencing)}</strong>.</p>
-      {data.vehicles.map((v) => {
-        const [label, cls] = VSTATUS[v.this_week?.status] || VSTATUS.due;
-        return (
-          <button key={v.id} onClick={() => setOpenId(v.id)} data-testid={`vehicle-card-${v.id}`}
-            className="w-full text-left rounded-2xl border shadow-sm p-5 hover:border-cyan-300 transition-colors"
-            style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="rounded-xl bg-slate-900 text-white p-2.5"><Truck size={18} /></span>
-                <div className="min-w-0">
-                  <div className="font-bold uppercase tracking-wide" style={{ color: 'var(--theme-text)' }}>{v.reg_no}</div>
-                  <div className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>{v.make_model || vType(v)} · {vType(v)}</div>
+      {data.vehicles.map((v) => (
+        <VehiclePortalCard key={v.id} v={v} jwt={jwt} onCheck={() => setOpenId(v.id)} />
+      ))}
+    </div>
+  );
+}
+
+function VehiclePortalCard({ v, jwt, onCheck }) {
+  const [open, setOpen] = useState(false);
+  const [label, cls] = VSTATUS[v.this_week?.status] || VSTATUS.due;
+  const sr = v.service_record || {};
+  const fines = v.fines || [];
+  const info = [['Lease company', v.lease_company], ['Lease end', v.lease_end_date ? fmtDate(v.lease_end_date) : ''], ['MOT due', sr.mot_due ? fmtDate(sr.mot_due) : ''], ['Next service', sr.next_service ? fmtDate(sr.next_service) : ''], ['Insurance', sr.insurance_expiry ? fmtDate(sr.insurance_expiry) : ''], ['Tax', sr.tax_status], ['Fuel card', v.fuel_card_number], ['DART', v.dart], ['Congestion', v.congestion], ['M6 Toll', v.m6_toll]].filter(([, x]) => x);
+  return (
+    <div className="rounded-2xl border shadow-sm p-5" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }} data-testid={`vehicle-card-${v.id}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="rounded-xl bg-slate-900 text-white p-2.5"><Truck size={18} /></span>
+          <div className="min-w-0">
+            <div className="font-bold uppercase tracking-wide" style={{ color: 'var(--theme-text)' }}>{v.reg_no}</div>
+            <div className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>{v.make_model || vType(v)} · {vType(v)}</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {v.this_week?.has_defects && <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600"><ShieldAlert size={13} /> Defect</span>}
+          <span className={`text-[11px] font-semibold px-2 py-1 rounded-full border ${cls}`} data-testid={`vehicle-status-${v.id}`}>{label}</span>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button onClick={() => setOpen((o) => !o)} data-testid={`vehicle-details-btn-${v.id}`}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}>
+          {open ? 'Hide details' : 'Vehicle details'}
+        </button>
+        <button onClick={onCheck} data-testid={`vehicle-check-btn-${v.id}`}
+          className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg" style={{ background: CORE, color: '#00121a' }}>
+          Complete check
+        </button>
+      </div>
+      {open && (
+        <div className="mt-4 pt-4 border-t space-y-4" style={{ borderColor: 'var(--theme-border)' }} data-testid={`vehicle-info-${v.id}`}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {info.length === 0 ? <div className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>No vehicle details recorded yet.</div>
+              : info.map(([lab, val]) => (
+                <div key={lab}>
+                  <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>{lab}</div>
+                  <div className="text-xs font-medium" style={{ color: 'var(--theme-text)' }}>{val}</div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {v.this_week?.has_defects && <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600"><ShieldAlert size={13} /> Defect</span>}
-                <span className={`text-[11px] font-semibold px-2 py-1 rounded-full border ${cls}`} data-testid={`vehicle-status-${v.id}`}>{label}</span>
-              </div>
-            </div>
-            {(v.lease_company || v.lease_end_date || v.fuel_card_number || v.service_record?.mot_due || v.dart || v.congestion || v.m6_toll) && (
-              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`vehicle-info-${v.id}`}>
-                {[['Lease company', v.lease_company], ['Lease end', v.lease_end_date ? fmtDate(v.lease_end_date) : ''], ['MOT due', v.service_record?.mot_due ? fmtDate(v.service_record.mot_due) : ''], ['Fuel card', v.fuel_card_number], ['DART', v.dart], ['Congestion', v.congestion], ['M6 Toll', v.m6_toll]].filter(([, val]) => val).map(([lab, val]) => (
-                  <div key={lab}>
-                    <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--theme-text-muted)' }}>{lab}</div>
-                    <div className="text-xs font-medium" style={{ color: 'var(--theme-text)' }}>{val}</div>
+              ))}
+          </div>
+          {fines.length > 0 && (
+            <div data-testid={`vehicle-fines-${v.id}`}>
+              <div className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--theme-text-muted)' }}>Fines</div>
+              <div className="space-y-2">
+                {fines.map((f) => (
+                  <div key={f.id} className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs" style={{ borderColor: 'var(--theme-border)' }}>
+                    <span style={{ color: 'var(--theme-text)' }}>
+                      <span className="font-semibold">{f.kind || 'Fine'}</span>{f.date ? ` · ${fmtDate(f.date)}` : ''}{f.value ? ` · £${f.value}` : ''}
+                    </span>
+                    <span className="flex items-center gap-2 shrink-0">
+                      {f.file_id && <a href={`${API}/vehicle-checks/photo/${f.file_id}?auth=${jwt}`} target="_blank" rel="noreferrer" className="underline" style={{ color: CORE }}>View</a>}
+                      <span className={`px-2 py-0.5 rounded-full font-semibold ${f.paid ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{f.paid ? 'Paid' : 'Unpaid'}</span>
+                    </span>
                   </div>
                 ))}
               </div>
-            )}
-          </button>
-        );
-      })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -59,7 +59,8 @@ export default function StaffNotificationBell({ endpoint, readEndpoint, headers,
   return (
     <div className="relative" ref={ref}>
       <button onClick={toggle} data-testid="staff-notif-bell"
-        className="relative inline-flex items-center justify-center h-9 w-9 rounded-lg border border-slate-300 text-slate-600 hover:border-slate-400 bg-white">
+        className="relative inline-flex items-center justify-center h-9 w-9 rounded-lg border transition-colors hover:opacity-80"
+        style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)', background: 'transparent' }}>
         <Bell size={16} />
         {data.unread > 0 && (
           <span data-testid="staff-notif-badge"
@@ -71,7 +72,7 @@ export default function StaffNotificationBell({ endpoint, readEndpoint, headers,
 
       {open && (
         <div data-testid="staff-notif-panel"
-          className="fixed left-4 right-4 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-80 max-h-[70vh] overflow-y-auto rounded-2xl bg-white border border-slate-200 shadow-2xl z-[200]">
+          className="fixed left-4 right-4 top-24 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-80 max-h-[70vh] overflow-y-auto rounded-2xl bg-white border border-slate-200 shadow-2xl z-[200]">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <span className="text-sm font-bold text-slate-900">Notifications</span>
             <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
