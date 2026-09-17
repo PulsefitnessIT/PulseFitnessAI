@@ -567,7 +567,7 @@ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
  </div>
  
  <div className="md:hidden flex items-center gap-2">
- {user && ['owner', 'manager', 'master_admin', 'pulse_master_admin'].includes(user.role) && (isOnDashboard || isOnPulse) && (
+ {user && ['owner', 'manager', 'master_admin', 'pulse_master_admin'].includes(user.role) && (isOnDashboard || isOnPulse || location.pathname === '/') && (
  <StaffNotificationBell
  endpoint={`${API}/staffing/notifications`}
  readEndpoint={`${API}/staffing/notifications/read`}

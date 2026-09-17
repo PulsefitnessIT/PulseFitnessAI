@@ -1,0 +1,34 @@
+{
+  "summary": "Verified Jan-2026 Pulse Fitness iteration: (1) /api/auth/reset-password 5 branches (fresh/reused/bogus/expired/email-fallback) all pass; (2) DBS profile fields (dbs_number, dbs_expiry_date) persist via PATCH and return via GET on /api/staffing/hr/profile/{id}; (3) Fleet endpoint returns 45 vehicles for Pulse Fitness Ltd with every new field (fleet_department, lease_company, lease_end_date, fuel_card_number, dart, congestion, m6_toll, driver_label, service_record.mot_due); create+patch persist new fields; (4) Frontend: operations-bell present on Operations sub-nav bar at desktop, visible on Staffing/Equipment/Faults tabs, NOT duplicated inside StaffingConsole; (5) Fleet Manager UI: 5 department groups + 45 vehicle cards render on Fleet register, clicking a card opens vehicle-modal with all sections (Vehicle details / Assigned driver / Lease & finance with date input / Fuel card & tolls / Legal & service), vm-save + vehicles-add-btn present; (6) Staff Portal: 'Active employee' badge removed; (7) Dark mode: Attendance and Payroll tabs contain 0 white-background cards after toggling dark mode at mobile 390x844.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Navbar (mobile)",
+        "issue": "The mobile top-header notification bell (data-testid=staff-notif-bell) never renders for the Pulse Fitness Ltd owner because the render guard in /app/frontend/src/components/shared/Navbar.js (line 570) checks `isOnDashboard || isOnPulse`, where isOnDashboard = pathname.startsWith('/dashboard') and isOnPulse = pathname.startsWith('/pulse'). LiteDashboardPage for pulse_pro renders at route '/' (per the agent-to-agent note), so neither condition is true and the mobile bell is 0x0 hidden. Confirmed at 390x844 viewport: staff-notif-bell exists in DOM but has width/height 0, and the mobile header only shows theme toggle + hamburger.",
+        "selector": "[data-testid='staff-notif-bell']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pulse_reset_fleet_dbs_jan2026.py",
+    "/app/test_reports/pytest/pulse_reset_fleet_dbs.xml"
+  ],
+  "action_items": [
+    "Extend the mobile-bell render guard in Navbar.js (~line 570) so it also matches the pulse_pro LiteDashboardPage at route '/'. Options: add `location.pathname === '/'` when user has pulse_pro/lite pro access, or gate on user role only (owner/manager) irrespective of path, or add a new `isOnLiteDashboard` computed flag."
+  ],
+  "critical_code_review_comments": [
+    "Navbar.js mobile-bell condition (isOnDashboard || isOnPulse) is too narrow — LiteDashboardPage is served at '/' for pulse_pro operators so the bell never renders on mobile for them. Same condition also gates the desktop tour and admin actions (lines 524, 534) — verify those paths for pulse_pro too.",
+    "The review request references data-testid `staffing-subtab-vehicles` but the actual code uses `staffing-tab-vehicles`. Recommend E1 update either the docs or the testid for consistency."
+  ],
+  "updated_files": ["/app/backend/tests/test_pulse_reset_fleet_dbs_jan2026.py"],
+  "success_rate": {"backend": "100% (8/8 tests)", "frontend": "~90% (mobile bell placement missing for pulse_pro '/')"} ,
+  "test_credentials": "portal@pulsefitness.ltd / PulseFleet123! (Pulse Fitness Ltd owner)",
+  "seed_data_creation": "Backend tests create disposable users + password_reset_tokens in Mongo directly (test_reset_*@pulse-test.local) and clean them up in fixtures teardown. Vehicle tests create a TEST reg then remove via mongo.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All backend branches for /api/auth/reset-password verified via test_pulse_reset_fleet_dbs_jan2026.py — reuse this file for regression. Owner login redirects to /launch; must click Operations OR navigate directly to '/' to reach LiteDashboardPage. Staffing subtab id is `staffing-tab-vehicles` (NOT `staffing-subtab-vehicles`). Fleet register renders 5 dept groups + 45 vehicle-reg cards. Mobile Navbar bell requires main agent to relax `isOnDashboard || isOnPulse` guard for LiteDashboardPage at '/'."
+}
