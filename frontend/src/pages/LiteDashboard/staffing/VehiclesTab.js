@@ -462,11 +462,6 @@ function VehicleModal({ vehicle, drivers, headers, onClose, onSaved }) {
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const sr = f.service_record || {};
   const setSr = (k, v) => setF((p) => ({ ...p, service_record: { ...p.service_record, [k]: v } }));
-  const toggleDriver = (id) => setF((p) => {
-    const has = p.driver_staff_ids.includes(id);
-    const ids = has ? p.driver_staff_ids.filter((x) => x !== id) : [...p.driver_staff_ids, id];
-    return { ...p, driver_staff_ids: ids, primary_driver_staff_id: ids.includes(p.primary_driver_staff_id) ? p.primary_driver_staff_id : ids[0] || null };
-  });
   const save = async () => {
     if (!f.reg_no.trim()) { setErr('Registration is required.'); return; }
     setBusy(true); setErr('');
@@ -522,24 +517,21 @@ function VehicleModal({ vehicle, drivers, headers, onClose, onSaved }) {
         </Section>
 
         <Section title="Assigned driver">
-          <div className="sm:col-span-2">
-            <div className="max-h-40 overflow-y-auto rounded-lg border divide-y" style={{ borderColor: 'var(--theme-border)' }} data-testid="vm-drivers">
-              {drivers.length === 0 && <div className="px-3 py-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>No staff to assign yet — use the driver label below.</div>}
-              {drivers.map((s) => {
-                const on = f.driver_staff_ids.includes(s.id);
-                return (
-                  <div key={s.id} className="flex items-center justify-between px-3 py-2">
-                    <label className="flex items-center gap-2 cursor-pointer" style={{ color: 'var(--theme-text)' }}>
-                      <input type="checkbox" checked={on} onChange={() => toggleDriver(s.id)} data-testid={`vm-driver-${s.id}`} className="h-4 w-4" />
-                      <span>{s.full_name}</span>{s.department && <span className="text-[11px]" style={{ color: 'var(--theme-text-muted)' }}>· {s.department}</span>}
-                    </label>
-                    {on && <button onClick={() => set('primary_driver_staff_id', s.id)} className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={f.primary_driver_staff_id === s.id ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' } : { border: '1px solid var(--theme-border)', color: 'var(--theme-text-muted)' }}>{f.primary_driver_staff_id === s.id ? 'Primary ✓' : 'Set primary'}</button>}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <TInput label="Driver label (pool / leased / unlinked)" value={f.driver_label} onChange={(e) => set('driver_label', e.target.value)} placeholder="e.g. Pool Car, Leased, Install" span testid="vm-driver-label" />
+          <label className="block">
+            <span className="text-[11px] font-semibold" style={{ color: 'var(--theme-text-muted)' }}>Driver</span>
+            <select
+              value={f.primary_driver_staff_id || ''}
+              onChange={(e) => {
+                const id = e.target.value;
+                setF((p) => ({ ...p, primary_driver_staff_id: id || null, driver_staff_ids: id ? [id] : [] }));
+              }}
+              data-testid="vm-driver-select"
+              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={cellStyle}>
+              <option value="">— Unassigned —</option>
+              {drivers.map((s) => <option key={s.id} value={s.id}>{s.full_name}{s.department ? ` · ${s.department}` : ''}</option>)}
+            </select>
+          </label>
+          <TInput label="Driver label (pool / leased / unlinked)" value={f.driver_label} onChange={(e) => set('driver_label', e.target.value)} placeholder="e.g. Pool Car, Leased, Install" testid="vm-driver-label" />
         </Section>
 
         <Section title="Lease & finance">
