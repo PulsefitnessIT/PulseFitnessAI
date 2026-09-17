@@ -29,7 +29,7 @@ import {
   ChevronRight, CheckCircle2, Search, Package, X, Image as ImageIcon,
   Video, MapPin, Send, Download, Phone, Navigation, Edit3,
   Wifi, WifiOff, CloudUpload, Users, MessageSquare, Timer, ShieldCheck, QrCode,
-  Sparkles, FileText,
+  Sparkles, FileText, Camera,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { notify } from '@/components/notifications';
