@@ -4,7 +4,7 @@
  * checks; export for Health & Safety. Reuses staff_members (drivers) and
  * engineer vehicle_reg (import) — no data is duplicated.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { Truck, Plus, ShieldAlert, FileDown, FileArchive, Link2, Loader2, X, Check, Trash2 } from 'lucide-react';
@@ -440,6 +440,58 @@ function Modal({ children, onClose, testId, wide, themed }) {
   );
 }
 
+function DriverPicker({ value, drivers, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const ref = useRef(null);
+  const selected = drivers.find((d) => d.id === value);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  const ql = q.trim().toLowerCase();
+  const filtered = ql
+    ? drivers.filter((d) => (d.full_name || '').toLowerCase().includes(ql) || (d.department || '').toLowerCase().includes(ql) || (d.job_title || '').toLowerCase().includes(ql))
+    : drivers;
+  const pick = (id) => { onChange(id); setOpen(false); setQ(''); };
+  return (
+    <div className="relative mt-1" ref={ref}>
+      <button type="button" onClick={() => setOpen((o) => !o)} data-testid="vm-driver-select"
+        className="w-full flex items-center justify-between rounded-lg border px-3 py-2 text-sm text-left"
+        style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)', color: selected ? 'var(--theme-text)' : 'var(--theme-text-muted)' }}>
+        <span className="truncate">{selected ? `${selected.full_name}${selected.department ? ` · ${selected.department}` : ''}` : '— Unassigned —'}</span>
+        <span className="flex items-center gap-2 shrink-0">
+          {selected && <X size={13} onClick={(e) => { e.stopPropagation(); pick(''); }} className="hover:text-rose-500" />}
+          <span className="text-[10px]" style={{ color: 'var(--theme-text-muted)' }}>▾</span>
+        </span>
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 w-full rounded-lg border shadow-xl"
+          style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
+          <div className="p-2 border-b" style={{ borderColor: 'var(--theme-border)' }}>
+            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search staff by name…" data-testid="vm-driver-search"
+              className="w-full rounded-md border px-2.5 py-1.5 text-sm"
+              style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} />
+          </div>
+          <div className="max-h-44 overflow-y-auto">
+            <button type="button" onClick={() => pick('')} className="w-full text-left px-3 py-2 text-sm hover:opacity-70" style={{ color: 'var(--theme-text-muted)' }}>— Unassigned —</button>
+            {filtered.length === 0 && <div className="px-3 py-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>No staff match &ldquo;{q}&rdquo;.</div>}
+            {filtered.map((d) => (
+              <button key={d.id} type="button" onClick={() => pick(d.id)} data-testid={`vm-driver-option-${d.id}`}
+                className="w-full text-left px-3 py-2 text-sm hover:opacity-70 flex items-center justify-between"
+                style={{ color: 'var(--theme-text)', background: d.id === value ? 'var(--theme-bg)' : 'transparent' }}>
+                <span className="truncate">{d.full_name}</span>
+                {d.department && <span className="text-[11px] shrink-0 ml-2" style={{ color: 'var(--theme-text-muted)' }}>{d.department}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VehicleModal({ vehicle, drivers, headers, onClose, onSaved }) {
   const isNew = !vehicle.id;
   const [f, setF] = useState({
@@ -547,21 +599,20 @@ function VehicleModal({ vehicle, drivers, headers, onClose, onSaved }) {
         </Section>
 
         <Section title="Assigned driver">
-          <label className="block">
+          <div className="sm:col-span-2">
             <span className="text-[11px] font-semibold" style={{ color: 'var(--theme-text-muted)' }}>Driver</span>
-            <select
-              value={f.primary_driver_staff_id || ''}
-              onChange={(e) => {
-                const id = e.target.value;
-                setF((p) => ({ ...p, primary_driver_staff_id: id || null, driver_staff_ids: id ? [id] : [] }));
-              }}
-              data-testid="vm-driver-select"
-              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" style={cellStyle}>
-              <option value="">— Unassigned —</option>
-              {drivers.map((s) => <option key={s.id} value={s.id}>{s.full_name}{s.department ? ` · ${s.department}` : ''}</option>)}
-            </select>
-          </label>
-          <TInput label="Driver label (pool / leased / unlinked)" value={f.driver_label} onChange={(e) => set('driver_label', e.target.value)} placeholder="e.g. Pool Car, Leased, Install" testid="vm-driver-label" />
+            <DriverPicker
+              value={f.primary_driver_staff_id}
+              drivers={drivers}
+              onChange={(id) => setF((p) => ({ ...p, primary_driver_staff_id: id || null, driver_staff_ids: id ? [id] : [] }))}
+            />
+            {!f.primary_driver_staff_id && f.driver_label && (
+              <p className="mt-1.5 text-[11px]" style={{ color: 'var(--theme-text-muted)' }} data-testid="vm-driver-hint">
+                Imported driver: <span className="font-semibold" style={{ color: 'var(--theme-text)' }}>{f.driver_label}</span> — search above to link them to a staff member.
+              </p>
+            )}
+          </div>
+          <TInput label="Driver label (pool / leased / unlinked)" value={f.driver_label} onChange={(e) => set('driver_label', e.target.value)} placeholder="e.g. Pool Car, Leased, Install" span testid="vm-driver-label" />
         </Section>
 
         <Section title="Lease & finance">
