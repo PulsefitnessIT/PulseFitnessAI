@@ -257,3 +257,9 @@ Extends the existing CRM CPQ (Quotes) Equipment Sales workflow — no new module
 - **Notification bell** restyled transparent/theme-aware (no more white box on the dark header); mobile dropdown lowered (top-24) so the title clears the header.
 - **Mobile**: Staffing secondary sub-tab bar now horizontally scrollable (no more bunched rows).
 - Testing agent: frontend 100% (bell, mobile panel, sub-tab scroll, CSV export, fines CRUD).
+
+## 2026-06 (c) — Link fleet drivers (easy manual linking)
+- Vehicle modal 'Assigned driver' is now a SEARCHABLE picker (type to filter staff by name/department/title) — easy with a large team.
+- When a vehicle carries an imported driver-name label but no linked staff, a hint shows "Imported driver: <name> — search above to link them", so matching the 40 imported vehicles is one click.
+- Links persist via existing PATCH (driver_staff_ids) and resolve to driver_names; the register card + staff portal then show the real driver. Curl-verified (BT75NDG↔Craig Henshall) + testing agent frontend 100%.
+- Driver list comes from /vehicles/driver-options (all active staff), so the full team appears in production.

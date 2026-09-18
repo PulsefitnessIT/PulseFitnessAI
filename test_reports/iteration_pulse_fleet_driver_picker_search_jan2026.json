@@ -1,0 +1,27 @@
+{
+  "summary": "Narrow retest of the searchable driver picker on the Pulse Fitness Fleet register vehicle modal. All 6 scenarios in the review request pass: (1) login + nav to Operations→Staffing→Vehicles→Fleet register works; (2) opening BT75NDG modal shows a DriverPicker (vm-driver-select) that opens a search input (vm-driver-search) with filterable options (vm-driver-option-<id>); typing 'Hen' correctly filters to Craig Henshall (typing 'Cra' also matches); (3) selecting Craig Henshall updates the picker button label, Save (vm-save) persists, and the register card now reads 'Craig Henshall' instead of the imported 'Lee Somers'; reopening the modal shows the picker preselected with Craig Henshall (link persists via driver_staff_ids -> driver_names); (4) 'Imported driver: Lee Somers — search above to link them to a staff member.' hint (vm-driver-hint) is visible when no staff is linked but driver_label exists; hint disappears once linked; (5) clearing back to Unassigned via the '— Unassigned —' option + Save works (register card falls back to the imported driver_label Lee Somers); (6) rest of the modal (Vehicle details, Assigned driver, Lease & finance, Fuel card & tolls, Legal & service) renders and Save works. Vehicle BT75NDG was left linked to Craig Henshall at end of test (per the request).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Vehicle modal DriverPicker", "issues": ["Minor: the picker button shows a stray '▾' character appended to the selected name in accessible text (e.g. 'Craig Henshall▾'); cosmetic only, not a functional bug."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "DriverPicker is correctly implemented with debounced-free client-side filter over drivers[] using full_name/department/job_title (case-insensitive).",
+    "Clear (X) uses stopPropagation and calls pick('') → correctly resets primary_driver_staff_id to null and driver_staff_ids to []. Save PATCHes and register card falls back to driver_label when no staff linked. Good.",
+    "vm-driver-hint is only shown when !primary_driver_staff_id && f.driver_label — correct behaviour.",
+    "Frontend dev-server previously OOM'd (webpack heap OOM); required `supervisorctl restart frontend`. Consider raising NODE_OPTIONS=--max-old-space-size for the frontend supervisor entry to reduce flakiness in preview env."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a", "frontend": "100%" },
+  "test_credentials": "portal@pulsefitness.ltd / PulseFleet123! (works)",
+  "seed_data_creation": "None. Left BT75NDG linked to Craig Henshall as instructed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pulse Fitness owner login lands on the Pulse Pro dashboard (header shows 'Pulse Fitness Pro'), not LiteDashboardPage — but the tab data-testids referenced in the task (lite-tab-staffing, staffing-tab-vehicles, vehicles-view-register) all exist and work on this page. Sign-in modal on the marketing landing is triggered via [data-testid=pulse-header-login-btn]; the email input has placeholder 'you@gym.com or kiosk username' (no type=email). The dialog Sign In button matches multiple 'Sign In' text on the page — use div[role=dialog] button:has-text('Sign In'). Pulse Fitness org shows 6 pickable staff: Craig Henshall, Pulse Fitness, Regress User x2, Test User x2.",
+  "rca of the issue": "N/A - feature works as intended."
+}
