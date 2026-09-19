@@ -393,6 +393,92 @@ async def export_vehicles_csv(user: dict = Depends(get_current_user)):
                  headers={"Content-Disposition": 'attachment; filename="Fleet Register.csv"'})
 
 
+def _build_fleet_pdf(groups: dict, names: dict, org_company: dict | None) -> bytes:
+    """Pulse-branded, board/insurance-ready PDF of the full fleet register,
+    grouped by department (mirrors the on-screen register)."""
+    import io as _io
+    from reportlab.lib import colors
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import ParagraphStyle
+    from utils.pulse_doc_template import (
+        pulse_styles, pulse_header, pulse_title, section_label,
+        make_pulse_doc, PULSE_NAVY, PULSE_BORDER, PULSE_LIGHT,
+    )
+    from datetime import datetime as _dt, timezone as _tz
+
+    dept_order = ["Management", "Head Office", "Installations", "Service Engineers", "Design & Build", "Install"]
+    s = pulse_styles()
+    buf = _io.BytesIO()
+    total = sum(len(v) for v in groups.values())
+    doc = make_pulse_doc(buf, "Fleet Register", company=org_company)
+    cell = ParagraphStyle("cell", fontName="Helvetica", fontSize=7, leading=8.5, textColor=colors.HexColor("#1F2733"))
+    cellb = ParagraphStyle("cellb", parent=cell, fontName="Helvetica-Bold")
+    head = ParagraphStyle("thead", fontName="Helvetica-Bold", fontSize=6.8, leading=8, textColor=colors.white)
+    story = [pulse_header(s, org_company)]
+    story += pulse_title(s, "Fleet Register",
+                         f"{total} vehicle{'' if total == 1 else 's'} · Generated {_dt.now(_tz.utc).strftime('%d %b %Y')}")
+    story.append(Spacer(1, 5 * mm))
+    cols = ["Reg", "Make / model", "Driver", "Lease co.", "Lease end", "MOT due", "Fuel card", "Fines"]
+    widths = [w * mm for w in (20, 34, 26, 26, 18, 18, 20, 12)]
+    order = sorted(groups.keys(), key=lambda d: (dept_order.index(d) if d in dept_order else 99, d))
+    for dep in order:
+        rows = groups[dep]
+        story.append(section_label(s, f"{dep}  ·  {len(rows)}"))
+        story.append(Spacer(1, 1.5 * mm))
+        data = [[Paragraph(c, head) for c in cols]]
+        for v in sorted(rows, key=lambda x: x.get("reg_no", "")):
+            sr = v.get("service_record") or {}
+            drv = ", ".join([names.get(i) for i in (v.get("driver_staff_ids") or []) if names.get(i)]) or v.get("driver_label") or "—"
+            open_f = sum(1 for f in (v.get("fines") or []) if not f.get("paid"))
+            fines_txt = f"{open_f} open" if open_f else ("Paid" if (v.get("fines")) else "—")
+            data.append([
+                Paragraph(v.get("reg_no", ""), cellb),
+                Paragraph(v.get("make_model", "") or "—", cell),
+                Paragraph(drv, cell),
+                Paragraph(v.get("lease_company", "") or "—", cell),
+                Paragraph(v.get("lease_end_date", "") or "—", cell),
+                Paragraph(sr.get("mot_due", "") or "—", cell),
+                Paragraph(v.get("fuel_card_number", "") or "—", cell),
+                Paragraph(fines_txt, cell),
+            ])
+        t = Table(data, colWidths=widths, repeatRows=1)
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), PULSE_NAVY),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, PULSE_LIGHT]),
+            ("GRID", (0, 0), (-1, -1), 0.4, PULSE_BORDER),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 2.5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
+        ]))
+        story.append(t)
+        story.append(Spacer(1, 5 * mm))
+    doc.build(story)
+    return buf.getvalue()
+
+
+@router.get("/vehicles/export.pdf")
+async def export_vehicles_pdf(user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org = _org(user)
+    rows = await db.vehicles.find({"organization_id": org, "active": {"$ne": False}}, {"_id": 0}).to_list(1000)
+    staff = await db.staff_members.find({"organization_id": org}, {"_id": 0, "id": 1, "full_name": 1}).to_list(2000)
+    names = {s["id"]: s.get("full_name") for s in staff}
+    groups: dict = {}
+    for v in rows:
+        groups.setdefault(v.get("fleet_department") or "Unassigned department", []).append(v)
+    try:
+        pdf = _build_fleet_pdf(groups, names, None)
+    except Exception as e:
+        logger.exception("fleet register PDF failed")
+        raise HTTPException(500, f"Could not generate PDF: {e}")
+    from fastapi.responses import Response as _Resp
+    return _Resp(content=pdf, media_type="application/pdf",
+                 headers={"Content-Disposition": 'attachment; filename="Fleet Register.pdf"'})
+
+
 class FineBody(BaseModel):
     kind: str = ""
     date: str = ""

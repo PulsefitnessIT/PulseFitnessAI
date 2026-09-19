@@ -263,3 +263,8 @@ Extends the existing CRM CPQ (Quotes) Equipment Sales workflow — no new module
 - When a vehicle carries an imported driver-name label but no linked staff, a hint shows "Imported driver: <name> — search above to link them", so matching the 40 imported vehicles is one click.
 - Links persist via existing PATCH (driver_staff_ids) and resolve to driver_names; the register card + staff portal then show the real driver. Curl-verified (BT75NDG↔Craig Henshall) + testing agent frontend 100%.
 - Driver list comes from /vehicles/driver-options (all active staff), so the full team appears in production.
+
+## 2026-06 (d) — Fleet PDF pack
+- Added GET /api/vehicles/export.pdf: Pulse-branded, board/insurance-ready PDF of the whole fleet register, grouped by department (Reg, Make/model, Driver, Lease co, Lease end, MOT due, Fuel card, Fines). Uses utils/pulse_doc_template.
+- Fleet register toolbar now has two buttons: "Export CSV" (vehicles-export-csv) and "Print / PDF" (vehicles-export-pdf).
+- Verified: endpoint returns valid application/pdf (45 vehicles, ~3 pages, no overflow/overlap — confirmed via document analysis).

@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
-import { Truck, Plus, ShieldAlert, FileDown, FileArchive, Link2, Loader2, X, Check, Trash2 } from 'lucide-react';
+import { Truck, Plus, ShieldAlert, FileDown, FileText, FileArchive, Link2, Loader2, X, Check, Trash2 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : '');
@@ -58,7 +58,8 @@ export default function VehiclesTab({ headers }) {
         {view === 'register' && (
           <div className="flex gap-2">
             <button onClick={() => setImportOpen(true)} data-testid="vehicles-import-btn" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><Link2 size={13} /> Import Vehicle Details</button>
-            <button onClick={async () => { const r = await axios.get(`${API}/vehicles/export.csv`, { headers, responseType: 'blob' }); const url = URL.createObjectURL(r.data); const a = document.createElement('a'); a.href = url; a.download = 'Fleet Register.csv'; a.click(); URL.revokeObjectURL(url); }} data-testid="vehicles-export-csv" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><FileDown size={13} /> Export / Print (CSV)</button>
+            <button onClick={async () => { const r = await axios.get(`${API}/vehicles/export.csv`, { headers, responseType: 'blob' }); const url = URL.createObjectURL(r.data); const a = document.createElement('a'); a.href = url; a.download = 'Fleet Register.csv'; a.click(); URL.revokeObjectURL(url); }} data-testid="vehicles-export-csv" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><FileDown size={13} /> Export CSV</button>
+            <button onClick={async () => { const r = await axios.get(`${API}/vehicles/export.pdf`, { headers, responseType: 'blob' }); const url = URL.createObjectURL(r.data); const a = document.createElement('a'); a.href = url; a.download = 'Fleet Register.pdf'; a.click(); URL.revokeObjectURL(url); }} data-testid="vehicles-export-pdf" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5 border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><FileText size={13} /> Print / PDF</button>
             <button onClick={() => setEdit({})} data-testid="vehicles-add-btn" className="inline-flex items-center gap-1 text-xs font-semibold rounded-full px-3 py-1.5" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}><Plus size={13} /> Add vehicle</button>
           </div>
         )}
