@@ -253,6 +253,70 @@ def _is_blank_row(row: dict) -> bool:
     return all(not (v and str(v).strip()) for v in row.values())
 
 
+_PLACEHOLDER_SERIALS = {"", "UNKNOWN", "N/A", "NA", "TBC", "TBD", "NONE", "-", "0"}
+
+
+def _is_real_serial(serial: str) -> bool:
+    """True when a serial is a genuine unique identifier (not a blank /
+    placeholder like UNKNOWN). Placeholder serials must NOT be used as a
+    dedupe key or every "UNKNOWN" machine would collapse into one."""
+    return bool(serial) and serial.strip().upper() not in _PLACEHOLDER_SERIALS
+
+
+def _equipment_composite_key(site_id, name, model, manufacturer) -> str:
+    """Fallback dedupe key for placeholder-serial equipment: the tuple of
+    site + name + model + manufacturer (lower-cased). Stable across
+    re-imports so the same machine enriches rather than duplicates."""
+    parts = [
+        (site_id or "").strip().lower(),
+        (name or "").strip().lower(),
+        (model or "").strip().lower(),
+        (manufacturer or "").strip().lower(),
+    ]
+    return "|".join(parts)
+
+
+# Equipment fields safe to back-fill on re-import (fill-if-empty only —
+# never overwrite an operator-entered value with a blank or a fresh guess).
+_EQUIPMENT_ENRICH_FIELDS = (
+    "equipment_type", "manufacturer", "model", "serial_number",
+    "purchase_date", "warranty_expiry", "sla_start", "sla_expiry",
+    "contract_number", "contract_type", "contract_start_date", "contract_end_date",
+    "service_provider", "supplier", "supplier_id", "supplier_email", "purchased_from",
+    "location", "notes", "sicon_equipment_id", "sage_item_id",
+    "length", "width", "height", "purchase_price", "purchase_cost", "replacement_cost",
+    "site_id", "mod_force", "asset_number", "sub_location", "category",
+    "mod_code", "classification", "qr_code", "manufacturing_date", "condition", "quantity",
+)
+
+
+def _build_enrich_update(existing: dict, new_doc: dict, fields) -> dict:
+    """Return a $set dict of only the fields that are EMPTY on the existing
+    doc but have a value in the freshly-parsed row — so a re-import fills
+    gaps without clobbering existing data."""
+    upd: dict = {}
+    for k in fields:
+        cur = existing.get(k)
+        new = new_doc.get(k)
+        cur_empty = cur is None or (isinstance(cur, str) and not cur.strip())
+        new_has = new is not None and not (isinstance(new, str) and not new.strip())
+        if cur_empty and new_has:
+            upd[k] = new
+    return upd
+
+
+def _fill_if_empty(existing: dict, new_vals: dict) -> dict:
+    """Generic fill-if-empty for sites re-import enrichment."""
+    upd: dict = {}
+    for k, new in new_vals.items():
+        cur = existing.get(k)
+        cur_empty = cur is None or (isinstance(cur, str) and not cur.strip())
+        new_has = new is not None and not (isinstance(new, str) and not new.strip())
+        if cur_empty and new_has:
+            upd[k] = new
+    return upd
+
+
 async def _resolve_target_org(user: dict, organization_id: Optional[str]) -> str:
     """If the admin specified `organization_id`, validate it's a Pulse-visible
     customer. Otherwise default to the admin's own organization (only valid
@@ -297,13 +361,22 @@ async def _lookup_org_by_account_number(account_number: str) -> Optional[str]:
     Matches against any of the org doc fields the rest of the platform
     populates (`customer_account_number`, `sage_customer_number`,
     `sicon_customer_number`). Returns ``None`` if no match found.
+
+    Iter — sites fallback. Pulse Fitness stores Sicon's "Invoice Customer
+    Ref" on each SITE (`invoice_customer_ref` / `sicon_customer_ref`) rather
+    than on the org, so a sites-first onboarding leaves the org record with
+    no account number. When the direct org lookup misses we therefore also
+    look the code up against the sites and route to that site's org — this
+    lets "auto-route by account number" work off the exact same value the
+    operator already put on the sites CSV, with no org edit required.
     """
     code = (account_number or "").strip()
     if not code:
         return None
+    visible = list(PULSE_VISIBLE_ACCOUNT_TYPES)
     org = await db.organizations.find_one(
         {
-            "account_type": {"$in": PULSE_VISIBLE_ACCOUNT_TYPES},
+            "account_type": {"$in": visible},
             "$or": [
                 {"customer_account_number": code},
                 {"sage_customer_number": code},
@@ -312,7 +385,28 @@ async def _lookup_org_by_account_number(account_number: str) -> Optional[str]:
         },
         {"_id": 0, "id": 1},
     )
-    return org["id"] if org else None
+    if org:
+        return org["id"]
+    # Fallback — the account number may only live on the sites.
+    site = await db.sites.find_one(
+        {"$or": [{"invoice_customer_ref": code}, {"sicon_customer_ref": code}]},
+        {"_id": 0, "organization_id": 1},
+    )
+    if site and site.get("organization_id"):
+        parent = await db.organizations.find_one(
+            {
+                "id": site["organization_id"],
+                "$or": [
+                    {"account_type": {"$in": visible}},
+                    {"account_type": {"$exists": False}},
+                    {"account_type": None},
+                ],
+            },
+            {"_id": 0, "id": 1},
+        )
+        if parent:
+            return parent["id"]
+    return None
 
 
 async def _resolve_row_target_org(
@@ -340,8 +434,71 @@ async def _resolve_row_target_org(
 
 # Iter 216h50 — equipment-import site resolver. Matches on (in order):
 #   1. Exact-match site name (case-insensitive)
-#   2. invoice_customer_ref / sicon_customer_ref equality
-#   3. Returns (None, "site not found") so the row is reported, not silently inserted
+#   2. Tolerant name — trailing generic suffix ("Fire Station", "Station",
+#      "Leisure Centre" …) stripped from BOTH sides so an equipment CSV
+#      that names sites "Bridgwater Fire Station" links to the site row
+#      "Bridgwater" imported earlier. Only a trailing GENERIC word is
+#      dropped, so distinct sites never collapse into one.
+#   3. invoice_customer_ref / sicon_customer_ref equality
+#   4. Returns (None, "site not found") so the row is reported, not silently inserted
+#
+# Longest-first so "fire station" is stripped before the bare "station".
+_GENERIC_SITE_SUFFIXES = (
+    "fire station", "ambulance station", "police station", "rescue station",
+    "leisure centre", "leisure center", "sports centre", "sports center",
+    "community centre", "community center", "fitness centre", "fitness center",
+    "recreation centre", "recreation center", "health club",
+    "fire & rescue", "fire and rescue",
+    "station", "centre", "center", "gym", "club",
+)
+
+
+def _normalize_site_name(name: str) -> str:
+    """Lower-case, collapse whitespace and strip ONE trailing generic
+    suffix so tolerant matching can pair "Bridgwater Fire Station" with
+    the site "Bridgwater"."""
+    import re as _re
+    s = _re.sub(r"\s+", " ", (name or "").strip().lower())
+    if not s:
+        return ""
+    for suf in _GENERIC_SITE_SUFFIXES:
+        if s == suf:
+            continue
+        if s.endswith(" " + suf):
+            return s[: -(len(suf) + 1)].strip()
+    return s
+
+
+async def _site_index_for_org(org_id: str, cache: dict) -> dict:
+    """Build (once, cached) an index of the org's sites so equipment rows
+    resolve to a site by exact name, tolerant (suffix-stripped) name, or
+    invoice_customer_ref. Shape: {by_name, by_norm, by_ref}."""
+    if org_id in cache:
+        return cache[org_id]
+    by_name: dict = {}
+    by_norm: dict = {}
+    by_ref: dict = {}
+    cursor = db.sites.find(
+        {"organization_id": org_id},
+        {"_id": 0, "id": 1, "name": 1, "invoice_customer_ref": 1, "sicon_customer_ref": 1},
+    )
+    async for s in cursor:
+        sid = s.get("id")
+        nm = (s.get("name") or "").strip().lower()
+        if nm and nm not in by_name:
+            by_name[nm] = sid
+        norm = _normalize_site_name(s.get("name") or "")
+        if norm and norm not in by_norm:
+            by_norm[norm] = sid
+        for ref_field in ("invoice_customer_ref", "sicon_customer_ref"):
+            ref = (s.get(ref_field) or "").strip()
+            if ref and ref not in by_ref:
+                by_ref[ref] = sid
+    idx = {"by_name": by_name, "by_norm": by_norm, "by_ref": by_ref}
+    cache[org_id] = idx
+    return idx
+
+
 async def _resolve_site_for_org(
     site_name: str,
     invoice_customer_ref: str,
@@ -356,26 +513,14 @@ async def _resolve_site_for_org(
     ref = (invoice_customer_ref or "").strip()
     if not site_name and not ref:
         return None, None  # site is genuinely optional
-    cache_key = (org_id, site_name.lower(), ref.lower())
-    if cache_key in cache:
-        cached = cache[cache_key]
-        return cached, (None if cached else f"Site '{site_name or ref}' not found in target org")
-    query: dict = {"organization_id": org_id}
+    idx = await _site_index_for_org(org_id, cache)
+    site_id = None
     if site_name:
-        import re as _re
-        query["name"] = {"$regex": f"^{_re.escape(site_name)}$", "$options": "i"}
-    elif ref:
-        query["invoice_customer_ref"] = ref
-    site = await db.sites.find_one(query, {"_id": 0, "id": 1})
-    site_id = site["id"] if site else None
-    # If name-search failed and a ref was supplied, fall back to ref.
-    if not site_id and site_name and ref:
-        site = await db.sites.find_one(
-            {"organization_id": org_id, "invoice_customer_ref": ref},
-            {"_id": 0, "id": 1},
-        )
-        site_id = site["id"] if site else None
-    cache[cache_key] = site_id
+        site_id = idx["by_name"].get(site_name.lower())
+        if not site_id:
+            site_id = idx["by_norm"].get(_normalize_site_name(site_name))
+    if not site_id and ref:
+        site_id = idx["by_ref"].get(ref)
     return site_id, (None if site_id else f"Site '{site_name or ref}' not found in target org — import the sites first")
 
 
@@ -491,6 +636,7 @@ async def _do_bulk_import_equipment(
     # query on first hit per org replaces 500k per-row find_one calls
     # (~30 min → ~3 s on Pulse scale).
     serial_set_cache: dict = {}
+    composite_set_cache: dict = {}
     org_breakdown: dict = {}
     now_iso = datetime.now(timezone.utc).isoformat()
 
@@ -524,6 +670,23 @@ async def _do_bulk_import_equipment(
         serial_set_cache[target_org] = s
         return s
 
+    async def _composite_set_for(target_org: str) -> set:
+        """Set of composite keys (site|name|model|manufacturer) for every
+        existing equipment doc in the org — the dedupe key for
+        placeholder-serial machines on re-import."""
+        if target_org in composite_set_cache:
+            return composite_set_cache[target_org]
+        cursor = db.equipment.find(
+            {"organization_id": target_org},
+            {"_id": 0, "name": 1, "model": 1, "manufacturer": 1, "site_id": 1},
+        )
+        s = {
+            _equipment_composite_key(d.get("site_id"), d.get("name"), d.get("model"), d.get("manufacturer"))
+            async for d in cursor
+        }
+        composite_set_cache[target_org] = s
+        return s
+
     for i, row in enumerate(rows_iter, start=2):  # +1 header, +1 1-indexed
         try:
             # Iter 216h56 — Excel/Sheets exports drag along millions of
@@ -543,18 +706,11 @@ async def _do_bulk_import_equipment(
                 errors.append(f"Row {i}: missing required column 'name'")
                 continue
             serial = _normalize(row, "serial_number", "Serial Number", "serial") or str(get_pick(row, "serial_number", "")).strip()
-            is_update = False
-            if serial:
-                existing_serials = await _serial_set_for(target_org)
-                if serial in existing_serials:
-                    if replace_existing:
-                        is_update = True  # overwrite the existing row below
-                    else:
-                        skipped += 1
-                        errors.append(
-                            f"Row {i}: duplicate — equipment with serial '{serial}' already exists in this org"
-                        )
-                        continue
+            # Dedupe decision is deferred until the full doc is built (we
+            # need site_id / model / manufacturer for the placeholder-serial
+            # composite key). `is_real` gates whether the serial alone is a
+            # trustworthy unique key.
+            is_real = _is_real_serial(serial)
             # Iter 216h50 — link to a pre-imported site by name (or by
             # Sicon "Invoice Customer Ref" fallback). Sites import runs
             # first during onboarding so by the time equipment lands the
@@ -716,23 +872,58 @@ async def _do_bulk_import_equipment(
                 "condition": _normalize(row, "condition", "Condition") or str(get_pick(row, "condition", "")).strip() or None,
                 "quantity": _parse_int(_normalize(row, "quantity", "Quantity", "qty", "Qty") or str(get_pick(row, "quantity", "")).strip()),
             }
-            if is_update:
-                # Overwrite the existing row (match on org+serial). Preserve its
-                # original id/created_at, and don't clobber uploaded photos/manuals
-                # or the audit fields with empty defaults from a fresh doc.
-                upd = {k: v for k, v in doc.items()
-                       if k not in ("id", "created_at", "manuals", "photos", "imported_via")}
+            # ── Dedupe + idempotent enrich (Iter — sites-first re-import) ──
+            # Real serial → dedupe by serial. Placeholder serial (UNKNOWN /
+            # blank) → dedupe by the site|name|model|manufacturer composite
+            # so re-importing the same file ENRICHES gaps instead of
+            # inserting duplicates. `replace_existing` keeps its full-
+            # overwrite meaning for the MOD "replace" flow.
+            match_query = None
+            if is_real:
+                existing_serials = await _serial_set_for(target_org)
+                if serial in existing_serials:
+                    match_query = {"organization_id": target_org, "serial_number": serial}
+            else:
+                comp = _equipment_composite_key(site_id, name, doc["model"], doc["manufacturer"])
+                comp_set = await _composite_set_for(target_org)
+                if comp in comp_set:
+                    match_query = {
+                        "organization_id": target_org, "name": name,
+                        "model": doc["model"], "manufacturer": doc["manufacturer"],
+                        "site_id": site_id,
+                    }
+
+            if match_query is not None:
+                existing_doc = await db.equipment.find_one(match_query, {"_id": 0})
+                if existing_doc is None:
+                    # Match was only an as-yet-unflushed row from THIS same
+                    # file (intra-file duplicate) — don't insert it twice.
+                    skipped += 1
+                    dup_of = f"serial '{serial}'" if is_real else "an identical machine"
+                    errors.append(f"Row {i}: duplicate within file — {dup_of} already appears earlier; skipped")
+                    continue
+                if replace_existing:
+                    upd = {k: v for k, v in doc.items()
+                           if k not in ("id", "created_at", "manuals", "photos", "imported_via")}
+                else:
+                    upd = _build_enrich_update(existing_doc, doc, _EQUIPMENT_ENRICH_FIELDS)
                 upd["updated_at"] = now_iso
                 await db.equipment.update_one(
-                    {"organization_id": target_org, "serial_number": serial},
+                    {"organization_id": target_org, "id": existing_doc["id"]},
                     {"$set": upd},
                 )
                 updated += 1
                 org_breakdown[target_org] = org_breakdown.get(target_org, 0) + 1
                 continue
+
             pending.append(doc)
-            # Add serial to cache so a duplicate WITHIN the same CSV is also caught.
-            if serial:
+            # Track this row's dedupe key so an intra-file duplicate is
+            # caught. Real serials are unique, so a repeat within the file
+            # is a data error → enrich. Placeholder-serial composites are
+            # intentionally NOT added: two identical UNKNOWN-serial machines
+            # listed in the same file are distinct assets and must both
+            # insert; only PRE-EXISTING (already-in-DB) composites enrich.
+            if is_real:
                 serial_set_cache[target_org].add(serial)
             imported += 1
             org_breakdown[target_org] = org_breakdown.get(target_org, 0) + 1
@@ -1091,21 +1282,32 @@ async def bulk_import_sites(
         text = blob.decode("latin-1")
     reader = csv.DictReader(io.StringIO(text))
 
-    imported, skipped, errors = 0, 0, []
+    imported, updated, skipped, errors = 0, 0, 0, []
     head_office_set = await db.sites.count_documents(
         {"organization_id": organization_id, "is_head_office": True},
     ) > 0
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    # Iter 216h55 — pre-load existing site names for the target org
-    # (one query instead of one per row) + batch inserts.
-    name_cursor = db.sites.find(
-        {"organization_id": organization_id},
-        {"_id": 0, "name": 1},
+    # Pre-load existing sites (id + enrichable fields) so a re-import of the
+    # same estate ENRICHES gaps in place instead of skipping or duplicating.
+    _site_enrich_fields = (
+        "address", "address_line1", "address_line2", "address_line3",
+        "city", "county", "postcode", "country", "phone", "email",
+        "site_manager_name", "site_manager_email", "invoice_customer_ref",
+        "default_location",
     )
-    existing_names = {
-        (doc.get("name") or "").lower().strip() async for doc in name_cursor if doc.get("name")
-    }
+    existing_by_name: dict = {}
+    _pre_cursor = db.sites.find(
+        {"organization_id": organization_id},
+        {"_id": 0, "id": 1, "name": 1, "created_at": 1, **{f: 1 for f in _site_enrich_fields}},
+    )
+    async for d in _pre_cursor:
+        key = (d.get("name") or "").lower().strip()
+        if key and key not in existing_by_name:
+            existing_by_name[key] = d
+
+    first_site_id: Optional[str] = None      # first site touched this run (HQ fallback)
+    account_ref: str = ""                    # first invoice_customer_ref seen (org stamp)
 
     BATCH_SIZE = 500
     pending: list = []
@@ -1134,22 +1336,15 @@ async def bulk_import_sites(
                 skipped += 1
                 errors.append(f"Row {i}: missing site_name")
                 continue
-            if name.lower().strip() in existing_names:
-                skipped += 1
-                errors.append(f"Row {i}: duplicate — a site named '{name}' already exists in this org")
-                continue
 
-            is_hq_raw = _normalize(row, "is_head_office", "Is Head Office", "head_office")
-            is_hq = is_hq_raw.lower() in {"yes", "true", "1", "y", "head office", "hq"}
-            if is_hq and not head_office_set:
-                head_office_set = True
-            elif is_hq:
-                is_hq = False  # Already an HQ on this org — downgrade.
+            ref = _normalize(
+                row, "invoice_customer_ref", "Invoice Customer Ref",
+                "sicon_customer_ref", "customer_ref",
+            )
+            if ref and not account_ref:
+                account_ref = ref
 
-            doc = {
-                "id": str(uuid.uuid4()),
-                "organization_id": organization_id,
-                "name": name,
+            new_vals = {
                 "address": _normalize(row, "address_line1", "address", "Address"),
                 "address_line1": _normalize(row, "address_line1", "address"),
                 "address_line2": _normalize(row, "address_line2"),
@@ -1162,16 +1357,47 @@ async def bulk_import_sites(
                 "email": _normalize(row, "email", "Email"),
                 "site_manager_name": _normalize(row, "site_manager_name", "Site Manager"),
                 "site_manager_email": _normalize(row, "site_manager_email"),
-                "invoice_customer_ref": _normalize(
-                    row, "invoice_customer_ref", "Invoice Customer Ref",
-                    "sicon_customer_ref", "customer_ref",
-                ),
-                "is_head_office": is_hq,
+                "invoice_customer_ref": ref,
                 "default_location": _normalize(row, "default_location") or "Main Floor",
+            }
+
+            key = name.lower().strip()
+            existing = existing_by_name.get(key)
+            if existing:
+                # Re-import — fill only the empty fields, never overwrite.
+                upd = _fill_if_empty(existing, new_vals)
+                if upd:
+                    upd["updated_at"] = now_iso
+                    await db.sites.update_one(
+                        {"organization_id": organization_id, "id": existing["id"]},
+                        {"$set": upd},
+                    )
+                    existing.update(upd)
+                updated += 1
+                if first_site_id is None:
+                    first_site_id = existing["id"]
+                continue
+
+            is_hq_raw = _normalize(row, "is_head_office", "Is Head Office", "head_office")
+            is_hq = is_hq_raw.lower() in {"yes", "true", "1", "y", "head office", "hq"}
+            if is_hq and not head_office_set:
+                head_office_set = True
+            elif is_hq:
+                is_hq = False  # Already an HQ on this org — downgrade.
+
+            site_id = str(uuid.uuid4())
+            doc = {
+                "id": site_id,
+                "organization_id": organization_id,
+                "name": name,
+                **new_vals,
+                "is_head_office": is_hq,
                 "created_at": now_iso,
             }
             pending.append(doc)
-            existing_names.add(name.lower().strip())
+            existing_by_name[key] = {"id": site_id, "name": name, **new_vals}
+            if first_site_id is None:
+                first_site_id = site_id
             imported += 1
             if len(pending) >= BATCH_SIZE:
                 await _flush_pending()
@@ -1180,10 +1406,63 @@ async def bulk_import_sites(
 
     await _flush_pending()
 
+    # ── Post-import: stamp the org as a multi-site Head Office customer ──
+    # so it surfaces under the "Head Offices" filter / badge, and link the
+    # Sicon account number (which the CSV puts on the sites) onto the org
+    # so equipment auto-route by account number resolves it.
+    total_sites = await db.sites.count_documents({"organization_id": organization_id})
+    org_updates: dict = {
+        "is_head_office": True,
+        "is_multi_site": total_sites > 1,
+        "site_count": total_sites,
+        "updated_at": now_iso,
+    }
+    if account_ref:
+        fresh_org = await db.organizations.find_one(
+            {"id": organization_id},
+            {"_id": 0, "customer_account_number": 1, "sicon_customer_number": 1},
+        ) or {}
+        if not (fresh_org.get("customer_account_number") or "").strip():
+            org_updates["customer_account_number"] = account_ref
+        if not (fresh_org.get("sicon_customer_number") or "").strip():
+            org_updates["sicon_customer_number"] = account_ref
+    await db.organizations.update_one({"id": organization_id}, {"$set": org_updates})
+
+    # Ensure a physical Head-Office SITE exists. Respect a pre-set HQ (either
+    # an existing HQ site or one flagged in this CSV). Otherwise auto-designate
+    # the first site so equipment/QRs have a corporate HQ to hang off.
+    hq_exists = await db.sites.count_documents(
+        {"organization_id": organization_id, "is_head_office": True},
+    ) > 0
+    head_office_site_id = None
+    if not hq_exists:
+        promote_id = first_site_id
+        if not promote_id:
+            earliest = await db.sites.find_one(
+                {"organization_id": organization_id},
+                {"_id": 0, "id": 1}, sort=[("created_at", 1)],
+            )
+            promote_id = (earliest or {}).get("id")
+        if promote_id:
+            await db.sites.update_one(
+                {"organization_id": organization_id, "id": promote_id},
+                {"$set": {"is_head_office": True, "updated_at": now_iso}},
+            )
+            head_office_site_id = promote_id
+    else:
+        hq = await db.sites.find_one(
+            {"organization_id": organization_id, "is_head_office": True},
+            {"_id": 0, "id": 1},
+        )
+        head_office_site_id = (hq or {}).get("id")
+
     return {
-        "imported": imported, "skipped": skipped,
+        "imported": imported, "updated": updated, "skipped": skipped,
         "errors": errors[:50], "error_count": len(errors),
         "organization_id": organization_id,
+        "site_count": total_sites,
+        "head_office_site_id": head_office_site_id,
+        "customer_account_number": org_updates.get("customer_account_number") or account_ref or None,
         "org_breakdown": {organization_id: imported} if imported else {},
     }
 

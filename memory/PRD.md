@@ -38276,3 +38276,32 @@ Testing: iteration_vehicle_checks_jan2026.json — backend 13/13 core (1 xfail l
 - Root cause: in Navbar.js the mobile hamburger wrapped <AreaSwitcher> in `<div onClick={() => setMobileMenuOpen(false)}>`. Tapping the "Switch area" toggle bubbled to that wrapper and closed the whole hamburger menu, unmounting AreaSwitcher + its just-opened dropdown → nothing appeared.
 - Fix: removed the wrapper onClick (selecting an area does a full window.location.href navigation, so no manual close needed; picking the current area just closes the dropdown via its own overlay).
 - Verified on 390px mobile: open hamburger → tap "Switch area" → dropdown opens (Main app ✓ / Staff Portal etc.), chevron rotates, hamburger stays open. Reported from a screen recording (Lee Somers, Operations→Expenses). Fix is global to the Navbar mobile menu.
+
+---
+## 2026-06 · Bulk Import fixes — Head Office visibility + Equipment account-number routing
+File: backend/routes/master_admin_bulk_import.py (+ frontend AdminBulkImports.js result summary)
+Reported by user (Devon & Somerset Fire, 85 sites, account 00002515). Reproduced with their real CSVs.
+
+Fixes:
+1. Equipment auto-route "Unknown customer_account_number": `_lookup_org_by_account_number` now falls back to
+   matching the code against sites' `invoice_customer_ref`/`sicon_customer_ref` and routes to that site's org.
+   The account number the operator puts on the SITES CSV now resolves equipment auto-route with no org edit.
+2. Sites bulk-import now stamps the org's `customer_account_number`/`sicon_customer_number` from the first
+   site `invoice_customer_ref` (if org had none), and sets `is_head_office=true`, `is_multi_site`, `site_count`.
+   Ensures a physical HQ site: respects a pre-set HQ, else auto-designates the first imported site as HQ.
+   => the head office now shows under the "Head Offices" filter/badge on the Organisations page.
+3. Tolerant site-name matching (`_resolve_site_for_org` + `_normalize_site_name`): strips a trailing generic
+   suffix ("Fire Station"/"Station"/"Leisure Centre"…) so equipment "Bridgwater Fire Station" links to site
+   "Bridgwater". Unmatched rows (e.g. "Airport Fire Station" with no matching site) are reported, not silently linked.
+4. Idempotent re-import (no duplicates, fill-if-empty enrich):
+   - Sites: re-import UPDATES existing site by name, back-filling only empty fields; reports `updated`.
+   - Equipment: real serial deduped by serial; placeholder serial (UNKNOWN/blank) deduped by
+     site|name|model|manufacturer composite vs PRE-EXISTING DB rows only (intra-file identical placeholder
+     rows still insert as distinct machines). Duplicate real serials within a file are reported + skipped.
+   - `replace_existing=True` (MOD "replace" flow) keeps full-overwrite semantics.
+
+Verified via function-level e2e with the user's real CSVs: 85 sites imported+HQ+org flags+account stamped;
+404 equipment auto-routed & site-linked (17 reported: 5 unmatched "Airport", 12 dup serials); re-import =
+0 inserted, all updated, totals unchanged (no duplication). NOTE: UI not screenshot-tested (master admin MFA
+enforced in preview). Remedy for existing prod estate: re-run the SITES import once (enriches, sets HQ flag +
+account link), then import equipment.

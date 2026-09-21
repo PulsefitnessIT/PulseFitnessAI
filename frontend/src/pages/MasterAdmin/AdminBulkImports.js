@@ -186,12 +186,12 @@ const AdminBulkImports = ({ API }) => {
  </div>
 
  {result && (
- <div className={`mt-3 rounded-lg p-3 text-xs ${result._failed ? 'bg-red-50 border border-red-200' : result.imported > 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`} data-testid={`bulk-result-${kind}`}>
- <p className={`font-semibold flex items-center gap-1.5 ${result._failed ? 'text-red-800' : result.imported > 0 ? 'text-emerald-800' : 'text-amber-800'}`}>
- {result._failed ? <AlertCircle size={13} /> : result.imported > 0 ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+ <div className={`mt-3 rounded-lg p-3 text-xs ${result._failed ? 'bg-red-50 border border-red-200' : (result.imported > 0 || result.updated > 0) ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`} data-testid={`bulk-result-${kind}`}>
+ <p className={`font-semibold flex items-center gap-1.5 ${result._failed ? 'text-red-800' : (result.imported > 0 || result.updated > 0) ? 'text-emerald-800' : 'text-amber-800'}`}>
+ {result._failed ? <AlertCircle size={13} /> : (result.imported > 0 || result.updated > 0) ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
  {result._failed
    ? `Import failed${result._detail ? ` — ${result._detail}` : ''}`
-   : `${result.imported} imported · ${result.skipped || 0} skipped${result.error_count ? ` · ${result.error_count} error${result.error_count === 1 ? '' : 's'}` : ''}`}
+   : `${result.imported} imported${result.updated ? ` · ${result.updated} updated` : ''} · ${result.skipped || 0} skipped${result.error_count ? ` · ${result.error_count} error${result.error_count === 1 ? '' : 's'}` : ''}`}
  </p>
  {result.errors?.length > 0 && (
  <details className="mt-2" open={(result.error_count || result.errors.length) > 0} data-testid={`bulk-errors-${kind}`}>
