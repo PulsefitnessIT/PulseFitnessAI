@@ -1,0 +1,27 @@
+meta {
+  name: Employees
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/service/appointments/resources
+  body: none
+  auth: inherit
+}
+
+params:query {
+  companyId: {{companyId}}
+  $max: {{pageSize}}
+}
+
+tests {
+  test("HTTP status is success", function () { expect(res.getStatus()).to.be.within(200, 299); });
+  const b = res.getBody() || {};
+  const arr = Array.isArray(b) ? b : (b.data || b.items || b.results || []);
+  console.log("Employees lookup count:", arr.length);
+}
+
+docs {
+  Engineers / resources -> Pulse engineer (map_sicon_resource_to_engineer). Sicon field SIJCEMPID <-> Pulse engineer.sicon_employee_id. Direction: Sicon->Pulse.
+}

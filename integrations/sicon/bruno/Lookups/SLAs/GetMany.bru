@@ -1,0 +1,27 @@
+meta {
+  name: SLAs
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/service/slas
+  body: none
+  auth: inherit
+}
+
+params:query {
+  companyId: {{companyId}}
+  $max: {{pageSize}}
+}
+
+tests {
+  test("HTTP status is success", function () { expect(res.getStatus()).to.be.within(200, 299); });
+  const b = res.getBody() || {};
+  const arr = Array.isArray(b) ? b : (b.data || b.items || b.results || []);
+  console.log("SLAs lookup count:", arr.length);
+}
+
+docs {
+  ⚠ SLA bands -> Pulse issue.sla_category. Direction: Sicon metadata. SICON CONFIRMATION REQUIRED: route unconfirmed.
+}

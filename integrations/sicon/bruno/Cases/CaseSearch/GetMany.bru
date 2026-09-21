@@ -11,16 +11,26 @@ get {
 }
 
 params:query {
-  query: $max=10
+  query: $max={{pageSize}}
   companyId: {{companyId}}
 }
 
-script:post-response {
+tests {
+  test("HTTP status is success", function () { expect(res.getStatus()).to.be.within(200, 299); });
   const b = res.getBody() || {};
   const arr = Array.isArray(b) ? b : (b.data || b.items || b.results || b.records || []);
-  const item = (arr && arr.length) ? arr[0] : null;
-  if (item) {
-    if (item.siSMCaseId != null) bru.setEnvVar('caseId', item.siSMCaseId);
-    else if (item.id != null) bru.setEnvVar('caseId', item.id);
-  }
+  const item = arr.length ? arr[0] : (Array.isArray(b) ? {} : b);
+  test("field siSMCaseId present", function () { expect(item).to.have.property("siSMCaseId"); });
+  bru.setVar("_type_siSMCaseId", item ? typeof item["siSMCaseId"] : "undefined");
+  test("field caseNumber present", function () { expect(item).to.have.property("caseNumber"); });
+  bru.setVar("_type_caseNumber", item ? typeof item["caseNumber"] : "undefined");
+  test("field statusId present", function () { expect(item).to.have.property("statusId"); });
+  bru.setVar("_type_statusId", item ? typeof item["statusId"] : "undefined");
+  test("field appointmentId present", function () { expect(item).to.have.property("appointmentId"); });
+  bru.setVar("_type_appointmentId", item ? typeof item["appointmentId"] : "undefined");
+}
+
+docs {
+  See FIELD_MAPPING.md / mapping.csv for the full Cases field map (Bruno var vs Sicon field vs Pulse field, with direction).
+  
 }

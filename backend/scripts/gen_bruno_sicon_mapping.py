@@ -198,14 +198,40 @@ CAPTURE_ONE = {
     "Appointments/Appointment/GetOne.bru": [("siconAppointmentId", "appointmentId")],
 }
 # path -> list of (sicon_body_key, env_var) captured from the FIRST list item
-CAPTURE_LIST = {
-    "Cases/CaseSearch/GetMany.bru": [("siSMCaseId", "caseId")],
-    "Metadata/CaseType/GetMany.bru": [("siSMCaseTypeId", "caseTypeId")],
-    "Metadata/Priority/GetMany.bru": [("siSMPriorityId", "priorityId")],
-    "Tracking/TrackingStatus/GetMany.bru": [
-        ("siSMTrackingStatusId", "trackingStatusId"), ("siSMTrackingStatusId", "statusId"),
-    ],
+# Metadata auto-capture REMOVED — do not auto-use the first CaseType/Priority/
+# TrackingStatus row. Operators pick explicitly via selectedCaseTypeId /
+# selectedPriorityId / selectedTrackingStatusId from the lookup responses.
+CAPTURE_LIST = {}
+
+# GET requests get response-tests that assert these fields exist + record types.
+GET_TEST_FIELDS = {
+    "Cases": ["siSMCaseId", "caseNumber", "statusId", "appointmentId"],
+    "Appointments": ["siconAppointmentId", "siSMCaseId", "scheduledStartDate"],
+    "Equipment": ["siconEquipmentId", "serialNumber", "description"],
 }
+# Metadata lists: path -> (env var to set manually, id field, label field)
+METADATA_LIST = {
+    "Metadata/CaseType/GetMany.bru": ("selectedCaseTypeId", "siSMCaseTypeId", "name"),
+    "Metadata/Priority/GetMany.bru": ("selectedPriorityId", "siSMPriorityId", "name"),
+    "Tracking/TrackingStatus/GetMany.bru": ("selectedTrackingStatusId", "siSMTrackingStatusId", "name"),
+}
+# Extra Sicon reference/lookup requests: (name, route, needs_confirmation, note)
+LOOKUPS = [
+    ("Employees", "/api/service/appointments/resources", False,
+     "Engineers / resources -> Pulse engineer (map_sicon_resource_to_engineer). Sicon field SIJCEMPID <-> Pulse engineer.sicon_employee_id. Direction: Sicon->Pulse."),
+    ("Contracts", "/api/service/contracts", True,
+     "Contracts lookup -> Pulse contract.sicon_contract_id. SICON CONFIRMATION REQUIRED: GET route unconfirmed (the Contract API is POST-only for create/update)."),
+    ("CoverTypes", "/api/service/cover-types", True,
+     "Cover types -> Pulse issue.cover_type. Direction: Sicon metadata. SICON CONFIRMATION REQUIRED: route unconfirmed."),
+    ("SLAs", "/api/service/slas", True,
+     "SLA bands -> Pulse issue.sla_category. Direction: Sicon metadata. SICON CONFIRMATION REQUIRED: route unconfirmed."),
+    ("FaultCodes", "/api/service/fault-codes", True,
+     "Fault codes -> Pulse issue.fault_code. Direction: Sicon metadata. SICON CONFIRMATION REQUIRED: route unconfirmed."),
+    ("Skills", "/api/service/skills", True,
+     "Engineer skills -> Pulse engineer.skills. Direction: Sicon metadata. SICON CONFIRMATION REQUIRED: route unconfirmed."),
+    ("Teams", "/api/service/teams", True,
+     "Internal / external teams -> Pulse config team ids. Direction: Sicon metadata. SICON CONFIRMATION REQUIRED: route unconfirmed."),
+]
 
 
 def _capture_block(pairs, is_list: bool) -> str:
@@ -228,8 +254,12 @@ def _capture_block(pairs, is_list: bool) -> str:
 ID_VARS = [
     ("caseId", "0"), ("caseNumber", "0"), ("appointmentId", "0"),
     ("timeBookingId", "0"), ("trackingNoteId", "0"), ("equipmentId", "0"),
-    ("caseTypeId", "0"), ("priorityId", "0"), ("trackingStatusId", "0"),
-    ("statusId", "0"), ("employeeId", "0"),
+    ("employeeId", "0"),
+]
+# Control + explicit-selection vars (NOT auto-populated).
+CONTROL_VARS = [
+    ("ALLOW_WRITES", "false"), ("pageSize", "200"), ("page", "1"),
+    ("selectedCaseTypeId", ""), ("selectedPriorityId", ""), ("selectedTrackingStatusId", ""),
 ]
 
 
@@ -239,7 +269,7 @@ def _env_file(base_url: str, company_id: str) -> str:
              "  username: Administrator",
              f"  companyId: {company_id}",
              "  BEARER_TOKEN: "]
-    for k, v in ID_VARS:
+    for k, v in ID_VARS + CONTROL_VARS:
         lines.append(f"  {k}: {v}")
     lines.append("}")
     lines.append("")
@@ -248,10 +278,13 @@ def _env_file(base_url: str, company_id: str) -> str:
     lines.append("]")
     lines.append("")
     lines.append("docs {")
-    lines.append("  Set baseUrl to your Sicon Sage200 WebAPI host and companyId to the Sage company.")
-    lines.append("  Paste the Sicon password into the secret 'password' var in Bruno (never committed).")
-    lines.append("  Run Auth > Authenticate first — it captures accessToken into BEARER_TOKEN.")
-    lines.append("  Entity ids auto-populate from post-response scripts as you run requests.")
+    lines.append("  Set baseUrl + companyId (Sage company) and paste the secret 'password'.")
+    lines.append("  Run Auth > Authenticate first (captures BEARER_TOKEN).")
+    lines.append("  SAFETY: ALLOW_WRITES defaults to false — POST/PUT/PATCH/DELETE are blocked")
+    lines.append("  until you set ALLOW_WRITES=true (Auth is exempt).")
+    lines.append("  SELECTION: choose selectedCaseTypeId / selectedPriorityId / selectedTrackingStatusId")
+    lines.append("  from the Metadata lookup responses — they are NOT auto-selected.")
+    lines.append("  Entity ids (caseId/appointmentId/...) are captured from create/get responses.")
     lines.append("}")
     return "\n".join(lines) + "\n"
 
@@ -275,10 +308,22 @@ headers {
   Accept: application/json
 }
 
+script:pre-request {
+  // SAFETY GUARD: block writes unless ALLOW_WRITES=true (Auth is exempt).
+  const m = (req.getMethod() || '').toUpperCase();
+  const url = (req.getUrl() || '').toLowerCase();
+  const allow = String(bru.getEnvVar('ALLOW_WRITES') || bru.getVar('ALLOW_WRITES') || 'false').toLowerCase() === 'true';
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].indexOf(m) !== -1 && url.indexOf('authenticate') === -1 && !allow) {
+    throw new Error('Writes are disabled. Set ALLOW_WRITES=true in the environment to enable ' + m + ' requests.');
+  }
+}
+
 docs {
-  Sicon Service WebAPI - Pulse Fitness consolidated collection.
-  Single source of truth: /app/integrations/sicon/ (FIELD_MAPPING.md + mapping.csv).
-  All Service entity requests inherit the bearer token set by Auth > Authenticate.
+  Sicon Service WebAPI - PulseFitness.ai consolidated collection.
+  Package also contains FIELD_MAPPING.md + mapping.csv (Sicon field -> Pulse field, per entity).
+  SAFETY: POST/PUT are blocked unless ALLOW_WRITES=true. Metadata (CaseType/Priority/
+  TrackingStatus) is NOT auto-selected — set the selected* vars manually.
+  All Service requests inherit the bearer token from Auth > Authenticate.
   companyId (Sage company) is passed as ?companyId={{companyId}} on every request.
 }
 """
@@ -330,6 +375,105 @@ docs {
 """
 
 
+def direction_word(d: str, entity: str) -> str:
+    if entity == "Metadata":
+        return "Sicon metadata"
+    return {"→": "Pulse→Sicon", "←": "Sicon→Pulse", "↔": "Bidirectional"}.get(d, "Sicon metadata")
+
+
+def _confirm_flag(entity: str, warn, leaf: str, nulled: set) -> str:
+    if warn or entity == "Equipment" or leaf in nulled:
+        return "SICON CONFIRMATION REQUIRED"
+    return ""
+
+
+_ID0_RE = re.compile(r'("(?:[A-Za-z0-9_]*?(?:[Ii][Dd]|[Ii][Dd]s))")(\s*:\s*)0(\s*[,}\n])')
+_ARR0_RE = re.compile(r'(:\s*)\[\s*0\s*\]')
+
+
+def _transform_body(text: str, key: str):
+    """id:0 -> null, [0] -> [], and CaseTrackingNote appointmentId -> {{appointmentId}}.
+
+    Do not send default database id 0 unless Sicon confirms it (prefer null)."""
+    m = re.search(r"(body:json\s*\{)(.*?)(\n\})", text, re.S)
+    if not m:
+        return text, set()
+    body = m.group(2)
+    nulled: set = set()
+    if key.startswith("Cases/CaseTrackingNote"):
+        body = re.sub(r'("appointmentId"\s*:\s*)(?:0|null)', r"\g<1>{{appointmentId}}", body)
+    body = _ARR0_RE.sub(r"\g<1>[]", body)
+    # never default employeeIds to [0]/[{{employeeId}}] — leave empty until chosen
+    body = re.sub(r'("employeeIds"\s*:\s*)\[[^\]]*\]', r"\g<1>[]", body)
+
+    def _repl(mm):
+        leaf = re.sub(r"[^a-z0-9]", "", mm.group(1).strip('"').lower())
+        if leaf == "companyid":
+            return mm.group(0)
+        nulled.add(leaf)
+        return mm.group(1) + mm.group(2) + "null" + mm.group(3)
+
+    body = _ID0_RE.sub(_repl, body)
+    return text[: m.start(2)] + body + text[m.end(2):], nulled
+
+
+def _strip_docs(text: str) -> str:
+    return re.sub(r"(?ms)^docs[ \t]*\{.*?^\}[ \t]*\n?", "", text).rstrip() + "\n"
+
+
+def _is_get(text: str) -> bool:
+    return re.search(r"(?m)^\s*get\s*\{", text) is not None
+
+
+def _tests_block(entity: str, add_fields: bool, add_pagination: bool, meta) -> str:
+    lines = ['  test("HTTP status is success", function () { expect(res.getStatus()).to.be.within(200, 299); });',
+             "  const b = res.getBody() || {};",
+             "  const arr = Array.isArray(b) ? b : (b.data || b.items || b.results || b.records || []);",
+             "  const item = arr.length ? arr[0] : (Array.isArray(b) ? {} : b);"]
+    if add_fields:
+        for f in GET_TEST_FIELDS.get(entity, []):
+            lines.append(f'  test("field {f} present", function () {{ expect(item).to.have.property("{f}"); }});')
+            lines.append(f'  bru.setVar("_type_{f}", item ? typeof item["{f}"] : "undefined");')
+    if add_pagination:
+        lines.append('  bru.setVar("_equipmentPageCount", arr.length);')
+        lines.append('  test("pagination returns a page (pageSize>10 proves full-estate retrieval)", function () { expect(arr.length).to.be.a("number"); });')
+    if meta:
+        var, idf, namef = meta
+        lines.append(f'  console.log("{var} options (set manually, do NOT auto-select):", arr.map(function (x) {{ return {{ id: x.{idf} != null ? x.{idf} : x.id, name: x.{namef} }}; }}));')
+    return "tests {\n" + "\n".join(lines) + "\n}\n"
+
+
+def build_docs(entity: str, key: str, body_keys, warn, nulled: set, meta) -> str:
+    L: list = []
+    if warn:
+        L += ["\u26a0 " + warn, ""]
+    if meta:
+        var, idf, namef = meta
+        L += ["Selection lookup — do NOT auto-select the first row.",
+              f"Pick a value from the response ({idf} = id, {namef} = label) and set {{{{{var}}}}} in the environment.",
+              ""]
+    if body_keys:
+        L += ["### Field mapping — this request body",
+              "Legend: Bruno var `{{appointmentId}}` | Sicon field `siconAppointmentId` | Pulse field `appointment.sicon_appointment_id`",
+              "",
+              "| Sicon field | Pulse field (PulseFitness.ai) | Direction | Confirmation |",
+              "|---|---|---|---|"]
+        for k in body_keys:
+            rows = _lookup(k)
+            leaf = re.sub(r"[^a-z0-9]", "", k.split(".")[-1].lower())
+            if rows:
+                pulse, d, ent = rows[0]["gymaxis_field"], rows[0]["direction"], rows[0]["entity"]
+            else:
+                pulse = "(Sicon-owned metadata)" if leaf in SICON_OWNED else "(unmapped — confirm with Sicon)"
+                d, ent = "←", ("Metadata" if leaf in SICON_OWNED else entity)
+            L.append(f"| `{k}` | `{pulse}` | {direction_word(d, ent)} | {_confirm_flag(entity, warn, leaf, nulled)} |")
+        L.append("")
+    if not (warn or meta or body_keys):
+        L += [f"See FIELD_MAPPING.md / mapping.csv for the full {entity} field map "
+              "(Bruno var vs Sicon field vs Pulse field, with direction).", ""]
+    return "docs {\n" + "\n".join("  " + x for x in L) + "\n}\n"
+
+
 def main():
     if not SRC_SERVICE.exists():
         sys.exit(f"missing source: {SRC_SERVICE}")
@@ -347,14 +491,20 @@ def main():
             dest.parent.mkdir(parents=True, exist_ok=True)
             text = p.read_text(encoding="utf-8-sig", errors="ignore")
             key = str(rel).replace("\\", "/")
+            entity = rel.parts[0] if len(rel.parts) > 1 else "Core"
             if key in ROUTE_MAP and ROUTE_MAP[key]:
                 text = _rewrite_url(text, ROUTE_MAP[key])
-            if key in WARN:
-                text = _append_docs(text, WARN[key])
+            text = text.replace("$max=10", "$max={{pageSize}}")
+            text, nulled = _transform_body(text, key)
+            body_keys = parse_bru_body_keys(text)
+            meta = METADATA_LIST.get(key)
+            add_fields = _is_get(text) and entity in GET_TEST_FIELDS
+            add_pagination = key == "Equipment/Equipment/GetMany.bru"
+            if add_fields or add_pagination or meta:
+                text = text.rstrip() + "\n\n" + _tests_block(entity, add_fields, add_pagination, meta)
             if key in CAPTURE_ONE:
                 text = text.rstrip() + "\n\n" + _capture_block(CAPTURE_ONE[key], False) + "\n"
-            elif key in CAPTURE_LIST:
-                text = text.rstrip() + "\n\n" + _capture_block(CAPTURE_LIST[key], True) + "\n"
+            text = _strip_docs(text) + "\n" + build_docs(entity, key, body_keys, WARN.get(key), nulled, meta)
             dest.write_text(text, encoding="utf-8")
 
     # 2. root meta + auth + environments
@@ -364,16 +514,36 @@ def main():
     # OVERRIDES collection scope in Bruno, so the ids captured at runtime (via
     # bru.setEnvVar) always win — these defaults never clobber a real value.
     coll_vars = "vars:pre-request {\n  BEARER_TOKEN: \n" + "".join(
-        f"  {k}: {v}\n" for k, v in ID_VARS) + "}\n\n"
+        f"  {k}: {v}\n" for k, v in (ID_VARS + CONTROL_VARS)) + "}\n\n"
     (COLL / "collection.bru").write_text(coll_vars + ROOT_COLLECTION_BRU, encoding="utf-8")
     (COLL / "Auth").mkdir(exist_ok=True)
     (COLL / "Auth" / "Authenticate.bru").write_text(AUTH_BRU, encoding="utf-8")
     envdir = COLL / "environments"
     envdir.mkdir(exist_ok=True)
-    (envdir / "Sicon Local.bru").write_text(_env_file("http://localhost:51080", "1"), encoding="utf-8")
+    (envdir / "Sicon Local.bru").write_text(_env_file("http://localhost:51080", "2"), encoding="utf-8")
     (envdir / "Sicon Production.bru").write_text(
         _env_file("https://YOUR-SAGE200-HOST:51080", "1"), encoding="utf-8")
     (COLL / ".gitignore").write_text(".env\n", encoding="utf-8")
+
+    # 2b. Sicon reference/lookup requests (Employees, Contracts, Cover Types, SLA,
+    #     Fault Codes, Skills, Teams) needed to map ID-based relationships.
+    for name, route, needs, note in LOOKUPS:
+        d = COLL / "Lookups" / name
+        d.mkdir(parents=True, exist_ok=True)
+        flag = "\u26a0 " if needs else ""
+        bru = (
+            f"meta {{\n  name: {name}\n  type: http\n  seq: 1\n}}\n\n"
+            f"get {{\n  url: {{{{baseUrl}}}}{route}\n  body: none\n  auth: inherit\n}}\n\n"
+            f"params:query {{\n  companyId: {{{{companyId}}}}\n  $max: {{{{pageSize}}}}\n}}\n\n"
+            'tests {\n'
+            '  test("HTTP status is success", function () { expect(res.getStatus()).to.be.within(200, 299); });\n'
+            "  const b = res.getBody() || {};\n"
+            "  const arr = Array.isArray(b) ? b : (b.data || b.items || b.results || []);\n"
+            f'  console.log("{name} lookup count:", arr.length);\n'
+            "}\n\n"
+            f"docs {{\n  {flag}{note}\n}}\n"
+        )
+        (d / "GetMany.bru").write_text(bru, encoding="utf-8")
 
     # 3. field-map join (Sicon Service body fields -> Pulse fields)
     rows_out, seen = [], set()
@@ -428,32 +598,38 @@ def main():
         ents.setdefault(r["sicon_entity"], []).append(r)
 
     md = [
-        "# Sicon Service WebAPI <-> Pulse Fitness - field mapping",
+        "# Sicon Service WebAPI  <->  PulseFitness.ai — field mapping",
         "",
-        "Auto-generated by `backend/scripts/gen_bruno_sicon_mapping.py` from the",
-        "Sicon-provided Bruno collection bodies (integrations/sicon/_source) joined to",
-        "the platform mapping table (`backend/routes/sicon_mapping.py`).",
-        "`->` push (Pulse->Sicon) &middot; `<-` pull &middot; `<->` bi-directional.",
+        "Auto-generated by `backend/scripts/gen_bruno_sicon_mapping.py`.",
         "",
-        f"**Coverage: {mapped} MAPPED + {sicon_owned} Sicon-owned = "
-        f"{mapped + sicon_owned}/{total} accounted ({round((mapped + sicon_owned) / total * 100) if total else 0}%). "
-        f"{unmapped} still open.**",
+        "**Three layers (do not confuse):**",
+        "- Bruno variable — e.g. `{{appointmentId}}` (collection/environment placeholder used in URLs & bodies)",
+        "- Sicon field — e.g. `siconAppointmentId` (JSON key on the Sicon WebAPI)",
+        "- Pulse field — e.g. `appointment.sicon_appointment_id` (PulseFitness.ai model path)",
         "",
-        "Inbound reads (case/appointment/tracking-note ids, status) are resolved",
-        "casing-agnostically in `utils/sicon_client.py` — camelCase or PascalCase both bind.",
+        "**Direction:** Pulse→Sicon (write) · Sicon→Pulse (read) · Bidirectional · Sicon metadata (lookup).",
+        "Fields whose Sicon write behaviour is unconfirmed are labelled **SICON CONFIRMATION REQUIRED**.",
+        "",
+        f"**Coverage: {mapped} MAPPED + {sicon_owned} Sicon metadata = {mapped + sicon_owned}/{total} accounted "
+        f"({round((mapped + sicon_owned) / total * 100) if total else 0}%). {unmapped} open.**",
         "",
     ]
     for ent in sorted(ents):
         md.append(f"## {ent}")
-        md.append("| Sicon field | Pulse field | Dir | Status | Notes |")
-        md.append("|---|---|---|---|---|")
+        md.append("| Sicon field | Pulse field (PulseFitness.ai) | Direction | Status | Confirmation | Notes |")
+        md.append("|---|---|---|---|---|---|")
         for r in sorted(ents[ent], key=lambda x: (x["status"] == "MAPPED", x["status"] == "SICON-OWNED", x["sicon_field"])):
-            md.append(f"| `{r['sicon_field']}` | `{r['pulse_field']}` | {r['direction']} "
-                      f"| {r['status']} | {r['notes']} |")
+            dword = direction_word(r["direction"], r["sicon_entity"])
+            conf = "SICON CONFIRMATION REQUIRED" if (r["sicon_entity"] == "Equipment" or r["status"] == "UNMAPPED") else ""
+            md.append(f"| `{r['sicon_field']}` | `{r['pulse_field']}` | {dword} | {r['status']} | {conf} | {r['notes']} |")
         md.append("")
+    md.append("> Bruno variables (caseId, appointmentId, equipmentId, …) are NOT Sicon fields — they are")
+    md.append("> environment placeholders; the real Sicon JSON key is the `Sicon field` column above.")
     (OUT / "FIELD_MAPPING.md").write_text("\n".join(md), encoding="utf-8")
 
-    # 4. zip the importable collection (top-level folder = bruno/)
+    # 4. package: docs travel inside the collection AND at the zip root.
+    shutil.copy(OUT / "FIELD_MAPPING.md", COLL / "FIELD_MAPPING.md")
+    shutil.copy(OUT / "mapping.csv", COLL / "mapping.csv")
     zip_path = OUT / "Sicon-Service-Pulse.bruno.zip"
     if zip_path.exists():
         zip_path.unlink()
@@ -461,6 +637,10 @@ def main():
         for p in sorted(COLL.rglob("*")):
             if p.is_file():
                 z.write(p, arcname=str(Path("bruno") / p.relative_to(COLL)))
+        for extra in ("FIELD_MAPPING.md", "mapping.csv", "README.md"):
+            fp = OUT / extra
+            if fp.exists():
+                z.write(fp, arcname=extra)
 
     print(f"OUT: {OUT}")
     print(f"collection files: {sum(1 for _ in COLL.rglob('*') if _.is_file())}")

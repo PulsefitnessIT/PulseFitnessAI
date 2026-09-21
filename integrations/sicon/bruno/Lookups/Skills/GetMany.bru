@@ -1,0 +1,27 @@
+meta {
+  name: Skills
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/service/skills
+  body: none
+  auth: inherit
+}
+
+params:query {
+  companyId: {{companyId}}
+  $max: {{pageSize}}
+}
+
+tests {
+  test("HTTP status is success", function () { expect(res.getStatus()).to.be.within(200, 299); });
+  const b = res.getBody() || {};
+  const arr = Array.isArray(b) ? b : (b.data || b.items || b.results || []);
+  console.log("Skills lookup count:", arr.length);
+}
+
+docs {
+  ⚠ Engineer skills -> Pulse engineer.skills. Direction: Sicon metadata. SICON CONFIRMATION REQUIRED: route unconfirmed.
+}

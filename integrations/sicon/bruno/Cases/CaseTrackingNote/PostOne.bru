@@ -20,12 +20,12 @@ headers {
 
 body:json {
   {
-    "siSMCaseTrackingNoteId": 0,
+    "siSMCaseTrackingNoteId": null,
     "note": "Example tracking note",
     "time": null,
     "status": "",
     "statusId": {{statusId}},
-    "appointmentId": null,
+    "appointmentId": {{appointmentId}},
     "visibleToEngineer": true,
     "visibleToCustomer": false,
     "reassignedToCaseOwnerId": null,
@@ -36,9 +36,6 @@ body:json {
   }
 }
 
-docs {
-  Body matches TrackingNoteModel. Parent case comes from the path caseId. Set statusId before posting.
-}
 
 script:post-response {
   const b = res.getBody() || {};
@@ -47,4 +44,26 @@ script:post-response {
     if (item.siSMCaseTrackingNoteId != null) bru.setEnvVar('trackingNoteId', item.siSMCaseTrackingNoteId);
     else if (item.id != null) bru.setEnvVar('trackingNoteId', item.id);
   }
+}
+
+docs {
+  ### Field mapping — this request body
+  Legend: Bruno var `{{appointmentId}}` | Sicon field `siconAppointmentId` | Pulse field `appointment.sicon_appointment_id`
+  
+  | Sicon field | Pulse field (PulseFitness.ai) | Direction | Confirmation |
+  |---|---|---|---|
+  | `siSMCaseTrackingNoteId` | `issue.sicon_latest_note_id` | Sicon→Pulse | SICON CONFIRMATION REQUIRED |
+  | `note` | `issue.latest_note` | Sicon→Pulse |  |
+  | `time` | `note.timestamp` | Bidirectional |  |
+  | `status` | `issue.sicon_tracking_status` | Sicon→Pulse |  |
+  | `statusId` | `issue.sicon_tracking_status_id` | Bidirectional |  |
+  | `appointmentId` | `issue.sicon_appointment_id` | Sicon→Pulse |  |
+  | `visibleToEngineer` | `note.visible_to_engineer` | Bidirectional |  |
+  | `visibleToCustomer` | `note.visible_to_customer` | Bidirectional |  |
+  | `reassignedToCaseOwnerId` | `(Sicon-owned metadata)` | Sicon metadata |  |
+  | `reassignedToInternalTeamId` | `(Sicon-owned metadata)` | Sicon metadata |  |
+  | `reassignedToExternalTeamId` | `(Sicon-owned metadata)` | Sicon metadata |  |
+  | `latitude` | `note.latitude` | Pulse→Sicon |  |
+  | `longitude` | `note.longitude` | Pulse→Sicon |  |
+  
 }

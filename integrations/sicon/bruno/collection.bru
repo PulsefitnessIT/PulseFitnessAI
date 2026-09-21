@@ -6,11 +6,13 @@ vars:pre-request {
   timeBookingId: 0
   trackingNoteId: 0
   equipmentId: 0
-  caseTypeId: 0
-  priorityId: 0
-  trackingStatusId: 0
-  statusId: 0
   employeeId: 0
+  ALLOW_WRITES: false
+  pageSize: 200
+  page: 1
+  selectedCaseTypeId: 
+  selectedPriorityId: 
+  selectedTrackingStatusId: 
 }
 
 auth {
@@ -25,9 +27,21 @@ headers {
   Accept: application/json
 }
 
+script:pre-request {
+  // SAFETY GUARD: block writes unless ALLOW_WRITES=true (Auth is exempt).
+  const m = (req.getMethod() || '').toUpperCase();
+  const url = (req.getUrl() || '').toLowerCase();
+  const allow = String(bru.getEnvVar('ALLOW_WRITES') || bru.getVar('ALLOW_WRITES') || 'false').toLowerCase() === 'true';
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].indexOf(m) !== -1 && url.indexOf('authenticate') === -1 && !allow) {
+    throw new Error('Writes are disabled. Set ALLOW_WRITES=true in the environment to enable ' + m + ' requests.');
+  }
+}
+
 docs {
-  Sicon Service WebAPI - Pulse Fitness consolidated collection.
-  Single source of truth: /app/integrations/sicon/ (FIELD_MAPPING.md + mapping.csv).
-  All Service entity requests inherit the bearer token set by Auth > Authenticate.
+  Sicon Service WebAPI - PulseFitness.ai consolidated collection.
+  Package also contains FIELD_MAPPING.md + mapping.csv (Sicon field -> Pulse field, per entity).
+  SAFETY: POST/PUT are blocked unless ALLOW_WRITES=true. Metadata (CaseType/Priority/
+  TrackingStatus) is NOT auto-selected — set the selected* vars manually.
+  All Service requests inherit the bearer token from Auth > Authenticate.
   companyId (Sage company) is passed as ?companyId={{companyId}} on every request.
 }

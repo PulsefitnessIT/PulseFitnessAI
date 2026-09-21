@@ -22,9 +22,9 @@ body:json {
   {
     "siSMCaseId": {{caseId}},
     "caseNumber": "",
-    "siSMDocumentStatusId": 0,
+    "siSMDocumentStatusId": null,
     "siSMDocumentStatusName": "",
-    "siSMDocumentSubStatusId": 0,
+    "siSMDocumentSubStatusId": null,
     "summary": "Example case summary",
     "description": "Example case description",
     "callDate": null,
@@ -66,8 +66,8 @@ body:json {
     "analysisField18": "",
     "analysisField19": "",
     "analysisField20": "",
-    "siconCRMPersonId": 0,
-    "siconCRMCompanyId": 0,
+    "siconCRMPersonId": null,
+    "siconCRMCompanyId": null,
     "caseType": {
       "siSMCaseTypeId": {{caseTypeId}},
       "name": "",
@@ -91,9 +91,9 @@ body:json {
     "contractLine": null,
     "project": null,
     "caseAdmin": null,
-    "internalTeamId": 0,
+    "internalTeamId": null,
     "internalTeam": null,
-    "externalTeamId": 0,
+    "externalTeamId": null,
     "externalTeam": null,
     "customer": null,
     "customerContact": null,
@@ -102,10 +102,6 @@ body:json {
   }
 }
 
-docs {
-  Body matches CaseModel. Set caseId on the collection to match the path id.
-  ⚠ Case amend is POST /api/ServiceCase/AmendCase (not a REST PUT) per the Service WebAPI.
-}
 
 script:post-response {
   const b = res.getBody() || {};
@@ -114,4 +110,90 @@ script:post-response {
     if (item.siSMCaseId != null) bru.setEnvVar('caseId', item.siSMCaseId);
     else if (item.id != null) bru.setEnvVar('caseId', item.id);
   }
+}
+
+docs {
+  ⚠ Case amend is POST /api/ServiceCase/AmendCase (not a REST PUT) per the Service WebAPI.
+  
+  ### Field mapping — this request body
+  Legend: Bruno var `{{appointmentId}}` | Sicon field `siconAppointmentId` | Pulse field `appointment.sicon_appointment_id`
+  
+  | Sicon field | Pulse field (PulseFitness.ai) | Direction | Confirmation |
+  |---|---|---|---|
+  | `siSMCaseId` | `issue.sicon_case_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `caseNumber` | `issue.sicon_case_number` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `siSMDocumentStatusId` | `issue.status` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `siSMDocumentStatusName` | `issue.status` | Sicon→Pulse | SICON CONFIRMATION REQUIRED |
+  | `siSMDocumentSubStatusId` | `issue.workflow_state / sub_status_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `summary` | `issue.machine_type + serial_number` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `description` | `issue.issue_description` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `callDate` | `issue.created_at` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `contactName` | `issue.created_by_name / reporter_name` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `contactPhoneNumber` | `issue.reporter_phone` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `contactEmail` | `issue.reporter_email / user_email` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `lastUpdatedDate` | `issue.sicon_last_updated_at` | Sicon→Pulse | SICON CONFIRMATION REQUIRED |
+  | `isNonContract` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
+  | `address` | `site.address (composed)` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `postalName` | `issue.site_address.name` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `addressLine1` | `engineer.address_line1` | Sicon→Pulse | SICON CONFIRMATION REQUIRED |
+  | `addressLine2` | `issue.site_address.line2` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `addressLine3` | `issue.site_address.line3` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `addressLine4` | `issue.site_address.line4` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `city` | `engineer.city` | Sicon→Pulse | SICON CONFIRMATION REQUIRED |
+  | `county` | `issue.site_address.county` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `postCode` | `engineer.postcode` | Sicon→Pulse | SICON CONFIRMATION REQUIRED |
+  | `sopDelAddress` | `site.address (composed)` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `customerOrderNo` | `contract.customer_order_number` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `createdBy` | `note.created_by` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `analysisField1` | `issue.ai_triage_parsed.summary` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField2` | `issue.ai_triage_parsed.severity` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField3` | `issue.ai_triage_parsed.recommended_parts` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField4` | `issue.id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField5` | `organization.name` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField6` | `issue.sla_category / sla_tier` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField7` | `issue.ppm_schedule_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField8` | `issue.supplier_case_token` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField9` | `issue.fault_code` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField10` | `issue.machine_type` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField11` | `equipment.make / manufacturer` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField12` | `equipment.model_code / model` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField13` | `equipment.install_date` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField14` | `equipment.warranty_expiry` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField15` | `issue.id (duplicate for join)` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField16` | `issue.ppm_schedule_id (duplicate)` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField17` | `issue.ai_triage_summary (verbose)` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField18` | `issue.source` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField19` | `issue.reporter_role / created_by_role` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisField20` | `issue.csat_rating` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `siconCRMPersonId` | `crm_links.crm_person_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `siconCRMCompanyId` | `crm_links.crm_company_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `caseType` | `issue.case_type` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `siSMCaseTypeId` | `config.case_type_mapping{}` | Sicon metadata | SICON CONFIRMATION REQUIRED |
+  | `name` | `issue.machine_type / equipment.display_name` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `systemType` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
+  | `isPreventativeMaintenanceType` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
+  | `isEnabled` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
+  | `isCustom` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
+  | `defaultAppointmentLabel` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
+  | `coverType` | `issue.cover_type` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `sla` | `issue.sla_category` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `faultCode` | `issue.fault_code` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `skill` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
+  | `priority` | `issue.severity` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `siSMPriorityId` | `config.priority_mapping{}` | Sicon metadata | SICON CONFIRMATION REQUIRED |
+  | `colour` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
+  | `lastTrackingStatus` | `issue.sicon_last_tracking_status` | Sicon→Pulse | SICON CONFIRMATION REQUIRED |
+  | `contract` | `contract.sicon_contract_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `contractLine` | `contract_line.sicon_contract_line_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `project` | `issue.sicon_project_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `caseAdmin` | `issue.sicon_case_admin_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `internalTeamId` | `config.default_internal_team_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `internalTeam` | `config.default_internal_team_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `externalTeamId` | `config.default_external_team_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `externalTeam` | `config.default_external_team_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `customer` | `company (Sage customer)` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `customerContact` | `user.contact (composed)` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `subLocation` | `site.sicon_sub_location_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `equipmentIds` | `(computed)` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  
 }

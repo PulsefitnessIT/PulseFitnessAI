@@ -11,16 +11,20 @@ get {
 }
 
 params:query {
-  query: $max=10
+  query: $max={{pageSize}}
   companyId: {{companyId}}
 }
 
-script:post-response {
+tests {
+  test("HTTP status is success", function () { expect(res.getStatus()).to.be.within(200, 299); });
   const b = res.getBody() || {};
   const arr = Array.isArray(b) ? b : (b.data || b.items || b.results || b.records || []);
-  const item = (arr && arr.length) ? arr[0] : null;
-  if (item) {
-    if (item.siSMCaseTypeId != null) bru.setEnvVar('caseTypeId', item.siSMCaseTypeId);
-    else if (item.id != null) bru.setEnvVar('caseTypeId', item.id);
-  }
+  const item = arr.length ? arr[0] : (Array.isArray(b) ? {} : b);
+  console.log("selectedCaseTypeId options (set manually, do NOT auto-select):", arr.map(function (x) { return { id: x.siSMCaseTypeId != null ? x.siSMCaseTypeId : x.id, name: x.name }; }));
+}
+
+docs {
+  Selection lookup — do NOT auto-select the first row.
+  Pick a value from the response (siSMCaseTypeId = id, name = label) and set {{selectedCaseTypeId}} in the environment.
+  
 }

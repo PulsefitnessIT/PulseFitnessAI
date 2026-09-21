@@ -9,11 +9,13 @@ vars {
   timeBookingId: 0
   trackingNoteId: 0
   equipmentId: 0
-  caseTypeId: 0
-  priorityId: 0
-  trackingStatusId: 0
-  statusId: 0
   employeeId: 0
+  ALLOW_WRITES: false
+  pageSize: 200
+  page: 1
+  selectedCaseTypeId: 
+  selectedPriorityId: 
+  selectedTrackingStatusId: 
 }
 
 vars:secret [
@@ -21,8 +23,11 @@ vars:secret [
 ]
 
 docs {
-  Set baseUrl to your Sicon Sage200 WebAPI host and companyId to the Sage company.
-  Paste the Sicon password into the secret 'password' var in Bruno (never committed).
-  Run Auth > Authenticate first — it captures accessToken into BEARER_TOKEN.
-  Entity ids auto-populate from post-response scripts as you run requests.
+  Set baseUrl + companyId (Sage company) and paste the secret 'password'.
+  Run Auth > Authenticate first (captures BEARER_TOKEN).
+  SAFETY: ALLOW_WRITES defaults to false — POST/PUT/PATCH/DELETE are blocked
+  until you set ALLOW_WRITES=true (Auth is exempt).
+  SELECTION: choose selectedCaseTypeId / selectedPriorityId / selectedTrackingStatusId
+  from the Metadata lookup responses — they are NOT auto-selected.
+  Entity ids (caseId/appointmentId/...) are captured from create/get responses.
 }

@@ -66,10 +66,6 @@ body:json {
   }
 }
 
-docs {
-  Body matches EquipmentModel write fields. Set equipmentId on the collection to match the path id.
-  ⚠ UNVERIFIED: no confirmed standalone Equipment route. Confirm with Sicon.
-}
 
 script:post-response {
   const b = res.getBody() || {};
@@ -78,4 +74,58 @@ script:post-response {
     if (item.siconEquipmentId != null) bru.setEnvVar('equipmentId', item.siconEquipmentId);
     else if (item.id != null) bru.setEnvVar('equipmentId', item.id);
   }
+}
+
+docs {
+  ⚠ UNVERIFIED: no confirmed standalone Equipment route. Confirm with Sicon.
+  
+  ### Field mapping — this request body
+  Legend: Bruno var `{{appointmentId}}` | Sicon field `siconAppointmentId` | Pulse field `appointment.sicon_appointment_id`
+  
+  | Sicon field | Pulse field (PulseFitness.ai) | Direction | Confirmation |
+  |---|---|---|---|
+  | `siconEquipmentId` | `issue.equipment.sicon_equipment_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `itemId` | `issue.equipment.sage_item_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `description` | `issue.issue_description` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `serialNumber` | `equipment.serial_number` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `idNumber` | `equipment.asset_tag / id_number` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `warrantyExpiry` | `equipment.warranty_expiry` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `installDate` | `equipment.install_date` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `serviceIntervalMeasurement` | `equipment.service_interval_unit` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `serviceIntervalDuration` | `equipment.service_interval_value` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `notes` | `equipment.notes` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `customerId` | `issue.org.id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `siconEquipmentGroupDbKey` | `equipment.sicon_group_key` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `make` | `equipment.make / manufacturer` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `model` | `equipment.model / model_code` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `lastServiceDate` | `equipment.last_service_date` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `nextServiceDate` | `equipment.next_service_date` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `siconCrmCompanyId` | `crm_links.crm_company_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `siconCrmPersonId` | `crm_links.crm_person_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `siconCrmEndUserCompanyId` | `crm_links.end_user_company_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `siconCrmEndUserPersonId` | `crm_links.end_user_person_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `custDeliveryAddressDbKey` | `site.sage_delivery_address_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `siconSubLocationDbKey` | `site.sicon_sub_location_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `siconContactDbKey` | `site.sicon_contact_key` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode1` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode2` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode3` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode4` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode5` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode6` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode7` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode8` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode9` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode10` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode11` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode12` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode13` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode14` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode15` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode16` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode17` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode18` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode19` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `analysisCode20` | `equipment.analysis_codes[1-20]` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  
 }

@@ -27,7 +27,7 @@ body:json {
     "subject": "Example appointment",
     "description": "",
     "workBriefing": "",
-    "employeeIds": [{{employeeId}}],
+    "employeeIds": [],
     "chargeRateId": null,
     "labelId": null,
     "colour": "",
@@ -48,10 +48,6 @@ body:json {
   }
 }
 
-docs {
-  Body matches AppointmentModel. Set appointmentId on the collection to match the path id.
-  ⚠ Appointment update via TEntity v2 gateway per production client. Confirm against your instance.
-}
 
 script:post-response {
   const b = res.getBody() || {};
@@ -60,4 +56,40 @@ script:post-response {
     if (item.siconAppointmentId != null) bru.setEnvVar('appointmentId', item.siconAppointmentId);
     else if (item.id != null) bru.setEnvVar('appointmentId', item.id);
   }
+}
+
+docs {
+  ⚠ Appointment update via TEntity v2 gateway per production client. Confirm against your instance.
+  
+  ### Field mapping — this request body
+  Legend: Bruno var `{{appointmentId}}` | Sicon field `siconAppointmentId` | Pulse field `appointment.sicon_appointment_id`
+  
+  | Sicon field | Pulse field (PulseFitness.ai) | Direction | Confirmation |
+  |---|---|---|---|
+  | `siconAppointmentId` | `note.sicon_appointment_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `siSMCaseId` | `issue.sicon_case_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `appointmentType` | `appt.type` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `parentWorkAppointmentId` | `appt.parent_work_appointment_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `subject` | `appt.subject (derived)` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `description` | `issue.issue_description` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `workBriefing` | `appt.work_briefing` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `employeeIds` | `appt.employee_ids` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `chargeRateId` | `appt.charge_rate_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `labelId` | `appt.label_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `colour` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
+  | `confirmed` | `appt.confirmed` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `scheduledStartDate` | `appt.scheduled_start` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `scheduledEndDate` | `appt.scheduled_end` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `appointmentComplete` | `appt.completion.complete` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `workDoneDescription` | `appt.completion.work_done` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `workDoneAcknowledged` | `appt.completion.work_done_ack` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `furtherAction` | `appt.completion.further_action` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `furtherActionAcknowledged` | `appt.completion.further_action_ack` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `arrivalSignee` | `appt.completion.arrival_signee` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `departureSignee` | `appt.completion.departure_signee` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `arrivalLatitude` | `appt.completion.arrival_lat` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `arrivalLongitude` | `appt.completion.arrival_lon` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `departureLatitude` | `appt.completion.departure_lat` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `departureLongitude` | `appt.completion.departure_lon` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  
 }

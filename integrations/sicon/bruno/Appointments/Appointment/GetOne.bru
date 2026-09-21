@@ -14,8 +14,17 @@ params:query {
   companyId: {{companyId}}
 }
 
-docs {
-  ⚠ Appointment routes go via the TEntity v2 gateway (/~/api/v2/TEntity/...) per the current production client. Confirm against your instance.
+tests {
+  test("HTTP status is success", function () { expect(res.getStatus()).to.be.within(200, 299); });
+  const b = res.getBody() || {};
+  const arr = Array.isArray(b) ? b : (b.data || b.items || b.results || b.records || []);
+  const item = arr.length ? arr[0] : (Array.isArray(b) ? {} : b);
+  test("field siconAppointmentId present", function () { expect(item).to.have.property("siconAppointmentId"); });
+  bru.setVar("_type_siconAppointmentId", item ? typeof item["siconAppointmentId"] : "undefined");
+  test("field siSMCaseId present", function () { expect(item).to.have.property("siSMCaseId"); });
+  bru.setVar("_type_siSMCaseId", item ? typeof item["siSMCaseId"] : "undefined");
+  test("field scheduledStartDate present", function () { expect(item).to.have.property("scheduledStartDate"); });
+  bru.setVar("_type_scheduledStartDate", item ? typeof item["scheduledStartDate"] : "undefined");
 }
 
 script:post-response {
@@ -25,4 +34,9 @@ script:post-response {
     if (item.siconAppointmentId != null) bru.setEnvVar('appointmentId', item.siconAppointmentId);
     else if (item.id != null) bru.setEnvVar('appointmentId', item.id);
   }
+}
+
+docs {
+  ⚠ Appointment routes go via the TEntity v2 gateway (/~/api/v2/TEntity/...) per the current production client. Confirm against your instance.
+  
 }

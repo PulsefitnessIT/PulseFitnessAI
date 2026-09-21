@@ -20,7 +20,7 @@ headers {
 
 body:json {
   {
-    "employeeIds": [{{employeeId}}],
+    "employeeIds": [],
     "startDate": "2026-01-01T09:00:00",
     "endDate": "2026-01-01T17:00:00",
     "costingHours": null,
@@ -31,5 +31,17 @@ body:json {
 }
 
 docs {
-  Body matches TimeBookingRequestModel. Only supplied fields are applied on update.
+  ### Field mapping — this request body
+  Legend: Bruno var `{{appointmentId}}` | Sicon field `siconAppointmentId` | Pulse field `appointment.sicon_appointment_id`
+  
+  | Sicon field | Pulse field (PulseFitness.ai) | Direction | Confirmation |
+  |---|---|---|---|
+  | `employeeIds` | `appt.employee_ids` | Bidirectional |  |
+  | `startDate` | `contract.start_date` | Pulse→Sicon |  |
+  | `endDate` | `contract.end_date` | Pulse→Sicon |  |
+  | `costingHours` | `tb.costing_hours` | Bidirectional |  |
+  | `chargingHours` | `tb.charging_hours` | Bidirectional |  |
+  | `chargeRate` | `tb.charge_rate` | Pulse→Sicon |  |
+  | `isEstimate` | `tb.is_estimate` | Bidirectional |  |
+  
 }
