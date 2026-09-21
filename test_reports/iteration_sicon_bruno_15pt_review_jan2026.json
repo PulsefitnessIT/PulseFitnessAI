@@ -1,0 +1,51 @@
+{
+  "summary": "Artifact + regression verification of the regenerated Sicon Bruno collection (15-point review). Regenerator produced expected artifact counts (372 fields / 348 mapped / 24 sicon-owned / 0 unmapped). All 15 review items pass except R15 wording (see minor issues). Backend pytest suite 40/40 green; /api/sicon/field-mapping endpoint returns HTTP 401 unauth (up).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/integrations/sicon/bruno/",
+    "/app/integrations/sicon/FIELD_MAPPING.md",
+    "/app/integrations/sicon/mapping.csv",
+    "/app/integrations/sicon/Sicon-Service-Pulse.bruno.zip",
+    "/app/backend/tests/test_sicon_camelcase_inbound.py",
+    "/app/backend/tests/test_sicon_integration.py",
+    "/app/backend/tests/test_sicon_deep_mapping.py",
+    "/app/backend/tests/test_iter_220bi_sicon_field_mapping.py"
+  ],
+  "verification_matrix": {
+    "R0_regenerate": "PASS — generator ran cleanly; reported 372 body fields / 348 mapped / 24 sicon-owned / 0 unmapped; wrote bruno/, FIELD_MAPPING.md, mapping.csv, Sicon-Service-Pulse.bruno.zip (56791 bytes).",
+    "R1_companyId_local": "PASS — bruno/environments/Sicon Local.bru contains 'companyId: 2'.",
+    "R2_docs_bundled": "PASS — zip lists FIELD_MAPPING.md + mapping.csv at zip root AND at bruno/FIELD_MAPPING.md, bruno/mapping.csv.",
+    "R3_zero_unmapped": "PASS — mapping.csv has 0 UNMAPPED rows.",
+    "R4_docs_field_mapping": "PASS — Case Post/Put, Appointment Post/Put, CaseTrackingNote PostOne, Equipment Post/Put all contain a 'Field mapping' table. Note: no CaseTimeBooking route/directory exists in the regenerated collection — original prompt lists 'TimeBooking' but Sicon Service WebAPI has no CaseTimeBooking endpoint in ROUTE_MAP; treated as N/A (see minor note).",
+    "R5_trackingNote_appointmentId": "PASS — Cases/CaseTrackingNote/PostOne.bru body has '\"appointmentId\": {{appointmentId}}' (not 0/null).",
+    "R6_allow_writes_guard": "PASS — collection.bru script:pre-request throws unless ALLOW_WRITES=true; Auth path exempt; both environments (Local + Production) default ALLOW_WRITES: false.",
+    "R7_no_auto_select": "PASS — no .bru contains setEnvVar('caseTypeId'|'priorityId'|'trackingStatusId'|'statusId', ...); env has selectedCaseTypeId / selectedPriorityId / selectedTrackingStatusId placeholders.",
+    "R8_lookups": "PASS — bruno/Lookups/ contains Contracts, CoverTypes, Employees, FaultCodes, SLAs, Skills, Teams (all with GetMany.bru).",
+    "R9_no_default_id_zero": "PASS — Cases/Case/PostOne.bru body has '\"siSMCaseId\": null'; other POST/PUT id-like fields also null.",
+    "R10_employeeIds_empty": "PASS — Appointments/Appointment/PostOne.bru body has '\"employeeIds\": []'.",
+    "R11_get_response_tests": "PASS — Case (GetOne_ById + GetOne_ByCaseNumber), Appointment/GetOne, Equipment/GetOne each contain tests('field siSMCaseId present') and _type_* bru.setVar recordings.",
+    "R12_equipment_pagination": "PASS — Equipment/GetMany.bru uses '$max={{pageSize}}' (env pageSize=200) and sets bru.setVar('_equipmentPageCount', arr.length) with a pagination test.",
+    "R13_three_layer_legend": "PASS — request docs include 'Legend: Bruno var {{appointmentId}} | Sicon field siconAppointmentId | Pulse field appointment.sicon_appointment_id'; FIELD_MAPPING.md echoes the same three-layer distinction.",
+    "R14_direction_words": "PASS — FIELD_MAPPING.md contains 374 Direction annotations (Pulse→Sicon / Sicon→Pulse / Bidirectional / Sicon metadata); request docs Direction column present.",
+    "R15_sicon_confirmation_required": "PARTIAL — literal label 'SICON CONFIRMATION REQUIRED' present on Equipment/Equipment/PostOne.bru, PutOne.bru, all Lookups (Contracts, CoverTypes, FaultCodes, SLAs, Skills, Teams), Cases/Case/PostOne.bru, Cases/CaseTrackingNote/PostOne.bru, FIELD_MAPPING.md (101 occurrences). NOT literally present on Equipment/GetMany, Equipment/GetOne, or Metadata/Priority/GetMany — those use the equivalent '⚠ UNVERIFIED: … Confirm with Sicon' wording instead. Semantic intent met, literal label inconsistent.",
+    "structural_brace_balance": "PASS — 0 unbalanced .bru files; bruno/bruno.json parses as valid JSON.",
+    "backend_regression": "PASS — pytest tests/test_sicon_camelcase_inbound.py tests/test_sicon_integration.py tests/test_sicon_deep_mapping.py tests/test_iter_220bi_sicon_field_mapping.py = 40 passed in 0.77s.",
+    "field_mapping_endpoint": "UP — GET /api/sicon/field-mapping returns HTTP 401 (auth required) which per spec proves the endpoint is up; no login attempted."
+  },
+  "action_items": [
+    "Optional (R15 label consistency): add the literal 'SICON CONFIRMATION REQUIRED' label to Equipment/GetMany.bru, Equipment/GetOne.bru, and Metadata/Priority/GetMany.bru docs blocks (currently they use '⚠ UNVERIFIED … Confirm with Sicon' which is semantically equivalent). Non-blocking.",
+    "Optional (R4 note): the review request lists 'TimeBooking' among request-level mapping docs but the regenerated collection has no CaseTimeBooking route (Sicon Service WebAPI does not expose it). If TimeBooking is intended to ship, add a ROUTE_MAP entry in gen_bruno_sicon_mapping.py; otherwise remove 'TimeBooking' from the review checklist."
+  ],
+  "critical_code_review_comments": [
+    "generator script is single-file and long; ROUTE_MAP/CAPTURE_LIST/GET_TEST_FIELDS/METADATA_LIST/LOOKUPS all live in one file — acceptable for a codegen script but consider splitting if it crosses 1000 lines.",
+    "env files intentionally leave selected*Id blank so nothing auto-selects — good (R7 intent). Verified no residual setEnvVar for caseTypeId/priorityId/trackingStatusId/statusId across the whole tree."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (40/40 pytest)", "frontend": "N/A (artifact review)"},
+  "seed_data_creation": "None.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All 15 review items verified against /app/integrations/sicon/. Only R15 has a labeling inconsistency: literal string 'SICON CONFIRMATION REQUIRED' is missing on Equipment/GetMany, Equipment/GetOne, Metadata/Priority/GetMany (they use '⚠ UNVERIFIED … Confirm with Sicon' instead). All structural checks pass, brace balance clean, bruno.json valid, zip contains docs at both root and bruno/. Backend pytest suite 40/40. Live Sicon host was NOT contacted per instructions.",
+  "rca of the issue": "N/A — no functional bug; only a wording-consistency observation on R15."
+}

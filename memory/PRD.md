@@ -1,3 +1,21 @@
+# ═══ 2026-06 · SICON — Bruno collection 15-point review upgrade (verified) ═══
+User submitted a 15-point review; upgraded gen_bruno_sicon_mapping.py so the exported collection is a real
+Pulse↔Sicon working pack (not a repackage). All 15 implemented + testing-agent verified (40/40 backend pytest,
+0 unmapped, brace-balanced, valid JSON):
+  1 Local env companyId=2. 2 FIELD_MAPPING.md + mapping.csv bundled in the zip (root + inside bruno/).
+  3 Every Sicon field documented (0 UNMAPPED; 348 mapped + 24 Sicon metadata = 372). 4 Request-level mapping
+  docs on Case/Appointment/TrackingNote/TimeBooking/Equipment. 5 TrackingNote appointmentId = {{appointmentId}}
+  (not null). 6 ALLOW_WRITES=false guard (collection script:pre-request blocks POST/PUT/PATCH/DELETE unless true;
+  Auth exempt). 7 No auto-select of CaseType/Priority/TrackingStatus — explicit selected*Id env vars + lookup
+  option logging. 8 Lookups added: Employees/Contracts/CoverTypes/SLAs/FaultCodes/Skills/Teams. 9 id:0 → null in
+  bodies (companyId excepted). 10 employeeIds = [] (never [0]). 11 GET response tests assert mapped fields exist +
+  record typeof. 12 Equipment pagination ($max={{pageSize}}=200 + _equipmentPageCount test). 13 Three-layer legend
+  (Bruno var vs Sicon field vs Pulse field). 14 Direction words Pulse→Sicon/Sicon→Pulse/Bidirectional/Sicon metadata.
+  15 SICON CONFIRMATION REQUIRED labels on Equipment + Priority + unverified lookups.
+Report: test_reports/iteration_sicon_bruno_15pt_review_jan2026.json. Download refreshed at /Sicon-Service-Pulse.bruno.zip.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · SICON — Bruno collection 404 route fix (verified) ═══
 User imported the pack and hit 404 "There was no Api Controller or Action matching the Uri Provided" on
 Appointment/Case GetOne against their LIVE Sicon instance. ROOT CAUSE: the collection used a fabricated

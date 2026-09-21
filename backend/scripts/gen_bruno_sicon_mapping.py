@@ -150,12 +150,12 @@ ROUTE_MAP = {
 
 # path -> WARNING appended to the request docs (unverified / endpoint may not exist)
 WARN = {
-    "Metadata/Priority/GetMany.bru": "UNVERIFIED: the Service WebAPI (audit R260200c) exposes NO priorities lookup endpoint. PriorityID is config-mapped in Pulse. Confirm with Sicon if a live route now exists; otherwise this request will 404.",
-    "Metadata/Priority/GetOne.bru": "UNVERIFIED: no priorities endpoint in the Service WebAPI. PriorityID is config-mapped. Confirm with Sicon.",
-    "Equipment/Equipment/GetMany.bru": "UNVERIFIED: historically the Service WebAPI has NO standalone Equipment endpoint (equipment is referenced via EquipmentIDs on a case). Confirm the live route with Sicon before use.",
-    "Equipment/Equipment/GetOne.bru": "UNVERIFIED: no confirmed standalone Equipment route. Confirm with Sicon.",
-    "Equipment/Equipment/PostOne.bru": "UNVERIFIED: no confirmed standalone Equipment route. Confirm with Sicon.",
-    "Equipment/Equipment/PutOne.bru": "UNVERIFIED: no confirmed standalone Equipment route. Confirm with Sicon.",
+    "Metadata/Priority/GetMany.bru": "SICON CONFIRMATION REQUIRED — the Service WebAPI (audit R260200c) exposes NO priorities lookup endpoint. PriorityID is config-mapped in Pulse. Confirm with Sicon if a live route now exists; otherwise this request will 404.",
+    "Metadata/Priority/GetOne.bru": "SICON CONFIRMATION REQUIRED — no priorities endpoint in the Service WebAPI. PriorityID is config-mapped. Confirm with Sicon.",
+    "Equipment/Equipment/GetMany.bru": "SICON CONFIRMATION REQUIRED — historically the Service WebAPI has NO standalone Equipment endpoint (equipment is referenced via EquipmentIDs on a case). Confirm the live route with Sicon before use.",
+    "Equipment/Equipment/GetOne.bru": "SICON CONFIRMATION REQUIRED — no confirmed standalone Equipment route. Confirm with Sicon.",
+    "Equipment/Equipment/PostOne.bru": "SICON CONFIRMATION REQUIRED — no confirmed standalone Equipment route. Confirm with Sicon.",
+    "Equipment/Equipment/PutOne.bru": "SICON CONFIRMATION REQUIRED — no confirmed standalone Equipment route. Confirm with Sicon.",
     "Cases/CaseEquipment/GetMany.bru": "Equipment is embedded on the case as EquipmentIDs; this points at the case read. Confirm a dedicated route with Sicon if you need the expanded equipment list.",
     "Cases/CaseAppointment/GetMany.bru": "No case-scoped appointment filter exists; this uses the paged TEntity appointments feed. Filter client-side by siSMCaseId.",
     "Appointments/Appointment/GetOne.bru": "Appointment routes go via the TEntity v2 gateway (/~/api/v2/TEntity/...) per the current production client. Confirm against your instance.",
