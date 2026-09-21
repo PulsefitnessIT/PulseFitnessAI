@@ -144,10 +144,94 @@ async def desk_queue(
     return {"cases": rows, "count": len(rows)}
 
 
+async def _operator_org(user: dict) -> str:
+    return (user.get("organization_id") or user.get("service_org_id")) or "__none__"
+
+
+async def _authorized_customer_org(user: dict, org_id: str) -> bool:
+    """A customer org is reachable from the operator's Service Desk if it's
+    the operator's own org OR a CRM-linked customer of the operator."""
+    operator = await _operator_org(user)
+    if not org_id or org_id == operator:
+        return True
+    link = await db.crm2_companies.find_one(
+        {"organization_id": operator, "linked_organization_id": org_id}, {"_id": 0, "id": 1},
+    )
+    return bool(link)
+
+
+@router.get("/customers")
+async def desk_customers(user=Depends(get_current_user)):
+    """Customers selectable when logging a case: the operator's own org
+    plus every CRM-linked customer estate (imported via Master Admin)."""
+    operator = await _operator_org(user)
+    out = []
+    op_org = await db.organizations.find_one({"id": operator}, {"_id": 0, "id": 1, "name": 1})
+    if op_org:
+        sc = await db.sites.count_documents({"organization_id": operator, "archived": {"$ne": True}})
+        out.append({"organization_id": operator, "name": op_org.get("name") or "My organisation",
+                    "is_operator": True, "site_count": sc})
+    cursor = db.crm2_companies.find(
+        {"organization_id": operator, "linked_organization_id": {"$nin": [None, ""]}},
+        {"_id": 0, "name": 1, "linked_organization_id": 1, "account_number": 1},
+    ).sort("name", 1)
+    async for c in cursor:
+        oid = c.get("linked_organization_id")
+        if not oid:
+            continue
+        sc = await db.sites.count_documents({"organization_id": oid, "archived": {"$ne": True}})
+        out.append({"organization_id": oid, "name": c.get("name") or "Customer",
+                    "account_number": c.get("account_number") or "", "is_operator": False,
+                    "site_count": sc})
+    return {"customers": out, "count": len(out)}
+
+
+@router.get("/customer-sites")
+async def desk_customer_sites(organization_id: str = Query(...), user=Depends(get_current_user)):
+    """Sites (with equipment counts) for a chosen customer org."""
+    if not await _authorized_customer_org(user, organization_id):
+        return {"sites": [], "count": 0}
+    sites = await db.sites.find(
+        {"organization_id": organization_id, "archived": {"$ne": True}}, {"_id": 0},
+    ).sort("name", 1).to_list(1000)
+    counts: dict[str, int] = {}
+    async for d in db.equipment.aggregate([
+        {"$match": {"organization_id": organization_id}},
+        {"$group": {"_id": "$site_id", "n": {"$sum": 1}}},
+    ]):
+        if d.get("_id"):
+            counts[d["_id"]] = d["n"]
+    for s in sites:
+        s["equipment_count"] = counts.get(s.get("id"), 0)
+    return {"sites": sites, "count": len(sites)}
+
+
+@router.get("/customer-equipment")
+async def desk_customer_equipment(
+    organization_id: str = Query(...), site_id: str = Query(...), user=Depends(get_current_user),
+):
+    """Equipment for a chosen customer site (org-scoped, authorized)."""
+    if not await _authorized_customer_org(user, organization_id):
+        return {"equipment": [], "count": 0}
+    rows = await db.equipment.find(
+        {"organization_id": organization_id,
+         "$or": [{"site_id": site_id}, {"site_id": {"$exists": False}}, {"site_id": None}]},
+        {"_id": 0},
+    ).sort("name", 1).to_list(2000)
+    return {"equipment": rows, "count": len(rows)}
+
+
 @router.get("/engineers")
 async def desk_engineers(user=Depends(get_current_user)):
     """Engineer roster with current load (open case count)."""
     of = _of(user)
+    # Iter — self-heal duplicate engineer rows (manual + staffing mirror)
+    # so "Live engineers" never shows the same person twice.
+    try:
+        from routes.svc.engineers_admin import dedupe_svc_engineers
+        await dedupe_svc_engineers(of["organization_id"])
+    except Exception:
+        pass
     engineers = await db.svc_engineers.find(of, {"_id": 0}).sort("full_name", 1).to_list(500)
 
     # Count open cases per engineer in one round-trip.

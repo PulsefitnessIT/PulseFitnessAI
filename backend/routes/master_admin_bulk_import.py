@@ -614,6 +614,109 @@ async def _record_import_batch(
         logger.warning(f"failed to record import batch {batch_id}: {exc}")
 
 
+async def _ensure_crm_company_for_org(
+    operator_org_id: str, customer_org_id: str, user: dict,
+    account_number: Optional[str] = None,
+) -> Optional[str]:
+    """Master Admin → CRM bridge. Ensure a `crm2_companies` record exists in
+    the OPERATOR's tenant (Pulse Fitness Ltd) for an imported customer org,
+    so imported estates surface in the CRM as well as the Service Desk.
+    Idempotent — matches an existing company by `linked_organization_id`
+    then by name. Returns the crm2_companies id (or None if not applicable)."""
+    if not operator_org_id or not customer_org_id or operator_org_id == customer_org_id:
+        return None
+    now = datetime.now(timezone.utc).isoformat()
+    cust = await db.organizations.find_one({"id": customer_org_id}, {"_id": 0}) or {}
+    name = (cust.get("name") or "").strip() or "Imported customer"
+    acct = (account_number or cust.get("customer_account_number")
+            or cust.get("sicon_customer_number") or "").strip()
+
+    existing = await db.crm2_companies.find_one(
+        {"organization_id": operator_org_id, "linked_organization_id": customer_org_id},
+        {"_id": 0, "id": 1},
+    )
+    if not existing:
+        from utils.security_plus import safe_regex
+        existing = await db.crm2_companies.find_one(
+            {"organization_id": operator_org_id, "name": safe_regex(f"^{name}$")},
+            {"_id": 0, "id": 1},
+        )
+    if existing:
+        upd = {"linked_organization_id": customer_org_id, "type": "customer", "updated_at": now}
+        if acct:
+            upd["account_number"] = acct
+        await db.crm2_companies.update_one({"id": existing["id"]}, {"$set": upd})
+        return existing["id"]
+
+    cid = str(uuid.uuid4())
+    doc = {
+        "id": cid, "organization_id": operator_org_id, "site_id": None,
+        "name": name, "sector": cust.get("industry", ""), "type": "customer",
+        "parent_id": None,
+        "website": cust.get("website", ""), "phone": cust.get("phone", ""),
+        "email": cust.get("primary_contact_email", ""),
+        "address": cust.get("address", ""),
+        "address_line1": cust.get("address_line1", ""), "address_line2": cust.get("address_line2", ""),
+        "address_line3": cust.get("address_line3", ""),
+        "city": cust.get("city", ""), "postcode": cust.get("postcode", ""),
+        "county": cust.get("county", ""), "country": cust.get("country", "United Kingdom"),
+        "company_number": "", "description": "", "directors": [],
+        "account_owner_id": user.get("id"), "account_owner_name": user.get("full_name", ""),
+        "sla_tier": "standard", "revenue_band": "", "status": "active",
+        "tags": ["imported"], "notes": "", "territory_id": None,
+        "owner_id": user.get("id"), "owner_name": user.get("full_name", ""), "region": "",
+        "account_number": acct,
+        "linked_organization_id": customer_org_id, "is_operator_company": False,
+        "created_via": "master_admin_bulk_import",
+        "created_at": now, "updated_at": now,
+    }
+    await db.crm2_companies.insert_one(doc)
+    return cid
+
+
+async def _bridge_import_to_crm(org_ids, user: dict) -> int:
+    """Ensure a CRM company exists for each customer org touched by an import.
+    `user.organization_id` is the operator tenant (Pulse Fitness Ltd)."""
+    operator = user.get("organization_id") or user.get("service_org_id")
+    made = 0
+    for oid in {o for o in (org_ids or []) if o}:
+        try:
+            if await _ensure_crm_company_for_org(operator, oid, user):
+                made += 1
+        except Exception as exc:  # never fail an import over the CRM mirror
+            logger.warning(f"CRM bridge failed for org {oid}: {exc}")
+    return made
+
+
+@router.post("/master-admin/bulk-import/backfill-crm")
+async def backfill_crm_companies(user: dict = Depends(get_current_user)) -> dict:
+    """Back-fill: ensure every already-imported customer estate has a CRM
+    company in the Pulse Fitness Ltd tenant. Scans orgs that own sites or
+    equipment, skips the operator's own tenant, and is fully idempotent."""
+    _require_pulse_or_master(user)
+    operator = user.get("organization_id") or user.get("service_org_id")
+    site_orgs = await db.sites.distinct("organization_id")
+    equip_orgs = await db.equipment.distinct("organization_id")
+    candidate_ids = {o for o in (list(site_orgs) + list(equip_orgs)) if o and o != operator}
+    made = 0
+    checked = 0
+    for oid in candidate_ids:
+        org = await db.organizations.find_one(
+            {"id": oid}, {"_id": 0, "id": 1, "account_type": 1},
+        )
+        if not org:
+            continue
+        if org.get("account_type") not in PULSE_VISIBLE_ACCOUNT_TYPES and org.get("account_type") is not None:
+            continue
+        checked += 1
+        try:
+            if await _ensure_crm_company_for_org(operator, oid, user):
+                made += 1
+        except Exception as exc:
+            logger.warning(f"CRM backfill failed for org {oid}: {exc}")
+    return {"success": True, "customers_linked": made, "orgs_checked": checked}
+
+
 @router.get("/master-admin/bulk-import/batches")
 async def list_import_batches(
     organization_id: Optional[str] = Query(None),
@@ -1163,6 +1266,8 @@ async def _do_bulk_import_equipment(
             inserted=imported, updated=updated, skipped=skipped,
             filename=getattr(file, "filename", None),
         )
+    # Bridge imported customer estates into the Pulse Fitness Ltd CRM.
+    await _bridge_import_to_crm(list(org_breakdown.keys()), user)
 
     return {
         "imported": imported, "skipped": skipped, "updated": updated,
@@ -1278,6 +1383,9 @@ async def bulk_import_customers(
             errors.append(f"Row {i}: {exc}")
 
     await _flush_pending()
+
+    # Bridge imported customer estates into the Pulse Fitness Ltd CRM.
+    await _bridge_import_to_crm(list(org_breakdown.keys()), user)
 
     return {
         "imported": imported, "skipped": skipped,
@@ -1688,6 +1796,8 @@ async def bulk_import_sites(
             filename=getattr(file, "filename", None),
             org_snapshots={organization_id: org_snapshot},
         )
+    # Bridge this customer estate into the Pulse Fitness Ltd CRM.
+    await _bridge_import_to_crm([organization_id], user)
 
     return {
         "imported": imported, "updated": updated, "skipped": skipped,

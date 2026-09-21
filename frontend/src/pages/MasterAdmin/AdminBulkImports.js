@@ -74,6 +74,21 @@ const AdminBulkImports = ({ API }) => {
 
  useEffect(() => { loadBatches(); }, [loadBatches]);
 
+ // Back-fill: ensure already-imported customers exist in the Pulse Fitness
+ // Ltd CRM (idempotent — safe to run on every visit).
+ useEffect(() => {
+ (async () => {
+ try {
+ const { data } = await axios.post(`${API}/master-admin/bulk-import/backfill-crm`, {}, { headers });
+ if (data?.customers_linked > 0) {
+ show({ tone: 'success', title: `Synced ${data.customers_linked} customer(s) into CRM`,
+ detail: 'Imported estates now appear in the Pulse Fitness Ltd CRM.' });
+ }
+ } catch { /* non-fatal */ }
+ })();
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, []);
+
  useEffect(() => {
  // Pull the list of Pulse-visible orgs so the admin can target the import.
  (async () => {

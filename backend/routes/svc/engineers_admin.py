@@ -141,13 +141,111 @@ async def sync_staffing_to_svc_engineers(org_id: str) -> int:
         return 0
 
 
+async def dedupe_svc_engineers(org_id: str) -> int:
+    """Merge duplicate svc_engineers docs for one person into a single
+    canonical record (Lee's Service-Desk "Live engineers" showed each
+    engineer twice — a manually/user-provisioned row + a staffing mirror
+    that the dedupe keys missed). Non-destructive to history: open cases
+    assigned to a removed id are reassigned to the survivor before delete.
+
+    Grouping rule (conservative — never merges two DIFFERENT real people):
+      · docs with the same non-blank email → one group
+      · a doc with NO email is folded into an email-group that shares the
+        same normalised full_name; otherwise it groups with other
+        emailless docs of the same name
+      · two docs with DIFFERENT non-blank emails are never merged
+    """
+    if not org_id:
+        return 0
+    try:
+        docs = await db.svc_engineers.find({"organization_id": org_id}, {"_id": 0}).to_list(2000)
+        if len(docs) < 2:
+            return 0
+
+        def _norm_name(d):
+            return " ".join((d.get("full_name") or "").lower().split())
+
+        # 1) email-keyed groups
+        groups: dict[str, list] = {}
+        emailless: list = []
+        for d in docs:
+            em = (d.get("email") or "").lower().strip()
+            if em:
+                groups.setdefault(f"email:{em}", []).append(d)
+            else:
+                emailless.append(d)
+        # 2) fold emailless docs into a same-name email group, else name-group
+        name_to_emailgroup: dict[str, str] = {}
+        for k, members in groups.items():
+            nm = _norm_name(members[0])
+            if nm and nm not in name_to_emailgroup:
+                name_to_emailgroup[nm] = k
+        for d in emailless:
+            nm = _norm_name(d)
+            if nm and nm in name_to_emailgroup:
+                groups[name_to_emailgroup[nm]].append(d)
+            else:
+                groups.setdefault(f"name:{nm or d.get('id')}", []).append(d)
+
+        def _rank(d):
+            # Higher is better survivor: active, has email, real (non-staffeng) id, has staff_id, older.
+            return (
+                1 if d.get("active") is not False else 0,
+                1 if (d.get("email") or "").strip() else 0,
+                0 if str(d.get("id", "")).startswith("staffeng-") else 1,
+                1 if d.get("staff_id") else 0,
+                d.get("created_at") or "",
+            )
+
+        merged = 0
+        now = datetime.now(timezone.utc).isoformat()
+        _FILL = ("email", "mobile", "staff_id", "sage_user_id", "photo_url",
+                 "home_address", "vehicle_reg", "qualifications", "skills",
+                 "working_hours", "years_experience", "source")
+        for members in groups.values():
+            if len(members) < 2:
+                continue
+            members.sort(key=_rank, reverse=True)
+            keep = members[0]
+            losers = members[1:]
+            fill: dict = {}
+            for f in _FILL:
+                cur = keep.get(f)
+                cur_empty = cur is None or (isinstance(cur, str) and not cur.strip()) or (isinstance(cur, (list, dict)) and not cur)
+                if cur_empty:
+                    for m in losers:
+                        v = m.get(f)
+                        if v not in (None, "", [], {}):
+                            fill[f] = v
+                            break
+            if keep.get("active") is False and any(m.get("active") is not False for m in losers):
+                fill["active"] = True
+            if fill:
+                fill["updated_at"] = now
+                await db.svc_engineers.update_one({"id": keep["id"]}, {"$set": fill})
+            for m in losers:
+                if m.get("id") and m["id"] != keep["id"]:
+                    await db.svc_cases.update_many(
+                        {"organization_id": org_id, "assigned_engineer_id": m["id"]},
+                        {"$set": {"assigned_engineer_id": keep["id"]}},
+                    )
+                    await db.svc_engineers.delete_one({"id": m["id"], "organization_id": org_id})
+                    merged += 1
+        return merged
+    except Exception:
+        logger.exception("[svc-engineer-dedupe] failed for org %s", org_id)
+        return 0
+
+
 # ── Engineer admin CRUD ──────────────────────────────────────────
 
 @router.get("/svc/engineers")
 async def list_engineers(user=Depends(get_current_user)) -> dict:
     # Cross-module flow: pull Operations Staffing field engineers into the
-    # Service Desk roster before listing.
-    await sync_staffing_to_svc_engineers(user.get("organization_id") or user.get("service_org_id"))
+    # Service Desk roster before listing, then merge any duplicate rows.
+    _org = user.get("organization_id") or user.get("service_org_id")
+    await sync_staffing_to_svc_engineers(_org)
+    await dedupe_svc_engineers(_org)
     cursor = db.svc_engineers.find(_of(user), {"_id": 0}).sort("full_name", 1)
     rows = [_public(e) async for e in cursor]
     # Annotate each engineer with current open-job count for the admin UI.

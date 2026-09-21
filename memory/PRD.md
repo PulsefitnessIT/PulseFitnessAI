@@ -38328,3 +38328,37 @@ Verified via function-level e2e with the real Devon & Somerset CSVs: preview wro
 5 "Airport Fire Station" rows; undo removed exactly the inserted rows (404 equipment / 85 sites) and
 restored the org snapshot (is_head_office→false, account cleared, site_count→0); double-undo blocked.
 Frontend compiles clean (eslint 0/0). UI not browser-tested (master-admin MFA enforced in preview).
+
+---
+## 2026-06 · Cross-module data flow: imports → CRM + Service Desk; engineer dedupe; intake polish
+Principle (user): "This is the Pulse Fitness Ltd platform — Master Admin feeds the Pulse Fitness Ltd portal; all data flows between modules."
+
+A. Duplicate "Live engineers" (Service Desk) — FIXED.
+   - New `dedupe_svc_engineers(org_id)` in routes/svc/engineers_admin.py merges duplicate svc_engineers docs
+     (manual row + staffing mirror) into one canonical record: conservative grouping (same email, or emailless
+     folded into a same-name email group; never merges two different non-blank emails), reassigns
+     svc_cases.assigned_engineer_id to the survivor, then deletes losers. Called from GET /svc/engineers and
+     self-heals on GET /svc/desk/engineers.
+
+B. Imported data now feeds the Pulse Fitness Ltd CRM — FIXED.
+   - `_ensure_crm_company_for_org(operator, customer, user)` + `_bridge_import_to_crm(...)` in
+     master_admin_bulk_import.py: sites/equipment/customers imports now create/link a `crm2_companies` record
+     under the OPERATOR tenant (organization_id = importer's org) with linked_organization_id = customer org,
+     type "customer", account_number stamped. Idempotent (match by linked_organization_id then name).
+   - Back-fill: POST /api/master-admin/bulk-import/backfill-crm scans all orgs owning sites/equipment and links
+     them into the operator CRM. Auto-runs (idempotent) when the Master Admin → Bulk Imports page loads.
+
+C. "Log new service case" now shows all customers — FIXED (Customer → Site → Equipment cascade).
+   - New endpoints in routes/svc/desk.py: GET /svc/desk/customers (operator + CRM-linked customers, with
+     site_count), GET /svc/desk/customer-sites?organization_id=, GET /svc/desk/customer-equipment?organization_id=&site_id=
+     (all authorized via crm2_companies.linked_organization_id).
+   - ServiceDeskIntakeForm.js: added a Customer dropdown in Step 1; site + equipment now load from the desk
+     cascade endpoints scoped to the chosen customer org (was hard-scoped to /sites = operator only).
+
+D. Intake header — removed the "SERVICE INTAKE" eyebrow, left-aligned "Log new service case".
+
+Verified via function-level e2e with the real Devon & Somerset CSVs: sites import creates the CRM company
+(account 00002515); desk customers lists operator + customer (85 sites); customer-sites/equipment resolve;
+engineer dedupe merges + reassigns the case to the survivor; backfill idempotent (1 company, no dupes);
+unauthorized customer org returns empty. Backend clean (ruff), frontend clean (eslint), all endpoints live.
+NOT browser-tested: Service Desk + Master Admin are behind enforced MFA in preview.

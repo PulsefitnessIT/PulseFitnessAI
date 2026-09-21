@@ -39,6 +39,7 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
     { v: 'p4', label: t('service.intake_prio_p4', 'P4 — Low (24h response, 7d resolve)') },
   ];
   // Cascade selections
+  const [customerOrgId, setCustomerOrgId] = useState('');
   const [siteId, setSiteId] = useState('');
   const [contactMode, setContactMode] = useState('existing'); // existing | manual
   const [contactId, setContactId] = useState('');
@@ -46,6 +47,7 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
   const [serial, setSerial] = useState('');
 
   // Lookup data
+  const [customers, setCustomers] = useState([]);
   const [sites, setSites] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [equipmentList, setEquipmentList] = useState([]);
@@ -75,19 +77,40 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
 
   const [saving, setSaving] = useState(false);
 
-  // ── Initial site list
+  // ── Initial customer list (operator + CRM-linked imported customers)
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const r = await axios.get(`${API}/sites`, auth());
-        if (!cancelled) setSites(r.data?.sites || []);
+        const r = await axios.get(`${API}/svc/desk/customers`, auth());
+        if (cancelled) return;
+        const list = r.data?.customers || [];
+        setCustomers(list);
+        // Default to the operator's own org so existing behaviour is unchanged.
+        const op = list.find((c) => c.is_operator) || list[0];
+        if (op) setCustomerOrgId(op.organization_id);
       } catch {
         // silent — operators can still type customer details manually
       }
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // ── Customer → sites
+  useEffect(() => {
+    let cancelled = false;
+    setSiteId(''); setEquipmentId(''); setSerial(''); setSites([]);
+    if (!customerOrgId) return undefined;
+    (async () => {
+      try {
+        const r = await axios.get(`${API}/svc/desk/customer-sites?organization_id=${encodeURIComponent(customerOrgId)}`, auth());
+        if (!cancelled) setSites(r.data?.sites || []);
+      } catch {
+        if (!cancelled) setSites([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [customerOrgId]);
 
   // ── Site → equipment + contacts
   useEffect(() => {
@@ -99,7 +122,7 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
     (async () => {
       try {
         const [eqRes, staffRes] = await Promise.all([
-          axios.get(`${API}/equipment?site_id=${encodeURIComponent(siteId)}`, auth()).catch(() => ({ data: { equipment: [] } })),
+          axios.get(`${API}/svc/desk/customer-equipment?organization_id=${encodeURIComponent(customerOrgId)}&site_id=${encodeURIComponent(siteId)}`, auth()).catch(() => ({ data: { equipment: [] } })),
           axios.get(`${API}/gym-floor/staff`, auth()).catch(() => ({ data: { staff: [] } })),
         ]);
         if (cancelled) return;
@@ -111,7 +134,7 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [siteId]);
+  }, [siteId, customerOrgId]);
 
   // ── Equipment → serial + coverage
   useEffect(() => {
@@ -286,8 +309,7 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
         {/* Header */}
         <div className="svc-drawer-head flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="svc-eyebrow"><Phone size={11} /> {t('service.intake_service_intake', 'Service intake')}</p>
-            <h2 className="svc-h1" style={{ fontSize: 20, marginTop: 2 }}>{t('service.intake_log_new_case', 'Log new service case')}</h2>
+            <h2 className="svc-h1" style={{ fontSize: 20, textAlign: 'left' }}>{t('service.intake_log_new_case', 'Log new service case')}</h2>
           </div>
           <button type="button" onClick={onClose} aria-label={t('service.intake_close', 'Close')} data-testid="svc-intake-close" className="svc-icon-btn">
             <X size={16} />
@@ -296,15 +318,30 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
 
         {/* Body */}
         <div className="svc-drawer-body space-y-4">
-          {/* Step 1 — Site */}
-          <Step n={1} icon={<MapPin size={12} />} label={t('service.intake_step_site', 'Site')}>
+          {/* Step 1 — Customer & site */}
+          <Step n={1} icon={<MapPin size={12} />} label={t('service.intake_step_customer_site', 'Customer & site')}>
+            {customers.length > 1 && (
+              <select
+                value={customerOrgId}
+                onChange={(e) => setCustomerOrgId(e.target.value)}
+                className="svc-select mb-2"
+                data-testid="intake-customer-select"
+              >
+                {customers.map((c) => (
+                  <option key={c.organization_id} value={c.organization_id}>
+                    {c.name}{c.is_operator ? t('service.intake_cust_mine', ' (my org)') : ''}
+                    {c.site_count != null ? ` · ${t('service.intake_sites_n', '{{n}} sites', { n: c.site_count })}` : ''}
+                  </option>
+                ))}
+              </select>
+            )}
             <select
               value={siteId}
               onChange={(e) => { setSiteId(e.target.value); setContactId(''); setEquipmentId(''); }}
               className="svc-select"
               data-testid="intake-site-select"
             >
-              <option value="">{t('service.intake_select_site', '— Select site —')}</option>
+              <option value="">{sites.length ? t('service.intake_select_site', '— Select site —') : t('service.intake_no_sites', 'No sites for this customer')}</option>
               {sites.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}{s.equipment_count != null ? ` · ${t('service.intake_machines', '{{n}} machines', { n: s.equipment_count })}` : ''}
