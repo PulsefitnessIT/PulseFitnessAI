@@ -821,6 +821,7 @@ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
  <Input
  id="email"
  type="text"
+ name="username"
  inputMode="email"
  autoComplete="username"
  value={formData.email}
@@ -836,7 +837,9 @@ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
  <div className="relative">
  <Input
  id="password"
+ name="password"
  type={showPassword ? 'text' : 'password'}
+ autoComplete={isLogin ? 'current-password' : 'new-password'}
  value={formData.password}
  onChange={(e) => setFormData({...formData, password: e.target.value})}
  required
@@ -864,6 +867,8 @@ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
  <Label htmlFor="full_name" className="text-white">{t('auth.full_name')}</Label>
  <Input
  id="full_name"
+ name="name"
+ autoComplete="name"
  value={formData.full_name}
  onChange={(e) => setFormData({...formData, full_name: e.target.value})}
  required={!isLogin}
