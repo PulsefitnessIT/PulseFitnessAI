@@ -856,130 +856,173 @@ def build_stock_adjustment_payload(part_sku: str, qty_delta, warehouse_name: str
 
 # ── Mappers: Sicon → Pulse Fitness ──────────────────────────────────────
 
+def _ci(entity: Optional[Dict]) -> Dict:
+    """Return a case-insensitive (lower-cased-key) view of a Sicon entity.
+
+    Sicon's Service WebAPI serialises responses in camelCase
+    (siSMCaseId, siconAppointmentId, siSMTrackingStatusId, statusId, …)
+    whereas our historical mappers used PascalCase (SiSMCaseId,
+    SiconAppointmentID, …). Both fold to the same lower-cased key, so
+    reading from this view makes us robust to whichever casing the live
+    instance emits — the connectivity fix confirmed at the Sicon meeting.
+    """
+    if not isinstance(entity, dict):
+        return {}
+    return {str(k).lower(): v for k, v in entity.items()}
+
+
 def map_sicon_case_to_gymaxis(sicon_case: Dict) -> Dict:
-    """Extract Pulse Fitness-relevant fields from a Sicon case response (extended)."""
-    entity = sicon_case.get("entity", sicon_case) if isinstance(sicon_case, dict) else {}
-    sub_loc = entity.get("SubLocation") or {}
+    """Extract Pulse Fitness-relevant fields from a Sicon case response (extended).
+
+    Casing-agnostic: reads camelCase or PascalCase transparently, and resolves
+    the id-link fields Sicon confirmed (appointmentId, statusId, tracking-status)."""
+    raw = sicon_case.get("entity", sicon_case) if isinstance(sicon_case, dict) else {}
+    e = _ci(raw)
+    sub = _ci(e.get("sublocation"))
+    ct = _ci(e.get("casetype"))
+    pr = _ci(e.get("priority"))
     return {
-        "sicon_case_id": entity.get("SiSMCaseId"),
-        "sicon_case_number": entity.get("CaseNumber"),
-        "sicon_status_id": entity.get("SiSMDocumentStatusID"),
-        "sicon_status": entity.get("SiSMDocumentStatusName", "Unknown"),
-        "sicon_sub_status_id": entity.get("SiSMDocumentSubStatusID"),
-        "sicon_description": entity.get("Description"),
-        "sicon_summary": entity.get("Summary"),
-        "sicon_priority_id": entity.get("PriorityID"),
-        "sicon_priority": entity.get("PriorityName"),
-        "sicon_assigned_to": entity.get("AssignedToSageUser"),
-        "sicon_assigned_to_id": entity.get("AssignedToSageUserID"),
-        "sicon_internal_team": entity.get("InternalTeam"),
-        "sicon_internal_team_id": entity.get("InternalTeamID"),
-        "sicon_external_team": entity.get("ExternalTeam"),
-        "sicon_external_team_id": entity.get("ExternalTeamID"),
-        "sicon_contact_name": entity.get("ContactName"),
-        "sicon_contact_email": entity.get("ContactEmail"),
-        "sicon_contact_phone": entity.get("ContactPhoneNumber"),
-        "sicon_call_date": entity.get("CallDate"),
-        "sicon_customer_reference": entity.get("CustomerReference"),
-        "sicon_sl_customer_account_id": entity.get("SLCustomerAccountID"),
-        "sicon_case_type_id": entity.get("CaseTypeID"),
-        "sicon_case_type_name": entity.get("CaseTypeName"),
-        "sicon_contract_id": entity.get("SiconContractID"),
-        "sicon_contract_number": entity.get("SiconContractNumber"),
-        "sicon_contract_line_id": entity.get("SiconContractLineID"),
-        "sicon_contract_line_number": entity.get("SiconContractLineNumber"),
-        "sicon_job_id": entity.get("SiJcJobID"),
-        "sicon_crm_person_id": entity.get("SiconCRMPersonID"),
-        "sicon_crm_company_id": entity.get("SiconCRMCompanyID"),
-        "sicon_sub_location_id": sub_loc.get("SiconSubLocationID"),
-        "sicon_sub_location_description": sub_loc.get("Description"),
-        "sicon_sub_location_comment": sub_loc.get("Comment"),
-        "sicon_equipment_ids": entity.get("EquipmentIDs") or [
-            e.get("SiconEquipmentID") for e in (entity.get("Equipments") or []) if e.get("SiconEquipmentID")
+        "sicon_case_id": e.get("sismcaseid"),
+        "sicon_case_number": e.get("casenumber"),
+        "sicon_status_id": e.get("sismdocumentstatusid"),
+        "sicon_status": e.get("sismdocumentstatusname", "Unknown"),
+        "sicon_sub_status_id": e.get("sismdocumentsubstatusid"),
+        # Tracking-status link (Sicon confirmed): case.statusId / case.status
+        "sicon_tracking_status_id": e.get("statusid"),
+        "sicon_tracking_status": e.get("status"),
+        "sicon_last_tracking_status": e.get("lasttrackingstatus"),
+        "sicon_last_updated_at": e.get("lastupdateddate"),
+        # Linked appointment + latest note ids (Sicon confirmed)
+        "sicon_appointment_id": e.get("appointmentid"),
+        "sicon_latest_note_id": e.get("sismcasetrackingnoteid"),
+        "sicon_customer_order_number": e.get("customerorderno") or e.get("customerordernumber"),
+        "sicon_description": e.get("description"),
+        "sicon_summary": e.get("summary"),
+        "sicon_priority_id": e.get("priorityid") or pr.get("sismpriorityid"),
+        "sicon_priority": e.get("priorityname") or pr.get("name"),
+        "sicon_assigned_to": e.get("assignedtosageuser"),
+        "sicon_assigned_to_id": e.get("assignedtosageuserid"),
+        "sicon_internal_team": e.get("internalteam"),
+        "sicon_internal_team_id": e.get("internalteamid"),
+        "sicon_external_team": e.get("externalteam"),
+        "sicon_external_team_id": e.get("externalteamid"),
+        "sicon_contact_name": e.get("contactname"),
+        "sicon_contact_email": e.get("contactemail"),
+        "sicon_contact_phone": e.get("contactphonenumber"),
+        "sicon_call_date": e.get("calldate"),
+        "sicon_customer_reference": e.get("customerreference"),
+        "sicon_sl_customer_account_id": e.get("slcustomeraccountid"),
+        "sicon_case_type_id": e.get("casetypeid") or ct.get("sismcasetypeid"),
+        "sicon_case_type_name": e.get("casetypename") or ct.get("name"),
+        "sicon_contract_id": e.get("siconcontractid"),
+        "sicon_contract_number": e.get("siconcontractnumber"),
+        "sicon_contract_line_id": e.get("siconcontractlineid"),
+        "sicon_contract_line_number": e.get("siconcontractlinenumber"),
+        "sicon_job_id": e.get("sijcjobid"),
+        "sicon_crm_person_id": e.get("siconcrmpersonid"),
+        "sicon_crm_company_id": e.get("siconcrmcompanyid"),
+        "sicon_sub_location_id": sub.get("siconsublocationid") or sub.get("siconsublocationdbkey"),
+        "sicon_sub_location_description": sub.get("description"),
+        "sicon_sub_location_comment": sub.get("comment"),
+        "sicon_equipment_ids": e.get("equipmentids") or [
+            _ci(x).get("siconequipmentid") for x in (e.get("equipments") or [])
+            if _ci(x).get("siconequipmentid")
         ],
     }
 
 
 def map_sicon_appointment_to_gymaxis(appointment: Dict) -> Dict:
-    """Extract Pulse Fitness-relevant fields from a Sicon appointment (spec §3.2)."""
-    entity = appointment.get("entity", appointment) if isinstance(appointment, dict) else {}
+    """Extract Pulse Fitness-relevant fields from a Sicon appointment (spec §3.2). Casing-agnostic."""
+    raw = appointment.get("entity", appointment) if isinstance(appointment, dict) else {}
+    e = _ci(raw)
     return {
-        "sicon_appointment_id": entity.get("SiconAppointmentID"),
-        "scheduled_start": entity.get("ScheduledStartDate"),
-        "scheduled_end": entity.get("ScheduledEndDate"),
-        "appointment_type": entity.get("AppointmentType"),
-        "work_done_description": entity.get("WorkDoneDescription"),
-        "further_action": entity.get("FurtherAction"),
-        "arrival_signee": entity.get("ArrivalSignee"),
-        "departure_signee": entity.get("DepartureSignee"),
-        "arrival_latitude": entity.get("ArrivalLatitude"),
-        "arrival_longitude": entity.get("ArrivalLongitude"),
-        "departure_latitude": entity.get("DepartureLatitude"),
-        "departure_longitude": entity.get("DepartureLongitude"),
-        "appointment_complete": entity.get("AppointmentComplete", False),
-        "confirmed": entity.get("Confirmed", False),
-        "employee_ids": entity.get("EmployeeIDs", []),
-        "subject": entity.get("Subject"),
+        "sicon_appointment_id": e.get("siconappointmentid") or e.get("appointmentid"),
+        "sicon_case_id": e.get("sismcaseid"),
+        "scheduled_start": e.get("scheduledstartdate"),
+        "scheduled_end": e.get("scheduledenddate"),
+        "appointment_type": e.get("appointmenttype"),
+        "work_done_description": e.get("workdonedescription"),
+        "further_action": e.get("furtheraction"),
+        "arrival_signee": e.get("arrivalsignee"),
+        "departure_signee": e.get("departuresignee"),
+        "arrival_latitude": e.get("arrivallatitude"),
+        "arrival_longitude": e.get("arrivallongitude"),
+        "departure_latitude": e.get("departurelatitude"),
+        "departure_longitude": e.get("departurelongitude"),
+        "appointment_complete": e.get("appointmentcomplete", False),
+        "confirmed": e.get("confirmed", False),
+        "employee_ids": e.get("employeeids", []),
+        "subject": e.get("subject"),
+        "costing_hours": e.get("costinghours"),
+        "charging_hours": e.get("charginghours"),
+        "is_estimate": e.get("isestimate", False),
     }
 
 
 def map_sicon_time_booking_to_gymaxis(booking: Dict) -> Dict:
-    """Map a Sicon time booking (spec §3.3)."""
-    entity = booking.get("entity", booking) if isinstance(booking, dict) else {}
+    """Map a Sicon time booking (spec §3.3). Casing-agnostic."""
+    raw = booking.get("entity", booking) if isinstance(booking, dict) else {}
+    e = _ci(raw)
     return {
-        "start_date": entity.get("StartDate"),
-        "end_date": entity.get("EndDate"),
-        "actual_hours": entity.get("ActualHours"),
-        "employee_ids": entity.get("EmployeeIDs", []),
+        "start_date": e.get("startdate"),
+        "end_date": e.get("enddate"),
+        "actual_hours": e.get("actualhours") or e.get("costinghours"),
+        "costing_hours": e.get("costinghours"),
+        "charging_hours": e.get("charginghours"),
+        "charge_rate": e.get("chargerate"),
+        "is_estimate": e.get("isestimate", False),
+        "employee_ids": e.get("employeeids", []),
     }
 
 
 def map_sicon_tracking_note_to_gymaxis(note: Dict) -> Dict:
-    """Map a Sicon tracking note (spec §3.4)."""
-    entity = note.get("entity", note) if isinstance(note, dict) else {}
+    """Map a Sicon tracking note (spec §3.4). Casing-agnostic; resolves statusId variants."""
+    raw = note.get("entity", note) if isinstance(note, dict) else {}
+    e = _ci(raw)
     return {
-        "sicon_note_id": entity.get("ID") or entity.get("TrackingNoteID"),
-        "message": entity.get("TrackingNote"),
-        "timestamp": entity.get("Time"),
-        "by": entity.get("User") or entity.get("CreatedBy"),
-        "case_tracking_status_id": entity.get("CaseTrackingStatusID"),
-        "status": entity.get("Status"),
-        "visible_to_engineer": entity.get("VisibleToEngineer", True),
-        "visible_to_customer": entity.get("VisibleToCustomer", False),
-        "sicon_appointment_id": entity.get("SiconAppointmentID"),
-        "latitude": entity.get("Latitude"),
-        "longitude": entity.get("Longitude"),
+        "sicon_note_id": e.get("sismcasetrackingnoteid") or e.get("id") or e.get("trackingnoteid"),
+        "message": e.get("trackingnote") or e.get("note"),
+        "timestamp": e.get("time"),
+        "by": e.get("user") or e.get("createdby"),
+        "case_tracking_status_id": e.get("casetrackingstatusid") or e.get("statusid") or e.get("sismtrackingstatusid"),
+        "status": e.get("status"),
+        "visible_to_engineer": e.get("visibletoengineer", True),
+        "visible_to_customer": e.get("visibletocustomer", False),
+        "sicon_appointment_id": e.get("siconappointmentid") or e.get("appointmentid"),
+        "latitude": e.get("latitude"),
+        "longitude": e.get("longitude"),
     }
 
 
 def map_sicon_resource_to_engineer(entity: Dict) -> Dict:
     """Phase C — map a Sicon AppointmentResource to a Pulse Fitness-side engineer doc.
 
-    Used by the nightly directory refresh. Filters leavers out upstream."""
+    Used by the nightly directory refresh. Filters leavers out upstream. Casing-agnostic."""
+    e = _ci(entity)
     return {
-        "sicon_employee_id": entity.get("SIJCEMPID"),
-        "full_name": entity.get("FullName") or f"{entity.get('FirstName', '')} {entity.get('Surname', '')}".strip(),
-        "first_name": entity.get("FirstName"),
-        "surname": entity.get("Surname"),
-        "diary_colour": entity.get("DiaryColour"),
-        "employee_number": entity.get("EmployeeNumber"),
-        "payroll_reference": entity.get("PayrollReference"),
-        "post_code_area": entity.get("PostCodeArea"),
-        "team_name": entity.get("Team"),
-        "team_id": entity.get("SiconTeamID"),
-        "subcontractor_account_id": entity.get("SubContractorAccountID"),
-        "contract_expiry_date": entity.get("ContractExpiryDate"),
-        "warehouse_name": entity.get("WarehouseName"),
-        "warehouse_id": entity.get("WarehouseID"),
-        "is_team_leader": bool(entity.get("IsTeamLeader", False)),
-        "is_leaver": bool(entity.get("IsLeaver", False)),
-        "is_project_manager": bool(entity.get("IsProjectManager", False)),
-        "is_shop_floor_user": bool(entity.get("IsShopFloorUser", False)),
-        "start_date": entity.get("StartDate"),
-        "address_line1": entity.get("AddressLine1"),
-        "city": entity.get("City"),
-        "postcode": entity.get("PostCode"),
-        "mobile_no": entity.get("MobileNo"),
-        "telephone_no": entity.get("TelephoneNo"),
-        "email": entity.get("Email"),
+        "sicon_employee_id": e.get("sijcempid"),
+        "full_name": e.get("fullname") or f"{e.get('firstname', '')} {e.get('surname', '')}".strip(),
+        "first_name": e.get("firstname"),
+        "surname": e.get("surname"),
+        "diary_colour": e.get("diarycolour"),
+        "employee_number": e.get("employeenumber"),
+        "payroll_reference": e.get("payrollreference"),
+        "post_code_area": e.get("postcodearea"),
+        "team_name": e.get("team"),
+        "team_id": e.get("siconteamid"),
+        "subcontractor_account_id": e.get("subcontractoraccountid"),
+        "contract_expiry_date": e.get("contractexpirydate"),
+        "warehouse_name": e.get("warehousename"),
+        "warehouse_id": e.get("warehouseid"),
+        "is_team_leader": bool(e.get("isteamleader", False)),
+        "is_leaver": bool(e.get("isleaver", False)),
+        "is_project_manager": bool(e.get("isprojectmanager", False)),
+        "is_shop_floor_user": bool(e.get("isshopflooruser", False)),
+        "start_date": e.get("startdate"),
+        "address_line1": e.get("addressline1"),
+        "city": e.get("city"),
+        "postcode": e.get("postcode"),
+        "mobile_no": e.get("mobileno"),
+        "telephone_no": e.get("telephoneno"),
+        "email": e.get("email"),
     }

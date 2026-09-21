@@ -67,7 +67,17 @@ ALIASES = {
     "sismdocumentsubstatusid": "sismdocumentsubstatusid",
     "siconcrmpersonid": "siconcrmpersonid",
     "siconcrmcompanyid": "siconcrmcompanyid",
+    "sopdeladdress": "address",
 }
+
+# Sicon-owned / display-only fields confirmed at the 2026-06 meeting as
+# Sicon-side concerns — surfaced read-only, no Pulse mapping required.
+# These are reported as SICON-OWNED (not gaps) so coverage reflects reality.
+SICON_OWNED = frozenset({
+    "isenabled", "iscustom", "colour", "defaultappointmentlabel", "systemtype",
+    "isnoncontract", "ispreventativemaintenancetype", "skill",
+    "reassignedtocaseownerid", "reassignedtointernalteamid", "reassignedtoexternalteamid",
+})
 
 by_leaf: dict[str, list[dict]] = {}
 for r in SICON_FIELD_MAPPING:
@@ -308,11 +318,19 @@ def main():
                 if dedup in seen:
                     continue
                 seen.add(dedup)
-                rows_out.append({
-                    "sicon_entity": entity, "sicon_request": str(rel),
-                    "sicon_field": k, "pulse_field": "", "direction": "",
-                    "type": "", "status": "UNMAPPED", "notes": "No Pulse mapping - confirm with Sicon",
-                })
+                if _leaf(k) in SICON_OWNED:
+                    rows_out.append({
+                        "sicon_entity": entity, "sicon_request": str(rel),
+                        "sicon_field": k, "pulse_field": "(Sicon-owned)", "direction": "←",
+                        "type": "", "status": "SICON-OWNED",
+                        "notes": "Sicon-owned / display field — read-only, no Pulse mapping required.",
+                    })
+                else:
+                    rows_out.append({
+                        "sicon_entity": entity, "sicon_request": str(rel),
+                        "sicon_field": k, "pulse_field": "", "direction": "",
+                        "type": "", "status": "UNMAPPED", "notes": "No Pulse mapping - confirm with Sicon",
+                    })
 
     with (OUT / "mapping.csv").open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["sicon_entity", "sicon_request", "sicon_field",
@@ -322,6 +340,8 @@ def main():
 
     total = len(rows_out)
     mapped = sum(1 for r in rows_out if r["status"] == "MAPPED")
+    sicon_owned = sum(1 for r in rows_out if r["status"] == "SICON-OWNED")
+    unmapped = total - mapped - sicon_owned
     ents: dict[str, list] = {}
     for r in rows_out:
         ents.setdefault(r["sicon_entity"], []).append(r)
@@ -334,15 +354,19 @@ def main():
         "the platform mapping table (`backend/routes/sicon_mapping.py`).",
         "`->` push (Pulse->Sicon) &middot; `<-` pull &middot; `<->` bi-directional.",
         "",
-        f"**Coverage: {mapped}/{total} Sicon Service body fields have a Pulse mapping "
-        f"({round(mapped / total * 100) if total else 0}%).**",
+        f"**Coverage: {mapped} MAPPED + {sicon_owned} Sicon-owned = "
+        f"{mapped + sicon_owned}/{total} accounted ({round((mapped + sicon_owned) / total * 100) if total else 0}%). "
+        f"{unmapped} still open.**",
+        "",
+        "Inbound reads (case/appointment/tracking-note ids, status) are resolved",
+        "casing-agnostically in `utils/sicon_client.py` — camelCase or PascalCase both bind.",
         "",
     ]
     for ent in sorted(ents):
         md.append(f"## {ent}")
         md.append("| Sicon field | Pulse field | Dir | Status | Notes |")
         md.append("|---|---|---|---|---|")
-        for r in sorted(ents[ent], key=lambda x: (x["status"] != "UNMAPPED", x["sicon_field"])):
+        for r in sorted(ents[ent], key=lambda x: (x["status"] == "MAPPED", x["status"] == "SICON-OWNED", x["sicon_field"])):
             md.append(f"| `{r['sicon_field']}` | `{r['pulse_field']}` | {r['direction']} "
                       f"| {r['status']} | {r['notes']} |")
         md.append("")
@@ -359,7 +383,7 @@ def main():
 
     print(f"OUT: {OUT}")
     print(f"collection files: {sum(1 for _ in COLL.rglob('*') if _.is_file())}")
-    print(f"Sicon Service body fields: {total} | mapped: {mapped} | unmapped: {total - mapped}")
+    print(f"Sicon Service body fields: {total} | mapped: {mapped} | sicon-owned: {sicon_owned} | unmapped: {unmapped}")
     print(f"entities: {sorted(ents)}")
     print(f"zip: {zip_path} ({zip_path.stat().st_size} bytes)")
 

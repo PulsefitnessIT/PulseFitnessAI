@@ -14,7 +14,7 @@ Appointments,Appointments/Appointment/PostOne.bru,employeeIds,appt.employee_ids,
 Appointments,Appointments/Appointment/PostOne.bru,employeeIds,tb.employee_ids,↔,int[],MAPPED,
 Appointments,Appointments/Appointment/PostOne.bru,chargeRateId,appt.charge_rate_id,→,int,MAPPED,
 Appointments,Appointments/Appointment/PostOne.bru,labelId,appt.label_id,→,int,MAPPED,Calendar label.
-Appointments,Appointments/Appointment/PostOne.bru,colour,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Appointments,Appointments/Appointment/PostOne.bru,colour,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
 Appointments,Appointments/Appointment/PostOne.bru,confirmed,appt.confirmed,↔,bool,MAPPED,
 Appointments,Appointments/Appointment/PostOne.bru,scheduledStartDate,appt.scheduled_start,↔,datetime,MAPPED,
 Appointments,Appointments/Appointment/PostOne.bru,scheduledEndDate,appt.scheduled_end,↔,datetime,MAPPED,
@@ -44,7 +44,7 @@ Appointments,Appointments/Appointment/PutOne.bru,employeeIds,appt.employee_ids,�
 Appointments,Appointments/Appointment/PutOne.bru,employeeIds,tb.employee_ids,↔,int[],MAPPED,
 Appointments,Appointments/Appointment/PutOne.bru,chargeRateId,appt.charge_rate_id,→,int,MAPPED,
 Appointments,Appointments/Appointment/PutOne.bru,labelId,appt.label_id,→,int,MAPPED,Calendar label.
-Appointments,Appointments/Appointment/PutOne.bru,colour,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Appointments,Appointments/Appointment/PutOne.bru,colour,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
 Appointments,Appointments/Appointment/PutOne.bru,confirmed,appt.confirmed,↔,bool,MAPPED,
 Appointments,Appointments/Appointment/PutOne.bru,scheduledStartDate,appt.scheduled_start,↔,datetime,MAPPED,
 Appointments,Appointments/Appointment/PutOne.bru,scheduledEndDate,appt.scheduled_end,↔,datetime,MAPPED,
@@ -66,10 +66,10 @@ Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,startDate,tb.start_
 Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,startDate,engineer.start_date,←,date,MAPPED,
 Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,endDate,contract.end_date,→,date,MAPPED,Header end date.
 Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,endDate,tb.end_date,↔,datetime,MAPPED,
-Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,costingHours,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,chargingHours,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,costingHours,tb.costing_hours,↔,float,MAPPED,Internal cost hours (Sicon confirmed).
+Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,chargingHours,tb.charging_hours,↔,float,MAPPED,Billable/charge hours.
 Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,chargeRate,tb.charge_rate,→,int,MAPPED,Rate code for invoicing.
-Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,isEstimate,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,isEstimate,tb.is_estimate,↔,bool,MAPPED,Estimate vs actual flag.
 Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,employeeIds,appt.employee_ids,↔,int[],MAPPED,Assigned engineers.
 Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,employeeIds,tb.employee_ids,↔,int[],MAPPED,
 Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,startDate,contract.start_date,→,date,MAPPED,Header start date.
@@ -77,10 +77,10 @@ Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,startDate,tb.start_d
 Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,startDate,engineer.start_date,←,date,MAPPED,
 Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,endDate,contract.end_date,→,date,MAPPED,Header end date.
 Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,endDate,tb.end_date,↔,datetime,MAPPED,
-Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,costingHours,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,chargingHours,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,costingHours,tb.costing_hours,↔,float,MAPPED,Internal cost hours (Sicon confirmed).
+Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,chargingHours,tb.charging_hours,↔,float,MAPPED,Billable/charge hours.
 Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,chargeRate,tb.charge_rate,→,int,MAPPED,Rate code for invoicing.
-Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,isEstimate,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,isEstimate,tb.is_estimate,↔,bool,MAPPED,Estimate vs actual flag.
 Cases,Cases/Case/PostOne.bru,siSMCaseId,issue.sicon_case_id,↔,int,MAPPED,Round-trip identity. Set after first sync.
 Cases,Cases/Case/PostOne.bru,caseNumber,issue.sicon_case_number,↔,string,MAPPED,Human-readable Sicon-side reference.
 Cases,Cases/Case/PostOne.bru,siSMDocumentStatusId,issue.status,↔,enum,MAPPED,Bi-directional. Sicon close pulls back.
@@ -95,9 +95,9 @@ Cases,Cases/Case/PostOne.bru,callDate,issue.created_at,→,datetime,MAPPED,ISO 8
 Cases,Cases/Case/PostOne.bru,contactName,issue.created_by_name / reporter_name,→,string,MAPPED,Caller name on the ticket.
 Cases,Cases/Case/PostOne.bru,contactPhoneNumber,issue.reporter_phone,→,string,MAPPED,Caller phone.
 Cases,Cases/Case/PostOne.bru,contactEmail,issue.reporter_email / user_email,→,string,MAPPED,Caller email.
-Cases,Cases/Case/PostOne.bru,lastUpdatedDate,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PostOne.bru,isNonContract,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PostOne.bru,address,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PostOne.bru,lastUpdatedDate,issue.sicon_last_updated_at,←,datetime,MAPPED,Sicon-side last-modified timestamp for poll delta.
+Cases,Cases/Case/PostOne.bru,isNonContract,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/Case/PostOne.bru,address,site.address (composed),→,object,MAPPED,Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows).
 Cases,Cases/Case/PostOne.bru,postalName,issue.site_address.name,→,string,MAPPED,Site name for postal labelling.
 Cases,Cases/Case/PostOne.bru,addressLine1,engineer.address_line1,←,string,MAPPED,
 Cases,Cases/Case/PostOne.bru,addressLine2,issue.site_address.line2,→,string,MAPPED,
@@ -106,8 +106,8 @@ Cases,Cases/Case/PostOne.bru,addressLine4,issue.site_address.line4,→,string,MA
 Cases,Cases/Case/PostOne.bru,city,engineer.city,←,string,MAPPED,
 Cases,Cases/Case/PostOne.bru,county,issue.site_address.county,→,string,MAPPED,
 Cases,Cases/Case/PostOne.bru,postCode,engineer.postcode,←,string,MAPPED,
-Cases,Cases/Case/PostOne.bru,sopDelAddress,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PostOne.bru,customerOrderNo,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PostOne.bru,sopDelAddress,site.address (composed),→,object,MAPPED,Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows).
+Cases,Cases/Case/PostOne.bru,customerOrderNo,contract.customer_order_number,↔,string,MAPPED,Customer PO surfaced on the case.
 Cases,Cases/Case/PostOne.bru,createdBy,note.created_by,↔,string,MAPPED,Default 'Pulse Fitness AI'.
 Cases,Cases/Case/PostOne.bru,analysisField1,issue.ai_triage_parsed.summary,→,string,MAPPED,AI triage diagnosis. Truncated 250 chars.
 Cases,Cases/Case/PostOne.bru,analysisField2,issue.ai_triage_parsed.severity,→,string,MAPPED,AI-detected severity (UPPERCASE).
@@ -131,37 +131,37 @@ Cases,Cases/Case/PostOne.bru,analysisField19,issue.reporter_role / created_by_ro
 Cases,Cases/Case/PostOne.bru,analysisField20,issue.csat_rating,→,int,MAPPED,1-5 customer satisfaction post-resolution. Iter 216h7 — CRM module populates on rating submit.
 Cases,Cases/Case/PostOne.bru,siconCRMPersonId,crm_links.crm_person_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
 Cases,Cases/Case/PostOne.bru,siconCRMCompanyId,crm_links.crm_company_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
-Cases,Cases/Case/PostOne.bru,caseType,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PostOne.bru,caseType,issue.case_type,→,object,MAPPED,Container: siSMCaseTypeId + name (see CaseTypeID rows).
 Cases,Cases/Case/PostOne.bru,siSMCaseTypeId,config.case_type_mapping{},←,int,MAPPED,Lookup: Reactive/PPM/Project → numeric CaseTypeId.
 Cases,Cases/Case/PostOne.bru,name,issue.machine_type / equipment.display_name,→,string,MAPPED,Human-readable; truncated to 120 chars.
 Cases,Cases/Case/PostOne.bru,name,config.case_type_mapping{}.name,←,string,MAPPED,Denormalised case-type name.
 Cases,Cases/Case/PostOne.bru,name,config.priority_mapping{}.name,←,string,MAPPED,Denormalised priority name.
 Cases,Cases/Case/PostOne.bru,name,config.tracking_status_mapping{}.name,←,string,MAPPED,Denormalised tracking-status name.
 Cases,Cases/Case/PostOne.bru,name,organization.name,→,string,MAPPED,Push-only on first sync; manual edits live in Sicon thereafter.
-Cases,Cases/Case/PostOne.bru,systemType,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PostOne.bru,isPreventativeMaintenanceType,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PostOne.bru,isEnabled,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PostOne.bru,isCustom,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PostOne.bru,defaultAppointmentLabel,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PostOne.bru,systemType,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/Case/PostOne.bru,isPreventativeMaintenanceType,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/Case/PostOne.bru,isEnabled,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/Case/PostOne.bru,isCustom,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/Case/PostOne.bru,defaultAppointmentLabel,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
 Cases,Cases/Case/PostOne.bru,coverType,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
 Cases,Cases/Case/PostOne.bru,sla,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
 Cases,Cases/Case/PostOne.bru,faultCode,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PostOne.bru,skill,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PostOne.bru,priority,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PostOne.bru,skill,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/Case/PostOne.bru,priority,issue.severity,→,object,MAPPED,Container: siSMPriorityId + name (see PriorityID rows).
 Cases,Cases/Case/PostOne.bru,siSMPriorityId,config.priority_mapping{},←,int,MAPPED,Lookup: low/medium/critical → numeric PriorityId.
-Cases,Cases/Case/PostOne.bru,colour,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PostOne.bru,lastTrackingStatus,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PostOne.bru,contract,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PostOne.bru,contractLine,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PostOne.bru,colour,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/Case/PostOne.bru,lastTrackingStatus,issue.sicon_last_tracking_status,←,string,MAPPED,Last tracking status applied.
+Cases,Cases/Case/PostOne.bru,contract,contract.sicon_contract_id,↔,object,MAPPED,Container: SiconContractID + number.
+Cases,Cases/Case/PostOne.bru,contractLine,contract_line.sicon_contract_line_id,↔,object,MAPPED,Container: SiconContractLineID + number.
 Cases,Cases/Case/PostOne.bru,project,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
 Cases,Cases/Case/PostOne.bru,caseAdmin,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
 Cases,Cases/Case/PostOne.bru,internalTeamId,config.default_internal_team_id,↔,int,MAPPED,Per-org default internal team.
-Cases,Cases/Case/PostOne.bru,internalTeam,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PostOne.bru,internalTeam,config.default_internal_team_id,↔,object,MAPPED,Container: InternalTeamID + name.
 Cases,Cases/Case/PostOne.bru,externalTeamId,config.default_external_team_id,↔,int,MAPPED,Per-org default external team.
-Cases,Cases/Case/PostOne.bru,externalTeam,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PostOne.bru,customer,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PostOne.bru,customerContact,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PostOne.bru,subLocation,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PostOne.bru,externalTeam,config.default_external_team_id,↔,object,MAPPED,Container: ExternalTeamID + name.
+Cases,Cases/Case/PostOne.bru,customer,company (Sage customer),→,object,MAPPED,Container: SLCustomerAccountID + reference.
+Cases,Cases/Case/PostOne.bru,customerContact,user.contact (composed),→,object,MAPPED,Container: contact name/email/phone.
+Cases,Cases/Case/PostOne.bru,subLocation,site.sicon_sub_location_id,↔,object,MAPPED,Container: SiconSubLocationID + description + comment.
 Cases,Cases/Case/PostOne.bru,equipmentIds,(computed),→,int[],MAPPED,Flat fallback list of equipment IDs.
 Cases,Cases/Case/PutOne.bru,siSMCaseId,issue.sicon_case_id,↔,int,MAPPED,Round-trip identity. Set after first sync.
 Cases,Cases/Case/PutOne.bru,caseNumber,issue.sicon_case_number,↔,string,MAPPED,Human-readable Sicon-side reference.
@@ -177,9 +177,9 @@ Cases,Cases/Case/PutOne.bru,callDate,issue.created_at,→,datetime,MAPPED,ISO 86
 Cases,Cases/Case/PutOne.bru,contactName,issue.created_by_name / reporter_name,→,string,MAPPED,Caller name on the ticket.
 Cases,Cases/Case/PutOne.bru,contactPhoneNumber,issue.reporter_phone,→,string,MAPPED,Caller phone.
 Cases,Cases/Case/PutOne.bru,contactEmail,issue.reporter_email / user_email,→,string,MAPPED,Caller email.
-Cases,Cases/Case/PutOne.bru,lastUpdatedDate,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PutOne.bru,isNonContract,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PutOne.bru,address,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PutOne.bru,lastUpdatedDate,issue.sicon_last_updated_at,←,datetime,MAPPED,Sicon-side last-modified timestamp for poll delta.
+Cases,Cases/Case/PutOne.bru,isNonContract,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/Case/PutOne.bru,address,site.address (composed),→,object,MAPPED,Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows).
 Cases,Cases/Case/PutOne.bru,postalName,issue.site_address.name,→,string,MAPPED,Site name for postal labelling.
 Cases,Cases/Case/PutOne.bru,addressLine1,engineer.address_line1,←,string,MAPPED,
 Cases,Cases/Case/PutOne.bru,addressLine2,issue.site_address.line2,→,string,MAPPED,
@@ -188,8 +188,8 @@ Cases,Cases/Case/PutOne.bru,addressLine4,issue.site_address.line4,→,string,MAP
 Cases,Cases/Case/PutOne.bru,city,engineer.city,←,string,MAPPED,
 Cases,Cases/Case/PutOne.bru,county,issue.site_address.county,→,string,MAPPED,
 Cases,Cases/Case/PutOne.bru,postCode,engineer.postcode,←,string,MAPPED,
-Cases,Cases/Case/PutOne.bru,sopDelAddress,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PutOne.bru,customerOrderNo,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PutOne.bru,sopDelAddress,site.address (composed),→,object,MAPPED,Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows).
+Cases,Cases/Case/PutOne.bru,customerOrderNo,contract.customer_order_number,↔,string,MAPPED,Customer PO surfaced on the case.
 Cases,Cases/Case/PutOne.bru,createdBy,note.created_by,↔,string,MAPPED,Default 'Pulse Fitness AI'.
 Cases,Cases/Case/PutOne.bru,analysisField1,issue.ai_triage_parsed.summary,→,string,MAPPED,AI triage diagnosis. Truncated 250 chars.
 Cases,Cases/Case/PutOne.bru,analysisField2,issue.ai_triage_parsed.severity,→,string,MAPPED,AI-detected severity (UPPERCASE).
@@ -213,62 +213,62 @@ Cases,Cases/Case/PutOne.bru,analysisField19,issue.reporter_role / created_by_rol
 Cases,Cases/Case/PutOne.bru,analysisField20,issue.csat_rating,→,int,MAPPED,1-5 customer satisfaction post-resolution. Iter 216h7 — CRM module populates on rating submit.
 Cases,Cases/Case/PutOne.bru,siconCRMPersonId,crm_links.crm_person_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
 Cases,Cases/Case/PutOne.bru,siconCRMCompanyId,crm_links.crm_company_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
-Cases,Cases/Case/PutOne.bru,caseType,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PutOne.bru,caseType,issue.case_type,→,object,MAPPED,Container: siSMCaseTypeId + name (see CaseTypeID rows).
 Cases,Cases/Case/PutOne.bru,siSMCaseTypeId,config.case_type_mapping{},←,int,MAPPED,Lookup: Reactive/PPM/Project → numeric CaseTypeId.
 Cases,Cases/Case/PutOne.bru,name,issue.machine_type / equipment.display_name,→,string,MAPPED,Human-readable; truncated to 120 chars.
 Cases,Cases/Case/PutOne.bru,name,config.case_type_mapping{}.name,←,string,MAPPED,Denormalised case-type name.
 Cases,Cases/Case/PutOne.bru,name,config.priority_mapping{}.name,←,string,MAPPED,Denormalised priority name.
 Cases,Cases/Case/PutOne.bru,name,config.tracking_status_mapping{}.name,←,string,MAPPED,Denormalised tracking-status name.
 Cases,Cases/Case/PutOne.bru,name,organization.name,→,string,MAPPED,Push-only on first sync; manual edits live in Sicon thereafter.
-Cases,Cases/Case/PutOne.bru,systemType,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PutOne.bru,isPreventativeMaintenanceType,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PutOne.bru,isEnabled,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PutOne.bru,isCustom,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PutOne.bru,defaultAppointmentLabel,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PutOne.bru,systemType,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/Case/PutOne.bru,isPreventativeMaintenanceType,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/Case/PutOne.bru,isEnabled,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/Case/PutOne.bru,isCustom,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/Case/PutOne.bru,defaultAppointmentLabel,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
 Cases,Cases/Case/PutOne.bru,coverType,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
 Cases,Cases/Case/PutOne.bru,sla,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
 Cases,Cases/Case/PutOne.bru,faultCode,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PutOne.bru,skill,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PutOne.bru,priority,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PutOne.bru,skill,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/Case/PutOne.bru,priority,issue.severity,→,object,MAPPED,Container: siSMPriorityId + name (see PriorityID rows).
 Cases,Cases/Case/PutOne.bru,siSMPriorityId,config.priority_mapping{},←,int,MAPPED,Lookup: low/medium/critical → numeric PriorityId.
-Cases,Cases/Case/PutOne.bru,colour,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PutOne.bru,lastTrackingStatus,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PutOne.bru,contract,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PutOne.bru,contractLine,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PutOne.bru,colour,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/Case/PutOne.bru,lastTrackingStatus,issue.sicon_last_tracking_status,←,string,MAPPED,Last tracking status applied.
+Cases,Cases/Case/PutOne.bru,contract,contract.sicon_contract_id,↔,object,MAPPED,Container: SiconContractID + number.
+Cases,Cases/Case/PutOne.bru,contractLine,contract_line.sicon_contract_line_id,↔,object,MAPPED,Container: SiconContractLineID + number.
 Cases,Cases/Case/PutOne.bru,project,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
 Cases,Cases/Case/PutOne.bru,caseAdmin,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
 Cases,Cases/Case/PutOne.bru,internalTeamId,config.default_internal_team_id,↔,int,MAPPED,Per-org default internal team.
-Cases,Cases/Case/PutOne.bru,internalTeam,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PutOne.bru,internalTeam,config.default_internal_team_id,↔,object,MAPPED,Container: InternalTeamID + name.
 Cases,Cases/Case/PutOne.bru,externalTeamId,config.default_external_team_id,↔,int,MAPPED,Per-org default external team.
-Cases,Cases/Case/PutOne.bru,externalTeam,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PutOne.bru,customer,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PutOne.bru,customerContact,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/Case/PutOne.bru,subLocation,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/Case/PutOne.bru,externalTeam,config.default_external_team_id,↔,object,MAPPED,Container: ExternalTeamID + name.
+Cases,Cases/Case/PutOne.bru,customer,company (Sage customer),→,object,MAPPED,Container: SLCustomerAccountID + reference.
+Cases,Cases/Case/PutOne.bru,customerContact,user.contact (composed),→,object,MAPPED,Container: contact name/email/phone.
+Cases,Cases/Case/PutOne.bru,subLocation,site.sicon_sub_location_id,↔,object,MAPPED,Container: SiconSubLocationID + description + comment.
 Cases,Cases/Case/PutOne.bru,equipmentIds,(computed),→,int[],MAPPED,Flat fallback list of equipment IDs.
-Cases,Cases/CaseTrackingNote/PostOne.bru,siSMCaseTrackingNoteId,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/CaseTrackingNote/PostOne.bru,siSMCaseTrackingNoteId,issue.sicon_latest_note_id,←,int,MAPPED,Latest tracking-note id on the case.
 Cases,Cases/CaseTrackingNote/PostOne.bru,note,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
 Cases,Cases/CaseTrackingNote/PostOne.bru,time,note.timestamp,↔,datetime,MAPPED,ISO 8601.
-Cases,Cases/CaseTrackingNote/PostOne.bru,status,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/CaseTrackingNote/PostOne.bru,statusId,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/CaseTrackingNote/PostOne.bru,appointmentId,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/CaseTrackingNote/PostOne.bru,status,issue.sicon_tracking_status,←,string,MAPPED,Denormalised tracking-status name.
+Cases,Cases/CaseTrackingNote/PostOne.bru,statusId,issue.sicon_tracking_status_id,↔,int,MAPPED,Current tracking-status id. Sicon confirmed this is exposed on the case.
+Cases,Cases/CaseTrackingNote/PostOne.bru,appointmentId,issue.sicon_appointment_id,←,int,MAPPED,Linked appointment id returned on the case (Sicon confirmed).
 Cases,Cases/CaseTrackingNote/PostOne.bru,visibleToEngineer,note.visible_to_engineer,↔,bool,MAPPED,Default true.
 Cases,Cases/CaseTrackingNote/PostOne.bru,visibleToCustomer,note.visible_to_customer,↔,bool,MAPPED,Customer-portal visibility.
-Cases,Cases/CaseTrackingNote/PostOne.bru,reassignedToCaseOwnerId,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/CaseTrackingNote/PostOne.bru,reassignedToInternalTeamId,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/CaseTrackingNote/PostOne.bru,reassignedToExternalTeamId,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/CaseTrackingNote/PostOne.bru,reassignedToCaseOwnerId,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/CaseTrackingNote/PostOne.bru,reassignedToInternalTeamId,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/CaseTrackingNote/PostOne.bru,reassignedToExternalTeamId,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
 Cases,Cases/CaseTrackingNote/PostOne.bru,latitude,note.latitude,→,float,MAPPED,GPS from engineer portal — proof-of-location.
 Cases,Cases/CaseTrackingNote/PostOne.bru,longitude,note.longitude,→,float,MAPPED,GPS from engineer portal — proof-of-location.
-Cases,Cases/CaseTrackingNote/PutOne.bru,siSMCaseTrackingNoteId,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/CaseTrackingNote/PutOne.bru,siSMCaseTrackingNoteId,issue.sicon_latest_note_id,←,int,MAPPED,Latest tracking-note id on the case.
 Cases,Cases/CaseTrackingNote/PutOne.bru,note,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
 Cases,Cases/CaseTrackingNote/PutOne.bru,time,note.timestamp,↔,datetime,MAPPED,ISO 8601.
-Cases,Cases/CaseTrackingNote/PutOne.bru,status,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/CaseTrackingNote/PutOne.bru,statusId,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/CaseTrackingNote/PutOne.bru,appointmentId,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/CaseTrackingNote/PutOne.bru,status,issue.sicon_tracking_status,←,string,MAPPED,Denormalised tracking-status name.
+Cases,Cases/CaseTrackingNote/PutOne.bru,statusId,issue.sicon_tracking_status_id,↔,int,MAPPED,Current tracking-status id. Sicon confirmed this is exposed on the case.
+Cases,Cases/CaseTrackingNote/PutOne.bru,appointmentId,issue.sicon_appointment_id,←,int,MAPPED,Linked appointment id returned on the case (Sicon confirmed).
 Cases,Cases/CaseTrackingNote/PutOne.bru,visibleToEngineer,note.visible_to_engineer,↔,bool,MAPPED,Default true.
 Cases,Cases/CaseTrackingNote/PutOne.bru,visibleToCustomer,note.visible_to_customer,↔,bool,MAPPED,Customer-portal visibility.
-Cases,Cases/CaseTrackingNote/PutOne.bru,reassignedToCaseOwnerId,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/CaseTrackingNote/PutOne.bru,reassignedToInternalTeamId,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
-Cases,Cases/CaseTrackingNote/PutOne.bru,reassignedToExternalTeamId,,,,UNMAPPED,No Pulse mapping - confirm with Sicon
+Cases,Cases/CaseTrackingNote/PutOne.bru,reassignedToCaseOwnerId,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/CaseTrackingNote/PutOne.bru,reassignedToInternalTeamId,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
+Cases,Cases/CaseTrackingNote/PutOne.bru,reassignedToExternalTeamId,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
 Cases,Cases/CaseTrackingNote/PutOne.bru,latitude,note.latitude,→,float,MAPPED,GPS from engineer portal — proof-of-location.
 Cases,Cases/CaseTrackingNote/PutOne.bru,longitude,note.longitude,→,float,MAPPED,GPS from engineer portal — proof-of-location.
 Equipment,Equipment/Equipment/PostOne.bru,siconEquipmentId,issue.equipment.sicon_equipment_id,↔,ref,MAPPED,Preferred over flat EquipmentIDs[].

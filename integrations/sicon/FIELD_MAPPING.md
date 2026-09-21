@@ -5,19 +5,16 @@ Sicon-provided Bruno collection bodies (integrations/sicon/_source) joined to
 the platform mapping table (`backend/routes/sicon_mapping.py`).
 `->` push (Pulse->Sicon) &middot; `<-` pull &middot; `<->` bi-directional.
 
-**Coverage: 294/372 Sicon Service body fields have a Pulse mapping (79%).**
+**Coverage: 336 MAPPED + 24 Sicon-owned = 360/372 accounted (97%). 12 still open.**
+
+Inbound reads (case/appointment/tracking-note ids, status) are resolved
+casing-agnostically in `utils/sicon_client.py` — camelCase or PascalCase both bind.
 
 ## Appointments
 | Sicon field | Pulse field | Dir | Status | Notes |
 |---|---|---|---|---|
-| `chargingHours` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `chargingHours` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `colour` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `colour` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `costingHours` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `costingHours` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `isEstimate` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `isEstimate` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
+| `colour` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `colour` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
 | `appointmentComplete` | `appt.completion.complete` | ↔ | MAPPED | Set true on completion. |
 | `appointmentComplete` | `appt.completion.complete` | ↔ | MAPPED | Set true on completion. |
 | `appointmentType` | `appt.type` | ↔ | MAPPED | Work / Travel / Other. |
@@ -32,8 +29,12 @@ the platform mapping table (`backend/routes/sicon_mapping.py`).
 | `chargeRate` | `tb.charge_rate` | → | MAPPED | Rate code for invoicing. |
 | `chargeRateId` | `appt.charge_rate_id` | → | MAPPED |  |
 | `chargeRateId` | `appt.charge_rate_id` | → | MAPPED |  |
+| `chargingHours` | `tb.charging_hours` | ↔ | MAPPED | Billable/charge hours. |
+| `chargingHours` | `tb.charging_hours` | ↔ | MAPPED | Billable/charge hours. |
 | `confirmed` | `appt.confirmed` | ↔ | MAPPED |  |
 | `confirmed` | `appt.confirmed` | ↔ | MAPPED |  |
+| `costingHours` | `tb.costing_hours` | ↔ | MAPPED | Internal cost hours (Sicon confirmed). |
+| `costingHours` | `tb.costing_hours` | ↔ | MAPPED | Internal cost hours (Sicon confirmed). |
 | `departureLatitude` | `appt.completion.departure_lat` | ↔ | MAPPED | Engineer GPS on departure. |
 | `departureLatitude` | `appt.completion.departure_lat` | ↔ | MAPPED | Engineer GPS on departure. |
 | `departureLongitude` | `appt.completion.departure_lon` | ↔ | MAPPED |  |
@@ -64,6 +65,8 @@ the platform mapping table (`backend/routes/sicon_mapping.py`).
 | `furtherAction` | `appt.completion.further_action` | ↔ | MAPPED | Follow-up notes. |
 | `furtherActionAcknowledged` | `appt.completion.further_action_ack` | → | MAPPED |  |
 | `furtherActionAcknowledged` | `appt.completion.further_action_ack` | → | MAPPED |  |
+| `isEstimate` | `tb.is_estimate` | ↔ | MAPPED | Estimate vs actual flag. |
+| `isEstimate` | `tb.is_estimate` | ↔ | MAPPED | Estimate vs actual flag. |
 | `labelId` | `appt.label_id` | → | MAPPED | Calendar label. |
 | `labelId` | `appt.label_id` | → | MAPPED | Calendar label. |
 | `parentWorkAppointmentId` | `appt.parent_work_appointment_id` | → | MAPPED | Only when type=Travel. |
@@ -96,76 +99,42 @@ the platform mapping table (`backend/routes/sicon_mapping.py`).
 ## Cases
 | Sicon field | Pulse field | Dir | Status | Notes |
 |---|---|---|---|---|
-| `address` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `address` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `appointmentId` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `appointmentId` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
 | `caseAdmin` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
 | `caseAdmin` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `caseType` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `caseType` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `colour` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `colour` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `contract` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `contract` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `contractLine` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `contractLine` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
 | `coverType` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
 | `coverType` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `customer` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `customer` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `customerContact` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `customerContact` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `customerOrderNo` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `customerOrderNo` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `defaultAppointmentLabel` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `defaultAppointmentLabel` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `externalTeam` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `externalTeam` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
 | `faultCode` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
 | `faultCode` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `internalTeam` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `internalTeam` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `isCustom` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `isCustom` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `isEnabled` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `isEnabled` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `isNonContract` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `isNonContract` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `isPreventativeMaintenanceType` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `isPreventativeMaintenanceType` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `lastTrackingStatus` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `lastTrackingStatus` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `lastUpdatedDate` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `lastUpdatedDate` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
 | `note` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
 | `note` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `priority` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `priority` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
 | `project` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
 | `project` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `reassignedToCaseOwnerId` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `reassignedToCaseOwnerId` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `reassignedToExternalTeamId` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `reassignedToExternalTeamId` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `reassignedToInternalTeamId` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `reassignedToInternalTeamId` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `siSMCaseTrackingNoteId` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `siSMCaseTrackingNoteId` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `skill` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `skill` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
 | `sla` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
 | `sla` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `sopDelAddress` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `sopDelAddress` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `status` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `status` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `statusId` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `statusId` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `subLocation` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `subLocation` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `systemType` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `systemType` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
+| `colour` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `colour` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `defaultAppointmentLabel` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `defaultAppointmentLabel` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `isCustom` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `isCustom` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `isEnabled` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `isEnabled` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `isNonContract` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `isNonContract` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `isPreventativeMaintenanceType` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `isPreventativeMaintenanceType` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `reassignedToCaseOwnerId` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `reassignedToCaseOwnerId` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `reassignedToExternalTeamId` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `reassignedToExternalTeamId` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `reassignedToInternalTeamId` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `reassignedToInternalTeamId` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `skill` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `skill` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `systemType` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `systemType` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
+| `address` | `site.address (composed)` | → | MAPPED | Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows). |
+| `address` | `site.address (composed)` | → | MAPPED | Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows). |
 | `addressLine1` | `engineer.address_line1` | ← | MAPPED |  |
 | `addressLine1` | `engineer.address_line1` | ← | MAPPED |  |
 | `addressLine2` | `issue.site_address.line2` | → | MAPPED |  |
@@ -214,10 +183,14 @@ the platform mapping table (`backend/routes/sicon_mapping.py`).
 | `analysisField8` | `issue.supplier_case_token` | → | MAPPED | Supplier-portal correlation token. |
 | `analysisField9` | `issue.fault_code` | → | MAPPED | Equipment-emitted error code if known. 50 chars. |
 | `analysisField9` | `issue.fault_code` | → | MAPPED | Equipment-emitted error code if known. 50 chars. |
+| `appointmentId` | `issue.sicon_appointment_id` | ← | MAPPED | Linked appointment id returned on the case (Sicon confirmed). |
+| `appointmentId` | `issue.sicon_appointment_id` | ← | MAPPED | Linked appointment id returned on the case (Sicon confirmed). |
 | `callDate` | `issue.created_at` | → | MAPPED | ISO 8601 in UTC. |
 | `callDate` | `issue.created_at` | → | MAPPED | ISO 8601 in UTC. |
 | `caseNumber` | `issue.sicon_case_number` | ↔ | MAPPED | Human-readable Sicon-side reference. |
 | `caseNumber` | `issue.sicon_case_number` | ↔ | MAPPED | Human-readable Sicon-side reference. |
+| `caseType` | `issue.case_type` | → | MAPPED | Container: siSMCaseTypeId + name (see CaseTypeID rows). |
+| `caseType` | `issue.case_type` | → | MAPPED | Container: siSMCaseTypeId + name (see CaseTypeID rows). |
 | `city` | `engineer.city` | ← | MAPPED |  |
 | `city` | `engineer.city` | ← | MAPPED |  |
 | `contactEmail` | `issue.reporter_email / user_email` | → | MAPPED | Caller email. |
@@ -226,10 +199,20 @@ the platform mapping table (`backend/routes/sicon_mapping.py`).
 | `contactName` | `issue.created_by_name / reporter_name` | → | MAPPED | Caller name on the ticket. |
 | `contactPhoneNumber` | `issue.reporter_phone` | → | MAPPED | Caller phone. |
 | `contactPhoneNumber` | `issue.reporter_phone` | → | MAPPED | Caller phone. |
+| `contract` | `contract.sicon_contract_id` | ↔ | MAPPED | Container: SiconContractID + number. |
+| `contract` | `contract.sicon_contract_id` | ↔ | MAPPED | Container: SiconContractID + number. |
+| `contractLine` | `contract_line.sicon_contract_line_id` | ↔ | MAPPED | Container: SiconContractLineID + number. |
+| `contractLine` | `contract_line.sicon_contract_line_id` | ↔ | MAPPED | Container: SiconContractLineID + number. |
 | `county` | `issue.site_address.county` | → | MAPPED |  |
 | `county` | `issue.site_address.county` | → | MAPPED |  |
 | `createdBy` | `note.created_by` | ↔ | MAPPED | Default 'Pulse Fitness AI'. |
 | `createdBy` | `note.created_by` | ↔ | MAPPED | Default 'Pulse Fitness AI'. |
+| `customer` | `company (Sage customer)` | → | MAPPED | Container: SLCustomerAccountID + reference. |
+| `customer` | `company (Sage customer)` | → | MAPPED | Container: SLCustomerAccountID + reference. |
+| `customerContact` | `user.contact (composed)` | → | MAPPED | Container: contact name/email/phone. |
+| `customerContact` | `user.contact (composed)` | → | MAPPED | Container: contact name/email/phone. |
+| `customerOrderNo` | `contract.customer_order_number` | ↔ | MAPPED | Customer PO surfaced on the case. |
+| `customerOrderNo` | `contract.customer_order_number` | ↔ | MAPPED | Customer PO surfaced on the case. |
 | `description` | `issue.issue_description` | ↔ | MAPPED | Truncated to 4000 chars. |
 | `description` | `site.name / label` | → | MAPPED | Truncated to 100 chars. |
 | `description` | `contract.description / title` | → | MAPPED |  |
@@ -240,10 +223,18 @@ the platform mapping table (`backend/routes/sicon_mapping.py`).
 | `description` | `equipment.display_name / description` | ↔ | MAPPED | Human-readable equipment description. |
 | `equipmentIds` | `(computed)` | → | MAPPED | Flat fallback list of equipment IDs. |
 | `equipmentIds` | `(computed)` | → | MAPPED | Flat fallback list of equipment IDs. |
+| `externalTeam` | `config.default_external_team_id` | ↔ | MAPPED | Container: ExternalTeamID + name. |
+| `externalTeam` | `config.default_external_team_id` | ↔ | MAPPED | Container: ExternalTeamID + name. |
 | `externalTeamId` | `config.default_external_team_id` | ↔ | MAPPED | Per-org default external team. |
 | `externalTeamId` | `config.default_external_team_id` | ↔ | MAPPED | Per-org default external team. |
+| `internalTeam` | `config.default_internal_team_id` | ↔ | MAPPED | Container: InternalTeamID + name. |
+| `internalTeam` | `config.default_internal_team_id` | ↔ | MAPPED | Container: InternalTeamID + name. |
 | `internalTeamId` | `config.default_internal_team_id` | ↔ | MAPPED | Per-org default internal team. |
 | `internalTeamId` | `config.default_internal_team_id` | ↔ | MAPPED | Per-org default internal team. |
+| `lastTrackingStatus` | `issue.sicon_last_tracking_status` | ← | MAPPED | Last tracking status applied. |
+| `lastTrackingStatus` | `issue.sicon_last_tracking_status` | ← | MAPPED | Last tracking status applied. |
+| `lastUpdatedDate` | `issue.sicon_last_updated_at` | ← | MAPPED | Sicon-side last-modified timestamp for poll delta. |
+| `lastUpdatedDate` | `issue.sicon_last_updated_at` | ← | MAPPED | Sicon-side last-modified timestamp for poll delta. |
 | `latitude` | `note.latitude` | → | MAPPED | GPS from engineer portal — proof-of-location. |
 | `latitude` | `note.latitude` | → | MAPPED | GPS from engineer portal — proof-of-location. |
 | `longitude` | `note.longitude` | → | MAPPED | GPS from engineer portal — proof-of-location. |
@@ -262,8 +253,12 @@ the platform mapping table (`backend/routes/sicon_mapping.py`).
 | `postCode` | `engineer.postcode` | ← | MAPPED |  |
 | `postalName` | `issue.site_address.name` | → | MAPPED | Site name for postal labelling. |
 | `postalName` | `issue.site_address.name` | → | MAPPED | Site name for postal labelling. |
+| `priority` | `issue.severity` | → | MAPPED | Container: siSMPriorityId + name (see PriorityID rows). |
+| `priority` | `issue.severity` | → | MAPPED | Container: siSMPriorityId + name (see PriorityID rows). |
 | `siSMCaseId` | `issue.sicon_case_id` | ↔ | MAPPED | Round-trip identity. Set after first sync. |
 | `siSMCaseId` | `issue.sicon_case_id` | ↔ | MAPPED | Round-trip identity. Set after first sync. |
+| `siSMCaseTrackingNoteId` | `issue.sicon_latest_note_id` | ← | MAPPED | Latest tracking-note id on the case. |
+| `siSMCaseTrackingNoteId` | `issue.sicon_latest_note_id` | ← | MAPPED | Latest tracking-note id on the case. |
 | `siSMCaseTypeId` | `config.case_type_mapping{}` | ← | MAPPED | Lookup: Reactive/PPM/Project → numeric CaseTypeId. |
 | `siSMCaseTypeId` | `config.case_type_mapping{}` | ← | MAPPED | Lookup: Reactive/PPM/Project → numeric CaseTypeId. |
 | `siSMDocumentStatusId` | `issue.status` | ↔ | MAPPED | Bi-directional. Sicon close pulls back. |
@@ -278,6 +273,14 @@ the platform mapping table (`backend/routes/sicon_mapping.py`).
 | `siconCRMCompanyId` | `crm_links.crm_company_id` | → | MAPPED | Required on create per Sicon spec §6.2. |
 | `siconCRMPersonId` | `crm_links.crm_person_id` | → | MAPPED | Required on create per Sicon spec §6.2. |
 | `siconCRMPersonId` | `crm_links.crm_person_id` | → | MAPPED | Required on create per Sicon spec §6.2. |
+| `sopDelAddress` | `site.address (composed)` | → | MAPPED | Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows). |
+| `sopDelAddress` | `site.address (composed)` | → | MAPPED | Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows). |
+| `status` | `issue.sicon_tracking_status` | ← | MAPPED | Denormalised tracking-status name. |
+| `status` | `issue.sicon_tracking_status` | ← | MAPPED | Denormalised tracking-status name. |
+| `statusId` | `issue.sicon_tracking_status_id` | ↔ | MAPPED | Current tracking-status id. Sicon confirmed this is exposed on the case. |
+| `statusId` | `issue.sicon_tracking_status_id` | ↔ | MAPPED | Current tracking-status id. Sicon confirmed this is exposed on the case. |
+| `subLocation` | `site.sicon_sub_location_id` | ↔ | MAPPED | Container: SiconSubLocationID + description + comment. |
+| `subLocation` | `site.sicon_sub_location_id` | ↔ | MAPPED | Container: SiconSubLocationID + description + comment. |
 | `summary` | `issue.machine_type + serial_number` | ↔ | MAPPED | Composed summary for case-list views. |
 | `summary` | `issue.machine_type + serial_number` | ↔ | MAPPED | Composed summary for case-list views. |
 | `time` | `note.timestamp` | ↔ | MAPPED | ISO 8601. |

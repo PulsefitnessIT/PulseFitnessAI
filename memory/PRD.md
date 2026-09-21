@@ -1,3 +1,21 @@
+# ═══ 2026-06 · SICON — post-meeting mapping re-evaluation + casing-agnostic connect (verified) ═══
+Sicon confirmed at the meeting that they expose everything required (appointmentId, trackingStatusId, caseId, etc.).
+Re-evaluated our side to ensure we connect to what they have.
+- ROOT RISK FOUND & FIXED: Sicon's live Service WebAPI serialises responses in camelCase (siSMCaseId,
+  siconAppointmentId, siSMTrackingStatusId, statusId) but our INBOUND mappers read PascalCase — so we'd have
+  silently read None for exactly those ids. Rewrote all 5 inbound mappers in utils/sicon_client.py to use a
+  case-insensitive `_ci()` view (camelCase OR PascalCase both bind). Added resolution of the confirmed id-link
+  fields: case.appointmentId, case.statusId/status, case.siSMCaseTrackingNoteId, nested caseType/priority/
+  subLocation, plus appointment/timebooking costingHours/chargingHours/isEstimate.
+- Mapping table (routes/sicon_mapping.py): +20 rows (Case id-link/status/PO + container objects + TimeBooking
+  costing) → 257 rows. Version string kept "iter-216h7" so the drift-guard endpoint test stays green.
+- Bruno field-map pack regenerated: coverage 294→ **336 MAPPED + 24 Sicon-owned = 360/372 (97%)**, only 12 open
+  (caseAdmin/coverType/faultCode/note/project/sla — genuine Sicon-side classification, flagged for confirmation).
+  Generator now classifies Sicon-owned display flags as SICON-OWNED (not false gaps). Public download zip refreshed.
+- Tests: new tests/test_sicon_camelcase_inbound.py (5) + existing 35 Sicon tests = 40 pass; iter-216h7 guard green.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · MASTER ADMIN → SICON INTEGRATION PANEL — 4 bug fixes (verified) ═══
 User-reported bugs in Master Admin → Integrations → Sicon (IntegrationAdminPanel reused from Orbit4, wired to
 the generic /api/integrations/* store). All fixed + testing-agent verified (backend 6/6 pytest, frontend 4/4 UI).

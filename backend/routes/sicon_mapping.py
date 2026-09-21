@@ -61,6 +61,24 @@ SICON_FIELD_MAPPING: list[dict] = [
     _row("Case", "issue.status",                         "case.SiSMDocumentStatusID",      "↔", "enum",     "Bi-directional. Sicon close pulls back."),
     _row("Case", "issue.status",                         "case.SiSMDocumentStatusName",    "←", "string",   "Pulled denormalised."),
     _row("Case", "issue.workflow_state / sub_status_id", "case.SiSMDocumentSubStatusID",   "→", "enum",     "Iter 216h7: resolves via per-org sub_status_mapping (e.g. 'awaiting_parts' → 4). Explicit sicon_sub_status_id wins."),
+    # ── Sicon-confirmed id-link / status fields (2026-06 meeting) — read casing-agnostically ──
+    _row("Case", "issue.sicon_tracking_status_id",       "case.statusId",                  "↔", "int",      "Current tracking-status id. Sicon confirmed this is exposed on the case."),
+    _row("Case", "issue.sicon_tracking_status",          "case.status",                    "←", "string",   "Denormalised tracking-status name."),
+    _row("Case", "issue.sicon_last_tracking_status",     "case.lastTrackingStatus",        "←", "string",   "Last tracking status applied."),
+    _row("Case", "issue.sicon_last_updated_at",          "case.lastUpdatedDate",           "←", "datetime", "Sicon-side last-modified timestamp for poll delta."),
+    _row("Case", "issue.sicon_appointment_id",           "case.appointmentId",             "←", "int",      "Linked appointment id returned on the case (Sicon confirmed)."),
+    _row("Case", "issue.sicon_latest_note_id",           "case.siSMCaseTrackingNoteId",    "←", "int",      "Latest tracking-note id on the case."),
+    _row("Case", "contract.customer_order_number",       "case.customerOrderNo",           "↔", "string",   "Customer PO surfaced on the case."),
+    _row("Case", "site.address (composed)",              "case.address",                   "→", "object",   "Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows)."),
+    _row("Case", "site.sicon_sub_location_id",           "case.subLocation",               "↔", "object",   "Container: SiconSubLocationID + description + comment."),
+    _row("Case", "issue.case_type",                      "case.caseType",                  "→", "object",   "Container: siSMCaseTypeId + name (see CaseTypeID rows)."),
+    _row("Case", "issue.severity",                       "case.priority",                  "→", "object",   "Container: siSMPriorityId + name (see PriorityID rows)."),
+    _row("Case", "contract.sicon_contract_id",           "case.contract",                  "↔", "object",   "Container: SiconContractID + number."),
+    _row("Case", "contract_line.sicon_contract_line_id", "case.contractLine",              "↔", "object",   "Container: SiconContractLineID + number."),
+    _row("Case", "company (Sage customer)",              "case.customer",                  "→", "object",   "Container: SLCustomerAccountID + reference."),
+    _row("Case", "user.contact (composed)",              "case.customerContact",           "→", "object",   "Container: contact name/email/phone."),
+    _row("Case", "config.default_internal_team_id",      "case.internalTeam",              "↔", "object",   "Container: InternalTeamID + name."),
+    _row("Case", "config.default_external_team_id",      "case.externalTeam",              "↔", "object",   "Container: ExternalTeamID + name."),
     # ── Contact / Customer ──────────────────────────────────────────
     _row("Case", "issue.created_by_name / reporter_name", "case.ContactName",              "→", "string",   "Caller name on the ticket."),
     _row("Case", "issue.reporter_email / user_email",     "case.ContactEmail",             "→", "string",   "Caller email."),
@@ -269,6 +287,9 @@ SICON_FIELD_MAPPING: list[dict] = [
     _row("TimeBooking", "tb.end_date",                    "tb.EndDate",                    "↔", "datetime", ""),
     _row("TimeBooking", "tb.actual_hours",                "tb.ActualHours",                "↔", "float",    "Labour for profitability calc."),
     _row("TimeBooking", "tb.charge_rate",                 "tb.ChargeRate",                 "→", "int",      "Rate code for invoicing."),
+    _row("TimeBooking", "tb.costing_hours",               "tb.costingHours",               "↔", "float",    "Internal cost hours (Sicon confirmed)."),
+    _row("TimeBooking", "tb.charging_hours",              "tb.chargingHours",              "↔", "float",    "Billable/charge hours."),
+    _row("TimeBooking", "tb.is_estimate",                 "tb.isEstimate",                 "↔", "bool",     "Estimate vs actual flag."),
 
     # ════════════════════════════════════════════════════════════════
     # RESOURCE / ENGINEER — pulled via /sicon/engineers/refresh
