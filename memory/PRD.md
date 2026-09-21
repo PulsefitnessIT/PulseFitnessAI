@@ -1,3 +1,24 @@
+# ═══ 2026-06 · MASTER ADMIN → SICON INTEGRATION PANEL — 4 bug fixes (verified) ═══
+User-reported bugs in Master Admin → Integrations → Sicon (IntegrationAdminPanel reused from Orbit4, wired to
+the generic /api/integrations/* store). All fixed + testing-agent verified (backend 6/6 pytest, frontend 4/4 UI).
+- Bug1 Credentials didn't stay filled: redact_secrets_in_dict masked the WHOLE credentials object to a string,
+  wiping every sub-field. Fix (integrations.py get_integration): preserve non-secret credential leaves, mask only
+  secret leaves (api_key/password/token/secret), and return a credentials_set map. update_integration now merges
+  credentials leaf-by-leaf treating the "••••••" sentinel as keep-existing (a plain Save never wipes the key).
+  UI shows a green "Saved" badge + api-key "Saved — leave blank to keep" hint.
+- Bug2 No Test Connection for Sicon: added POST /api/integrations/sicon/test-connection (pings
+  {base_url}/api/SMConnectivity/Ping, descriptive connected/auth-failed/unreachable result, logs to Event Log).
+  Frontend testConnection is now integration-aware + a new "API Connection" card in the Sicon Config tab.
+- Bug3 Field Mappings showed ~30 hardcoded rows: now fetches GET /api/sicon/field-mapping (237 rows) and renders
+  grouped per-entity tables (Case/ContractLine/Resource/Appointment/Equipment/Contract/TrackingNote/Metadata/
+  TimeBooking/Customer) with a field-count badge + connection badge.
+- Bug4 Event Log expand was blank: expand block rewritten to always render an Event/Direction/Status/Time grid +
+  summary + payload/error, with an italic "No additional payload recorded" fallback.
+- Preview has no live Sicon host, so Test Connection reporting "unreachable" is the correct expected behaviour.
+- Tests: backend/tests/test_sicon_integration_bugs_jan2026.py. Report: test_reports/iteration_sicon_integration_bugs_jan2026.json.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · SICON — CONSOLIDATED MAPPING + IMPORTABLE BRUNO PACK (verified) ═══
 User provided the real Sicon collections (Platform Auth + Service Management WebAPI plugin) — the
 previously-blocked missing piece (Issue 1). Collated every scattered Sicon-mapping location into ONE
