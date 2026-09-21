@@ -232,9 +232,25 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  const handleAuth = async (e) => {
  e.preventDefault();
  clearAuthBanner();
+ // Autofill-safe: password managers (iCloud Passwords on Edge, 1Password,
+ // etc.) write straight into the DOM and don't always fire React's
+ // onChange, so the controlled `formData` can lag behind (empty password on
+ // submit). Read the live field values from the submitted form synchronously
+ // and merge them so autofilled credentials are always used.
+ const el = e.currentTarget?.elements;
+ const domEmail = el?.username?.value;
+ const domPassword = el?.password?.value;
+ const effForm = {
+ ...formData,
+ ...(domEmail ? { email: domEmail.trim() } : {}),
+ ...(domPassword ? { password: domPassword } : {}),
+ };
+ if (effForm.email !== formData.email || effForm.password !== formData.password) {
+ setFormData(effForm);
+ }
  if (!isLogin) {
  try {
- const response = await axios.post(`${API}/auth/register`, formData);
+ const response = await axios.post(`${API}/auth/register`, effForm);
  login(response.data.token, response.data.user);
  setShowAuth(false);
  notify.success(t('auth.signup_success'));
@@ -248,8 +264,8 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  // Try both auth endpoints in parallel
  const captchaHeader = captchaToken ? { 'X-Captcha-Token': captchaToken } : {};
  const [portalResult, crmResult] = await Promise.allSettled([
- axios.post(`${API}/auth/login`, formData, { headers: captchaHeader }),
- axios.post(`${API}/crm/auth/login`, { email: formData.email, password: formData.password }, { headers: captchaHeader }),
+ axios.post(`${API}/auth/login`, effForm, { headers: captchaHeader }),
+ axios.post(`${API}/crm/auth/login`, { email: effForm.email, password: effForm.password }, { headers: captchaHeader }),
  ]);
 
  const portalOk = portalResult.status === 'fulfilled';
@@ -259,7 +275,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  if (portalOk && portalResult.value.data?.requires_mfa) {
  setMfaChallenge({
  temp_token: portalResult.value.data.temp_token,
- email: portalResult.value.data.user?.email || formData.email,
+ email: portalResult.value.data.user?.email || effForm.email,
  });
  return;
  }
@@ -267,7 +283,7 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  if (portalOk && portalResult.value.data?.requires_mfa_enrolment) {
  setMfaEnrol({
  temp_token: portalResult.value.data.temp_token,
- email: portalResult.value.data.user?.email || formData.email,
+ email: portalResult.value.data.user?.email || effForm.email,
  reason: portalResult.value.data.reason,
  });
  return;
@@ -288,10 +304,10 @@ const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin 
  } else {
  // Last-ditch: shared Gym Floor credentials. Saves us from having a
  // separate kiosk login page — everyone uses this same modal.
- const looksLikeUsername = formData.email && !formData.email.includes('@');
+ const looksLikeUsername = effForm.email && !effForm.email.includes('@');
  if (looksLikeUsername) {
  try {
- const gf = await axios.post(`${API}/gym-floor/login`, { username: formData.email, password: formData.password });
+ const gf = await axios.post(`${API}/gym-floor/login`, { username: effForm.email, password: effForm.password });
  const session = { ...gf.data, logged_in_at: new Date().toISOString() };
  localStorage.setItem('gym_floor_session', JSON.stringify(session));
  setShowAuth(false);
@@ -824,7 +840,7 @@ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
  name="username"
  inputMode="email"
  autoComplete="username"
- value={formData.email}
+ defaultValue=""
  onChange={(e) => setFormData({...formData, email: e.target.value})}
  required
  placeholder="you@gym.com or your kiosk username"
@@ -840,7 +856,7 @@ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
  name="password"
  type={showPassword ? 'text' : 'password'}
  autoComplete={isLogin ? 'current-password' : 'new-password'}
- value={formData.password}
+ defaultValue=""
  onChange={(e) => setFormData({...formData, password: e.target.value})}
  required
  className="bg-[var(--color-ink-alt)] border-white/10 text-white pr-10"
