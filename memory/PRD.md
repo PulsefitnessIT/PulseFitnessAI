@@ -1,3 +1,24 @@
+# ═══ 2026-06 · SICON — Bruno collection 404 route fix (verified) ═══
+User imported the pack and hit 404 "There was no Api Controller or Action matching the Uri Provided" on
+Appointment/Case GetOne against their LIVE Sicon instance. ROOT CAUSE: the collection used a fabricated
+"/api/v1/SiconService/{Entity}/{id}" route scheme that does not exist on the real Sicon Sage 200 Service WebAPI.
+Auth (/api/v1/authentication/authenticate) worked, so only the Service controller paths were wrong.
+- FIX: gen_bruno_sicon_mapping.py now has a ROUTE_MAP that rewrites every request URL to the authoritative routes
+  used by our production client (utils/sicon_client.py) + audited spec:
+    Ping /api/SMConnectivity/Ping · Case read /api/service/cases/{id} · Case create /api/ServiceCase/CreateNewCase ·
+    Case amend POST /api/ServiceCase/AmendCase · Tracking notes /api/Service/Cases/{id}/TrackingNotes ·
+    Appointments /~/api/v2/TEntity/api/service/appointments/{id} · TimeBookings /api/Service/Appointments/{id}/TimeBookings ·
+    Case types /api/service/case-types · Tracking statuses /api/service/case-tracking-statuses · Resources /api/service/appointments/resources.
+  sicon_client.py itself was already correct — only the Bruno artifact was wrong.
+- UNVERIFIED (flagged in docs, left on old path pending Sicon confirmation): Equipment/* (no standalone Service
+  WebAPI equipment endpoint historically) and Metadata/Priority/* (no priorities lookup endpoint; PriorityID is
+  config-mapped). Appointment TEntity-v2 routes carry a "confirm against your instance" note.
+- VERIFIED by testing agent: 40/40 Sicon pytest, field-mapping 263 rows, test-connection pings SMConnectivity/Ping
+  (returns expected 'unreachable' in preview), collection route scan clean, bruno.json valid, 35/35 .bru balanced.
+  NOTE: the live 404 itself can only be confirmed by the user against their own Sicon instance (external, unreachable here).
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · SICON — post-meeting mapping re-evaluation + casing-agnostic connect (verified) ═══
 Sicon confirmed at the meeting that they expose everything required (appointmentId, trackingStatusId, caseId, etc.).
 Re-evaluated our side to ensure we connect to what they have.
