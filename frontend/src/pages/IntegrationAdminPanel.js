@@ -102,6 +102,7 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
   const [assetsPage, setAssetsPage] = useState(1);
   const [assetsSearch, setAssetsSearch] = useState('');
   const [loadingAssets, setLoadingAssets] = useState(false);
+  const [siconMappings, setSiconMappings] = useState(null);
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -124,6 +125,12 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
         credentials: configRes.data.credentials || {},
         branding: configRes.data.branding || { display_name: 'Pulse Fitness', contact_email: '', production_webhook_domain: '', user_agent: 'PulseFitness-ServiceBridge/1.0' },
       });
+      if (integrationId === 'sicon') {
+        try {
+          const mapRes = await axios.get(`${API}/sicon/field-mapping`, { headers });
+          setSiconMappings(mapRes.data);
+        } catch { setSiconMappings(null); }
+      }
     } catch (err) {
       console.error('Load failed:', err);
     }
@@ -144,10 +151,14 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
   const testConnection = async () => {
     setTestingConnection(true);
     try {
-      const res = await axios.post(`${API}/integrations/orbit4/test-connection`, {}, { headers });
+      const url = integrationId === 'sicon'
+        ? `${API}/integrations/sicon/test-connection`
+        : `${API}/integrations/orbit4/test-connection`;
+      const res = await axios.post(url, {}, { headers });
       setConnectionStatus(res.data);
-      if (res.data.status === 'connected') notify.success(`Connected — ${res.data.total_assets} assets found`);
+      if (res.data.status === 'connected') notify.success(res.data.message || 'Connected');
       else notify.error(res.data.message);
+      if (integrationId === 'sicon') loadData();
     } catch { notify.error('Connection test failed'); setConnectionStatus({ status: 'error', message: 'Request failed' }); }
     setTestingConnection(false);
   };
@@ -424,12 +435,22 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
                     {expandedLog === i ? <ChevronUp size={14} className="text-zinc-400 dark:text-zinc-500" /> : <ChevronDown size={14} className="text-zinc-400 dark:text-zinc-500" />}
                   </div>
                   {expandedLog === i && (
-                    <div className="px-3 pb-3 border-t border-zinc-100 dark:border-zinc-800 pt-2">
-                      {log.error && <p className="text-xs text-red-600 mb-2">Error: {log.error}</p>}
+                    <div className="px-3 pb-3 border-t border-zinc-100 dark:border-zinc-800 pt-2 space-y-2" data-testid={`log-detail-${i}`}>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                        <div><span className="text-zinc-400 dark:text-zinc-500">Event</span> <span className="text-zinc-700 dark:text-zinc-300 font-medium">{log.event_type || '—'}</span></div>
+                        <div><span className="text-zinc-400 dark:text-zinc-500">Direction</span> <span className="text-zinc-700 dark:text-zinc-300 font-medium">{log.direction || 'internal'}</span></div>
+                        <div><span className="text-zinc-400 dark:text-zinc-500">Status</span> <span className={`font-medium ${log.success ? 'text-emerald-600' : 'text-red-600'}`}>{log.success ? 'Success' : 'Failed'}</span></div>
+                        <div><span className="text-zinc-400 dark:text-zinc-500">Time</span> <span className="text-zinc-700 dark:text-zinc-300 font-medium">{log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}</span></div>
+                      </div>
+                      {log.summary && <p className="text-xs text-zinc-600 dark:text-zinc-400"><span className="text-zinc-400 dark:text-zinc-500">Summary: </span>{log.summary}</p>}
+                      {log.error && <p className="text-xs text-red-600">Error: {log.error}</p>}
                       {log.payload && Object.keys(log.payload).length > 0 && (
                         <pre className="text-xs bg-zinc-50 dark:bg-zinc-900/50 rounded p-2 overflow-x-auto text-zinc-600 dark:text-zinc-400 dark:text-zinc-500 max-h-40">
                           {JSON.stringify(log.payload, null, 2)}
                         </pre>
+                      )}
+                      {!log.error && (!log.payload || Object.keys(log.payload).length === 0) && (
+                        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">No additional payload recorded for this event.</p>
                       )}
                     </div>
                   )}
@@ -605,8 +626,36 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
 
           {integrationId === 'sicon' && (
             <>
+            <Card className="p-5 border-zinc-200 dark:border-zinc-800 space-y-3" data-testid="sicon-connection-test-card">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">API Connection</h4>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Verify the saved base URL and credentials reach Sicon.</p>
+                </div>
+                <Button size="sm" onClick={testConnection} disabled={testingConnection} data-testid="sicon-test-connection-btn"
+                  className={connectionStatus?.status === 'connected' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}>
+                  {testingConnection ? <Loader2 size={14} className="animate-spin mr-1" /> : connectionStatus?.status === 'connected' ? <Wifi size={14} className="mr-1" /> : <WifiOff size={14} className="mr-1" />}
+                  {testingConnection ? 'Testing…' : connectionStatus?.status === 'connected' ? 'Connected' : 'Test Connection'}
+                </Button>
+              </div>
+              {connectionStatus && (
+                <div className={`rounded-lg p-3 text-sm ${connectionStatus.status === 'connected' ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700'}`} data-testid="sicon-connection-result">
+                  <div className="flex items-center gap-2">
+                    {connectionStatus.status === 'connected' ? <CheckCircle size={16} /> : <XCircle size={16} />}
+                    <span className="font-medium">{connectionStatus.message}</span>
+                  </div>
+                </div>
+              )}
+              {!connectionStatus && <p className="text-xs text-zinc-400 dark:text-zinc-500">Save your credentials first, then click "Test Connection".</p>}
+            </Card>
+
             <Card className="p-5 border-zinc-200 dark:border-zinc-800 space-y-4">
-              <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Sicon Service API Credentials</h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Sicon Service API Credentials</h4>
+                {config?.credentials_set && Object.values(config.credentials_set).some(Boolean) && (
+                  <Badge className="bg-emerald-50 text-emerald-700" data-testid="sicon-credentials-saved-badge"><CheckCircle size={12} className="mr-1" /> Saved</Badge>
+                )}
+              </div>
               <p className="text-xs text-zinc-500 -mt-2">Pulse Fitness's Sicon R260200c instance. See <code>/app/memory/SICON_INTEGRATION_SPEC.md</code> for the full integration model.</p>
               <div>
                 <Label className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">API Base URL</Label>
@@ -617,7 +666,8 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
                 <div>
                   <Label className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">API Key / Bearer Token</Label>
                   <Input type="password" value={editConfig.credentials?.api_key || ''} onChange={e => setEditConfig({...editConfig, credentials: {...(editConfig.credentials || {}), api_key: e.target.value}})}
-                    placeholder="Sicon API key…" className="mt-1" data-testid="sicon-api-key" />
+                    placeholder={config?.credentials_set?.api_key ? '•••••• saved — type to replace' : 'Sicon API key…'} className="mt-1" data-testid="sicon-api-key" />
+                  {config?.credentials_set?.api_key && <p className="text-xs text-emerald-600 mt-1"><CheckCircle size={11} className="inline mr-0.5" /> Saved — leave blank to keep the current key.</p>}
                 </div>
                 <div>
                   <Label className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">Auth Mode</Label>
@@ -736,13 +786,67 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
       {/* Field Mappings */}
       {activeSection === 'mappings' && (
         <div className="space-y-4">
+          {integrationId === 'sicon' && siconMappings ? (
+            <>
+              <Card className="p-5 border-zinc-200 dark:border-zinc-800">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                  <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Pulse Fitness ↔ Sicon Service — full field map</h4>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300" data-testid="sicon-mapping-count">{siconMappings.total} fields</Badge>
+                    <Badge className={connectionStatus?.status === 'connected' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'} data-testid="sicon-mapping-conn">
+                      {connectionStatus?.status === 'connected' ? <><Wifi size={11} className="mr-1" /> Connected</> : <><WifiOff size={11} className="mr-1" /> Not tested</>}
+                    </Badge>
+                  </div>
+                </div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+                  Live from <code className="font-mono">GET /api/sicon/field-mapping</code> · source of truth <code className="font-mono">/app/integrations/sicon/</code>.
+                  Direction: <strong>OUT</strong> = Pulse → Sicon, <strong>IN</strong> = Sicon → Pulse, <strong>BOTH</strong> = bi-directional.
+                </p>
+                {connectionStatus?.status !== 'connected' && (
+                  <p className="text-xs text-amber-600 mb-3"><AlertTriangle size={11} className="inline mr-1" />Run <strong>Configuration → Test Connection</strong> to confirm these fields reach a live Sicon instance.</p>
+                )}
+              </Card>
+              {Object.entries(siconMappings.grouped || {}).map(([entity, rows]) => (
+                <Card key={entity} className="p-0 border-zinc-200 dark:border-zinc-800 overflow-hidden" data-testid={`sicon-mapping-group-${entity}`}>
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800">
+                    <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{entity}</span>
+                    <span className="text-xs text-zinc-400 dark:text-zinc-500">{rows.length} fields</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-400">
+                          <th className="text-left py-2 px-4 font-medium">Pulse Fitness Field</th>
+                          <th className="text-center py-2 px-2 font-medium w-16">Dir</th>
+                          <th className="text-left py-2 px-4 font-medium">Sicon Field</th>
+                          <th className="text-left py-2 px-3 font-medium w-20">Type</th>
+                          <th className="text-left py-2 px-4 font-medium">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row, i) => (
+                          <tr key={i} className="border-b border-zinc-100 dark:border-zinc-800 last:border-0 align-top">
+                            <td className="py-2 px-4 text-zinc-700 dark:text-zinc-300 font-mono text-xs">{row.gymaxis_field}</td>
+                            <td className="py-2 px-2 text-center"><DirectionBadge direction={row.direction === '→' ? 'outbound' : row.direction === '←' ? 'inbound' : 'internal'} /></td>
+                            <td className="py-2 px-4 text-zinc-700 dark:text-zinc-300 font-mono text-xs">{row.sicon_field}</td>
+                            <td className="py-2 px-3 text-zinc-500 dark:text-zinc-400 text-xs">{row.type}</td>
+                            <td className="py-2 px-4 text-zinc-500 dark:text-zinc-400 text-xs">{row.notes}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              ))}
+            </>
+          ) : (
           <Card className="p-5 border-zinc-200 dark:border-zinc-800">
             <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
               {integrationId === 'orbit4' ? 'Orbit 4 → Sicon Field Mapping' : 'Pulse Fitness Issue → Sicon Service Case'}
             </h4>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 dark:text-zinc-500 mb-4">
               {integrationId === 'sicon'
-                ? <>Source: <code className="font-mono">/app/memory/SICON_INTEGRATION_SPEC.md §3.1</code>. Direction shows the source of truth: <strong>OUT</strong> = Pulse Fitness writes to Sicon, <strong>IN</strong> = Sicon owns and pushes back.</>
+                ? 'Loading the full mapping table…'
                 : 'How fields from Orbit 4 tickets map to Sicon service cases. These will be confirmed with Pulse Fitness.'}
             </p>
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
@@ -777,12 +881,8 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-3">
-              {integrationId === 'sicon'
-                ? <>Lookup rows resolve once on first sync (Priority IDs, Case Type IDs, etc.). Pulse Fitness must provide the corresponding Sicon master values during cutover.</>
-                : 'Fields marked "Awaiting confirmation" require input from Pulse Fitness to determine the correct Sicon values.'}
-            </p>
           </Card>
+          )}
         </div>
       )}
     </div>

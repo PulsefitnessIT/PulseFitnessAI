@@ -114,8 +114,29 @@ async def get_integration(integration_id: str, user: dict = Depends(get_current_
     # Iter 220aw / F-27 — mask secrets in the detail view too. Internal
     # consumers that NEED the plaintext call ``get_integration_config``
     # directly and decrypt at use-time via ``decrypt_secrets_in_dict``.
-    from utils.secret_vault import redact_secrets_in_dict
-    return redact_secrets_in_dict(config)
+    #
+    # Fix: previously the whole ``credentials`` object was masked to a single
+    # string, so the operator UI lost every sub-field (base URL stayed, but
+    # username/company ID/etc. vanished) and couldn't tell anything was saved.
+    # We now preserve NON-secret credential fields and mask only true secret
+    # leaves, plus expose ``credentials_set`` so the UI can show a "Saved" state.
+    from utils.secret_vault import redact_secrets_in_dict, _is_encrypted_blob
+    safe = redact_secrets_in_dict(config, nested_dict_fields=())
+    creds = config.get("credentials")
+    if isinstance(creds, dict):
+        secret_leaves = ("api_key", "password", "token", "secret")
+        safe_creds: Dict[str, Any] = {}
+        creds_set: Dict[str, bool] = {}
+        for k, v in creds.items():
+            has_val = bool(v.get("data")) if _is_encrypted_blob(v) else bool(v)
+            creds_set[k] = has_val
+            if any(s in k.lower() for s in secret_leaves):
+                safe_creds[k] = "••••••" if has_val else ""
+            else:
+                safe_creds[k] = "" if _is_encrypted_blob(v) else v
+        safe["credentials"] = safe_creds
+        safe["credentials_set"] = creds_set
+    return safe
 
 
 @router.put("/integrations/{integration_id}")
@@ -133,6 +154,22 @@ async def update_integration(integration_id: str, body: Dict[str, Any], user: di
     # Fernet before persisting. ``encrypt_secrets_in_dict`` is
     # idempotent (already-encrypted blobs pass through) so a partial
     # update that omits a secret won't double-encrypt anything.
+    # Fix: the UI re-submits masked secrets ("••••••") for fields it didn't
+    # change. Merge credentials leaf-by-leaf against the stored (decrypted)
+    # values and treat the mask sentinel as "keep existing" so a plain Save
+    # never wipes a real secret. Same for top-level masked secrets.
+    if isinstance(update.get("credentials"), dict):
+        existing_creds = config.get("credentials") if isinstance(config.get("credentials"), dict) else {}
+        merged = dict(existing_creds)
+        for k, v in update["credentials"].items():
+            if v == "••••••":
+                continue
+            merged[k] = v
+        update["credentials"] = merged
+    for _sf in ("api_token", "webhook_secret"):
+        if update.get(_sf) == "••••••":
+            update.pop(_sf, None)
+
     from utils.secret_vault import encrypt_secrets_in_dict
     encrypt_secrets_in_dict(update)
 
@@ -661,6 +698,61 @@ async def test_orbit4_connection(user: dict = Depends(get_current_user)):
     except Exception as e:
         await log_integration_event("orbit4", "connection_test", "outbound", f"Connection failed: {str(e)}", success=False, error=str(e))
         return {"status": "error", "message": f"Connection failed: {str(e)}"}
+
+
+@router.post("/integrations/sicon/test-connection")
+async def test_sicon_connection(user: dict = Depends(get_current_user)):
+    """Test the Sicon WebAPI connection using the stored config credentials.
+
+    Pings the Service WebAPI connectivity endpoint and reports a clear
+    connected / auth-failed / unreachable result. Logged to the Event Log."""
+    await verify_admin(user)
+    config = await get_integration_config("sicon")
+    if not config:
+        raise HTTPException(status_code=404, detail="Sicon integration not found")
+
+    creds = config.get("credentials") or {}
+    base_url = (config.get("base_url") or "").rstrip("/")
+    if not base_url:
+        return {"status": "error",
+                "message": "No API Base URL configured — set it in Configuration and Save first."}
+
+    api_key = creds.get("api_key") or ""
+    company_id = creds.get("company_id") or ""
+    branding = config.get("branding", {})
+    user_agent = branding.get("user_agent", "PulseFitness-ServiceBridge/1.0")
+    ping_url = f"{base_url}/api/SMConnectivity/Ping"
+    req_headers = {"User-Agent": user_agent, "Accept": "application/json"}
+    if api_key:
+        req_headers["Authorization"] = f"Bearer {api_key}"
+    params = {"companyId": company_id} if company_id else None
+
+    try:
+        async with httpx.AsyncClient(timeout=12) as client:
+            resp = await client.get(ping_url, headers=req_headers, params=params)
+        if resp.status_code == 200:
+            await log_integration_event("sicon", "connection_test", "outbound",
+                                        f"Ping OK — {base_url}")
+            return {"status": "connected",
+                    "message": f"Successfully connected to Sicon WebAPI ({base_url})",
+                    "base_url": base_url, "http_status": 200}
+        if resp.status_code in (401, 403):
+            await log_integration_event("sicon", "connection_test", "outbound",
+                                        f"Auth failed (HTTP {resp.status_code})",
+                                        success=False, error=str(resp.status_code))
+            return {"status": "error",
+                    "message": f"Reached Sicon but authentication failed (HTTP {resp.status_code}). "
+                               "Check the API key / username and Company ID."}
+        await log_integration_event("sicon", "connection_test", "outbound",
+                                    f"Unexpected HTTP {resp.status_code}",
+                                    success=False, error=resp.text[:200])
+        return {"status": "error",
+                "message": f"Reached {base_url} but received HTTP {resp.status_code}."}
+    except Exception as e:
+        await log_integration_event("sicon", "connection_test", "outbound",
+                                    f"Connection failed: {str(e)[:120]}",
+                                    success=False, error=str(e)[:300])
+        return {"status": "error", "message": f"Could not reach {base_url}: {str(e)[:160]}"}
 
 
 @router.get("/integrations/orbit4/assets")
