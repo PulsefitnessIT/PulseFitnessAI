@@ -51,7 +51,7 @@ async def download_equipment_csv_template(user: dict = Depends(get_current_user)
     return StreamingResponse(
         iter([buf.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="gymaxis-equipment-template.csv"'},
+        headers={"Content-Disposition": 'attachment; filename="pulsefitness-equipment-template.csv"'},
     )
 
 

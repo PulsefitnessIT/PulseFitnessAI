@@ -109,8 +109,8 @@ async def _validate_head_office_payload(data: dict) -> dict:
     sites = data.get("sites") or []
     if not isinstance(sites, list) or len(sites) < 1:
         raise HTTPException(status_code=400, detail="At least one site is required")
-    if len(sites) > 50:
-        raise HTTPException(status_code=400, detail="Up to 50 sites per onboarding pass; split into batches if needed")
+    if len(sites) > 500:
+        raise HTTPException(status_code=400, detail="Up to 500 sites per onboarding pass; split into batches if needed")
 
     cleaned_sites: list[dict] = []
     head_office_count = 0

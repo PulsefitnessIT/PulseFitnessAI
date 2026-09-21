@@ -449,7 +449,7 @@ const HeadOfficeOnboardingWizard = ({ onComplete }) => {
                   try {
                     const r = await axios.get(`${API}/master-admin/sites/template.csv`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, responseType: 'blob' });
                     const url = URL.createObjectURL(r.data);
-                    const a = document.createElement('a'); a.href = url; a.download = 'gymaxis-sites-template.csv'; a.click();
+                    const a = document.createElement('a'); a.href = url; a.download = 'pulsefitness-sites-template.csv'; a.click();
                     URL.revokeObjectURL(url);
                   } catch (e) { notify.error('Could not download template'); }
                 }}
@@ -586,7 +586,7 @@ const HeadOfficeOnboardingWizard = ({ onComplete }) => {
                         try {
                           const r = await axios.get(`${API}/master-admin/equipment/template.csv`, { ...auth(), responseType: 'blob' });
                           const url = URL.createObjectURL(r.data);
-                          const a = document.createElement('a'); a.href = url; a.download = 'gymaxis-equipment-template.csv'; a.click();
+                          const a = document.createElement('a'); a.href = url; a.download = 'pulsefitness-equipment-template.csv'; a.click();
                           URL.revokeObjectURL(url);
                         } catch (e) { notify.error('Could not download template'); }
                       }}
@@ -850,8 +850,8 @@ const HeadOfficeOnboardingWizard = ({ onComplete }) => {
         </Card>
       )}
 
-      {/* Footer nav */}
-      <div className="flex items-center justify-between">
+      {/* Footer nav — extra right/bottom padding so the submit button clears the floating AI assistant button */}
+      <div className="flex items-center justify-between pb-28 pr-16 sm:pr-24">
         <Button variant="outline" onClick={back} disabled={step === 0 || submitting} data-testid="ho-onboard-back">
           <ArrowLeft size={14} className="mr-1.5" /> Back
         </Button>

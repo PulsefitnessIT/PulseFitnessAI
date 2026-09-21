@@ -101,7 +101,7 @@ async def download_sites_csv_template(user: dict = Depends(get_current_user)):
     return StreamingResponse(
         iter([buf.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="gymaxis-sites-template.csv"'},
+        headers={"Content-Disposition": 'attachment; filename="pulsefitness-sites-template.csv"'},
     )
 
 

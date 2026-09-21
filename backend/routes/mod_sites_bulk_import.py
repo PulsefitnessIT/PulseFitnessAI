@@ -185,7 +185,7 @@ async def mod_sites_template_csv(user: dict = Depends(get_current_user)):
     return StreamingResponse(
         iter([buf.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="gymaxis-mod-sites-template.csv"'},
+        headers={"Content-Disposition": 'attachment; filename="pulsefitness-mod-sites-template.csv"'},
     )
 
 
