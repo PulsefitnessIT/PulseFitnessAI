@@ -23,7 +23,7 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://fitness-onboarding-3.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://aftersales-engine.preview.emergentagent.com").rstrip("/")
 EMAIL = "owner@isodemo.com"
 PASSWORD = "IsoDemo123!"
 TAG = uuid.uuid4().hex[:6].upper()

@@ -1,0 +1,28 @@
+meta {
+  name: GetMany
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/SiconService/TrackingStatus
+  body: none
+  auth: inherit
+}
+
+params:query {
+  query: $max=10
+  companyId: {{companyId}}
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  const arr = Array.isArray(b) ? b : (b.data || b.items || b.results || b.records || []);
+  const item = (arr && arr.length) ? arr[0] : null;
+  if (item) {
+    if (item.siSMTrackingStatusId != null) bru.setEnvVar('trackingStatusId', item.siSMTrackingStatusId);
+    else if (item.id != null) bru.setEnvVar('trackingStatusId', item.id);
+    if (item.siSMTrackingStatusId != null) bru.setEnvVar('statusId', item.siSMTrackingStatusId);
+    else if (item.id != null) bru.setEnvVar('statusId', item.id);
+  }
+}

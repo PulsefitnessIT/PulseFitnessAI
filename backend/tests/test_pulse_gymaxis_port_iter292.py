@@ -13,7 +13,7 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://fitness-onboarding-3.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://aftersales-engine.preview.emergentagent.com").rstrip("/")
 BYPASS = os.environ.get("RATE_LIMIT_BYPASS_SECRET", "test-bypass-secret-for-ci-runs-only-2026")
 
 MASTER = ("admin@pulsefitness.com", "C2s9yJ3YAhydB4d34-Bykg")

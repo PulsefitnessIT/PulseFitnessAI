@@ -15,7 +15,7 @@ import pytest
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL")
-       or "https://fitness-onboarding-3.preview.emergentagent.com").rstrip("/")
+       or "https://aftersales-engine.preview.emergentagent.com").rstrip("/")
 
 
 @pytest.fixture(scope="module")

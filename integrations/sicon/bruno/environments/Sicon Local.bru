@@ -1,0 +1,28 @@
+vars {
+  baseUrl: http://localhost:51080
+  username: Administrator
+  companyId: 1
+  BEARER_TOKEN: 
+  caseId: 0
+  caseNumber: 0
+  appointmentId: 0
+  timeBookingId: 0
+  trackingNoteId: 0
+  equipmentId: 0
+  caseTypeId: 0
+  priorityId: 0
+  trackingStatusId: 0
+  statusId: 0
+  employeeId: 0
+}
+
+vars:secret [
+  password
+]
+
+docs {
+  Set baseUrl to your Sicon Sage200 WebAPI host and companyId to the Sage company.
+  Paste the Sicon password into the secret 'password' var in Bruno (never committed).
+  Run Auth > Authenticate first — it captures accessToken into BEARER_TOKEN.
+  Entity ids auto-populate from post-response scripts as you run requests.
+}

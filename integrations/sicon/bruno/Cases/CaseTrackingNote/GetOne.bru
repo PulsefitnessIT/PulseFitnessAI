@@ -1,0 +1,15 @@
+meta {
+  name: GetOne
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/SiconService/Case/{{caseId}}/TrackingNote/{{trackingNoteId}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  companyId: {{companyId}}
+}

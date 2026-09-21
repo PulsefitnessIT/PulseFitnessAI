@@ -1,0 +1,35 @@
+meta {
+  name: PostOne
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/SiconService/Appointment/{{appointmentId}}/TimeBooking
+  body: json
+  auth: inherit
+}
+
+params:query {
+  companyId: {{companyId}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "employeeIds": [{{employeeId}}],
+    "startDate": "2026-01-01T09:00:00",
+    "endDate": "2026-01-01T17:00:00",
+    "costingHours": null,
+    "chargingHours": null,
+    "chargeRate": null,
+    "isEstimate": false
+  }
+}
+
+docs {
+  Body matches TimeBookingRequestModel. Parent appointment comes from the path appointmentId.
+}

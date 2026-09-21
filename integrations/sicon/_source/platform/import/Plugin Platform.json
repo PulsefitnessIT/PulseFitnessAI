@@ -1,0 +1,40 @@
+{
+  "name": "Plugin Platform",
+  "variables": [
+    {
+      "name": "baseUrl",
+      "value": "http://localhost",
+      "enabled": true,
+      "secret": false,
+      "type": "text"
+    },
+    {
+      "name": "username",
+      "value": "",
+      "enabled": true,
+      "secret": false,
+      "type": "text"
+    },
+    {
+      "name": "password",
+      "value": "",
+      "enabled": true,
+      "secret": true,
+      "type": "text"
+    },
+    {
+      "name": "BEARER_TOKEN",
+      "value": "",
+      "enabled": true,
+      "secret": true,
+      "type": "text"
+    },
+    {
+      "name": "companyId",
+      "value": "1",
+      "enabled": true,
+      "secret": false,
+      "type": "text"
+    }
+  ]
+}

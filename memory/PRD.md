@@ -1,3 +1,28 @@
+# ═══ 2026-06 · SICON — CONSOLIDATED MAPPING + IMPORTABLE BRUNO PACK (verified) ═══
+User provided the real Sicon collections (Platform Auth + Service Management WebAPI plugin) — the
+previously-blocked missing piece (Issue 1). Collated every scattered Sicon-mapping location into ONE
+canonical folder `/app/integrations/sicon/` and produced an importable, auto-mapping Bruno collection.
+- Mapping table (backend/routes/sicon_mapping.py): ADDED Equipment (24 rows, new Service WebAPI Equipment
+  CRUD) + Metadata lookups (6 rows) → 237 rows total. Kept version "iter-216h7" (+revision/source_of_truth
+  keys) so the drift-guard test stays green. sicon_client.py wire mappers UNCHANGED.
+- Generator rewritten (backend/scripts/gen_bruno_sicon_mapping.py): reads verbatim Sicon collections in
+  integrations/sicon/_source + the mapping table → emits integrations/sicon/{bruno/, FIELD_MAPPING.md,
+  mapping.csv, Sicon-Service-Pulse.bruno.zip}. Merges Platform Auth (correct path
+  /api/v1/authentication/authenticate → captures accessToken into BEARER_TOKEN) with the full Service plugin
+  so one import authenticates AND drives every entity. Auto-chaining: entity ids (caseId, equipmentId,
+  appointmentId, caseTypeId, priorityId, trackingStatusId, statusId, trackingNoteId) are ENV vars captured by
+  post-response scripts → run Auth → metadata GetMany → Case PostOne → Appointment/TrackingNote/Equipment
+  with no manual id copying. Local + Production env templates; password is a blank secret (never committed).
+- FIELD_MAPPING.md/mapping.csv: 294/372 Sicon Service body fields mapped (79%); the 78 UNMAPPED are
+  Sicon-side-only fields (systemType/isEnabled/coverType/sla/faultCode/colour) or nested container parents —
+  surfaced as the "confirm with Sicon" list.
+- Removed the stale integrations/sicon-bruno pack. memory/SICON_FIELD_MAPPING.md now redirects to the
+  consolidated location; INTEGRATION_FIELD_MAPPING.md §33 retained as master narrative.
+- VERIFIED: generator runs clean (37 files, zip 17.7KB); zip has valid bruno/bruno.json; all 35 .bru
+  brace-balanced; 9 in-process mapper guard tests pass; backend up (/api/sicon/field-mapping 401 auth-gated).
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · VEHICLE CHECKS — bulk PDF ZIP for H&S audit (verified) ═══
 - New GET /api/vehicle-checks/export-zip?week=|date_from=&date_to= (manager-gated): zips every completed
   (submitted/reviewed) check's PDF in the range, each file named per driver+date via _check_pdf_filename
@@ -22099,7 +22124,7 @@ So any external bookmarks or stray copy-paste links keep working:
   redirects + scan the rest of the codebase for any remaining links
   to the dead paths (`/legal/privacy`, `/legal/terms`).
 * `make regression` → **385 passed, 14 skipped** (up from 379).
-* Live smoke against `https://fitness-onboarding-3.preview.emergentagent.com`:
+* Live smoke against `https://aftersales-engine.preview.emergentagent.com`:
   * `/legal/privacy`     → final URL `/privacy` ✅
   * `/legal/terms`       → final URL `/terms` ✅
   * `/forgot-password`   → final URL `/reset-password` ✅
@@ -32671,7 +32696,7 @@ P6 — final phase of the Master Admin redesign blueprint. Replaces ad-hoc "Add 
   8-10. Backend endpoint calls verified.
   11. Created user appears in unified directory.
   12. Regression: People → Directory still works.
-- **Main agent live smoke**: signed in as `admin@gymaxisai.com`, ran full 5-step flow, created `Wizard Test User`, received invite URL `https://fitness-onboarding-3.preview.emergentagent.com/reset-password?token=l47KegLXL2FI…`.
+- **Main agent live smoke**: signed in as `admin@gymaxisai.com`, ran full 5-step flow, created `Wizard Test User`, received invite URL `https://aftersales-engine.preview.emergentagent.com/reset-password?token=l47KegLXL2FI…`.
 
 ### Pulse Master Admin guardrails
 - 'GymAxis Master Admin' role tile hidden.

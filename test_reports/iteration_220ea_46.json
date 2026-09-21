@@ -9,7 +9,7 @@
   "test_results": {
     "test_1_partner_engineer_reload_persistence": {
       "status": "PASS",
-      "detail": "Logged in as admin@gymaxisai.com, navigated to /partner-engineer, performed 3 consecutive page.reload(wait_until=networkidle) with 3.5s settle. URL remained https://fitness-onboarding-3.preview.emergentagent.com/partner-engineer on every reload — NO bounce to /login. Core regression fix verified."
+      "detail": "Logged in as admin@gymaxisai.com, navigated to /partner-engineer, performed 3 consecutive page.reload(wait_until=networkidle) with 3.5s settle. URL remained https://aftersales-engine.preview.emergentagent.com/partner-engineer on every reload — NO bounce to /login. Core regression fix verified."
     },
     "test_2a_dashboard_reload": {
       "status": "PASS",

@@ -1,0 +1,16 @@
+meta {
+  name: GetMany
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/SiconService/Equipment
+  body: none
+  auth: inherit
+}
+
+params:query {
+  query: $max=10
+  companyId: {{companyId}}
+}

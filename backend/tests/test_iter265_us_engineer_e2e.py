@@ -20,7 +20,7 @@ import pytest
 
 BASE = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://fitness-onboarding-3.preview.emergentagent.com",
+    "https://aftersales-engine.preview.emergentagent.com",
 ).rstrip("/")
 
 BYPASS = os.environ.get(

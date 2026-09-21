@@ -1,0 +1,18 @@
+auth {
+  mode: bearer
+}
+
+auth:bearer {
+  token: {{BEARER_TOKEN}}
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  Sicon Service WebAPI - Pulse Fitness consolidated collection.
+  Single source of truth: /app/integrations/sicon/ (FIELD_MAPPING.md + mapping.csv).
+  All Service entity requests inherit the bearer token set by Auth > Authenticate.
+  companyId (Sage company) is passed as ?companyId={{companyId}} on every request.
+}

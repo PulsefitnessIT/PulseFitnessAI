@@ -1,151 +1,163 @@
-<analysis>**original_problem_statement**: Design and build a new Pulse Fitness Staff Portal replacing the current fragmented attendance, timesheets, and HR leave processes. The core architecture must operate on ENTER ONCE → USE EVERYWHERE. PRODUCT REQUIREMENTS: Deliver an Attendance Spine, an Employee My Day portal, Post-Login Module Launcher, Payroll Workspace, Spreadsheet Data Migration tool, digital Return-To-Work integration, Leave workflows, Notifications, comprehensive Fleet Compliance/Vehicle Checking, and ensure mobile-first usability. 
-*Recent Addition*: Master Admin Customer Tenant Import & Standalone Billing. Allow Master Admins to import customers via spreadsheet, provisioning them as both platform Tenants (Organizations) and CRM Companies on a Lite (Operations-only, no AI) tier, with the ability to purchase modular add-ons (CRM, Memberships, Marketing) independently.
+<analysis>**original_problem_statement**: Design and build a complete Aftersales Maintenance Contract Automation Engine for PulseFitness.ai. The scope includes Estate Onboarding, Staff Portal enhancements (UI normalization, Staff Expenses, AI-based receipt scanning, Manager approvals, Vehicle Checks), MODService custom domain deployment, and comprehensive Sage 200 / Sicon Service WebAPI integrations. Recently expanded to include robust Fleet Management (Register/Imports, Expiries, Fines tracking), Staff DBS tracking, PDF/CSV reporting, and UI/UX Auth refinements (Edge/iCloud password manager support).
 
 **User's preferred language**: English (INSTRUCT next agent to respond in English only)
 
-**what currently exists?**: A mature React + FastAPI CRM and Operations platform. It includes a fully unified Staff Portal and a robust Master Admin RBAC system. Recently implemented features include unified Master Admin Customer Import (creates both platform tenant and CRM company simultaneously), true standalone per-module billing (removing the requirement to purchase Pro before other modules), and a post-import secure welcome email flow (sending set-password links to newly imported contacts).
+**what currently exists?**: A mature React + FastAPI CRM and Operations platform. It features an Aftersales Engine, Contract AI Assistant, unified Staff/Engineer Portal with Vehicle Checks, MODService tenant isolation via hostname, and a fully built (but pending live credentials) Sicon Service WebAPI mapping. Currently, it also includes a comprehensive Fleet Management module with manager dash expiries (Lease, MOT), Fine management, DBS compliance tracking for staff, and robust form handling for 3rd-party password manager autofills.
 
-**Last working item**: 
-    - Last item agent was working: Building a Post-Import Welcome email flow. Added an opt-in checkbox to the Import Wizard that dispatches a secure set your password link (via Resend) to newly imported customer contacts, including links to module purchasing and the help centre.
+**Last working item**:
+    - Last item agent was working: Fixing a React controlled-input race condition on the login form in  that was preventing iCloud Password Manager / Edge from successfully autofilling credentials. Changed inputs to uncontrolled () and read direct DOM values on submit.
     - Status: USER VERIFICATION PENDING
     - Agent Testing Done: Y
-    - Which testing method agent to use?: NA (Completed and verified via python test script). Next agent to await user instructions or approval.
+    - Which testing method agent to use?: Frontend testing agent
     - User Testing Done: N
 
-**All Pending/In progress Issue list**:  
-  Issue 1: Production SENDER_EMAIL delivery verification (Resend) (P1)
-     - Attempted fixes: Agent implemented the welcome email flow using .
-     - Next debug checklist: Await user input on production email delivery tests (requires valid Resend API key and sender domain in the production environment).
-     - Why fix this issue and what will be achieved with the fix?: Ensures welcome emails and password resets actually reach customers.
-     - Status: BLOCKED
-     - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix: NA
-     - Blocked on other issue: User providing API credentials
-
-  Issue 2: Platform tenant-registry records verification (P2)
-     - Attempted fixes: None yet.
-     - Next debug checklist: Ask user if the two companies sitting under the AI-Admin org are real customers that need re-attaching, or if they are meant to be platform tenant-registry records.
-     - Why fix this issue and what will be achieved with the fix?: Cleans up data hierarchy.
-     - Status: USER VERIFICATION PENDING
+**All Pending/In progress Issue list**:
+  Issue 1: Sicon Bruno mapping finalization & Auth route missing (P1)
+     - Attempted fixes: Agent previously generated a best-effort Auth route.
+     - Next debug checklist: Await user providing the missing *Sicon.WebApi.Platform* collection zip, or decide whether to fold the 188 mappings back into .
+     - Why fix this issue and what will be achieved with the fix?: Finalizes the complete Sicon mapping context before the user's meeting with Sicon.
+     - Status: BLOCKED (User input/files pending)
      - Is recurring issue? N
      - Should Test frontend/backend/both after fix: NA
 
+  Issue 2: Production SENDER_EMAIL delivery verification (Resend) (P2)
+     - Attempted fixes: Email functionality implemented; logs cleanly in preview environments.
+     - Next debug checklist: Await user testing live email delivery on production.
+     - Why fix this issue and what will be achieved with the fix?: Ensures emails physically reach inboxes in production (blocked by preview container restrictions).
+     - Status: BLOCKED (User verification in production pending)
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix: NA
+
+  Issue 3: Sage 200 / Sicon API connections mocked (P2)
+     - Attempted fixes: Full production-ready Sicon integration suite is built, sitting in dry-run mode.
+     - Next debug checklist: Await user providing the live Sicon WebAPI URL, version, and credentials.
+     - Why fix this issue and what will be achieved with the fix?: Finalizes the automation of billing/service sync into Sage.
+     - Status: BLOCKED (Awaiting credentials from user)
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix: Both
+
+  Issue 4: Stripe Live Key in Git History (P2)
+     - Attempted fixes: Instructed user to contact support.
+     - Next debug checklist: The user MUST email support@emergent.sh to purge a historical commit.
+     - Status: BLOCKED
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix: NA
+
 **In progress Task List**: 
-None actively in-code.
+  None.
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - Task 1: Resend Welcome Email UI button (P1): Add a button on the customer row in Master Admin to allow staff to manually re-trigger the secure set-password link if a customer misses the initial import email. (Suggested by agent, pending user approval).
+    - Task 1: Fine reminders (P1): Implement a bell nudge for any unpaid vehicle fines older than ~14 days.
+    - Task 2: DBS weekly email (P2): Create a Monday digest sent to managers alongside the existing in-app DBS reminder.
+    - Task 3: Compliance-at-a-glance panel (P2): Combine DBS, Right-to-Work, and outstanding fines in a single manager dashboard view.
     
     Future Tasks:
-    - Task 2: Offline Engineer Support for Blue Light Wizard (P1): Needs offline caching/sync capability for Fire Stations with no cell signal.
-    - Task 3: Field Engineers App Sync (§12/§13) (P1): Sync Engineer App activity to propose working day times in Staff Portal.
-    - Task 4: Branded Payslips (P2): Turn each approved week into a clean, branded per-employee payslip PDF.
-    - Task 5: Employment Defaults (P2): Let managers set a default contract type + weekly hours per role.
-    - Task 6: Contract On File List (P2): Show contract type + weekly hours as columns in the HR staff list.
-    - Task 7: Profile Save Toast (P2): Show a clear Saved confirmation on the profile.
-    - Task 8: Weekly Van Summary (P2): Show a van checks: 4/5 days badge on the timesheet.
-    - Task 9: Van Check Link (P2): Link the daily van-check tick to the actual Vehicle Check document.
-    - Task 10: Manager Handbook (P2): Create a manager-side guide covering approvals, offboarding and payroll.
-    - Task 11: Short Video Clips (P2): Add 20-second screen-recording walkthroughs to Help & Tutorials.
-    - Task 12: Search The Guide (P2): Let staff type a keyword to jump straight to the right help section.
+    - Task 4: Cash Collection Automation (P2): Direct Debit/Stripe mandate execution (Currently, DD is tracked as a UI flag only).
 
 **Completed work in this session**
-- Relocated CRM Company Delete button from the header to the bottom of the Edit Modal, gated to platform  + Master Admins, with confirmation prompt (DONE).
-- Implemented  Master Admin bulk import to create BOTH a platform Organization tenant and a linked CRM Company under Pulse Fitness Ltd (DONE).
-- Enforced strict Lite tier logic for new imports: Operations only, AI features blocked (returns 403), bolt-on modules disabled until paid (DONE).
-- Refactored billing to support true standalone, mix-and-match per-module purchasing (Operations, CRM, Memberships, Marketing) without requiring a Pro base subscription (DONE).
-- Fixed payment fulfillment paths ( webhook and polling) to correctly unlock modules upon Stripe checkout completion (DONE).
-- Built opt-in Post-Import Welcome Email flow in the Import Wizard to send secure set-password links to newly imported contacts (DONE).
+- Fixing Staff Re-issue login logic: Fixed token routing to use correct brand domains instead of preview environments. (DONE)
+- Fleet Register UI & Excel Import: Built Fleet Manager view, imported 45 Pulse Fitness vehicles, created searchable assigned driver picker. (DONE)
+- DBS Profile Integration: Added Enhanced DBS tracking & calendar expiry fields to HR Staff Profiles and 'My Details' in Staff Portal. (DONE)
+- Notification Bell & UI Tweaks: Moved bell into the top header (colored white), removed 'Active employee' shells, fixed dark mode card bleeding, lateral scroll on mobile. (DONE)
+- Vehicle Fines CRUD & Dashboard Expiries: Added Fine management (value, notes, file upload) to vehicle details. Added 60-day lease/MOT expiries to Fleet Dash. Added DBS expiry nudges. (DONE)
+- Fleet PDF & CSV Exports: Created H&S compliant PDF pack (using ReportLab) and CSV generation for the entire Fleet Register. (DONE)
+- Edge/iCloud Autofill Support: Modified login form markup (,  tags) and converted controlled React inputs to uncontrolled () to allow 3rd-party password managers to autofill reliably. (DONE)
 
 **Earlier issues found/mentioned but not fixed**
-   Issue 1: Stripe Live Key in Git History
-   - Debug checklist: The user MUST email  to purge commit  from the remote repository. The agent cannot do this.
-   - Why to solve this issue and what will be achieved with this?: Remediates a security exposure flagged by Stripe.
-   - Should Test frontend/backend/both after fix: NA
-   - Is recurring issue? N
+   - None ignored.
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: Invalid RESEND_API_KEY in preview environment (production delivery unverified)
-  - Recurrence count: 5
-  - Status: BLOCKED
+  - Issue recurrence in previous fork: Invalid RESEND_API_KEY in preview environment.
+  - Recurrence count: 7
+  - Status: BLOCKED (Expected behavior in preview environments).
+  - Stripe live key in Git history.
 
 **Code Architecture**
 /app
-├── backend/routes/ (onboarding_import.py, payments.py, master_admin_orgs.py, crm_permissions.py, crm_v2.py)
-├── backend/utils/ (email.py, module_access.py, ai_access.py)
-├── frontend/src/pages/MasterAdmin/ (ImportWizard.js)
-├── frontend/src/pages/CRM/ (CRMCompanies.js)
-├── frontend/src/components/pulse/ (PulseModulePricing.js)
+├── backend/routes/auth.py & account.py (Auth token and password reset logic)
+├── backend/routes/vehicle_checks.py (Vehicle/Fleet CRUD, Fines, Expiries, PDF/CSV generators)
+├── backend/routes/staffing_hr.py & staff_portal.py (Staff profiles, DBS metadata, portal user profile)
+├── backend/utils/pulse_doc_template.py (ReportLab PDF styles)
+├── frontend/src/components/shared/Navbar.js (Login modal, autofill support logic)
+├── frontend/src/pages/LiteDashboard/staffing/VehiclesTab.js (Fleet Register manager UI)
 
 **Key Technical Concepts**
-React, FastAPI, MongoDB. 
-- **Standalone Module Billing**: Modules (Operations, CRM, Marketing, Memberships) are purchased independently via Stripe. Operations Pro is required for AI access, but not required to purchase CRM/Marketing/Memberships.
-- **Tenant Import Architecture**: The unified  pushes . It provisions an entry in  (the tenant),  (the CRM mirror), and  (admin login if an email is provided).
+React, FastAPI, MongoDB, ReportLab (PDF Generation), Object Storage (Vehicle photos/Fines documents). 
+- **Uncontrolled React Inputs for Autofill**: To prevent React's state-driven lifecycle from overwriting 3rd-party password manager injections, login forms are currently uncontrolled and read  on submit.
 
 **key DB schema**
-  - : Core platform tenants (account_type=lite or pulse_pro).
-  - : CRM records linked to organizations.
-  - : Core platform auth records.
-  - : CRM-specific auth records.
+  - : Logs fleet data including  (MOT, Expiries),  list, .
+  - : Includes HR data, mapped , and .
+  - : Manages multi-tenant password resets.
 
 **changes in tech stack**
   - None.
 
-**All files of reference** 
-  -  (Company deletion UI logic relocated)
-  -  (Tenant import logic, welcome email dispatch)
-  -  (Wizard UI, send-welcome checkbox added)
-  -  (Stripe flex checkout and module unlock fulfillment)
-  -  (Module overrides, bolt-on un-gating)
+**All files of reference**
+  - 
+  - 
+  - 
+  - 
+  - 
+  -  (Script executed for one-off import)
 
-**Areas that need refactoring**: 
-  - Payment Webhook & Polling: Fulfillment logic now cleanly handles module unlocks, but keep an eye on  if adding more granular subscription tiers, as it handles both package bundles and individual modules.
+**Areas that need refactoring**:
+  -  and  are massive components causing occasional JavaScript heap out of memory errors. If tests/compilation hang, run frontend: ERROR (not running)
+frontend: started.
 
 **key api endpoints**
-  -  (Executes the data/tenant import)
-  -  (Generates Stripe session for standalone modules)
-  -  (Deletes CRM company, gated to owner/master admin)
+  -  (Reads email/password strictly from form DOM post-fix)
+  -  (Re-issue token fixes)
+  -  (Lease & MOT expiries)
+  -  &  (Fleet export)
 
 **Critical Info for New Agent**
-  - **Lite Tier Definition**: Out of the box,  grants access to Operations (Dashboard, Equipment, Faults) but **strictly blocks AI**. Memberships, Marketing, and CRM are off.
-  - **Billing Model**: The app uses a mix-and-match model. Customers can buy just CRM, just Marketing, etc. They do *not* need to be on Operations Pro to buy bolt-ons. 
-  - **Welcome Emails**: Password generation for imported users does *not* send plaintext passwords. It uses the  logic to mint a secure, one-time invite/reset token sent via .
+  - **Login Form Autofill Architecture**: Do NOT convert  login inputs back to  controlled components. They must remain uncontrolled () so Edge and iCloud Password Managers can securely autofill without React wiping the DOM values.
+  - **OOM Errors**: The frontend app is huge. Use frontend: stopped
+frontend: started instantly if Webpack hangs or gives an allocation failed error.
+  - **Single Codebase**: Remember MODService runs on the same repository via hostname tenant detection. Do not spin up separate DB logic.
 
-**documents and test reports created in this job** 
+**documents and test reports created in this job**
+  -  (Updated)
+  - 
+  - 
   - 
   - 
 
-**Last 10 User Messages and any pending HUMAN messages** 
- 1. *[User]*: Requested CRM Owner Delete button be moved to the bottom of the Edit modal with confirmation; clarified main import needs to create both CRM companies and Master Admin Organizations.
- 2. *[User]*: Approved agent plan.
- 3. *[User]*: Clarified customers start as Lite tenants and upgrade to buy base modules.
- 4. *[User]*: Asked what Lite includes.
- 5. *[User]*: Confirmed Lite = Operations only (no AI). Upgrades unlock Pro (AI) and other features.
- 6. *[User]*: Shared screenshot showing every module is standalone (mix & match), clarifying the billing model.
- 7. *[User]*: Confirmed option A (true standalone per-module purchase).
- 8. *[User]*: Asked if post-import welcome emails will include login details for customers to buy modules.
- 9. *[User]*: Requested the login email contain a secure Set your password link, sent only when a checkbox is ticked during import, and include a link to Help/Tutorials. (COMPLETED - Final Finish Tool Called)
+**Last 10 User Messages and any pending HUMAN messages**
+ 1. *[User]*: Edge browser isn't remembering credentials, iCloud autofill puts values but password doesn't auto-populate on submit.
+ 2. *[Agent]*: Diagnosed React controlled-input race condition against Password Manager DOM injection. Modified login fields to uncontrolled inputs and adjusted  HTML tags. Tested and fixed.
+ 3. *[User]*: Fleet PDF Pack: Add a printable PDF of the whole fleet register
+ 4. *[Agent]*: Utilized ReportLab to generate a Pulse-branded PDF Pack for board reports.
+ 5. *[User]*: Requested Link fleet drivers to actually link the Excel imported string labels to existing system users.
+ 6. *[Agent]*: Created a searchable driver dropdown picker in the manager UI, enabling production matching.
+ 7. *[User]*: Asked What are the next items?
+ 8. *[Agent]*: Outlined blocked items (Sicon, Resend) and provided next viable builds (Fine Reminders, PDF Pack, Driver Links).
+ 9. *[User]*: Staff Portal to include DBS, Vehicle modal to have Details & Check sheet options, Notification bell white, lateral scroll on mobile menus, fines section.
+ 10. *[Agent]*: Implemented massive chunk of UI fixes, Mobile menus, Fines CRUD operations & object storage.
+ *(No pending Human Messages)*
 
 **Project Health Check:**
 Broken: None.
-Mocked: Sage 200 Integration, Resend Email Delivery (Preview Env), Citation Atlas HR API, DVLA Service.
+Mocked: Sage 200 / Sicon API connections; Resend emails in the preview container.
 
-**3rd Party Integrations** 
-  - OpenAI / Claude — uses Emergent LLM Key
+**3rd Party Integrations**
+  - Claude Sonnet 4.6 — uses Emergent LLM Key (OCR scanning)
   - Stripe (Payments) — requires User API Key
   - Resend (Emails) — requires User API Key
+  - Sage 200 / Sicon WebAPI — requires User API Key
 
 **Testing status**
-  - Testing agent used after significant changes: YES (Frontend CRM Company Delete flow verified).
-  - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: , , ,  (Local harness scripts)
+  - Testing agent used after significant changes: YES (Tested Mobile UI guards, Driver Picker, Navbar autofills).
+  - Troubleshoot agent used after agent stuck in loop: NO.
+  - Test files created: Yes (Listed in documents section).
   - Known regressions: None detected.
 
 **Credentials to test flow:**
-  -  (Manager / Master Admin tests)
-  -  (Employee UI tests)
-  - Password in 
+  -  /  (Owner of Pulse Fitness Ltd, specifically configured for Fleet Register & Dash testing)
+  -  (Manager Admin)
+  -  /  (Staff portal tests)
 
 **What agent forgot to execute**
-The agent successfully completed all requested tasks, including the explicit billing logic changes and the import logic fixes. No items were forgotten. A recommendation for a manual Resend Welcome Email button was left for user consideration.</analysis>
+Nothing. All requested modifications, bug fixes, exports, auth configurations, and feature setups were completed successfully.</analysis>

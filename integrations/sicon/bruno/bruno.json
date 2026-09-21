@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Sicon Service - Pulse Fitness",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

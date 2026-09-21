@@ -1,0 +1,44 @@
+meta {
+  name: Authenticate
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/authentication/authenticate
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "username": "{{username}}",
+    "password": "{{password}}"
+  }
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  const tok = b.accessToken || b.token || b.access_token;
+  if (tok) { bru.setEnvVar('BEARER_TOKEN', tok); }
+}
+
+tests {
+  test("Status code is 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  test("Token captured", function () {
+    const b = res.getBody() || {};
+    expect(b.accessToken || b.token || b.access_token).to.be.ok;
+  });
+}
+
+docs {
+  Platform JWT authentication (AuthenticationApiController). On success the
+  post-response script stores accessToken into the BEARER_TOKEN environment var,
+  which every Service request inherits (collection-level bearer auth).
+}

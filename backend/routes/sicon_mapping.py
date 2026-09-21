@@ -301,6 +301,47 @@ SICON_FIELD_MAPPING: list[dict] = [
     _row("Resource", "engineer.start_date",               "resource.StartDate",            "←", "date",     ""),
 
     # ════════════════════════════════════════════════════════════════
+    # EQUIPMENT (Service WebAPI Equipment entity) — /api/v1/SiconService/Equipment
+    # Added 2026-06 from the live Sicon Service WebAPI Bruno collection
+    # (Equipment CRUD now exists in the Service plugin — full asset round-trip).
+    # ════════════════════════════════════════════════════════════════
+    _row("Equipment", "equipment.sicon_equipment_id",     "equipment.siconEquipmentId",          "↔", "int",      "Identity round-trip. Ignored on create, returned by POST."),
+    _row("Equipment", "equipment.sage_item_id",           "equipment.itemId",                    "→", "int",      "Sage stock item identity (nullable)."),
+    _row("Equipment", "equipment.display_name / description","equipment.description",            "↔", "string",   "Human-readable equipment description."),
+    _row("Equipment", "equipment.serial_number",          "equipment.serialNumber",              "↔", "string",   "Machine serial — primary match key."),
+    _row("Equipment", "equipment.asset_tag / id_number",  "equipment.idNumber",                  "↔", "string",   "Pulse asset tag / customer id number."),
+    _row("Equipment", "equipment.warranty_expiry",        "equipment.warrantyExpiry",            "↔", "date",     "ISO date; drives warranty-to-maintenance opportunities."),
+    _row("Equipment", "equipment.install_date",           "equipment.installDate",               "→", "date",     "ISO date."),
+    _row("Equipment", "equipment.service_interval_unit",  "equipment.serviceIntervalMeasurement","→", "string",   "days / weeks / months / years."),
+    _row("Equipment", "equipment.service_interval_value", "equipment.serviceIntervalDuration",   "→", "int",      "Interval count for the unit above."),
+    _row("Equipment", "equipment.notes",                  "equipment.notes",                     "→", "text",     "Free-text asset notes."),
+    _row("Equipment", "organization.id",                  "equipment.customerId",                "→", "ref",      "Org → Sicon customer mapping (nullable)."),
+    _row("Equipment", "equipment.sicon_group_key",        "equipment.siconEquipmentGroupDbKey",  "↔", "ref",      "Sicon equipment-group db key."),
+    _row("Equipment", "equipment.make / manufacturer",    "equipment.make",                      "↔", "string",   "Manufacturer."),
+    _row("Equipment", "equipment.model / model_code",     "equipment.model",                     "↔", "string",   "Model / model code."),
+    _row("Equipment", "equipment.last_service_date",      "equipment.lastServiceDate",           "↔", "date",     "Most recent completed service."),
+    _row("Equipment", "equipment.next_service_date",      "equipment.nextServiceDate",           "↔", "date",     "Next planned service (PPM)."),
+    _row("Equipment", "crm_links.crm_company_id",         "equipment.siconCrmCompanyId",         "→", "ref",      "Owning CRM company."),
+    _row("Equipment", "crm_links.crm_person_id",          "equipment.siconCrmPersonId",          "→", "ref",      "Owning CRM person."),
+    _row("Equipment", "crm_links.end_user_company_id",    "equipment.siconCrmEndUserCompanyId",  "→", "ref",      "End-user company (differs from bill-to)."),
+    _row("Equipment", "crm_links.end_user_person_id",     "equipment.siconCrmEndUserPersonId",   "→", "ref",      "End-user person."),
+    _row("Equipment", "site.sage_delivery_address_id",    "equipment.custDeliveryAddressDbKey",  "→", "ref",      "Sage delivery-address join for the asset location."),
+    _row("Equipment", "site.sicon_sub_location_id",       "equipment.siconSubLocationDbKey",     "↔", "ref",      "Floor / zone within the site."),
+    _row("Equipment", "site.sicon_contact_key",           "equipment.siconContactDbKey",         "→", "ref",      "Site contact db key."),
+    _row("Equipment", "equipment.analysis_codes[1-20]",   "equipment.analysisCode1-20",          "→", "string[]", "20 analysis-code slots (asset/site/tier joins & KPI signals)."),
+
+    # ════════════════════════════════════════════════════════════════
+    # METADATA LOOKUPS (Service WebAPI reference data — pulled, cached to config)
+    # /api/v1/SiconService/CaseType | /Priority | /TrackingStatus
+    # ════════════════════════════════════════════════════════════════
+    _row("Metadata", "config.case_type_mapping{}",        "caseType.siSMCaseTypeId",             "←", "int",      "Lookup: Reactive/PPM/Project → numeric CaseTypeId."),
+    _row("Metadata", "config.case_type_mapping{}.name",   "caseType.name",                       "←", "string",   "Denormalised case-type name."),
+    _row("Metadata", "config.priority_mapping{}",         "priority.siSMPriorityId",             "←", "int",      "Lookup: low/medium/critical → numeric PriorityId."),
+    _row("Metadata", "config.priority_mapping{}.name",    "priority.name",                       "←", "string",   "Denormalised priority name."),
+    _row("Metadata", "config.tracking_status_mapping{}",  "trackingStatus.siSMTrackingStatusId", "←", "int",      "Lookup: workflow_state → numeric TrackingStatusId."),
+    _row("Metadata", "config.tracking_status_mapping{}.name","trackingStatus.name",              "←", "string",   "Denormalised tracking-status name."),
+
+    # ════════════════════════════════════════════════════════════════
     # CUSTOMER / ORGANISATION — handled by integration ops, not auto-synced
     # ════════════════════════════════════════════════════════════════
     _row("Customer", "organization.id",                   "customer.Id",                   "↔", "ref",      "Two-way map maintained by integration ops."),
@@ -332,4 +373,6 @@ async def get_sicon_field_mapping(user: dict = Depends(get_current_user)) -> dic
         "entities": list(grouped.keys()),
         "direction_summary": direction_summary,
         "version": "iter-216h7",
+        "revision": "consolidated-2026-06",
+        "source_of_truth": "/app/integrations/sicon/",
     }

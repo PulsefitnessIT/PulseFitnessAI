@@ -44,8 +44,8 @@ def test_production_respects_explicit_brand_override():
 
 
 def test_preview_still_uses_frontend_url():
-    env = {"FRONTEND_URL": "https://fitness-onboarding-3.preview.emergentagent.com"}
-    assert _with_env(env, "pulse_pro") == "https://fitness-onboarding-3.preview.emergentagent.com"
+    env = {"FRONTEND_URL": "https://aftersales-engine.preview.emergentagent.com"}
+    assert _with_env(env, "pulse_pro") == "https://aftersales-engine.preview.emergentagent.com"
 
 
 def test_preview_without_frontend_url_falls_back_to_brand_default():

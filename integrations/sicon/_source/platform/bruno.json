@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Sicon WebAPI Platform",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

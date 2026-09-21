@@ -1,0 +1,24 @@
+meta {
+  name: GetOne
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/SiconService/Appointment/{{appointmentId}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  companyId: {{companyId}}
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  const item = (b && b.data && !Array.isArray(b)) ? b.data : b;
+  if (item) {
+    if (item.siconAppointmentId != null) bru.setEnvVar('appointmentId', item.siconAppointmentId);
+    else if (item.id != null) bru.setEnvVar('appointmentId', item.id);
+  }
+}

@@ -1,0 +1,15 @@
+meta {
+  name: GetOne_ByCaseNumber
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/SiconService/CaseSearch/{{caseNumber}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  companyId: {{companyId}}
+}
