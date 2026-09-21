@@ -284,7 +284,13 @@ def main():
 
     # 2. root meta + auth + environments
     (COLL / "bruno.json").write_text(ROOT_BRUNO_JSON, encoding="utf-8")
-    (COLL / "collection.bru").write_text(ROOT_COLLECTION_BRU, encoding="utf-8")
+    # Collection-level defaults so {{caseId}}/{{appointmentId}}/etc. always resolve
+    # (render green) even before an environment is picked. Environment scope
+    # OVERRIDES collection scope in Bruno, so the ids captured at runtime (via
+    # bru.setEnvVar) always win — these defaults never clobber a real value.
+    coll_vars = "vars:pre-request {\n  BEARER_TOKEN: \n" + "".join(
+        f"  {k}: {v}\n" for k, v in ID_VARS) + "}\n\n"
+    (COLL / "collection.bru").write_text(coll_vars + ROOT_COLLECTION_BRU, encoding="utf-8")
     (COLL / "Auth").mkdir(exist_ok=True)
     (COLL / "Auth" / "Authenticate.bru").write_text(AUTH_BRU, encoding="utf-8")
     envdir = COLL / "environments"
