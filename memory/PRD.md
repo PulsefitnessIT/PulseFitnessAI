@@ -38362,3 +38362,16 @@ Verified via function-level e2e with the real Devon & Somerset CSVs: sites impor
 engineer dedupe merges + reassigns the case to the survivor; backfill idempotent (1 company, no dupes);
 unauthorized customer org returns empty. Backend clean (ruff), frontend clean (eslint), all endpoints live.
 NOT browser-tested: Service Desk + Master Admin are behind enforced MFA in preview.
+
+---
+## 2026-06 · Imported people → CRM contacts + type-ahead customer picker
+- Contacts To CRM: bulk_import_customers now ALSO mirrors each imported person into `crm2_contacts` under the
+  operator tenant, linked to the customer's `crm2_companies` record (company_id + company_name, lifecycle
+  "customer", source "master_admin_bulk_import"). Company is resolved/created via _ensure_crm_company_for_org
+  (cached per org). Dedupe by email within the operator tenant → re-import doesn't duplicate. Helper
+  `_crm2_contact_doc(...)` in master_admin_bulk_import.py. Verified: 2 contacts created under the company,
+  re-import kept total at 2.
+- Customer Search: ServiceDeskIntakeForm.js customer picker replaced the native <select> with a
+  `CustomerCombobox` type-ahead (filters by name or account number, click-outside close, keyboard-free
+  select, data-testid intake-customer-search / intake-customer-options).
+Backend clean (ruff), frontend clean (eslint). UI not browser-tested (Service Desk MFA in preview).

@@ -674,6 +674,31 @@ async def _ensure_crm_company_for_org(
     return cid
 
 
+def _crm2_contact_doc(operator_org, company_id, company_name, c, user) -> dict:
+    """Build a `crm2_contacts` doc for an imported customer person, linked to
+    the customer's CRM company under the operator tenant."""
+    now = datetime.now(timezone.utc).isoformat()
+    return {
+        "id": str(uuid.uuid4()), "organization_id": operator_org, "site_id": None,
+        "first_name": c.get("first_name", ""), "last_name": c.get("last_name", ""),
+        "email": c.get("email", ""), "phone": c.get("phone", ""), "mobile": c.get("phone", ""),
+        "job_title": c.get("title", ""),
+        "company_id": company_id, "company_name": company_name or c.get("company_name", ""),
+        "influence_types": [], "is_decision_maker": False, "is_champion": False,
+        "buying_influence_level": "", "adoption_sentiment": "", "coverage_confidence": "",
+        "reports_to_id": None, "personal_wins": "", "linkedin": c.get("linkedin_url", ""),
+        "source": "master_admin_bulk_import", "status": "active", "tags": ["imported"],
+        "lifecycle": "customer", "gdpr_consent": False, "gdpr_consent_date": None,
+        "communication_preferences": {}, "opt_out_email": False, "opt_out_sms": False,
+        "opt_out_phone": False, "opt_out_post": False, "opt_out_marketing": False,
+        "opt_out_updated_at": None, "relationship_score": 0,
+        "owner_id": user.get("id"), "owner_name": user.get("full_name", ""),
+        "notes": "", "territory_id": None,
+        "postcode": "", "county": "", "region": "", "country": "United Kingdom",
+        "gdpr_erased": False, "created_at": now, "updated_at": now,
+    }
+
+
 async def _bridge_import_to_crm(org_ids, user: dict) -> int:
     """Ensure a CRM company exists for each customer org touched by an import.
     `user.organization_id` is the operator tenant (Pulse Fitness Ltd)."""
@@ -1297,23 +1322,52 @@ async def bulk_import_customers(
     email_set_cache: dict = {}
     org_breakdown: dict = {}
     now_iso = datetime.now(timezone.utc).isoformat()
+    # CRM v2 mirror — imported people also become crm2_contacts under the
+    # operator tenant, linked to the customer's crm2_companies record.
+    operator_org = user.get("organization_id") or user.get("service_org_id")
+    crm_company_by_org: dict = {}
+    crm2_seen_emails = {
+        (d.get("email") or "").lower()
+        async for d in db.crm2_contacts.find(
+            {"organization_id": operator_org, "email": {"$exists": True, "$ne": ""}},
+            {"_id": 0, "email": 1},
+        ) if d.get("email")
+    }
+    pending_crm2: list = []
+
+    async def _company_id_for(target_org: str) -> Optional[str]:
+        if target_org in crm_company_by_org:
+            return crm_company_by_org[target_org]
+        cid = await _ensure_crm_company_for_org(operator_org, target_org, user)
+        crm_company_by_org[target_org] = cid
+        return cid
 
     BATCH_SIZE = 500
     pending: list = []
 
     async def _flush_pending():
-        if not pending:
-            return
-        try:
-            await db.crm_contacts.insert_many(pending, ordered=False)
-        except Exception as exc:
-            logger.warning(f"customers insert_many failed, falling back row-by-row: {exc}")
-            for d in pending:
-                try:
-                    await db.crm_contacts.insert_one(d)
-                except Exception as e2:
-                    errors.append(f"DB insert failed for row id {d.get('id')}: {e2}")
-        pending.clear()
+        if pending:
+            try:
+                await db.crm_contacts.insert_many(pending, ordered=False)
+            except Exception as exc:
+                logger.warning(f"customers insert_many failed, falling back row-by-row: {exc}")
+                for d in pending:
+                    try:
+                        await db.crm_contacts.insert_one(d)
+                    except Exception as e2:
+                        errors.append(f"DB insert failed for row id {d.get('id')}: {e2}")
+            pending.clear()
+        if pending_crm2:
+            try:
+                await db.crm2_contacts.insert_many(pending_crm2, ordered=False)
+            except Exception as exc:
+                logger.warning(f"crm2 contacts insert_many failed, falling back: {exc}")
+                for d in pending_crm2:
+                    try:
+                        await db.crm2_contacts.insert_one(d)
+                    except Exception:
+                        pass
+            pending_crm2.clear()
 
     async def _email_set_for(target_org: str) -> set:
         if target_org in email_set_cache:
@@ -1375,6 +1429,22 @@ async def bulk_import_customers(
             pending.append(doc)
             if email:
                 email_set_cache[target_org].add(email)
+            # Mirror the person into the operator's CRM (crm2_contacts),
+            # linked to the customer company. Skip if importing into the
+            # operator's own tenant, or a same-email contact already exists.
+            if target_org != operator_org:
+                cid = await _company_id_for(target_org)
+                if not email or email not in crm2_seen_emails:
+                    pending_crm2.append(_crm2_contact_doc(
+                        operator_org, cid, doc.get("company_name", ""),
+                        {"first_name": first_name, "last_name": last_name, "email": email,
+                         "phone": doc.get("phone", ""), "title": doc.get("title", ""),
+                         "linkedin_url": doc.get("linkedin_url", ""),
+                         "company_name": doc.get("company_name", "")},
+                        user,
+                    ))
+                    if email:
+                        crm2_seen_emails.add(email)
             imported += 1
             org_breakdown[target_org] = org_breakdown.get(target_org, 0) + 1
             if len(pending) >= BATCH_SIZE:

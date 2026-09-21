@@ -23,6 +23,7 @@ import axios from 'axios';
 import {
   X, Phone, Loader2, Sparkles, MapPin, User as UserIcon, Wrench, Hash,
   ShieldCheck, FileText, Camera, AlertTriangle, CheckCircle2, Trash2, Upload,
+  Search, Check, ChevronDown,
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import './_serviceops.css';
@@ -321,19 +322,11 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
           {/* Step 1 — Customer & site */}
           <Step n={1} icon={<MapPin size={12} />} label={t('service.intake_step_customer_site', 'Customer & site')}>
             {customers.length > 1 && (
-              <select
+              <CustomerCombobox
+                customers={customers}
                 value={customerOrgId}
-                onChange={(e) => setCustomerOrgId(e.target.value)}
-                className="svc-select mb-2"
-                data-testid="intake-customer-select"
-              >
-                {customers.map((c) => (
-                  <option key={c.organization_id} value={c.organization_id}>
-                    {c.name}{c.is_operator ? t('service.intake_cust_mine', ' (my org)') : ''}
-                    {c.site_count != null ? ` · ${t('service.intake_sites_n', '{{n}} sites', { n: c.site_count })}` : ''}
-                  </option>
-                ))}
-              </select>
+                onChange={setCustomerOrgId}
+              />
             )}
             <select
               value={siteId}
@@ -621,6 +614,87 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CustomerCombobox({ customers, value, onChange }) {
+  const { t } = useTranslation();
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+  const selected = customers.find((c) => c.organization_id === value);
+
+  useEffect(() => {
+    const onDoc = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
+
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? customers.filter((c) =>
+        (c.name || '').toLowerCase().includes(q)
+        || (c.account_number || '').toLowerCase().includes(q))
+    : customers;
+
+  const label = (c) => `${c.name}${c.is_operator ? t('service.intake_cust_mine', ' (my org)') : ''}`;
+
+  return (
+    <div ref={wrapRef} className="mb-2" style={{ position: 'relative' }} data-testid="intake-customer-combobox">
+      <div style={{ position: 'relative' }}>
+        <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--svc-muted-text, #94a3b8)', pointerEvents: 'none' }} />
+        <input
+          className="svc-input"
+          style={{ paddingLeft: 30, paddingRight: 26 }}
+          value={open ? query : (selected ? label(selected) : '')}
+          placeholder={t('service.intake_customer_search', 'Search customer by name or account number…')}
+          onFocus={() => { setOpen(true); setQuery(''); }}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          data-testid="intake-customer-search"
+        />
+        <ChevronDown size={14} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--svc-muted-text, #94a3b8)', pointerEvents: 'none' }} />
+      </div>
+      {open && (
+        <ul
+          className="svc-combobox-list"
+          data-testid="intake-customer-options"
+          style={{
+            position: 'absolute', zIndex: 40, top: 'calc(100% + 4px)', left: 0, right: 0,
+            maxHeight: 260, overflowY: 'auto', background: 'var(--svc-surface, #fff)',
+            border: '1px solid var(--svc-border, #e2e8f0)', borderRadius: 10,
+            boxShadow: '0 12px 32px rgba(15,23,42,0.14)', padding: 4, margin: 0, listStyle: 'none',
+          }}
+        >
+          {filtered.length === 0 ? (
+            <li className="svc-muted" style={{ padding: '8px 10px', fontSize: 12.5 }}>
+              {t('service.intake_no_customer_match', 'No customers match “{{q}}”', { q: query })}
+            </li>
+          ) : filtered.map((c) => (
+            <li key={c.organization_id}>
+              <button
+                type="button"
+                onClick={() => { onChange(c.organization_id); setOpen(false); setQuery(''); }}
+                data-testid={`intake-customer-opt-${c.organization_id}`}
+                style={{
+                  width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center',
+                  gap: 8, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                  background: c.organization_id === value ? 'var(--svc-surface-soft, #f1f5f9)' : 'transparent',
+                  fontSize: 13,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--svc-surface-soft, #f1f5f9)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = c.organization_id === value ? 'var(--svc-surface-soft, #f1f5f9)' : 'transparent'; }}
+              >
+                <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {label(c)}
+                  {c.site_count != null ? <span className="svc-muted"> · {t('service.intake_sites_n', '{{n}} sites', { n: c.site_count })}</span> : null}
+                </span>
+                {c.organization_id === value ? <Check size={13} style={{ color: 'var(--svc-good-text, #059669)' }} /> : null}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
