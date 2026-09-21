@@ -111,6 +111,77 @@ def parse_bru_body_keys(text: str) -> list[str]:
     return out
 
 
+# ── authoritative Sicon Sage 200 Service WebAPI routes ─────────────
+# The Sicon-provided collection used a fabricated "/api/v1/SiconService/{Entity}"
+# scheme that the live WebAPI rejects ("no Api Controller or Action matching the
+# Uri Provided"). These are the real routes our production client (sicon_client.py)
+# + the audited spec use. path -> corrected URL (None = keep source URL + WARN).
+ROUTE_MAP = {
+    "Core/Ping/Ping.bru": "{{baseUrl}}/api/SMConnectivity/Ping",
+
+    "Cases/Case/GetOne_ById.bru": "{{baseUrl}}/api/service/cases/{{caseId}}",
+    "Cases/Case/GetOne_ByCaseNumber.bru": "{{baseUrl}}/api/service/cases?caseNumber={{caseNumber}}",
+    "Cases/Case/PostOne.bru": "{{baseUrl}}/api/ServiceCase/CreateNewCase",
+    "Cases/Case/PutOne.bru": "{{baseUrl}}/api/ServiceCase/AmendCase",
+    "Cases/CaseSearch/GetMany.bru": "{{baseUrl}}/api/service/cases",
+    "Cases/CaseSearch/GetOne_ById.bru": "{{baseUrl}}/api/service/cases/{{caseId}}",
+    "Cases/CaseSearch/GetOne_ByCaseNumber.bru": "{{baseUrl}}/api/service/cases?caseNumber={{caseNumber}}",
+    "Cases/CaseTrackingNote/GetMany.bru": "{{baseUrl}}/api/Service/Cases/{{caseId}}/TrackingNotes",
+    "Cases/CaseTrackingNote/GetOne.bru": "{{baseUrl}}/api/Service/Cases/{{caseId}}/TrackingNotes/{{trackingNoteId}}",
+    "Cases/CaseTrackingNote/PostOne.bru": "{{baseUrl}}/api/Service/Cases/{{caseId}}/TrackingNotes",
+    "Cases/CaseTrackingNote/PutOne.bru": "{{baseUrl}}/api/Service/Cases/{{caseId}}/TrackingNotes/{{trackingNoteId}}",
+    "Cases/CaseAppointment/GetMany.bru": "{{baseUrl}}/~/api/v2/TEntity/api/service/appointments",
+    "Cases/CaseEquipment/GetMany.bru": "{{baseUrl}}/api/service/cases/{{caseId}}",
+
+    "Appointments/Appointment/GetOne.bru": "{{baseUrl}}/~/api/v2/TEntity/api/service/appointments/{{appointmentId}}",
+    "Appointments/Appointment/PostOne.bru": "{{baseUrl}}/~/api/v2/TEntity/api/Service/Appointments",
+    "Appointments/Appointment/PutOne.bru": "{{baseUrl}}/~/api/v2/TEntity/api/Service/Appointments/{{appointmentId}}",
+    "Appointments/AppointmentResource/GetMany.bru": "{{baseUrl}}/api/service/appointments/resources",
+    "Appointments/AppointmentTimeBooking/GetMany.bru": "{{baseUrl}}/api/Service/Appointments/{{appointmentId}}/TimeBookings",
+    "Appointments/AppointmentTimeBooking/PostOne.bru": "{{baseUrl}}/api/Service/Appointments/{{appointmentId}}/TimeBookings",
+    "Appointments/AppointmentTimeBooking/PutOne.bru": "{{baseUrl}}/api/Service/Appointments/{{appointmentId}}/TimeBookings/{{timeBookingId}}",
+
+    "Metadata/CaseType/GetMany.bru": "{{baseUrl}}/api/service/case-types",
+    "Metadata/CaseType/GetOne.bru": "{{baseUrl}}/api/service/case-types/{{caseTypeId}}",
+    "Tracking/TrackingStatus/GetMany.bru": "{{baseUrl}}/api/service/case-tracking-statuses",
+    "Tracking/TrackingStatus/GetOne.bru": "{{baseUrl}}/api/service/case-tracking-statuses/{{trackingStatusId}}",
+    # Priority + Equipment: no authoritative Service WebAPI route (see WARN below).
+}
+
+# path -> WARNING appended to the request docs (unverified / endpoint may not exist)
+WARN = {
+    "Metadata/Priority/GetMany.bru": "UNVERIFIED: the Service WebAPI (audit R260200c) exposes NO priorities lookup endpoint. PriorityID is config-mapped in Pulse. Confirm with Sicon if a live route now exists; otherwise this request will 404.",
+    "Metadata/Priority/GetOne.bru": "UNVERIFIED: no priorities endpoint in the Service WebAPI. PriorityID is config-mapped. Confirm with Sicon.",
+    "Equipment/Equipment/GetMany.bru": "UNVERIFIED: historically the Service WebAPI has NO standalone Equipment endpoint (equipment is referenced via EquipmentIDs on a case). Confirm the live route with Sicon before use.",
+    "Equipment/Equipment/GetOne.bru": "UNVERIFIED: no confirmed standalone Equipment route. Confirm with Sicon.",
+    "Equipment/Equipment/PostOne.bru": "UNVERIFIED: no confirmed standalone Equipment route. Confirm with Sicon.",
+    "Equipment/Equipment/PutOne.bru": "UNVERIFIED: no confirmed standalone Equipment route. Confirm with Sicon.",
+    "Cases/CaseEquipment/GetMany.bru": "Equipment is embedded on the case as EquipmentIDs; this points at the case read. Confirm a dedicated route with Sicon if you need the expanded equipment list.",
+    "Cases/CaseAppointment/GetMany.bru": "No case-scoped appointment filter exists; this uses the paged TEntity appointments feed. Filter client-side by siSMCaseId.",
+    "Appointments/Appointment/GetOne.bru": "Appointment routes go via the TEntity v2 gateway (/~/api/v2/TEntity/...) per the current production client. Confirm against your instance.",
+    "Appointments/Appointment/PostOne.bru": "Appointment create via TEntity v2 gateway per production client. Confirm against your instance.",
+    "Appointments/Appointment/PutOne.bru": "Appointment update via TEntity v2 gateway per production client. Confirm against your instance.",
+    "Cases/Case/PutOne.bru": "Case amend is POST /api/ServiceCase/AmendCase (not a REST PUT) per the Service WebAPI.",
+    "Cases/Case/PostOne.bru": "Case create is POST /api/ServiceCase/CreateNewCase per the Service WebAPI.",
+}
+
+
+def _rewrite_url(text: str, new_url: str) -> str:
+    return re.sub(r"(?m)^(\s*url:\s*).*$", lambda m: m.group(1) + new_url, text, count=1)
+
+
+def _append_docs(text: str, note: str) -> str:
+    line = f"  \u26a0 {note}"
+    m = re.search(r"(?ms)^docs\s*\{.*?^\}", text)
+    if m:
+        block = m.group(0)
+        new_block = block[:-1].rstrip() + "\n" + line + "\n}"
+        return text[:m.start()] + new_block + text[m.end():]
+    return text.rstrip() + "\n\ndocs {\n" + line + "\n}\n"
+
+
+
+
 # ── auto-chaining post-response capture scripts ─────────────────────
 # path -> list of (sicon_body_key, env_var) captured from a SINGLE object body
 CAPTURE_ONE = {
@@ -276,6 +347,10 @@ def main():
             dest.parent.mkdir(parents=True, exist_ok=True)
             text = p.read_text(encoding="utf-8-sig", errors="ignore")
             key = str(rel).replace("\\", "/")
+            if key in ROUTE_MAP and ROUTE_MAP[key]:
+                text = _rewrite_url(text, ROUTE_MAP[key])
+            if key in WARN:
+                text = _append_docs(text, WARN[key])
             if key in CAPTURE_ONE:
                 text = text.rstrip() + "\n\n" + _capture_block(CAPTURE_ONE[key], False) + "\n"
             elif key in CAPTURE_LIST:

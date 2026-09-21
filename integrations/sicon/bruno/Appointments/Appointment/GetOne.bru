@@ -5,13 +5,17 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/v1/SiconService/Appointment/{{appointmentId}}
+  url: {{baseUrl}}/~/api/v2/TEntity/api/service/appointments/{{appointmentId}}
   body: none
   auth: inherit
 }
 
 params:query {
   companyId: {{companyId}}
+}
+
+docs {
+  ⚠ Appointment routes go via the TEntity v2 gateway (/~/api/v2/TEntity/...) per the current production client. Confirm against your instance.
 }
 
 script:post-response {

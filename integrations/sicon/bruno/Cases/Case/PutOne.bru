@@ -5,7 +5,7 @@ meta {
 }
 
 put {
-  url: {{baseUrl}}/api/v1/SiconService/Case/{{caseId}}
+  url: {{baseUrl}}/api/ServiceCase/AmendCase
   body: json
   auth: inherit
 }
@@ -104,6 +104,7 @@ body:json {
 
 docs {
   Body matches CaseModel. Set caseId on the collection to match the path id.
+  ⚠ Case amend is POST /api/ServiceCase/AmendCase (not a REST PUT) per the Service WebAPI.
 }
 
 script:post-response {

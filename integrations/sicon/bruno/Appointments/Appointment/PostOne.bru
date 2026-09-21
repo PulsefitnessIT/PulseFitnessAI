@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{baseUrl}}/api/v1/SiconService/Appointment
+  url: {{baseUrl}}/~/api/v2/TEntity/api/Service/Appointments
   body: json
   auth: inherit
 }
@@ -50,6 +50,7 @@ body:json {
 
 docs {
   Body matches AppointmentModel. Set caseId (and employeeId if assigning resources) before posting.
+  ⚠ Appointment create via TEntity v2 gateway per production client. Confirm against your instance.
 }
 
 script:post-response {

@@ -14,6 +14,10 @@ params:query {
   companyId: {{companyId}}
 }
 
+docs {
+  ⚠ UNVERIFIED: no confirmed standalone Equipment route. Confirm with Sicon.
+}
+
 script:post-response {
   const b = res.getBody() || {};
   const item = (b && b.data && !Array.isArray(b)) ? b.data : b;

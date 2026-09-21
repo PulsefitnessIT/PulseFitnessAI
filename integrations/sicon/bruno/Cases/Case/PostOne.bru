@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{baseUrl}}/api/v1/SiconService/Case
+  url: {{baseUrl}}/api/ServiceCase/CreateNewCase
   body: json
   auth: inherit
 }
@@ -104,6 +104,7 @@ body:json {
 
 docs {
   Body matches CaseModel. Set caseTypeId / priorityId on the collection before posting.
+  ⚠ Case create is POST /api/ServiceCase/CreateNewCase per the Service WebAPI.
 }
 
 script:post-response {

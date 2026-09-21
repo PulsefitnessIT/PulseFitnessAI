@@ -5,7 +5,7 @@ meta {
 }
 
 put {
-  url: {{baseUrl}}/api/v1/SiconService/Appointment/{{appointmentId}}
+  url: {{baseUrl}}/~/api/v2/TEntity/api/Service/Appointments/{{appointmentId}}
   body: json
   auth: inherit
 }
@@ -50,6 +50,7 @@ body:json {
 
 docs {
   Body matches AppointmentModel. Set appointmentId on the collection to match the path id.
+  ⚠ Appointment update via TEntity v2 gateway per production client. Confirm against your instance.
 }
 
 script:post-response {

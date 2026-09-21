@@ -15,6 +15,10 @@ params:query {
   companyId: {{companyId}}
 }
 
+docs {
+  ⚠ UNVERIFIED: the Service WebAPI (audit R260200c) exposes NO priorities lookup endpoint. PriorityID is config-mapped in Pulse. Confirm with Sicon if a live route now exists; otherwise this request will 404.
+}
+
 script:post-response {
   const b = res.getBody() || {};
   const arr = Array.isArray(b) ? b : (b.data || b.items || b.results || b.records || []);
