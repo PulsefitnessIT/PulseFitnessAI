@@ -24,13 +24,10 @@ body:json {
     "note": "Example tracking note",
     "time": null,
     "status": "",
-    "statusId": {{statusId}},
+    "statusId": {{selectedTrackingStatusId}},
     "appointmentId": {{appointmentId}},
     "visibleToEngineer": true,
     "visibleToCustomer": false,
-    "reassignedToCaseOwnerId": null,
-    "reassignedToInternalTeamId": null,
-    "reassignedToExternalTeamId": null,
     "latitude": null,
     "longitude": null
   }
@@ -42,17 +39,14 @@ docs {
   
   | Sicon field | Pulse field (PulseFitness.ai) | Direction | Confirmation |
   |---|---|---|---|
-  | `siSMCaseTrackingNoteId` | `issue.sicon_latest_note_id` | Sicon→Pulse |  |
-  | `note` | `issue.latest_note` | Sicon→Pulse |  |
+  | `siSMCaseTrackingNoteId` | `note.sicon_note_id` | Bidirectional |  |
+  | `note` | `note.message` | Pulse→Sicon |  |
   | `time` | `note.timestamp` | Bidirectional |  |
-  | `status` | `issue.sicon_tracking_status` | Sicon→Pulse |  |
-  | `statusId` | `issue.sicon_tracking_status_id` | Bidirectional |  |
-  | `appointmentId` | `issue.sicon_appointment_id` | Sicon→Pulse |  |
+  | `status` | `note.status` | Bidirectional |  |
+  | `statusId` | `note.case_tracking_status_id` | Bidirectional |  |
+  | `appointmentId` | `note.sicon_appointment_id (via linked Pulse appointment)` | Pulse→Sicon |  |
   | `visibleToEngineer` | `note.visible_to_engineer` | Bidirectional |  |
   | `visibleToCustomer` | `note.visible_to_customer` | Bidirectional |  |
-  | `reassignedToCaseOwnerId` | `(Sicon-owned metadata)` | Sicon metadata |  |
-  | `reassignedToInternalTeamId` | `(Sicon-owned metadata)` | Sicon metadata |  |
-  | `reassignedToExternalTeamId` | `(Sicon-owned metadata)` | Sicon metadata |  |
   | `latitude` | `note.latitude` | Pulse→Sicon |  |
   | `longitude` | `note.longitude` | Pulse→Sicon |  |
   

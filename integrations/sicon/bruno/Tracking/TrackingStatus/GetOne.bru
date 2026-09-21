@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/service/case-tracking-statuses/{{trackingStatusId}}
+  url: {{baseUrl}}/api/service/case-tracking-statuses/{{selectedTrackingStatusId}}
   body: none
   auth: inherit
 }
@@ -15,6 +15,6 @@ params:query {
 }
 
 docs {
-  See FIELD_MAPPING.md / mapping.csv for the full Tracking field map (Bruno var vs Sicon field vs Pulse field, with direction).
+  See FIELD_MAPPING.md / mapping.csv for the full Metadata field map (Bruno var vs Sicon field vs Pulse field, with direction).
   
 }

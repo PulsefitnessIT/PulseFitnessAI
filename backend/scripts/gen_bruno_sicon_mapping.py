@@ -84,18 +84,38 @@ for r in SICON_FIELD_MAPPING:
     by_leaf.setdefault(_leaf(r["sicon_field"]), []).append(r)
 
 
-def _lookup(key: str) -> list[dict]:
+REQUEST_ENTITY = {
+    "Appointment": "Appointment", "AppointmentTimeBooking": "TimeBooking",
+    "AppointmentResource": "Resource", "Case": "Case", "CaseSearch": "Case",
+    "CaseTrackingNote": "TrackingNote", "CaseEquipment": "Equipment",
+    "CaseAppointment": "Appointment", "Equipment": "Equipment",
+    "CaseType": "Metadata", "Priority": "Metadata", "TrackingStatus": "Metadata",
+    "Ping": "Core",
+}
+
+by_entity_leaf: dict = {}
+for r in SICON_FIELD_MAPPING:
+    by_entity_leaf.setdefault((r["entity"], _leaf(r["sicon_field"])), []).append(r)
+
+
+def _req_entity(rel) -> str:
+    parts = rel.parts
+    token = (parts[1] if len(parts) > 2 else parts[0]).replace(".bru", "")
+    return REQUEST_ENTITY.get(token, parts[0])
+
+
+def _lookup(entity: str, key: str) -> list:
+    """Entity-scoped resolver: identical field names in different Sicon entities
+    never cross-contaminate. Resolves by (Sicon entity, JSON field leaf)."""
     lf = _leaf(key)
-    if lf in by_leaf:
-        return by_leaf[lf]
-    if lf in ALIASES and ALIASES[lf] in by_leaf:
-        return by_leaf[ALIASES[lf]]
-    # analysisField1 / analysisCode3 -> the "1-20" catch-all rows
+    for cand in (lf, ALIASES.get(lf)):
+        if cand and (entity, cand) in by_entity_leaf:
+            return by_entity_leaf[(entity, cand)]
     m = re.match(r"^(analysisfield|analysiscode|clanalysiscode|sparetext|sparenum|sparedate)(\d+)$", lf)
     if m:
-        for cand in by_leaf:
-            if cand.startswith(m.group(1)) and re.search(r"\d+.*\d+", cand):
-                return by_leaf[cand]
+        for (ent, cand), rows in by_entity_leaf.items():
+            if ent == entity and cand.startswith(m.group(1)) and re.search(r"\d", cand):
+                return rows
     return []
 
 
@@ -258,7 +278,7 @@ ID_VARS = [
 ]
 # Control + explicit-selection vars (NOT auto-populated).
 CONTROL_VARS = [
-    ("ALLOW_WRITES", "false"), ("pageSize", "200"), ("page", "1"),
+    ("ALLOW_WRITES", "false"), ("pageSize", "200"), ("page", "1"), ("equipmentSkip", "0"),
     ("selectedCaseTypeId", ""), ("selectedPriorityId", ""), ("selectedTrackingStatusId", ""),
 ]
 
@@ -459,7 +479,7 @@ def build_docs(entity: str, key: str, body_keys, warn, nulled: set, meta) -> str
               "| Sicon field | Pulse field (PulseFitness.ai) | Direction | Confirmation |",
               "|---|---|---|---|"]
         for k in body_keys:
-            rows = _lookup(k)
+            rows = _lookup(entity, k)
             leaf = re.sub(r"[^a-z0-9]", "", k.split(".")[-1].lower())
             if rows:
                 pulse, d, ent = rows[0]["gymaxis_field"], rows[0]["direction"], rows[0]["entity"]
@@ -472,6 +492,46 @@ def build_docs(entity: str, key: str, body_keys, warn, nulled: set, meta) -> str
         L += [f"See FIELD_MAPPING.md / mapping.csv for the full {entity} field map "
               "(Bruno var vs Sicon field vs Pulse field, with direction).", ""]
     return "docs {\n" + "\n".join("  " + x for x in L) + "\n}\n"
+
+
+def _strip_sicon_owned(text: str) -> str:
+    """Remove Sicon-owned / read-only fields from a POST/PUT body:json payload."""
+    m = re.search(r"(body:json\s*\{)(.*?)(\n\})", text, re.S)
+    if not m:
+        return text
+    body = m.group(2)
+    changed = False
+    for k in re.findall(r'"([A-Za-z0-9_]+)"\s*:', body):
+        if re.sub(r"[^a-z0-9]", "", k.lower()) in SICON_OWNED:
+            body = re.sub(r'\n?[ \t]*"' + re.escape(k) + r'"\s*:\s*(?:"[^"]*"|true|false|null|-?\d+(?:\.\d+)?)\s*,?', "", body)
+            changed = True
+    if changed:
+        body = re.sub(r",(\s*[}\]])", r"\1", body)
+    return text[: m.start(2)] + body + text[m.end(2):]
+
+
+# Real Equipment pagination: keep paging via $skip until a short page is returned.
+EQUIP_PAGINATION = """script:pre-request {
+  if (bru.getVar('equipmentSkip') == null) { bru.setVar('equipmentSkip', 0); }
+  if (bru.getVar('equipmentAll') == null) { bru.setVar('equipmentAll', []); bru.setVar('equipmentPages', 0); }
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  const arr = Array.isArray(b) ? b : (b.data || b.items || b.results || b.records || []);
+  const all = (bru.getVar('equipmentAll') || []).concat(arr);
+  bru.setVar('equipmentAll', all);
+  bru.setVar('equipmentPages', (bru.getVar('equipmentPages') || 0) + 1);
+  const size = Number(bru.getEnvVar('pageSize') || bru.getVar('pageSize') || 200);
+  if (arr.length >= size && bru.getVar('equipmentPages') < 200) {
+    bru.setVar('equipmentSkip', (bru.getVar('equipmentSkip') || 0) + size);
+    await bru.runRequest('Equipment/Equipment/GetMany');
+  } else {
+    console.log('Equipment full estate retrieved:', all.length, 'records over', bru.getVar('equipmentPages'), 'pages');
+    bru.setVar('equipmentSkip', 0); bru.setVar('equipmentAll', []); bru.setVar('equipmentPages', 0);
+  }
+}
+"""
 
 
 def main():
@@ -492,19 +552,29 @@ def main():
             text = p.read_text(encoding="utf-8-sig", errors="ignore")
             key = str(rel).replace("\\", "/")
             entity = rel.parts[0] if len(rel.parts) > 1 else "Core"
+            rentity = _req_entity(rel)
             if key in ROUTE_MAP and ROUTE_MAP[key]:
                 text = _rewrite_url(text, ROUTE_MAP[key])
             text = text.replace("$max=10", "$max={{pageSize}}")
+            for _old, _new in (("{{trackingStatusId}}", "{{selectedTrackingStatusId}}"),
+                               ("{{statusId}}", "{{selectedTrackingStatusId}}"),
+                               ("{{caseTypeId}}", "{{selectedCaseTypeId}}"),
+                               ("{{priorityId}}", "{{selectedPriorityId}}")):
+                text = text.replace(_old, _new)
             text, nulled = _transform_body(text, key)
+            if re.search(r"(?m)^\s*(post|put)\s*\{", text):
+                text = _strip_sicon_owned(text)
             body_keys = parse_bru_body_keys(text)
             meta = METADATA_LIST.get(key)
             add_fields = _is_get(text) and entity in GET_TEST_FIELDS
-            add_pagination = key == "Equipment/Equipment/GetMany.bru"
-            if add_fields or add_pagination or meta:
-                text = text.rstrip() + "\n\n" + _tests_block(entity, add_fields, add_pagination, meta)
+            if add_fields or meta:
+                text = text.rstrip() + "\n\n" + _tests_block(entity, add_fields, False, meta)
+            if key == "Equipment/Equipment/GetMany.bru":
+                text = re.sub(r"(params:query\s*\{)", r"\1\n  $skip: {{equipmentSkip}}\n  $top: {{pageSize}}", text, count=1)
+                text = text.rstrip() + "\n\n" + EQUIP_PAGINATION
             if key in CAPTURE_ONE:
                 text = text.rstrip() + "\n\n" + _capture_block(CAPTURE_ONE[key], False) + "\n"
-            text = _strip_docs(text) + "\n" + build_docs(entity, key, body_keys, WARN.get(key), nulled, meta)
+            text = _strip_docs(text) + "\n" + build_docs(rentity, key, body_keys, WARN.get(key), nulled, meta)
             dest.write_text(text, encoding="utf-8")
 
     # 2. root meta + auth + environments
@@ -549,39 +619,34 @@ def main():
     rows_out, seen = [], set()
     for bru in sorted(SRC_SERVICE.rglob("*.bru")):
         rel = bru.relative_to(SRC_SERVICE)
-        entity = rel.parts[0] if len(rel.parts) > 1 else "Core"
+        rentity = _req_entity(rel)
         for k in parse_bru_body_keys(bru.read_text(encoding="utf-8-sig", errors="ignore")):
-            matches = _lookup(k)
+            dedup = (str(rel), k)
+            if dedup in seen:
+                continue
+            seen.add(dedup)
+            matches = _lookup(rentity, k)
             if matches:
-                for mrow in matches:
-                    dedup = (str(rel), k, mrow["gymaxis_field"])
-                    if dedup in seen:
-                        continue
-                    seen.add(dedup)
-                    rows_out.append({
-                        "sicon_entity": entity, "sicon_request": str(rel),
-                        "sicon_field": k, "pulse_field": mrow["gymaxis_field"],
-                        "direction": mrow["direction"], "type": mrow["type"],
-                        "status": "MAPPED", "notes": mrow["notes"],
-                    })
+                mrow = matches[0]
+                rows_out.append({
+                    "sicon_entity": rentity, "sicon_request": str(rel),
+                    "sicon_field": k, "pulse_field": mrow["gymaxis_field"],
+                    "direction": mrow["direction"], "type": mrow["type"],
+                    "status": "MAPPED", "notes": mrow["notes"],
+                })
+            elif _leaf(k) in SICON_OWNED:
+                rows_out.append({
+                    "sicon_entity": rentity, "sicon_request": str(rel),
+                    "sicon_field": k, "pulse_field": "(Sicon-owned)", "direction": "←",
+                    "type": "", "status": "SICON-OWNED",
+                    "notes": "Sicon-owned / read-only — not sent in POST/PUT payloads.",
+                })
             else:
-                dedup = (str(rel), k, "")
-                if dedup in seen:
-                    continue
-                seen.add(dedup)
-                if _leaf(k) in SICON_OWNED:
-                    rows_out.append({
-                        "sicon_entity": entity, "sicon_request": str(rel),
-                        "sicon_field": k, "pulse_field": "(Sicon-owned)", "direction": "←",
-                        "type": "", "status": "SICON-OWNED",
-                        "notes": "Sicon-owned / display field — read-only, no Pulse mapping required.",
-                    })
-                else:
-                    rows_out.append({
-                        "sicon_entity": entity, "sicon_request": str(rel),
-                        "sicon_field": k, "pulse_field": "", "direction": "",
-                        "type": "", "status": "UNMAPPED", "notes": "No Pulse mapping - confirm with Sicon",
-                    })
+                rows_out.append({
+                    "sicon_entity": rentity, "sicon_request": str(rel),
+                    "sicon_field": k, "pulse_field": "", "direction": "",
+                    "type": "", "status": "UNMAPPED", "notes": "No Pulse mapping - confirm with Sicon",
+                })
 
     with (OUT / "mapping.csv").open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["sicon_entity", "sicon_request", "sicon_field",

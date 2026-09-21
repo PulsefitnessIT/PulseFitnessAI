@@ -370,6 +370,19 @@ SICON_FIELD_MAPPING: list[dict] = [
     _row("Metadata", "config.tracking_status_mapping{}.name","trackingStatus.name",              "←", "string",   "Denormalised tracking-status name."),
 
     # ════════════════════════════════════════════════════════════════
+    # Entity-scoped fills (2026-06) — fields present on specific Service
+    # requests that need their own per-entity Pulse mapping (no cross-entity).
+    # ════════════════════════════════════════════════════════════════
+    _row("TrackingNote", "note.message",                  "note.note",                     "→", "text",   "Note body text."),
+    _row("TrackingNote", "note.sicon_note_id",            "note.siSMCaseTrackingNoteId",   "↔", "int",    "Tracking-note id."),
+    _row("TrackingNote", "note.status",                   "note.status",                   "↔", "string", "Tracking-status name carried on the note."),
+    _row("TrackingNote", "note.case_tracking_status_id",  "note.statusId",                 "↔", "int",    "Tracking-status id applied by the note."),
+    _row("TrackingNote", "note.sicon_appointment_id (via linked Pulse appointment)", "note.appointmentId", "→", "int", "Resolve the note's linked Pulse appointment and send its appt.sicon_appointment_id here."),
+    _row("Appointment",  "appt.sicon_case_id",            "appt.siSMCaseId",               "↔", "int",    "Parent case link on the appointment."),
+    _row("Appointment",  "appt.work_briefing / description", "appt.description",           "→", "text",   "Appointment description / work briefing."),
+    _row("Case",         "issue.created_by",              "case.createdBy",                "←", "string", "Sage user who created the case (read-back)."),
+
+    # ════════════════════════════════════════════════════════════════
     # CUSTOMER / ORGANISATION — handled by integration ops, not auto-synced
     # ════════════════════════════════════════════════════════════════
     _row("Customer", "organization.id",                   "customer.Id",                   "↔", "ref",      "Two-way map maintained by integration ops."),

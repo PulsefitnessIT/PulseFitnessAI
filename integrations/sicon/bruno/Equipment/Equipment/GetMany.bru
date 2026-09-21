@@ -11,6 +11,8 @@ get {
 }
 
 params:query {
+  $skip: {{equipmentSkip}}
+  $top: {{pageSize}}
   query: $max={{pageSize}}
   companyId: {{companyId}}
 }
@@ -26,8 +28,27 @@ tests {
   bru.setVar("_type_serialNumber", item ? typeof item["serialNumber"] : "undefined");
   test("field description present", function () { expect(item).to.have.property("description"); });
   bru.setVar("_type_description", item ? typeof item["description"] : "undefined");
-  bru.setVar("_equipmentPageCount", arr.length);
-  test("pagination returns a page (pageSize>10 proves full-estate retrieval)", function () { expect(arr.length).to.be.a("number"); });
+}
+
+script:pre-request {
+  if (bru.getVar('equipmentSkip') == null) { bru.setVar('equipmentSkip', 0); }
+  if (bru.getVar('equipmentAll') == null) { bru.setVar('equipmentAll', []); bru.setVar('equipmentPages', 0); }
+}
+
+script:post-response {
+  const b = res.getBody() || {};
+  const arr = Array.isArray(b) ? b : (b.data || b.items || b.results || b.records || []);
+  const all = (bru.getVar('equipmentAll') || []).concat(arr);
+  bru.setVar('equipmentAll', all);
+  bru.setVar('equipmentPages', (bru.getVar('equipmentPages') || 0) + 1);
+  const size = Number(bru.getEnvVar('pageSize') || bru.getVar('pageSize') || 200);
+  if (arr.length >= size && bru.getVar('equipmentPages') < 200) {
+    bru.setVar('equipmentSkip', (bru.getVar('equipmentSkip') || 0) + size);
+    await bru.runRequest('Equipment/Equipment/GetMany');
+  } else {
+    console.log('Equipment full estate retrieved:', all.length, 'records over', bru.getVar('equipmentPages'), 'pages');
+    bru.setVar('equipmentSkip', 0); bru.setVar('equipmentAll', []); bru.setVar('equipmentPages', 0);
+  }
 }
 
 docs {

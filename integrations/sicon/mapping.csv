@@ -1,283 +1,246 @@
 sicon_entity,sicon_request,sicon_field,pulse_field,direction,type,status,notes
-Appointments,Appointments/Appointment/PostOne.bru,siconAppointmentId,note.sicon_appointment_id,→,ref,MAPPED,Optional appointment link.
-Appointments,Appointments/Appointment/PostOne.bru,siconAppointmentId,appt.sicon_appointment_id,↔,int,MAPPED,Identity once created.
-Appointments,Appointments/Appointment/PostOne.bru,siSMCaseId,issue.sicon_case_id,↔,int,MAPPED,Round-trip identity. Set after first sync.
-Appointments,Appointments/Appointment/PostOne.bru,appointmentType,appt.type,↔,enum,MAPPED,Work / Travel / Other.
-Appointments,Appointments/Appointment/PostOne.bru,parentWorkAppointmentId,appt.parent_work_appointment_id,→,int,MAPPED,Only when type=Travel.
-Appointments,Appointments/Appointment/PostOne.bru,subject,appt.subject (derived),→,string,MAPPED,Composed from machine_type + serial.
-Appointments,Appointments/Appointment/PostOne.bru,description,issue.issue_description,↔,text,MAPPED,Truncated to 4000 chars.
-Appointments,Appointments/Appointment/PostOne.bru,description,site.name / label,→,string,MAPPED,Truncated to 100 chars.
-Appointments,Appointments/Appointment/PostOne.bru,description,contract.description / title,→,string,MAPPED,
-Appointments,Appointments/Appointment/PostOne.bru,description,equipment.display_name / description,↔,string,MAPPED,Human-readable equipment description.
-Appointments,Appointments/Appointment/PostOne.bru,workBriefing,appt.work_briefing,→,string,MAPPED,Pre-visit notes. 1000 chars.
-Appointments,Appointments/Appointment/PostOne.bru,employeeIds,appt.employee_ids,↔,int[],MAPPED,Assigned engineers.
-Appointments,Appointments/Appointment/PostOne.bru,employeeIds,tb.employee_ids,↔,int[],MAPPED,
-Appointments,Appointments/Appointment/PostOne.bru,chargeRateId,appt.charge_rate_id,→,int,MAPPED,
-Appointments,Appointments/Appointment/PostOne.bru,labelId,appt.label_id,→,int,MAPPED,Calendar label.
-Appointments,Appointments/Appointment/PostOne.bru,colour,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Appointments,Appointments/Appointment/PostOne.bru,confirmed,appt.confirmed,↔,bool,MAPPED,
-Appointments,Appointments/Appointment/PostOne.bru,scheduledStartDate,appt.scheduled_start,↔,datetime,MAPPED,
-Appointments,Appointments/Appointment/PostOne.bru,scheduledEndDate,appt.scheduled_end,↔,datetime,MAPPED,
-Appointments,Appointments/Appointment/PostOne.bru,appointmentComplete,appt.completion.complete,↔,bool,MAPPED,Set true on completion.
-Appointments,Appointments/Appointment/PostOne.bru,workDoneDescription,appt.completion.work_done,↔,text,MAPPED,2000 chars.
-Appointments,Appointments/Appointment/PostOne.bru,workDoneAcknowledged,appt.completion.work_done_ack,→,bool,MAPPED,Customer ack.
-Appointments,Appointments/Appointment/PostOne.bru,furtherAction,appt.completion.further_action,↔,text,MAPPED,Follow-up notes.
-Appointments,Appointments/Appointment/PostOne.bru,furtherActionAcknowledged,appt.completion.further_action_ack,→,bool,MAPPED,
-Appointments,Appointments/Appointment/PostOne.bru,arrivalSignee,appt.completion.arrival_signee,↔,string,MAPPED,Sign-in name.
-Appointments,Appointments/Appointment/PostOne.bru,departureSignee,appt.completion.departure_signee,↔,string,MAPPED,Sign-out name.
-Appointments,Appointments/Appointment/PostOne.bru,arrivalLatitude,appt.completion.arrival_lat,↔,float,MAPPED,Engineer GPS on arrival.
-Appointments,Appointments/Appointment/PostOne.bru,arrivalLongitude,appt.completion.arrival_lon,↔,float,MAPPED,
-Appointments,Appointments/Appointment/PostOne.bru,departureLatitude,appt.completion.departure_lat,↔,float,MAPPED,Engineer GPS on departure.
-Appointments,Appointments/Appointment/PostOne.bru,departureLongitude,appt.completion.departure_lon,↔,float,MAPPED,
-Appointments,Appointments/Appointment/PutOne.bru,siconAppointmentId,note.sicon_appointment_id,→,ref,MAPPED,Optional appointment link.
-Appointments,Appointments/Appointment/PutOne.bru,siconAppointmentId,appt.sicon_appointment_id,↔,int,MAPPED,Identity once created.
-Appointments,Appointments/Appointment/PutOne.bru,siSMCaseId,issue.sicon_case_id,↔,int,MAPPED,Round-trip identity. Set after first sync.
-Appointments,Appointments/Appointment/PutOne.bru,appointmentType,appt.type,↔,enum,MAPPED,Work / Travel / Other.
-Appointments,Appointments/Appointment/PutOne.bru,parentWorkAppointmentId,appt.parent_work_appointment_id,→,int,MAPPED,Only when type=Travel.
-Appointments,Appointments/Appointment/PutOne.bru,subject,appt.subject (derived),→,string,MAPPED,Composed from machine_type + serial.
-Appointments,Appointments/Appointment/PutOne.bru,description,issue.issue_description,↔,text,MAPPED,Truncated to 4000 chars.
-Appointments,Appointments/Appointment/PutOne.bru,description,site.name / label,→,string,MAPPED,Truncated to 100 chars.
-Appointments,Appointments/Appointment/PutOne.bru,description,contract.description / title,→,string,MAPPED,
-Appointments,Appointments/Appointment/PutOne.bru,description,equipment.display_name / description,↔,string,MAPPED,Human-readable equipment description.
-Appointments,Appointments/Appointment/PutOne.bru,workBriefing,appt.work_briefing,→,string,MAPPED,Pre-visit notes. 1000 chars.
-Appointments,Appointments/Appointment/PutOne.bru,employeeIds,appt.employee_ids,↔,int[],MAPPED,Assigned engineers.
-Appointments,Appointments/Appointment/PutOne.bru,employeeIds,tb.employee_ids,↔,int[],MAPPED,
-Appointments,Appointments/Appointment/PutOne.bru,chargeRateId,appt.charge_rate_id,→,int,MAPPED,
-Appointments,Appointments/Appointment/PutOne.bru,labelId,appt.label_id,→,int,MAPPED,Calendar label.
-Appointments,Appointments/Appointment/PutOne.bru,colour,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Appointments,Appointments/Appointment/PutOne.bru,confirmed,appt.confirmed,↔,bool,MAPPED,
-Appointments,Appointments/Appointment/PutOne.bru,scheduledStartDate,appt.scheduled_start,↔,datetime,MAPPED,
-Appointments,Appointments/Appointment/PutOne.bru,scheduledEndDate,appt.scheduled_end,↔,datetime,MAPPED,
-Appointments,Appointments/Appointment/PutOne.bru,appointmentComplete,appt.completion.complete,↔,bool,MAPPED,Set true on completion.
-Appointments,Appointments/Appointment/PutOne.bru,workDoneDescription,appt.completion.work_done,↔,text,MAPPED,2000 chars.
-Appointments,Appointments/Appointment/PutOne.bru,workDoneAcknowledged,appt.completion.work_done_ack,→,bool,MAPPED,Customer ack.
-Appointments,Appointments/Appointment/PutOne.bru,furtherAction,appt.completion.further_action,↔,text,MAPPED,Follow-up notes.
-Appointments,Appointments/Appointment/PutOne.bru,furtherActionAcknowledged,appt.completion.further_action_ack,→,bool,MAPPED,
-Appointments,Appointments/Appointment/PutOne.bru,arrivalSignee,appt.completion.arrival_signee,↔,string,MAPPED,Sign-in name.
-Appointments,Appointments/Appointment/PutOne.bru,departureSignee,appt.completion.departure_signee,↔,string,MAPPED,Sign-out name.
-Appointments,Appointments/Appointment/PutOne.bru,arrivalLatitude,appt.completion.arrival_lat,↔,float,MAPPED,Engineer GPS on arrival.
-Appointments,Appointments/Appointment/PutOne.bru,arrivalLongitude,appt.completion.arrival_lon,↔,float,MAPPED,
-Appointments,Appointments/Appointment/PutOne.bru,departureLatitude,appt.completion.departure_lat,↔,float,MAPPED,Engineer GPS on departure.
-Appointments,Appointments/Appointment/PutOne.bru,departureLongitude,appt.completion.departure_lon,↔,float,MAPPED,
-Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,employeeIds,appt.employee_ids,↔,int[],MAPPED,Assigned engineers.
-Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,employeeIds,tb.employee_ids,↔,int[],MAPPED,
-Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,startDate,contract.start_date,→,date,MAPPED,Header start date.
-Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,startDate,tb.start_date,↔,datetime,MAPPED,
-Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,startDate,engineer.start_date,←,date,MAPPED,
-Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,endDate,contract.end_date,→,date,MAPPED,Header end date.
-Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,endDate,tb.end_date,↔,datetime,MAPPED,
-Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,costingHours,tb.costing_hours,↔,float,MAPPED,Internal cost hours (Sicon confirmed).
-Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,chargingHours,tb.charging_hours,↔,float,MAPPED,Billable/charge hours.
-Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,chargeRate,tb.charge_rate,→,int,MAPPED,Rate code for invoicing.
-Appointments,Appointments/AppointmentTimeBooking/PostOne.bru,isEstimate,tb.is_estimate,↔,bool,MAPPED,Estimate vs actual flag.
-Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,employeeIds,appt.employee_ids,↔,int[],MAPPED,Assigned engineers.
-Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,employeeIds,tb.employee_ids,↔,int[],MAPPED,
-Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,startDate,contract.start_date,→,date,MAPPED,Header start date.
-Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,startDate,tb.start_date,↔,datetime,MAPPED,
-Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,startDate,engineer.start_date,←,date,MAPPED,
-Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,endDate,contract.end_date,→,date,MAPPED,Header end date.
-Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,endDate,tb.end_date,↔,datetime,MAPPED,
-Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,costingHours,tb.costing_hours,↔,float,MAPPED,Internal cost hours (Sicon confirmed).
-Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,chargingHours,tb.charging_hours,↔,float,MAPPED,Billable/charge hours.
-Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,chargeRate,tb.charge_rate,→,int,MAPPED,Rate code for invoicing.
-Appointments,Appointments/AppointmentTimeBooking/PutOne.bru,isEstimate,tb.is_estimate,↔,bool,MAPPED,Estimate vs actual flag.
-Cases,Cases/Case/PostOne.bru,siSMCaseId,issue.sicon_case_id,↔,int,MAPPED,Round-trip identity. Set after first sync.
-Cases,Cases/Case/PostOne.bru,caseNumber,issue.sicon_case_number,↔,string,MAPPED,Human-readable Sicon-side reference.
-Cases,Cases/Case/PostOne.bru,siSMDocumentStatusId,issue.status,↔,enum,MAPPED,Bi-directional. Sicon close pulls back.
-Cases,Cases/Case/PostOne.bru,siSMDocumentStatusName,issue.status,←,string,MAPPED,Pulled denormalised.
-Cases,Cases/Case/PostOne.bru,siSMDocumentSubStatusId,issue.workflow_state / sub_status_id,→,enum,MAPPED,Iter 216h7: resolves via per-org sub_status_mapping (e.g. 'awaiting_parts' → 4). Explicit sicon_sub_status_id wins.
-Cases,Cases/Case/PostOne.bru,summary,issue.machine_type + serial_number,↔,string,MAPPED,Composed summary for case-list views.
-Cases,Cases/Case/PostOne.bru,description,issue.issue_description,↔,text,MAPPED,Truncated to 4000 chars.
-Cases,Cases/Case/PostOne.bru,description,site.name / label,→,string,MAPPED,Truncated to 100 chars.
-Cases,Cases/Case/PostOne.bru,description,contract.description / title,→,string,MAPPED,
-Cases,Cases/Case/PostOne.bru,description,equipment.display_name / description,↔,string,MAPPED,Human-readable equipment description.
-Cases,Cases/Case/PostOne.bru,callDate,issue.created_at,→,datetime,MAPPED,ISO 8601 in UTC.
-Cases,Cases/Case/PostOne.bru,contactName,issue.created_by_name / reporter_name,→,string,MAPPED,Caller name on the ticket.
-Cases,Cases/Case/PostOne.bru,contactPhoneNumber,issue.reporter_phone,→,string,MAPPED,Caller phone.
-Cases,Cases/Case/PostOne.bru,contactEmail,issue.reporter_email / user_email,→,string,MAPPED,Caller email.
-Cases,Cases/Case/PostOne.bru,lastUpdatedDate,issue.sicon_last_updated_at,←,datetime,MAPPED,Sicon-side last-modified timestamp for poll delta.
-Cases,Cases/Case/PostOne.bru,isNonContract,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PostOne.bru,address,site.address (composed),→,object,MAPPED,Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows).
-Cases,Cases/Case/PostOne.bru,postalName,issue.site_address.name,→,string,MAPPED,Site name for postal labelling.
-Cases,Cases/Case/PostOne.bru,addressLine1,engineer.address_line1,←,string,MAPPED,
-Cases,Cases/Case/PostOne.bru,addressLine2,issue.site_address.line2,→,string,MAPPED,
-Cases,Cases/Case/PostOne.bru,addressLine3,issue.site_address.line3,→,string,MAPPED,
-Cases,Cases/Case/PostOne.bru,addressLine4,issue.site_address.line4,→,string,MAPPED,
-Cases,Cases/Case/PostOne.bru,city,engineer.city,←,string,MAPPED,
-Cases,Cases/Case/PostOne.bru,county,issue.site_address.county,→,string,MAPPED,
-Cases,Cases/Case/PostOne.bru,postCode,engineer.postcode,←,string,MAPPED,
-Cases,Cases/Case/PostOne.bru,sopDelAddress,site.address (composed),→,object,MAPPED,Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows).
-Cases,Cases/Case/PostOne.bru,customerOrderNo,contract.customer_order_number,↔,string,MAPPED,Customer PO surfaced on the case.
-Cases,Cases/Case/PostOne.bru,createdBy,note.created_by,↔,string,MAPPED,Default 'Pulse Fitness AI'.
-Cases,Cases/Case/PostOne.bru,analysisField1,issue.ai_triage_parsed.summary,→,string,MAPPED,AI triage diagnosis. Truncated 250 chars.
-Cases,Cases/Case/PostOne.bru,analysisField2,issue.ai_triage_parsed.severity,→,string,MAPPED,AI-detected severity (UPPERCASE).
-Cases,Cases/Case/PostOne.bru,analysisField3,issue.ai_triage_parsed.recommended_parts,→,string,MAPPED,Comma-joined parts list. 250 chars.
-Cases,Cases/Case/PostOne.bru,analysisField4,issue.id,→,string,MAPPED,Pulse Fitness issue id for joins.
-Cases,Cases/Case/PostOne.bru,analysisField5,organization.name,→,string,MAPPED,Truncated 100 chars.
-Cases,Cases/Case/PostOne.bru,analysisField6,issue.sla_category / sla_tier,→,string,MAPPED,SLA bucket for breach calc.
-Cases,Cases/Case/PostOne.bru,analysisField7,issue.ppm_schedule_id,→,string,MAPPED,PPM schedule join if relevant.
-Cases,Cases/Case/PostOne.bru,analysisField8,issue.supplier_case_token,→,string,MAPPED,Supplier-portal correlation token.
-Cases,Cases/Case/PostOne.bru,analysisField9,issue.fault_code,→,string,MAPPED,Equipment-emitted error code if known. 50 chars.
-Cases,Cases/Case/PostOne.bru,analysisField10,issue.machine_type,→,string,MAPPED,80 chars.
-Cases,Cases/Case/PostOne.bru,analysisField11,equipment.make / manufacturer,→,string,MAPPED,80 chars.
-Cases,Cases/Case/PostOne.bru,analysisField12,equipment.model_code / model,→,string,MAPPED,80 chars.
-Cases,Cases/Case/PostOne.bru,analysisField13,equipment.install_date,→,date,MAPPED,ISO date string.
-Cases,Cases/Case/PostOne.bru,analysisField14,equipment.warranty_expiry,→,date,MAPPED,ISO date string.
-Cases,Cases/Case/PostOne.bru,analysisField15,issue.id (duplicate for join),→,string,MAPPED,60 chars.
-Cases,Cases/Case/PostOne.bru,analysisField16,issue.ppm_schedule_id (duplicate),→,string,MAPPED,60 chars.
-Cases,Cases/Case/PostOne.bru,analysisField17,issue.ai_triage_summary (verbose),→,string,MAPPED,200 chars.
-Cases,Cases/Case/PostOne.bru,analysisField18,issue.source,→,string,MAPPED,manual / api / qr-scan / portal / email. 30 chars.
-Cases,Cases/Case/PostOne.bru,analysisField19,issue.reporter_role / created_by_role,→,string,MAPPED,member / staff / engineer / public. 30 chars.
-Cases,Cases/Case/PostOne.bru,analysisField20,issue.csat_rating,→,int,MAPPED,1-5 customer satisfaction post-resolution. Iter 216h7 — CRM module populates on rating submit.
-Cases,Cases/Case/PostOne.bru,siconCRMPersonId,crm_links.crm_person_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
-Cases,Cases/Case/PostOne.bru,siconCRMCompanyId,crm_links.crm_company_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
-Cases,Cases/Case/PostOne.bru,caseType,issue.case_type,→,object,MAPPED,Container: siSMCaseTypeId + name (see CaseTypeID rows).
-Cases,Cases/Case/PostOne.bru,siSMCaseTypeId,config.case_type_mapping{},←,int,MAPPED,Lookup: Reactive/PPM/Project → numeric CaseTypeId.
-Cases,Cases/Case/PostOne.bru,name,issue.machine_type / equipment.display_name,→,string,MAPPED,Human-readable; truncated to 120 chars.
-Cases,Cases/Case/PostOne.bru,name,config.case_type_mapping{}.name,←,string,MAPPED,Denormalised case-type name.
-Cases,Cases/Case/PostOne.bru,name,config.priority_mapping{}.name,←,string,MAPPED,Denormalised priority name.
-Cases,Cases/Case/PostOne.bru,name,config.tracking_status_mapping{}.name,←,string,MAPPED,Denormalised tracking-status name.
-Cases,Cases/Case/PostOne.bru,name,organization.name,→,string,MAPPED,Push-only on first sync; manual edits live in Sicon thereafter.
-Cases,Cases/Case/PostOne.bru,systemType,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PostOne.bru,isPreventativeMaintenanceType,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PostOne.bru,isEnabled,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PostOne.bru,isCustom,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PostOne.bru,defaultAppointmentLabel,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PostOne.bru,coverType,issue.cover_type,↔,enum,MAPPED,Contract cover type (warranty / contract / chargeable).
-Cases,Cases/Case/PostOne.bru,sla,issue.sla_category,↔,string,MAPPED,SLA band applied to the case.
-Cases,Cases/Case/PostOne.bru,faultCode,issue.fault_code,↔,string,MAPPED,Fault classification code.
-Cases,Cases/Case/PostOne.bru,skill,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PostOne.bru,priority,issue.severity,→,object,MAPPED,Container: siSMPriorityId + name (see PriorityID rows).
-Cases,Cases/Case/PostOne.bru,siSMPriorityId,config.priority_mapping{},←,int,MAPPED,Lookup: low/medium/critical → numeric PriorityId.
-Cases,Cases/Case/PostOne.bru,colour,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PostOne.bru,lastTrackingStatus,issue.sicon_last_tracking_status,←,string,MAPPED,Last tracking status applied.
-Cases,Cases/Case/PostOne.bru,contract,contract.sicon_contract_id,↔,object,MAPPED,Container: SiconContractID + number.
-Cases,Cases/Case/PostOne.bru,contractLine,contract_line.sicon_contract_line_id,↔,object,MAPPED,Container: SiconContractLineID + number.
-Cases,Cases/Case/PostOne.bru,project,issue.sicon_project_id,↔,object,MAPPED,Linked Sicon Projects job (id + name).
-Cases,Cases/Case/PostOne.bru,caseAdmin,issue.sicon_case_admin_id,↔,object,MAPPED,Case admin / owning Sage user (id + name).
-Cases,Cases/Case/PostOne.bru,internalTeamId,config.default_internal_team_id,↔,int,MAPPED,Per-org default internal team.
-Cases,Cases/Case/PostOne.bru,internalTeam,config.default_internal_team_id,↔,object,MAPPED,Container: InternalTeamID + name.
-Cases,Cases/Case/PostOne.bru,externalTeamId,config.default_external_team_id,↔,int,MAPPED,Per-org default external team.
-Cases,Cases/Case/PostOne.bru,externalTeam,config.default_external_team_id,↔,object,MAPPED,Container: ExternalTeamID + name.
-Cases,Cases/Case/PostOne.bru,customer,company (Sage customer),→,object,MAPPED,Container: SLCustomerAccountID + reference.
-Cases,Cases/Case/PostOne.bru,customerContact,user.contact (composed),→,object,MAPPED,Container: contact name/email/phone.
-Cases,Cases/Case/PostOne.bru,subLocation,site.sicon_sub_location_id,↔,object,MAPPED,Container: SiconSubLocationID + description + comment.
-Cases,Cases/Case/PostOne.bru,equipmentIds,(computed),→,int[],MAPPED,Flat fallback list of equipment IDs.
-Cases,Cases/Case/PutOne.bru,siSMCaseId,issue.sicon_case_id,↔,int,MAPPED,Round-trip identity. Set after first sync.
-Cases,Cases/Case/PutOne.bru,caseNumber,issue.sicon_case_number,↔,string,MAPPED,Human-readable Sicon-side reference.
-Cases,Cases/Case/PutOne.bru,siSMDocumentStatusId,issue.status,↔,enum,MAPPED,Bi-directional. Sicon close pulls back.
-Cases,Cases/Case/PutOne.bru,siSMDocumentStatusName,issue.status,←,string,MAPPED,Pulled denormalised.
-Cases,Cases/Case/PutOne.bru,siSMDocumentSubStatusId,issue.workflow_state / sub_status_id,→,enum,MAPPED,Iter 216h7: resolves via per-org sub_status_mapping (e.g. 'awaiting_parts' → 4). Explicit sicon_sub_status_id wins.
-Cases,Cases/Case/PutOne.bru,summary,issue.machine_type + serial_number,↔,string,MAPPED,Composed summary for case-list views.
-Cases,Cases/Case/PutOne.bru,description,issue.issue_description,↔,text,MAPPED,Truncated to 4000 chars.
-Cases,Cases/Case/PutOne.bru,description,site.name / label,→,string,MAPPED,Truncated to 100 chars.
-Cases,Cases/Case/PutOne.bru,description,contract.description / title,→,string,MAPPED,
-Cases,Cases/Case/PutOne.bru,description,equipment.display_name / description,↔,string,MAPPED,Human-readable equipment description.
-Cases,Cases/Case/PutOne.bru,callDate,issue.created_at,→,datetime,MAPPED,ISO 8601 in UTC.
-Cases,Cases/Case/PutOne.bru,contactName,issue.created_by_name / reporter_name,→,string,MAPPED,Caller name on the ticket.
-Cases,Cases/Case/PutOne.bru,contactPhoneNumber,issue.reporter_phone,→,string,MAPPED,Caller phone.
-Cases,Cases/Case/PutOne.bru,contactEmail,issue.reporter_email / user_email,→,string,MAPPED,Caller email.
-Cases,Cases/Case/PutOne.bru,lastUpdatedDate,issue.sicon_last_updated_at,←,datetime,MAPPED,Sicon-side last-modified timestamp for poll delta.
-Cases,Cases/Case/PutOne.bru,isNonContract,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PutOne.bru,address,site.address (composed),→,object,MAPPED,Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows).
-Cases,Cases/Case/PutOne.bru,postalName,issue.site_address.name,→,string,MAPPED,Site name for postal labelling.
-Cases,Cases/Case/PutOne.bru,addressLine1,engineer.address_line1,←,string,MAPPED,
-Cases,Cases/Case/PutOne.bru,addressLine2,issue.site_address.line2,→,string,MAPPED,
-Cases,Cases/Case/PutOne.bru,addressLine3,issue.site_address.line3,→,string,MAPPED,
-Cases,Cases/Case/PutOne.bru,addressLine4,issue.site_address.line4,→,string,MAPPED,
-Cases,Cases/Case/PutOne.bru,city,engineer.city,←,string,MAPPED,
-Cases,Cases/Case/PutOne.bru,county,issue.site_address.county,→,string,MAPPED,
-Cases,Cases/Case/PutOne.bru,postCode,engineer.postcode,←,string,MAPPED,
-Cases,Cases/Case/PutOne.bru,sopDelAddress,site.address (composed),→,object,MAPPED,Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows).
-Cases,Cases/Case/PutOne.bru,customerOrderNo,contract.customer_order_number,↔,string,MAPPED,Customer PO surfaced on the case.
-Cases,Cases/Case/PutOne.bru,createdBy,note.created_by,↔,string,MAPPED,Default 'Pulse Fitness AI'.
-Cases,Cases/Case/PutOne.bru,analysisField1,issue.ai_triage_parsed.summary,→,string,MAPPED,AI triage diagnosis. Truncated 250 chars.
-Cases,Cases/Case/PutOne.bru,analysisField2,issue.ai_triage_parsed.severity,→,string,MAPPED,AI-detected severity (UPPERCASE).
-Cases,Cases/Case/PutOne.bru,analysisField3,issue.ai_triage_parsed.recommended_parts,→,string,MAPPED,Comma-joined parts list. 250 chars.
-Cases,Cases/Case/PutOne.bru,analysisField4,issue.id,→,string,MAPPED,Pulse Fitness issue id for joins.
-Cases,Cases/Case/PutOne.bru,analysisField5,organization.name,→,string,MAPPED,Truncated 100 chars.
-Cases,Cases/Case/PutOne.bru,analysisField6,issue.sla_category / sla_tier,→,string,MAPPED,SLA bucket for breach calc.
-Cases,Cases/Case/PutOne.bru,analysisField7,issue.ppm_schedule_id,→,string,MAPPED,PPM schedule join if relevant.
-Cases,Cases/Case/PutOne.bru,analysisField8,issue.supplier_case_token,→,string,MAPPED,Supplier-portal correlation token.
-Cases,Cases/Case/PutOne.bru,analysisField9,issue.fault_code,→,string,MAPPED,Equipment-emitted error code if known. 50 chars.
-Cases,Cases/Case/PutOne.bru,analysisField10,issue.machine_type,→,string,MAPPED,80 chars.
-Cases,Cases/Case/PutOne.bru,analysisField11,equipment.make / manufacturer,→,string,MAPPED,80 chars.
-Cases,Cases/Case/PutOne.bru,analysisField12,equipment.model_code / model,→,string,MAPPED,80 chars.
-Cases,Cases/Case/PutOne.bru,analysisField13,equipment.install_date,→,date,MAPPED,ISO date string.
-Cases,Cases/Case/PutOne.bru,analysisField14,equipment.warranty_expiry,→,date,MAPPED,ISO date string.
-Cases,Cases/Case/PutOne.bru,analysisField15,issue.id (duplicate for join),→,string,MAPPED,60 chars.
-Cases,Cases/Case/PutOne.bru,analysisField16,issue.ppm_schedule_id (duplicate),→,string,MAPPED,60 chars.
-Cases,Cases/Case/PutOne.bru,analysisField17,issue.ai_triage_summary (verbose),→,string,MAPPED,200 chars.
-Cases,Cases/Case/PutOne.bru,analysisField18,issue.source,→,string,MAPPED,manual / api / qr-scan / portal / email. 30 chars.
-Cases,Cases/Case/PutOne.bru,analysisField19,issue.reporter_role / created_by_role,→,string,MAPPED,member / staff / engineer / public. 30 chars.
-Cases,Cases/Case/PutOne.bru,analysisField20,issue.csat_rating,→,int,MAPPED,1-5 customer satisfaction post-resolution. Iter 216h7 — CRM module populates on rating submit.
-Cases,Cases/Case/PutOne.bru,siconCRMPersonId,crm_links.crm_person_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
-Cases,Cases/Case/PutOne.bru,siconCRMCompanyId,crm_links.crm_company_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
-Cases,Cases/Case/PutOne.bru,caseType,issue.case_type,→,object,MAPPED,Container: siSMCaseTypeId + name (see CaseTypeID rows).
-Cases,Cases/Case/PutOne.bru,siSMCaseTypeId,config.case_type_mapping{},←,int,MAPPED,Lookup: Reactive/PPM/Project → numeric CaseTypeId.
-Cases,Cases/Case/PutOne.bru,name,issue.machine_type / equipment.display_name,→,string,MAPPED,Human-readable; truncated to 120 chars.
-Cases,Cases/Case/PutOne.bru,name,config.case_type_mapping{}.name,←,string,MAPPED,Denormalised case-type name.
-Cases,Cases/Case/PutOne.bru,name,config.priority_mapping{}.name,←,string,MAPPED,Denormalised priority name.
-Cases,Cases/Case/PutOne.bru,name,config.tracking_status_mapping{}.name,←,string,MAPPED,Denormalised tracking-status name.
-Cases,Cases/Case/PutOne.bru,name,organization.name,→,string,MAPPED,Push-only on first sync; manual edits live in Sicon thereafter.
-Cases,Cases/Case/PutOne.bru,systemType,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PutOne.bru,isPreventativeMaintenanceType,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PutOne.bru,isEnabled,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PutOne.bru,isCustom,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PutOne.bru,defaultAppointmentLabel,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PutOne.bru,coverType,issue.cover_type,↔,enum,MAPPED,Contract cover type (warranty / contract / chargeable).
-Cases,Cases/Case/PutOne.bru,sla,issue.sla_category,↔,string,MAPPED,SLA band applied to the case.
-Cases,Cases/Case/PutOne.bru,faultCode,issue.fault_code,↔,string,MAPPED,Fault classification code.
-Cases,Cases/Case/PutOne.bru,skill,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PutOne.bru,priority,issue.severity,→,object,MAPPED,Container: siSMPriorityId + name (see PriorityID rows).
-Cases,Cases/Case/PutOne.bru,siSMPriorityId,config.priority_mapping{},←,int,MAPPED,Lookup: low/medium/critical → numeric PriorityId.
-Cases,Cases/Case/PutOne.bru,colour,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/Case/PutOne.bru,lastTrackingStatus,issue.sicon_last_tracking_status,←,string,MAPPED,Last tracking status applied.
-Cases,Cases/Case/PutOne.bru,contract,contract.sicon_contract_id,↔,object,MAPPED,Container: SiconContractID + number.
-Cases,Cases/Case/PutOne.bru,contractLine,contract_line.sicon_contract_line_id,↔,object,MAPPED,Container: SiconContractLineID + number.
-Cases,Cases/Case/PutOne.bru,project,issue.sicon_project_id,↔,object,MAPPED,Linked Sicon Projects job (id + name).
-Cases,Cases/Case/PutOne.bru,caseAdmin,issue.sicon_case_admin_id,↔,object,MAPPED,Case admin / owning Sage user (id + name).
-Cases,Cases/Case/PutOne.bru,internalTeamId,config.default_internal_team_id,↔,int,MAPPED,Per-org default internal team.
-Cases,Cases/Case/PutOne.bru,internalTeam,config.default_internal_team_id,↔,object,MAPPED,Container: InternalTeamID + name.
-Cases,Cases/Case/PutOne.bru,externalTeamId,config.default_external_team_id,↔,int,MAPPED,Per-org default external team.
-Cases,Cases/Case/PutOne.bru,externalTeam,config.default_external_team_id,↔,object,MAPPED,Container: ExternalTeamID + name.
-Cases,Cases/Case/PutOne.bru,customer,company (Sage customer),→,object,MAPPED,Container: SLCustomerAccountID + reference.
-Cases,Cases/Case/PutOne.bru,customerContact,user.contact (composed),→,object,MAPPED,Container: contact name/email/phone.
-Cases,Cases/Case/PutOne.bru,subLocation,site.sicon_sub_location_id,↔,object,MAPPED,Container: SiconSubLocationID + description + comment.
-Cases,Cases/Case/PutOne.bru,equipmentIds,(computed),→,int[],MAPPED,Flat fallback list of equipment IDs.
-Cases,Cases/CaseTrackingNote/PostOne.bru,siSMCaseTrackingNoteId,issue.sicon_latest_note_id,←,int,MAPPED,Latest tracking-note id on the case.
-Cases,Cases/CaseTrackingNote/PostOne.bru,note,issue.latest_note,←,text,MAPPED,Latest case note text (read-back).
-Cases,Cases/CaseTrackingNote/PostOne.bru,time,note.timestamp,↔,datetime,MAPPED,ISO 8601.
-Cases,Cases/CaseTrackingNote/PostOne.bru,status,issue.sicon_tracking_status,←,string,MAPPED,Denormalised tracking-status name.
-Cases,Cases/CaseTrackingNote/PostOne.bru,statusId,issue.sicon_tracking_status_id,↔,int,MAPPED,Current tracking-status id. Sicon confirmed this is exposed on the case.
-Cases,Cases/CaseTrackingNote/PostOne.bru,appointmentId,issue.sicon_appointment_id,←,int,MAPPED,Linked appointment id returned on the case (Sicon confirmed).
-Cases,Cases/CaseTrackingNote/PostOne.bru,visibleToEngineer,note.visible_to_engineer,↔,bool,MAPPED,Default true.
-Cases,Cases/CaseTrackingNote/PostOne.bru,visibleToCustomer,note.visible_to_customer,↔,bool,MAPPED,Customer-portal visibility.
-Cases,Cases/CaseTrackingNote/PostOne.bru,reassignedToCaseOwnerId,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/CaseTrackingNote/PostOne.bru,reassignedToInternalTeamId,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/CaseTrackingNote/PostOne.bru,reassignedToExternalTeamId,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/CaseTrackingNote/PostOne.bru,latitude,note.latitude,→,float,MAPPED,GPS from engineer portal — proof-of-location.
-Cases,Cases/CaseTrackingNote/PostOne.bru,longitude,note.longitude,→,float,MAPPED,GPS from engineer portal — proof-of-location.
-Cases,Cases/CaseTrackingNote/PutOne.bru,siSMCaseTrackingNoteId,issue.sicon_latest_note_id,←,int,MAPPED,Latest tracking-note id on the case.
-Cases,Cases/CaseTrackingNote/PutOne.bru,note,issue.latest_note,←,text,MAPPED,Latest case note text (read-back).
-Cases,Cases/CaseTrackingNote/PutOne.bru,time,note.timestamp,↔,datetime,MAPPED,ISO 8601.
-Cases,Cases/CaseTrackingNote/PutOne.bru,status,issue.sicon_tracking_status,←,string,MAPPED,Denormalised tracking-status name.
-Cases,Cases/CaseTrackingNote/PutOne.bru,statusId,issue.sicon_tracking_status_id,↔,int,MAPPED,Current tracking-status id. Sicon confirmed this is exposed on the case.
-Cases,Cases/CaseTrackingNote/PutOne.bru,appointmentId,issue.sicon_appointment_id,←,int,MAPPED,Linked appointment id returned on the case (Sicon confirmed).
-Cases,Cases/CaseTrackingNote/PutOne.bru,visibleToEngineer,note.visible_to_engineer,↔,bool,MAPPED,Default true.
-Cases,Cases/CaseTrackingNote/PutOne.bru,visibleToCustomer,note.visible_to_customer,↔,bool,MAPPED,Customer-portal visibility.
-Cases,Cases/CaseTrackingNote/PutOne.bru,reassignedToCaseOwnerId,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/CaseTrackingNote/PutOne.bru,reassignedToInternalTeamId,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/CaseTrackingNote/PutOne.bru,reassignedToExternalTeamId,(Sicon-owned),←,,SICON-OWNED,"Sicon-owned / display field — read-only, no Pulse mapping required."
-Cases,Cases/CaseTrackingNote/PutOne.bru,latitude,note.latitude,→,float,MAPPED,GPS from engineer portal — proof-of-location.
-Cases,Cases/CaseTrackingNote/PutOne.bru,longitude,note.longitude,→,float,MAPPED,GPS from engineer portal — proof-of-location.
-Equipment,Equipment/Equipment/PostOne.bru,siconEquipmentId,issue.equipment.sicon_equipment_id,↔,ref,MAPPED,Preferred over flat EquipmentIDs[].
+Appointment,Appointments/Appointment/PostOne.bru,siconAppointmentId,appt.sicon_appointment_id,↔,int,MAPPED,Identity once created.
+Appointment,Appointments/Appointment/PostOne.bru,siSMCaseId,appt.sicon_case_id,↔,int,MAPPED,Parent case link on the appointment.
+Appointment,Appointments/Appointment/PostOne.bru,appointmentType,appt.type,↔,enum,MAPPED,Work / Travel / Other.
+Appointment,Appointments/Appointment/PostOne.bru,parentWorkAppointmentId,appt.parent_work_appointment_id,→,int,MAPPED,Only when type=Travel.
+Appointment,Appointments/Appointment/PostOne.bru,subject,appt.subject (derived),→,string,MAPPED,Composed from machine_type + serial.
+Appointment,Appointments/Appointment/PostOne.bru,description,appt.work_briefing / description,→,text,MAPPED,Appointment description / work briefing.
+Appointment,Appointments/Appointment/PostOne.bru,workBriefing,appt.work_briefing,→,string,MAPPED,Pre-visit notes. 1000 chars.
+Appointment,Appointments/Appointment/PostOne.bru,employeeIds,appt.employee_ids,↔,int[],MAPPED,Assigned engineers.
+Appointment,Appointments/Appointment/PostOne.bru,chargeRateId,appt.charge_rate_id,→,int,MAPPED,
+Appointment,Appointments/Appointment/PostOne.bru,labelId,appt.label_id,→,int,MAPPED,Calendar label.
+Appointment,Appointments/Appointment/PostOne.bru,colour,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Appointment,Appointments/Appointment/PostOne.bru,confirmed,appt.confirmed,↔,bool,MAPPED,
+Appointment,Appointments/Appointment/PostOne.bru,scheduledStartDate,appt.scheduled_start,↔,datetime,MAPPED,
+Appointment,Appointments/Appointment/PostOne.bru,scheduledEndDate,appt.scheduled_end,↔,datetime,MAPPED,
+Appointment,Appointments/Appointment/PostOne.bru,appointmentComplete,appt.completion.complete,↔,bool,MAPPED,Set true on completion.
+Appointment,Appointments/Appointment/PostOne.bru,workDoneDescription,appt.completion.work_done,↔,text,MAPPED,2000 chars.
+Appointment,Appointments/Appointment/PostOne.bru,workDoneAcknowledged,appt.completion.work_done_ack,→,bool,MAPPED,Customer ack.
+Appointment,Appointments/Appointment/PostOne.bru,furtherAction,appt.completion.further_action,↔,text,MAPPED,Follow-up notes.
+Appointment,Appointments/Appointment/PostOne.bru,furtherActionAcknowledged,appt.completion.further_action_ack,→,bool,MAPPED,
+Appointment,Appointments/Appointment/PostOne.bru,arrivalSignee,appt.completion.arrival_signee,↔,string,MAPPED,Sign-in name.
+Appointment,Appointments/Appointment/PostOne.bru,departureSignee,appt.completion.departure_signee,↔,string,MAPPED,Sign-out name.
+Appointment,Appointments/Appointment/PostOne.bru,arrivalLatitude,appt.completion.arrival_lat,↔,float,MAPPED,Engineer GPS on arrival.
+Appointment,Appointments/Appointment/PostOne.bru,arrivalLongitude,appt.completion.arrival_lon,↔,float,MAPPED,
+Appointment,Appointments/Appointment/PostOne.bru,departureLatitude,appt.completion.departure_lat,↔,float,MAPPED,Engineer GPS on departure.
+Appointment,Appointments/Appointment/PostOne.bru,departureLongitude,appt.completion.departure_lon,↔,float,MAPPED,
+Appointment,Appointments/Appointment/PutOne.bru,siconAppointmentId,appt.sicon_appointment_id,↔,int,MAPPED,Identity once created.
+Appointment,Appointments/Appointment/PutOne.bru,siSMCaseId,appt.sicon_case_id,↔,int,MAPPED,Parent case link on the appointment.
+Appointment,Appointments/Appointment/PutOne.bru,appointmentType,appt.type,↔,enum,MAPPED,Work / Travel / Other.
+Appointment,Appointments/Appointment/PutOne.bru,parentWorkAppointmentId,appt.parent_work_appointment_id,→,int,MAPPED,Only when type=Travel.
+Appointment,Appointments/Appointment/PutOne.bru,subject,appt.subject (derived),→,string,MAPPED,Composed from machine_type + serial.
+Appointment,Appointments/Appointment/PutOne.bru,description,appt.work_briefing / description,→,text,MAPPED,Appointment description / work briefing.
+Appointment,Appointments/Appointment/PutOne.bru,workBriefing,appt.work_briefing,→,string,MAPPED,Pre-visit notes. 1000 chars.
+Appointment,Appointments/Appointment/PutOne.bru,employeeIds,appt.employee_ids,↔,int[],MAPPED,Assigned engineers.
+Appointment,Appointments/Appointment/PutOne.bru,chargeRateId,appt.charge_rate_id,→,int,MAPPED,
+Appointment,Appointments/Appointment/PutOne.bru,labelId,appt.label_id,→,int,MAPPED,Calendar label.
+Appointment,Appointments/Appointment/PutOne.bru,colour,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Appointment,Appointments/Appointment/PutOne.bru,confirmed,appt.confirmed,↔,bool,MAPPED,
+Appointment,Appointments/Appointment/PutOne.bru,scheduledStartDate,appt.scheduled_start,↔,datetime,MAPPED,
+Appointment,Appointments/Appointment/PutOne.bru,scheduledEndDate,appt.scheduled_end,↔,datetime,MAPPED,
+Appointment,Appointments/Appointment/PutOne.bru,appointmentComplete,appt.completion.complete,↔,bool,MAPPED,Set true on completion.
+Appointment,Appointments/Appointment/PutOne.bru,workDoneDescription,appt.completion.work_done,↔,text,MAPPED,2000 chars.
+Appointment,Appointments/Appointment/PutOne.bru,workDoneAcknowledged,appt.completion.work_done_ack,→,bool,MAPPED,Customer ack.
+Appointment,Appointments/Appointment/PutOne.bru,furtherAction,appt.completion.further_action,↔,text,MAPPED,Follow-up notes.
+Appointment,Appointments/Appointment/PutOne.bru,furtherActionAcknowledged,appt.completion.further_action_ack,→,bool,MAPPED,
+Appointment,Appointments/Appointment/PutOne.bru,arrivalSignee,appt.completion.arrival_signee,↔,string,MAPPED,Sign-in name.
+Appointment,Appointments/Appointment/PutOne.bru,departureSignee,appt.completion.departure_signee,↔,string,MAPPED,Sign-out name.
+Appointment,Appointments/Appointment/PutOne.bru,arrivalLatitude,appt.completion.arrival_lat,↔,float,MAPPED,Engineer GPS on arrival.
+Appointment,Appointments/Appointment/PutOne.bru,arrivalLongitude,appt.completion.arrival_lon,↔,float,MAPPED,
+Appointment,Appointments/Appointment/PutOne.bru,departureLatitude,appt.completion.departure_lat,↔,float,MAPPED,Engineer GPS on departure.
+Appointment,Appointments/Appointment/PutOne.bru,departureLongitude,appt.completion.departure_lon,↔,float,MAPPED,
+TimeBooking,Appointments/AppointmentTimeBooking/PostOne.bru,employeeIds,tb.employee_ids,↔,int[],MAPPED,
+TimeBooking,Appointments/AppointmentTimeBooking/PostOne.bru,startDate,tb.start_date,↔,datetime,MAPPED,
+TimeBooking,Appointments/AppointmentTimeBooking/PostOne.bru,endDate,tb.end_date,↔,datetime,MAPPED,
+TimeBooking,Appointments/AppointmentTimeBooking/PostOne.bru,costingHours,tb.costing_hours,↔,float,MAPPED,Internal cost hours (Sicon confirmed).
+TimeBooking,Appointments/AppointmentTimeBooking/PostOne.bru,chargingHours,tb.charging_hours,↔,float,MAPPED,Billable/charge hours.
+TimeBooking,Appointments/AppointmentTimeBooking/PostOne.bru,chargeRate,tb.charge_rate,→,int,MAPPED,Rate code for invoicing.
+TimeBooking,Appointments/AppointmentTimeBooking/PostOne.bru,isEstimate,tb.is_estimate,↔,bool,MAPPED,Estimate vs actual flag.
+TimeBooking,Appointments/AppointmentTimeBooking/PutOne.bru,employeeIds,tb.employee_ids,↔,int[],MAPPED,
+TimeBooking,Appointments/AppointmentTimeBooking/PutOne.bru,startDate,tb.start_date,↔,datetime,MAPPED,
+TimeBooking,Appointments/AppointmentTimeBooking/PutOne.bru,endDate,tb.end_date,↔,datetime,MAPPED,
+TimeBooking,Appointments/AppointmentTimeBooking/PutOne.bru,costingHours,tb.costing_hours,↔,float,MAPPED,Internal cost hours (Sicon confirmed).
+TimeBooking,Appointments/AppointmentTimeBooking/PutOne.bru,chargingHours,tb.charging_hours,↔,float,MAPPED,Billable/charge hours.
+TimeBooking,Appointments/AppointmentTimeBooking/PutOne.bru,chargeRate,tb.charge_rate,→,int,MAPPED,Rate code for invoicing.
+TimeBooking,Appointments/AppointmentTimeBooking/PutOne.bru,isEstimate,tb.is_estimate,↔,bool,MAPPED,Estimate vs actual flag.
+Case,Cases/Case/PostOne.bru,siSMCaseId,issue.sicon_case_id,↔,int,MAPPED,Round-trip identity. Set after first sync.
+Case,Cases/Case/PostOne.bru,caseNumber,issue.sicon_case_number,↔,string,MAPPED,Human-readable Sicon-side reference.
+Case,Cases/Case/PostOne.bru,siSMDocumentStatusId,issue.status,↔,enum,MAPPED,Bi-directional. Sicon close pulls back.
+Case,Cases/Case/PostOne.bru,siSMDocumentStatusName,issue.status,←,string,MAPPED,Pulled denormalised.
+Case,Cases/Case/PostOne.bru,siSMDocumentSubStatusId,issue.workflow_state / sub_status_id,→,enum,MAPPED,Iter 216h7: resolves via per-org sub_status_mapping (e.g. 'awaiting_parts' → 4). Explicit sicon_sub_status_id wins.
+Case,Cases/Case/PostOne.bru,summary,issue.machine_type + serial_number,↔,string,MAPPED,Composed summary for case-list views.
+Case,Cases/Case/PostOne.bru,description,issue.issue_description,↔,text,MAPPED,Truncated to 4000 chars.
+Case,Cases/Case/PostOne.bru,callDate,issue.created_at,→,datetime,MAPPED,ISO 8601 in UTC.
+Case,Cases/Case/PostOne.bru,contactName,issue.created_by_name / reporter_name,→,string,MAPPED,Caller name on the ticket.
+Case,Cases/Case/PostOne.bru,contactPhoneNumber,issue.reporter_phone,→,string,MAPPED,Caller phone.
+Case,Cases/Case/PostOne.bru,contactEmail,issue.reporter_email / user_email,→,string,MAPPED,Caller email.
+Case,Cases/Case/PostOne.bru,lastUpdatedDate,issue.sicon_last_updated_at,←,datetime,MAPPED,Sicon-side last-modified timestamp for poll delta.
+Case,Cases/Case/PostOne.bru,isNonContract,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PostOne.bru,address,site.address (composed),→,object,MAPPED,Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows).
+Case,Cases/Case/PostOne.bru,postalName,issue.site_address.name,→,string,MAPPED,Site name for postal labelling.
+Case,Cases/Case/PostOne.bru,addressLine1,issue.site_address.line1,→,string,MAPPED,
+Case,Cases/Case/PostOne.bru,addressLine2,issue.site_address.line2,→,string,MAPPED,
+Case,Cases/Case/PostOne.bru,addressLine3,issue.site_address.line3,→,string,MAPPED,
+Case,Cases/Case/PostOne.bru,addressLine4,issue.site_address.line4,→,string,MAPPED,
+Case,Cases/Case/PostOne.bru,city,issue.site_address.city,→,string,MAPPED,
+Case,Cases/Case/PostOne.bru,county,issue.site_address.county,→,string,MAPPED,
+Case,Cases/Case/PostOne.bru,postCode,issue.site_address.postcode,→,string,MAPPED,
+Case,Cases/Case/PostOne.bru,sopDelAddress,site.address (composed),→,object,MAPPED,Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows).
+Case,Cases/Case/PostOne.bru,customerOrderNo,contract.customer_order_number,↔,string,MAPPED,Customer PO surfaced on the case.
+Case,Cases/Case/PostOne.bru,createdBy,issue.created_by,←,string,MAPPED,Sage user who created the case (read-back).
+Case,Cases/Case/PostOne.bru,analysisField1,issue.ai_triage_parsed.summary,→,string,MAPPED,AI triage diagnosis. Truncated 250 chars.
+Case,Cases/Case/PostOne.bru,analysisField2,issue.ai_triage_parsed.severity,→,string,MAPPED,AI-detected severity (UPPERCASE).
+Case,Cases/Case/PostOne.bru,analysisField3,issue.ai_triage_parsed.recommended_parts,→,string,MAPPED,Comma-joined parts list. 250 chars.
+Case,Cases/Case/PostOne.bru,analysisField4,issue.id,→,string,MAPPED,Pulse Fitness issue id for joins.
+Case,Cases/Case/PostOne.bru,analysisField5,organization.name,→,string,MAPPED,Truncated 100 chars.
+Case,Cases/Case/PostOne.bru,analysisField6,issue.sla_category / sla_tier,→,string,MAPPED,SLA bucket for breach calc.
+Case,Cases/Case/PostOne.bru,analysisField7,issue.ppm_schedule_id,→,string,MAPPED,PPM schedule join if relevant.
+Case,Cases/Case/PostOne.bru,analysisField8,issue.supplier_case_token,→,string,MAPPED,Supplier-portal correlation token.
+Case,Cases/Case/PostOne.bru,analysisField9,issue.fault_code,→,string,MAPPED,Equipment-emitted error code if known. 50 chars.
+Case,Cases/Case/PostOne.bru,analysisField10,issue.machine_type,→,string,MAPPED,80 chars.
+Case,Cases/Case/PostOne.bru,analysisField11,equipment.make / manufacturer,→,string,MAPPED,80 chars.
+Case,Cases/Case/PostOne.bru,analysisField12,equipment.model_code / model,→,string,MAPPED,80 chars.
+Case,Cases/Case/PostOne.bru,analysisField13,equipment.install_date,→,date,MAPPED,ISO date string.
+Case,Cases/Case/PostOne.bru,analysisField14,equipment.warranty_expiry,→,date,MAPPED,ISO date string.
+Case,Cases/Case/PostOne.bru,analysisField15,issue.id (duplicate for join),→,string,MAPPED,60 chars.
+Case,Cases/Case/PostOne.bru,analysisField16,issue.ppm_schedule_id (duplicate),→,string,MAPPED,60 chars.
+Case,Cases/Case/PostOne.bru,analysisField17,issue.ai_triage_summary (verbose),→,string,MAPPED,200 chars.
+Case,Cases/Case/PostOne.bru,analysisField18,issue.source,→,string,MAPPED,manual / api / qr-scan / portal / email. 30 chars.
+Case,Cases/Case/PostOne.bru,analysisField19,issue.reporter_role / created_by_role,→,string,MAPPED,member / staff / engineer / public. 30 chars.
+Case,Cases/Case/PostOne.bru,analysisField20,issue.csat_rating,→,int,MAPPED,1-5 customer satisfaction post-resolution. Iter 216h7 — CRM module populates on rating submit.
+Case,Cases/Case/PostOne.bru,siconCRMPersonId,crm_links.crm_person_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
+Case,Cases/Case/PostOne.bru,siconCRMCompanyId,crm_links.crm_company_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
+Case,Cases/Case/PostOne.bru,caseType,issue.case_type,→,object,MAPPED,Container: siSMCaseTypeId + name (see CaseTypeID rows).
+Case,Cases/Case/PostOne.bru,siSMCaseTypeId,issue.case_type,→,enum,MAPPED,Mapped via priority_mapping config (Reactive / PPM / Project).
+Case,Cases/Case/PostOne.bru,name,issue.machine_type / equipment.display_name,→,string,MAPPED,Human-readable; truncated to 120 chars.
+Case,Cases/Case/PostOne.bru,systemType,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PostOne.bru,isPreventativeMaintenanceType,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PostOne.bru,isEnabled,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PostOne.bru,isCustom,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PostOne.bru,defaultAppointmentLabel,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PostOne.bru,coverType,issue.cover_type,↔,enum,MAPPED,Contract cover type (warranty / contract / chargeable).
+Case,Cases/Case/PostOne.bru,sla,issue.sla_category,↔,string,MAPPED,SLA band applied to the case.
+Case,Cases/Case/PostOne.bru,faultCode,issue.fault_code,↔,string,MAPPED,Fault classification code.
+Case,Cases/Case/PostOne.bru,skill,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PostOne.bru,priority,issue.severity,→,object,MAPPED,Container: siSMPriorityId + name (see PriorityID rows).
+Case,Cases/Case/PostOne.bru,siSMPriorityId,issue.severity,→,enum,MAPPED,Mapped via priority_mapping config (low/medium/critical → numeric).
+Case,Cases/Case/PostOne.bru,colour,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PostOne.bru,lastTrackingStatus,issue.sicon_last_tracking_status,←,string,MAPPED,Last tracking status applied.
+Case,Cases/Case/PostOne.bru,contract,contract.sicon_contract_id,↔,object,MAPPED,Container: SiconContractID + number.
+Case,Cases/Case/PostOne.bru,contractLine,contract_line.sicon_contract_line_id,↔,object,MAPPED,Container: SiconContractLineID + number.
+Case,Cases/Case/PostOne.bru,project,issue.sicon_project_id,↔,object,MAPPED,Linked Sicon Projects job (id + name).
+Case,Cases/Case/PostOne.bru,caseAdmin,issue.sicon_case_admin_id,↔,object,MAPPED,Case admin / owning Sage user (id + name).
+Case,Cases/Case/PostOne.bru,internalTeamId,config.default_internal_team_id,↔,int,MAPPED,Per-org default internal team.
+Case,Cases/Case/PostOne.bru,internalTeam,config.default_internal_team_id,↔,object,MAPPED,Container: InternalTeamID + name.
+Case,Cases/Case/PostOne.bru,externalTeamId,config.default_external_team_id,↔,int,MAPPED,Per-org default external team.
+Case,Cases/Case/PostOne.bru,externalTeam,config.default_external_team_id,↔,object,MAPPED,Container: ExternalTeamID + name.
+Case,Cases/Case/PostOne.bru,customer,company (Sage customer),→,object,MAPPED,Container: SLCustomerAccountID + reference.
+Case,Cases/Case/PostOne.bru,customerContact,user.contact (composed),→,object,MAPPED,Container: contact name/email/phone.
+Case,Cases/Case/PostOne.bru,subLocation,site.sicon_sub_location_id,↔,object,MAPPED,Container: SiconSubLocationID + description + comment.
+Case,Cases/Case/PostOne.bru,equipmentIds,(computed),→,int[],MAPPED,Flat fallback list of equipment IDs.
+Case,Cases/Case/PutOne.bru,siSMCaseId,issue.sicon_case_id,↔,int,MAPPED,Round-trip identity. Set after first sync.
+Case,Cases/Case/PutOne.bru,caseNumber,issue.sicon_case_number,↔,string,MAPPED,Human-readable Sicon-side reference.
+Case,Cases/Case/PutOne.bru,siSMDocumentStatusId,issue.status,↔,enum,MAPPED,Bi-directional. Sicon close pulls back.
+Case,Cases/Case/PutOne.bru,siSMDocumentStatusName,issue.status,←,string,MAPPED,Pulled denormalised.
+Case,Cases/Case/PutOne.bru,siSMDocumentSubStatusId,issue.workflow_state / sub_status_id,→,enum,MAPPED,Iter 216h7: resolves via per-org sub_status_mapping (e.g. 'awaiting_parts' → 4). Explicit sicon_sub_status_id wins.
+Case,Cases/Case/PutOne.bru,summary,issue.machine_type + serial_number,↔,string,MAPPED,Composed summary for case-list views.
+Case,Cases/Case/PutOne.bru,description,issue.issue_description,↔,text,MAPPED,Truncated to 4000 chars.
+Case,Cases/Case/PutOne.bru,callDate,issue.created_at,→,datetime,MAPPED,ISO 8601 in UTC.
+Case,Cases/Case/PutOne.bru,contactName,issue.created_by_name / reporter_name,→,string,MAPPED,Caller name on the ticket.
+Case,Cases/Case/PutOne.bru,contactPhoneNumber,issue.reporter_phone,→,string,MAPPED,Caller phone.
+Case,Cases/Case/PutOne.bru,contactEmail,issue.reporter_email / user_email,→,string,MAPPED,Caller email.
+Case,Cases/Case/PutOne.bru,lastUpdatedDate,issue.sicon_last_updated_at,←,datetime,MAPPED,Sicon-side last-modified timestamp for poll delta.
+Case,Cases/Case/PutOne.bru,isNonContract,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PutOne.bru,address,site.address (composed),→,object,MAPPED,Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows).
+Case,Cases/Case/PutOne.bru,postalName,issue.site_address.name,→,string,MAPPED,Site name for postal labelling.
+Case,Cases/Case/PutOne.bru,addressLine1,issue.site_address.line1,→,string,MAPPED,
+Case,Cases/Case/PutOne.bru,addressLine2,issue.site_address.line2,→,string,MAPPED,
+Case,Cases/Case/PutOne.bru,addressLine3,issue.site_address.line3,→,string,MAPPED,
+Case,Cases/Case/PutOne.bru,addressLine4,issue.site_address.line4,→,string,MAPPED,
+Case,Cases/Case/PutOne.bru,city,issue.site_address.city,→,string,MAPPED,
+Case,Cases/Case/PutOne.bru,county,issue.site_address.county,→,string,MAPPED,
+Case,Cases/Case/PutOne.bru,postCode,issue.site_address.postcode,→,string,MAPPED,
+Case,Cases/Case/PutOne.bru,sopDelAddress,site.address (composed),→,object,MAPPED,Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows).
+Case,Cases/Case/PutOne.bru,customerOrderNo,contract.customer_order_number,↔,string,MAPPED,Customer PO surfaced on the case.
+Case,Cases/Case/PutOne.bru,createdBy,issue.created_by,←,string,MAPPED,Sage user who created the case (read-back).
+Case,Cases/Case/PutOne.bru,analysisField1,issue.ai_triage_parsed.summary,→,string,MAPPED,AI triage diagnosis. Truncated 250 chars.
+Case,Cases/Case/PutOne.bru,analysisField2,issue.ai_triage_parsed.severity,→,string,MAPPED,AI-detected severity (UPPERCASE).
+Case,Cases/Case/PutOne.bru,analysisField3,issue.ai_triage_parsed.recommended_parts,→,string,MAPPED,Comma-joined parts list. 250 chars.
+Case,Cases/Case/PutOne.bru,analysisField4,issue.id,→,string,MAPPED,Pulse Fitness issue id for joins.
+Case,Cases/Case/PutOne.bru,analysisField5,organization.name,→,string,MAPPED,Truncated 100 chars.
+Case,Cases/Case/PutOne.bru,analysisField6,issue.sla_category / sla_tier,→,string,MAPPED,SLA bucket for breach calc.
+Case,Cases/Case/PutOne.bru,analysisField7,issue.ppm_schedule_id,→,string,MAPPED,PPM schedule join if relevant.
+Case,Cases/Case/PutOne.bru,analysisField8,issue.supplier_case_token,→,string,MAPPED,Supplier-portal correlation token.
+Case,Cases/Case/PutOne.bru,analysisField9,issue.fault_code,→,string,MAPPED,Equipment-emitted error code if known. 50 chars.
+Case,Cases/Case/PutOne.bru,analysisField10,issue.machine_type,→,string,MAPPED,80 chars.
+Case,Cases/Case/PutOne.bru,analysisField11,equipment.make / manufacturer,→,string,MAPPED,80 chars.
+Case,Cases/Case/PutOne.bru,analysisField12,equipment.model_code / model,→,string,MAPPED,80 chars.
+Case,Cases/Case/PutOne.bru,analysisField13,equipment.install_date,→,date,MAPPED,ISO date string.
+Case,Cases/Case/PutOne.bru,analysisField14,equipment.warranty_expiry,→,date,MAPPED,ISO date string.
+Case,Cases/Case/PutOne.bru,analysisField15,issue.id (duplicate for join),→,string,MAPPED,60 chars.
+Case,Cases/Case/PutOne.bru,analysisField16,issue.ppm_schedule_id (duplicate),→,string,MAPPED,60 chars.
+Case,Cases/Case/PutOne.bru,analysisField17,issue.ai_triage_summary (verbose),→,string,MAPPED,200 chars.
+Case,Cases/Case/PutOne.bru,analysisField18,issue.source,→,string,MAPPED,manual / api / qr-scan / portal / email. 30 chars.
+Case,Cases/Case/PutOne.bru,analysisField19,issue.reporter_role / created_by_role,→,string,MAPPED,member / staff / engineer / public. 30 chars.
+Case,Cases/Case/PutOne.bru,analysisField20,issue.csat_rating,→,int,MAPPED,1-5 customer satisfaction post-resolution. Iter 216h7 — CRM module populates on rating submit.
+Case,Cases/Case/PutOne.bru,siconCRMPersonId,crm_links.crm_person_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
+Case,Cases/Case/PutOne.bru,siconCRMCompanyId,crm_links.crm_company_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
+Case,Cases/Case/PutOne.bru,caseType,issue.case_type,→,object,MAPPED,Container: siSMCaseTypeId + name (see CaseTypeID rows).
+Case,Cases/Case/PutOne.bru,siSMCaseTypeId,issue.case_type,→,enum,MAPPED,Mapped via priority_mapping config (Reactive / PPM / Project).
+Case,Cases/Case/PutOne.bru,name,issue.machine_type / equipment.display_name,→,string,MAPPED,Human-readable; truncated to 120 chars.
+Case,Cases/Case/PutOne.bru,systemType,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PutOne.bru,isPreventativeMaintenanceType,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PutOne.bru,isEnabled,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PutOne.bru,isCustom,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PutOne.bru,defaultAppointmentLabel,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PutOne.bru,coverType,issue.cover_type,↔,enum,MAPPED,Contract cover type (warranty / contract / chargeable).
+Case,Cases/Case/PutOne.bru,sla,issue.sla_category,↔,string,MAPPED,SLA band applied to the case.
+Case,Cases/Case/PutOne.bru,faultCode,issue.fault_code,↔,string,MAPPED,Fault classification code.
+Case,Cases/Case/PutOne.bru,skill,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PutOne.bru,priority,issue.severity,→,object,MAPPED,Container: siSMPriorityId + name (see PriorityID rows).
+Case,Cases/Case/PutOne.bru,siSMPriorityId,issue.severity,→,enum,MAPPED,Mapped via priority_mapping config (low/medium/critical → numeric).
+Case,Cases/Case/PutOne.bru,colour,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+Case,Cases/Case/PutOne.bru,lastTrackingStatus,issue.sicon_last_tracking_status,←,string,MAPPED,Last tracking status applied.
+Case,Cases/Case/PutOne.bru,contract,contract.sicon_contract_id,↔,object,MAPPED,Container: SiconContractID + number.
+Case,Cases/Case/PutOne.bru,contractLine,contract_line.sicon_contract_line_id,↔,object,MAPPED,Container: SiconContractLineID + number.
+Case,Cases/Case/PutOne.bru,project,issue.sicon_project_id,↔,object,MAPPED,Linked Sicon Projects job (id + name).
+Case,Cases/Case/PutOne.bru,caseAdmin,issue.sicon_case_admin_id,↔,object,MAPPED,Case admin / owning Sage user (id + name).
+Case,Cases/Case/PutOne.bru,internalTeamId,config.default_internal_team_id,↔,int,MAPPED,Per-org default internal team.
+Case,Cases/Case/PutOne.bru,internalTeam,config.default_internal_team_id,↔,object,MAPPED,Container: InternalTeamID + name.
+Case,Cases/Case/PutOne.bru,externalTeamId,config.default_external_team_id,↔,int,MAPPED,Per-org default external team.
+Case,Cases/Case/PutOne.bru,externalTeam,config.default_external_team_id,↔,object,MAPPED,Container: ExternalTeamID + name.
+Case,Cases/Case/PutOne.bru,customer,company (Sage customer),→,object,MAPPED,Container: SLCustomerAccountID + reference.
+Case,Cases/Case/PutOne.bru,customerContact,user.contact (composed),→,object,MAPPED,Container: contact name/email/phone.
+Case,Cases/Case/PutOne.bru,subLocation,site.sicon_sub_location_id,↔,object,MAPPED,Container: SiconSubLocationID + description + comment.
+Case,Cases/Case/PutOne.bru,equipmentIds,(computed),→,int[],MAPPED,Flat fallback list of equipment IDs.
+TrackingNote,Cases/CaseTrackingNote/PostOne.bru,siSMCaseTrackingNoteId,note.sicon_note_id,↔,int,MAPPED,Tracking-note id.
+TrackingNote,Cases/CaseTrackingNote/PostOne.bru,note,note.message,→,text,MAPPED,Note body text.
+TrackingNote,Cases/CaseTrackingNote/PostOne.bru,time,note.timestamp,↔,datetime,MAPPED,ISO 8601.
+TrackingNote,Cases/CaseTrackingNote/PostOne.bru,status,note.status,↔,string,MAPPED,Tracking-status name carried on the note.
+TrackingNote,Cases/CaseTrackingNote/PostOne.bru,statusId,note.case_tracking_status_id,↔,int,MAPPED,Tracking-status id applied by the note.
+TrackingNote,Cases/CaseTrackingNote/PostOne.bru,appointmentId,note.sicon_appointment_id (via linked Pulse appointment),→,int,MAPPED,Resolve the note's linked Pulse appointment and send its appt.sicon_appointment_id here.
+TrackingNote,Cases/CaseTrackingNote/PostOne.bru,visibleToEngineer,note.visible_to_engineer,↔,bool,MAPPED,Default true.
+TrackingNote,Cases/CaseTrackingNote/PostOne.bru,visibleToCustomer,note.visible_to_customer,↔,bool,MAPPED,Customer-portal visibility.
+TrackingNote,Cases/CaseTrackingNote/PostOne.bru,reassignedToCaseOwnerId,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+TrackingNote,Cases/CaseTrackingNote/PostOne.bru,reassignedToInternalTeamId,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+TrackingNote,Cases/CaseTrackingNote/PostOne.bru,reassignedToExternalTeamId,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+TrackingNote,Cases/CaseTrackingNote/PostOne.bru,latitude,note.latitude,→,float,MAPPED,GPS from engineer portal — proof-of-location.
+TrackingNote,Cases/CaseTrackingNote/PostOne.bru,longitude,note.longitude,→,float,MAPPED,GPS from engineer portal — proof-of-location.
+TrackingNote,Cases/CaseTrackingNote/PutOne.bru,siSMCaseTrackingNoteId,note.sicon_note_id,↔,int,MAPPED,Tracking-note id.
+TrackingNote,Cases/CaseTrackingNote/PutOne.bru,note,note.message,→,text,MAPPED,Note body text.
+TrackingNote,Cases/CaseTrackingNote/PutOne.bru,time,note.timestamp,↔,datetime,MAPPED,ISO 8601.
+TrackingNote,Cases/CaseTrackingNote/PutOne.bru,status,note.status,↔,string,MAPPED,Tracking-status name carried on the note.
+TrackingNote,Cases/CaseTrackingNote/PutOne.bru,statusId,note.case_tracking_status_id,↔,int,MAPPED,Tracking-status id applied by the note.
+TrackingNote,Cases/CaseTrackingNote/PutOne.bru,appointmentId,note.sicon_appointment_id (via linked Pulse appointment),→,int,MAPPED,Resolve the note's linked Pulse appointment and send its appt.sicon_appointment_id here.
+TrackingNote,Cases/CaseTrackingNote/PutOne.bru,visibleToEngineer,note.visible_to_engineer,↔,bool,MAPPED,Default true.
+TrackingNote,Cases/CaseTrackingNote/PutOne.bru,visibleToCustomer,note.visible_to_customer,↔,bool,MAPPED,Customer-portal visibility.
+TrackingNote,Cases/CaseTrackingNote/PutOne.bru,reassignedToCaseOwnerId,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+TrackingNote,Cases/CaseTrackingNote/PutOne.bru,reassignedToInternalTeamId,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+TrackingNote,Cases/CaseTrackingNote/PutOne.bru,reassignedToExternalTeamId,(Sicon-owned),←,,SICON-OWNED,Sicon-owned / read-only — not sent in POST/PUT payloads.
+TrackingNote,Cases/CaseTrackingNote/PutOne.bru,latitude,note.latitude,→,float,MAPPED,GPS from engineer portal — proof-of-location.
+TrackingNote,Cases/CaseTrackingNote/PutOne.bru,longitude,note.longitude,→,float,MAPPED,GPS from engineer portal — proof-of-location.
 Equipment,Equipment/Equipment/PostOne.bru,siconEquipmentId,equipment.sicon_equipment_id,↔,int,MAPPED,"Identity round-trip. Ignored on create, returned by POST."
-Equipment,Equipment/Equipment/PostOne.bru,itemId,issue.equipment.sage_item_id,→,int,MAPPED,Sage stock item identity.
 Equipment,Equipment/Equipment/PostOne.bru,itemId,equipment.sage_item_id,→,int,MAPPED,Sage stock item identity (nullable).
-Equipment,Equipment/Equipment/PostOne.bru,description,issue.issue_description,↔,text,MAPPED,Truncated to 4000 chars.
-Equipment,Equipment/Equipment/PostOne.bru,description,site.name / label,→,string,MAPPED,Truncated to 100 chars.
-Equipment,Equipment/Equipment/PostOne.bru,description,contract.description / title,→,string,MAPPED,
 Equipment,Equipment/Equipment/PostOne.bru,description,equipment.display_name / description,↔,string,MAPPED,Human-readable equipment description.
 Equipment,Equipment/Equipment/PostOne.bru,serialNumber,equipment.serial_number,↔,string,MAPPED,Machine serial — primary match key.
 Equipment,Equipment/Equipment/PostOne.bru,idNumber,equipment.asset_tag / id_number,↔,string,MAPPED,Pulse asset tag / customer id number.
@@ -286,16 +249,14 @@ Equipment,Equipment/Equipment/PostOne.bru,installDate,equipment.install_date,→
 Equipment,Equipment/Equipment/PostOne.bru,serviceIntervalMeasurement,equipment.service_interval_unit,→,string,MAPPED,days / weeks / months / years.
 Equipment,Equipment/Equipment/PostOne.bru,serviceIntervalDuration,equipment.service_interval_value,→,int,MAPPED,Interval count for the unit above.
 Equipment,Equipment/Equipment/PostOne.bru,notes,equipment.notes,→,text,MAPPED,Free-text asset notes.
-Equipment,Equipment/Equipment/PostOne.bru,customerId,issue.org.id,→,ref,MAPPED,Org → Sicon customer mapping.
-Equipment,Equipment/Equipment/PostOne.bru,customerId,contract.org.id,→,ref,MAPPED,Org → Sicon customer mapping.
 Equipment,Equipment/Equipment/PostOne.bru,customerId,organization.id,→,ref,MAPPED,Org → Sicon customer mapping (nullable).
 Equipment,Equipment/Equipment/PostOne.bru,siconEquipmentGroupDbKey,equipment.sicon_group_key,↔,ref,MAPPED,Sicon equipment-group db key.
 Equipment,Equipment/Equipment/PostOne.bru,make,equipment.make / manufacturer,↔,string,MAPPED,Manufacturer.
 Equipment,Equipment/Equipment/PostOne.bru,model,equipment.model / model_code,↔,string,MAPPED,Model / model code.
 Equipment,Equipment/Equipment/PostOne.bru,lastServiceDate,equipment.last_service_date,↔,date,MAPPED,Most recent completed service.
 Equipment,Equipment/Equipment/PostOne.bru,nextServiceDate,equipment.next_service_date,↔,date,MAPPED,Next planned service (PPM).
-Equipment,Equipment/Equipment/PostOne.bru,siconCrmCompanyId,crm_links.crm_company_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
-Equipment,Equipment/Equipment/PostOne.bru,siconCrmPersonId,crm_links.crm_person_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
+Equipment,Equipment/Equipment/PostOne.bru,siconCrmCompanyId,crm_links.crm_company_id,→,ref,MAPPED,Owning CRM company.
+Equipment,Equipment/Equipment/PostOne.bru,siconCrmPersonId,crm_links.crm_person_id,→,ref,MAPPED,Owning CRM person.
 Equipment,Equipment/Equipment/PostOne.bru,siconCrmEndUserCompanyId,crm_links.end_user_company_id,→,ref,MAPPED,End-user company (differs from bill-to).
 Equipment,Equipment/Equipment/PostOne.bru,siconCrmEndUserPersonId,crm_links.end_user_person_id,→,ref,MAPPED,End-user person.
 Equipment,Equipment/Equipment/PostOne.bru,custDeliveryAddressDbKey,site.sage_delivery_address_id,→,ref,MAPPED,Sage delivery-address join for the asset location.
@@ -321,13 +282,8 @@ Equipment,Equipment/Equipment/PostOne.bru,analysisCode17,equipment.analysis_code
 Equipment,Equipment/Equipment/PostOne.bru,analysisCode18,equipment.analysis_codes[1-20],→,string[],MAPPED,20 analysis-code slots (asset/site/tier joins & KPI signals).
 Equipment,Equipment/Equipment/PostOne.bru,analysisCode19,equipment.analysis_codes[1-20],→,string[],MAPPED,20 analysis-code slots (asset/site/tier joins & KPI signals).
 Equipment,Equipment/Equipment/PostOne.bru,analysisCode20,equipment.analysis_codes[1-20],→,string[],MAPPED,20 analysis-code slots (asset/site/tier joins & KPI signals).
-Equipment,Equipment/Equipment/PutOne.bru,siconEquipmentId,issue.equipment.sicon_equipment_id,↔,ref,MAPPED,Preferred over flat EquipmentIDs[].
 Equipment,Equipment/Equipment/PutOne.bru,siconEquipmentId,equipment.sicon_equipment_id,↔,int,MAPPED,"Identity round-trip. Ignored on create, returned by POST."
-Equipment,Equipment/Equipment/PutOne.bru,itemId,issue.equipment.sage_item_id,→,int,MAPPED,Sage stock item identity.
 Equipment,Equipment/Equipment/PutOne.bru,itemId,equipment.sage_item_id,→,int,MAPPED,Sage stock item identity (nullable).
-Equipment,Equipment/Equipment/PutOne.bru,description,issue.issue_description,↔,text,MAPPED,Truncated to 4000 chars.
-Equipment,Equipment/Equipment/PutOne.bru,description,site.name / label,→,string,MAPPED,Truncated to 100 chars.
-Equipment,Equipment/Equipment/PutOne.bru,description,contract.description / title,→,string,MAPPED,
 Equipment,Equipment/Equipment/PutOne.bru,description,equipment.display_name / description,↔,string,MAPPED,Human-readable equipment description.
 Equipment,Equipment/Equipment/PutOne.bru,serialNumber,equipment.serial_number,↔,string,MAPPED,Machine serial — primary match key.
 Equipment,Equipment/Equipment/PutOne.bru,idNumber,equipment.asset_tag / id_number,↔,string,MAPPED,Pulse asset tag / customer id number.
@@ -336,16 +292,14 @@ Equipment,Equipment/Equipment/PutOne.bru,installDate,equipment.install_date,→,
 Equipment,Equipment/Equipment/PutOne.bru,serviceIntervalMeasurement,equipment.service_interval_unit,→,string,MAPPED,days / weeks / months / years.
 Equipment,Equipment/Equipment/PutOne.bru,serviceIntervalDuration,equipment.service_interval_value,→,int,MAPPED,Interval count for the unit above.
 Equipment,Equipment/Equipment/PutOne.bru,notes,equipment.notes,→,text,MAPPED,Free-text asset notes.
-Equipment,Equipment/Equipment/PutOne.bru,customerId,issue.org.id,→,ref,MAPPED,Org → Sicon customer mapping.
-Equipment,Equipment/Equipment/PutOne.bru,customerId,contract.org.id,→,ref,MAPPED,Org → Sicon customer mapping.
 Equipment,Equipment/Equipment/PutOne.bru,customerId,organization.id,→,ref,MAPPED,Org → Sicon customer mapping (nullable).
 Equipment,Equipment/Equipment/PutOne.bru,siconEquipmentGroupDbKey,equipment.sicon_group_key,↔,ref,MAPPED,Sicon equipment-group db key.
 Equipment,Equipment/Equipment/PutOne.bru,make,equipment.make / manufacturer,↔,string,MAPPED,Manufacturer.
 Equipment,Equipment/Equipment/PutOne.bru,model,equipment.model / model_code,↔,string,MAPPED,Model / model code.
 Equipment,Equipment/Equipment/PutOne.bru,lastServiceDate,equipment.last_service_date,↔,date,MAPPED,Most recent completed service.
 Equipment,Equipment/Equipment/PutOne.bru,nextServiceDate,equipment.next_service_date,↔,date,MAPPED,Next planned service (PPM).
-Equipment,Equipment/Equipment/PutOne.bru,siconCrmCompanyId,crm_links.crm_company_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
-Equipment,Equipment/Equipment/PutOne.bru,siconCrmPersonId,crm_links.crm_person_id,→,ref,MAPPED,Required on create per Sicon spec §6.2.
+Equipment,Equipment/Equipment/PutOne.bru,siconCrmCompanyId,crm_links.crm_company_id,→,ref,MAPPED,Owning CRM company.
+Equipment,Equipment/Equipment/PutOne.bru,siconCrmPersonId,crm_links.crm_person_id,→,ref,MAPPED,Owning CRM person.
 Equipment,Equipment/Equipment/PutOne.bru,siconCrmEndUserCompanyId,crm_links.end_user_company_id,→,ref,MAPPED,End-user company (differs from bill-to).
 Equipment,Equipment/Equipment/PutOne.bru,siconCrmEndUserPersonId,crm_links.end_user_person_id,→,ref,MAPPED,End-user person.
 Equipment,Equipment/Equipment/PutOne.bru,custDeliveryAddressDbKey,site.sage_delivery_address_id,→,ref,MAPPED,Sage delivery-address join for the asset location.

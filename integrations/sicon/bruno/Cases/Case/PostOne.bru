@@ -32,7 +32,6 @@ body:json {
     "contactPhoneNumber": "",
     "contactEmail": "",
     "lastUpdatedDate": null,
-    "isNonContract": false,
     "address": {
       "postalName": "",
       "addressLine1": "",
@@ -69,23 +68,14 @@ body:json {
     "siconCRMPersonId": null,
     "siconCRMCompanyId": null,
     "caseType": {
-      "siSMCaseTypeId": {{caseTypeId}},
-      "name": "",
-      "systemType": "",
-      "isPreventativeMaintenanceType": false,
-      "isEnabled": true,
-      "isCustom": false,
-      "defaultAppointmentLabel": null
-    },
+      "siSMCaseTypeId": {{selectedCaseTypeId}},
+      "name": ""},
     "coverType": null,
     "sla": null,
     "faultCode": null,
-    "skill": null,
     "priority": {
-      "siSMPriorityId": {{priorityId}},
-      "name": "",
-      "colour": ""
-    },
+      "siSMPriorityId": {{selectedPriorityId}},
+      "name": ""},
     "lastTrackingStatus": null,
     "contract": null,
     "contractLine": null,
@@ -134,19 +124,18 @@ docs {
   | `contactPhoneNumber` | `issue.reporter_phone` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `contactEmail` | `issue.reporter_email / user_email` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `lastUpdatedDate` | `issue.sicon_last_updated_at` | Sicon→Pulse | SICON CONFIRMATION REQUIRED |
-  | `isNonContract` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
   | `address` | `site.address (composed)` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `postalName` | `issue.site_address.name` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
-  | `addressLine1` | `engineer.address_line1` | Sicon→Pulse | SICON CONFIRMATION REQUIRED |
+  | `addressLine1` | `issue.site_address.line1` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `addressLine2` | `issue.site_address.line2` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `addressLine3` | `issue.site_address.line3` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `addressLine4` | `issue.site_address.line4` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
-  | `city` | `engineer.city` | Sicon→Pulse | SICON CONFIRMATION REQUIRED |
+  | `city` | `issue.site_address.city` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `county` | `issue.site_address.county` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
-  | `postCode` | `engineer.postcode` | Sicon→Pulse | SICON CONFIRMATION REQUIRED |
+  | `postCode` | `issue.site_address.postcode` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `sopDelAddress` | `site.address (composed)` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `customerOrderNo` | `contract.customer_order_number` | Bidirectional | SICON CONFIRMATION REQUIRED |
-  | `createdBy` | `note.created_by` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `createdBy` | `issue.created_by` | Sicon→Pulse | SICON CONFIRMATION REQUIRED |
   | `analysisField1` | `issue.ai_triage_parsed.summary` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `analysisField2` | `issue.ai_triage_parsed.severity` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `analysisField3` | `issue.ai_triage_parsed.recommended_parts` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
@@ -170,20 +159,13 @@ docs {
   | `siconCRMPersonId` | `crm_links.crm_person_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `siconCRMCompanyId` | `crm_links.crm_company_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `caseType` | `issue.case_type` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
-  | `siSMCaseTypeId` | `config.case_type_mapping{}` | Sicon metadata | SICON CONFIRMATION REQUIRED |
+  | `siSMCaseTypeId` | `issue.case_type` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `name` | `issue.machine_type / equipment.display_name` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
-  | `systemType` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
-  | `isPreventativeMaintenanceType` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
-  | `isEnabled` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
-  | `isCustom` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
-  | `defaultAppointmentLabel` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
   | `coverType` | `issue.cover_type` | Bidirectional | SICON CONFIRMATION REQUIRED |
   | `sla` | `issue.sla_category` | Bidirectional | SICON CONFIRMATION REQUIRED |
   | `faultCode` | `issue.fault_code` | Bidirectional | SICON CONFIRMATION REQUIRED |
-  | `skill` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
   | `priority` | `issue.severity` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
-  | `siSMPriorityId` | `config.priority_mapping{}` | Sicon metadata | SICON CONFIRMATION REQUIRED |
-  | `colour` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
+  | `siSMPriorityId` | `issue.severity` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `lastTrackingStatus` | `issue.sicon_last_tracking_status` | Sicon→Pulse | SICON CONFIRMATION REQUIRED |
   | `contract` | `contract.sicon_contract_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
   | `contractLine` | `contract_line.sicon_contract_line_id` | Bidirectional | SICON CONFIRMATION REQUIRED |

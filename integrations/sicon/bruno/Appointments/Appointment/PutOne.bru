@@ -30,7 +30,6 @@ body:json {
     "employeeIds": [],
     "chargeRateId": null,
     "labelId": null,
-    "colour": "",
     "confirmed": false,
     "scheduledStartDate": "2026-01-01T09:00:00",
     "scheduledEndDate": "2026-01-01T17:00:00",
@@ -66,17 +65,16 @@ docs {
   
   | Sicon field | Pulse field (PulseFitness.ai) | Direction | Confirmation |
   |---|---|---|---|
-  | `siconAppointmentId` | `note.sicon_appointment_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
-  | `siSMCaseId` | `issue.sicon_case_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `siconAppointmentId` | `appt.sicon_appointment_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `siSMCaseId` | `appt.sicon_case_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
   | `appointmentType` | `appt.type` | Bidirectional | SICON CONFIRMATION REQUIRED |
   | `parentWorkAppointmentId` | `appt.parent_work_appointment_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `subject` | `appt.subject (derived)` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
-  | `description` | `issue.issue_description` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `description` | `appt.work_briefing / description` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `workBriefing` | `appt.work_briefing` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `employeeIds` | `appt.employee_ids` | Bidirectional | SICON CONFIRMATION REQUIRED |
   | `chargeRateId` | `appt.charge_rate_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `labelId` | `appt.label_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
-  | `colour` | `(Sicon-owned metadata)` | Sicon metadata | SICON CONFIRMATION REQUIRED |
   | `confirmed` | `appt.confirmed` | Bidirectional | SICON CONFIRMATION REQUIRED |
   | `scheduledStartDate` | `appt.scheduled_start` | Bidirectional | SICON CONFIRMATION REQUIRED |
   | `scheduledEndDate` | `appt.scheduled_end` | Bidirectional | SICON CONFIRMATION REQUIRED |

@@ -84,9 +84,9 @@ docs {
   
   | Sicon field | Pulse field (PulseFitness.ai) | Direction | Confirmation |
   |---|---|---|---|
-  | `siconEquipmentId` | `issue.equipment.sicon_equipment_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
-  | `itemId` | `issue.equipment.sage_item_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
-  | `description` | `issue.issue_description` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `siconEquipmentId` | `equipment.sicon_equipment_id` | Bidirectional | SICON CONFIRMATION REQUIRED |
+  | `itemId` | `equipment.sage_item_id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `description` | `equipment.display_name / description` | Bidirectional | SICON CONFIRMATION REQUIRED |
   | `serialNumber` | `equipment.serial_number` | Bidirectional | SICON CONFIRMATION REQUIRED |
   | `idNumber` | `equipment.asset_tag / id_number` | Bidirectional | SICON CONFIRMATION REQUIRED |
   | `warrantyExpiry` | `equipment.warranty_expiry` | Bidirectional | SICON CONFIRMATION REQUIRED |
@@ -94,7 +94,7 @@ docs {
   | `serviceIntervalMeasurement` | `equipment.service_interval_unit` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `serviceIntervalDuration` | `equipment.service_interval_value` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `notes` | `equipment.notes` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
-  | `customerId` | `issue.org.id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
+  | `customerId` | `organization.id` | Pulse→Sicon | SICON CONFIRMATION REQUIRED |
   | `siconEquipmentGroupDbKey` | `equipment.sicon_group_key` | Bidirectional | SICON CONFIRMATION REQUIRED |
   | `make` | `equipment.make / manufacturer` | Bidirectional | SICON CONFIRMATION REQUIRED |
   | `model` | `equipment.model / model_code` | Bidirectional | SICON CONFIRMATION REQUIRED |
