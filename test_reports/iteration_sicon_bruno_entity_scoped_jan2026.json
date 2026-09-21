@@ -1,0 +1,14 @@
+{
+  "summary": "Verified entity-scoped Sicon Bruno mapping regeneration. Regen script reports 326 fields / 302 mapped / 24 sicon-owned / 0 unmapped. mapping.csv: 0 UNMAPPED rows, 326 unique (sicon_request,sicon_field) pairs (no duplicates/conflicts). Cross-entity contamination checks all pass: Appointment siconAppointmentId->appt.sicon_appointment_id (Post/Put); TrackingNote appointmentId->note.sicon_appointment_id (via linked Pulse appointment); TimeBooking startDate/endDate->tb.start_date/tb.end_date; Case address fields->issue.site_address.line1/city/postcode (NOT engineer). Variable convention: 0 references to legacy {caseTypeId}/{priorityId}/{statusId}/{trackingStatusId}; 10 .bru files use selected* vars; all env vars including selectedPriorityId defined in Sicon Local.bru; password declared in vars:secret; equipmentSkip/equipmentAll/equipmentPages/pageSize present. 0 unresolved {{var}} references across bruno/**/*.bru. TrackingNote PostOne/PutOne bodies contain \"appointmentId\": {{appointmentId}} with docs Legend explaining linkage. 0 POST/PUT bodies contain Sicon-owned keys (isEnabled/isCustom/colour/systemType/defaultAppointmentLabel/isNonContract/isPreventativeMaintenanceType/skill/reassignedTo*). Env: companyId=2, ALLOW_WRITES=false; collection.bru pre-request script throws on POST/PUT/PATCH/DELETE unless ALLOW_WRITES=true (Auth exempt). Equipment/Equipment/GetMany.bru includes $skip={{equipmentSkip}} & $top pagination, pre-request initialising equipmentSkip and post-response calling await bru.runRequest('Equipment/Equipment/GetMany') for full-estate pull. Structural: 0 brace-unbalanced .bru files, bruno/bruno.json valid JSON; FIELD_MAPPING.md and mapping.csv present at zip root AND under bruno/. Backend regression: 40/40 Sicon pytest passed (test_sicon_camelcase_inbound, test_sicon_integration, test_sicon_deep_mapping, test_iter_220bi_sicon_field_mapping). GET /api/sicon/field-mapping returns 401 unauthenticated (endpoint up).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/integrations/sicon/mapping.csv", "/app/integrations/sicon/bruno/environments/Sicon Local.bru", "/app/integrations/sicon/Sicon-Service-Pulse.bruno.zip"],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "N/A (artifact-only change)"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 9 acceptance criteria (regen counts, A1-A7, structural, backend regression) passed. Live Sicon remains external/unreachable — artifact + regression verification only, as instructed. Equipment endpoint route remains flagged SICON CONFIRMATION REQUIRED per problem statement (expected; only pagination SCRIPT logic verified)."
+}

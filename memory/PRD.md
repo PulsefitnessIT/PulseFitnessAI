@@ -1,3 +1,22 @@
+# ═══ 2026-06 · SICON — entity-scoped mapping correctness (verified) ═══
+Root defect: the field-map join matched Sicon fields GLOBALLY by leaf name, so identical names cross-contaminated
+across entities (siconAppointmentId shared by Appointment+TrackingNote; TimeBooking startDate→contract; Case
+address→engineer). FIX in gen_bruno_sicon_mapping.py:
+- Resolution now by (Sicon entity + request + JSON field path): REQUEST_ENTITY map + by_entity_leaf index +
+  _req_entity() + entity-scoped _lookup(entity,key); mapping.csv emits exactly ONE pulse field per (request,field).
+- Added entity-scoped rows to sicon_mapping.py (TrackingNote note/statusId/status/siSMCaseTrackingNoteId/
+  appointmentId; Appointment siSMCaseId/description; Case createdBy) → 0 unmapped.
+- Variable convention unified: {{caseTypeId}}/{{priorityId}}/{{statusId}}/{{trackingStatusId}} → {{selected*}}; 0
+  unresolved var refs. TrackingNote appointmentId = {{appointmentId}} (linked appointment's Sicon id).
+- Sicon-owned/read-only fields stripped from POST/PUT bodies (_strip_sicon_owned); all 24 classified SICON-OWNED.
+- Equipment full-estate pagination: $skip/$top + pre/post scripts that loop via bru.runRequest until a short page
+  (not a single $max=200). Local companyId=2; ALLOW_WRITES=false guard.
+- RESULT (testing-agent verified, all 9 acceptance criteria): 326 rows, 302 mapped + 24 Sicon-owned, 0 unmapped,
+  0 conflicts, 0 cross-entity, 0 unresolved vars; 40/40 backend pytest. Report:
+  test_reports/iteration_sicon_bruno_entity_scoped_jan2026.json.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · MASTER ADMIN ONBOARDING — 3 wizard bugs (verified) ═══
 User reported (HeadOfficeOnboardingWizard.js, /master-admin?section=onboarding):
 1. Import >50 sites failed ("Up to 50 sites per onboarding pass"). FIX: raised cap 50→500 in
