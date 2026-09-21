@@ -1,0 +1,22 @@
+{
+  "summary": "Verified all 3 PulseFitness onboarding wizard fixes (Jan 2026). Bug1: site cap raised 50→500 confirmed via backend tests (60 sites succeeds 200, 501 sites returns 400 with 'Up to 500 sites per onboarding pass' message). Bug2: ho-onboard-next button is fully clickable and NOT overlapped by the fixed AI FAB at both desktop 1920x800 and mobile 390x844 — document.elementFromPoint at button center returns the button itself (data-testid=ho-onboard-next). Bug3: Content-Disposition headers for GET /api/master-admin/sites/template.csv and /api/master-admin/equipment/template.csv correctly serve 'pulsefitness-sites-template.csv' and 'pulsefitness-equipment-template.csv' (no 'gymaxis-*'). 4/4 backend tests pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_pulsefitness_onboarding_fixes_jan2026.py",
+    "/app/test_reports/pytest/pulsefitness_onboarding_fixes_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "master_admin_onboard.py module docstring still says '≤50-sites cap' (line ~14) — cosmetic doc-drift now that the cap is 500; consider updating to avoid confusion for future readers.",
+    "The onboarding wizard footer uses hard-coded pb-28 pr-16 sm:pr-24 to clear the fixed AI FAB. Works, but a cleaner solution would be a shared page-level bottom-spacer utility so future pages don't each rediscover the FAB overlap."
+  ],
+  "updated_files": ["/app/backend/tests/test_pulsefitness_onboarding_fixes_jan2026.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Master Admin admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (MFA enrolled fresh via /tmp/tok — db.user_mfa was cleared then re-enrolled with pyotp).",
+  "seed_data_creation": "Two TEST_ organisations were created during the 60-site success test (unique names + owner emails). Not cleaned up — negligible footprint; can be purged via master-admin org list if desired.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests live at /app/backend/tests/test_pulsefitness_onboarding_fixes_jan2026.py — run from /app/backend with REACT_APP_BACKEND_URL exported. Auth token cached at /tmp/tok (from pyotp-driven MFA enrol). Playwright: setting localStorage.token before navigating master-admin?section=onboarding works; click 'Head Office (multi-site)' tile to enter the wizard; ho-onboard-next appears on step 1 (info) & step 2 (tier); ho-onboard-submit only on final review step.",
+  "rca of the issue": "All three fixes implemented correctly. (1) backend cap raised 50→500 in _validate_head_office_payload; (2) wizard footer given pb-28 pr-16 sm:pr-24 to clear fixed AI FAB — verified elementFromPoint returns the button itself; (3) both CSV template endpoints ship pulsefitness-* filenames in Content-Disposition."
+}

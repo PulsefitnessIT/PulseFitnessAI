@@ -1,3 +1,17 @@
+# ═══ 2026-06 · MASTER ADMIN ONBOARDING — 3 wizard bugs (verified) ═══
+User reported (HeadOfficeOnboardingWizard.js, /master-admin?section=onboarding):
+1. Import >50 sites failed ("Up to 50 sites per onboarding pass"). FIX: raised cap 50→500 in
+   master_admin_onboard.py (POST /api/master-admin/onboard-head-office) + docstring. 60 sites now succeeds; 501 → 400.
+2. "Create Organisation"/"Next" button covered by the floating AI FAB. FIX: wizard footer now
+   `flex items-center justify-between pb-28 pr-16 sm:pr-24` so the button clears the fixed FAB (verified clickable
+   via elementFromPoint at 1920x800 and 390x844).
+3. CSV templates named gymaxis-*. FIX: renamed to pulsefitness-* — sites (sites_import.py + wizard a.download),
+   equipment (invoice_wizard_parse.py + onboarding.py + wizard a.download), MOD sites (mod_sites_bulk_import.py).
+VERIFIED by testing agent: 4/4 backend + frontend at both viewports. Report:
+test_reports/iteration_pulsefitness_onboarding_wizard_3bugs_jan2026.json.
+─────────────────────────────────────────────────────────────────────────────
+
+
 # ═══ 2026-06 · SICON — Bruno collection 15-point review upgrade (verified) ═══
 User submitted a 15-point review; upgraded gen_bruno_sicon_mapping.py so the exported collection is a real
 Pulse↔Sicon working pack (not a repackage). All 15 implemented + testing-agent verified (40/40 backend pytest,

@@ -11,7 +11,7 @@ The single route handles "Head Office customer with N sites in one pass"
 (see route docstring for the data model). A single private helper —
 `_validate_head_office_payload` — owns all the validation rules
 (duplicate org guards, tier whitelist, owner-credential / invite-mode
-fork, ≤50-sites cap, single-HQ invariant).
+fork, ≤500-sites cap, single-HQ invariant).
 
 Shared helpers (`merge_address`, `log_activity`, `require_master_admin`)
 are imported FROM `routes.master_admin` because they're used by ~12
