@@ -79,6 +79,13 @@ SICON_FIELD_MAPPING: list[dict] = [
     _row("Case", "user.contact (composed)",              "case.customerContact",           "→", "object",   "Container: contact name/email/phone."),
     _row("Case", "config.default_internal_team_id",      "case.internalTeam",              "↔", "object",   "Container: InternalTeamID + name."),
     _row("Case", "config.default_external_team_id",      "case.externalTeam",              "↔", "object",   "Container: ExternalTeamID + name."),
+    # ── Sicon meeting follow-up (2026-06): these 6 now map to Pulse too ──
+    _row("Case", "issue.cover_type",                     "case.coverType",                 "↔", "enum",     "Contract cover type (warranty / contract / chargeable)."),
+    _row("Case", "issue.fault_code",                     "case.faultCode",                 "↔", "string",   "Fault classification code."),
+    _row("Case", "issue.sla_category",                   "case.sla",                       "↔", "string",   "SLA band applied to the case."),
+    _row("Case", "issue.latest_note",                    "case.note",                      "←", "text",     "Latest case note text (read-back)."),
+    _row("Case", "issue.sicon_project_id",               "case.project",                   "↔", "object",   "Linked Sicon Projects job (id + name)."),
+    _row("Case", "issue.sicon_case_admin_id",            "case.caseAdmin",                 "↔", "object",   "Case admin / owning Sage user (id + name)."),
     # ── Contact / Customer ──────────────────────────────────────────
     _row("Case", "issue.created_by_name / reporter_name", "case.ContactName",              "→", "string",   "Caller name on the ticket."),
     _row("Case", "issue.reporter_email / user_email",     "case.ContactEmail",             "→", "string",   "Caller email."),

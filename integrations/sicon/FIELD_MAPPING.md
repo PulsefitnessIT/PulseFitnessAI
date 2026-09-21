@@ -5,7 +5,7 @@ Sicon-provided Bruno collection bodies (integrations/sicon/_source) joined to
 the platform mapping table (`backend/routes/sicon_mapping.py`).
 `->` push (Pulse->Sicon) &middot; `<-` pull &middot; `<->` bi-directional.
 
-**Coverage: 336 MAPPED + 24 Sicon-owned = 360/372 accounted (97%). 12 still open.**
+**Coverage: 348 MAPPED + 24 Sicon-owned = 372/372 accounted (100%). 0 still open.**
 
 Inbound reads (case/appointment/tracking-note ids, status) are resolved
 casing-agnostically in `utils/sicon_client.py` — camelCase or PascalCase both bind.
@@ -99,18 +99,6 @@ casing-agnostically in `utils/sicon_client.py` — camelCase or PascalCase both 
 ## Cases
 | Sicon field | Pulse field | Dir | Status | Notes |
 |---|---|---|---|---|
-| `caseAdmin` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `caseAdmin` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `coverType` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `coverType` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `faultCode` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `faultCode` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `note` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `note` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `project` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `project` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `sla` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
-| `sla` | `` |  | UNMAPPED | No Pulse mapping - confirm with Sicon |
 | `colour` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
 | `colour` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
 | `defaultAppointmentLabel` | `(Sicon-owned)` | ← | SICON-OWNED | Sicon-owned / display field — read-only, no Pulse mapping required. |
@@ -187,6 +175,8 @@ casing-agnostically in `utils/sicon_client.py` — camelCase or PascalCase both 
 | `appointmentId` | `issue.sicon_appointment_id` | ← | MAPPED | Linked appointment id returned on the case (Sicon confirmed). |
 | `callDate` | `issue.created_at` | → | MAPPED | ISO 8601 in UTC. |
 | `callDate` | `issue.created_at` | → | MAPPED | ISO 8601 in UTC. |
+| `caseAdmin` | `issue.sicon_case_admin_id` | ↔ | MAPPED | Case admin / owning Sage user (id + name). |
+| `caseAdmin` | `issue.sicon_case_admin_id` | ↔ | MAPPED | Case admin / owning Sage user (id + name). |
 | `caseNumber` | `issue.sicon_case_number` | ↔ | MAPPED | Human-readable Sicon-side reference. |
 | `caseNumber` | `issue.sicon_case_number` | ↔ | MAPPED | Human-readable Sicon-side reference. |
 | `caseType` | `issue.case_type` | → | MAPPED | Container: siSMCaseTypeId + name (see CaseTypeID rows). |
@@ -205,6 +195,8 @@ casing-agnostically in `utils/sicon_client.py` — camelCase or PascalCase both 
 | `contractLine` | `contract_line.sicon_contract_line_id` | ↔ | MAPPED | Container: SiconContractLineID + number. |
 | `county` | `issue.site_address.county` | → | MAPPED |  |
 | `county` | `issue.site_address.county` | → | MAPPED |  |
+| `coverType` | `issue.cover_type` | ↔ | MAPPED | Contract cover type (warranty / contract / chargeable). |
+| `coverType` | `issue.cover_type` | ↔ | MAPPED | Contract cover type (warranty / contract / chargeable). |
 | `createdBy` | `note.created_by` | ↔ | MAPPED | Default 'Pulse Fitness AI'. |
 | `createdBy` | `note.created_by` | ↔ | MAPPED | Default 'Pulse Fitness AI'. |
 | `customer` | `company (Sage customer)` | → | MAPPED | Container: SLCustomerAccountID + reference. |
@@ -227,6 +219,8 @@ casing-agnostically in `utils/sicon_client.py` — camelCase or PascalCase both 
 | `externalTeam` | `config.default_external_team_id` | ↔ | MAPPED | Container: ExternalTeamID + name. |
 | `externalTeamId` | `config.default_external_team_id` | ↔ | MAPPED | Per-org default external team. |
 | `externalTeamId` | `config.default_external_team_id` | ↔ | MAPPED | Per-org default external team. |
+| `faultCode` | `issue.fault_code` | ↔ | MAPPED | Fault classification code. |
+| `faultCode` | `issue.fault_code` | ↔ | MAPPED | Fault classification code. |
 | `internalTeam` | `config.default_internal_team_id` | ↔ | MAPPED | Container: InternalTeamID + name. |
 | `internalTeam` | `config.default_internal_team_id` | ↔ | MAPPED | Container: InternalTeamID + name. |
 | `internalTeamId` | `config.default_internal_team_id` | ↔ | MAPPED | Per-org default internal team. |
@@ -249,12 +243,16 @@ casing-agnostically in `utils/sicon_client.py` — camelCase or PascalCase both 
 | `name` | `config.priority_mapping{}.name` | ← | MAPPED | Denormalised priority name. |
 | `name` | `config.tracking_status_mapping{}.name` | ← | MAPPED | Denormalised tracking-status name. |
 | `name` | `organization.name` | → | MAPPED | Push-only on first sync; manual edits live in Sicon thereafter. |
+| `note` | `issue.latest_note` | ← | MAPPED | Latest case note text (read-back). |
+| `note` | `issue.latest_note` | ← | MAPPED | Latest case note text (read-back). |
 | `postCode` | `engineer.postcode` | ← | MAPPED |  |
 | `postCode` | `engineer.postcode` | ← | MAPPED |  |
 | `postalName` | `issue.site_address.name` | → | MAPPED | Site name for postal labelling. |
 | `postalName` | `issue.site_address.name` | → | MAPPED | Site name for postal labelling. |
 | `priority` | `issue.severity` | → | MAPPED | Container: siSMPriorityId + name (see PriorityID rows). |
 | `priority` | `issue.severity` | → | MAPPED | Container: siSMPriorityId + name (see PriorityID rows). |
+| `project` | `issue.sicon_project_id` | ↔ | MAPPED | Linked Sicon Projects job (id + name). |
+| `project` | `issue.sicon_project_id` | ↔ | MAPPED | Linked Sicon Projects job (id + name). |
 | `siSMCaseId` | `issue.sicon_case_id` | ↔ | MAPPED | Round-trip identity. Set after first sync. |
 | `siSMCaseId` | `issue.sicon_case_id` | ↔ | MAPPED | Round-trip identity. Set after first sync. |
 | `siSMCaseTrackingNoteId` | `issue.sicon_latest_note_id` | ← | MAPPED | Latest tracking-note id on the case. |
@@ -273,6 +271,8 @@ casing-agnostically in `utils/sicon_client.py` — camelCase or PascalCase both 
 | `siconCRMCompanyId` | `crm_links.crm_company_id` | → | MAPPED | Required on create per Sicon spec §6.2. |
 | `siconCRMPersonId` | `crm_links.crm_person_id` | → | MAPPED | Required on create per Sicon spec §6.2. |
 | `siconCRMPersonId` | `crm_links.crm_person_id` | → | MAPPED | Required on create per Sicon spec §6.2. |
+| `sla` | `issue.sla_category` | ↔ | MAPPED | SLA band applied to the case. |
+| `sla` | `issue.sla_category` | ↔ | MAPPED | SLA band applied to the case. |
 | `sopDelAddress` | `site.address (composed)` | → | MAPPED | Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows). |
 | `sopDelAddress` | `site.address (composed)` | → | MAPPED | Container: postalName + addressLine1-4 + city + county + postCode (see Location* rows). |
 | `status` | `issue.sicon_tracking_status` | ← | MAPPED | Denormalised tracking-status name. |

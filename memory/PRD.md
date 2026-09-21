@@ -9,9 +9,11 @@ Re-evaluated our side to ensure we connect to what they have.
   subLocation, plus appointment/timebooking costingHours/chargingHours/isEstimate.
 - Mapping table (routes/sicon_mapping.py): +20 rows (Case id-link/status/PO + container objects + TimeBooking
   costing) → 257 rows. Version string kept "iter-216h7" so the drift-guard endpoint test stays green.
-- Bruno field-map pack regenerated: coverage 294→ **336 MAPPED + 24 Sicon-owned = 360/372 (97%)**, only 12 open
-  (caseAdmin/coverType/faultCode/note/project/sla — genuine Sicon-side classification, flagged for confirmation).
-  Generator now classifies Sicon-owned display flags as SICON-OWNED (not false gaps). Public download zip refreshed.
+- Bruno field-map pack regenerated: coverage 294→ **348 MAPPED + 24 Sicon-owned = 372/372 (100% accounted, 0 open)**.
+  The 6 fields Sicon confirmed (coverType, faultCode, sla, note, project, caseAdmin) now map to Pulse in both the
+  table and the inbound reads (sicon_cover_type / sicon_fault_code / sicon_sla / sicon_latest_note /
+  sicon_project_id+name / sicon_case_admin_id+name). Remaining 24 are Sicon-owned display flags (no Pulse action).
+  Generator classifies Sicon-owned display flags as SICON-OWNED (not gaps). Public download zip refreshed.
 - Tests: new tests/test_sicon_camelcase_inbound.py (5) + existing 35 Sicon tests = 40 pass; iter-216h7 guard green.
 ─────────────────────────────────────────────────────────────────────────────
 

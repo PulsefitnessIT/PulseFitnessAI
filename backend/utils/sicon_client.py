@@ -881,6 +881,10 @@ def map_sicon_case_to_gymaxis(sicon_case: Dict) -> Dict:
     sub = _ci(e.get("sublocation"))
     ct = _ci(e.get("casetype"))
     pr = _ci(e.get("priority"))
+    proj = e.get("project")
+    proj_ci = _ci(proj)
+    admin = e.get("caseadmin")
+    admin_ci = _ci(admin)
     return {
         "sicon_case_id": e.get("sismcaseid"),
         "sicon_case_number": e.get("casenumber"),
@@ -896,6 +900,15 @@ def map_sicon_case_to_gymaxis(sicon_case: Dict) -> Dict:
         "sicon_appointment_id": e.get("appointmentid"),
         "sicon_latest_note_id": e.get("sismcasetrackingnoteid"),
         "sicon_customer_order_number": e.get("customerorderno") or e.get("customerordernumber"),
+        # Sicon meeting follow-up (2026-06) — now read into Pulse too
+        "sicon_cover_type": e.get("covertype"),
+        "sicon_fault_code": e.get("faultcode"),
+        "sicon_sla": e.get("sla"),
+        "sicon_latest_note": e.get("note"),
+        "sicon_project_id": (proj_ci.get("id") or proj_ci.get("sijcprojectid")) if isinstance(proj, dict) else proj,
+        "sicon_project_name": proj_ci.get("name") if isinstance(proj, dict) else None,
+        "sicon_case_admin_id": (admin_ci.get("id") or admin_ci.get("sageuserid")) if isinstance(admin, dict) else admin,
+        "sicon_case_admin_name": (admin_ci.get("name") or admin_ci.get("fullname")) if isinstance(admin, dict) else None,
         "sicon_description": e.get("description"),
         "sicon_summary": e.get("summary"),
         "sicon_priority_id": e.get("priorityid") or pr.get("sismpriorityid"),

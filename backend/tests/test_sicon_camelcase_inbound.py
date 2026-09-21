@@ -19,6 +19,9 @@ def test_case_camelcase_ids():
         "caseType": {"siSMCaseTypeId": 2, "name": "Reactive"},
         "priority": {"siSMPriorityId": 3, "name": "High"},
         "subLocation": {"siconSubLocationDbKey": 12, "description": "Gym floor"},
+        "coverType": "Warranty", "faultCode": "F-207", "sla": "4h Response",
+        "note": "Awaiting parts", "project": {"id": 88, "name": "PPM 2026"},
+        "caseAdmin": {"id": 4, "name": "Dawn Ops"},
     })
     assert out["sicon_case_id"] == 4321
     assert out["sicon_case_number"] == "CASE-4321"
@@ -29,6 +32,15 @@ def test_case_camelcase_ids():
     assert out["sicon_case_type_id"] == 2
     assert out["sicon_priority_id"] == 3
     assert out["sicon_sub_location_id"] == 12
+    # 2026-06 follow-up fields now mapped to Pulse
+    assert out["sicon_cover_type"] == "Warranty"
+    assert out["sicon_fault_code"] == "F-207"
+    assert out["sicon_sla"] == "4h Response"
+    assert out["sicon_latest_note"] == "Awaiting parts"
+    assert out["sicon_project_id"] == 88
+    assert out["sicon_project_name"] == "PPM 2026"
+    assert out["sicon_case_admin_id"] == 4
+    assert out["sicon_case_admin_name"] == "Dawn Ops"
 
 
 def test_case_pascalcase_still_works():
