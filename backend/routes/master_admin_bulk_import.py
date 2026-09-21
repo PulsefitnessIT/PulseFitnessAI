@@ -584,6 +584,204 @@ async def _resolve_supplier_for_org(
     return match
 
 
+# ── Import batches — one-click undo of the last bulk load ────────────────
+
+async def _record_import_batch(
+    *, batch_id: str, kind: str, user: dict, org_ids: list,
+    inserted: int, updated: int, skipped: int,
+    filename: Optional[str] = None, org_snapshots: Optional[dict] = None,
+) -> None:
+    """Persist an `import_batches` record so the run can be rolled back.
+
+    `org_snapshots` (sites only) captures the org's head-office / account
+    fields BEFORE the import so undo can restore them if this batch stamped
+    them."""
+    try:
+        await db.import_batches.insert_one({
+            "id": batch_id,
+            "kind": kind,
+            "organization_ids": [o for o in (org_ids or []) if o],
+            "actor_email": user.get("email") or user.get("full_name") or "system",
+            "filename": filename,
+            "inserted_count": int(inserted or 0),
+            "updated_count": int(updated or 0),
+            "skipped_count": int(skipped or 0),
+            "org_snapshots": org_snapshots or {},
+            "undone": False,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception as exc:  # never fail the import over audit bookkeeping
+        logger.warning(f"failed to record import batch {batch_id}: {exc}")
+
+
+@router.get("/master-admin/bulk-import/batches")
+async def list_import_batches(
+    organization_id: Optional[str] = Query(None),
+    limit: int = Query(10),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Recent bulk-import batches (newest first) for the Undo panel."""
+    _require_pulse_or_master(user)
+    q: dict = {"undone": {"$ne": True}}
+    if organization_id:
+        q["organization_ids"] = organization_id
+    cap = max(1, min(int(limit or 10), 50))
+    batches = await db.import_batches.find(q, {"_id": 0}).sort("created_at", -1).limit(cap).to_list(cap)
+    return {"batches": batches}
+
+
+@router.post("/master-admin/bulk-import/undo/{batch_id}")
+async def undo_import_batch(batch_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Roll back a bulk import: delete every row this batch INSERTED and,
+    for sites, restore the org's head-office / account snapshot. Enriched
+    (fill-if-empty) updates are NOT reverted — reported in `note`."""
+    _require_pulse_or_master(user)
+    batch = await db.import_batches.find_one({"id": batch_id}, {"_id": 0})
+    if not batch:
+        raise HTTPException(status_code=404, detail="Import batch not found")
+    if batch.get("undone"):
+        raise HTTPException(status_code=409, detail="This import has already been undone")
+
+    kind = batch.get("kind")
+    coll = {"equipment": db.equipment, "sites": db.sites}.get(kind)
+    if coll is None:
+        raise HTTPException(status_code=400, detail=f"Undo not supported for '{kind}' imports")
+
+    res = await coll.delete_many({"import_batch_id": batch_id})
+    removed = res.deleted_count
+
+    # Sites — restore the org head-office/account snapshot + recount.
+    if kind == "sites":
+        for org_id, snap in (batch.get("org_snapshots") or {}).items():
+            total = await db.sites.count_documents({"organization_id": org_id})
+            restore = dict(snap or {})
+            restore["site_count"] = total
+            restore["is_multi_site"] = total > 1
+            await db.organizations.update_one({"id": org_id}, {"$set": restore})
+
+    await db.import_batches.update_one(
+        {"id": batch_id},
+        {"$set": {"undone": True, "undone_at": datetime.now(timezone.utc).isoformat(),
+                  "undone_by": user.get("email", "system"), "removed_count": removed}},
+    )
+    try:
+        from routes.master_admin import log_activity
+        for oid in batch.get("organization_ids", []):
+            await log_activity(
+                "import_undone", f"Undid bulk {kind} import — removed {removed} row(s)",
+                user.get("email", "system"), "organization", oid,
+            )
+    except Exception:
+        pass
+
+    note = None
+    if batch.get("updated_count"):
+        note = (f"{batch['updated_count']} existing row(s) were enriched (fields filled in) by this "
+                f"import — those field updates are not reverted, only the {removed} newly-added row(s) were removed.")
+    return {"success": True, "removed": removed, "kind": kind, "note": note}
+
+
+async def _suggest_site_name(org_id: str, query: str, name_cache: dict) -> Optional[str]:
+    """Closest existing site display-name for an unmatched query, so the
+    operator can quickly fix a straggler (e.g. 'Airport Fire Station')."""
+    if org_id not in name_cache:
+        names = []
+        cursor = db.sites.find({"organization_id": org_id}, {"_id": 0, "name": 1})
+        async for s in cursor:
+            nm = (s.get("name") or "").strip()
+            if nm:
+                names.append(nm)
+        name_cache[org_id] = names
+    names = name_cache[org_id]
+    if not names:
+        return None
+    import difflib
+    qn = _normalize_site_name(query)
+    norm_map = {_normalize_site_name(n): n for n in names}
+    hit = difflib.get_close_matches(qn, list(norm_map.keys()), n=1, cutoff=0.7)
+    if hit:
+        return norm_map[hit[0]]
+    hit = difflib.get_close_matches(query.lower(), [n.lower() for n in names], n=1, cutoff=0.6)
+    if hit:
+        for n in names:
+            if n.lower() == hit[0]:
+                return n
+    return None
+
+
+@router.post("/master-admin/bulk-import/equipment/preview")
+async def preview_equipment_sites(
+    file: UploadFile = File(...),
+    organization_id: Optional[str] = Query(None),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """DRY-RUN — parse the equipment CSV and report which site names WOULD
+    match a site (tolerant matching) and which would NOT, before anything is
+    written. Lets the operator fix stragglers like 'Airport Fire Station'
+    up front."""
+    _require_pulse_or_master(user)
+    default_org = await _resolve_target_org(user, organization_id) if organization_id else None
+
+    contents = await file.read()
+    validate_upload(file_bytes=contents, filename=file.filename, allowed=MIME_SPREADSHEETS, max_size=200 * 1024 * 1024)
+    from utils.spreadsheet_import import iter_rows
+    rows_iter = iter_rows(contents, file.filename)
+
+    org_cache: dict = {}
+    site_cache: dict = {}
+    name_cache: dict = {}
+    total = matched = no_site = 0
+    unmatched_by_name: dict = {}
+    account_issues: dict = {}
+
+    for row in rows_iter:
+        if _is_blank_row(row):
+            continue
+        total += 1
+        target_org, _route_err = await _resolve_row_target_org(row, default_org, org_cache)
+        if not target_org:
+            code = _normalize(row, *_ACCOUNT_HEADER_ALIASES) or "(blank)"
+            account_issues[code] = account_issues.get(code, 0) + 1
+            continue
+        site_name = _normalize(row, "site_name", "Site Name", "site")
+        ref = _normalize(row, "invoice_customer_ref", "Invoice Customer Ref", "sicon_customer_ref", "customer_ref")
+        if not site_name and not ref:
+            no_site += 1
+            continue
+        site_id, _err = await _resolve_site_for_org(site_name, ref, target_org, site_cache)
+        if site_id:
+            matched += 1
+        else:
+            key = site_name or ref
+            entry = unmatched_by_name.get(key)
+            if not entry:
+                entry = {
+                    "site_name": key,
+                    "rows": 0,
+                    "organization_id": target_org,
+                    "suggestion": await _suggest_site_name(target_org, key, name_cache),
+                }
+                unmatched_by_name[key] = entry
+            entry["rows"] += 1
+
+    unmatched_sites = sorted(unmatched_by_name.values(), key=lambda e: -e["rows"])
+    unmatched_rows = sum(e["rows"] for e in unmatched_sites)
+    return {
+        "total_rows": total,
+        "matched_rows": matched,
+        "org_wide_rows": no_site,          # no site named → import as org-wide kit
+        "unmatched_rows": unmatched_rows,
+        "will_import": matched + no_site,
+        "unmatched_sites": unmatched_sites,
+        "unmatched_site_count": len(unmatched_sites),
+        "account_number_issues": [
+            {"account_number": k, "rows": v} for k, v in sorted(account_issues.items(), key=lambda kv: -kv[1])
+        ],
+        "target_org": default_org,
+    }
+
+
+
 @router.post("/master-admin/bulk-import/equipment")
 async def bulk_import_equipment(
     file: UploadFile = File(...),
@@ -615,6 +813,11 @@ async def _do_bulk_import_equipment(
         default_org = await _resolve_target_org(user, organization_id) if organization_id else None
     else:
         default_org = organization_id
+
+    # Iter — import batch id so the whole run can be rolled back in one
+    # click. Every INSERTED doc is tagged; enriched/updated docs are not
+    # (their pre-import values can't be cleanly reconstructed).
+    batch_id = str(uuid.uuid4())
 
     contents = await file.read()
     # Iter 216h55 — Pulse Fitness onboards ~500k equipment pieces in one
@@ -871,6 +1074,7 @@ async def _do_bulk_import_equipment(
                 "manufacturing_date": parse_date_cell(get_pick(row, "manufacturing_date") or row.get("Manufacturing Date") or row.get("manufacturing_date")) or None,
                 "condition": _normalize(row, "condition", "Condition") or str(get_pick(row, "condition", "")).strip() or None,
                 "quantity": _parse_int(_normalize(row, "quantity", "Quantity", "qty", "Qty") or str(get_pick(row, "quantity", "")).strip()),
+                "import_batch_id": batch_id,
             }
             # ── Dedupe + idempotent enrich (Iter — sites-first re-import) ──
             # Real serial → dedupe by serial. Placeholder serial (UNKNOWN /
@@ -904,7 +1108,7 @@ async def _do_bulk_import_equipment(
                     continue
                 if replace_existing:
                     upd = {k: v for k, v in doc.items()
-                           if k not in ("id", "created_at", "manuals", "photos", "imported_via")}
+                           if k not in ("id", "created_at", "manuals", "photos", "imported_via", "import_batch_id")}
                 else:
                     upd = _build_enrich_update(existing_doc, doc, _EQUIPMENT_ENRICH_FIELDS)
                 upd["updated_at"] = now_iso
@@ -951,15 +1155,22 @@ async def _do_bulk_import_equipment(
         except Exception:
             pass
 
+    # Record the batch so the run can be undone in one click.
+    if imported > 0:
+        await _record_import_batch(
+            batch_id=batch_id, kind="equipment", user=user,
+            org_ids=list(org_breakdown.keys()),
+            inserted=imported, updated=updated, skipped=skipped,
+            filename=getattr(file, "filename", None),
+        )
+
     return {
         "imported": imported, "skipped": skipped, "updated": updated,
         "errors": errors[:50], "error_count": len(errors),
         "organization_id": default_org,
+        "batch_id": batch_id if imported > 0 else None,
         "org_breakdown": org_breakdown,
     }
-
-
-@router.post("/master-admin/bulk-import/customers")
 async def bulk_import_customers(
     file: UploadFile = File(...),
     organization_id: Optional[str] = Query(None),
@@ -1266,12 +1477,24 @@ async def bulk_import_sites(
     _require_pulse_or_master(user)
     org = await db.organizations.find_one(
         {"id": organization_id},
-        {"_id": 0, "id": 1, "name": 1, "account_type": 1},
+        {"_id": 0, "id": 1, "name": 1, "account_type": 1,
+         "is_head_office": 1, "is_multi_site": 1, "site_count": 1,
+         "customer_account_number": 1, "sicon_customer_number": 1},
     )
     if not org:
         raise HTTPException(status_code=404, detail="Target organisation not found")
     if org.get("account_type") not in PULSE_VISIBLE_ACCOUNT_TYPES and org.get("account_type") is not None:
         raise HTTPException(status_code=403, detail="Org is not Pulse-visible")
+
+    # Snapshot the org fields this import may stamp, so an Undo restores them.
+    batch_id = str(uuid.uuid4())
+    org_snapshot = {
+        "is_head_office": org.get("is_head_office", False),
+        "is_multi_site": org.get("is_multi_site", False),
+        "site_count": org.get("site_count", 0),
+        "customer_account_number": org.get("customer_account_number", ""),
+        "sicon_customer_number": org.get("sicon_customer_number", ""),
+    }
 
     blob = await file.read()
     # Iter 216h55 — match the new 200 MB platform-wide bulk-import cap.
@@ -1392,6 +1615,7 @@ async def bulk_import_sites(
                 "name": name,
                 **new_vals,
                 "is_head_office": is_hq,
+                "import_batch_id": batch_id,
                 "created_at": now_iso,
             }
             pending.append(doc)
@@ -1456,6 +1680,15 @@ async def bulk_import_sites(
         )
         head_office_site_id = (hq or {}).get("id")
 
+    if imported > 0:
+        await _record_import_batch(
+            batch_id=batch_id, kind="sites", user=user,
+            org_ids=[organization_id],
+            inserted=imported, updated=updated, skipped=skipped,
+            filename=getattr(file, "filename", None),
+            org_snapshots={organization_id: org_snapshot},
+        )
+
     return {
         "imported": imported, "updated": updated, "skipped": skipped,
         "errors": errors[:50], "error_count": len(errors),
@@ -1463,6 +1696,7 @@ async def bulk_import_sites(
         "site_count": total_sites,
         "head_office_site_id": head_office_site_id,
         "customer_account_number": org_updates.get("customer_account_number") or account_ref or None,
+        "batch_id": batch_id if imported > 0 else None,
         "org_breakdown": {organization_id: imported} if imported else {},
     }
 

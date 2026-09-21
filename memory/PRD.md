@@ -38305,3 +38305,26 @@ Verified via function-level e2e with the user's real CSVs: 85 sites imported+HQ+
 0 inserted, all updated, totals unchanged (no duplication). NOTE: UI not screenshot-tested (master admin MFA
 enforced in preview). Remedy for existing prod estate: re-run the SITES import once (enriches, sets HQ flag +
 account link), then import equipment.
+
+---
+## 2026-06 · Bulk Import — Site-match Preview + One-click Undo
+File: backend/routes/master_admin_bulk_import.py, frontend AdminBulkImports.js
+
+New:
+1. Site Name Reconcile (dry-run): POST /api/master-admin/bulk-import/equipment/preview
+   Parses the equipment CSV WITHOUT writing anything and returns matched/unmatched/org-wide row counts,
+   the unmatched site names (with row counts + a closest-existing-site suggestion via difflib), and any
+   account-number rows that resolve to no customer/site. Frontend: "Preview site matches" button on the
+   equipment card + a summary panel (green when all resolve, amber list of stragglers otherwise).
+2. Import Undo: every INSERTED row is tagged `import_batch_id`; a batch record is written to
+   `import_batches` (kind, org ids, actor, filename, counts, pre-import org snapshot for sites).
+   - GET  /api/master-admin/bulk-import/batches?organization_id=&limit= — recent non-undone batches
+   - POST /api/master-admin/bulk-import/undo/{batch_id} — deletes the batch's inserted rows; for sites,
+     restores the org head-office/account snapshot + recounts site_count. Enrichment (fill-if-empty)
+     updates are NOT reverted (reported in `note`). Double-undo is blocked (409).
+   Frontend: "Recent imports" card listing batches with an Undo button (confirm dialog).
+
+Verified via function-level e2e with the real Devon & Somerset CSVs: preview wrote 0 docs and flagged the
+5 "Airport Fire Station" rows; undo removed exactly the inserted rows (404 equipment / 85 sites) and
+restored the org snapshot (is_head_office→false, account cleared, site_count→0); double-undo blocked.
+Frontend compiles clean (eslint 0/0). UI not browser-tested (master-admin MFA enforced in preview).

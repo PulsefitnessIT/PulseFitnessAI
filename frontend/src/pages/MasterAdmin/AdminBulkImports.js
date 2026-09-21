@@ -9,6 +9,7 @@ import axios from 'axios';
 import {
  Download, Upload, Wrench, Users, FileSpreadsheet, ChevronRight,
  CheckCircle2, AlertCircle, Building2, Loader2, MapPin, ScrollText,
+ Eye, RotateCcw, History, Lightbulb,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ImportWizard from './ImportWizard';
@@ -52,11 +53,26 @@ const AdminBulkImports = ({ API }) => {
  const [orgId, setOrgId] = useState('');
  const [busy, setBusy] = useState({ equipment: false, customers: false, sites: false, contracts: false });
  const [results, setResults] = useState({ equipment: null, customers: null, sites: null, contracts: null });
+ const [previewBusy, setPreviewBusy] = useState(false);
+ const [previewResult, setPreviewResult] = useState(null);
+ const [batches, setBatches] = useState([]);
+ const [undoBusy, setUndoBusy] = useState('');
  const equipmentInput = useRef(null);
  const customersInput = useRef(null);
  const sitesInput = useRef(null);
  const contractsInput = useRef(null);
+ const previewInput = useRef(null);
  const { banner, show, clear } = useInlineBanner();
+
+ const loadBatches = useMemo(() => async () => {
+ try {
+ const qs = orgId ? `?organization_id=${encodeURIComponent(orgId)}` : '';
+ const { data } = await axios.get(`${API}/master-admin/bulk-import/batches${qs}`, { headers });
+ setBatches(data?.batches || []);
+ } catch { /* non-fatal */ }
+ }, [API, headers, orgId]);
+
+ useEffect(() => { loadBatches(); }, [loadBatches]);
 
  useEffect(() => {
  // Pull the list of Pulse-visible orgs so the admin can target the import.
@@ -98,15 +114,17 @@ const AdminBulkImports = ({ API }) => {
  setResults((r) => ({ ...r, [kind]: data }));
  const tenants = Object.keys(data?.org_breakdown || {}).length;
  const detail = [
+ data.updated ? `${data.updated} updated` : null,
  data.skipped ? `${data.skipped} skipped` : null,
  data.error_count ? `${data.error_count} row issue${data.error_count === 1 ? '' : 's'} — see details below` : null,
  tenants > 1 ? `routed across ${tenants} tenants` : null,
  ].filter(Boolean).join(' · ');
  show({
- tone: data.imported > 0 ? (data.error_count ? 'warning' : 'success') : 'warning',
+ tone: (data.imported > 0 || data.updated > 0) ? (data.error_count ? 'warning' : 'success') : 'warning',
  title: `Imported ${data.imported} ${kind}`,
  detail: detail || undefined,
  });
+ loadBatches();
  } catch (err) {
  // Iter 216h54 — surface row-level failures that the backend returns
  // alongside the HTTPException detail. Lee specifically asked to see
@@ -127,6 +145,53 @@ const AdminBulkImports = ({ API }) => {
  });
  }
  setBusy((b) => ({ ...b, [kind]: false }));
+ };
+
+ const runPreview = async (file) => {
+ if (!file) return;
+ clear();
+ setPreviewBusy(true);
+ setPreviewResult(null);
+ try {
+ const fd = new FormData();
+ fd.append('file', file);
+ const qs = orgId ? `?organization_id=${encodeURIComponent(orgId)}` : '';
+ const { data } = await axios.post(
+ `${API}/master-admin/bulk-import/equipment/preview${qs}`,
+ fd,
+ { headers: { ...headers, 'Content-Type': 'multipart/form-data' } },
+ );
+ setPreviewResult(data);
+ show({
+ tone: data.unmatched_rows > 0 ? 'warning' : 'success',
+ title: `Preview: ${data.matched_rows} of ${data.total_rows} rows match a site`,
+ detail: data.unmatched_rows
+ ? `${data.unmatched_rows} row(s) across ${data.unmatched_site_count} site name(s) won't link — fix before importing`
+ : 'All site names resolve — safe to import',
+ });
+ } catch (err) {
+ const detail = err.response?.data?.detail || err.message || 'Preview failed';
+ show({ tone: 'error', title: 'Preview failed', detail });
+ }
+ setPreviewBusy(false);
+ };
+
+ const undoBatch = async (batch) => {
+ if (!window.confirm(`Undo this ${batch.kind} import? This removes the ${batch.inserted_count} row(s) it added.`)) return;
+ setUndoBusy(batch.id);
+ try {
+ const { data } = await axios.post(`${API}/master-admin/bulk-import/undo/${batch.id}`, {}, { headers });
+ show({
+ tone: 'success',
+ title: `Undone — removed ${data.removed} ${batch.kind} row(s)`,
+ detail: data.note || undefined,
+ });
+ loadBatches();
+ } catch (err) {
+ const detail = err.response?.data?.detail || err.message || 'Undo failed';
+ show({ tone: 'error', title: 'Undo failed', detail });
+ }
+ setUndoBusy('');
  };
 
  const ImportCard = ({ kind, icon: Icon, title, description, headers: csvHeaders, inputRef }) => {
@@ -183,7 +248,76 @@ const AdminBulkImports = ({ API }) => {
  {isBusy ? <Loader2 size={13} className="mr-1.5 animate-spin" /> : <Upload size={13} className="mr-1.5" />}
  {isBusy ? 'Importing…' : `Upload ${kind}`}
  </Button>
+ {kind === 'equipment' && (
+ <>
+ <input
+ ref={previewInput}
+ type="file"
+ accept=".csv,text/csv,application/vnd.ms-excel"
+ className="hidden"
+ data-testid="bulk-preview-file-equipment"
+ onChange={(e) => {
+ const f = e.target.files?.[0];
+ if (f) runPreview(f);
+ e.target.value = '';
+ }}
+ />
+ <Button
+ variant="outline"
+ size="sm"
+ disabled={previewBusy}
+ onClick={() => previewInput.current?.click()}
+ data-testid="bulk-preview-equipment"
+ title="Dry-run: see which site names match before importing"
+ >
+ {previewBusy ? <Loader2 size={13} className="mr-1.5 animate-spin" /> : <Eye size={13} className="mr-1.5" />}
+ {previewBusy ? 'Checking…' : 'Preview site matches'}
+ </Button>
+ </>
+ )}
  </div>
+
+ {kind === 'equipment' && previewResult && (
+ <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs" data-testid="bulk-preview-result-equipment">
+ <p className="font-semibold text-zinc-800 flex items-center gap-1.5">
+ <Eye size={13} /> Site-match preview
+ </p>
+ <p className="mt-1 text-zinc-600">
+ <span className="font-semibold text-emerald-700">{previewResult.matched_rows}</span> of {previewResult.total_rows} rows link to a site
+ {previewResult.org_wide_rows ? ` · ${previewResult.org_wide_rows} org-wide (no site named)` : ''}
+ {previewResult.unmatched_rows ? <> · <span className="font-semibold text-amber-700">{previewResult.unmatched_rows} won't link</span></> : ''}
+ </p>
+ {previewResult.unmatched_sites?.length > 0 && (
+ <div className="mt-2">
+ <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold mb-1">
+ Site names with no match ({previewResult.unmatched_site_count}) — fix these first
+ </p>
+ <ul className="space-y-1 max-h-52 overflow-auto pr-1">
+ {previewResult.unmatched_sites.map((u, i) => (
+ <li key={i} className="flex items-start justify-between gap-2 bg-white rounded border border-zinc-200 px-2 py-1" data-testid={`bulk-preview-unmatched-${i}`}>
+ <span className="font-mono text-[11px] text-zinc-800">"{u.site_name}" <span className="text-zinc-400">× {u.rows}</span></span>
+ {u.suggestion ? (
+ <span className="text-[10px] text-emerald-700 flex items-center gap-1 shrink-0">
+ <Lightbulb size={11} /> did you mean "{u.suggestion}"?
+ </span>
+ ) : (
+ <span className="text-[10px] text-zinc-400 shrink-0">no close match</span>
+ )}
+ </li>
+ ))}
+ </ul>
+ </div>
+ )}
+ {previewResult.account_number_issues?.length > 0 && (
+ <p className="mt-2 text-[11px] text-amber-700">
+ {previewResult.account_number_issues.reduce((n, a) => n + a.rows, 0)} row(s) have an account number that doesn't match any customer or site.
+ </p>
+ )}
+ {previewResult.unmatched_rows === 0 && (
+ <p className="mt-2 text-[11px] text-emerald-700 font-medium">✓ Every site name resolves — safe to import.</p>
+ )}
+ </div>
+ )}
 
  {result && (
  <div className={`mt-3 rounded-lg p-3 text-xs ${result._failed ? 'bg-red-50 border border-red-200' : (result.imported > 0 || result.updated > 0) ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`} data-testid={`bulk-result-${kind}`}>
@@ -318,6 +452,48 @@ const AdminBulkImports = ({ API }) => {
  </span>
  <ChevronRight size={12} className="text-zinc-400" />
  </p>
+ </Card>
+
+ {/* Recent imports — one-click undo */}
+ <Card className="p-5 rounded-xl border-zinc-200" data-testid="bulk-import-recent-card">
+ <div className="flex items-center justify-between mb-3">
+ <div className="flex items-center gap-2">
+ <History size={18} className="text-[var(--color-brand-blue)]" />
+ <h2 className="text-base font-semibold">Recent imports</h2>
+ </div>
+ <Button variant="ghost" size="sm" onClick={loadBatches} data-testid="bulk-refresh-batches">Refresh</Button>
+ </div>
+ {batches.length === 0 ? (
+ <p className="text-xs text-zinc-500">No recent imports{orgId ? ' for this customer' : ''}. Runs you make here appear below so you can undo a wrong file in one click.</p>
+ ) : (
+ <ul className="space-y-2">
+ {batches.map((b) => (
+ <li key={b.id} className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 px-3 py-2" data-testid={`bulk-batch-${b.id}`}>
+ <div className="min-w-0">
+ <p className="text-xs font-semibold text-zinc-800 capitalize flex items-center gap-1.5">
+ {b.kind === 'sites' ? <MapPin size={12} /> : <Wrench size={12} />}
+ {b.kind}
+ <span className="text-zinc-400 font-normal">· {b.inserted_count} added{b.updated_count ? ` · ${b.updated_count} updated` : ''}</span>
+ </p>
+ <p className="text-[10px] text-zinc-500 truncate">
+ {b.filename ? `${b.filename} · ` : ''}{new Date(b.created_at).toLocaleString()} · {b.actor_email}
+ </p>
+ </div>
+ <Button
+ variant="outline"
+ size="sm"
+ disabled={undoBusy === b.id}
+ onClick={() => undoBatch(b)}
+ className="text-red-600 border-red-200 hover:bg-red-50 shrink-0"
+ data-testid={`bulk-undo-${b.id}`}
+ >
+ {undoBusy === b.id ? <Loader2 size={13} className="mr-1.5 animate-spin" /> : <RotateCcw size={13} className="mr-1.5" />}
+ Undo
+ </Button>
+ </li>
+ ))}
+ </ul>
+ )}
  </Card>
  </div>
  );
