@@ -268,3 +268,8 @@ Extends the existing CRM CPQ (Quotes) Equipment Sales workflow — no new module
 - Added GET /api/vehicles/export.pdf: Pulse-branded, board/insurance-ready PDF of the whole fleet register, grouped by department (Reg, Make/model, Driver, Lease co, Lease end, MOT due, Fuel card, Fines). Uses utils/pulse_doc_template.
 - Fleet register toolbar now has two buttons: "Export CSV" (vehicles-export-csv) and "Print / PDF" (vehicles-export-pdf).
 - Verified: endpoint returns valid application/pdf (45 vehicles, ~3 pages, no overflow/overlap — confirmed via document analysis).
+
+## 2026-06 (e) — Fix password-manager autofill (Edge / iCloud Passwords)
+- Root cause: login inputs were React CONTROLLED (value=formData), so after a manager autofilled the password React re-render clobbered it back to empty; password field also lacked name/autocomplete so Edge didn't recognise the login form.
+- Fix (Navbar.js): email input name='username' autocomplete='username'; password input name='password' autocomplete='current-password' (new-password on signup); made email+password UNCONTROLLED (defaultValue + onChange, no value binding) so autofill sticks; handleAuth now reads live values from form.elements.username/password (effForm) so submit always uses the actual autofilled/typed values.
+- Regression: manual typed login, show/hide toggle, and wrong-password error all pass (testing agent 100%).

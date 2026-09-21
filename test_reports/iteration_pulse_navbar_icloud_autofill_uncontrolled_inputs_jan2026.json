@@ -1,0 +1,45 @@
+{
+  "summary": "Regression test of Navbar.js login modal after making email+password inputs uncontrolled (defaultValue) and reading form.elements.username/password on submit for iCloud Passwords / Edge autofill support. All three test cases PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "tests_performed": [
+    {
+      "name": "Uncontrolled inputs retain typed values",
+      "result": "PASS",
+      "details": "Typed 'portal@pulsefitness.ltd' into auth-email-input and 'PulseFleet123!' into auth-password-input on /about page (Navbar rendered). input_value() confirmed values retained (email exact match, password length=14 matching typed 14 chars). name/autocomplete attributes verified: email name='username' autocomplete='username'; password name='password' autocomplete='current-password'."
+    },
+    {
+      "name": "Password show/hide toggle (password-toggle-btn) works on uncontrolled input",
+      "result": "PASS",
+      "details": "Input type transitions password -> text -> password across two clicks. Uncontrolled password value is preserved during toggle (defaultValue works with type switch)."
+    },
+    {
+      "name": "Normal login succeeds with correct credentials",
+      "result": "PASS",
+      "details": "Submitting the form with portal@pulsefitness.ltd / PulseFleet123! authenticated successfully. A 'Choose Your Workspace' picker appeared (multi-workspace account); after clicking 'Operations Portal', the app navigated to /pulse and lite-dashboard test id rendered. 'Login successful' toast confirmed. NOTE: dashboard route is /pulse (not '/' as stated in review) — this is preexisting workspace routing, not related to the uncontrolled-input fix."
+    },
+    {
+      "name": "Wrong password shows error banner and does NOT navigate",
+      "result": "PASS",
+      "details": "Cleared cookies+storage, opened login modal again, submitted portal@pulsefitness.ltd with WrongPassword999!. Backend returned 401; UI showed 'Login failed / Invalid credentials' error banner; modal remained open; lite-dashboard not present. Submit validation and error UI both intact."
+    }
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: DialogContent still emits Radix warning 'Missing Description or aria-describedby' for auth-dialog on Navbar.js. Not a functional bug but a11y warning in console.",
+    "Observation: the review request references route '/' for lite-dashboard, but after login the operations portal is at '/pulse'. Confirm expected route with product owner (unrelated to this fix)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "portal@pulsefitness.ltd / PulseFleet123! (works). Wrong-password used: WrongPassword999!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The Navbar.js login modal is reached via routes that render <Navbar/> (e.g., /about, /contact, /features). The landing page ('/') uses a DIFFERENT modal from PulseLandingPage.js (testids pulse-login-email / pulse-login-password / pulse-login-submit) and was NOT part of this fix. If iCloud/Edge autofill needs to also work on the landing-page modal, that fix must be replicated in PulseLandingPage.js (currently still React controlled with value= binding).",
+  "rca of the issue": "N/A — regression check only. Fix in Navbar.js verified: uncontrolled inputs (defaultValue) preserve typed values, name+autocomplete allow Edge/iCloud autofill detection, and handleAuth reads live DOM values via form.elements.username/password so autofilled values are used at submit time even if React state didn't sync."
+}
