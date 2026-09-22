@@ -335,3 +335,15 @@ User request: full design continuity across the platform (headers/footers/menu b
 - Verified: single create, bulk (2 sites staggered 14d), calendar surfacing, add-type — all via curl; frontend flows 100% pass (testing agent report `iteration_ppm_create_desk_equipment_jan2026.json`).
 - Fixed `/svc/desk/customers` duplicate org rows (dedupe by organization_id). Seed fix: `seed_site_isolation_demo.py` now sets `is_service_desk: True` on owner@isodemo (was missing → /service-desk bounced to /launch).
 
+
+
+## 2026-06 — Calibration Capture (audit certificates)
+Engineers record equipment calibration readings on a case and generate a branded pass/fail certificate for audits (e.g. Fire Station treadmill calibration).
+- Backend:
+  - New collection `svc_case_calibrations`. Engineer endpoints (`routes/svc/engineer.py`): `GET /svc/engineer/jobs/{case_id}/calibration` (loads existing + default checklist items from the case's PM service type), `POST .../calibration` (saves readings [{label,target,measured,unit,tolerance,result}], overall pass/fail auto-derived, notes, signature; stamps `calibration_captured`/`calibration_result` on the case), `GET .../calibration/certificate.pdf`.
+  - Office/manager download: `GET /svc/cases/{case_id}/calibration/certificate.pdf` (`routes/svc/cases.py`).
+  - New PDF util `utils/calibration_certificate_pdf.py` (ReportLab, shared Pulse doc shell like warranty cert): meta, OVERALL RESULT banner (green/red), readings table with per-row pass/fail, engineer notes + signature image, audit footer.
+  - PM→case gap closed: `ppm_calendar.py schedule_ppm` now copies `checklist_items` onto the created case, so calibration rows pre-fill from the "Treadmill Calibration" service type.
+- Frontend (`EngineerJobDetailV2.js`): new `CalibrationCapture` panel in the engineer Complete tab — editable readings grid (parameter/target/measured/unit/result), add/remove rows, notes, signature (reuses `SignatureCanvas`), Save, and Download certificate (blob fetch with auth). Auto-opens when the job's service type is calibration or has checklist items.
+- Verified: certificate PDF generates (HTTP 200, valid %PDF, ~121KB) via office route with seeded data; both new routes registered (engineer route gated by Partner Engineer Network access = 402 for non-engineers); frontend serves HTTP 200 (no compile failure). NOTE: the engineer capture UI was NOT driven in a live engineer session (needs a Partner Engineer Network account); backend fully verified + UI compiles/serves — recommend a quick engineer-app walkthrough after deploy.
+

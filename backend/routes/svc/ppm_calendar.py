@@ -612,6 +612,7 @@ async def schedule_ppm(data: dict = Body(...), user: dict = Depends(get_current_
         "scheduled_at": sched_at_iso,
         "pm_schedule_id": schedule_id,
         "service_type": service_type,
+        "checklist_items": sched.get("checklist_items") or [],
         "ppm_customer_org_id": sched.get("organization_id"),
         "updated_at": _now(),
     }

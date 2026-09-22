@@ -763,3 +763,32 @@ _VALID_PATCH_FIELDS = {
 }
 
 
+
+
+@router.get("/cases/{case_id}/calibration/certificate.pdf")
+async def case_calibration_certificate(case_id: str, user=Depends(get_current_user)):
+    """Office/manager download of the calibration audit certificate."""
+    from fastapi.responses import Response
+    from utils.calibration_certificate_pdf import build_calibration_certificate_pdf
+    of = _of(user)
+    cal = await db.svc_case_calibrations.find_one(
+        {"case_id": case_id, **of}, {"_id": 0}, sort=[("created_at", -1)])
+    if not cal:
+        raise HTTPException(404, "No calibration recorded for this case")
+    case = await db.svc_cases.find_one({"id": case_id, **of}, {"_id": 0}) or {}
+    pdf = build_calibration_certificate_pdf(
+        case_ref=case.get("reference") or case_id,
+        customer_name=case.get("customer_name") or "",
+        site_name=case.get("site_name") or "",
+        equipment_name=cal.get("equipment_name") or case.get("asset_name") or "",
+        service_type=cal.get("service_type") or case.get("service_type") or "Calibration",
+        readings=cal.get("readings") or [],
+        overall_result=cal.get("overall_result") or "",
+        engineer_name=cal.get("engineer_name") or "",
+        issued_at=(cal.get("created_at") or "")[:16].replace("T", " "),
+        notes=cal.get("notes") or "",
+        signature_data_url=cal.get("signature") or None,
+    )
+    fname = f"calibration-{case.get('reference') or case_id}.pdf"
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{fname}"'})

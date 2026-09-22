@@ -75,7 +75,7 @@ from typing import Optional
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query
 
 from utils.database import db
 from utils.auth import get_current_user
@@ -1233,3 +1233,97 @@ async def clear_engineer_draft(case_id: str, user=Depends(get_current_user)):
 
 
 __all__ = ["router"]
+
+
+# ── Calibration capture (treadmill etc.) + audit certificate ─────
+
+async def _calibration_cert_response(case_id: str, of: dict):
+    from fastapi.responses import Response
+    from utils.calibration_certificate_pdf import build_calibration_certificate_pdf
+    cal = await db.svc_case_calibrations.find_one(
+        {"case_id": case_id, **of}, {"_id": 0}, sort=[("created_at", -1)])
+    if not cal:
+        raise HTTPException(404, "No calibration recorded for this case")
+    case = await db.svc_cases.find_one({"id": case_id, **of}, {"_id": 0}) or {}
+    pdf = build_calibration_certificate_pdf(
+        case_ref=case.get("reference") or case_id,
+        customer_name=case.get("customer_name") or case.get("organization_name") or "",
+        site_name=case.get("site_name") or "",
+        equipment_name=cal.get("equipment_name") or case.get("asset_name") or "",
+        service_type=cal.get("service_type") or case.get("service_type") or "Calibration",
+        readings=cal.get("readings") or [],
+        overall_result=cal.get("overall_result") or "",
+        engineer_name=cal.get("engineer_name") or "",
+        issued_at=(cal.get("created_at") or "")[:16].replace("T", " "),
+        notes=cal.get("notes") or "",
+        signature_data_url=cal.get("signature") or None,
+    )
+    fname = f"calibration-{case.get('reference') or case_id}.pdf"
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{fname}"'})
+
+
+@router.get("/jobs/{case_id}/calibration")
+async def get_job_calibration(case_id: str, user=Depends(get_current_user)):
+    of = _of(user)
+    case = await db.svc_cases.find_one(
+        {"id": case_id, **of},
+        {"_id": 0, "checklist_items": 1, "service_type": 1, "equipment_ids": 1, "asset_name": 1},
+    )
+    if not case:
+        raise HTTPException(404, "Case not found")
+    existing = await db.svc_case_calibrations.find_one(
+        {"case_id": case_id, **of}, {"_id": 0}, sort=[("created_at", -1)])
+    return {
+        "calibration": existing,
+        "checklist_items": case.get("checklist_items") or [],
+        "service_type": case.get("service_type") or "",
+    }
+
+
+@router.post("/jobs/{case_id}/calibration")
+async def save_job_calibration(
+    case_id: str,
+    data: dict = Body(...),
+    idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
+    user=Depends(get_current_user),
+):
+    of = _of(user)
+    case = await db.svc_cases.find_one({"id": case_id, **of}, {"_id": 0, "id": 1, "reference": 1})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    eng = await _ensure_engineer(user)
+    readings = []
+    for r in (data.get("readings") or []):
+        readings.append({
+            "label": str(r.get("label") or "").strip(),
+            "target": str(r.get("target") or "").strip(),
+            "measured": str(r.get("measured") or "").strip(),
+            "tolerance": str(r.get("tolerance") or "").strip(),
+            "unit": str(r.get("unit") or "").strip(),
+            "result": (str(r.get("result") or "").strip().lower() or "na"),
+        })
+    overall = (data.get("overall_result") or "").strip().lower()
+    if overall not in ("pass", "fail"):
+        overall = "fail" if any(x["result"] == "fail" for x in readings) else "pass"
+    now = _now()
+    doc = {
+        "id": str(uuid.uuid4()), "case_id": case_id, "organization_id": of.get("organization_id"),
+        "reference": case.get("reference"), "equipment_id": data.get("equipment_id") or "",
+        "equipment_name": data.get("equipment_name") or "", "service_type": data.get("service_type") or "",
+        "readings": readings, "overall_result": overall, "notes": (data.get("notes") or "").strip(),
+        "signature": data.get("signature") or "", "engineer_id": user["id"],
+        "engineer_name": eng.get("full_name") or user.get("full_name") or "Engineer",
+        "created_at": now, "updated_at": now,
+    }
+    await db.svc_case_calibrations.replace_one({"case_id": case_id, **of}, doc, upsert=True)
+    await db.svc_cases.update_one({"id": case_id, **of}, {"$set": {
+        "calibration_captured": True, "calibration_result": overall, "updated_at": now}})
+    out = {k: v for k, v in doc.items() if k != "signature"}
+    return {"success": True, "calibration": out, "certificate_url": f"/api/svc/engineer/jobs/{case_id}/calibration/certificate.pdf"}
+
+
+@router.get("/jobs/{case_id}/calibration/certificate.pdf")
+async def engineer_calibration_certificate(case_id: str, user=Depends(get_current_user)):
+    return await _calibration_cert_response(case_id, _of(user))
+

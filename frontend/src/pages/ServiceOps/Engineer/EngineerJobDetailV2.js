@@ -472,15 +472,18 @@ export default function EngineerJobDetailV2() {
         {activeTab === 'equipment' && <EquipmentTab job={job} onChange={load} />}
         {activeTab === 'parts'  && <PartsTab job={job} onChange={load} />}
         {activeTab === 'complete' && (
-          <CompleteTab
-            job={job}
-            locked={lockedComplete}
-            onChange={load}
-            navigate={navigate}
-            draft={draft}
-            setDraft={setDraft}
-            clearDraft={clearDraft}
-          />
+          <>
+            <CalibrationCapture job={job} />
+            <CompleteTab
+              job={job}
+              locked={lockedComplete}
+              onChange={load}
+              navigate={navigate}
+              draft={draft}
+              setDraft={setDraft}
+              clearDraft={clearDraft}
+            />
+          </>
         )}
       </main>
     </div>
@@ -4110,5 +4113,131 @@ function JobProfitabilityCard({ caseId }) {
         <p className="text-[11px] text-slate-400 mt-2">{t('service.eng_jd_prof_no_invoice', 'No invoice raised yet — margin appears once this job is invoiced.')}</p>
       )}
     </div>
+
+
+// ── Calibration capture — engineer records readings + pass/fail and
+// generates an audit certificate (treadmill calibration etc.). Rows
+// default from the PM service type's checklist items when present.
+function CalibrationCapture({ job }) {
+  const [rows, setRows] = useState([]);
+  const [serviceType, setServiceType] = useState('');
+  const [overrideOverall, setOverrideOverall] = useState('');
+  const [notes, setNotes] = useState('');
+  const [sig, setSig] = useState('');
+  const [showSig, setShowSig] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await axios.get(`${API}/svc/engineer/jobs/${job.id}/calibration`, auth());
+        setServiceType(data?.service_type || job.service_type || '');
+        const existing = data?.calibration;
+        if (existing?.readings?.length) {
+          setRows(existing.readings);
+          setOverrideOverall(existing.overall_result || '');
+          setNotes(existing.notes || '');
+          setSaved(true); setOpen(true);
+        } else {
+          const labels = data?.checklist_items || [];
+          setRows(labels.map((l) => ({ label: l, target: '', measured: '', unit: '', tolerance: '', result: 'pass' })));
+          if (labels.length || /calibrat/i.test(data?.service_type || job.service_type || '')) setOpen(true);
+        }
+      } catch { /* non-fatal */ }
+    })();
+  }, [job.id]);
+
+  const computedOverall = overrideOverall || (rows.some((r) => r.result === 'fail') ? 'fail' : 'pass');
+  const setRow = (i, k, v) => setRows((p) => p.map((r, idx) => (idx === i ? { ...r, [k]: v } : r)));
+  const addRow = () => setRows((p) => [...p, { label: '', target: '', measured: '', unit: '', tolerance: '', result: 'pass' }]);
+  const rmRow = (i) => setRows((p) => p.filter((_, idx) => idx !== i));
+
+  const save = async () => {
+    setBusy(true); setErr('');
+    try {
+      await axios.post(`${API}/svc/engineer/jobs/${job.id}/calibration`, {
+        readings: rows, overall_result: computedOverall, notes, signature: sig,
+        service_type: serviceType, equipment_name: job.asset_name || '',
+      }, auth());
+      setSaved(true);
+    } catch (e) {
+      setErr(e?.response?.data?.detail || 'Could not save calibration');
+    } finally { setBusy(false); }
+  };
+
+  const downloadCert = async () => {
+    try {
+      const r = await axios.get(`${API}/svc/engineer/jobs/${job.id}/calibration/certificate.pdf`,
+        { ...auth(), responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+    } catch { setErr('Certificate not ready — save the calibration first.'); }
+  };
+
+  const inputCls = 'h-9 rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-2 text-xs';
+
+  return (
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 mb-4" data-testid="calibration-capture">
+      <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between" data-testid="calibration-toggle">
+        <span className="text-sm font-bold flex items-center gap-2">
+          Calibration
+          {saved && (
+            <span className={`text-[10px] px-2 py-0.5 rounded-full ${computedOverall === 'pass' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+              {computedOverall.toUpperCase()}
+            </span>
+          )}
+        </span>
+        <span className="text-xs text-zinc-400">{open ? 'Hide' : 'Show'}</span>
+      </button>
+      {open && (
+        <div className="mt-3 space-y-2">
+          <div className="grid grid-cols-12 gap-1.5 text-[10px] font-semibold uppercase text-zinc-400 px-0.5">
+            <span className="col-span-4">Parameter</span><span className="col-span-2">Target</span>
+            <span className="col-span-2">Measured</span><span className="col-span-1">Unit</span>
+            <span className="col-span-2">Result</span><span className="col-span-1" />
+          </div>
+          {rows.map((r, i) => (
+            <div key={i} className="grid grid-cols-12 gap-1.5 items-center" data-testid={`calibration-row-${i}`}>
+              <input value={r.label} onChange={(e) => setRow(i, 'label', e.target.value)} placeholder="Parameter" className={`col-span-4 ${inputCls}`} />
+              <input value={r.target} onChange={(e) => setRow(i, 'target', e.target.value)} placeholder="Target" className={`col-span-2 ${inputCls}`} />
+              <input value={r.measured} onChange={(e) => setRow(i, 'measured', e.target.value)} placeholder="Measured" className={`col-span-2 ${inputCls}`} data-testid={`calibration-measured-${i}`} />
+              <input value={r.unit} onChange={(e) => setRow(i, 'unit', e.target.value)} placeholder="km/h" className={`col-span-1 ${inputCls} px-1`} />
+              <select value={r.result} onChange={(e) => setRow(i, 'result', e.target.value)} data-testid={`calibration-result-${i}`} className={`col-span-2 ${inputCls} px-1`}>
+                <option value="pass">Pass</option><option value="fail">Fail</option><option value="na">N/A</option>
+              </select>
+              <button onClick={() => rmRow(i)} className="col-span-1 text-zinc-400 text-xs" aria-label="Remove">✕</button>
+            </div>
+          ))}
+          <button onClick={addRow} className="text-xs font-semibold text-[var(--color-brand-blue,#2563eb)]" data-testid="calibration-add">+ Add reading</button>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (reference instrument, observations)…" className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-2 py-1.5 text-xs" rows={2} data-testid="calibration-notes" />
+          <div>
+            <button onClick={() => setShowSig((s) => !s)} className="text-xs font-semibold" data-testid="calibration-sign-toggle">
+              {sig ? 'Signature captured ✓ — redo' : 'Add engineer signature'}
+            </button>
+            {showSig && (
+              <div className="mt-2">
+                <SignatureCanvas onCancel={() => setShowSig(false)} onSubmit={(d) => { setSig(d); setShowSig(false); }} />
+              </div>
+            )}
+          </div>
+          {err && <p className="text-xs text-rose-600" data-testid="calibration-error">{err}</p>}
+          <div className="flex items-center gap-2 pt-1">
+            <button onClick={save} disabled={busy} className="px-4 py-2 rounded-full text-sm font-semibold bg-[var(--color-brand-cyan)] text-[var(--color-ink)] disabled:opacity-50" data-testid="calibration-save">
+              {busy ? 'Saving…' : (saved ? 'Update calibration' : 'Save calibration')}
+            </button>
+            {saved && (
+              <button onClick={downloadCert} className="px-4 py-2 rounded-full text-sm font-semibold border border-zinc-300 dark:border-zinc-700" data-testid="calibration-download-cert">
+                Download certificate
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
   );
 }
