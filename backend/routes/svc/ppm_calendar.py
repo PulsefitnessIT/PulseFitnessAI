@@ -146,28 +146,65 @@ async def list_services(user: dict = Depends(get_current_user)) -> dict:
 @router.get("/engineer-load")
 async def engineer_load(
     date_str: str = Query(..., alias="date"),
+    site_id: str = Query(None),
     user: dict = Depends(get_current_user),
 ) -> dict:
-    """How many jobs each engineer already has on a given day — so the desk
-    can avoid double-booking when allocating a PPM."""
+    """Each engineer's existing jobs (count + time slots) on a given day, plus
+    a suggested engineer (least-loaded, tie-broken by proximity to the site) —
+    so the desk can slot a PPM into a free gap and allocate fast."""
     operator = _operator(user)
     day = _parse_ymd(date_str)
     if not day:
         raise HTTPException(400, "Invalid date")
     lo, hi = f"{day.isoformat()}T00:00:00", f"{day.isoformat()}T23:59:59.999999"
     load: dict = {}
+    slots: dict = {}
     cursor = db.svc_cases.find(
         {"organization_id": operator,
          "status": {"$nin": ["closed", "resolved", "cancelled", "CLOSED", "RESOLVED", "CANCELLED"]},
          "scheduled_at": {"$gte": lo, "$lte": hi}},
-        {"_id": 0, "assigned_engineer_id": 1, "assigned_engineer_ids": 1},
+        {"_id": 0, "assigned_engineer_id": 1, "assigned_engineer_ids": 1,
+         "scheduled_at": 1, "title": 1, "estimated_minutes": 1},
     )
     async for c in cursor:
         ids = c.get("assigned_engineer_ids") or ([c["assigned_engineer_id"]] if c.get("assigned_engineer_id") else [])
+        t = str(c.get("scheduled_at") or "")[11:16] or "—"
+        slot = {"time": t, "title": c.get("title") or "Job", "minutes": c.get("estimated_minutes") or 0}
         for eid in ids:
             if eid:
                 load[eid] = load.get(eid, 0) + 1
-    return {"date": day.isoformat(), "load": load}
+                slots.setdefault(eid, []).append(slot)
+    for lst in slots.values():
+        lst.sort(key=lambda s: s["time"])
+
+    # Suggestion: least-loaded engineer, tie-broken by postcode proximity.
+    def _outward(pc):
+        return (str(pc or "").strip().upper().split(" ")[0] or "")[:4]
+
+    site_out = ""
+    if site_id:
+        site = await db.sites.find_one({"id": site_id}, {"_id": 0, "postcode": 1})
+        site_out = _outward((site or {}).get("postcode"))
+
+    suggested = None
+    best_key = None
+    async for e in db.svc_engineers.find(
+        {"organization_id": operator, "active": {"$ne": False}},
+        {"_id": 0, "id": 1, "home_postcode": 1, "postcode": 1, "home_address": 1},
+    ):
+        eid = e.get("id")
+        n = load.get(eid, 0)
+        eng_out = _outward(e.get("home_postcode") or e.get("postcode"))
+        if not eng_out and e.get("home_address"):
+            import re as _re
+            m = _re.search(r"\b([A-Z]{1,2}\d[A-Z\d]?)\b", str(e["home_address"]).upper())
+            eng_out = m.group(1) if m else ""
+        near = 0 if (site_out and eng_out and eng_out == site_out) else 1
+        key = (n, near)  # lower = better: fewer jobs, then nearer
+        if best_key is None or key < best_key:
+            best_key, suggested = key, eid
+
+    return {"date": day.isoformat(), "load": load, "slots": slots, "suggested_engineer_id": suggested}
 
 
 # ── Back-fill: plan PPM for existing site-associated equipment ────
@@ -248,6 +285,7 @@ async def ppm_calendar(
                 "date": s.get("next_pm"),
                 "schedule_id": s.get("id"),
                 "organization_id": s.get("organization_id"),
+                "site_id": s.get("site_id") or "",
                 "title": s.get("title") or "Preventative maintenance",
                 "customer_name": s.get("customer_name") or "",
                 "site_name": s.get("site_name") or "",

@@ -38455,3 +38455,14 @@ contact fallback works when site_manager_email empty. ruff clean, endpoints live
   (free / N jobs) colour-coded green/amber/rose, so the desk sees existing load before allocating.
 Verified: multi-engineer case counted for both engineers, single-engineer case counted, closed excluded, other
 days empty. ruff + eslint clean, endpoint live, webpack compiled.
+
+---
+## 2026-06 · PPM allocation: engineer time-slots + suggested engineer
+- GET /api/svc/ppm/engineer-load?date=&site_id= extended: now returns per-engineer `slots`
+  [{time,title,minutes}] (sorted) alongside `load` counts, plus `suggested_engineer_id` =
+  least-loaded engineer, tie-broken by postcode-outward proximity to the site (engineer
+  home_postcode/postcode/home_address vs site.postcode). Commercial calendar items now carry site_id.
+- PPMCalendar SchedulePpmModal: shows each engineer's existing job time-chips (e.g. 09:00·90m) under
+  their row, and a green "Suggested" badge on the recommended engineer; passes item.site_id for proximity.
+Verified: slots returned with times+durations; suggestion picked near+free over far+free and near+busy.
+ruff + eslint clean, endpoint live, webpack compiled.

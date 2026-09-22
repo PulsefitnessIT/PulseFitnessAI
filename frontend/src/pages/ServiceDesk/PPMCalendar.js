@@ -162,16 +162,22 @@ function SchedulePpmModal({ item, engineers, onClose, onDone }) {
   const [date, setDate] = useState(String(item.date).slice(0, 10));
   const [engIds, setEngIds] = useState([]);
   const [load, setLoad] = useState({});
+  const [slots, setSlots] = useState({});
+  const [suggested, setSuggested] = useState(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { (async () => { try { const r = await api.get('/svc/ppm/services'); if (r.data?.services) setServices(r.data.services); } catch { /* keep defaults */ } })(); }, []);
   useEffect(() => {
-    if (!date) { setLoad({}); return; }
+    if (!date) { setLoad({}); setSlots({}); setSuggested(null); return; }
     (async () => {
-      try { const r = await api.get('/svc/ppm/engineer-load', { params: { date } }); setLoad(r.data?.load || {}); }
-      catch { setLoad({}); }
+      try {
+        const r = await api.get('/svc/ppm/engineer-load', { params: { date, site_id: item.site_id || undefined } });
+        setLoad(r.data?.load || {});
+        setSlots(r.data?.slots || {});
+        setSuggested(r.data?.suggested_engineer_id || null);
+      } catch { setLoad({}); setSlots({}); setSuggested(null); }
     })();
-  }, [date]);
+  }, [date, item.site_id]);
   const toggle = (id) => setEngIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
 
   const submit = async () => {
@@ -208,19 +214,33 @@ function SchedulePpmModal({ item, engineers, onClose, onDone }) {
             <p className="text-xs text-zinc-400 p-2">No engineers on the roster.</p>
           ) : engineers.map((e) => {
             const n = load[e.id] || 0;
+            const daySlots = slots[e.id] || [];
+            const isSuggested = suggested === e.id;
             return (
-              <button key={e.id} type="button" onClick={() => toggle(e.id)} className="w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800" data-testid={`ppm-eng-${e.id}`}>
-                <span className="flex items-center gap-2">
-                  {engIds.includes(e.id) && <Check size={14} className="text-emerald-600" />}
-                  <span className={engIds.includes(e.id) ? 'font-semibold' : ''}>{e.full_name}</span>
+              <button key={e.id} type="button" onClick={() => toggle(e.id)} className={`w-full flex flex-col gap-0.5 px-3 py-1.5 text-sm text-left hover:bg-zinc-50 dark:hover:bg-zinc-800 ${isSuggested ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : ''}`} data-testid={`ppm-eng-${e.id}`}>
+                <span className="flex items-center justify-between gap-2 w-full">
+                  <span className="flex items-center gap-2 min-w-0">
+                    {engIds.includes(e.id) && <Check size={14} className="text-emerald-600 shrink-0" />}
+                    <span className={engIds.includes(e.id) ? 'font-semibold' : ''}>{e.full_name}</span>
+                    {isSuggested && <span className="text-[9px] font-bold uppercase tracking-wide bg-emerald-600 text-white px-1.5 py-0.5 rounded-full shrink-0" data-testid={`ppm-suggested-${e.id}`}>Suggested</span>}
+                  </span>
+                  <span
+                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${n === 0 ? 'bg-emerald-100 text-emerald-700' : n <= 2 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}
+                    title={`${n} job(s) already scheduled on this date`}
+                    data-testid={`ppm-eng-load-${e.id}`}
+                  >
+                    {n === 0 ? 'free' : `${n} job${n === 1 ? '' : 's'}`}
+                  </span>
                 </span>
-                <span
-                  className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${n === 0 ? 'bg-emerald-100 text-emerald-700' : n <= 2 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}
-                  title={`${n} job(s) already scheduled on this date`}
-                  data-testid={`ppm-eng-load-${e.id}`}
-                >
-                  {n === 0 ? 'free' : `${n} job${n === 1 ? '' : 's'}`}
-                </span>
+                {daySlots.length > 0 && (
+                  <span className="flex flex-wrap gap-1 pl-6" data-testid={`ppm-eng-slots-${e.id}`}>
+                    {daySlots.map((s, i) => (
+                      <span key={i} className="text-[9px] font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 px-1.5 py-0.5 rounded" title={s.title}>
+                        {s.time}{s.minutes ? `·${s.minutes}m` : ''}
+                      </span>
+                    ))}
+                  </span>
+                )}
               </button>
             );
           })}
