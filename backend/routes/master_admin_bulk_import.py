@@ -699,6 +699,55 @@ def _crm2_contact_doc(operator_org, company_id, company_name, c, user) -> dict:
     }
 
 
+async def _mirror_site_managers_to_crm(operator_org, company_id, company_name, site_contacts, user) -> int:
+    """Pull each site's manager (from the sites CSV) into the operator CRM as
+    a contact linked to the customer company AND tagged to that site. Dedupe
+    by email across the operator tenant; emailless managers dedupe by
+    (company, site, name). Idempotent across re-imports."""
+    if not company_id or not site_contacts:
+        return 0
+    seen_emails = {
+        (d.get("email") or "").lower()
+        async for d in db.crm2_contacts.find(
+            {"organization_id": operator_org, "email": {"$exists": True, "$ne": ""}},
+            {"_id": 0, "email": 1},
+        ) if d.get("email")
+    }
+    made = 0
+    for sc in site_contacts:
+        name = (sc.get("name") or "").strip()
+        email = (sc.get("email") or "").strip().lower()
+        if not name and not email:
+            continue
+        if email and email in seen_emails:
+            continue
+        if not email:
+            dup = await db.crm2_contacts.find_one(
+                {"organization_id": operator_org, "company_id": company_id,
+                 "customer_site_id": sc.get("site_id"), "first_name": name.split(" ")[0]},
+                {"_id": 0, "id": 1},
+            )
+            if dup:
+                continue
+        parts = name.split(" ", 1)
+        doc = _crm2_contact_doc(
+            operator_org, company_id, company_name,
+            {"first_name": parts[0] if parts else "", "last_name": parts[1] if len(parts) > 1 else "",
+             "email": email, "phone": sc.get("phone", ""), "title": "Site Manager",
+             "company_name": company_name},
+            user,
+        )
+        doc["customer_site_id"] = sc.get("site_id")
+        doc["customer_site_name"] = sc.get("site_name", "")
+        doc["job_title"] = f"Site Manager — {sc.get('site_name', '')}".strip(" —")
+        doc["tags"] = ["imported", "site-manager"]
+        await db.crm2_contacts.insert_one(doc)
+        if email:
+            seen_emails.add(email)
+        made += 1
+    return made
+
+
 async def _bridge_import_to_crm(org_ids, user: dict) -> int:
     """Ensure a CRM company exists for each customer org touched by an import.
     `user.organization_id` is the operator tenant (Pulse Fitness Ltd)."""
@@ -1709,6 +1758,7 @@ async def bulk_import_sites(
 
     first_site_id: Optional[str] = None      # first site touched this run (HQ fallback)
     account_ref: str = ""                    # first invoice_customer_ref seen (org stamp)
+    site_contacts: list = []                 # site managers → CRM contacts
 
     BATCH_SIZE = 500
     pending: list = []
@@ -1764,6 +1814,8 @@ async def bulk_import_sites(
 
             key = name.lower().strip()
             existing = existing_by_name.get(key)
+            _mgr_name = (new_vals.get("site_manager_name") or "").strip()
+            _mgr_email = (new_vals.get("site_manager_email") or "").strip()
             if existing:
                 # Re-import — fill only the empty fields, never overwrite.
                 upd = _fill_if_empty(existing, new_vals)
@@ -1777,6 +1829,9 @@ async def bulk_import_sites(
                 updated += 1
                 if first_site_id is None:
                     first_site_id = existing["id"]
+                if _mgr_name or _mgr_email:
+                    site_contacts.append({"site_id": existing["id"], "site_name": name,
+                                          "name": _mgr_name, "email": _mgr_email, "phone": new_vals.get("phone", "")})
                 continue
 
             is_hq_raw = _normalize(row, "is_head_office", "Is Head Office", "head_office")
@@ -1800,6 +1855,9 @@ async def bulk_import_sites(
             existing_by_name[key] = {"id": site_id, "name": name, **new_vals}
             if first_site_id is None:
                 first_site_id = site_id
+            if _mgr_name or _mgr_email:
+                site_contacts.append({"site_id": site_id, "site_name": name,
+                                      "name": _mgr_name, "email": _mgr_email, "phone": new_vals.get("phone", "")})
             imported += 1
             if len(pending) >= BATCH_SIZE:
                 await _flush_pending()
@@ -1868,6 +1926,15 @@ async def bulk_import_sites(
         )
     # Bridge this customer estate into the Pulse Fitness Ltd CRM.
     await _bridge_import_to_crm([organization_id], user)
+    # Pull each site's manager into the CRM as a contact at that site.
+    operator = user.get("organization_id") or user.get("service_org_id")
+    if site_contacts and operator and operator != organization_id:
+        company_id = await _ensure_crm_company_for_org(operator, organization_id, user)
+        cust = await db.organizations.find_one({"id": organization_id}, {"_id": 0, "name": 1}) or {}
+        try:
+            await _mirror_site_managers_to_crm(operator, company_id, cust.get("name", ""), site_contacts, user)
+        except Exception as exc:
+            logger.warning(f"site-manager CRM mirror failed for org {organization_id}: {exc}")
 
     return {
         "imported": imported, "updated": updated, "skipped": skipped,

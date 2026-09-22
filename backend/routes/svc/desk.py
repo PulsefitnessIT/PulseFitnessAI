@@ -221,6 +221,41 @@ async def desk_customer_equipment(
     return {"equipment": rows, "count": len(rows)}
 
 
+@router.get("/equipment-coverage")
+async def desk_equipment_coverage(
+    organization_id: str = Query(...), equipment_id: str = Query(...), user=Depends(get_current_user),
+):
+    """Contract/warranty coverage for a customer's own equipment, so the
+    intake form auto-fills cover type even for imported customer estates."""
+    if not await _authorized_customer_org(user, organization_id):
+        return {"covered": False, "type": "none", "label": "", "crm_coverage": {"has_coverage": False}}
+    equipment = await db.equipment.find_one(
+        {"id": equipment_id, "organization_id": organization_id}, {"_id": 0},
+    )
+    if not equipment:
+        return {"covered": False, "type": "none", "label": "Equipment not found",
+                "crm_coverage": {"has_coverage": False}}
+    from routes.equipment import _parse_date_remaining, _determine_coverage
+    from utils.coverage import resolve_equipment_coverage
+    warranty_active, warranty_days = _parse_date_remaining(equipment.get("warranty_expiry"))
+    contract_active, contract_days = _parse_date_remaining(equipment.get("sla_expiry"))
+    covered, coverage_type, coverage_label = _determine_coverage(
+        warranty_active, warranty_days, contract_active, contract_days,
+    )
+    cov = await resolve_equipment_coverage(equipment, db)
+    return {
+        "equipment_id": equipment_id, "equipment_name": equipment.get("name", ""),
+        "covered": covered or cov["has_crm_contract"],
+        "type": coverage_type, "label": coverage_label,
+        "warranty_active": warranty_active, "warranty_days_remaining": warranty_days,
+        "warranty_expiry": equipment.get("warranty_expiry"),
+        "contract_active": contract_active, "contract_days_remaining": contract_days,
+        "sla_contract_ref": equipment.get("sla_contract_ref"), "sla_expiry": equipment.get("sla_expiry"),
+        "crm_coverage": {"has_coverage": cov["has_crm_contract"], "best": cov["best"],
+                         "all_contracts": cov["all_contracts"]},
+    }
+
+
 @router.get("/engineers")
 async def desk_engineers(user=Depends(get_current_user)):
     """Engineer roster with current load (open case count)."""

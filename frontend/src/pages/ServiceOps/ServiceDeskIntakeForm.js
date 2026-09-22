@@ -149,7 +149,7 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
     (async () => {
       setCoverageLoading(true); setCoverage(null);
       try {
-        const r = await axios.get(`${API}/equipment/${encodeURIComponent(equipmentId)}/coverage`, auth());
+        const r = await axios.get(`${API}/svc/desk/equipment-coverage?organization_id=${encodeURIComponent(customerOrgId)}&equipment_id=${encodeURIComponent(equipmentId)}`, auth());
         if (!cancelled) {
           setCoverage(r.data || null);
           if (r.data?.covered) {
@@ -168,7 +168,7 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [equipmentId, equipmentList]);
+  }, [equipmentId, equipmentList, customerOrgId]);
 
   // ── Resolve customer details from selected contact
   const selectedContact = useMemo(

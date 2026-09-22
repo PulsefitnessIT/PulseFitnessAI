@@ -38375,3 +38375,18 @@ NOT browser-tested: Service Desk + Master Admin are behind enforced MFA in previ
   `CustomerCombobox` type-ahead (filters by name or account number, click-outside close, keyboard-free
   select, data-testid intake-customer-search / intake-customer-options).
 Backend clean (ruff), frontend clean (eslint). UI not browser-tested (Service Desk MFA in preview).
+
+---
+## 2026-06 · Site-manager contacts → CRM + case coverage for customer equipment
+- Site Contacts: bulk_import_sites now collects each site's site_manager_name/email (on insert AND enrich)
+  and mirrors them into `crm2_contacts` under the operator, linked to the customer's crm2_companies
+  (company_id) and tagged to the site via `customer_site_id`/`customer_site_name`, job_title
+  "Site Manager — <site>", tags ["imported","site-manager"]. Helper `_mirror_site_managers_to_crm(...)`.
+  Dedupe by email (operator-wide), emailless by (company, site, first_name). Idempotent on re-import.
+- Case Coverage Lookup: new GET /api/svc/desk/equipment-coverage?organization_id=&equipment_id= (routes/svc/desk.py)
+  authorizes the customer org via crm2_companies.linked_organization_id, then reuses equipment.py
+  _parse_date_remaining/_determine_coverage + utils.coverage.resolve_equipment_coverage. ServiceDeskIntakeForm
+  now calls this (scoped to the selected customer) so cover type auto-fills for imported customer equipment.
+Verified: 2 site managers -> 2 CRM contacts (site-tagged); coverage resolved warranty "199d remaining";
+unauthorized org returns not-covered; re-import kept site-manager contacts at 2 (no dupes). ruff + eslint clean,
+endpoint live, webpack compiled. UI not browser-tested (Service Desk MFA in preview).
