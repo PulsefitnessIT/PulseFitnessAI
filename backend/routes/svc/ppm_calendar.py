@@ -157,35 +157,53 @@ async def engineer_load(
     if not day:
         raise HTTPException(400, "Invalid date")
     lo, hi = f"{day.isoformat()}T00:00:00", f"{day.isoformat()}T23:59:59.999999"
+
+    def _outward(pc):
+        return (str(pc or "").strip().upper().split(" ")[0] or "")[:4]
+
+    # 1) Gather the day's jobs (with their site) per engineer.
     load: dict = {}
     slots: dict = {}
+    day_site_ids: dict = {}  # engineer -> set of their job site_ids that day
+    all_site_ids: set = set()
     cursor = db.svc_cases.find(
         {"organization_id": operator,
          "status": {"$nin": ["closed", "resolved", "cancelled", "CLOSED", "RESOLVED", "CANCELLED"]},
          "scheduled_at": {"$gte": lo, "$lte": hi}},
         {"_id": 0, "assigned_engineer_id": 1, "assigned_engineer_ids": 1,
-         "scheduled_at": 1, "title": 1, "estimated_minutes": 1},
+         "scheduled_at": 1, "title": 1, "estimated_minutes": 1, "site_id": 1, "site_name": 1},
     )
     async for c in cursor:
         ids = c.get("assigned_engineer_ids") or ([c["assigned_engineer_id"]] if c.get("assigned_engineer_id") else [])
         t = str(c.get("scheduled_at") or "")[11:16] or "—"
-        slot = {"time": t, "title": c.get("title") or "Job", "minutes": c.get("estimated_minutes") or 0}
+        sid = c.get("site_id")
+        if sid:
+            all_site_ids.add(sid)
+        slot = {"time": t, "title": c.get("title") or "Job", "minutes": c.get("estimated_minutes") or 0,
+                "site_name": c.get("site_name") or "", "site_id": sid or ""}
         for eid in ids:
             if eid:
                 load[eid] = load.get(eid, 0) + 1
                 slots.setdefault(eid, []).append(slot)
+                if sid:
+                    day_site_ids.setdefault(eid, set()).add(sid)
     for lst in slots.values():
         lst.sort(key=lambda s: s["time"])
 
-    # Suggestion: least-loaded engineer, tie-broken by postcode proximity.
-    def _outward(pc):
-        return (str(pc or "").strip().upper().split(" ")[0] or "")[:4]
-
+    # 2) Resolve postcode outward codes for the target + every job site.
     site_out = ""
+    site_out_by_id: dict = {}
+    lookup_ids = set(all_site_ids)
     if site_id:
-        site = await db.sites.find_one({"id": site_id}, {"_id": 0, "postcode": 1})
-        site_out = _outward((site or {}).get("postcode"))
+        lookup_ids.add(site_id)
+    if lookup_ids:
+        async for s in db.sites.find({"id": {"$in": list(lookup_ids)}}, {"_id": 0, "id": 1, "postcode": 1}):
+            site_out_by_id[s["id"]] = _outward(s.get("postcode"))
+        site_out = site_out_by_id.get(site_id, "")
 
+    # 3) Suggest: prefer an engineer already working the target's area that day
+    #    (efficient back-to-back), then least-loaded, then home proximity.
+    FULL_DAY = 4  # don't pile onto an already-full engineer for the travel bonus
     suggested = None
     best_key = None
     async for e in db.svc_engineers.find(
@@ -199,12 +217,27 @@ async def engineer_load(
             import re as _re
             m = _re.search(r"\b([A-Z]{1,2}\d[A-Z\d]?)\b", str(e["home_address"]).upper())
             eng_out = m.group(1) if m else ""
-        near = 0 if (site_out and eng_out and eng_out == site_out) else 1
-        key = (n, near)  # lower = better: fewer jobs, then nearer
+        # Travel-aware: is this engineer already at the target's area today?
+        near_today = bool(site_out) and n < FULL_DAY and any(
+            site_out_by_id.get(sid) == site_out for sid in day_site_ids.get(eid, ())
+        )
+        home_near = bool(site_out) and bool(eng_out) and eng_out == site_out
+        # lower = better: already in-area today, then fewer jobs, then home-near
+        key = (0 if near_today else 1, n, 0 if home_near else 1)
         if best_key is None or key < best_key:
             best_key, suggested = key, eid
 
-    return {"date": day.isoformat(), "load": load, "slots": slots, "suggested_engineer_id": suggested}
+    suggested_reason = None
+    if suggested is not None and best_key is not None:
+        if best_key[0] == 0:
+            suggested_reason = "already working this area today"
+        elif best_key[2] == 0:
+            suggested_reason = "based nearest & least busy"
+        else:
+            suggested_reason = "least busy that day"
+
+    return {"date": day.isoformat(), "load": load, "slots": slots,
+            "suggested_engineer_id": suggested, "suggested_reason": suggested_reason}
 
 
 # ── Back-fill: plan PPM for existing site-associated equipment ────

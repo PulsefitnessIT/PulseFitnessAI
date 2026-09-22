@@ -38466,3 +38466,14 @@ days empty. ruff + eslint clean, endpoint live, webpack compiled.
   their row, and a green "Suggested" badge on the recommended engineer; passes item.site_id for proximity.
 Verified: slots returned with times+durations; suggestion picked near+free over far+free and near+busy.
 ruff + eslint clean, endpoint live, webpack compiled.
+
+---
+## 2026-06 · Travel-aware engineer suggestion (PPM allocation)
+- GET /svc/ppm/engineer-load now resolves the postcode outward code of EACH of an engineer's other jobs that
+  day and prefers an engineer already working the target site's area (efficient back-to-back), then least-loaded
+  (capped at <4 jobs for the travel bonus), then home proximity. Returns `suggested_reason`
+  ("already working this area today" / "based nearest & least busy" / "least busy that day"). Slots now include
+  site_name/site_id. Commercial calendar items carry site_id.
+- PPMCalendar: slot chips show the site name; the Suggested badge tooltip shows the reason.
+Verified: with an engineer already in the target's TA6 area that day, they were suggested over a free-but-far
+engineer (reason "already working this area today"). ruff + eslint clean.
