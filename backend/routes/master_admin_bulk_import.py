@@ -811,7 +811,16 @@ async def backfill_crm_companies(user: dict = Depends(get_current_user)) -> dict
                 made += 1
         except Exception as exc:
             logger.warning(f"CRM backfill failed for org {oid}: {exc}")
-    return {"success": True, "customers_linked": made, "orgs_checked": checked}
+    # Now that customer estates are linked, surface any calibration
+    # certificates from already-closed cases into their Documents.
+    certs = {"scanned": 0, "published": 0}
+    try:
+        from utils.calibration_cert_publish import backfill_calibration_certificates
+        certs = await backfill_calibration_certificates(operator)
+    except Exception as exc:
+        logger.warning(f"Calibration certificate backfill failed: {exc}")
+    return {"success": True, "customers_linked": made, "orgs_checked": checked,
+            "certificates_published": certs.get("published", 0)}
 
 
 @router.get("/master-admin/bulk-import/batches")

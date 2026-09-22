@@ -341,6 +341,33 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
       })
       .catch((e) => notify.error(t('service.cd_open_report_failed', 'Could not open report'), e.message || String(e)));
   };
+  const openCalibrationCert = () => {
+    if (!caseId) return;
+    fetch(`${API}/svc/cases/${caseId}/calibration/certificate.pdf`, auth())
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
+      .then((blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank', 'noopener');
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      })
+      .catch((e) => notify.error(t('service.cd_open_cert_failed', 'Could not open certificate'), e.message || String(e)));
+  };
+  const downloadCalibrationCert = () => {
+    if (!caseId) return;
+    fetch(`${API}/svc/cases/${caseId}/calibration/certificate.pdf`, auth())
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
+      .then((blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `calibration-${doc?.reference || caseId}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      })
+      .catch((e) => notify.error(t('service.cd_download_cert_failed', 'Could not download certificate'), e.message || String(e)));
+  };
   const emailServiceReport = async () => {
     if (!caseId || reportBusy) return;
     const defaultTo = doc?.customer_email || '';
@@ -858,6 +885,46 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                   data-testid="drawer-service-report-email"
                 >
                   <Send size={11} /> {reportBusy === 'email' ? t('service.cd_sending', 'Sending…') : (doc?.service_report_sent_at ? t('service.cd_resend', 'Resend') : t('service.cd_email_customer', 'Email customer'))}
+                </button>
+              </div>
+            </div>
+          ) : null}
+          {/* Calibration certificate — audit evidence, gated on capture */}
+          {doc?.calibration_captured ? (
+            <div
+              className="rounded-lg border p-2 flex items-center gap-2 flex-wrap"
+              style={{ borderColor: 'var(--theme-border, #e5e7eb)' }}
+              data-testid="drawer-calibration-cert"
+            >
+              <Award size={13} className="opacity-70" />
+              <span className="text-[11.5px] font-semibold">{t('service.cd_calibration_cert', 'Calibration certificate')}</span>
+              {doc?.calibration_result ? (
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
+                  style={String(doc.calibration_result).toLowerCase() === 'pass'
+                    ? { background: '#dcfce7', color: '#166534' }
+                    : { background: '#fee2e2', color: '#991b1b' }}
+                  data-testid="drawer-calibration-result"
+                >
+                  {String(doc.calibration_result).toUpperCase()}
+                </span>
+              ) : null}
+              <div className="ml-auto flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={openCalibrationCert}
+                  className="svc-btn svc-btn-secondary svc-btn-sm"
+                  data-testid="drawer-calibration-cert-view"
+                >
+                  {t('service.cd_view', 'View')}
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadCalibrationCert}
+                  className="svc-btn svc-btn-primary svc-btn-sm"
+                  data-testid="drawer-calibration-cert-download"
+                >
+                  {t('service.cd_download', 'Download')}
                 </button>
               </div>
             </div>

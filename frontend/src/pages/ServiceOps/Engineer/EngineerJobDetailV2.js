@@ -4113,6 +4113,8 @@ function JobProfitabilityCard({ caseId }) {
         <p className="text-[11px] text-slate-400 mt-2">{t('service.eng_jd_prof_no_invoice', 'No invoice raised yet — margin appears once this job is invoiced.')}</p>
       )}
     </div>
+  );
+}
 
 
 // ── Calibration capture — engineer records readings + pass/fail and
@@ -4237,7 +4239,5 @@ function CalibrationCapture({ job }) {
         </div>
       )}
     </div>
-  );
-}
   );
 }

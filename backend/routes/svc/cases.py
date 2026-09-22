@@ -437,6 +437,15 @@ async def transition_case(case_id: str, data: dict, user=Depends(get_current_use
             await emit_case_close_activity(case, user)
         except Exception as e:
             logger.warning("[svc→crm] emit_case_close_activity failed: %s", e)
+        # Iter — on operator sign-off (close), publish the calibration
+        # certificate into the customer's Documents so they can pull audit
+        # evidence from their own Operations Portal. Best-effort.
+        if case.get("calibration_captured"):
+            try:
+                from utils.calibration_cert_publish import publish_calibration_certificate
+                await publish_calibration_certificate(case)
+            except Exception as e:
+                logger.warning("[calib-cert] publish on close failed: %s", e)
     # Iter 216h155 — compliance audit. Records every state transition
     # in the immutable `audit_logs` collection so the GDPR / SOC2 path
     # has a tamper-evident answer to "who did what, when, to which
