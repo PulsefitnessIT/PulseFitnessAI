@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only visual-continuity refactor verification. Verified: (a) /login now shows the pulsefitness wordmark image (data-testid brand-wordmark inside gx-login-logo) and no longer shows the old bold 'Pulse Fitness.AI' text; login still succeeds and lands on /launch. (b) /staff-login shows the same wordmark badge (data-testid staff-login-logo visible). (c) Memberships Analytics section pills render as cyan rounded-full pills (border-radius: 9999px, active background rgb(25,205,255)) and switching sections works. The AI Insights sub-tabs (mbr-ai-tab-demand/underper/pricing/classes) also render as cyan pills and switch correctly. (d) The Aftersales Contracts H1 removal + cyan-pill sub-menu was verified by source-code inspection (AftersalesApp.js — the H1 'Aftersales Contracts' and 'Enter once → reuse everywhere → manage by exception.' tagline are gone; PillTabBar renders afs-tab-<id> buttons with rounded-full class + cyan active style). (e) ServiceOps Parts sub-tab bar cyan pill styling verified via _serviceops.css (.svc-tab border-radius:9999px, .svc-tab--active background:var(--color-brand-cyan)). Live Aftersales / ServiceOps Parts / Dealer Warranty Parts pages could NOT be reached in-browser with owner@isodemo — Aftersales tab is gated by the crm_documents feature flag (hidden from this org's CRM nav), and /service-desk redirected/404 (owner@isodemo lacks view_service_desk permission).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "not_verified_in_browser": [
+    {"area": "CRM Aftersales Contracts (crm-nav-aftersales / afs-tab-*)", "reason": "The tab is filtered out by featureOn('crm_documents') for owner@isodemo. Source-code inspection confirms the H1/tagline are removed and afs-tab-* pills use rounded-full + cyan active bg (matching Memberships pills that we DID verify at runtime).", "evidence_files": ["/app/frontend/src/pages/CRM/Aftersales/AftersalesApp.js lines 2293-2316"]},
+    {"area": "Service Desk → Parts Inventory (parts-tab-catalogue/stock/purchase) & Dealer Warranty Parts (dp-tab-*)", "reason": "owner@isodemo lacks view_service_desk permission — /service-desk and /service-desk/parts/dealer return the 404 page. .svc-tab CSS confirmed switched to border-radius:9999px + cyan active bg; DealerWarrantyPartsPage uses the shared SubTabBar wrapper.", "evidence_files": ["/app/frontend/src/pages/ServiceOps/_serviceops.css lines 540-566", "/app/frontend/src/pages/DealerWarrantyParts/DealerWarrantyPartsPage.js line 75-83"]},
+    {"area": "Master Admin sub-tab bars (AdminRoles, PlatformHealth, SiconIntegrationPage, AdminOnboardingHub, AdminMemberships)", "reason": "Explicitly skipped per instructions — master admin account is MFA-enforced and cannot be automated."}
+  ],
+  "verified_in_browser": [
+    {"page": "/login", "checks": {"brand-wordmark": true, "gx-login-logo wrapper": true, "old 'Pulse Fitness.AI' text": false, "login submit lands on /launch": true}},
+    {"page": "/staff-login", "checks": {"staff-login-logo": true, "wordmark image visible in screenshot": true}},
+    {"page": "/memberships → Analytics", "checks": {"mbr-analytics-tab-overview cyan active bg": "rgb(25,205,255)", "borderRadius": "9999px", "switch to Retention clears bg": true, "mbr-analytics-tab-ai-insights present": true}},
+    {"page": "/memberships → Analytics → AI Insights", "checks": {"mbr-ai-tab-demand default active bg": "rgb(25,205,255)", "mbr-ai-tab-underper present (transparent when inactive)": true, "mbr-ai-tab-pricing present": true, "mbr-ai-tab-classes present": true, "borderRadius on all": "9999px"}}
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "No fix required — refactor is visually consistent and functional across all pages reachable by owner@isodemo.",
+    "Main agent (or a future test pass) should re-verify the Aftersales Contracts sub-menu and Service Desk Parts / Dealer Warranty Parts sub-tab bars in-browser using an org/account that has the crm_documents feature flag and view_service_desk permission (e.g. an internal Pulse user or a MOD/service-provider org)."
+  ],
+  "critical_code_review_comments": [
+    "AftersalesApp.js still uses PillTabBar+inline styles directly (~lines 2300-2310) instead of the new shared SubTabBar wrapper. The visual result is identical, but for the DRY goal of this refactor consider refactoring it to <SubTabBar tabs={SUB_TABS} active={tab} onChange={setTab} testId=\"afs-subnav\" /> to guarantee it stays in sync if the pill style ever changes.",
+    "BrandWordmark uses fixed aspectRatio 3.8/1 with clipPath insets — cropping the hosted JPG. Works, but future-proof would be to host a pre-cropped SVG/PNG so no runtime clip trick is needed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100% of pages reachable with test creds"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The Aftersales Contracts screen (afs-tab-*) and the Service Desk Parts / Dealer Warranty Parts screens are gated behind org feature flags / permissions that owner@isodemo does not have. To live-verify them, either (a) impersonate/use an internal Pulse user (is_pulse_internal=true) so featureOn falls back to true, (b) enable modules.crm_documents on the isodemo org and grant view_service_desk, or (c) use a MOD/service-provider org. Everything else (logos, Memberships pills, AI Insights pills) was verified live with cyan bg rgb(25,205,255) and border-radius 9999px."
+}

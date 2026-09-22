@@ -273,3 +273,26 @@ Extends the existing CRM CPQ (Quotes) Equipment Sales workflow — no new module
 - Root cause: login inputs were React CONTROLLED (value=formData), so after a manager autofilled the password React re-render clobbered it back to empty; password field also lacked name/autocomplete so Edge didn't recognise the login form.
 - Fix (Navbar.js): email input name='username' autocomplete='username'; password input name='password' autocomplete='current-password' (new-password on signup); made email+password UNCONTROLLED (defaultValue + onChange, no value binding) so autofill sticks; handleAuth now reads live values from form.elements.username/password (effForm) so submit always uses the actual autofilled/typed values.
 - Regression: manual typed login, show/hide toggle, and wrong-password error all pass (testing agent 100%).
+
+
+## 2026-06 — Platform Visual Continuity (Phase 1: sub-menus + sign-in logos)
+User request: full design continuity across the platform (headers/footers/menu bars/options uniform; uniform logos on all sign-in pages).
+
+**Delivered this pass (Phase 1):**
+- New shared components:
+  - `frontend/src/components/shared/SubTabBar.js` — canonical secondary/"lateral options" menu; wraps `PillTabBar` and renders the standard cyan rounded-full pills (active = `--color-brand-cyan` bg + `--color-ink` text + shadow; inactive = `--theme-text-muted` transparent).
+  - `frontend/src/components/shared/BrandWordmark.js` — single canonical Pulse Fitness logo (the hosted primary-logo badge image the Navbar uses), exported `PULSE_LOGO_SRC`.
+- CRM Aftersales page: removed the redundant `<h1>Aftersales Contracts</h1>` + "Enter once → reuse everywhere → manage by exception." tagline; content moved up; sub-menu migrated to `SubTabBar` (cyan pills). (AftersalesApp.js)
+- Sign-in logo unification → `BrandWordmark`: `LoginPage.js` (was bold "Pulse Fitness.AI" text), `StaffLogin.js`, `CRMLogin.js` (login + 2FA + signup header). MOD Service login left with its MoD defence branding intentionally.
+- Sub-tab bars migrated to the cyan pill standard:
+  - Service Ops: restyled shared `.svc-tabs`/`.svc-tab` in `_serviceops.css` → pills (updates Parts Inventory, Comms Hub, Case Drawer, Integrations Console at once).
+  - Dealer Warranty Parts (`DealerWarrantyPartsPage.js`) → SubTabBar (kept unsaved-work guard).
+  - Master Admin: `AdminRoles`, `PlatformHealth`, `SiconIntegrationPage`, `AdminMemberships` → SubTabBar; `AdminOnboardingHub` grouped bar restyled to pills in place (keeps Manage/Customers/Partners/Team grouping).
+  - Memberships: `AnalyticsTab` (section bar) + `AIInsightsTab` (was fuchsia) → SubTabBar.
+  - `PulseCheckSheetsTab` → pill buttons in place.
+  - Engineer mobile stock strip (`EngineerStock.js`) intentionally left (equal-width mobile tab pattern, already cyan).
+
+**Verification:** frontend compiles clean. Testing agent (owner@isodemo.com / IsoDemo123!) verified LIVE: sign-in logos, Memberships Analytics + AI Insights cyan pills. Source/compile-verified: Aftersales, Service Ops svc-tabs, Dealer Parts. Master Admin pages NOT runtime-verified (master admin has enforced TOTP MFA — cannot automate); low risk (same SubTabBar swap).
+
+**NOT yet done (Phase 2 — larger, pending):** unify the module SHELL HEADERS/FOOTERS (ServiceOpsShell hero header, MarketingShell/PulseMarketingShell, MemberPortal, Engineer app shell, Dealer standalone portal header, MOD footer) and theme the Service Desk/Inventory SIDE NAV to match. The main authenticated `Navbar` + `Footer` are the intended standard.
+
