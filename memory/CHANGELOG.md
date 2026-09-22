@@ -391,3 +391,8 @@ Fixed the founder-reported gaps that made the custom/tender quote NOT release-re
 Files: backend/routes/crm_aftersales.py (build_custom_quote, send-email/portal-link guards), backend/utils/afs_quote_pdf.py, frontend/src/pages/CRM/Aftersales/AftersalesApp.js (AutoQuoteTab + AgreementsTab + parent editQuote lift).
 Testing: backend + PDF verified via curl (customer iso-cA); frontend 8/8 UI states verified by testing agent (iteration_afs_custom_tender_frontend_verify_jan2026.json). No functional issues.
 Pre-existing (NOT from this change, noted for later): 2× 500s on CRM/Aftersales navigation (likely warranty-opps/settings), and a hydration warning `<span>` inside `<option>` in the CRM company <select>.
+
+## 2026-06 — Fix: Aftersales navigation 500 (warranty-opportunities)
+- GET /api/crm/v2/aftersales/revenue/warranty-opportunities returned 500 ("can't compare offset-naive and offset-aware datetimes", crm_aftersales.py:2865). It's loaded by AutoQuoteTab on entering Build Quote → the console 500 the testing agent flagged.
+- Root cause: _parse_dt() returned a tz-naive datetime for warranty_expiry values stored without an offset; compared against tz-aware now/horizon.
+- Fix: _parse_dt() now normalises naive datetimes to UTC-aware. Verified 200 + returns opportunities; full Aftersales nav endpoint sweep all 200.

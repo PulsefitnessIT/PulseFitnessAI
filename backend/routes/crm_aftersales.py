@@ -2832,9 +2832,12 @@ async def finance_sync_mark_synced(contract_id: str, body: FinanceMarkSyncedIn,
 
 def _parse_dt(v):
     try:
-        return datetime.fromisoformat((v or "").replace("Z", "+00:00"))
+        dt = datetime.fromisoformat((v or "").replace("Z", "+00:00"))
     except (ValueError, AttributeError):
         return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 @router.get("/revenue/warranty-opportunities")
