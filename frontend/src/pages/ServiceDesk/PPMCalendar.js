@@ -7,7 +7,7 @@
  * engineers and a date — this creates the job and puts it on the schedule.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarClock, ChevronLeft, ChevronRight, Loader2, RefreshCw, Users, Check } from 'lucide-react';
+import { CalendarClock, ChevronLeft, ChevronRight, Loader2, RefreshCw, Users, Check, Plus } from 'lucide-react';
 import { api } from '@/lib/api';
 import { notify } from '@/components/notifications';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,7 @@ export default function PPMCalendar() {
   const [backfilling, setBackfilling] = useState(false);
   const [engineers, setEngineers] = useState([]);
   const [active, setActive] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,14 +89,20 @@ export default function PPMCalendar() {
           <span className="text-sm font-bold">Maintenance calendar — all customers</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden" data-testid="ppm-segment">
+          <div className="inline-flex rounded-full border border-zinc-200 dark:border-zinc-700 overflow-hidden bg-white dark:bg-zinc-900" data-testid="ppm-segment">
             {SEGMENTS.map((s) => (
               <button key={s.id} onClick={() => setSegment(s.id)} data-testid={`ppm-seg-${s.id}`}
-                className={`px-2.5 py-1 text-xs font-semibold ${segment === s.id ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' : 'text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
+                className="px-3 py-1 text-xs font-semibold transition-colors"
+                style={segment === s.id
+                  ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
+                  : { background: 'transparent', color: 'var(--theme-text-muted)' }}>
                 {s.label}
               </button>
             ))}
           </div>
+          <Button size="sm" onClick={() => setShowCreate(true)} data-testid="ppm-create-btn" className="bg-[var(--color-brand-cyan)] text-[var(--color-ink)] hover:opacity-90">
+            <Plus size={13} className="mr-1.5" /> Create PM
+          </Button>
           <Button variant="outline" size="sm" onClick={backfill} disabled={backfilling} data-testid="ppm-backfill-btn">
             {backfilling ? <Loader2 size={13} className="animate-spin mr-1.5" /> : <RefreshCw size={13} className="mr-1.5" />}
             Plan from installs
@@ -151,6 +158,9 @@ export default function PPMCalendar() {
 
       {active && (
         <SchedulePpmModal item={active} engineers={engineers} onClose={() => setActive(null)} onDone={async () => { setActive(null); await load(); }} />
+      )}
+      {showCreate && (
+        <CreatePpmModal onClose={() => setShowCreate(false)} onDone={async () => { setShowCreate(false); await load(); }} />
       )}
     </section>
   );
@@ -252,6 +262,213 @@ function SchedulePpmModal({ item, engineers, onClose, onDone }) {
           <Button variant="outline" onClick={onClose} data-testid="ppm-cancel">Cancel</Button>
           <Button onClick={submit} disabled={busy} data-testid="ppm-schedule-save">
             {busy ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Check size={14} className="mr-1.5" />} Schedule &amp; assign
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+const FREQS = [
+  { v: 'monthly', label: 'Monthly' },
+  { v: 'quarterly', label: 'Quarterly' },
+  { v: 'six_monthly', label: '6-monthly' },
+  { v: 'annual', label: 'Annual' },
+];
+
+function CreatePpmModal({ onClose, onDone }) {
+  const [mode, setMode] = useState('single'); // single | bulk
+  const [customers, setCustomers] = useState([]);
+  const [serviceTypes, setServiceTypes] = useState([]);
+  const [customerOrgId, setCustomerOrgId] = useState('');
+  const [sites, setSites] = useState([]);
+  const [siteId, setSiteId] = useState('');
+  const [selectedSites, setSelectedSites] = useState([]); // bulk
+  const [serviceType, setServiceType] = useState('Preventative Maintenance Service');
+  const [frequency, setFrequency] = useState('annual');
+  const [firstVisit, setFirstVisit] = useState(() => new Date().toISOString().slice(0, 10));
+  const [staggerDays, setStaggerDays] = useState(7);
+  const [granularity, setGranularity] = useState('site');
+  const [newType, setNewType] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const loadTypes = useCallback(async () => {
+    try { const r = await api.get('/svc/ppm/service-types'); setServiceTypes(r.data?.service_types || []); }
+    catch { /* non-blocking */ }
+  }, []);
+  useEffect(() => {
+    (async () => {
+      try { const r = await api.get('/svc/desk/customers'); setCustomers(r.data?.customers || []); }
+      catch { /* non-blocking */ }
+    })();
+    loadTypes();
+  }, [loadTypes]);
+
+  useEffect(() => {
+    setSites([]); setSiteId(''); setSelectedSites([]);
+    if (!customerOrgId) return;
+    (async () => {
+      try {
+        const r = await api.get('/svc/desk/customer-sites', { params: { organization_id: customerOrgId } });
+        setSites(r.data?.sites || []);
+      } catch { setSites([]); }
+    })();
+  }, [customerOrgId]);
+
+  const toggleSite = (id) => setSelectedSites((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  const allSelected = sites.length > 0 && selectedSites.length === sites.length;
+  const toggleAll = () => setSelectedSites(allSelected ? [] : sites.map((s) => s.id));
+
+  const addType = async () => {
+    const name = newType.trim();
+    if (!name) return;
+    try {
+      await api.post('/svc/ppm/service-types', { name });
+      setNewType(''); await loadTypes(); setServiceType(name);
+      notify.success(`Added service type “${name}”`);
+    } catch { notify.error('Could not add service type'); }
+  };
+
+  const submit = async () => {
+    if (!customerOrgId) { notify.error('Pick a customer'); return; }
+    setSaving(true);
+    try {
+      if (mode === 'single') {
+        if (!siteId) { notify.error('Pick a site'); setSaving(false); return; }
+        const r = await api.post('/svc/ppm/schedules', {
+          customer_org_id: customerOrgId, site_id: siteId,
+          service_type: serviceType, frequency, first_visit: firstVisit,
+        });
+        notify.success('Preventative maintenance scheduled', `Next visit ${r.data?.next_pm || firstVisit}`);
+      } else {
+        if (selectedSites.length === 0) { notify.error('Select at least one site'); setSaving(false); return; }
+        const r = await api.post('/svc/ppm/schedules/bulk', {
+          customer_org_id: customerOrgId, site_ids: selectedSites,
+          service_type: serviceType, frequency, start_date: firstVisit,
+          stagger_days: staggerDays, granularity,
+        });
+        notify.success(`Scheduled ${r.data?.schedules_created || 0} PM visit(s) across ${r.data?.sites || selectedSites.length} site(s)`);
+      }
+      await onDone?.();
+    } catch (e) { notify.error('Could not create PM', e?.response?.data?.detail || e.message); }
+    finally { setSaving(false); }
+  };
+
+  const activeType = serviceTypes.find((s) => s.name === serviceType);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }} data-testid="ppm-create-modal">
+      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 w-full max-w-lg max-h-[92vh] overflow-auto shadow-2xl">
+        <div className="px-5 py-3.5 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+          <h3 className="text-base font-bold">Create preventative maintenance</h3>
+          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700" data-testid="ppm-create-close">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="inline-flex rounded-full border border-zinc-200 dark:border-zinc-700 overflow-hidden bg-white dark:bg-zinc-900" data-testid="ppm-create-mode">
+            {[{ id: 'single', label: 'Single site' }, { id: 'bulk', label: 'Bulk (many sites)' }].map((m) => (
+              <button key={m.id} onClick={() => setMode(m.id)} data-testid={`ppm-create-mode-${m.id}`}
+                className="px-3.5 py-1.5 text-xs font-semibold transition-colors"
+                style={mode === m.id ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' } : { background: 'transparent', color: 'var(--theme-text-muted)' }}>
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          <div>
+            <Label className="text-xs">Customer</Label>
+            <select value={customerOrgId} onChange={(e) => setCustomerOrgId(e.target.value)}
+              className="w-full mt-1 h-10 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm" data-testid="ppm-create-customer">
+              <option value="">— Select customer —</option>
+              {customers.map((c) => (
+                <option key={c.organization_id} value={c.organization_id}>{c.name}{c.is_operator ? ' (my org)' : ''}{c.site_count != null ? ` · ${c.site_count} sites` : ''}</option>
+              ))}
+            </select>
+          </div>
+
+          {mode === 'single' ? (
+            <div>
+              <Label className="text-xs">Site</Label>
+              <select value={siteId} onChange={(e) => setSiteId(e.target.value)} disabled={!customerOrgId}
+                className="w-full mt-1 h-10 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm" data-testid="ppm-create-site">
+                <option value="">{sites.length ? '— Select site —' : 'No sites'}</option>
+                {sites.map((s) => <option key={s.id} value={s.id}>{s.name}{s.equipment_count != null ? ` · ${s.equipment_count} machines` : ''}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Sites ({selectedSites.length}/{sites.length} selected)</Label>
+                <button onClick={toggleAll} disabled={!sites.length} className="text-xs font-semibold text-[var(--color-brand-blue,#2563eb)]" data-testid="ppm-create-selectall">
+                  {allSelected ? 'Clear all' : 'Select all'}
+                </button>
+              </div>
+              <div className="mt-1 max-h-44 overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-800" data-testid="ppm-create-sitelist">
+                {sites.length === 0 ? <p className="p-3 text-xs text-zinc-400">Pick a customer to list its sites</p> : sites.map((s) => (
+                  <label key={s.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800" data-testid={`ppm-create-site-${s.id}`}>
+                    <input type="checkbox" checked={selectedSites.includes(s.id)} onChange={() => toggleSite(s.id)} />
+                    <span className="flex-1 truncate">{s.name}</span>
+                    {s.equipment_count != null && <span className="text-[11px] text-zinc-400">{s.equipment_count} machines</span>}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <Label className="text-xs">Service type</Label>
+            <select value={serviceType} onChange={(e) => setServiceType(e.target.value)}
+              className="w-full mt-1 h-10 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm" data-testid="ppm-create-service">
+              {serviceTypes.map((s) => <option key={s.id} value={s.name}>{s.name}{s.requires_calibration ? ' (calibration)' : ''}</option>)}
+            </select>
+            {activeType?.checklist_items?.length ? (
+              <p className="text-[11px] text-zinc-500 mt-1">Records on the case: {activeType.checklist_items.join(', ')}</p>
+            ) : null}
+            <div className="flex items-center gap-2 mt-2">
+              <Input value={newType} onChange={(e) => setNewType(e.target.value)} placeholder="Add a new service type…" className="h-8 text-xs" data-testid="ppm-create-newtype" />
+              <Button size="sm" variant="outline" onClick={addType} data-testid="ppm-create-addtype">Add</Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Frequency</Label>
+              <select value={frequency} onChange={(e) => setFrequency(e.target.value)}
+                className="w-full mt-1 h-10 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm" data-testid="ppm-create-frequency">
+                {FREQS.map((f) => <option key={f.v} value={f.v}>{f.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label className="text-xs">{mode === 'bulk' ? 'First visit (start)' : 'First visit'}</Label>
+              <Input type="date" value={firstVisit} onChange={(e) => setFirstVisit(e.target.value)} className="mt-1" data-testid="ppm-create-date" />
+            </div>
+          </div>
+
+          {mode === 'bulk' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Stagger (days between sites)</Label>
+                <Input type="number" min="0" value={staggerDays} onChange={(e) => setStaggerDays(e.target.value)} className="mt-1" data-testid="ppm-create-stagger" />
+                <p className="text-[11px] text-zinc-400 mt-1">Spreads visits so all sites aren't on one day.</p>
+              </div>
+              <div>
+                <Label className="text-xs">Schedule per</Label>
+                <select value={granularity} onChange={(e) => setGranularity(e.target.value)}
+                  className="w-full mt-1 h-10 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm" data-testid="ppm-create-granularity">
+                  <option value="site">Site (one visit per station)</option>
+                  <option value="equipment">Machine (per piece of equipment)</option>
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="px-5 py-3.5 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-2">
+          <Button variant="ghost" size="sm" onClick={onClose} data-testid="ppm-create-cancel">Cancel</Button>
+          <Button size="sm" onClick={submit} disabled={saving} data-testid="ppm-create-submit"
+            className="bg-[var(--color-brand-cyan)] text-[var(--color-ink)] hover:opacity-90">
+            {saving ? <Loader2 size={13} className="animate-spin mr-1.5" /> : <Plus size={13} className="mr-1.5" />}
+            {mode === 'bulk' ? `Schedule ${selectedSites.length || ''} site(s)` : 'Create PM'}
           </Button>
         </div>
       </div>

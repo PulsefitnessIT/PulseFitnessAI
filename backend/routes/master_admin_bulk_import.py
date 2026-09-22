@@ -631,10 +631,19 @@ async def _ensure_crm_company_for_org(
     acct = (account_number or cust.get("customer_account_number")
             or cust.get("sicon_customer_number") or "").strip()
 
+    # Match an existing CRM company for this customer. Search by the customer
+    # link ACROSS orgs first so estates previously mis-bridged into the wrong
+    # tenant (e.g. the master-admin org) are re-pointed here rather than
+    # duplicated.
     existing = await db.crm2_companies.find_one(
-        {"organization_id": operator_org_id, "linked_organization_id": customer_org_id},
+        {"linked_organization_id": customer_org_id, "created_via": "master_admin_bulk_import"},
         {"_id": 0, "id": 1},
     )
+    if not existing:
+        existing = await db.crm2_companies.find_one(
+            {"organization_id": operator_org_id, "linked_organization_id": customer_org_id},
+            {"_id": 0, "id": 1},
+        )
     if not existing:
         from utils.security_plus import safe_regex
         existing = await db.crm2_companies.find_one(
@@ -642,7 +651,8 @@ async def _ensure_crm_company_for_org(
             {"_id": 0, "id": 1},
         )
     if existing:
-        upd = {"linked_organization_id": customer_org_id, "type": "customer", "updated_at": now}
+        upd = {"organization_id": operator_org_id, "linked_organization_id": customer_org_id,
+               "type": "customer", "updated_at": now}
         if acct:
             upd["account_number"] = acct
         await db.crm2_companies.update_one({"id": existing["id"]}, {"$set": upd})
@@ -748,10 +758,23 @@ async def _mirror_site_managers_to_crm(operator_org, company_id, company_name, s
     return made
 
 
+async def _resolve_operator_org(user: dict) -> str:
+    """The CRM tenant that imported estates must bridge into — ALWAYS the
+    operator company (Pulse Fitness Ltd), never the master-admin super-user's
+    own org. Master Admin imports were previously stamped with the importing
+    admin's org, so bridged companies landed in the wrong CRM tenant and never
+    surfaced in the CRM Companies list. Falls back to the user's org only if no
+    operator company is flagged."""
+    op = await db.organizations.find_one({"is_operator_company": True}, {"_id": 0, "id": 1})
+    if op and op.get("id"):
+        return op["id"]
+    return user.get("organization_id") or user.get("service_org_id")
+
+
 async def _bridge_import_to_crm(org_ids, user: dict) -> int:
     """Ensure a CRM company exists for each customer org touched by an import.
     `user.organization_id` is the operator tenant (Pulse Fitness Ltd)."""
-    operator = user.get("organization_id") or user.get("service_org_id")
+    operator = await _resolve_operator_org(user)
     made = 0
     for oid in {o for o in (org_ids or []) if o}:
         try:
@@ -768,7 +791,7 @@ async def backfill_crm_companies(user: dict = Depends(get_current_user)) -> dict
     company in the Pulse Fitness Ltd tenant. Scans orgs that own sites or
     equipment, skips the operator's own tenant, and is fully idempotent."""
     _require_pulse_or_master(user)
-    operator = user.get("organization_id") or user.get("service_org_id")
+    operator = await _resolve_operator_org(user)
     site_orgs = await db.sites.distinct("organization_id")
     equip_orgs = await db.equipment.distinct("organization_id")
     candidate_ids = {o for o in (list(site_orgs) + list(equip_orgs)) if o and o != operator}
@@ -1373,7 +1396,7 @@ async def bulk_import_customers(
     now_iso = datetime.now(timezone.utc).isoformat()
     # CRM v2 mirror — imported people also become crm2_contacts under the
     # operator tenant, linked to the customer's crm2_companies record.
-    operator_org = user.get("organization_id") or user.get("service_org_id")
+    operator_org = await _resolve_operator_org(user)
     crm_company_by_org: dict = {}
     crm2_seen_emails = {
         (d.get("email") or "").lower()
@@ -1927,7 +1950,7 @@ async def bulk_import_sites(
     # Bridge this customer estate into the Pulse Fitness Ltd CRM.
     await _bridge_import_to_crm([organization_id], user)
     # Pull each site's manager into the CRM as a contact at that site.
-    operator = user.get("organization_id") or user.get("service_org_id")
+    operator = await _resolve_operator_org(user)
     if site_contacts and operator and operator != organization_id:
         company_id = await _ensure_crm_company_for_org(operator, organization_id, user)
         cust = await db.organizations.find_one({"id": organization_id}, {"_id": 0, "name": 1}) or {}

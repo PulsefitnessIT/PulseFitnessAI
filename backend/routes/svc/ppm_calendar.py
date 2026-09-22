@@ -143,6 +143,194 @@ async def list_services(user: dict = Depends(get_current_user)) -> dict:
     return {"services": PPM_SERVICES}
 
 
+# ── Service type catalogue (operator-managed) ────────────────────
+
+_DEFAULT_SERVICE_TYPES = [
+    {"name": "Preventative Maintenance Service", "description": "Standard scheduled PM visit.",
+     "default_frequency": "annual", "checklist_items": [], "requires_calibration": False},
+    {"name": "Treadmill Calibration", "description": "Speed / incline calibration for treadmills (e.g. Fire Station fitness suites).",
+     "default_frequency": "annual",
+     "checklist_items": ["Belt speed calibration (km/h)", "Incline calibration (%)", "Emergency stop test"],
+     "requires_calibration": True},
+    {"name": "Safety / Compliance Inspection", "description": "Statutory safety inspection.",
+     "default_frequency": "annual", "checklist_items": ["Visual safety check", "Electrical safety (PAT)"],
+     "requires_calibration": False},
+]
+
+
+async def _seed_service_types(operator: str) -> None:
+    if await db.ppm_service_types.count_documents({"organization_id": operator}):
+        return
+    now = _now()
+    docs = [{"id": str(uuid.uuid4()), "organization_id": operator, "active": True,
+             "created_at": now, "updated_at": now, **st} for st in _DEFAULT_SERVICE_TYPES]
+    if docs:
+        await db.ppm_service_types.insert_many(docs)
+
+
+@router.get("/service-types")
+async def list_service_types(user: dict = Depends(get_current_user)) -> dict:
+    operator = _operator(user)
+    await _seed_service_types(operator)
+    rows = await db.ppm_service_types.find(
+        {"organization_id": operator, "active": {"$ne": False}}, {"_id": 0},
+    ).sort("name", 1).to_list(200)
+    return {"service_types": rows, "count": len(rows)}
+
+
+@router.post("/service-types")
+async def create_service_type(data: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
+    operator = _operator(user)
+    name = (data.get("name") or "").strip()
+    if not name:
+        raise HTTPException(400, "name required")
+    now = _now()
+    doc = {
+        "id": str(uuid.uuid4()), "organization_id": operator, "name": name,
+        "description": (data.get("description") or "").strip(),
+        "default_frequency": (data.get("default_frequency") or "annual"),
+        "checklist_items": [str(c).strip() for c in (data.get("checklist_items") or []) if str(c).strip()],
+        "requires_calibration": bool(data.get("requires_calibration")),
+        "active": True, "created_at": now, "updated_at": now,
+    }
+    await db.ppm_service_types.insert_one(doc)
+    doc.pop("_id", None)
+    return {"success": True, "service_type": doc}
+
+
+@router.put("/service-types/{st_id}")
+async def update_service_type(st_id: str, data: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
+    operator = _operator(user)
+    upd: dict = {"updated_at": _now()}
+    for k in ("name", "description", "default_frequency"):
+        if k in data:
+            upd[k] = data[k]
+    if "checklist_items" in data:
+        upd["checklist_items"] = [str(c).strip() for c in (data.get("checklist_items") or []) if str(c).strip()]
+    if "requires_calibration" in data:
+        upd["requires_calibration"] = bool(data["requires_calibration"])
+    r = await db.ppm_service_types.update_one({"id": st_id, "organization_id": operator}, {"$set": upd})
+    if not r.matched_count:
+        raise HTTPException(404, "Service type not found")
+    return {"success": True}
+
+
+@router.delete("/service-types/{st_id}")
+async def delete_service_type(st_id: str, user: dict = Depends(get_current_user)) -> dict:
+    operator = _operator(user)
+    await db.ppm_service_types.update_one(
+        {"id": st_id, "organization_id": operator}, {"$set": {"active": False, "updated_at": _now()}})
+    return {"success": True}
+
+
+# ── Manual + bulk PM schedule creation ───────────────────────────
+
+async def _make_ppm_schedule(*, org, customer_id, customer_name, site_id, site_name,
+                             equipment_ids, equipment_name, service_type, frequency,
+                             next_pm, checklist_items, created_by, title=None) -> dict:
+    now = _now()
+    doc = {
+        "id": str(uuid.uuid4()), "organization_id": org, "source": "service_desk",
+        "auto_generated": False,
+        "title": title or f"{service_type} · {site_name or equipment_name or 'Site'}",
+        "description": "", "equipment_id": (equipment_ids[0] if equipment_ids else None),
+        "equipment_ids": equipment_ids or [], "equipment_name": equipment_name or "",
+        "equipment_type": "", "customer_id": customer_id, "customer_name": customer_name or "",
+        "site_id": site_id, "site_name": site_name or "", "service_type": service_type,
+        "frequency": frequency, "last_pm": None,
+        "next_pm": next_pm.isoformat() if hasattr(next_pm, "isoformat") else next_pm,
+        "install_date": "", "assigned_to": "", "checklist_items": checklist_items or [],
+        "active": True, "created_by": created_by, "created_at": now, "updated_at": now,
+    }
+    await db.ppm_schedules.insert_one(doc)
+    return doc
+
+
+async def _service_type_checklist(operator, name) -> list:
+    st = await db.ppm_service_types.find_one(
+        {"organization_id": operator, "name": name}, {"_id": 0, "checklist_items": 1})
+    return (st or {}).get("checklist_items") or []
+
+
+@router.post("/schedules")
+async def create_ppm_schedule(data: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
+    """Manually create a single PM schedule for a customer site / equipment."""
+    operator = _operator(user)
+    customer_org = (data.get("customer_org_id") or "").strip()
+    site_id = (data.get("site_id") or "").strip()
+    if not customer_org or not site_id:
+        raise HTTPException(400, "customer_org_id and site_id required")
+    service_type = (data.get("service_type") or "Preventative Maintenance Service").strip()
+    frequency = (data.get("frequency") or "annual").strip()
+    first = _parse_ymd(data.get("first_visit")) or _today()
+    equipment_ids = [e for e in (data.get("equipment_ids") or []) if e]
+    site = await db.sites.find_one({"id": site_id}, {"_id": 0, "name": 1})
+    cust = await db.organizations.find_one({"id": customer_org}, {"_id": 0, "name": 1})
+    eq_name = ""
+    if equipment_ids:
+        first_eq = await db.equipment.find_one({"id": equipment_ids[0]}, {"_id": 0, "name": 1})
+        eq_name = (first_eq or {}).get("name") or f"{len(equipment_ids)} machines"
+    checklist = await _service_type_checklist(operator, service_type)
+    doc = await _make_ppm_schedule(
+        org=customer_org, customer_id=customer_org, customer_name=(cust or {}).get("name"),
+        site_id=site_id, site_name=(site or {}).get("name"), equipment_ids=equipment_ids,
+        equipment_name=eq_name, service_type=service_type, frequency=frequency,
+        next_pm=first, checklist_items=checklist, created_by=user.get("id") or "operator")
+    return {"success": True, "schedule_id": doc["id"], "next_pm": doc["next_pm"]}
+
+
+@router.post("/schedules/bulk")
+async def bulk_ppm_schedules(data: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
+    """Bulk-schedule PM across many sites for one customer (e.g. 85 fire
+    stations). One recurring schedule per site by default, visit dates
+    staggered so they don't all land on the same day."""
+    operator = _operator(user)
+    customer_org = (data.get("customer_org_id") or "").strip()
+    site_ids = [s for s in (data.get("site_ids") or []) if s]
+    if not customer_org or not site_ids:
+        raise HTTPException(400, "customer_org_id and site_ids required")
+    service_type = (data.get("service_type") or "Preventative Maintenance Service").strip()
+    frequency = (data.get("frequency") or "annual").strip()
+    start = _parse_ymd(data.get("start_date")) or _today()
+    try:
+        stagger = max(0, int(data.get("stagger_days") or 0))
+    except (TypeError, ValueError):
+        stagger = 0
+    granularity = (data.get("granularity") or "site").strip()
+    cust = await db.organizations.find_one({"id": customer_org}, {"_id": 0, "name": 1})
+    cust_name = (cust or {}).get("name")
+    checklist = await _service_type_checklist(operator, service_type)
+    created = 0
+    for i, sid in enumerate(site_ids):
+        site = await db.sites.find_one({"id": sid}, {"_id": 0, "name": 1})
+        if not site:
+            continue
+        eqs = await db.equipment.find(
+            {"organization_id": customer_org, "site_id": sid}, {"_id": 0, "id": 1, "name": 1},
+        ).to_list(2000)
+        if granularity == "equipment" and eqs:
+            for e in eqs:
+                visit = start + relativedelta(days=created * stagger) if stagger else start
+                await _make_ppm_schedule(
+                    org=customer_org, customer_id=customer_org, customer_name=cust_name,
+                    site_id=sid, site_name=site.get("name"), equipment_ids=[e["id"]],
+                    equipment_name=e.get("name"), service_type=service_type, frequency=frequency,
+                    next_pm=visit, checklist_items=checklist, created_by=user.get("id") or "operator")
+                created += 1
+        else:
+            visit = start + relativedelta(days=i * stagger) if stagger else start
+            eq_ids = [e["id"] for e in eqs]
+            await _make_ppm_schedule(
+                org=customer_org, customer_id=customer_org, customer_name=cust_name,
+                site_id=sid, site_name=site.get("name"), equipment_ids=eq_ids,
+                equipment_name=(f"{len(eq_ids)} machines" if eq_ids else site.get("name")),
+                service_type=service_type, frequency=frequency, next_pm=visit,
+                checklist_items=checklist, created_by=user.get("id") or "operator")
+            created += 1
+    return {"success": True, "schedules_created": created, "sites": len(site_ids)}
+
+
+
 @router.get("/engineer-load")
 async def engineer_load(
     date_str: str = Query(..., alias="date"),

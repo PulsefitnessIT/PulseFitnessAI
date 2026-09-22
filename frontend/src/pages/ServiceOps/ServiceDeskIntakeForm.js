@@ -31,7 +31,7 @@ import './_serviceops.css';
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
 
-export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
+export default function ServiceDeskIntakeForm({ onClose, onCreated, initial }) {
   const { t } = useTranslation();
   const PRIORITY_OPTIONS = [
     { v: 'p1', label: t('service.intake_prio_p1', 'P1 — Critical (1h response, 4h resolve)') },
@@ -45,6 +45,7 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
   const [contactMode, setContactMode] = useState('existing'); // existing | manual
   const [contactId, setContactId] = useState('');
   const [equipmentId, setEquipmentId] = useState('');
+  const [prefillEquip] = useState(initial?.equipmentIds || []);
   const [serial, setSerial] = useState('');
 
   // Lookup data
@@ -87,9 +88,14 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
         if (cancelled) return;
         const list = r.data?.customers || [];
         setCustomers(list);
-        // Default to the operator's own org so existing behaviour is unchanged.
-        const op = list.find((c) => c.is_operator) || list[0];
-        if (op) setCustomerOrgId(op.organization_id);
+        // Prefill from an "initial" (e.g. Log case from equipment); else default
+        // to the operator's own org so existing behaviour is unchanged.
+        if (initial?.customerOrgId && list.some((c) => c.organization_id === initial.customerOrgId)) {
+          setCustomerOrgId(initial.customerOrgId);
+        } else {
+          const op = list.find((c) => c.is_operator) || list[0];
+          if (op) setCustomerOrgId(op.organization_id);
+        }
       } catch {
         // silent — operators can still type customer details manually
       }
@@ -185,6 +191,19 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
   const selectedSite = useMemo(() => sites.find((s) => s.id === siteId), [sites, siteId]);
   const selectedEquipment = useMemo(() => equipmentList.find((e) => e.id === equipmentId), [equipmentList, equipmentId]);
 
+  // Prefill site + equipment when opened from the Equipment tab ("Log case").
+  useEffect(() => {
+    if (initial?.siteId && sites.length && !siteId && sites.some((s) => s.id === initial.siteId)) {
+      setSiteId(initial.siteId);
+    }
+  }, [sites, siteId, initial]);
+  useEffect(() => {
+    if (prefillEquip.length && equipmentList.length && !equipmentId
+        && equipmentList.some((e) => e.id === prefillEquip[0])) {
+      setEquipmentId(prefillEquip[0]);
+    }
+  }, [equipmentList, equipmentId, prefillEquip]);
+
   // ── Media upload
   const onPickFiles = async (filesIn) => {
     const files = Array.from(filesIn || []);
@@ -271,7 +290,7 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated }) {
         site_postcode: selectedSite?.postcode || selectedSite?.address || '',
         asset_id: equipmentId || '',
         asset_name: selectedEquipment?.name || '',
-        equipment_ids: equipmentId ? [equipmentId] : [],
+        equipment_ids: Array.from(new Set([equipmentId, ...prefillEquip].filter(Boolean))),
         equipment_serials: serial ? [serial] : [],
         fault_code: faultCode,
         contact_id: contactMode === 'existing' ? contactId : '',
