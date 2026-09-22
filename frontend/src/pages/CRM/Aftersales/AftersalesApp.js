@@ -10,7 +10,7 @@
  *                        quote calculator (single pricing engine)
  *   • Supportability   — Service-Manager decision memory + evaluator
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useCRM } from '../CRMApp';
 import SubTabBar from '../../../components/shared/SubTabBar';
@@ -624,6 +624,47 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
   const [busy, setBusy] = useState(false);
   const [rrpEdit, setRrpEdit] = useState({});
   const [warrantyOpps, setWarrantyOpps] = useState([]);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [customData, setCustomData] = useState(null);   // {machine_services:[], travel:[]}
+  const [customResult, setCustomResult] = useState(null);
+  const fileRef = useRef(null);
+  const isCustom = contractType === 'custom';
+  const onUploadPricing = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setUploadBusy(true); setCustomData(null); setCustomResult(null);
+    try {
+      const fd = new FormData(); fd.append('file', f);
+      const mainTok = localStorage.getItem('token');
+      const up = await axios.post(`${API}/files/upload?category=contracts`, fd,
+        { headers: { Authorization: `Bearer ${mainTok}` } });
+      const fid = up.data?.id;
+      const ex = await axios.post(`${API}/crm/v2/aftersales/extract-pricing-document?file_id=${fid}`, {},
+        { headers: headers() });
+      setCustomData({ machine_services: ex.data.machine_services || [], travel: ex.data.travel || [] });
+    } catch (err) {
+      alert('Could not read that document: ' + (err?.response?.data?.detail || err.message));
+    } finally {
+      setUploadBusy(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+  const buildCustom = async (save) => {
+    if (!companyId || !customData) return;
+    setBusy(true);
+    const site_ids = Object.keys(selSites).filter(k => selSites[k] && k !== '__unassigned__');
+    try {
+      const r = await axios.post(`${API}/crm/v2/aftersales/build-custom-quote`, {
+        company_id: companyId, site_ids,
+        machine_rates: (customData.machine_services || []).map(m => ({ type: m.type, service_price: Number(m.service_price) })),
+        travel_rates: (customData.travel || []).map(t => ({ location: t.location, price: Number(t.price) })),
+        term_years: Number(term), quote_discount_pct: Number(discount), save: !!save,
+      }, { headers: headers() });
+      setCustomResult(r.data);
+    } finally { setBusy(false); }
+  };
+  const setMs = (i, v) => setCustomData(d => ({ ...d, machine_services: d.machine_services.map((m, idx) => idx === i ? { ...m, service_price: v } : m) }));
+  const setTr = (i, v) => setCustomData(d => ({ ...d, travel: d.travel.map((t, idx) => idx === i ? { ...t, price: v } : t) }));
   const inpStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text };
 
   useEffect(() => {
@@ -719,7 +760,7 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
           <div className="grid grid-cols-4 gap-2">
             <label className="text-xs" style={{ color: c.textDim }}>Package
               <select data-testid="afs-aq-type" value={contractType} onChange={e => setContractType(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm rounded-md" style={inpStyle}>
-                <option value="silver">Silver</option><option value="gold">Gold</option><option value="platinum">Platinum</option></select></label>
+                <option value="silver">Silver</option><option value="gold">Gold</option><option value="platinum">Platinum</option><option value="custom">Custom (tender)</option></select></label>
             <label className="text-xs" style={{ color: c.textDim }}>Level
               <select value={level} onChange={e => setLevel(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm rounded-md" style={inpStyle}>
                 <option value="standard">Standard</option><option value="preferred">Preferred</option><option value="minimum">Minimum</option></select></label>
@@ -747,12 +788,104 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
           <p className="mt-3 text-sm" style={{ color: 'var(--color-accent-amber)' }} data-testid="afs-aq-nolink">This customer isn't linked to an operations organisation, so there's no asset estate to quote yet.</p>
         )}
 
+        {isCustom && (
+          <div className="mt-4 rounded-lg border p-3" style={{ borderColor: c.border }} data-testid="afs-aq-custom-panel">
+            <div className="flex items-center gap-2 mb-2">
+              <Zap size={15} style={{ color: 'var(--color-brand-cyan)' }} />
+              <p className="text-sm font-bold" style={{ color: c.text }}>Custom tender pricing</p>
+              <span className="text-[11px]" style={{ color: c.textDim }}>upload the signed agreement / Schedule of Charges — AI reads the prices</span>
+            </div>
+            <input ref={fileRef} data-testid="afs-aq-pricing-file" type="file" accept=".pdf,.xlsx,.xls,.docx,.csv,.txt" onChange={onUploadPricing} disabled={uploadBusy}
+              className="block text-xs" style={{ color: c.textDim }} />
+            {uploadBusy && <p className="text-xs mt-2" style={{ color: c.textDim }} data-testid="afs-aq-pricing-uploading">Reading document with AI…</p>}
+            {customData && (
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="afs-aq-pricing-review">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Machine service prices ({customData.machine_services.length})</p>
+                  <div className="space-y-1 max-h-52 overflow-auto pr-1">
+                    {customData.machine_services.map((m, i) => (
+                      <div key={i} className="flex items-center gap-2" data-testid={`afs-aq-ms-${i}`}>
+                        <span className="flex-1 text-xs truncate" style={{ color: c.text }}>{m.type}</span>
+                        <span className="text-xs" style={{ color: c.textDim }}>£</span>
+                        <input type="number" step="0.01" value={m.service_price} onChange={e => setMs(i, e.target.value)}
+                          data-testid={`afs-aq-ms-price-${i}`} className="w-20 px-2 py-1 text-xs rounded" style={inpStyle} />
+                      </div>
+                    ))}
+                    {customData.machine_services.length === 0 && <p className="text-xs" style={{ color: 'var(--color-accent-amber)' }}>No machine prices found — check the document.</p>}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Travel per site ({customData.travel.length})</p>
+                  <div className="space-y-1 max-h-52 overflow-auto pr-1">
+                    {customData.travel.map((t, i) => (
+                      <div key={i} className="flex items-center gap-2" data-testid={`afs-aq-tr-${i}`}>
+                        <span className="flex-1 text-xs truncate" style={{ color: c.text }}>{t.location}</span>
+                        <span className="text-xs" style={{ color: c.textDim }}>£</span>
+                        <input type="number" step="0.01" value={t.price} onChange={e => setTr(i, e.target.value)}
+                          data-testid={`afs-aq-tr-price-${i}`} className="w-20 px-2 py-1 text-xs rounded" style={inpStyle} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            <button data-testid="afs-aq-build-custom" onClick={() => buildCustom(false)} disabled={!companyId || !customData || busy}
+              className="mt-3 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold disabled:opacity-40"
+              style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
+              <Rocket size={16} /> {busy ? 'Applying…' : 'Apply prices & build quote'}
+            </button>
+          </div>
+        )}
+        {!isCustom && (
         <button data-testid="afs-aq-build" onClick={() => build(false)} disabled={!companyId || busy}
           className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold disabled:opacity-40"
           style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
           <Rocket size={16} /> {busy ? 'Building…' : 'Build Quote From Estate'}
         </button>
+        )}
       </Card>
+
+      {customResult && (
+        <div data-testid="afs-aq-custom-result">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+            <Card c={c} isDark={isDark} testId="afs-aq-custom-priced"><p className="text-2xl font-extrabold" style={{ color: c.text }}>{customResult.assets_priced}/{customResult.assets_total}</p><p className="text-[10px] uppercase tracking-wider" style={{ color: c.textDim }}>Machines priced</p></Card>
+            <Card c={c} isDark={isDark} testId="afs-aq-custom-review"><p className="text-2xl font-extrabold" style={{ color: 'var(--color-accent-amber)' }}>{customResult.needs_review_count}</p><p className="text-[10px] uppercase tracking-wider" style={{ color: c.textDim }}>Needs review</p></Card>
+            <Card c={c} isDark={isDark} testId="afs-aq-custom-annual"><p className="text-2xl font-extrabold" style={{ color: 'var(--color-success-alt)' }}>{gbp0(customResult.summary.final_annual)}</p><p className="text-[10px] uppercase tracking-wider" style={{ color: c.textDim }}>Annual (ex VAT)</p></Card>
+            <Card c={c} isDark={isDark} testId="afs-aq-custom-term"><p className="text-2xl font-extrabold" style={{ color: c.text }}>{gbp0(customResult.summary.term_total)}</p><p className="text-[10px] uppercase tracking-wider" style={{ color: c.textDim }}>Term total</p></Card>
+          </div>
+          <Card c={c} isDark={isDark} testId="afs-aq-custom-lines">
+            <p className="text-sm font-bold mb-2" style={{ color: c.text }}>Machines</p>
+            {customResult.grouped_lines.map((g, i) => (
+              <Row key={i} label={`${g.type} × ${g.qty}`} value={`${gbp(g.unit_price)} → ${gbp(g.line_total)}`} c={c} />
+            ))}
+            {customResult.travel_lines.length > 0 && <p className="text-sm font-bold mt-3 mb-2" style={{ color: c.text }}>Travel</p>}
+            {customResult.travel_lines.map((t, i) => (
+              <Row key={i} label={`${t.site_name} (${t.location})`} value={gbp(t.price)} c={c} />
+            ))}
+            <div className="mt-2 pt-2 border-t" style={{ borderColor: c.border }}>
+              <Row label="Service (annual)" value={gbp(customResult.summary.service_annual)} c={c} />
+              <Row label="Travel" value={gbp(customResult.summary.travel_total)} c={c} />
+              {customResult.summary.quote_discount_pct > 0 && <Row label={`Less ${customResult.summary.quote_discount_pct}% discount`} value={''} c={c} />}
+              <Row label="Final annual (ex VAT)" value={gbp(customResult.summary.final_annual)} c={c} />
+            </div>
+            <button data-testid="afs-aq-custom-save" onClick={() => buildCustom(true)} disabled={busy}
+              className="mt-3 w-full py-2 rounded-md text-sm font-bold" style={{ background: 'var(--color-success-alt)', color: '#fff' }}>
+              {busy ? 'Saving…' : 'Save quote'}
+            </button>
+            {customResult.saved_quote_id && <p className="text-[11px] mt-1 text-center" style={{ color: 'var(--color-success-alt)' }} data-testid="afs-aq-custom-saved">Saved {customResult.quote_number}</p>}
+          </Card>
+          {customResult.needs_review.length > 0 && (
+            <Card c={c} isDark={isDark} className="mt-3" testId="afs-aq-custom-review-list">
+              <p className="text-sm font-bold mb-2" style={{ color: 'var(--color-accent-amber)' }}>Needs review ({customResult.needs_review.length})</p>
+              {customResult.needs_review.map((r, i) => (
+                <p key={i} className="text-xs" style={{ color: c.textDim }} data-testid={`afs-aq-custom-review-${i}`}>
+                  {r.kind === 'TRAVEL' ? `Travel: ${r.site_name}` : `Machine: ${r.model}`} — {r.detail}
+                </p>
+              ))}
+            </Card>
+          )}
+        </div>
+      )}
 
       {result && (
         <div data-testid="afs-aq-result">

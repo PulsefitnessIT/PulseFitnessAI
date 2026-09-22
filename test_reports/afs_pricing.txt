@@ -1,0 +1,12 @@
+SCHEDULE 2 - CHARGES (exc VAT)
+
+Core Costs (Service, per machine)
+Treadmill Service   12.00
+Bike Service        10.00
+Rower Service       11.50
+Cross Trainer Service 10.00
+Power Rack Service   3.50
+
+Travel Costs (per site visit)
+Demo Head Office    45
+Demo Branch B       55

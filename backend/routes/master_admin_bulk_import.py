@@ -785,16 +785,35 @@ async def _bridge_import_to_crm(org_ids, user: dict) -> int:
     return made
 
 
+def _is_pulse_visible_account_type(account_type) -> bool:
+    """Pulse-visible customer-estate account types: the base visible set
+    (pulse_pro/lite/mod/full) PLUS every MOD variant (mod_org/mod_site/
+    mod_branch). Unset (None/"") is treated as visible for legacy estates.
+    Fixes MOD estates being silently skipped by exact-match "mod" gates."""
+    at = (account_type or "").lower()
+    if not at:
+        return True
+    return at in PULSE_VISIBLE_ACCOUNT_TYPES or at.startswith("mod")
+
+
 @router.post("/master-admin/bulk-import/backfill-crm")
 async def backfill_crm_companies(user: dict = Depends(get_current_user)) -> dict:
     """Back-fill: ensure every already-imported customer estate has a CRM
     company in the Pulse Fitness Ltd tenant. Scans orgs that own sites or
-    equipment, skips the operator's own tenant, and is fully idempotent."""
+    equipment AND every Pulse-visible estate (incl. MOD HQs without their own
+    kit), skips the operator's own tenant, and is fully idempotent."""
     _require_pulse_or_master(user)
     operator = await _resolve_operator_org(user)
     site_orgs = await db.sites.distinct("organization_id")
     equip_orgs = await db.equipment.distinct("organization_id")
     candidate_ids = {o for o in (list(site_orgs) + list(equip_orgs)) if o and o != operator}
+    # Also include any Pulse-visible customer estate (incl. MOD HQs/sites) even
+    # if it owns no sites/equipment itself, so every onboarded company surfaces.
+    async for org in db.organizations.find(
+        {"is_operator_company": {"$ne": True}}, {"_id": 0, "id": 1, "account_type": 1}):
+        oid = org.get("id")
+        if oid and oid != operator and _is_pulse_visible_account_type(org.get("account_type")):
+            candidate_ids.add(oid)
     made = 0
     checked = 0
     for oid in candidate_ids:
@@ -803,7 +822,7 @@ async def backfill_crm_companies(user: dict = Depends(get_current_user)) -> dict
         )
         if not org:
             continue
-        if org.get("account_type") not in PULSE_VISIBLE_ACCOUNT_TYPES and org.get("account_type") is not None:
+        if not _is_pulse_visible_account_type(org.get("account_type")):
             continue
         checked += 1
         try:
@@ -1742,7 +1761,7 @@ async def bulk_import_sites(
     )
     if not org:
         raise HTTPException(status_code=404, detail="Target organisation not found")
-    if org.get("account_type") not in PULSE_VISIBLE_ACCOUNT_TYPES and org.get("account_type") is not None:
+    if not _is_pulse_visible_account_type(org.get("account_type")):
         raise HTTPException(status_code=403, detail="Org is not Pulse-visible")
 
     # Snapshot the org fields this import may stamp, so an Undo restores them.

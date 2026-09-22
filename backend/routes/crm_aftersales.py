@@ -13,7 +13,7 @@ contracts all remain in their existing collections. Pricing data comes from the
 imported Pulse workbook (crm2_afs_* collections). AI never invents prices —
 figures come only from these authorised rules or an authorised manual override.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from typing import Optional, List
@@ -1069,6 +1069,320 @@ async def build_quote_from_estate(body: BuildFromEstateIn, user=Depends(get_crm_
         auto["quote_number"] = doc["quote_number"]
 
     return auto
+
+
+# ── Custom tender pricing (AI upload) ──────────────────────────────
+# When a customer's tender fixes bespoke prices (e.g. a signed agreement
+# Schedule of Charges), the operator uploads that paperwork; Claude extracts
+# the per-machine-type service prices + per-site travel costs; the operator
+# reviews/edits, then builds a quote that applies those bespoke rates to the
+# customer's actual machine estate. AI is suggestion-only — never auto-saved.
+
+_TYPE_SYNONYMS = {
+    "treadmill": ["treadmill"],
+    "bike": ["bike", "cycle", "cycling", "spin", "ergometer bike"],
+    "rower": ["rower", "rowing"],
+    "cross trainer": ["cross trainer", "crosstrainer", "elliptical", "x-trainer", "xtrainer"],
+    "power rack": ["power rack", "smith", "rack"],
+    "free weights": ["free weight", "dumbbell", "barbell", "bench", "plate"],
+    "ski erg": ["ski erg", "skierg"],
+    "stepper": ["stepper", "step mill", "stairmaster", "climber"],
+}
+
+
+def _type_keywords(type_name: str) -> list:
+    t = (type_name or "").strip().lower()
+    kws = {t} if t else set()
+    for w in t.split():
+        if len(w) > 2:
+            kws.add(w)
+    for canon, syns in _TYPE_SYNONYMS.items():
+        if t == canon or t in syns or any(s in t for s in syns):
+            kws.update([canon, *syns])
+    return [k for k in kws if len(k) > 2]
+
+
+def _match_machine_type(haystack: str, machine_rates: list):
+    """Return the machine_rate whose type keywords appear in the asset text."""
+    hay = (haystack or "").lower()
+    best = None
+    best_len = 0
+    for mr in machine_rates:
+        for kw in _type_keywords(mr.get("type", "")):
+            if kw in hay and len(kw) > best_len:
+                best, best_len = mr, len(kw)
+    return best
+
+
+def _extract_document_text(filename: str, data: bytes) -> str:
+    name = (filename or "").lower()
+    try:
+        if name.endswith(".pdf"):
+            from pdfminer.high_level import extract_text
+            import io as _io
+            return extract_text(_io.BytesIO(data)) or ""
+        if name.endswith(".xlsx") or name.endswith(".xls"):
+            import io as _io
+            from openpyxl import load_workbook
+            wb = load_workbook(_io.BytesIO(data), read_only=True, data_only=True)
+            out = []
+            for ws in wb.worksheets:
+                for row in ws.iter_rows(values_only=True):
+                    cells = [str(c) for c in row if c is not None]
+                    if cells:
+                        out.append(" | ".join(cells))
+            return "\n".join(out)
+        if name.endswith(".docx"):
+            import io as _io
+            from docx import Document
+            doc = Document(_io.BytesIO(data))
+            parts = [p.text for p in doc.paragraphs if p.text]
+            for tbl in doc.tables:
+                for r in tbl.rows:
+                    parts.append(" | ".join(cell.text for cell in r.cells))
+            return "\n".join(parts)
+        return data.decode("utf-8", errors="ignore")
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(422, f"Could not read that document ({exc}). Try a text-based PDF, Excel or Word file.")
+
+
+def _render_pdf_images(data: bytes, max_pages: int = 30) -> list:
+    """Render PDF pages to downscaled JPEG base64 strings for vision OCR."""
+    import base64
+    import io as _io
+    import fitz
+    from PIL import Image
+    out = []
+    doc = fitz.open(stream=data, filetype="pdf")
+    for i, page in enumerate(doc):
+        if i >= max_pages:
+            break
+        pix = page.get_pixmap(dpi=120)
+        mode = "RGBA" if pix.n >= 4 else "RGB"
+        img = Image.frombytes(mode, [pix.width, pix.height], pix.samples)
+        if mode == "RGBA":
+            img = img.convert("RGB")
+        if img.width > 1000:
+            ratio = 1000 / img.width
+            img = img.resize((1000, int(img.height * ratio)))
+        buf = _io.BytesIO()
+        img.save(buf, format="JPEG", quality=60)
+        out.append(base64.b64encode(buf.getvalue()).decode("ascii"))
+    return out
+
+
+@router.post("/extract-pricing-document")
+async def extract_pricing_document(file: UploadFile = File(None), file_id: str = Query(None),
+                                   user=Depends(get_crm_user)):
+    """Upload a tender/agreement and let Claude pull out the bespoke per-machine
+    service prices and per-site travel costs. Suggestion only — nothing saved.
+
+    Large files are uploaded via /files/upload first (bypasses the proxy body
+    limit) and passed here by `file_id`; small files may be posted directly."""
+    api_key = EMERGENT_LLM_KEY or os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(503, "AI is not configured")
+    if file_id:
+        fdoc = await db.files.find_one(
+            {"id": file_id, "organization_id": user.get("organization_id")}, {"_id": 0})
+        if not fdoc:
+            raise HTTPException(404, "Uploaded file not found")
+        from utils.database import get_object
+        data, _ct = get_object(fdoc["storage_path"])
+        filename = fdoc.get("original_filename") or "document.pdf"
+    elif file is not None:
+        data = await file.read()
+        filename = file.filename
+    else:
+        raise HTTPException(400, "Provide a file or file_id")
+    if not data:
+        raise HTTPException(400, "Empty file")
+    text = _extract_document_text(filename, data)
+    use_vision = False
+    images_b64 = []
+    if len(text.strip()) < 20:
+        if (filename or "").lower().endswith(".pdf"):
+            images_b64 = _render_pdf_images(data, max_pages=30)
+        if not images_b64:
+            raise HTTPException(422, "No readable text found in that document (it may be a scanned image).")
+        use_vision = True
+    text = text[:60000]
+    system = (
+        "You extract commercial pricing from maintenance/service tender agreements. "
+        "Return STRICT JSON only. Never invent prices — only include what is written. "
+        "Prices are numbers (no currency symbol)."
+    )
+    instruction = (
+        "Extract the equipment SERVICE prices per machine TYPE and the TRAVEL cost per "
+        "site/location. Ignore repair-per-hour rates. "
+        'Return JSON exactly like: {"currency":"GBP","machine_services":[{"type":"Treadmill","service_price":12.0}],'
+        '"travel":[{"location":"Barnstaple","price":60.0}]}. '
+        "Use the machine type words as written (Treadmill, Bike, Rower, Cross Trainer, Power Rack, Free Weights, Ski Erg, etc). "
+        "If a section is absent, use an empty array."
+    )
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        chat = LlmChat(api_key=api_key, session_id=f"afs-pricing-{uuid.uuid4()}",
+                       system_message=system).with_model("anthropic", "claude-sonnet-4-6")
+        if use_vision:
+            from emergentintegrations.llm.chat import ImageContent
+            msg = UserMessage(
+                text=("These images are the scanned pages of a maintenance agreement. "
+                      "Read the Schedule of Charges / pricing pages. " + instruction),
+                file_contents=[ImageContent(image_base64=b) for b in images_b64],
+            )
+        else:
+            msg = UserMessage(text=instruction + "\n\nDOCUMENT:\n" + text)
+        resp = await chat.send_message(msg)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(503, "AI is temporarily unavailable — please try again") from exc
+    raw = (resp or "").strip()
+    if "```" in raw:
+        raw = raw.split("```")[1].replace("json", "", 1).strip()
+    s, e = raw.find("{"), raw.rfind("}")
+    parsed = {}
+    if s != -1 and e != -1:
+        import json as _json
+        try:
+            parsed = _json.loads(raw[s:e + 1])
+        except Exception:  # noqa: BLE001
+            parsed = {}
+    machine_services = []
+    for m in (parsed.get("machine_services") or []):
+        try:
+            price = float(m.get("service_price"))
+        except (TypeError, ValueError):
+            continue
+        if m.get("type"):
+            machine_services.append({"type": str(m["type"]).strip(), "service_price": round(price, 2)})
+    travel = []
+    for tr in (parsed.get("travel") or []):
+        try:
+            price = float(tr.get("price"))
+        except (TypeError, ValueError):
+            continue
+        if tr.get("location"):
+            travel.append({"location": str(tr["location"]).strip(), "price": round(price, 2)})
+    return {
+        "currency": parsed.get("currency") or "GBP",
+        "machine_services": machine_services,
+        "travel": travel,
+        "source_filename": filename,
+        "extracted_chars": len(text),
+    }
+
+
+class CustomQuoteIn(BaseModel):
+    company_id: str
+    site_ids: Optional[List[str]] = None
+    machine_rates: List[dict] = []      # [{type, service_price}]
+    travel_rates: List[dict] = []       # [{location, price}]
+    term_years: int = 1
+    quote_discount_pct: float = 0.0
+    save: bool = False
+
+
+@router.post("/build-custom-quote")
+async def build_custom_quote(body: CustomQuoteIn, user=Depends(get_crm_user)):
+    """Apply a bespoke (tender) rate card to the customer's machine estate:
+    each machine gets its type's service price; each selected site gets its
+    matched travel cost. Machines/sites we can't confidently match are returned
+    in `needs_review` for manual assignment."""
+    of = _of(user)
+    company = await db.crm2_companies.find_one({"id": body.company_id, **of}, {"_id": 0})
+    if not company:
+        raise HTTPException(404, "Company not found")
+    linked = await _resolve_linked_org_for_company(company, user)
+    if not linked:
+        raise HTTPException(400, "This company is not linked to an operations organisation — no estate to quote.")
+
+    machine_rates = [m for m in body.machine_rates if m.get("type")]
+    eq_query = {"organization_id": linked}
+    if body.site_ids:
+        eq_query["site_id"] = {"$in": body.site_ids}
+    equipment = await db.equipment.find(
+        eq_query, {"_id": 0, "id": 1, "name": 1, "model": 1, "model_code": 1, "equipment_type": 1,
+                   "console_type": 1, "manufacturer": 1, "serial_number": 1, "site_id": 1}).to_list(5000)
+
+    groups = {}
+    needs_review = []
+    for e in equipment:
+        hay = " ".join(str(e.get(k) or "") for k in ("equipment_type", "model", "name", "model_code", "console_type", "manufacturer"))
+        mr = _match_machine_type(hay, machine_rates)
+        if not mr:
+            needs_review.append({"kind": "MACHINE", "asset_id": e.get("id"),
+                                 "model": e.get("model") or e.get("name") or "Unknown",
+                                 "detail": "No matching machine type in the uploaded pricing."})
+            continue
+        typ = mr["type"]
+        price = round(float(mr.get("service_price") or 0), 2)
+        g = groups.setdefault(typ, {"type": typ, "unit_price": price, "qty": 0, "serials": []})
+        g["qty"] += 1
+        if e.get("serial_number"):
+            g["serials"].append(e["serial_number"])
+    grouped = [dict(g, line_total=round(g["unit_price"] * g["qty"], 2)) for g in groups.values()]
+
+    # Travel per selected site (match site name → travel location).
+    sites = await db.sites.find(
+        {"organization_id": linked, **({"id": {"$in": body.site_ids}} if body.site_ids else {})},
+        {"_id": 0, "id": 1, "name": 1}).to_list(1000)
+    travel_rates = [t for t in body.travel_rates if t.get("location")]
+    travel_lines = []
+    for s in sites:
+        sname = (s.get("name") or "").lower()
+        matched = None
+        for tr in travel_rates:
+            loc = (tr.get("location") or "").lower()
+            if loc and (loc in sname or sname in loc):
+                matched = tr
+                break
+        if matched:
+            travel_lines.append({"site_id": s["id"], "site_name": s.get("name"),
+                                 "location": matched["location"], "price": round(float(matched.get("price") or 0), 2)})
+        else:
+            needs_review.append({"kind": "TRAVEL", "site_id": s["id"], "site_name": s.get("name"),
+                                 "detail": "No matching travel location in the uploaded pricing."})
+
+    service_annual = round(sum(g["line_total"] for g in grouped), 2)
+    travel_total = round(sum(t["price"] for t in travel_lines), 2)
+    disc_mult = (1 - max(0.0, float(body.quote_discount_pct)) / 100.0)
+    final_annual = round((service_annual + travel_total) * disc_mult, 2)
+    term_total = round(final_annual * max(1, int(body.term_years)), 2)
+    summary = {
+        "service_annual": service_annual, "travel_total": travel_total,
+        "quote_discount_pct": body.quote_discount_pct, "final_annual": final_annual,
+        "term_years": body.term_years, "term_total": term_total,
+    }
+    out = {
+        "pricing_mode": "custom_tender",
+        "grouped_lines": grouped, "travel_lines": travel_lines,
+        "needs_review": needs_review, "needs_review_count": len(needs_review),
+        "assets_total": len(equipment), "assets_priced": sum(g["qty"] for g in grouped),
+        "summary": summary,
+    }
+    if body.save:
+        qid = _id()
+        doc = {
+            "id": qid, "organization_id": _org(user),
+            "quote_number": f"AFS-{datetime.now(timezone.utc).strftime('%Y')}-{qid[:5].upper()}",
+            "company_id": body.company_id, "company_name": company.get("name"),
+            "linked_organization_id": linked, "site_ids": body.site_ids or [],
+            "contract_type": "custom", "pricing_level": "custom_tender",
+            "term_years": body.term_years, "quote_discount_pct": body.quote_discount_pct,
+            "status": "draft", "source": "custom_tender_upload",
+            "grouped_lines": grouped, "travel_lines": travel_lines,
+            "needs_review": needs_review, "summary": summary,
+            "machine_rates": machine_rates, "travel_rates": travel_rates,
+            "created_by": user.get("email") or user.get("id"),
+            "created_at": _now(), "updated_at": _now(),
+        }
+        await db.crm2_afs_quotes.insert_one(doc)
+        await record_audit(entity_type="afs_quote", entity_id=qid, action="create",
+                           user=user, extra={"company": company.get("name"), "mode": "custom_tender"})
+        out["saved_quote_id"] = qid
+        out["quote_number"] = doc["quote_number"]
+    return out
+
 
 
 @router.get("/quotes")
