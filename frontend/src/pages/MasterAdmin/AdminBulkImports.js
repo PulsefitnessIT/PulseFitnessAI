@@ -9,7 +9,7 @@ import axios from 'axios';
 import {
  Download, Upload, Wrench, Users, FileSpreadsheet, ChevronRight,
  CheckCircle2, AlertCircle, Building2, Loader2, MapPin, ScrollText,
- Eye, RotateCcw, History, Lightbulb,
+ Eye, RotateCcw, History, Lightbulb, RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ImportWizard from './ImportWizard';
@@ -75,17 +75,28 @@ const AdminBulkImports = ({ API }) => {
  useEffect(() => { loadBatches(); }, [loadBatches]);
 
  // Back-fill: ensure already-imported customers exist in the Pulse Fitness
- // Ltd CRM (idempotent — safe to run on every visit).
- useEffect(() => {
- (async () => {
+ // Ltd CRM (idempotent — safe to run any time).
+ const [syncing, setSyncing] = useState(false);
+ const syncCrm = async (manual = false) => {
+ if (manual) setSyncing(true);
  try {
  const { data } = await axios.post(`${API}/master-admin/bulk-import/backfill-crm`, {}, { headers });
- if (data?.customers_linked > 0) {
- show({ tone: 'success', title: `Synced ${data.customers_linked} customer(s) into CRM`,
+ const n = data?.customers_linked || 0;
+ if (manual) {
+ show({ tone: 'success', title: n > 0 ? `Synced ${n} customer(s) into CRM` : 'CRM is up to date',
+ detail: 'Imported estates appear in the Pulse Fitness Ltd CRM.' });
+ } else if (n > 0) {
+ show({ tone: 'success', title: `Synced ${n} customer(s) into CRM`,
  detail: 'Imported estates now appear in the Pulse Fitness Ltd CRM.' });
  }
- } catch { /* non-fatal */ }
- })();
+ } catch {
+ if (manual) show({ tone: 'error', title: 'Sync failed', detail: 'Could not sync imported estates into the CRM. Please try again.' });
+ } finally {
+ if (manual) setSyncing(false);
+ }
+ };
+ useEffect(() => {
+ syncCrm(false);
  // eslint-disable-next-line react-hooks/exhaustive-deps
  }, []);
 
@@ -375,6 +386,12 @@ const AdminBulkImports = ({ API }) => {
         <div className="flex items-center gap-2 mb-1">
           <FileSpreadsheet size={18} className="text-[var(--color-brand-blue)]" />
           <h2 className="text-base font-semibold">Import Centre</h2>
+          <Button size="sm" variant="outline" onClick={() => syncCrm(true)} disabled={syncing}
+            className="ml-auto" data-testid="bulk-sync-crm-btn"
+            title="Push all imported estates into the Pulse Fitness Ltd CRM">
+            {syncing ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <RefreshCw size={14} className="mr-1.5" />}
+            Sync
+          </Button>
         </div>
         <p className="text-xs text-zinc-500 mb-3">
           Guided import with column auto-mapping, validation, duplicate detection and a preview before anything is written.
