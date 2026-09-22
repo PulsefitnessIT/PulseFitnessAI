@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend-only verification of Aftersales Custom/Tender Quote Versioning History modal for AFS-2026-C69AA. All 5 scenarios passed: History (v2) button gating, modal render (Current v2 £950/yr + v1 £650/yr with editor/timestamp), View snapshot showing historical £650 & Treadmill line, Revert refreshing list (Current v3 £650/yr with both v1+v2 archived proving reversibility), modal close + row label update to 'History (v3)'. Sibling quote AFS-2026-7D81E (v1) correctly does NOT show a History button.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CRM Aftersales Agreements > afs-ag-quote <select>", "issues": ["React hydration warning: <span> cannot be a child of <option> (Visual-Edit dynamic wrapper injected inside <option> at AftersalesApp.js:1737). Cosmetic console warning; does not affect functionality but should be cleaned up."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Consider suppressing/removing the x-dynamic <span> wrapper inside dynamic <option> children rendered from quotes.map to eliminate the hydration warning in the console."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (Iso Demo Fitness tenant, no MFA)",
+  "seed_data_creation": "None; used pre-seeded AFS-2026-C69AA (v2, £950/yr with archived v1 £650/yr) on AlphaCo (Site A). Test performed a real revert, so post-test state is: current v3 (£650/yr) with archived v1 (£650) and v2 (£950). If reproducibility is required, the seed will need to be re-created before rerun.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Aftersales tab is only visible when CRM mode is set to 'Corporate' (business mode). After login at /login, navigate to /crm, toggle 'Corporate' pill, then click 'Aftersales Contracts' top tab, then 'Agreements' sub-tab. History button appears in the 'Customer quotes' card only when version > 1 and source is custom_tender_upload. All required data-testids present and working: afs-quote-history-<id>, afs-history-modal, afs-history-current, afs-history-v-<n>, afs-history-view-<n>, afs-history-revert-<n>, afs-history-snapshot, afs-history-close. NOTE: after this test run the seed quote is now at v3 with two archived versions; if re-testing the exact 'History (v2)' initial state, main agent should re-seed.",
+  "rca of the issue": "No issue found."
+}

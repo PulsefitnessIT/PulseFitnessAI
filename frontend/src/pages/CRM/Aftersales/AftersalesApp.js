@@ -1734,7 +1734,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
           <label className="text-xs flex-1 min-w-[220px]" style={{ color: c.textDim }}>Quote
             <select data-testid="afs-ag-quote" value={newQuoteId} onChange={e => setNewQuoteId(e.target.value)} className="w-full mt-1 px-2 py-2 text-sm rounded-md" style={inpStyle}>
               <option value="">Select a saved quote…</option>
-              {quotes.map(q => <option key={q.id} value={q.id}>{q.quote_number} · {q.company_name} · {gbp0(q.summary?.final_annual)} ({q.status})</option>)}
+              {quotes.map(q => <option key={q.id} value={q.id}>{`${q.quote_number} · ${q.company_name} · ${gbp0(q.summary?.final_annual)} (${q.status})`}</option>)}
             </select></label>
           <label className="text-xs" style={{ color: c.textDim }}>Start date
             <input data-testid="afs-ag-start" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="block mt-1 px-2 py-2 text-sm rounded-md" style={inpStyle} /></label>
@@ -2728,7 +2728,7 @@ function AIAssistantTab({ API, headers, c, isDark }) {
           style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
           {contracts.length === 0 && <option value="">No active contracts</option>}
           {contracts.map(ct => (
-            <option key={ct.id} value={ct.id}>{ct.company_name} · {ct.contract_number} · {gbp(ct.annual_value)}/yr</option>
+            <option key={ct.id} value={ct.id}>{`${ct.company_name} · ${ct.contract_number} · ${gbp(ct.annual_value)}/yr`}</option>
           ))}
         </select>
         {facts && (

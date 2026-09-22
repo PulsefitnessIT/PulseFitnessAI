@@ -410,3 +410,11 @@ Files: backend/routes/crm_aftersales.py, backend/utils/afs_quote_pdf.py, fronten
 - Frontend: added `vehicle_fine_overdue` rose tone to StaffNotificationBell TONE map.
 - Verified via curl (iso-demo-org, vehicle AB12 CDE): counts only 14+ day unpaid fines (1 of 3 seeded: skipped a 3-day-old unpaid and a 30-day-old paid), and the nudge disappears once the fine is marked paid.
 Files: backend/routes/staff_portal.py, frontend/src/components/staffing/StaffNotificationBell.js.
+
+## 2026-06 — Feature: Aftersales quote versioning (view / revert) + hydration warning fix
+- Editing a saved custom/tender quote now archives the prior state to `crm2_afs_quote_versions` before overwriting. Main quote doc carries a `version` counter (starts 1).
+- New endpoints (crm_aftersales.py): GET /quotes/{id}/versions (history metadata, newest first), GET /quotes/{id}/versions/{version} (full snapshot for viewing), POST /quotes/{id}/versions/{version}/revert (restores a snapshot as current; archives current first so revert is reversible; keeps quote number). Helper `_archive_quote_version`.
+- Frontend (AftersalesApp.js AgreementsTab): a 'History (vN)' button on custom quotes with version>1 opens a modal listing the current version + all prior versions (£/yr, editor, timestamp), each with View (read-only snapshot) and Revert.
+- Verified: backend via curl (v1→v2→v3, list, view snapshot returns historical figures, revert restores £ and is reversible); frontend History modal via testing agent (5/5 scenarios, 100%).
+- BONUS FIX (hydration warning): the long-standing "<span> cannot be a child of <option>" console warning was traced (by the testing agent) to the Emergent Visual-Edit tool injecting a <span> wrapper around MULTI-EXPRESSION children inside <option> (afs-ag-quote select, and the AI-tab contract select). Fixed by giving each such <option> a single template-string child. Verified live on the Agreements tab: 0 injected spans, 0 nesting warnings.
+Files: backend/routes/crm_aftersales.py, frontend/src/pages/CRM/Aftersales/AftersalesApp.js.
