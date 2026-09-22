@@ -38390,3 +38390,32 @@ Backend clean (ruff), frontend clean (eslint). UI not browser-tested (Service De
 Verified: 2 site managers -> 2 CRM contacts (site-tagged); coverage resolved warranty "199d remaining";
 unauthorized org returns not-covered; re-import kept site-manager contacts at 2 (no dupes). ruff + eslint clean,
 endpoint live, webpack compiled. UI not browser-tested (Service Desk MFA in preview).
+
+---
+## 2026-06 · Preventative Maintenance across ALL customers (Service Desk)
+User: the Maintenance calendar shouldn't be MOD-only; installing equipment plans an annual PPM at the install
+anniversary; the calendar shows due PPM; the desk picks the service, allocates engineer(s), adds to schedule.
+
+Backend (routes/svc/ppm_calendar.py, prefix /svc/ppm):
+- ensure_annual_ppm(equipment): auto-creates an ANNUAL ppm_schedule (source service_desk) whose next_pm =
+  next anniversary of install_date (fallback purchase_date). Idempotent per equipment. Called from equipment
+  create (routes/equipment.py) and by backfill.
+- POST /svc/ppm/backfill: plans PPM for all site-associated equipment across operator + CRM-linked customers.
+- GET /svc/ppm/calendar?from&to&segment=all|commercial|mod: unified calendar merging commercial PPM due dates
+  (aggregated across operator + linked customer orgs via crm2_companies.linked_organization_id) with MOD
+  contract annual visits (mod_service_contracts.annual_visit). Status: overdue/due_soon/planned/scheduled.
+- POST /svc/ppm/schedule: creates one svc_case (case_type ppm) under the operator, assigns ONE OR MORE
+  engineers (assigned_engineer_ids[] + primary assigned_engineer_id + names), sets scheduled_at + service_type,
+  rolls the schedule forward 12 months. Services: "Preventative Maintenance Service", "Calibration" (GET /svc/ppm/services).
+- Equipment gained an `install_date` field (schemas.EquipmentCreate, update allowed_fields, CSV template +
+  importer mapping); PPM anniversary falls back to purchase_date.
+
+Frontend:
+- New PPMCalendar.js (month grid, All/Commercial/MOD segment filter, "Plan from installs" backfill button,
+  status legend). Click a commercial item → SchedulePpmModal (service select, service date, multi-select
+  engineers) → POST /svc/ppm/schedule. Replaced the MOD-only MODVisitCalendar in DeskPreventativeMaintenance.js.
+
+Verified via function-level e2e: backfill created an annual schedule (anniversary computed from install_date);
+calendar all/commercial listed it (due_soon); scheduling with 2 engineers created an ASSIGNED case with both
+engineer ids/names + Calibration service, rolled schedule +12mo; calendar then showed "scheduled"; auto-PPM
+idempotent. ruff + eslint clean, endpoints live, webpack compiled. UI not browser-tested (Service Desk MFA in preview).

@@ -237,6 +237,7 @@ class EquipmentCreate(BaseModel):
     model: Optional[str] = None
     serial_number: Optional[str] = None
     purchase_date: Optional[str] = None
+    install_date: Optional[str] = None
     warranty_expiry: Optional[str] = None
     # Cost / CAPEX fields. purchase_cost = what the customer paid; the
     # separate replacement_cost = today's like-for-like replacement price

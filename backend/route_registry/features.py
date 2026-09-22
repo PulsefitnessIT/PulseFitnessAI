@@ -107,6 +107,7 @@ from routes.svc.intake import router as svc_intake_router
 from routes.svc.desk import router as svc_desk_router
 # Iter 292 — GymAxis parity port: Preventative Maintenance + Master-Admin service-desk console
 from routes.svc.pm import router as svc_pm_router
+from routes.svc.ppm_calendar import router as svc_ppm_calendar_router
 from routes.svc.orbit4 import router as svc_orbit4_router
 from routes.master_admin_service_desk import router as master_admin_service_desk_router
 # Iter 215dp — Phase 2 Engineer Mobile API
@@ -345,6 +346,7 @@ _UNGATED_ROUTERS = (
     svc_cases_router, svc_intake_router, svc_desk_router,
     # Iter 292 — GymAxis parity: PM scheduling + Master-Admin desk console
     svc_pm_router, master_admin_service_desk_router, svc_orbit4_router,
+    svc_ppm_calendar_router,
     # MOD annual visit calendar + booking form (+ public booking router)
     svc_mod_visits_router, svc_mod_booking_public_router,
     # Iter 215dp — Phase 2 Engineer Mobile

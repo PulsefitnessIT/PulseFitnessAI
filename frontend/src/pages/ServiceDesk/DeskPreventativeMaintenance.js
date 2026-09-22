@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import MODVisitCalendar from './MODVisitCalendar';
+import PPMCalendar from './PPMCalendar';
 
 const FREQ_LABEL = { weekly: 'Weekly', fortnightly: 'Fortnightly', monthly: 'Monthly', quarterly: 'Quarterly', biannual: '6-monthly', annual: 'Annual' };
 
@@ -88,8 +88,8 @@ export default function DeskPreventativeMaintenance() {
         </button>
       </div>
 
-      {/* MOD annual service visit calendar (Type A contracts) */}
-      <MODVisitCalendar />
+      {/* Unified all-customers PPM calendar (commercial PPM + MOD annual visits) */}
+      <PPMCalendar />
 
       {/* Due now */}
       <section className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-900/15 dark:border-amber-800/60 p-4" data-testid="pm-due-section">

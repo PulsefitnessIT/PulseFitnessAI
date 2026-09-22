@@ -117,6 +117,13 @@ async def create_equipment(equipment: EquipmentCreate, user: dict = Depends(get_
     await db.equipment.insert_one(equipment_doc)
     equipment_doc.pop('_id', None)
 
+    # Auto-plan an annual PPM at the install anniversary (fallback purchase date).
+    try:
+        from routes.svc.ppm_calendar import ensure_annual_ppm
+        await ensure_annual_ppm(equipment_doc)
+    except Exception as exc:
+        logger.warning("[equipment] auto-PPM create failed: %s", exc)
+
     # Iter 216bn — auto-attach any pre-existing spec sheet (and its hero
     # image) for this model/name. Best-effort, fail silent. Lee's
     # request: when a customer adds a Pulse Fitness machine, the spec
@@ -279,6 +286,7 @@ def _parse_csv_row(row: dict, field_map: dict, user: dict) -> dict:
         "model": row.get(field_map.get('model', 'model'), '').strip() or None,
         "serial_number": row.get(field_map.get('serial', 'serial_number'), '').strip() or None,
         "purchase_date": row.get(field_map.get('purchase_date', 'purchase_date'), '').strip() or None,
+        "install_date": row.get(field_map.get('install_date', 'install_date'), '').strip() or None,
         "warranty_expiry": row.get(field_map.get('warranty', 'warranty_expiry'), '').strip() or None,
         "purchase_cost": _safe_float(row.get(field_map.get('purchase_cost', 'purchase_cost'), '')),
         "replacement_cost": _safe_float(row.get(field_map.get('replacement_cost', 'replacement_cost'), '')),
@@ -325,6 +333,7 @@ async def _import_csv_rows(reader: csv.DictReader, user: dict, field_map: dict) 
 _CSV_FIELDS_TITLE = {
     'name': 'Name', 'type': 'Type', 'manufacturer': 'Manufacturer',
     'model': 'Model', 'serial': 'Serial Number', 'purchase_date': 'Purchase Date',
+    'install_date': 'Install Date',
     'warranty': 'Warranty Expiry', 'length': 'Length (m)', 'width': 'Width (m)',
     'height': 'Height (m)', 'notes': 'Notes', 'service_provider': 'Service Provider',
     'purchase_cost': 'Purchase Cost', 'replacement_cost': 'Replacement Cost',
@@ -341,6 +350,7 @@ _CSV_FIELDS_TITLE = {
 _CSV_FIELDS_SNAKE = {
     'name': 'name', 'type': 'equipment_type', 'manufacturer': 'manufacturer',
     'model': 'model', 'serial': 'serial_number', 'purchase_date': 'purchase_date',
+    'install_date': 'install_date',
     'warranty': 'warranty_expiry', 'length': 'length', 'width': 'width',
     'height': 'height', 'notes': 'notes', 'service_provider': 'service_provider',
     'purchase_cost': 'purchase_cost', 'replacement_cost': 'replacement_cost',
@@ -852,6 +862,7 @@ async def update_equipment(equipment_id: str, data: Dict[str, Any], request: Req
     allowed_fields = {
         "name", "equipment_type", "manufacturer", "model", "serial_number",
         "purchase_date", "warranty_expiry", "length", "width", "height", "notes",
+        "install_date",
         "location", "sla_response_time", "sla_contract_ref", "sla_expiry", "photo_url",
         "purchase_cost", "replacement_cost", "expected_lifespan_years",
         # Supplier reassignment — restricted below to owner/manager roles.
