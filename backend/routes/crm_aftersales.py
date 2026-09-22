@@ -1299,20 +1299,25 @@ class CustomQuoteIn(BaseModel):
     company_id: str
     site_ids: Optional[List[str]] = None
     machine_rates: List[dict] = []      # [{type, service_price}]
-    travel_rates: List[dict] = []       # [{location, price}]
+    travel_rates: List[dict] = []       # [{location, price}]  price = per-visit
     repair_rates: List[dict] = []       # [{type, hourly_rate}]
     estimated_repair_hours: float = 0.0
     term_years: int = 1
     quote_discount_pct: float = 0.0
+    visits_per_year: int = 1            # PPM visits/year — travel is charged per visit
+    vat_pct: float = 0.20              # 20% UK VAT by default (override per quote)
+    excluded_asset_ids: Optional[List[str]] = None   # machines deliberately left off the quote
+    overwrite_quote_id: Optional[str] = None          # edit an existing saved quote (keeps number)
     save: bool = False
 
 
 @router.post("/build-custom-quote")
 async def build_custom_quote(body: CustomQuoteIn, user=Depends(get_crm_user)):
     """Apply a bespoke (tender) rate card to the customer's machine estate:
-    each machine gets its type's service price; each selected site gets its
-    matched travel cost. Machines/sites we can't confidently match are returned
-    in `needs_review` for manual assignment."""
+    each machine gets its type's service price; each selected site is charged its
+    matched travel cost per visit × the number of PPM visits/year. Machines we
+    can't match (and haven't been excluded) are returned in `needs_review` and the
+    quote is held BLOCKED until every machine is either priced or excluded."""
     of = _of(user)
     company = await db.crm2_companies.find_one({"id": body.company_id, **of}, {"_id": 0})
     if not company:
@@ -1322,6 +1327,7 @@ async def build_custom_quote(body: CustomQuoteIn, user=Depends(get_crm_user)):
         raise HTTPException(400, "This company is not linked to an operations organisation — no estate to quote.")
 
     machine_rates = [m for m in body.machine_rates if m.get("type")]
+    excluded = set(body.excluded_asset_ids or [])
     eq_query = {"organization_id": linked}
     if body.site_ids:
         eq_query["site_id"] = {"$in": body.site_ids}
@@ -1330,27 +1336,41 @@ async def build_custom_quote(body: CustomQuoteIn, user=Depends(get_crm_user)):
                    "console_type": 1, "manufacturer": 1, "serial_number": 1, "site_id": 1}).to_list(5000)
 
     groups = {}
-    needs_review = []
+    unmatched = {}          # model → grouped unmatched machines
+    excluded_lines = []
+    unpriced_asset_ids = []
     for e in equipment:
+        aid = e.get("id")
+        model_label = e.get("model") or e.get("name") or "Unknown"
+        if aid in excluded:
+            excluded_lines.append({"asset_id": aid, "model": model_label, "site_id": e.get("site_id")})
+            continue
         hay = " ".join(str(e.get(k) or "") for k in ("equipment_type", "model", "name", "model_code", "console_type", "manufacturer"))
         mr = _match_machine_type(hay, machine_rates)
         if not mr:
-            needs_review.append({"kind": "MACHINE", "asset_id": e.get("id"),
-                                 "model": e.get("model") or e.get("name") or "Unknown",
-                                 "detail": "No matching machine type in the uploaded pricing."})
+            u = unmatched.setdefault(model_label, {"kind": "MACHINE", "model": model_label, "asset_ids": [], "count": 0})
+            u["asset_ids"].append(aid)
+            u["count"] += 1
+            unpriced_asset_ids.append(aid)
             continue
         typ = mr["type"]
         price = round(float(mr.get("service_price") or 0), 2)
-        g = groups.setdefault(typ, {"type": typ, "unit_price": price, "qty": 0, "serials": []})
+        # Keep model/annual_unit/annual_total keys so the shared PDF renderer itemises correctly.
+        g = groups.setdefault(typ, {"type": typ, "model": typ, "unit_price": price,
+                                    "annual_unit": price, "qty": 0, "serials": []})
         g["qty"] += 1
         if e.get("serial_number"):
             g["serials"].append(e["serial_number"])
-    grouped = [dict(g, line_total=round(g["unit_price"] * g["qty"], 2)) for g in groups.values()]
+    grouped = [dict(g, line_total=round(g["unit_price"] * g["qty"], 2),
+                    annual_total=round(g["unit_price"] * g["qty"], 2)) for g in groups.values()]
+    needs_review = [dict(u, detail=f"{u['count']} asset(s) — no matching machine type in the pricing.")
+                    for u in unmatched.values()]
 
-    # Travel per selected site (match site name → travel location).
+    # Travel per selected site: per-visit rate × number of visits/year.
+    visits = max(1, int(body.visits_per_year or 1))
     sites = await db.sites.find(
         {"organization_id": linked, **({"id": {"$in": body.site_ids}} if body.site_ids else {})},
-        {"_id": 0, "id": 1, "name": 1}).to_list(1000)
+        {"_id": 0, "id": 1, "name": 1}).to_list(2000)
     travel_rates = [t for t in body.travel_rates if t.get("location")]
     travel_lines = []
     for s in sites:
@@ -1362,60 +1382,94 @@ async def build_custom_quote(body: CustomQuoteIn, user=Depends(get_crm_user)):
                 matched = tr
                 break
         if matched:
+            per_visit = round(float(matched.get("price") or 0), 2)
+            annual = round(per_visit * visits, 2)
             travel_lines.append({"site_id": s["id"], "site_name": s.get("name"),
-                                 "location": matched["location"], "price": round(float(matched.get("price") or 0), 2)})
+                                 "location": matched["location"], "per_visit": per_visit,
+                                 "visits": visits, "annual": annual, "price": annual})
         else:
             needs_review.append({"kind": "TRAVEL", "site_id": s["id"], "site_name": s.get("name"),
                                  "detail": "No matching travel location in the uploaded pricing."})
 
     service_annual = round(sum(g["line_total"] for g in grouped), 2)
-    travel_total = round(sum(t["price"] for t in travel_lines), 2)
+    travel_total = round(sum(t["annual"] for t in travel_lines), 2)
     # Indicative repair cost = estimated annual hours × effective repair rate.
     repair_rates = [r for r in body.repair_rates if r.get("hourly_rate") is not None]
     rates = [float(r.get("hourly_rate") or 0) for r in repair_rates if float(r.get("hourly_rate") or 0) > 0]
     effective_repair_rate = round(sum(rates) / len(rates), 2) if rates else 0.0
     est_hours = max(0.0, float(body.estimated_repair_hours or 0))
     repair_cost = round(est_hours * effective_repair_rate, 2)
-    disc_mult = (1 - max(0.0, float(body.quote_discount_pct)) / 100.0)
+    disc = max(0.0, float(body.quote_discount_pct or 0))
+    disc_mult = (1 - disc / 100.0)
     final_annual = round((service_annual + travel_total + repair_cost) * disc_mult, 2)
-    term_total = round(final_annual * max(1, int(body.term_years)), 2)
+    term_years = max(1, int(body.term_years or 1))
+    term_total = round(final_annual * term_years, 2)
+    vat_pct = float(body.vat_pct if body.vat_pct is not None else 0.20)
+    vat_amount = round(final_annual * vat_pct, 2)
     summary = {
         "service_annual": service_annual, "travel_total": travel_total,
         "repair_cost": repair_cost, "effective_repair_rate": effective_repair_rate,
-        "estimated_repair_hours": est_hours,
-        "quote_discount_pct": body.quote_discount_pct, "final_annual": final_annual,
-        "term_years": body.term_years, "term_total": term_total,
+        "estimated_repair_hours": est_hours, "visits_per_year": visits,
+        "quote_discount_pct": disc, "final_annual": final_annual,
+        "term_years": term_years, "term_total": term_total,
+        "vat_pct": vat_pct, "vat_amount": vat_amount,
+        "final_annual_inc_vat": round(final_annual + vat_amount, 2),
+        "monthly": round(final_annual / 12.0, 2),
     }
+    unpriced_count = len(unpriced_asset_ids)
+    quote_health = "BLOCKED" if unpriced_count else "READY"
     out = {
         "pricing_mode": "custom_tender",
         "grouped_lines": grouped, "travel_lines": travel_lines,
         "repair_rates": repair_rates,
         "needs_review": needs_review, "needs_review_count": len(needs_review),
+        "excluded_lines": excluded_lines, "excluded_count": len(excluded_lines),
+        "unpriced_asset_ids": unpriced_asset_ids, "unpriced_count": unpriced_count,
+        "quote_health": quote_health,
         "assets_total": len(equipment), "assets_priced": sum(g["qty"] for g in grouped),
         "summary": summary,
     }
     if body.save:
-        qid = _id()
-        doc = {
-            "id": qid, "organization_id": _org(user),
-            "quote_number": f"AFS-{datetime.now(timezone.utc).strftime('%Y')}-{qid[:5].upper()}",
+        base = {
             "company_id": body.company_id, "company_name": company.get("name"),
             "linked_organization_id": linked, "site_ids": body.site_ids or [],
             "contract_type": "custom", "pricing_level": "custom_tender",
-            "term_years": body.term_years, "quote_discount_pct": body.quote_discount_pct,
-            "status": "draft", "source": "custom_tender_upload",
+            "pricing_mode": "custom_tender", "source": "custom_tender_upload",
+            "term_years": term_years, "quote_discount_pct": disc,
+            "visits_per_year": visits, "vat_pct": vat_pct,
             "grouped_lines": grouped, "travel_lines": travel_lines,
-            "needs_review": needs_review, "summary": summary,
+            "needs_review": needs_review, "excluded_lines": excluded_lines,
+            "excluded_asset_ids": list(excluded),
+            "unpriced_asset_ids": unpriced_asset_ids, "unpriced_count": unpriced_count,
+            "quote_health": quote_health, "summary": summary,
             "machine_rates": machine_rates, "travel_rates": travel_rates,
             "repair_rates": repair_rates, "estimated_repair_hours": est_hours,
-            "created_by": user.get("email") or user.get("id"),
-            "created_at": _now(), "updated_at": _now(),
+            "updated_at": _now(),
         }
-        await db.crm2_afs_quotes.insert_one(doc)
-        await record_audit(entity_type="afs_quote", entity_id=qid, action="create",
-                           user=user, extra={"company": company.get("name"), "mode": "custom_tender"})
-        out["saved_quote_id"] = qid
-        out["quote_number"] = doc["quote_number"]
+        if body.overwrite_quote_id:
+            existing = await db.crm2_afs_quotes.find_one(
+                {"id": body.overwrite_quote_id, **of}, {"_id": 0, "quote_number": 1})
+            if not existing:
+                raise HTTPException(404, "Quote to edit not found")
+            await db.crm2_afs_quotes.update_one({"id": body.overwrite_quote_id, **of}, {"$set": base})
+            qid = body.overwrite_quote_id
+            out["saved_quote_id"] = qid
+            out["quote_number"] = existing.get("quote_number")
+            await record_audit(entity_type="afs_quote", entity_id=qid, action="update",
+                               user=user, extra={"company": company.get("name"), "mode": "custom_tender"})
+        else:
+            qid = _id()
+            doc = {
+                "id": qid, "organization_id": _org(user),
+                "quote_number": f"AFS-{datetime.now(timezone.utc).strftime('%Y')}-{qid[:5].upper()}",
+                "status": "draft", "created_by": user.get("email") or user.get("id"),
+                "created_at": _now(), **base,
+            }
+            await db.crm2_afs_quotes.insert_one(doc)
+            await record_audit(entity_type="afs_quote", entity_id=qid, action="create",
+                               user=user, extra={"company": company.get("name"), "mode": "custom_tender"})
+            out["saved_quote_id"] = qid
+            out["quote_number"] = doc["quote_number"]
     return out
 
 
@@ -1525,6 +1579,8 @@ async def afs_quote_portal_link(quote_id: str, body: PortalLinkIn, user=Depends(
     q = await db.crm2_afs_quotes.find_one({"id": quote_id, **of}, _PUBLIC)
     if not q:
         raise HTTPException(404, "Quote not found")
+    if int(q.get("unpriced_count") or 0) > 0:
+        raise HTTPException(400, f"This quote still has {q['unpriced_count']} machine(s) that aren't priced or excluded. Resolve them in Build Quote before sharing it.")
     if q.get("status") in ("accepted", "agreement", "declined"):
         # already progressed — still return the existing link if present
         shortcode = q.get("public_shortcode")
@@ -1566,6 +1622,8 @@ async def send_afs_quote_email(quote_id: str, body: SendQuoteEmailIn, user=Depen
     q = await db.crm2_afs_quotes.find_one({"id": quote_id, **of}, _PUBLIC)
     if not q:
         raise HTTPException(404, "Quote not found")
+    if int(q.get("unpriced_count") or 0) > 0:
+        raise HTTPException(400, f"This quote still has {q['unpriced_count']} machine(s) that aren't priced or excluded. Resolve them in Build Quote before emailing it.")
     email = (body.contact_email or q.get("portal_contact_email") or "").strip()
     if "@" not in email:
         raise HTTPException(400, "A customer email address is required to send this quote.")

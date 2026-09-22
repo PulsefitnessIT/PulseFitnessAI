@@ -71,14 +71,20 @@ def build_afs_quote_pdf(quote: dict, org: dict | None = None,
         data.append([Paragraph("", s["cellR"]), Paragraph("No priced equipment on this quote.", s["cell"]),
                      Paragraph("", s["cellR"]), Paragraph("", s["cellR"])])
     for g in grouped:
-        label = g.get("model") or "—"
+        label = g.get("model") or g.get("type") or "—"
         if g.get("console_type"):
             label += f" · {g['console_type']}"
+        annual_unit = g.get("annual_unit")
+        if annual_unit is None:
+            annual_unit = g.get("unit_price")
+        annual_total = g.get("annual_total")
+        if annual_total is None:
+            annual_total = g.get("line_total")
         data.append([
             Paragraph(f"{int(g.get('qty', 0))}", s["cellR"]),
             Paragraph(_esc(label), s["cell"]),
-            Paragraph(_gbp(g.get("annual_unit")), s["cellR"]),
-            Paragraph(_gbp(g.get("annual_total")), s["cellR"]),
+            Paragraph(_gbp(annual_unit), s["cellR"]),
+            Paragraph(_gbp(annual_total), s["cellR"]),
         ])
     t = Table(data, colWidths=[14 * mm, 92 * mm, 30 * mm, 30 * mm], repeatRows=1)
     t.setStyle(TableStyle([
@@ -91,16 +97,72 @@ def build_afs_quote_pdf(quote: dict, org: dict | None = None,
     flow.append(t)
     flow.append(Spacer(1, 5 * mm))
 
-    # Totals
+    # Travel & visits (tender quotes charge travel per site, per visit)
+    travel_lines = quote.get("travel_lines") or []
+    if travel_lines:
+        flow.append(section_label(s, "Travel & visits"))
+        tdata = [[Paragraph("Site", s["th"]), Paragraph("Per visit", s["thR"]),
+                  Paragraph("Visits/yr", s["thR"]), Paragraph("Annual", s["thR"])]]
+        for tl in travel_lines:
+            per_visit = tl.get("per_visit")
+            if per_visit is None:
+                per_visit = tl.get("price")
+            visits = int(tl.get("visits") or 1)
+            annual = tl.get("annual")
+            if annual is None:
+                annual = tl.get("price")
+            tdata.append([
+                Paragraph(_esc(tl.get("site_name") or tl.get("location") or "—"), s["cell"]),
+                Paragraph(_gbp(per_visit), s["cellR"]),
+                Paragraph(f"{visits}", s["cellR"]),
+                Paragraph(_gbp(annual), s["cellR"]),
+            ])
+        tt = Table(tdata, colWidths=[92 * mm, 30 * mm, 22 * mm, 22 * mm], repeatRows=1)
+        tt.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), PULSE_NAVY),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LINEBELOW", (0, 1), (-1, -1), 0.4, PULSE_BORDER),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        flow.append(tt)
+        flow.append(Spacer(1, 5 * mm))
+
+    # Totals (with defensive VAT / monthly fallbacks for older custom quotes)
     disc = summary.get("quote_discount_pct", 0) or 0
-    total_rows = [
-        [Paragraph("Annual value", s["total_label"]), Paragraph(_gbp(summary.get("final_annual")), s["total_value"])],
-        [Paragraph("Monthly (Direct Debit)", s["total_label"]), Paragraph(_gbp(summary.get("monthly")), s["total_value"])],
+    final_annual = float(summary.get("final_annual") or 0)
+    vat_pct = summary.get("vat_pct")
+    if vat_pct is None:
+        vat_pct = 0.20
+    vat_amount = summary.get("vat_amount")
+    if vat_amount is None:
+        vat_amount = round(final_annual * float(vat_pct), 2)
+    inc_vat = summary.get("final_annual_inc_vat")
+    if inc_vat is None:
+        inc_vat = round(final_annual + vat_amount, 2)
+    monthly = summary.get("monthly")
+    if monthly is None:
+        monthly = round(final_annual / 12.0, 2)
+    total_rows = []
+    # Itemised charge breakdown for tender quotes (service / travel / repairs)
+    if summary.get("service_annual") is not None or travel_lines:
+        total_rows.append([Paragraph("Service (annual)", s["total_label"]),
+                           Paragraph(_gbp(summary.get("service_annual")), s["total_value"])])
+        if summary.get("travel_total"):
+            total_rows.append([Paragraph("Travel &amp; visits (annual)", s["total_label"]),
+                               Paragraph(_gbp(summary.get("travel_total")), s["total_value"])])
+        if summary.get("repair_cost"):
+            eh = summary.get("estimated_repair_hours") or 0
+            total_rows.append([Paragraph(f"Repairs (est. {eh:g}h)", s["total_label"]),
+                               Paragraph(_gbp(summary.get("repair_cost")), s["total_value"])])
+    total_rows += [
+        [Paragraph("Annual value", s["total_label"]), Paragraph(_gbp(final_annual), s["total_value"])],
+        [Paragraph("Monthly (Direct Debit)", s["total_label"]), Paragraph(_gbp(monthly), s["total_value"])],
         [Paragraph(f"Term total ({summary.get('term_years', 1)} yr)", s["total_label"]),
          Paragraph(_gbp(summary.get("term_total")), s["total_value"])],
-        [Paragraph(f"VAT ({(summary.get('vat_pct', 0) or 0) * 100:g}%)", s["total_label"]),
-         Paragraph(_gbp(summary.get("vat_amount")), s["total_value"])],
-        [Paragraph("Annual inc VAT", s["total_label"]), Paragraph(_gbp(summary.get("final_annual_inc_vat")), s["grand_value"])],
+        [Paragraph(f"VAT ({float(vat_pct or 0) * 100:g}%)", s["total_label"]),
+         Paragraph(_gbp(vat_amount), s["total_value"])],
+        [Paragraph("Annual inc VAT", s["total_label"]), Paragraph(_gbp(inc_vat), s["grand_value"])],
     ]
     if disc:
         total_rows.insert(1, [Paragraph(f"Discount ({disc:g}%)", s["total_label"]),

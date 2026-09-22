@@ -611,7 +611,7 @@ function SupportabilityTab({ API, headers, c, isDark }) {
 }
 
 // ───────────────────────────────────────────────────────── Build Quote From Estate
-function AutoQuoteTab({ API, headers, c, isDark }) {
+function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
   const [companies, setCompanies] = useState([]);
   const [companyId, setCompanyId] = useState('');
   const [estate, setEstate] = useState(null);
@@ -634,6 +634,10 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
   const [wizStep, setWizStep] = useState(1);
   const [estHours, setEstHours] = useState('');
   const [incl, setIncl] = useState({ service: true, repairs: true, travel: true });
+  const [visits, setVisits] = useState(1);          // PPM visits/year — travel charged per visit
+  const [vatPct, setVatPct] = useState(20);         // VAT % (default 20% UK)
+  const [excluded, setExcluded] = useState({});     // asset_id → true (machines left off the quote)
+  const [editQuoteId, setEditQuoteId] = useState(''); // set when editing a saved quote (overwrite)
   const fileRef = useRef(null);
   const isCustom = contractType === 'custom';
   useEffect(() => {
@@ -692,6 +696,7 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
     if (!companyId || !customData) return;
     setBusy(true);
     const site_ids = Object.keys(selSites).filter(k => selSites[k] && k !== '__unassigned__');
+    const excluded_asset_ids = Object.keys(excluded).filter(k => excluded[k]);
     try {
       const r = await axios.post(`${API}/crm/v2/aftersales/build-custom-quote`, {
         company_id: companyId, site_ids,
@@ -699,11 +704,55 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
         travel_rates: incl.travel ? (customData.travel || []).map(t => ({ location: t.location, price: Number(t.price) })) : [],
         repair_rates: incl.repairs ? (customData.repairs || []).map(rp => ({ type: rp.type, hourly_rate: Number(rp.hourly_rate) })) : [],
         estimated_repair_hours: incl.repairs ? Number(estHours || 0) : 0,
-        term_years: Number(term), quote_discount_pct: Number(discount), save: !!save,
+        term_years: Number(term), quote_discount_pct: Number(discount),
+        visits_per_year: Number(visits || 1), vat_pct: Number(vatPct || 0) / 100,
+        excluded_asset_ids,
+        overwrite_quote_id: save ? (editQuoteId || undefined) : undefined,
+        save: !!save,
       }, { headers: headers() });
       setCustomResult(r.data);
+      if (save && r.data.saved_quote_id) setEditQuoteId(r.data.saved_quote_id);
+    } catch (err) {
+      alert(err?.response?.data?.detail || 'Could not build the quote.');
     } finally { setBusy(false); }
   };
+  const toggleExcludeGroup = (item) => {
+    const ids = item.asset_ids || (item.asset_id ? [item.asset_id] : []);
+    setExcluded(prev => {
+      const next = { ...prev };
+      const on = ids.length > 0 && ids.every(id => next[id]);
+      ids.forEach(id => { if (on) delete next[id]; else next[id] = true; });
+      return next;
+    });
+  };
+  // Recompute the quote whenever the exclude set changes (so unpriced count updates).
+  useEffect(() => {
+    if (customResult && customData && companyId) buildCustom(false);
+  }, [excluded]);  // eslint-disable-line react-hooks/exhaustive-deps
+  // Prefill the builder when editing a saved custom quote (overwrite on save).
+  useEffect(() => {
+    if (!editQuote) return;
+    setContractType('custom');
+    setCompanyId(editQuote.company_id || '');
+    if (editQuote.company_id) loadEstate(editQuote.company_id);
+    setCustomData({
+      machine_services: (editQuote.machine_rates || []).map(m => ({ type: m.type, service_price: m.service_price })),
+      travel: (editQuote.travel_rates || []).map(t => ({ location: t.location, price: t.price })),
+      repairs: (editQuote.repair_rates || []).map(r => ({ type: r.type, hourly_rate: r.hourly_rate })),
+      summary: null,
+    });
+    setTerm(editQuote.term_years || 1);
+    setDiscount(editQuote.quote_discount_pct || 0);
+    setVisits(editQuote.visits_per_year || (editQuote.summary && editQuote.summary.visits_per_year) || 1);
+    setVatPct(Math.round(((editQuote.vat_pct != null ? editQuote.vat_pct : 0.2)) * 100));
+    setEstHours(editQuote.estimated_repair_hours || '');
+    const exc = {}; (editQuote.excluded_asset_ids || []).forEach(id => { exc[id] = true; });
+    setExcluded(exc);
+    setEditQuoteId(editQuote.id);
+    setCustomMode('quick');
+    setCustomResult(null);
+    setEditQuote && setEditQuote(null);
+  }, [editQuote]);  // eslint-disable-line react-hooks/exhaustive-deps
   const setMs = (i, v) => setCustomData(d => ({ ...d, machine_services: d.machine_services.map((m, idx) => idx === i ? { ...m, service_price: v } : m) }));
   const setTr = (i, v) => setCustomData(d => ({ ...d, travel: d.travel.map((t, idx) => idx === i ? { ...t, price: v } : t) }));
   const setRp = (i, v) => setCustomData(d => ({ ...d, repairs: (d.repairs || []).map((r, idx) => idx === i ? { ...r, hourly_rate: v } : r) }));
@@ -837,6 +886,22 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
               <p className="text-sm font-bold" style={{ color: c.text }}>Custom tender pricing</p>
               <span className="text-[11px]" style={{ color: c.textDim }}>upload the signed agreement / Schedule of Charges — AI reads the prices</span>
             </div>
+            {editQuoteId && (
+              <div className="mb-3 flex items-center gap-2 text-xs px-3 py-2 rounded-lg" data-testid="afs-aq-editing-banner"
+                style={{ background: 'var(--color-accent-purple)22', color: 'var(--color-accent-purple)' }}>
+                <PenLine size={13} /> Editing saved quote — saving will overwrite it (same quote number).
+                <button data-testid="afs-aq-edit-cancel" onClick={() => { setEditQuoteId(''); setCustomData(null); setCustomResult(null); setExcluded({}); }}
+                  className="ml-auto underline">Start a new quote instead</button>
+              </div>
+            )}
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 mb-3">
+              <label className="text-xs" style={{ color: c.textDim }}>PPM visits / year (travel charged per visit)
+                <input data-testid="afs-aq-visits" type="number" min="1" value={visits} onChange={e => setVisits(e.target.value)}
+                  className="w-full mt-1 px-2 py-2 text-sm rounded-md" style={inpStyle} /></label>
+              <label className="text-xs" style={{ color: c.textDim }}>VAT %
+                <input data-testid="afs-aq-vat" type="number" min="0" step="0.5" value={vatPct} onChange={e => setVatPct(e.target.value)}
+                  className="w-full mt-1 px-2 py-2 text-sm rounded-md" style={inpStyle} /></label>
+            </div>
             <div className="flex gap-1 mb-3" data-testid="afs-aq-mode-toggle">
               {['quick', 'wizard'].map(m => (
                 <button key={m} data-testid={`afs-aq-mode-${m}`} onClick={() => { setCustomMode(m); setWizStep(1); setCustomResult(null); }}
@@ -936,7 +1001,7 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
                 )}
                 {wizStep === 5 && customData && (
                   <div data-testid="afs-wiz-travel">
-                    <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Travel per site (£)</p>
+                    <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Travel per site, per visit (£)</p>
                     <div className="space-y-1 max-h-52 overflow-auto pr-1 mb-3">
                       {customData.travel.map((t, i) => (
                         <div key={i} className="flex items-center gap-2">
@@ -999,7 +1064,7 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
                   </div>
                 </div>
                 <div>
-                  <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Travel per site ({customData.travel.length})</p>
+                  <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Travel per site, per visit ({customData.travel.length})</p>
                   <div className="space-y-1 max-h-52 overflow-auto pr-1">
                     {customData.travel.map((t, i) => (
                       <div key={i} className="flex items-center gap-2" data-testid={`afs-aq-tr-${i}`}>
@@ -1039,42 +1104,67 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
 
       {customResult && (
         <div data-testid="afs-aq-custom-result">
+          {(customResult.unpriced_count || 0) > 0 && (
+            <div className="mb-3 flex items-start gap-2 text-sm px-3 py-2.5 rounded-lg" data-testid="afs-aq-custom-blocked"
+              style={{ background: 'var(--color-danger, #EF4444)18', color: 'var(--color-danger, #EF4444)', border: '1px solid var(--color-danger, #EF4444)' }}>
+              <AlertTriangle size={16} className="mt-0.5" />
+              <span><b>{customResult.unpriced_count} machine(s) aren't priced yet.</b> Add their price in the Service step, or exclude them below. This quote can't be sent until every machine is priced or excluded.</span>
+            </div>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
             <Card c={c} isDark={isDark} testId="afs-aq-custom-priced"><p className="text-2xl font-extrabold" style={{ color: c.text }}>{customResult.assets_priced}/{customResult.assets_total}</p><p className="text-[10px] uppercase tracking-wider" style={{ color: c.textDim }}>Machines priced</p></Card>
-            <Card c={c} isDark={isDark} testId="afs-aq-custom-review"><p className="text-2xl font-extrabold" style={{ color: 'var(--color-accent-amber)' }}>{customResult.needs_review_count}</p><p className="text-[10px] uppercase tracking-wider" style={{ color: c.textDim }}>Needs review</p></Card>
+            <Card c={c} isDark={isDark} testId="afs-aq-custom-unpriced"><p className="text-2xl font-extrabold" style={{ color: (customResult.unpriced_count || 0) > 0 ? 'var(--color-danger, #EF4444)' : 'var(--color-success-alt)' }}>{customResult.unpriced_count || 0}</p><p className="text-[10px] uppercase tracking-wider" style={{ color: c.textDim }}>Unpriced machines</p></Card>
             <Card c={c} isDark={isDark} testId="afs-aq-custom-annual"><p className="text-2xl font-extrabold" style={{ color: 'var(--color-success-alt)' }}>{gbp0(customResult.summary.final_annual)}</p><p className="text-[10px] uppercase tracking-wider" style={{ color: c.textDim }}>Annual (ex VAT)</p></Card>
-            <Card c={c} isDark={isDark} testId="afs-aq-custom-term"><p className="text-2xl font-extrabold" style={{ color: c.text }}>{gbp0(customResult.summary.term_total)}</p><p className="text-[10px] uppercase tracking-wider" style={{ color: c.textDim }}>Term total</p></Card>
+            <Card c={c} isDark={isDark} testId="afs-aq-custom-incvat"><p className="text-2xl font-extrabold" style={{ color: c.text }}>{gbp0(customResult.summary.final_annual_inc_vat)}</p><p className="text-[10px] uppercase tracking-wider" style={{ color: c.textDim }}>Annual inc VAT</p></Card>
           </div>
           <Card c={c} isDark={isDark} testId="afs-aq-custom-lines">
             <p className="text-sm font-bold mb-2" style={{ color: c.text }}>Machines</p>
             {customResult.grouped_lines.map((g, i) => (
               <Row key={i} label={`${g.type} × ${g.qty}`} value={`${gbp(g.unit_price)} → ${gbp(g.line_total)}`} c={c} />
             ))}
-            {customResult.travel_lines.length > 0 && <p className="text-sm font-bold mt-3 mb-2" style={{ color: c.text }}>Travel</p>}
+            {customResult.travel_lines.length > 0 && <p className="text-sm font-bold mt-3 mb-2" style={{ color: c.text }}>Travel &amp; visits ({visits} visit{Number(visits) === 1 ? '' : 's'}/yr)</p>}
             {customResult.travel_lines.map((t, i) => (
-              <Row key={i} label={`${t.site_name} (${t.location})`} value={gbp(t.price)} c={c} />
+              <Row key={i} label={`${t.site_name} (${t.location}) — ${gbp(t.per_visit != null ? t.per_visit : t.price)} × ${t.visits || 1}`} value={gbp(t.annual != null ? t.annual : t.price)} c={c} />
             ))}
+            {(customResult.excluded_count || 0) > 0 && (
+              <p className="text-[11px] mt-2" style={{ color: c.textDim }} data-testid="afs-aq-custom-excluded-note">{customResult.excluded_count} machine(s) excluded from this quote.</p>
+            )}
             <div className="mt-2 pt-2 border-t" style={{ borderColor: c.border }}>
               <Row label="Service (annual)" value={gbp(customResult.summary.service_annual)} c={c} />
-              <Row label="Travel" value={gbp(customResult.summary.travel_total)} c={c} />
+              <Row label="Travel &amp; visits (annual)" value={gbp(customResult.summary.travel_total)} c={c} />
               {customResult.summary.repair_cost > 0 && <Row label={`Repairs (est. ${customResult.summary.estimated_repair_hours}h @ ${gbp(customResult.summary.effective_repair_rate)}/hr)`} value={gbp(customResult.summary.repair_cost)} c={c} />}
               {customResult.summary.quote_discount_pct > 0 && <Row label={`Less ${customResult.summary.quote_discount_pct}% discount`} value={''} c={c} />}
               <Row label="Final annual (ex VAT)" value={gbp(customResult.summary.final_annual)} c={c} />
+              <Row label={`VAT (${((customResult.summary.vat_pct || 0) * 100).toFixed(0)}%)`} value={gbp(customResult.summary.vat_amount)} c={c} />
+              <Row label="Annual inc VAT" value={gbp(customResult.summary.final_annual_inc_vat)} c={c} />
             </div>
-            <button data-testid="afs-aq-custom-save" onClick={() => buildCustom(true)} disabled={busy}
-              className="mt-3 w-full py-2 rounded-md text-sm font-bold" style={{ background: 'var(--color-success-alt)', color: '#fff' }}>
-              {busy ? 'Saving…' : 'Save quote'}
+            <button data-testid="afs-aq-custom-save" onClick={() => buildCustom(true)} disabled={busy || (customResult.unpriced_count || 0) > 0}
+              className="mt-3 w-full py-2 rounded-md text-sm font-bold disabled:opacity-40" style={{ background: 'var(--color-success-alt)', color: '#fff' }}>
+              {busy ? 'Saving…' : ((customResult.unpriced_count || 0) > 0 ? 'Resolve unpriced machines to save' : (editQuoteId ? 'Save changes (overwrite)' : 'Save quote'))}
             </button>
             {customResult.saved_quote_id && <p className="text-[11px] mt-1 text-center" style={{ color: 'var(--color-success-alt)' }} data-testid="afs-aq-custom-saved">Saved {customResult.quote_number}</p>}
           </Card>
           {customResult.needs_review.length > 0 && (
             <Card c={c} isDark={isDark} className="mt-3" testId="afs-aq-custom-review-list">
-              <p className="text-sm font-bold mb-2" style={{ color: 'var(--color-accent-amber)' }}>Needs review ({customResult.needs_review.length})</p>
-              {customResult.needs_review.map((r, i) => (
-                <p key={i} className="text-xs" style={{ color: c.textDim }} data-testid={`afs-aq-custom-review-${i}`}>
-                  {r.kind === 'TRAVEL' ? `Travel: ${r.site_name}` : `Machine: ${r.model}`} — {r.detail}
-                </p>
-              ))}
+              <p className="text-sm font-bold mb-2" style={{ color: 'var(--color-accent-amber)' }}>Machines & sites AI couldn't price ({customResult.needs_review.length})</p>
+              <p className="text-[11px] mb-2" style={{ color: c.textDim }}>Add a matching price on the Service step, or exclude a machine to leave it off the quote.</p>
+              {customResult.needs_review.map((r, i) => {
+                const ids = r.asset_ids || (r.asset_id ? [r.asset_id] : []);
+                const isExcluded = ids.length > 0 && ids.every(id => excluded[id]);
+                return (
+                  <div key={i} className="flex items-center gap-2 py-1" data-testid={`afs-aq-custom-review-${i}`}>
+                    <span className="flex-1 text-xs" style={{ color: c.textDim }}>
+                      {r.kind === 'TRAVEL' ? `Travel: ${r.site_name}` : `Machine: ${r.model}${r.count ? ` × ${r.count}` : ''}`} — {r.detail}
+                    </span>
+                    {r.kind !== 'TRAVEL' && (
+                      <button data-testid={`afs-aq-exclude-${i}`} onClick={() => toggleExcludeGroup(r)}
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border" style={{ borderColor: c.border, color: isExcluded ? 'var(--color-success-alt)' : c.text }}>
+                        {isExcluded ? 'Excluded ✓ (undo)' : 'Exclude'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </Card>
           )}
         </div>
@@ -1262,7 +1352,7 @@ const AG_STATUS = {
   activation_attention: { label: 'Activation Attention', color: 'var(--color-danger)' },
 };
 
-function AgreementsTab({ API, headers, c, isDark }) {
+function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
   const [agreements, setAgreements] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [allQuotes, setAllQuotes] = useState([]);
@@ -1301,6 +1391,13 @@ function AgreementsTab({ API, headers, c, isDark }) {
       const r = await axios.get(`${API}/crm/v2/aftersales/quotes/${id}/pdf`, { headers: headers(), responseType: 'blob' });
       window.open(URL.createObjectURL(r.data), '_blank');
     } catch { alert('Could not open the quote PDF.'); }
+  };
+  const editQuoteRow = async (q) => {
+    try {
+      const r = await axios.get(`${API}/crm/v2/aftersales/quotes/${q.id}`, { headers: headers() });
+      setEditQuote && setEditQuote(r.data);
+      goTo && goTo('autoquote');
+    } catch { alert('Could not open this quote for editing.'); }
   };
   const makePortalLink = async (id) => {
     try {
@@ -1550,17 +1647,31 @@ function AgreementsTab({ API, headers, c, isDark }) {
                         reminded {q.chases_sent.map(x => `${x}d`).join(', ')}
                       </span>
                     )}
+                    {(q.unpriced_count || 0) > 0 && (
+                      <span data-testid={`afs-quote-unpriced-${q.id}`} className="text-[10px] font-bold px-2 py-0.5 rounded inline-flex items-center gap-1"
+                        style={{ background: 'var(--color-danger, #EF4444)22', color: 'var(--color-danger, #EF4444)' }}>
+                        <AlertTriangle size={11} /> {q.unpriced_count} unpriced — edit to send
+                      </span>
+                    )}
                     <div className="flex-1" />
+                    {(q.source === 'custom_tender_upload' || q.contract_type === 'custom') && (
+                      <button data-testid={`afs-quote-edit-${q.id}`} onClick={() => editQuoteRow(q)}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md" style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+                        <PenLine size={13} /> Edit
+                      </button>
+                    )}
                     <button data-testid={`afs-quote-pdf-${q.id}`} onClick={() => viewQuotePdf(q.id)}
                       className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md" style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
                       <FileText size={13} /> PDF
                     </button>
-                    <button data-testid={`afs-quote-email-${q.id}`} onClick={() => sendQuoteEmail(q)} disabled={emailBusy === q.id}
-                      className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md disabled:opacity-50" style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+                    <button data-testid={`afs-quote-email-${q.id}`} onClick={() => sendQuoteEmail(q)} disabled={emailBusy === q.id || (q.unpriced_count || 0) > 0}
+                      title={(q.unpriced_count || 0) > 0 ? 'Resolve unpriced machines before sending' : ''}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md disabled:opacity-40" style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
                       <Mail size={13} /> {emailedId === q.id ? 'Sent ✓' : (emailBusy === q.id ? 'Sending…' : 'Send to customer')}
                     </button>
-                    <button data-testid={`afs-quote-link-${q.id}`} onClick={() => makePortalLink(q.id)}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-md" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
+                    <button data-testid={`afs-quote-link-${q.id}`} onClick={() => makePortalLink(q.id)} disabled={(q.unpriced_count || 0) > 0}
+                      title={(q.unpriced_count || 0) > 0 ? 'Resolve unpriced machines before sharing' : ''}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-md disabled:opacity-40" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
                       <Share2 size={13} /> {copiedId === q.id ? 'Copied ✓' : (link ? 'Copy link' : 'Create link')}
                     </button>
                   </div>
@@ -2620,13 +2731,14 @@ export default function AftersalesApp() {
   const crm = useCRM();
   const { API, headers, c, isDark } = crm;
   const [tab, setTab] = useState('dashboard');
+  const [editQuote, setEditQuote] = useState(null);
   const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, onboarding: EstateOnboarding, agreements: AgreementsTab, renewals: RenewalsRpiTab, ai: AIAssistantTab, reports: ReportsTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab, finance: FinanceDashboard }[tab];
   return (
     <div data-testid="afs-app">
       <SubTabBar tabs={SUB_TABS} active={tab} onChange={setTab} testId="afs-tab" ariaLabel="Aftersales sections" />
       {tab === 'contracts'
         ? <><LiveCompliancePanel API={API} headers={headers} c={c} isDark={isDark} /><CRMContracts /></>
-        : <TabComp API={API} headers={headers} c={c} isDark={isDark} />}
+        : <TabComp API={API} headers={headers} c={c} isDark={isDark} editQuote={editQuote} setEditQuote={setEditQuote} goTo={setTab} />}
     </div>
   );
 }
