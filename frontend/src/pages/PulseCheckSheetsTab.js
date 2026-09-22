@@ -240,11 +240,10 @@ const PulseCheckSheetsTab = ({ equipment }) => {
             <button
               key={tab.key}
               onClick={() => setSubTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
-                subTab === tab.key
-                  ? 'bg-blue-50 border-blue-200 text-blue-700'
-                  : 'bg-white border-zinc-200 text-zinc-500 hover:border-zinc-300 dark:bg-zinc-900 dark:border-zinc-800'
-              }`}
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all"
+              style={subTab === tab.key
+                ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', boxShadow: '0 6px 16px -6px rgba(25, 205, 255, 0.35)' }
+                : { color: 'var(--theme-text-muted)', background: 'transparent' }}
               data-testid={`pulse-cs-tab-${tab.key}`}
             >
               <tab.icon size={15} />{tab.label}

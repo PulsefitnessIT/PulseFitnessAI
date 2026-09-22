@@ -16,6 +16,7 @@ import StockMovementTab from './StockMovementTab';
 import AllocationWizardTab from './AllocationWizardTab';
 import AnalyticsTab from './AnalyticsTab';
 import SettingsHubTab from './SettingsHubTab';
+import SubTabBar from '../../components/shared/SubTabBar';
 import { DealerPartsNavContext } from './navGuard';
 
 const TABS = [
@@ -71,22 +72,12 @@ export default function DealerWarrantyPartsPage() {
         </div>
       </div>
 
-      <div className="flex gap-1 border-b border-slate-200 overflow-x-auto">
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            data-testid={`dp-tab-${id}`}
-            onClick={() => guardedSetTab(id)}
-            className={`px-3.5 py-2.5 text-sm font-semibold -mb-px border-b-2 whitespace-nowrap flex items-center gap-1.5 transition-colors ${
-              tab === id
-                ? 'border-[var(--gx-brand-from)] text-[var(--gx-brand-from)]'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Icon size={15} /> {label}
-          </button>
-        ))}
-      </div>
+      <SubTabBar
+        tabs={TABS}
+        active={tab}
+        onChange={guardedSetTab}
+        testId="dp-tab"
+      />
 
       <Active />
     </div>

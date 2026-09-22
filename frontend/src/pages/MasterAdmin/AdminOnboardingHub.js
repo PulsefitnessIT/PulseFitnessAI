@@ -60,7 +60,7 @@ const AdminOnboardingHub = ({ API: _api, onComplete, isPulseAdmin = false, initi
   return (
     <div className="space-y-5" data-testid="admin-onboarding-hub">
       {/* Grouped sub-tab pill bar — Manage / Customers / Team */}
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-2 border-b border-zinc-200 -mt-2">
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-2 -mt-2">
         {GROUPS.map((grp) => (
           <div key={grp} className="flex flex-col">
             <span className="px-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{grp}</span>
@@ -72,11 +72,10 @@ const AdminOnboardingHub = ({ API: _api, onComplete, isPulseAdmin = false, initi
                   <button
                     key={t.id}
                     onClick={() => setTab(t.id)}
-                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                      isActive
-                        ? 'border-[var(--color-brand-blue)] text-[var(--color-brand-blue)]'
-                        : 'border-transparent text-zinc-500 hover:text-zinc-800 hover:border-zinc-300'
-                    }`}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all"
+                    style={isActive
+                      ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', boxShadow: '0 6px 16px -6px rgba(25, 205, 255, 0.35)' }
+                      : { color: 'var(--theme-text-muted)', background: 'transparent' }}
                     role="tab"
                     aria-selected={isActive}
                     data-testid={`onboarding-subtab-${t.id}`}

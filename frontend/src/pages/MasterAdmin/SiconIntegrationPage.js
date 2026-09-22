@@ -20,6 +20,7 @@ import SiconHealthPanel from './SiconHealthPanel';
 import SiconReadinessPanel from './SiconReadinessPanel';
 import SiconEquipmentMapper from './SiconEquipmentMapper';
 import IntegrationAdminPanel from '../IntegrationAdminPanel';
+import SubTabBar from '../../components/shared/SubTabBar';
 
 const TABS = [
   { id: 'readiness',    label: 'Readiness' },
@@ -36,19 +37,12 @@ export default function SiconIntegrationPage() {
 
   return (
     <div className="space-y-5" data-testid="sicon-integration-page">
-      <div className="flex gap-1 border-b border-zinc-200 pb-0 overflow-x-auto" data-testid="sicon-tabs">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${tab === t.id ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-zinc-500 hover:text-zinc-700'}`}
-            data-testid={`sicon-tab-${t.id}`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SubTabBar
+        tabs={TABS}
+        active={tab}
+        onChange={setTab}
+        testId="sicon-tab"
+      />
 
       {tab === 'readiness' && <SiconReadinessPanel />}
       {tab === 'overview' && <SiconHealthPanel view="overview" />}

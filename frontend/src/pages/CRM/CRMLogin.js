@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Eye, EyeOff, ArrowRight, ArrowLeft, Check, Users, Building2, CreditCard, Loader2, Shield } from 'lucide-react';
+import BrandWordmark from '../../components/shared/BrandWordmark';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -115,8 +116,7 @@ export default function CRMLogin({ onLogin }) {
         <div className="min-h-screen flex items-center justify-center px-4" style={{ background: bg }}>
           <div className="w-full max-w-sm" data-testid="crm-2fa-page">
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-lg bg-[var(--color-info-ios)] flex items-center justify-center text-white font-bold text-lg">{brandInitial}</div>
-              <span className="text-xl font-semibold tracking-tight" style={{ color: txt }}>{brandLabel}</span>
+              <BrandWordmark height={36} />
             </div>
             <div className="w-12 h-12 rounded-full bg-[rgb(var(--rgb-info-ios)/0.1)] flex items-center justify-center mx-auto mb-4">
               <Shield size={24} style={{ color: 'var(--color-info-ios)' }} />
@@ -160,8 +160,7 @@ export default function CRMLogin({ onLogin }) {
       <div className="min-h-screen flex items-center justify-center px-4" style={{ background: bg }}>
         <div className="w-full max-w-sm" data-testid="crm-login-page">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-lg bg-[var(--color-info-ios)] flex items-center justify-center text-white font-bold text-lg">{brandInitial}</div>
-            <span className="text-xl font-semibold tracking-tight" style={{ color: txt }}>{brandLabel}</span>
+            <BrandWordmark height={36} />
           </div>
           <h2 className="text-2xl font-semibold mb-1" style={{ color: txt }}>Welcome back</h2>
           <p className="text-sm mb-6" style={{ color: txtM }}>Sign in to your CRM account</p>
@@ -197,8 +196,7 @@ export default function CRMLogin({ onLogin }) {
       {/* Header */}
       <div className="border-b px-6 py-4 flex items-center justify-between" style={{ borderColor: border, background: surface }}>
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[var(--color-info-ios)] flex items-center justify-center text-white font-bold text-sm">{brandInitial}</div>
-          <span className="text-lg font-semibold" style={{ color: txt }}>{brandLabel}</span>
+          <BrandWordmark height={32} />
         </div>
         <button onClick={() => { setMode('login'); setError(''); }} className="text-sm font-medium text-[var(--color-info-ios)] hover:underline" data-testid="back-to-login">Already have an account? Sign in</button>
       </div>

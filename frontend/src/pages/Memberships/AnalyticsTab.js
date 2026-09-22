@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import StudioBrainTab from '@/pages/Memberships/StudioBrainTab';
 import AIInsightsTab from '@/pages/Memberships/AIInsightsTab';
+import SubTabBar from '@/components/shared/SubTabBar';
 
 const SECTIONS = [
   { id: 'overview',  label: 'Overview',   icon: Gauge },
@@ -70,22 +71,12 @@ export default function AnalyticsTab({ API, headers }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-1 mb-6 border-b border-white/10 overflow-x-auto">
-        {SECTIONS.map(s => {
-          const Icon = s.icon;
-          const active = section === s.id;
-          return (
-            <button
-              key={s.id}
-              onClick={() => setSection(s.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition whitespace-nowrap ${active ? 'text-[var(--color-brand-cyan)] border-b-2 border-[var(--color-brand-cyan)]' : 'text-white/60 hover:text-white'}`}
-              data-testid={`mbr-analytics-tab-${s.id}`}
-            >
-              <Icon size={14} /> {t(`memberships_console.an_sec_${s.id}`, s.label)}
-            </button>
-          );
-        })}
-      </div>
+      <SubTabBar
+        tabs={SECTIONS.map(s => ({ ...s, label: t(`memberships_console.an_sec_${s.id}`, s.label) }))}
+        active={section}
+        onChange={setSection}
+        testId="mbr-analytics-tab"
+      />
 
       {section === 'overview'   && <OverviewSection  API={API} headers={headers} range={range} openDrill={openDrill} />}
       {section === 'retention'  && <RetentionSection API={API} headers={headers} range={range} openDrill={openDrill} />}

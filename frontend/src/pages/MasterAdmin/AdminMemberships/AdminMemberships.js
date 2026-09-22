@@ -11,6 +11,7 @@ import InstructorsTab from './InstructorsTab';
 import AiAndFlagsTab from './AiAndFlagsTab';
 import SignupsFunnelTab from './SignupsFunnelTab';
 import OrgDrawer from './OrgDrawer';
+import SubTabBar from '../../../components/shared/SubTabBar';
 
 const TABS = [
  { id: 'overview', label: 'Overview' },
@@ -39,20 +40,12 @@ const AdminMemberships = () => {
 
  return (
  <div className="space-y-5" data-testid="admin-memberships">
- <div className="flex gap-1 mb-2 flex-wrap" data-testid="memberships-admin-tabs">
- {TABS.map((t) => (
- <button
- key={t.id}
- onClick={() => setTab(t.id)}
- className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
- tab === t.id ? 'bg-[var(--color-brand-blue)] text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
- }`}
- data-testid={`memberships-tab-${t.id}`}
- >
- {t.label}
- </button>
- ))}
- </div>
+ <SubTabBar
+ tabs={TABS}
+ active={tab}
+ onChange={setTab}
+ testId="memberships-tab"
+ />
 
  {tab === 'overview' && <OverviewTab overview={state.overview} onDrillOrg={setOrgId} onNavTab={setTab} />}
  {tab === 'organisations' && (

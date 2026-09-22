@@ -14,6 +14,7 @@ import {
   ShieldCheck, AlertTriangle, Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import SubTabBar from '../../components/shared/SubTabBar';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -100,16 +101,12 @@ export default function PlatformHealth() {
         </button>
       </div>
 
-      <div className="flex gap-1 border-b border-zinc-200">
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            data-testid={`platform-health-tab-${t.id}`}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              tab === t.id ? 'border-sky-600 text-sky-700' : 'border-transparent text-zinc-500 hover:text-zinc-700'}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SubTabBar
+        tabs={TABS}
+        active={tab}
+        onChange={setTab}
+        testId="platform-health-tab"
+      />
 
       {loading ? (
         <div className="flex items-center justify-center py-16 text-zinc-400">

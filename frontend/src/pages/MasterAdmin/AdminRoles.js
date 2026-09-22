@@ -23,6 +23,7 @@ import GlobalUsersPanel from './GlobalUsersPanel';
 import PeopleDirectory from './PeopleDirectory';
 import OrgPeopleDirectory from './OrgPeopleDirectory';
 import UserDetailDrawer from './UserDetailDrawer';
+import SubTabBar from '../../components/shared/SubTabBar';
 
 const TABS = [
   { id: 'directory', label: 'Directory', icon: Users },
@@ -97,22 +98,12 @@ const AdminRoles = ({ API, globalUsersProps, isPulseAdmin }) => {
 
   return (
     <div className="space-y-6" data-testid="admin-roles-page">
-      <div className="flex gap-1 border-b border-zinc-200 overflow-x-auto" data-testid="roles-sub-tabs">
-        {visibleTabs.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              tab === id
-                ? 'border-[var(--color-brand-blue)] text-[var(--color-brand-blue)]'
-                : 'border-transparent text-zinc-500 hover:text-zinc-700'
-            }`}
-            data-testid={`roles-tab-${id}`}
-          >
-            <Icon size={14} className="inline mr-1.5 -mt-0.5" /> {label}
-          </button>
-        ))}
-      </div>
+      <SubTabBar
+        tabs={visibleTabs}
+        active={tab}
+        onChange={setTab}
+        testId="roles-tab"
+      />
 
       {tab === 'directory' && (
         <PeopleDirectory

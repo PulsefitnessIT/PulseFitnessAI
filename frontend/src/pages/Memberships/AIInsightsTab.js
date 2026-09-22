@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import SubTabBar from '@/components/shared/SubTabBar';
 
 
 const SUB_TABS = [
@@ -36,23 +37,12 @@ export default function AIInsightsTab({ API, headers }) {
   return (
     <div data-testid="mbr-ai-insights">
       {/* Sub-tab pills — horizontal scroll on mobile */}
-      <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-2 mb-4">
-        {SUB_TABS.map((t) => {
-          const Icon = t.icon;
-          const active = view === t.id;
-          return (
-            <button key={t.id} onClick={() => setView(t.id)}
-              className={`flex-shrink-0 px-3 py-2 rounded-md text-xs font-extrabold flex items-center gap-1.5 border transition ${
-                active
-                  ? 'bg-fuchsia-500 text-white border-fuchsia-500'
-                  : 'bg-transparent border-[color:var(--theme-border)] text-[color:var(--theme-text-muted)]'
-              }`}
-              data-testid={`mbr-ai-tab-${t.id}`}>
-              <Icon size={11} /> {t.label}
-            </button>
-          );
-        })}
-      </div>
+      <SubTabBar
+        tabs={SUB_TABS}
+        active={view}
+        onChange={setView}
+        testId="mbr-ai-tab"
+      />
 
       {view === 'demand'   && <DemandView   API={API} headers={headers} />}
       {view === 'underper' && <UnderView    API={API} headers={headers} />}

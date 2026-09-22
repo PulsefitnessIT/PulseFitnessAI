@@ -538,31 +538,31 @@
    ────────────────────────────────────────────────────────── */
 
 .svc-tabs {
-  display: flex; gap: 4px;
-  border-bottom: 1px solid var(--svc-border);
+  display: flex; gap: 6px;
   margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
 .svc-tab {
   position: relative;
-  padding: 10px 14px;
+  padding: 8px 16px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--svc-muted);
   background: transparent;
   border: none;
+  border-radius: 9999px;
   cursor: pointer;
-  display: inline-flex; align-items: center; gap: 6px;
-  transition: color 160ms ease;
+  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 8px;
+  transition: color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
 }
 .svc-tab:hover { color: var(--svc-text); }
-.svc-tab--active { color: var(--svc-text); }
-.svc-tab--active::after {
-  content: '';
-  position: absolute;
-  inset: auto 12px -1px 12px;
-  height: 2px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, var(--svc-gradient-from), var(--svc-gradient-to));
+.svc-tab--active,
+.svc-tab--active:hover {
+  color: var(--color-ink);
+  background: var(--color-brand-cyan);
+  box-shadow: 0 6px 16px -6px rgba(25, 205, 255, 0.35);
 }
 
 /* ──────────────────────────────────────────────────────────

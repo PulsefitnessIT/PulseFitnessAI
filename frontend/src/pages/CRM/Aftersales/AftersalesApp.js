@@ -13,6 +13,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useCRM } from '../CRMApp';
+import PillTabBar from '../../../components/shared/PillTabBar';
 import CRMContracts from '../CRMContracts';
 import EstateOnboarding from './EstateOnboarding';
 import {
@@ -2296,21 +2297,17 @@ export default function AftersalesApp() {
   const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, onboarding: EstateOnboarding, agreements: AgreementsTab, renewals: RenewalsRpiTab, ai: AIAssistantTab, reports: ReportsTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab, finance: FinanceDashboard }[tab];
   return (
     <div data-testid="afs-app">
-      <div className="mb-4">
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight pulse-font-heading" style={{ color: c.text }}>Aftersales Contracts</h1>
-        <p className="text-sm" style={{ color: c.textDim }}>Enter once → reuse everywhere → manage by exception.</p>
-      </div>
-      <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1" data-testid="afs-subnav">
+      <PillTabBar className="mb-5 pulse-font-body" activeId={tab} testId="afs-subnav" ariaLabel="Aftersales sections">
         {SUB_TABS.map(t => (
-          <button key={t.id} data-testid={`afs-tab-${t.id}`} onClick={() => setTab(t.id)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
+          <button key={t.id} data-pill-id={t.id} data-testid={`afs-tab-${t.id}`} onClick={() => setTab(t.id)}
+            className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all"
             style={tab === t.id
-              ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }
-              : { background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
-            <t.icon size={15} /> {t.label}
+              ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', boxShadow: '0 6px 16px -6px rgba(25, 205, 255, 0.35)' }
+              : { color: 'var(--theme-text-muted)', background: 'transparent' }}>
+            <t.icon size={14} className="shrink-0" /> {t.label}
           </button>
         ))}
-      </div>
+      </PillTabBar>
       {tab === 'contracts'
         ? <><LiveCompliancePanel API={API} headers={headers} c={c} isDark={isDark} /><CRMContracts /></>
         : <TabComp API={API} headers={headers} c={c} isDark={isDark} />}

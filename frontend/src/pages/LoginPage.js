@@ -13,6 +13,7 @@ import axios from 'axios';
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react';
 
 import { useAuth } from '@/App';
+import BrandWordmark from '@/components/shared/BrandWordmark';
 import { notify, useInlineBanner } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import { moduleHomePath } from '@/utils/moduleHome';
@@ -277,8 +278,8 @@ export default function LoginPage() {
     >
       {/* Top bar */}
       <header className="px-6 lg:px-10 h-16 flex items-center justify-between border-b border-slate-200/60 bg-white/60 backdrop-blur">
-        <Link to="/" className="text-slate-900 font-black tracking-tighter text-lg" data-testid="gx-login-logo">
-          Pulse Fitness<span className="text-[var(--gx-brand-from)]">.AI</span>
+        <Link to="/" className="flex items-center" data-testid="gx-login-logo">
+          <BrandWordmark height={36} />
         </Link>
         <div className="flex items-center gap-4">
           <select
