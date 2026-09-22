@@ -627,8 +627,40 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
   const [uploadBusy, setUploadBusy] = useState(false);
   const [customData, setCustomData] = useState(null);   // {machine_services:[], travel:[]}
   const [customResult, setCustomResult] = useState(null);
+  const [rateCards, setRateCards] = useState([]);
+  const [savingCard, setSavingCard] = useState(false);
+  const [lastFilename, setLastFilename] = useState('');
   const fileRef = useRef(null);
   const isCustom = contractType === 'custom';
+  useEffect(() => {
+    if (!isCustom || !companyId) { setRateCards([]); return; }
+    axios.get(`${API}/crm/v2/aftersales/rate-cards?company_id=${companyId}`, { headers: headers() })
+      .then(r => setRateCards(r.data?.rate_cards || [])).catch(() => setRateCards([]));
+  }, [isCustom, companyId]);  // eslint-disable-line react-hooks/exhaustive-deps
+  const loadCard = (rc) => {
+    setCustomData({ machine_services: (rc.machine_rates || []).map(m => ({ type: m.type, service_price: m.service_price })), travel: (rc.travel_rates || []).map(t => ({ location: t.location, price: t.price })) });
+    setCustomResult(null);
+    setLastFilename(rc.name || '');
+  };
+  const saveCard = async () => {
+    if (!companyId || !customData) return;
+    const name = window.prompt('Name this rate card', lastFilename || 'Tender rate card');
+    if (name === null) return;
+    setSavingCard(true);
+    try {
+      await axios.post(`${API}/crm/v2/aftersales/rate-cards`, {
+        company_id: companyId, name,
+        machine_rates: (customData.machine_services || []).map(m => ({ type: m.type, service_price: Number(m.service_price) })),
+        travel_rates: (customData.travel || []).map(t => ({ location: t.location, price: Number(t.price) })),
+        source_filename: lastFilename,
+      }, { headers: headers() });
+      const r = await axios.get(`${API}/crm/v2/aftersales/rate-cards?company_id=${companyId}`, { headers: headers() });
+      setRateCards(r.data?.rate_cards || []);
+      alert('Rate card saved for this customer');
+    } catch (err) {
+      alert('Could not save rate card: ' + (err?.response?.data?.detail || err.message));
+    } finally { setSavingCard(false); }
+  };
   const onUploadPricing = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -642,6 +674,7 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
       const ex = await axios.post(`${API}/crm/v2/aftersales/extract-pricing-document?file_id=${fid}`, {},
         { headers: headers() });
       setCustomData({ machine_services: ex.data.machine_services || [], travel: ex.data.travel || [] });
+      setLastFilename(ex.data.source_filename || f.name || '');
     } catch (err) {
       alert('Could not read that document: ' + (err?.response?.data?.detail || err.message));
     } finally {
@@ -797,6 +830,21 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
             </div>
             <input ref={fileRef} data-testid="afs-aq-pricing-file" type="file" accept=".pdf,.xlsx,.xls,.docx,.csv,.txt" onChange={onUploadPricing} disabled={uploadBusy}
               className="block text-xs" style={{ color: c.textDim }} />
+            {rateCards.length > 0 && (
+              <div className="mt-3" data-testid="afs-aq-ratecards">
+                <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Saved rate cards for this customer</p>
+                <div className="flex flex-wrap gap-2">
+                  {rateCards.map(rc => (
+                    <button key={rc.id} data-testid={`afs-aq-ratecard-${rc.id}`} onClick={() => loadCard(rc)}
+                      className="px-3 py-1.5 rounded-full text-xs font-semibold border hover:opacity-80 transition-opacity"
+                      style={{ borderColor: 'var(--color-brand-cyan)', color: c.text }}>
+                      {rc.name} · {(rc.machine_rates || []).length} machines
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] mt-1" style={{ color: c.textDim }}>Load a saved card to skip re-uploading, or upload a new document above.</p>
+              </div>
+            )}
             {uploadBusy && <p className="text-xs mt-2" style={{ color: c.textDim }} data-testid="afs-aq-pricing-uploading">Reading document with AI…</p>}
             {customData && (
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="afs-aq-pricing-review">
@@ -834,6 +882,13 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
               style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
               <Rocket size={16} /> {busy ? 'Applying…' : 'Apply prices & build quote'}
             </button>
+            {customData && (
+              <button data-testid="afs-aq-save-ratecard" onClick={saveCard} disabled={savingCard}
+                className="mt-3 ml-2 inline-flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-semibold border disabled:opacity-40"
+                style={{ borderColor: c.border, color: c.text }}>
+                {savingCard ? 'Saving…' : 'Save as rate card'}
+              </button>
+            )}
           </div>
         )}
         {!isCustom && (

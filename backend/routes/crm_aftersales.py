@@ -1384,6 +1384,64 @@ async def build_custom_quote(body: CustomQuoteIn, user=Depends(get_crm_user)):
     return out
 
 
+# ── Reusable customer rate cards (saved tenders) ───────────────────
+class RateCardIn(BaseModel):
+    company_id: str
+    name: Optional[str] = None
+    machine_rates: List[dict] = []
+    travel_rates: List[dict] = []
+    currency: str = "GBP"
+    source_filename: Optional[str] = None
+
+
+@router.post("/rate-cards")
+async def save_rate_card(body: RateCardIn, user=Depends(get_crm_user)):
+    """Persist an extracted/edited tender as a reusable rate card on the customer."""
+    of = _of(user)
+    company = await db.crm2_companies.find_one({"id": body.company_id, **of}, {"_id": 0, "id": 1, "name": 1})
+    if not company:
+        raise HTTPException(404, "Company not found")
+    machine_rates = [{"type": str(m.get("type")).strip(), "service_price": round(float(m.get("service_price") or 0), 2)}
+                     for m in body.machine_rates if m.get("type")]
+    travel_rates = [{"location": str(t.get("location")).strip(), "price": round(float(t.get("price") or 0), 2)}
+                    for t in body.travel_rates if t.get("location")]
+    rid = _id()
+    label = (body.name or "").strip() or (body.source_filename or f"Rate card {datetime.now(timezone.utc).strftime('%d %b %Y')}")
+    doc = {
+        "id": rid, "organization_id": _org(user), "company_id": body.company_id,
+        "company_name": company.get("name"), "name": label, "currency": body.currency or "GBP",
+        "machine_rates": machine_rates, "travel_rates": travel_rates,
+        "source_filename": body.source_filename,
+        "created_by": user.get("email") or user.get("id"),
+        "created_at": _now(), "updated_at": _now(),
+    }
+    await db.crm2_afs_rate_cards.insert_one(doc)
+    doc.pop("_id", None)
+    try:
+        await record_audit(entity_type="afs_rate_card", entity_id=rid, action="create",
+                           user=user, extra={"company": company.get("name"), "name": label})
+    except Exception:  # noqa: BLE001
+        pass
+    return doc
+
+
+@router.get("/rate-cards")
+async def list_rate_cards(company_id: str, user=Depends(get_crm_user)):
+    of = _of(user)
+    cards = await db.crm2_afs_rate_cards.find(
+        {"company_id": company_id, **of}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return {"rate_cards": cards}
+
+
+@router.delete("/rate-cards/{card_id}")
+async def delete_rate_card(card_id: str, user=Depends(get_crm_user)):
+    of = _of(user)
+    r = await db.crm2_afs_rate_cards.delete_one({"id": card_id, **of})
+    if not r.deleted_count:
+        raise HTTPException(404, "Rate card not found")
+    return {"ok": True}
+
+
 
 @router.get("/quotes")
 async def list_afs_quotes(status: str = "", user=Depends(get_crm_user)):
