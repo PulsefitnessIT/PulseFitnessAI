@@ -371,3 +371,11 @@ Engineers record equipment calibration readings on a case and generate a branded
 - Each extracted/edited tender in Build Quote → Custom (tender) can be saved as a reusable RATE CARD on the customer ("Save as rate card"). Saved cards appear as pills ("<name> · N machines") whenever that customer + Custom package is selected; clicking one repopulates the pricing review panel with NO re-upload, then Apply builds the quote.
 - Backend: crm2_afs_rate_cards collection; POST /crm/v2/aftersales/rate-cards, GET ?company_id=, DELETE /{id}. Frontend: AutoQuoteTab rateCards state + saveCard/loadCard.
 - Verified: CRUD via curl; testing_agent frontend 100% save→reload→load→build (iteration_afs_ratecard_save_reload_jan2026.json).
+
+## 2026-06 · Tender Quote Wizard (repairs + multi-schedule + AI summary)
+- Aftersales → Build Quote → Custom (tender) now has a mode toggle: Quick (single panel) OR a stepped Tender Wizard (kept both).
+- Wizard steps: Upload → Summary → Service → Repairs → Travel → Build. AI now also extracts REPAIR labour £/hr per machine type (single 'All' rate if flat) and a TENDER SUMMARY (headline, term, PPM visits/yr, SLA, key points). Summary step lets the user tick which schedules (Service/Repairs/Travel) to include.
+- Repairs: stored on the quote/rate card AND optionally costed — "estimated repair hours/yr" × effective rate (mean of provided rates) adds an indicative repair line to the annual total.
+- Rate cards now persist repair_rates and round-trip into Quick mode.
+- Backend: extract-pricing-document returns repairs+summary; build-custom-quote accepts repair_rates+estimated_repair_hours (repair cost line); rate-cards store repairs. Frontend: AutoQuoteTab customMode/wizStep/incl/estHours + wizard JSX (afs-wiz-* testids).
+- Verified: curl (extraction repairs+summary; 40h×£27.5=£1100 costing) + testing_agent frontend 100% (iteration_afs_tender_wizard_repairs_jan2026.json). Model: Claude Sonnet 4.6.

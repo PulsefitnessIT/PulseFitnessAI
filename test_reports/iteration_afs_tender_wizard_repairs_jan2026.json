@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend E2E of the new Aftersales 'Custom (tender)' TENDER WIZARD in Build Quote. Logged in as owner@isodemo.com, switched to Corporate, opened Aftersales Contracts → Build Quote, selected AlphaCo (Site A) with Custom (tender). Toggled mode to 'Tender wizard' and walked through all 6 steps: Upload → Summary (headline + Term 3y, PPM 2/y, SLA 48h, bullet points, include-service/repairs/travel all checked) → Service (5 editable prices: Treadmill 12, Bike 10, Rower 11.5, Cross Trainer 10, Power Rack 3.5) → Repairs (rp-0 = 25, est hours 40) → Travel (Demo Head Office 45, Demo Branch B 55) → Build recap. Build produced afs-aq-custom-result with Repairs (est. 40h @ £25.00/hr) = £1,000.00, Service £121, Travel £100, Final annual £1,221 — matches the expected repair costing. Save as rate card prompted for name (TEST_TenderRateCard) and alerted success; reopening Quick mode showed the saved card (with repairs) alongside the pre-existing 'AlphaCo Tender' card. Quick mode regression panel loads normally (single-panel upload/rate-cards/review).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "Aftersales Build Quote initial load", "issue": "Two harmless 500s on tab load (pre-existing estate/warranty endpoints) — as flagged in review request, not blocking."},
+      {"endpoint": "/api/crm/aftersales/extract-pricing-document (or wizard equivalent)", "issue": "One transient 503 observed during AI extraction; recovered and summary rendered within 9s."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_afs_tender_wizard_repairs_jan2026.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Extraction endpoint returned a 503 once (retry then succeeded). Consider surfacing retry state in UI if the 503 becomes more frequent under load.",
+    "The two harmless 500s on Build Quote tab load are pre-existing and were left as-is per review-request guidance; still worth cleaning up so the console is quiet for QA."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (unified /login)",
+  "seed_data_creation": "Saved a rate card named 'TEST_TenderRateCard' for AlphaCo (Site A) — visible in Quick mode saved rate cards alongside the existing 'AlphaCo Tender'. Includes repairs.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Wizard testids: afs-aq-mode-toggle / afs-aq-mode-quick / afs-aq-mode-wizard / afs-aq-wizard / afs-wiz-step-1..6 / afs-wiz-file / afs-wiz-summary / afs-wiz-incl-service|repairs|travel / afs-wiz-next-2..5 / afs-wiz-service + afs-wiz-ms-* / afs-wiz-repairs + afs-wiz-rp-0 + afs-wiz-est-hours / afs-wiz-travel + afs-wiz-tr-* / afs-wiz-build + afs-wiz-build-btn / afs-wiz-save-ratecard / afs-aq-custom-result. Auto-advance from Upload→Summary works. Prompt/alert must be auto-accepted for save-ratecard. AlphaCo has 23 assets, 12 priced, 4 in needs-review (expected — some models don't match a machine type).",
+  "rca of the issue": "N/A — no issues found. Backend was already verified per review request; this run confirms wizard UI + include-checkbox + repair-hours costing (40h × £25 = £1,000) render correctly in afs-aq-custom-result, and the saved rate card round-trips into Quick mode."
+}

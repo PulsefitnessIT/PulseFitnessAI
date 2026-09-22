@@ -38520,3 +38520,8 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Fixed MOD estates (mod_org/mod_site) not pulling through to CRM on Sync (account_type allow-list). See CHANGELOG.
 - Aftersales Build Quote now has a "Custom (tender)" package: upload agreement → Claude (Sonnet 4.6, vision OCR for scanned PDFs) extracts machine service prices + travel → review/edit → apply to estate by machine type (needs-review fallback) → build & save quote. Endpoints in crm_aftersales.py; UI in AftersalesApp.js AutoQuoteTab.
 - Backlog noted by user: a future WIZARD that tailors tender contract quotes (repairs £/hr, more schedules). Also: pre-existing two 500s on Build Quote tab load (estate/warranty call) — investigate.
+
+---
+## 2026-06 · Tender Quote Wizard
+- Custom (tender) package now offers Quick panel OR a 6-step Tender Wizard (Upload→Summary→Service→Repairs→Travel→Build). AI extracts service + repair £/hr (per type, single-rate fallback) + travel + a tender summary; user selects which schedules to include; repairs stored & optionally costed via estimated annual hours. Rate cards include repairs. crm_aftersales.py + AftersalesApp.js.
+- Backlog: (a) surface AI retry state if extraction 503s under load; (b) quiet the two pre-existing 500s on Build Quote tab load; (c) remember manual machine→type mappings.
