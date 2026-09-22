@@ -38498,3 +38498,19 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Verified: testing_agent 100% backend+frontend (report iteration_calibration_cert_office_drawer_jan2026.json);
   synthetic e2e of publish/backfill; cert endpoint returns valid 121KB PDF.
 - NEW: /app/memory/PLATFORM_CONTEXT.md added as the always-read platform purpose/tenancy reference.
+
+---
+## 2026-06 · Calibration cert: email-to-customer + parameters match + deploy
+- Email: office drawer "Email customer" button → POST /api/svc/cases/{id}/calibration/certificate/email
+  (Resend, category "service"); records calibration_cert_sent_at/to + timeline event; "Sent" pill on success.
+- Parameters: treadmill calibration now matches the customer's Certificate of Service — Speed 3/6/9/12 mph,
+  Incline 0/5/10/15%. Canonical source: engineer.py _default_calibration_readings + GET
+  /jobs/{id}/calibration default_readings; frontend pre-fills; PPM seed updated. Confirmed in generated PDF.
+- Task 1 (DSFR / Devon & Somerset Fire and Rescue): user confirmed deploy=yes, DSFR has NO portal login
+  accounts yet, and NO closed calibration jobs yet → nothing to backfill now. Deploy makes publish+Sync live
+  for their upcoming scheduled services. When ready: create DSFR portal users (Master Admin →
+  organizations/{org_id}/users), then close their calibration jobs (auto-publishes) or click Sync to backfill.
+- Deployed to production (queued via deployer). Email delivery in prod depends on a valid RESEND_API_KEY +
+  verified SENDER_EMAIL_SERVICE domain (service@service.pulsefitness.ai) — preview key is invalid.
+- Tested: testing_agent frontend 100% (iteration_calibration_cert_email_button_jan2026.json); backend endpoints
+  verified via curl (cert 200 PDF; email reaches Resend); PDF text extraction confirms 8 params.

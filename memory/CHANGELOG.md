@@ -355,3 +355,9 @@ Engineers record equipment calibration readings on a case and generate a branded
 - CRITICAL FIX: EngineerJobDetailV2.js had a real syntax error (unclosed profitability component) that was breaking the entire frontend compile since the prior session's "Calibration Capture" work — now fixed; app compiles/renders.
 - Added /app/memory/PLATFORM_CONTEXT.md (always-read purpose/tenancy reference).
 - Verified: testing_agent 100% BE+FE (iteration_calibration_cert_office_drawer_jan2026.json).
+
+## 2026-06 · Calibration cert: email-to-customer + parameters match Certificate of Service
+- Office drawer: added "Email customer" button (data-testid drawer-calibration-cert-email) next to View/Download in the calibration cert block, plus a blue "Sent" pill (drawer-calibration-cert-sent) after a successful send. Backend POST /api/svc/cases/{id}/calibration/certificate/email (mirrors service-report email, Resend, category "service"); records calibration_cert_sent_at/to + timeline event.
+- Treadmill calibration parameters now MATCH the customer's "Certificate of Service": Speed 3/6/9/12 mph, Incline 0/5/10/15%. Backend serves canonical params via engineer.py _default_calibration_readings + GET /jobs/{id}/calibration default_readings; frontend CalibrationCapture pre-fills them; PPM seed "Treadmill Calibration" checklist updated. Verified in generated PDF (all 8 params present).
+- Verified: testing_agent frontend 100% (iteration_calibration_cert_email_button_jan2026.json); cert PDF text-extraction confirms the 8 params; email endpoint reaches Resend (502 only due to invalid preview key — delivers in prod).
+- Task 1 (DSFR): publish/backfill already shipped; DSFR has no portal accounts / no closed calibration jobs yet, so nothing to backfill now — deploy makes it live for their upcoming services.
