@@ -638,6 +638,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
   const [vatPct, setVatPct] = useState(20);         // VAT % (default 20% UK)
   const [excluded, setExcluded] = useState({});     // asset_id → true (machines left off the quote)
   const [editQuoteId, setEditQuoteId] = useState(''); // set when editing a saved quote (overwrite)
+  const [includeAnnexe, setIncludeAnnexe] = useState(false); // append per-site equipment appendix to PDF
   const fileRef = useRef(null);
   const isCustom = contractType === 'custom';
   useEffect(() => {
@@ -707,6 +708,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
         term_years: Number(term), quote_discount_pct: Number(discount),
         visits_per_year: Number(visits || 1), vat_pct: Number(vatPct || 0) / 100,
         excluded_asset_ids,
+        include_site_annexe: !!includeAnnexe,
         overwrite_quote_id: save ? (editQuoteId || undefined) : undefined,
         save: !!save,
       }, { headers: headers() });
@@ -746,6 +748,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
     setVisits(editQuote.visits_per_year || (editQuote.summary && editQuote.summary.visits_per_year) || 1);
     setVatPct(Math.round(((editQuote.vat_pct != null ? editQuote.vat_pct : 0.2)) * 100));
     setEstHours(editQuote.estimated_repair_hours || '');
+    setIncludeAnnexe(!!editQuote.include_site_annexe);
     const exc = {}; (editQuote.excluded_asset_ids || []).forEach(id => { exc[id] = true; });
     setExcluded(exc);
     setEditQuoteId(editQuote.id);
@@ -902,6 +905,10 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
                 <input data-testid="afs-aq-vat" type="number" min="0" step="0.5" value={vatPct} onChange={e => setVatPct(e.target.value)}
                   className="w-full mt-1 px-2 py-2 text-sm rounded-md" style={inpStyle} /></label>
             </div>
+            <label className="flex items-start gap-2 mb-3 cursor-pointer text-xs" data-testid="afs-aq-annexe-toggle" style={{ color: c.textDim }}>
+              <input type="checkbox" data-testid="afs-aq-annexe-checkbox" checked={includeAnnexe} onChange={e => setIncludeAnnexe(e.target.checked)} className="mt-0.5" />
+              <span>Include a <b style={{ color: c.text }}>per-site equipment appendix</b> in the customer PDF — lists every station and its machines (ideal for large estates like Devon &amp; Somerset's 85 sites).</span>
+            </label>
             <div className="flex gap-1 mb-3" data-testid="afs-aq-mode-toggle">
               {['quick', 'wizard'].map(m => (
                 <button key={m} data-testid={`afs-aq-mode-${m}`} onClick={() => { setCustomMode(m); setWizStep(1); setCustomResult(null); }}

@@ -1308,6 +1308,7 @@ class CustomQuoteIn(BaseModel):
     vat_pct: float = 0.20              # 20% UK VAT by default (override per quote)
     excluded_asset_ids: Optional[List[str]] = None   # machines deliberately left off the quote
     overwrite_quote_id: Optional[str] = None          # edit an existing saved quote (keeps number)
+    include_site_annexe: bool = False                 # append a per-site equipment appendix to the PDF
     save: bool = False
 
 
@@ -1426,6 +1427,7 @@ async def build_custom_quote(body: CustomQuoteIn, user=Depends(get_crm_user)):
         "excluded_lines": excluded_lines, "excluded_count": len(excluded_lines),
         "unpriced_asset_ids": unpriced_asset_ids, "unpriced_count": unpriced_count,
         "quote_health": quote_health,
+        "include_site_annexe": bool(body.include_site_annexe),
         "assets_total": len(equipment), "assets_priced": sum(g["qty"] for g in grouped),
         "summary": summary,
     }
@@ -1442,6 +1444,7 @@ async def build_custom_quote(body: CustomQuoteIn, user=Depends(get_crm_user)):
             "excluded_asset_ids": list(excluded),
             "unpriced_asset_ids": unpriced_asset_ids, "unpriced_count": unpriced_count,
             "quote_health": quote_health, "summary": summary,
+            "include_site_annexe": bool(body.include_site_annexe),
             "machine_rates": machine_rates, "travel_rates": travel_rates,
             "repair_rates": repair_rates, "estimated_repair_hours": est_hours,
             "updated_at": _now(),

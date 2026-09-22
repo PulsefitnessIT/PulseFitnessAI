@@ -396,3 +396,10 @@ Pre-existing (NOT from this change, noted for later): 2× 500s on CRM/Aftersales
 - GET /api/crm/v2/aftersales/revenue/warranty-opportunities returned 500 ("can't compare offset-naive and offset-aware datetimes", crm_aftersales.py:2865). It's loaded by AutoQuoteTab on entering Build Quote → the console 500 the testing agent flagged.
 - Root cause: _parse_dt() returned a tz-naive datetime for warranty_expiry values stored without an offset; compared against tz-aware now/horizon.
 - Fix: _parse_dt() now normalises naive datetimes to UTC-aware. Verified 200 + returns opportunities; full Aftersales nav endpoint sweep all 200.
+
+## 2026-06 — Feature: optional per-site equipment appendix on quote PDF
+- New optional "Appendix A — Equipment by site" in the customer quote PDF, for large estates (e.g. Devon & Somerset's 85 sites).
+- Toggle: CustomQuoteIn.include_site_annexe (persisted on the quote); UI checkbox in AutoQuoteTab custom panel (data-testid afs-aq-annexe-checkbox), prefilled on edit.
+- Render: render_afs_quote_pdf builds a per-site breakdown at render time (_build_site_annexe) from db.equipment/db.sites for the quote's linked_organization_id (respecting site_ids), grouping identical model/console into quantities, listing serials, and marking excluded_asset_ids as "(not covered)". build_afs_quote_pdf renders it after a PageBreak. Fixed a pulse_title-returns-list bug (must use `flow += pulse_title(...)`).
+- Verified via live PDF endpoint (iso-cA): appendix present + correct when flag on, absent when off; all cleaned up.
+Files: backend/routes/crm_aftersales.py, backend/utils/afs_quote_pdf.py, frontend/src/pages/CRM/Aftersales/AftersalesApp.js.

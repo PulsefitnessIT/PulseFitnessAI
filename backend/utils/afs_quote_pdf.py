@@ -28,7 +28,8 @@ def _gbp(v) -> str:
 
 
 def build_afs_quote_pdf(quote: dict, org: dict | None = None,
-                        company: dict | None = None, coverage: dict | None = None) -> bytes:
+                        company: dict | None = None, coverage: dict | None = None,
+                        site_annexe: list | None = None) -> bytes:
     s = pulse_styles()
     buf = io.BytesIO()
     doc = make_pulse_doc(buf, quote.get("quote_number") or "Maintenance Quote", company=company)
@@ -197,6 +198,46 @@ def build_afs_quote_pdf(quote: dict, org: dict | None = None,
         "This quotation is subject to the standard Maintenance Agreement terms &amp; conditions.</i>", s["muted"]))
     flow.append(KeepTogether(tail))
 
+    # Optional appendix: equipment listed per site (for large estates)
+    if site_annexe:
+        from reportlab.platypus import PageBreak
+        flow.append(PageBreak())
+        total_assets = sum(a.get("asset_count", 0) for a in site_annexe)
+        flow += pulse_title(s, "Appendix A — Equipment by site")
+        flow.append(Paragraph(
+            f"{len(site_annexe)} site(s) · {total_assets} asset(s). Units marked "
+            f"<i>(not covered)</i> are excluded from this agreement.", s["muted"]))
+        flow.append(Spacer(1, 4 * mm))
+        for a in site_annexe:
+            block = []
+            head = a["site_name"]
+            if a.get("asset_count"):
+                head += f"  ({a['asset_count']} asset{'s' if a['asset_count'] != 1 else ''})"
+            block.append(section_label(s, head))
+            if a.get("address"):
+                block.append(Paragraph(_esc(a["address"]), s["muted"]))
+            rows = [[Paragraph("Qty", s["thR"]), Paragraph("Equipment", s["th"]),
+                     Paragraph("Serial(s)", s["th"])]]
+            for it in a["items"]:
+                label = it["label"] + ("" if it.get("covered", True) else "  (not covered)")
+                serials = ", ".join(it.get("serials") or []) or "—"
+                rows.append([
+                    Paragraph(f"{int(it['qty'])}", s["cellR"]),
+                    Paragraph(_esc(label), s["cell"]),
+                    Paragraph(_esc(serials), s["cell"]),
+                ])
+            at = Table(rows, colWidths=[14 * mm, 78 * mm, 74 * mm], repeatRows=1)
+            at.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), PULSE_NAVY),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("LINEBELOW", (0, 1), (-1, -1), 0.4, PULSE_BORDER),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]))
+            block.append(at)
+            block.append(Spacer(1, 4 * mm))
+            flow.append(KeepTogether(block))
+
     doc.build(flow)
     return buf.getvalue()
 
@@ -205,6 +246,7 @@ async def render_afs_quote_pdf(quote: dict, organization_id: str | None = None) 
     org: dict = {}
     company = None
     coverage = None
+    site_annexe = None
     try:
         from utils.database import db as _db
         if organization_id:
@@ -222,6 +264,53 @@ async def render_afs_quote_pdf(quote: dict, organization_id: str | None = None) 
                 coverage = {"maintenance": pkg.get("maintenance", []),
                             "technical_support": pkg.get("technical_support", []),
                             "exclusions": pkg.get("exclusions", [])}
+        # Optional per-site equipment appendix (for large estates)
+        if quote.get("include_site_annexe") and quote.get("linked_organization_id"):
+            site_annexe = await _build_site_annexe(_db, quote)
     except Exception:
         pass
-    return build_afs_quote_pdf(quote, org, company=company, coverage=coverage)
+    return build_afs_quote_pdf(quote, org, company=company, coverage=coverage, site_annexe=site_annexe)
+
+
+async def _build_site_annexe(_db, quote: dict) -> list:
+    """Group the quoted estate's equipment by site for a customer-facing appendix.
+    Identical model/console units at a site are collapsed into a quantity."""
+    linked = quote.get("linked_organization_id")
+    site_ids = quote.get("site_ids") or []
+    excluded = set(quote.get("excluded_asset_ids") or [])
+    eq_query = {"organization_id": linked}
+    if site_ids:
+        eq_query["site_id"] = {"$in": site_ids}
+    equipment = await _db.equipment.find(
+        eq_query, {"_id": 0, "id": 1, "name": 1, "model": 1, "model_code": 1, "console_type": 1,
+                   "serial_number": 1, "site_id": 1}).to_list(20000)
+    sites = await _db.sites.find(
+        {"organization_id": linked, **({"id": {"$in": site_ids}} if site_ids else {})},
+        {"_id": 0, "id": 1, "name": 1, "address": 1, "postcode": 1}).to_list(5000)
+    site_name = {s["id"]: s for s in sites}
+    by_site = {}
+    for e in equipment:
+        sid = e.get("site_id") or "__unassigned__"
+        label = e.get("model") or e.get("model_code") or e.get("name") or "Equipment"
+        if e.get("console_type"):
+            label += f" · {e['console_type']}"
+        covered = e.get("id") not in excluded
+        bucket = by_site.setdefault(sid, {})
+        key = (label, covered)
+        row = bucket.setdefault(key, {"label": label, "covered": covered, "qty": 0, "serials": []})
+        row["qty"] += 1
+        if e.get("serial_number"):
+            row["serials"].append(str(e["serial_number"]))
+    annexe = []
+    for sid, rows in by_site.items():
+        meta = site_name.get(sid, {})
+        addr = ", ".join(x for x in [meta.get("address"), meta.get("postcode")] if x)
+        items = sorted(rows.values(), key=lambda r: r["label"].lower())
+        annexe.append({
+            "site_name": meta.get("name") or ("Unassigned" if sid == "__unassigned__" else "Site"),
+            "address": addr,
+            "asset_count": sum(r["qty"] for r in items),
+            "items": items,
+        })
+    annexe.sort(key=lambda a: a["site_name"].lower())
+    return annexe
