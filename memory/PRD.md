@@ -38514,3 +38514,9 @@ engineer (reason "already working this area today"). ruff + eslint clean.
   verified SENDER_EMAIL_SERVICE domain (service@service.pulsefitness.ai) — preview key is invalid.
 - Tested: testing_agent frontend 100% (iteration_calibration_cert_email_button_jan2026.json); backend endpoints
   verified via curl (cert 200 PDF; email reaches Resend); PDF text extraction confirms 8 params.
+
+---
+## 2026-06 · MOD bridging fix + AI custom tender pricing
+- Fixed MOD estates (mod_org/mod_site) not pulling through to CRM on Sync (account_type allow-list). See CHANGELOG.
+- Aftersales Build Quote now has a "Custom (tender)" package: upload agreement → Claude (Sonnet 4.6, vision OCR for scanned PDFs) extracts machine service prices + travel → review/edit → apply to estate by machine type (needs-review fallback) → build & save quote. Endpoints in crm_aftersales.py; UI in AftersalesApp.js AutoQuoteTab.
+- Backlog noted by user: a future WIZARD that tailors tender contract quotes (repairs £/hr, more schedules). Also: pre-existing two 500s on Build Quote tab load (estate/warranty call) — investigate.

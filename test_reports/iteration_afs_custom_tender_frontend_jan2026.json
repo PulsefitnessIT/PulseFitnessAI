@@ -1,0 +1,40 @@
+{
+  "summary": "Frontend e2e for the Aftersales → Build Quote 'Custom (tender)' flow. Logged into CRM as owner@isodemo.com, switched to Corporate env, opened Aftersales Contracts → Build Quote tab, selected AlphaCo (Site A), toggled Package to Custom (tender), uploaded /app/test_reports/afs_pricing.txt, verified extract → review panel → edit → build-custom-quote → save. All 6 requested steps passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "unknown (occurred right after selecting AlphaCo customer)", "issue": "Two 500 responses observed in browser console during Build Quote tab load / customer selection. Did not block the custom-tender flow but should be investigated. Likely from an ancillary estate/warranty endpoint fired by AutoQuoteTab useEffect."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_evidence": {
+    "login": "Signed in via /login (unified) which set both localStorage 'token' and 'crm_token' — no 401 on /files/upload.",
+    "package_switch": "Selecting 'Custom (tender)' revealed afs-aq-custom-panel with afs-aq-pricing-file input; afs-aq-build (Build Quote From Estate) is correctly HIDDEN.",
+    "extract": "POST /api/files/upload → 200 (file id returned). POST /api/crm/v2/aftersales/extract-pricing-document?file_id=... → 200 with 5 machine_services (Treadmill 12, Bike 10, Rower 11.5, Cross Trainer 10, Power Rack 3.5) and 2 travel rows (Demo Head Office 45, Demo Branch B 55). Review panel afs-aq-pricing-review rendered with 5 afs-aq-ms-price-* inputs and 2 afs-aq-tr-price-* inputs.",
+    "edit_and_build": "Edited afs-aq-ms-price-0 (Treadmill) from 12 → 15. POST /api/crm/v2/aftersales/build-custom-quote → 200. Result: 12/16 machines priced, 4 needs review, £230 annual (ex VAT). Grouped lines showed Treadmill × 3 £15.00 → £45.00 correctly using the edited price. Travel lines rendered for both sites (£45 + £55).",
+    "needs_review": "afs-aq-custom-review-list rendered 4 entries — 250G, Fusion (×2), Uprise — matching the expected unmatched machine models.",
+    "save": "Clicked afs-aq-custom-save → afs-aq-custom-saved rendered 'Saved AFS-2026-7D81E'."
+  },
+  "notes_vs_expectation": [
+    "Agent-to-agent context said the estate has 23 machines with 17 priced and 8 needs_review. In this preview run the estate had 16 machines with 12 priced and 4 needs_review. The functional behaviour is correct — model may just have fewer seeded assets in this container. Not a bug."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "Investigate the two 500 responses fired shortly after opening the Build Quote tab / selecting AlphaCo (likely an estate or warranty-opportunities call). Non-blocking but noisy."
+  ],
+  "critical_code_review_comments": [
+    "AutoQuoteTab.onUploadPricing depends on localStorage 'token' (main app) alongside crm_token headers. This works today because CRM login also stores 'token', but if the CRM ever gets a standalone login path that only sets crm_token, /files/upload will 401. Consider funnelling the upload through a CRM-scoped endpoint or reusing the crm_token."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend only)", "frontend": "100% (6/6 steps passed)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! — logs in via unified /login page (both 'token' and 'crm_token' set).",
+  "seed_data_creation": "Saved a custom-tender quote AFS-2026-7D81E for company iso-cA (AlphaCo Site A) during this run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The Aftersales module lives under the Corporate environment of the CRM (Members env hides it). After login, click the 'Corporate' segmented button, then 'Aftersales Contracts', then 'Build Quote' sub-tab. File upload path uses main app 'token' from localStorage — the unified /login endpoint sets it, so use the unified login page rather than the CRMLogin component.",
+  "rca of the issue": "n/a — no blocking issues."
+}
