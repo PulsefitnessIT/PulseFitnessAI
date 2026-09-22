@@ -1,0 +1,35 @@
+{
+  "summary": "Frontend e2e for Aftersales → Build Quote 'Custom (tender)' NEW rate-card save & reload flow. All 6 steps passed. Logged in via unified /login (sets both token + crm_token), switched to Corporate, opened Aftersales Contracts → Build Quote, selected AlphaCo (Site A), toggled to Custom (tender), uploaded /app/test_reports/afs_pricing.txt, review panel populated (5 machines + 2 travel rows), clicked 'Save as rate card' (prompt accepted with 'AlphaCo Tender', success alert fired), reloaded Build Quote state by switching package to Silver and back to Custom (tender) — saved rate cards section (afs-aq-ratecards) rendered with 1 pill 'AlphaCo Tender · 5 machines'. Clicked pill: review panel repopulated (5 ms + 2 tr) with NO file upload. Clicked 'Apply prices & build quote' → afs-aq-custom-result rendered with 12/16 machines priced, £221 annual, correctly-grouped machine lines and both travel sites.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "estate/warranty (pre-existing)", "issue": "Two harmless 500s on Build Quote tab load — same as prior iteration, expected per agent-to-agent context."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_evidence": {
+    "save_dialog": "window.prompt captured (msg='Name this rate card…'), accepted with 'AlphaCo Tender'. Follow-up alert 'Rate card saved for this customer' received.",
+    "reload_pill": "After switching package Silver → Custom (tender), afs-aq-ratecards section present with 1 pill data-testid=afs-aq-ratecard-4a7b526c-3800-4924-b8c3-9daf545b161c text='AlphaCo Tender · 5 machines'.",
+    "load_no_upload": "Clicking the pill repopulated afs-aq-pricing-review with 5 ms rows + 2 travel rows — file input untouched.",
+    "build_result": "afs-aq-custom-result: '12/16 Machines priced · 4 Needs review · £221 Annual (ex VAT)'. Grouped: Treadmill×3 £12→£36, Cross Trainer×3 £10→£30, Bike×4 £10→£40, Rower×1 £11.50, Power Rack×1 £3.50. Travel lines rendered for Demo Head Office & Demo Branch B.",
+    "prompt_seen": true,
+    "alerts": ["Rate card saved for this customer"]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AutoQuoteTab still relies on localStorage 'token' for /files/upload while rate-card endpoints use crm_token — inconsistent auth surface (already flagged in prior iteration)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend only)", "frontend": "100% (6/6 steps passed)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! via unified /login",
+  "seed_data_creation": "Created 1 rate card for company iso-cA: 'AlphaCo Tender · 5 machines' (id 4a7b526c-3800-4924-b8c3-9daf545b161c).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Rate-card save+reload flow verified. If re-running, the AlphaCo (Site A) customer already has 1+ saved rate cards from prior runs — the pill count will be ≥1 immediately on entering Custom (tender). DELETE endpoint not exercised here; consider adding coverage for the delete pill UI if it exists.",
+  "rca of the issue": "n/a — no blocking issues."
+}
