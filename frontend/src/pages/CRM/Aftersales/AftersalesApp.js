@@ -630,6 +630,10 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
   const [rateCards, setRateCards] = useState([]);
   const [savingCard, setSavingCard] = useState(false);
   const [lastFilename, setLastFilename] = useState('');
+  const [customMode, setCustomMode] = useState('quick');   // 'quick' | 'wizard'
+  const [wizStep, setWizStep] = useState(1);
+  const [estHours, setEstHours] = useState('');
+  const [incl, setIncl] = useState({ service: true, repairs: true, travel: true });
   const fileRef = useRef(null);
   const isCustom = contractType === 'custom';
   useEffect(() => {
@@ -638,7 +642,7 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
       .then(r => setRateCards(r.data?.rate_cards || [])).catch(() => setRateCards([]));
   }, [isCustom, companyId]);  // eslint-disable-line react-hooks/exhaustive-deps
   const loadCard = (rc) => {
-    setCustomData({ machine_services: (rc.machine_rates || []).map(m => ({ type: m.type, service_price: m.service_price })), travel: (rc.travel_rates || []).map(t => ({ location: t.location, price: t.price })) });
+    setCustomData({ machine_services: (rc.machine_rates || []).map(m => ({ type: m.type, service_price: m.service_price })), travel: (rc.travel_rates || []).map(t => ({ location: t.location, price: t.price })), repairs: (rc.repair_rates || []).map(r => ({ type: r.type, hourly_rate: r.hourly_rate })), summary: null });
     setCustomResult(null);
     setLastFilename(rc.name || '');
   };
@@ -652,6 +656,7 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
         company_id: companyId, name,
         machine_rates: (customData.machine_services || []).map(m => ({ type: m.type, service_price: Number(m.service_price) })),
         travel_rates: (customData.travel || []).map(t => ({ location: t.location, price: Number(t.price) })),
+        repair_rates: (customData.repairs || []).map(rp => ({ type: rp.type, hourly_rate: Number(rp.hourly_rate) })),
         source_filename: lastFilename,
       }, { headers: headers() });
       const r = await axios.get(`${API}/crm/v2/aftersales/rate-cards?company_id=${companyId}`, { headers: headers() });
@@ -673,8 +678,9 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
       const fid = up.data?.id;
       const ex = await axios.post(`${API}/crm/v2/aftersales/extract-pricing-document?file_id=${fid}`, {},
         { headers: headers() });
-      setCustomData({ machine_services: ex.data.machine_services || [], travel: ex.data.travel || [] });
+      setCustomData({ machine_services: ex.data.machine_services || [], travel: ex.data.travel || [], repairs: ex.data.repairs || [], summary: ex.data.summary || null });
       setLastFilename(ex.data.source_filename || f.name || '');
+      if (customMode === 'wizard') setWizStep(2);
     } catch (err) {
       alert('Could not read that document: ' + (err?.response?.data?.detail || err.message));
     } finally {
@@ -689,8 +695,10 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
     try {
       const r = await axios.post(`${API}/crm/v2/aftersales/build-custom-quote`, {
         company_id: companyId, site_ids,
-        machine_rates: (customData.machine_services || []).map(m => ({ type: m.type, service_price: Number(m.service_price) })),
-        travel_rates: (customData.travel || []).map(t => ({ location: t.location, price: Number(t.price) })),
+        machine_rates: incl.service ? (customData.machine_services || []).map(m => ({ type: m.type, service_price: Number(m.service_price) })) : [],
+        travel_rates: incl.travel ? (customData.travel || []).map(t => ({ location: t.location, price: Number(t.price) })) : [],
+        repair_rates: incl.repairs ? (customData.repairs || []).map(rp => ({ type: rp.type, hourly_rate: Number(rp.hourly_rate) })) : [],
+        estimated_repair_hours: incl.repairs ? Number(estHours || 0) : 0,
         term_years: Number(term), quote_discount_pct: Number(discount), save: !!save,
       }, { headers: headers() });
       setCustomResult(r.data);
@@ -698,6 +706,7 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
   };
   const setMs = (i, v) => setCustomData(d => ({ ...d, machine_services: d.machine_services.map((m, idx) => idx === i ? { ...m, service_price: v } : m) }));
   const setTr = (i, v) => setCustomData(d => ({ ...d, travel: d.travel.map((t, idx) => idx === i ? { ...t, price: v } : t) }));
+  const setRp = (i, v) => setCustomData(d => ({ ...d, repairs: (d.repairs || []).map((r, idx) => idx === i ? { ...r, hourly_rate: v } : r) }));
   const inpStyle = { background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text };
 
   useEffect(() => {
@@ -828,6 +837,133 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
               <p className="text-sm font-bold" style={{ color: c.text }}>Custom tender pricing</p>
               <span className="text-[11px]" style={{ color: c.textDim }}>upload the signed agreement / Schedule of Charges — AI reads the prices</span>
             </div>
+            <div className="flex gap-1 mb-3" data-testid="afs-aq-mode-toggle">
+              {['quick', 'wizard'].map(m => (
+                <button key={m} data-testid={`afs-aq-mode-${m}`} onClick={() => { setCustomMode(m); setWizStep(1); setCustomResult(null); }}
+                  className="px-3 py-1 rounded-full text-xs font-bold"
+                  style={customMode === m ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' } : { border: `1px solid ${c.border}`, color: c.textDim }}>
+                  {m === 'quick' ? 'Quick' : 'Tender wizard'}
+                </button>
+              ))}
+            </div>
+            {customMode === 'wizard' && (
+              <div data-testid="afs-aq-wizard">
+                <div className="flex flex-wrap items-center gap-1.5 mb-3 text-[10px]" style={{ color: c.textDim }}>
+                  {['Upload', 'Summary', 'Service', 'Repairs', 'Travel', 'Build'].map((s, i) => (
+                    <span key={s} data-testid={`afs-wiz-step-${i + 1}`} className="px-2 py-0.5 rounded-full"
+                      style={wizStep === i + 1 ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', fontWeight: 700 } : { border: `1px solid ${c.border}` }}>{i + 1}. {s}</span>
+                  ))}
+                </div>
+                {wizStep === 1 && (
+                  <div>
+                    {rateCards.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Saved rate cards</p>
+                        <div className="flex flex-wrap gap-2">
+                          {rateCards.map(rc => (
+                            <button key={rc.id} data-testid={`afs-wiz-ratecard-${rc.id}`} onClick={() => { loadCard(rc); setWizStep(2); }}
+                              className="px-3 py-1.5 rounded-full text-xs font-semibold border" style={{ borderColor: 'var(--color-brand-cyan)', color: c.text }}>
+                              {rc.name} · {(rc.machine_rates || []).length} machines
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <input ref={fileRef} data-testid="afs-wiz-file" type="file" accept=".pdf,.xlsx,.xls,.docx,.csv,.txt" onChange={onUploadPricing} disabled={uploadBusy} className="block text-xs" style={{ color: c.textDim }} />
+                    {uploadBusy && <p className="text-xs mt-2" style={{ color: c.textDim }} data-testid="afs-wiz-uploading">Reading document with AI…</p>}
+                    {customData && <button data-testid="afs-wiz-next-1" onClick={() => setWizStep(2)} className="mt-3 px-4 py-2 rounded-lg text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>Next: Summary →</button>}
+                  </div>
+                )}
+                {wizStep === 2 && customData && (
+                  <div data-testid="afs-wiz-summary">
+                    {customData.summary && (
+                      <div className="rounded-lg border p-3 mb-3" style={{ borderColor: c.border }}>
+                        <p className="text-sm font-bold mb-1" style={{ color: c.text }}>{customData.summary.headline || 'Tender summary'}</p>
+                        <div className="flex flex-wrap gap-3 text-[11px] mb-2" style={{ color: c.textDim }}>
+                          {customData.summary.term && <span>Term: <b style={{ color: c.text }}>{customData.summary.term}</b></span>}
+                          {customData.summary.ppm_visits && <span>PPM: <b style={{ color: c.text }}>{customData.summary.ppm_visits}</b></span>}
+                          {customData.summary.sla && <span>SLA: <b style={{ color: c.text }}>{customData.summary.sla}</b></span>}
+                        </div>
+                        {(customData.summary.key_points || []).map((k, i) => (
+                          <p key={i} className="text-xs" style={{ color: c.textDim }}>• {k}</p>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Include on the quote</p>
+                    <div className="flex flex-wrap gap-4 mb-3">
+                      {[['service', `Service (${customData.machine_services.length})`], ['repairs', `Repairs (${(customData.repairs || []).length})`], ['travel', `Travel (${customData.travel.length})`]].map(([k, lbl]) => (
+                        <label key={k} className="flex items-center gap-1.5 text-xs" style={{ color: c.text }}>
+                          <input type="checkbox" data-testid={`afs-wiz-incl-${k}`} checked={incl[k]} onChange={e => setIncl(s => ({ ...s, [k]: e.target.checked }))} /> {lbl}
+                        </label>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <button data-testid="afs-wiz-back-2" onClick={() => setWizStep(1)} className="px-3 py-2 rounded-lg text-xs border" style={{ borderColor: c.border, color: c.text }}>← Back</button>
+                      <button data-testid="afs-wiz-next-2" onClick={() => setWizStep(3)} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>Next: Service →</button>
+                    </div>
+                  </div>
+                )}
+                {wizStep === 3 && customData && (
+                  <div data-testid="afs-wiz-service">
+                    <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Service price per machine type (£)</p>
+                    <div className="space-y-1 max-h-52 overflow-auto pr-1 mb-3">
+                      {customData.machine_services.map((m, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="flex-1 text-xs truncate" style={{ color: c.text }}>{m.type}</span>
+                          <input type="number" step="0.01" value={m.service_price} onChange={e => setMs(i, e.target.value)} data-testid={`afs-wiz-ms-${i}`} className="w-20 px-2 py-1 text-xs rounded" style={inpStyle} />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2"><button data-testid="afs-wiz-back-3" onClick={() => setWizStep(2)} className="px-3 py-2 rounded-lg text-xs border" style={{ borderColor: c.border, color: c.text }}>← Back</button><button data-testid="afs-wiz-next-3" onClick={() => setWizStep(4)} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>Next: Repairs →</button></div>
+                  </div>
+                )}
+                {wizStep === 4 && customData && (
+                  <div data-testid="afs-wiz-repairs">
+                    <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Repair labour £/hour</p>
+                    {(customData.repairs || []).length === 0 && <p className="text-xs mb-2" style={{ color: 'var(--color-accent-amber)' }}>No repair rate found in the tender — add hours below only if you have a rate.</p>}
+                    <div className="space-y-1 max-h-40 overflow-auto pr-1 mb-2">
+                      {(customData.repairs || []).map((r, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="flex-1 text-xs truncate" style={{ color: c.text }}>{r.type}</span>
+                          <input type="number" step="0.01" value={r.hourly_rate} onChange={e => setRp(i, e.target.value)} data-testid={`afs-wiz-rp-${i}`} className="w-20 px-2 py-1 text-xs rounded" style={inpStyle} />
+                        </div>
+                      ))}
+                    </div>
+                    <label className="block text-xs mb-3" style={{ color: c.textDim }}>Estimated repair hours per year (optional — for an indicative total)
+                      <input type="number" min="0" value={estHours} onChange={e => setEstHours(e.target.value)} data-testid="afs-wiz-est-hours" className="w-28 ml-2 px-2 py-1 text-xs rounded" style={inpStyle} placeholder="e.g. 40" /></label>
+                    <div className="flex gap-2"><button data-testid="afs-wiz-back-4" onClick={() => setWizStep(3)} className="px-3 py-2 rounded-lg text-xs border" style={{ borderColor: c.border, color: c.text }}>← Back</button><button data-testid="afs-wiz-next-4" onClick={() => setWizStep(5)} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>Next: Travel →</button></div>
+                  </div>
+                )}
+                {wizStep === 5 && customData && (
+                  <div data-testid="afs-wiz-travel">
+                    <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Travel per site (£)</p>
+                    <div className="space-y-1 max-h-52 overflow-auto pr-1 mb-3">
+                      {customData.travel.map((t, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="flex-1 text-xs truncate" style={{ color: c.text }}>{t.location}</span>
+                          <input type="number" step="0.01" value={t.price} onChange={e => setTr(i, e.target.value)} data-testid={`afs-wiz-tr-${i}`} className="w-20 px-2 py-1 text-xs rounded" style={inpStyle} />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2"><button data-testid="afs-wiz-back-5" onClick={() => setWizStep(4)} className="px-3 py-2 rounded-lg text-xs border" style={{ borderColor: c.border, color: c.text }}>← Back</button><button data-testid="afs-wiz-next-5" onClick={() => setWizStep(6)} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>Next: Build →</button></div>
+                  </div>
+                )}
+                {wizStep === 6 && customData && (
+                  <div data-testid="afs-wiz-build">
+                    <div className="rounded-lg border p-3 mb-3 text-xs" style={{ borderColor: c.border, color: c.textDim }}>
+                      <p>Including: {[incl.service && 'Service', incl.repairs && 'Repairs', incl.travel && 'Travel'].filter(Boolean).join(', ') || 'nothing'}</p>
+                      <p>Term: <b style={{ color: c.text }}>{term} yr</b> · Discount: <b style={{ color: c.text }}>{discount}%</b>{incl.repairs && estHours ? <> · Est. repair hrs/yr: <b style={{ color: c.text }}>{estHours}</b></> : null}</p>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      <button data-testid="afs-wiz-back-6" onClick={() => setWizStep(5)} className="px-3 py-2 rounded-lg text-xs border" style={{ borderColor: c.border, color: c.text }}>← Back</button>
+                      <button data-testid="afs-wiz-build-btn" onClick={() => buildCustom(false)} disabled={busy} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>{busy ? 'Building…' : 'Build quote'}</button>
+                      <button data-testid="afs-wiz-save-ratecard" onClick={saveCard} disabled={savingCard} className="px-3 py-2 rounded-lg text-xs border" style={{ borderColor: c.border, color: c.text }}>{savingCard ? 'Saving…' : 'Save as rate card'}</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            {customMode === 'quick' && (<>
             <input ref={fileRef} data-testid="afs-aq-pricing-file" type="file" accept=".pdf,.xlsx,.xls,.docx,.csv,.txt" onChange={onUploadPricing} disabled={uploadBusy}
               className="block text-xs" style={{ color: c.textDim }} />
             {rateCards.length > 0 && (
@@ -889,6 +1025,7 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
                 {savingCard ? 'Saving…' : 'Save as rate card'}
               </button>
             )}
+            </>)}
           </div>
         )}
         {!isCustom && (
@@ -920,6 +1057,7 @@ function AutoQuoteTab({ API, headers, c, isDark }) {
             <div className="mt-2 pt-2 border-t" style={{ borderColor: c.border }}>
               <Row label="Service (annual)" value={gbp(customResult.summary.service_annual)} c={c} />
               <Row label="Travel" value={gbp(customResult.summary.travel_total)} c={c} />
+              {customResult.summary.repair_cost > 0 && <Row label={`Repairs (est. ${customResult.summary.estimated_repair_hours}h @ ${gbp(customResult.summary.effective_repair_rate)}/hr)`} value={gbp(customResult.summary.repair_cost)} c={c} />}
               {customResult.summary.quote_discount_pct > 0 && <Row label={`Less ${customResult.summary.quote_discount_pct}% discount`} value={''} c={c} />}
               <Row label="Final annual (ex VAT)" value={gbp(customResult.summary.final_annual)} c={c} />
             </div>

@@ -1213,12 +1213,17 @@ async def extract_pricing_document(file: UploadFile = File(None), file_id: str =
         "Prices are numbers (no currency symbol)."
     )
     instruction = (
-        "Extract the equipment SERVICE prices per machine TYPE and the TRAVEL cost per "
-        "site/location. Ignore repair-per-hour rates. "
-        'Return JSON exactly like: {"currency":"GBP","machine_services":[{"type":"Treadmill","service_price":12.0}],'
-        '"travel":[{"location":"Barnstaple","price":60.0}]}. '
+        "Extract, from this maintenance/service tender, THREE pricing schedules plus a short summary. "
+        "1) SERVICE prices per machine TYPE. 2) REPAIR labour rates per machine TYPE (£ per hour) — if the "
+        "tender gives a single flat repair rate for everything, return one entry with type 'All'. 3) TRAVEL cost per site/location. "
+        'Return JSON exactly like: {"currency":"GBP",'
+        '"machine_services":[{"type":"Treadmill","service_price":12.0}],'
+        '"repairs":[{"type":"Treadmill","hourly_rate":25.0}],'
+        '"travel":[{"location":"Barnstaple","price":60.0}],'
+        '"summary":{"headline":"one-line description of the contract","term":"e.g. 3 years","ppm_visits":"e.g. 2 per year",'
+        '"sla":"e.g. 48h response","key_points":["notable clause","min charge","etc"]}}. '
         "Use the machine type words as written (Treadmill, Bike, Rower, Cross Trainer, Power Rack, Free Weights, Ski Erg, etc). "
-        "If a section is absent, use an empty array."
+        "Never invent values. If a section is absent, use an empty array; if unknown, use an empty string."
     )
     try:
         from emergentintegrations.llm.chat import LlmChat, UserMessage
@@ -1263,10 +1268,28 @@ async def extract_pricing_document(file: UploadFile = File(None), file_id: str =
             continue
         if tr.get("location"):
             travel.append({"location": str(tr["location"]).strip(), "price": round(price, 2)})
+    repairs = []
+    for rp in (parsed.get("repairs") or []):
+        try:
+            rate = float(rp.get("hourly_rate"))
+        except (TypeError, ValueError):
+            continue
+        if rp.get("type"):
+            repairs.append({"type": str(rp["type"]).strip(), "hourly_rate": round(rate, 2)})
+    summary = parsed.get("summary") if isinstance(parsed.get("summary"), dict) else {}
+    summary = {
+        "headline": str(summary.get("headline") or "")[:400],
+        "term": str(summary.get("term") or "")[:120],
+        "ppm_visits": str(summary.get("ppm_visits") or "")[:120],
+        "sla": str(summary.get("sla") or "")[:200],
+        "key_points": [str(k)[:200] for k in (summary.get("key_points") or []) if k][:12],
+    }
     return {
         "currency": parsed.get("currency") or "GBP",
         "machine_services": machine_services,
+        "repairs": repairs,
         "travel": travel,
+        "summary": summary,
         "source_filename": filename,
         "extracted_chars": len(text),
     }
@@ -1277,6 +1300,8 @@ class CustomQuoteIn(BaseModel):
     site_ids: Optional[List[str]] = None
     machine_rates: List[dict] = []      # [{type, service_price}]
     travel_rates: List[dict] = []       # [{location, price}]
+    repair_rates: List[dict] = []       # [{type, hourly_rate}]
+    estimated_repair_hours: float = 0.0
     term_years: int = 1
     quote_discount_pct: float = 0.0
     save: bool = False
@@ -1345,17 +1370,26 @@ async def build_custom_quote(body: CustomQuoteIn, user=Depends(get_crm_user)):
 
     service_annual = round(sum(g["line_total"] for g in grouped), 2)
     travel_total = round(sum(t["price"] for t in travel_lines), 2)
+    # Indicative repair cost = estimated annual hours × effective repair rate.
+    repair_rates = [r for r in body.repair_rates if r.get("hourly_rate") is not None]
+    rates = [float(r.get("hourly_rate") or 0) for r in repair_rates if float(r.get("hourly_rate") or 0) > 0]
+    effective_repair_rate = round(sum(rates) / len(rates), 2) if rates else 0.0
+    est_hours = max(0.0, float(body.estimated_repair_hours or 0))
+    repair_cost = round(est_hours * effective_repair_rate, 2)
     disc_mult = (1 - max(0.0, float(body.quote_discount_pct)) / 100.0)
-    final_annual = round((service_annual + travel_total) * disc_mult, 2)
+    final_annual = round((service_annual + travel_total + repair_cost) * disc_mult, 2)
     term_total = round(final_annual * max(1, int(body.term_years)), 2)
     summary = {
         "service_annual": service_annual, "travel_total": travel_total,
+        "repair_cost": repair_cost, "effective_repair_rate": effective_repair_rate,
+        "estimated_repair_hours": est_hours,
         "quote_discount_pct": body.quote_discount_pct, "final_annual": final_annual,
         "term_years": body.term_years, "term_total": term_total,
     }
     out = {
         "pricing_mode": "custom_tender",
         "grouped_lines": grouped, "travel_lines": travel_lines,
+        "repair_rates": repair_rates,
         "needs_review": needs_review, "needs_review_count": len(needs_review),
         "assets_total": len(equipment), "assets_priced": sum(g["qty"] for g in grouped),
         "summary": summary,
@@ -1373,6 +1407,7 @@ async def build_custom_quote(body: CustomQuoteIn, user=Depends(get_crm_user)):
             "grouped_lines": grouped, "travel_lines": travel_lines,
             "needs_review": needs_review, "summary": summary,
             "machine_rates": machine_rates, "travel_rates": travel_rates,
+            "repair_rates": repair_rates, "estimated_repair_hours": est_hours,
             "created_by": user.get("email") or user.get("id"),
             "created_at": _now(), "updated_at": _now(),
         }
@@ -1390,6 +1425,7 @@ class RateCardIn(BaseModel):
     name: Optional[str] = None
     machine_rates: List[dict] = []
     travel_rates: List[dict] = []
+    repair_rates: List[dict] = []
     currency: str = "GBP"
     source_filename: Optional[str] = None
 
@@ -1405,12 +1441,14 @@ async def save_rate_card(body: RateCardIn, user=Depends(get_crm_user)):
                      for m in body.machine_rates if m.get("type")]
     travel_rates = [{"location": str(t.get("location")).strip(), "price": round(float(t.get("price") or 0), 2)}
                     for t in body.travel_rates if t.get("location")]
+    repair_rates = [{"type": str(r.get("type")).strip(), "hourly_rate": round(float(r.get("hourly_rate") or 0), 2)}
+                    for r in body.repair_rates if r.get("type")]
     rid = _id()
     label = (body.name or "").strip() or (body.source_filename or f"Rate card {datetime.now(timezone.utc).strftime('%d %b %Y')}")
     doc = {
         "id": rid, "organization_id": _org(user), "company_id": body.company_id,
         "company_name": company.get("name"), "name": label, "currency": body.currency or "GBP",
-        "machine_rates": machine_rates, "travel_rates": travel_rates,
+        "machine_rates": machine_rates, "travel_rates": travel_rates, "repair_rates": repair_rates,
         "source_filename": body.source_filename,
         "created_by": user.get("email") or user.get("id"),
         "created_at": _now(), "updated_at": _now(),
