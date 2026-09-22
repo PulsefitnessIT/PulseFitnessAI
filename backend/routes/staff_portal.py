@@ -1225,6 +1225,58 @@ async def staffing_notifications(user: dict = Depends(get_current_user)):
                      f"{'need attention (some expired)' if overdue else 'expiring within 60 days'}: {names}{more}."),
             "link": "hr"})
 
+    # Unpaid vehicle fines older than 14 days — nudge managers to settle them.
+    # Auto-clears from the bell as soon as a fine is marked paid.
+    veh_fine_q = {"organization_id": org, "active": {"$ne": False},
+                  "fines": {"$exists": True, "$ne": []}}
+    fine_vehicles = await db.vehicles.find(
+        veh_fine_q, {"_id": 0, "id": 1, "reg_no": 1, "fines": 1,
+                     "driver_staff_ids": 1, "primary_driver_staff_id": 1}).to_list(2000)
+    my_reports = None  # owner sees the whole org
+    if not owner and me:
+        my_reports = set(await db.staff_members.distinct(
+            "id", {"organization_id": org, "line_manager_staff_id": me["id"]}))
+
+    def _fine_age_days(f):
+        ca = f.get("created_at")
+        if isinstance(ca, datetime):
+            d = ca if ca.tzinfo else ca.replace(tzinfo=timezone.utc)
+            return (datetime.now(timezone.utc) - d).days
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+            try:
+                return (datetime.now(timezone.utc).date()
+                        - datetime.strptime(str(f.get("date") or "").strip(), fmt).date()).days
+            except ValueError:
+                continue
+        return None
+
+    stale_fines = []  # (reg_no, age_days)
+    for v in fine_vehicles:
+        if my_reports is not None:
+            drivers = set(v.get("driver_staff_ids") or [])
+            if v.get("primary_driver_staff_id"):
+                drivers.add(v["primary_driver_staff_id"])
+            if not (drivers & my_reports):
+                continue
+        for f in (v.get("fines") or []):
+            if f.get("paid"):
+                continue
+            age = _fine_age_days(f)
+            if age is not None and age >= 14:
+                stale_fines.append((v.get("reg_no") or "A vehicle", age))
+    if stale_fines:
+        stale_fines.sort(key=lambda x: -x[1])
+        uniq_regs = list(dict.fromkeys(r for r, _ in stale_fines))
+        names = ", ".join(uniq_regs[:3])
+        more = f" +{len(uniq_regs) - 3} more" if len(uniq_regs) > 3 else ""
+        n_fines = len(stale_fines)
+        nudges.append({
+            "type": "vehicle_fine_overdue",
+            "title": "Unpaid vehicle fines",
+            "body": (f"{n_fines} fine{'' if n_fines == 1 else 's'} unpaid for 14+ days: "
+                     f"{names}{more}. Review and settle."),
+            "link": "vehicles"})
+
     unread = sum(1 for n in stored if not n.get("read")) + len(nudges)
     return {"notifications": stored, "nudges": nudges, "unread": unread}
 

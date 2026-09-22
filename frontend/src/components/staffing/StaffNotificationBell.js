@@ -14,6 +14,7 @@ const TONE = {
   vehicle_check_due: ['bg-amber-50', 'text-amber-700', AlertTriangle],
   vehicle_check_overdue: ['bg-rose-50', 'text-rose-700', AlertTriangle],
   vehicle_defect: ['bg-rose-50', 'text-rose-700', AlertTriangle],
+  vehicle_fine_overdue: ['bg-rose-50', 'text-rose-700', AlertTriangle],
   dbs_expiry: ['bg-amber-50', 'text-amber-700', AlertTriangle],
   dbs_expired: ['bg-rose-50', 'text-rose-700', AlertTriangle],
   holiday_request: ['bg-cyan-50', 'text-cyan-700', Bell],

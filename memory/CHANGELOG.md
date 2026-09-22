@@ -403,3 +403,10 @@ Pre-existing (NOT from this change, noted for later): 2× 500s on CRM/Aftersales
 - Render: render_afs_quote_pdf builds a per-site breakdown at render time (_build_site_annexe) from db.equipment/db.sites for the quote's linked_organization_id (respecting site_ids), grouping identical model/console into quantities, listing serials, and marking excluded_asset_ids as "(not covered)". build_afs_quote_pdf renders it after a PageBreak. Fixed a pulse_title-returns-list bug (must use `flow += pulse_title(...)`).
 - Verified via live PDF endpoint (iso-cA): appendix present + correct when flag on, absent when off; all cleaned up.
 Files: backend/routes/crm_aftersales.py, backend/utils/afs_quote_pdf.py, frontend/src/pages/CRM/Aftersales/AftersalesApp.js.
+
+## 2026-06 — Feature: unpaid vehicle fine reminders (bell nudge, P1)
+- The Staffing/Fleet notification bell now nudges managers about vehicle fines left unpaid for 14+ days.
+- Implemented as a computed nudge in GET /api/staffing/notifications (staff_portal.py) mirroring the DBS-expiry pattern: scans db.vehicles embedded `fines`, ages each unpaid fine by `created_at` (fallback: parse free-text `date`), and surfaces a "Unpaid vehicle fines" nudge (type `vehicle_fine_overdue`, link `vehicles`) listing up to 3 regs. Owners see the whole org; line managers see only fines on vehicles driven by their direct reports. Auto-clears as soon as a fine is marked paid (no cron, no stored notification).
+- Frontend: added `vehicle_fine_overdue` rose tone to StaffNotificationBell TONE map.
+- Verified via curl (iso-demo-org, vehicle AB12 CDE): counts only 14+ day unpaid fines (1 of 3 seeded: skipped a 3-day-old unpaid and a 30-day-old paid), and the nudge disappears once the fine is marked paid.
+Files: backend/routes/staff_portal.py, frontend/src/components/staffing/StaffNotificationBell.js.
