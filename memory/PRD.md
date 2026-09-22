@@ -38477,3 +38477,24 @@ ruff + eslint clean, endpoint live, webpack compiled.
 - PPMCalendar: slot chips show the site name; the Suggested badge tooltip shows the reason.
 Verified: with an engineer already in the target's TA6 area that day, they were suggested over a free-but-far
 engineer (reason "already working this area today"). ruff + eslint clean.
+
+---
+## 2026-06 · Calibration certificate → office drawer + customer Documents
+- OFFICE: ServiceCaseDrawer footer now shows a "Calibration certificate" block (gated on
+  doc.calibration_captured) with a PASS/FAIL pill and View + Download buttons hitting
+  GET /api/svc/cases/{id}/calibration/certificate.pdf. data-testids: drawer-calibration-cert,
+  drawer-calibration-result, drawer-calibration-cert-view, drawer-calibration-cert-download.
+- CUSTOMER PORTAL: On operator sign-off (case → closed), utils/calibration_cert_publish.py
+  persists the calibration PDF into db.files under the CUSTOMER estate org (category "certificates")
+  so it appears in that customer's Operations Portal → Documents → Service Certificates. Linkage:
+  svc_cases.company_id → crm2_companies.linked_organization_id → estate org id. Idempotent per
+  calibration (source_calibration_id). Wired into POST /cases/{id}/transition (closed branch).
+- BACKFILL: Master Admin "Sync" (POST /master-admin/bulk-import/backfill-crm) now also runs
+  backfill_calibration_certificates(operator) so historical closed-case certs surface once a
+  customer estate (e.g. Devon & Somerset Fire and Rescue) is linked/onboarded.
+- FIX (critical, pre-existing): EngineerJobDetailV2.js had an unclosed profitability component
+  (missing ); } before function CalibrationCapture, with a stray ); } at EOF) — the whole frontend
+  failed to compile. Fixed; app compiles and renders again.
+- Verified: testing_agent 100% backend+frontend (report iteration_calibration_cert_office_drawer_jan2026.json);
+  synthetic e2e of publish/backfill; cert endpoint returns valid 121KB PDF.
+- NEW: /app/memory/PLATFORM_CONTEXT.md added as the always-read platform purpose/tenancy reference.

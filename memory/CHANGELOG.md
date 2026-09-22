@@ -347,3 +347,11 @@ Engineers record equipment calibration readings on a case and generate a branded
 - Frontend (`EngineerJobDetailV2.js`): new `CalibrationCapture` panel in the engineer Complete tab — editable readings grid (parameter/target/measured/unit/result), add/remove rows, notes, signature (reuses `SignatureCanvas`), Save, and Download certificate (blob fetch with auth). Auto-opens when the job's service type is calibration or has checklist items.
 - Verified: certificate PDF generates (HTTP 200, valid %PDF, ~121KB) via office route with seeded data; both new routes registered (engineer route gated by Partner Engineer Network access = 402 for non-engineers); frontend serves HTTP 200 (no compile failure). NOTE: the engineer capture UI was NOT driven in a live engineer session (needs a Partner Engineer Network account); backend fully verified + UI compiles/serves — recommend a quick engineer-app walkthrough after deploy.
 
+
+## 2026-06 · Calibration certificate: office drawer + customer Documents
+- Office ServiceCaseDrawer: added "Calibration certificate" footer block (View + Download, PASS/FAIL pill) gated on doc.calibration_captured, hitting GET /api/svc/cases/{id}/calibration/certificate.pdf.
+- Customer portal: on case close (operator sign-off), utils/calibration_cert_publish.py persists the cert PDF into db.files under the customer estate org (category "certificates") via company_id → crm2_companies.linked_organization_id. Idempotent. Wired into /cases/{id}/transition.
+- Master Admin Sync (backfill-crm) now backfills historical closed-case certs so they appear once a customer estate is onboarded.
+- CRITICAL FIX: EngineerJobDetailV2.js had a real syntax error (unclosed profitability component) that was breaking the entire frontend compile since the prior session's "Calibration Capture" work — now fixed; app compiles/renders.
+- Added /app/memory/PLATFORM_CONTEXT.md (always-read purpose/tenancy reference).
+- Verified: testing_agent 100% BE+FE (iteration_calibration_cert_office_drawer_jan2026.json).

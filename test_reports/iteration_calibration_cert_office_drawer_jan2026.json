@@ -1,0 +1,22 @@
+{
+  "summary": "Verified the new OFFICE Service Case drawer 'Calibration certificate' block for SVC-00001. Backend office cert endpoint returns HTTP 200 application/pdf (121,511 bytes). Frontend drawer renders drawer-calibration-cert with PASS pill, and both View + Download buttons; Download successfully triggers a file save as calibration-SVC-00001.pdf. Marketing/login pages render fine (regression clean).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "View button opens window.open(url) - Chrome may block popup when clicked programmatically in some flows; consider using <a href target=_blank> for stricter compliance. In our test the popup was created (page.expect_popup fired) though domcontentloaded didn't complete within 10s (PDF viewer). Not a blocker."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (Service Desk operator, org iso-demo-org)",
+  "seed_data_creation": "None - used pre-seeded SVC-00001 case with calibration_captured=true",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Cases list is at /service-desk with sidebar 'Cases' link (not /service-desk/cases which is 404). Case drawer opens via clicking the SVC-xxx text row. All calibration data-testids are present and functional. Backend endpoint GET /api/svc/cases/{id}/calibration/certificate.pdf returns a valid PDF with operator bearer token.",
+  "rca of the issue": "N/A - no issues found"
+}
