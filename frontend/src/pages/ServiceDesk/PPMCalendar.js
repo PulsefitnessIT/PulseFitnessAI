@@ -161,9 +161,17 @@ function SchedulePpmModal({ item, engineers, onClose, onDone }) {
   const [service, setService] = useState(item.service_type || 'Preventative Maintenance Service');
   const [date, setDate] = useState(String(item.date).slice(0, 10));
   const [engIds, setEngIds] = useState([]);
+  const [load, setLoad] = useState({});
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { (async () => { try { const r = await api.get('/svc/ppm/services'); if (r.data?.services) setServices(r.data.services); } catch { /* keep defaults */ } })(); }, []);
+  useEffect(() => {
+    if (!date) { setLoad({}); return; }
+    (async () => {
+      try { const r = await api.get('/svc/ppm/engineer-load', { params: { date } }); setLoad(r.data?.load || {}); }
+      catch { setLoad({}); }
+    })();
+  }, [date]);
   const toggle = (id) => setEngIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
 
   const submit = async () => {
@@ -194,16 +202,28 @@ function SchedulePpmModal({ item, engineers, onClose, onDone }) {
         <Label className="block text-xs font-semibold text-zinc-500 mb-1">Service date</Label>
         <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mb-3" data-testid="ppm-date" />
 
-        <Label className="block text-xs font-semibold text-zinc-500 mb-1 flex items-center gap-1.5"><Users size={12} /> Allocate engineer(s)</Label>
+        <Label className="block text-xs font-semibold text-zinc-500 mb-1 flex items-center gap-1.5"><Users size={12} /> Allocate engineer(s)<span className="ml-auto font-normal text-zinc-400">jobs on this date</span></Label>
         <div className="max-h-40 overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-800 mb-4" data-testid="ppm-engineer-list">
           {engineers.length === 0 ? (
             <p className="text-xs text-zinc-400 p-2">No engineers on the roster.</p>
-          ) : engineers.map((e) => (
-            <button key={e.id} type="button" onClick={() => toggle(e.id)} className="w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800" data-testid={`ppm-eng-${e.id}`}>
-              <span>{e.full_name}{e.open_cases != null ? <span className="text-zinc-400"> · {e.open_cases} open</span> : ''}</span>
-              {engIds.includes(e.id) && <Check size={14} className="text-emerald-600" />}
-            </button>
-          ))}
+          ) : engineers.map((e) => {
+            const n = load[e.id] || 0;
+            return (
+              <button key={e.id} type="button" onClick={() => toggle(e.id)} className="w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800" data-testid={`ppm-eng-${e.id}`}>
+                <span className="flex items-center gap-2">
+                  {engIds.includes(e.id) && <Check size={14} className="text-emerald-600" />}
+                  <span className={engIds.includes(e.id) ? 'font-semibold' : ''}>{e.full_name}</span>
+                </span>
+                <span
+                  className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${n === 0 ? 'bg-emerald-100 text-emerald-700' : n <= 2 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}
+                  title={`${n} job(s) already scheduled on this date`}
+                  data-testid={`ppm-eng-load-${e.id}`}
+                >
+                  {n === 0 ? 'free' : `${n} job${n === 1 ? '' : 's'}`}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex justify-end gap-2">

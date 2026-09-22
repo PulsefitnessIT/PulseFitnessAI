@@ -143,6 +143,33 @@ async def list_services(user: dict = Depends(get_current_user)) -> dict:
     return {"services": PPM_SERVICES}
 
 
+@router.get("/engineer-load")
+async def engineer_load(
+    date_str: str = Query(..., alias="date"),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """How many jobs each engineer already has on a given day — so the desk
+    can avoid double-booking when allocating a PPM."""
+    operator = _operator(user)
+    day = _parse_ymd(date_str)
+    if not day:
+        raise HTTPException(400, "Invalid date")
+    lo, hi = f"{day.isoformat()}T00:00:00", f"{day.isoformat()}T23:59:59.999999"
+    load: dict = {}
+    cursor = db.svc_cases.find(
+        {"organization_id": operator,
+         "status": {"$nin": ["closed", "resolved", "cancelled", "CLOSED", "RESOLVED", "CANCELLED"]},
+         "scheduled_at": {"$gte": lo, "$lte": hi}},
+        {"_id": 0, "assigned_engineer_id": 1, "assigned_engineer_ids": 1},
+    )
+    async for c in cursor:
+        ids = c.get("assigned_engineer_ids") or ([c["assigned_engineer_id"]] if c.get("assigned_engineer_id") else [])
+        for eid in ids:
+            if eid:
+                load[eid] = load.get(eid, 0) + 1
+    return {"date": day.isoformat(), "load": load}
+
+
 # ── Back-fill: plan PPM for existing site-associated equipment ────
 
 @router.post("/backfill")

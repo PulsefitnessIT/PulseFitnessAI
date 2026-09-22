@@ -38445,3 +38445,13 @@ Gap filled (the ONLY missing piece): a ~14-day pre-visit EMAIL reminder for comm
   reminders); only unscheduled due PPMs are chased.
 Verified: due-in-14d schedule emailed the site manager; 60d one skipped; second run idempotent (0 sent); crm2
 contact fallback works when site_manager_email empty. ruff clean, endpoints live, backend healthy.
+
+---
+## 2026-06 · Engineer capacity on the PPM schedule modal (anti double-booking)
+- New GET /api/svc/ppm/engineer-load?date=YYYY-MM-DD (routes/svc/ppm_calendar.py): returns {engineer_id: job_count}
+  for that day — counts svc_cases (operator) scheduled that date, not closed/cancelled, across assigned_engineer_ids
+  and assigned_engineer_id (multi-engineer aware).
+- PPMCalendar SchedulePpmModal: fetches the load when the service date changes and shows a per-engineer badge
+  (free / N jobs) colour-coded green/amber/rose, so the desk sees existing load before allocating.
+Verified: multi-engineer case counted for both engineers, single-engineer case counted, closed excluded, other
+days empty. ruff + eslint clean, endpoint live, webpack compiled.
