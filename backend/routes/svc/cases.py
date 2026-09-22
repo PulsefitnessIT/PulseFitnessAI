@@ -774,12 +774,10 @@ _VALID_PATCH_FIELDS = {
 
 
 
-@router.get("/cases/{case_id}/calibration/certificate.pdf")
-async def case_calibration_certificate(case_id: str, user=Depends(get_current_user)):
-    """Office/manager download of the calibration audit certificate."""
-    from fastapi.responses import Response
+async def _build_calibration_certificate(case_id: str, of: dict):
+    """Shared: build the calibration certificate PDF for a case. Returns
+    (pdf_bytes, case, calibration, filename). Raises 404 if none recorded."""
     from utils.calibration_certificate_pdf import build_calibration_certificate_pdf
-    of = _of(user)
     cal = await db.svc_case_calibrations.find_one(
         {"case_id": case_id, **of}, {"_id": 0}, sort=[("created_at", -1)])
     if not cal:
@@ -799,5 +797,76 @@ async def case_calibration_certificate(case_id: str, user=Depends(get_current_us
         signature_data_url=cal.get("signature") or None,
     )
     fname = f"calibration-{case.get('reference') or case_id}.pdf"
+    return pdf, case, cal, fname
+
+
+@router.get("/cases/{case_id}/calibration/certificate.pdf")
+async def case_calibration_certificate(case_id: str, user=Depends(get_current_user)):
+    """Office/manager download of the calibration audit certificate."""
+    from fastapi.responses import Response
+    pdf, _case, _cal, fname = await _build_calibration_certificate(case_id, _of(user))
     return Response(content=pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f'inline; filename="{fname}"'})
+
+
+@router.post("/cases/{case_id}/calibration/certificate/email")
+async def case_calibration_certificate_email(case_id: str, data: dict | None = None,
+                                             user=Depends(get_current_user)):
+    """Email the calibration certificate to the customer (or override `to`).
+
+    Body (optional): {to: 'name@domain.com', note: 'Optional cover note'}
+    """
+    import base64
+    from utils.email import send_email
+    of = _of(user)
+    pdf, case, cal, fname = await _build_calibration_certificate(case_id, of)
+    body_data = data or {}
+    to = ((body_data.get("to") or "").strip() or (case.get("customer_email") or "").strip()).lower()
+    if not to or "@" not in to:
+        raise HTTPException(400, "Customer email is missing. Provide `to` or set customer_email on the case.")
+    note = (body_data.get("note") or "").strip()
+    org = await db.organizations.find_one({"id": of["organization_id"]}, {"_id": 0, "name": 1}) or {}
+    org_name = org.get("name") or "Your service team"
+    customer_first = (case.get("customer_name") or "there").split()[0] if case.get("customer_name") else "there"
+    verdict = (cal.get("overall_result") or "").upper()
+    subject = f"Calibration certificate · {case.get('reference', case_id[:8])}"
+    note_html = (
+        f"<p style='margin:0 0 16px 0;color:#1f2937;font-size:14px;line-height:1.6'>{note}</p>"
+        if note else ""
+    )
+    html = (
+        f"<div style='font-family:Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:16px'>"
+        f"<h2 style='color:#0f172a;font-size:18px;margin:0 0 12px 0'>Hi {customer_first},</h2>"
+        f"<p style='color:#1f2937;font-size:14px;line-height:1.6;margin:0 0 16px 0'>"
+        f"Please find attached the calibration certificate for "
+        f"<b>{case.get('reference', '')}</b>"
+        + (f" ({cal.get('equipment_name')})" if cal.get('equipment_name') else "")
+        + f". Overall result: <b>{verdict or '—'}</b>. This certificate is provided as audit evidence "
+        f"of the calibration checks performed at the visit.</p>"
+        f"{note_html}"
+        f"<p style='color:#64748B;font-size:13px;line-height:1.5;margin:24px 0 0 0'>"
+        f"Thanks,<br/><b>{org_name}</b></p>"
+        f"</div>"
+    )
+    attachments = [{"filename": fname, "content": base64.b64encode(pdf).decode("ascii")}]
+    ok = await send_email(
+        to=to, subject=subject, html=html, attachments=attachments,
+        organization_id=of["organization_id"], category="service",
+    )
+    if not ok:
+        raise HTTPException(502, "Email send failed — check sender domain verification.")
+    now_iso = _now()
+    await db.svc_cases.update_one(
+        {"id": case_id, **of},
+        {"$set": {"calibration_cert_sent_at": now_iso, "calibration_cert_sent_to": to, "updated_at": now_iso}},
+    )
+    try:
+        await append_event(
+            case_id=case_id, organization_id=of["organization_id"],
+            event_type="note", actor=user,
+            body=f"Calibration certificate emailed to {to}",
+            extra={"kind": "calibration_cert_emailed", "to": to},
+        )
+    except Exception as e:
+        logger.warning(f"calibration-cert: failed to append audit event: {e!r}")
+    return {"ok": True, "to": to, "sent_at": now_iso, "filename": fname}

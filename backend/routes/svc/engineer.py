@@ -1263,6 +1263,29 @@ async def _calibration_cert_response(case_id: str, of: dict):
                     headers={"Content-Disposition": f'inline; filename="{fname}"'})
 
 
+# Canonical treadmill calibration parameters — MUST match the Pulse Fitness
+# "Certificate of Service" (speed 3/6/9/12 mph, incline 0/5/10/15 %).
+TREADMILL_CALIBRATION_READINGS = [
+    {"label": "Speed — 3 mph", "target": "3", "unit": "mph", "tolerance": ""},
+    {"label": "Speed — 6 mph", "target": "6", "unit": "mph", "tolerance": ""},
+    {"label": "Speed — 9 mph", "target": "9", "unit": "mph", "tolerance": ""},
+    {"label": "Speed — 12 mph", "target": "12", "unit": "mph", "tolerance": ""},
+    {"label": "Incline — 0%", "target": "0", "unit": "%", "tolerance": ""},
+    {"label": "Incline — 5%", "target": "5", "unit": "%", "tolerance": ""},
+    {"label": "Incline — 10%", "target": "10", "unit": "%", "tolerance": ""},
+    {"label": "Incline — 15%", "target": "15", "unit": "%", "tolerance": ""},
+]
+
+
+def _default_calibration_readings(service_type: str, asset_name: str) -> list:
+    """Pre-fill the calibration grid for treadmill calibration jobs so the
+    parameters always match the Certificate of Service."""
+    s = f"{service_type or ''} {asset_name or ''}".lower()
+    if "calibrat" in s or "treadmill" in s:
+        return [dict(r) for r in TREADMILL_CALIBRATION_READINGS]
+    return []
+
+
 @router.get("/jobs/{case_id}/calibration")
 async def get_job_calibration(case_id: str, user=Depends(get_current_user)):
     of = _of(user)
@@ -1278,6 +1301,8 @@ async def get_job_calibration(case_id: str, user=Depends(get_current_user)):
         "calibration": existing,
         "checklist_items": case.get("checklist_items") or [],
         "service_type": case.get("service_type") or "",
+        "default_readings": _default_calibration_readings(
+            case.get("service_type") or "", case.get("asset_name") or ""),
     }
 
 

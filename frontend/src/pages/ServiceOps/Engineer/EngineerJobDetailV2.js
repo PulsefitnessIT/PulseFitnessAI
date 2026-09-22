@@ -4144,9 +4144,15 @@ function CalibrationCapture({ job }) {
           setNotes(existing.notes || '');
           setSaved(true); setOpen(true);
         } else {
-          const labels = data?.checklist_items || [];
-          setRows(labels.map((l) => ({ label: l, target: '', measured: '', unit: '', tolerance: '', result: 'pass' })));
-          if (labels.length || /calibrat/i.test(data?.service_type || job.service_type || '')) setOpen(true);
+          const defaults = data?.default_readings || [];
+          if (defaults.length) {
+            setRows(defaults.map((d) => ({ label: d.label, target: d.target || '', measured: '', unit: d.unit || '', tolerance: d.tolerance || '', result: 'pass' })));
+            setOpen(true);
+          } else {
+            const labels = data?.checklist_items || [];
+            setRows(labels.map((l) => ({ label: l, target: '', measured: '', unit: '', tolerance: '', result: 'pass' })));
+            if (labels.length || /calibrat/i.test(data?.service_type || job.service_type || '')) setOpen(true);
+          }
         }
       } catch { /* non-fatal */ }
     })();

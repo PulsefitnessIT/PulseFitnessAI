@@ -368,6 +368,25 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
       })
       .catch((e) => notify.error(t('service.cd_download_cert_failed', 'Could not download certificate'), e.message || String(e)));
   };
+  const emailCalibrationCert = async () => {
+    if (!caseId || reportBusy) return;
+    const defaultTo = doc?.customer_email || '';
+    const to = window.prompt(t('service.cd_cert_to', 'Send the calibration certificate to which email?'), defaultTo);
+    if (!to) return;
+    const note = window.prompt(t('service.cd_short_note', 'Add a short note (optional)'), '') || '';
+    setReportBusy('cal-email');
+    try {
+      const r = await axios.post(
+        `${API}/svc/cases/${caseId}/calibration/certificate/email`,
+        { to, note },
+        auth(),
+      );
+      notify.success(t('service.cd_cert_emailed', 'Certificate emailed'), t('service.cd_sent_to', 'Sent to {{to}}', { to: r.data?.to || to }));
+      await load();
+    } catch (e) {
+      notify.error(t('service.cd_cert_send_failed', 'Could not send certificate'), e?.response?.data?.detail || e.message);
+    } finally { setReportBusy(''); }
+  };
   const emailServiceReport = async () => {
     if (!caseId || reportBusy) return;
     const defaultTo = doc?.customer_email || '';
@@ -909,6 +928,15 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                   {String(doc.calibration_result).toUpperCase()}
                 </span>
               ) : null}
+              {doc?.calibration_cert_sent_at ? (
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
+                  style={{ background: '#dbeafe', color: '#1e40af' }}
+                  data-testid="drawer-calibration-cert-sent"
+                >
+                  {t('service.cd_report_sent_to', 'Sent to {{who}}', { who: doc.calibration_cert_sent_to || t('service.cd_the_customer', 'customer') })}
+                </span>
+              ) : null}
               <div className="ml-auto flex gap-1.5">
                 <button
                   type="button"
@@ -921,10 +949,19 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                 <button
                   type="button"
                   onClick={downloadCalibrationCert}
-                  className="svc-btn svc-btn-primary svc-btn-sm"
+                  className="svc-btn svc-btn-secondary svc-btn-sm"
                   data-testid="drawer-calibration-cert-download"
                 >
                   {t('service.cd_download', 'Download')}
+                </button>
+                <button
+                  type="button"
+                  onClick={emailCalibrationCert}
+                  disabled={reportBusy === 'cal-email'}
+                  className="svc-btn svc-btn-primary svc-btn-sm"
+                  data-testid="drawer-calibration-cert-email"
+                >
+                  <Send size={11} /> {reportBusy === 'cal-email' ? t('service.cd_sending', 'Sending…') : (doc?.calibration_cert_sent_at ? t('service.cd_resend', 'Resend') : t('service.cd_email_customer', 'Email customer'))}
                 </button>
               </div>
             </div>
