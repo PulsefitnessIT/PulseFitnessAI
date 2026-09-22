@@ -1,0 +1,44 @@
+{
+  "summary": "Frontend end-to-end verification of Pulse Service Desk PPM Create modal (SINGLE + BULK), Add-service-type flow, PPM segment button visibility (All/Commercial/MOD), and the new Service Desk → Equipment site-first customer/site multi-select with 'Log case for N machines' opening the pre-filled intake form. All primary UI flows pass; two non-blocking issues found (see below).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/svc/desk/customers", "issue": "Returns duplicated organization_id rows for iso-demo-org (both 'Iso Demo Fitness (my org)' AND 'AlphaCo (Site A)' share organization_id=iso-demo-org). Causes React 'two children with same key: iso-demo-org' warnings in both ppm-create-customer and desk-eq-customer dropdowns. Duplicated key means one row is effectively unselectable/collapsed. Backend should dedupe by organization_id (or emit distinct row keys)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PPMCalendar + DeskEquipment customer <select>", "issue": "Uses organization_id as React key; when backend returns duplicates it triggers repeated console warnings and hides one row. Consider deduping client-side too (e.g. by unique key or filtering)", "selector": "[data-testid='ppm-create-customer'], [data-testid='desk-eq-customer']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "SEED FIX: scripts/seed_site_isolation_demo.py does NOT set is_service_desk=true on owner@isodemo.com — /api/auth/me returns is_service_desk:false so /service-desk redirects to /launch. Testing agent had to manually flip the flag in Mongo to reach the Service Desk. Update the seed to set is_service_desk=True on the owner (and/or manager) so future test agents and the customer demo can reach /service-desk out of the box.",
+    "BACKEND: dedupe /svc/desk/customers response by organization_id (currently returns two rows sharing organization_id=iso-demo-org, triggering React duplicate-key warnings in the new PPM Create modal customer picker and Equipment site-first customer picker).",
+    "OPTIONAL: guard against duplicate organization_id in the frontend selects (fallback safety)."
+  ],
+  "critical_code_review_comments": [
+    "PPMCalendar.js `CreatePpmModal` uses c.organization_id as <option key> — vulnerable to backend duplicates (currently triggering warnings). Same in DeskEquipment.js customer select.",
+    "PPMCalendar.js: `service` state in SchedulePpmModal defaults to 'Preventative Maintenance Service' but service types are loaded from /svc/ppm/services (legacy) while CreatePpmModal loads /svc/ppm/service-types — two sources of truth for the same concept. Consider consolidating."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only per request)", "frontend": "100% of requested flows passed"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!  (had to manually db.users.update to set is_service_desk=true before Service Desk was reachable — seed gap, see action_items)",
+  "seed_data_creation": "Manually toggled is_service_desk=true on owner@isodemo.com in mongo users collection so /service-desk route grants access. Also created a TEST service type 'TEST Belt Tension Check' via /svc/ppm/service-types via the UI (should be cleaned up if seeds are reset).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Service Desk is at /service-desk (tabs via ?tab=maintenance and ?tab=equipment). The demo owner user needs is_service_desk=true or view_service_desk perm — otherwise the route bounces to /launch. Login endpoint is aggressively rate-limited (429 after ~3 rapid attempts) — space logins ~60s apart when scripting.",
+  "verification_evidence": {
+    "ppm_segment_computed_styles": {
+      "ppm-seg-all_active": "bg rgb(25,205,255) cyan · text rgb(24,24,27) zinc-900 — READABLE",
+      "ppm-seg-commercial_inactive": "bg transparent · text rgb(82,82,91) zinc-600 — READABLE",
+      "ppm-seg-mod_inactive": "bg transparent · text rgb(82,82,91) zinc-600 — READABLE"
+    },
+    "ppm_create_single": "modal opened; service types dropdown lists 'Preventative Maintenance Service', 'Safety / Compliance Inspection', 'Treadmill Calibration (calibration)'. Picked customer=Iso Demo Fitness, site=Demo Branch B, service=Preventative Maintenance Service, date=2026-10-15 → modal closed after submit (success).",
+    "ppm_create_add_service_type": "'TEST Belt Tension Check' entered in ppm-create-newtype + Add → dropdown then contained TEST Belt Tension Check (verified in options list).",
+    "ppm_create_bulk": "Switched to bulk mode, sitelist rendered, Select all clicked, stagger=14 days, start=2026-11-01, submit → modal closed (success).",
+    "desk_equipment": "desk-equipment-sitefirst rendered with desk-eq-customer + desk-eq-site. Selecting customer=Iso Demo Fitness, site=Demo Head Office loaded 14 machines (6 rendered rows). Checked 2 machines → 'Log case for N machine(s)' button (desk-eq-logcase) became enabled → clicked → svc-intake-form modal opened with customer 'Iso Demo Fitness (my org)', site 'Demo Branch B · 2 machines' preselected and first equipment 'Elite Treadmill Runner 9000' auto-filled (SN prefilled). Global desk-equipment-search still present below."
+  }
+}

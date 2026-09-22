@@ -140,7 +140,15 @@ async def ensure_annual_ppm(equipment: dict) -> bool:
 
 @router.get("/services")
 async def list_services(user: dict = Depends(get_current_user)) -> dict:
-    return {"services": PPM_SERVICES}
+    operator = _operator(user)
+    await _seed_service_types(operator)
+    names = list(PPM_SERVICES)
+    async for st in db.ppm_service_types.find(
+        {"organization_id": operator, "active": {"$ne": False}}, {"_id": 0, "name": 1},
+    ):
+        if st.get("name") and st["name"] not in names:
+            names.append(st["name"])
+    return {"services": names}
 
 
 # ── Service type catalogue (operator-managed) ────────────────────

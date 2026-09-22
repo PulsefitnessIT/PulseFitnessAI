@@ -166,19 +166,22 @@ async def desk_customers(user=Depends(get_current_user)):
     plus every CRM-linked customer estate (imported via Master Admin)."""
     operator = await _operator_org(user)
     out = []
+    seen = set()
     op_org = await db.organizations.find_one({"id": operator}, {"_id": 0, "id": 1, "name": 1})
     if op_org:
         sc = await db.sites.count_documents({"organization_id": operator, "archived": {"$ne": True}})
         out.append({"organization_id": operator, "name": op_org.get("name") or "My organisation",
                     "is_operator": True, "site_count": sc})
+        seen.add(operator)
     cursor = db.crm2_companies.find(
         {"organization_id": operator, "linked_organization_id": {"$nin": [None, ""]}},
         {"_id": 0, "name": 1, "linked_organization_id": 1, "account_number": 1},
     ).sort("name", 1)
     async for c in cursor:
         oid = c.get("linked_organization_id")
-        if not oid:
+        if not oid or oid in seen:
             continue
+        seen.add(oid)
         sc = await db.sites.count_documents({"organization_id": oid, "archived": {"$ne": True}})
         out.append({"organization_id": oid, "name": c.get("name") or "Customer",
                     "account_number": c.get("account_number") or "", "is_operator": False,

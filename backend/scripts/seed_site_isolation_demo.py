@@ -61,7 +61,8 @@ async def main():
     await db.users.update_one({"email": OWNER_EMAIL}, {"$set": {
         "id": "iso-owner", "email": OWNER_EMAIL, "password": pw,
         "full_name": "Demo Owner", "role": "owner", "organization_id": ORG_ID,
-        "account_type": "full", "allowed_site_ids": [], "created_at": _now(),
+        "account_type": "full", "allowed_site_ids": [], "is_service_desk": True,
+        "created_at": _now(),
     }}, upsert=True)
     await db.users.update_one({"email": MANAGER_EMAIL}, {"$set": {
         "id": "iso-manager", "email": MANAGER_EMAIL, "password": pw,

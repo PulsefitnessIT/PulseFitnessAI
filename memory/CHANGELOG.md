@@ -316,3 +316,22 @@ User request: full design continuity across the platform (headers/footers/menu b
 ### OPEN — Bug 3 (staff-login on pulsefitness.ai) — PRODUCTION-ONLY
 - `/staff-login` works in PREVIEW (backend POST /api/new-starter/staff-login returns 200; page renders; submit disabled only until fields typed). The failure ("press login, nothing happens / button dead") is reported ONLY on the live pulsefitness.ai domain. Main app login works there, so REACT_APP_BACKEND_URL is fine for the main bundle. Most likely: the production deployment is a STALE build predating recent staff-login changes, OR a prod-only routing/CORS quirk on /staff-login. Requires a redeploy (ships the above fixes too) and, if still failing, a production RCA via the deployer.
 
+
+
+## 2026-06 — CRM bridging root-cause + Service Desk PM/Equipment build
+### #1 CRITICAL — Master Admin imports never appeared in Pulse Fitness Ltd CRM (recurring)
+- ROOT CAUSE: the import→CRM bridge stamped `crm2_companies.organization_id` with the *importing admin's* org (the Master Admin super-user org, e.g. `9fa701ef…` / preview `d19de469` "Pulse Fitness AI Admin"), NOT the operator company `3ece2d0c…` (Pulse Fitness Ltd) that the CRM Companies list filters by. So bridged companies were written to the wrong tenant and were invisible.
+- FIX (`routes/master_admin_bulk_import.py`): new `_resolve_operator_org()` resolves the org flagged `is_operator_company: True` (Pulse Fitness Ltd) and is used at all 4 bridge call-sites. `_ensure_crm_company_for_org` is now SELF-HEALING — matches an existing bridged company by `linked_organization_id` across orgs and RE-POINTS it to the operator org (no duplicates) on the next import/backfill.
+- Verified against live DB: resolver→3ece2d0c; fresh create lands under operator; mis-bridged doc re-points (same id, 1 doc).
+- This also fixes **#2** (Service Desk "Log a Case" customer picker) — it reads the same operator-scoped `crm2_companies` with `linked_organization_id`.
+- ⚠️ PRODUCTION: after redeploy, run **Backfill CRM** (`POST /master-admin/bulk-import/backfill-crm`) once to re-point existing imported estates into Pulse Fitness Ltd.
+### #5 — Maintenance All/Commercial/MOD buttons "whited out" → restyled to cyan-active / readable-inactive pills (`PPMCalendar.js`).
+### #3 — Service Desk Equipment: site-first + multi-select + Log case
+- `DeskEquipment.js`: added Customer→Site selector + machine checklist (multi-select) + "Log case for N machines" opening `ServiceDeskIntakeForm` pre-filled.
+- `ServiceDeskIntakeForm.js`: now accepts `initial={customerOrgId, siteId, equipmentIds}` and submits `equipment_ids` for MULTIPLE machines on one case.
+### #4 — Create PM from Service Desk + manage service types + bulk scheduling
+- Backend (`routes/svc/ppm_calendar.py`): `ppm_service_types` collection + CRUD (`/svc/ppm/service-types`), seeded with Preventative Maintenance Service, **Treadmill Calibration** (checklist: belt speed/incline/e-stop), Safety Inspection. New `POST /svc/ppm/schedules` (single) and `POST /svc/ppm/schedules/bulk` (per-site or per-machine, staggered dates for the 85-station case). `/svc/ppm/services` now unions custom types.
+- Frontend (`PPMCalendar.js`): "Create PM" button → `CreatePpmModal` with Single/Bulk modes, service-type picker + inline add-type, frequency, first-visit, bulk site multi-select + stagger + granularity.
+- Verified: single create, bulk (2 sites staggered 14d), calendar surfacing, add-type — all via curl; frontend flows 100% pass (testing agent report `iteration_ppm_create_desk_equipment_jan2026.json`).
+- Fixed `/svc/desk/customers` duplicate org rows (dedupe by organization_id). Seed fix: `seed_site_isolation_demo.py` now sets `is_service_desk: True` on owner@isodemo (was missing → /service-desk bounced to /launch).
+
