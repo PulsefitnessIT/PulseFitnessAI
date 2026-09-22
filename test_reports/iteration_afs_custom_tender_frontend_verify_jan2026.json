@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend verification of Aftersales → Build Quote (Custom tender) flow for AlphaCo (Site A). Exercised end-to-end: pkg=Custom, PPM visits=2, VAT=20, upload document + load saved rate card, build-custom returns UI with unpriced blocked banner, unpriced/incVAT metric cards, Travel & visits (per_visit × visits) section, VAT (20%) and Annual inc VAT rows. Review panel lists AI-unpriced groups with per-group Exclude buttons that iteratively drop unpriced_count to 0 and remove the red blocked banner. Save button is correctly DISABLED with label 'Resolve unpriced machines to save' while unpriced>0 and ENABLES once resolved; Save → 'Saved AFS-2026-0445B' confirmation. Agreements tab shows custom quotes with Edit / PDF / Send to customer / Create link — Send/Create-link are enabled for fully-resolved quotes and no unpriced badges shown. Edit button switches to Build Quote tab with purple 'Editing saved quote' banner, customer + Custom package pre-filled, saved machine/travel rates loaded. Re-Save shows 'Save changes (overwrite)' and OVERWRITES with the SAME quote number (AFS-2026-0445B). PDF button opens the PDF in a new tab (blob).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "unknown (page load)", "issue": "Two 500 responses observed in browser console at various points during navigation into Aftersales; did not block the tested flows (not from build-custom/save/exclude/pdf). Worth surfacing to main agent to identify the offending call (possibly warranty opportunities or a settings fetch)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CRM shell (not Aftersales)", "issues": ["React hydration warning: '<span> cannot be a child of <option>' emitted by a select in CRMApp — Company picker. Cosmetic/hydration warning, not blocking. Reported for main agent to clean up."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Investigate the two 500s observed on CRM/Aftersales navigation (likely a warranty-opps or settings endpoint) — surface the failing URL in the browser Network tab.",
+    "Fix hydration warning in the CRM company <select>: remove <span> children inside <option> elements."
+  ],
+  "critical_code_review_comments": [
+    "AftersalesApp.js is 2744 lines — should be split into smaller modules (AutoQuoteTab, AgreementsTab, RenewalsRpiTab, etc.) for maintainability.",
+    "editQuoteRow() and viewQuotePdf() swallow errors with a generic alert; consider surfacing the backend detail (as sendQuoteEmail does) so users know why an action failed.",
+    "The custom result panel derives the VAT display from customResult.summary.vat_pct * 100 — good; consistent with backend vat_amount/final_annual_inc_vat."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% of the 8 requested UI states verified"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (CRM Corporate mode → Aftersales Contracts)",
+  "seed_data_creation": "Created two AlphaCo (Site A) custom quotes during the run: AFS-2026-0445B (saved & later overwritten via Edit) and a prior AFS-2026-7D81E — both £321/yr and £230/yr drafts left in Agreements tab.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login lands on /launch; open /crm, click the 'Corporate' pill (top-right of workspace bar), then the 'Aftersales Contracts' tab in the horizontal sub-nav, then the 'Build Quote' inner tab. Company 'AlphaCo (Site A)' (iso-cA) has 23 assets across 3 sites and reliably produces >5 unmatched machine groups when a rate card only prices Treadmill/Bike-family. Loading the existing 'AlphaCo Tender · 5 machines' rate card is the fastest way to reach the unpriced/exclude state without touching the file input. Exclude buttons re-index (list rebuilds) after each click, so a test must click 'afs-aq-exclude-0' in a loop until the list is empty rather than iterating fixed indices 0..N.",
+  "rca of the issue": "No functional issues found — every requested data-testid is wired and behaves per spec (blocked banner, unpriced/incVAT cards, travel-per-visit section, VAT rows, save gating, edit-overwrite same quote number, PDF blob open)."
+}

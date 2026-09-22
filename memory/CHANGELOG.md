@@ -379,3 +379,15 @@ Engineers record equipment calibration readings on a case and generate a branded
 - Rate cards now persist repair_rates and round-trip into Quick mode.
 - Backend: extract-pricing-document returns repairs+summary; build-custom-quote accepts repair_rates+estimated_repair_hours (repair cost line); rate-cards store repairs. Frontend: AutoQuoteTab customMode/wizStep/incl/estHours + wizard JSX (afs-wiz-* testids).
 - Verified: curl (extraction repairs+summary; 40h×£27.5=£1100 costing) + testing_agent frontend 100% (iteration_afs_tender_wizard_repairs_jan2026.json). Model: Claude Sonnet 4.6.
+
+## 2026-06 — Aftersales Contracts: quote gaps closed (release-readiness fixes)
+Fixed the founder-reported gaps that made the custom/tender quote NOT release-ready:
+- **Itemised PDF + £0.00/VAT bug FIXED**: custom-tender quotes saved line items as {type,unit_price,line_total} but the PDF read {model,annual_unit,annual_total} → machines rendered "—" and every price + VAT + "Annual inc VAT" showed £0.00. Backend now writes model/annual_unit/annual_total on grouped lines; PDF (utils/afs_quote_pdf.py) reads both shapes, adds a dedicated "Travel & visits" table (Site | Per visit | Visits/yr | Annual), an itemised charge breakdown (Service/Travel/Repairs), and defensive VAT/monthly fallbacks. Verified via live PDF endpoint.
+- **Travel charged per visit**: CustomQuoteIn.visits_per_year (default 1). Travel = per-site rate × visits/year; travel_lines carry per_visit/visits/annual. (Devon = 1 PPM service/yr; repairs still costed separately by hours.)
+- **VAT default 20%** with per-quote override (CustomQuoteIn.vat_pct); summary now always includes vat_pct/vat_amount/final_annual_inc_vat/monthly.
+- **Review missed machines + block send**: unmatched machines are grouped by model (asset_ids + count) in needs_review. UI adds per-group "Exclude" buttons; quote auto-rebuilds; unpriced_count/quote_health tracked. send-email AND portal-link now return HTTP 400 until unpriced_count==0; the Agreements list shows "N unpriced — edit to send" and disables Send/Create-link.
+- **Edit a saved quote (overwrite)**: CustomQuoteIn.overwrite_quote_id updates the existing doc keeping id + quote_number. AgreementsTab "Edit" button loads the saved rates into the builder (purple editing banner); Save reads "Save changes (overwrite)".
+
+Files: backend/routes/crm_aftersales.py (build_custom_quote, send-email/portal-link guards), backend/utils/afs_quote_pdf.py, frontend/src/pages/CRM/Aftersales/AftersalesApp.js (AutoQuoteTab + AgreementsTab + parent editQuote lift).
+Testing: backend + PDF verified via curl (customer iso-cA); frontend 8/8 UI states verified by testing agent (iteration_afs_custom_tender_frontend_verify_jan2026.json). No functional issues.
+Pre-existing (NOT from this change, noted for later): 2× 500s on CRM/Aftersales navigation (likely warranty-opps/settings), and a hydration warning `<span>` inside `<option>` in the CRM company <select>.
