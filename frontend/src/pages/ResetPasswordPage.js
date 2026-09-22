@@ -89,7 +89,7 @@ const ResetPasswordPage = () => {
             <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />
             <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--theme-text)' }}>Check your email</h2>
             <p className="text-sm mb-6" style={{ color: 'var(--theme-text-muted)' }}>
-              If an account exists for <span className="font-semibold">{email}</span>, we've sent a link to reset your password. The link expires in 15 minutes.
+              If an account exists for <span className="font-semibold">{email}</span>, we've sent a link to reset your password. The link expires in 7 days.
             </p>
             <Link to="/"><Button data-testid="reset-request-done-home">Back to Home</Button></Link>
           </Card>

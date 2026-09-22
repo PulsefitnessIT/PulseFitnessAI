@@ -1548,7 +1548,7 @@ async def forgot_password(body: ForgotBody):
             await db.staff_password_resets.insert_one({
                 "id": str(uuid.uuid4()), "user_id": user["id"], "token": reset_token,
                 "organization_id": user.get("organization_id"), "used": False,
-                "expires_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
                 "created_at": _now()})
             link = f"{FRONTEND_URL}/staff-reset/{reset_token}"
             html = _email_shell("Reset your Pulse Fitness portal password",

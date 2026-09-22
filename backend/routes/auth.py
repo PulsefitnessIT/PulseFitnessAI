@@ -480,7 +480,13 @@ def _enforce_account_status(user: dict) -> None:
         raise HTTPException(status_code=403, detail="Account disabled")
     expires = user.get("temp_password_expires_at")
     if user.get("must_change_password") and expires:
-        if expires < datetime.now(timezone.utc).isoformat():
+        try:
+            exp_dt = datetime.fromisoformat(str(expires))
+            if exp_dt.tzinfo is None:
+                exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            exp_dt = None
+        if exp_dt is not None and exp_dt < datetime.now(timezone.utc):
             raise HTTPException(
                 status_code=401,
                 detail="Temporary password has expired — ask the platform admin to reissue.",

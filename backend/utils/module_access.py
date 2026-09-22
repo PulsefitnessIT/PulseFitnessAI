@@ -159,8 +159,18 @@ def resolve_module_access(user: dict, org: Optional[dict]) -> dict[str, bool]:
         return out
 
     overrides = user.get("module_overrides")
+    is_engineer = user.get("role") == "engineer"
+
+    def _engineer_ops_guard(access: dict) -> None:
+        # Engineers work from the Engineer App, not the Operations module.
+        # Never grant Operations to an engineer unless a master admin has
+        # explicitly enabled it via a truthy module override.
+        if is_engineer and not (isinstance(overrides, dict) and overrides.get("operations") is True):
+            access["operations"] = False
+
     if not isinstance(overrides, dict):
         out = dict(org_access)
+        _engineer_ops_guard(out)
         out["crm_lite"] = bool(out.get("marketing")) or bool(out.get("crm"))
         return out
 
@@ -168,6 +178,7 @@ def resolve_module_access(user: dict, org: Optional[dict]) -> dict[str, bool]:
     for key in MODULE_KEYS:
         if key in overrides:
             out[key] = bool(org_access.get(key)) and bool(overrides.get(key))
+    _engineer_ops_guard(out)
     out["crm_lite"] = bool(out.get("marketing")) or bool(out.get("crm"))
     return out
 

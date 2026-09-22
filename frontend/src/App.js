@@ -868,13 +868,13 @@ function App() {
     // from an email by a logged-out engineer). Don't gate them behind the
     // protected-prefix auth-boot splash, or a slow /auth/me·/auth/refresh boot
     // could leave them stuck on "Loading…".
-    const publicPartnerPaths = ['/partner-engineer/activate', '/partner-engineer/trial-feedback'];
+    const publicPartnerPaths = ['/partner-engineer/activate', '/partner-engineer/trial-feedback', '/reset-password', '/staff-reset'];
     const isPublicException = !!path && publicPartnerPaths.some((p) => path.startsWith(p));
     const isProtectedRoute = !isPublicException && !!path && (
    protectedRoutes.includes(path) ||
    protectedPrefixes.some((p) => path.startsWith(p))
  );
- if (hasSessionToken || isProtectedRoute) {
+ if (!isPublicException && (hasSessionToken || isProtectedRoute)) {
  return (
  <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--theme-bg)' }}>
  <div className="text-xl" style={{ color: 'var(--brand-color, var(--color-brand-blue))' }}>Loading...</div>

@@ -1931,7 +1931,9 @@ useEffect(() => {
        </div>
        <div className="space-y-1.5">
          {visible.map(m => {
-           const checked = overrides[m.key] === undefined ? true : !!overrides[m.key];
+          const engineerRole = (userForm.role === 'engineer');
+          const defaultOn = !(engineerRole && m.key === 'operations');
+          const checked = overrides[m.key] === undefined ? defaultOn : !!overrides[m.key];
            return (
              <label
                key={m.key}
@@ -2320,7 +2322,9 @@ useEffect(() => {
       ) : (
         <div className="space-y-1.5">
           {visible.map(m => {
-            const checked = overrides[m.key] === undefined ? true : !!overrides[m.key];
+            const engineerRole = (editingUser.role === 'engineer');
+            const defaultOn = !(engineerRole && m.key === 'operations');
+            const checked = overrides[m.key] === undefined ? defaultOn : !!overrides[m.key];
             return (
               <label
                 key={m.key}

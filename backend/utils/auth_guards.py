@@ -39,7 +39,7 @@ log = logging.getLogger(__name__)
 # ── F-02 · password-reset TTL ─────────────────────────────────────
 
 
-PASSWORD_RESET_TTL_MINUTES = int(os.environ.get("PASSWORD_RESET_TTL_MINUTES", "15"))
+PASSWORD_RESET_TTL_MINUTES = int(os.environ.get("PASSWORD_RESET_TTL_MINUTES", "10080"))
 
 
 # ── F-03 · role-tiered JWT TTL ────────────────────────────────────

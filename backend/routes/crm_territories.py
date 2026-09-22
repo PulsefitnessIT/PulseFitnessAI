@@ -298,9 +298,12 @@ REGION_TYPES = {"county", "postcode_area"}
 _REGION_PRIORITY = {"county": 10, "postcode_area": 100}
 
 
+_TERRITORY_ROLES = {"sales_manager", "engineer", "both"}
+
+
 def _normalise_role(value: str | None) -> str:
     v = (value or "").strip().lower()
-    return v if v in {"sales_manager", "engineer", "both"} else "sales_manager"
+    return v if v in _TERRITORY_ROLES else "sales_manager"
 
 
 def _normalise_colour(value: str | None) -> str:
@@ -334,6 +337,12 @@ async def staff_palette(user=Depends(get_crm_user)):
     ).sort("full_name", 1).to_list(500)
     palette = []
     for u in users:
+        # Only sales managers / engineers belong on territories — everyone
+        # else (admins, ops-only staff, unclassified) is skipped so they're
+        # never shown or assignable on the map.
+        trole = (u.get("territory_role") or "").strip().lower()
+        if trole not in _TERRITORY_ROLES:
+            continue
         palette.append({
             "id": u["id"],
             "full_name": u.get("full_name", ""),
@@ -341,7 +350,7 @@ async def staff_palette(user=Depends(get_crm_user)):
             "role": u.get("role", "rep"),
             "manager_id": u.get("manager_id"),
             "colour_hex": _normalise_colour(u.get("colour_hex")),
-            "territory_role": _normalise_role(u.get("territory_role")),
+            "territory_role": trole,
         })
     return {"staff": palette, "total": len(palette)}
 
@@ -373,6 +382,10 @@ async def staff_locations(user=Depends(get_crm_user)):
         postcode_by_staff = {r["id"]: (r.get("postcode") or "").strip() for r in rows}
     out = []
     for u in users:
+        # Only sales managers / engineers appear as map pins.
+        trole = (u.get("territory_role") or "").strip().lower()
+        if trole not in _TERRITORY_ROLES:
+            continue
         pc = postcode_by_staff.get(u.get("staff_id"), "")
         lat, lng = u.get("map_lat"), u.get("map_lng")
         norm = pc.upper().replace(" ", "")
@@ -394,7 +407,7 @@ async def staff_locations(user=Depends(get_crm_user)):
             "full_name": u.get("full_name", ""),
             "email": u.get("email", ""),
             "colour_hex": _normalise_colour(u.get("colour_hex")),
-            "territory_role": _normalise_role(u.get("territory_role")),
+            "territory_role": trole,
             "postcode": pc,
             "lat": lat,
             "lng": lng,

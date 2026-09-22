@@ -770,10 +770,10 @@ def _territory_role_from_staff(primary_role):
     r = (primary_role or "").strip().lower()
     if not r:
         return None
-    if "sales" in r or r in {"account_manager", "business_development", "bdm", "commercial_manager"}:
-        return "sales_manager"
     if any(k in r for k in ("engineer", "technician", "service", "install", "fitter")):
         return "engineer"
+    if "sales" in r or r in {"account_manager", "business_development", "bdm", "commercial_manager"}:
+        return "sales_manager"
     return None
 
 

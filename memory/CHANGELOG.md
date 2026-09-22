@@ -296,3 +296,23 @@ User request: full design continuity across the platform (headers/footers/menu b
 
 **NOT yet done (Phase 2 — larger, pending):** unify the module SHELL HEADERS/FOOTERS (ServiceOpsShell hero header, MarketingShell/PulseMarketingShell, MemberPortal, Engineer app shell, Dealer standalone portal header, MOD footer) and theme the Service Desk/Inventory SIDE NAV to match. The main authenticated `Navbar` + `Footer` are the intended standard.
 
+
+
+## 2026-06 — Bug batch (temp-pw / reset page / engineer access / territory roles)
+- **Bug 1 — Temp passwords / reset links expiring too quickly** → standardised to **7 days**.
+  - `utils/auth_guards.py`: `PASSWORD_RESET_TTL_MINUTES` default 15 → 10080 (7 days).
+  - `staff_onboarding_wizard.py:1551`: staff reset-link TTL 1h → 7 days.
+  - `auth.py:_enforce_account_status`: hardened temp-password expiry check to parse the datetime (tz-aware) instead of a fragile ISO string compare.
+  - `ResetPasswordPage.js`: copy "expires in 15 minutes" → "7 days".
+- **Bug 2 — "Change password" reset link page showing blank** → the emailed reset page was stuck on the app's black auth "Loading…" splash whenever a stale login token was in localStorage. Fixed in `App.js` loading-gate: added `/reset-password` + `/staff-reset` to the public-exception list and made the splash condition skip them (`!isPublicException && (hasSessionToken || isProtectedRoute)`). Verified: reset form now renders even with a stale token.
+- **Bug 4 — Engineers gaining Operations access** → engineers now get Operations only if a master admin explicitly grants it.
+  - Backend enforcement (new + existing engineers): `utils/module_access.py:resolve_module_access` — `_engineer_ops_guard` forces `operations=False` for `role==engineer` unless `module_overrides.operations is True`.
+  - Frontend UX: `AdminOrganizations.js` add-user + edit-user permission grids default the Operations checkbox OFF for engineer role.
+- **Bug 5 — CRM Territories pulling wrong Operations job roles** → only **sales managers & engineers** now appear; admins/regional-managers/unclassified are excluded (previously defaulted to "Sales Manager").
+  - `crm_territories.py`: `staff-palette` + `staff-locations` now skip any crm_user whose `territory_role` isn't in `_TERRITORY_ROLES` (sales_manager/engineer/both), using the raw stored value (no silent default to sales_manager).
+  - `crm_core.py:_territory_role_from_staff`: engineer keywords now checked BEFORE sales (so "Sales Engineer"→engineer); "Administrator"/"Regional Manager"→None (excluded).
+- Verified: bug1/4/5 via backend unit checks; bug2 via browser screenshot.
+
+### OPEN — Bug 3 (staff-login on pulsefitness.ai) — PRODUCTION-ONLY
+- `/staff-login` works in PREVIEW (backend POST /api/new-starter/staff-login returns 200; page renders; submit disabled only until fields typed). The failure ("press login, nothing happens / button dead") is reported ONLY on the live pulsefitness.ai domain. Main app login works there, so REACT_APP_BACKEND_URL is fine for the main bundle. Most likely: the production deployment is a STALE build predating recent staff-login changes, OR a prod-only routing/CORS quirk on /staff-login. Requires a redeploy (ships the above fixes too) and, if still failing, a production RCA via the deployer.
+
