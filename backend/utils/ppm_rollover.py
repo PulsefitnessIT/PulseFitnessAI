@@ -161,6 +161,15 @@ async def run_forever(interval_hours: int = 6):
                 logger.info("[ppm-rollover] sweep: %s", res)
         except Exception:
             logger.warning("[ppm-rollover] sweep error", exc_info=True)
+        # Link up: send ~2-week pre-visit EMAIL reminders (commercial PPM),
+        # mirroring the MOD annual-visit reminder. Idempotent per due-date.
+        try:
+            from routes.svc.ppm_reminders import run_ppm_email_reminders
+            rem = await run_ppm_email_reminders()
+            if rem.get("sent"):
+                logger.info("[ppm-email-reminder] sweep: %s", rem)
+        except Exception:
+            logger.warning("[ppm-email-reminder] sweep error", exc_info=True)
         await asyncio.sleep(interval)
 
 

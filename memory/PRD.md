@@ -38419,3 +38419,29 @@ Verified via function-level e2e: backfill created an annual schedule (anniversar
 calendar all/commercial listed it (due_soon); scheduling with 2 engineers created an ASSIGNED case with both
 engineer ids/names + Calibration service, rolled schedule +12mo; calendar then showed "scheduled"; auto-PPM
 idempotent. ruff + eslint clean, endpoints live, webpack compiled. UI not browser-tested (Service Desk MFA in preview).
+
+---
+## 2026-06 · PPM email reminders (~2 weeks before) — LINKED to existing machinery, no duplication
+User asked for auto-email to the customer/site contact ~2 weeks before a due PPM, "like the MOD visit reminders",
+and to ensure faults/planned-maintenance all link up without duplicated work.
+
+Audit of what already existed (reused, NOT rebuilt):
+- MOD annual-visit email reminders: utils/mod_visit_reminders.py::run_mod_visit_reminders (30-day lead, idempotent
+  via annual_visit.reminded_at), run from the Sicon poller loop.
+- Commercial PPM: routes/svc/ppm_reminders.py::fire_ppm_due_reminders was PUSH-only (svc_notifications), NO email.
+- Canonical due-date sources: ppm_schedules.next_pm (commercial), mod_service_contracts.annual_visit (MOD).
+  equipment.next_pm / ppm_tasks are derived mirrors. NO separate planned_maintenance collection exists.
+- Email util: utils/email.py::send_email (Resend).
+
+Gap filled (the ONLY missing piece): a ~14-day pre-visit EMAIL reminder for commercial PPM.
+- Added routes/svc/ppm_reminders.py::run_ppm_email_reminders() — reads canonical ppm_schedules.next_pm, window
+  [lead-2, lead+2] (PPM_REMINDER_LEAD_DAYS env, default 14), emails the site/customer contact via the shared
+  send_email, idempotent per occurrence via ppm_schedules.reminded_for (== the next_pm it reminded for; resets
+  when the schedule rolls forward). Recipient resolution: sites.site_manager_email → imported site-manager
+  crm2_contact for that site → customer org contact.
+- Manual trigger: POST /api/svc/admin/ppm/fire-email-reminders.
+- Auto-run: hung off the EXISTING PPM loop utils/ppm_rollover.py::run_forever (every PPM_ROLLOVER_HOURS, default 6h)
+  — no new scheduler/loop. Once a PPM is scheduled, next_pm rolls +12mo so it leaves the 14-day window (no double
+  reminders); only unscheduled due PPMs are chased.
+Verified: due-in-14d schedule emailed the site manager; 60d one skipped; second run idempotent (0 sent); crm2
+contact fallback works when site_manager_email empty. ruff clean, endpoints live, backend healthy.

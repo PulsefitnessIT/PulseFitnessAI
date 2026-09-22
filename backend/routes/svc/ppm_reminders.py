@@ -154,4 +154,126 @@ async def fire_ppm_due_reminders(
     }
 
 
-__all__ = ["router", "DEDUPE_WINDOW_HOURS"]
+__all__ = ["router", "DEDUPE_WINDOW_HOURS", "run_ppm_email_reminders"]
+
+
+# ── Commercial PPM pre-visit EMAIL reminder (~2 weeks ahead) ───────────────
+# Mirrors the MOD annual-visit reminder (utils/mod_visit_reminders.py) but for
+# commercial ppm_schedules. Reads the canonical `ppm_schedules.next_pm`, emails
+# the site/customer contact, and is idempotent per due-date via `reminded_for`.
+import os  # noqa: E402
+from datetime import date  # noqa: E402
+
+PPM_REMINDER_LEAD_DAYS = int(os.environ.get("PPM_REMINDER_LEAD_DAYS", "14"))
+_PPM_WIN_LOW = PPM_REMINDER_LEAD_DAYS - 2
+_PPM_WIN_HIGH = PPM_REMINDER_LEAD_DAYS + 2
+
+
+def _ppm_parse_date(s):
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(str(s)[:10]).date()
+    except Exception:
+        return None
+
+
+async def _resolve_ppm_site_email(schedule: dict) -> str:
+    """Site/customer contact email for a commercial PPM. Site manager →
+    imported site-manager CRM contact for that site → customer org contact."""
+    def _valid(e):
+        e = (e or "").strip().lower()
+        return e if ("@" in e and "@site." not in e) else ""
+
+    site_id = schedule.get("site_id")
+    org_id = schedule.get("organization_id")
+    if site_id:
+        site = await db.sites.find_one(
+            {"id": site_id},
+            {"_id": 0, "site_manager_email": 1, "email": 1, "invoice_customer_ref": 1},
+        ) or {}
+        email = _valid(site.get("site_manager_email")) or _valid(site.get("email"))
+        if email:
+            return email
+        contact = await db.crm2_contacts.find_one(
+            {"customer_site_id": site_id, "email": {"$nin": [None, ""]}}, {"_id": 0, "email": 1},
+        )
+        if contact and _valid(contact.get("email")):
+            return _valid(contact["email"])
+    if org_id:
+        org = await db.organizations.find_one(
+            {"id": org_id},
+            {"_id": 0, "site_manager_email": 1, "primary_contact_email": 1, "contact_email": 1},
+        ) or {}
+        return (_valid(org.get("site_manager_email")) or _valid(org.get("primary_contact_email"))
+                or _valid(org.get("contact_email")))
+    return ""
+
+
+def _ppm_reminder_html(customer, site, equipment, service, due_date) -> str:
+    what = equipment or "your equipment"
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;background:#fff;color:#1B1D1D;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+  <div style="background:#1B1D1D;padding:18px 26px;border-bottom:3px solid #19CDFF;">
+    <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · Preventative Maintenance</div>
+    <h1 style="color:#fff;margin:6px 0 0 0;font-size:19px;">Upcoming service reminder</h1>
+  </div>
+  <div style="padding:22px 26px;">
+    <p>This is a reminder that a <strong>{service}</strong> for <strong>{what}</strong>{f' at <strong>{site}</strong>' if site else ''} is due on <strong>{due_date}</strong> (about two weeks away).</p>
+    <p>Our service team will be in touch to arrange an engineer visit. If you have a preferred date or access requirements, just reply to this email.</p>
+    <p style="color:#6E7476;font-size:12px;">{customer or ''} · You're receiving this because a preventative-maintenance service is scheduled for your equipment.</p>
+  </div>
+</div>"""
+
+
+async def run_ppm_email_reminders() -> dict:
+    """Daily idempotent sweep — email the site contact ~2 weeks before a
+    commercial PPM is due. Idempotent per due-date via `reminded_for`."""
+    from utils.email import send_email
+    today = date.today()
+    now_iso = _now().isoformat()
+    schedules = await db.ppm_schedules.find(
+        {"source": "service_desk", "active": True, "next_pm": {"$nin": [None, ""]}}, {"_id": 0},
+    ).to_list(20000)
+
+    sent = 0
+    for s in schedules:
+        npm = _ppm_parse_date(s.get("next_pm"))
+        if not npm:
+            continue
+        if not (_PPM_WIN_LOW <= (npm - today).days <= _PPM_WIN_HIGH):
+            continue
+        if s.get("reminded_for") == s.get("next_pm"):
+            continue  # already reminded for this occurrence
+        email = await _resolve_ppm_site_email(s)
+        if email:
+            try:
+                await send_email(
+                    email,
+                    f"Reminder: {s.get('service_type') or 'Preventative maintenance'} due {s.get('next_pm')}"
+                    + (f" — {s.get('site_name')}" if s.get("site_name") else ""),
+                    _ppm_reminder_html(s.get("customer_name"), s.get("site_name"),
+                                       s.get("equipment_name"),
+                                       s.get("service_type") or "Preventative Maintenance Service",
+                                       s.get("next_pm")),
+                    category="support",
+                )
+            except Exception:
+                logger.exception("[ppm-email-reminder] send failed for schedule %s", s.get("id"))
+        # Stamp regardless so we don't rescan a contactless schedule each cycle.
+        await db.ppm_schedules.update_one(
+            {"id": s["id"], "organization_id": s.get("organization_id")},
+            {"$set": {"reminded_for": s.get("next_pm"), "reminded_at": now_iso}},
+        )
+        if email:
+            sent += 1
+
+    if sent:
+        logger.info("[ppm-email-reminder] sent %d reminder(s)", sent)
+    return {"sent": sent, "scanned": len(schedules)}
+
+
+@router.post("/svc/admin/ppm/fire-email-reminders")
+async def fire_ppm_email_reminders(user=Depends(get_current_user)):
+    """Manually run the ~2-week PPM email reminder sweep."""
+    _require_admin(user)
+    return await run_ppm_email_reminders()
