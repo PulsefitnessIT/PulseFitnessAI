@@ -1295,6 +1295,26 @@ async def extract_pricing_document(file: UploadFile = File(None), file_id: str =
     }
 
 
+async def _archive_quote_version(existing: dict, user) -> int:
+    """Snapshot the current quote doc into crm2_afs_quote_versions before it is
+    overwritten/reverted, so edits keep a viewable, revertible history."""
+    last = await db.crm2_afs_quote_versions.find_one(
+        {"quote_id": existing["id"]}, {"_id": 0, "version": 1}, sort=[("version", -1)])
+    ver = (int(last["version"]) + 1) if last else 1
+    snap = {k: v for k, v in existing.items() if k != "_id"}
+    await db.crm2_afs_quote_versions.insert_one({
+        "id": _id(), "quote_id": existing["id"],
+        "organization_id": existing.get("organization_id"),
+        "version": ver, "snapshot": snap,
+        "edited_by": (user.get("email") or user.get("id")) if isinstance(user, dict) else None,
+        "created_at": _now(),
+        "final_annual": (existing.get("summary") or {}).get("final_annual"),
+        "quote_health": existing.get("quote_health"),
+        "quote_number": existing.get("quote_number"),
+    })
+    return ver
+
+
 class CustomQuoteIn(BaseModel):
     company_id: str
     site_ids: Optional[List[str]] = None
@@ -1451,13 +1471,16 @@ async def build_custom_quote(body: CustomQuoteIn, user=Depends(get_crm_user)):
         }
         if body.overwrite_quote_id:
             existing = await db.crm2_afs_quotes.find_one(
-                {"id": body.overwrite_quote_id, **of}, {"_id": 0, "quote_number": 1})
+                {"id": body.overwrite_quote_id, **of}, {"_id": 0})
             if not existing:
                 raise HTTPException(404, "Quote to edit not found")
+            archived_ver = await _archive_quote_version(existing, user)
+            base["version"] = archived_ver + 1
             await db.crm2_afs_quotes.update_one({"id": body.overwrite_quote_id, **of}, {"$set": base})
             qid = body.overwrite_quote_id
             out["saved_quote_id"] = qid
             out["quote_number"] = existing.get("quote_number")
+            out["version"] = base["version"]
             await record_audit(entity_type="afs_quote", entity_id=qid, action="update",
                                user=user, extra={"company": company.get("name"), "mode": "custom_tender"})
         else:
@@ -1466,14 +1489,85 @@ async def build_custom_quote(body: CustomQuoteIn, user=Depends(get_crm_user)):
                 "id": qid, "organization_id": _org(user),
                 "quote_number": f"AFS-{datetime.now(timezone.utc).strftime('%Y')}-{qid[:5].upper()}",
                 "status": "draft", "created_by": user.get("email") or user.get("id"),
-                "created_at": _now(), **base,
+                "version": 1, "created_at": _now(), **base,
             }
             await db.crm2_afs_quotes.insert_one(doc)
             await record_audit(entity_type="afs_quote", entity_id=qid, action="create",
                                user=user, extra={"company": company.get("name"), "mode": "custom_tender"})
             out["saved_quote_id"] = qid
             out["quote_number"] = doc["quote_number"]
+            out["version"] = 1
     return out
+
+
+# ── Quote version history (view / revert) ──────────────────────────
+@router.get("/quotes/{quote_id}/versions")
+async def list_quote_versions(quote_id: str, user=Depends(get_crm_user)):
+    """History list for a quote (metadata only), newest first. The live quote is
+    the current version; each entry is a prior snapshot captured before an edit."""
+    of = _of(user)
+    q = await db.crm2_afs_quotes.find_one({"id": quote_id, **of}, _PUBLIC)
+    if not q:
+        raise HTTPException(404, "Quote not found")
+    versions = await db.crm2_afs_quote_versions.find(
+        {"quote_id": quote_id}, {"_id": 0, "snapshot": 0}).sort("version", -1).to_list(200)
+    return {
+        "quote_id": quote_id, "quote_number": q.get("quote_number"),
+        "current_version": int(q.get("version") or 1),
+        "current": {
+            "final_annual": (q.get("summary") or {}).get("final_annual"),
+            "quote_health": q.get("quote_health"),
+            "updated_at": q.get("updated_at") or q.get("created_at"),
+        },
+        "versions": versions,
+    }
+
+
+@router.get("/quotes/{quote_id}/versions/{version}")
+async def get_quote_version(quote_id: str, version: int, user=Depends(get_crm_user)):
+    """Full snapshot of a historical version (for read-only viewing)."""
+    of = _of(user)
+    q = await db.crm2_afs_quotes.find_one({"id": quote_id, **of}, {"_id": 0, "id": 1})
+    if not q:
+        raise HTTPException(404, "Quote not found")
+    v = await db.crm2_afs_quote_versions.find_one(
+        {"quote_id": quote_id, "version": version}, {"_id": 0})
+    if not v:
+        raise HTTPException(404, "Version not found")
+    return v
+
+
+@router.post("/quotes/{quote_id}/versions/{version}/revert")
+async def revert_quote_version(quote_id: str, version: int, user=Depends(get_crm_user)):
+    """Restore a historical version as the current quote. The current state is
+    archived first, so a revert is itself reversible. Quote number is preserved."""
+    of = _of(user)
+    current = await db.crm2_afs_quotes.find_one({"id": quote_id, **of}, {"_id": 0})
+    if not current:
+        raise HTTPException(404, "Quote not found")
+    ver_doc = await db.crm2_afs_quote_versions.find_one(
+        {"quote_id": quote_id, "version": version}, {"_id": 0})
+    if not ver_doc:
+        raise HTTPException(404, "Version not found")
+    archived_ver = await _archive_quote_version(current, user)
+    snap = ver_doc.get("snapshot") or {}
+    restore_keys = [
+        "grouped_lines", "travel_lines", "needs_review", "excluded_lines", "excluded_asset_ids",
+        "unpriced_asset_ids", "unpriced_count", "quote_health", "summary", "include_site_annexe",
+        "machine_rates", "travel_rates", "repair_rates", "estimated_repair_hours",
+        "term_years", "quote_discount_pct", "visits_per_year", "vat_pct", "site_ids",
+        "company_id", "company_name", "linked_organization_id",
+        "contract_type", "pricing_level", "pricing_mode", "source",
+    ]
+    setdoc = {k: snap.get(k) for k in restore_keys if k in snap}
+    setdoc["version"] = archived_ver + 1
+    setdoc["updated_at"] = _now()
+    setdoc["reverted_from_version"] = version
+    await db.crm2_afs_quotes.update_one({"id": quote_id, **of}, {"$set": setdoc})
+    await record_audit(entity_type="afs_quote", entity_id=quote_id, action="revert",
+                       user=user, extra={"to_version": version})
+    updated = await db.crm2_afs_quotes.find_one({"id": quote_id, **of}, _PUBLIC)
+    return {"ok": True, "quote": updated, "current_version": setdoc["version"]}
 
 
 # ── Reusable customer rate cards (saved tenders) ───────────────────

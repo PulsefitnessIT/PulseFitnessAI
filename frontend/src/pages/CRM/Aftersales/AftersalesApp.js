@@ -22,6 +22,7 @@ import {
   Zap, Building2, Rocket, FileCheck2, PenLine, CheckCircle2, Circle,
   CalendarClock, Receipt, ChevronDown, ChevronRight, RotateCw, MinusCircle,
   FileText, Share2, Bell, Mail, X, Sparkles, Copy, MessageSquare, FileSpreadsheet,
+  History, Eye,
 } from 'lucide-react';
 
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1406,6 +1407,34 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
       goTo && goTo('autoquote');
     } catch { alert('Could not open this quote for editing.'); }
   };
+  const [historyFor, setHistoryFor] = useState(null);
+  const [historyData, setHistoryData] = useState(null);
+  const [verView, setVerView] = useState(null);
+  const [verBusy, setVerBusy] = useState(false);
+  const openHistory = async (q) => {
+    setHistoryFor(q); setHistoryData(null); setVerView(null);
+    try {
+      const r = await axios.get(`${API}/crm/v2/aftersales/quotes/${q.id}/versions`, { headers: headers() });
+      setHistoryData(r.data);
+    } catch { alert('Could not load version history.'); setHistoryFor(null); }
+  };
+  const viewVersion = async (ver) => {
+    try {
+      const r = await axios.get(`${API}/crm/v2/aftersales/quotes/${historyFor.id}/versions/${ver}`, { headers: headers() });
+      setVerView(r.data);
+    } catch { alert('Could not load that version.'); }
+  };
+  const revertVersion = async (ver) => {
+    if (!window.confirm(`Revert this quote to v${ver}? The current version is saved to history first, so you can undo.`)) return;
+    setVerBusy(true);
+    try {
+      await axios.post(`${API}/crm/v2/aftersales/quotes/${historyFor.id}/versions/${ver}/revert`, {}, { headers: headers() });
+      const r = await axios.get(`${API}/crm/v2/aftersales/quotes/${historyFor.id}/versions`, { headers: headers() });
+      setHistoryData(r.data); setVerView(null);
+      load();
+    } catch (e) { alert(e?.response?.data?.detail || 'Revert failed.'); }
+    finally { setVerBusy(false); }
+  };
   const makePortalLink = async (id) => {
     try {
       const r = await axios.post(`${API}/crm/v2/aftersales/quotes/${id}/portal-link`, { valid_days: 30 }, { headers: headers() });
@@ -1667,6 +1696,12 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
                         <PenLine size={13} /> Edit
                       </button>
                     )}
+                    {(q.source === 'custom_tender_upload' || q.contract_type === 'custom') && (q.version || 1) > 1 && (
+                      <button data-testid={`afs-quote-history-${q.id}`} onClick={() => openHistory(q)}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md" style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+                        <History size={13} /> History (v{q.version})
+                      </button>
+                    )}
                     <button data-testid={`afs-quote-pdf-${q.id}`} onClick={() => viewQuotePdf(q.id)}
                       className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md" style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
                       <FileText size={13} /> PDF
@@ -1728,6 +1763,74 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
           );
         })}
       </div>
+
+      {historyFor && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4" data-testid="afs-history-modal"
+          style={{ background: 'rgba(0,0,0,0.55)' }} onClick={() => { setHistoryFor(null); setVerView(null); }}>
+          <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-5" style={{ background: isDark ? 'var(--color-ink)' : '#fff', border: `1px solid ${c.border}` }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-sm font-bold" style={{ color: c.text }}>Version history</p>
+                <p className="text-xs" style={{ color: c.textDim }}>{historyFor.quote_number} · {historyFor.company_name}</p>
+              </div>
+              <button data-testid="afs-history-close" onClick={() => { setHistoryFor(null); setVerView(null); }} style={{ color: c.textDim }}><X size={18} /></button>
+            </div>
+
+            {!historyData ? (
+              <p className="text-sm py-8 text-center" style={{ color: c.textDim }}>Loading…</p>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between px-3 py-2.5 rounded-lg" data-testid="afs-history-current"
+                  style={{ background: 'var(--color-brand-cyan)18', border: '1px solid var(--color-brand-cyan)' }}>
+                  <div>
+                    <span className="text-sm font-bold" style={{ color: c.text }}>Current · v{historyData.current_version}</span>
+                    <span className="text-xs ml-2" style={{ color: c.textDim }}>{gbp0(historyData.current.final_annual)}/yr {historyData.current.quote_health === 'BLOCKED' ? '· ⚠ unpriced' : ''}</span>
+                  </div>
+                  <span className="text-[10px] uppercase font-bold tracking-wide" style={{ color: 'var(--color-brand-cyan)' }}>Live</span>
+                </div>
+                {(historyData.versions || []).length === 0 && (
+                  <p className="text-xs py-4 text-center" style={{ color: c.textDim }} data-testid="afs-history-empty">No previous versions yet.</p>
+                )}
+                {(historyData.versions || []).map(v => (
+                  <div key={v.version} className="flex items-center gap-3 px-3 py-2.5 rounded-lg border" data-testid={`afs-history-v-${v.version}`} style={{ borderColor: c.border }}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold" style={{ color: c.text }}>v{v.version} · {gbp0(v.final_annual)}/yr</p>
+                      <p className="text-[11px]" style={{ color: c.textDim }}>{v.edited_by || 'unknown'} · {v.created_at ? new Date(v.created_at).toLocaleString('en-GB') : ''}</p>
+                    </div>
+                    <button data-testid={`afs-history-view-${v.version}`} onClick={() => viewVersion(v.version)}
+                      className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md" style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+                      <Eye size={13} /> View
+                    </button>
+                    <button data-testid={`afs-history-revert-${v.version}`} onClick={() => revertVersion(v.version)} disabled={verBusy}
+                      className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md disabled:opacity-40" style={{ background: 'var(--color-accent-purple)', color: '#fff' }}>
+                      <RotateCw size={13} /> Revert
+                    </button>
+                  </div>
+                ))}
+
+                {verView && (
+                  <div className="mt-3 pt-3 border-t" data-testid="afs-history-snapshot" style={{ borderColor: c.border }}>
+                    <p className="text-sm font-bold mb-2" style={{ color: c.text }}>Viewing v{verView.version}</p>
+                    <div className="rounded-lg p-3" style={{ background: isDark ? 'var(--color-ink-alt)' : 'var(--color-neutral-100)' }}>
+                      {(verView.snapshot?.grouped_lines || []).map((g, i) => (
+                        <Row key={`m${i}`} label={`${g.type || g.model} × ${g.qty}`} value={`${gbp(g.unit_price)} → ${gbp(g.line_total || g.annual_total)}`} c={c} />
+                      ))}
+                      {(verView.snapshot?.travel_lines || []).map((t, i) => (
+                        <Row key={`t${i}`} label={`Travel: ${t.site_name} × ${t.visits || 1}`} value={gbp(t.annual != null ? t.annual : t.price)} c={c} />
+                      ))}
+                      <div className="mt-2 pt-2 border-t" style={{ borderColor: c.border }}>
+                        <Row label="Annual (ex VAT)" value={gbp(verView.snapshot?.summary?.final_annual)} c={c} />
+                        <Row label={`VAT (${((verView.snapshot?.summary?.vat_pct || 0) * 100).toFixed(0)}%)`} value={gbp(verView.snapshot?.summary?.vat_amount)} c={c} />
+                        <Row label="Annual inc VAT" value={gbp(verView.snapshot?.summary?.final_annual_inc_vat)} c={c} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
