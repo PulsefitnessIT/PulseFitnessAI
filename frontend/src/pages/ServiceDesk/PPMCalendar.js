@@ -420,7 +420,7 @@ function CreatePpmModal({ onClose, onDone }) {
             <Label className="text-xs">Service type</Label>
             <select value={serviceType} onChange={(e) => setServiceType(e.target.value)}
               className="w-full mt-1 h-10 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm" data-testid="ppm-create-service">
-              {serviceTypes.map((s) => <option key={s.id} value={s.name}>{s.name}{s.requires_calibration ? ' (calibration)' : ''}</option>)}
+              {serviceTypes.map((s) => <option key={s.id} value={s.name}>{`${s.name}${s.calibrate_treadmills ? ' (PM + treadmill calibration)' : (s.requires_calibration ? ' (calibration)' : '')}`}</option>)}
             </select>
             {activeType?.checklist_items?.length ? (
               <p className="text-[11px] text-zinc-500 mt-1">Records on the case: {activeType.checklist_items.join(', ')}</p>

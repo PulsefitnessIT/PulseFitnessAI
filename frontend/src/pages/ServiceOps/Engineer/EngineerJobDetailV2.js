@@ -4122,6 +4122,7 @@ function JobProfitabilityCard({ caseId }) {
 // default from the PM service type's checklist items when present.
 function CalibrationCapture({ job }) {
   const [rows, setRows] = useState([]);
+  const [machines, setMachines] = useState(null); // null = flat mode; array = per-treadmill matrix
   const [serviceType, setServiceType] = useState('');
   const [overrideOverall, setOverrideOverall] = useState('');
   const [notes, setNotes] = useState('');
@@ -4137,7 +4138,31 @@ function CalibrationCapture({ job }) {
       try {
         const { data } = await axios.get(`${API}/svc/engineer/jobs/${job.id}/calibration`, auth());
         setServiceType(data?.service_type || job.service_type || '');
+        const treadmills = data?.treadmills || [];
+        const params = data?.calibration_params || [];
         const existing = data?.calibration;
+        if (treadmills.length && params.length) {
+          // Per-treadmill matrix (Fire Station Service). Seed from saved data if present.
+          const savedByKey = {};
+          (existing?.machines || []).forEach((m) => { savedByKey[m.equipment_id || m.serial || m.equipment_name] = m; });
+          const initial = treadmills.map((t) => {
+            const key = t.equipment_id || t.serial || t.equipment_name;
+            const sv = savedByKey[key];
+            const readings = params.map((p) => {
+              const svr = (sv?.readings || []).find((r) => r.label === p.label);
+              return { label: p.label, target: p.target || '', unit: p.unit || '', measured: svr?.measured || '', result: svr?.result || 'pass' };
+            });
+            return {
+              equipment_id: t.equipment_id, equipment_name: t.equipment_name, serial: t.serial || '',
+              readings, overall_result: sv?.overall_result || 'pass',
+            };
+          });
+          setMachines(initial);
+          if (existing?.machines?.length) { setNotes(existing.notes || ''); setSaved(true); }
+          setOpen(true);
+          return;
+        }
+        // Flat mode (single-machine calibration).
         if (existing?.readings?.length) {
           setRows(existing.readings);
           setOverrideOverall(existing.overall_result || '');
@@ -4158,18 +4183,26 @@ function CalibrationCapture({ job }) {
     })();
   }, [job.id]);
 
-  const computedOverall = overrideOverall || (rows.some((r) => r.result === 'fail') ? 'fail' : 'pass');
+  const matrixMode = Array.isArray(machines);
+  const computedOverall = overrideOverall || (
+    matrixMode
+      ? (machines.some((m) => m.overall_result === 'fail') ? 'fail' : 'pass')
+      : (rows.some((r) => r.result === 'fail') ? 'fail' : 'pass'));
   const setRow = (i, k, v) => setRows((p) => p.map((r, idx) => (idx === i ? { ...r, [k]: v } : r)));
   const addRow = () => setRows((p) => [...p, { label: '', target: '', measured: '', unit: '', tolerance: '', result: 'pass' }]);
   const rmRow = (i) => setRows((p) => p.filter((_, idx) => idx !== i));
+  const setMachineReading = (mi, ri, v) => setMachines((p) => p.map((m, i) => (i === mi
+    ? { ...m, readings: m.readings.map((r, j) => (j === ri ? { ...r, measured: v } : r)) } : m)));
+  const setMachineResult = (mi, v) => setMachines((p) => p.map((m, i) => (i === mi
+    ? { ...m, overall_result: v, readings: m.readings.map((r) => ({ ...r, result: v })) } : m)));
 
   const save = async () => {
     setBusy(true); setErr('');
     try {
-      await axios.post(`${API}/svc/engineer/jobs/${job.id}/calibration`, {
-        readings: rows, overall_result: computedOverall, notes, signature: sig,
-        service_type: serviceType, equipment_name: job.asset_name || '',
-      }, auth());
+      const body = matrixMode
+        ? { machines, overall_result: computedOverall, notes, signature: sig, service_type: serviceType }
+        : { readings: rows, overall_result: computedOverall, notes, signature: sig, service_type: serviceType, equipment_name: job.asset_name || '' };
+      await axios.post(`${API}/svc/engineer/jobs/${job.id}/calibration`, body, auth());
       setSaved(true);
     } catch (e) {
       setErr(e?.response?.data?.detail || 'Could not save calibration');
@@ -4191,7 +4224,8 @@ function CalibrationCapture({ job }) {
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 mb-4" data-testid="calibration-capture">
       <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between" data-testid="calibration-toggle">
         <span className="text-sm font-bold flex items-center gap-2">
-          Calibration
+          {matrixMode ? 'Treadmill calibration' : 'Calibration'}
+          {matrixMode && <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700" data-testid="calibration-treadmill-count">{machines.length} treadmill{machines.length === 1 ? '' : 's'}</span>}
           {saved && (
             <span className={`text-[10px] px-2 py-0.5 rounded-full ${computedOverall === 'pass' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
               {computedOverall.toUpperCase()}
@@ -4200,7 +4234,53 @@ function CalibrationCapture({ job }) {
         </span>
         <span className="text-xs text-zinc-400">{open ? 'Hide' : 'Show'}</span>
       </button>
-      {open && (
+      {open && matrixMode && (
+        <div className="mt-3 space-y-3">
+          <p className="text-[11px] text-zinc-500">Record speed &amp; incline readings for each treadmill. All treadmills appear on one certificate.</p>
+          {machines.map((m, mi) => (
+            <div key={m.equipment_id || mi} className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3" data-testid={`calibration-treadmill-${mi}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold truncate">{m.equipment_name}</p>
+                  {m.serial && <p className="text-[10px] text-zinc-400 font-mono">SN {m.serial}</p>}
+                </div>
+                <select value={m.overall_result} onChange={(e) => setMachineResult(mi, e.target.value)} data-testid={`calibration-treadmill-result-${mi}`}
+                  className={`${inputCls} px-1 ${m.overall_result === 'fail' ? 'text-rose-600 font-semibold' : 'text-emerald-600 font-semibold'}`}>
+                  <option value="pass">Pass</option><option value="fail">Fail</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {m.readings.map((r, ri) => (
+                  <label key={ri} className="text-[10px] text-zinc-500">
+                    <span className="block mb-0.5 font-semibold">{r.label.replace('Speed — ', '').replace('Incline — ', '')}{r.label.startsWith('Speed') ? ' spd' : ' inc'}</span>
+                    <input value={r.measured} onChange={(e) => setMachineReading(mi, ri, e.target.value)} placeholder={`${r.target}${r.unit ? ' ' + r.unit : ''}`}
+                      className={`w-full ${inputCls}`} data-testid={`calibration-tm-${mi}-reading-${ri}`} />
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (reference instrument, observations)…" className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-2 py-1.5 text-xs" rows={2} data-testid="calibration-notes" />
+          <div>
+            <button onClick={() => setShowSig((s) => !s)} className="text-xs font-semibold" data-testid="calibration-sign-toggle">
+              {sig ? 'Signature captured ✓ — redo' : 'Add engineer signature'}
+            </button>
+            {showSig && (<div className="mt-2"><SignatureCanvas onCancel={() => setShowSig(false)} onSubmit={(d) => { setSig(d); setShowSig(false); }} /></div>)}
+          </div>
+          {err && <p className="text-xs text-rose-600" data-testid="calibration-error">{err}</p>}
+          <div className="flex items-center gap-2 pt-1">
+            <button onClick={save} disabled={busy} className="px-4 py-2 rounded-full text-sm font-semibold bg-[var(--color-brand-cyan)] text-[var(--color-ink)] disabled:opacity-50" data-testid="calibration-save">
+              {busy ? 'Saving…' : (saved ? 'Update calibration' : 'Save calibration')}
+            </button>
+            {saved && (
+              <button onClick={downloadCert} className="px-4 py-2 rounded-full text-sm font-semibold border border-zinc-300 dark:border-zinc-700" data-testid="calibration-download-cert">
+                Download certificate
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {open && !matrixMode && (
         <div className="mt-3 space-y-2">
           <div className="grid grid-cols-12 gap-1.5 text-[10px] font-semibold uppercase text-zinc-400 px-0.5">
             <span className="col-span-4">Parameter</span><span className="col-span-2">Target</span>

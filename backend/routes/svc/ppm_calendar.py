@@ -164,15 +164,30 @@ _DEFAULT_SERVICE_TYPES = [
     {"name": "Safety / Compliance Inspection", "description": "Statutory safety inspection.",
      "default_frequency": "annual", "checklist_items": ["Visual safety check", "Electrical safety (PAT)"],
      "requires_calibration": False},
+    {"name": "Fire Station Service",
+     "description": "Full PM service on every machine at the station, plus speed / incline "
+                    "calibration for the treadmills. One certificate covers all treadmills.",
+     "default_frequency": "annual",
+     "checklist_items": ["Visual safety check", "Frame & fixings", "Console & display",
+                         "Belt & deck condition", "Lubrication", "Electrical safety (PAT)"],
+     "requires_calibration": True, "calibrate_treadmills": True},
 ]
 
 
 async def _seed_service_types(operator: str) -> None:
-    if await db.ppm_service_types.count_documents({"organization_id": operator}):
-        return
+    """Ensure the operator has every default service type. Idempotent — inserts
+    only defaults whose name is missing, so new defaults (e.g. Fire Station
+    Service) propagate to orgs seeded before they existed, without duplicating
+    or resurrecting operator-deleted types."""
+    existing = set()
+    async for st in db.ppm_service_types.find(
+        {"organization_id": operator}, {"_id": 0, "name": 1}):
+        if st.get("name"):
+            existing.add(st["name"])
     now = _now()
     docs = [{"id": str(uuid.uuid4()), "organization_id": operator, "active": True,
-             "created_at": now, "updated_at": now, **st} for st in _DEFAULT_SERVICE_TYPES]
+             "created_at": now, "updated_at": now, **st}
+            for st in _DEFAULT_SERVICE_TYPES if st["name"] not in existing]
     if docs:
         await db.ppm_service_types.insert_many(docs)
 
@@ -200,6 +215,7 @@ async def create_service_type(data: dict = Body(...), user: dict = Depends(get_c
         "default_frequency": (data.get("default_frequency") or "annual"),
         "checklist_items": [str(c).strip() for c in (data.get("checklist_items") or []) if str(c).strip()],
         "requires_calibration": bool(data.get("requires_calibration")),
+        "calibrate_treadmills": bool(data.get("calibrate_treadmills")),
         "active": True, "created_at": now, "updated_at": now,
     }
     await db.ppm_service_types.insert_one(doc)
@@ -218,6 +234,8 @@ async def update_service_type(st_id: str, data: dict = Body(...), user: dict = D
         upd["checklist_items"] = [str(c).strip() for c in (data.get("checklist_items") or []) if str(c).strip()]
     if "requires_calibration" in data:
         upd["requires_calibration"] = bool(data["requires_calibration"])
+    if "calibrate_treadmills" in data:
+        upd["calibrate_treadmills"] = bool(data["calibrate_treadmills"])
     r = await db.ppm_service_types.update_one({"id": st_id, "organization_id": operator}, {"$set": upd})
     if not r.matched_count:
         raise HTTPException(404, "Service type not found")
@@ -567,9 +585,7 @@ async def schedule_ppm(data: dict = Body(...), user: dict = Depends(get_current_
     if not engineer_ids and data.get("engineer_id"):
         engineer_ids = [data["engineer_id"]]
     scheduled_at = (data.get("scheduled_at") or "").strip()
-    service_type = (data.get("service_type") or "Preventative Maintenance Service").strip()
-    if service_type not in PPM_SERVICES:
-        service_type = "Preventative Maintenance Service"
+    req_service_type = (data.get("service_type") or "").strip()
 
     org_ids = await _customer_org_ids(operator)
     sched = await db.ppm_schedules.find_one(
@@ -578,6 +594,11 @@ async def schedule_ppm(data: dict = Body(...), user: dict = Depends(get_current_
     )
     if not sched:
         raise HTTPException(404, "PPM schedule not found")
+
+    # Preserve the schedule's own service type (incl. custom types like
+    # "Fire Station Service" / "Treadmill Calibration"); only override when the
+    # request explicitly sends a different one. No coercion to a 2-item enum.
+    service_type = req_service_type or (sched.get("service_type") or "Preventative Maintenance Service")
 
     due_date = (scheduled_at or sched.get("next_pm") or _today().isoformat())[:10]
 

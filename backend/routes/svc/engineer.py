@@ -1252,6 +1252,7 @@ async def _calibration_cert_response(case_id: str, of: dict):
         equipment_name=cal.get("equipment_name") or case.get("asset_name") or "",
         service_type=cal.get("service_type") or case.get("service_type") or "Calibration",
         readings=cal.get("readings") or [],
+        machines=cal.get("machines") or [],
         overall_result=cal.get("overall_result") or "",
         engineer_name=cal.get("engineer_name") or "",
         issued_at=(cal.get("created_at") or "")[:16].replace("T", " "),
@@ -1281,9 +1282,57 @@ def _default_calibration_readings(service_type: str, asset_name: str) -> list:
     """Pre-fill the calibration grid for treadmill calibration jobs so the
     parameters always match the Certificate of Service."""
     s = f"{service_type or ''} {asset_name or ''}".lower()
-    if "calibrat" in s or "treadmill" in s:
+    if "calibrat" in s or "treadmill" in s or "fire station" in s:
         return [dict(r) for r in TREADMILL_CALIBRATION_READINGS]
     return []
+
+
+def _is_calibration_service(service_type: str) -> bool:
+    s = str(service_type or "").lower()
+    return "calibrat" in s or "fire station" in s
+
+
+def _is_treadmill_type(t) -> bool:
+    return "treadmill" in str(t or "").lower()
+
+
+async def _case_treadmills(case_id: str, of: dict) -> list:
+    """Treadmills on a case, for per-machine calibration (Fire Station Service).
+    Prefers attached work-visit machine rows; falls back to the case's
+    equipment_ids joined to equipment docs. One entry per treadmill."""
+    out, seen = [], set()
+    rows = await db.svc_work_visit_machines.find(
+        {**of, "case_id": case_id},
+        {"_id": 0, "asset_id": 1, "asset_name": 1, "asset_serial": 1, "asset_type": 1},
+    ).to_list(500)
+    for r in rows:
+        if _is_treadmill_type(r.get("asset_type")) and r.get("asset_id") not in seen:
+            seen.add(r.get("asset_id"))
+            out.append({"equipment_id": r.get("asset_id") or "",
+                        "equipment_name": r.get("asset_name") or "Treadmill",
+                        "serial": r.get("asset_serial") or ""})
+    if out:
+        return out
+    case = await db.svc_cases.find_one(
+        {"id": case_id, **of}, {"_id": 0, "equipment_ids": 1, "asset_id": 1})
+    ids = list((case or {}).get("equipment_ids") or [])
+    if (case or {}).get("asset_id"):
+        ids.append(case["asset_id"])
+    if not ids:
+        return out
+    # Equipment is stored under the CUSTOMER org, not the operator, so resolve
+    # by id only (ids come from the trusted case's own equipment list).
+    eqs = await db.equipment.find(
+        {"id": {"$in": ids}},
+        {"_id": 0, "id": 1, "name": 1, "equipment_type": 1, "serial_number": 1},
+    ).to_list(500)
+    for e in eqs:
+        if _is_treadmill_type(e.get("equipment_type")) and e.get("id") not in seen:
+            seen.add(e.get("id"))
+            out.append({"equipment_id": e.get("id") or "",
+                        "equipment_name": e.get("name") or "Treadmill",
+                        "serial": e.get("serial_number") or ""})
+    return out
 
 
 @router.get("/jobs/{case_id}/calibration")
@@ -1297,12 +1346,16 @@ async def get_job_calibration(case_id: str, user=Depends(get_current_user)):
         raise HTTPException(404, "Case not found")
     existing = await db.svc_case_calibrations.find_one(
         {"case_id": case_id, **of}, {"_id": 0}, sort=[("created_at", -1)])
+    service_type = case.get("service_type") or ""
+    treadmills = await _case_treadmills(case_id, of) if _is_calibration_service(service_type) else []
     return {
         "calibration": existing,
         "checklist_items": case.get("checklist_items") or [],
-        "service_type": case.get("service_type") or "",
+        "service_type": service_type,
         "default_readings": _default_calibration_readings(
-            case.get("service_type") or "", case.get("asset_name") or ""),
+            service_type, case.get("asset_name") or ""),
+        "treadmills": treadmills,
+        "calibration_params": [dict(r) for r in TREADMILL_CALIBRATION_READINGS],
     }
 
 
@@ -1318,25 +1371,46 @@ async def save_job_calibration(
     if not case:
         raise HTTPException(404, "Case not found")
     eng = await _ensure_engineer(user)
-    readings = []
-    for r in (data.get("readings") or []):
-        readings.append({
-            "label": str(r.get("label") or "").strip(),
-            "target": str(r.get("target") or "").strip(),
-            "measured": str(r.get("measured") or "").strip(),
-            "tolerance": str(r.get("tolerance") or "").strip(),
-            "unit": str(r.get("unit") or "").strip(),
-            "result": (str(r.get("result") or "").strip().lower() or "na"),
+
+    def _norm_readings(raw) -> list:
+        out = []
+        for r in (raw or []):
+            out.append({
+                "label": str(r.get("label") or "").strip(),
+                "target": str(r.get("target") or "").strip(),
+                "measured": str(r.get("measured") or "").strip(),
+                "tolerance": str(r.get("tolerance") or "").strip(),
+                "unit": str(r.get("unit") or "").strip(),
+                "result": (str(r.get("result") or "").strip().lower() or "na"),
+            })
+        return out
+
+    # Per-treadmill matrix (Fire Station Service) — many treadmills on one cert.
+    machines = []
+    for m in (data.get("machines") or []):
+        mr = _norm_readings(m.get("readings"))
+        m_overall = (str(m.get("overall_result") or "").strip().lower()
+                     or ("fail" if any(x["result"] == "fail" for x in mr) else "pass"))
+        machines.append({
+            "equipment_id": str(m.get("equipment_id") or "").strip(),
+            "equipment_name": str(m.get("equipment_name") or "").strip(),
+            "serial": str(m.get("serial") or "").strip(),
+            "readings": mr, "overall_result": m_overall,
         })
+
+    readings = _norm_readings(data.get("readings"))
     overall = (data.get("overall_result") or "").strip().lower()
     if overall not in ("pass", "fail"):
-        overall = "fail" if any(x["result"] == "fail" for x in readings) else "pass"
+        pool = [x["result"] for x in readings]
+        pool += [mm["overall_result"] for mm in machines]
+        overall = "fail" if any(p == "fail" for p in pool) else "pass"
     now = _now()
     doc = {
         "id": str(uuid.uuid4()), "case_id": case_id, "organization_id": of.get("organization_id"),
         "reference": case.get("reference"), "equipment_id": data.get("equipment_id") or "",
         "equipment_name": data.get("equipment_name") or "", "service_type": data.get("service_type") or "",
-        "readings": readings, "overall_result": overall, "notes": (data.get("notes") or "").strip(),
+        "readings": readings, "machines": machines, "overall_result": overall,
+        "notes": (data.get("notes") or "").strip(),
         "signature": data.get("signature") or "", "engineer_id": user["id"],
         "engineer_name": eng.get("full_name") or user.get("full_name") or "Engineer",
         "created_at": now, "updated_at": now,
