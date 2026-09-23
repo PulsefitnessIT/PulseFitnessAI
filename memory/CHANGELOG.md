@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-06 — Drag-to-reschedule on the PM calendar
+- Desk users can now drag a visit chip onto another day to reschedule it, without reopening the wizard.
+- Frontend (`PPMCalendar.js`): commercial chips are HTML5-draggable (disabled in Manage mode); day cells are
+  drop targets with a cyan highlight; drop does an optimistic move then persists. MOD visits aren't draggable.
+- Backend: `POST /svc/ppm/schedules/{id}/reschedule` (operator-scoped, validates the date) updates `next_pm`.
+- Verified: curl (move persisted, invalid date → 400) + frontend compiles. NOTE: native drag-drop gesture not
+  e2e-scripted (automation limitation); API + rendering verified. Needs redeploy to reach production.
+
 ## 2026-06 — Bulk PPM scheduling wizard + calendar upgrades
 Service Desk → Preventative Maintenance calendar. All flows verified (backend curl + frontend testing agent, 95%):
 - **Bulk Scheduling Wizard** (`BulkPpmWizard.js`): 4 steps — pick customer + sites → service/frequency + lead

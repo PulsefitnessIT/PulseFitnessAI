@@ -121,6 +121,22 @@ export default function PPMCalendar() {
   };
   const exitManage = () => { setManageMode(false); setSelectedIds([]); };
 
+  // ── Drag to reschedule ──
+  const [dragId, setDragId] = useState(null);
+  const [dragOverKey, setDragOverKey] = useState(null);
+  const reschedule = async (scheduleId, dateKey) => {
+    const item = items.find((it) => it.schedule_id === scheduleId);
+    if (!item || item.date === dateKey) return;
+    // optimistic
+    setItems((prev) => prev.map((it) => (it.schedule_id === scheduleId ? { ...it, date: dateKey } : it)));
+    try {
+      await api.post(`/svc/ppm/schedules/${scheduleId}/reschedule`, { date: dateKey });
+      notify.success(`Moved to ${new Date(dateKey).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`);
+    } catch {
+      notify.error('Could not reschedule'); await load();
+    }
+  };
+
   const days = monthGrid(view);
   const todayKey = new Date().toISOString().slice(0, 10);
 
@@ -215,13 +231,19 @@ export default function PPMCalendar() {
               const inMonth = d.getMonth() === view.getMonth();
               const cellItems = byDay[key] || [];
               return (
-                <div key={key} className={`min-h-[76px] rounded-lg border p-1 ${inMonth ? 'border-zinc-200 dark:border-zinc-800' : 'border-transparent opacity-40'} ${key === todayKey ? 'ring-1 ring-[var(--color-brand-blue,#2563eb)]' : ''}`} data-testid={`ppm-day-${key}`}>
+                <div key={key}
+                  onDragOver={(e) => { if (dragId && !manageMode) { e.preventDefault(); setDragOverKey(key); } }}
+                  onDragLeave={() => setDragOverKey((k) => (k === key ? null : k))}
+                  onDrop={(e) => { e.preventDefault(); if (dragId) { reschedule(dragId, key); } setDragId(null); setDragOverKey(null); }}
+                  className={`min-h-[76px] rounded-lg border p-1 ${inMonth ? 'border-zinc-200 dark:border-zinc-800' : 'border-transparent opacity-40'} ${key === todayKey ? 'ring-1 ring-[var(--color-brand-blue,#2563eb)]' : ''} ${dragOverKey === key ? 'ring-2 ring-[var(--color-brand-cyan)] bg-cyan-50/40 dark:bg-cyan-950/20' : ''}`}
+                  data-testid={`ppm-day-${key}`}>
                   <div className="text-[10px] font-semibold text-zinc-400 px-0.5">{d.getDate()}</div>
                   <div className="space-y-0.5 mt-0.5">
                     {cellItems.slice(0, 3).map((it, i) => {
                       const isCommercial = it.type === 'commercial';
                       const selected = selectedIds.includes(it.schedule_id);
                       const label = it.site_name || it.customer_name || it.title;
+                      const draggable = isCommercial && !manageMode;
                       const onClick = () => {
                         if (!isCommercial) return;
                         if (manageMode) { toggleSelect(it.schedule_id); return; }
@@ -229,8 +251,11 @@ export default function PPMCalendar() {
                       };
                       return (
                         <button key={i} onClick={onClick}
-                          title={`${it.customer_name} · ${it.site_name}${it.machine_count ? ` · ${it.machine_count} machines` : ''}${it.engineer ? ` · ${it.engineer}` : ''}`}
-                          className={`w-full flex items-center gap-1 text-[10px] leading-tight px-1 py-0.5 rounded border ${STATUS_STYLE[it.status] || STATUS_STYLE.planned} ${isCommercial ? 'cursor-pointer hover:brightness-95' : 'cursor-default'} ${manageMode && selected ? 'ring-2 ring-rose-500' : ''}`}
+                          draggable={draggable}
+                          onDragStart={(e) => { if (draggable) { setDragId(it.schedule_id); e.dataTransfer.effectAllowed = 'move'; } }}
+                          onDragEnd={() => { setDragId(null); setDragOverKey(null); }}
+                          title={`${it.customer_name} · ${it.site_name}${it.machine_count ? ` · ${it.machine_count} machines` : ''}${it.engineer ? ` · ${it.engineer}` : ''}${draggable ? ' · drag to reschedule' : ''}`}
+                          className={`w-full flex items-center gap-1 text-[10px] leading-tight px-1 py-0.5 rounded border ${STATUS_STYLE[it.status] || STATUS_STYLE.planned} ${isCommercial ? 'cursor-pointer hover:brightness-95' : 'cursor-default'} ${draggable ? 'active:cursor-grabbing' : ''} ${manageMode && selected ? 'ring-2 ring-rose-500' : ''} ${dragId === it.schedule_id ? 'opacity-40' : ''}`}
                           data-testid={`ppm-item-${key}-${i}`}>
                           {manageMode && isCommercial && (
                             <span className={`w-2.5 h-2.5 rounded-[3px] border shrink-0 ${selected ? 'bg-rose-500 border-rose-500' : 'border-zinc-400 bg-white/60'}`} />
@@ -252,7 +277,7 @@ export default function PPMCalendar() {
             <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-amber-300 inline-block" /> Due soon</span>
             <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-sky-300 inline-block" /> Planned</span>
             <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-emerald-300 inline-block" /> Scheduled</span>
-            <span className="ml-auto">{manageMode ? 'Tick visits then Delete selected' : 'Click a visit to see site, machines & the engineer’s workings'}</span>
+            <span className="ml-auto">{manageMode ? 'Tick visits then Delete selected' : 'Click a visit for details · drag it to another day to reschedule'}</span>
           </div>
         </div>
       )}

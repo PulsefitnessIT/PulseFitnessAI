@@ -560,6 +560,24 @@ async def schedule_detail(schedule_id: str, user: dict = Depends(get_current_use
     }
 
 
+@router.post("/schedules/{schedule_id}/reschedule")
+async def reschedule_schedule(schedule_id: str, data: dict = Body(...),
+                              user: dict = Depends(get_current_user)) -> dict:
+    """Move a single PM visit to a new date (drag-and-drop on the calendar)."""
+    operator = _operator(user)
+    new_date = _parse_ymd(data.get("date"))
+    if not new_date:
+        raise HTTPException(400, "Valid date required")
+    org_ids = await _customer_org_ids(operator)
+    res = await db.ppm_schedules.update_one(
+        {"id": schedule_id, "organization_id": {"$in": org_ids},
+         "source": "service_desk", "active": True},
+        {"$set": {"next_pm": new_date.isoformat(), "updated_at": _now()}})
+    if not res.matched_count:
+        raise HTTPException(404, "PM visit not found")
+    return {"success": True, "date": new_date.isoformat()}
+
+
 @router.post("/schedules/delete")
 async def bulk_delete_schedules(data: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
     """Soft-delete (active:false) the given PM schedules. Scoped to the
