@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## 2026-06 — "Fire Station Service" PPM type (full service + treadmill calibration)
+- New PPM service type **Fire Station Service** (Service Desk → Maintenance → Create PM). Services every
+  machine at the station AND triggers speed/incline calibration for the treadmills only. Shows in the
+  service-type dropdown as "Fire Station Service (PM + treadmill calibration)".
+- Backend `_DEFAULT_SERVICE_TYPES` gained the type (requires_calibration + calibrate_treadmills flags);
+  `_seed_service_types` is now idempotent so existing orgs pick up new default types (previously only
+  seeded when the collection was empty). create/update service-type endpoints persist `calibrate_treadmills`.
+- Fixed a latent bug in `POST /svc/ppm/schedule`: it coerced any service_type not in a 2-item enum back to
+  "Preventative Maintenance Service". Now the schedule's own service_type is preserved (custom types like
+  Fire Station Service / Treadmill Calibration survive through to the engineer job).
+- Engineer App calibration now supports a **per-treadmill matrix** (Fire Station jobs): GET
+  `/svc/engineer/jobs/{id}/calibration` returns only the treadmills on the case (auto-detected by
+  equipment_type == Treadmill, resolved by id so customer-org equipment matches) + the 8 speed/incline
+  params. POST accepts a `machines` array; all treadmills are captured on ONE certificate.
+- Certificate PDF (`calibration_certificate_pdf.py`) renders a multi-treadmill matrix — one row per
+  treadmill (Serial + 3/6/9/12 mph + 0/5/10/15% + Result) — matching the customer's Certificate of Service.
+  Falls back to the flat readings table for single-machine calibrations.
+- Files: backend/routes/svc/ppm_calendar.py, backend/routes/svc/engineer.py,
+  backend/utils/calibration_certificate_pdf.py, frontend/src/pages/ServiceOps/Engineer/EngineerJobDetailV2.js
+  (CalibrationCapture), frontend/src/pages/ServiceDesk/PPMCalendar.js.
+- Verified: backend curl e2e (calibration returns 2 treadmills only, POST saves both, cert PDF text contains
+  both serials + matrix columns) and frontend E2E via testing agent (100% — dropdown option, 2-treadmill
+  matrix with bike excluded, save→FAIL chip, certificate download). Demo case: FSDEMO-case-1 (owner@isodemo.com).
+
 ## 2026-06 — Company-wide payroll summary sheet
 - Added a single "Payroll Summary" workbook rolling up every active staff member's monthly
   activity totals: one row per person with Std Hours, Worked Hours, and each activity column

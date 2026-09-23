@@ -1,0 +1,25 @@
+{
+  "summary": "Fire Station Service PPM + Engineer calibration matrix — FRONTEND E2E verified. (1) Service Desk /service-desk → Maintenance → Create PM: service-type dropdown (data-testid=ppm-create-service) lists 'Fire Station Service (PM + treadmill calibration)'. (2) Engineer job /svc/engineer/jobs/FSDEMO-case-1 → COMPLETE tab: CalibrationCapture (data-testid=calibration-capture) auto-renders. Treadmill count chip reads '2 treadmills'. Exactly two treadmill blocks are shown — calibration-treadmill-0 = 'Technogym Run 1000' (SN TG-A-001) and calibration-treadmill-1 = 'Life Fitness T5' (SN LF-B-002); calibration-treadmill-2 is absent (bike correctly excluded). Each block exposes 8 labelled inputs (3/6/9/12 mph and 0/5/10/15% incline). Filled all 8 readings on tm0, set tm1 result select to 'fail', clicked Save → POST /api/svc/engineer/jobs/FSDEMO-case-1/calibration returned 200; overall status chip in the panel flipped to FAIL. Clicked Download certificate → GET .../certificate returned 200 with content-type application/pdf.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Engineer job detail / COMPLETE tab", "issues": ["Calibration panel is only visible under the COMPLETE tab, not auto-opened on page load as the review request implied ('auto-opened' happens after clicking COMPLETE). The panel itself is auto-expanded (open=true) once the tab is entered, so behaviour matches spec, but a first-time visitor sees SUMMARY by default; consider surfacing a 'Calibration required' hint from Summary."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "EngineerJobDetailV2.js is 4330 lines — well above the 700-line guideline. CalibrationCapture (from line 4123) should be split into its own module for maintainability.",
+    "Calibration panel lives inside the COMPLETE tab only; if PM/Fire Station users are expected to enter readings before completion, consider also surfacing it under EQUIPMENT or as a top-level card when service_type requires calibration."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (has is_service_desk=true, org iso-demo-org). Pre-seeded case: FSDEMO-case-1.",
+  "seed_data_creation": "None — used pre-seeded FSDEMO-case-1.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The engineer calibration panel is under the COMPLETE tab (not visible on SUMMARY). Click the tab labelled 'Complete' (uppercase display via CSS, actual text 'Complete'). Then wait for data-testid=calibration-capture. Panel opens by default. Inputs: calibration-tm-{i}-reading-{0..7} (0-3 = 3/6/9/12 mph, 4-7 = 0/5/10/15% incline). Result select per treadmill: calibration-treadmill-result-{i} with values 'pass'/'fail'. Save button: calibration-save (POST /api/svc/engineer/jobs/{case}/calibration). Download: calibration-download-cert (GET certificate, application/pdf).",
+  "rca of the issue": "No issues found."
+}
