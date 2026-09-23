@@ -201,6 +201,7 @@ import NPSWidget from './components/shared/NPSWidget';
 import FeedbackWidget from './components/shared/FeedbackWidget';
 import SessionResumedBanner from './components/shared/SessionResumedBanner';
 import StepUpDialog from './components/StepUpDialog';
+import { isModServiceMode } from '@/utils/portalMode';
 import UnifiedAssistant from './components/UnifiedAssistant';
 import CommandPalette, { useCommandPalette } from './components/CommandPalette';
 
@@ -838,8 +839,16 @@ function App() {
  setSites([]);
  setActiveSite(null);
  document.documentElement.style.setProperty('--brand-color', 'var(--color-brand-blue)');
- if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+ if (typeof window !== 'undefined' && window.dispatchEvent) {
    window.dispatchEvent(new CustomEvent('gymaxis:auth-changed'));
+ }
+ // MODService deployment — every sign-out returns to the MOD Service Portal
+ // sign-in. Go DIRECTLY to /MODService (never `/` or `/pulse`, whose eager
+ // PulseLandingPage would flash the commercial pulsefitness.ai landing first),
+ // and carry NO ?email= so a service email never sits in the URL/history.
+ if (isModServiceMode() && typeof window !== 'undefined') {
+   window.location.replace('/MODService?signedout=1');
+   return;
  }
  if (wasMOD && typeof window !== 'undefined') {
    window.location.replace(engEmail ? `/MODService?email=${encodeURIComponent(engEmail)}&signedout=1` : '/MODService?signedout=1');
