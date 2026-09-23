@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## 2026-06 — Bulk PPM scheduling wizard + calendar upgrades
+Service Desk → Preventative Maintenance calendar. All flows verified (backend curl + frontend testing agent, 95%):
+- **Bulk Scheduling Wizard** (`BulkPpmWizard.js`): 4 steps — pick customer + sites → service/frequency + lead
+  engineer → **AI groups nearby sites into geographic runs** (Claude Sonnet 4.6 via Emergent key, postcode/town
+  fallback) → auto-lay dates (sites-per-day, days-between-runs, skips weekends) with every row's date & engineer
+  editable. Lead engineer applies to the batch, overridable per run/row. Commits via
+  `POST /svc/ppm/schedules/bulk` with an `assignments` array (exact date + engineer per site).
+- **Calendar chips** now show the **site name** + a small machine-count badge (was "N machines").
+- **Click-into detail** (`PpmScheduleDetail.js`): opens site + address + every machine on the site; once the
+  job is completed shows the engineer's workings (job ref, engineer, completion, calibration result, per-machine
+  service). Delete-visit + Allocate actions. `GET /svc/ppm/schedules/{id}`.
+- **Search bar**: find when a site/customer is booked across all months (`GET /svc/ppm/search`); clicking a
+  result jumps the calendar and opens the detail.
+- **Bulk delete**: a "Manage" mode with checkbox chips + "Delete selected" (`POST /svc/ppm/schedules/delete`),
+  plus a one-click **"Delete ALL for a customer"** modal (`POST /svc/ppm/schedules/delete-all`, 403-guarded to
+  linked customers only). Soft-delete (`active:false`).
+- Schedule docs now store `assigned_engineer_id/name`, `machine_count`, `site_address`; calendar feed carries
+  `machine_count` + `engineer`. Fixed: "Create PM" is now single-site only (bulk lives in the wizard).
+- Files: backend/routes/svc/ppm_calendar.py, backend/utils/ppm_route_ai.py,
+  frontend/src/pages/ServiceDesk/{PPMCalendar,BulkPpmWizard,PpmScheduleDetail}.js.
+- NOTE: these are new since the last deploy — a redeploy is needed for them to reach production (where the 85 stations live).
+
 ## 2026-06 — "Fire Station Service" PPM type (full service + treadmill calibration)
 - New PPM service type **Fire Station Service** (Service Desk → Maintenance → Create PM). Services every
   machine at the station AND triggers speed/incline calibration for the treadmills only. Shows in the

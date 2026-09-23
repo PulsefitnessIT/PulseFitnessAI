@@ -25,6 +25,12 @@ export default function PpmScheduleDetail({ scheduleId, onClose, onAllocate, onD
     })();
   }, [scheduleId]);
 
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   const del = async () => {
     if (!window.confirm('Delete this PM visit from the calendar?')) return;
     setDeleting(true);
@@ -64,19 +70,17 @@ export default function PpmScheduleDetail({ scheduleId, onClose, onAllocate, onD
 
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-zinc-400 mb-1.5">Machines on site</p>
-              {(data?.machines || []).length === 0 ? (
-                <p className="text-xs text-zinc-400">No machines linked to this site.</p>
-              ) : (
-                <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-800 max-h-52 overflow-auto" data-testid="ppm-detail-machines">
-                  {data.machines.map((m) => (
-                    <div key={m.id} className="px-3 py-2 text-sm flex items-center justify-between gap-2">
-                      <span className="min-w-0"><span className="font-medium truncate block">{m.name}</span>
-                        {m.serial_number ? <span className="text-[10px] text-zinc-400 font-mono">SN {m.serial_number}</span> : null}</span>
-                      {m.equipment_type ? <span className="text-[10px] text-zinc-500 bg-zinc-100 dark:bg-zinc-800 rounded px-1.5 py-0.5 shrink-0">{m.equipment_type}</span> : null}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-800 max-h-52 overflow-auto" data-testid="ppm-detail-machines">
+                {(data?.machines || []).length === 0 ? (
+                  <p className="px-3 py-2 text-xs text-zinc-400">No machines linked to this site.</p>
+                ) : data.machines.map((m) => (
+                  <div key={m.id} className="px-3 py-2 text-sm flex items-center justify-between gap-2">
+                    <span className="min-w-0"><span className="font-medium truncate block">{m.name}</span>
+                      {m.serial_number ? <span className="text-[10px] text-zinc-400 font-mono">SN {m.serial_number}</span> : null}</span>
+                    {m.equipment_type ? <span className="text-[10px] text-zinc-500 bg-zinc-100 dark:bg-zinc-800 rounded px-1.5 py-0.5 shrink-0">{m.equipment_type}</span> : null}
+                  </div>
+                ))}
+              </div>
             </div>
 
             {w && (
