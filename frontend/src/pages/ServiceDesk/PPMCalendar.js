@@ -7,13 +7,15 @@
  * engineers and a date — this creates the job and puts it on the schedule.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarClock, ChevronLeft, ChevronRight, Loader2, RefreshCw, Users, Check, Plus } from 'lucide-react';
+import { CalendarClock, ChevronLeft, ChevronRight, Loader2, RefreshCw, Users, Check, Plus, Search, Trash2, ListChecks, X, CalendarRange } from 'lucide-react';
 import { api } from '@/lib/api';
 import { notify } from '@/components/notifications';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import BulkPpmWizard from './BulkPpmWizard';
+import PpmScheduleDetail from './PpmScheduleDetail';
 
 const SEGMENTS = [{ id: 'all', label: 'All' }, { id: 'commercial', label: 'Commercial' }, { id: 'mod', label: 'MOD' }];
 const STATUS_STYLE = {
@@ -42,6 +44,14 @@ export default function PPMCalendar() {
   const [engineers, setEngineers] = useState([]);
   const [active, setActive] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [detailId, setDetailId] = useState(null);
+  const [manageMode, setManageMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState(null);
+  const [searching, setSearching] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -78,6 +88,39 @@ export default function PPMCalendar() {
     finally { setBackfilling(false); }
   };
 
+  // ── Search booked visits (all months) ──
+  useEffect(() => {
+    const term = query.trim();
+    if (term.length < 2) { setResults(null); return undefined; }
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try { const r = await api.get('/svc/ppm/search', { params: { q: term } }); setResults(r.data?.results || []); }
+      catch { setResults([]); }
+      finally { setSearching(false); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const jumpTo = (r) => {
+    const d = new Date(r.date);
+    setView(new Date(d.getFullYear(), d.getMonth(), 1));
+    setQuery(''); setResults(null);
+    setDetailId(r.schedule_id);
+  };
+
+  // ── Bulk delete (manage mode) ──
+  const toggleSelect = (id) => setSelectedIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const deleteSelected = async () => {
+    if (!selectedIds.length) return;
+    if (!window.confirm(`Delete ${selectedIds.length} PM visit(s) from the calendar?`)) return;
+    try {
+      const r = await api.post('/svc/ppm/schedules/delete', { schedule_ids: selectedIds });
+      notify.success(`Removed ${r.data?.deleted || 0} visit(s)`);
+      setSelectedIds([]); setManageMode(false); await load();
+    } catch { notify.error('Bulk delete failed'); }
+  };
+  const exitManage = () => { setManageMode(false); setSelectedIds([]); };
+
   const days = monthGrid(view);
   const todayKey = new Date().toISOString().slice(0, 10);
 
@@ -88,7 +131,28 @@ export default function PPMCalendar() {
           <CalendarClock size={16} className="text-[var(--color-brand-blue,#2563eb)]" />
           <span className="text-sm font-bold">Maintenance calendar — all customers</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative" data-testid="ppm-search-wrap">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search site or customer…"
+              className="h-8 w-52 pl-8 pr-7 rounded-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs" data-testid="ppm-search-input" />
+            {query && <button onClick={() => { setQuery(''); setResults(null); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700" data-testid="ppm-search-clear"><X size={13} /></button>}
+            {results !== null && (
+              <div className="absolute z-30 mt-1 w-80 right-0 max-h-72 overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl" data-testid="ppm-search-results">
+                {searching ? <div className="p-3 text-xs text-zinc-400 flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> Searching…</div>
+                  : results.length === 0 ? <div className="p-3 text-xs text-zinc-400">No booked visits match “{query}”.</div>
+                    : results.map((r) => (
+                      <button key={r.schedule_id} onClick={() => jumpTo(r)} className="w-full text-left px-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-b border-zinc-100 dark:border-zinc-800 last:border-0" data-testid={`ppm-search-result-${r.schedule_id}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold truncate">{r.site_name || r.customer_name}</span>
+                          <span className="text-[10px] text-zinc-500 shrink-0">{new Date(r.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        </div>
+                        <div className="text-[10px] text-zinc-400 truncate">{r.customer_name}{r.machine_count ? ` · ${r.machine_count} machines` : ''}{r.engineer ? ` · ${r.engineer}` : ''}</div>
+                      </button>
+                    ))}
+              </div>
+            )}
+          </div>
           <div className="inline-flex rounded-full border border-zinc-200 dark:border-zinc-700 overflow-hidden bg-white dark:bg-zinc-900" data-testid="ppm-segment">
             {SEGMENTS.map((s) => (
               <button key={s.id} onClick={() => setSegment(s.id)} data-testid={`ppm-seg-${s.id}`}
@@ -103,12 +167,34 @@ export default function PPMCalendar() {
           <Button size="sm" onClick={() => setShowCreate(true)} data-testid="ppm-create-btn" className="bg-[var(--color-brand-cyan)] text-[var(--color-ink)] hover:opacity-90">
             <Plus size={13} className="mr-1.5" /> Create PM
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowWizard(true)} data-testid="ppm-bulk-btn">
+            <CalendarRange size={13} className="mr-1.5" /> Bulk schedule
+          </Button>
           <Button variant="outline" size="sm" onClick={backfill} disabled={backfilling} data-testid="ppm-backfill-btn">
             {backfilling ? <Loader2 size={13} className="animate-spin mr-1.5" /> : <RefreshCw size={13} className="mr-1.5" />}
             Plan from installs
           </Button>
+          <Button variant={manageMode ? 'default' : 'outline'} size="sm" onClick={() => (manageMode ? exitManage() : setManageMode(true))} data-testid="ppm-manage-btn"
+            className={manageMode ? 'bg-rose-600 text-white hover:bg-rose-700' : ''}>
+            <ListChecks size={13} className="mr-1.5" /> {manageMode ? 'Done' : 'Manage'}
+          </Button>
         </div>
       </div>
+
+      {manageMode && (
+        <div className="px-4 py-2 bg-rose-50 dark:bg-rose-950/20 border-b border-rose-200 dark:border-rose-900 flex items-center justify-between gap-2 flex-wrap" data-testid="ppm-manage-bar">
+          <span className="text-xs font-semibold text-rose-700 dark:text-rose-300">{selectedIds.length} selected · tick visits to remove</span>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowDeleteAll(true)} data-testid="ppm-deleteall-btn">
+              Delete ALL for a customer…
+            </Button>
+            <Button size="sm" onClick={deleteSelected} disabled={!selectedIds.length} data-testid="ppm-delete-selected-btn"
+              className="bg-rose-600 text-white hover:bg-rose-700">
+              <Trash2 size={13} className="mr-1.5" /> Delete selected
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="px-4 py-2 flex items-center justify-between">
         <button onClick={() => setView(new Date(view.getFullYear(), view.getMonth() - 1, 1))} className="p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800" data-testid="ppm-prev-month" aria-label="Previous month"><ChevronLeft size={16} /></button>
@@ -132,14 +218,29 @@ export default function PPMCalendar() {
                 <div key={key} className={`min-h-[76px] rounded-lg border p-1 ${inMonth ? 'border-zinc-200 dark:border-zinc-800' : 'border-transparent opacity-40'} ${key === todayKey ? 'ring-1 ring-[var(--color-brand-blue,#2563eb)]' : ''}`} data-testid={`ppm-day-${key}`}>
                   <div className="text-[10px] font-semibold text-zinc-400 px-0.5">{d.getDate()}</div>
                   <div className="space-y-0.5 mt-0.5">
-                    {cellItems.slice(0, 3).map((it, i) => (
-                      <button key={i} onClick={() => it.type === 'commercial' && setActive(it)}
-                        title={`${it.customer_name} · ${it.site_name} · ${it.equipment_name || it.service_type}`}
-                        className={`w-full text-left truncate text-[10px] leading-tight px-1 py-0.5 rounded border ${STATUS_STYLE[it.status] || STATUS_STYLE.planned} ${it.type === 'commercial' ? 'cursor-pointer hover:brightness-95' : 'cursor-default'}`}
-                        data-testid={`ppm-item-${key}-${i}`}>
-                        {it.type === 'mod' ? '🛡 ' : ''}{it.equipment_name || it.customer_name || it.title}
-                      </button>
-                    ))}
+                    {cellItems.slice(0, 3).map((it, i) => {
+                      const isCommercial = it.type === 'commercial';
+                      const selected = selectedIds.includes(it.schedule_id);
+                      const label = it.site_name || it.customer_name || it.title;
+                      const onClick = () => {
+                        if (!isCommercial) return;
+                        if (manageMode) { toggleSelect(it.schedule_id); return; }
+                        setDetailId(it.schedule_id);
+                      };
+                      return (
+                        <button key={i} onClick={onClick}
+                          title={`${it.customer_name} · ${it.site_name}${it.machine_count ? ` · ${it.machine_count} machines` : ''}${it.engineer ? ` · ${it.engineer}` : ''}`}
+                          className={`w-full flex items-center gap-1 text-[10px] leading-tight px-1 py-0.5 rounded border ${STATUS_STYLE[it.status] || STATUS_STYLE.planned} ${isCommercial ? 'cursor-pointer hover:brightness-95' : 'cursor-default'} ${manageMode && selected ? 'ring-2 ring-rose-500' : ''}`}
+                          data-testid={`ppm-item-${key}-${i}`}>
+                          {manageMode && isCommercial && (
+                            <span className={`w-2.5 h-2.5 rounded-[3px] border shrink-0 ${selected ? 'bg-rose-500 border-rose-500' : 'border-zinc-400 bg-white/60'}`} />
+                          )}
+                          {it.type === 'mod' ? '🛡 ' : ''}
+                          <span className="truncate flex-1 text-left font-medium">{label}</span>
+                          {it.machine_count ? <span className="shrink-0 text-[8px] font-bold bg-black/10 dark:bg-white/15 rounded px-1">{it.machine_count}</span> : null}
+                        </button>
+                      );
+                    })}
                     {cellItems.length > 3 && <div className="text-[9px] text-zinc-400 px-1">+{cellItems.length - 3} more</div>}
                   </div>
                 </div>
@@ -151,7 +252,7 @@ export default function PPMCalendar() {
             <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-amber-300 inline-block" /> Due soon</span>
             <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-sky-300 inline-block" /> Planned</span>
             <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-sm bg-emerald-300 inline-block" /> Scheduled</span>
-            <span className="ml-auto">Click a due item to allocate an engineer</span>
+            <span className="ml-auto">{manageMode ? 'Tick visits then Delete selected' : 'Click a visit to see site, machines & the engineer’s workings'}</span>
           </div>
         </div>
       )}
@@ -161,6 +262,18 @@ export default function PPMCalendar() {
       )}
       {showCreate && (
         <CreatePpmModal onClose={() => setShowCreate(false)} onDone={async () => { setShowCreate(false); await load(); }} />
+      )}
+      {showWizard && (
+        <BulkPpmWizard onClose={() => setShowWizard(false)} onDone={async () => { setShowWizard(false); await load(); }} />
+      )}
+      {detailId && (
+        <PpmScheduleDetail scheduleId={detailId}
+          onClose={() => setDetailId(null)}
+          onAllocate={(s) => { setDetailId(null); setActive({ schedule_id: s.id, date: s.date, service_type: s.service_type, customer_name: s.customer_name, site_name: s.site_name, site_id: s.site_id, equipment_name: `${s.machine_count} machines` }); }}
+          onDeleted={async () => { setDetailId(null); await load(); }} />
+      )}
+      {showDeleteAll && (
+        <DeleteAllModal onClose={() => setShowDeleteAll(false)} onDone={async () => { setShowDeleteAll(false); exitManage(); await load(); }} />
       )}
     </section>
   );
@@ -278,18 +391,15 @@ const FREQS = [
 ];
 
 function CreatePpmModal({ onClose, onDone }) {
-  const [mode, setMode] = useState('single'); // single | bulk
+  const mode = 'single';
   const [customers, setCustomers] = useState([]);
   const [serviceTypes, setServiceTypes] = useState([]);
   const [customerOrgId, setCustomerOrgId] = useState('');
   const [sites, setSites] = useState([]);
   const [siteId, setSiteId] = useState('');
-  const [selectedSites, setSelectedSites] = useState([]); // bulk
   const [serviceType, setServiceType] = useState('Preventative Maintenance Service');
   const [frequency, setFrequency] = useState('annual');
   const [firstVisit, setFirstVisit] = useState(() => new Date().toISOString().slice(0, 10));
-  const [staggerDays, setStaggerDays] = useState(7);
-  const [granularity, setGranularity] = useState('site');
   const [newType, setNewType] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -306,7 +416,7 @@ function CreatePpmModal({ onClose, onDone }) {
   }, [loadTypes]);
 
   useEffect(() => {
-    setSites([]); setSiteId(''); setSelectedSites([]);
+    setSites([]); setSiteId('');
     if (!customerOrgId) return;
     (async () => {
       try {
@@ -315,10 +425,6 @@ function CreatePpmModal({ onClose, onDone }) {
       } catch { setSites([]); }
     })();
   }, [customerOrgId]);
-
-  const toggleSite = (id) => setSelectedSites((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-  const allSelected = sites.length > 0 && selectedSites.length === sites.length;
-  const toggleAll = () => setSelectedSites(allSelected ? [] : sites.map((s) => s.id));
 
   const addType = async () => {
     const name = newType.trim();
@@ -332,24 +438,14 @@ function CreatePpmModal({ onClose, onDone }) {
 
   const submit = async () => {
     if (!customerOrgId) { notify.error('Pick a customer'); return; }
+    if (!siteId) { notify.error('Pick a site'); return; }
     setSaving(true);
     try {
-      if (mode === 'single') {
-        if (!siteId) { notify.error('Pick a site'); setSaving(false); return; }
-        const r = await api.post('/svc/ppm/schedules', {
-          customer_org_id: customerOrgId, site_id: siteId,
-          service_type: serviceType, frequency, first_visit: firstVisit,
-        });
-        notify.success('Preventative maintenance scheduled', `Next visit ${r.data?.next_pm || firstVisit}`);
-      } else {
-        if (selectedSites.length === 0) { notify.error('Select at least one site'); setSaving(false); return; }
-        const r = await api.post('/svc/ppm/schedules/bulk', {
-          customer_org_id: customerOrgId, site_ids: selectedSites,
-          service_type: serviceType, frequency, start_date: firstVisit,
-          stagger_days: staggerDays, granularity,
-        });
-        notify.success(`Scheduled ${r.data?.schedules_created || 0} PM visit(s) across ${r.data?.sites || selectedSites.length} site(s)`);
-      }
+      const r = await api.post('/svc/ppm/schedules', {
+        customer_org_id: customerOrgId, site_id: siteId,
+        service_type: serviceType, frequency, first_visit: firstVisit,
+      });
+      notify.success('Preventative maintenance scheduled', `Next visit ${r.data?.next_pm || firstVisit}`);
       await onDone?.();
     } catch (e) { notify.error('Could not create PM', e?.response?.data?.detail || e.message); }
     finally { setSaving(false); }
@@ -366,15 +462,7 @@ function CreatePpmModal({ onClose, onDone }) {
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700" data-testid="ppm-create-close">✕</button>
         </div>
         <div className="p-5 space-y-4">
-          <div className="inline-flex rounded-full border border-zinc-200 dark:border-zinc-700 overflow-hidden bg-white dark:bg-zinc-900" data-testid="ppm-create-mode">
-            {[{ id: 'single', label: 'Single site' }, { id: 'bulk', label: 'Bulk (many sites)' }].map((m) => (
-              <button key={m.id} onClick={() => setMode(m.id)} data-testid={`ppm-create-mode-${m.id}`}
-                className="px-3.5 py-1.5 text-xs font-semibold transition-colors"
-                style={mode === m.id ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' } : { background: 'transparent', color: 'var(--theme-text-muted)' }}>
-                {m.label}
-              </button>
-            ))}
-          </div>
+          <p className="text-[11px] text-zinc-500">Schedule a single site. For many sites at once, use <span className="font-semibold">Bulk schedule</span>.</p>
 
           <div>
             <Label className="text-xs">Customer</Label>
@@ -396,25 +484,7 @@ function CreatePpmModal({ onClose, onDone }) {
                 {sites.map((s) => <option key={s.id} value={s.id}>{s.name}{s.equipment_count != null ? ` · ${s.equipment_count} machines` : ''}</option>)}
               </select>
             </div>
-          ) : (
-            <div>
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">Sites ({selectedSites.length}/{sites.length} selected)</Label>
-                <button onClick={toggleAll} disabled={!sites.length} className="text-xs font-semibold text-[var(--color-brand-blue,#2563eb)]" data-testid="ppm-create-selectall">
-                  {allSelected ? 'Clear all' : 'Select all'}
-                </button>
-              </div>
-              <div className="mt-1 max-h-44 overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-800" data-testid="ppm-create-sitelist">
-                {sites.length === 0 ? <p className="p-3 text-xs text-zinc-400">Pick a customer to list its sites</p> : sites.map((s) => (
-                  <label key={s.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800" data-testid={`ppm-create-site-${s.id}`}>
-                    <input type="checkbox" checked={selectedSites.includes(s.id)} onChange={() => toggleSite(s.id)} />
-                    <span className="flex-1 truncate">{s.name}</span>
-                    {s.equipment_count != null && <span className="text-[11px] text-zinc-400">{s.equipment_count} machines</span>}
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
+          ) : null}
 
           <div>
             <Label className="text-xs">Service type</Label>
@@ -440,35 +510,67 @@ function CreatePpmModal({ onClose, onDone }) {
               </select>
             </div>
             <div>
-              <Label className="text-xs">{mode === 'bulk' ? 'First visit (start)' : 'First visit'}</Label>
+              <Label className="text-xs">First visit</Label>
               <Input type="date" value={firstVisit} onChange={(e) => setFirstVisit(e.target.value)} className="mt-1" data-testid="ppm-create-date" />
             </div>
           </div>
-
-          {mode === 'bulk' && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Stagger (days between sites)</Label>
-                <Input type="number" min="0" value={staggerDays} onChange={(e) => setStaggerDays(e.target.value)} className="mt-1" data-testid="ppm-create-stagger" />
-                <p className="text-[11px] text-zinc-400 mt-1">Spreads visits so all sites aren't on one day.</p>
-              </div>
-              <div>
-                <Label className="text-xs">Schedule per</Label>
-                <select value={granularity} onChange={(e) => setGranularity(e.target.value)}
-                  className="w-full mt-1 h-10 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm" data-testid="ppm-create-granularity">
-                  <option value="site">Site (one visit per station)</option>
-                  <option value="equipment">Machine (per piece of equipment)</option>
-                </select>
-              </div>
-            </div>
-          )}
         </div>
         <div className="px-5 py-3.5 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={onClose} data-testid="ppm-create-cancel">Cancel</Button>
           <Button size="sm" onClick={submit} disabled={saving} data-testid="ppm-create-submit"
             className="bg-[var(--color-brand-cyan)] text-[var(--color-ink)] hover:opacity-90">
             {saving ? <Loader2 size={13} className="animate-spin mr-1.5" /> : <Plus size={13} className="mr-1.5" />}
-            {mode === 'bulk' ? `Schedule ${selectedSites.length || ''} site(s)` : 'Create PM'}
+            Create PM
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function DeleteAllModal({ onClose, onDone }) {
+  const [customers, setCustomers] = useState([]);
+  const [customerOrgId, setCustomerOrgId] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try { const r = await api.get('/svc/desk/customers'); setCustomers(r.data?.customers || []); }
+      catch { /* non-blocking */ }
+    })();
+  }, []);
+
+  const run = async () => {
+    if (!customerOrgId) { notify.error('Pick a customer'); return; }
+    const name = customers.find((c) => c.organization_id === customerOrgId)?.name || 'this customer';
+    if (!window.confirm(`Delete ALL preventative maintenance visits for ${name}? This cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      const r = await api.post('/svc/ppm/schedules/delete-all', { customer_org_id: customerOrgId });
+      notify.success(`Deleted ${r.data?.deleted || 0} PM visit(s)`);
+      await onDone?.();
+    } catch (e) { notify.error('Could not delete', e?.response?.data?.detail || e.message); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }} data-testid="ppm-deleteall-modal">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 w-full max-w-md p-5 shadow-2xl">
+        <h3 className="text-base font-bold text-rose-700 flex items-center gap-2"><Trash2 size={16} /> Delete all PM visits</h3>
+        <p className="text-xs text-zinc-500 mt-1 mb-3">Clears every scheduled preventative maintenance visit for the chosen customer — useful to undo a mistaken bulk import.</p>
+        <Label className="text-xs">Customer</Label>
+        <select value={customerOrgId} onChange={(e) => setCustomerOrgId(e.target.value)}
+          className="w-full mt-1 h-10 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm" data-testid="ppm-deleteall-customer">
+          <option value="">— Select customer —</option>
+          {customers.map((c) => <option key={c.organization_id} value={c.organization_id}>{c.name}</option>)}
+        </select>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="ghost" size="sm" onClick={onClose} data-testid="ppm-deleteall-cancel">Cancel</Button>
+          <Button size="sm" onClick={run} disabled={busy || !customerOrgId} data-testid="ppm-deleteall-confirm"
+            className="bg-rose-600 text-white hover:bg-rose-700">
+            {busy ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Trash2 size={14} className="mr-1.5" />} Delete all
           </Button>
         </div>
       </div>

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import uuid
 import logging
+import re
 from datetime import datetime, timezone, date
 
 from dateutil.relativedelta import relativedelta
@@ -254,7 +255,9 @@ async def delete_service_type(st_id: str, user: dict = Depends(get_current_user)
 
 async def _make_ppm_schedule(*, org, customer_id, customer_name, site_id, site_name,
                              equipment_ids, equipment_name, service_type, frequency,
-                             next_pm, checklist_items, created_by, title=None) -> dict:
+                             next_pm, checklist_items, created_by, title=None,
+                             assigned_engineer_id="", assigned_engineer_name="",
+                             machine_count=None, site_address="") -> dict:
     now = _now()
     doc = {
         "id": str(uuid.uuid4()), "organization_id": org, "source": "service_desk",
@@ -263,10 +266,15 @@ async def _make_ppm_schedule(*, org, customer_id, customer_name, site_id, site_n
         "description": "", "equipment_id": (equipment_ids[0] if equipment_ids else None),
         "equipment_ids": equipment_ids or [], "equipment_name": equipment_name or "",
         "equipment_type": "", "customer_id": customer_id, "customer_name": customer_name or "",
-        "site_id": site_id, "site_name": site_name or "", "service_type": service_type,
+        "site_id": site_id, "site_name": site_name or "", "site_address": site_address or "",
+        "service_type": service_type,
         "frequency": frequency, "last_pm": None,
         "next_pm": next_pm.isoformat() if hasattr(next_pm, "isoformat") else next_pm,
-        "install_date": "", "assigned_to": "", "checklist_items": checklist_items or [],
+        "install_date": "", "assigned_to": "",
+        "assigned_engineer_id": assigned_engineer_id or "",
+        "assigned_engineer_name": assigned_engineer_name or "",
+        "machine_count": (machine_count if machine_count is not None else len(equipment_ids or [])),
+        "checklist_items": checklist_items or [],
         "active": True, "created_by": created_by, "created_at": now, "updated_at": now,
     }
     await db.ppm_schedules.insert_one(doc)
@@ -309,27 +317,64 @@ async def create_ppm_schedule(data: dict = Body(...), user: dict = Depends(get_c
 @router.post("/schedules/bulk")
 async def bulk_ppm_schedules(data: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
     """Bulk-schedule PM across many sites for one customer (e.g. 85 fire
-    stations). One recurring schedule per site by default, visit dates
-    staggered so they don't all land on the same day."""
+    stations).
+
+    Two modes:
+    * Wizard mode — `assignments`: [{site_id, date, engineer_id, engineer_name}]
+      creates one schedule per site on its exact planned date + engineer.
+    * Legacy mode — `site_ids` + `start_date` + `stagger_days` + `granularity`.
+    """
     operator = _operator(user)
     customer_org = (data.get("customer_org_id") or "").strip()
-    site_ids = [s for s in (data.get("site_ids") or []) if s]
-    if not customer_org or not site_ids:
-        raise HTTPException(400, "customer_org_id and site_ids required")
+    if not customer_org:
+        raise HTTPException(400, "customer_org_id required")
     service_type = (data.get("service_type") or "Preventative Maintenance Service").strip()
     frequency = (data.get("frequency") or "annual").strip()
+    cust = await db.organizations.find_one({"id": customer_org}, {"_id": 0, "name": 1})
+    cust_name = (cust or {}).get("name")
+    checklist = await _service_type_checklist(operator, service_type)
+    created = 0
+
+    assignments = data.get("assignments") or []
+    if assignments:
+        for a in assignments:
+            sid = (a.get("site_id") or "").strip()
+            if not sid:
+                continue
+            site = await db.sites.find_one({"id": sid}, {"_id": 0, "name": 1, "address": 1})
+            if not site:
+                continue
+            visit = _parse_ymd(a.get("date")) or _today()
+            eqs = await db.equipment.find(
+                {"organization_id": customer_org, "site_id": sid}, {"_id": 0, "id": 1}).to_list(4000)
+            eq_ids = [e["id"] for e in eqs]
+            await _make_ppm_schedule(
+                org=customer_org, customer_id=customer_org, customer_name=cust_name,
+                site_id=sid, site_name=site.get("name"), site_address=site.get("address") or "",
+                equipment_ids=eq_ids,
+                equipment_name=(f"{len(eq_ids)} machines" if eq_ids else site.get("name")),
+                service_type=service_type, frequency=frequency, next_pm=visit,
+                checklist_items=checklist, created_by=user.get("id") or "operator",
+                assigned_engineer_id=(a.get("engineer_id") or "").strip(),
+                assigned_engineer_name=(a.get("engineer_name") or "").strip(),
+                machine_count=len(eq_ids))
+            created += 1
+        return {"success": True, "schedules_created": created, "sites": len(assignments)}
+
+    # ── Legacy stagger mode ──
+    site_ids = [s for s in (data.get("site_ids") or []) if s]
+    if not site_ids:
+        raise HTTPException(400, "site_ids or assignments required")
     start = _parse_ymd(data.get("start_date")) or _today()
     try:
         stagger = max(0, int(data.get("stagger_days") or 0))
     except (TypeError, ValueError):
         stagger = 0
     granularity = (data.get("granularity") or "site").strip()
-    cust = await db.organizations.find_one({"id": customer_org}, {"_id": 0, "name": 1})
-    cust_name = (cust or {}).get("name")
-    checklist = await _service_type_checklist(operator, service_type)
-    created = 0
+    eng_id = (data.get("engineer_id") or "").strip()
+    eng_name = (data.get("engineer_name") or "").strip()
     for i, sid in enumerate(site_ids):
-        site = await db.sites.find_one({"id": sid}, {"_id": 0, "name": 1})
+        site = await db.sites.find_one({"id": sid}, {"_id": 0, "name": 1, "address": 1})
         if not site:
             continue
         eqs = await db.equipment.find(
@@ -340,21 +385,219 @@ async def bulk_ppm_schedules(data: dict = Body(...), user: dict = Depends(get_cu
                 visit = start + relativedelta(days=created * stagger) if stagger else start
                 await _make_ppm_schedule(
                     org=customer_org, customer_id=customer_org, customer_name=cust_name,
-                    site_id=sid, site_name=site.get("name"), equipment_ids=[e["id"]],
-                    equipment_name=e.get("name"), service_type=service_type, frequency=frequency,
-                    next_pm=visit, checklist_items=checklist, created_by=user.get("id") or "operator")
+                    site_id=sid, site_name=site.get("name"), site_address=site.get("address") or "",
+                    equipment_ids=[e["id"]], equipment_name=e.get("name"),
+                    service_type=service_type, frequency=frequency, next_pm=visit,
+                    checklist_items=checklist, created_by=user.get("id") or "operator",
+                    assigned_engineer_id=eng_id, assigned_engineer_name=eng_name, machine_count=1)
                 created += 1
         else:
             visit = start + relativedelta(days=i * stagger) if stagger else start
             eq_ids = [e["id"] for e in eqs]
             await _make_ppm_schedule(
                 org=customer_org, customer_id=customer_org, customer_name=cust_name,
-                site_id=sid, site_name=site.get("name"), equipment_ids=eq_ids,
+                site_id=sid, site_name=site.get("name"), site_address=site.get("address") or "",
+                equipment_ids=eq_ids,
                 equipment_name=(f"{len(eq_ids)} machines" if eq_ids else site.get("name")),
                 service_type=service_type, frequency=frequency, next_pm=visit,
-                checklist_items=checklist, created_by=user.get("id") or "operator")
+                checklist_items=checklist, created_by=user.get("id") or "operator",
+                assigned_engineer_id=eng_id, assigned_engineer_name=eng_name,
+                machine_count=len(eq_ids))
             created += 1
     return {"success": True, "schedules_created": created, "sites": len(site_ids)}
+
+
+@router.post("/plan/group")
+async def plan_group_sites(data: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
+    """AI-group the selected sites into geographic runs (nearby sites together)
+    and return them in a sensible visiting order, for the bulk scheduling wizard."""
+    operator = _operator(user)
+    customer_org = (data.get("customer_org_id") or "").strip()
+    site_ids = [s for s in (data.get("site_ids") or []) if s]
+    if not customer_org or not site_ids:
+        raise HTTPException(400, "customer_org_id and site_ids required")
+    from utils.ppm_route_ai import group_sites_by_proximity
+    sites = await db.sites.find(
+        {"id": {"$in": site_ids}}, {"_id": 0, "id": 1, "name": 1, "address": 1}).to_list(4000)
+    # keep only the requested ids, preserving lookup of machine counts
+    counts = {}
+    for sid in site_ids:
+        counts[sid] = await db.equipment.count_documents(
+            {"organization_id": customer_org, "site_id": sid})
+    by_id = {s["id"]: s for s in sites}
+    ordered = [by_id[s] for s in site_ids if s in by_id]
+    result = await group_sites_by_proximity(ordered)
+    # decorate groups with site names + machine counts for the UI
+    for g in result.get("groups", []):
+        g["sites"] = [{
+            "id": sid,
+            "name": (by_id.get(sid) or {}).get("name") or "Site",
+            "address": (by_id.get(sid) or {}).get("address") or "",
+            "machine_count": counts.get(sid, 0),
+        } for sid in g.get("site_ids", [])]
+    return result
+
+
+@router.get("/search")
+async def search_schedules(
+    q: str = Query("", min_length=0),
+    user: dict = Depends(get_current_user),
+) -> dict:
+    """Search booked PM visits by site / customer / service name across all
+    months — so desk users can quickly find when a site is booked in."""
+    operator = _operator(user)
+    term = (q or "").strip()
+    if len(term) < 2:
+        return {"results": []}
+    org_ids = await _customer_org_ids(operator)
+    today = _today()
+    rx = {"$regex": re.escape(term), "$options": "i"}
+    cursor = db.ppm_schedules.find(
+        {"organization_id": {"$in": org_ids}, "source": "service_desk", "active": True,
+         "$or": [{"site_name": rx}, {"customer_name": rx}, {"service_type": rx}]},
+        {"_id": 0},
+    ).limit(60)
+    scheduled_ids = await _scheduled_schedule_ids(operator)
+    out = []
+    async for s in cursor:
+        npm = _parse_ymd(s.get("next_pm"))
+        if not npm:
+            continue
+        out.append({
+            "schedule_id": s.get("id"), "date": s.get("next_pm"),
+            "site_name": s.get("site_name") or "", "customer_name": s.get("customer_name") or "",
+            "service_type": s.get("service_type") or "", "site_id": s.get("site_id") or "",
+            "machine_count": s.get("machine_count", len(s.get("equipment_ids") or [])),
+            "engineer": s.get("assigned_engineer_name") or "",
+            "status": _status_for(npm, s.get("id") in scheduled_ids, today),
+        })
+    out.sort(key=lambda x: x["date"])
+    return {"results": out[:40], "count": len(out)}
+
+
+async def _scheduled_schedule_ids(operator: str) -> set:
+    ids = set()
+    async for c in db.svc_cases.find(
+        {"organization_id": operator, "pm_schedule_id": {"$nin": [None, ""]},
+         "status": {"$nin": ["closed", "resolved", "cancelled", "CLOSED", "RESOLVED", "CANCELLED"]}},
+        {"_id": 0, "pm_schedule_id": 1},
+    ):
+        ids.add(c.get("pm_schedule_id"))
+    return ids
+
+
+@router.get("/schedules/{schedule_id}")
+async def schedule_detail(schedule_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Full detail for one PM visit: site + every machine involved; and once a
+    job has been completed against it, the engineer's workings."""
+    operator = _operator(user)
+    org_ids = await _customer_org_ids(operator)
+    s = await db.ppm_schedules.find_one(
+        {"id": schedule_id, "organization_id": {"$in": org_ids}, "source": "service_desk"},
+        {"_id": 0})
+    if not s:
+        raise HTTPException(404, "PM visit not found")
+    eq_ids = s.get("equipment_ids") or []
+    machines = []
+    if eq_ids:
+        eqs = await db.equipment.find(
+            {"id": {"$in": eq_ids}},
+            {"_id": 0, "id": 1, "name": 1, "equipment_type": 1, "manufacturer": 1,
+             "model": 1, "serial_number": 1},
+        ).to_list(4000)
+        machines = [{
+            "id": e.get("id"), "name": e.get("name") or "Equipment",
+            "equipment_type": e.get("equipment_type") or "", "manufacturer": e.get("manufacturer") or "",
+            "model": e.get("model") or "", "serial_number": e.get("serial_number") or "",
+        } for e in eqs]
+
+    # Related engineer job (if scheduled / completed)
+    job = await db.svc_cases.find_one(
+        {"pm_schedule_id": schedule_id, "organization_id": operator},
+        {"_id": 0, "id": 1, "reference": 1, "status": 1, "scheduled_at": 1,
+         "assigned_engineer_name": 1, "assigned_engineer_names": 1, "completed_at": 1,
+         "resolution": 1, "resolution_notes": 1, "work_summary": 1, "engineer_notes": 1,
+         "calibration_result": 1, "calibration_captured": 1},
+        sort=[("created_at", -1)])
+    workings = None
+    if job:
+        status = str(job.get("status") or "").lower()
+        completed = status in ("closed", "resolved", "completed")
+        engineer = job.get("assigned_engineer_name") or ", ".join(job.get("assigned_engineer_names") or [])
+        machine_work = []
+        if completed:
+            async for m in db.svc_work_visit_machines.find(
+                {"case_id": job["id"]},
+                {"_id": 0, "asset_name": 1, "serviced": 1, "cleaned": 1, "notes": 1,
+                 "result": 1, "custom_fields": 1}):
+                machine_work.append({
+                    "asset_name": m.get("asset_name") or "", "serviced": m.get("serviced"),
+                    "cleaned": m.get("cleaned"), "notes": m.get("notes") or "",
+                    "result": m.get("result") or "",
+                })
+        workings = {
+            "reference": job.get("reference") or "", "status": job.get("status") or "",
+            "completed": completed, "engineer": engineer,
+            "scheduled_at": job.get("scheduled_at") or "", "completed_at": job.get("completed_at") or "",
+            "summary": job.get("work_summary") or job.get("resolution") or job.get("resolution_notes") or "",
+            "engineer_notes": job.get("engineer_notes") or "",
+            "calibration_result": job.get("calibration_result") or "",
+            "calibration_captured": bool(job.get("calibration_captured")),
+            "machine_work": machine_work,
+        }
+
+    return {
+        "schedule": {
+            "id": s.get("id"), "site_name": s.get("site_name") or "",
+            "site_address": s.get("site_address") or "", "customer_name": s.get("customer_name") or "",
+            "service_type": s.get("service_type") or "", "frequency": s.get("frequency") or "",
+            "date": s.get("next_pm"), "machine_count": s.get("machine_count", len(eq_ids)),
+            "engineer": s.get("assigned_engineer_name") or "",
+            "site_id": s.get("site_id") or "", "organization_id": s.get("organization_id"),
+        },
+        "machines": machines,
+        "workings": workings,
+    }
+
+
+@router.post("/schedules/delete")
+async def bulk_delete_schedules(data: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
+    """Soft-delete (active:false) the given PM schedules. Scoped to the
+    operator's own + CRM-linked customer orgs."""
+    operator = _operator(user)
+    ids = [x for x in (data.get("schedule_ids") or []) if x]
+    if not ids:
+        raise HTTPException(400, "schedule_ids required")
+    org_ids = await _customer_org_ids(operator)
+    res = await db.ppm_schedules.update_many(
+        {"id": {"$in": ids}, "organization_id": {"$in": org_ids}, "source": "service_desk"},
+        {"$set": {"active": False, "updated_at": _now()}})
+    return {"success": True, "deleted": res.modified_count}
+
+
+@router.post("/schedules/delete-all")
+async def delete_all_for_customer(data: dict = Body(...), user: dict = Depends(get_current_user)) -> dict:
+    """One-click: soft-delete every PM schedule for a single customer (used to
+    clear a mistaken bulk import). Optional from/to date window."""
+    operator = _operator(user)
+    customer_org = (data.get("customer_org_id") or "").strip()
+    if not customer_org:
+        raise HTTPException(400, "customer_org_id required")
+    org_ids = await _customer_org_ids(operator)
+    if customer_org not in org_ids:
+        raise HTTPException(403, "Customer not linked to your organisation")
+    q = {"organization_id": customer_org, "source": "service_desk", "active": True}
+    d_from = _parse_ymd(data.get("from"))
+    d_to = _parse_ymd(data.get("to"))
+    if d_from or d_to:
+        rng = {}
+        if d_from:
+            rng["$gte"] = d_from.isoformat()
+        if d_to:
+            rng["$lte"] = d_to.isoformat()
+        q["next_pm"] = rng
+    res = await db.ppm_schedules.update_many(q, {"$set": {"active": False, "updated_at": _now()}})
+    return {"success": True, "deleted": res.modified_count}
 
 
 
@@ -533,11 +776,14 @@ async def ppm_calendar(
                 "date": s.get("next_pm"),
                 "schedule_id": s.get("id"),
                 "organization_id": s.get("organization_id"),
+                "customer_org_id": s.get("organization_id"),
                 "site_id": s.get("site_id") or "",
                 "title": s.get("title") or "Preventative maintenance",
                 "customer_name": s.get("customer_name") or "",
                 "site_name": s.get("site_name") or "",
                 "equipment_name": s.get("equipment_name") or "",
+                "machine_count": s.get("machine_count", len(s.get("equipment_ids") or [])),
+                "engineer": s.get("assigned_engineer_name") or "",
                 "service_type": s.get("service_type") or "Preventative Maintenance Service",
                 "frequency": s.get("frequency") or "annual",
                 "status": _status_for(npm, is_sched, today),
