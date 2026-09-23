@@ -1,7 +1,7 @@
 meta {
   name: PutOne
   type: http
-  seq: 3
+  seq: 4
 }
 
 put {
@@ -12,6 +12,12 @@ put {
 
 params:query {
   companyId: {{companyId}}
+}
+
+script:pre-request {
+  if (String(bru.getEnvVar('ALLOW_WRITES')).toLowerCase() !== 'true') {
+    throw new Error('WRITE BLOCKED: initial mapping is READ-ONLY. Set ALLOW_WRITES=true to run POST/PUT.');
+  }
 }
 
 headers {
@@ -25,8 +31,8 @@ body:json {
     "siSMDocumentStatusId": 0,
     "siSMDocumentStatusName": "",
     "siSMDocumentSubStatusId": 0,
-    "summary": "Example case summary",
-    "description": "Example case description",
+    "summary": "Example",
+    "description": "Example",
     "callDate": null,
     "contactName": "",
     "contactPhoneNumber": "",
@@ -66,8 +72,8 @@ body:json {
     "analysisField18": "",
     "analysisField19": "",
     "analysisField20": "",
-    "siconCRMPersonId": 0,
-    "siconCRMCompanyId": 0,
+    "siconCRMPersonId": {{crmPersonId}},
+    "siconCRMCompanyId": {{crmCompanyId}},
     "caseType": {
       "siSMCaseTypeId": {{caseTypeId}},
       "name": "",
@@ -91,13 +97,22 @@ body:json {
     "contractLine": null,
     "project": null,
     "caseAdmin": null,
-    "internalTeamId": 0,
+    "internalTeamId": {{internalTeamId}},
     "internalTeam": null,
-    "externalTeamId": 0,
+    "externalTeamId": {{externalTeamId}},
     "externalTeam": null,
     "customer": null,
     "customerContact": null,
     "subLocation": null,
     "equipmentIds": []
   }
+}
+
+script:post-response {
+  test('status is 2xx', function () { if (res.getStatus() >= 300) throw new Error('HTTP ' + res.getStatus()); });
+  const b = res.getBody() || {};
+  const e = (b && b.entity) ? b.entity : b;
+  const first = Array.isArray(e) ? (e[0] || {}) : (Array.isArray(b.items) ? (b.items[0]||{}) : e);
+  if (first && first.siSMCaseId !== undefined && first.siSMCaseId !== null) bru.setVar('caseId', first.siSMCaseId);
+  if (first && first.caseNumber !== undefined && first.caseNumber !== null) bru.setVar('caseNumber', first.caseNumber);
 }

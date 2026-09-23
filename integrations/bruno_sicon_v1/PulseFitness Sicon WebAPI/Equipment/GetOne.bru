@@ -1,0 +1,21 @@
+meta {
+  name: GetOne
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/SiconService/Equipment/{{equipmentId}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  companyId: {{companyId}}
+}
+
+script:post-response {
+  test('status is 200', function () { if (res.getStatus() !== 200) throw new Error('HTTP ' + res.getStatus()); });
+  test('has siconEquipmentId', function () { const b=res.getBody()||{}; const e=Array.isArray(b)?(b[0]||{}):((b.entity)||b); if (e && e.siconEquipmentId === undefined) throw new Error('missing siconEquipmentId'); });
+  test('has serialNumber', function () { const b=res.getBody()||{}; const e=Array.isArray(b)?(b[0]||{}):((b.entity)||b); if (e && e.serialNumber === undefined) throw new Error('missing serialNumber'); });
+}

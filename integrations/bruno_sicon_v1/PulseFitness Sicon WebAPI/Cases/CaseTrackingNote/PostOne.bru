@@ -1,7 +1,7 @@
 meta {
   name: PostOne
   type: http
-  seq: 1
+  seq: 2
 }
 
 post {
@@ -14,6 +14,12 @@ params:query {
   companyId: {{companyId}}
 }
 
+script:pre-request {
+  if (String(bru.getEnvVar('ALLOW_WRITES')).toLowerCase() !== 'true') {
+    throw new Error('WRITE BLOCKED: initial mapping is READ-ONLY. Set ALLOW_WRITES=true to run POST/PUT.');
+  }
+}
+
 headers {
   Content-Type: application/json
 }
@@ -21,11 +27,11 @@ headers {
 body:json {
   {
     "siSMCaseTrackingNoteId": 0,
-    "note": "Example tracking note",
+    "note": "Example",
     "time": null,
     "status": "",
     "statusId": {{statusId}},
-    "appointmentId": null,
+    "appointmentId": {{appointmentId}},
     "visibleToEngineer": true,
     "visibleToCustomer": false,
     "reassignedToCaseOwnerId": null,
@@ -34,4 +40,12 @@ body:json {
     "latitude": null,
     "longitude": null
   }
+}
+
+script:post-response {
+  test('status is 2xx', function () { if (res.getStatus() >= 300) throw new Error('HTTP ' + res.getStatus()); });
+  const b = res.getBody() || {};
+  const e = (b && b.entity) ? b.entity : b;
+  const first = Array.isArray(e) ? (e[0] || {}) : (Array.isArray(b.items) ? (b.items[0]||{}) : e);
+  if (first && first.siSMCaseTrackingNoteId !== undefined && first.siSMCaseTrackingNoteId !== null) bru.setVar('trackingNoteId', first.siSMCaseTrackingNoteId);
 }

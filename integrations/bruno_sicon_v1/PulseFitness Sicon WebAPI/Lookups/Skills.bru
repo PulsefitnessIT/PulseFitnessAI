@@ -1,0 +1,20 @@
+meta {
+  name: Skills
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/SiconService/Skill
+  body: none
+  auth: inherit
+}
+
+params:query {
+  query: $max={{pageSize}}
+  companyId: {{companyId}}
+}
+
+script:post-response {
+  test('status is 200', function () { if (res.getStatus() !== 200) throw new Error('HTTP ' + res.getStatus()); });
+}

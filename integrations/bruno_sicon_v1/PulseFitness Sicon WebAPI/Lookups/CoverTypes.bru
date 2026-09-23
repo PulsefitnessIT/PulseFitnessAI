@@ -1,0 +1,20 @@
+meta {
+  name: CoverTypes
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/SiconService/CoverType
+  body: none
+  auth: inherit
+}
+
+params:query {
+  query: $max={{pageSize}}
+  companyId: {{companyId}}
+}
+
+script:post-response {
+  test('status is 200', function () { if (res.getStatus() !== 200) throw new Error('HTTP ' + res.getStatus()); });
+}

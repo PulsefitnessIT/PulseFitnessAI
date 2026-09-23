@@ -10,19 +10,12 @@ auth:bearer {
   token: {{BEARER_TOKEN}}
 }
 
-vars:pre-request {
-  caseId: 0
-  appointmentId: 0
-  timeBookingId: 0
-  trackingNoteId: 0
-  equipmentId: 0
-  caseTypeId: 0
-  priorityId: 0
-  statusId: 0
-  employeeId: 0
-}
-
 docs {
-  PulseFitness → Sicon Service WebAPI v1.
-  Set companyId + baseUrl in the environment; run Auth/Authenticate first.
+  PulseFitness.ai <> Sicon Service WebAPI v1.
+  Company: Pulse Fitness = companyId 2 (set in the environment).
+  READ-FIRST: ALLOW_WRITES defaults to false; POST/PUT refuse to run until it is true.
+  Milestone 1 (read-only): Auth -> Lookups -> Equipment/GetMany (paginate) -> map -> store siconEquipmentId.
+  Runtime ids (caseId, appointmentId, equipmentId, trackingNoteId, timeBookingId) are CAPTURED
+  from responses via each request's post-response script (bru.setVar) and are NOT reset to 0.
+  See mapping.csv and FIELD_MAPPING.md bundled at the collection root.
 }

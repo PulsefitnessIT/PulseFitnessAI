@@ -14,6 +14,12 @@ params:query {
   companyId: {{companyId}}
 }
 
+script:pre-request {
+  if (String(bru.getEnvVar('ALLOW_WRITES')).toLowerCase() !== 'true') {
+    throw new Error('WRITE BLOCKED: initial mapping is READ-ONLY. Set ALLOW_WRITES=true to run POST/PUT.');
+  }
+}
+
 headers {
   Content-Type: application/json
 }
@@ -24,7 +30,7 @@ body:json {
     "siSMCaseId": {{caseId}},
     "appointmentType": "Work",
     "parentWorkAppointmentId": null,
-    "subject": "Example appointment",
+    "subject": "Example",
     "description": "",
     "workBriefing": "",
     "employeeIds": [
@@ -48,4 +54,12 @@ body:json {
     "departureLatitude": null,
     "departureLongitude": null
   }
+}
+
+script:post-response {
+  test('status is 2xx', function () { if (res.getStatus() >= 300) throw new Error('HTTP ' + res.getStatus()); });
+  const b = res.getBody() || {};
+  const e = (b && b.entity) ? b.entity : b;
+  const first = Array.isArray(e) ? (e[0] || {}) : (Array.isArray(b.items) ? (b.items[0]||{}) : e);
+  if (first && first.siconAppointmentId !== undefined && first.siconAppointmentId !== null) bru.setVar('appointmentId', first.siconAppointmentId);
 }

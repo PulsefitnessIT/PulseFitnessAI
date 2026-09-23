@@ -10,6 +10,10 @@ post {
   auth: none
 }
 
+params:query {
+  companyId: {{companyId}}
+}
+
 headers {
   Content-Type: application/json
 }
@@ -22,6 +26,8 @@ body:json {
 }
 
 script:post-response {
-  const b = res.getBody();
-  if (b && b.accessToken) bru.setEnvVar('BEARER_TOKEN', b.accessToken);
+  const b = res.getBody() || {};
+  const t = b.accessToken || b.token;
+  if (t) bru.setEnvVar('BEARER_TOKEN', t);
+  test('got token', function () { if (!t) throw new Error('no accessToken'); });
 }

@@ -1,0 +1,29 @@
+meta {
+  name: GetMany
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/SiconService/Equipment
+  body: none
+  auth: inherit
+}
+
+params:query {
+  query: $skip={{skip}}&$max={{pageSize}}
+  companyId: {{companyId}}
+}
+
+script:post-response {
+  test('status 200', function(){ if(res.getStatus()!==200) throw new Error('HTTP '+res.getStatus()); });
+  const b = res.getBody() || {};
+  const items = Array.isArray(b) ? b : (b.items || b.entities || []);
+  test('is a list', function(){ if(!Array.isArray(items)) throw new Error('not a list'); });
+  test('has siconEquipmentId', function(){ if(items.length && items[0].siconEquipmentId===undefined) throw new Error('missing siconEquipmentId'); });
+  if (items.length) bru.setVar('equipmentId', items[0].siconEquipmentId);
+  // PAGINATION: advance skip by pageSize and re-run until fewer than pageSize rows return.
+  if (items.length >= Number(bru.getEnvVar('pageSize')||200)) {
+    bru.setVar('skip', Number(bru.getVar('skip')||bru.getEnvVar('skip')||0) + items.length);
+  }
+}

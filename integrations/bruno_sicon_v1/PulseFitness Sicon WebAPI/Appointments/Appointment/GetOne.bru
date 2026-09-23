@@ -13,3 +13,8 @@ get {
 params:query {
   companyId: {{companyId}}
 }
+
+script:post-response {
+  test('status is 200', function () { if (res.getStatus() !== 200) throw new Error('HTTP ' + res.getStatus()); });
+  test('has siconAppointmentId', function () { const b=res.getBody()||{}; const e=Array.isArray(b)?(b[0]||{}):((b.entity)||b); if (e && e.siconAppointmentId === undefined) throw new Error('missing siconAppointmentId'); });
+}
