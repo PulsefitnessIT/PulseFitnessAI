@@ -150,6 +150,7 @@ def build_month_timesheet_xlsx(
 
     hand_in_iso = hand_in.isoformat() if hand_in else None
     total_rows: list[int] = []
+    day_blocks: list[tuple[int, int]] = []   # (first_day_row, last_day_row) per week
     r = 8
     cur = period_start
     for _wk in range(int(weeks)):
@@ -196,6 +197,7 @@ def build_month_timesheet_xlsx(
             cur += timedelta(days=1)
             r += 1
         # weekly TOTAL row — sum each activity column + the hours total
+        day_blocks.append((block_first, r - 1))
         tc = ws.cell(r, 4, "TOTAL")
         tc.alignment = Alignment(horizontal="right")
         for ci in list(range(act_first, act_first + n_act)) + [total_col]:
@@ -208,6 +210,30 @@ def build_month_timesheet_xlsx(
 
     # Footer
     fr = r
+
+    # Per-activity monthly totals, aligned under each activity column. Hour-based
+    # columns sum to [h]:mm; tick columns show a count of "Y" (worked) days.
+    mt = ws.cell(fr, 4, "MONTHLY TOTAL")
+    mt.font = Font(bold=True)
+    mt.alignment = Alignment(horizontal="right")
+    mt.border = _BORDER
+    for i, col in enumerate(columns):
+        ci = act_first + i
+        cl = get_column_letter(ci)
+        cell = ws.cell(fr, ci)
+        if str(col.get("unit")) == "tick_hours":
+            parts = "+".join(f'COUNTIF({cl}{a}:{cl}{b},"Y")' for a, b in day_blocks)
+            cell.value = f"={parts}" if parts else 0
+            cell.number_format = '0" days"'
+        else:
+            parts = "+".join(f"SUM({cl}{a}:{cl}{b})" for a, b in day_blocks)
+            cell.value = f"={parts}" if parts else 0
+            cell.number_format = "[h]:mm"
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = _BORDER
+    fr += 2
+
     lab_col, val_col = emp_col, duty_col   # labels under EMPLOYEE col, values under DUTY
     LV = get_column_letter(val_col)
     gt = "+".join(f"{TL}{tr}" for tr in total_rows)

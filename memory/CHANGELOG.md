@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-06 — Per-activity monthly totals in payroll timesheet footer
+- Added a "MONTHLY TOTAL" row to each staff member's monthly Excel timesheet, aligned directly
+  under the activity columns (PT, Classes, Admin, Parts, Van Check, Clean Van, etc.).
+- Totals respect each activity's unit: hour-based columns (`unit: hours`) sum to `[h]:mm`;
+  checkbox/tick columns (`unit: tick_hours`, e.g. Van Check/Clean Van) show a count of worked
+  "Y" days formatted as `0" days"` (via COUNTIF across each week's daily range).
+- Files: backend/utils/payroll_timesheet_xlsx.py (tracked per-week `day_blocks`, new footer block).
+- Verified: built engineer (tick) and PT (hours) sheets, reloaded via openpyxl, confirmed COUNTIF
+  and SUM formulas + number formats land on the correct activity columns.
+
 ## 2026-06 — Duplicate-invoice guard surfaced in the AI review panel (before Apply)
 - The AI review panel now shows a prominent red "Duplicate invoice — already allocated" banner
   (dealer name + allocated date) BEFORE Apply, driven by `aiReview.duplicate`. Since the deterministic
