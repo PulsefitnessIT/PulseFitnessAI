@@ -240,18 +240,31 @@ async def sync_issue_to_sicon(issue_id: str, user_id: str = "system") -> Optiona
         return None
 
     ctx = await _fetch_case_context(issue)
-    payload = map_gymaxis_to_sicon_case(
-        issue, config,
-        org_name=await _get_org_name(org_id),
-        equipment=ctx["equipment"],
-        site=ctx["site"],
-        crm_links=ctx["crm_links"],
-    )
+    use_v1 = bool(config.get("service_webapi_v1"))
+    if use_v1:
+        from utils.sicon_service_models import build_case_model_v1
+        payload = build_case_model_v1(
+            issue, config, org_name=await _get_org_name(org_id),
+            equipment=ctx["equipment"], site=ctx["site"], crm_links=ctx["crm_links"])
+    else:
+        payload = map_gymaxis_to_sicon_case(
+            issue, config,
+            org_name=await _get_org_name(org_id),
+            equipment=ctx["equipment"],
+            site=ctx["site"],
+            crm_links=ctx["crm_links"],
+        )
     try:
-        result = await client.create_case(payload)
-        entity = result.get("entity", result) if isinstance(result, dict) else {}
-        sicon_id = entity.get("SiSMCaseId") or entity.get("ID")
-        sicon_num = entity.get("CaseNumber", "")
+        if use_v1:
+            result = await client.svc_create_case(payload)
+            entity = result.get("entity", result) if isinstance(result, dict) else {}
+            sicon_id = entity.get("siSMCaseId") or entity.get("SiSMCaseId") or entity.get("id")
+            sicon_num = entity.get("caseNumber") or entity.get("CaseNumber", "") or ""
+        else:
+            result = await client.create_case(payload)
+            entity = result.get("entity", result) if isinstance(result, dict) else {}
+            sicon_id = entity.get("SiSMCaseId") or entity.get("ID")
+            sicon_num = entity.get("CaseNumber", "")
         await _persist_sync_success(issue_id, sicon_id, sicon_num, org_id, user_id)
         await _post_first_tracking_note(issue_id, _extract_triage_summary(issue))
         return sicon_id

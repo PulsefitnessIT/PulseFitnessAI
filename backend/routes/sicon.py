@@ -321,22 +321,56 @@ async def create_appointment(issue_id: str, data: Dict[str, Any], user: dict = D
     if not client:
         raise HTTPException(status_code=400, detail="Sicon integration not configured")
 
-    payload = build_appointment_payload(
-        issue=issue,
-        scheduled_start=data.get("scheduled_start"),
-        scheduled_end=data.get("scheduled_end"),
-        employee_ids=data.get("employee_ids", []),
-        work_briefing=data.get("work_briefing", issue.get("ai_triage_summary", "")),
-    )
+    config = await get_sicon_config(org_id) or {}
+    use_v1 = bool(config.get("service_webapi_v1"))
+    existing_appt_id = issue.get("sicon_appointment_id") or 0
+
     try:
-        result = await client.create_appointment(payload)
-        entity = result.get("entity", result) if isinstance(result, dict) else {}
-        appt_id = entity.get("SiconAppointmentID") or entity.get("ID")
+        if use_v1:
+            from utils.sicon_service_models import build_appointment_model_v1
+            appt = {
+                "scheduled_start": data.get("scheduled_start"),
+                "scheduled_end": data.get("scheduled_end"),
+                "work_briefing": data.get("work_briefing", issue.get("ai_triage_summary", "")),
+                "description": data.get("description", ""),
+                "colour": data.get("colour", ""),
+                "confirmed": data.get("confirmed", False),
+                "appointment_type": data.get("appointment_type", "Work"),
+            }
+            model = build_appointment_model_v1(
+                issue, appt,
+                sicon_appointment_id=int(existing_appt_id or 0),
+                sicon_case_id=int(issue.get("sicon_case_id") or 0),
+                employee_ids=data.get("employee_ids", []))
+            if existing_appt_id:
+                result = await client.svc_update_appointment(int(existing_appt_id), model)
+            else:
+                result = await client.svc_create_appointment(model)
+            entity = result.get("entity", result) if isinstance(result, dict) else {}
+            appt_id = (entity.get("siconAppointmentId") or entity.get("SiconAppointmentID")
+                       or entity.get("id") or existing_appt_id)
+        else:
+            payload = build_appointment_payload(
+                issue=issue,
+                scheduled_start=data.get("scheduled_start"),
+                scheduled_end=data.get("scheduled_end"),
+                employee_ids=data.get("employee_ids", []),
+                work_briefing=data.get("work_briefing", issue.get("ai_triage_summary", "")),
+            )
+            result = await client.create_appointment(payload)
+            entity = result.get("entity", result) if isinstance(result, dict) else {}
+            appt_id = entity.get("SiconAppointmentID") or entity.get("ID")
+        # Persist the Sicon appointment id on our record so future updates
+        # (PUT /Appointment/{id}) and completion reference the right appointment.
+        if appt_id:
+            await db.issues.update_one(
+                {"id": issue_id},
+                {"$set": {"sicon_appointment_id": appt_id, "sicon_appointment_synced_at": datetime.now(timezone.utc).isoformat()}})
         await log_sicon_event(org_id, "appointment_created",
                               f"Issue {issue_id} → appointment {appt_id}", True, user["id"])
         return {"success": True, "sicon_appointment_id": appt_id}
     except SiconAPIError as e:
-        await enqueue_failed_operation(org_id, "create_appointment", "appointment", issue_id, payload, e)
+        await enqueue_failed_operation(org_id, "create_appointment", "appointment", issue_id, {}, e)
         raise HTTPException(status_code=502, detail=f"Sicon appointment failed: {str(e)[:200]}")
 
 

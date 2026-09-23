@@ -1,0 +1,67 @@
+meta {
+  name: PutOne
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/api/v1/SiconService/Equipment/{{equipmentId}}
+  body: json
+  auth: inherit
+}
+
+params:query {
+  companyId: {{companyId}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "siconEquipmentId": {{equipmentId}},
+    "itemId": null,
+    "description": "Example equipment",
+    "serialNumber": "",
+    "idNumber": "EXAMPLE-001",
+    "warrantyExpiry": null,
+    "installDate": null,
+    "serviceIntervalMeasurement": "",
+    "serviceIntervalDuration": null,
+    "notes": "",
+    "customerId": null,
+    "siconEquipmentGroupDbKey": null,
+    "make": "",
+    "model": "",
+    "lastServiceDate": null,
+    "nextServiceDate": null,
+    "siconCrmCompanyId": null,
+    "siconCrmPersonId": null,
+    "siconCrmEndUserCompanyId": null,
+    "siconCrmEndUserPersonId": null,
+    "custDeliveryAddressDbKey": null,
+    "siconSubLocationDbKey": null,
+    "siconContactDbKey": null,
+    "analysisCode1": "",
+    "analysisCode2": "",
+    "analysisCode3": "",
+    "analysisCode4": "",
+    "analysisCode5": "",
+    "analysisCode6": "",
+    "analysisCode7": "",
+    "analysisCode8": "",
+    "analysisCode9": "",
+    "analysisCode10": "",
+    "analysisCode11": "",
+    "analysisCode12": "",
+    "analysisCode13": "",
+    "analysisCode14": "",
+    "analysisCode15": "",
+    "analysisCode16": "",
+    "analysisCode17": "",
+    "analysisCode18": "",
+    "analysisCode19": "",
+    "analysisCode20": ""
+  }
+}

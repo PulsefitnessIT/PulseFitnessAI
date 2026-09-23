@@ -70,6 +70,9 @@ class SiconClient:
         self.company_id = company_id
         self.timeout = timeout
         self._auth = (username, password)
+        self._username = username
+        self._password = password
+        self._bearer: Optional[str] = None
 
     def _params(self, extra: Optional[Dict] = None) -> Dict:
         params = {}
@@ -119,6 +122,89 @@ class SiconClient:
             return True
         except Exception:
             return False
+
+    # ── Service WebAPI v1 (/api/v1/SiconService/*) ────────────────
+    # Migrated surface per the customer's Bruno collection: JWT bearer auth,
+    # camelCase full models, companyId query param. See utils.sicon_service_models.
+
+    async def _authenticate_v1(self) -> None:
+        """Fetch a JWT bearer token (POST /api/v1/authentication/authenticate)."""
+        if self._bearer:
+            return
+        url = f"{self.base_url}/api/v1/authentication/authenticate"
+        async with httpx.AsyncClient(timeout=self.timeout, verify=True) as client:
+            resp = await client.post(url, json={"username": self._username, "password": self._password},
+                                     headers={"Content-Type": "application/json", "Accept": "application/json"})
+            if resp.status_code >= 400:
+                raise SiconAPIError(f"Sicon auth → {resp.status_code}: {resp.text[:200]}",
+                                    http_status=resp.status_code)
+            body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+            token = body.get("accessToken") or body.get("access_token") or body.get("token")
+            if not token:
+                raise SiconAPIError("Sicon auth returned no accessToken", http_status=resp.status_code)
+            self._bearer = token
+
+    async def _svc_request(self, method: str, path: str, json_body: Optional[Dict] = None,
+                           params: Optional[Dict] = None, anon: bool = False) -> Dict:
+        """Request against the v1 SiconService surface with bearer auth + companyId."""
+        if not anon:
+            await self._authenticate_v1()
+        url = f"{self.base_url}{path}"
+        merged = self._params(params)
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        if self._bearer and not anon:
+            headers["Authorization"] = f"Bearer {self._bearer}"
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout, verify=True) as client:
+                resp = await client.request(method=method, url=url, params=merged,
+                                            json=json_body, headers=headers)
+                return self._parse_response(resp, method, path, json_body)
+        except SiconAPIError:
+            raise
+        except httpx.ConnectError as e:
+            raise SiconAPIError(f"Connection failed: {e}", http_status=0, payload=json_body or {})
+        except httpx.TimeoutException as e:
+            raise SiconAPIError(f"Timeout: {e}", http_status=408, payload=json_body or {})
+        except Exception as e:
+            raise SiconAPIError(f"Unknown error: {e}", http_status=0, payload=json_body or {})
+
+    async def svc_ping(self) -> bool:
+        try:
+            await self._svc_request("GET", "/api/v1/SiconService/Ping", anon=True)
+            return True
+        except Exception:
+            return False
+
+    async def svc_create_case(self, model: Dict) -> Dict:
+        return await self._svc_request("POST", "/api/v1/SiconService/Case", json_body=model)
+
+    async def svc_update_case(self, case_id: int, model: Dict) -> Dict:
+        return await self._svc_request("PUT", f"/api/v1/SiconService/Case/{case_id}", json_body=model)
+
+    async def svc_create_appointment(self, model: Dict) -> Dict:
+        return await self._svc_request("POST", "/api/v1/SiconService/Appointment", json_body=model)
+
+    async def svc_update_appointment(self, appointment_id: int, model: Dict) -> Dict:
+        return await self._svc_request("PUT", f"/api/v1/SiconService/Appointment/{appointment_id}", json_body=model)
+
+    async def svc_appointment_time_booking(self, appointment_id: int, model: Dict) -> Dict:
+        return await self._svc_request(
+            "POST", f"/api/v1/SiconService/Appointment/{appointment_id}/TimeBooking", json_body=model)
+
+    async def svc_create_equipment(self, model: Dict) -> Dict:
+        return await self._svc_request("POST", "/api/v1/SiconService/Equipment", json_body=model)
+
+    async def svc_update_equipment(self, equipment_id: int, model: Dict) -> Dict:
+        return await self._svc_request("PUT", f"/api/v1/SiconService/Equipment/{equipment_id}", json_body=model)
+
+    async def svc_create_tracking_note(self, case_id: int, model: Dict) -> Dict:
+        return await self._svc_request(
+            "POST", f"/api/v1/SiconService/Case/{case_id}/TrackingNote", json_body=model)
+
+    async def svc_update_tracking_note(self, case_id: int, note_id: int, model: Dict) -> Dict:
+        return await self._svc_request(
+            "PUT", f"/api/v1/SiconService/Case/{case_id}/TrackingNote/{note_id}", json_body=model)
+
 
     # ── Service Cases ─────────────────────────────────────────────
     async def get_case(self, case_id: int) -> Dict:

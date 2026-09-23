@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "PulseFitness Sicon WebAPI",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

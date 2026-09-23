@@ -1,0 +1,103 @@
+meta {
+  name: PutOne
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/api/v1/SiconService/Case/{{caseId}}
+  body: json
+  auth: inherit
+}
+
+params:query {
+  companyId: {{companyId}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "siSMCaseId": {{caseId}},
+    "caseNumber": "",
+    "siSMDocumentStatusId": 0,
+    "siSMDocumentStatusName": "",
+    "siSMDocumentSubStatusId": 0,
+    "summary": "Example case summary",
+    "description": "Example case description",
+    "callDate": null,
+    "contactName": "",
+    "contactPhoneNumber": "",
+    "contactEmail": "",
+    "lastUpdatedDate": null,
+    "isNonContract": false,
+    "address": {
+      "postalName": "",
+      "addressLine1": "",
+      "addressLine2": "",
+      "addressLine3": "",
+      "addressLine4": "",
+      "city": "",
+      "county": "",
+      "postCode": "",
+      "sopDelAddress": null
+    },
+    "customerOrderNo": "",
+    "createdBy": "",
+    "analysisField1": "",
+    "analysisField2": "",
+    "analysisField3": "",
+    "analysisField4": "",
+    "analysisField5": "",
+    "analysisField6": "",
+    "analysisField7": "",
+    "analysisField8": "",
+    "analysisField9": "",
+    "analysisField10": "",
+    "analysisField11": "",
+    "analysisField12": "",
+    "analysisField13": "",
+    "analysisField14": "",
+    "analysisField15": "",
+    "analysisField16": "",
+    "analysisField17": "",
+    "analysisField18": "",
+    "analysisField19": "",
+    "analysisField20": "",
+    "siconCRMPersonId": 0,
+    "siconCRMCompanyId": 0,
+    "caseType": {
+      "siSMCaseTypeId": {{caseTypeId}},
+      "name": "",
+      "systemType": "",
+      "isPreventativeMaintenanceType": false,
+      "isEnabled": true,
+      "isCustom": false,
+      "defaultAppointmentLabel": null
+    },
+    "coverType": null,
+    "sla": null,
+    "faultCode": null,
+    "skill": null,
+    "priority": {
+      "siSMPriorityId": {{priorityId}},
+      "name": "",
+      "colour": ""
+    },
+    "lastTrackingStatus": null,
+    "contract": null,
+    "contractLine": null,
+    "project": null,
+    "caseAdmin": null,
+    "internalTeamId": 0,
+    "internalTeam": null,
+    "externalTeamId": 0,
+    "externalTeam": null,
+    "customer": null,
+    "customerContact": null,
+    "subLocation": null,
+    "equipmentIds": []
+  }
+}

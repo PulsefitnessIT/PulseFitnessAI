@@ -1,0 +1,28 @@
+headers {
+  Accept: application/json
+}
+
+auth {
+  mode: bearer
+}
+
+auth:bearer {
+  token: {{BEARER_TOKEN}}
+}
+
+vars:pre-request {
+  caseId: 0
+  appointmentId: 0
+  timeBookingId: 0
+  trackingNoteId: 0
+  equipmentId: 0
+  caseTypeId: 0
+  priorityId: 0
+  statusId: 0
+  employeeId: 0
+}
+
+docs {
+  PulseFitness → Sicon Service WebAPI v1.
+  Set companyId + baseUrl in the environment; run Auth/Authenticate first.
+}
