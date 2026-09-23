@@ -757,7 +757,11 @@ function selfHoursOf(r) {
     base = mins / 60;
   }
   base -= (Number(r.break_minutes) || 0) / 60;
-  base += Number(r.pt_classes) || 0;
+  if (r.acts && Object.keys(r.acts).length) {
+    base += Object.values(r.acts).reduce((a, v) => a + (Number(v?.mins) || 0) / 60, 0);
+  } else {
+    base += Number(r.pt_classes) || 0;
+  }
   return Math.max(0, Math.round(base * 100) / 100);
 }
 
@@ -789,15 +793,25 @@ function TimesheetsTab({ H }) {
   useEffect(() => {
     if (!ts) return;
     const se = ts.self_entries || {};
-    setRows(weekDates.map((d) => ({
-      date: d,
-      start: se[d]?.start || '',
-      finish: se[d]?.finish || '',
-      break_minutes: se[d]?.break_minutes ?? '',
-      pt_classes: se[d]?.pt_classes ?? '',
-      van_check: se[d]?.van_check || false,
-      notes: se[d]?.notes || '',
-    })));
+    setRows(weekDates.map((d) => {
+      const e = se[d] || {};
+      let acts = e.acts && Object.keys(e.acts).length ? e.acts : null;
+      if (!acts) {   // migrate legacy fields into acts
+        acts = {};
+        if (e.pt_classes) acts.pt = { mins: Number(e.pt_classes) * 60, done: true };
+        if (e.van_check) acts.van_check = { mins: 0, done: true };
+      }
+      return {
+        date: d,
+        start: e.start || '',
+        finish: e.finish || '',
+        break_minutes: e.break_minutes ?? '',
+        pt_classes: e.pt_classes ?? '',
+        van_check: e.van_check || false,
+        acts,
+        notes: e.notes || '',
+      };
+    }));
   }, [ts, weekDates]);
 
   const shiftByDate = useMemo(() => {
@@ -807,22 +821,27 @@ function TimesheetsTab({ H }) {
   }, [ts]);
 
   const locked = !!ts?.locked;
-  const isEng = !!ts?.is_engineer;
+  const cols = ts?.ts_columns || [];
+  const isEng = (ts?.ts_profile === 'engineer');
   const status = ts?.approval_status || 'pending';
   const weekTotal = rows.reduce((a, r) => a + selfHoursOf(r), 0)
     + Object.values(shiftByDate).reduce((a, li) => a + (li.actual_hours || 0), 0);
 
   const shift = (delta) => { const d = new Date(week + 'T00:00:00'); d.setDate(d.getDate() + delta * 7); setWeek(d.toISOString().slice(0, 10)); };
   const setRow = (i, patch) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const setAct = (i, key, patch) => setRows((rs) => rs.map((r, idx) => (idx === i
+    ? { ...r, acts: { ...(r.acts || {}), [key]: { mins: 0, done: false, ...(r.acts?.[key] || {}), ...patch } } }
+    : r)));
+  const daysPayload = () => rows
+    .filter((r) => r.start || r.finish || r.break_minutes || (r.acts && Object.keys(r.acts).length) || (r.notes && r.notes.trim()))
+    .map((r) => ({ date: r.date, start: r.start || null, finish: r.finish || null,
+      break_minutes: Number(r.break_minutes) || 0, acts: r.acts || {},
+      notes: (r.notes || '').trim() || null }));
 
   const saveDraft = async () => {
     setBusy(true); setErr(''); setSavedOk(false);
     try {
-      const days = rows.filter((r) => r.start || r.finish || r.break_minutes || r.pt_classes || r.van_check || (r.notes && r.notes.trim()))
-        .map((r) => ({ date: r.date, start: r.start || null, finish: r.finish || null,
-          break_minutes: Number(r.break_minutes) || 0, pt_classes: Number(r.pt_classes) || 0,
-          van_check: !!r.van_check, notes: (r.notes || '').trim() || null }));
-      const { data } = await axios.post(`${API}/new-starter/portal/timesheet/self-save`, { week_start: week, days }, { headers: H });
+      const { data } = await axios.post(`${API}/new-starter/portal/timesheet/self-save`, { week_start: week, days: daysPayload() }, { headers: H });
       setTs(data); setSavedOk(true);
     } catch (e) { setErr(e?.response?.data?.detail || 'Could not save.'); }
     finally { setBusy(false); }
@@ -839,11 +858,7 @@ function TimesheetsTab({ H }) {
     finally { setBusy(false); }
   };
   const saveDraftSilently = async () => {
-    const days = rows.filter((r) => r.start || r.finish || r.break_minutes || r.pt_classes || r.van_check || (r.notes && r.notes.trim()))
-      .map((r) => ({ date: r.date, start: r.start || null, finish: r.finish || null,
-        break_minutes: Number(r.break_minutes) || 0, pt_classes: Number(r.pt_classes) || 0,
-        van_check: !!r.van_check, notes: (r.notes || '').trim() || null }));
-    await axios.post(`${API}/new-starter/portal/timesheet/self-save`, { week_start: week, days }, { headers: H });
+    await axios.post(`${API}/new-starter/portal/timesheet/self-save`, { week_start: week, days: daysPayload() }, { headers: H });
   };
 
   const BANNER = {
@@ -878,10 +893,10 @@ function TimesheetsTab({ H }) {
           </div>
 
           <div className="overflow-x-auto -mx-1">
-            <table className={`w-full text-sm ${isEng ? 'min-w-[760px]' : 'min-w-[560px]'}`} data-testid="ts-grid">
+            <table className={`w-full text-sm ${isEng ? 'min-w-[820px]' : (cols.length ? 'min-w-[640px]' : 'min-w-[520px]')}`} data-testid="ts-grid">
               <thead><tr className="text-left text-[11px] text-slate-400 uppercase">
-                <th className="py-1.5 pl-1">Day</th><th>Start</th><th>Finish</th><th>Break (min)</th><th>PT classes</th>
-                {isEng && <th>Van check</th>}
+                <th className="py-1.5 pl-1">Day</th><th>Start</th><th>Finish</th><th>Break (min)</th>
+                {cols.map((c) => <th key={c.key} className="text-center">{c.label}</th>)}
                 {isEng && <th>Notes</th>}
                 <th className="text-right pr-1">Total</th>
               </tr></thead>
@@ -899,15 +914,30 @@ function TimesheetsTab({ H }) {
                       <td><input type="time" value={r.start} disabled={locked} onChange={(e) => setRow(i, { start: e.target.value })} data-testid={`ts-start-${i}`} className="w-[104px] rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50 disabled:text-slate-400" /></td>
                       <td><input type="time" value={r.finish} disabled={locked} onChange={(e) => setRow(i, { finish: e.target.value })} data-testid={`ts-finish-${i}`} className="w-[104px] rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50 disabled:text-slate-400" /></td>
                       <td><input type="number" min="0" step="5" value={r.break_minutes} disabled={locked} onChange={(e) => setRow(i, { break_minutes: e.target.value })} data-testid={`ts-break-${i}`} className="w-[70px] rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50 disabled:text-slate-400" /></td>
-                      <td><input type="number" min="0" step="0.5" value={r.pt_classes} disabled={locked} onChange={(e) => setRow(i, { pt_classes: e.target.value })} data-testid={`ts-pt-${i}`} className="w-[70px] rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50 disabled:text-slate-400" /></td>
-                      {isEng && <td className="text-center"><input type="checkbox" checked={!!r.van_check} disabled={locked} onChange={(e) => setRow(i, { van_check: e.target.checked })} data-testid={`ts-van-${i}`} className="h-4 w-4 accent-cyan-500 disabled:opacity-40" /></td>}
+                      {cols.map((c) => {
+                        const a = r.acts?.[c.key] || {};
+                        const hrs = a.mins ? Math.round((a.mins / 60) * 100) / 100 : '';
+                        return (
+                          <td key={c.key} className="text-center whitespace-nowrap">
+                            {c.unit === 'tick_hours' && (
+                              <input type="checkbox" checked={!!a.done} disabled={locked}
+                                onChange={(e) => setAct(i, c.key, { done: e.target.checked })}
+                                data-testid={`ts-${c.key}-done-${i}`} className="h-4 w-4 align-middle accent-cyan-500 mr-1 disabled:opacity-40" />
+                            )}
+                            <input type="number" min="0" step="0.25" value={hrs} disabled={locked}
+                              onChange={(e) => setAct(i, c.key, { mins: (Number(e.target.value) || 0) * 60 })}
+                              data-testid={`ts-${c.key}-${i}`} placeholder="hrs"
+                              className="w-[64px] align-middle rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50 disabled:text-slate-400" />
+                          </td>
+                        );
+                      })}
                       {isEng && <td><input type="text" value={r.notes || ''} disabled={locked} onChange={(e) => setRow(i, { notes: e.target.value })} data-testid={`ts-notes-${i}`} placeholder="Notes" className="w-[170px] rounded border border-slate-300 px-2 py-1 disabled:bg-slate-50 disabled:text-slate-400" /></td>}
                       <td className="text-right pr-1 font-semibold text-slate-800" data-testid={`ts-total-${i}`}>{dt ? `${dt}h` : '—'}</td>
                     </tr>
                   );
                 })}
               </tbody>
-              <tfoot><tr className="border-t-2 border-slate-200"><td className="py-2 pl-1 font-bold text-slate-900" colSpan={isEng ? 7 : 5}>Week total</td><td className="text-right pr-1 font-bold text-slate-900" data-testid="ts-week-total">{Math.round(weekTotal * 100) / 100}h</td></tr></tfoot>
+              <tfoot><tr className="border-t-2 border-slate-200"><td className="py-2 pl-1 font-bold text-slate-900" colSpan={4 + cols.length + (isEng ? 1 : 0)}>Week total</td><td className="text-right pr-1 font-bold text-slate-900" data-testid="ts-week-total">{Math.round(weekTotal * 100) / 100}h</td></tr></tfoot>
             </table>
           </div>
 

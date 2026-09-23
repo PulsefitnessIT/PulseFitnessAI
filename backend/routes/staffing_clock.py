@@ -520,7 +520,11 @@ def _self_day_hours(entry: dict) -> float:
                 mins += 24 * 60
             base = mins / 60.0
         base -= float(entry.get("break_minutes") or 0) / 60.0
-        base += float(entry.get("pt_classes") or 0)
+        acts = entry.get("acts")
+        if isinstance(acts, dict):
+            base += sum(float((a or {}).get("mins") or 0) for a in acts.values()) / 60.0
+        else:
+            base += float(entry.get("pt_classes") or 0)
         return round(max(0.0, base), 2)
     except Exception:
         return 0.0
@@ -688,6 +692,66 @@ def _is_engineer(staff: dict) -> bool:
     return "engineer" in blob
 
 
+# Role → activity-column profiles for timesheets. `unit`: 'hours' (h:mm only)
+# or 'tick_hours' (a done tick + h:mm). Columns appear between Break and Total.
+_TS_PROFILES = {
+    "pt": [{"key": "pt", "label": "PT", "unit": "hours"},
+           {"key": "classes", "label": "Classes", "unit": "hours"}],
+    "engineer": [{"key": "van_check", "label": "Van Check", "unit": "tick_hours"},
+                 {"key": "parts", "label": "Parts Collected", "unit": "tick_hours"},
+                 {"key": "clean_van", "label": "Clean Van", "unit": "tick_hours"}],
+    "admin": [{"key": "admin", "label": "Admin", "unit": "tick_hours"}],
+    "basic": [],
+}
+
+
+def _ts_profile_key(staff: dict) -> str:
+    """Which activity-column profile a staff member's role maps to."""
+    if not staff:
+        return "basic"
+    toks = set()
+    for k in ("primary_role", "role", "job_title", "department"):
+        v = staff.get(k)
+        if v:
+            toks.add(str(v).strip().lower())
+    for v in (staff.get("secondary_roles") or []):
+        toks.add(str(v).strip().lower())
+    blob = " ".join(toks)
+    if staff.get("is_engineer") is True or ({"engineer", "technician", "maintenance"} & toks) \
+            or "engineer" in blob or "technician" in blob:
+        return "engineer"
+    if ({"pt", "instructor"} & toks) or "instructor" in blob or "personal trainer" in blob:
+        return "pt"
+    if ({"sales_manager", "administrator", "hr", "payroll", "director", "manager", "supervisor"} & toks) \
+            or "sales" in blob or "admin" in blob:
+        return "admin"
+    return "basic"
+
+
+def _ts_columns(staff: dict):
+    key = _ts_profile_key(staff)
+    return key, [dict(c) for c in _TS_PROFILES[key]]
+
+
+def _acts_of(entry: dict, columns: list) -> dict:
+    """Normalise a day entry's activities to {key: {mins, done}} for the given
+    columns, tolerating both the new `acts` map and legacy pt_classes/van_check."""
+    raw = entry.get("acts") if isinstance(entry.get("acts"), dict) else None
+    out = {}
+    for col in columns:
+        k = col["key"]
+        if raw and isinstance(raw.get(k), dict):
+            a = raw[k]
+            out[k] = {"mins": float(a.get("mins") or 0), "done": bool(a.get("done"))}
+        elif k == "pt":  # legacy combined number lands in PT
+            out[k] = {"mins": float(entry.get("pt_classes") or 0) * 60, "done": bool(entry.get("pt_classes"))}
+        elif k == "van_check":
+            out[k] = {"mins": 0.0, "done": bool(entry.get("van_check"))}
+        else:
+            out[k] = {"mins": 0.0, "done": False}
+    return out
+
+
 async def _ensure_timesheet_doc(
     org_id: str, staff_id: str, week_start: str, week_end: str,
 ) -> dict:
@@ -700,6 +764,7 @@ async def _ensure_timesheet_doc(
     )
     standard_hours = float((st or {}).get("weekly_hours") or (st or {}).get("hours_per_week") or 0)
     is_engineer = _is_engineer(st or {})
+    ts_profile, ts_cols = _ts_columns(st or {})
     saved = await db.staff_timesheets.find_one(
         {"organization_id": org_id, "staff_id": staff_id, "week_start": week_start},
         {"_id": 0},
@@ -709,6 +774,7 @@ async def _ensure_timesheet_doc(
         return {**saved, **live, "id": saved["id"], "approval_status": status,
                 "standard_hours": standard_hours,
                 "is_engineer": is_engineer,
+                "ts_profile": ts_profile, "ts_columns": ts_cols,
                 "locked": status in ("submitted", "approved"),
                 "employee_signature": saved.get("employee_signature"),
                 "submitted_at": saved.get("submitted_at"),
@@ -726,7 +792,8 @@ async def _ensure_timesheet_doc(
         "created_at": _now().isoformat(),
     }
     await db.staff_timesheets.insert_one(new_doc.copy())
-    return {**new_doc, **live, "standard_hours": standard_hours, "is_engineer": is_engineer, "locked": False}
+    return {**new_doc, **live, "standard_hours": standard_hours, "is_engineer": is_engineer,
+            "ts_profile": ts_profile, "ts_columns": ts_cols, "locked": False}
 
 
 @router.get("/staffing/clock/my-timesheet")
@@ -1491,11 +1558,13 @@ async def _build_staff_month(org_id: str, staff: dict, year: int, month: int, mr
     end = start + timedelta(days=weeks * 7 - 1)
     entries = await _entries_for_range(org_id, staff["id"], start, end)
     weekly = staff.get("hours_per_week") or staff.get("weekly_hours") or 0
+    _profile, cols = _ts_columns(staff)
     return build_month_timesheet_xlsx(
         staff_name=staff.get("full_name") or "Staff",
         department=staff.get("department") or staff.get("primary_role") or "",
         weekly_hours=weekly, period_start=start, weeks=weeks,
-        hand_in=hand_in, year=int(year), month=int(month), entries_by_date=entries)
+        hand_in=hand_in, year=int(year), month=int(month),
+        entries_by_date=entries, columns=cols)
 
 
 @router.get("/staffing/timesheets/month-export")
@@ -1510,6 +1579,7 @@ async def export_month_timesheet(
     staff = await db.staff_members.find_one(
         {"organization_id": org_id, "id": staff_id},
         {"_id": 0, "id": 1, "full_name": 1, "department": 1, "primary_role": 1,
+         "secondary_roles": 1, "job_title": 1, "role": 1, "is_engineer": 1,
          "hours_per_week": 1, "weekly_hours": 1})
     if not staff:
         raise HTTPException(404, "Staff member not found")
@@ -1539,6 +1609,7 @@ async def month_pack(
     staff = await db.staff_members.find(
         {"organization_id": org_id, "active": True},
         {"_id": 0, "id": 1, "full_name": 1, "department": 1, "primary_role": 1,
+         "secondary_roles": 1, "job_title": 1, "role": 1, "is_engineer": 1,
          "hours_per_week": 1, "weekly_hours": 1}).to_list(2000)
     if not staff:
         raise HTTPException(400, "No active staff to export.")

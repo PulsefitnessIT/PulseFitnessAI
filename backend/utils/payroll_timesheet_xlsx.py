@@ -13,6 +13,7 @@ from datetime import date, time, timedelta
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 
 MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -84,7 +85,7 @@ def _time_from_hours(hrs) -> time:
 def build_month_timesheet_xlsx(
     *, staff_name: str, department: str, weekly_hours: float,
     period_start: date, weeks: int, hand_in: date | None,
-    year: int, month: int, entries_by_date: dict,
+    year: int, month: int, entries_by_date: dict, columns: list | None = None,
 ) -> bytes:
     """Build one month's timesheet exactly like the template, pre-filled.
 
@@ -115,21 +116,36 @@ def build_month_timesheet_xlsx(
     ws["A4"] = "No of Weeks"
     ws["D4"] = int(weeks)
 
-    # Column headers (row 6/7)
-    heads = ["DATE", "DAY", "START", "FINISH", "Break", "PT", "CLASSES",
-             "TOTAL", "EMPLOYEE ", "DUTY OFFICER"]
+    # Activity columns (role-tailored). Fall back to PT+Classes if unspecified.
+    if columns is None:
+        columns = [{"key": "pt", "label": "PT", "unit": "hours"},
+                   {"key": "classes", "label": "Classes", "unit": "hours"}]
+    n_act = len(columns)
+    act_first = 6                        # first activity column index (F)
+    total_col = act_first + n_act        # TOTAL (hours) column index
+    emp_col = total_col + 1
+    duty_col = total_col + 2
+    TL = get_column_letter(total_col)
+
+    # widen activity/signature columns
+    for i in range(n_act):
+        ws.column_dimensions[get_column_letter(act_first + i)].width = 12.5
+    ws.column_dimensions[TL].width = 12.6
+    ws.column_dimensions[get_column_letter(emp_col)].width = 19.6
+    ws.column_dimensions[get_column_letter(duty_col)].width = 22.6
+
+    # Column headers (row 6)
+    heads = ["DATE", "DAY", "START", "FINISH", "Break"] \
+        + [c["label"] for c in columns] + ["TOTAL", "EMPLOYEE ", "DUTY OFFICER"]
     for ci, txt in enumerate(heads, start=1):
         cell = ws.cell(6, ci, txt)
         cell.font = Font(bold=True)
         cell.border = _BORDER
-    ws["F7"] = 12.5
-    ws["G7"] = 20
-    ws["H7"] = "HOURS"
-    ws["I7"] = "SIGNATURE"
-    ws["J7"] = "SIGNATURE"
-    for a in ("H7", "I7", "J7"):
-        ws[a].font = Font(bold=True)
-    for ci in range(1, 11):
+        cell.alignment = Alignment(horizontal="center", wrap_text=True)
+    ws.cell(7, total_col, "HOURS").font = Font(bold=True)
+    ws.cell(7, emp_col, "SIGNATURE").font = Font(bold=True)
+    ws.cell(7, duty_col, "SIGNATURE").font = Font(bold=True)
+    for ci in range(1, duty_col + 1):
         ws.cell(7, ci).border = _BORDER
 
     hand_in_iso = hand_in.isoformat() if hand_in else None
@@ -145,23 +161,45 @@ def build_month_timesheet_xlsx(
             ws.cell(r, 3, _time_from_hhmm(ent.get("start")))
             ws.cell(r, 4, _time_from_hhmm(ent.get("finish")))
             ws.cell(r, 5, _time_from_minutes(ent.get("break_minutes")))
-            ws.cell(r, 6, _time_from_hours(ent.get("pt_classes")))
-            ws.cell(r, 7, time(0, 0))
-            hc = ws.cell(r, 8, f"=(+D{r}-C{r})-E{r}")
-            for ci in range(1, 9):
-                ws.cell(r, ci).border = _BORDER
-            for ci in (3, 4, 5, 6, 7):
-                ws.cell(r, ci).number_format = "h:mm"
+            acts = ent.get("acts") if isinstance(ent.get("acts"), dict) else {}
+            for i, col in enumerate(columns):
+                ci = act_first + i
+                k = col["key"]
+                a = acts.get(k) if isinstance(acts.get(k), dict) else None
+                if a is not None:
+                    mins, done = float(a.get("mins") or 0), bool(a.get("done"))
+                elif k == "pt":  # legacy combined value
+                    mins, done = float(ent.get("pt_classes") or 0) * 60, bool(ent.get("pt_classes"))
+                elif k == "van_check":
+                    mins, done = 0.0, bool(ent.get("van_check"))
+                else:
+                    mins, done = 0.0, False
+                cell = ws.cell(r, ci)
+                if mins > 0:
+                    cell.value = _time_from_minutes(mins)
+                    cell.number_format = "h:mm"
+                elif done:
+                    cell.value = "Y"
+                    cell.alignment = Alignment(horizontal="center")
+                else:
+                    cell.value = time(0, 0)
+                    cell.number_format = "h:mm"
+            hc = ws.cell(r, total_col, f"=(+D{r}-C{r})-E{r}")
             hc.number_format = "[h]:mm"
+            for ci in range(1, total_col + 1):
+                ws.cell(r, ci).border = _BORDER
+            for ci in (3, 4, 5):
+                ws.cell(r, ci).number_format = "h:mm"
             if hand_in_iso and cur.isoformat() == hand_in_iso:
                 ws.cell(r, 1).fill = _YELLOW
                 ws.cell(r, 2).fill = _YELLOW
             cur += timedelta(days=1)
             r += 1
-        # weekly TOTAL row
+        # weekly TOTAL row — sum each activity column + the hours total
         tc = ws.cell(r, 4, "TOTAL")
         tc.alignment = Alignment(horizontal="right")
-        for ci, col in ((6, "F"), (7, "G"), (8, "H")):
+        for ci in list(range(act_first, act_first + n_act)) + [total_col]:
+            col = get_column_letter(ci)
             fc = ws.cell(r, ci, f"=SUM({col}{block_first}:{col}{r - 1})")
             fc.number_format = "[h]:mm"
             fc.border = _BORDER
@@ -170,15 +208,17 @@ def build_month_timesheet_xlsx(
 
     # Footer
     fr = r
-    gt = "+".join(f"H{tr}" for tr in total_rows)
-    ws.cell(fr, 9, "Grand Total Number of hours").alignment = Alignment(horizontal="right")
-    ws.cell(fr, 10, f"={gt}").number_format = "[h]:mm"
-    ws.cell(fr + 2, 9, "Total Standard Hours ").alignment = Alignment(horizontal="right")
-    ws.cell(fr + 2, 10, "=D3*D4").number_format = "[h]:mm"
-    ws.cell(fr + 4, 9, "Overtime").alignment = Alignment(horizontal="right")
-    ws.cell(fr + 4, 10, f'=IF(J{fr}>J{fr + 2},J{fr}-J{fr + 2},"")').number_format = "[h]:mm"
-    ws.cell(fr + 6, 9, "Unpaid Leave").alignment = Alignment(horizontal="right")
-    ws.cell(fr + 6, 10, f'=IF(J{fr + 2}>J{fr},J{fr + 2}-J{fr},"")').number_format = "[h]:mm"
+    lab_col, val_col = emp_col, duty_col   # labels under EMPLOYEE col, values under DUTY
+    LV = get_column_letter(val_col)
+    gt = "+".join(f"{TL}{tr}" for tr in total_rows)
+    ws.cell(fr, lab_col, "Grand Total Number of hours").alignment = Alignment(horizontal="right")
+    ws.cell(fr, val_col, f"={gt}").number_format = "[h]:mm"
+    ws.cell(fr + 2, lab_col, "Total Standard Hours ").alignment = Alignment(horizontal="right")
+    ws.cell(fr + 2, val_col, "=D3*D4").number_format = "[h]:mm"
+    ws.cell(fr + 4, lab_col, "Overtime").alignment = Alignment(horizontal="right")
+    ws.cell(fr + 4, val_col, f'=IF({LV}{fr}>{LV}{fr + 2},{LV}{fr}-{LV}{fr + 2},"")').number_format = "[h]:mm"
+    ws.cell(fr + 6, lab_col, "Unpaid Leave").alignment = Alignment(horizontal="right")
+    ws.cell(fr + 6, val_col, f'=IF({LV}{fr + 2}>{LV}{fr},{LV}{fr + 2}-{LV}{fr},"")').number_format = "[h]:mm"
 
     buf = io.BytesIO()
     wb.save(buf)

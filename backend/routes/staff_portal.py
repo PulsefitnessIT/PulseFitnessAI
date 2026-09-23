@@ -234,6 +234,7 @@ class SelfDay(BaseModel):
     pt_classes: float | None = 0
     van_check: bool | None = False
     notes: str | None = None
+    acts: dict | None = None   # {key: {mins:float, done:bool}} role-specific activities
 
 
 class SelfSave(BaseModel):
@@ -255,14 +256,32 @@ async def portal_timesheet_self_save(body: SelfSave, user: dict = Depends(get_cu
     entries: dict = {}
     for d in body.days:
         note = (d.notes or "").strip()
-        if not (d.start or d.finish or d.break_minutes or d.pt_classes or d.van_check or note):
+        acts = {}
+        if isinstance(d.acts, dict):
+            for k, v in d.acts.items():
+                if not isinstance(v, dict):
+                    continue
+                mins = float(v.get("mins") or 0)
+                done = bool(v.get("done"))
+                if mins or done:
+                    acts[k] = {"mins": mins, "done": done}
+        # Legacy fields kept in sync for existing reports/exports.
+        pt_classes = float(d.pt_classes or 0)
+        van_check = bool(d.van_check)
+        if acts:
+            pt_classes = round((acts.get("pt", {}).get("mins", 0)
+                                + acts.get("classes", {}).get("mins", 0)) / 60.0, 2) or pt_classes
+            if "van_check" in acts:
+                van_check = acts["van_check"].get("done", van_check)
+        if not (d.start or d.finish or d.break_minutes or pt_classes or van_check or acts or note):
             continue
         entries[d.date] = {
             "start": (d.start or "").strip() or None,
             "finish": (d.finish or "").strip() or None,
             "break_minutes": float(d.break_minutes or 0),
-            "pt_classes": float(d.pt_classes or 0),
-            "van_check": bool(d.van_check),
+            "pt_classes": pt_classes,
+            "van_check": van_check,
+            "acts": acts,
             "notes": note or None,
         }
     await db.staff_timesheets.update_one(

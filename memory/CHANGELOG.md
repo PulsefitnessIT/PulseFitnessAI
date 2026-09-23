@@ -426,3 +426,15 @@ Files: backend/routes/crm_aftersales.py, frontend/src/pages/CRM/Aftersales/After
 - Frontend: new PayrollTimesheetsTab.js. Payroll is now a nav GROUP: Workspace + Timesheets + Attendance. The standalone "Time Clock" tab was removed (per request).
 - Verified: auto-schedule matches sample; xlsx replica (layout/formulas/formats/yellow/footer rows 48/50/52/54); pre-fill of recorded hours (start/finish/break/PT); filename; 10-file pack with no dupes; UI smoke (Time Clock gone, Timesheets tab renders, no console errors).
 Files: backend/routes/staffing_clock.py, backend/utils/payroll_timesheet_xlsx.py, frontend/src/pages/LiteDashboard/StaffingConsole.js, frontend/src/pages/LiteDashboard/staffing/PayrollTimesheetsTab.js.
+
+## 2026-06 — Feature: role-tailored timesheet columns (+ PT/Classes split, engineer/admin activities)
+- Timesheet activity columns now adapt to each staff member's role, both in the staff-portal entry grid and the payroll Excel export:
+  - Fitness Instructor / PT → PT + Classes (now two SEPARATE fields, reportable independently)
+  - Engineer / Technician / Maintenance → Van Check + Parts Collected + Clean Van (each = a done tick + hours:mins)
+  - Sales Manager / Admin / HR / Payroll / Director / Manager → Admin (tick + hours)
+  - Everyone else (reception, cleaner, lifeguard, duty_manager, other) → no extra columns
+- Backend: `_ts_profile_key`/`_ts_columns`/`_TS_PROFILES` + `_acts_of` (staffing_clock.py). Timesheet docs now carry `ts_profile` + `ts_columns`. `_self_day_hours` sums an entry's `acts` minutes (legacy pt_classes still honoured). SelfDay model + self-save now accept an `acts` map `{key:{mins,done}}` and keep legacy pt_classes/van_check in sync. Payroll Excel generator (payroll_timesheet_xlsx.py) rebuilt to be COLUMN-DRIVEN: dynamic activity columns between Break and Total, tick_hours cells show h:mm or a "Y" tick, weekly SUM + Grand Total/footer formulas shift correctly.
+- Frontend: StaffPortal timesheet grid renders activity columns dynamically from `ts.ts_columns` (hours input, or checkbox+hours for tick_hours); saves via `acts`.
+- Verified via curl+DB: all 4 role profiles emit correct headers (Instructor=PT/Classes, Manager=Admin, Reception=none, Engineer=Van Check/Parts/Clean Van); engineer prefill (van_check 0:15, parts 0:45, clean_van done-0min→"Y"); self-save round-trip persists acts and derives legacy fields; both frontends compile.
+- Follow-up still open per user (5b): richer portal capture already added for these activities; PT/Classes split done.
+Files: backend/routes/staffing_clock.py, backend/routes/staff_portal.py, backend/utils/payroll_timesheet_xlsx.py, frontend/src/pages/StaffPortal.js.
