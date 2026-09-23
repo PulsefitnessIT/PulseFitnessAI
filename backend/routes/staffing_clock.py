@@ -1406,3 +1406,154 @@ async def kiosk_staff_directory(kiosk_id: str, pin: str = Query(...)):
         last = await _last_clock_event(s["id"], org_id)
         out.append({**s, "state": _state_from_event(last)})
     return {"kiosk_name": kiosk.get("name"), "site_id": kiosk.get("site_id"), "staff": out}
+
+
+# ══════════════════════════════════════════════════════════════════
+# Payroll monthly timesheets — customer-format Excel (matches the
+# supplied "TIME SHEETS" template) + per-year hand-in schedule.
+# ══════════════════════════════════════════════════════════════════
+from fastapi.responses import StreamingResponse  # noqa: E402
+from datetime import date as _pdate  # noqa: E402
+from utils.payroll_timesheet_xlsx import (  # noqa: E402
+    build_month_timesheet_xlsx, default_year_schedule, safe_filename,
+)
+
+
+async def _timesheet_schedule(org_id: str, year: int) -> dict:
+    """Fetch the org's saved payroll timesheet schedule for a year, or return
+    the auto-generated 5-4-4 default (not persisted until the user saves)."""
+    doc = await db.timesheet_schedules.find_one(
+        {"organization_id": org_id, "year": int(year)}, {"_id": 0})
+    if doc and doc.get("months"):
+        return doc
+    return {"organization_id": org_id, "year": int(year),
+            "months": default_year_schedule(int(year)), "auto": True}
+
+
+async def _entries_for_range(org_id: str, staff_id: str, start: _pdate, end: _pdate) -> dict:
+    """Merge self_entries from every weekly timesheet overlapping the period
+    into a single {iso_date: {start,finish,break_minutes,pt_classes}} map."""
+    docs = await db.staff_timesheets.find(
+        {"organization_id": org_id, "staff_id": staff_id}, {"_id": 0, "self_entries": 1}).to_list(400)
+    merged: dict = {}
+    lo, hi = start.isoformat(), end.isoformat()
+    for d in docs:
+        for iso, ent in (d.get("self_entries") or {}).items():
+            if lo <= iso <= hi and isinstance(ent, dict):
+                merged[iso] = ent
+    return merged
+
+
+class ScheduleMonth(BaseModel):
+    month: int
+    label: str = ""
+    period_start: str
+    weeks: int = 4
+    hand_in: str | None = None
+
+
+class ScheduleIn(BaseModel):
+    year: int
+    months: list[ScheduleMonth]
+
+
+@router.get("/staffing/timesheet-schedule")
+async def get_timesheet_schedule(year: int = Query(...), user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    return await _timesheet_schedule(org_id, year)
+
+
+@router.put("/staffing/timesheet-schedule")
+async def save_timesheet_schedule(body: ScheduleIn, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    org_id = _org(user)
+    months = [m.dict() for m in sorted(body.months, key=lambda x: x.month)]
+    await db.timesheet_schedules.update_one(
+        {"organization_id": org_id, "year": int(body.year)},
+        {"$set": {"organization_id": org_id, "year": int(body.year),
+                  "months": months, "auto": False, "updated_at": _now()}},
+        upsert=True)
+    return {"ok": True, "organization_id": org_id, "year": int(body.year), "months": months}
+
+
+def _resolve_month(sched: dict, month: int) -> dict:
+    for m in sched.get("months", []):
+        if int(m.get("month")) == int(month):
+            return m
+    raise HTTPException(404, "Month not found in schedule")
+
+
+async def _build_staff_month(org_id: str, staff: dict, year: int, month: int, mrow: dict) -> bytes:
+    start = _pdate.fromisoformat(mrow["period_start"])
+    weeks = int(mrow.get("weeks") or 4)
+    hand_in = _pdate.fromisoformat(mrow["hand_in"]) if mrow.get("hand_in") else None
+    end = start + timedelta(days=weeks * 7 - 1)
+    entries = await _entries_for_range(org_id, staff["id"], start, end)
+    weekly = staff.get("hours_per_week") or staff.get("weekly_hours") or 0
+    return build_month_timesheet_xlsx(
+        staff_name=staff.get("full_name") or "Staff",
+        department=staff.get("department") or staff.get("primary_role") or "",
+        weekly_hours=weekly, period_start=start, weeks=weeks,
+        hand_in=hand_in, year=int(year), month=int(month), entries_by_date=entries)
+
+
+@router.get("/staffing/timesheets/month-export")
+async def export_month_timesheet(
+    staff_id: str = Query(...), year: int = Query(...), month: int = Query(...),
+    user: dict = Depends(get_current_user),
+):
+    """Download one staff member's month timesheet in the payroll template
+    format (all formulas + yellow hand-in cell). Filename carries their name."""
+    _require_manager(user)
+    org_id = _org(user)
+    staff = await db.staff_members.find_one(
+        {"organization_id": org_id, "id": staff_id},
+        {"_id": 0, "id": 1, "full_name": 1, "department": 1, "primary_role": 1,
+         "hours_per_week": 1, "weekly_hours": 1})
+    if not staff:
+        raise HTTPException(404, "Staff member not found")
+    sched = await _timesheet_schedule(org_id, year)
+    mrow = _resolve_month(sched, month)
+    data = await _build_staff_month(org_id, staff, year, month, mrow)
+    fname = safe_filename(staff.get("full_name"), mrow.get("label") or f"{month}-{year}")
+    return StreamingResponse(
+        __import__("io").BytesIO(data),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
+@router.get("/staffing/timesheets/month-pack")
+async def month_pack(
+    year: int = Query(...), month: int = Query(...),
+    user: dict = Depends(get_current_user),
+):
+    """Payroll pack — a ZIP with ONE template-format workbook per active
+    staff member for the month. One file each, named by staff — no duplicates."""
+    import io
+    import zipfile
+    _require_manager(user)
+    org_id = _org(user)
+    sched = await _timesheet_schedule(org_id, year)
+    mrow = _resolve_month(sched, month)
+    staff = await db.staff_members.find(
+        {"organization_id": org_id, "active": True},
+        {"_id": 0, "id": 1, "full_name": 1, "department": 1, "primary_role": 1,
+         "hours_per_week": 1, "weekly_hours": 1}).to_list(2000)
+    if not staff:
+        raise HTTPException(400, "No active staff to export.")
+    buf = io.BytesIO()
+    used: set = set()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for s in sorted(staff, key=lambda x: (x.get("full_name") or "").lower()):
+            data = await _build_staff_month(org_id, s, year, month, mrow)
+            fname = safe_filename(s.get("full_name"), mrow.get("label") or f"{month}-{year}")
+            if fname in used:
+                fname = fname.replace(".xlsx", f" ({s['id'][:4]}).xlsx")
+            used.add(fname)
+            zf.writestr(fname, data)
+    buf.seek(0)
+    zipname = f"Timesheets {mrow.get('label') or year}.zip"
+    return StreamingResponse(
+        buf, media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zipname}"'})

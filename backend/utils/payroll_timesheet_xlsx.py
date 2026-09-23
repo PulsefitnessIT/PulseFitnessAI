@@ -1,0 +1,190 @@
+"""Payroll monthly timesheet workbook — a 1:1 replica of the customer's
+"TIME SHEETS 2026.xlsx" template (layout, [h]:mm formats and every formula),
+pre-filled per staff member and with the yellow hand-in (deadline) Friday.
+
+Public API:
+  default_year_schedule(year)        -> list[12] month dicts (auto 5-4-4 calendar)
+  build_month_timesheet_xlsx(...)    -> bytes (single staff, single month sheet)
+"""
+from __future__ import annotations
+
+import io
+from datetime import date, time, timedelta
+
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+
+MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+# 5-4-4 quarterly payroll calendar (weeks per month, Jan→5).
+WEEKS_PATTERN = [5, 4, 4, 5, 4, 4, 5, 4, 4, 5, 4, 4]
+
+_THIN = Side(style="thin")
+_BORDER = Border(left=_THIN, right=_THIN, top=_THIN, bottom=_THIN)
+_INPUT_FILL = PatternFill("solid", fgColor="F2F2F2")
+_YELLOW = PatternFill("solid", fgColor="FFFF00")
+_HEAD = PatternFill("solid", fgColor="1F3864")
+
+
+def _label(year: int, month_idx0: int) -> str:
+    return f"{MONTH_ABBR[month_idx0]}{str(year)[2:]}"
+
+
+def default_year_schedule(year: int) -> list[dict]:
+    """Auto-generate the 12 monthly payroll periods for a year using a
+    contiguous, Monday-start 5-4-4 calendar. January ends on the 2nd Sunday
+    of January; each subsequent period follows on immediately. The hand-in
+    (yellow) date is the Friday of each period's final week. Payroll can
+    override any field afterwards."""
+    # 2nd Sunday of January = January period end.
+    d = date(year, 1, 1)
+    sundays = [d + timedelta(days=i) for i in range(31) if (d + timedelta(days=i)).weekday() == 6]
+    jan_end = sundays[1]
+    start = jan_end - timedelta(days=WEEKS_PATTERN[0] * 7 - 1)  # Monday
+    out = []
+    for i in range(12):
+        weeks = WEEKS_PATTERN[i]
+        end = start + timedelta(days=weeks * 7 - 1)  # Sunday
+        hand_in = end - timedelta(days=2)            # Friday of final week
+        out.append({
+            "month": i + 1,
+            "label": _label(year, i),
+            "period_start": start.isoformat(),
+            "weeks": weeks,
+            "hand_in": hand_in.isoformat(),
+        })
+        start = end + timedelta(days=1)
+    return out
+
+
+def _time_from_hhmm(v) -> time:
+    try:
+        h, m = (int(x) for x in str(v).split(":")[:2])
+        return time(h % 24, m % 60)
+    except Exception:
+        return time(0, 0)
+
+
+def _time_from_minutes(mins) -> time:
+    try:
+        mins = int(round(float(mins or 0)))
+    except Exception:
+        mins = 0
+    return time((mins // 60) % 24, mins % 60)
+
+
+def _time_from_hours(hrs) -> time:
+    try:
+        total = int(round(float(hrs or 0) * 60))
+    except Exception:
+        total = 0
+    return time((total // 60) % 24, total % 60)
+
+
+def build_month_timesheet_xlsx(
+    *, staff_name: str, department: str, weekly_hours: float,
+    period_start: date, weeks: int, hand_in: date | None,
+    year: int, month: int, entries_by_date: dict,
+) -> bytes:
+    """Build one month's timesheet exactly like the template, pre-filled.
+
+    entries_by_date: {iso_date: {start,finish,break_minutes,pt_classes}}."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = _label(year, month - 1)
+
+    widths = {"A": 10.6, "B": 12.4, "C": 10.4, "D": 13.4, "E": 10.4,
+              "F": 10.4, "G": 9.0, "H": 12.6, "I": 19.6, "J": 22.6}
+    for col, w in widths.items():
+        ws.column_dimensions[col].width = w
+
+    # Header block
+    ws["A1"] = "Name:"
+    ws["B1"] = staff_name or ""
+    ws["D1"] = "Department:"
+    ws["E1"] = department or ""
+    for a in ("B1", "E1"):
+        ws[a].fill = _INPUT_FILL
+        ws[a].border = _BORDER
+    ws["A3"] = "Standard Hours"
+    ws["C3"] = round(float(weekly_hours or 0), 2)
+    ws["C3"].fill = _INPUT_FILL
+    ws["C3"].border = _BORDER
+    ws["D3"] = "=C3/24"
+    ws["D3"].number_format = "[h]:mm"
+    ws["A4"] = "No of Weeks"
+    ws["D4"] = int(weeks)
+
+    # Column headers (row 6/7)
+    heads = ["DATE", "DAY", "START", "FINISH", "Break", "PT", "CLASSES",
+             "TOTAL", "EMPLOYEE ", "DUTY OFFICER"]
+    for ci, txt in enumerate(heads, start=1):
+        cell = ws.cell(6, ci, txt)
+        cell.font = Font(bold=True)
+        cell.border = _BORDER
+    ws["F7"] = 12.5
+    ws["G7"] = 20
+    ws["H7"] = "HOURS"
+    ws["I7"] = "SIGNATURE"
+    ws["J7"] = "SIGNATURE"
+    for a in ("H7", "I7", "J7"):
+        ws[a].font = Font(bold=True)
+    for ci in range(1, 11):
+        ws.cell(7, ci).border = _BORDER
+
+    hand_in_iso = hand_in.isoformat() if hand_in else None
+    total_rows: list[int] = []
+    r = 8
+    cur = period_start
+    for _wk in range(int(weeks)):
+        block_first = r
+        for _d in range(7):
+            ws.cell(r, 1, f"{cur.day}.{cur.month}.{str(cur.year)[2:]}")
+            ws.cell(r, 2, cur.strftime("%A").upper())
+            ent = entries_by_date.get(cur.isoformat(), {})
+            ws.cell(r, 3, _time_from_hhmm(ent.get("start")))
+            ws.cell(r, 4, _time_from_hhmm(ent.get("finish")))
+            ws.cell(r, 5, _time_from_minutes(ent.get("break_minutes")))
+            ws.cell(r, 6, _time_from_hours(ent.get("pt_classes")))
+            ws.cell(r, 7, time(0, 0))
+            hc = ws.cell(r, 8, f"=(+D{r}-C{r})-E{r}")
+            for ci in range(1, 9):
+                ws.cell(r, ci).border = _BORDER
+            for ci in (3, 4, 5, 6, 7):
+                ws.cell(r, ci).number_format = "h:mm"
+            hc.number_format = "[h]:mm"
+            if hand_in_iso and cur.isoformat() == hand_in_iso:
+                ws.cell(r, 1).fill = _YELLOW
+                ws.cell(r, 2).fill = _YELLOW
+            cur += timedelta(days=1)
+            r += 1
+        # weekly TOTAL row
+        tc = ws.cell(r, 4, "TOTAL")
+        tc.alignment = Alignment(horizontal="right")
+        for ci, col in ((6, "F"), (7, "G"), (8, "H")):
+            fc = ws.cell(r, ci, f"=SUM({col}{block_first}:{col}{r - 1})")
+            fc.number_format = "[h]:mm"
+            fc.border = _BORDER
+        total_rows.append(r)
+        r += 1
+
+    # Footer
+    fr = r
+    gt = "+".join(f"H{tr}" for tr in total_rows)
+    ws.cell(fr, 9, "Grand Total Number of hours").alignment = Alignment(horizontal="right")
+    ws.cell(fr, 10, f"={gt}").number_format = "[h]:mm"
+    ws.cell(fr + 2, 9, "Total Standard Hours ").alignment = Alignment(horizontal="right")
+    ws.cell(fr + 2, 10, "=D3*D4").number_format = "[h]:mm"
+    ws.cell(fr + 4, 9, "Overtime").alignment = Alignment(horizontal="right")
+    ws.cell(fr + 4, 10, f'=IF(J{fr}>J{fr + 2},J{fr}-J{fr + 2},"")').number_format = "[h]:mm"
+    ws.cell(fr + 6, 9, "Unpaid Leave").alignment = Alignment(horizontal="right")
+    ws.cell(fr + 6, 10, f'=IF(J{fr + 2}>J{fr},J{fr + 2}-J{fr},"")').number_format = "[h]:mm"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def safe_filename(staff_name: str, label: str) -> str:
+    clean = "".join(ch if ch.isalnum() or ch in " -_" else "" for ch in (staff_name or "Staff")).strip()
+    return f"Timesheet {label} - {clean or 'Staff'}.xlsx"

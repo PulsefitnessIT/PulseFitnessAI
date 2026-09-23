@@ -44,6 +44,7 @@ import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
 import VehiclesTab from '@/pages/LiteDashboard/staffing/VehiclesTab';
 import AttendanceTab from '@/pages/LiteDashboard/staffing/AttendanceTab';
 import PayrollWorkspaceTab from '@/pages/LiteDashboard/staffing/PayrollWorkspaceTab';
+import PayrollTimesheetsTab from '@/pages/LiteDashboard/staffing/PayrollTimesheetsTab';
 import OrgChartTab from '@/pages/LiteDashboard/staffing/orgchart/OrgChartTab';
 import AIWorkforceTab from '@/pages/LiteDashboard/staffing/AIWorkforceTab';
 import MODStaffTransferTab from '@/pages/LiteDashboard/staffing/MODStaffTransferTab';
@@ -92,19 +93,18 @@ const GROUPS_ALL = [
     { id: 'live',      label: 'Live Floor',   icon: Eye,         roles: ALL },
     { id: 'ai-rota',   label: 'AI Rota',      icon: Wand2,       roles: MGR },
   ] },
-  // Time Clock = manager team clock + the staff member's own clock.
-  { id: 'timeclock', label: 'Time Clock', icon: Activity, children: [
-    { id: 'timeclock', label: 'Team Clock', icon: Activity, roles: MGR },
-    { id: 'myclock',   label: 'My Clock',   icon: Timer,    roles: ['staff'] },
-  ] },
-  // Attendance = the single-source-of-truth daily record (spine).
-  { id: 'attendance', label: 'Attendance', icon: CalendarDays, leaf: 'attendance', roles: MGR },
   // Performance = overview metrics + AI insights (combined per request).
   { id: 'performance', label: 'Performance', icon: BarChart3, children: [
     { id: 'performance', label: 'Overview',    icon: BarChart3, roles: MGR },
     { id: 'ai',          label: 'AI Insights', icon: Sparkles,  roles: MGR },
   ] },
-  { id: 'payroll',  label: 'Payroll',  icon: PoundSterling, leaf: 'payroll',  roles: MGR },
+  // Payroll = workspace + monthly timesheets (customer Excel format) + the
+  // Attendance spine, grouped together (per request; Time Clock retired).
+  { id: 'payroll', label: 'Payroll', icon: PoundSterling, children: [
+    { id: 'payroll',    label: 'Workspace',  icon: PoundSterling, roles: MGR },
+    { id: 'timesheets', label: 'Timesheets', icon: ClipboardList, roles: MGR },
+    { id: 'attendance', label: 'Attendance', icon: CalendarDays,  roles: MGR },
+  ] },
   // Expenses: unified staff-portal claims (engineers are staff too — the old
   // Service Desk "Expenses" cockpit was merged in here to avoid a duplicate tab).
   { id: 'staff-expenses', label: 'Expenses', icon: Wallet, leaf: 'staff-expenses', roles: MGR },
@@ -327,6 +327,7 @@ export default function StaffingConsole({ hideBell = false } = {}) {
         {tab === 'market'      && <MarketTab      headers={headers} isManager={isManager} />}
         {tab === 'performance' && <PerformanceTab headers={headers} />}
         {tab === 'payroll'     && <PayrollWorkspaceTab headers={headers} />}
+        {tab === 'timesheets'  && <PayrollTimesheetsTab headers={headers} />}
         {tab === 'staff-expenses' && <StaffExpenseReview headers={headers} />}
         {tab === 'live'        && <LiveFloorTab   headers={headers} />}
         {tab === 'rules'       && <RulesTab       headers={headers} />}
