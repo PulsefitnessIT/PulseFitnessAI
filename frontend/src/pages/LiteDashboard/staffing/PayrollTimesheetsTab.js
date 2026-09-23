@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Loader2, Download, Save, CalendarDays, ClipboardList, RefreshCw, Package } from 'lucide-react';
+import { Loader2, Download, Save, CalendarDays, ClipboardList, RefreshCw, Package, FileSpreadsheet } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const surf = { background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' };
@@ -21,6 +21,7 @@ export default function PayrollTimesheetsTab({ headers }) {
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const [packBusy, setPackBusy] = useState(false);
+  const [summaryBusy, setSummaryBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -79,6 +80,12 @@ export default function PayrollTimesheetsTab({ headers }) {
     catch (e) { alert(e?.response?.data?.detail || 'Pack download failed.'); }
     finally { setPackBusy(false); }
   };
+  const downloadSummary = async () => {
+    setSummaryBusy(true);
+    try { await dl('/staffing/timesheets/month-summary', { year, month }, `Payroll Summary ${year}.xlsx`); }
+    catch (e) { alert(e?.response?.data?.detail || 'Summary download failed.'); }
+    finally { setSummaryBusy(false); }
+  };
 
   if (loading) return <div className="flex items-center gap-2 p-6 text-sm" style={{ color: 'var(--theme-text-muted)' }}><Loader2 size={14} className="animate-spin" /> Loading timesheets…</div>;
   if (!sched) return <div className="p-6 text-sm" style={{ color: 'var(--theme-text-muted)' }}>Could not load the timesheet schedule.</div>;
@@ -110,6 +117,11 @@ export default function PayrollTimesheetsTab({ headers }) {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-50"
             style={{ background: 'var(--theme-accent)', color: '#fff' }}>
             {packBusy ? <Loader2 size={14} className="animate-spin" /> : <Package size={14} />} Download all (one file each)
+          </button>
+          <button data-testid="ts-download-summary" onClick={downloadSummary} disabled={summaryBusy}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-50"
+            style={{ background: 'transparent', color: 'var(--theme-text)', border: '1px solid var(--theme-border)' }}>
+            {summaryBusy ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />} Company summary
           </button>
         </div>
         {cur && (

@@ -254,3 +254,104 @@ def build_month_timesheet_xlsx(
 def safe_filename(staff_name: str, label: str) -> str:
     clean = "".join(ch if ch.isalnum() or ch in " -_" else "" for ch in (staff_name or "Staff")).strip()
     return f"Timesheet {label} - {clean or 'Staff'}.xlsx"
+
+
+def build_payroll_summary_xlsx(
+    *, period_label: str, weeks: int, columns: list, rows: list,
+) -> bytes:
+    """Company-wide payroll summary — one row per staff member with their
+    monthly activity totals rolled up.
+
+    columns: [{key,label,unit}]  (unit 'hours' -> [h]:mm; 'tick_hours' -> N days)
+    rows:    [{name, department, weekly_hours, worked_minutes,
+               totals:{key:{mins:float, days:int}}}]
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Payroll Summary"
+
+    n_fixed = 4                                    # Name, Dept, Std Hrs, Worked Hrs
+    n_cols = n_fixed + len(columns)
+    last_letter = get_column_letter(n_cols)
+
+    ws.column_dimensions["A"].width = 26
+    ws.column_dimensions["B"].width = 20
+    for i in range(3, n_cols + 1):
+        ws.column_dimensions[get_column_letter(i)].width = 13.5
+
+    ws.merge_cells(f"A1:{last_letter}1")
+    t = ws["A1"]
+    t.value = f"Payroll Summary — {period_label}"
+    t.font = Font(bold=True, size=14, color="FFFFFF")
+    t.fill = _HEAD
+    t.alignment = Alignment(horizontal="left", vertical="center")
+    ws.row_dimensions[1].height = 24
+    ws.merge_cells(f"A2:{last_letter}2")
+    ws["A2"] = f"{int(weeks)} week period · totals rolled up from recorded timesheets"
+    ws["A2"].font = Font(italic=True, size=9, color="555555")
+
+    heads = ["Name", "Department", "Std Hours", "Worked Hours"] + [c["label"] for c in columns]
+    hr = 4
+    for ci, txt in enumerate(heads, start=1):
+        cell = ws.cell(hr, ci, txt)
+        cell.font = Font(bold=True)
+        cell.fill = _INPUT_FILL
+        cell.border = _BORDER
+        cell.alignment = Alignment(horizontal="center" if ci > 2 else "left", wrap_text=True)
+
+    r = hr + 1
+    for row in rows:
+        totals = row.get("totals") or {}
+        ws.cell(r, 1, row.get("name") or "").border = _BORDER
+        ws.cell(r, 2, row.get("department") or "").border = _BORDER
+        std = ws.cell(r, 3, (float(row.get("weekly_hours") or 0) * int(weeks)) / 24.0)
+        std.number_format = "[h]:mm"
+        std.border = _BORDER
+        wk = ws.cell(r, 4, float(row.get("worked_minutes") or 0) / 1440.0)
+        wk.number_format = "[h]:mm"
+        wk.border = _BORDER
+        for i, col in enumerate(columns):
+            ci = n_fixed + 1 + i
+            cell = ws.cell(r, ci)
+            t = totals.get(col["key"]) or {}
+            if str(col.get("unit")) == "tick_hours":
+                cell.value = int(t.get("days") or 0)
+                cell.number_format = '0" days"'
+            else:
+                cell.value = float(t.get("mins") or 0) / 1440.0
+                cell.number_format = "[h]:mm"
+            cell.alignment = Alignment(horizontal="center")
+            cell.border = _BORDER
+        r += 1
+
+    # TOTALS footer row
+    if rows:
+        tr = r
+        tt = ws.cell(tr, 1, "COMPANY TOTAL")
+        tt.font = Font(bold=True)
+        tt.border = _BORDER
+        ws.cell(tr, 2, "").border = _BORDER
+        ws.cell(tr, 3, "").border = _BORDER
+        wcol = get_column_letter(4)
+        wc = ws.cell(tr, 4, f"=SUM({wcol}{hr + 1}:{wcol}{tr - 1})")
+        wc.number_format = "[h]:mm"
+        wc.font = Font(bold=True)
+        wc.border = _BORDER
+        for i, col in enumerate(columns):
+            ci = n_fixed + 1 + i
+            cl = get_column_letter(ci)
+            cell = ws.cell(tr, ci, f"=SUM({cl}{hr + 1}:{cl}{tr - 1})")
+            cell.number_format = '0" days"' if str(col.get("unit")) == "tick_hours" else "[h]:mm"
+            cell.font = Font(bold=True)
+            cell.alignment = Alignment(horizontal="center")
+            cell.border = _BORDER
+
+    ws.freeze_panes = "A5"
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def summary_filename(period_label: str) -> str:
+    clean = "".join(ch if ch.isalnum() or ch in " -_" else "" for ch in (period_label or "")).strip()
+    return f"Payroll Summary - {clean or 'Period'}.xlsx"

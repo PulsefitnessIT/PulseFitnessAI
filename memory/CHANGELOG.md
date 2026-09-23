@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 2026-06 — Company-wide payroll summary sheet
+- Added a single "Payroll Summary" workbook rolling up every active staff member's monthly
+  activity totals: one row per person with Std Hours, Worked Hours, and each activity column
+  (PT, Classes, Van Check, Parts, Clean Van, Admin) — hour-based as `[h]:mm`, tick-based as
+  `N days` — plus a bold COMPANY TOTAL footer row (frozen header).
+- New endpoint `GET /api/staffing/timesheets/month-summary?year&month` (manager-only) returns
+  the summary xlsx. The `month-pack` ZIP now also includes it as the first file ("0 - Payroll Summary…").
+- Columns are the union of activity columns across the roles actually present in the org, in a
+  canonical order (`_master_ts_columns`). Totals computed in Python from recorded timesheet
+  entries (`_summary_row_for_staff`, `_worked_minutes`).
+- Frontend: "Company summary" download button in the Payroll → Monthly timesheets tab
+  (data-testid `ts-download-summary`).
+- Files: backend/utils/payroll_timesheet_xlsx.py (build_payroll_summary_xlsx, summary_filename),
+  backend/routes/staffing_clock.py, frontend/src/pages/LiteDashboard/staffing/PayrollTimesheetsTab.js.
+- Verified via curl against the demo org: endpoint returned 200 + valid xlsx (10 cols, all staff),
+  and the pack ZIP listed the summary first.
+
 ## 2026-06 — Per-activity monthly totals in payroll timesheet footer
 - Added a "MONTHLY TOTAL" row to each staff member's monthly Excel timesheet, aligned directly
   under the activity columns (PT, Classes, Admin, Parts, Van Check, Clean Van, etc.).

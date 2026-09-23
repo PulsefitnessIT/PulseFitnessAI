@@ -733,6 +733,18 @@ def _ts_columns(staff: dict):
     return key, [dict(c) for c in _TS_PROFILES[key]]
 
 
+# Canonical union of every activity column across all role profiles, in a
+# stable display order — used for the company-wide payroll summary sheet.
+def _master_ts_columns() -> list:
+    seen, out = set(), []
+    for prof in ("pt", "engineer", "admin", "basic"):
+        for c in _TS_PROFILES[prof]:
+            if c["key"] not in seen:
+                seen.add(c["key"])
+                out.append(dict(c))
+    return out
+
+
 def _acts_of(entry: dict, columns: list) -> dict:
     """Normalise a day entry's activities to {key: {mins, done}} for the given
     columns, tolerating both the new `acts` map and legacy pt_classes/van_check."""
@@ -1483,7 +1495,52 @@ from fastapi.responses import StreamingResponse  # noqa: E402
 from datetime import date as _pdate  # noqa: E402
 from utils.payroll_timesheet_xlsx import (  # noqa: E402
     build_month_timesheet_xlsx, default_year_schedule, safe_filename,
+    build_payroll_summary_xlsx, summary_filename,
 )
+
+
+def _worked_minutes(ent: dict) -> float:
+    """(finish - start) - break, in minutes, for one day entry. 0 if incomplete."""
+    def _m(v):
+        try:
+            h, m = (int(x) for x in str(v).split(":")[:2])
+            return h * 60 + m
+        except Exception:
+            return None
+    s, f = _m(ent.get("start")), _m(ent.get("finish"))
+    if s is None or f is None:
+        return 0.0
+    br = 0
+    try:
+        br = int(round(float(ent.get("break_minutes") or 0)))
+    except Exception:
+        br = 0
+    return max(0.0, float(f - s - br))
+
+
+async def _summary_row_for_staff(org_id: str, staff: dict, start: _pdate, end: _pdate) -> dict:
+    """Roll up one staff member's monthly activity totals for the summary sheet."""
+    _profile, cols = _ts_columns(staff)
+    entries = await _entries_for_range(org_id, staff["id"], start, end)
+    totals: dict = {}
+    worked = 0.0
+    for _iso, ent in entries.items():
+        if not isinstance(ent, dict):
+            continue
+        worked += _worked_minutes(ent)
+        acts = _acts_of(ent, cols)
+        for k, a in acts.items():
+            t = totals.setdefault(k, {"mins": 0.0, "days": 0})
+            t["mins"] += float(a.get("mins") or 0)
+            if a.get("done") or float(a.get("mins") or 0) > 0:
+                t["days"] += 1
+    return {
+        "name": staff.get("full_name") or "Staff",
+        "department": staff.get("department") or staff.get("primary_role") or "",
+        "weekly_hours": staff.get("hours_per_week") or staff.get("weekly_hours") or 0,
+        "worked_minutes": worked,
+        "totals": totals,
+    }
 
 
 async def _timesheet_schedule(org_id: str, year: int) -> dict:
@@ -1593,6 +1650,42 @@ async def export_month_timesheet(
         headers={"Content-Disposition": f'attachment; filename="{fname}"'})
 
 
+@router.get("/staffing/timesheets/month-summary")
+async def month_summary(
+    year: int = Query(...), month: int = Query(...),
+    user: dict = Depends(get_current_user),
+):
+    """Company-wide payroll summary — a single workbook with one row per active
+    staff member, rolling up their monthly activity totals (hours + tick days)."""
+    import io
+    _require_manager(user)
+    org_id = _org(user)
+    sched = await _timesheet_schedule(org_id, year)
+    mrow = _resolve_month(sched, month)
+    staff = await db.staff_members.find(
+        {"organization_id": org_id, "active": True},
+        {"_id": 0, "id": 1, "full_name": 1, "department": 1, "primary_role": 1,
+         "secondary_roles": 1, "job_title": 1, "role": 1, "is_engineer": 1,
+         "hours_per_week": 1, "weekly_hours": 1}).to_list(2000)
+    if not staff:
+        raise HTTPException(400, "No active staff to summarise.")
+    start = _pdate.fromisoformat(mrow["period_start"])
+    weeks = int(mrow.get("weeks") or 4)
+    end = start + timedelta(days=weeks * 7 - 1)
+    rows, used_keys = [], set()
+    for s in sorted(staff, key=lambda x: (x.get("full_name") or "").lower()):
+        rows.append(await _summary_row_for_staff(org_id, s, start, end))
+        used_keys.add(_ts_profile_key(s))
+    used_col_keys = {c["key"] for k in used_keys for c in _TS_PROFILES.get(k, [])}
+    columns = [c for c in _master_ts_columns() if c["key"] in used_col_keys]
+    label = mrow.get("label") or f"{month}-{year}"
+    data = build_payroll_summary_xlsx(period_label=label, weeks=weeks, columns=columns, rows=rows)
+    return StreamingResponse(
+        io.BytesIO(data),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{summary_filename(label)}"'})
+
+
 @router.get("/staffing/timesheets/month-pack")
 async def month_pack(
     year: int = Query(...), month: int = Query(...),
@@ -1616,6 +1709,19 @@ async def month_pack(
     buf = io.BytesIO()
     used: set = set()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        # Company-wide summary first, then one workbook per staff member.
+        srows, used_keys = [], set()
+        start = _pdate.fromisoformat(mrow["period_start"])
+        weeks = int(mrow.get("weeks") or 4)
+        end = start + timedelta(days=weeks * 7 - 1)
+        for s in sorted(staff, key=lambda x: (x.get("full_name") or "").lower()):
+            srows.append(await _summary_row_for_staff(org_id, s, start, end))
+            used_keys.add(_ts_profile_key(s))
+        used_col_keys = {c["key"] for k in used_keys for c in _TS_PROFILES.get(k, [])}
+        scols = [c for c in _master_ts_columns() if c["key"] in used_col_keys]
+        label = mrow.get("label") or f"{month}-{year}"
+        zf.writestr("0 - " + summary_filename(label),
+                    build_payroll_summary_xlsx(period_label=label, weeks=weeks, columns=scols, rows=srows))
         for s in sorted(staff, key=lambda x: (x.get("full_name") or "").lower()):
             data = await _build_staff_month(org_id, s, year, month, mrow)
             fname = safe_filename(s.get("full_name"), mrow.get("label") or f"{month}-{year}")
