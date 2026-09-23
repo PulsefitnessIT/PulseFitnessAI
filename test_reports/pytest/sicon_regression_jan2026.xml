@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="2" failures="0" skipped="0" tests="2" time="0.368" timestamp="2026-09-23T12:32:00.974030+00:00" hostname="agent-env-503e5763-93af-4914-bcb9-24090a2b836b"><testcase classname="" name="tests.test_sicon_deep_mapping" time="0.000"><error message="collection failure">tests/test_sicon_deep_mapping.py:10: in &lt;module&gt;
+    from utils.sicon_client import (
+utils/sicon_client.py:24: in &lt;module&gt;
+    raise RuntimeError(
+E   RuntimeError: JWT_SECRET must be set in the environment for Sicon credential encryption.</error></testcase><testcase classname="" name="tests.test_sicon_camelcase_inbound" time="0.000"><error message="collection failure">tests/test_sicon_camelcase_inbound.py:6: in &lt;module&gt;
+    from utils.sicon_client import (
+utils/sicon_client.py:24: in &lt;module&gt;
+    raise RuntimeError(
+E   RuntimeError: JWT_SECRET must be set in the environment for Sicon credential encryption.</error></testcase></testsuite></testsuites>

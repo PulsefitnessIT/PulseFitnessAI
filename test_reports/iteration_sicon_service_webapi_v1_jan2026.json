@@ -1,0 +1,24 @@
+{
+  "summary": "Backend-only pytest verification of the Sicon Service WebAPI v1 migration (Jan 2026). Wrote /app/backend/tests/test_sicon_service_webapi_v1_jan2026.py — 13 tests, all passing. Covers: (1) FULL camelCase v1 model builders — Case exposes all 57 keys (incl. address/caseType/priority nested objects + analysisField1..20), Appointment exposes all 25 keys with description/colour/employeeIds/siSMCaseId sourced correctly, Equipment exposes analysisCode1..20, TrackingNote exposes siSMCaseTrackingNoteId/statusId/appointmentId/GPS. (2) SiconClient.svc_* routing — POST /api/v1/SiconService/Case, PUT /Case/{id}, POST /Appointment, PUT /Appointment/{id}, POST /Appointment/{id}/TimeBooking, POST /Case/{id}/TrackingNote, POST /Equipment — all with companyId query param and Authorization: Bearer header (bearer stubbed, no live network). (3) POST /api/sicon/create-appointment/{issue_id} persists issue.sicon_appointment_id=55501 + sicon_appointment_sync_at when config.service_webapi_v1=true and switches from svc_create_appointment → svc_update_appointment on second call. (4) sync_issue_to_sicon flips between client.svc_create_case (v1) and client.create_case (legacy) based on config.service_webapi_v1, and reads camelCase siSMCaseId/caseNumber on the v1 branch. Regression: existing test_sicon_deep_mapping.py (14), test_sicon_camelcase_inbound.py (5), test_iter_216h7_sicon_mapping_audit.py mapper tests (10) all still pass — no import errors or breakages from the SiconClient/__init__ and sicon_sync changes.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_sicon_service_webapi_v1_jan2026.py",
+    "/app/test_reports/pytest/sicon_service_webapi_v1_jan2026.xml",
+    "/app/test_reports/pytest/sicon_regression_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "utils/sicon_client.py — `_authenticate_v1` caches `self._bearer` forever with no expiry/refresh handling; a long-running client will keep using an expired token until process restart. Consider tracking `expiresIn` from the auth response and re-authenticating when close to expiry.",
+    "routes/sicon.py create_appointment (line ~365) — persists sicon_appointment_id only on the v1 path via `appt_id`; on the legacy branch when Sicon returns SiconAppointmentID it also persists correctly, but there is no rollback if the DB update fails after a successful create — a network blip mid-persist would leave the appointment orphaned in Sicon. Low probability, worth an audit log entry.",
+    "utils/sicon_service_models.py — build_appointment_model_v1 truncates description at 1000 chars but Sicon Bruno collection docs allow up to 2000 for descriptions in some cases. Confirm with Sicon.",
+    "sicon_sync.py sync_issue_to_sicon — v1 branch reads siSMCaseId but also falls back to entity.get('id'); legacy uses entity.get('ID'). Both fallbacks are fine but confirm live Sicon response casing at UAT."
+  ],
+  "updated_files": ["/app/backend/tests/test_sicon_service_webapi_v1_jan2026.py"],
+  "success_rate": {"backend": "100%", "frontend": "N/A (backend-only)"},
+  "test_credentials": "N/A — all Sicon HTTP calls stubbed via AsyncMock / patched httpx.AsyncClient. Loaded /app/backend/.env for JWT_SECRET.",
+  "seed_data_creation": "Each DB-touching test creates an ephemeral organization/issue/sicon_config with UUID-prefixed ids and cleans up in the same async block.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The v1 migration is gated by config.service_webapi_v1; legacy path is default. New pytest file exercises builders (pure), client URL routing (httpx.AsyncClient patched), persistence (real Mongo via utils.database.db with per-test cleanup), and the create-vs-update branching. If you need to add more coverage, patch utils.sicon_client.httpx.AsyncClient with the _Recorder pattern (see test_svc_create_case_routes_and_auth) to introspect method/url/params/headers/json without touching the network."
+}

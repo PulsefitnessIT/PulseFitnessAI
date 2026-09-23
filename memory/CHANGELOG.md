@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## 2026-06 — Sicon Service WebAPI v1 migration (field mapping + appointmentId)
+Fixes the reported Sicon mapping failures ("appointmentId should be mapped within our platform"; missing fields).
+- Root causes: (a) the Sicon-returned appointment id was never persisted on our record; (b) outbound Case/Appointment
+  payloads were incomplete PascalCase on a legacy endpoint surface (`/api/ServiceCase/*`, `/~/api/v2/TEntity/*`),
+  not the `/api/v1/SiconService/*` Service WebAPI (camelCase + companyId + JWT bearer) the customer's Bruno collection uses.
+- New `utils/sicon_service_models.py`: FULL camelCase model builders matching Bruno exactly —
+  Case (57 fields incl. nested address/caseType/priority + analysisField1..20), Appointment (all 25 incl. description,
+  colour, employeeIds, completion block), Equipment (incl. analysisCode1..20), TrackingNote, TimeBooking.
+- `SiconClient` gained JWT bearer auth (`/api/v1/authentication/authenticate`) + v1 methods `svc_*` hitting
+  `/api/v1/SiconService/{Case,Appointment,Equipment,...}` with `companyId`.
+- `POST /api/sicon/create-appointment/{issue_id}` now PERSISTS the returned `siconAppointmentId` onto the issue
+  (`sicon_appointment_id`) and auto-switches to PUT `/Appointment/{id}` when it already exists.
+- `sync_issue_to_sicon` uses the v1 case model + endpoint and reads back camelCase ids.
+- Migration is gated per-org by `sicon_config.service_webapi_v1` (default off) → existing orgs untouched, no regressions.
+  To activate an org: set `service_webapi_v1: true`, `base_url`, `company_id`, `username_enc`/`password_enc` on its sicon_config.
+- Fresh Bruno collection reflecting OUR payloads generated at `/app/integrations/PulseFitness-Sicon-WebAPI.zip`
+  (regenerate via `python integrations/build_bruno_collection.py`).
+- Verified: 13 new pytest tests (builders, v1 URL/auth routing, appointmentId persistence, create-vs-update, flag branching)
+  all pass; legacy Sicon tests still green. Sicon live API is MOCKED here — true end-to-end acceptance confirms post-deploy.
+
 ## 2026-06 — Drag-to-reschedule on the PM calendar
 - Desk users can now drag a visit chip onto another day to reschedule it, without reopening the wizard.
 - Frontend (`PPMCalendar.js`): commercial chips are HTML5-draggable (disabled in Manage mode); day cells are
