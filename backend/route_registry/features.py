@@ -10,6 +10,7 @@ from utils.feature_guard import require_feature
 from routes.check_sheets import router as check_sheets_router
 from routes.reports import router as reports_router
 from routes.ai_diagnosis import router as ai_diagnosis_router
+from routes.public_downloads import router as public_downloads_router
 from routes.risk_assessments import router as risk_assessments_router
 from routes.purchase_orders import router as purchase_orders_router
 from routes.suppliers import router as suppliers_router
@@ -270,6 +271,7 @@ _PER_ORG_GATED_ROUTERS = (
 # Routers available to every logged-in user regardless of account type.
 _UNGATED_ROUTERS = (
     check_sheets_router, reports_router, ai_diagnosis_router,
+    public_downloads_router,
     risk_assessments_router, purchase_orders_router, suppliers_router,
     suppliers_catalogue_router,
     machine_manuals_router, membership_dunning_router,
