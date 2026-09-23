@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 2026-06 — Sicon Bruno collection + mapping regenerated to full spec
+Fixes the reported regression in the exported collection. `integrations/build_bruno_collection.py` +
+`integrations/build_mapping_csv.py` now produce a read-first, write-safe collection meeting all 12 requirements:
+- **companyId = 2** (Pulse Fitness) in the environment (no longer defaults to 1); `ALLOW_WRITES=false` default.
+- Restored **Equipment reads**: GetMany (with `$skip`/`$max` pagination + skip-advance script), GetOne, SearchBySerial.
+- **TrackingNote.appointmentId = {{appointmentId}}** (was null), sourced from appointment.sicon_appointment_id.
+- **Automatic ID capture** via `bru.setVar` post-response on every create/get (siSMCaseId→caseId, siconAppointmentId→appointmentId, siconEquipmentId→equipmentId, siSMCaseTrackingNoteId→trackingNoteId, timeBookingId).
+- **No zero-reset**: removed the collection-level `vars:pre-request` id reset; runtime ids persist / are editable in the env.
+- **Write guard**: every business POST/PUT throws unless `ALLOW_WRITES=true` (Auth POST is the documented exemption).
+- **Lookups** folder (13): CaseTypes, Priorities, TrackingStatuses, Employees, Contracts, CoverTypes, SLAs, FaultCodes, Skills, Teams, Customers, Contacts, SubLocations.
+- **GET response tests** (status + expected properties); null-vs-zero: optional FKs null, lookup ids via {{vars}}.
+- **mapping.csv** (8 cols incl. *Sicon Behaviour Status*, 164 fields, zero UNMAPPED) + **FIELD_MAPPING.md** bundled in the zip.
+- Served at `/api/downloads/sicon-bruno-collection.zip` and `/api/downloads/sicon-field-mapping.csv`.
+- Verified by testing agent (22/22 acceptance assertions after two minor Ping-test / Auth-doc fixes).
+
 ## 2026-06 — Sicon Service WebAPI v1 migration (field mapping + appointmentId)
 Fixes the reported Sicon mapping failures ("appointmentId should be mapped within our platform"; missing fields).
 - Root causes: (a) the Sicon-returned appointment id was never persisted on our record; (b) outbound Case/Appointment

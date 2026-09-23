@@ -144,9 +144,13 @@ FILES = {
         "}\n"),
     "environments/PulseFitness (Company 2).bru": ENV,
 
-    "Core/Ping.bru": bru("Ping", 1, "GET", "{{baseUrl}}/api/v1/SiconService/Ping", anon=True) ,
+    "Core/Ping.bru": bru("Ping", 1, "GET", "{{baseUrl}}/api/v1/SiconService/Ping", anon=True,
+                         post=tests_only([])),
     "Auth/Authenticate.bru": (bru("Authenticate", 1, "POST", "{{baseUrl}}/api/v1/authentication/authenticate",
                               body={"username": "{{username}}", "password": "{{password}}"}, anon=True)
+                              + "\ndocs {\n  NOTE: this is the ONLY write-exempt POST — it carries no ALLOW_WRITES\n"
+                                "  guard because you must authenticate before anything else (including enabling writes).\n"
+                                "  All business POST/PUT requests DO enforce the ALLOW_WRITES guard.\n}\n"
                               + "\nscript:post-response {\n  const b = res.getBody() || {};\n"
                                 "  const t = b.accessToken || b.token;\n"
                                 "  if (t) bru.setEnvVar('BEARER_TOKEN', t);\n"

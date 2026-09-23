@@ -25,6 +25,12 @@ body:json {
   }
 }
 
+docs {
+  NOTE: this is the ONLY write-exempt POST — it carries no ALLOW_WRITES
+  guard because you must authenticate before anything else (including enabling writes).
+  All business POST/PUT requests DO enforce the ALLOW_WRITES guard.
+}
+
 script:post-response {
   const b = res.getBody() || {};
   const t = b.accessToken || b.token;

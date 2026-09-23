@@ -13,3 +13,7 @@ get {
 params:query {
   companyId: {{companyId}}
 }
+
+script:post-response {
+  test('status is 200', function () { if (res.getStatus() !== 200) throw new Error('HTTP ' + res.getStatus()); });
+}
