@@ -251,8 +251,11 @@ export default function EngineerHomeV2() {
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="engineer-home-v2">
-      {/* Header — solid black, on-brand with pulsefitness.com */}
-      <header className="bg-black border-b border-white/10 sticky top-0 z-10">
+      {/* Header — solid black, on-brand with pulsefitness.com.
+          data-theme="dark" marks it a dark island so text-white / bg-white
+          utilities keep their dark-mode values even when the app html
+          carries data-theme="light" (otherwise the greeting bleaches out). */}
+      <header data-theme="dark" className="bg-black border-b border-white/10 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)]" data-testid="engineer-home-brand">

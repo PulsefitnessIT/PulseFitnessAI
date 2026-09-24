@@ -277,7 +277,7 @@ export default function LoginPage() {
       data-testid="gx-login-page"
     >
       {/* Top bar — solid black, on-brand with pulsefitness.com */}
-      <header className="px-6 lg:px-10 h-16 flex items-center justify-between border-b border-white/10 bg-black">
+      <header data-theme="dark" className="px-6 lg:px-10 h-16 flex items-center justify-between border-b border-white/10 bg-black">
         <Link to="/" className="flex items-center" data-testid="gx-login-logo">
           <BrandWordmark height={36} />
         </Link>
