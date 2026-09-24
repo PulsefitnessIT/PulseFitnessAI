@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-09-24 — Black headers (login/engineer/MOD) + cookie banner mirrors pulsefitness.com
+- Login/public header (`pages/LoginPage.js`): was translucent white (`bg-white/60`) → solid black (`bg-black`, `border-white/10`); EN selector + "Back to home" restyled to light text. Logo already reads on black (same asset the Navbar uses).
+- Engineer home header (`ServiceOps/Engineer/EngineerHomeV2.js`): was `bg-white` → `bg-black`; greeting/stats/action buttons switched to light-on-dark.
+- MOD PRO header (`MODPortal/MODProDashboard.js`): `bg-[var(--color-surface-darker)]` → `bg-black` for exact uniformity.
+- Cookie banner (`components/shared/CookieConsent.js`): rebuilt to match pulsefitness.com — compact black rounded box, bottom-right (full-width on mobile), text "This website uses cookies to ensure you get the best experience on our website.", a "Learn more" link (→ /privacy), and Decline / Allow cookies (cyan) buttons. i18n keys updated in en/fr/de (`cookie.message`, `cookie.learn_more`, `cookie.decline`, `cookie.allow_cookies`).
+- Verified (Playwright, desktop 1920 + mobile 390): header bg = rgb(0,0,0), new cookie copy/buttons render, no horizontal overflow.
+- NOTE: the Service Desk hub uses a left-sidebar layout and legacy Service Ops uses a hero card (not top bars), so those weren't converted to a black top bar — flagged to user as a separate sidebar-theming pass.
+
+
 ## 2026-09-24 — Fix: temp-password `/change-password` screen rendered blank
 Users landing on `/change-password` (forced temp-password change) saw a blank white page.
 Root cause (two compounding bugs):

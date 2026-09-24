@@ -251,17 +251,17 @@ export default function EngineerHomeV2() {
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="engineer-home-v2">
-      {/* Header — light mode Pulse Fitness brand */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
+      {/* Header — solid black, on-brand with pulsefitness.com */}
+      <header className="bg-black border-b border-white/10 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700" data-testid="engineer-home-brand">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)]" data-testid="engineer-home-brand">
               {orgBrand.label}
             </p>
-            <h1 className="text-xl font-extrabold text-slate-900 truncate" data-testid="engineer-home-greeting">
+            <h1 className="text-xl font-extrabold text-white truncate" data-testid="engineer-home-greeting">
               {me?.engineer?.full_name ? t('service.eng_home_hi', 'Hi, {{name}}', { name: me.engineer.full_name.split(' ')[0] }) : t('service.eng_home_field_engineer', 'Field engineer')}
             </h1>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-white/60">
               {t('service.eng_home_v2_stats', '{{today}} today · {{upcoming}} upcoming · {{new}} new', { today: kpis.today_jobs || 0, upcoming: kpis.upcoming_jobs || 0, new: kpis.notifications_unread || 0 })}
             </p>
           </div>
@@ -279,16 +279,16 @@ export default function EngineerHomeV2() {
             <button
               type="button"
               onClick={() => navigate('/svc/engineer/workspace')}
-              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700"
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 text-xs font-semibold text-white/80"
               data-testid="engineer-home-open-workspace"
               title={t('service.eng_home_workspace_title', 'Open desktop workspace')}
             >
-              <PlayCircle size={14} className="text-cyan-600" /> {t('service.eng_home_workspace', 'Workspace')}
+              <PlayCircle size={14} className="text-[var(--color-brand-cyan)]" /> {t('service.eng_home_workspace', 'Workspace')}
             </button>
             <button
               type="button"
               onClick={() => navigate('/svc/engineer/notifications')}
-              className="relative p-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50"
+              className="relative p-2 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 text-white/80"
               data-testid="engineer-home-notifications-btn"
             >
               <Bell size={16} />
@@ -302,7 +302,7 @@ export default function EngineerHomeV2() {
               type="button"
               onClick={load}
               aria-label={t('service.eng_home_refresh', 'Refresh')}
-              className="p-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50"
+              className="p-2 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 text-white/80"
               data-testid="engineer-home-refresh"
             >
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
@@ -310,7 +310,7 @@ export default function EngineerHomeV2() {
             <button
               type="button"
               onClick={() => setSettingsOpen(true)}
-              className="relative p-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50"
+              className="relative p-2 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 text-white/80"
               data-testid="engineer-home-menu-btn"
               aria-label={t('service.eng_home_open_settings', 'Open account settings')}
               title={t('service.eng_home_account_settings', 'Account settings')}

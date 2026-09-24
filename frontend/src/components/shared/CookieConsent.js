@@ -9,7 +9,6 @@
  */
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Shield } from 'lucide-react';
 import { setBottomBannerVisible } from '@/utils/bottomBanner';
 import { useAnyModalOpen } from '@/utils/useAnyModalOpen';
 
@@ -60,28 +59,27 @@ const CookieConsent = () => {
   if (anyModalOpen) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 p-4 pointer-events-none" data-bottom-banner="cookie" data-testid="cookie-consent-banner" data-brand={isPulse ? 'pulse' : 'gymaxis'}>
-      <div className="max-w-4xl mx-auto bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 pointer-events-auto">
-        <Shield size={20} className="shrink-0 mt-1 sm:mt-0" style={{ color: accent }} />
-        <div className="flex-1">
-          <p className="text-sm text-zinc-300 leading-relaxed">
-            {t('cookie.message', 'We use essential cookies to keep you signed in and provide core functionality. We do not use tracking or advertising cookies.')}
-            {' '}<a href="/privacy" className="hover:underline" style={{ color: accent }}>{t('cookie.privacy_policy', 'Privacy Policy')}</a>
-          </p>
-        </div>
-        <div className="flex gap-2 shrink-0">
-          <button onClick={handleDecline} className="px-4 py-2 text-sm text-zinc-400 dark:text-zinc-500 hover:text-white border border-zinc-700 rounded-lg transition-colors" data-testid="cookie-decline-btn">
-            {t('cookie.essential_only', 'Essential Only')}
+    <div className="fixed bottom-0 left-0 right-0 sm:bottom-4 sm:right-4 sm:left-auto z-40 p-3 sm:p-0 pointer-events-none" data-bottom-banner="cookie" data-testid="cookie-consent-banner" data-brand={isPulse ? 'pulse' : 'gymaxis'}>
+      <div className="w-full sm:w-[340px] bg-black border border-zinc-800 rounded-xl shadow-2xl p-5 pointer-events-auto">
+        <p className="text-sm text-white leading-relaxed">
+          {t('cookie.message', 'This website uses cookies to ensure you get the best experience on our website.')}
+        </p>
+        <a href="/privacy" className="inline-block mt-2 text-sm text-white/70 underline underline-offset-2 hover:text-white transition-colors" data-testid="cookie-learn-more">
+          {t('cookie.learn_more', 'Learn more')}
+        </a>
+        <div className="flex items-center justify-between gap-3 mt-4">
+          <button onClick={handleDecline} className="text-sm font-medium text-white/70 hover:text-white transition-colors" data-testid="cookie-decline-btn">
+            {t('cookie.decline', 'Decline')}
           </button>
           <button
             onClick={handleAccept}
-            className="px-4 py-2 text-sm text-white rounded-lg font-medium transition-colors"
+            className="px-5 py-2 text-sm text-white rounded-md font-medium transition-colors"
             style={{ background: accent }}
             onMouseEnter={(e) => { e.currentTarget.style.background = accentHover; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = accent; }}
             data-testid="cookie-accept-btn"
           >
-            {t('cookie.accept_all', 'Accept All')}
+            {t('cookie.allow_cookies', 'Allow cookies')}
           </button>
         </div>
       </div>

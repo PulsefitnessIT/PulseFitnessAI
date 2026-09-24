@@ -62,7 +62,7 @@ export default function MODProDashboard() {
 
   return (
     <div className="min-h-screen bg-[var(--color-ink-deep)] text-white pb-10" data-testid="mod-pro-dashboard">
-      <header className="border-b border-white/10 bg-[var(--color-surface-darker)] sticky top-0 z-40">
+      <header className="border-b border-white/10 bg-black sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between gap-3">
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-brand-cyan)]">

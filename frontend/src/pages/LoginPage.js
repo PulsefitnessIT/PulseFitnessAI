@@ -276,8 +276,8 @@ export default function LoginPage() {
       data-theme="light"
       data-testid="gx-login-page"
     >
-      {/* Top bar */}
-      <header className="px-6 lg:px-10 h-16 flex items-center justify-between border-b border-slate-200/60 bg-white/60 backdrop-blur">
+      {/* Top bar — solid black, on-brand with pulsefitness.com */}
+      <header className="px-6 lg:px-10 h-16 flex items-center justify-between border-b border-white/10 bg-black">
         <Link to="/" className="flex items-center" data-testid="gx-login-logo">
           <BrandWordmark height={36} />
         </Link>
@@ -286,16 +286,16 @@ export default function LoginPage() {
             value={['en', 'fr', 'de'].includes((i18n.language || 'en').slice(0, 2)) ? (i18n.language || 'en').slice(0, 2) : 'en'}
             onChange={(e) => i18n.changeLanguage(e.target.value)}
             aria-label="Language"
-            className="text-xs font-bold text-slate-600 bg-transparent border border-slate-200 rounded-full px-2 py-1 cursor-pointer hover:border-slate-400 focus:outline-none"
+            className="text-xs font-bold text-white/80 bg-transparent border border-white/25 rounded-full px-2 py-1 cursor-pointer hover:border-white/60 focus:outline-none"
             data-testid="gx-login-lang-select"
           >
-            <option value="en">EN</option>
-            <option value="fr">FR</option>
-            <option value="de">DE</option>
+            <option className="text-slate-900" value="en">EN</option>
+            <option className="text-slate-900" value="fr">FR</option>
+            <option className="text-slate-900" value="de">DE</option>
           </select>
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/80 hover:text-white"
             data-testid="gx-login-back"
           >
             <ArrowLeft size={13} /> {t('auth.back_home', 'Back to home')}

@@ -172,8 +172,11 @@
   "cookie": {
     "accept_all": "Alle akzeptieren",
     "essential_only": "Nur essenzielle",
-    "message": "Wir verwenden essenzielle Cookies, um Sie angemeldet zu halten und Kernfunktionen bereitzustellen. Wir setzen keine Tracking- oder Werbe-Cookies ein.",
-    "privacy_policy": "Datenschutzerklärung"
+    "message": "Diese Website verwendet Cookies, um Ihnen das beste Erlebnis auf unserer Website zu bieten.",
+    "privacy_policy": "Datenschutzerklärung",
+    "learn_more": "Mehr erfahren",
+    "decline": "Ablehnen",
+    "allow_cookies": "Cookies zulassen"
   },
   "crm": {
     "act_call": "Anruf",
