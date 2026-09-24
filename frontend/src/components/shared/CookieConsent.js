@@ -60,21 +60,21 @@ const CookieConsent = () => {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 sm:bottom-4 sm:right-4 sm:left-auto z-40 p-3 sm:p-0 pointer-events-none" data-bottom-banner="cookie" data-testid="cookie-consent-banner" data-brand={isPulse ? 'pulse' : 'gymaxis'}>
-      <div className="w-full sm:w-[340px] bg-black border border-zinc-800 rounded-xl shadow-2xl p-5 pointer-events-auto">
-        <p className="text-sm text-white leading-relaxed">
+      <div className="w-full sm:w-[340px] bg-black border border-zinc-800 rounded-xl shadow-2xl p-5 pointer-events-auto" style={{ color: '#ffffff' }}>
+        <p className="text-sm leading-relaxed" style={{ color: '#ffffff' }}>
           {t('cookie.message', 'This website uses cookies to ensure you get the best experience on our website.')}
         </p>
-        <a href="/privacy" className="inline-block mt-2 text-sm text-white/70 underline underline-offset-2 hover:text-white transition-colors" data-testid="cookie-learn-more">
+        <a href="/privacy" className="inline-block mt-2 text-sm underline underline-offset-2 transition-colors" style={{ color: 'rgba(255,255,255,0.7)' }} onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; }} onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }} data-testid="cookie-learn-more">
           {t('cookie.learn_more', 'Learn more')}
         </a>
         <div className="flex items-center justify-between gap-3 mt-4">
-          <button onClick={handleDecline} className="text-sm font-medium text-white/70 hover:text-white transition-colors" data-testid="cookie-decline-btn">
+          <button onClick={handleDecline} className="text-sm font-medium transition-colors" style={{ color: 'rgba(255,255,255,0.7)' }} onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; }} onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }} data-testid="cookie-decline-btn">
             {t('cookie.decline', 'Decline')}
           </button>
           <button
             onClick={handleAccept}
-            className="px-5 py-2 text-sm text-white rounded-md font-medium transition-colors"
-            style={{ background: accent }}
+            className="px-5 py-2 text-sm rounded-md font-medium transition-colors"
+            style={{ background: accent, color: '#ffffff' }}
             onMouseEnter={(e) => { e.currentTarget.style.background = accentHover; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = accent; }}
             data-testid="cookie-accept-btn"
