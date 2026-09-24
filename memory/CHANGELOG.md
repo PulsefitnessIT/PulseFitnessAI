@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 2026-09-24 — Fix: temp-password `/change-password` screen rendered blank
+Users landing on `/change-password` (forced temp-password change) saw a blank white page.
+Root cause (two compounding bugs):
+1. `/api/auth/me` did not return `must_change_password` (only `/api/auth/login` did). The post-login
+   `/auth/me` re-fetch and any page refresh dropped the flag, so `user.must_change_password` became `undefined`.
+2. `ForceChangePasswordPage` called `navigate()` during render and hit `return null` when the flag was falsy →
+   stuck blank page instead of redirecting.
+Fix: (a) `backend/routes/auth.py` (~L1111) now includes `must_change_password` in the `/me` payload;
+(b) `frontend/src/pages/ForceChangePasswordPage.js` moves the redirect into a `useEffect`, shows a Loading…
+splash instead of a blank render, and adds a `justSaved` guard so the success toast/redirect still works.
+Verified E2E (Playwright): refresh on /change-password renders the form; submitting a valid new password
+changes it and redirects to /dashboard. Repro user: honey.test@pulsefitness.com / TempPass123!.
+
+
 ## 2026-06 — Sicon Bruno collection + mapping regenerated to full spec
 Fixes the reported regression in the exported collection. `integrations/build_bruno_collection.py` +
 `integrations/build_mapping_csv.py` now produce a read-first, write-safe collection meeting all 12 requirements:

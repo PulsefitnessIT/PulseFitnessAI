@@ -7,7 +7,7 @@
  * we replace their JWT with the freshly-issued one and route them to
  * the appropriate dashboard for their role.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Lock, ShieldCheck, ArrowRight, Eye, EyeOff } from 'lucide-react';
@@ -29,22 +29,38 @@ export default function ForceChangePasswordPage() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const { banner, show, clear } = useInlineBanner();
 
   // If the user lands here without the flag (e.g. refreshed after a real
-  // change) just bounce them to their proper console.
-  if (user && !user.must_change_password) {
-    navigate(
-      user.is_master_admin || user.is_pulse_admin ? '/master-admin'
-        : user.is_service_desk ? '/service-desk'
-          : '/dashboard',
-      { replace: true },
+  // change) just bounce them to their proper console. This MUST run in an
+  // effect — calling navigate() during render leaves a blank white page
+  // stuck at /change-password instead of redirecting.
+  useEffect(() => {
+    if (justSaved) return; // let the submit handler's timed redirect run
+    if (user === undefined) return; // auth still hydrating
+    if (!user) {
+      navigate('/login', { replace: true });
+      return;
+    }
+    if (!user.must_change_password) {
+      navigate(
+        user.is_master_admin || user.is_pulse_admin ? '/master-admin'
+          : user.is_service_desk ? '/service-desk'
+            : '/dashboard',
+        { replace: true },
+      );
+    }
+  }, [user, navigate, justSaved]);
+
+  // While auth hydrates, or while an effect-driven redirect is pending, show a
+  // lightweight splash rather than a blank page.
+  if (!justSaved && (!user || !user.must_change_password)) {
+    return (
+      <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-4" data-testid="force-change-loading">
+        <div className="text-sm text-zinc-500">Loading…</div>
+      </div>
     );
-    return null;
-  }
-  if (!user) {
-    navigate('/login', { replace: true });
-    return null;
   }
 
   const passwordRules = [
@@ -76,6 +92,7 @@ export default function ForceChangePasswordPage() {
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
       );
       // Re-issue session with the new token from the server.
+      setJustSaved(true);
       login(data.token, { ...user, must_change_password: false });
       show({ tone: 'success', title: 'Password updated', detail: 'Redirecting you in…' });
       setTimeout(() => {

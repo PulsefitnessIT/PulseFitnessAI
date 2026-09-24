@@ -1110,6 +1110,11 @@ async def get_me(user: dict = Depends(get_current_user_portal)) -> dict:
         "timetable_view_only": bool(user.get("timetable_view_only", False)),
         "password_needs_rotation": password_needs_rotation(user),
         "password_max_age_days": PASSWORD_MAX_AGE_DAYS,
+        # Iter 295 — surface the forced temp-password-change flag on /me too
+        # (login already returns it). Without this the flag was lost on refresh
+        # or on the post-login /auth/me re-fetch, leaving the change-password
+        # screen blank because the guard bounced the user off it.
+        "must_change_password": bool(user.get("must_change_password", False)),
         # Iter 220bz — drives the ProfileCompletionGate. Empty string
         # = profile not yet completed; ISO timestamp = completed.
         "profile_completed_at": (org or {}).get("profile_completed_at") or "",
