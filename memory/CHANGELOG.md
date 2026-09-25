@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-09-24 — Redesigned transactional emails + fixed Vehicle Check photo upload
+EMAIL (all transactional emails, shared shell in backend/utils/email.py):
+- Rebuilt `_header_html` to the pulsefitness.ai look: solid black bar (#0A0A0A) with a white "pulse" + cyan "fitness" wordmark and a 3px cyan accent rule. Removed the purple/blue initial "P" default (accent now #19CDFF). Operator logos sit on a white chip so they stay legible on black.
+- Rebuilt `_footer_html` to be CAN-SPAM/PECR-friendly: co-brand line + support email (env EMAIL_SUPPORT_ADDRESS, default support@pulsefitness.ai) + physical postal address (env EMAIL_FOOTER_ADDRESS, default "Pulse Fitness Ltd, United Kingdom") + email-preferences line. ACTION: set EMAIL_FOOTER_ADDRESS to the real registered address in prod.
+- The staff-portal invite body (routes/staffing.py `_staff_portal_email_body`) already builds a proper cyan <a> button — the broken "[url]…" button in the report was the OLD deployed build; the redesign supersedes it. Verified full render (black header, cyan CTA, footer) via headless screenshot.
+
+VEHICLE CHECKS photo bug (frontend/src/pages/StaffPortal.js):
+- Root cause: marking an item as a defect gates submit on `photos.defect.length > 0`; if the photo upload silently failed (oversized phone image hitting the ingress/proxy limit, or iPhone HEIC), the photo never attached and submit was blocked — the engineer had to remove the fault to submit.
+- Fix: added `compressImage()` (canvas downscale to ≤1600px + re-encode to JPEG q0.8) run before upload — fixes both oversized images and HEIC. Surfaced the real server error instead of a generic message, added an "Uploading photo…" spinner state, disabled Submit while uploading, and reset the file input so a failed pick can be retried. Photo remains MANDATORY for a defect.
+- Verified: compression produces a smaller image/jpeg File (4000px PNG 238KB → 1600px JPEG 90KB; real phone photos shrink far more). Frontend compiles clean. Full E2E (staff login + assigned vehicle) not run — needs a provisioned vehicle; recommend a testing-agent pass if you want belt-and-braces.
+
+
 ## 2026-09-24 — Black headers (login/engineer/MOD) + cookie banner mirrors pulsefitness.com
 - Login/public header (`pages/LoginPage.js`): was translucent white (`bg-white/60`) → solid black (`bg-black`, `border-white/10`); EN selector + "Back to home" restyled to light text. Logo already reads on black (same asset the Navbar uses).
 - Engineer home header (`ServiceOps/Engineer/EngineerHomeV2.js`): was `bg-white` → `bg-black`; greeting/stats/action buttons switched to light-on-dark.

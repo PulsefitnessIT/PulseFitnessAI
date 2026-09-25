@@ -24,6 +24,43 @@ const CORE = '#19CDFF';
 // Resolve a stored photo_url (relative "/api/..." proxy path or data: URI).
 const photoSrc = (u) => (u ? (u.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${u}` : u) : '');
 
+// Downscale + re-encode a captured photo to a compact JPEG before upload.
+// Fixes the two real-world defect-photo failures: oversized phone images
+// hitting the ingress/proxy limit, and iPhone HEIC files. If the browser
+// can't decode the image (e.g. HEIC on a non-Safari browser) we fall back
+// to the original file (the backend still accepts HEIC up to 15MB).
+async function compressImage(file, maxEdge = 1600, quality = 0.8) {
+  if (!file || !file.type || !file.type.startsWith('image/')) return file;
+  try {
+    const dataUrl = await new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result);
+      fr.onerror = rej;
+      fr.readAsDataURL(file);
+    });
+    const img = await new Promise((res, rej) => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = rej;
+      im.src = dataUrl;
+    });
+    const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+    const w = Math.round(img.width * scale);
+    const h = Math.round(img.height * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', quality));
+    if (!blob) return file;
+    const name = (file.name || 'photo').replace(/\.(heic|heif|png|webp|jpeg|jpg)$/i, '') + '.jpg';
+    return new File([blob], name, { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
+}
+
+
 function mondayOf(d = new Date()) {
   const x = new Date(d); x.setHours(0, 0, 0, 0);
   x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
@@ -1495,6 +1532,7 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
   const [photos, setPhotos] = useState({ vehicle: {}, defect: [] });
   const [declaration, setDeclaration] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [err, setErr] = useState('');
   const [saved, setSaved] = useState('');
   const locked = d?.check?.status === 'submitted' || d?.check?.status === 'reviewed';
@@ -1536,12 +1574,17 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
   };
 
   const uploadPhoto = async (file, slot) => {
-    const fd = new FormData(); fd.append('file', file);
+    setErr(''); setPhotoBusy(true);
     try {
+      const prepared = await compressImage(file);
+      const fd = new FormData(); fd.append('file', prepared);
       const r = await axios.post(`${API}/new-starter/portal/vehicle-check/photo`, fd, { headers: { ...H, 'Content-Type': 'multipart/form-data' } });
+      if (!r.data?.file_id) throw new Error('no_file_id');
       if (slot === 'defect') setPhotos((p) => ({ ...p, defect: [...(p.defect || []), r.data.file_id] }));
       else setPhotos((p) => ({ ...p, vehicle: { ...(p.vehicle || {}), [slot]: r.data.file_id } }));
-    } catch { setErr('Photo upload failed.'); }
+    } catch (e) {
+      setErr(e?.response?.data?.detail || 'Photo upload failed — please check your connection and try again.');
+    } finally { setPhotoBusy(false); }
   };
 
   if (!d) return <Loader2 className="animate-spin text-cyan-500" />;
@@ -1627,9 +1670,9 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
           {!locked && (
             <div className="mt-3">
               <label data-testid="vehicle-defect-photo-label"
-                className={`inline-flex items-center gap-2 text-xs font-bold cursor-pointer px-3 py-2 rounded-lg border transition-colors ${(photos.defect || []).length ? 'border-emerald-300 text-emerald-700 bg-emerald-50' : 'border-rose-300 text-rose-700 bg-rose-50'}`}>
-                <Camera size={14} /> {(photos.defect || []).length ? 'Add another photo' : 'Add defect photo — required'}
-                <input type="file" accept="image/*" capture="environment" className="hidden" data-testid="vehicle-defect-photo" onChange={(e) => e.target.files[0] && uploadPhoto(e.target.files[0], 'defect')} />
+                className={`inline-flex items-center gap-2 text-xs font-bold cursor-pointer px-3 py-2 rounded-lg border transition-colors ${photoBusy ? 'border-cyan-300 text-cyan-700 bg-cyan-50 cursor-wait' : (photos.defect || []).length ? 'border-emerald-300 text-emerald-700 bg-emerald-50' : 'border-rose-300 text-rose-700 bg-rose-50'}`}>
+                {photoBusy ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />} {photoBusy ? 'Uploading photo…' : ((photos.defect || []).length ? 'Add another photo' : 'Add defect photo — required')}
+                <input type="file" accept="image/*" capture="environment" disabled={photoBusy} className="hidden" data-testid="vehicle-defect-photo" onChange={(e) => { const f = e.target.files[0]; e.target.value = ''; if (f) uploadPhoto(f, 'defect'); }} />
               </label>
               {(photos.defect || []).length === 0 && (
                 <p className="mt-1 text-[11px] text-rose-500">A photo of the fault is required so your manager can see it before booking the repair.</p>
@@ -1657,7 +1700,7 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
             <span className="text-xs text-slate-400">{answered}/{allIds.length} checks answered {saved && <span className="text-emerald-600 font-semibold ml-2">{saved}</span>}</span>
             <div className="flex gap-2">
               <button onClick={() => persist(false)} disabled={busy} data-testid="vehicle-save-draft" className="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-slate-600">Save draft</button>
-              <button onClick={submit} disabled={busy} data-testid="vehicle-submit" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold text-slate-900" style={{ background: CORE }}>{busy ? <Loader2 size={14} className="animate-spin" /> : <PenLine size={14} />} Submit check</button>
+              <button onClick={submit} disabled={busy || photoBusy} data-testid="vehicle-submit" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold text-slate-900" style={{ background: CORE }}>{busy ? <Loader2 size={14} className="animate-spin" /> : <PenLine size={14} />} Submit check</button>
             </div>
           </div>
         </Card>

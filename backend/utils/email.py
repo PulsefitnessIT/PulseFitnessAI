@@ -124,64 +124,80 @@ async def _resolve_co_brand(organization_id: str | None) -> dict:
     }
 
 
-def _header_html(brand: dict, accent: str = "#0055FF") -> str:
-    """Render the dual-logo header. Operator logo on the LEFT, platform
-    mark on the RIGHT. Empty operator logo falls back to a circle with
-    the operator's name initial. The single visible separator keeps
-    the header readable in both light + dark email clients."""
+def _header_html(brand: dict, accent: str = "#19CDFF") -> str:
+    """Render the on-brand header: a solid BLACK bar (matching
+    pulsefitness.ai) with the operator on the LEFT and the Pulse Fitness
+    wordmark on the RIGHT. Operator logos sit on a small white chip so
+    coloured marks stay legible on black; a missing logo falls back to a
+    cyan initial chip + white name. The Pulse mark is rendered as a clean
+    white wordmark (never a dark image on a dark bar)."""
     gym_logo = brand.get("gym_logo") or ""
     gym_name = brand.get("gym_name") or ""
-    partner_logo = brand.get("partner_logo") or ""
-    partner_name = brand.get("partner_name") or "Pulse Fitness"
     if gym_logo:
         left_block = (
-            f'<img src="{gym_logo}" alt="{gym_name}" style="max-height:42px;max-width:160px;'
-            f'vertical-align:middle;border:0;" />'
+            f'<span style="display:inline-block;background:#ffffff;border-radius:8px;'
+            f'padding:6px 10px;vertical-align:middle;">'
+            f'<img src="{gym_logo}" alt="{gym_name}" style="max-height:34px;max-width:150px;'
+            f'vertical-align:middle;border:0;" /></span>'
         )
     elif gym_name:
-        initial = gym_name[:1].upper() or "G"
+        initial = gym_name[:1].upper() or "P"
         left_block = (
             f'<div style="display:inline-block;width:38px;height:38px;border-radius:8px;'
-            f'background:{accent};color:#fff;line-height:38px;text-align:center;font-weight:800;'
+            f'background:{accent};color:#0A0A0A;line-height:38px;text-align:center;font-weight:800;'
             f'font-size:18px;font-family:Arial,sans-serif;vertical-align:middle;">{initial}</div>'
-            f'<span style="margin-left:10px;color:#1a1a1a;font-weight:700;font-size:15px;'
+            f'<span style="margin-left:10px;color:#ffffff;font-weight:700;font-size:15px;'
             f'font-family:Arial,sans-serif;vertical-align:middle;">{gym_name}</span>'
         )
     else:
         left_block = ""
-    right_block = (
-        f'<img src="{partner_logo}" alt="{partner_name}" style="max-height:30px;max-width:140px;'
-        f'vertical-align:middle;border:0;" />'
-    ) if partner_logo else (
-        f'<span style="color:#0A0A0A;font-weight:800;font-size:15px;letter-spacing:-0.01em;'
-        f'font-family:Arial,sans-serif;vertical-align:middle;">{partner_name}</span>'
+    # Pulse Fitness wordmark as text — "pulse" white + "fitness" cyan, matching
+    # the landing-page lockup and guaranteed to render on the black bar.
+    wordmark = (
+        f'<span style="font-family:Arial,Helvetica,sans-serif;font-weight:800;font-size:18px;'
+        f'letter-spacing:-0.02em;vertical-align:middle;">'
+        f'<span style="color:#ffffff;">pulse</span>'
+        f'<span style="color:{accent};">fitness</span></span>'
     )
     return (
         '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
-        'style="width:100%;background:#ffffff;border-bottom:1px solid #e5e7eb;">'
+        'style="width:100%;background:#0A0A0A;">'
         '  <tr>'
-        f'    <td style="padding:18px 30px;text-align:left;vertical-align:middle;width:50%;">{left_block}</td>'
-        f'    <td style="padding:18px 30px;text-align:right;vertical-align:middle;width:50%;">{right_block}</td>'
+        f'    <td style="padding:22px 30px;text-align:left;vertical-align:middle;width:50%;">{left_block}</td>'
+        f'    <td style="padding:22px 30px;text-align:right;vertical-align:middle;width:50%;">{wordmark}</td>'
         '  </tr>'
         '</table>'
+        # Thin cyan accent rule under the black bar for a premium finish.
+        f'<div style="height:3px;background:{accent};line-height:3px;font-size:0;">&nbsp;</div>'
     )
 
 
 def _footer_html(brand: dict) -> str:
-    """Co-branded footer with both logos as small marks."""
+    """Clean, CAN-SPAM/PECR-friendly footer: co-brand line, a support
+    contact, a physical postal address and an email-preferences line.
+    Address + support are env-driven so they can be kept accurate."""
     gym_name = brand.get("gym_name") or ""
     partner_name = brand.get("partner_name") or "Pulse Fitness AI"
+    support_email = os.environ.get("EMAIL_SUPPORT_ADDRESS", "support@pulsefitness.ai").strip()
+    postal = os.environ.get("EMAIL_FOOTER_ADDRESS", "Pulse Fitness Ltd, United Kingdom").strip()
     bits = []
     if gym_name:
-        bits.append(f'<strong>{gym_name}</strong>')
+        bits.append(f'<strong style="color:#3f3f46;">{gym_name}</strong>')
     bits.append(partner_name)
+    support_line = (
+        f'Questions? Email <a href="mailto:{support_email}" '
+        f'style="color:#0e7490;text-decoration:none;">{support_email}</a>'
+        if support_email else ''
+    )
     return (
         '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
-        'style="width:100%;background:#f5f5f5;">'
-        '  <tr><td style="padding:18px 30px;text-align:center;color:#888;font-size:11px;'
-        'font-family:Arial,sans-serif;">'
-        + ' · '.join(bits) +
-        '<br/><span style="color:#aaa;font-size:10px;">'
+        'style="width:100%;background:#f5f5f5;border-top:1px solid #e5e7eb;">'
+        '  <tr><td style="padding:22px 30px;text-align:center;color:#6b7280;font-size:12px;'
+        'font-family:Arial,sans-serif;line-height:1.6;">'
+        + ' · '.join(bits)
+        + (f'<br/><span style="color:#6b7280;">{support_line}</span>' if support_line else '')
+        + (f'<br/><span style="color:#9ca3af;font-size:11px;">{postal}</span>' if postal else '')
+        + '<br/><span style="color:#9ca3af;font-size:11px;">'
         'You\'re receiving this because of your account with the operator above. '
         'Manage email preferences in your dashboard.</span>'
         '  </td></tr>'
