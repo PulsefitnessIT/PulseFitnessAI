@@ -16,7 +16,6 @@ import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/App';
 import EngineerErrorBoundary from '@/components/shared/EngineerErrorBoundary';
-import { moduleHomePath } from '@/utils/moduleHome';
 import { can } from '@/utils/capabilities';
 import { isIndependentEngineer } from '@/utils/engineerGuard';
 
@@ -299,9 +298,14 @@ function DashboardRoute({ user }) {
   // home instead of an empty/irrelevant Operations dashboard. Only fires
   // when Operations is NOT entitled (so full/operations trials are
   // unaffected) and honours the ?as=operator preview escape hatch.
+  // Iter 220ea·42 / module-access enforcement — a user without Operations
+  // entitlement must never render the Operations dashboard, even via a direct
+  // /dashboard deep-link or bookmark. Send them to the area selector, which
+  // shows only the areas they're granted (and auto-forwards when there's one).
+  // Honours the ?as=operator preview escape hatch; master admins have
+  // Operations in their module_access so they're unaffected.
   if (!previewAsOperator && user.module_access && !user.module_access.operations) {
-    const home = moduleHomePath(user);
-    if (home) return <Navigate to={home} replace />;
+    return <Navigate to="/launch" replace />;
   }
   return <DashboardPage />;
 }
@@ -342,14 +346,21 @@ function CrmRouteElement({ user }) {
   // Iter 274 — independent engineers are locked to the Engineer App.
   if (isIndependentEngineer(user)) return <Navigate to="/partner-engineer" replace />;
   const at = user.account_type;
-  const isMasterOrFull = user.is_master_admin || user.role === 'master_admin' || user.role === 'master' || at === 'full';
-  if (isMasterOrFull) return <CRMApp />;
+  const isMaster = user.is_master_admin || user.role === 'master_admin' || user.role === 'master';
+  // Master admins always have full CRM access.
+  if (isMaster) return <CRMApp />;
   const ma = user.module_access || user.moduleAccess || {};
-  if (ma.crm === true) return <ModuleAccessGate module="crm"><CRMApp /></ModuleAccessGate>;
+  // Lite / Pulse Pro / MOD customers get the trial / upgrade gate — that's
+  // their self-serve path to buy CRM.
   if (at === 'pulse_pro' || at === 'lite' || at === 'mod_site' || at === 'mod_branch' || at === 'mod_org') {
     return <ModuleAccessGate module="crm"><CRMApp /></ModuleAccessGate>;
   }
-  return <CRMApp />;
+  // Everyone else (incl. full-org Pulse Fitness staff) is gated on their
+  // resolved per-user entitlement. Previously `account_type === 'full'` was a
+  // blanket bypass, letting a staffer with CRM revoked still open /crm. Now a
+  // missing grant sends them back to the area selector.
+  if (ma.crm === true) return <CRMApp />;
+  return <Navigate to="/launch" replace />;
 }
 
 export default function AppRoutes({ user, login }) {

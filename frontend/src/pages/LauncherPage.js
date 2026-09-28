@@ -11,7 +11,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Activity, Calendar, Briefcase, Rocket, MessagesSquare, Headset, Boxes,
-  UserCircle, Loader2, ArrowRight,
+  UserCircle, Loader2, ArrowRight, ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import Navbar from '@/components/shared/Navbar';
@@ -84,7 +84,32 @@ export default function LauncherPage() {
       </div>
     );
   }
-  if (destinations.length === 0) return <Navigate to={moduleHomePath(user) || '/dashboard'} replace />;
+  if (destinations.length === 0) {
+    // A bolt-on-only entitlement (e.g. Memberships-only) has a natural home.
+    const home = moduleHomePath(user);
+    if (home) return <Navigate to={home} replace />;
+    // Genuinely no entitled area — show a clear no-access state. We must NEVER
+    // bounce to /dashboard here: the Operations guard would send a
+    // non-Operations user straight back to /launch, creating a redirect loop.
+    return (
+      <div className="min-h-screen pulse-font" style={{ background: 'var(--theme-bg)' }} data-testid="launcher-no-access">
+        <Navbar />
+        <div className="pt-24 pb-12 flex items-center justify-center px-4">
+          <div className="w-full max-w-md rounded-2xl p-8 text-center"
+            style={{ background: 'var(--theme-surface)', border: '1px solid var(--theme-border)', boxShadow: 'var(--theme-card-shadow)' }}>
+            <div className="w-12 h-12 rounded-xl mx-auto flex items-center justify-center" style={{ background: '#f59e0b1f', color: '#d97706' }}>
+              <ShieldAlert size={24} />
+            </div>
+            <h1 className="mt-4 text-xl font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>No areas assigned yet</h1>
+            <p className="mt-2 text-sm pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
+              Your account doesn't have access to any modules or the Staff Portal.
+              Please ask your manager or administrator to grant you access.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (destinations.length === 1) return <Navigate to={destinations[0].path} replace />;
 
   const first = (user.full_name || user.name || '').split(' ')[0] || 'there';

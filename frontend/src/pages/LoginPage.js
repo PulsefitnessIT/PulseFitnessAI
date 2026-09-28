@@ -16,7 +16,6 @@ import { useAuth } from '@/App';
 import BrandWordmark from '@/components/shared/BrandWordmark';
 import { notify, useInlineBanner } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
-import { moduleHomePath } from '@/utils/moduleHome';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -264,9 +263,15 @@ export default function LoginPage() {
           ? (u.service_ops_setup_complete === false ? '/service-desk/setup' : '/service-desk')
           : (u.is_partner_engineer || u.account_type === 'partner_engineer' || u.role === 'engineer_partner')
             ? '/partner-engineer'
-            : (u.account_type === 'lite' || u.account_type === 'pulse_pro')
+            : (u.account_type === 'lite' || u.account_type === 'pulse_pro'
+               || u.account_type === 'mod_site' || u.account_type === 'mod_branch' || u.account_type === 'mod_org')
               ? '/pulse'
-              : (moduleHomePath(u) || '/dashboard');
+              // Non-dedicated Pulse Fitness staff/operators land on the area
+              // selector (/launch), which lists ONLY the areas they're granted
+              // and forwards automatically when there's just one. This stops a
+              // CRM-only (or any non-Operations) staffer being dropped into the
+              // Operations portal they have no access to.
+              : '/launch';
       navigate(nextParam || fallback, { replace: true });
   };
 
