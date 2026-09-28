@@ -66,6 +66,7 @@ def require_module_or_roles(
     *,
     allow_service_desk: bool = True,
     allow_inventory: bool = True,
+    allow_engineer: bool = True,
     allow_mod: bool = True,
 ) -> Callable:
     """403 unless the caller may use an operational surface (equipment / faults
@@ -77,6 +78,10 @@ def require_module_or_roles(
       • Service-Desk users (``is_service_desk``) — the desk lives in faults /
         equipment / PPM. Includes desk impersonation sessions.
       • Inventory & Distribution users (``is_inventory``).
+      • Engineers (``is_engineer`` / ``engineer_id`` / role=="engineer") — the
+        Engineer app reads the shared equipment API (Work Visit machine picker,
+        manufacturers list) even though the Operations dashboard UI is hidden
+        from them. Without this they'd 403 on their own tools.
       • MOD (defence) orgs — they run the Operations Portal / equipment / PPM
         via these shared routers yet never resolve a standard module to true.
 
@@ -95,6 +100,11 @@ def require_module_or_roles(
         if allow_service_desk and user.get("is_service_desk"):
             return user
         if allow_inventory and user.get("is_inventory"):
+            return user
+        if allow_engineer and (
+            user.get("is_engineer") or user.get("engineer_id")
+            or (user.get("role") or "").lower() == "engineer"
+        ):
             return user
         org = await db.organizations.find_one(
             {"id": user.get("organization_id")},

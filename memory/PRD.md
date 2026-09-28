@@ -1,3 +1,26 @@
+# ═══ 2026-06 · ROLE MATRIX TEST + ENGINEER GUARD FIX (verified) ═══
+Verification the Ops guard (require_module_or_roles on equipment/issues/ppm) didn't lock out shared roles.
+
+REGRESSION FOUND & FIXED: the Engineer app hits the SHARED equipment router —
+`ServiceOps/Engineer/WorkVisitMachinesCard.js:81` GET /equipment and `EngineerEquipment.js:576`
+GET /equipment/manufacturers. The guard did NOT allow engineers → they'd 403 on their own Work-Visit
+machine picker / manufacturer list. Fixed: `require_module_or_roles` now has `allow_engineer=True` and
+passes when `is_engineer` OR `engineer_id` OR role=="engineer". (Engineers are still kept OUT of the
+Operations dashboard *UI* by resolve_module_access's engineer guard + frontend routing — separate concern.)
+
+Verified by curl (get_current_user reads flags live, so one manager token + DB flag-flips exercised each
+branch; MOD via portal="mod" login; manager restored afterwards):
+- Office staff (ops+crm revoked, no role flags): /equipment, /equipment/manufacturers, /issues, /ppm all 403
+  (correctly blocked — Memberships/Marketing/CRM-only office staff).
+- Engineer (is_engineer): all 200. Service Desk (is_service_desk): all 200. Inventory (is_inventory): all
+  200. MOD (account_type mod_site, is_mod_org): all 200.
+- (Earlier) operations-granted user: all 200; CRM-only: equipment/ppm 403 but /issues 200 (CRM calendar ok).
+No engineer login accounts exist in the preview DB, so the engineer branch was validated via the flag-flip
+(equivalent, since the guard reads the same live user fields). Backend hot-reloaded clean; no data left mutated.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · WHO-CAN-SEE-WHAT PANEL — org module-access matrix (verified) ═══
 Manager-facing read-only matrix of every login user's EFFECTIVE module access, to catch a mis-set
 permission before anyone hits a 403.
