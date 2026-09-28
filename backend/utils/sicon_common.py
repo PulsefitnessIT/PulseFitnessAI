@@ -23,10 +23,13 @@ def env_allow_writes() -> bool:
 
 
 def env_page_size() -> int:
+    """Sicon page size ($max per request). Default 200 — proven working for
+    full-estate equipment pagination and ~4x fewer round-trips than 50, which
+    matters at 111k-line estates. Override with SICON_PAGE_SIZE if needed."""
     try:
-        return int(os.environ.get("SICON_PAGE_SIZE") or 50)
+        return int(os.environ.get("SICON_PAGE_SIZE") or 200)
     except (ValueError, TypeError):
-        return 50
+        return 200
 
 
 async def get_sicon_config(organization_id: str) -> Optional[Dict]:
