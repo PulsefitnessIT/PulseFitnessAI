@@ -24,7 +24,7 @@ import {
   IdCard, Wand2, ArrowRightLeft, Wallet, Network, CalendarDays,
   // Iter 216h264 — staff portal preview + credentials issuance
   ExternalLink, KeyRound, Loader2, Copy, Check, X,
-  Truck, Plus, ShieldAlert, FileDown, Link2,
+  Truck, Plus, ShieldAlert, FileDown, Link2, ShieldCheck,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/App';
@@ -51,6 +51,7 @@ import AIWorkforceTab from '@/pages/LiteDashboard/staffing/AIWorkforceTab';
 import MODStaffTransferTab from '@/pages/LiteDashboard/staffing/MODStaffTransferTab';
 import MODStaffTab from '@/pages/LiteDashboard/staffing/MODStaffTab';
 import SiteStaffManager from '@/pages/LiteDashboard/staffing/SiteStaffManager';
+import ComplianceTab from '@/pages/LiteDashboard/staffing/ComplianceTab';
 import ProductTour from '@/components/shared/ProductTour';
 import { useLocalization, formatMoneySync, getCachedLocalization } from '@/utils/localization';
 
@@ -84,6 +85,7 @@ const GROUPS_ALL = [
     { id: 'orgchart', label: 'Org Chart', icon: Network, roles: MGR },
     { id: 'team-access', label: 'Team Access', icon: KeyRound, roles: MGR },
     { id: 'access-matrix', label: 'Who Can See What', icon: ShieldAlert, roles: MGR },
+    { id: 'compliance', label: 'Compliance', icon: ShieldCheck, roles: MGR },
     { id: 'site-access', label: 'Site Login', icon: KeyRound, roles: MGR },
   ] },
   // Rota = everything schedule-related.
@@ -341,6 +343,7 @@ export default function StaffingConsole({ hideBell = false } = {}) {
         {tab === 'onboarding'  && <StaffOnboarding headers={headers} />}
         {tab === 'team-access' && <TeamAccessTab   headers={headers} />}
         {tab === 'access-matrix' && <TeamAccessMatrixTab headers={headers} />}
+        {tab === 'compliance'  && <ComplianceTab    headers={headers} />}
         {tab === 'orgchart'    && <OrgChartTab />}
         {tab === 'ai-rota'     && <AIWorkforceTab  headers={headers} />}
         {tab === 'ai'          && <AIInsightsTab  headers={headers} />}

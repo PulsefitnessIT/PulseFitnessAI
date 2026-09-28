@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-06 — Compliance-at-a-glance panel (Operations → Staffing → People → Compliance)
+Verified full-stack: backend endpoint via curl (correct aggregation), frontend on desktop 1920 + mobile 390 (all statuses, sorting, pills render; no content overflow).
+- New manager tab combining three compliance surfaces in one view: Enhanced DBS certificate status, Right-to-Work status, and outstanding (unpaid) vehicle fines.
+- Backend: `GET /api/staffing/compliance` (staffing.py) — `_require_manager` + `_org`, staff scoped by the same `_staff_visibility_scope` as the People register (owners/HR/Payroll/Directors see all). Returns `{summary, dbs[], right_to_work[], fines[]}`.
+  - DBS from `staff_members.dbs_expiry_date`/`dbs_number`: statuses expired (<0d), expiring (≤60d, matches the DBS bell nudge), valid, or not-on-file. Multi-format date parse.
+  - Right to Work from `staff_members.right_to_work_status`: verified / check-needed / not-on-file (case+separator-insensitive match against a known-good set).
+  - Fines: flattens unpaid `vehicles.fines[]` org-wide; overdue = 14+ days outstanding; sums unpaid total. Reuses the same open-fine/age logic as the manager fines nudge.
+  - Each list sorted most-urgent-first.
+- Frontend: `frontend/src/pages/LiteDashboard/staffing/ComplianceTab.js` (new) — three summary cards + three needs-attention sections with status pills; registered in `StaffingConsole.js` People group (`id: 'compliance'`, ShieldCheck icon, MGR-only) + render line. data-testids: `compliance-tab`, `compliance-refresh`, `compliance-card-{dbs,rtw,fines}`, `compliance-{dbs,rtw,fine}-row`.
+- Note: seeded illustrative DBS/RTW/fine data on the **iso-demo-org** test tenant only (not the operator company) so the panel demonstrates all states.
+
+
 ## 2026-06 — Launcher personalisation (/launch area chooser)
 Verified via screenshots (desktop 1920 + mobile 390), single-component UI change.
 - Time-aware greeting: "Good morning/afternoon/evening, {first}" (data-testid `launcher-greeting`) — replaces the static "Welcome back".

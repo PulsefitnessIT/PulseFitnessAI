@@ -897,6 +897,143 @@ async def team_module_matrix(user: dict = Depends(get_current_user)):
             "organization_id": org_id, "organization_name": (org or {}).get("name")}
 
 
+# ───────────────────────── Compliance at a glance ─────────────────────────
+
+_DBS_EXPIRING_DAYS = 60          # amber window (matches the DBS bell nudge)
+_FINE_OVERDUE_DAYS = 14          # unpaid this long → flagged overdue
+_RTW_OK = {"verified", "confirmed", "valid", "yes", "complete", "completed", "settled", "uk_national"}
+
+
+def _compliance_days_until(val) -> int | None:
+    """Days from today until a date string (supports the formats HR/DBS use).
+    Negative = in the past. None if unparseable/blank."""
+    if not val:
+        return None
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+        try:
+            return (datetime.strptime(str(val).strip(), fmt).date() - _now().date()).days
+        except ValueError:
+            continue
+    return None
+
+
+def _fine_age_days(f: dict) -> int | None:
+    """How long a fine has been outstanding, from created_at (datetime) or date."""
+    ca = f.get("created_at")
+    if isinstance(ca, datetime):
+        d = ca if ca.tzinfo else ca.replace(tzinfo=timezone.utc)
+        return (_now() - d).days
+    return None if (d := _compliance_days_until(f.get("date"))) is None else -d
+
+
+@router.get("/staffing/compliance")
+async def compliance_overview(user: dict = Depends(get_current_user)):
+    """Manager 'compliance at a glance' — one call combining DBS certificate
+    status, Right-to-Work status and outstanding vehicle fines, so a manager
+    sees every people/fleet compliance gap in a single panel.
+
+    Staff rows respect the same department/site visibility scope as the People
+    register (owners / HR / Payroll / Directors see everyone). Fines are fleet-
+    wide for the org (owners + managers) since a vehicle isn't owned by one
+    person."""
+    _require_manager(user)
+    org_id = _org(user)
+
+    # ── Staff (DBS + Right to Work) ──────────────────────────────
+    staff_q: dict = {"organization_id": org_id, "active": {"$ne": False}}
+    scope = await _staff_visibility_scope(user, org_id)
+    if scope:
+        staff_q = {"$and": [staff_q, scope]}
+    staff = await db.staff_members.find(
+        staff_q,
+        {"_id": 0, "id": 1, "full_name": 1, "primary_role": 1, "department": 1,
+         "dbs_number": 1, "dbs_expiry_date": 1, "right_to_work_status": 1},
+    ).sort("full_name", 1).to_list(5000)
+
+    dbs_list, rtw_list = [], []
+    dbs_sum = {"expired": 0, "expiring": 0, "ok": 0, "missing": 0}
+    rtw_sum = {"ok": 0, "attention": 0, "missing": 0}
+    for s in staff:
+        person = {"staff_id": s["id"], "name": s.get("full_name") or "Unnamed",
+                  "role": s.get("primary_role"), "department": s.get("department")}
+        # DBS
+        expiry = (s.get("dbs_expiry_date") or "").strip() if isinstance(s.get("dbs_expiry_date"), str) else s.get("dbs_expiry_date")
+        days = _compliance_days_until(expiry)
+        if not s.get("dbs_number") and not expiry:
+            dbs_status = "missing"
+        elif days is None:
+            dbs_status = "missing"
+        elif days < 0:
+            dbs_status = "expired"
+        elif days <= _DBS_EXPIRING_DAYS:
+            dbs_status = "expiring"
+        else:
+            dbs_status = "ok"
+        dbs_sum[dbs_status] += 1
+        dbs_list.append({**person, "dbs_number": s.get("dbs_number"),
+                         "expiry_date": expiry, "days": days, "status": dbs_status})
+        # Right to work
+        raw = (s.get("right_to_work_status") or "").strip()
+        key = re.sub(r"[\s-]+", "_", raw.lower())
+        if not raw:
+            rtw_status = "missing"
+        elif key in _RTW_OK:
+            rtw_status = "ok"
+        else:
+            rtw_status = "attention"
+        rtw_sum[rtw_status] += 1
+        rtw_list.append({**person, "raw_status": raw or None, "status": rtw_status})
+
+    # ── Fleet fines (unpaid) ─────────────────────────────────────
+    fine_list = []
+    fines_sum = {"unpaid_count": 0, "overdue_count": 0, "unpaid_total": 0.0}
+    vehicles = await db.vehicles.find(
+        {"organization_id": org_id, "active": {"$ne": False},
+         "fines": {"$exists": True, "$ne": []}},
+        {"_id": 0, "id": 1, "reg_no": 1, "fines": 1, "make": 1, "model": 1},
+    ).to_list(3000)
+    for v in vehicles:
+        for f in (v.get("fines") or []):
+            if f.get("paid"):
+                continue
+            age = _fine_age_days(f)
+            overdue = age is not None and age >= _FINE_OVERDUE_DAYS
+            try:
+                val = float(f.get("value") or 0)
+            except (TypeError, ValueError):
+                val = 0.0
+            fines_sum["unpaid_count"] += 1
+            fines_sum["unpaid_total"] += val
+            if overdue:
+                fines_sum["overdue_count"] += 1
+            fine_list.append({
+                "vehicle_id": v.get("id"),
+                "reg_no": v.get("reg_no") or "—",
+                "vehicle": " ".join(x for x in [v.get("make"), v.get("model")] if x) or None,
+                "kind": f.get("kind"), "date": f.get("date"), "value": val,
+                "notes": f.get("notes"), "age_days": age, "overdue": overdue,
+            })
+    fines_sum["unpaid_total"] = round(fines_sum["unpaid_total"], 2)
+
+    # Most-urgent first in each list.
+    _dbs_rank = {"expired": 0, "expiring": 1, "missing": 2, "ok": 3}
+    dbs_list.sort(key=lambda r: (_dbs_rank.get(r["status"], 9), r["days"] if r["days"] is not None else 9999))
+    _rtw_rank = {"attention": 0, "missing": 1, "ok": 2}
+    rtw_list.sort(key=lambda r: (_rtw_rank.get(r["status"], 9), (r["name"] or "").lower()))
+    fine_list.sort(key=lambda r: (not r["overdue"], -(r["age_days"] or 0)))
+
+    action_needed = (dbs_sum["expired"] + dbs_sum["expiring"] + dbs_sum["missing"]
+                     + rtw_sum["attention"] + rtw_sum["missing"] + fines_sum["unpaid_count"])
+    return {
+        "summary": {"dbs": dbs_sum, "right_to_work": rtw_sum, "fines": fines_sum,
+                    "staff_count": len(staff), "action_needed": action_needed},
+        "dbs": dbs_list,
+        "right_to_work": rtw_list,
+        "fines": fine_list,
+    }
+
+
+
 
 @router.post("/staffing/staff/{staff_id}/module-access/{module}/grant")
 async def staff_module_grant(staff_id: str, module: str, user: dict = Depends(get_current_user)):
