@@ -5,6 +5,52 @@ Live Sicon (`http://localhost:51080`, companyId=2) is only reachable on the
 customer network, so everything here is built + unit-tested offline (httpx
 MockTransport). The customer runs the live acceptance tests on their side.
 
+## Increment B — import preview + matching + conflict queue + dashboard (DONE 2026-09-24)
+Engine `utils/sicon_import.py`, read-side endpoints in `routes/sicon.py`
+(`/api/sicon/read/*`), dashboard UI `frontend/src/pages/SiconDashboard.js`
+wired as the first tab of the existing `SiconIntegrationTab` (Settings → Sicon).
+
+Matching (§10/§11): `classify_equipment` → linked | match | conflict | new.
+- linked: siconEquipmentId already in link table OR on an asset → update/sync.
+- match: unique exact serial-number hit → link + update.
+- conflict: >1 asset shares the serial → conflict queue, never merge.
+- new: no match → create asset.
+Serial is the ONLY auto-link signal (item code/customer/model are shared across
+units → left as extension points).
+
+Field ownership (§19/§20): `_sicon_update_set` writes only Sicon-synced fields
+(serial, install/warranty/service dates) + external ids; never manufacturer
+(§9 — `sicon_make_raw` kept raw); never overwrites a populated Pulse field with
+a null/empty Sicon value.
+
+Idempotency: link table + `sicon_equipment_id` mean re-running never duplicates.
+Sync (`run_equipment_sync`) is background (POST returns run_id; poll
+`/read/equipment/sync/{run_id}`), per-record failure isolation, checkpoint on
+`db.sicon_sync_runs`. Conflicts in `db.sicon_import_conflicts`; resolve via
+`/read/conflicts/{external_id}/resolve` (link | create_new | ignore).
+
+Dashboard endpoints: `/read/dashboard` (connection + equipment/case stats),
+`/read/api-health` (times Ping/Equipment/CaseType/CaseSearch), `/read/conflicts`,
+`/read/equipment/preview` (classify-only, writes nothing), `/read/equipment/sync`.
+All gated to owner/manager/admin.
+
+Also fixed a pre-existing platform gap: the org Settings dialog (host of the
+Sicon section) had no header opener since iter202 — restored a `nav-settings-btn`
+(+ mobile `mobile-settings-btn`) in `components/shared/Navbar.js` for
+owner/manager/admin, and wired the previously-ignored `onOpenSettings` prop.
+
+Tests: `tests/test_sicon_import_engine.py` — 6 offline DB-backed tests green
+(idempotent no-dupe, null-doesn't-erase + make≠manufacturer, ambiguous→conflict,
+existing-id→same record, failed-record isolation, preview writes nothing).
+Testing agent: 7/7 endpoint tests pass; dashboard renders in not-configured
+state (badges, stat cards, disabled buttons + helper, API health, empty
+conflicts). Report: iteration_sicon_readside_dashboard_incrementB_jan2026.json.
+
+## Next (Increment C)
+CaseSearch → Service Desk inbound mapping + configurable reference-data
+(CaseType/Priority/TrackingStatus) + customer/site mapping screens. Contract/
+SLA/appointment/engineer stay inactive extension points (§14/§15).
+
 ## Increment A — foundation (DONE 2026-09-24)
 All in the ONE central client (`utils/sicon_client.py`) — no parallel client.
 

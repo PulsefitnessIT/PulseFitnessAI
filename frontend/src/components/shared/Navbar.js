@@ -18,7 +18,7 @@ import { useInlineBanner, notify } from '@/components/notifications';
 import { useTranslation } from 'react-i18next';
 import { setLanguagePreference } from '@/utils/languagePref';
 
-const Navbar = ({ _onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }) => {
+const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }) => {
  const { user, login, logout, API, branding, theme, toggleTheme, sites, _activeSite, _setActiveSite } = useAuth();
  const { t, i18n } = useTranslation();
  const { banner: authBanner, show: showAuthBanner, clear: clearAuthBanner } = useInlineBanner();
@@ -536,7 +536,20 @@ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
  >
  <LifeBuoy size={16} /> {t('nav.help_tutorials', 'Help & Tutorials')}
  </button>
- {/* Settings option removed iter202 — settings now live inside Account modal (Preferences section) */}
+ {/* Iter B — org Settings (Team, Suppliers, Branding, Sicon integration…)
+     reachable again from the header for owners/managers/admins. Account-level
+     prefs still live in the Account modal; this opens the ORG settings dialog. */}
+ {(user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin || user?.is_pulse_admin)
+   && (isOnDashboard || isOnPulse) && onOpenSettings && (
+ <button
+ onClick={() => { onOpenSettings(); setShowUserMenu(false); }}
+ className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:opacity-80 transition-colors"
+ style={{ color: 'var(--theme-text-muted)' }}
+ data-testid="nav-settings-btn"
+ >
+ <Settings size={16} /> {t('nav.settings', 'Settings')}
+ </button>
+ )}
  {(isOnDashboard || isOnPulse) && onStartTour && (
  <button
  onClick={() => { onStartTour(); setShowUserMenu(false); }}
@@ -659,7 +672,18 @@ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
  >
  <LifeBuoy size={16} /> {t('nav.help_tutorials', 'Help & Tutorials')}
  </button>
- {/* Mobile: settings option removed iter202 — moved into Account modal */}
+ {/* Mobile: org Settings reachable again (iter B). */}
+ {(user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin || user?.is_pulse_admin)
+   && (isOnDashboard || isOnPulse) && onOpenSettings && (
+ <button
+ onClick={() => { onOpenSettings(); setMobileMenuOpen(false); }}
+ className="w-full flex items-center gap-2 px-3 py-2 hover:opacity-80"
+ style={{ color: 'var(--theme-text-muted)' }}
+ data-testid="mobile-settings-btn"
+ >
+ <Settings size={16} /> {t('nav.settings', 'Settings')}
+ </button>
+ )}
  {(user?.is_master_admin || user?.is_pulse_admin) && (isOnDashboard || isOnPulse) && onOpenMasterAdmin && (
  <button
  onClick={() => { onOpenMasterAdmin(); setMobileMenuOpen(false); }}

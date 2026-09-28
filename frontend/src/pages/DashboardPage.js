@@ -137,6 +137,9 @@ const DashboardPage = () => {
     if (tab) setActiveTab(tab);
     const onboarding = searchParams.get('onboarding');
     if (onboarding === '1') setShowOnboarding(true);
+    // Test/deep-link: ?settings=1 opens the Settings dialog (Sicon section reachable via testid).
+    const settingsQ = searchParams.get('settings');
+    if (settingsQ) setShowSettingsDialog(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
   }, []);
 

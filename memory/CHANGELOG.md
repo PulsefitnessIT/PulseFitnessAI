@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-09-24 — Sicon READ-side Increment B (equipment import + dashboard)
+- Import engine `utils/sicon_import.py`: normalise → classify (linked/match/conflict/new) → apply, all idempotent via the external-link table + sicon_equipment_id. Serial is the only auto-link signal; ambiguous → conflict queue (never merges). Field ownership respected: never overwrites manufacturer (Sicon make kept as sicon_make_raw), never erases a populated Pulse field with an empty Sicon value.
+- Read-side endpoints in `routes/sicon.py` (`/api/sicon/read/*`): dashboard, api-health, equipment/preview (classify-only, writes nothing), equipment/sync (background run + status poll), conflicts list + resolve (link/create_new/ignore). Owner/manager/admin gated. Writes to Sicon stay OFF.
+- Dashboard UI `frontend/src/pages/SiconDashboard.js` added as the first tab of the existing Settings → Sicon integration tab (connection health, equipment & case stats, preview/sync, conflict review, sync log, API health) — friendly not-configured/disconnected states.
+- Fixed a pre-existing gap: the org Settings dialog had no header opener since iter202 — restored `nav-settings-btn` (+ mobile) in Navbar and wired the ignored `onOpenSettings` prop, so users can reach Settings → Sicon → Dashboard again.
+- Tests: 6 new offline engine tests + 11 from Increment A = 17 green; testing agent 7/7 endpoint tests pass and the dashboard renders correctly. Report: iteration_sicon_readside_dashboard_incrementB_jan2026.json.
+- Next: Increment C (CaseSearch → Service Desk + configurable reference-data & customer/site mapping screens).
+
+
 ## 2026-09-24 — Sicon READ-side integration, Increment A (foundation)
 Built the proven Sicon→Pulse read-side foundation per the customer's FINAL spec, all offline-tested (live Sicon only reachable on their network).
 - Extended the ONE central client (`utils/sicon_client.py`) with proven read endpoints: CaseType/Priority/TrackingStatus, Equipment GetMany+GetOne, CaseSearch GetMany+GetOne (by siSMCaseId), plus a paginate-until-nextPage-null helper.
