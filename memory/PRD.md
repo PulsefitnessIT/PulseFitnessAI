@@ -1,3 +1,23 @@
+# ═══ 2026-06 · SICON READ-SIDE — hardening for 111k-line estate (verified) ═══
+User confirmed the live estate is ~111,000 equipment lines and asked to harden the sync (chose the
+concurrency lock). Two changes, no behaviour regressions:
+1. Per-org concurrency LOCK (utils/sicon_import.py): acquire/touch/release on db.sicon_sync_locks
+   (unique org+entity). run_equipment_sync & run_case_sync acquire before running; an overlapping run
+   (nightly cron vs manual Sync) is recorded status="skipped_locked" and does nothing. Heartbeat per
+   page; stale (>120min no heartbeat) locks are taken over so a crashed process can't wedge it. Run
+   docs now UPSERT by id (was insert_one) → no more duplicate run docs vs the route's pre-seed.
+2. Read-side import INDEXES (bootstrap/indexes.py): classifier previously scanned the whole collection
+   per record (no index on equipment.sicon_equipment_id/id, issues.sicon_case_id/id) → O(n²) hours at
+   111k. Added equipment (org,sicon_equipment_id)/(org,serial_number)/id, issues (org,sicon_case_id)/id,
+   sicon_sync_locks unique, sicon_sync_runs id + (org,entity,started_at), sicon_import_conflicts
+   (org,entity,status). Verified present on all collections.
+Runtime note: 111k initial sync is API-bound (~2,220 calls @ page_size 50; set SICON_PAGE_SIZE=200 →
+~550 calls). ~15–45 min depending on LAN. Tests: added test_concurrent_sync_is_locked_out; full Sicon
+offline suite 25/25 green. Notes: /app/memory/SICON_READSIDE_NOTES.md.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · SICON — entity-scoped mapping correctness (verified) ═══
 Root defect: the field-map join matched Sicon fields GLOBALLY by leaf name, so identical names cross-contaminated
 across entities (siconAppointmentId shared by Appointment+TrackingNote; TimeBooking startDate→contract; Case

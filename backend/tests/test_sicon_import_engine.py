@@ -35,6 +35,7 @@ async def _cleanup(org):
     await db.sicon_external_links.delete_many({"organization_id": org})
     await db.sicon_import_conflicts.delete_many({"organization_id": org})
     await db.sicon_sync_runs.delete_many({"organization_id": org})
+    await db.sicon_sync_locks.delete_many({"organization_id": org})
 
 
 @pytest.fixture
@@ -144,3 +145,26 @@ def test_preview_writes_nothing(org):
     assert result["counts"]["new"] == 2
     assert result["total_in_sicon"] == 2
     assert assets == 0  # preview must not write
+
+
+def test_concurrent_sync_is_locked_out(org):
+    """A second equipment sync for the same org while a lock is held must be
+    skipped (not run in parallel), so 111k-line estates aren't double-pulled."""
+    async def run():
+        # Simulate an in-flight run by grabbing the lock under a different run id.
+        got = await imp.acquire_sync_lock(org, "equipment", "holder-run")
+        pages = [({"currentPage": 1, "nextPage": None, "pageSize": 50, "totalRecords": 1},
+                  [_rec(9009, "Z")])]
+        result = await imp.run_equipment_sync(org, FakeClient(pages), run_id="blocked-run")
+        assets = await db.equipment.count_documents({"organization_id": org})
+        # Release + run again — now it proceeds.
+        await imp.release_sync_lock(org, "equipment", "holder-run")
+        result2 = await imp.run_equipment_sync(org, FakeClient(pages), run_id="ok-run")
+        assets2 = await db.equipment.count_documents({"organization_id": org})
+        return got, result, assets, result2, assets2
+    got, result, assets, result2, assets2 = drive_async(run())
+    assert got is True
+    assert result["status"] == "skipped_locked"
+    assert assets == 0                       # blocked run wrote nothing
+    assert result2["status"] == "completed"  # after release it runs
+    assert assets2 == 1

@@ -1,5 +1,39 @@
 # Sicon READ-side integration (Sicon → Pulse) — implementation notes
 
+## Hardening — concurrency lock + 111k-scale indexes (DONE 2026-09-28)
+Customer estate is ~111,000 equipment lines, so a full sync is a long
+multi-minute job. Two hardening changes:
+
+1. **Per-org concurrency lock** (`utils/sicon_import.py`): `acquire_sync_lock`
+   / `touch_sync_lock` / `release_sync_lock` on `db.sicon_sync_locks`
+   (unique `(organization_id, entity)`). `run_equipment_sync` and
+   `run_case_sync` acquire before running; a second run (e.g. nightly cron
+   overlapping a manual "Sync") is recorded as `status:"skipped_locked"` and
+   does nothing. Heartbeat bumped each page; a lock with no heartbeat for
+   `LOCK_STALE_MINUTES` (120) is taken over so a crashed process can't wedge
+   the integration. Lock released in a `finally`. Run docs now UPSERT by id
+   (was `insert_one`) so the route's pre-seeded "queued" doc no longer
+   duplicates.
+
+2. **Read-side import indexes** (`bootstrap/indexes.py`): the classifier hit a
+   collection scan per record (no index on `equipment.sicon_equipment_id`,
+   `equipment.id`, `issues.sicon_case_id`, `issues.id`) → O(n²) at 111k =
+   hours. Added `equipment (org, sicon_equipment_id)`, `(org, serial_number)`,
+   `id`; `issues (org, sicon_case_id)`, `id`; `sicon_sync_locks` unique;
+   `sicon_sync_runs.id` + `(org, entity, started_at)`;
+   `sicon_import_conflicts (org, entity, status)`. Verified present.
+
+Rough runtime for a 111k initial sync WITH these indexes: dominated by Sicon
+API round-trips — at page_size 50 that's ~2,220 sequential calls. Raise
+`SICON_PAGE_SIZE` env (e.g. 200) to cut it to ~550 calls. Expect roughly
+15–45 min end-to-end depending on LAN latency; nightly re-runs cost the same
+(read side has no modifiedSince filter). Tests: `test_concurrent_sync_is_locked_out`
+added; full Sicon offline suite now 25 green.
+
+---
+
+# Sicon READ-side integration (Sicon → Pulse) — implementation notes (original)
+
 Spec: customer's "PulseFitness-Sicon.zip / FINAL PROVEN READ-SIDE" (2026-09-24).
 Live Sicon (`http://localhost:51080`, companyId=2) is only reachable on the
 customer network, so everything here is built + unit-tested offline (httpx

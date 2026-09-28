@@ -30,6 +30,7 @@ async def _cleanup(org):
     await db.issues.delete_many({"organization_id": org})
     await db.sicon_external_links.delete_many({"organization_id": org})
     await db.sicon_sync_runs.delete_many({"organization_id": org})
+    await db.sicon_sync_locks.delete_many({"organization_id": org})
 
 
 @pytest.fixture

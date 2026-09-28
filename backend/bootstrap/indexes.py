@@ -214,6 +214,29 @@ async def create_indexes() -> None:
     except Exception as _e:  # pragma: no cover
         logger.warning(f"crm2 sicon auto-match index warning: {_e}")
 
+    # Sicon read-side import hot paths (added iter — 111k-line estate scale).
+    # `run_equipment_sync` classifies EVERY record with a find_one on
+    # equipment.(organization_id, sicon_equipment_id) and updates by equipment.id;
+    # `run_case_sync` does the same on issues.(organization_id, sicon_case_id) +
+    # issues.id. Without these, each of 100k+ records forced a collection scan
+    # (O(n²) → hours). With them each lookup is an index seek (minutes). Plus
+    # the per-org sync lock (unique) and sync-run/conflict list indexes.
+    try:
+        await db.equipment.create_index([("organization_id", 1), ("sicon_equipment_id", 1)])
+        await db.equipment.create_index([("organization_id", 1), ("serial_number", 1)])
+        await db.equipment.create_index([("id", 1)], name="equipment_id")
+        await db.issues.create_index([("organization_id", 1), ("sicon_case_id", 1)])
+        await db.issues.create_index([("id", 1)], name="issues_id")
+        await db.sicon_sync_locks.create_index(
+            [("organization_id", 1), ("entity", 1)], unique=True, name="uniq_sicon_sync_lock")
+        await db.sicon_sync_runs.create_index([("id", 1)], name="sicon_sync_run_id")
+        await db.sicon_sync_runs.create_index(
+            [("organization_id", 1), ("entity", 1), ("started_at", -1)])
+        await db.sicon_import_conflicts.create_index(
+            [("organization_id", 1), ("external_entity_type", 1), ("status", 1)])
+    except Exception as _e:  # pragma: no cover
+        logger.warning(f"sicon read-side import index warning: {_e}")
+
     # ───────────────────────────────────────────────────────────────
     # Tier-3 performance indexes (added Feb 2026)
     # Audited every collection with >0 organization_id queries that

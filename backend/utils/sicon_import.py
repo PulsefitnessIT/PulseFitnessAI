@@ -14,13 +14,23 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
 
 from utils.database import db
 from utils import sicon_links as links
 
 logger = logging.getLogger(__name__)
+
+# ── Per-org sync concurrency lock ─────────────────────────────────
+# A full estate can be 100k+ equipment lines, so a single sync run may take
+# many minutes. The nightly cron and a manual "Sync" click could otherwise
+# fire at the same time, doubling API load and racing on the same records.
+# One lock per (organization_id, entity) guarantees only ONE sync of each kind
+# runs per org at a time. A heartbeat keeps a long-running (but healthy) run
+# from being considered dead; a stale lock (no heartbeat) is taken over so a
+# crashed process can never wedge the integration permanently.
+LOCK_STALE_MINUTES = 120
 
 # §19 — fields we treat as sync-from-Sicon on an EXISTING Pulse asset. Anything
 # not listed (manufacturer, photos, manuals, condition, CAPEX, portal flags…)
@@ -43,6 +53,45 @@ def _now() -> str:
 
 def _clean(v):
     return v.strip() if isinstance(v, str) else v
+
+
+async def acquire_sync_lock(org_id: str, entity: str, run_id: str) -> bool:
+    """Try to acquire the per-org sync lock for `entity` ('equipment'|'case').
+
+    Returns True if acquired. Only acquires when no live lock is held (either
+    unlocked, or the previous holder's heartbeat is older than
+    LOCK_STALE_MINUTES → the holder crashed and we take over)."""
+    key = {"organization_id": org_id, "entity": entity}
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+    stale_iso = (now - timedelta(minutes=LOCK_STALE_MINUTES)).isoformat()
+    # Ensure the lock doc exists (idempotent). Unique index on (org, entity)
+    # makes concurrent inserts collapse to one — swallow the dup-key race.
+    try:
+        await db.sicon_sync_locks.update_one(
+            key, {"$setOnInsert": {**key, "locked": False}}, upsert=True)
+    except Exception:
+        pass
+    res = await db.sicon_sync_locks.update_one(
+        {**key, "$or": [{"locked": {"$ne": True}}, {"heartbeat_at": {"$lt": stale_iso}}]},
+        {"$set": {"locked": True, "run_id": run_id,
+                  "acquired_at": now_iso, "heartbeat_at": now_iso}},
+    )
+    return res.modified_count == 1
+
+
+async def touch_sync_lock(org_id: str, entity: str, run_id: str) -> None:
+    """Bump the heartbeat so a healthy long-running sync is never seen as stale."""
+    await db.sicon_sync_locks.update_one(
+        {"organization_id": org_id, "entity": entity, "run_id": run_id},
+        {"$set": {"heartbeat_at": _now()}})
+
+
+async def release_sync_lock(org_id: str, entity: str, run_id: str) -> None:
+    """Release the lock (only if we still hold it, matched by run_id)."""
+    await db.sicon_sync_locks.update_one(
+        {"organization_id": org_id, "entity": entity, "run_id": run_id},
+        {"$set": {"locked": False, "released_at": _now()}})
 
 
 def normalise_equipment(rec: Dict[str, Any]) -> Dict[str, Any]:
@@ -256,11 +305,19 @@ async def run_equipment_sync(org_id: str, client, max_records: int = 0,
     estate. Records a sync-run doc with counts + last checkpoint (spec §22/§23)."""
     run_id = run_id or str(uuid.uuid4())
     counts = {"created": 0, "linked": 0, "updated": 0, "conflict": 0, "failed": 0}
-    await db.sicon_sync_runs.insert_one({
+    if not await acquire_sync_lock(org_id, "equipment", run_id):
+        await db.sicon_sync_runs.update_one({"id": run_id}, {"$set": {
+            "id": run_id, "organization_id": org_id, "entity": "equipment",
+            "status": "skipped_locked", "counts": counts, "finished_at": _now(),
+            "skip_reason": "another equipment sync is already running for this organisation",
+        }}, upsert=True)
+        logger.info("equipment sync %s skipped — lock already held for org %s", run_id, org_id)
+        return {"run_id": run_id, "status": "skipped_locked", "processed": 0, "counts": counts}
+    await db.sicon_sync_runs.update_one({"id": run_id}, {"$set": {
         "id": run_id, "organization_id": org_id, "entity": "equipment",
         "status": "running", "counts": counts, "started_at": _now(),
         "checkpoint_skip": 0, "user_id": user_id,
-    })
+    }}, upsert=True)
     processed = 0
     last_skip = 0
     try:
@@ -280,12 +337,15 @@ async def run_equipment_sync(org_id: str, client, max_records: int = 0,
             last_skip = (meta.get("currentPage") or 1) * (meta.get("pageSize") or client.page_size)
             await db.sicon_sync_runs.update_one(
                 {"id": run_id}, {"$set": {"counts": counts, "checkpoint_skip": last_skip}})
+            await touch_sync_lock(org_id, "equipment", run_id)
             if max_records and processed >= max_records:
                 break
         status = "completed"
     except Exception as e:
         status = "failed"
         logger.error("equipment sync run %s aborted: %s", run_id, e)
+    finally:
+        await release_sync_lock(org_id, "equipment", run_id)
     await db.sicon_sync_runs.update_one(
         {"id": run_id}, {"$set": {"status": status, "counts": counts,
                                   "processed": processed, "finished_at": _now()}})
@@ -560,9 +620,18 @@ async def run_case_sync(org_id: str, client, config: Dict[str, Any], max_records
                         run_id: Optional[str] = None, user_id: str = "system") -> Dict[str, Any]:
     run_id = run_id or str(uuid.uuid4())
     counts = {"created": 0, "updated": 0, "failed": 0}
-    await db.sicon_sync_runs.insert_one({
+    if not await acquire_sync_lock(org_id, "case", run_id):
+        await db.sicon_sync_runs.update_one({"id": run_id}, {"$set": {
+            "id": run_id, "organization_id": org_id, "entity": "case",
+            "status": "skipped_locked", "counts": counts, "finished_at": _now(),
+            "skip_reason": "another case sync is already running for this organisation",
+        }}, upsert=True)
+        logger.info("case sync %s skipped — lock already held for org %s", run_id, org_id)
+        return {"run_id": run_id, "status": "skipped_locked", "processed": 0, "counts": counts}
+    await db.sicon_sync_runs.update_one({"id": run_id}, {"$set": {
         "id": run_id, "organization_id": org_id, "entity": "case",
-        "status": "running", "counts": counts, "started_at": _now(), "user_id": user_id})
+        "status": "running", "counts": counts, "started_at": _now(), "user_id": user_id}},
+        upsert=True)
     processed = 0
     try:
         async for meta, records in client.svc_paginate("cases"):
@@ -579,12 +648,15 @@ async def run_case_sync(org_id: str, client, config: Dict[str, Any], max_records
                 if max_records and processed >= max_records:
                     break
             await db.sicon_sync_runs.update_one({"id": run_id}, {"$set": {"counts": counts}})
+            await touch_sync_lock(org_id, "case", run_id)
             if max_records and processed >= max_records:
                 break
         status = "completed"
     except Exception as e:
         status = "failed"
         logger.error("case sync run %s aborted: %s", run_id, e)
+    finally:
+        await release_sync_lock(org_id, "case", run_id)
     await db.sicon_sync_runs.update_one(
         {"id": run_id}, {"$set": {"status": status, "counts": counts,
                                   "processed": processed, "finished_at": _now()}})
