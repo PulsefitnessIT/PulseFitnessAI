@@ -16,6 +16,7 @@ import { useAuth } from '@/App';
 import BrandWordmark from '@/components/shared/BrandWordmark';
 import { notify, useInlineBanner } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import { resolveHomePath } from '@/utils/moduleHome';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -247,31 +248,10 @@ export default function LoginPage() {
         navigate('/change-password', { replace: true });
         return;
       }
-      if (u.role === 'dealer_user') {
-        navigate('/dealer-portal', { replace: true });
-        return;
-      }
-      if (u.role === 'logistics') {
-        navigate('/logistics', { replace: true });
-        return;
-      }
-      const fallback = (u.is_master_admin || u.is_pulse_admin)
-        ? '/master-admin'
-        : u.is_service_desk
-          // Iter 250 — Service-Desk-nominated users go straight to the desk.
-          // Iter 253 — self-serve providers finish the setup wizard first.
-          ? (u.service_ops_setup_complete === false ? '/service-desk/setup' : '/service-desk')
-          : (u.is_partner_engineer || u.account_type === 'partner_engineer' || u.role === 'engineer_partner')
-            ? '/partner-engineer'
-            : (u.account_type === 'lite' || u.account_type === 'pulse_pro'
-               || u.account_type === 'mod_site' || u.account_type === 'mod_branch' || u.account_type === 'mod_org')
-              ? '/pulse'
-              // Non-dedicated Pulse Fitness staff/operators land on the area
-              // selector (/launch), which lists ONLY the areas they're granted
-              // and forwards automatically when there's just one. This stops a
-              // CRM-only (or any non-Operations) staffer being dropped into the
-              // Operations portal they have no access to.
-              : '/launch';
+      // Single source of truth (shared with LoginRedirectPage) — dedicated
+      // roles keep their shells; non-dedicated Pulse Fitness staff/operators
+      // land on the area selector (/launch).
+      const fallback = resolveHomePath(u);
       navigate(nextParam || fallback, { replace: true });
   };
 

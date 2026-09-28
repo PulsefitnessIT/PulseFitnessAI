@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/App';
 import LoginPage from './LoginPage';
-import { moduleHomePath } from '@/utils/moduleHome';
+import { resolveHomePath } from '@/utils/moduleHome';
 
 /**
  * /login route guard — sends authenticated users to their home portal,
@@ -29,11 +29,7 @@ const LoginRedirectPage = () => {
       if (/^[A-Za-z][A-Za-z0-9+\-.]*:/.test(raw)) return null;
       return raw;
     })();
-    const fallback = (user.is_master_admin || user.is_pulse_admin)
-      ? '/master-admin'
-      : (user.is_partner_engineer || user.account_type === 'partner_engineer' || user.role === 'engineer_partner')
-        ? '/partner-engineer'
-        : '/launch';
+    const fallback = resolveHomePath(user);
     return <Navigate to={safeNext || fallback} replace />;
   }
   return <LoginPage />;

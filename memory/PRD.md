@@ -1,3 +1,40 @@
+# ═══ 2026-06 · STAFF PORTAL ACCESS — module-access routing fix (verified) ═══
+BUG: Pulse Fitness staff with CRM (not Operations) access were dropped into the Operations Portal after
+login. REQUIREMENT (user-confirmed): non-dedicated Pulse Fitness (`full` org) staff must see the AREA
+SELECTOR (/launch) after login listing ONLY granted areas, and must not be able to reach modules they
+aren't granted (even via direct URL).
+
+Root cause: (a) LoginPage.routeAfterLogin fell back to `/dashboard` (Operations) and the /dashboard guard
+only redirected when moduleHomePath() returned a single bolt-on — for multi-module staff it returned null,
+so Operations rendered silently; (b) CrmRouteElement had a blanket `account_type==='full'` bypass letting
+any full-org staff open /crm regardless of grant; (c) LoginRedirectPage hard-defaulted every non-admin to
+/launch, bouncing service-desk/dealer/logistics/lite/pulse_pro/mod users off their real home.
+
+Fix (frontend only):
+- New shared `resolveHomePath(user)` in utils/moduleHome.js — single source of truth for post-login home.
+  Used by BOTH LoginPage.routeAfterLogin and LoginRedirectPage (no more divergence). Dedicated roles keep
+  their shells; non-dedicated full-org staff → /launch.
+- AppRoutes.DashboardRoute: user without module_access.operations → Navigate /launch (blocks Operations
+  deep-links/bookmarks); ?as=operator preview still bypasses; master admin has operations so unaffected.
+- AppRoutes.CrmRouteElement: full-org users now require module_access.crm===true else Navigate /launch
+  (closed the blanket `full` bypass); lite/pulse_pro/mod still use the ModuleAccessGate trial/upgrade flow.
+- LauncherPage: zero-entitlement users get a "No areas assigned" state (data-testid launcher-no-access)
+  instead of bouncing to /dashboard (loop-safe).
+Memberships/Marketing/CRM/Comms routes were already backend-enforced via require_module + ModuleAccessGate.
+
+Verified via headless Playwright + testing_agent (report:
+/app/test_reports/iteration_launcher_service_desk_regression_jan2026.json): CRM-only staff → /launch with
+only granted tiles; /dashboard→/launch; /crm stays; /marketing gated; ops-granted /dashboard renders;
+owner@isodemo (service desk) → /service-desk (regression found by testing_agent, then FIXED & re-verified).
+
+RESIDUAL GAP (recommended follow-up, NOT done — high regression risk): Operations backend endpoints
+(equipment/faults/PPM/reports) have NO `require_module("operations")` guard, so API-level access isn't
+blocked for a non-Operations user hitting them directly. Frontend navigation is fully blocked. Backend
+gating needs careful scoping because those endpoints are shared with Service Desk & Engineer app.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · SICON READ-SIDE — hardening for 111k-line estate (verified) ═══
 User confirmed the live estate is ~111,000 equipment lines and asked to harden the sync (chose the
 concurrency lock). Two changes, no behaviour regressions:

@@ -1,0 +1,39 @@
+{
+  "summary": "Frontend regression testing of the launcher/module-access routing fix on manager@isodemo.com (CRM+Memberships granted, Operations+Marketing revoked) and regression checks on Operations-granted deep-link + owner@isodemo.com (is_service_desk=true). 5/6 scenarios PASS. 1 scenario FAILS: owner@isodemo.com is bounced to /launch after login instead of landing on /service-desk.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Login routing for is_service_desk=true user (owner@isodemo.com)",
+        "issue": "After a fresh login, owner@isodemo.com transiently lands on /service-desk (correct per routeAfterLogin) but is IMMEDIATELY redirected to /launch (LauncherPage). Repro observed twice via UI + framenavigated events log: NAV /login -> NAV /service-desk -> NAV /launch. Backend /auth/login and /auth/me correctly return is_service_desk=true, service_ops_setup_complete=true, module_access.operations=true. This is a REGRESSION against the requirement 'owner@isodemo.com still logs in and reaches the Service Desk (/service-desk) as before'. Very likely cause: LoginRedirectPage (/app/frontend/src/pages/LoginRedirectPage.js) only special-cases is_master_admin/is_pulse_admin and partner_engineer; every other authenticated user hitting /login falls through to '/launch'. If routeAfterLogin's imperative navigate loses a race with LoginRedirectPage's declarative <Navigate to='/launch'> (or with the /auth/me re-hydration triggered inside login()) the user ends up on /launch. LoginRedirectPage should mirror routeAfterLogin fallbacks (is_service_desk -> /service-desk, lite/pulse_pro/mod_* -> /pulse, dealer_user -> /dealer-portal, logistics -> /logistics).",
+        "affected_selectors": ["data-testid=launcher-page"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_results": {
+    "1_crm_only_lands_on_launch": "PASS — manager on /launch, tiles present: crm, memberships, staff. Tiles absent: operations, marketing, service_desk, inventory.",
+    "2_deep_link_dashboard_redirects_to_launch": "PASS — /dashboard -> /launch.",
+    "3_deep_link_crm_stays": "PASS — /crm stays on /crm (CRM login form; URL not bounced).",
+    "4_deep_link_marketing_gated": "PASS — /marketing renders module-gate-marketing, MarketingSuite not rendered.",
+    "5_regression_ops_granted_dashboard": "PASS — with operations=true, deep-link /dashboard renders DashboardPage and stays on /dashboard.",
+    "6_regression_owner_service_desk": "FAIL — owner@isodemo.com after login ends up on /launch (should be /service-desk). Reproduced twice on clean sessions."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix LoginRedirectPage fallback to honour is_service_desk (route to /service-desk or /service-desk/setup based on service_ops_setup_complete), account_type lite/pulse_pro/mod_* (route to /pulse), role dealer_user (route to /dealer-portal) and role logistics (route to /logistics). Otherwise any race between routeAfterLogin's imperative navigate and LoginRedirectPage's declarative Navigate (or the /auth/me re-hydration inside login()) sends the user to /launch. This is exactly what happens to owner@isodemo.com today."
+  ],
+  "critical_code_review_comments": [
+    "LoginRedirectPage.js only handles master_admin + partner_engineer specially and defaults everyone else to /launch — this is a divergence from LoginPage.routeAfterLogin() which is the authoritative post-login router. Any authenticated user momentarily on /login (e.g. during login submission, session-resume, or via a stale /login tab) will be bounced to /launch and lose their correct home (service-desk, /pulse, /dealer-portal, /logistics).",
+    "moduleHome.js return values are unused by the current LoginRedirectPage — the fallback path is essentially always '/launch' for non-admin/non-partner users, which is fine for full-org staff but wrong for service-desk / dealer / logistics / lite / pulse_pro / mod_* users."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "83% (5/6)"},
+  "test_credentials": "manager@isodemo.com / IsoDemo123!, owner@isodemo.com / IsoDemo123!. module_overrides on manager restored to {\"marketing\": true} on both users and crm_users collections after testing (verified).",
+  "seed_data_creation": "None. Only mutated manager@isodemo.com.module_overrides for scenarios 1-5 and restored afterwards.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Rate-limiter on /api/auth/login triggers after ~5-6 login attempts in a short window (HTTP 429, 'Slow down. Too many requests...'). Wait 60-90s between login-heavy runs. The owner regression is deterministic — no need to guess. Verify NAV sequence via page.on('framenavigated', ...); expect /login -> /service-desk -> /launch on failing state; expect /login -> /service-desk stable on passing state.",
+  "rca of the issue": "After a successful POST /auth/login for owner@isodemo.com, LoginPage.routeAfterLogin() correctly calls navigate('/service-desk') (is_service_desk branch, service_ops_setup_complete=true). The URL does momentarily land on /service-desk (confirmed via framenavigated log). Then the URL immediately transitions to /launch. The only three code paths that Navigate to /launch are (a) DashboardRoute in AppRoutes.js line 308 (only mounts on /dashboard), (b) CrmRouteElement in AppRoutes.js line 363 (only mounts on /crm), and (c) LoginRedirectPage in LoginRedirectPage.js line 36 (mounts on /login). None of these are the ServiceDeskPage route wrapper. Most probable RCA: React Router batches setUser + navigate() from login()+routeAfterLogin such that a re-render of LoginRedirectPage (still at /login for a tick because login() also fires an axios.get(/auth/me) that will setUser a second time) runs its <Navigate to='/launch'> AFTER routeAfterLogin's imperative navigate('/service-desk'), overriding the destination. Mitigation is trivial: teach LoginRedirectPage the same fallback ladder that LoginPage.routeAfterLogin uses (or better, extract a single helper both use). See action_items."
+}

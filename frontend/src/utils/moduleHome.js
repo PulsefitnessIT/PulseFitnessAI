@@ -22,6 +22,30 @@ export const MODULE_HOME = {
 
 const BOLT_ONS = ['memberships', 'crm', 'marketing'];
 
+/**
+ * Single source of truth for a user's post-login home path — used by BOTH
+ * LoginPage.routeAfterLogin (imperative navigate after sign-in) and
+ * LoginRedirectPage (declarative guard when an authenticated user hits
+ * /login). Keeping them in lock-step stops a service-desk / dealer /
+ * logistics / lite / pulse_pro / mod user from being bounced to /launch when
+ * LoginRedirectPage re-renders during the login handshake.
+ *
+ * Dedicated roles keep their own shells; everyone else (non-dedicated Pulse
+ * Fitness staff / operators) lands on the area selector (/launch), which lists
+ * only the areas they're granted and auto-forwards when there's just one.
+ */
+export function resolveHomePath(user) {
+  const u = user || {};
+  if (u.must_change_password) return '/change-password';
+  if (u.role === 'dealer_user') return '/dealer-portal';
+  if (u.role === 'logistics') return '/logistics';
+  if (u.is_master_admin || u.is_pulse_admin) return '/master-admin';
+  if (u.is_service_desk) return u.service_ops_setup_complete === false ? '/service-desk/setup' : '/service-desk';
+  if (u.is_partner_engineer || u.account_type === 'partner_engineer' || u.role === 'engineer_partner') return '/partner-engineer';
+  if (['lite', 'pulse_pro', 'mod_site', 'mod_branch', 'mod_org'].includes(u.account_type)) return '/pulse';
+  return '/launch';
+}
+
 export function moduleHomePath(user) {
   if (!user) return null;
   const pm = (user.primary_module || '').toLowerCase();
