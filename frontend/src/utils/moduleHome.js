@@ -23,16 +23,29 @@ export const MODULE_HOME = {
 const BOLT_ONS = ['memberships', 'crm', 'marketing'];
 
 /**
- * Single source of truth for a user's post-login home path — used by BOTH
- * LoginPage.routeAfterLogin (imperative navigate after sign-in) and
- * LoginRedirectPage (declarative guard when an authenticated user hits
- * /login). Keeping them in lock-step stops a service-desk / dealer /
- * logistics / lite / pulse_pro / mod user from being bounced to /launch when
- * LoginRedirectPage re-renders during the login handshake.
+ * First granted bolt-on module path for a user (CRM → Memberships → Marketing),
+ * or null. Used as a safe landing for a non-operator staffer who has no
+ * Operations access — send them straight into a module they DO have rather
+ * than the Operations dashboard or the (Pulse-Fitness-only) area selector.
+ */
+export function firstGrantedModulePath(user) {
+  const ma = (user && (user.module_access || user.moduleAccess)) || {};
+  const key = BOLT_ONS.find((k) => ma[k]);
+  return key ? MODULE_HOME[key] : null;
+}
+
+/**
+ * Single source of truth for a user's post-login home path — used by
+ * LoginPage.routeAfterLogin, LoginRedirectPage, and the /dashboard + /crm
+ * access guards. Keeping them in lock-step stops a user being bounced to the
+ * wrong home when any of these re-render during the login handshake.
  *
- * Dedicated roles keep their own shells; everyone else (non-dedicated Pulse
- * Fitness staff / operators) lands on the area selector (/launch), which lists
- * only the areas they're granted and auto-forwards when there's just one.
+ * Only OPERATOR-COMPANY staff (Pulse Fitness Ltd — `org_is_operator`) get the
+ * area selector (/launch), so they can hop between the Staff Portal and any
+ * modules they're granted. Every OTHER company lands directly on its normal
+ * home (Operations dashboard, or its first granted module if Operations isn't
+ * granted) exactly as before — they have no Staff Portal and no selector.
+ * The module-access security guards apply to everyone regardless.
  */
 export function resolveHomePath(user) {
   const u = user || {};
@@ -40,10 +53,18 @@ export function resolveHomePath(user) {
   if (u.role === 'dealer_user') return '/dealer-portal';
   if (u.role === 'logistics') return '/logistics';
   if (u.is_master_admin || u.is_pulse_admin) return '/master-admin';
-  if (u.is_service_desk) return u.service_ops_setup_complete === false ? '/service-desk/setup' : '/service-desk';
   if (u.is_partner_engineer || u.account_type === 'partner_engineer' || u.role === 'engineer_partner') return '/partner-engineer';
+  // Pulse Fitness Ltd (the platform operator company) staff → area selector.
+  if (u.is_operator_company === true) return '/launch';
+  if (u.is_service_desk) return u.service_ops_setup_complete === false ? '/service-desk/setup' : '/service-desk';
   if (['lite', 'pulse_pro', 'mod_site', 'mod_branch', 'mod_org'].includes(u.account_type)) return '/pulse';
-  return '/launch';
+  // Other companies: no Operations access → first granted module; otherwise
+  // the Operations dashboard (their historical home). `/launch` is only a
+  // last resort for a zero-access account (LauncherPage shows a no-access
+  // card) and never surfaces the selector for a non-operator company.
+  const ma = u.module_access || {};
+  if (ma.operations === false) return moduleHomePath(u) || firstGrantedModulePath(u) || '/launch';
+  return moduleHomePath(u) || '/dashboard';
 }
 
 export function moduleHomePath(user) {

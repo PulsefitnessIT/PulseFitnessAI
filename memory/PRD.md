@@ -1,3 +1,33 @@
+# ═══ 2026-06 · STAFF PORTAL ACCESS — SCOPE CORRECTION (operator-company only) ═══
+Follow-up to the module-access routing fix below. The first cut scoped the "selector first" behaviour by
+`account_type` (full/blank), which was WRONG: it (a) swept in non-Pulse customer/test orgs and (b) MISSED
+the real Pulse Fitness Ltd operator org (it's `pulse_pro`). Corrected discriminator = the operator company
+flag `is_operator_company` (True ONLY for "Pulse Fitness Ltd", org 3ece2d0c…). Note `org_is_operator` is a
+broad OR (true for any full/pulse_pro/lite/mod org) and is NOT a valid discriminator.
+
+Changes:
+- backend/routes/auth.py: added `is_operator_company` to BOTH the login payload (_build_login_user_payload)
+  and /auth/me (previously only the broad `org_is_operator` was exposed).
+- frontend/utils/moduleHome.js: `resolveHomePath` now routes to `/launch` ONLY when
+  `user.is_operator_company === true`. Every other company falls through to its normal home — Operations
+  `/dashboard` if granted, else `firstGrantedModulePath()` (first of CRM/Memberships/Marketing), else
+  `/launch` last-resort (no-access card). Added exported `firstGrantedModulePath(user)`.
+- frontend/routes/AppRoutes.js: DashboardRoute (no-operations) and CrmRouteElement (no-crm) now redirect to
+  `resolveHomePath(user)` instead of a hardcoded `/launch`, so non-operator companies go to their module,
+  not the selector.
+- frontend/pages/LauncherPage.js: if `user.is_operator_company !== true`, never show the chooser — forward
+  to the primary module (first non-staff destination). Selector (2+), single-forward, and no-access states
+  remain for operator-company staff only.
+
+Verified via headless Playwright (iso-demo temporarily flagged operator to exercise both branches, then
+reverted): NON-operator manager (CRM+Memberships, ops revoked) → lands on /memberships (module), /dashboard
+deep-link → /memberships, NO selector; owner@isodemo (service desk, non-operator) → /service-desk; OPERATOR
+manager → /launch selector showing CRM+Memberships+Staff, Operations/Marketing hidden. All 6 Pulse Fitness
+Ltd users already have staff_members records (6/6) so all get the Staff Portal tile. Test data restored.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF PORTAL ACCESS — module-access routing fix (verified) ═══
 BUG: Pulse Fitness staff with CRM (not Operations) access were dropped into the Operations Portal after
 login. REQUIREMENT (user-confirmed): non-dedicated Pulse Fitness (`full` org) staff must see the AREA

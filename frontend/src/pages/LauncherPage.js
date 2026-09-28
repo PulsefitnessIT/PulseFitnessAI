@@ -110,6 +110,13 @@ export default function LauncherPage() {
       </div>
     );
   }
+  // The area selector is a Pulse Fitness Ltd (operator company) feature. Any
+  // other company never sees the chooser — forward them straight to their
+  // primary module (a real module, not the Staff Portal), exactly as before.
+  if (user.is_operator_company !== true) {
+    const primary = destinations.find((d) => d.key !== 'staff') || destinations[0];
+    return <Navigate to={primary.path} replace />;
+  }
   if (destinations.length === 1) return <Navigate to={destinations[0].path} replace />;
 
   const first = (user.full_name || user.name || '').split(' ')[0] || 'there';

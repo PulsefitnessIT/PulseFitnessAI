@@ -16,6 +16,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/App';
 import EngineerErrorBoundary from '@/components/shared/EngineerErrorBoundary';
+import { resolveHomePath } from '@/utils/moduleHome';
 import { can } from '@/utils/capabilities';
 import { isIndependentEngineer } from '@/utils/engineerGuard';
 
@@ -300,12 +301,11 @@ function DashboardRoute({ user }) {
   // unaffected) and honours the ?as=operator preview escape hatch.
   // Iter 220ea·42 / module-access enforcement — a user without Operations
   // entitlement must never render the Operations dashboard, even via a direct
-  // /dashboard deep-link or bookmark. Send them to the area selector, which
-  // shows only the areas they're granted (and auto-forwards when there's one).
-  // Honours the ?as=operator preview escape hatch; master admins have
-  // Operations in their module_access so they're unaffected.
+  // /dashboard deep-link or bookmark. Send them to their resolved home:
+  // Pulse Fitness Ltd staff get the area selector, other companies go straight
+  // to a module they're granted (never the selector). Honours ?as=operator.
   if (!previewAsOperator && user.module_access && !user.module_access.operations) {
-    return <Navigate to="/launch" replace />;
+    return <Navigate to={resolveHomePath(user)} replace />;
   }
   return <DashboardPage />;
 }
@@ -358,9 +358,10 @@ function CrmRouteElement({ user }) {
   // Everyone else (incl. full-org Pulse Fitness staff) is gated on their
   // resolved per-user entitlement. Previously `account_type === 'full'` was a
   // blanket bypass, letting a staffer with CRM revoked still open /crm. Now a
-  // missing grant sends them back to the area selector.
+  // missing grant sends them to their resolved home (selector for Pulse Fitness
+  // Ltd staff, their granted module for other companies).
   if (ma.crm === true) return <CRMApp />;
-  return <Navigate to="/launch" replace />;
+  return <Navigate to={resolveHomePath(user)} replace />;
 }
 
 export default function AppRoutes({ user, login }) {

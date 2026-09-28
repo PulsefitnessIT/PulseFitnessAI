@@ -302,6 +302,7 @@ def _build_login_user_payload(user: dict, org: dict | None, trial_state: dict, f
             or any(isinstance(v, dict) and v.get("enabled") for v in ((org or {}).get("modules") or {}).values())
             or bool((org or {}).get("is_operator_company"))
         ),
+        "is_operator_company": bool((org or {}).get("is_operator_company")),
         "is_service_desk": user.get('is_service_desk', False),
         "is_inventory": user.get('is_inventory', False),
         "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
@@ -1073,6 +1074,7 @@ async def get_me(user: dict = Depends(get_current_user_portal)) -> dict:
         "company_code": org.get('company_code') if org and user.get('role') in ['owner', 'manager'] else None,
         "is_master_admin": user.get('is_master_admin', False),
         "org_is_operator": org_is_operator,
+        "is_operator_company": bool((org or {}).get("is_operator_company")),
         "is_pulse_admin": user.get('is_pulse_admin', False) or user.get('role') == 'pulse_master_admin',
         "is_service_desk": user.get('is_service_desk', False),
         "is_inventory": user.get('is_inventory', False),
