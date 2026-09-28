@@ -1,3 +1,27 @@
+# ═══ 2026-06 · REMEMBER MY AREA — launcher default + easy switching (verified) ═══
+For operator-company (Pulse Fitness Ltd) staff who see the /launch selector: remember their chosen area and
+jump straight there next login, with easy ways to switch/change.
+
+- frontend/pages/LauncherPage.js: "Remember my choice and take me straight there next time" checkbox
+  (default ON). `go()` persists the picked area key to localStorage `pf_launcher_default_area` (or clears it
+  when unticked). On mount, if a saved area is still in the user's destinations and the URL isn't
+  `?choose=1`, the launcher `<Navigate>`s straight there (no chooser flash). Only applies to the
+  operator-company chooser. When forced open via `?choose=1`, a note shows "Your usual area is X" with an
+  "Ask me every time" reset (clears the default). testids: launcher-remember-toggle/-checkbox,
+  launcher-current-default, launcher-clear-default.
+- frontend/components/shared/AreaSwitcher.js: added an "Area chooser…" footer item (only for
+  is_operator_company users) → /launch?choose=1, so they can re-open the chooser / change their default
+  anytime. The header AreaSwitcher already handles live switching between areas.
+
+Per-device (localStorage) by design — simple and sufficient; a new device just shows the chooser once.
+Verified headless (iso-demo temporarily flagged operator, then reverted): login→chooser w/ checkbox → pick
+Memberships → saved=memberships → revisit /launch auto-forwards to /memberships (no chooser) →
+/launch?choose=1 re-opens chooser showing "Your usual area is Memberships. Ask me every time". Frontend
+compiles clean; test data restored.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · FRIENDLY 403 SCREEN — module-access-denied overlay (verified) ═══
 Requirement: if a module-gated API call slips past the UI route guards, show a clear "ask your admin for
 access" screen instead of a raw error/toast.

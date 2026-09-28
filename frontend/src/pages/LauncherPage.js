@@ -19,11 +19,19 @@ import { hasModuleAccess } from '@/components/shared/ModuleSwitcher';
 import { moduleHomePath } from '@/utils/moduleHome';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+// Per-device "remember my area" — the operator-company staffer's chosen launch
+// area. Auto-forwarded to on next login; bypass with /launch?choose=1.
+const DEFAULT_AREA_KEY = 'pf_launcher_default_area';
 
 export default function LauncherPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [access, setAccess] = useState(null); // {has_staff_portal, full_name}
+  const [remember, setRemember] = useState(true);
+  const forceChoose = (() => {
+    try { return new URLSearchParams(window.location.search).get('choose') === '1'; }
+    catch { return false; }
+  })();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -57,6 +65,12 @@ export default function LauncherPage() {
   }, [user, access]);
 
   const go = async (dest) => {
+    // Remember my area — persist (or clear) the chosen area so next login
+    // jumps straight here. Toggle off to keep seeing the chooser.
+    try {
+      if (remember) localStorage.setItem(DEFAULT_AREA_KEY, dest.key);
+      else localStorage.removeItem(DEFAULT_AREA_KEY);
+    } catch { /* quota */ }
     if (dest.key === 'crm') {
       const token = localStorage.getItem('token');
       if (token) {
@@ -119,6 +133,15 @@ export default function LauncherPage() {
   }
   if (destinations.length === 1) return <Navigate to={destinations[0].path} replace />;
 
+  // Remember my area — jump straight to the saved area next login, unless the
+  // user explicitly asked to re-choose (/launch?choose=1). Only ever applies
+  // to the operator-company chooser and to an area they still have access to.
+  const savedKey = (() => { try { return localStorage.getItem(DEFAULT_AREA_KEY); } catch { return null; } })();
+  const savedDest = savedKey ? destinations.find((d) => d.key === savedKey) : null;
+  if (!forceChoose && savedDest) return <Navigate to={savedDest.path} replace />;
+
+  const clearDefault = () => { try { localStorage.removeItem(DEFAULT_AREA_KEY); } catch { /* ignore */ } setRemember(false); };
+
   const first = (user.full_name || user.name || '').split(' ')[0] || 'there';
   return (
     <div className="min-h-screen overflow-x-hidden pulse-font" style={{ background: 'var(--theme-bg)' }} data-testid="launcher-page">
@@ -129,7 +152,22 @@ export default function LauncherPage() {
             <div className="text-xs font-semibold uppercase tracking-[0.18em] pulse-font-body" style={{ color: 'var(--color-brand-cyan)' }}>Pulse Fitness</div>
             <h1 className="mt-1 text-2xl sm:text-4xl tracking-tight font-semibold pulse-font-heading leading-tight" style={{ color: 'var(--theme-text)' }}>Welcome back, {first}</h1>
             <p className="mt-1 pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>Where would you like to go today?</p>
+            {savedDest && forceChoose && (
+              <p className="mt-2 text-xs pulse-font-body" style={{ color: 'var(--theme-text-muted)' }} data-testid="launcher-current-default">
+                Your usual area is <span style={{ color: 'var(--theme-text)', fontWeight: 600 }}>{savedDest.label}</span>.{' '}
+                <button onClick={clearDefault} className="underline hover:opacity-80" style={{ color: 'var(--color-brand-cyan)' }} data-testid="launcher-clear-default">
+                  Ask me every time
+                </button>
+              </p>
+            )}
           </div>
+          <label className="mb-4 flex items-center gap-2 cursor-pointer select-none w-fit" data-testid="launcher-remember-toggle">
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)}
+              className="h-4 w-4 rounded accent-cyan-500" data-testid="launcher-remember-checkbox" />
+            <span className="text-sm pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
+              Remember my choice and take me straight there next time
+            </span>
+          </label>
           <div className="grid sm:grid-cols-2 gap-4">
             {destinations.map((d) => {
               const Icon = d.icon;

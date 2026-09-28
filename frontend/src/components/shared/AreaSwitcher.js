@@ -141,6 +141,18 @@ export default function AreaSwitcher({ user, tone = 'header', className = '' }) 
                 );
               })}
             </div>
+            {user.is_operator_company === true && (
+              <div className="py-1 border-t" style={dark ? { borderColor: 'var(--theme-border)' } : { borderColor: '#e2e8f0' }}>
+                <button
+                  onClick={() => { setOpen(false); window.location.href = '/launch?choose=1'; }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${dark ? 'hover:opacity-80' : 'hover:bg-slate-50'}`}
+                  style={dark ? { color: 'var(--theme-text-muted)' } : { color: '#475569' }}
+                  data-testid="area-switcher-chooser"
+                >
+                  <LayoutGrid size={16} /> Area chooser…
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}
