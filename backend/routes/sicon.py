@@ -903,3 +903,161 @@ async def read_resolve_conflict(external_id: str, data: Dict[str, Any],
                   "resolved_by": user["id"], "resolved_at": datetime.now(timezone.utc).isoformat()}})
     await log_sicon_event(org_id, "conflict_resolved", f"{entity} {external_id}: {resolution}", True, user["id"])
     return {"success": True, "resolution": resolution}
+
+
+# ── CaseSearch → Service Desk (Increment C) ───────────────────────
+
+@router.post("/sicon/read/cases/preview")
+async def read_cases_preview(data: Dict[str, Any] = None, user: dict = Depends(get_current_user)):
+    """Classify up to N Sicon cases into linked/new WITHOUT writing (§12/§17)."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    client = await get_sicon_client(org_id)
+    if not client:
+        raise HTTPException(status_code=400, detail="Sicon integration not configured")
+    config = await get_sicon_config(org_id) or {}
+    max_records = int((data or {}).get("max_records") or 500)
+    try:
+        return await _imp.preview_cases(org_id, client, config, max_records=max_records)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Sicon case preview failed: {str(e)[:200]}")
+
+
+@router.post("/sicon/read/cases/sync")
+async def read_cases_sync(data: Dict[str, Any] = None, user: dict = Depends(get_current_user)):
+    """Background CaseSearch → db.issues import; returns a run id to poll."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    client = await get_sicon_client(org_id)
+    if not client:
+        raise HTTPException(status_code=400, detail="Sicon integration not configured")
+    config = await get_sicon_config(org_id) or {}
+    import uuid as _uuid
+    run_id = str(_uuid.uuid4())
+    await db.sicon_sync_runs.insert_one({
+        "id": run_id, "organization_id": org_id, "entity": "case", "status": "queued",
+        "counts": {}, "started_at": datetime.now(timezone.utc).isoformat(), "user_id": user["id"]})
+    _asyncio.create_task(_imp.run_case_sync(org_id, client, config, max_records=int((data or {}).get("max_records") or 0),
+                                            run_id=run_id, user_id=user["id"]))
+    await log_sicon_event(org_id, "case_sync_started", f"run {run_id}", True, user["id"])
+    return {"success": True, "run_id": run_id, "status": "queued"}
+
+
+@router.get("/sicon/read/sync-runs")
+async def read_sync_runs(entity: str = "", limit: int = 20, user: dict = Depends(get_current_user)):
+    """Recent sync runs (equipment + case) for the sync log (§16 E)."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    q: Dict[str, Any] = {"organization_id": org_id}
+    if entity:
+        q["entity"] = entity
+    runs = await db.sicon_sync_runs.find(q, {"_id": 0}).sort("started_at", -1).to_list(limit)
+    return {"runs": runs}
+
+
+# ── Reference-data mapping (CaseType / Priority / TrackingStatus) ──
+
+@router.get("/sicon/read/reference")
+async def read_reference(user: dict = Depends(get_current_user)):
+    """Live Sicon lookups + the org's current explicit mappings (§13)."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    config = await get_sicon_config(org_id) or {}
+    client = await get_sicon_client(org_id)
+    lookups = {"case_types": [], "priorities": [], "tracking_statuses": [], "error": None}
+    if client:
+        try:
+            lookups["case_types"] = _links_records(await client.svc_get_case_types())
+            lookups["priorities"] = _links_records(await client.svc_get_priorities())
+            lookups["tracking_statuses"] = _links_records(await client.svc_get_tracking_statuses())
+        except Exception as e:
+            lookups["error"] = str(e)[:200]
+    return {
+        "configured": bool(client),
+        "lookups": lookups,
+        "mappings": {
+            "case_type_mapping": config.get("case_type_mapping", {}),
+            "priority_mapping": config.get("priority_mapping", {}),
+            "tracking_status_mapping": config.get("tracking_status_mapping", {}),
+        },
+    }
+
+
+def _links_records(body):
+    from utils.sicon_client import _extract_records
+    return _extract_records(body)
+
+
+@router.put("/sicon/read/reference")
+async def save_reference(data: Dict[str, Any], user: dict = Depends(get_current_user)):
+    """Save explicit reference-data mappings. No hardcoded logic (§13)."""
+    if user.get("role") != "owner" and not user.get("is_master_admin"):
+        raise HTTPException(status_code=403, detail="Only owners can edit Sicon mappings")
+    org_id = _require_org(user)
+    setdoc = {}
+    for key in ("case_type_mapping", "priority_mapping", "tracking_status_mapping"):
+        if isinstance(data.get(key), dict):
+            setdoc[key] = data[key]
+    if not setdoc:
+        raise HTTPException(status_code=400, detail="No mapping provided")
+    setdoc["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.sicon_config.update_one({"organization_id": org_id}, {"$set": setdoc}, upsert=True)
+    await log_sicon_event(org_id, "reference_mapping_saved", ",".join(setdoc.keys()), True, user["id"])
+    return {"success": True}
+
+
+# ── Customer / Site mapping (§11) ─────────────────────────────────
+
+@router.get("/sicon/read/customer-mappings")
+async def read_customer_mappings(user: dict = Depends(get_current_user)):
+    """Stored Sicon customer/site links + Pulse candidates for manual mapping."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    cust = await db.sicon_external_links.find(
+        {"organization_id": org_id, "external_entity_type": {"$in": ["customer", "site"]}},
+        {"_id": 0}).to_list(500)
+    companies = await db.crm2_companies.find(
+        {"organization_id": org_id}, {"_id": 0, "id": 1, "name": 1}).sort("name", 1).to_list(500)
+    sites = await db.crm2_sites.find(
+        {"organization_id": org_id}, {"_id": 0, "id": 1, "name": 1, "company_id": 1}).sort("name", 1).to_list(500)
+    return {"links": cust, "companies": companies, "sites": sites}
+
+
+@router.post("/sicon/read/customer-mappings")
+async def save_customer_mapping(data: Dict[str, Any], user: dict = Depends(get_current_user)):
+    """Link a Sicon customer/site to a Pulse company/site (§11). Stored once,
+    then reused by every case/equipment import."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    entity = data.get("entity")  # 'customer' | 'site'
+    external_id = data.get("external_id")
+    pulse_id = data.get("pulse_id")
+    if entity not in ("customer", "site") or not external_id or not pulse_id:
+        raise HTTPException(status_code=400, detail="entity, external_id and pulse_id required")
+    await _links.upsert_link(entity, external_id,
+                             "crm2_company" if entity == "customer" else "crm2_site",
+                             pulse_id, organization_id=org_id, sync_status="linked")
+    await log_sicon_event(org_id, "customer_mapping_saved", f"{entity} {external_id}→{pulse_id}", True, user["id"])
+    return {"success": True}
+
+
+# ── Contract cover (extension point — NOT guessed, §14) ───────────
+
+@router.get("/sicon/read/equipment/{sicon_equipment_id}/cover")
+async def read_equipment_cover(sicon_equipment_id: int, user: dict = Depends(get_current_user)):
+    """Per-asset maintenance-cover banner data. The Sicon contract/cover route
+    is UNPROVEN, so we NEVER guess cover from project text — we return an
+    explicit 'pending verification' state until the real endpoint is proven."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    link = await _links.get_link(_links.ENTITY_EQUIPMENT, sicon_equipment_id, org_id)
+    return {
+        "sicon_equipment_id": sicon_equipment_id,
+        "linked_pulse_asset_id": (link or {}).get("pulse_entity_id"),
+        "cover_status": "pending_sicon_verification",
+        "labour_covered": None,
+        "parts_covered": None,
+        "sla": None,
+        "note": "Contract mapping pending Sicon API verification — cover cannot be "
+                "established from project/case text and will not be guessed (§14).",
+    }

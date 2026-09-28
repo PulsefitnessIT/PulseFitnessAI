@@ -72,6 +72,23 @@ const SiconDashboard = () => {
     } catch (e) { notifyApiError(e); } finally { setBusy(''); }
   };
 
+  const runCasePreview = async () => {
+    setBusy('case-preview');
+    try {
+      const r = await axios.post(`${API}/sicon/read/cases/preview`, { max_records: 500 }, { headers });
+      notify.success(`Cases preview: ${r.data.counts?.new ?? 0} new, ${r.data.counts?.linked ?? 0} linked`);
+    } catch (e) { notifyApiError(e); } finally { setBusy(''); }
+  };
+
+  const runCaseSync = async () => {
+    setBusy('case-sync');
+    try {
+      const r = await axios.post(`${API}/sicon/read/cases/sync`, { max_records: 0 }, { headers });
+      notify.success(`Case sync started (run ${String(r.data.run_id).slice(0, 8)})`);
+      setTimeout(load, 1500);
+    } catch (e) { notifyApiError(e); } finally { setBusy(''); }
+  };
+
   const resolve = async (extId, action, pulseAssetId) => {
     try {
       await axios.post(`${API}/sicon/read/conflicts/${extId}/resolve`,
@@ -161,7 +178,16 @@ const SiconDashboard = () => {
           <Stat label="Linked cases" value={cs.linked} testid="sicon-case-linked" />
           <Stat label="Total tracked" value={cs.total_linked} testid="sicon-case-total" />
         </div>
-        <div className="text-xs text-[var(--theme-text-muted)] mt-3">Case import lands in the next increment (CaseSearch → Service Desk).</div>
+        <div className="flex flex-wrap gap-2 mt-4">
+          <Button size="sm" variant="outline" onClick={runCasePreview} disabled={!conn.configured || busy === 'case-preview'} data-testid="sicon-case-preview-btn">
+            {busy === 'case-preview' ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <ClipboardList size={14} className="mr-1.5" />} Preview cases
+          </Button>
+          <Button size="sm" onClick={runCaseSync} disabled={!conn.configured || busy === 'case-sync'} data-testid="sicon-case-sync-btn">
+            {busy === 'case-sync' ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <Activity size={14} className="mr-1.5" />} Run case sync
+          </Button>
+          {!conn.configured && <span className="text-xs text-[var(--theme-text-muted)] self-center">Configure the connection first.</span>}
+        </div>
+        <div className="text-xs text-[var(--theme-text-muted)] mt-3">Cases map into the existing Service Desk (db.issues) by siSMCaseId. Configure status/priority/type in the Data Mapping tab.</div>
       </Card>
 
       {/* D. Conflicts */}

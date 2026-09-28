@@ -11,6 +11,7 @@ import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import SiconDashboard from './SiconDashboard';
+import SiconMappings from './SiconMappings';
 import {
  Link2, Zap, Shield, CheckCircle, XCircle, Loader2,
  RefreshCw, Clock, ArrowRight, ScrollText
@@ -166,6 +167,7 @@ const SiconIntegrationTab = () => {
  <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
  <TabsTrigger value="connection">Connection</TabsTrigger>
  <TabsTrigger value="mapping">Field Mapping</TabsTrigger>
+ <TabsTrigger value="data-mapping">Data Mapping</TabsTrigger>
  <TabsTrigger value="sync">Sync Settings</TabsTrigger>
  <TabsTrigger value="audit" onClick={loadAuditLog}>Audit Log</TabsTrigger>
  </TabsList>
@@ -173,6 +175,11 @@ const SiconIntegrationTab = () => {
  {/* Dashboard Tab (read-side: Sicon → Pulse) */}
  <TabsContent value="dashboard">
  <SiconDashboard />
+ </TabsContent>
+
+ {/* Data Mapping Tab (reference-data + customer/site, Increment C) */}
+ <TabsContent value="data-mapping">
+ <SiconMappings />
  </TabsContent>
 
  {/* Connection Tab */}

@@ -5,6 +5,31 @@ Live Sicon (`http://localhost:51080`, companyId=2) is only reachable on the
 customer network, so everything here is built + unit-tested offline (httpx
 MockTransport). The customer runs the live acceptance tests on their side.
 
+## Increment C — CaseSearch → Service Desk + mapping screens (DONE 2026-09-24)
+Case engine in `utils/sicon_import.py`; endpoints in `routes/sicon.py`; UI
+`frontend/src/pages/SiconMappings.js` as the "Data Mapping" tab + Cases
+preview/sync on the dashboard.
+
+- CaseSearch → `db.issues` (existing Service Desk), idempotent by **siSMCaseId**
+  (link table ENTITY_CASE + issues.sicon_case_id). classify_case → linked|new.
+- Reference data is CONFIGURABLE per-org on sicon_config: `tracking_status_mapping`,
+  `priority_mapping`, `case_type_mapping` (Sicon id-or-name → Pulse value). No
+  hardcoded `if name=="High"` logic (§13). Fallbacks: status 'open', severity
+  'operational_fault'.
+- Customer/site resolved via the link table (ENTITY_CUSTOMER by customerId →
+  crm2_company; ENTITY_SITE by siconSubLocationDbKey → crm2_site). Stored once,
+  reused every import (§11). Endpoints: GET/POST /sicon/read/customer-mappings.
+- Endpoints: /read/cases/preview, /read/cases/sync (+ /read/sync-runs),
+  /read/reference (GET live lookups + current maps; PUT save maps, owner-only).
+- Contract cover (§14, potential improvement): GET
+  /read/equipment/{id}/cover returns an HONEST `cover_status:
+  "pending_sicon_verification"` — never guesses cover from project/case text.
+  The real Sicon contract route is still unproven → extension point only.
+- Contract/SLA/appointment/engineer remain inactive extension points (§14/§15).
+- Tests: `tests/test_sicon_case_engine.py` — 5 offline tests green (idempotent,
+  reference mapping applied, unmapped fallback, customer+site link resolved,
+  failure isolation). Total Sicon offline tests now 22, all green.
+
 ## Increment B — import preview + matching + conflict queue + dashboard (DONE 2026-09-24)
 Engine `utils/sicon_import.py`, read-side endpoints in `routes/sicon.py`
 (`/api/sicon/read/*`), dashboard UI `frontend/src/pages/SiconDashboard.js`

@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-09-24 — Sicon READ-side Increment C (cases → Service Desk + mapping screens)
+- CaseSearch → existing Service Desk (`db.issues`), idempotent by siSMCaseId. New importer `normalise_case`/`classify_case`/`apply_case_record`/`preview_cases`/`run_case_sync` in `utils/sicon_import.py`.
+- Configurable per-org reference-data mappings on sicon_config (tracking_status_mapping, priority_mapping, case_type_mapping) — explicit id/name → Pulse value, no hardcoded logic (§13). Sensible fallbacks when unmapped.
+- Customer/site resolution via the external-link table (customerId→crm2_company, siconSubLocationDbKey→crm2_site); stored once, reused each import (§11).
+- Endpoints (`routes/sicon.py`): /read/cases/preview, /read/cases/sync, /read/sync-runs, /read/reference (GET/PUT), /read/customer-mappings (GET/POST), and an HONEST /read/equipment/{id}/cover returning cover_status='pending_sicon_verification' (§14 — never guessed).
+- Frontend: new "Data Mapping" tab (`SiconMappings.js`) for reference + customer/site mapping; Cases preview/sync added to the Sicon dashboard. Verified rendering via screenshot.
+- Tests: 5 new offline case tests; 22 Sicon offline tests total, all green. Endpoints curl-verified (reference, customer-mappings, cases/preview 400 not-configured, cover placeholder, save-mapping 200).
+- Contract/SLA/appointment/engineer remain inactive extension points (§14/§15).
+
+
 ## 2026-09-24 — Sicon READ-side Increment B (equipment import + dashboard)
 - Import engine `utils/sicon_import.py`: normalise → classify (linked/match/conflict/new) → apply, all idempotent via the external-link table + sicon_equipment_id. Serial is the only auto-link signal; ambiguous → conflict queue (never merges). Field ownership respected: never overwrites manufacturer (Sicon make kept as sicon_make_raw), never erases a populated Pulse field with an empty Sicon value.
 - Read-side endpoints in `routes/sicon.py` (`/api/sicon/read/*`): dashboard, api-health, equipment/preview (classify-only, writes nothing), equipment/sync (background run + status poll), conflicts list + resolve (link/create_new/ignore). Owner/manager/admin gated. Writes to Sicon stay OFF.
