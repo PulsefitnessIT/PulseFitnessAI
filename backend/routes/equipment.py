@@ -38,11 +38,18 @@ def _public_photo_gallery_url(equipment_id: str, photo_id: str) -> str:
     """Return a host-relative URL that serves a specific gallery photo."""
     return f"/api/public/equipment/{equipment_id}/photos/{photo_id}"
 from utils.helpers import get_equipment_stats, get_bulk_equipment_stats
+from utils.module_guard import require_module_or_roles
 from models.schemas import EquipmentCreate
 # emergentintegrations (litellm) imported lazily inside functions to keep it off the startup import path
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+# Operations-gated tenant equipment API. Service Desk / Inventory / MOD are
+# allowed through (they share these routes); Memberships/Marketing/CRM-only
+# staff are blocked server-side, matching the UI's module gating.
+router = APIRouter(dependencies=[Depends(require_module_or_roles(("operations",)))])
+# Public photo proxy routes (QR-scan pages / marketing embeds) carry NO auth,
+# so they live on their own un-gated router.
+public_router = APIRouter()
 
 
 def _compute_display_name(equip: dict) -> str:
@@ -1534,7 +1541,7 @@ async def clear_auto_image(equipment_id: str, user: dict = Depends(get_current_u
 # photos through the backend. These endpoints are public so QR-scan pages and
 # marketing embeds can load equipment photos without a JWT.
 
-@router.get("/public/equipment/{equipment_id}/photo")
+@public_router.get("/public/equipment/{equipment_id}/photo")
 async def public_equipment_main_photo(equipment_id: str):
     eq = await db.equipment.find_one({"id": equipment_id}, {"_id": 0})
     if not eq:
@@ -1561,7 +1568,7 @@ async def public_equipment_main_photo(equipment_id: str):
     )
 
 
-@router.get("/public/equipment/{equipment_id}/photos/{photo_id}")
+@public_router.get("/public/equipment/{equipment_id}/photos/{photo_id}")
 async def public_equipment_gallery_photo(equipment_id: str, photo_id: str):
     eq = await db.equipment.find_one(
         {"id": equipment_id, "photos.id": photo_id},

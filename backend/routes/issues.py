@@ -8,6 +8,7 @@ import logging
 from utils.database import db, EMERGENT_LLM_KEY, RESEND_API_KEY, SENDER_EMAIL, APP_NAME, put_object
 from utils.auth import get_current_user, get_organization_filter
 from utils.ai_access import require_ai_access
+from utils.module_guard import require_module_or_roles
 from models.schemas import IssueCreate, IssueBatchCreate, ServiceRequest
 # emergentintegrations (litellm) imported lazily inside functions to keep it off the startup import path
 
@@ -18,7 +19,11 @@ from routes.issue_helpers import (
 )
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+# Faults are shared by Operations AND CRM (the CRM calendar reads /issues) and
+# by Service Desk / Engineer flows, so access is granted to Operations OR CRM
+# (plus service-desk / inventory / MOD via the guard). Only Memberships- or
+# Marketing-only staff are blocked server-side.
+router = APIRouter(dependencies=[Depends(require_module_or_roles(("operations", "crm")))])
 
 # When a machine is still under manufacturer warranty, DIY repairs can
 # invalidate the cover. The triage must lead with manual guidance + a

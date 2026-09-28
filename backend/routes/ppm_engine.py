@@ -17,9 +17,13 @@ import logging
 
 from utils.database import db
 from utils.auth import get_current_user, get_organization_filter
+from utils.module_guard import require_module_or_roles
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+# PPM is an Operations surface, also used by Service Desk (their PPM calendar)
+# and MOD orgs. Guarded to Operations (+ service-desk / inventory / MOD via the
+# guard); Memberships/Marketing/CRM-only staff are blocked server-side.
+router = APIRouter(dependencies=[Depends(require_module_or_roles(("operations",)))])
 
 
 # ── PPM Schedule CRUD ────────────────────────────────────────────

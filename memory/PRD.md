@@ -1,3 +1,32 @@
+# ═══ 2026-06 · BACKEND OPS GUARD — equipment / faults / PPM server-side (verified) ═══
+Requirement: enforce the Operations module server-side on equipment, faults and PPM APIs (not just UI).
+Risk: these tenant routers are SHARED — CRM reads /issues (CRM calendar), Service Desk uses /ppm, MOD orgs
+use /ppm, equipment.py has PUBLIC QR photo routes, and desk impersonation sessions hit /equipment+/issues.
+Engineer app + Service Desk desk-views + MOD equipment use their OWN separate routers (/svc/engineer/*,
+service_desk.py, /mod/*), so they're unaffected.
+
+Implementation:
+- utils/module_guard.py: new `require_module_or_roles(modules, allow_service_desk=True, allow_inventory=True,
+  allow_mod=True)` factory. Passes for: master/pulse admin; is_service_desk; is_inventory; MOD org
+  (is_mod_org); or has_module(any of `modules`). Else 403. Mirrors require_module's shape.
+- routes/equipment.py: `router = APIRouter(dependencies=[require_module_or_roles(("operations",))])`; the two
+  PUBLIC `/public/equipment/...photo` routes MOVED to a new un-gated `public_router` (registered separately
+  in route_registry/core.py) so QR/marketing embeds keep working without a JWT.
+- routes/ppm_engine.py: router-level `require_module_or_roles(("operations",))` (service-desk + MOD allowed).
+- routes/issues.py: router-level `require_module_or_roles(("operations","crm"))` — faults are shared with the
+  CRM calendar, so CRM users keep read access; only Memberships/Marketing-only staff are blocked.
+
+Verified via curl (manager@isodemo, module_overrides flipped, then restored to {'marketing':True}):
+- CRM-only (operations revoked): GET /equipment 403, /ppm/summary 403, /issues 200 (CRM ok), public photo 404
+  (un-gated, not 401).
+- Operations-granted: /equipment 200, /ppm/summary 200, /issues 200 (no regression).
+Backend restarts clean, no import errors.
+NOTE (recommended follow-up): live role-matrix test for a real Service-Desk-provider account, a MOD site user,
+and the Engineer app is advisable — those paths were reasoned/curl-checked but not each logged-in-tested here.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF PORTAL SAFETY NET — auto-provision staff records (verified) ═══
 Requirement: new Pulse Fitness Ltd users must always have a Staff Portal (never empty), whichever way
 their account was created (team invite, master-admin create, etc.). Root gap: user-creation paths
