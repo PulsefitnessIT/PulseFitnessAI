@@ -1,3 +1,28 @@
+# ═══ 2026-06 · FRIENDLY 403 SCREEN — module-access-denied overlay (verified) ═══
+Requirement: if a module-gated API call slips past the UI route guards, show a clear "ask your admin for
+access" screen instead of a raw error/toast.
+
+Implementation (mirrors the existing AI-gate 403 → CustomEvent pattern):
+- backend/utils/module_guard.py: BOTH guards (`require_module`, `require_module_or_roles`) now attach an
+  `X-Module-Access-Denied: <comma-separated module keys>` response header to their 403 (detail string
+  unchanged, so existing error displays are unaffected).
+- frontend/src/App.js: the global axios response interceptor's 403 branch detects
+  `error.response.headers['x-module-access-denied']` and dispatches
+  `CustomEvent('pulse:module-access-denied', {detail:{modules, message}})`, then still rejects so callers'
+  own catch runs.
+- frontend/src/components/shared/ModuleAccessDenied.js (NEW): global overlay mounted in App as
+  `{user && <ModuleAccessDenied/>}`. Listens for the event; renders a full-screen card (ShieldAlert,
+  "Access needed", the backend's human message) with "Back to my area" (→ /launch, which forwards each
+  user to a surface they can use) and "Dismiss". data-testids: module-access-denied,
+  module-access-denied-title/-message/-back-btn/-dismiss-btn.
+
+Verified: curl — GET /equipment as a CRM-only user returns 403 with `x-module-access-denied: operations`.
+Headless — logged in, dispatched the event, overlay rendered with the friendly message; "Back to my area"
+navigated owner → /launch → /dashboard. Frontend compiles clean; test user overrides restored.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · BACKEND OPS GUARD — equipment / faults / PPM server-side (verified) ═══
 Requirement: enforce the Operations module server-side on equipment, faults and PPM APIs (not just UI).
 Risk: these tenant routers are SHARED — CRM reads /issues (CRM calendar), Service Desk uses /ppm, MOD orgs

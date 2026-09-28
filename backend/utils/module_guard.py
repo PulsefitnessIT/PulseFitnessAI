@@ -55,6 +55,7 @@ def require_module(module_key: ModuleKey) -> Callable:
                 403,
                 f"This organisation does not have the {label} "
                 f"module enabled. Ask your administrator to enable it.",
+                headers={"X-Module-Access-Denied": ",".join(keys)},
             )
         return user
     return _dep
@@ -108,6 +109,7 @@ def require_module_or_roles(
             403,
             f"The {label} module is not enabled for your account. "
             f"Ask your administrator to grant access.",
+            headers={"X-Module-Access-Denied": ",".join(keys)},
         )
     return _dep
 

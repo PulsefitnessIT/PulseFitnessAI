@@ -63,6 +63,20 @@ axios.interceptors.request.use((config) => {
       // an event the operations dashboard listens for to pop the Upgrade tab.
       if (status === 403) {
         const detail = error?.response?.data?.detail;
+        // Module-access gate. The backend guards (require_module /
+        // require_module_or_roles) tag their 403 with an
+        // `X-Module-Access-Denied` header. Surface a friendly full-screen
+        // "ask your admin for access" overlay instead of a raw error, for the
+        // edge case where a blocked API call slips past the UI route guards.
+        const moduleDenied = error?.response?.headers?.['x-module-access-denied'];
+        if (moduleDenied) {
+          try {
+            window.dispatchEvent(new CustomEvent('pulse:module-access-denied', {
+              detail: { modules: moduleDenied, message: typeof detail === 'string' ? detail : '' },
+            }));
+          } catch { /* ignore */ }
+          return Promise.reject(error);
+        }
         if (typeof detail === 'string' && detail.includes('AI features are available on Pulse Pro')) {
           try {
             window.dispatchEvent(new CustomEvent('pulse:ai-upgrade-required', { detail: { message: detail } }));
@@ -201,6 +215,7 @@ import NPSWidget from './components/shared/NPSWidget';
 import FeedbackWidget from './components/shared/FeedbackWidget';
 import SessionResumedBanner from './components/shared/SessionResumedBanner';
 import StepUpDialog from './components/StepUpDialog';
+import ModuleAccessDenied from './components/shared/ModuleAccessDenied';
 import UnifiedAssistant from './components/UnifiedAssistant';
 import CommandPalette, { useCommandPalette } from './components/CommandPalette';
 
@@ -971,6 +986,7 @@ function App() {
  {!window.location.pathname.startsWith('/blue-light/visit') && <PWAInstallPrompt />}
  <SessionResumedBanner />
  <StepUpDialog />
+{user && <ModuleAccessDenied />}
  {user && <AskPulseFitnessGuard />}
  {user && <NPSWidget />}
  </div>
