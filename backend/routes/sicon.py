@@ -718,3 +718,188 @@ async def sync_contract_to_sicon(contract_id: str, user: dict = Depends(get_curr
         "contract_number": sicon_contract_number,
         "lines": pushed_lines,
     }
+
+
+# ══════════════════════════════════════════════════════════════════
+# READ-SIDE (Sicon → Pulse) — Increment B
+# Equipment import preview + matching + conflict queue + dashboard.
+# Read-only from Sicon: only Pulse records are written. See utils/sicon_import.
+# ══════════════════════════════════════════════════════════════════
+import asyncio as _asyncio  # noqa: E402
+import time as _time  # noqa: E402
+from utils import sicon_import as _imp  # noqa: E402
+from utils import sicon_links as _links  # noqa: E402
+
+
+@router.get("/sicon/read/dashboard")
+async def read_dashboard(user: dict = Depends(get_current_user)):
+    """Friendly admin dashboard payload: connection + equipment/case stats
+    (§16). Never returns secrets."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    config = await get_sicon_config(org_id) or {}
+    client = await get_sicon_client(org_id)
+    connected = False
+    if client:
+        try:
+            connected = await client.svc_ping()
+        except Exception:
+            connected = False
+    stats = await _imp.dashboard_stats(org_id)
+    return {
+        "connection": {
+            "configured": bool(client),
+            "connected": connected,
+            "status": "connected" if connected else ("configured" if client else "not_configured"),
+            "company_id": config.get("company_id") or (client.company_id if client else 0),
+            "last_authenticated_at": config.get("last_tested_at"),
+            "writes_enabled": bool(client and client.allow_writes),
+        },
+        **stats,
+    }
+
+
+@router.get("/sicon/read/api-health")
+async def read_api_health(user: dict = Depends(get_current_user)):
+    """Probe the proven read endpoints and time them (§16 F)."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    client = await get_sicon_client(org_id)
+    if not client:
+        return {"configured": False, "endpoints": []}
+    probes = [
+        ("Ping", lambda: client.svc_ping()),
+        ("Equipment (page 1)", lambda: client.svc_get_equipment_page(0, 1)),
+        ("CaseType", lambda: client.svc_get_case_types()),
+        ("CaseSearch (page 1)", lambda: client.svc_get_casesearch_page(0, 1)),
+    ]
+    out = []
+    for name, fn in probes:
+        t0 = _time.perf_counter()
+        try:
+            await fn()
+            out.append({"endpoint": name, "ok": True, "status": 200,
+                        "ms": round((_time.perf_counter() - t0) * 1000)})
+        except Exception as e:
+            status = getattr(e, "http_status", 0)
+            out.append({"endpoint": name, "ok": False, "status": status,
+                        "ms": round((_time.perf_counter() - t0) * 1000),
+                        "error": str(e)[:200]})
+    return {"configured": True, "endpoints": out}
+
+
+@router.post("/sicon/read/equipment/preview")
+async def read_equipment_preview(data: Dict[str, Any] = None,
+                                 user: dict = Depends(get_current_user)):
+    """Classify up to N Sicon equipment records into buckets WITHOUT writing
+    (§10/§17). Default sample 500 to stay responsive."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    client = await get_sicon_client(org_id)
+    if not client:
+        raise HTTPException(status_code=400, detail="Sicon integration not configured")
+    max_records = int((data or {}).get("max_records") or 500)
+    try:
+        result = await _imp.preview_equipment(org_id, client, max_records=max_records)
+        await log_sicon_event(org_id, "equipment_preview",
+                              f"previewed {result['previewed']}", True, user["id"])
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Sicon preview failed: {str(e)[:200]}")
+
+
+@router.post("/sicon/read/equipment/sync")
+async def read_equipment_sync(data: Dict[str, Any] = None,
+                              user: dict = Depends(get_current_user)):
+    """Kick off an idempotent equipment import as a background run and return
+    the run id immediately (§22). Poll /sicon/read/equipment/sync/{run_id}."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    client = await get_sicon_client(org_id)
+    if not client:
+        raise HTTPException(status_code=400, detail="Sicon integration not configured")
+    max_records = int((data or {}).get("max_records") or 0)
+    import uuid as _uuid
+    run_id = str(_uuid.uuid4())
+    # Seed the run doc synchronously so the poller finds it immediately.
+    await db.sicon_sync_runs.insert_one({
+        "id": run_id, "organization_id": org_id, "entity": "equipment",
+        "status": "queued", "counts": {}, "started_at": datetime.now(timezone.utc).isoformat(),
+        "user_id": user["id"],
+    })
+    _asyncio.create_task(_imp.run_equipment_sync(org_id, client, max_records=max_records,
+                                                 run_id=run_id, user_id=user["id"]))
+    await log_sicon_event(org_id, "equipment_sync_started", f"run {run_id}", True, user["id"])
+    return {"success": True, "run_id": run_id, "status": "queued"}
+
+
+@router.get("/sicon/read/equipment/sync/{run_id}")
+async def read_equipment_sync_status(run_id: str, user: dict = Depends(get_current_user)):
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    run = await db.sicon_sync_runs.find_one(
+        {"id": run_id, "organization_id": org_id}, {"_id": 0})
+    if not run:
+        raise HTTPException(status_code=404, detail="Sync run not found")
+    return run
+
+
+@router.get("/sicon/read/conflicts")
+async def read_conflicts(entity: str = "equipment", status: str = "open",
+                         user: dict = Depends(get_current_user)):
+    """List import conflicts needing manual review (§10 D)."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    q: Dict[str, Any] = {"organization_id": org_id, "external_entity_type": entity}
+    if status != "all":
+        q["status"] = status
+    items = await db.sicon_import_conflicts.find(q, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return {"conflicts": items, "count": len(items)}
+
+
+@router.post("/sicon/read/conflicts/{external_id}/resolve")
+async def read_resolve_conflict(external_id: str, data: Dict[str, Any],
+                                user: dict = Depends(get_current_user)):
+    """Resolve a conflict: action = 'link' (pulse_asset_id) | 'create_new' |
+    'ignore'. Never auto-merges two Pulse assets (§10)."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    entity = data.get("entity", "equipment")
+    action = data.get("action")
+    conflict = await db.sicon_import_conflicts.find_one(
+        {"organization_id": org_id, "external_entity_type": entity, "external_id": str(external_id)},
+        {"_id": 0})
+    if not conflict:
+        raise HTTPException(status_code=404, detail="Conflict not found")
+    norm = conflict.get("sicon_record", {})
+
+    if action == "link":
+        asset_id = data.get("pulse_asset_id")
+        if not asset_id:
+            raise HTTPException(status_code=400, detail="pulse_asset_id required to link")
+        existing = await db.equipment.find_one({"id": asset_id, "organization_id": org_id}, {"_id": 0})
+        if not existing:
+            raise HTTPException(status_code=404, detail="Pulse asset not found")
+        await db.equipment.update_one({"id": asset_id}, {"$set": _imp._sicon_update_set(existing, norm)})
+        await _links.upsert_link(entity, external_id, "equipment", asset_id,
+                                 organization_id=org_id, sync_status="linked")
+        resolution = f"linked to {asset_id}"
+    elif action == "create_new":
+        doc = _imp._new_asset_doc(org_id, norm)
+        await db.equipment.insert_one(doc)
+        await _links.upsert_link(entity, external_id, "equipment", doc["id"],
+                                 organization_id=org_id, sync_status="linked")
+        resolution = f"created new asset {doc['id']}"
+    elif action == "ignore":
+        await _links.set_status(entity, external_id, "ignored",
+                                reason="resolved: ignored by admin", organization_id=org_id)
+        resolution = "ignored"
+    else:
+        raise HTTPException(status_code=400, detail="action must be link|create_new|ignore")
+
+    await db.sicon_import_conflicts.update_one(
+        {"organization_id": org_id, "external_entity_type": entity, "external_id": str(external_id)},
+        {"$set": {"status": "resolved", "resolution": resolution,
+                  "resolved_by": user["id"], "resolved_at": datetime.now(timezone.utc).isoformat()}})
+    await log_sicon_event(org_id, "conflict_resolved", f"{entity} {external_id}: {resolution}", True, user["id"])
+    return {"success": True, "resolution": resolution}

@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import SiconDashboard from './SiconDashboard';
 import {
  Link2, Zap, Shield, CheckCircle, XCircle, Loader2,
  RefreshCw, Clock, ArrowRight, ScrollText
@@ -160,13 +161,19 @@ const SiconIntegrationTab = () => {
  </div>
  </Card>
 
- <Tabs defaultValue="connection" className="w-full">
+ <Tabs defaultValue="dashboard" className="w-full">
  <TabsList className="bg-[var(--theme-surface)] border border-white/10 mb-4">
+ <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
  <TabsTrigger value="connection">Connection</TabsTrigger>
  <TabsTrigger value="mapping">Field Mapping</TabsTrigger>
  <TabsTrigger value="sync">Sync Settings</TabsTrigger>
  <TabsTrigger value="audit" onClick={loadAuditLog}>Audit Log</TabsTrigger>
  </TabsList>
+
+ {/* Dashboard Tab (read-side: Sicon → Pulse) */}
+ <TabsContent value="dashboard">
+ <SiconDashboard />
+ </TabsContent>
 
  {/* Connection Tab */}
  <TabsContent value="connection">
