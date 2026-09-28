@@ -1,0 +1,20 @@
+{
+  "summary": "Frontend regression for unified staff login + Engineer Partner Network removal. All 8 scenarios PASS. portal.staff@pulsedemo.test logs in at /login and lands on /launch chooser with launch-staff plus module tiles (operations, memberships, crm, marketing). Clicking launch-staff navigates to /staff-portal (data-testid=staff-portal-root present) with a single 'Good evening, Alex' greeting and NO 'Welcome back' subline. Mobile hamburger (mobile-menu-toggle) reveals 'Switch area' control and mobile-logout-btn. launch-operations navigates to /dashboard. /staff-login no longer renders (redirects away). owner@isodemo.com launcher includes clickable launch-service_desk tile. lite.docs@pulsedemo.test (non-staff) goes directly to /pulse home without launcher. Partner engineer public pages (/partners/engineers, /partners/engineers/apply, /partner-engineer/apply) all redirect to /. /pricing top nav has no 'Partners' link; footer has no gx-footer-engineers but still has gx-footer-suppliers.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "portal.staff@pulsedemo.test / Staff123!, owner@isodemo.com / IsoDemo123!, lite.docs@pulsedemo.test / LiteDocs123!",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login endpoint /api/auth/login is rate-limited (~4 rapid attempts → 429). Space logins by ~30-60s between account switches. Use ?choose=1 on /launch when a remembered pf_launcher_default_area causes auto-forward.",
+  "notes": "One minor observation: after logging in as portal.staff, navigating directly to /staff-login ends up on /dashboard rather than /login because the user is already authenticated and the redirect chain forwards them to their default landing. The critical requirement (staff-login page must NOT render) is satisfied."
+}

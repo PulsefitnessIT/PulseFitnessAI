@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 2026-06 — Unified staff sign-in + retired Engineer Partner Network + Staff Portal greeting fix
+Verified via testing_agent (frontend, 8/8 scenarios, 100% — report iteration_unified_staff_login_partner_removal_jan2026.json).
+
+**Unified staff sign-in (dedicated /staff-login retired):**
+- All staff now sign in through the MAIN platform login `/login`. `/staff-login` route now redirects to `/login`; StaffPortal/StaffResetPassword/NewStarterPortal redirects repointed to `/login`.
+- After login, staff land on the area chooser `/launch` (Staff Portal tile + any modules). If Staff Portal is their ONLY area → forwarded straight to `/staff-portal`.
+- Because staff carry a normal platform session, the Staff Portal now renders the shared platform Navbar → mobile hamburger has **Switch area** + **Log Out** (this also resolved the earlier "lost area switcher on mobile" complaint).
+- Backend: added shared helper `compute_has_staff_portal(user, org)` in `routes/auth.py`; `has_staff_portal` now stamped on the `/api/auth/login` payload (via `_finalise_successful_login`) and reused by `/api/auth/me`. Fixed `/api/staffing/me/portal-access` to use the same canonical (case-insensitive) computation — it previously used a case-sensitive exact email match and returned false for users the other surfaces treated as staff (root cause of the launcher bouncing staff to /dashboard).
+- Frontend: `resolveHomePath` routes `has_staff_portal===true` → `/launch`; `LauncherPage` treats `user.has_staff_portal` as authoritative (with the probe as supplement), auto-forwards single-destination, and shows the chooser for operator-company OR any staff member. Non-staff users (has_staff_portal false) are unaffected and land on their normal home.
+
+**Engineer Partner Network removed (public):** `/partners/engineers`, `/partners/engineers/apply`, `/partner-engineer/apply` now redirect to `/`. Removed the "Partners" marketing nav tab, homepage engineer banner + module tile (Five→Four modules copy), footer "For engineers" link, ServiceDeskPromo "join the network" link, and the contact-form "Partner Engineer Network" option. Backend partner routers/loops + master-admin partner tools left intact (dormant). Service Desk / service-suppliers marketing untouched.
+
+**Staff Portal greeting:** removed the duplicate "Welcome back, {name}" subline; the single time-based greeting ("Good evening, {first}") + date remains.
+
+
 ## 2026-09-28 — Sicon read-side made hands-off (auto-match + nightly sync)
 Per founder request ("everything automatic, as hands-off as possible"):
 - Auto customer resolution (`resolve_company` in utils/sicon_import.py): matches Sicon customerCode/customerId against `crm2_companies.sage_customer_id`; a unique hit is auto-linked and remembered (link sync_status='auto'). NEVER matches on name alone (§11) — non-definitive stays unmapped.
