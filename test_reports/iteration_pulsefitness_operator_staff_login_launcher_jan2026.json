@@ -1,0 +1,20 @@
+{
+  "summary": "Frontend E2E verified all 5 sub-bugs for the operator-company staff login/launcher flow. BUG1 staff-login for owner@isodemo.com lands on /staff-portal and STAYS there (renders Staff Portal shell with 'Welcome back, Demo Owner', Home/My Time/My Rota tabs, Start my day / Request holiday tiles, no bounce back to /staff-login). BUG2a main /login as manager@isodemo.com lands on /launch with heading 'Where would you like to go today?' and only Staff Portal + CRM tiles are shown; no launch-operations tile and no module-access-denied overlay. BUG2b direct nav to /dashboard while logged in as manager redirects to /launch. BUG2c 'Remember my choice' checkbox is checked by default; clicking CRM tile writes localStorage pf_launcher_default_area='crm' and subsequent plain /launch auto-forwards to /crm; /launch?choose=1 renders the chooser with 'Your usual area is CRM' note and an 'Ask me every time' link. BUG2d header Switch area dropdown contains 'Area chooser…' item with data-testid area-switcher-chooser that navigates to /launch?choose=1.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!, manager@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 5 launcher/operator-company sub-bugs pass. Playwright evidence: BUG1 URL=/staff-portal (Staff Portal shell rendered). BUG2a URL=/launch, staff+crm tiles present, ops tile count=0, denied overlay count=0. BUG2b /dashboard -> /launch redirect. BUG2c localStorage='crm', plain /launch auto-forwarded to /crm, ?choose=1 shows 'Your usual area is CRM' + 'Ask me every time' link. BUG2d area-switcher-chooser testid present and navigates to /launch?choose=1. Note: literal string 'Pulse Fitness Staff Portal' was not on the DOM (heading text was just 'Staff Portal') but the portal loaded fully with My Day content – acceptable per BUG1 intent (must stay on /staff-portal, which it does).",
+  "rca of the issue": "N/A – regression pass"
+}

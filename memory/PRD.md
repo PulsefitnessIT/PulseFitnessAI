@@ -1,3 +1,33 @@
+# ═══ 2026-06 · STAFF-LOGIN BOUNCE FIX + operator launcher re-verify (testing_agent PASS) ═══
+Prod reports: (1) /staff-login lets staff submit but returns them to the login screen; (2) operator staff
+landing on Operations / "remember my choice" not working.
+
+Root cause of (1): after a successful /staff-login the StaffPortal guard calls GET /new-starter/me, which
+`_recruit_case` made 404 ("No onboarding case") for any activated staff WITHOUT a staff_onboarding_cases
+row (seeded / imported / auto-provisioned employees, incl. Pulse Fitness Ltd staff). The guard then dropped
+the token and hard-redirected to /staff-login → the silent bounce.
+FIX (backend/routes/staff_onboarding_wizard.py recruit_me ~L1585): resolve staff via
+`_resolve_staff_for_user` (user_id OR email, self-healing — matches /staff-login) and, when there is no
+onboarding case, return a minimal ACTIVATED portal payload ({activated:true, no_onboarding_case:true, …})
+instead of 404, so the Staff Portal loads. Confirmed by curl (owner@isodemo staff-login → /new-starter/me
+now 200, activated=true).
+
+Issue (2) was NOT reproducible in the current code — the launcher/operator routing is correct; the prod
+symptom was a deploy race (mid-flight bundle). testing_agent (report
+/app/test_reports/iteration_pulsefitness_operator_staff_login_launcher_jan2026.json, frontend 100%) verified
+with iso-demo temporarily flagged operator + manager CRM-only (then reverted):
+- staff-login → /staff-portal and STAYS (no bounce).
+- operator staff main login → /launch (Staff Portal + CRM tiles only), NO Operations tile, NO access-denied
+  overlay; direct /dashboard → redirected to /launch.
+- Remember my choice: checked by default → clicking CRM saves pf_launcher_default_area='crm' → plain /launch
+  auto-forwards to /crm; /launch?choose=1 shows chooser with "Your usual area is CRM" + "Ask me every time".
+- Header Switch-area has the "Area chooser…" item → /launch?choose=1.
+ACTION FOR PROD: the /new-starter/me fix ships with the next deploy — the in-progress deploy (or a redeploy)
+is required for pulsefitness.ai to pick it up. Test data reverted (iso-demo op flag removed, manager ovr restored).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · ROLE MATRIX TEST + ENGINEER GUARD FIX (verified) ═══
 Verification the Ops guard (require_module_or_roles on equipment/issues/ppm) didn't lock out shared roles.
 
