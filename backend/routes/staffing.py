@@ -591,6 +591,57 @@ async def _ensure_staff_for_org_users(org_id: str) -> int:
     return inserted
 
 
+async def ensure_staff_record_for_user(user: dict, org_id: str) -> bool:
+    """Iter — idempotently ensure ONE org member has a linked, active
+    staff_members row, so the Staff Portal is never empty for them. Used to
+    auto-provision Pulse Fitness Ltd (operator company) users at login.
+
+    Mirrors the per-user branch of `_ensure_staff_for_org_users` (identical doc
+    shape + platform→staffing role mapping) but scoped to a single user so it's
+    cheap on the hot login path. Idempotent; never reactivates a member a
+    manager deliberately deactivated. Returns True if a linked & active staff
+    record now exists.
+    """
+    if not user or not org_id:
+        return False
+    uid = user.get("id")
+    email = (user.get("email") or "").strip()
+    or_q = [{"user_id": uid}]
+    if email:
+        or_q.append({"email": safe_regex_exact(email)})
+    existing = await db.staff_members.find_one({"organization_id": org_id, "$or": or_q})
+    if existing:
+        # Self-heal the user_id link so future lookups are O(1). Do NOT flip
+        # `active` — respect an intentional deactivation.
+        if not existing.get("user_id") and uid:
+            await db.staff_members.update_one(
+                {"id": existing["id"], "organization_id": org_id},
+                {"$set": {"user_id": uid, "updated_at": _now().isoformat()}},
+            )
+        return bool(existing.get("active", True))
+    allowed = await _allowed_roles_for(org_id)
+    doc = {
+        "id": str(uuid4()),
+        "organization_id": org_id,
+        "user_id": uid,
+        "email": user.get("email"),
+        "full_name": user.get("full_name") or (email.split("@")[0] if email else "") or "Unnamed",
+        "primary_role": _staff_role_from_platform_role(user.get("role"), allowed),
+        "primary_role_source": "platform",
+        "secondary_roles": [],
+        "certifications": [],
+        "site_ids": [],
+        "contract_type": "part_time",
+        "hourly_cost": 0.0,
+        "active": True,
+        "created_at": _now().isoformat(),
+        "auto_synced_from_users": True,
+    }
+    await db.staff_members.insert_one(doc.copy())
+    return True
+
+
+
 @router.post("/staffing/staff")
 async def create_staff(body: StaffCreate, user: dict = Depends(get_current_user)):
     _require_manager(user)

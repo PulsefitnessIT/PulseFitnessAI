@@ -26,6 +26,7 @@ import uuid
 import io
 import zipfile
 import base64
+import logging
 from datetime import datetime, timezone, date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Body, Query, File, UploadFile
@@ -38,6 +39,8 @@ from utils.auth import get_current_user, get_current_user_portal
 from utils.module_access import org_module_access, resolve_module_access
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 HR_ROLES = {"owner", "manager", "master_admin"}
 MODULE_LABELS = {
@@ -856,8 +859,21 @@ async def portal_submit_period(period_id: str, body: PortalSubmitBody,
 async def my_portal_access(user: dict = Depends(get_current_user)):
     """Post-login launcher probe — does the signed-in platform user also have
     an employee Staff Portal? True when a staff_members record is linked to
-    their user id (or email) in their org."""
+    their user id (or email) in their org.
+
+    Auto-provision: every Pulse Fitness Ltd (operator company) user is staff,
+    so if they don't yet have a staff_members row we create one on the fly here
+    — the Staff Portal is then never empty for them, whichever way their user
+    account was created."""
     org = user.get("organization_id")
+    if org:
+        org_doc = await db.organizations.find_one({"id": org}, {"_id": 0, "is_operator_company": 1})
+        if org_doc and org_doc.get("is_operator_company"):
+            try:
+                from routes.staffing import ensure_staff_record_for_user
+                await ensure_staff_record_for_user(user, org)
+            except Exception as _e:  # never break the launcher probe
+                logger.warning(f"staff auto-provision failed for {user.get('email')}: {_e}")
     q = {"$or": [{"user_id": user.get("id")}]}
     if user.get("email"):
         q["$or"].append({"email": user.get("email")})

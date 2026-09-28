@@ -1048,6 +1048,16 @@ async def get_me(user: dict = Depends(get_current_user_portal)) -> dict:
     _staff_link = await db.staff_members.find_one(_sp_q, {"_id": 0, "active": 1})
     has_staff_portal = bool(_staff_link and _staff_link.get("active", True))
 
+    # Auto-provision: every Pulse Fitness Ltd (operator company) user is staff.
+    # If they don't yet have a staff_members row, create one now so their Staff
+    # Portal is never empty — whichever way their account was created.
+    if not has_staff_portal and org and org.get("is_operator_company"):
+        try:
+            from routes.staffing import ensure_staff_record_for_user
+            has_staff_portal = await ensure_staff_record_for_user(user, user.get("organization_id"))
+        except Exception as _e:
+            logger.warning(f"staff auto-provision failed for {user.get('email')}: {_e}")
+
     # Iter — operator-vs-system org discriminator. A master admin whose OWN
     # org is a real operator company (Pulse Fitness Ltd — has a real account
     # type or enabled modules, or is the pinned operator) lands on the

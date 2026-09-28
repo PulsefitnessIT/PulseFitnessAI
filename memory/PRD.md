@@ -1,3 +1,30 @@
+# ═══ 2026-06 · STAFF PORTAL SAFETY NET — auto-provision staff records (verified) ═══
+Requirement: new Pulse Fitness Ltd users must always have a Staff Portal (never empty), whichever way
+their account was created (team invite, master-admin create, etc.). Root gap: user-creation paths
+(account.py invite, master_admin_users create) don't create a staff_members row; only the staffing HR list
+reconcile (`_ensure_staff_for_org_users`) or staff→user creation did.
+
+Fix (lazy, idempotent, operator-company-only):
+- backend/routes/staffing.py: new `ensure_staff_record_for_user(user, org_id)` — provisions ONE
+  staff_members row if missing (mirrors the per-user branch of `_ensure_staff_for_org_users`: same doc
+  shape, `_staff_role_from_platform_role` mapping, `auto_synced_from_users: True`). Idempotent; self-heals
+  the `user_id` link when a row already exists by email; never reactivates a deliberately-deactivated member.
+- backend/routes/staff_portal.py `/staffing/me/portal-access` (the launcher's staff-tile probe) and
+  backend/routes/auth.py `/auth/me` (header AreaSwitcher `has_staff_portal`) both call it, but ONLY when
+  `org.is_operator_company` is true (Pulse Fitness Ltd). Wrapped in try/except so provisioning can never
+  break the probe or /auth/me. Added a module `logger` to staff_portal.py.
+
+Why lazy + operator-only: covers ALL creation paths and existing users on next login/launcher probe without
+hooking every insert site, and never grants a staff portal to non-Pulse companies. Pulse Fitness Ltd
+already has 6/6 users with staff rows, so existing users are unaffected; this guarantees FUTURE users get one.
+
+Verified: helper direct test (create + idempotent no-dup + email self-heal link); live endpoint test —
+flagged iso-demo operator, deleted manager's staff row, hit /staffing/me/portal-access → returned
+has_staff_portal:true (row auto-recreated). All test data (staff row, operator flag) restored. Backend clean.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF PORTAL ACCESS — SCOPE CORRECTION (operator-company only) ═══
 Follow-up to the module-access routing fix below. The first cut scoped the "selector first" behaviour by
 `account_type` (full/blank), which was WRONG: it (a) swept in non-Pulse customer/test orgs and (b) MISSED
