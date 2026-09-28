@@ -1,3 +1,27 @@
+# ═══ 2026-06 · WHO-CAN-SEE-WHAT PANEL — org module-access matrix (verified) ═══
+Manager-facing read-only matrix of every login user's EFFECTIVE module access, to catch a mis-set
+permission before anyone hits a 403.
+
+- backend/routes/staffing.py: new `GET /staffing/team/module-matrix` (gated by `_require_manager`).
+  For each db.users doc in the manager's org it computes effective access via `resolve_module_access`
+  (operations/memberships/marketing/crm) + flag-modules is_service_desk/is_inventory/engineer
+  (is_engineer|engineer_id|role==engineer) + Staff Portal (active staff_members link, one query, matched by
+  user_id or email). Flags privileged users (master/pulse admin, owner) so managers see WHY everything is
+  green. Returns {columns, rows, count, organization_name}. Sorted: privileged first, then name.
+- frontend/src/pages/LiteDashboard/staffing/TeamAccessMatrixTab.js (NEW): responsive table (sticky Person
+  column, horizontal scroll), green check / grey dash cells, indigo checks + "Owner/Master Admin" badge for
+  privileged rows, search box, refresh, legend, "to change access open the person in HR" hint. testids:
+  team-access-matrix-tab, team-matrix-table, team-matrix-search, team-matrix-refresh, team-matrix-row-{id}.
+- Wired into StaffingConsole.js: new People-group leaf "Who Can See What" (id 'access-matrix', roles: MGR),
+  import + leaf render added. Reached via Operations → Staffing → People → Who Can See What.
+
+Verified: curl as owner@isodemo → 9 rows, correct columns + effective access (owner privileged=all).
+Headless click-through → tab renders with table + 9 rows; screenshot reviewed (clean matrix). Read-only,
+no DB mutations. Frontend compiles clean.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · REMEMBER MY AREA — launcher default + easy switching (verified) ═══
 For operator-company (Pulse Fitness Ltd) staff who see the /launch selector: remember their chosen area and
 jump straight there next login, with easy ways to switch/change.

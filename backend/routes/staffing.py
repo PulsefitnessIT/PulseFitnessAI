@@ -833,6 +833,71 @@ async def staff_module_access(staff_id: str, user: dict = Depends(get_current_us
     return _module_access_payload(target, org)
 
 
+@router.get("/staffing/team/module-matrix")
+async def team_module_matrix(user: dict = Depends(get_current_user)):
+    """Manager "who can see what" — one read-only matrix of every login user in
+    the org and their EFFECTIVE module access, so a mis-set permission is caught
+    before anyone hits a 403. Effective = resolve_module_access (org defaults +
+    per-user overrides + engineer guard) plus the flag-modules (Service Desk /
+    Inventory / Engineer) and Staff Portal (active staff_members link)."""
+    _require_manager(user)
+    from utils.module_access import resolve_module_access
+    org_id = _org(user)
+    org = await db.organizations.find_one({"id": org_id})
+
+    # Active Staff Portal links (by user_id or email) — one query, not N.
+    sp_user_ids, sp_emails = set(), set()
+    async for s in db.staff_members.find(
+        {"organization_id": org_id, "active": {"$ne": False}},
+        {"_id": 0, "user_id": 1, "email": 1},
+    ):
+        if s.get("user_id"):
+            sp_user_ids.add(s["user_id"])
+        if s.get("email"):
+            sp_emails.add(s["email"].strip().lower())
+
+    rows = []
+    async for u in db.users.find({"organization_id": org_id}, {"_id": 0, "password": 0, "hashed_password": 0}):
+        role = (u.get("role") or "").lower()
+        privileged = bool(u.get("is_master_admin") or u.get("is_pulse_admin") or role in {"owner", "master_admin"})
+        eff = resolve_module_access(u, org)
+        email = u.get("email") or ""
+        staff_portal = bool(u.get("id") in sp_user_ids or (email.strip().lower() in sp_emails))
+        rows.append({
+            "user_id": u.get("id"),
+            "name": u.get("full_name") or u.get("name") or (email.split("@")[0] if email else "Unnamed"),
+            "email": email,
+            "role": u.get("role") or "—",
+            "is_privileged": privileged,
+            "privilege_label": ("Master Admin" if (u.get("is_master_admin") or u.get("is_pulse_admin"))
+                                else "Owner" if role == "owner" else ""),
+            "modules": {
+                "operations": bool(eff.get("operations")),
+                "memberships": bool(eff.get("memberships")),
+                "marketing": bool(eff.get("marketing")),
+                "crm": bool(eff.get("crm")),
+                "service_desk": bool(u.get("is_service_desk")),
+                "inventory": bool(u.get("is_inventory")),
+                "engineer": bool(u.get("is_engineer") or u.get("engineer_id") or role == "engineer"),
+                "staff_portal": staff_portal,
+            },
+        })
+    rows.sort(key=lambda r: (not r["is_privileged"], (r["name"] or "").lower()))
+    columns = [
+        {"key": "operations", "label": "Operations"},
+        {"key": "memberships", "label": "Memberships"},
+        {"key": "marketing", "label": "Marketing"},
+        {"key": "crm", "label": "CRM"},
+        {"key": "service_desk", "label": "Service Desk"},
+        {"key": "inventory", "label": "Inventory"},
+        {"key": "engineer", "label": "Engineer App"},
+        {"key": "staff_portal", "label": "Staff Portal"},
+    ]
+    return {"columns": columns, "rows": rows, "count": len(rows),
+            "organization_id": org_id, "organization_name": (org or {}).get("name")}
+
+
+
 @router.post("/staffing/staff/{staff_id}/module-access/{module}/grant")
 async def staff_module_grant(staff_id: str, module: str, user: dict = Depends(get_current_user)):
     from routes.master_admin_users import _module_access_payload

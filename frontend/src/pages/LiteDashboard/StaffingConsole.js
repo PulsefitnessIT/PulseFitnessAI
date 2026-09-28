@@ -40,6 +40,7 @@ import StaffExpenseReview from '@/pages/LiteDashboard/StaffExpenseReview';
 import HRTab from '@/pages/LiteDashboard/staffing/HRTab';
 import StaffOnboarding from '@/pages/LiteDashboard/staffing/StaffOnboarding';
 import TeamAccessTab from '@/pages/LiteDashboard/staffing/TeamAccessTab';
+import TeamAccessMatrixTab from '@/pages/LiteDashboard/staffing/TeamAccessMatrixTab';
 import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
 import VehiclesTab from '@/pages/LiteDashboard/staffing/VehiclesTab';
 import AttendanceTab from '@/pages/LiteDashboard/staffing/AttendanceTab';
@@ -82,6 +83,7 @@ const GROUPS_ALL = [
     { id: 'onboarding', label: 'Staff Onboarding', icon: UserPlus, roles: MGR },
     { id: 'orgchart', label: 'Org Chart', icon: Network, roles: MGR },
     { id: 'team-access', label: 'Team Access', icon: KeyRound, roles: MGR },
+    { id: 'access-matrix', label: 'Who Can See What', icon: ShieldAlert, roles: MGR },
     { id: 'site-access', label: 'Site Login', icon: KeyRound, roles: MGR },
   ] },
   // Rota = everything schedule-related.
@@ -338,6 +340,7 @@ export default function StaffingConsole({ hideBell = false } = {}) {
         {tab === 'hr'          && <HRTab           headers={headers} isManager={isManager} />}
         {tab === 'onboarding'  && <StaffOnboarding headers={headers} />}
         {tab === 'team-access' && <TeamAccessTab   headers={headers} />}
+        {tab === 'access-matrix' && <TeamAccessMatrixTab headers={headers} />}
         {tab === 'orgchart'    && <OrgChartTab />}
         {tab === 'ai-rota'     && <AIWorkforceTab  headers={headers} />}
         {tab === 'ai'          && <AIInsightsTab  headers={headers} />}
