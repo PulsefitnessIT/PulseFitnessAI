@@ -106,3 +106,39 @@ def test_case_sync_failure_isolation(org):
     assert result["counts"]["failed"] == 1
     assert result["counts"]["created"] == 2
     assert created == 2
+
+
+def test_customer_auto_matched_by_sage_code(org):
+    """Hands-off: no manual mapping — a unique sage_customer_id == Sicon
+    customerCode is auto-linked and remembered (sync_status 'auto')."""
+    async def run():
+        await db.crm2_companies.insert_one({
+            "id": "pulse-co-auto", "organization_id": org,
+            "name": "Get Active @ Jesmond", "sage_customer_id": "00001026"})
+        norm = imp.normalise_case(_case(7100, customerId=2541439, customerCode="00001026"))
+        cls = await imp.classify_case(norm, org)
+        await imp.apply_case_record(org, norm, cls, {})
+        issue = await db.issues.find_one({"organization_id": org, "sicon_case_id": 7100}, {"_id": 0})
+        link = await links.get_link("customer", 2541439, org)
+        await db.crm2_companies.delete_many({"organization_id": org})
+        return issue, link
+    issue, link = drive_async(run())
+    assert issue["company_id"] == "pulse-co-auto"        # auto-resolved, no manual map
+    assert link and link["pulse_entity_id"] == "pulse-co-auto"
+    assert link["sync_status"] == "auto"                 # remembered for next time
+
+
+def test_customer_not_guessed_by_name(org):
+    """Ambiguous / no code match must NOT link by name alone (§11)."""
+    async def run():
+        await db.crm2_companies.insert_one({
+            "id": "pulse-co-x", "organization_id": org, "name": "Get Active @ Jesmond"})
+        norm = imp.normalise_case(_case(7101, customerId=999, customerCode="NOPE",
+                                        customerName="Get Active @ Jesmond"))
+        cls = await imp.classify_case(norm, org)
+        await imp.apply_case_record(org, norm, cls, {})
+        issue = await db.issues.find_one({"organization_id": org, "sicon_case_id": 7101}, {"_id": 0})
+        await db.crm2_companies.delete_many({"organization_id": org})
+        return issue
+    issue = drive_async(run())
+    assert "company_id" not in issue  # name match is never definitive

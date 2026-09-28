@@ -23,6 +23,7 @@ from routes.health_score import router as health_score_router
 from routes.supplier_portal import router as supplier_portal_router
 from routes.qr_codes import router as qr_codes_router
 from routes.sicon import router as sicon_router
+from routes.sicon import cron_router as sicon_cron_router
 from routes.sicon_mapping import router as sicon_mapping_router
 from routes.expiry_alerts import router as expiry_alerts_router
 from routes.integrations import router as integrations_router
@@ -272,6 +273,7 @@ _PER_ORG_GATED_ROUTERS = (
 _UNGATED_ROUTERS = (
     check_sheets_router, reports_router, ai_diagnosis_router,
     public_downloads_router,
+    sicon_cron_router,
     risk_assessments_router, purchase_orders_router, suppliers_router,
     suppliers_catalogue_router,
     machine_manuals_router, membership_dunning_router,

@@ -1,0 +1,8 @@
+crons:
+  - name: sicon-nightly-sync
+    description: "Nightly hands-off Sicon read-side sync (equipment + cases) for every org with the integration enabled"
+    cron: "0 2 * * *"
+    endpoint: "{{BASE_URL}}/api/sicon/cron/nightly-sync"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

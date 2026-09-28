@@ -179,7 +179,10 @@ async def apply_equipment_record(org_id: str, norm: Dict[str, Any],
     if bucket in ("linked", "match"):
         asset_id = classification["pulse_asset_id"]
         existing = await db.equipment.find_one({"id": asset_id}, {"_id": 0}) or {}
-        await db.equipment.update_one({"id": asset_id}, {"$set": _sicon_update_set(existing, norm)})
+        setdoc = _sicon_update_set(existing, norm)
+        linkfields = await _resolve_equipment_links(org_id, norm, existing)
+        setdoc.update(linkfields)
+        await db.equipment.update_one({"id": asset_id}, {"$set": setdoc})
         if seid is not None:
             await links.upsert_link(links.ENTITY_EQUIPMENT, seid, "equipment", asset_id,
                                     organization_id=org_id, sync_status="linked")
@@ -187,6 +190,7 @@ async def apply_equipment_record(org_id: str, norm: Dict[str, Any],
 
     # new
     doc = _new_asset_doc(org_id, norm)
+    doc.update(await _resolve_equipment_links(org_id, norm, {}))
     await db.equipment.insert_one(doc)
     if seid is not None:
         await links.upsert_link(links.ENTITY_EQUIPMENT, seid, "equipment", doc["id"],
@@ -377,15 +381,72 @@ def resolve_case_fields(norm: Dict[str, Any], config: Dict[str, Any]) -> Dict[st
 
 async def _resolve_case_links(org_id: str, norm: Dict[str, Any]) -> Dict[str, Any]:
     out: Dict[str, Any] = {}
-    if norm.get("sicon_customer_id") is not None:
-        cid = await links.get_pulse_id(links.ENTITY_CUSTOMER, norm["sicon_customer_id"], org_id)
+    company_id = await resolve_company(org_id, norm.get("sicon_customer_id"), norm.get("sicon_customer_code"))
+    if company_id:
+        out["company_id"] = company_id
+    site_id = await resolve_site(org_id, norm.get("sicon_sub_location_id"))
+    if site_id:
+        out["site_id"] = site_id
+    return out
+
+
+async def resolve_company(org_id: str, sicon_customer_id, sicon_customer_code) -> Optional[str]:
+    """Auto-resolve a Sicon customer → Pulse CRM company, hands-off (§11):
+      1) an existing stored link (manual or previously auto-created);
+      2) a DEFINITIVE code match: crm2_companies.sage_customer_id == the Sicon
+         customerCode (or customerId). A unique hit is auto-linked and
+         remembered so it's instant next time.
+    Never matches on name alone. Returns None when not definitive."""
+    if sicon_customer_id is not None:
+        cid = await links.get_pulse_id(links.ENTITY_CUSTOMER, sicon_customer_id, org_id)
+        if cid:
+            return cid
+    code = sicon_customer_code or (str(sicon_customer_id) if sicon_customer_id is not None else None)
+    if code:
+        matches = await db.crm2_companies.find(
+            {"organization_id": org_id, "sage_customer_id": code}, {"_id": 0, "id": 1}).to_list(3)
+        if len(matches) == 1:
+            cid = matches[0]["id"]
+            if sicon_customer_id is not None:
+                await links.upsert_link(links.ENTITY_CUSTOMER, sicon_customer_id, "crm2_company", cid,
+                                        organization_id=org_id, sync_status="auto")
+            return cid
+    return None
+
+
+async def _resolve_equipment_links(org_id: str, norm: Dict[str, Any], existing: Dict[str, Any]) -> Dict[str, Any]:
+    """Auto customer/site link for an asset. Never overwrites a company/site a
+    Pulse user has already set (§20) — only fills when empty."""
+    out: Dict[str, Any] = {}
+    if not existing.get("company_id"):
+        cid = await resolve_company(org_id, norm.get("sicon_customer_id"), norm.get("sicon_customer_code"))
         if cid:
             out["company_id"] = cid
-    if norm.get("sicon_sub_location_id") is not None:
-        sid = await links.get_pulse_id(links.ENTITY_SITE, norm["sicon_sub_location_id"], org_id)
+    if not existing.get("site_id"):
+        sid = await resolve_site(org_id, norm.get("sicon_sub_location_id"))
         if sid:
             out["site_id"] = sid
     return out
+
+
+async def resolve_site(org_id: str, sicon_sub_location_id) -> Optional[str]:
+    """Auto-resolve a Sicon sub-location → Pulse site (§11): stored link first,
+    else a unique crm2_sites.sicon_sub_location_id match (auto-linked). No
+    name-guessing; None when not definitive."""
+    if sicon_sub_location_id is None:
+        return None
+    sid = await links.get_pulse_id(links.ENTITY_SITE, sicon_sub_location_id, org_id)
+    if sid:
+        return sid
+    matches = await db.crm2_sites.find(
+        {"organization_id": org_id, "sicon_sub_location_id": sicon_sub_location_id},
+        {"_id": 0, "id": 1}).to_list(3)
+    if len(matches) == 1:
+        sid = matches[0]["id"]
+        await links.upsert_link(links.ENTITY_SITE, sicon_sub_location_id, "crm2_site", sid,
+                                organization_id=org_id, sync_status="auto")
+        return sid
+    return None
 
 
 async def classify_case(norm: Dict[str, Any], org_id: str) -> Dict[str, Any]:

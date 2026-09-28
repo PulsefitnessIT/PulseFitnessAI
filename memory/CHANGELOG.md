@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-09-28 — Sicon read-side made hands-off (auto-match + nightly sync)
+Per founder request ("everything automatic, as hands-off as possible"):
+- Auto customer resolution (`resolve_company` in utils/sicon_import.py): matches Sicon customerCode/customerId against `crm2_companies.sage_customer_id`; a unique hit is auto-linked and remembered (link sync_status='auto'). NEVER matches on name alone (§11) — non-definitive stays unmapped.
+- Auto site resolution (`resolve_site`): unique `crm2_sites.sicon_sub_location_id` match auto-linked.
+- Equipment now auto-links company/site too (`_resolve_equipment_links`), only filling empty fields (never overwrites a user-set link, §20).
+- Indexes added: crm2_companies(organization_id, sage_customer_id), crm2_sites(organization_id, sicon_sub_location_id).
+- Nightly hands-off sync: `.emergent/crons.yml` → `sicon-nightly-sync` (0 2 * * * UTC) → POST /api/sicon/cron/nightly-sync (ungated `cron_router`, auth = WEBHOOK_CRON_SECRET bearer, acks 2xx immediately, backgrounds `_run_all_org_sicon_sync` = equipment + case sync for every org with Sicon enabled; safe no-op when unconfigured). Writes to Sicon stay OFF.
+- WEBHOOK_CRON_SECRET added to backend/.env. Redeploy to activate the cron in prod (schedules sync on deploy).
+- Tests: 2 new auto-match tests (auto-linked by sage code; never guessed by name). 24 Sicon offline tests total, all green. Cron endpoint verified: 401 unauth/wrong, 200 accepts + backgrounds.
+- Duplication audit answered: no duplicate client/config/auth/equipment/cases/CRM modules; integration_bridge is Orbit4-specific; sicon_external_links justified (no prior generic external-ref table). Only intentional overlap: external id also on entity (aids idempotency).
+
+
 ## 2026-09-24 — Sicon READ-side Increment C (cases → Service Desk + mapping screens)
 - CaseSearch → existing Service Desk (`db.issues`), idempotent by siSMCaseId. New importer `normalise_case`/`classify_case`/`apply_case_record`/`preview_cases`/`run_case_sync` in `utils/sicon_import.py`.
 - Configurable per-org reference-data mappings on sicon_config (tracking_status_mapping, priority_mapping, case_type_mapping) — explicit id/name → Pulse value, no hardcoded logic (§13). Sensible fallbacks when unmapped.

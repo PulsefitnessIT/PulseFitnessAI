@@ -207,6 +207,13 @@ async def create_indexes() -> None:
     except Exception as _e:  # pragma: no cover
         logger.warning(f"sicon_external_links index creation warning: {_e}")
 
+    # Auto-match lookups (hands-off customer/site resolution).
+    try:
+        await db.crm2_companies.create_index([("organization_id", 1), ("sage_customer_id", 1)])
+        await db.crm2_sites.create_index([("organization_id", 1), ("sicon_sub_location_id", 1)])
+    except Exception as _e:  # pragma: no cover
+        logger.warning(f"crm2 sicon auto-match index warning: {_e}")
+
     # ───────────────────────────────────────────────────────────────
     # Tier-3 performance indexes (added Feb 2026)
     # Audited every collection with >0 organization_id queries that

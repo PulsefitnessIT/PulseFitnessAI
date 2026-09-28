@@ -28,6 +28,9 @@ from utils.sicon_sync import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+# Ungated router for the platform cron webhook (auth is the WEBHOOK_CRON_SECRET
+# bearer, not a user JWT — must NOT sit behind the feature/JWT dependency).
+cron_router = APIRouter()
 
 
 def _require_owner_or_manager(user: Dict) -> None:
@@ -1061,3 +1064,47 @@ async def read_equipment_cover(sicon_equipment_id: int, user: dict = Depends(get
         "note": "Contract mapping pending Sicon API verification — cover cannot be "
                 "established from project/case text and will not be guessed (§14).",
     }
+
+
+# ── Nightly hands-off sync (platform cron) ────────────────────────
+
+async def _run_all_org_sicon_sync():
+    """Background: for every org with Sicon enabled, run an idempotent
+    equipment + case sync. Idempotent + per-org isolated, so it is safe to run
+    unattended every night."""
+    import logging as _logging
+    log = _logging.getLogger(__name__)
+    try:
+        cfgs = await db.sicon_config.find({"enabled": True}, {"_id": 0, "organization_id": 1}).to_list(1000)
+    except Exception as e:
+        log.warning("sicon nightly: cannot list configs: %s", e)
+        return
+    for cfg in cfgs:
+        org_id = cfg.get("organization_id")
+        if not org_id:
+            continue
+        try:
+            client = await get_sicon_client(org_id)
+            if not client:
+                continue
+            config = await get_sicon_config(org_id) or {}
+            await _imp.run_equipment_sync(org_id, client, max_records=0)
+            await _imp.run_case_sync(org_id, client, config, max_records=0)
+            await log_sicon_event(org_id, "nightly_sync", "equipment+cases", True, "cron")
+        except Exception as e:
+            log.warning("sicon nightly sync failed for %s: %s", org_id, e)
+            await log_sicon_event(org_id, "nightly_sync", str(e)[:200], False, "cron")
+
+
+@cron_router.post("/sicon/cron/nightly-sync")
+async def sicon_cron_nightly_sync(request: Request):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    import hmac
+    import os as _os
+    secret = _os.environ.get("WEBHOOK_CRON_SECRET")
+    auth = request.headers.get("authorization") or ""
+    if not secret or not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:], secret):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    _asyncio.create_task(_run_all_org_sicon_sync())
+    return {"accepted": True}
+
