@@ -7,6 +7,7 @@ Lives in utils/ to keep the dependency direction one-way:
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Optional, Dict
 
@@ -16,21 +17,57 @@ from utils.sicon_client import SiconClient, decrypt_value
 logger = logging.getLogger(__name__)
 
 
+def env_allow_writes() -> bool:
+    """§18/§35 — writes stay OFF unless SICON_ALLOW_WRITES is explicitly truthy."""
+    return (os.environ.get("SICON_ALLOW_WRITES") or "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def env_page_size() -> int:
+    try:
+        return int(os.environ.get("SICON_PAGE_SIZE") or 50)
+    except (ValueError, TypeError):
+        return 50
+
+
 async def get_sicon_config(organization_id: str) -> Optional[Dict]:
     """Retrieve Sicon config for an organization."""
     return await db.sicon_config.find_one({"organization_id": organization_id}, {"_id": 0})
 
 
+def get_sicon_client_from_env() -> Optional[SiconClient]:
+    """Build a client from server-side SICON_* env vars. Used for the read-side
+    import layer / automated tests. Returns None when SICON_BASE_URL is unset."""
+    base = (os.environ.get("SICON_BASE_URL") or "").strip()
+    if not base:
+        return None
+    try:
+        company_id = int(os.environ.get("SICON_COMPANY_ID") or 0)
+    except (ValueError, TypeError):
+        company_id = 0
+    return SiconClient(
+        base_url=base,
+        username=os.environ.get("SICON_USERNAME", ""),
+        password=os.environ.get("SICON_PASSWORD", ""),
+        company_id=company_id,
+        allow_writes=env_allow_writes(),
+        page_size=env_page_size(),
+    )
+
+
 async def get_sicon_client(organization_id: str) -> Optional[SiconClient]:
-    """Create a SiconClient from stored config. Returns None if not configured."""
+    """Create a SiconClient from stored config, falling back to SICON_* env
+    vars when the org has no DB config. allow_writes/page_size always come from
+    the environment so writes cannot be enabled per-org by accident."""
     config = await get_sicon_config(organization_id)
     if not config or not config.get("enabled") or not config.get("base_url"):
-        return None
+        return get_sicon_client_from_env()
     return SiconClient(
         base_url=config["base_url"],
         username=decrypt_value(config.get("username_enc", "")),
         password=decrypt_value(config.get("password_enc", "")),
         company_id=config.get("company_id", 0),
+        allow_writes=env_allow_writes(),
+        page_size=env_page_size(),
     )
 
 

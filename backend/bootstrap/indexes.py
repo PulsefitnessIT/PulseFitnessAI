@@ -195,6 +195,18 @@ async def create_indexes() -> None:
     except Exception as _e:  # pragma: no cover
         logger.warning(f"sicon_engineers index creation warning: {_e}")
 
+    # Sicon ↔ Pulse external-id link table (spec §7) — the unique key makes
+    # every read-side sync idempotent (same external id → same Pulse record).
+    try:
+        await db.sicon_external_links.create_index(
+            [("integration_source", 1), ("external_entity_type", 1), ("external_id", 1)],
+            unique=True, name="uniq_sicon_external_link",
+        )
+        await db.sicon_external_links.create_index([("external_entity_type", 1), ("sync_status", 1)])
+        await db.sicon_external_links.create_index([("organization_id", 1), ("external_entity_type", 1)])
+    except Exception as _e:  # pragma: no cover
+        logger.warning(f"sicon_external_links index creation warning: {_e}")
+
     # ───────────────────────────────────────────────────────────────
     # Tier-3 performance indexes (added Feb 2026)
     # Audited every collection with >0 organization_id queries that

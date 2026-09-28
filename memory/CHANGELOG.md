@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 2026-09-24 — Sicon READ-side integration, Increment A (foundation)
+Built the proven Sicon→Pulse read-side foundation per the customer's FINAL spec, all offline-tested (live Sicon only reachable on their network).
+- Extended the ONE central client (`utils/sicon_client.py`) with proven read endpoints: CaseType/Priority/TrackingStatus, Equipment GetMany+GetOne, CaseSearch GetMany+GetOne (by siSMCaseId), plus a paginate-until-nextPage-null helper.
+- Exact Sicon pagination `query=$skip=0%26$max=50` — raw-bytes query so the inner `%26` reaches Sicon un-decoded (§5/§30), proven on the wire in tests.
+- Central write-guard: SICON_ALLOW_WRITES=false blocks EVERY POST/PUT/PATCH/DELETE across both surfaces (§18/§35). Auto re-auth on 401 (§3). Bearer never persisted/exposed.
+- Env config factory (SICON_BASE_URL/COMPANY_ID/USERNAME/PASSWORD/ALLOW_WRITES/PAGE_SIZE) with DB-config fallback (`utils/sicon_common.py`).
+- Reusable external-ID link table `db.sicon_external_links` (unique key → idempotent sync) in new `utils/sicon_links.py` + indexes.
+- 11 offline acceptance tests (`tests/test_sicon_readside.py`) all green; ruff clean; backend healthy. See /app/memory/SICON_READSIDE_NOTES.md.
+- Next: Increment B (Equipment import preview + matching + admin dashboard), Increment C (CaseSearch→Service Desk + mapping screens). Writes stay OFF.
+
+
 ## 2026-09-24 — Redesigned transactional emails + fixed Vehicle Check photo upload
 EMAIL (all transactional emails, shared shell in backend/utils/email.py):
 - Rebuilt `_header_html` to the pulsefitness.ai look: solid black bar (#0A0A0A) with a white "pulse" + cyan "fitness" wordmark and a 3px cyan accent rule. Removed the purple/blue initial "P" default (accent now #19CDFF). Operator logos sit on a white chip so they stay legible on black.

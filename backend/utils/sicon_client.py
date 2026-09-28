@@ -57,6 +57,21 @@ class SiconAPIError(Exception):
         self.payload = payload or {}
 
 
+def _extract_records(body) -> List:
+    """Pull the record list out of a Sicon list envelope, tolerating the
+    various array keys Sicon uses across endpoints (records/items/entities/
+    data/results). Returns [] for anything unexpected."""
+    if isinstance(body, list):
+        return body
+    if not isinstance(body, dict):
+        return []
+    for key in ("records", "items", "entities", "data", "results", "value"):
+        val = body.get(key)
+        if isinstance(val, list):
+            return val
+    return []
+
+
 # ── Client ────────────────────────────────────────────────────────
 
 class SiconClient:
@@ -65,7 +80,8 @@ class SiconClient:
     All calls are server-to-server over HTTPS with Basic auth.
     """
 
-    def __init__(self, base_url: str, username: str, password: str, company_id: int = 0, timeout: float = 30.0):
+    def __init__(self, base_url: str, username: str, password: str, company_id: int = 0,
+                 timeout: float = 30.0, allow_writes: bool = False, page_size: int = 50):
         self.base_url = base_url.rstrip("/")
         self.company_id = company_id
         self.timeout = timeout
@@ -73,6 +89,19 @@ class SiconClient:
         self._username = username
         self._password = password
         self._bearer: Optional[str] = None
+        # §18/§35 — writes stay OFF unless explicitly enabled server-side.
+        # Enforced centrally in the request layer so NO write can slip through.
+        self.allow_writes = allow_writes
+        # §5 — Sicon paging size (default 50, matches the proven live tests).
+        self.page_size = page_size or 50
+
+    def _guard_write(self, method: str) -> None:
+        if method.upper() in ("POST", "PUT", "PATCH", "DELETE") and not self.allow_writes:
+            raise SiconAPIError(
+                "Sicon writes are disabled (SICON_ALLOW_WRITES=false). "
+                "Refusing to send a write request.",
+                http_status=403,
+            )
 
     def _params(self, extra: Optional[Dict] = None) -> Dict:
         params = {}
@@ -95,6 +124,7 @@ class SiconClient:
         return {"raw": resp.text}
 
     async def _request(self, method: str, path: str, params: Optional[Dict] = None, json_body: Optional[Dict] = None) -> Dict:
+        self._guard_write(method)
         url = f"{self.base_url}{path}"
         merged_params = self._params(params)
         try:
@@ -147,6 +177,7 @@ class SiconClient:
     async def _svc_request(self, method: str, path: str, json_body: Optional[Dict] = None,
                            params: Optional[Dict] = None, anon: bool = False) -> Dict:
         """Request against the v1 SiconService surface with bearer auth + companyId."""
+        self._guard_write(method)
         if not anon:
             await self._authenticate_v1()
         url = f"{self.base_url}{path}"
@@ -204,6 +235,109 @@ class SiconClient:
     async def svc_update_tracking_note(self, case_id: int, note_id: int, model: Dict) -> Dict:
         return await self._svc_request(
             "PUT", f"/api/v1/SiconService/Case/{case_id}/TrackingNote/{note_id}", json_body=model)
+
+    # ══════════════════════════════════════════════════════════════════
+    # PROVEN READ-SIDE (Sicon → Pulse). See PulseFitness-Sicon collection.
+    # These are the ONLY read endpoints proven live; do not invent others.
+    # ══════════════════════════════════════════════════════════════════
+
+    async def _svc_get(self, path: str, raw_query: Optional[str] = None, anon: bool = False,
+                       _retry_auth: bool = True) -> Dict:
+        """GET against the v1 SiconService surface.
+
+        `raw_query` is appended VERBATIM (already-encoded) after companyId, so
+        Sicon's paging syntax `$skip=0%26$max=50` reaches the server intact —
+        the internal `%26` must NOT be decoded into a second query parameter
+        (spec §5/§30). We therefore set the URL query as raw bytes and never
+        let httpx re-encode it.
+        """
+        if not anon:
+            await self._authenticate_v1()
+        parts = []
+        if self.company_id:
+            parts.append(f"companyId={self.company_id}")
+        if raw_query:
+            parts.append(raw_query)
+        url = httpx.URL(f"{self.base_url}{path}")
+        if parts:
+            url = url.copy_with(query="&".join(parts).encode("ascii"))
+        headers = {"Accept": "application/json"}
+        if self._bearer and not anon:
+            headers["Authorization"] = f"Bearer {self._bearer}"
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout, verify=True) as client:
+                resp = await client.get(url, headers=headers)
+                # Auto re-authenticate once if the token has expired (spec §3.5).
+                if resp.status_code in (401, 403) and not anon and _retry_auth:
+                    self._bearer = None
+                    await self._authenticate_v1()
+                    return await self._svc_get(path, raw_query=raw_query, anon=anon, _retry_auth=False)
+                return self._parse_response(resp, "GET", path, None)
+        except SiconAPIError:
+            raise
+        except httpx.ConnectError as e:
+            raise SiconAPIError(f"Connection failed: {e}", http_status=0)
+        except httpx.TimeoutException as e:
+            raise SiconAPIError(f"Timeout: {e}", http_status=408)
+        except Exception as e:
+            raise SiconAPIError(f"Unknown error: {e}", http_status=0)
+
+    @staticmethod
+    def build_page_query(skip: int, max_: int) -> str:
+        """The one place page syntax is built. Ampersand encoded as %26 so it
+        stays INSIDE the single `query` parameter (spec §5)."""
+        return f"query=$skip={skip}%26$max={max_}"
+
+    # ── Reference data (GetMany) ──────────────────────────────────
+    async def svc_get_case_types(self) -> Dict:
+        return await self._svc_get("/api/v1/SiconService/CaseType")
+
+    async def svc_get_priorities(self) -> Dict:
+        return await self._svc_get("/api/v1/SiconService/Priority")
+
+    async def svc_get_tracking_statuses(self) -> Dict:
+        return await self._svc_get("/api/v1/SiconService/TrackingStatus")
+
+    # ── Equipment ─────────────────────────────────────────────────
+    async def svc_get_equipment_page(self, skip: int = 0, max_: Optional[int] = None) -> Dict:
+        max_ = max_ or self.page_size
+        return await self._svc_get("/api/v1/SiconService/Equipment",
+                                   raw_query=self.build_page_query(skip, max_))
+
+    async def svc_get_equipment_one(self, sicon_equipment_id: int) -> Dict:
+        return await self._svc_get(f"/api/v1/SiconService/Equipment/{sicon_equipment_id}")
+
+    # ── Case search ───────────────────────────────────────────────
+    async def svc_get_casesearch_page(self, skip: int = 0, max_: Optional[int] = None) -> Dict:
+        max_ = max_ or self.page_size
+        return await self._svc_get("/api/v1/SiconService/CaseSearch",
+                                   raw_query=self.build_page_query(skip, max_))
+
+    async def svc_get_casesearch_one(self, si_sm_case_id: int) -> Dict:
+        # Permanent key is siSMCaseId — never caseNumber (spec §12).
+        return await self._svc_get(f"/api/v1/SiconService/CaseSearch/{si_sm_case_id}")
+
+    # ── Shared pager (iterate until nextPage is null) ─────────────
+    async def svc_paginate(self, kind: str, page_size: Optional[int] = None, max_pages: int = 0):
+        """Async generator yielding (page_meta, records) for 'equipment' or
+        'cases'. Advances by skip=(page-1)*size and stops when Sicon reports
+        nextPage == null (spec §5) rather than trusting a fixed totalPages."""
+        size = page_size or self.page_size
+        fetch = {"equipment": self.svc_get_equipment_page,
+                 "cases": self.svc_get_casesearch_page}[kind]
+        skip = 0
+        page_no = 0
+        while True:
+            page_no += 1
+            body = await fetch(skip, size)
+            records = _extract_records(body)
+            yield body, records
+            next_page = body.get("nextPage")
+            if next_page is None or not records:
+                break
+            if max_pages and page_no >= max_pages:
+                break
+            skip += size
 
 
     # ── Service Cases ─────────────────────────────────────────────
