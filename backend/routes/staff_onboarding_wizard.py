@@ -1584,7 +1584,35 @@ PROGRESS_STEPS = ["forms", "documents", "verification", "policies", "agreements"
 
 @router.get("/new-starter/me")
 async def recruit_me(user: dict = Depends(get_current_user_portal)):
-    case, staff = await _recruit_case(user)
+    # Resolve the employee's staff record the SAME way /staff-login does
+    # (user_id OR email, self-healing) so a portal that logged in successfully
+    # never 404s here on a user_id-only mismatch.
+    staff = await _resolve_staff_for_user(user)
+    if not staff:
+        raise HTTPException(404, "No staff record for this account")
+    case = await db.staff_onboarding_cases.find_one({"staff_id": staff["id"]})
+    if not case:
+        # Activated / imported / auto-provisioned staff with no onboarding-wizard
+        # case. Return a minimal ACTIVATED portal payload so the Staff Portal
+        # loads instead of silently bouncing back to /staff-login.
+        from utils.personal_sync import staff_to_form_patch
+        canon = staff_to_form_patch(staff) or {}
+        return {
+            "portal_name": "Pulse Fitness Staff Portal",
+            "activated": True, "status": "active", "submitted": True,
+            "person": {"full_name": staff.get("full_name"), "email": staff.get("email"),
+                       "photo_url": staff.get("photo_url")},
+            "employment": {},
+            "compliance": {"dbs_number": staff.get("dbs_number"), "dbs_expiry_date": staff.get("dbs_expiry_date")},
+            "progress": {k: ("complete" if k == "ready_to_start" else "not_started")
+                         for k in ["forms", "documents", "verification", "policies",
+                                   "agreements", "offer", "contract", "ready_to_start"]},
+            "steps": PROGRESS_STEPS,
+            "forms": ({"new_starter": {"form_key": "new_starter", "data": canon}} if canon else {}),
+            "documents": [], "policies": [], "acknowledgements": {},
+            "agreements": [], "agreement_state": {},
+            "offer": None, "contract": None, "no_onboarding_case": True,
+        }
     org = case["organization_id"]; cid = case["id"]
     activated = bool(staff.get("active"))
     forms = {f["form_key"]: _strip(f) for f in await db.staff_form_submissions.find({"onboarding_case_id": cid}).to_list(50)}
