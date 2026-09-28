@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-06 — Launcher personalisation (/launch area chooser)
+Verified via screenshots (desktop 1920 + mobile 390), single-component UI change.
+- Time-aware greeting: "Good morning/afternoon/evening, {first}" (data-testid `launcher-greeting`) — replaces the static "Welcome back".
+- Most-used-first tile ordering: per-device launch tally in localStorage `pf_launcher_usage` ({areaKey: count}), incremented in `go()`. Tiles sort by usage desc (stable sort → equal-usage tiles keep natural order: Staff Portal, then modules). First-time users see the untouched default order.
+- "Most used" badge (data-testid `launcher-mostused-badge`) on the top tile when it has ≥1 recorded launch and there's more than one area. No badge for brand-new users.
+- File: frontend/src/pages/LauncherPage.js. No backend change. Works alongside the existing "Remember my choice" auto-forward (personalisation shows whenever the chooser is displayed, e.g. /launch?choose=1 or no saved default).
+
+
 ## 2026-06 — Unified staff sign-in + retired Engineer Partner Network + Staff Portal greeting fix
 Verified via testing_agent (frontend, 8/8 scenarios, 100% — report iteration_unified_staff_login_partner_removal_jan2026.json).
 

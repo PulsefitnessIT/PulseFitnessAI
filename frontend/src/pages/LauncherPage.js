@@ -22,6 +22,10 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 // Per-device "remember my area" — the operator-company staffer's chosen launch
 // area. Auto-forwarded to on next login; bypass with /launch?choose=1.
 const DEFAULT_AREA_KEY = 'pf_launcher_default_area';
+// Per-device launch tally per area key ({operations: 3, staff: 5, ...}) —
+// drives most-used-first ordering + the "Most used" badge on the top tile.
+const USAGE_KEY = 'pf_launcher_usage';
+const readUsage = () => { try { return JSON.parse(localStorage.getItem(USAGE_KEY) || '{}') || {}; } catch { return {}; } };
 
 export default function LauncherPage() {
   const { user } = useAuth();
@@ -72,6 +76,12 @@ export default function LauncherPage() {
     try {
       if (remember) localStorage.setItem(DEFAULT_AREA_KEY, dest.key);
       else localStorage.removeItem(DEFAULT_AREA_KEY);
+    } catch { /* quota */ }
+    // Tally the launch so this area drifts to the top on future visits.
+    try {
+      const usage = readUsage();
+      usage[dest.key] = (usage[dest.key] || 0) + 1;
+      localStorage.setItem(USAGE_KEY, JSON.stringify(usage));
     } catch { /* quota */ }
     if (dest.key === 'crm') {
       const token = localStorage.getItem('token');
@@ -151,6 +161,15 @@ export default function LauncherPage() {
   const clearDefault = () => { try { localStorage.removeItem(DEFAULT_AREA_KEY); } catch { /* ignore */ } setRemember(false); };
 
   const first = (user.full_name || user.name || '').split(' ')[0] || 'there';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  // Most-used-first ordering. Array.sort is stable, so equal-usage tiles keep
+  // their natural order (Staff Portal, then modules). A first-time user (no
+  // tallies) sees the default order untouched.
+  const usage = readUsage();
+  const orderedDestinations = [...destinations].sort((a, b) => (usage[b.key] || 0) - (usage[a.key] || 0));
+  const topKey = orderedDestinations[0]?.key;
+  const showMostUsed = orderedDestinations.length > 1 && (usage[topKey] || 0) > 0;
   return (
     <div className="min-h-screen overflow-x-hidden pulse-font" style={{ background: 'var(--theme-bg)' }} data-testid="launcher-page">
       <Navbar />
@@ -158,7 +177,7 @@ export default function LauncherPage() {
         <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <div className="text-xs font-semibold uppercase tracking-[0.18em] pulse-font-body" style={{ color: 'var(--color-brand-cyan)' }}>Pulse Fitness</div>
-            <h1 className="mt-1 text-2xl sm:text-4xl tracking-tight font-semibold pulse-font-heading leading-tight" style={{ color: 'var(--theme-text)' }}>Welcome back, {first}</h1>
+            <h1 className="mt-1 text-2xl sm:text-4xl tracking-tight font-semibold pulse-font-heading leading-tight" style={{ color: 'var(--theme-text)' }} data-testid="launcher-greeting">{greeting}, {first}</h1>
             <p className="mt-1 pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>Where would you like to go today?</p>
             {savedDest && forceChoose && (
               <p className="mt-2 text-xs pulse-font-body" style={{ color: 'var(--theme-text-muted)' }} data-testid="launcher-current-default">
@@ -177,9 +196,10 @@ export default function LauncherPage() {
             </span>
           </label>
           <div className="grid sm:grid-cols-2 gap-4">
-            {destinations.map((d) => {
+            {orderedDestinations.map((d, i) => {
               const Icon = d.icon;
               const tint = d.accent || '#0891b2';
+              const isTop = showMostUsed && i === 0;
               return (
                 <button key={d.key} onClick={() => go(d)} data-testid={`launch-${d.key}`}
                   className="group text-left rounded-2xl p-5 transition-all active:scale-[0.99] hover:-translate-y-0.5"
@@ -189,8 +209,17 @@ export default function LauncherPage() {
                       style={{ background: `${tint}1f`, color: tint }}>
                       <Icon size={22} />
                     </div>
-                    <ArrowRight size={18} style={{ color: 'var(--theme-text-muted)' }}
-                      className="group-hover:translate-x-0.5 transition-transform" />
+                    <div className="flex items-center gap-2">
+                      {isTop && (
+                        <span data-testid="launcher-mostused-badge"
+                          className="text-[10px] font-bold uppercase tracking-[0.12em] px-2 py-0.5 rounded-full whitespace-nowrap"
+                          style={{ background: `${tint}1f`, color: tint }}>
+                          Most used
+                        </span>
+                      )}
+                      <ArrowRight size={18} style={{ color: 'var(--theme-text-muted)' }}
+                        className="group-hover:translate-x-0.5 transition-transform" />
+                    </div>
                   </div>
                   <div className="mt-3 text-lg font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{d.label}</div>
                   <div className="text-sm pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>{d.desc}</div>
