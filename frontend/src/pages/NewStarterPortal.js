@@ -75,7 +75,7 @@ export default function NewStarterPortal({ staffMode = false }) {
   const H = jwt ? { Authorization: `Bearer ${jwt}` } : {};
   const logout = () => {
     sessionStorage.removeItem(storeKey); setJwt(''); setMe(null); setPassword('');
-    if (staffMode && typeof window !== 'undefined') window.location.href = '/staff-login';
+    if (staffMode && typeof window !== 'undefined') window.location.href = '/login';
   };
 
   const fmtErr = (d) => (typeof d === 'string' ? d : Array.isArray(d) ? d.map((e) => e?.msg || '').join(' ') : d?.msg || 'Something went wrong.');
@@ -89,7 +89,7 @@ export default function NewStarterPortal({ staffMode = false }) {
 
   useEffect(() => { if (jwt) loadMe(jwt); }, [jwt, loadMe]);
   useEffect(() => {
-    if (staffMode) { if (!jwt && typeof window !== 'undefined') window.location.href = '/staff-login'; return; }
+    if (staffMode) { if (!jwt && typeof window !== 'undefined') window.location.href = '/login'; return; }
     if (!jwt) axios.get(`${API}/new-starter/invite/${token}`).then((r) => setInviteInfo(r.data)).catch(() => setInviteInfo({ found: false }));
   }, [jwt, token, staffMode]);
 

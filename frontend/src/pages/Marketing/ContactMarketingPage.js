@@ -28,7 +28,6 @@ const INTEREST_OPTIONS = [
   { value: '',            label: 'Pick what interests you (optional)' },
   { value: 'memberships', label: 'Memberships & group fitness' },
   { value: 'service_desk',label: 'Service Desk / facilities ops' },
-  { value: 'engineers',   label: 'Partner Engineer Network' },
   { value: 'marketing',   label: 'Marketing & CRM' },
   { value: 'crm',         label: 'CRM / sales pipeline' },
   { value: 'pricing',     label: 'Pricing & procurement' },

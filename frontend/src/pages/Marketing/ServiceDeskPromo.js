@@ -136,13 +136,6 @@ export default function ServiceDeskPromo() {
             >
               {t('mkt.sd_cta', 'Start your 14-day free trial')} <ArrowRight size={15} />
             </Link>
-            <Link
-              to="/partners/engineers"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-300 hover:text-white transition-colors whitespace-nowrap"
-              data-testid="gx-sd-engineers-link"
-            >
-              {t('mkt.sd_solo', 'Solo engineer? Join the network instead')} <ArrowRight size={13} />
-            </Link>
           </div>
           <p className="mt-5 text-xs font-semibold text-slate-500">
             {t('mkt.sd_footnote', 'No credit card · Bring unlimited engineers · Cancel anytime')}

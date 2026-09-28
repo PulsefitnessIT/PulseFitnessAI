@@ -98,7 +98,7 @@ export default function StaffPortal() {
   const usingPlatformToken = !sessionStorage.getItem('staff_jwt') && !!localStorage.getItem('token');
 
   useEffect(() => {
-    if (!jwt) { window.location.href = '/staff-login'; return; }
+    if (!jwt) { window.location.href = '/login'; return; }
     axios.get(`${API}/new-starter/me`, { headers: H })
       .then((r) => setMe(r.data))
       .catch(async () => {
@@ -116,7 +116,7 @@ export default function StaffPortal() {
           } catch { /* fall through */ }
           window.location.href = '/launch'; return;
         }
-        sessionStorage.removeItem('staff_jwt'); window.location.href = '/staff-login';
+        sessionStorage.removeItem('staff_jwt'); window.location.href = '/login';
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jwt]);
@@ -138,7 +138,7 @@ export default function StaffPortal() {
       window.location.href = '/login?signedout=1';
       return;
     }
-    sessionStorage.removeItem('staff_jwt'); window.location.href = '/staff-login';
+    sessionStorage.removeItem('staff_jwt'); window.location.href = '/login';
   };
   if (!jwt) return null;
 
@@ -163,10 +163,9 @@ export default function StaffPortal() {
           <div className="mb-6">
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div className="min-w-0">
-                <h1 className="text-2xl sm:text-4xl tracking-tight font-semibold mb-1 pulse-font-heading leading-tight break-words" style={{ color: 'var(--theme-text)' }}>
+                <h1 className="text-2xl sm:text-4xl tracking-tight font-semibold pulse-font-heading leading-tight break-words" style={{ color: 'var(--theme-text)' }}>
                   Staff Portal
                 </h1>
-                <p className="pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>Welcome back, {me.person?.full_name}</p>
               </div>
               <div className="flex items-center gap-3 shrink-0 mt-1.5">
                 <StaffNotificationBell

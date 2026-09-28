@@ -543,6 +543,29 @@ async def _maybe_issue_mfa_step1(user: dict) -> dict | None:
     }
 
 
+async def compute_has_staff_portal(user: dict, org: dict | None) -> bool:
+    """True if the user has a Staff Portal — a staff_members row linked by
+    user_id OR email (case-insensitive, scoped to their org), or an
+    operator-company user for whom one is auto-provisioned. Shared by
+    /auth/login and /auth/me so the Staff Portal area/route is available
+    immediately after login (not only after the first /auth/me refresh)."""
+    sp_or = [{"user_id": user.get("id")}]
+    if user.get("email"):
+        sp_or.append({"email": {"$regex": f"^{re.escape(user['email'])}$", "$options": "i"}})
+    sp_q = {"$or": sp_or}
+    if user.get("organization_id"):
+        sp_q["organization_id"] = user["organization_id"]
+    staff_link = await db.staff_members.find_one(sp_q, {"_id": 0, "active": 1})
+    has = bool(staff_link and staff_link.get("active", True))
+    if not has and org and org.get("is_operator_company"):
+        try:
+            from routes.staffing import ensure_staff_record_for_user
+            has = await ensure_staff_record_for_user(user, user.get("organization_id"))
+        except Exception as _e:
+            logger.warning(f"staff auto-provision failed for {user.get('email')}: {_e}")
+    return has
+
+
 async def _finalise_successful_login(user: dict, request: Request, response: Response, *, mfa_verified: bool = False) -> dict:
     """Mint the JWT, set the cookie, write the audit row, refresh
     ``last_login`` and return the public response payload.
@@ -596,7 +619,12 @@ async def _finalise_successful_login(user: dict, request: Request, response: Res
     from utils.feature_guard import get_enabled_features
     trial_state = compute_trial_state(org) if org else {"is_trial": False}
     features = await get_enabled_features(user)
-    return {"token": token, "user": _build_login_user_payload(user, org, trial_state, features)}
+    payload = _build_login_user_payload(user, org, trial_state, features)
+    # Stamp Staff Portal access onto the login payload so the post-login
+    # router (resolveHomePath) can send staff to the area chooser (/launch)
+    # right away — staff now sign in through the main login, not /staff-login.
+    payload["has_staff_portal"] = await compute_has_staff_portal(user, org)
+    return {"token": token, "user": payload}
 
 
 @router.post("/auth/login")
@@ -1036,27 +1064,9 @@ async def get_me(user: dict = Depends(get_current_user_portal)) -> dict:
     features = await get_enabled_features(user)
     module_access = resolve_module_access(user, org)
 
-    # Staff Portal access — a person is "staff" if a staff_members row is linked
-    # to them by user_id OR email (case-insensitive), scoped to their org. Drives
-    # the "Staff Portal" entry in the Switch-area menu across the platform.
-    _sp_or = [{"user_id": user.get("id")}]
-    if user.get("email"):
-        _sp_or.append({"email": {"$regex": f"^{re.escape(user['email'])}$", "$options": "i"}})
-    _sp_q = {"$or": _sp_or}
-    if user.get("organization_id"):
-        _sp_q["organization_id"] = user["organization_id"]
-    _staff_link = await db.staff_members.find_one(_sp_q, {"_id": 0, "active": 1})
-    has_staff_portal = bool(_staff_link and _staff_link.get("active", True))
-
-    # Auto-provision: every Pulse Fitness Ltd (operator company) user is staff.
-    # If they don't yet have a staff_members row, create one now so their Staff
-    # Portal is never empty — whichever way their account was created.
-    if not has_staff_portal and org and org.get("is_operator_company"):
-        try:
-            from routes.staffing import ensure_staff_record_for_user
-            has_staff_portal = await ensure_staff_record_for_user(user, user.get("organization_id"))
-        except Exception as _e:
-            logger.warning(f"staff auto-provision failed for {user.get('email')}: {_e}")
+    # Staff Portal access — drives the "Staff Portal" entry in the Switch-area
+    # menu and the post-login area chooser. Shared helper (also used on login).
+    has_staff_portal = await compute_has_staff_portal(user, org)
 
     # Iter — operator-vs-system org discriminator. A master admin whose OWN
     # org is a real operator company (Pulse Fitness Ltd — has a real account

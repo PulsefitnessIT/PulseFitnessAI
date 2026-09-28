@@ -55,7 +55,9 @@ export default function LauncherPage() {
   const destinations = useMemo(() => {
     if (!user || !access) return null;
     const out = [];
-    if (access.has_staff_portal) {
+    // Staff Portal — authoritative on the canonical user.has_staff_portal
+    // (from /auth/me + login payload), with the launcher probe as a supplement.
+    if (access.has_staff_portal || user.has_staff_portal === true) {
       out.push({ key: 'staff', label: 'Staff Portal', path: '/staff-portal', icon: UserCircle,
         desc: 'Your day, time, holidays and payslip info.', accent: '#0891b2' });
     }
@@ -124,14 +126,20 @@ export default function LauncherPage() {
       </div>
     );
   }
-  // The area selector is a Pulse Fitness Ltd (operator company) feature. Any
-  // other company never sees the chooser — forward them straight to their
-  // primary module (a real module, not the Staff Portal), exactly as before.
-  if (user.is_operator_company !== true) {
+  // A single reachable area never needs a chooser — forward straight there
+  // (a staff-portal-only member lands directly on /staff-portal).
+  if (destinations.length === 1) return <Navigate to={destinations[0].path} replace />;
+
+  // Show the chooser to operator-company staff AND to any staff member who
+  // has both a Staff Portal and at least one module (so they can pick between
+  // the portal and their module). Every OTHER company with multiple modules
+  // (no Staff Portal) forwards straight to its primary module, exactly as
+  // before — they never see the chooser.
+  const showChooser = user.is_operator_company === true || access.has_staff_portal === true || user.has_staff_portal === true;
+  if (!showChooser) {
     const primary = destinations.find((d) => d.key !== 'staff') || destinations[0];
     return <Navigate to={primary.path} replace />;
   }
-  if (destinations.length === 1) return <Navigate to={destinations[0].path} replace />;
 
   // Remember my area — jump straight to the saved area next login, unless the
   // user explicitly asked to re-choose (/launch?choose=1). Only ever applies

@@ -94,26 +94,6 @@ export const MODULES = (t) => [
       { icon: Megaphone, label: t('mkt.f_social', 'Social') },
     ],
   },
-  // Iter 220bd — Engineers as 5th module. Maps to /partners/engineers
-  // (the partner-engineer landing page). High-vis amber accent
-  // distinguishes "partner network" from the four core SaaS modules.
-  // Iter 257 — renamed to "Partners": now covers BOTH individual partner
-  // engineers and service companies running their own Service Desk.
-  {
-    id: 'engineers',
-    icon: HardHat,
-    color: '#F59E0B',
-    to: '/partners/engineers',
-    name: t('mkt.mod_partners', 'Partners'),
-    tagline: t('mkt.m_eng_tag', 'Engineers & service suppliers.'),
-    body: t('mkt.m_eng_body', 'A vetted UK-wide engineer network with Uber-style tracking and mobile dispatch — plus a full self-serve Service Desk for service companies: SLA boards, scheduling, invoicing and owner analytics.'),
-    features: [
-      { icon: MapPin,        label: t('mkt.f_routing', 'Job Routing') },
-      { icon: Smartphone,    label: t('mkt.f_mobile', 'Mobile App') },
-      { icon: Headset,       label: t('mkt.f_servicedesk', 'Service Desk') },
-      { icon: PoundSterling, label: t('mkt.f_earnings', 'Earnings') },
-    ],
-  },
 ];
 
 export default function MarketingHome() {
@@ -130,10 +110,8 @@ export default function MarketingHome() {
       <CustomerExperience />
       <SocialProof />
       {/* Iter 257 — dark-breakout band for the B2B Service Desk package
-          (service companies), placed above the individual-engineer banner
-          so the two partner audiences read in sequence without mixing. */}
+          (service companies). */}
       <ServiceDeskPromo />
-      <EngineerBanner />
       <FinalCta />
     </MarketingShell>
   );
@@ -147,7 +125,7 @@ function Hero() {
         <div>
           <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-zinc-800" data-testid="gx-hero-eyebrow">
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }} />
-            {t('mkt.hero_eyebrow', 'One platform · Five modules')}
+            {t('mkt.hero_eyebrow', 'One platform · Four modules')}
           </span>
           <h1 className="mt-5 text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tighter font-black leading-[1.04]" data-testid="gx-hero-headline">
             {t('mkt.hero_h1_1', 'Smarter Fitness.')}<br />
@@ -185,7 +163,7 @@ function PlatformOverview() {
         <div className="lg:col-span-5">
           <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">{t('mkt.ov_eyebrow', 'Why Pulse Fitness')}</p>
           <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">{t('mkt.ov_title_1', 'One platform.')}<br /><span className="gx-gradient-text">{t('mkt.ov_title_2', 'Everything connected.')}</span></h2>
-          <p className="mt-5 text-lg text-slate-600 leading-relaxed">{t('mkt.ov_desc', 'Stop stitching together a CRM, a booking app, an asset tracker, an email tool and a rota spreadsheet. Pulse Fitness is one system, five modules, zero handoff bugs.')}</p>
+          <p className="mt-5 text-lg text-slate-600 leading-relaxed">{t('mkt.ov_desc', 'Stop stitching together a CRM, a booking app, an asset tracker, an email tool and a rota spreadsheet. Pulse Fitness is one system, four modules, zero handoff bugs.')}</p>
         </div>
         <div className="lg:col-span-7 grid sm:grid-cols-2 gap-4">
           <OverviewCard icon={<Sparkles size={18} />} title={t('mkt.ov1_t', 'AI built in everywhere')} body={t('mkt.ov1_b', 'Lead scoring in CRM, churn prediction in Memberships, copywriter in Marketing, fault triage in Operations.')} />
@@ -216,7 +194,7 @@ function ModuleGrid() {
     <section className="py-24 md:py-32 bg-slate-50/60" data-testid="gx-module-grid">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="max-w-2xl">
-          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">{t('mkt.mg_eyebrow', 'The five modules')}</p>
+          <p className="text-xs uppercase tracking-[0.2em] font-bold text-slate-400">{t('mkt.mg_eyebrow', 'The four modules')}</p>
           <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">{t('mkt.mg_title', 'Built for every part of your business')}</h2>
         </div>
         <div className="mt-12 grid md:grid-cols-2 lg:grid-cols-3 gap-5" data-testid="gx-module-grid-list">
@@ -304,7 +282,7 @@ function SocialProof() {
           <h2 className="mt-3 text-4xl md:text-5xl font-bold tracking-tight">{t('mkt.sp_title', 'What the platform delivers on day one')}</h2>
         </div>
         <div className="mt-12 grid grid-cols-2 lg:grid-cols-4 gap-6">
-          <Stat value={t('mkt.sp1_v', '5 modules')} label={t('mkt.sp1_l', 'Operations · CRM · Memberships · Marketing · Partners')} />
+          <Stat value={t('mkt.sp1_v', '4 modules')} label={t('mkt.sp1_l', 'Operations · CRM · Memberships · Marketing')} />
           <Stat value={t('mkt.sp2_v', 'AI-first')} label={t('mkt.sp2_l', 'Lead scoring, churn prediction, copywriter, fault triage — all built in')} />
           <Stat value={t('mkt.sp3_v', 'Multi-site')} label={t('mkt.sp3_l', 'Head-office onboarding wizard handles unlimited child sites in one pass')} />
           <Stat value={t('mkt.sp4_v', 'GDPR-ready')} label={t('mkt.sp4_l', 'UK GDPR DPA, UK-only data residency, tamper-evident audit log')} />
@@ -329,68 +307,7 @@ function Stat({ value, label }) {
   );
 }
 
-/* ── Engineer Partner banner (Iter 216h88) ─────────────── */
-function EngineerBanner() {
-  const { t } = useTranslation();
-  return (
-    <section className="py-16 md:py-20 bg-slate-50 dark:bg-zinc-900" data-testid="gx-engineer-banner">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="rounded-[36px] bg-white border border-slate-100 shadow-sm overflow-hidden grid lg:grid-cols-5 dark:bg-zinc-900 dark:border-zinc-800">
-          <div className="lg:col-span-3 p-8 md:p-12">
-            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-zinc-800">
-              <HardHat size={12} /> {t('mkt.eb_badge', 'Independent fitness engineer?')}
-            </span>
-            <h2 className="mt-4 text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
-              {t('mkt.eb_title', 'Run your own business — backed by the Pulse Fitness network.')}
-            </h2>
-            <p className="mt-4 text-base text-slate-600 leading-relaxed max-w-xl">
-              {t('mkt.eb_desc', "Join the Partner Engineer Network. Get on every gym's roster, use our offline-first mobile app, and earn a one-off signup reward (50% of the gym's first cleared Operations payment) plus £3/site/mo recurring for as long as the gym stays on the platform. Both released after the gym stays on the platform for 3 months. Monthly fee drops to")} <strong className="text-slate-800">{t('mkt.eb_desc_free', 'free')}</strong> {t('mkt.eb_desc_end', 'at 10 referrals.')}
-            </p>
-            <ul className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-semibold text-slate-500">
-              <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />{t('mkt.eb_check_1', '£30 / £15 / free auto-tier')}</li>
-              <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />{t('mkt.eb_check_2', 'Cancel anytime')}</li>
-              <li className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-500" />{t('mkt.eb_check_3', 'Decision in 2 working days')}</li>
-            </ul>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Link to="/partners/engineers" className="gx-cta inline-flex items-center gap-1.5 rounded-full px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold whitespace-nowrap" data-testid="gx-engineer-banner-cta">
-                {t('mkt.eb_learn', 'Learn more')} <ArrowRight size={15} />
-              </Link>
-              <Link to="/partners/engineers/apply" className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap dark:bg-zinc-900" data-testid="gx-engineer-banner-apply">
-                {t('mkt.eb_apply', 'Start application')} <ArrowRight size={15} />
-              </Link>
-            </div>
-          </div>
-          <div className="lg:col-span-2 p-8 md:p-10 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 100%)' }}>
-            <div className="rounded-2xl bg-white shadow-lg border border-slate-100 p-5 max-w-xs dark:bg-zinc-900 dark:border-zinc-800">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('mkt.eb_your_engineer', 'Your engineer')}</p>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-700">{t('mkt.eb_verified', '✓ Verified')}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-extrabold text-white" style={{ background: 'linear-gradient(135deg, var(--gx-brand-from), var(--gx-brand-to))' }}>S</div>
-                <div>
-                  <p className="font-bold text-slate-800">Sarah</p>
-                  <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
-                    <Star size={11} className="text-amber-400" fill="currentColor" />
-                    <span className="font-bold text-slate-700">4.9</span>
-                    <span>{t('mkt.eb_jobs', '· 52 jobs in 90d')}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-1 mt-3">
-                {['IOSH', 'PAT', 'CSCS'].map((q) => (
-                  <span key={q} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold border border-emerald-200 bg-emerald-50 text-emerald-700">✓ {q}</span>
-                ))}
-              </div>
-              <p className="mt-3 text-[10px] text-slate-400 leading-relaxed">{t('mkt.eb_profile_note', 'This is the profile customers see when you accept their job.')}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
+/* ── Final CTA ─────────────── */
 function FinalCta() {
   const { t } = useTranslation();
   return (

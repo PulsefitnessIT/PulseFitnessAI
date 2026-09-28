@@ -408,8 +408,8 @@ export default function AppRoutes({ user, login }) {
       <Route path="/unsubscribe/:token" element={<PublicUnsubscribePage />} />
       <Route path="/c/view/:id" element={<PublicEmailViewPage />} />
       <Route path="/c/forward/:id" element={<PublicForwardPage />} />
-      {/* Iter 216h88 — public Engineer Partner marketing landing */}
-      <Route path="/partners/engineers" element={<PartnerEngineerLanding />} />
+      {/* Engineer Partner Network retired (legacy) — public recruitment landing redirected home. */}
+      <Route path="/partners/engineers" element={<Navigate to="/" replace />} />
       {/* Iter 216h286 — Gap 8: public review submission page.
           Linked from the find-engineer card; surfaces star + body
           ratings the engineer dashboard then responds to. */}
@@ -423,15 +423,17 @@ export default function AppRoutes({ user, login }) {
           company's marketing website. Public, token-gated. */}
       <Route path="/embed/log-fault/:token" element={<EmbedFaultForm />} />
       <Route path="/new-starter/:token" element={<NewStarterPortal />} />
-      <Route path="/staff-login" element={<StaffLogin />} />
+      {/* Staff sign-in unified into the main platform login. The dedicated
+          /staff-login page is retired — redirect any old links to /login. */}
+      <Route path="/staff-login" element={<Navigate to="/login" replace />} />
       <Route path="/staff-reset/:token" element={<StaffResetPassword />} />
       <Route path="/staff-portal" element={<StaffPortal />} />
       <Route path="/witness-statement/:token" element={<WitnessStatementPage />} />
       {/* Iter 216h287 — Gap 9: engineer-of-engineer recruit landing.
           Branded one-pager from a peer engineer's referral link. */}
       <Route path="/engineer/r/:code" element={<EngineerReferralLanding />} />
-      {/* Iter 216h104 — public Engineer Partner application form (no login required) */}
-      <Route path="/partners/engineers/apply" element={<PartnerApplyPublic />} />
+      {/* Engineer Partner Network retired (legacy) — public application form redirected home. */}
+      <Route path="/partners/engineers/apply" element={<Navigate to="/" replace />} />
       <Route path="/legacy-home" element={<Navigate to="/" replace />} />
       <Route path="/platform/service"     element={<ModulePage module={moduleService} />} />
       <Route path="/platform/crm"         element={<ModulePage module={moduleCrm} />} />
@@ -642,7 +644,7 @@ export default function AppRoutes({ user, login }) {
           works without login and `_resolve_or_create_partner` on the
           backend dedupes by email so an authed re-application is
           handled by the same endpoint. */}
-      <Route path="/partner-engineer/apply" element={<Navigate to="/partners/engineers/apply" replace />} />
+      <Route path="/partner-engineer/apply" element={<Navigate to="/" replace />} />
       {/* Iter 219f — single-use activation page from approval email.
           Public (no auth) — the engineer doesn't have an account yet. */}
       <Route path="/partner-engineer/activate" element={<PartnerEngineerActivate />} />

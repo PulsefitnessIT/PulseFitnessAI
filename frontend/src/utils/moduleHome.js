@@ -56,6 +56,11 @@ export function resolveHomePath(user) {
   if (u.is_partner_engineer || u.account_type === 'partner_engineer' || u.role === 'engineer_partner') return '/partner-engineer';
   // Pulse Fitness Ltd (the platform operator company) staff → area selector.
   if (u.is_operator_company === true) return '/launch';
+  // Any staff member (has a Staff Portal) signs in through the main login and
+  // is sent to the area chooser, where they pick their Staff Portal or any
+  // module they can access. If the portal is their only area, LauncherPage
+  // forwards them straight there.
+  if (u.has_staff_portal === true) return '/launch';
   if (u.is_service_desk) return u.service_ops_setup_complete === false ? '/service-desk/setup' : '/service-desk';
   if (['lite', 'pulse_pro', 'mod_site', 'mod_branch', 'mod_org'].includes(u.account_type)) return '/pulse';
   // Other companies: no Operations access → first granted module; otherwise

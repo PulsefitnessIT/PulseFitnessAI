@@ -35,7 +35,7 @@ export default function StaffResetPassword() {
             <CheckCircle2 className="mx-auto text-emerald-500" size={40} />
             <h1 className="text-xl font-bold text-slate-900 mt-3">Password reset</h1>
             <p className="text-slate-500 text-sm mt-1">Your password has been updated. You can now sign in.</p>
-            <button onClick={() => nav('/staff-login')} data-testid="staff-reset-tologin"
+            <button onClick={() => nav('/login')} data-testid="staff-reset-tologin"
               className="mt-4 w-full rounded-lg py-2.5 font-semibold text-slate-900" style={{ background: CORE }}>Go to sign in</button>
           </div>
         ) : (

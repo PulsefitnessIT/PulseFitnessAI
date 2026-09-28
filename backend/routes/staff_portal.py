@@ -858,30 +858,24 @@ async def portal_submit_period(period_id: str, body: PortalSubmitBody,
 @router.get("/staffing/me/portal-access")
 async def my_portal_access(user: dict = Depends(get_current_user)):
     """Post-login launcher probe — does the signed-in platform user also have
-    an employee Staff Portal? True when a staff_members record is linked to
-    their user id (or email) in their org.
-
-    Auto-provision: every Pulse Fitness Ltd (operator company) user is staff,
-    so if they don't yet have a staff_members row we create one on the fly here
-    — the Staff Portal is then never empty for them, whichever way their user
-    account was created."""
+    an employee Staff Portal? Uses the SAME canonical computation as
+    /auth/login and /auth/me (case-insensitive email/user_id match + operator
+    auto-provision) so every surface agrees on Staff Portal access."""
     org = user.get("organization_id")
-    if org:
-        org_doc = await db.organizations.find_one({"id": org}, {"_id": 0, "is_operator_company": 1})
-        if org_doc and org_doc.get("is_operator_company"):
-            try:
-                from routes.staffing import ensure_staff_record_for_user
-                await ensure_staff_record_for_user(user, org)
-            except Exception as _e:  # never break the launcher probe
-                logger.warning(f"staff auto-provision failed for {user.get('email')}: {_e}")
-    q = {"$or": [{"user_id": user.get("id")}]}
-    if user.get("email"):
-        q["$or"].append({"email": user.get("email")})
-    if org:
-        q["organization_id"] = org
-    staff = await db.staff_members.find_one(q, {"_id": 0, "full_name": 1, "active": 1})
-    return {"has_staff_portal": bool(staff and staff.get("active", True)),
-            "full_name": (staff or {}).get("full_name")}
+    org_doc = await db.organizations.find_one({"id": org}, {"_id": 0}) if org else None
+    from routes.auth import compute_has_staff_portal
+    has = await compute_has_staff_portal(user, org_doc)
+    full_name = None
+    if has:
+        sp_or = [{"user_id": user.get("id")}]
+        if user.get("email"):
+            sp_or.append({"email": {"$regex": f"^{re.escape(user['email'])}$", "$options": "i"}})
+        sp_q = {"$or": sp_or}
+        if org:
+            sp_q["organization_id"] = org
+        staff = await db.staff_members.find_one(sp_q, {"_id": 0, "full_name": 1})
+        full_name = (staff or {}).get("full_name")
+    return {"has_staff_portal": has, "full_name": full_name}
 
 
 # ══════════════════════════ NOTIFICATIONS / NUDGES ══════════════════════════

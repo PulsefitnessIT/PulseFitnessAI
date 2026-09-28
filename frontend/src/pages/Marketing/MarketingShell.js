@@ -26,10 +26,6 @@ const NAV = (t) => [
   { to: '/platform/crm',         slug: 'crm',         label: t('mkt.mod_crm', 'CRM') },
   { to: '/platform/memberships', slug: 'memberships', label: t('mkt.mod_memberships', 'Memberships') },
   { to: '/platform/marketing',   slug: 'marketing',   label: t('mkt.mod_marketing', 'Marketing') },
-  // Iter 257 — "Engineers" → "Partners": the tab now represents both
-  // individual partner engineers AND service companies/suppliers running
-  // their own Service Desk (per the homepage ServiceDeskPromo band).
-  { to: '/partners/engineers',   slug: 'partners',    label: t('mkt.mod_partners', 'Partners') },
   { to: '/pricing',              slug: 'pricing',     label: t('mkt.nav_pricing', 'Pricing') },
 ];
 
@@ -227,7 +223,6 @@ export function MarketingFooter() {
             <li><Link to="/status" className="hover:text-slate-900 dark:text-zinc-100">{t('mkt.foot_status', 'Status')}</Link></li>
             <li><a href="/downloads/PulseFitnessAI-Operators-Presentation.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-sales-deck-operators">{t('mkt.foot_deck_operators', 'Operators Sales Presentation')}</a></li>
             <li><a href="/downloads/PulseFitnessAI-Suppliers-Presentation.pdf" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-sales-deck-suppliers">{t('mkt.foot_deck_suppliers', 'Suppliers Sales Presentation')}</a></li>
-            <li><Link to="/partners/engineers" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-engineers">{t('mkt.foot_engineers', 'For engineers')}</Link></li>
             <li><Link to="/service-provider/signup" className="hover:text-slate-900 dark:text-zinc-100" data-testid="gx-footer-suppliers">{t('mkt.foot_suppliers', 'For service suppliers')}</Link></li>
           </ul>
         </div>
