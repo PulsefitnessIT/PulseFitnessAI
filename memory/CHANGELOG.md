@@ -709,3 +709,10 @@ Files: backend/routes/staffing_clock.py, backend/utils/payroll_timesheet_xlsx.py
 - Verified via curl+DB: all 4 role profiles emit correct headers (Instructor=PT/Classes, Manager=Admin, Reception=none, Engineer=Van Check/Parts/Clean Van); engineer prefill (van_check 0:15, parts 0:45, clean_van done-0min→"Y"); self-save round-trip persists acts and derives legacy fields; both frontends compile.
 - Follow-up still open per user (5b): richer portal capture already added for these activities; PT/Classes split done.
 Files: backend/routes/staffing_clock.py, backend/routes/staff_portal.py, backend/utils/payroll_timesheet_xlsx.py, frontend/src/pages/StaffPortal.js.
+
+## 2026-06 — PPM Auto-Load on Site Activation (Estate Onboarding Commit)
+- Wired the per-site PPM backfill into the real "site goes live" moment: the Estate Onboarding commit (`POST /crm/v2/aftersales/onboarding/{import_id}/commit`) now fires `kickoff_site_ppm_backfill(cust_org_id, site_id, "annual", ...)` for every newly created site, right after `db.sites.insert_many`. Idempotent, background, non-blocking. Backfill run refs returned in the commit response under `committed.ppm_backfill`.
+- New operator-scoped polling endpoint `GET /crm/v2/aftersales/onboarding/{import_id}/ppm-status` — aggregates the customer-org backfill runs (which the operator's org can't read via the raw `/ppm/backfill/runs/{run_id}` endpoint) into `{total_sites, finished_sites, all_done, failed_sites, schedules_created, tasks_created, runs[]}`.
+- Frontend EstateOnboarding "done" step now polls ppm-status (2.5s) and shows a live "Loading PPM schedules… n/m sites" progress bar that flips to a green "PPM schedules loaded" summary; surfaces failed-site count.
+- Verified end-to-end via seeded import: commit created 2 sites → 2 backfill runs completed → 2 schedules + 6 tasks generated; ppm-status reported all_done=true. Test data cleaned up.
+Files: backend/routes/crm_afs_onboarding.py, frontend/src/pages/CRM/Aftersales/EstateOnboarding.js.

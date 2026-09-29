@@ -5,11 +5,11 @@
  *
  * Wizard: upload → map columns → review (dual pricing + exception queue) → commit.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   UploadCloud, FileSpreadsheet, RotateCw, AlertTriangle, CheckCircle2,
-  ArrowRight, Building2, Wrench, X,
+  ArrowRight, Building2, Wrench, X, CalendarClock, Loader2,
 } from 'lucide-react';
 
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -56,6 +56,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
   const [review, setReview] = useState(null);
   const [exceptionsOnly, setExceptionsOnly] = useState(true);
   const [done, setDone] = useState(null);
+  const [ppm, setPpm] = useState(null);
 
   // multi-file merge
   const [mergeSummary, setMergeSummary] = useState(null);
@@ -120,11 +121,29 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
     try {
       const r = await axios.post(`${API}/crm/v2/aftersales/onboarding/${importId}/commit`, {}, { headers: headers() });
       setDone(r.data.committed);
+      setPpm(null);
       setStep('done');
     } catch (e) {
       setErr(e?.response?.data?.detail || 'Commit failed.');
     } finally { setBusy(false); }
   };
+
+  // Poll PPM backfill progress once the estate is committed (sites go live).
+  useEffect(() => {
+    if (step !== 'done' || !importId) return;
+    let active = true;
+    const poll = async () => {
+      try {
+        const r = await axios.get(`${API}/crm/v2/aftersales/onboarding/${importId}/ppm-status`, { headers: headers() });
+        if (!active) return;
+        setPpm(r.data);
+        if (!r.data.all_done) setTimeout(poll, 2500);
+      } catch { if (active) setTimeout(poll, 4000); }
+    };
+    poll();
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, importId]);
 
   const doAnalyzePdf = async () => {
     if (!file) return;
@@ -646,6 +665,32 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
               </div>
             ))}
           </div>
+          {/* PPM auto-load progress — sites go live at commit, schedules build in the background */}
+          {ppm && ppm.total_sites > 0 && (
+            <div data-testid="afs-onb-ppm-progress" className="p-3 rounded-lg border mb-3"
+              style={{ background: isDark ? '#0d0d0d' : 'var(--color-neutral-50)', borderColor: c.border }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                {ppm.all_done
+                  ? <CalendarClock size={16} style={{ color: 'var(--color-success-alt)' }} />
+                  : <Loader2 size={16} className="animate-spin" style={{ color: 'var(--color-brand-cyan)' }} />}
+                <p className="text-xs font-bold" style={{ color: c.text }}>
+                  {ppm.all_done
+                    ? `PPM schedules loaded — ${ppm.schedules_created} schedule${ppm.schedules_created === 1 ? '' : 's'} across ${ppm.total_sites} site${ppm.total_sites === 1 ? '' : 's'}`
+                    : `Loading PPM schedules… ${ppm.finished_sites}/${ppm.total_sites} sites`}
+                </p>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: c.border }}>
+                <div className="h-full rounded-full transition-all"
+                  style={{ width: `${ppm.total_sites ? Math.round((ppm.finished_sites / ppm.total_sites) * 100) : 0}%`,
+                           background: ppm.all_done ? 'var(--color-success-alt)' : 'var(--color-brand-cyan)' }} />
+              </div>
+              {ppm.failed_sites > 0 && (
+                <p className="text-xs mt-1.5" style={{ color: 'var(--color-danger-alt, #ef4444)' }}>
+                  {ppm.failed_sites} site{ppm.failed_sites === 1 ? '' : 's'} failed to generate — retry from the PPM calendar.
+                </p>
+              )}
+            </div>
+          )}
           <p className="text-xs mb-3" style={{ color: c.textDim }}>
             Find these under <strong>Contracts &amp; Renewals</strong> as drafts, and the equipment under the new customer's register.
             Review and activate them to switch on service schedules, billing and compliance.

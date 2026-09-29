@@ -25,11 +25,15 @@ import base64
 import io
 import re
 import uuid
+import logging
 
 from utils.database import db
 from routes.crm_auth import get_crm_user
 from utils.crm_audit import record_audit
 from routes.crm_aftersales import _compute_quote, _PUBLIC
+from routes.ppm_engine import kickoff_site_ppm_backfill
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/crm/v2/aftersales/onboarding", tags=["Aftersales Onboarding"])
 
@@ -672,6 +676,18 @@ async def commit(import_id: str, user=Depends(get_crm_user)):
     if site_docs:
         await db.sites.insert_many(site_docs)
 
+    # 3b) Sites go live at commit — auto-load each site's PPM schedules in the
+    # background. kickoff is idempotent and never blocks the commit response.
+    ppm_backfill = []
+    for sn, sid in site_ids.items():
+        try:
+            run = await kickoff_site_ppm_backfill(
+                cust_org_id, sid, "annual", user.get("full_name", "") or "Estate Onboarding")
+            ppm_backfill.append({"site_id": sid, "site_name": sn,
+                                 "run_id": run.get("run_id"), "status": run.get("status")})
+        except Exception as e:
+            logger.warning("PPM backfill kickoff failed for site %s: %s", sid, e)
+
     # 4) Equipment register rows (batched insert_many — scales to large estates).
     eq_docs = []
     for r in rows:
@@ -727,12 +743,46 @@ async def commit(import_id: str, user=Depends(get_crm_user)):
                              "annual_value": annual, "assets": len(grp)})
 
     committed = {"customer_org_id": cust_org_id, "crm_company_id": crm_company_id,
-                 "sites": len(site_ids), "equipment": len(rows), "contracts": contract_ids}
+                 "sites": len(site_ids), "equipment": len(rows), "contracts": contract_ids,
+                 "ppm_backfill": ppm_backfill}
     await db.crm2_afs_onboarding.update_one({"id": import_id, **of}, {"$set": {
         "status": "committed", "committed": committed, "committed_at": _now(), "updated_at": _now()}})
     await record_audit(entity_type="afs_onboarding", entity_id=import_id, action="commit", user=user,
                        extra={"customer": customer, "contracts": len(contract_ids), "equipment": len(rows)})
     return {"import_id": import_id, "committed": committed}
+
+
+@router.get("/{import_id}/ppm-status")
+async def ppm_status(import_id: str, user=Depends(get_crm_user)):
+    """Aggregate PPM backfill progress for a committed import's sites. Scoped to
+    the operator's own import, then reads the runs under the new customer org."""
+    of = _of(user)
+    doc = await db.crm2_afs_onboarding.find_one({"id": import_id, **of})
+    if not doc:
+        raise HTTPException(404, "Import not found")
+    committed = doc.get("committed") or {}
+    cust_org_id = committed.get("customer_org_id")
+    meta = committed.get("ppm_backfill") or []
+    run_ids = [m["run_id"] for m in meta if m.get("run_id")]
+    runs = []
+    if run_ids and cust_org_id:
+        runs = await db.ppm_backfill_runs.find(
+            {"id": {"$in": run_ids}, "organization_id": cust_org_id}, {"_id": 0}
+        ).to_list(len(run_ids))
+    done_states = {"completed", "failed"}
+    finished = sum(1 for r in runs if r.get("status") in done_states)
+    schedules = sum((r.get("counts") or {}).get("schedules_created", 0) for r in runs)
+    tasks = sum((r.get("counts") or {}).get("tasks_created", 0) for r in runs)
+    return {
+        "total_sites": len(run_ids),
+        "finished_sites": finished,
+        "all_done": bool(run_ids) and finished == len(run_ids),
+        "failed_sites": sum(1 for r in runs if r.get("status") == "failed"),
+        "schedules_created": schedules,
+        "tasks_created": tasks,
+        "runs": [{"site_id": r.get("site_id"), "status": r.get("status"),
+                  "counts": r.get("counts", {})} for r in runs],
+    }
 
 
 # ── list / read (no file_b64 / rows in the list) ───────────────────────────
