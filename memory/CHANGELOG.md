@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 2026-06 — Sicon 120k scale-hardening (read-side, part 1) + load test
+Ran a real 120,000-equipment load test (`backend/scripts/loadtest_sicon_scale.py`) against a throwaway org; measured DB-layer cost of every hot equipment path, then fixed the P0 data-integrity issues. Load-test data cleaned up after.
+
+**Load-test findings at 120k (before fix):** `GET /equipment` `.to_list(2000)` returned only 2,000 of 120,000 (silent truncation, 507ms); supplier-rollup `.to_list(50000)` dropped ~70k; analytics `.to_list(5000)` dropped ~115k; `count_documents` 99ms and `skip/limit` 2ms (cheap → pagination is the right fix); full equipment iterate 594ms.
+
+**Fixes shipped (backend, verified via curl on a real org):**
+- `GET /equipment` (routes/equipment.py) — added OPT-IN server pagination (`page`/`limit`, capped 500) + server-side search (`q` across name/type/manufacturer/model/serial/location) + `total`/`pages`. Backward compatible: no-params callers still get `{equipment:[...]}` (now bounded at 5000 with a `truncated` flag) so existing pickers/canvas/CheckSheets don't break. Verified: paginated shape `{equipment,total,page,limit,pages}`, legacy shape preserved, `q` search works.
+- `GET /equipment/export/csv` — streams the full cursor (was capped at 500) so a 120k export is complete.
+- Service Desk supplier-rollup (routes/service_desk.py) — equipment + issues now streamed via cursor instead of `.to_list(50000)`, so supplier totals are correct at 120k (previously under-reported by ~70k).
+
+**Also confirmed already-built (no work needed):** in-platform Sicon connection config + test (`routes/sicon.py` `/sicon/config`, `/sicon/test-connection`; `IntegrationsSiconConnect.js`), encrypted + audited — a separate "Bruno-style" tester is unnecessary.
+
+**Still TODO (staged next):** convert the Operations Equipment tab (`EquipmentInfoTab.js`) to consume the new server pagination + search (currently filters client-side, loads up to 5000); remaining analytics `.to_list(5000)` sites (pulse_sales, kpi_engine, capex, crm_aftersales, master_admin_mod_estate) → aggregation/count; batch+background the PPM equipment backfill (`ppm_calendar.py`) before a live 120k import; add an equipment search index (type/manufacturer/model).
+
+
 ## 2026-06 — Compliance-at-a-glance panel (Operations → Staffing → People → Compliance)
 Verified full-stack: backend endpoint via curl (correct aggregation), frontend on desktop 1920 + mobile 390 (all statuses, sorting, pills render; no content overflow).
 - New manager tab combining three compliance surfaces in one view: Enhanced DBS certificate status, Right-to-Work status, and outstanding (unpaid) vehicle fines.

@@ -6,6 +6,7 @@ import uuid
 import csv
 import io
 import logging
+import re
 
 import os
 from utils.database import db, EMERGENT_LLM_KEY, APP_NAME, put_object, get_object
@@ -164,8 +165,14 @@ async def create_equipment(equipment: EquipmentCreate, user: dict = Depends(get_
 
 @router.get("/equipment")
 async def get_all_equipment(
-    user: dict = Depends(get_current_user), site_id: str = None
+    user: dict = Depends(get_current_user), site_id: str = None,
+    q: str = None, page: int = None, limit: int = None,
 ) -> dict:
+    # Iter — 120k-scale hardening. `GET /equipment` now supports OPT-IN server
+    # pagination (`page`/`limit`) + server-side search (`q`) so the Operations
+    # Equipment tab can page a 100k+ estate instead of pulling it all. Callers
+    # that pass no paging params keep the legacy `{equipment:[...]}` shape (now
+    # bounded + a `truncated` flag) so existing pickers/canvases don't break.
     # Iter 216h120 — MOD HQ tiers need to drill into a child site (each
     # child is its own organisation, equipment lives under
     # organization_id=child_id) or roll the entire estate up. The
@@ -208,21 +215,47 @@ async def get_all_equipment(
             {"site_id": None},
         ]
 
-    equipment_list = await db.equipment.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(2000)
+    # Server-side search across the fields users actually look up — so a
+    # 120k estate is findable without loading every row into the browser.
+    if q and q.strip():
+        rx = {"$regex": re.escape(q.strip()), "$options": "i"}
+        org_filter = {"$and": [org_filter, {"$or": [
+            {"name": rx}, {"equipment_type": rx}, {"manufacturer": rx},
+            {"model": rx}, {"serial_number": rx}, {"location": rx},
+        ]}]}
+
+    paginated = page is not None or limit is not None
+    LEGACY_CAP = 5000
+    if paginated:
+        page = max(1, page or 1)
+        limit = min(500, max(1, limit or 100))
+        total = await db.equipment.count_documents(org_filter)
+        cursor = db.equipment.find(org_filter, {"_id": 0}).sort("created_at", -1).skip((page - 1) * limit).limit(limit)
+        equipment_list = await cursor.to_list(limit)
+    else:
+        equipment_list = await db.equipment.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(LEGACY_CAP)
+        total = len(equipment_list)
     bulk_stats = await get_bulk_equipment_stats(equipment_list, org_filter)
     for equip in equipment_list:
         equip['stats'] = bulk_stats.get(equip['id'], {})
         if 'manuals' not in equip:
             equip['manuals'] = []
         equip['display_name'] = _compute_display_name(equip)
-    return {"equipment": equipment_list}
+    resp = {"equipment": equipment_list, "total": total}
+    if paginated:
+        resp.update({"page": page, "limit": limit, "pages": (total + limit - 1) // limit if limit else 1})
+    elif len(equipment_list) >= LEGACY_CAP:
+        # Signal that the (legacy, unpaginated) response was capped so the
+        # caller/monitoring knows to switch to paged loading at scale.
+        resp["truncated"] = True
+    return resp
 
 
 @router.get("/equipment/export/csv")
 async def export_equipment_csv(user: dict = Depends(get_current_user)) -> Response:
     org_filter = get_organization_filter(user)
-    equipment_list = await db.equipment.find(org_filter, {"_id": 0}).to_list(500)
-
+    # Stream ALL rows (cursor) so a 120k-asset export is complete — the old
+    # to_list(500) cap silently dropped everything beyond the first 500.
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
@@ -231,7 +264,7 @@ async def export_equipment_csv(user: dict = Depends(get_current_user)) -> Respon
         "Length (m)", "Width (m)", "Height (m)", "Location",
         "Contract Number", "Contract Start Date", "Contract End Date", "Notes",
     ])
-    for equip in equipment_list:
+    async for equip in db.equipment.find(org_filter, {"_id": 0}):
         writer.writerow([
             equip.get('name', ''), equip.get('equipment_type', ''),
             equip.get('manufacturer', ''), equip.get('model', ''),

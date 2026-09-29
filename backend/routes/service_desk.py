@@ -469,10 +469,14 @@ async def supplier_health_global(
             if st:
                 g["supplier_types"].add(st)
 
-    # 2) Pull equipment in one shot, group by normalised supplier name.
-    all_equipment = await db.equipment.find(
+    # 2) Pull equipment, group by normalised supplier name. Stream the cursor
+    # (not a 50k-capped to_list) so a 120k-asset estate is fully counted — the
+    # old cap silently dropped ~70k rows and under-reported every supplier.
+    all_equipment = []
+    async for e in db.equipment.find(
         scope_q, {"_id": 0, "id": 1, "organization_id": 1, "supplier": 1, "supplier_id": 1, "sla_response_time": 1},
-    ).to_list(50000)
+    ):
+        all_equipment.append(e)
     eq_by_norm: Dict[str, list] = {}
     for e in all_equipment:
         n = _normalise_supplier_name(e.get("supplier", ""))
@@ -490,12 +494,14 @@ async def supplier_health_global(
             }
         groups[n]["org_ids"].add(e.get("organization_id"))
 
-    # 3) Pull recent issues in one shot.
-    all_issues = await db.issues.find(
+    # 3) Pull recent issues (stream, no 50k cap — see equipment note above).
+    all_issues = []
+    async for _iss in db.issues.find(
         scope_q,
         {"_id": 0, "id": 1, "organization_id": 1, "equipment_id": 1, "asset_id": 1,
          "status": 1, "created_at": 1, "resolved_at": 1, "first_response_at": 1},
-    ).to_list(50000)
+    ):
+        all_issues.append(_iss)
     # Quick eq_id → norm map.
     eq_id_to_norm: Dict[str, str] = {}
     eq_id_to_sla: Dict[str, Optional[int]] = {}
