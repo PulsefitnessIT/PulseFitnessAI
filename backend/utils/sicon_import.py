@@ -19,6 +19,7 @@ from typing import Dict, List, Optional, Any
 
 from utils.database import db
 from utils import sicon_links as links
+from utils.sicon_client import _extract_records
 
 logger = logging.getLogger(__name__)
 
@@ -582,6 +583,153 @@ async def apply_case_record(org_id: str, norm: Dict[str, Any], classification: D
     return {"action": "created", "issue_id": issue_id}
 
 
+# ── Case relationships (proven v1 chain, §12-13) ──────────────────
+# When a case imports, attach its Sicon-linked EQUIPMENT to the EXISTING Pulse
+# asset (resolved via the immutable siconEquipmentId link) and fold its
+# TRACKING NOTES into the case's EXISTING timeline. We never invent an asset
+# link — equipment that isn't yet a linked Pulse asset is flagged
+# UNMAPPED_EQUIPMENT in the conflict queue (§12) for manual review. All fully
+# idempotent: re-running never duplicates a note or double-attaches an asset.
+
+CASE_EQUIPMENT_ENTITY = "case_equipment"  # conflict-queue entity for §12 flags
+
+
+def _first(rec: Dict[str, Any], keys) -> Any:
+    for k in keys:
+        v = rec.get(k)
+        if v not in (None, ""):
+            return v
+    return None
+
+
+def _note_identity(rec: Dict[str, Any]):
+    return _first(rec, ("siconTrackingNoteId", "siSMTrackingNoteId", "trackingNoteId", "id"))
+
+
+def _note_timeline_entry(rec: Dict[str, Any]) -> Dict[str, Any]:
+    note_id = _note_identity(rec)
+    return {
+        "event": "sicon_tracking_note",
+        "text": _first(rec, ("note", "noteText", "body", "description", "text")) or "",
+        "by": _first(rec, ("userName", "createdBy", "author", "resourceName")) or "Sicon",
+        "timestamp": _first(rec, ("trackingDate", "createdDate", "date", "loggedDate")) or _now(),
+        "source": "SICON",
+        "sicon_tracking_note_id": str(note_id) if note_id is not None else None,
+    }
+
+
+async def _record_unmapped_equipment(org_id: str, scid, seid, sicon_eq: Dict[str, Any],
+                                     run_id: str) -> None:
+    """§12 — a case references Sicon equipment that isn't a linked Pulse asset."""
+    key = {"organization_id": org_id, "external_entity_type": CASE_EQUIPMENT_ENTITY,
+           "external_id": f"{scid}:{seid}"}
+    await db.sicon_import_conflicts.update_one(key, {"$set": {
+        **key,
+        "sicon_record": {"si_sm_case_id": scid, "sicon_equipment_id": seid, "raw": sicon_eq},
+        "candidates": [],
+        "reasons": ["UNMAPPED_EQUIPMENT"],
+        "status": "open",
+        "run_id": run_id,
+        "updated_at": _now(),
+    }, "$setOnInsert": {"created_at": _now()}}, upsert=True)
+
+
+async def _resolve_asset_for_sicon_equipment(org_id: str, seid) -> Optional[str]:
+    if seid is None:
+        return None
+    pid = await links.get_pulse_id(links.ENTITY_EQUIPMENT, seid, org_id)
+    if pid:
+        return pid
+    existing = await db.equipment.find_one(
+        {"organization_id": org_id, "sicon_equipment_id": seid}, {"_id": 0, "id": 1})
+    return existing["id"] if existing else None
+
+
+async def _attach_case_equipment(org_id: str, client, scid, issue_id: str,
+                                 run_id: str) -> Dict[str, int]:
+    """Pull the case's Sicon equipment and attach resolved Pulse assets to the
+    issue. Unresolved equipment is flagged UNMAPPED_EQUIPMENT (never invented)."""
+    out = {"equipment_linked": 0, "equipment_unmapped": 0}
+    body = await client.svc_get_case_equipment(scid)
+    asset_ids: List[str] = []
+    for rec in _extract_records(body):
+        seid = _first(rec, ("siconEquipmentId", "SiconEquipmentId", "equipmentId"))
+        asset_id = await _resolve_asset_for_sicon_equipment(org_id, seid)
+        if asset_id:
+            if asset_id not in asset_ids:
+                asset_ids.append(asset_id)
+            out["equipment_linked"] += 1
+        else:
+            out["equipment_unmapped"] += 1
+            await _record_unmapped_equipment(org_id, scid, seid, rec, run_id)
+    # §22 — only set when we resolved at least one asset; never erase existing.
+    if asset_ids:
+        assets = await db.equipment.find(
+            {"id": {"$in": asset_ids}}, {"_id": 0, "id": 1, "name": 1, "serial_number": 1}
+        ).to_list(len(asset_ids))
+        by_id = {a["id"]: a for a in assets}
+        first = by_id.get(asset_ids[0], {})
+        serials = [by_id[i].get("serial_number") for i in asset_ids
+                   if by_id.get(i, {}).get("serial_number")]
+        await db.issues.update_one({"id": issue_id}, {"$set": {
+            "asset_id": asset_ids[0],
+            "asset_name": first.get("name") or "",
+            "equipment_ids": asset_ids,
+            "equipment_serials": serials,
+            "updated_at": _now(),
+        }})
+    return out
+
+
+async def _fold_tracking_notes(org_id: str, client, scid, issue_id: str) -> Dict[str, int]:
+    """Fold a case's Sicon tracking notes into the EXISTING issue timeline,
+    deduped by sicon_tracking_note_id so re-runs never duplicate (§13/§21)."""
+    body = await client.svc_get_case_tracking_notes(scid)
+    records = _extract_records(body)
+    if not records:
+        return {"notes_added": 0}
+    issue = await db.issues.find_one({"id": issue_id}, {"_id": 0, "timeline": 1}) or {}
+    seen = {str(e.get("sicon_tracking_note_id")) for e in (issue.get("timeline") or [])
+            if e.get("sicon_tracking_note_id") is not None}
+    fresh = []
+    for rec in records:
+        entry = _note_timeline_entry(rec)
+        nid = entry.get("sicon_tracking_note_id")
+        if nid is not None and nid in seen:
+            continue
+        if nid is not None:
+            seen.add(nid)
+        fresh.append(entry)
+    if fresh:
+        await db.issues.update_one({"id": issue_id},
+                                   {"$push": {"timeline": {"$each": fresh}},
+                                    "$set": {"updated_at": _now()}})
+    return {"notes_added": len(fresh)}
+
+
+async def sync_case_relationships(org_id: str, client, scid, issue_id: str,
+                                  run_id: str = "") -> Dict[str, int]:
+    """Attach a case's equipment + tracking notes to the existing Pulse issue.
+    Each sub-pull is isolated so one failing relationship never fails the case.
+    Appointments/resources/time-bookings are intentionally NOT wired here yet —
+    they need the engineer-mapping layer + a canonical scheduling target."""
+    totals = {"equipment_linked": 0, "equipment_unmapped": 0, "notes_added": 0}
+    if client is None or scid is None or not issue_id:
+        return totals
+    try:
+        for k, v in (await _attach_case_equipment(org_id, client, scid, issue_id, run_id)).items():
+            totals[k] += v
+    except Exception as e:
+        logger.warning("case %s equipment attach failed: %s", scid, e)
+    try:
+        for k, v in (await _fold_tracking_notes(org_id, client, scid, issue_id)).items():
+            totals[k] += v
+    except Exception as e:
+        logger.warning("case %s tracking-note fold failed: %s", scid, e)
+    return totals
+
+
+
 async def preview_cases(org_id: str, client, config: Dict[str, Any], max_records: int = 500) -> Dict[str, Any]:
     buckets = {"linked": 0, "new": 0, "failed": 0}
     sample: List[Dict[str, Any]] = []
@@ -617,9 +765,11 @@ async def preview_cases(org_id: str, client, config: Dict[str, Any], max_records
 
 
 async def run_case_sync(org_id: str, client, config: Dict[str, Any], max_records: int = 0,
-                        run_id: Optional[str] = None, user_id: str = "system") -> Dict[str, Any]:
+                        run_id: Optional[str] = None, user_id: str = "system",
+                        pull_relationships: bool = True) -> Dict[str, Any]:
     run_id = run_id or str(uuid.uuid4())
-    counts = {"created": 0, "updated": 0, "failed": 0}
+    counts = {"created": 0, "updated": 0, "failed": 0,
+              "equipment_linked": 0, "equipment_unmapped": 0, "notes_added": 0}
     if not await acquire_sync_lock(org_id, "case", run_id):
         await db.sicon_sync_runs.update_one({"id": run_id}, {"$set": {
             "id": run_id, "organization_id": org_id, "entity": "case",
@@ -641,6 +791,11 @@ async def run_case_sync(org_id: str, client, config: Dict[str, Any], max_records
                     cls = await classify_case(norm, org_id)
                     res = await apply_case_record(org_id, norm, cls, config, run_id)
                     counts[res["action"]] = counts.get(res["action"], 0) + 1
+                    if pull_relationships and res.get("issue_id"):
+                        rel = await sync_case_relationships(
+                            org_id, client, norm.get("si_sm_case_id"), res["issue_id"], run_id)
+                        for rk, rv in rel.items():
+                            counts[rk] = counts.get(rk, 0) + rv
                 except Exception as e:
                     counts["failed"] += 1
                     logger.warning("case sync record failed (run %s): %s", run_id, e)
