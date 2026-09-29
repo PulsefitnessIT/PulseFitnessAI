@@ -81,8 +81,12 @@ class SiconClient:
     """
 
     def __init__(self, base_url: str, username: str, password: str, company_id: int = 0,
-                 timeout: float = 30.0, allow_writes: bool = False, page_size: int = 50):
+                 timeout: float = 30.0, allow_writes: bool = False, page_size: int = 50,
+                 contract_base_url: Optional[str] = None):
         self.base_url = base_url.rstrip("/")
+        # §26 — Sicon Contract Management is a SEPARATE WebAPI/plugin that may
+        # sit on a different host/port. Falls back to the service base URL.
+        self.contract_base_url = (contract_base_url or base_url).rstrip("/")
         self.company_id = company_id
         self.timeout = timeout
         self._auth = (username, password)
@@ -316,6 +320,75 @@ class SiconClient:
     async def svc_get_casesearch_one(self, si_sm_case_id: int) -> Dict:
         # Permanent key is siSMCaseId — never caseNumber (spec §12).
         return await self._svc_get(f"/api/v1/SiconService/CaseSearch/{si_sm_case_id}")
+
+    # ── Case relationships (proven chain: Case→Equipment→Appointment→
+    #    Resource→TimeBooking, with TrackingNotes on case history) §4/§11-16.
+    #    Keyed on the permanent siSMCaseId. These are the ONLY proven v1
+    #    relationship routes — do not fall back to legacy /api/Service/* here.
+    async def svc_get_case_equipment(self, si_sm_case_id: int) -> Dict:
+        return await self._svc_get(f"/api/v1/SiconService/Case/{si_sm_case_id}/Equipment")
+
+    async def svc_get_case_appointments(self, si_sm_case_id: int) -> Dict:
+        return await self._svc_get(f"/api/v1/SiconService/Case/{si_sm_case_id}/Appointment")
+
+    async def svc_get_case_tracking_notes(self, si_sm_case_id: int) -> Dict:
+        return await self._svc_get(f"/api/v1/SiconService/Case/{si_sm_case_id}/TrackingNote")
+
+    async def svc_get_tracking_note_one(self, si_sm_case_id: int, note_id: int) -> Dict:
+        return await self._svc_get(
+            f"/api/v1/SiconService/Case/{si_sm_case_id}/TrackingNote/{note_id}")
+
+    # ── Appointments (proven v1 GetOne + relationships) ───────────
+    async def svc_get_appointment_one(self, appointment_id: int) -> Dict:
+        return await self._svc_get(f"/api/v1/SiconService/Appointment/{appointment_id}")
+
+    async def svc_get_appointment_resources(self, appointment_id: int) -> Dict:
+        return await self._svc_get(f"/api/v1/SiconService/Appointment/{appointment_id}/Resource")
+
+    async def svc_get_appointment_timebookings(self, appointment_id: int) -> Dict:
+        return await self._svc_get(f"/api/v1/SiconService/Appointment/{appointment_id}/TimeBooking")
+
+    # ── Contract Management plugin (SEPARATE WebAPI, §26) ─────────
+    # Read-only capability probe. Known to 404 until Sicon enables the plugin
+    # or confirms another host — callers must treat 404 as "Unavailable", never
+    # rewrite these routes to make the 404 disappear.
+    async def _contract_get(self, path: str, _retry_auth: bool = True) -> Dict:
+        await self._authenticate_v1()
+        url = f"{self.contract_base_url}{path}"
+        headers = {"Accept": "application/json"}
+        if self._bearer:
+            headers["Authorization"] = f"Bearer {self._bearer}"
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout, verify=True) as client:
+                resp = await client.get(url, headers=headers)
+                if resp.status_code in (401, 403) and _retry_auth:
+                    self._bearer = None
+                    await self._authenticate_v1()
+                    return await self._contract_get(path, _retry_auth=False)
+                return self._parse_response(resp, "GET", path, None)
+        except SiconAPIError:
+            raise
+        except httpx.ConnectError as e:
+            raise SiconAPIError(f"Connection failed: {e}", http_status=0)
+        except httpx.TimeoutException as e:
+            raise SiconAPIError(f"Timeout: {e}", http_status=408)
+        except Exception as e:
+            raise SiconAPIError(f"Unknown error: {e}", http_status=0)
+
+    async def svc_contract_available(self) -> bool:
+        """Probe /api/v1/SiconContract/Ping. True only on 200; any error
+        (incl. the expected 404) → False = plugin unavailable (§26)."""
+        try:
+            await self._contract_get("/api/v1/SiconContract/Ping")
+            return True
+        except Exception:
+            return False
+
+    async def svc_get_contracts(self) -> Dict:
+        return await self._contract_get("/api/v1/SiconContract/Contract")
+
+    async def svc_get_contract_one(self, contract_id: int) -> Dict:
+        return await self._contract_get(f"/api/v1/SiconContract/Contract/{contract_id}")
 
     # ── Shared pager (iterate until nextPage is null) ─────────────
     async def svc_paginate(self, kind: str, page_size: Optional[int] = None, max_pages: int = 0):

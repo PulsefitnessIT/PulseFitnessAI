@@ -54,6 +54,7 @@ def get_sicon_client_from_env() -> Optional[SiconClient]:
         company_id=company_id,
         allow_writes=env_allow_writes(),
         page_size=env_page_size(),
+        contract_base_url=(os.environ.get("SICON_CONTRACT_BASE_URL") or "").strip() or base,
     )
 
 
@@ -71,6 +72,9 @@ async def get_sicon_client(organization_id: str) -> Optional[SiconClient]:
         company_id=config.get("company_id", 0),
         allow_writes=env_allow_writes(),
         page_size=env_page_size(),
+        contract_base_url=config.get("contract_base_url")
+        or (os.environ.get("SICON_CONTRACT_BASE_URL") or "").strip()
+        or config["base_url"],
     )
 
 

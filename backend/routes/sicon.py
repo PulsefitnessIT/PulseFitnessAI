@@ -134,53 +134,89 @@ async def save_config(data: Dict[str, Any], request: Request = None, user: dict 
 
 @router.post("/sicon/test-connection")
 async def test_connection(user: dict = Depends(get_current_user)):
-    """Test the Sicon WebAPI connection with stored credentials."""
+    """Test the Sicon WebAPI connection using the PROVEN V10 triad:
+    anonymous Ping → Authenticate → an authenticated request (CaseType), plus a
+    Contract-plugin capability probe. Never returns the token or credentials."""
     _require_owner_or_manager(user)
     org_id = _require_org(user)
     client = await get_sicon_client(org_id)
     if not client:
         return {"connected": False, "error": "Sicon integration not configured"}
 
+    from utils.sicon_client import _extract_records
+
+    steps = {"ping": None, "authenticate": None, "authed_request": None}
+    contract = {"available": False, "status": "unavailable",
+                "reason": "Contract WebAPI plugin/controller not currently exposed."}
+
+    def _ms(start: float) -> int:
+        return int((datetime.now(timezone.utc).timestamp() - start) * 1000)
+
     try:
-        is_up = await client.ping()
-        status = "connected" if is_up else "unreachable"
+        # 1) Anonymous service ping (proven: GET /api/v1/SiconService/Ping)
+        t = datetime.now(timezone.utc).timestamp()
+        ping_ok = await client.svc_ping()
+        steps["ping"] = {"ok": ping_ok, "ms": _ms(t)}
+        if not ping_ok:
+            raise SiconAPIError("Service ping failed (Sicon unreachable)", http_status=0)
+
+        # 2) Authenticate (proven: POST /api/v1/authentication/authenticate)
+        t = datetime.now(timezone.utc).timestamp()
+        client._bearer = None
+        await client._authenticate_v1()
+        steps["authenticate"] = {"ok": bool(client._bearer), "ms": _ms(t)}
+
+        # 3) Authenticated request (proven: GET /api/v1/SiconService/CaseType)
+        t = datetime.now(timezone.utc).timestamp()
+        ref = await client.svc_get_case_types()
+        steps["authed_request"] = {"ok": True, "ms": _ms(t),
+                                   "records": len(_extract_records(ref))}
+
+        # 4) Contract plugin capability probe (expected 404 → unavailable, §26)
+        if await client.svc_contract_available():
+            contract = {"available": True, "status": "available", "reason": None}
+
+        status = "connected"
         await db.sicon_config.update_one(
             {"organization_id": org_id},
-            {"$set": {"connection_status": status, "last_tested_at": datetime.now(timezone.utc).isoformat()}}
-        )
-        await log_sicon_event(org_id, "connection_test", f"Result: {status}", is_up, user["id"])
-        return {"connected": is_up, "status": status}
+            {"$set": {"connection_status": status,
+                      "contract_api_available": contract["available"],
+                      "last_tested_at": datetime.now(timezone.utc).isoformat()}})
+        await log_sicon_event(org_id, "connection_test", "Result: connected (proven triad)", True, user["id"])
+        return {"connected": True, "status": status, "steps": steps, "contract": contract}
     except Exception as e:
         await db.sicon_config.update_one(
             {"organization_id": org_id},
-            {"$set": {"connection_status": "error", "last_error": str(e)[:500]}}
-        )
+            {"$set": {"connection_status": "error", "last_error": str(e)[:500]}})
         await log_sicon_event(org_id, "connection_test", f"Error: {str(e)[:200]}", False, user["id"])
-        return {"connected": False, "error": str(e)[:200]}
+        return {"connected": False, "status": "error", "error": str(e)[:200],
+                "steps": steps, "contract": contract}
 
 
 # ── Fetch Sicon Reference Data ────────────────────────────────────
 
 @router.get("/sicon/case-types")
 async def fetch_case_types(user: dict = Depends(get_current_user)):
+    from utils.sicon_client import _extract_records
     client = await get_sicon_client(_require_org(user))
     if not client:
         return {"case_types": [], "error": "Not configured"}
     try:
-        result = await client.get_case_types()
-        return {"case_types": result.get("entities", [])}
+        result = await client.svc_get_case_types()
+        return {"case_types": _extract_records(result)}
     except SiconAPIError as e:
         return {"case_types": [], "error": str(e)[:200]}
 
 
 @router.get("/sicon/tracking-statuses")
 async def fetch_tracking_statuses(user: dict = Depends(get_current_user)):
+    from utils.sicon_client import _extract_records
     client = await get_sicon_client(_require_org(user))
     if not client:
         return {"statuses": [], "error": "Not configured"}
     try:
-        result = await client.get_tracking_statuses()
-        return {"statuses": result.get("entities", [])}
+        result = await client.svc_get_tracking_statuses()
+        return {"statuses": _extract_records(result)}
     except SiconAPIError as e:
         return {"statuses": [], "error": str(e)[:200]}
 
@@ -215,19 +251,24 @@ async def refresh_engineers(user: dict = Depends(get_current_user)):
 
 @router.get("/sicon/priorities")
 async def fetch_priorities(user: dict = Depends(get_current_user)):
-    """Return configured priority mapping.
-
-    The Sicon Service WebAPI (R260200c) has NO priorities lookup endpoint, so
-    priorities cannot be pulled live. We surface the manually-configured
-    priority_mapping / default_priority_id from the org's Sicon config instead.
-    """
+    """Return live Sicon priorities (proven v1: GET /api/v1/SiconService/Priority)
+    plus the org's configured priority mapping. The Priority lookup IS available
+    on the v1 Service surface (proven in the FINAL V10 read-safe collection)."""
+    from utils.sicon_client import _extract_records
     org_id = _require_org(user)
     config = await get_sicon_config(org_id) or {}
+    client = await get_sicon_client(org_id)
+    priorities, error = [], None
+    if client:
+        try:
+            priorities = _extract_records(await client.svc_get_priorities())
+        except SiconAPIError as e:
+            error = str(e)[:200]
     return {
-        "priorities": [],
+        "priorities": priorities,
         "priority_mapping": config.get("priority_mapping", {}),
         "default_priority_id": config.get("default_priority_id", 0),
-        "note": "Sicon WebAPI has no priorities list endpoint; set IDs manually in config.",
+        **({"error": error} if error else {}),
     }
 
 

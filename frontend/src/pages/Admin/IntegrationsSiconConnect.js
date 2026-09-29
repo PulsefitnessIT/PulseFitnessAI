@@ -220,7 +220,7 @@ export default function IntegrationsSiconConnect() {
               {testResult.connected
                 ? <CheckCircle2 size={14} className="mt-0.5 text-emerald-600" />
                 : <AlertTriangle size={14} className="mt-0.5 text-rose-600" />}
-              <div>
+              <div className="w-full">
                 <p className="font-bold">
                   {testResult.connected
                     ? 'Sicon API reachable'
@@ -229,8 +229,42 @@ export default function IntegrationsSiconConnect() {
                 {testResult.error && (
                   <pre className="whitespace-pre-wrap break-all text-[11px] mt-1">{testResult.error}</pre>
                 )}
-                {testResult.connected && (
-                  <p className="text-[11px] mt-0.5">/api/SMConnectivity/Ping returned 200 OK.</p>
+                {testResult.steps && (
+                  <div className="flex flex-wrap gap-1.5 mt-2" data-testid="sicon-test-steps">
+                    {[
+                      ['ping', 'Ping'],
+                      ['authenticate', 'Authenticate'],
+                      ['authed_request', 'Authed request'],
+                    ].map(([key, label]) => {
+                      const s = testResult.steps[key];
+                      const ok = s && s.ok;
+                      return (
+                        <span key={key} data-testid={`sicon-step-${key}`}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                            ok ? 'bg-emerald-100 text-emerald-800'
+                               : s ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600'}`}>
+                          {ok ? <CheckCircle2 size={11} /> : <AlertTriangle size={11} />}
+                          {label}{s && typeof s.ms === 'number' ? ` · ${s.ms}ms` : ''}
+                          {s && typeof s.records === 'number' ? ` · ${s.records} recs` : ''}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                {testResult.contract && (
+                  <div className="mt-2" data-testid="sicon-contract-status">
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                      testResult.contract.available ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                      {testResult.contract.available ? <CheckCircle2 size={11} /> : <Cog size={11} />}
+                      Contract API: {testResult.contract.available ? 'Available' : 'Unavailable'}
+                    </span>
+                    {!testResult.contract.available && testResult.contract.reason && (
+                      <p className="text-[11px] mt-1 text-amber-800">{testResult.contract.reason}</p>
+                    )}
+                  </div>
+                )}
+                {testResult.connected && !testResult.steps && (
+                  <p className="text-[11px] mt-0.5">Ping → Authenticate → authed request all returned 200 OK.</p>
                 )}
               </div>
             </div>

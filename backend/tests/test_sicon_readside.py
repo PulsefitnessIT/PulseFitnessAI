@@ -22,6 +22,7 @@ class _Recorder:
     def __init__(self):
         self.requests = []
         self.auth_count = 0
+        self.contract_ping_status = 404  # §26 — plugin unavailable by default
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
@@ -57,6 +58,28 @@ class _Recorder:
             return httpx.Response(200, json={"records": [{"siSMPriorityId": 1, "name": "High"}]})
         if path.endswith("/SiconService/TrackingStatus"):
             return httpx.Response(200, json={"records": [{"id": 1, "name": "Open"}]})
+        # ── Proven v1 case-relationship chain (§11-16) ──
+        if "/SiconService/Case/" in path and path.endswith("/Equipment"):
+            return httpx.Response(200, json={"records": [{"siconEquipmentId": 1}]})
+        if "/SiconService/Case/" in path and path.endswith("/Appointment"):
+            return httpx.Response(200, json={"records": [{"siconAppointmentId": 77}]})
+        if "/SiconService/Case/" in path and "/TrackingNote" in path:
+            return httpx.Response(200, json={"records": [{"siconTrackingNoteId": 5}]})
+        if "/SiconService/Appointment/" in path and path.endswith("/Resource"):
+            return httpx.Response(200, json={"records": [{"siconResourceId": 3}]})
+        if "/SiconService/Appointment/" in path and path.endswith("/TimeBooking"):
+            return httpx.Response(200, json={"records": [{"siconTimeBookingId": 8}]})
+        if "/SiconService/Appointment/" in path:
+            aid = path.rsplit("/", 1)[-1]
+            return httpx.Response(200, json={"siconAppointmentId": int(aid)})
+        # ── Contract Management plugin probe (§26) ──
+        if path.endswith("/SiconContract/Ping"):
+            return httpx.Response(self.contract_ping_status,
+                                  json={"ok": self.contract_ping_status == 200})
+        if path.endswith("/SiconContract/Contract"):
+            return httpx.Response(200, json={"records": [{"siconContractId": 1}]})
+        if "/SiconContract/Contract/" in path:
+            return httpx.Response(200, json={"siconContractId": int(path.rsplit("/", 1)[-1])})
         return httpx.Response(404, json={"error": "unexpected", "path": path})
 
 
@@ -210,3 +233,74 @@ def test_writes_allowed_when_flag_true():
     sent = [r for r in rec.requests
             if r.method == "POST" and r.url.path.endswith("/SiconService/Equipment")]
     assert sent, "write was not sent even though allow_writes=True"
+
+
+# ── §11-16 proven v1 case-relationship read routes ────────────────
+def test_case_relationship_routes_are_v1():
+    rec = _Recorder()
+    c = _client()
+    with mock_sicon(rec):
+        drive_async(c.svc_get_case_equipment(123))
+        drive_async(c.svc_get_case_appointments(123))
+        drive_async(c.svc_get_case_tracking_notes(123))
+        drive_async(c.svc_get_tracking_note_one(123, 9))
+        drive_async(c.svc_get_appointment_one(55))
+        drive_async(c.svc_get_appointment_resources(55))
+        drive_async(c.svc_get_appointment_timebookings(55))
+    paths = [r.url.path for r in rec.requests if "/SiconService/" in r.url.path]
+    assert "/api/v1/SiconService/Case/123/Equipment" in paths
+    assert "/api/v1/SiconService/Case/123/Appointment" in paths
+    assert "/api/v1/SiconService/Case/123/TrackingNote" in paths
+    assert "/api/v1/SiconService/Case/123/TrackingNote/9" in paths
+    assert "/api/v1/SiconService/Appointment/55" in paths
+    assert "/api/v1/SiconService/Appointment/55/Resource" in paths
+    assert "/api/v1/SiconService/Appointment/55/TimeBooking" in paths
+    # Every relationship read is company-scoped and never a legacy /api/Service/* route
+    rel = [r for r in rec.requests if "/SiconService/Case/" in r.url.path
+           or "/SiconService/Appointment/" in r.url.path]
+    assert all(b"companyId=2" in r.url.query for r in rel)
+    assert not any(r.url.path.startswith("/api/Service") for r in rec.requests)
+
+
+# ── §26 Contract Management plugin capability probe ───────────────
+def test_contract_probe_unavailable_on_404():
+    rec = _Recorder()
+    rec.contract_ping_status = 404
+    with mock_sicon(rec):
+        avail = drive_async(_client().svc_contract_available())
+    assert avail is False
+    ping = [r for r in rec.requests if r.url.path.endswith("/SiconContract/Ping")]
+    assert ping, "contract ping was not attempted"
+
+
+def test_contract_probe_available_and_reads_on_200():
+    rec = _Recorder()
+    rec.contract_ping_status = 200
+    with mock_sicon(rec):
+        assert drive_async(_client().svc_contract_available()) is True
+        many = drive_async(_client().svc_get_contracts())
+        one = drive_async(_client().svc_get_contract_one(1))
+    assert many["records"][0]["siconContractId"] == 1
+    assert one["siconContractId"] == 1
+
+
+def test_contract_uses_contract_base_url():
+    rec = _Recorder()
+    rec.contract_ping_status = 200
+    c = SiconClient("https://sicon.test", "svc", "pw", company_id=2,
+                    allow_writes=False, page_size=50,
+                    contract_base_url="https://contract.test")
+    with mock_sicon(rec):
+        drive_async(c.svc_contract_available())
+    ping = [r for r in rec.requests if r.url.path.endswith("/SiconContract/Ping")][0]
+    assert str(ping.url).startswith("https://contract.test"), str(ping.url)
+
+
+def test_contract_reads_are_not_write_guarded():
+    # Contract GETs are read-only and must work with writes disabled.
+    rec = _Recorder()
+    rec.contract_ping_status = 200
+    with mock_sicon(rec):
+        out = drive_async(_client(allow_writes=False).svc_get_contracts())
+    assert out["records"][0]["siconContractId"] == 1
+
