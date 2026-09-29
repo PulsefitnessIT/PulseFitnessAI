@@ -917,6 +917,63 @@ async def read_resolve_conflict(external_id: str, data: Dict[str, Any],
         raise HTTPException(status_code=404, detail="Conflict not found")
     norm = conflict.get("sicon_record", {})
 
+    # §12 — case_equipment conflicts (UNMAPPED_EQUIPMENT) resolve differently:
+    # they link/create the Pulse ASSET for the Sicon equipment, then attach it
+    # to the case's issue. external_id is "{siSMCaseId}:{siconEquipmentId}".
+    if entity == _imp.CASE_EQUIPMENT_ENTITY:
+        parts = str(external_id).split(":", 1)
+        scid = parts[0] if parts else ""
+        raw = (norm or {}).get("raw") or {}
+        eq_norm = _imp.normalise_equipment(raw) if raw else {}
+        seid = eq_norm.get("sicon_equipment_id") or (parts[1] if len(parts) > 1 else "")
+        asset_id = None
+        if action == "link":
+            asset_id = data.get("pulse_asset_id")
+            if not asset_id:
+                raise HTTPException(status_code=400, detail="pulse_asset_id required to link")
+            existing = await db.equipment.find_one(
+                {"id": asset_id, "organization_id": org_id}, {"_id": 0})
+            if not existing:
+                raise HTTPException(status_code=404, detail="Pulse asset not found")
+            if eq_norm:
+                await db.equipment.update_one({"id": asset_id},
+                                              {"$set": _imp._sicon_update_set(existing, eq_norm)})
+            await _links.upsert_link(_links.ENTITY_EQUIPMENT, seid, "equipment", asset_id,
+                                     organization_id=org_id, sync_status="linked")
+            resolution = f"linked to {asset_id}"
+        elif action == "create_new":
+            doc = _imp._new_asset_doc(org_id, eq_norm or {"sicon_equipment_id": seid})
+            await db.equipment.insert_one(doc)
+            await _links.upsert_link(_links.ENTITY_EQUIPMENT, seid, "equipment", doc["id"],
+                                     organization_id=org_id, sync_status="linked")
+            asset_id = doc["id"]
+            resolution = f"created new asset {asset_id}"
+        elif action == "ignore":
+            resolution = "ignored"
+        else:
+            raise HTTPException(status_code=400, detail="action must be link|create_new|ignore")
+
+        # Attach the now-resolved asset to the case's issue (never erase).
+        if asset_id and scid:
+            issue_id = await _links.get_pulse_id(_links.ENTITY_CASE, scid, org_id)
+            if issue_id:
+                issue = await db.issues.find_one({"id": issue_id}, {"_id": 0, "asset_id": 1}) or {}
+                setops: Dict[str, Any] = {"$addToSet": {"equipment_ids": asset_id},
+                                          "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
+                if not issue.get("asset_id"):
+                    asset = await db.equipment.find_one({"id": asset_id}, {"_id": 0, "name": 1})
+                    setops["$set"]["asset_id"] = asset_id
+                    setops["$set"]["asset_name"] = (asset or {}).get("name", "")
+                await db.issues.update_one({"id": issue_id}, setops)
+
+        await db.sicon_import_conflicts.update_one(
+            {"organization_id": org_id, "external_entity_type": entity, "external_id": str(external_id)},
+            {"$set": {"status": "resolved", "resolution": resolution,
+                      "resolved_by": user["id"], "resolved_at": datetime.now(timezone.utc).isoformat()}})
+        await log_sicon_event(org_id, "conflict_resolved",
+                              f"case_equipment {external_id}: {resolution}", True, user["id"])
+        return {"success": True, "resolution": resolution}
+
     if action == "link":
         asset_id = data.get("pulse_asset_id")
         if not asset_id:

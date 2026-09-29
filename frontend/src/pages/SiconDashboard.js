@@ -6,12 +6,13 @@ import { useAuth } from '@/App';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
 import {
   CheckCircle, XCircle, Loader2, RefreshCw, Activity, Boxes,
-  ClipboardList, AlertTriangle, PlugZap, Gauge,
+  ClipboardList, AlertTriangle, PlugZap, Gauge, Search, Wrench,
 } from 'lucide-react';
 
 const Stat = ({ label, value, tone = 'default', testid }) => (
@@ -21,6 +22,55 @@ const Stat = ({ label, value, tone = 'default', testid }) => (
   </div>
 );
 
+// §12 — resolve one UNMAPPED_EQUIPMENT (case_equipment) conflict: search the
+// Pulse register to LINK an existing asset, CREATE a new asset, or IGNORE.
+const CaseEqLinker = ({ API, headers, conflict, onResolve }) => {
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [scid, seid] = String(conflict.external_id).split(':');
+  const search = async () => {
+    if (!q.trim()) return;
+    setSearching(true);
+    try {
+      const r = await axios.get(`${API}/equipment?q=${encodeURIComponent(q.trim())}&limit=5`, { headers });
+      setResults(r.data.equipment || []);
+    } catch { /* noop */ } finally { setSearching(false); }
+  };
+  return (
+    <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3" data-testid={`sicon-caseeq-${conflict.external_id}`}>
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-[var(--theme-text)]">Case #{scid} · Sicon equipment #{seid}</div>
+          <div className="text-xs text-[var(--theme-text-muted)]">Serial {conflict.sicon_record?.raw?.serialNumber || '—'} · not yet a linked Pulse asset</div>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => onResolve(conflict.external_id, 'create_new', null, 'case_equipment')} data-testid={`sicon-caseeq-create-${conflict.external_id}`}>Create asset</Button>
+          <Button size="sm" variant="ghost" onClick={() => onResolve(conflict.external_id, 'ignore', null, 'case_equipment')} data-testid={`sicon-caseeq-ignore-${conflict.external_id}`}>Ignore</Button>
+        </div>
+      </div>
+      <div className="flex gap-2 items-center">
+        <Input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()}
+          placeholder="Search Pulse register by serial or name…" className="h-8 text-xs"
+          data-testid={`sicon-caseeq-search-${conflict.external_id}`} />
+        <Button size="sm" variant="outline" onClick={search} disabled={searching}>
+          {searching ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+        </Button>
+      </div>
+      {results.length > 0 && (
+        <div className="mt-2 space-y-1">
+          {results.map((a) => (
+            <div key={a.id} className="flex items-center justify-between text-xs border border-white/10 rounded px-2 py-1">
+              <span className="text-[var(--theme-text)] truncate"><Wrench size={11} className="inline mr-1" />{a.name} · {a.serial_number || 'no serial'}</span>
+              <Button size="sm" variant="outline" onClick={() => onResolve(conflict.external_id, 'link', a.id, 'case_equipment')} data-testid={`sicon-caseeq-link-${conflict.external_id}-${a.id}`}>Link</Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SiconDashboard = () => {
   const { API } = useAuth();
   const token = localStorage.getItem('token');
@@ -29,6 +79,7 @@ const SiconDashboard = () => {
   const [dash, setDash] = useState(null);
   const [health, setHealth] = useState(null);
   const [conflicts, setConflicts] = useState([]);
+  const [caseEqConflicts, setCaseEqConflicts] = useState([]);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
@@ -36,12 +87,14 @@ const SiconDashboard = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [d, c] = await Promise.all([
+      const [d, c, ce] = await Promise.all([
         axios.get(`${API}/sicon/read/dashboard`, { headers }),
         axios.get(`${API}/sicon/read/conflicts`, { headers }),
+        axios.get(`${API}/sicon/read/conflicts?entity=case_equipment`, { headers }),
       ]);
       setDash(d.data);
       setConflicts(c.data.conflicts || []);
+      setCaseEqConflicts(ce.data.conflicts || []);
     } catch (e) { notifyApiError(e); }
     setLoading(false);
   }, [API]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -89,10 +142,10 @@ const SiconDashboard = () => {
     } catch (e) { notifyApiError(e); } finally { setBusy(''); }
   };
 
-  const resolve = async (extId, action, pulseAssetId) => {
+  const resolve = async (extId, action, pulseAssetId, entity = 'equipment') => {
     try {
       await axios.post(`${API}/sicon/read/conflicts/${extId}/resolve`,
-        { entity: 'equipment', action, pulse_asset_id: pulseAssetId }, { headers });
+        { entity, action, pulse_asset_id: pulseAssetId }, { headers });
       notify.success('Conflict resolved');
       load();
     } catch (e) { notifyApiError(e); }
@@ -213,6 +266,20 @@ const SiconDashboard = () => {
                   <Button size="sm" variant="ghost" onClick={() => resolve(c.external_id, 'ignore')}>Ignore</Button>
                 </div>
               </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* D2. Unmapped case equipment (§12) */}
+      <Card className="p-5">
+        <div className="flex items-center gap-2 mb-4"><Wrench size={18} className="text-amber-500" /><h3 className="font-bold text-[var(--theme-text)]">Unmapped case equipment ({caseEqConflicts.length})</h3></div>
+        {caseEqConflicts.length === 0 ? (
+          <div className="text-sm text-[var(--theme-text-muted)]">No unmapped equipment — every imported case linked to a Pulse asset.</div>
+        ) : (
+          <div className="space-y-2" data-testid="sicon-caseeq-list">
+            {caseEqConflicts.map((c) => (
+              <CaseEqLinker key={c.external_id} API={API} headers={headers} conflict={c} onResolve={resolve} />
             ))}
           </div>
         )}
