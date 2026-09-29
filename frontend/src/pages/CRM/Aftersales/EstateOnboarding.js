@@ -14,6 +14,12 @@ import {
 
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const CADENCES = [
+  { id: 'annual', label: 'Annual · 1/yr' },
+  { id: 'biannual', label: 'Biannual · 2/yr' },
+  { id: 'quarterly', label: 'Quarterly · 4/yr' },
+];
+
 const CANON = [
   { id: 'site_code', label: 'Site code' },
   { id: 'site_name', label: 'Site name' },
@@ -57,6 +63,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
   const [exceptionsOnly, setExceptionsOnly] = useState(true);
   const [done, setDone] = useState(null);
   const [ppm, setPpm] = useState(null);
+  const [siteFreq, setSiteFreq] = useState({}); // { site_name: 'annual'|'biannual'|'quarterly' }
 
   // multi-file merge
   const [mergeSummary, setMergeSummary] = useState(null);
@@ -119,7 +126,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
   const doCommit = async () => {
     setBusy(true); setErr('');
     try {
-      const r = await axios.post(`${API}/crm/v2/aftersales/onboarding/${importId}/commit`, {}, { headers: headers() });
+      const r = await axios.post(`${API}/crm/v2/aftersales/onboarding/${importId}/commit`, { site_frequencies: siteFreq }, { headers: headers() });
       setDone(r.data.committed);
       setPpm(null);
       setStep('done');
@@ -629,6 +636,39 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
               )}
             </div>
           </Card>
+
+          {/* PPM service cadence per site — sites go live at commit; schedules auto-load at this frequency */}
+          {(() => {
+            const sites = Array.from(new Set((review.rows || [])
+              .filter(r => r.include)
+              .map(r => r.clean.site_name || 'Unassigned site')));
+            if (!sites.length) return null;
+            return (
+              <Card c={c} isDark={isDark} testId="afs-onb-cadence">
+                <div className="flex items-center gap-2 mb-1">
+                  <CalendarClock size={16} style={{ color: 'var(--color-brand-cyan)' }} />
+                  <p className="text-sm font-bold" style={{ color: c.text }}>PPM service cadence</p>
+                </div>
+                <p className="text-xs mb-3" style={{ color: c.textDim }}>
+                  Each site's maintenance schedule auto-loads when the estate goes live. Default is annual — bump sites with heavier terms to 2 or 4 visits a year.
+                </p>
+                <div className="space-y-1.5">
+                  {sites.map(sn => (
+                    <div key={sn} className="flex items-center justify-between gap-3">
+                      <span className="text-xs truncate" style={{ color: c.text }}>{sn}</span>
+                      <select data-testid={`afs-onb-cadence-${sn.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}`}
+                        value={siteFreq[sn] || 'annual'}
+                        onChange={e => setSiteFreq(f => ({ ...f, [sn]: e.target.value }))}
+                        className="px-2 py-1 rounded text-xs shrink-0"
+                        style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+                        {CADENCES.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            );
+          })()}
 
           <div className="flex items-center gap-3">
             <button data-testid="afs-onb-commit" onClick={doCommit} disabled={busy}

@@ -716,3 +716,10 @@ Files: backend/routes/staffing_clock.py, backend/routes/staff_portal.py, backend
 - Frontend EstateOnboarding "done" step now polls ppm-status (2.5s) and shows a live "Loading PPM schedules… n/m sites" progress bar that flips to a green "PPM schedules loaded" summary; surfaces failed-site count.
 - Verified end-to-end via seeded import: commit created 2 sites → 2 backfill runs completed → 2 schedules + 6 tasks generated; ppm-status reported all_done=true. Test data cleaned up.
 Files: backend/routes/crm_afs_onboarding.py, frontend/src/pages/CRM/Aftersales/EstateOnboarding.js.
+
+## 2026-06 — Per-Site PPM Cadence at Estate Onboarding
+- Estate Onboarding Review step now shows a "PPM service cadence" card listing each included site with an Annual (1/yr) / Biannual (2/yr) / Quarterly (4/yr) selector, defaulting to Annual. Choices are POSTed to commit as `site_frequencies` and used when auto-loading each site's PPM schedules.
+- Backend commit() accepts `{site_frequencies: {site_name: freq}}` (validated to annual/biannual/quarterly/monthly, unknown → annual) and passes the per-site cadence into `kickoff_site_ppm_backfill`. Cadence echoed back in `committed.ppm_backfill[].frequency`.
+- BUG FIX: moved the PPM backfill kickoff to AFTER equipment insert_many (it was firing before equipment existed, so 2 of 3 concurrent background runs queried an empty collection and created 0 schedules). Now all sites generate.
+- Verified end-to-end: 3 sites (quarterly/biannual/annual) → 3 schedules, 9 tasks, task spacing 3mo/6mo/12mo confirmed; ppm-status all_done. Test data cleaned up.
+Files: backend/routes/crm_afs_onboarding.py, frontend/src/pages/CRM/Aftersales/EstateOnboarding.js.

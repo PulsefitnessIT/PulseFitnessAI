@@ -17,7 +17,7 @@ Pricing is 100% deterministic — reuses the same engine as the quoter. The
 importer never invents a price: unmatched/RRP-less assets price to 0 (Pulse)
 and fall back to the inherited cost, flagged for review.
 """
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Body
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
@@ -629,8 +629,15 @@ def _group_key(r, grouping):
     return r["clean"]["site_name"] or "Unassigned site"
 
 
+PPM_FREQUENCIES = {"annual", "biannual", "quarterly", "monthly"}
+
+
+def _valid_freq(v) -> str:
+    return v if v in PPM_FREQUENCIES else "annual"
+
+
 @router.post("/{import_id}/commit")
-async def commit(import_id: str, user=Depends(get_crm_user)):
+async def commit(import_id: str, data: dict = Body(default={}), user=Depends(get_crm_user)):
     of = _of(user)
     op_org = _org(user)
     doc = await db.crm2_afs_onboarding.find_one({"id": import_id, **of})
@@ -675,18 +682,6 @@ async def commit(import_id: str, user=Depends(get_crm_user)):
                 "created_via": "afs_estate_onboarding", "created_at": _now(), "updated_at": _now()})
     if site_docs:
         await db.sites.insert_many(site_docs)
-
-    # 3b) Sites go live at commit — auto-load each site's PPM schedules in the
-    # background. kickoff is idempotent and never blocks the commit response.
-    ppm_backfill = []
-    for sn, sid in site_ids.items():
-        try:
-            run = await kickoff_site_ppm_backfill(
-                cust_org_id, sid, "annual", user.get("full_name", "") or "Estate Onboarding")
-            ppm_backfill.append({"site_id": sid, "site_name": sn,
-                                 "run_id": run.get("run_id"), "status": run.get("status")})
-        except Exception as e:
-            logger.warning("PPM backfill kickoff failed for site %s: %s", sid, e)
 
     # 4) Equipment register rows (batched insert_many — scales to large estates).
     eq_docs = []
@@ -741,6 +736,21 @@ async def commit(import_id: str, user=Depends(get_crm_user)):
                                          "tier": doc.get("contract_type", "gold")}, "updated_at": _now()}})
         contract_ids.append({"id": cid, "contract_number": num, "title": title,
                              "annual_value": annual, "assets": len(grp)})
+
+    # Sites go live at commit — auto-load each site's PPM schedules in the
+    # background at the chosen cadence, now that equipment is inserted.
+    # kickoff is idempotent and never blocks the commit response.
+    site_frequencies = (data or {}).get("site_frequencies") or {}
+    ppm_backfill = []
+    for sn, sid in site_ids.items():
+        freq = _valid_freq(site_frequencies.get(sn))
+        try:
+            run = await kickoff_site_ppm_backfill(
+                cust_org_id, sid, freq, user.get("full_name", "") or "Estate Onboarding")
+            ppm_backfill.append({"site_id": sid, "site_name": sn, "frequency": freq,
+                                 "run_id": run.get("run_id"), "status": run.get("status")})
+        except Exception as e:
+            logger.warning("PPM backfill kickoff failed for site %s: %s", sid, e)
 
     committed = {"customer_org_id": cust_org_id, "crm_company_id": crm_company_id,
                  "sites": len(site_ids), "equipment": len(rows), "contracts": contract_ids,
