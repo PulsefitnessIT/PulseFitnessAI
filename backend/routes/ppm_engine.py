@@ -14,6 +14,7 @@ from dateutil.relativedelta import relativedelta
 import uuid
 import base64
 import logging
+import asyncio
 
 from utils.database import db
 from utils.auth import get_current_user, get_organization_filter
@@ -242,6 +243,137 @@ def _generate_task_batch(schedule: dict, count: int = 3) -> list[dict]:
         })
         current = current + delta
     return tasks
+
+
+# ── Per-site PPM backfill (batched + backgrounded) ───────────────
+# PPMs are generated per SITE, only when a site becomes active — never as one
+# giant 120k-asset sweep. Per-site work is naturally bounded (a venue has
+# hundreds of assets, not the whole estate) and runs in the background,
+# mirroring the sicon_sync_runs pattern: insert a run doc, kick off an asyncio
+# task, poll by run_id — so the triggering request never blocks or times out.
+# Idempotent: re-running a site skips equipment-types that already have an
+# auto-backfill schedule.
+
+async def run_site_ppm_backfill(org_id: str, site_id: str, run_id: str,
+                                frequency: str = "annual", created_by: str = "") -> None:
+    def _now():
+        return datetime.now(timezone.utc).isoformat()
+    counts = {"equipment_total": 0, "types": 0, "schedules_created": 0,
+              "tasks_created": 0, "skipped_existing": 0}
+    await db.ppm_backfill_runs.update_one(
+        {"id": run_id}, {"$set": {"status": "running", "started_at": _now()}})
+    try:
+        site = await db.sites.find_one({"id": site_id, "organization_id": org_id}, {"_id": 0, "name": 1})
+        site_name = (site or {}).get("name", "")
+        # Group the site's equipment by type (one schedule per type listing its
+        # equipment_ids) — keeps schedule count tiny even for a big venue.
+        groups = []
+        async for g in db.equipment.aggregate([
+            {"$match": {"organization_id": org_id, "site_id": site_id}},
+            {"$group": {"_id": {"$ifNull": ["$equipment_type", "Unspecified"]},
+                        "ids": {"$push": "$id"},
+                        "install": {"$min": "$purchase_date"}}},
+        ]):
+            groups.append(g)
+        counts["types"] = len(groups)
+        for g in groups:
+            etype = g["_id"] or "Unspecified"
+            ids = [i for i in (g.get("ids") or []) if i]
+            counts["equipment_total"] += len(ids)
+            existing = await db.ppm_schedules.find_one(
+                {"organization_id": org_id, "site_id": site_id,
+                 "equipment_type": etype, "source": "auto_backfill", "active": True},
+                {"_id": 0, "id": 1})
+            if existing:
+                counts["skipped_existing"] += 1
+                await db.ppm_backfill_runs.update_one({"id": run_id}, {"$set": {"counts": counts}})
+                continue
+            ts = _now()
+            install = g.get("install")
+            sched = {
+                "id": str(uuid.uuid4()),
+                "organization_id": org_id,
+                "title": f"{etype} PPM — {site_name}" if site_name else f"{etype} PPM",
+                "description": "Auto-generated when the site was activated.",
+                "contract_id": None,
+                "sla_tier": "",
+                "site_id": site_id,
+                "site_name": site_name,
+                "supplier_name": "",
+                "supplier_email": "",
+                "equipment_type": etype,
+                "equipment_ids": ids,
+                "install_date": install[:10] if isinstance(install, str) else "",
+                "frequency": frequency,
+                "source": "auto_backfill",
+                "assigned_to": "",
+                "checklist_category": "",
+                "checklist_items": [],
+                "certificates": [],
+                "active": True,
+                "created_by": created_by,
+                "created_at": ts,
+                "updated_at": ts,
+            }
+            await db.ppm_schedules.insert_one(sched)
+            sched.pop("_id", None)
+            counts["schedules_created"] += 1
+            tasks = _generate_task_batch(sched, count=3)
+            if tasks:
+                await db.ppm_tasks.insert_many(tasks)
+                for t in tasks:
+                    t.pop("_id", None)
+                counts["tasks_created"] += len(tasks)
+            await db.ppm_backfill_runs.update_one({"id": run_id}, {"$set": {"counts": counts}})
+        await db.ppm_backfill_runs.update_one(
+            {"id": run_id}, {"$set": {"status": "completed", "finished_at": _now(), "counts": counts}})
+    except Exception as e:
+        logger.exception(f"PPM backfill failed for site {site_id}")
+        await db.ppm_backfill_runs.update_one(
+            {"id": run_id}, {"$set": {"status": "failed", "error": str(e),
+                                      "finished_at": _now(), "counts": counts}})
+
+
+async def kickoff_site_ppm_backfill(org_id: str, site_id: str, frequency: str = "annual",
+                                    created_by: str = "") -> dict:
+    """Queue a background PPM backfill for one site. Idempotent: if a run is
+    already queued/running for the site, return it instead of starting another."""
+    active = await db.ppm_backfill_runs.find_one(
+        {"organization_id": org_id, "site_id": site_id, "status": {"$in": ["queued", "running"]}},
+        {"_id": 0})
+    if active:
+        return {"run_id": active["id"], "status": active["status"], "already_running": True}
+    run_id = str(uuid.uuid4())
+    await db.ppm_backfill_runs.insert_one({
+        "id": run_id, "organization_id": org_id, "site_id": site_id,
+        "status": "queued", "counts": {}, "started_at": None, "finished_at": None,
+        "created_by": created_by, "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    asyncio.create_task(run_site_ppm_backfill(org_id, site_id, run_id, frequency, created_by))
+    return {"run_id": run_id, "status": "queued"}
+
+
+@router.post("/ppm/backfill/site/{site_id}")
+async def start_site_ppm_backfill(site_id: str, data: dict = Body(default={}),
+                                  user: dict = Depends(get_current_user)):
+    """Load a site's PPM schedules in the background — call when a site becomes
+    active. Returns a run_id to poll; never blocks on the actual generation."""
+    org_id = user.get("organization_id")
+    site = await db.sites.find_one({"id": site_id, "organization_id": org_id}, {"_id": 0, "id": 1})
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    frequency = (data or {}).get("frequency", "annual")
+    return await kickoff_site_ppm_backfill(org_id, site_id, frequency, user.get("full_name", ""))
+
+
+@router.get("/ppm/backfill/runs/{run_id}")
+async def get_ppm_backfill_run(run_id: str, user: dict = Depends(get_current_user)):
+    """Poll a PPM backfill run's progress/status."""
+    doc = await db.ppm_backfill_runs.find_one(
+        {"id": run_id, "organization_id": user.get("organization_id")}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Backfill run not found")
+    return doc
 
 
 @router.post("/ppm/schedules/{schedule_id}/generate-tasks")

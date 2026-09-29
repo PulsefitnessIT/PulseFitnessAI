@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-06 — Per-site PPM backfill (batched + backgrounded)
+PPM schedules are now generated PER SITE, only when a site is activated — never as one 120k-asset sweep. Mirrors the sicon_sync_runs background pattern so the triggering request never blocks/times out.
+- New in routes/ppm_engine.py: `run_site_ppm_backfill(org, site, run_id, frequency)` worker + `kickoff_site_ppm_backfill(...)` (idempotent — returns the in-flight run if one is queued/running) + endpoints `POST /ppm/backfill/site/{site_id}` (queue, returns run_id immediately) and `GET /ppm/backfill/runs/{run_id}` (poll status/progress). New `ppm_backfill_runs` collection: `{id, organization_id, site_id, status queued→running→completed|failed, counts{equipment_total,types,schedules_created,tasks_created,skipped_existing}, started_at, finished_at}`.
+- Logic: groups the site's equipment by `equipment_type` via aggregation (one `ppm_schedules` doc per type listing its `equipment_ids`, install_date = earliest purchase_date, default frequency configurable), then generates the first 3 `ppm_tasks` per schedule via the existing `_generate_task_batch`. Idempotent: re-running skips types that already have an active `source:"auto_backfill"` schedule. Per-site work is naturally bounded (a venue has hundreds of assets, not the estate), and it runs off-request via `asyncio.create_task`.
+- Verified via curl on a seeded 50-asset/3-type site: first run → completed, 3 schedules + 9 tasks; re-run → skipped_existing:3, 0 created (idempotent). Test data cleaned up.
+- Note: `POST /ppm/backfill/site/{site_id}` IS the "site becomes active" hook — PPMs are only generated when it's called for a site, satisfying "only load PPMs when a site becomes active". Wire it to your site-activation action / master-admin restore as needed.
+
+
 ## 2026-06 — Equipment search/facet indexes (120k)
 Added compound indexes in bootstrap/indexes.py: equipment `(organization_id, equipment_type)`, `(organization_id, location)`, `(organization_id, manufacturer)`, `(organization_id, model)`. These back the Equipment tab's facet dropdowns (`GET /equipment/facets` distinct types/locations) and its server-side type/location filters so they stay fast on a 120k estate. Verified: all four indexes present after restart; facets endpoint returns 200.
 
