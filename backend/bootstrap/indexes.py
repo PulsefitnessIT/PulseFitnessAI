@@ -166,6 +166,13 @@ async def create_indexes() -> None:
     # ───────────────────────────────────────────────────────────────
     # Equipment list sorted by created_at per org
     await db.equipment.create_index([("organization_id", 1), ("created_at", -1)])
+    # 120k-scale — back the Equipment tab's facet dropdowns (distinct types /
+    # locations) and its type/location server-side filters with compound indexes
+    # so the facets endpoint + filtered pages stay fast on a 120k estate.
+    await db.equipment.create_index([("organization_id", 1), ("equipment_type", 1)])
+    await db.equipment.create_index([("organization_id", 1), ("location", 1)])
+    await db.equipment.create_index([("organization_id", 1), ("manufacturer", 1)])
+    await db.equipment.create_index([("organization_id", 1), ("model", 1)])
     # Audits per-equipment history view
     await db.audits.create_index([("equipment_id", 1), ("created_at", -1)])
     # Master admin org + user listings

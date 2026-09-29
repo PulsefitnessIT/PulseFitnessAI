@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2026-06 — Equipment search/facet indexes (120k)
+Added compound indexes in bootstrap/indexes.py: equipment `(organization_id, equipment_type)`, `(organization_id, location)`, `(organization_id, manufacturer)`, `(organization_id, model)`. These back the Equipment tab's facet dropdowns (`GET /equipment/facets` distinct types/locations) and its server-side type/location filters so they stay fast on a 120k estate. Verified: all four indexes present after restart; facets endpoint returns 200.
+
+
 ## 2026-06 — Fix remaining silent-truncation equipment reads (KPI / CAPEX / pulse-sales / CRM-aftersales)
 Converted every `.to_list(5000)` equipment read in the four modules the user flagged, so dashboards/quotes are accurate at 120k. Verified: syntax OK, no backend tracebacks, and the pulse_sales background sweep ran post-change with errors:0 (live-exercises the edited path).
 - kpi_engine.py: OOS by-site totals now via `$group` aggregation (was a 5000-capped equipment pull that under-counted every site). `_calc_oos_ratio` total already used count_documents.
