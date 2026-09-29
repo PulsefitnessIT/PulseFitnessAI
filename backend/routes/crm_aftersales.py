@@ -901,7 +901,7 @@ async def estate(company_id: str, user=Depends(get_crm_user)):
     equipment = await db.equipment.find(
         {"organization_id": linked},
         {"_id": 0, "id": 1, "name": 1, "model": 1, "model_code": 1, "console_type": 1,
-         "manufacturer": 1, "serial_number": 1, "site_id": 1, "warranty_expiry": 1}).to_list(5000)
+         "manufacturer": 1, "serial_number": 1, "site_id": 1, "warranty_expiry": 1}).to_list(None)
     annotated = [await _annotate_asset(org_id, e) for e in equipment]
     by_site = {}
     for a in annotated:
@@ -957,7 +957,7 @@ async def build_quote_from_estate(body: BuildFromEstateIn, user=Depends(get_crm_
     equipment = await db.equipment.find(
         eq_query,
         {"_id": 0, "id": 1, "name": 1, "model": 1, "model_code": 1, "console_type": 1,
-         "serial_number": 1, "site_id": 1, "warranty_expiry": 1}).to_list(5000)
+         "serial_number": 1, "site_id": 1, "warranty_expiry": 1}).to_list(None)
     annotated = [await _annotate_asset(org_id, e) for e in equipment]
     if body.asset_ids:
         _wanted = set(body.asset_ids)
@@ -1354,7 +1354,7 @@ async def build_custom_quote(body: CustomQuoteIn, user=Depends(get_crm_user)):
         eq_query["site_id"] = {"$in": body.site_ids}
     equipment = await db.equipment.find(
         eq_query, {"_id": 0, "id": 1, "name": 1, "model": 1, "model_code": 1, "equipment_type": 1,
-                   "console_type": 1, "manufacturer": 1, "serial_number": 1, "site_id": 1}).to_list(5000)
+                   "console_type": 1, "manufacturer": 1, "serial_number": 1, "site_id": 1}).to_list(None)
 
     groups = {}
     unmatched = {}          # model → grouped unmatched machines
@@ -2329,7 +2329,7 @@ async def _amendment_context(contract, org_id):
     equipment = await db.equipment.find(
         {"organization_id": linked},
         {"_id": 0, "id": 1, "name": 1, "model": 1, "model_code": 1, "console_type": 1,
-         "serial_number": 1, "site_id": 1, "contract_cover": 1}).to_list(5000)
+         "serial_number": 1, "site_id": 1, "contract_cover": 1}).to_list(None)
     covered, coverable = [], []
     for e in equipment:
         cover = e.get("contract_cover")
@@ -2956,7 +2956,7 @@ async def warranty_opportunities(window_days: int = 365, user=Depends(get_crm_us
         equipment = await db.equipment.find(
             {"organization_id": linked},
             {"_id": 0, "id": 1, "name": 1, "model": 1, "model_code": 1, "console_type": 1,
-             "serial_number": 1, "site_id": 1, "warranty_expiry": 1, "contract_cover": 1}).to_list(5000)
+             "serial_number": 1, "site_id": 1, "warranty_expiry": 1, "contract_cover": 1}).to_list(None)
         expiring = []
         for e in equipment:
             if e.get("contract_cover"):
@@ -3013,7 +3013,7 @@ async def build_warranty_proposal(company_id: str, body: WarrantyProposalIn, use
     now = datetime.now(timezone.utc)
     horizon = now + timedelta(days=max(1, body.window_days))
     equipment = await db.equipment.find(
-        {"organization_id": linked}, {"_id": 0, "id": 1, "warranty_expiry": 1, "contract_cover": 1}).to_list(5000)
+        {"organization_id": linked}, {"_id": 0, "id": 1, "warranty_expiry": 1, "contract_cover": 1}).to_list(None)
     asset_ids = [e["id"] for e in equipment
                  if not e.get("contract_cover") and (lambda d: d and now <= d <= horizon)(_parse_dt(e.get("warranty_expiry")))]
     if not asset_ids:
@@ -3292,7 +3292,7 @@ async def _contract_fact_sheet(org_id, contract):
         equipment = await db.equipment.find(
             {"organization_id": linked},
             {"_id": 0, "name": 1, "model": 1, "model_code": 1, "console_type": 1,
-             "serial_number": 1, "contract_cover": 1}).to_list(5000)
+             "serial_number": 1, "contract_cover": 1}).to_list(None)
         for e in equipment:
             cover = e.get("contract_cover")
             if isinstance(cover, dict) and cover.get("contract_id") == cid:

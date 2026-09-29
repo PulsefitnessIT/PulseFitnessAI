@@ -264,11 +264,13 @@ async def _calc_oos_ratio(org_filter: dict) -> dict:
         if sn:
             oos_assets.add(sn)
 
-    # Site breakdown
-    equipment = await db.equipment.find(org_filter, {"_id": 0, "id": 1, "serial_number": 1, "site_id": 1}).to_list(5000)
-    for eq in equipment:
-        sid = eq.get("site_id", "unassigned")
-        by_site[sid]["total"] += 1
+    # Site breakdown — count per site via aggregation (was a 5000-capped pull
+    # that under-counted every site's total on a 120k estate).
+    async for row in db.equipment.aggregate([
+        {"$match": org_filter},
+        {"$group": {"_id": {"$ifNull": ["$site_id", "unassigned"]}, "n": {"$sum": 1}}},
+    ]):
+        by_site[row["_id"] or "unassigned"]["total"] += row["n"]
     for f in open_faults:
         sid = f.get("site_id", "unassigned")
         by_site[sid]["oos"] += 1

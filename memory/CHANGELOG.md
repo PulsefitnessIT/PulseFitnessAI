@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-06 — Fix remaining silent-truncation equipment reads (KPI / CAPEX / pulse-sales / CRM-aftersales)
+Converted every `.to_list(5000)` equipment read in the four modules the user flagged, so dashboards/quotes are accurate at 120k. Verified: syntax OK, no backend tracebacks, and the pulse_sales background sweep ran post-change with errors:0 (live-exercises the edited path).
+- kpi_engine.py: OOS by-site totals now via `$group` aggregation (was a 5000-capped equipment pull that under-counted every site). `_calc_oos_ratio` total already used count_documents.
+- capex.py: fleet-analysis + justification equipment scans raised from 5000/500 → 200000 ceiling (full `{_id:0}` docs — inherently per-asset scoring, can't be a pure aggregation); the small-projection window scan → `.to_list(None)`.
+- pulse_sales.py: CAPEX opportunity scan raised 5000 → 200000.
+- crm_aftersales.py: 7 estate/quote/warranty equipment reads (small projections) → `.to_list(None)` (accurate, tiny memory) — estate view, build-quote-from-estate, custom-quote, warranty-opportunities, build-proposal.
+- Note: CAPEX/pulse-sales full-doc fleet scans are accurate up to 200k assets but still load all docs per request; true unbounded scale needs a batched/site-scoped pass (flagged).
+
+
 ## 2026-06 — Operations Equipment tab: server pagination + search (120k-ready)
 Verified via UI on a 63-item demo org (paging 1→2→3, server search returns exact match, no runtime errors) + curl. Temp rows cleaned up.
 - `EquipmentInfoTab.js` now loads ONE page (24/row) from the paginated `GET /equipment?page&limit&q&equipment_type&location&ids` instead of pulling up to 5,000 rows client-side. Debounced (400ms) server search; type/location dropdowns populated from a new `GET /equipment/facets` (distinct types/locations/total) so they stay complete when the grid is paged. Coverage/expiry drill-down passes matching ids to the server. Added Prev/Next + "Showing A–B of N" + "Page X of Y" controls (data-testids `equipment-pagination`, `equipment-page-info`, `equipment-page-indicator`, `equipment-prev-page`, `equipment-next-page`).

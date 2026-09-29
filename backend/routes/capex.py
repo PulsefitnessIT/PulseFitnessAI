@@ -379,7 +379,7 @@ async def get_capex_analysis(
     org_filter = await resolve_mod_query_filter(user, site_id)
     thresholds = await _get_thresholds(user.get("organization_id"))
 
-    equipment_list = await db.equipment.find(org_filter, {"_id": 0}).to_list(5000)
+    equipment_list = await db.equipment.find(org_filter, {"_id": 0}).to_list(200000)  # full-estate scan; was 5000 (silently truncated at 120k)
     if not equipment_list:
         return {
             "equipment": [], "summary": {"total": 0}, "forecast": {},
@@ -642,7 +642,7 @@ async def capex_ber_trend(
         org_filter,
         {"_id": 0, "id": 1, "name": 1, "equipment_type": 1,
          "replacement_cost": 1, "location": 1},
-    ).to_list(5000)
+    ).to_list(None)
     if not equipment_list:
         return {
             "windows": {"6mo": {}, "12mo": {}},
@@ -839,7 +839,7 @@ async def generate_capex_justifications(user: dict = Depends(get_current_user)) 
     org_filter = get_organization_filter(user)
     thresholds = await _get_thresholds(user.get("organization_id"))
 
-    equipment_list = await db.equipment.find(org_filter, {"_id": 0}).to_list(500)
+    equipment_list = await db.equipment.find(org_filter, {"_id": 0}).to_list(200000)  # full-estate scan; was 500 (silently truncated at scale)
     bulk_stats = await get_bulk_equipment_stats(equipment_list, org_filter)
     all_issues = await db.issues.find(
         org_filter,

@@ -87,7 +87,7 @@ async def _scan_org_for_opportunities(org: dict, now_iso: str) -> dict:
 
     org_id = org["id"]
     org_filter = {"organization_id": org_id}
-    equipment_list = await db.equipment.find(org_filter, {"_id": 0}).to_list(5000)
+    equipment_list = await db.equipment.find(org_filter, {"_id": 0}).to_list(200000)  # full-estate scan; was 5000 (silently truncated at 120k)
     if not equipment_list:
         return {"org_id": org_id, "scanned": 0, "created": 0, "updated": 0}
 
