@@ -759,3 +759,13 @@ Gave the case-equipment conflict queue its own link/create/ignore actions.
 - **Frontend** (SiconDashboard.js): new "Unmapped case equipment" card with a per-conflict `CaseEqLinker` — searches the Pulse register (`GET /equipment?q=&limit=5`) to Link an existing asset, plus Create asset / Ignore. Generalised `resolve()` to take an entity arg; loads `?entity=case_equipment`.
 - **Tests**: tests/test_sicon_caseeq_resolve_jun2026.py (3) — link attaches+links, create_new makes+attaches, ignore leaves issue untouched. Full Sicon read-side suite **34 pass**. Backend imports clean, frontend compiles, both endpoints verified live (200).
 Files: backend/routes/sicon.py, frontend/src/pages/SiconDashboard.js, backend/tests/test_sicon_caseeq_resolve_jun2026.py.
+
+## 2026-06 — Sicon Write-Path Consolidation (retire the divergent legacy bridge)
+Founder review flagged three divergent Pulse→Sicon paths. Consolidated onto ONE proven authority; all Sicon writes stay disabled (SICON_ALLOW_WRITES=false).
+- **Retired the rogue direct-POST** in routes/integrations.py `forward_to_sicon()` — it previously made a raw, UNGUARDED httpx POST to `{base}/api/service/cases` (a non-v1 endpoint, bypassing SICON_ALLOW_WRITES, retries and the outbox). Now a hard no-op that raises + logs `legacy_bridge_blocked` if anything still calls it.
+- **`_forward_and_log_sicon`** no longer forwards; it records the Orbit4 ticket in `db.integration_bridge` as `status:"queued_outbox"` and defers Sicon reporting to the single proven subsystem (utils/sicon_client.SiconClient + svc_sicon_outbox worker, per-org, centrally gated by SICON_ALLOW_WRITES via SiconClient._guard_write).
+- **Bridge retry endpoint** (`POST /integrations/bridge/{id}/retry`) re-queues to `queued_outbox` instead of performing an independent unguarded POST.
+- Single Sicon write authority is now the proven client/outbox. `finance_sync.py` (Sage sales-order, SICON_WEBAPI_*) remains a distinct concern (not a service-case write path) — left as-is.
+- **Tests**: tests/test_sicon_bridge_consolidation_jun2026.py (2). Combined Sicon read-side suites: 29 pass. Backend imports clean.
+- **Next (Phase 2, per founder "both in sequence")**: wire Orbit4 ticket → per-org Pulse case → svc_sicon_outbox enqueue (proven mapper), and add missing utils/orbit4_outbound.py — build behind SICON_ALLOW_WRITES, keep disabled until the live Sicon base URL arrives.
+Files: backend/routes/integrations.py, backend/tests/test_sicon_bridge_consolidation_jun2026.py.

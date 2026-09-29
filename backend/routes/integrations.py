@@ -332,21 +332,17 @@ def _map_orbit4_to_sicon(ticket_data: dict) -> dict:
 
 
 async def _forward_and_log_sicon(sicon_case: dict, sicon_config: dict, bridge_record: dict) -> None:
-    """Attempt to forward a ticket to Sicon and update the bridge record."""
-    if not (sicon_config and sicon_config.get("enabled") and sicon_config.get("base_url")):
-        bridge_record["status"] = "queued"
-        await log_integration_event("sicon", "case_queued", "internal", f"Sicon not configured — ticket {sicon_case['orbit4_ticket_id']} queued")
-        return
-
-    try:
-        sicon_result = await forward_to_sicon(sicon_case, sicon_config)
-        bridge_record["sicon_case_id"] = sicon_result.get("case_id")
-        bridge_record["status"] = "forwarded"
-        await log_integration_event("sicon", "case_created", "outbound", f"Service case for Orbit 4 ticket {sicon_case['orbit4_ticket_id']}", payload={"sicon_case": sicon_result.get("case_id")})
-    except Exception as e:
-        bridge_record["status"] = "error"
-        bridge_record["error"] = str(e)
-        await log_integration_event("sicon", "case_create_failed", "outbound", f"Failed for Orbit 4 ticket {sicon_case['orbit4_ticket_id']}", success=False, error=str(e))
+    """DEPRECATED legacy forward. The rogue direct POST to
+    {base}/api/service/cases has been retired. Pulse→Sicon write-back is now
+    owned by the single proven subsystem (utils/sicon_client.SiconClient +
+    svc_sicon_outbox worker), which is per-org and centrally gated by
+    SICON_ALLOW_WRITES. We record the Orbit4 ticket in the bridge for the UI
+    and defer any Sicon reporting to that subsystem (Phase 2)."""
+    bridge_record["status"] = "queued_outbox"
+    await log_integration_event(
+        "sicon", "case_queued", "internal",
+        f"Ticket {sicon_case['orbit4_ticket_id']} recorded; Sicon write-back deferred "
+        f"to the proven SiconClient outbox subsystem (SICON_ALLOW_WRITES-gated)")
 
 
 async def process_new_ticket(ticket_data: dict, orbit4_config: dict):
@@ -568,24 +564,21 @@ async def process_user_upsert(user_data: dict, config: dict):
 
 
 async def forward_to_sicon(case_data: dict, sicon_config: dict) -> dict:
-    """Forward a service case to Sicon Service API."""
-    base_url = sicon_config.get("base_url", "").rstrip("/")
-    credentials = sicon_config.get("credentials", {})
-    branding = sicon_config.get("branding", {})
-    user_agent = branding.get("user_agent", "PulseFitness-ServiceBridge/1.0")
+    """DEPRECATED — retired divergent write path.
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.post(
-            f"{base_url}/api/service/cases",
-            json=case_data,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {credentials.get('api_key', '')}",
-                "User-Agent": user_agent,
-            }
-        )
-        response.raise_for_status()
-        return response.json()
+    This previously made a raw, UNGUARDED httpx POST to
+    {base_url}/api/service/cases — a Sicon endpoint distinct from the proven
+    Sicon Service WebAPI, bypassing SICON_ALLOW_WRITES, retries and the outbox.
+    It is retired to consolidate onto the single proven client
+    (utils/sicon_client.SiconClient) + svc_sicon_outbox worker. This shim never
+    contacts Sicon; it exists only to fail loudly if something still calls it."""
+    await log_integration_event(
+        "sicon", "legacy_bridge_blocked", "internal",
+        "forward_to_sicon is deprecated; Pulse→Sicon writes go through the "
+        "proven SiconClient outbox subsystem", success=False)
+    raise RuntimeError(
+        "forward_to_sicon is deprecated — Sicon write-back is handled by the "
+        "proven SiconClient + svc_sicon_outbox subsystem (SICON_ALLOW_WRITES-gated).")
 
 
 def map_orbit4_priority(orbit4_priority: str) -> str:
@@ -622,32 +615,26 @@ async def get_bridge_records(
 
 @router.post("/integrations/bridge/{record_id}/retry")
 async def retry_bridge_record(record_id: str, user: dict = Depends(get_current_user)):
-    """Retry forwarding a failed/queued bridge record to Sicon."""
+    """Re-queue a bridge record for Sicon reporting.
+
+    The legacy direct-forward is retired; Sicon write-back is owned by the
+    proven SiconClient + svc_sicon_outbox subsystem (per-org, gated by
+    SICON_ALLOW_WRITES). This simply re-marks the record as queued for that
+    subsystem — it never performs an independent, unguarded POST to Sicon."""
     await verify_admin(user)
     record = await db.integration_bridge.find_one({"id": record_id}, {"_id": 0})
     if not record:
         raise HTTPException(status_code=404, detail="Bridge record not found")
 
-    sicon_config = await get_integration_config("sicon")
-    if not sicon_config or not sicon_config.get("enabled"):
-        raise HTTPException(status_code=400, detail="Sicon integration not configured")
-
-    try:
-        result = await forward_to_sicon(record["sicon_data"], sicon_config)
-        await db.integration_bridge.update_one(
-            {"id": record_id},
-            {"$set": {
-                "sicon_case_id": result.get("case_id"),
-                "status": "forwarded",
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-                "error": None,
-            }}
-        )
-        await log_integration_event("sicon", "case_retried", "outbound", f"Retry successful for record {record_id}")
-        return {"status": "ok", "sicon_case_id": result.get("case_id")}
-    except Exception as e:
-        await log_integration_event("sicon", "case_retry_failed", "outbound", f"Retry failed for record {record_id}", success=False, error=str(e))
-        raise HTTPException(status_code=502, detail=f"Sicon forwarding failed: {str(e)}")
+    await db.integration_bridge.update_one(
+        {"id": record_id},
+        {"$set": {"status": "queued_outbox",
+                  "updated_at": datetime.now(timezone.utc).isoformat(),
+                  "error": None}})
+    await log_integration_event("sicon", "case_requeued", "internal",
+                                f"Record {record_id} re-queued for the proven Sicon outbox subsystem")
+    return {"status": "queued_outbox",
+            "detail": "Sicon write-back is handled by the proven SiconClient outbox subsystem."}
 
 
 # ── Orbit 4 API Endpoints (Test Connection, Fetch Assets) ─────────
