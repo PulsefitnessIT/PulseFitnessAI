@@ -26,6 +26,7 @@ ENTITY_CASE = "case"
 ENTITY_CUSTOMER = "customer"
 ENTITY_SITE = "site"
 ENTITY_CONTACT = "contact"
+ENTITY_RESOURCE = "resource"  # Sicon appointment resource ↔ Pulse svc_engineer
 
 
 def _now() -> str:

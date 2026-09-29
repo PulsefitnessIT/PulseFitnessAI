@@ -743,3 +743,12 @@ Wired the proven v1 relationship chain into the existing case importer (targets 
 - **DEFERRED (needs founder decision + new infra)**: appointments/resources/time-bookings (§14-16). Blockers documented for next agent: (1) canonical case store ambiguity — importer writes `db.issues` but the modern Service Desk is `db.svc_cases`; (2) no engineer-mapping layer (no `ENTITY_RESOURCE` link / `pulse_engineer_id`); (3) no appointments collection (scheduling lives on `svc_cases.scheduled_at`/`assigned_engineer_id`).
 - **Tests**: `tests/test_sicon_case_relationships_jun2026.py` (4 new) — attach+unmapped-flag, notes fold+dedupe, flag-off skip, null-protection. 11 pass with existing case-engine tests; readside suite still 16 pass. `SICON_ALLOW_WRITES` stays false.
 Files: backend/utils/sicon_import.py, backend/tests/test_sicon_case_relationships_jun2026.py.
+
+## 2026-06 — Sicon Engineer-Mapping Layer (§15) + Requirements Email
+Built the Pulse-side engineer-mapping layer — the prerequisite for future appointment/time-booking sync — entirely offline (no live Sicon needed).
+- **Link entity**: added `ENTITY_RESOURCE` to sicon_links.py (Sicon resource ↔ Pulse svc_engineer).
+- **Backend** (routes/sicon.py): `GET /sicon/read/engineer-mapping` lists cached Sicon resources (db.sicon_engineers, leavers excluded) with their mapped Pulse engineer + an auto-suggested match (by email, then normalised name) and the svc_engineers options + counts. `POST /sicon/read/engineer-mapping` maps or clears a resource→engineer link (validates the engineer exists; empty id clears). Owner/manager gated; audit-logged.
+- **Frontend** (SiconMappings.js): new "Engineer mapping" card — per-resource dropdown of Pulse engineers, one-tap "Suggest: <name>" apply for auto-matches, mapped/total counter.
+- **Tests**: tests/test_sicon_engineer_mapping_jun2026.py (4) — email suggestion + leaver exclusion, save/clear idempotent, rejects unknown engineer, uses ENTITY_RESOURCE. Full Sicon read-side suite 31 pass.
+- **Requirements email**: /app/memory/SICON_INTEGRATION_EMAIL.md — a ready-to-send email to Sicon covering connectivity (external URL + IP allow-list/VPN), auth service account + token TTL, Contract plugin 404, rate limits/page size + modified-since incremental filtering, field semantics (make codes, permanent keys, resource identifiers), and Phase-2 write-back planning.
+Files: backend/utils/sicon_links.py, backend/routes/sicon.py, frontend/src/pages/SiconMappings.js, backend/tests/test_sicon_engineer_mapping_jun2026.py, memory/SICON_INTEGRATION_EMAIL.md.

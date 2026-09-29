@@ -1085,6 +1085,78 @@ async def save_customer_mapping(data: Dict[str, Any], user: dict = Depends(get_c
     return {"success": True}
 
 
+# ── Engineer / resource mapping (§15) ─────────────────────────────
+
+def _norm_name(s: str) -> str:
+    return "".join(ch for ch in (s or "").lower() if ch.isalnum())
+
+
+@router.get("/sicon/read/engineer-mapping")
+async def read_engineer_mapping(user: dict = Depends(get_current_user)):
+    """List cached Sicon resources with their mapped Pulse engineer (+ an
+    auto-suggested match by email/name), and the Pulse engineer options.
+    Pure Pulse-side: works off the sicon_engineers cache, no live Sicon call."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    resources = await db.sicon_engineers.find(
+        {"organization_id": org_id, "is_leaver": {"$ne": True}}, {"_id": 0}
+    ).sort("full_name", 1).to_list(2000)
+    engineers = await db.svc_engineers.find(
+        {"organization_id": org_id, "active": {"$ne": False}},
+        {"_id": 0, "id": 1, "full_name": 1, "email": 1}).sort("full_name", 1).to_list(2000)
+    by_email = {e["email"].strip().lower(): e["id"] for e in engineers if e.get("email")}
+    by_name = {_norm_name(e.get("full_name")): e["id"] for e in engineers if e.get("full_name")}
+    rows = []
+    for r in resources:
+        seid = r.get("sicon_employee_id") or r.get("id")
+        link = await _links.get_link(_links.ENTITY_RESOURCE, seid, org_id)
+        mapped_id = (link or {}).get("pulse_entity_id") or None
+        suggested = None
+        if not mapped_id:
+            em = (r.get("email") or "").strip().lower()
+            suggested = by_email.get(em) or by_name.get(_norm_name(r.get("full_name")))
+        rows.append({
+            "sicon_employee_id": seid,
+            "sicon_name": r.get("full_name"),
+            "sicon_email": r.get("email"),
+            "sicon_team": r.get("team_name"),
+            "mapped_engineer_id": mapped_id,
+            "suggested_engineer_id": suggested,
+            "status": "mapped" if mapped_id else ("suggested" if suggested else "unmapped"),
+        })
+    counts = {"total": len(rows),
+              "mapped": sum(1 for x in rows if x["mapped_engineer_id"]),
+              "unmapped": sum(1 for x in rows if not x["mapped_engineer_id"])}
+    return {"resources": rows, "engineers": engineers, "counts": counts}
+
+
+@router.post("/sicon/read/engineer-mapping")
+async def save_engineer_mapping(data: Dict[str, Any], user: dict = Depends(get_current_user)):
+    """Map (or clear) a Sicon resource → Pulse svc_engineer. Prerequisite for
+    appointment/time-booking sync. pulse_engineer_id empty/None clears it."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    seid = data.get("sicon_employee_id")
+    peid = data.get("pulse_engineer_id")
+    if seid in (None, ""):
+        raise HTTPException(status_code=400, detail="sicon_employee_id required")
+    if peid:
+        eng = await db.svc_engineers.find_one(
+            {"id": peid, "organization_id": org_id}, {"_id": 0, "id": 1})
+        if not eng:
+            raise HTTPException(status_code=404, detail="Engineer not found")
+        await _links.upsert_link(_links.ENTITY_RESOURCE, seid, "svc_engineer", peid,
+                                 organization_id=org_id, sync_status="linked")
+        await log_sicon_event(org_id, "engineer_mapping_saved",
+                              f"resource {seid}→{peid}", True, user["id"])
+        return {"success": True, "mapped_engineer_id": peid}
+    # clear the mapping (§20 — never silently, explicit user action)
+    await _links.upsert_link(_links.ENTITY_RESOURCE, seid, "svc_engineer", "",
+                             organization_id=org_id, sync_status="unlinked")
+    await log_sicon_event(org_id, "engineer_mapping_cleared", f"resource {seid}", True, user["id"])
+    return {"success": True, "mapped_engineer_id": None}
+
+
 # ── Contract cover (extension point — NOT guessed, §14) ───────────
 
 @router.get("/sicon/read/equipment/{sicon_equipment_id}/cover")

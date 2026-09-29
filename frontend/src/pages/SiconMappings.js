@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
-import { Loader2, Plus, Trash2, Save, Link2, Tags } from 'lucide-react';
+import { Loader2, Plus, Trash2, Save, Link2, Tags, HardHat } from 'lucide-react';
 
 const MapEditor = ({ title, entries, onChange, hint }) => (
   <div className="rounded-lg border border-white/10 p-3">
@@ -41,19 +41,22 @@ const SiconMappings = () => {
   const [lookups, setLookups] = useState(null);
   const [custData, setCustData] = useState({ links: [], companies: [], sites: [] });
   const [newLink, setNewLink] = useState({ entity: 'customer', external_id: '', pulse_id: '' });
+  const [engMap, setEngMap] = useState({ resources: [], engineers: [], counts: {} });
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [ref, cust] = await Promise.all([
+      const [ref, cust, eng] = await Promise.all([
         axios.get(`${API}/sicon/read/reference`, { headers }),
         axios.get(`${API}/sicon/read/customer-mappings`, { headers }),
+        axios.get(`${API}/sicon/read/engineer-mapping`, { headers }),
       ]);
       setTs(toRows(ref.data.mappings.tracking_status_mapping));
       setPr(toRows(ref.data.mappings.priority_mapping));
       setCt(toRows(ref.data.mappings.case_type_mapping));
       setLookups(ref.data.lookups);
       setCustData(cust.data);
+      setEngMap(eng.data);
     } catch (e) { notifyApiError(e); }
     setLoading(false);
   }, [API]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -76,6 +79,20 @@ const SiconMappings = () => {
       notify.success('Mapping saved');
       setNewLink({ entity: 'customer', external_id: '', pulse_id: '' });
       load();
+    } catch (e) { notifyApiError(e); }
+  };
+
+  const saveEng = async (sicon_employee_id, pulse_engineer_id) => {
+    try {
+      await axios.post(`${API}/sicon/read/engineer-mapping`,
+        { sicon_employee_id, pulse_engineer_id: pulse_engineer_id || null }, { headers });
+      setEngMap((m) => ({
+        ...m,
+        resources: m.resources.map((r) => r.sicon_employee_id === sicon_employee_id
+          ? { ...r, mapped_engineer_id: pulse_engineer_id || null,
+              status: pulse_engineer_id ? 'mapped' : 'unmapped' } : r),
+      }));
+      notify.success(pulse_engineer_id ? 'Engineer mapped' : 'Mapping cleared');
     } catch (e) { notifyApiError(e); }
   };
 
@@ -125,6 +142,50 @@ const SiconMappings = () => {
                 <span className="text-xs text-[var(--theme-text-muted)]">{l.sync_status}</span>
               </div>
             ))}
+          </div>
+        )}
+      </Card>
+
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2"><HardHat size={18} className="text-[var(--theme-brand)]" /><h3 className="font-bold text-[var(--theme-text)]">Engineer mapping</h3></div>
+          <span className="text-xs text-[var(--theme-text-muted)]" data-testid="sicon-eng-counts">
+            {(engMap.counts?.mapped || 0)}/{(engMap.counts?.total || 0)} mapped
+          </span>
+        </div>
+        <div className="text-xs text-[var(--theme-text-muted)] mb-3">Map each Sicon resource to a Pulse engineer so imported appointments and time bookings attach to the right person. Suggestions are matched by email/name — confirm to save.</div>
+        {(engMap.resources || []).length === 0 ? (
+          <div className="text-sm text-[var(--theme-text-muted)]">No Sicon resources cached yet. Refresh engineers from the Sicon connection first.</div>
+        ) : (
+          <div className="space-y-1.5" data-testid="sicon-eng-list">
+            {engMap.resources.map((r) => {
+              const suggestName = r.suggested_engineer_id
+                && (engMap.engineers.find((e) => e.id === r.suggested_engineer_id)?.full_name);
+              return (
+                <div key={r.sicon_employee_id} className="flex items-center justify-between gap-3 text-sm border border-white/10 rounded px-3 py-1.5">
+                  <div className="min-w-0">
+                    <div className="text-[var(--theme-text)] truncate">{r.sicon_name || `Resource ${r.sicon_employee_id}`}</div>
+                    <div className="text-xs text-[var(--theme-text-muted)] truncate">{r.sicon_email || '—'}{r.sicon_team ? ` · ${r.sicon_team}` : ''}</div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {r.status !== 'mapped' && r.suggested_engineer_id && (
+                      <button onClick={() => saveEng(r.sicon_employee_id, r.suggested_engineer_id)}
+                        className="text-xs text-[var(--theme-brand)] underline"
+                        data-testid={`sicon-eng-apply-${r.sicon_employee_id}`}>
+                        Suggest: {suggestName}
+                      </button>
+                    )}
+                    <select value={r.mapped_engineer_id || ''}
+                      onChange={(e) => saveEng(r.sicon_employee_id, e.target.value)}
+                      className="h-9 rounded-md border border-white/15 bg-transparent text-sm px-2 min-w-[180px]"
+                      data-testid={`sicon-eng-select-${r.sicon_employee_id}`}>
+                      <option value="">Unmapped</option>
+                      {(engMap.engineers || []).map((e) => <option key={e.id} value={e.id}>{e.full_name}</option>)}
+                    </select>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </Card>
