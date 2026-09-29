@@ -39,6 +39,13 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  const [searchQuery, setSearchQuery] = useState('');
  const [filterType, setFilterType] = useState('all');
  const [filterLocation, setFilterLocation] = useState('all');
+ const [page, setPage] = useState(1);
+ const [total, setTotal] = useState(0);
+ const [pages, setPages] = useState(1);
+ const [loading, setLoading] = useState(true);
+ const [debouncedQ, setDebouncedQ] = useState('');
+ const [facets, setFacets] = useState({ types: [], locations: [] });
+ const PAGE_SIZE = 24;
  const [selectedEquipment, setSelectedEquipment] = useState(null);
  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
  const [summary, setSummary] = useState(null);
@@ -70,10 +77,23 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  const canEditSupplier = user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin;
 
  useEffect(() => {
- loadData();
+ loadFacets();
+ loadSummary();
  if (canEditSupplier) loadSuppliers();
- // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reviewed in iter 216h226-deps-walk — effect either runs once on mount or re-fires on the listed trigger deps; omitted refs are stable identities or fetcher closures that read live state at call time, so including them would re-fire without changing semantics.
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- mount only
  }, []);
+
+ // Debounce the search box before hitting the server.
+ useEffect(() => {
+ const id = setTimeout(() => setDebouncedQ(searchQuery.trim()), 400);
+ return () => clearTimeout(id);
+ }, [searchQuery]);
+
+ // Search / filter / coverage-drilldown change → reload from page 1.
+ useEffect(() => {
+ loadData(1);
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- reload trigger deps
+ }, [debouncedQ, filterType, filterLocation, expiryFilterIds]);
 
  // Fetch the selected manual as a blob URL so the iframe viewer is
  // authenticated. Revoke previous URL on change/unmount to avoid leaks.
@@ -135,44 +155,53 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  } catch { /* non-critical */ }
  };
 
+ // Server already filters by search / type / location / coverage-drilldown,
+ // so just mirror the returned page through. (No fragile client re-filtering
+ // — that used to crash on rows with a missing equipment_type.)
  useEffect(() => {
- let filtered = equipment;
- if (expiryFilterIds && expiryFilterIds.length > 0) {
- filtered = filtered.filter(e => expiryFilterIds.includes(e.id));
- }
- if (searchQuery.trim()) {
- filtered = filtered.filter(e => 
- e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
- e.equipment_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
- e.manufacturer?.toLowerCase().includes(searchQuery.toLowerCase()) ||
- e.serial_number?.toLowerCase().includes(searchQuery.toLowerCase())
- );
- }
- if (filterType !== 'all') {
- filtered = filtered.filter(e => e.equipment_type === filterType);
- }
- if (filterLocation !== 'all') {
- filtered = filtered.filter(e => e.location === filterLocation);
- }
- setFilteredEquipment(filtered);
- }, [searchQuery, equipment, filterType, filterLocation, expiryFilterIds]);
+ setFilteredEquipment(equipment);
+ }, [equipment]);
 
- const equipmentTypes = [...new Set(equipment.map(e => e.equipment_type).filter(Boolean))];
- const equipmentLocations = [...new Set(equipment.map(e => e.location).filter(Boolean))];
+ const equipmentTypes = facets.types || [];
+ const equipmentLocations = facets.locations || [];
 
- const loadData = async () => {
+ const loadFacets = async () => {
  const token = localStorage.getItem('token');
  try {
- const [equipmentRes, summaryRes] = await Promise.all([
- axios.get(`${API}/equipment`, { headers: { Authorization: `Bearer ${token}` } }),
- axios.get(`${API}/reports/equipment-summary`, { headers: { Authorization: `Bearer ${token}` } })
- ]);
- 
- setEquipment(equipmentRes.data.equipment || []);
- setFilteredEquipment(equipmentRes.data.equipment || []);
- setSummary(summaryRes.data);
+ const r = await axios.get(`${API}/equipment/facets`, { headers: { Authorization: `Bearer ${token}` } });
+ setFacets({ types: r.data?.types || [], locations: r.data?.locations || [] });
+ } catch { /* non-critical */ }
+ };
+
+ const loadSummary = async () => {
+ const token = localStorage.getItem('token');
+ try {
+ const r = await axios.get(`${API}/reports/equipment-summary`, { headers: { Authorization: `Bearer ${token}` } });
+ setSummary(r.data);
+ } catch { /* non-critical */ }
+ };
+
+ const loadData = async (pageArg) => {
+ const token = localStorage.getItem('token');
+ const nextPage = pageArg || page || 1;
+ setLoading(true);
+ try {
+ const params = { page: nextPage, limit: PAGE_SIZE };
+ if (debouncedQ) params.q = debouncedQ;
+ if (filterType !== 'all') params.equipment_type = filterType;
+ if (filterLocation !== 'all') params.location = filterLocation;
+ if (expiryFilterIds && expiryFilterIds.length > 0) params.ids = expiryFilterIds.join(',');
+ const res = await axios.get(`${API}/equipment`, { headers: { Authorization: `Bearer ${token}` }, params });
+ const rows = res.data.equipment || [];
+ setEquipment(rows);
+ setFilteredEquipment(rows);
+ setTotal(res.data.total || 0);
+ setPages(res.data.pages || 1);
+ setPage(res.data.page || nextPage);
  } catch (error) {
  console.error('Failed to load equipment:', error);
+ } finally {
+ setLoading(false);
  }
  };
 
@@ -481,7 +510,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  <div className="flex items-center gap-2">
  <AlertTriangle size={16} className="text-amber-400" />
  <span className="text-amber-400 text-sm font-medium">
- Showing {filteredEquipment.length} machine{filteredEquipment.length !== 1 ? 's' : ''} with expiring warranty/contract
+ Showing {total} machine{total !== 1 ? 's' : ''} with expiring warranty/contract
  </span>
  </div>
  <Button size="sm" variant="ghost" className="text-amber-400 hover:bg-amber-500/10 h-7 px-2" onClick={onClearExpiryFilter} data-testid="clear-expiry-filter-btn">
@@ -577,7 +606,7 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
 
  {/* Equipment List */}
  <div className="space-y-2">
- {equipment.length === 0 && filteredEquipment.length === 0 ? (
+ {loading ? (
  <>
  <EquipmentCardSkeleton />
  <EquipmentCardSkeleton />
@@ -719,13 +748,29 @@ const EquipmentInfoTab = ({ expiryFilterIds, onClearExpiryFilter, onOpenInvoiceI
  );
  })}
 
- {filteredEquipment.length === 0 && (
+ {!loading && filteredEquipment.length === 0 && (
  <Card className="bg-[var(--theme-surface)] border-white/10 p-12 text-center">
  <Wrench size={48} className="mx-auto mb-4 text-[var(--color-text-muted)]" />
  <p className="text-[var(--color-text-muted)]">{searchQuery ? 'No equipment found matching your search' : 'No equipment added yet'}</p>
  </Card>
  )}
  </div>
+
+ {/* Pagination — server-driven so a 120k estate pages instantly */}
+ {total > 0 && (
+ <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1" data-testid="equipment-pagination">
+ <p className="text-sm text-[var(--color-text-muted)]" data-testid="equipment-page-info">
+ Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total.toLocaleString()}
+ </p>
+ <div className="flex items-center gap-2">
+ <Button variant="outline" size="sm" className="border-white/10 text-white" disabled={page <= 1 || loading}
+ onClick={() => loadData(page - 1)} data-testid="equipment-prev-page">Previous</Button>
+ <span className="text-sm text-[var(--color-text-muted)]" data-testid="equipment-page-indicator">Page {page} of {pages}</span>
+ <Button variant="outline" size="sm" className="border-white/10 text-white" disabled={page >= pages || loading}
+ onClick={() => loadData(page + 1)} data-testid="equipment-next-page">Next</Button>
+ </div>
+ </div>
+ )}
 
  {/* Equipment Details Dialog */}
  <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>

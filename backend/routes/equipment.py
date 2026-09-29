@@ -167,6 +167,7 @@ async def create_equipment(equipment: EquipmentCreate, user: dict = Depends(get_
 async def get_all_equipment(
     user: dict = Depends(get_current_user), site_id: str = None,
     q: str = None, page: int = None, limit: int = None,
+    equipment_type: str = None, location: str = None, ids: str = None,
 ) -> dict:
     # Iter — 120k-scale hardening. `GET /equipment` now supports OPT-IN server
     # pagination (`page`/`limit`) + server-side search (`q`) so the Operations
@@ -215,14 +216,24 @@ async def get_all_equipment(
             {"site_id": None},
         ]
 
-    # Server-side search across the fields users actually look up — so a
-    # 120k estate is findable without loading every row into the browser.
+    # Server-side search + filters so a 120k estate is findable/pageable
+    # without loading every row into the browser.
+    extra = []
     if q and q.strip():
         rx = {"$regex": re.escape(q.strip()), "$options": "i"}
-        org_filter = {"$and": [org_filter, {"$or": [
+        extra.append({"$or": [
             {"name": rx}, {"equipment_type": rx}, {"manufacturer": rx},
             {"model": rx}, {"serial_number": rx}, {"location": rx},
-        ]}]}
+        ]})
+    if equipment_type and equipment_type != 'all':
+        extra.append({"equipment_type": equipment_type})
+    if location and location != 'all':
+        extra.append({"location": location})
+    if ids:
+        id_list = [x for x in ids.split(',') if x][:5000]
+        extra.append({"id": {"$in": id_list}})
+    if extra:
+        org_filter = {"$and": [org_filter, *extra]}
 
     paginated = page is not None or limit is not None
     LEGACY_CAP = 5000
@@ -249,6 +260,22 @@ async def get_all_equipment(
         # caller/monitoring knows to switch to paged loading at scale.
         resp["truncated"] = True
     return resp
+
+
+@router.get("/equipment/facets")
+async def equipment_facets(user: dict = Depends(get_current_user)) -> dict:
+    """Distinct machine types + locations + total for the Equipment tab's
+    filter dropdowns — so the dropdowns stay complete even when the grid is
+    paged (they can't be derived from a single page at 120k scale)."""
+    org_filter = get_organization_filter(user)
+    types = await db.equipment.distinct("equipment_type", org_filter)
+    locations = await db.equipment.distinct("location", org_filter)
+    total = await db.equipment.count_documents(org_filter)
+    return {
+        "types": sorted([t for t in types if t]),
+        "locations": sorted([l for l in locations if l]),
+        "total": total,
+    }
 
 
 @router.get("/equipment/export/csv")

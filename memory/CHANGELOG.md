@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-06 — Operations Equipment tab: server pagination + search (120k-ready)
+Verified via UI on a 63-item demo org (paging 1→2→3, server search returns exact match, no runtime errors) + curl. Temp rows cleaned up.
+- `EquipmentInfoTab.js` now loads ONE page (24/row) from the paginated `GET /equipment?page&limit&q&equipment_type&location&ids` instead of pulling up to 5,000 rows client-side. Debounced (400ms) server search; type/location dropdowns populated from a new `GET /equipment/facets` (distinct types/locations/total) so they stay complete when the grid is paged. Coverage/expiry drill-down passes matching ids to the server. Added Prev/Next + "Showing A–B of N" + "Page X of Y" controls (data-testids `equipment-pagination`, `equipment-page-info`, `equipment-page-indicator`, `equipment-prev-page`, `equipment-next-page`).
+- Removed the old client-side filter effect (it re-filtered every row and crashed on rows with a missing `equipment_type` → `Cannot read properties of undefined`); the page now mirrors the server-filtered result null-safely.
+- Backend `GET /equipment` extended with `equipment_type`, `location`, `ids` filters (on top of the earlier `q`/`page`/`limit`). New `GET /equipment/facets` endpoint. Backward compatible: no-param callers unchanged.
+
+
 ## 2026-06 — Sicon 120k scale-hardening (read-side, part 1) + load test
 Ran a real 120,000-equipment load test (`backend/scripts/loadtest_sicon_scale.py`) against a throwaway org; measured DB-layer cost of every hot equipment path, then fixed the P0 data-integrity issues. Load-test data cleaned up after.
 
