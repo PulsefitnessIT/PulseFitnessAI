@@ -1,0 +1,15 @@
+{
+  "summary": "Verified /pulse route guard + ModuleAccessDenied dismiss removal for Pulse Fitness. All 5 assertions pass on both desktop (1920x800) and mobile (390x844): (T1) no-ops user visiting /pulse is redirected to /launch with launcher-page rendered and NO module-access-denied overlay; (T2) launcher for no-ops user shows only Staff Portal, Memberships, CRM tiles - no Operations tile or text; (T3) data-testid='module-access-denied-dismiss-btn' is absent from DOM (confirmed by count + HTML substring check); (T5) /dashboard deep-link also redirects no-ops user to /launch with no dismiss button; (T4) owner portal@pulsefitness.ltd (module_access.operations=true) reaches /pulse and Operations dashboard renders (Pulse Fitness Pro / Operations tab visible), no redirect to /launch, no denied overlay.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "test_credentials": "qa.noops@pulsefitness.ltd / QaNoOps123! (no-ops staff), portal@pulsefitness.ltd / PulseFleet123! (owner with operations). Rate-limit bypass header used: x-ratelimit-bypass",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Fix verified on both viewports. resolveHomePath returns /launch for is_operator_company users; PulseRouteElement guards /pulse; ModuleAccessDenied has only Back-to-my-area button (dismiss testid fully removed from bundle)."
+}

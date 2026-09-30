@@ -847,3 +847,12 @@ Files: backend/utils/sicon_outbox_worker.py, backend/utils/sicon_writeback.py, b
 - Launcher tiles now arrange horizontally: grid `sm:grid-cols-2 lg:grid-cols-3`, container widened to max-w-5xl (LauncherPage.js). No hard cap on modules.
 - Renamed 'Area chooser…' -> 'Area Selector…' in the Switch-area menu (AreaSwitcher.js).
 - Tested: testing_agent frontend 6/6 PASS (footer pinned on tall+short pages, Synced removed for staff / kept for engineer, dashboard KPIs + title, launcher 3-col, Area Selector rename, engineer regression). Verified at 1280px and 390px, no overflow/console errors.
+
+
+## 2026-09-30 — Bug fix: non-Operations staff routed to /pulse + Dismiss access bypass
+- Symptom: a Pulse Fitness Ltd staff member WITHOUT Operations access landed on the Operations dashboard (/pulse) every login and saw an 'Access needed' modal; pressing 'Dismiss' hid the modal and EXPOSED the Operations dashboard (security bypass).
+- Root cause: the /pulse route rendered LiteDashboardPage for any logged-in user with NO operations-access guard (unlike /dashboard which had one). The global ModuleAccessDenied overlay's 'Dismiss' simply hid itself, leaving the protected page visible behind it.
+- Fix 1 (AppRoutes.js): new PulseRouteElement guards /pulse — if `!isAdmin && module_access.operations === false`, redirect to resolveHomePath(user) (operator-company staff -> /launch); loop-guarded so a genuine single-site pulse_pro/lite customer whose home IS /pulse still renders. Honours ?as=operator preview.
+- Fix 2 (ModuleAccessDenied.js): removed the unsafe 'Dismiss' button entirely; only 'Back to my area' (-> /launch) remains.
+- Tested: testing_agent frontend 5/5 PASS on desktop+mobile (no-ops user -> /launch, no Operations tile, no overlay; dismiss testid absent from bundle; /dashboard deep-link also redirects; owner WITH operations still reaches /pulse). Temp fixture cleaned up.
+- OUTSTANDING (data/deploy, not code): 'Lee Somers can't see MOD Operations' — MOD Operations is a per-user opt-in; needs the module-access grant fix DEPLOYED to production, then grant Lee the MOD Operations module (and Operations if he should have it) from People -> Module access.
