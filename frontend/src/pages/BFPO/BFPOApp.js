@@ -92,23 +92,27 @@ export default function BFPOApp() {
   ];
 
   const Header = (
-    <header className="bg-slate-900 text-white sticky top-0 z-30">
-      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="bg-white rounded-lg px-2.5 py-1.5 flex items-center" data-testid="bfpo-logo-chip">
-            <img src={PULSE_LOGO} alt="Pulse Fitness" className="h-6 w-auto object-contain" data-testid="bfpo-logo" />
+    <header className="sticky top-0 z-30" style={{ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif" }}>
+      <div className="text-white border-b border-white/10" style={{ backgroundColor: '#000000' }}>
+        <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <img src={PULSE_LOGO} alt="Pulse Fitness" className="h-10 rounded-md object-cover"
+              style={{ objectPosition: 'center', aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }}
+              data-testid="bfpo-logo" />
           </div>
+          <AccountMenu user={user} role={role} online={online} onLogout={logout} />
         </div>
-        <AccountMenu user={user} role={role} online={online} onLogout={logout} />
       </div>
       {role === 'staff' && (
-        <div className="max-w-6xl mx-auto px-4 flex gap-1 overflow-x-auto">
-          {staffNav.map((n) => (
-            <button key={n.key} onClick={() => setView(n.key)} data-testid={`staff-nav-${n.key}`}
-              className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${view === n.key ? 'border-cyan-400 text-white' : 'border-transparent text-slate-400 hover:text-white'}`}>
-              <n.icon className="w-4 h-4" /> {n.label}
-            </button>
-          ))}
+        <div className="bg-white border-b border-slate-200">
+          <div className="max-w-6xl mx-auto px-4 py-2.5 flex gap-1.5 overflow-x-auto">
+            {staffNav.map((n) => (
+              <button key={n.key} onClick={() => setView(n.key)} data-testid={`staff-nav-${n.key}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${view === n.key ? 'bg-cyan-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
+                <n.icon className="w-4 h-4" /> {n.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </header>

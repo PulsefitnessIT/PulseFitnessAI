@@ -1,4 +1,15 @@
-# ═══ 2026-06 · PPM planned-servicing checklists (Phase 2) — built & verified ═══
+# ═══ 2026-06 · BFPO header re-aligned to the platform Navbar chrome ═══
+Per user (compared BFPO header vs main app Navbar) — match logo, colours, font, options exactly.
+- BFPOApp.js header: pure black (#000000) bar, Proxima Nova font, real Pulse lockup rendered with the
+  SAME treatment as components/shared/Navbar.js (h-10, clipPath inset round 6px, no white chip).
+- AccountMenu.js trigger changed from a hamburger to the platform user chip: bordered avatar circle
+  (initial) + name + ChevronDown; dropdown keeps Account settings / Change password / Sign out + Synced.
+- Staff nav converted from underline tabs to platform pill tabs (active = cyan pill) on a light band.
+- Verified: staff (1920px) + engineer (390px) headers match the app; 0 overflow.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 Configurable inspection checklists + site service certificates, layered on the BFPO portal.
 Backend routes/bfpo_ppm.py (prefix /api/bfpo/ppm, registered in route_registry/core.py):
 - Collections: bfpo_ppm_templates (per equipment_type category, staff-editable), bfpo_ppm_services
