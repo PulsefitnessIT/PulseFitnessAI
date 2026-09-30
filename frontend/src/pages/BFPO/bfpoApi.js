@@ -27,6 +27,17 @@ export async function uploadFile(file) {
   return r.data;
 }
 
+// Public invite flow (no session) — used by the set-password page.
+export async function inviteStatus(token) {
+  const r = await axios.get(`${API}/bfpo/invite/${token}`);
+  return r.data;
+}
+
+export async function acceptInvite(token, password) {
+  const r = await axios.post(`${API}/bfpo/invite/${token}/accept`, { password });
+  return r.data;
+}
+
 export async function changePassword(current_password, new_password) {
   const r = await axios.post(`${API}/account/change-password`,
     { current_password, new_password },

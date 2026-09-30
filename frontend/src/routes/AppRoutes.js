@@ -57,6 +57,7 @@ const StaffLogin = lazy(() => import('@/pages/StaffLogin'));
 const StaffResetPassword = lazy(() => import('@/pages/StaffResetPassword'));
 const StaffPortal = lazy(() => import('@/pages/StaffPortal'));
 const BFPOApp = lazy(() => import('@/pages/BFPO/BFPOApp'));
+const BFPOInviteSetPassword = lazy(() => import('@/pages/BFPO/BFPOInviteSetPassword'));
 const WhatsNewPage = lazy(() => import('@/pages/WhatsNewPage'));
 const StatusPage = lazy(() => import('@/pages/StatusPage'));
 const DpaPage = lazy(() => import('@/pages/legal/DpaPage'));
@@ -429,6 +430,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/staff-login" element={<Navigate to="/login" replace />} />
       <Route path="/staff-reset/:token" element={<StaffResetPassword />} />
       <Route path="/staff-portal" element={<StaffPortal />} />
+      <Route path="/bfpo/invite/:token" element={<BFPOInviteSetPassword />} />
       <Route path="/bfpo/*" element={<BFPOApp />} />
       <Route path="/witness-statement/:token" element={<WitnessStatementPage />} />
       {/* Iter 216h287 — Gap 9: engineer-of-engineer recruit landing.

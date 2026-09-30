@@ -20,6 +20,7 @@ import MODSiteOnboarding from './MODSiteOnboarding';
 import MODProviderDirectory from './MODProviderDirectory';
 import StaffOnboardingWizard from './StaffOnboardingWizard';
 import DealerOnboardingWizard from './DealerOnboardingWizard';
+import StaffEngineers from '../BFPO/staff/StaffEngineers';
 import OnboardingProjects from './OnboardingProjects';
 import OnboardingReports from './OnboardingReports';
 
@@ -38,6 +39,7 @@ const TABS = [
   { id: 'mod-providers', group: 'Customers', label: 'Service Providers', icon: Truck, description: 'Overseas service-provider directory — contact details and the MOD sites each provider covers. Assign providers to sites from MOD Equipment & Readiness.' },
   { id: 'dealer',       group: 'Partners',  label: 'Dealer / Engineer',   icon: Wrench,          description: 'Onboard a Pulse Fitness distribution dealer or field engineer — gets Service Desk + Inventory & Distribution. Captures full company detail; owner & engineers set up via invite link or temporary password.' },
   { id: 'staff',        group: 'Team',      label: 'Onboard Staff',       icon: UserPlus,        description: 'Invite a new team member — admin, owner, manager or staff. Five quick steps; they set their own password from a 72 h invite link.' },
+  { id: 'bfpo-engineers', group: 'Team',    label: 'BFPO / MOD Engineers', icon: ShieldCheck,    description: 'Set up MOD/BFPO field engineers and leads — allocate their territories and sites, then send a set-password invite link or issue a temporary password.' },
 ];
 
 const GROUPS = ['Manage', 'Customers', 'Partners', 'Team'];
@@ -106,6 +108,7 @@ const AdminOnboardingHub = ({ API: _api, onComplete, isPulseAdmin = false, initi
       {tab === 'mod-providers' && <MODProviderDirectory />}
       {tab === 'dealer'      && <DealerOnboardingWizard />}
       {tab === 'staff'       && <StaffOnboardingWizard isPulseAdmin={isPulseAdmin} />}
+      {tab === 'bfpo-engineers' && <StaffEngineers />}
     </div>
   );
 };

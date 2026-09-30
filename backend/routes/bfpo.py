@@ -14,17 +14,19 @@ Roles (stored on the user doc as `bfpo_role`):
 Server-side scoping is enforced on every read/write so an engineer can
 never reach another territory's job by changing an id.
 """
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 from typing import Optional
 import io
+import os
 import uuid
+import secrets
 import logging
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.responses import Response
 
 from utils.database import db
-from utils.auth import get_current_user
+from utils.auth import get_current_user, hash_password
 from utils.svc_state import (
     transition as state_transition,
     append_event,
@@ -88,8 +90,11 @@ async def _engineer_scope(user: dict) -> dict:
         return {"unrestricted": True, "territory_ids": list(user.get("bfpo_territory_ids") or []),
                 "active_site_ids": [], "all_site_ids": []}
     terr = list(user.get("bfpo_territory_ids") or [])
-    active_sites: set[str] = set()
-    all_sites: set[str] = set()
+    # Permanently-allocated sites (set by staff when the engineer is set up)
+    # are always in scope, distinct from the time-boxed visiting-access grants.
+    assigned = list(user.get("bfpo_site_ids") or [])
+    active_sites: set[str] = set(assigned)
+    all_sites: set[str] = set(assigned)
     today = _today()
     async for g in db.bfpo_visiting_access.find(
         {"organization_id": BFPO_ORG_ID, "engineer_id": user["id"]}, {"_id": 0},
@@ -875,6 +880,244 @@ def _build_job_sheet_pdf(case: dict, events: list, signature: dict | None) -> by
     c.showPage()
     c.save()
     return buf.getvalue()
+
+
+# ─────────────────────────────────────────────────────────────────
+# Engineer setup & invitations (staff / master-admin only)
+# ─────────────────────────────────────────────────────────────────
+
+def _frontend_url() -> str:
+    return (os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or "").rstrip("/")
+
+
+def _public_member(u: dict) -> dict:
+    return {
+        "id": u.get("id"), "full_name": u.get("full_name"), "email": u.get("email"),
+        "phone": u.get("phone", ""), "bfpo_role": u.get("bfpo_role"),
+        "bfpo_territory_ids": list(u.get("bfpo_territory_ids") or []),
+        "bfpo_site_ids": list(u.get("bfpo_site_ids") or []),
+        "is_active": u.get("is_active", True),
+        "invite_pending": bool(u.get("invite_pending")),
+        "must_change_password": bool(u.get("must_change_password")),
+        "created_at": u.get("created_at"),
+    }
+
+
+def _gen_temp_password() -> str:
+    # Human-typeable temporary password, still hard to guess.
+    return "Pulse-" + secrets.token_urlsafe(6)
+
+
+async def _issue_invite(user_doc: dict) -> str:
+    """Create a single-use invite token, email the set-password link, and
+    return the absolute URL (so staff can copy it even if email is offline)."""
+    token = secrets.token_urlsafe(32)
+    await db.bfpo_invites.delete_many({"user_id": user_doc["id"]})
+    await db.bfpo_invites.insert_one({
+        "id": str(uuid.uuid4()), "organization_id": BFPO_ORG_ID,
+        "user_id": user_doc["id"], "email": user_doc["email"], "token": token,
+        "status": "sent", "created_at": _now(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+    })
+    url = f"{_frontend_url()}/bfpo/invite/{token}"
+    name = user_doc.get("full_name") or "there"
+    html = (
+        f"<div style='font-family:Arial,sans-serif;max-width:520px;margin:0 auto'>"
+        f"<h2 style='color:#111'>Set up your Pulse Fitness MOD account</h2>"
+        f"<p>Hi {name},</p>"
+        f"<p>You've been set up on the Pulse Fitness MOD / BFPO Engineer Portal. "
+        f"Click below to choose a password and activate your account.</p>"
+        f"<p style='margin:28px 0'><a href='{url}' "
+        f"style='background:#0891b2;color:#fff;padding:12px 22px;border-radius:10px;"
+        f"text-decoration:none;font-weight:bold'>Set my password</a></p>"
+        f"<p style='color:#666;font-size:13px'>This link expires in 7 days. If the button "
+        f"doesn't work, paste this into your browser:<br>{url}</p></div>"
+    )
+    try:
+        from utils.email import send_email
+        await send_email(to=user_doc["email"],
+                         subject="Set up your Pulse Fitness MOD engineer account",
+                         html=html, organization_id=BFPO_ORG_ID,
+                         kind="bfpo_invite", category="support")
+    except Exception as e:
+        logger.warning("BFPO invite email failed for %s: %s", user_doc["email"], e)
+    return url
+
+
+@router.get("/staff/territories")
+async def staff_territories(user=Depends(_require_staff)):
+    rows = await db.bfpo_territories.find(
+        {"organization_id": BFPO_ORG_ID},
+        {"_id": 0, "id": 1, "name": 1, "country": 1},
+    ).to_list(200)
+    return {"territories": rows}
+
+
+@router.get("/staff/team")
+async def staff_team(user=Depends(_require_staff)):
+    """Full management list of every BFPO portal member (engineer/lead/staff)."""
+    rows = await db.users.find(
+        {"organization_id": BFPO_ORG_ID, "bfpo_role": {"$in": ["engineer", "lead", "staff"]}},
+        {"_id": 0},
+    ).to_list(500)
+    rows.sort(key=lambda r: (r.get("bfpo_role") != "staff", (r.get("full_name") or "").lower()))
+    return {"members": [_public_member(r) for r in rows]}
+
+
+@router.post("/staff/engineers")
+async def create_engineer(data: dict = Body(...), user=Depends(_require_staff)):
+    email = (data.get("email") or "").strip().lower()
+    full_name = (data.get("full_name") or "").strip()
+    role = (data.get("bfpo_role") or "engineer").lower()
+    if role not in ("engineer", "lead", "staff"):
+        role = "engineer"
+    if not full_name:
+        raise HTTPException(400, "Full name is required")
+    if not email or "@" not in email:
+        raise HTTPException(400, "A valid email address is required")
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(400, "A user with this email address already exists")
+
+    mode = (data.get("password_mode") or "invite").lower()
+    if mode not in ("invite", "temp"):
+        mode = "invite"
+    territory_ids = [t for t in (data.get("bfpo_territory_ids") or []) if t]
+    site_ids = [s for s in (data.get("bfpo_site_ids") or []) if s]
+    phone = (data.get("phone") or "").strip()
+    uid = str(uuid.uuid4())
+
+    doc = {
+        "id": uid, "organization_id": BFPO_ORG_ID, "email": email, "username": email,
+        "full_name": full_name, "phone": phone,
+        "role": "engineer" if role in ("engineer", "lead") else "staff",
+        "bfpo_role": role, "bfpo_territory_ids": territory_ids, "bfpo_site_ids": site_ids,
+        "module_overrides": ({"mod_operations": True} if role == "staff" else {}),
+        "account_type": "mod_site", "is_mod_user": True, "is_active": True,
+        "must_change_password": False, "created_at": _now(),
+        "created_by": user.get("id"),
+    }
+
+    temp_password = None
+    invite_url = None
+    if mode == "temp":
+        temp_password = (data.get("temp_password") or "").strip() or _gen_temp_password()
+        if len(temp_password) < 8:
+            raise HTTPException(400, "Temporary password must be at least 8 characters")
+        doc["password"] = hash_password(temp_password)
+        doc["must_change_password"] = True
+    else:
+        # Unusable placeholder hash until the invitee sets their own password.
+        doc["password"] = hash_password(secrets.token_urlsafe(24))
+        doc["invite_pending"] = True
+
+    await db.users.insert_one(doc)
+    if role in ("engineer", "lead"):
+        await db.svc_engineers.update_one(
+            {"id": uid, "organization_id": BFPO_ORG_ID},
+            {"$set": {"id": uid, "organization_id": BFPO_ORG_ID, "full_name": full_name,
+                      "email": email, "active": True, "created_at": _now()}}, upsert=True)
+
+    if mode == "invite":
+        invite_url = await _issue_invite(doc)
+
+    return {"member": _public_member(doc), "temp_password": temp_password, "invite_url": invite_url}
+
+
+@router.patch("/staff/engineers/{eng_id}")
+async def update_engineer(eng_id: str, data: dict = Body(...), user=Depends(_require_staff)):
+    u = await db.users.find_one({"id": eng_id, "organization_id": BFPO_ORG_ID}, {"_id": 0})
+    if not u:
+        raise HTTPException(404, "Engineer not found")
+    updates: dict = {"updated_at": _now()}
+    if "full_name" in data:
+        fn = (data.get("full_name") or "").strip()
+        if not fn:
+            raise HTTPException(400, "Full name cannot be empty")
+        updates["full_name"] = fn
+    if "phone" in data:
+        updates["phone"] = (data.get("phone") or "").strip()
+    if "bfpo_territory_ids" in data:
+        updates["bfpo_territory_ids"] = [t for t in (data.get("bfpo_territory_ids") or []) if t]
+    if "bfpo_site_ids" in data:
+        updates["bfpo_site_ids"] = [s for s in (data.get("bfpo_site_ids") or []) if s]
+    if "bfpo_role" in data:
+        role = (data.get("bfpo_role") or "").lower()
+        if role not in ("engineer", "lead", "staff"):
+            raise HTTPException(400, "Invalid role")
+        updates["bfpo_role"] = role
+        updates["role"] = "engineer" if role in ("engineer", "lead") else "staff"
+        mo = dict(u.get("module_overrides") or {})
+        if role == "staff":
+            mo["mod_operations"] = True
+        else:
+            mo.pop("mod_operations", None)
+        updates["module_overrides"] = mo
+    await db.users.update_one({"id": eng_id, "organization_id": BFPO_ORG_ID}, {"$set": updates})
+    if updates.get("full_name") and (u.get("bfpo_role") in ("engineer", "lead")):
+        await db.svc_engineers.update_one(
+            {"id": eng_id, "organization_id": BFPO_ORG_ID}, {"$set": {"full_name": updates["full_name"]}})
+    merged = {**u, **updates}
+    return {"member": _public_member(merged)}
+
+
+@router.post("/staff/engineers/{eng_id}/resend-invite")
+async def resend_invite(eng_id: str, user=Depends(_require_staff)):
+    u = await db.users.find_one({"id": eng_id, "organization_id": BFPO_ORG_ID}, {"_id": 0})
+    if not u:
+        raise HTTPException(404, "Engineer not found")
+    await db.users.update_one({"id": eng_id, "organization_id": BFPO_ORG_ID},
+                              {"$set": {"invite_pending": True, "is_active": True}})
+    u["invite_pending"] = True
+    invite_url = await _issue_invite(u)
+    return {"success": True, "invite_url": invite_url}
+
+
+@router.post("/staff/engineers/{eng_id}/status")
+async def set_engineer_status(eng_id: str, data: dict = Body(...), user=Depends(_require_staff)):
+    active = bool(data.get("active"))
+    u = await db.users.find_one({"id": eng_id, "organization_id": BFPO_ORG_ID}, {"_id": 0})
+    if not u:
+        raise HTTPException(404, "Engineer not found")
+    updates = {"is_active": active, "updated_at": _now()}
+    if not active:
+        # Kill any live sessions for a deactivated engineer.
+        updates["tokens_revoked_before"] = int(datetime.now(timezone.utc).timestamp())
+    await db.users.update_one({"id": eng_id, "organization_id": BFPO_ORG_ID}, {"$set": updates})
+    if u.get("bfpo_role") in ("engineer", "lead"):
+        await db.svc_engineers.update_one(
+            {"id": eng_id, "organization_id": BFPO_ORG_ID}, {"$set": {"active": active}})
+    return {"success": True, "is_active": active}
+
+
+# ── Public invite acceptance (no session required) ───────────────
+
+@router.get("/invite/{token}")
+async def invite_status(token: str):
+    inv = await db.bfpo_invites.find_one({"token": token}, {"_id": 0})
+    if not inv:
+        return {"valid": False, "reason": "not_found"}
+    if inv.get("status") == "accepted":
+        return {"valid": False, "reason": "used"}
+    if (inv.get("expires_at") or "") < _now():
+        return {"valid": False, "reason": "expired"}
+    u = await db.users.find_one({"id": inv["user_id"]}, {"_id": 0, "full_name": 1})
+    return {"valid": True, "email": inv["email"], "full_name": (u or {}).get("full_name", "")}
+
+
+@router.post("/invite/{token}/accept")
+async def invite_accept(token: str, data: dict = Body(...)):
+    inv = await db.bfpo_invites.find_one({"token": token}, {"_id": 0})
+    if not inv or inv.get("status") == "accepted" or (inv.get("expires_at") or "") < _now():
+        raise HTTPException(400, "This invite link is invalid or has expired")
+    password = data.get("password") or ""
+    if len(password) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+    await db.users.update_one({"id": inv["user_id"]}, {"$set": {
+        "password": hash_password(password), "invite_pending": False, "is_active": True,
+        "must_change_password": False, "password_updated_at": _now()}})
+    await db.bfpo_invites.update_one({"token": token},
+                                     {"$set": {"status": "accepted", "accepted_at": _now()}})
+    return {"success": True}
 
 
 __all__ = ["router"]

@@ -16,13 +16,14 @@ import StaffSites from './staff/StaffSites';
 import StaffJobs from './staff/StaffJobs';
 import StaffJobDetail from './staff/StaffJobDetail';
 import StaffVisiting from './staff/StaffVisiting';
+import StaffEngineers from './staff/StaffEngineers';
 import PPMEngineerList from './ppm/PPMEngineerList';
 import PPMServiceDetail from './ppm/PPMServiceDetail';
 import PPMStaff from './ppm/PPMStaff';
 import PPMReports from './ppm/PPMReports';
 import {
   Home, ClipboardList, MapPin, Package, History as HistoryIcon, Globe2,
-  LayoutGrid, KeyRound, LogOut, Wifi, WifiOff, ClipboardCheck, BarChart3,
+  LayoutGrid, KeyRound, LogOut, Wifi, WifiOff, ClipboardCheck, BarChart3, Users,
 } from 'lucide-react';
 
 export default function BFPOApp() {
@@ -91,6 +92,7 @@ export default function BFPOApp() {
     { key: 'jobs', label: 'Jobs', icon: ClipboardList },
     { key: 'servicing', label: 'Servicing', icon: ClipboardCheck },
     { key: 'reports', label: 'Reports', icon: BarChart3 },
+    { key: 'engineers', label: 'Engineers', icon: Users },
     { key: 'visiting', label: 'Visiting Access', icon: KeyRound },
   ];
 
@@ -131,6 +133,7 @@ export default function BFPOApp() {
             {view === 'sites' && <StaffSites onOpenJobs={(f) => { setStaffFilter(f); setView('jobs'); }} />}
             {view === 'jobs' && <StaffJobs initialFilter={staffFilter} onOpenJob={openStaffJob} />}
             {view === 'visiting' && <StaffVisiting />}
+            {view === 'engineers' && <StaffEngineers />}
             {view === 'servicing' && <PPMStaff onOpen={openPpm} />}
             {view === 'reports' && <PPMReports />}
             {view === 'staffjob' && <StaffJobDetail jobId={jobId} onBack={() => setView('jobs')} />}
