@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutGrid, ChevronDown, Headphones, HardHat, Activity, Check, Boxes, CalendarClock } from 'lucide-react';
+import { LayoutGrid, ChevronDown, Headphones, HardHat, Activity, Check, Boxes, CalendarClock, ShieldCheck } from 'lucide-react';
 
 /**
  * Iter 283 — "Switch area" button.
@@ -42,6 +42,10 @@ function accessibleAreas(user) {
   const canEngineer = isMaster || user.role === 'engineer' || user.is_engineer === true || !!user.engineer_id;
   if (canEngineer) areas.push({ id: 'engineer', label: 'Engineer app', path: '/svc/engineer', icon: HardHat });
 
+  // MOD Operations — per-user opt-in module (platform admins always qualify).
+  const canModOps = isMaster || (user.module_overrides && user.module_overrides.mod_operations === true);
+  if (canModOps) areas.push({ id: 'mod-operations', label: 'MOD Operations', path: '/bfpo', icon: ShieldCheck });
+
   // Staff Portal — anyone with an employee record in the staffing register
   // (resolved server-side into user.has_staff_portal).
   if (user.has_staff_portal === true) {
@@ -56,6 +60,7 @@ function currentAreaId(pathname) {
   if (p.startsWith('/inventory') || p.startsWith('/service-desk/inventory')) return 'inventory';
   if (p.startsWith('/service-desk')) return 'service-desk';
   if (p.startsWith('/svc/engineer') || p.startsWith('/engineer')) return 'engineer';
+  if (p.startsWith('/bfpo')) return 'mod-operations';
   if (p.startsWith('/staff-portal')) return 'staff-portal';
   return 'main';
 }

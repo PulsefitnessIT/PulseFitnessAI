@@ -29,7 +29,12 @@ import {
 
 export default function BFPOApp() {
   const { user, loading: authLoading, logout: platformLogout } = useAuth();
-  const role = user?.bfpo_role || '';
+  // A Pulse Fitness staffer granted the MOD Operations module (platform admins
+  // always qualify) gets the staff operations view even without a bfpo_role.
+  const hasModOps = !!(user && (user.is_master_admin || user.is_pulse_admin
+    || (user.module_overrides && user.module_overrides.mod_operations === true)));
+  const rawRole = (user?.bfpo_role || '').toLowerCase();
+  const role = ['engineer', 'lead', 'staff'].includes(rawRole) ? rawRole : (hasModOps ? 'staff' : '');
   const [view, setView] = useState('home');
   const [jobId, setJobId] = useState(null);
   const [jobFilter, setJobFilter] = useState('all_open');
@@ -75,8 +80,6 @@ export default function BFPOApp() {
     );
   }
   // MOD Operations overview dashboard is module-gated to select Pulse staff.
-  const hasModOps = !!(user.is_master_admin || user.is_pulse_admin
-    || (user.module_overrides && user.module_overrides.mod_operations === true));
   if (role === 'staff' && !hasModOps) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-6" data-testid="bfpo-no-modops">

@@ -57,7 +57,10 @@ def _role(user: dict) -> str:
     r = (user.get("bfpo_role") or "").lower()
     if r in ("engineer", "lead", "staff"):
         return r
-    if user.get("is_master_admin") or user.get("is_pulse_admin"):
+    # Pulse Fitness staff granted the MOD Operations module (platform admins
+    # always qualify) get the staff operations view even without a bfpo_role.
+    from utils.module_access import has_mod_operations
+    if has_mod_operations(user):
         return "staff"
     return ""
 

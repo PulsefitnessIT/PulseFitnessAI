@@ -11,7 +11,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Activity, Calendar, Briefcase, Rocket, MessagesSquare, Headset, Boxes,
-  UserCircle, Loader2, ArrowRight, ShieldAlert,
+  UserCircle, Loader2, ArrowRight, ShieldAlert, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import Navbar from '@/components/shared/Navbar';
@@ -66,6 +66,14 @@ export default function LauncherPage() {
         desc: 'Your day, time, holidays and payslip info.', accent: '#0891b2' });
     }
     MODS.filter((m) => hasModuleAccess(user, m.key)).forEach((m) => out.push(m));
+    // MOD Operations — per-user opt-in (module_overrides.mod_operations),
+    // platform admins always qualify. Routes into the /bfpo staff dashboard.
+    const hasModOps = user.is_master_admin || user.is_pulse_admin
+      || (user.module_overrides && user.module_overrides.mod_operations === true);
+    if (hasModOps) {
+      out.push({ key: 'mod_operations', label: 'MOD Operations', path: '/bfpo', icon: ShieldCheck,
+        desc: 'MOD global operations — sites, jobs, PPM.', accent: '#0891b2' });
+    }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, access]);

@@ -115,6 +115,7 @@ _MODULE_META = {
     "memberships": ("Memberships", "Members, classes, billing"),
     "marketing":   ("Marketing", "Campaigns, segments, image library"),
     "crm":         ("CRM", "Leads, deals, business pipeline"),
+    "mod_operations": ("MOD Operations", "MOD global operations dashboard (/bfpo)"),
 }
 
 
@@ -240,6 +241,18 @@ def _module_access_payload(target: dict, org: Optional[dict]) -> dict:
         "fix_action": None, "informational": True,
     })
 
+    # MOD Operations — per-user opt-in (module_overrides.mod_operations) that
+    # unlocks the Pulse Fitness MOD global operations dashboard at /bfpo.
+    mod_ops_on = (target.get("module_overrides") or {}).get("mod_operations") is True
+    modules.append({
+        "key": "mod_operations", "label": "MOD Operations",
+        "blurb": "MOD global operations dashboard (/bfpo)",
+        "org_enabled": True, "user_access": mod_ops_on or privileged,
+        "reason": ("Full access — " + priv_label) if privileged
+                  else ("MOD Operations access granted" if mod_ops_on else "No MOD Operations access"),
+        "fix_action": None if privileged else ("revoke_flag" if mod_ops_on else "grant_flag"),
+    })
+
     return {
         "organization_name": (org or {}).get("name") or "",
         "organization_id": (org or {}).get("id"),
@@ -258,7 +271,7 @@ async def grant_user_module_access(user_id: str, module: str, user: dict = Depen
     Returns the refreshed diagnostics so the drawer updates in place."""
     require_master_admin(user)
     await assert_user_in_pulse_scope(user, user_id)
-    if module not in {"operations", "memberships", "marketing", "crm", "service_desk", "inventory"}:
+    if module not in {"operations", "memberships", "marketing", "crm", "service_desk", "inventory", "mod_operations"}:
         raise HTTPException(400, "Unknown module")
 
     target = await db.users.find_one({"id": user_id}, {"_id": 0})
@@ -270,6 +283,20 @@ async def grant_user_module_access(user_id: str, module: str, user: dict = Depen
 
     org_id = target.get("organization_id")
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0}) if org_id else None
+
+    # MOD Operations — per-user override that unlocks the /bfpo ops dashboard.
+    if module == "mod_operations":
+        overrides = {**(target.get("module_overrides") or {})}
+        overrides["mod_operations"] = True
+        coll = db.crm_users if is_crm_user else db.users
+        await coll.update_one({"id": user_id}, {"$set": {"module_overrides": overrides}})
+        target["module_overrides"] = overrides
+        await log_activity("module_access.grant_flag",
+                           f"Granted MOD Operations to {target.get('full_name') or target.get('email') or user_id}",
+                           user.get("email") or "master_admin", "user", user_id)
+        p = _module_access_payload(target, org)
+        p["result"] = "granted_flag"
+        return p
 
     # Access flags (Service Desk / Inventory) drive the Switch-area and are NOT
     # covered by org module access or Owner "full access", so they are granted
@@ -334,7 +361,7 @@ async def revoke_user_module_access(user_id: str, module: str,
     "user" re-applies the per-staff block, "both" does both."""
     require_master_admin(user)
     await assert_user_in_pulse_scope(user, user_id)
-    if module not in {"operations", "memberships", "marketing", "crm", "service_desk", "inventory"}:
+    if module not in {"operations", "memberships", "marketing", "crm", "service_desk", "inventory", "mod_operations"}:
         raise HTTPException(400, "Unknown module")
     scope = (body or {}).get("scope", "user")
     if scope not in {"org", "user", "both"}:
@@ -363,6 +390,17 @@ async def revoke_user_module_access(user_id: str, module: str,
         _lbl = "Service Desk" if module == "service_desk" else "Inventory & Distribution"
         await log_activity("module_access.revoke_flag",
                            f"Removed {_lbl} from {target_name}", actor, "user", user_id)
+        return _module_access_payload(target, org)
+
+    # MOD Operations — clear the per-user override.
+    if module == "mod_operations":
+        overrides = {**(target.get("module_overrides") or {})}
+        overrides["mod_operations"] = False
+        coll = db.crm_users if is_crm_user else db.users
+        await coll.update_one({"id": user_id}, {"$set": {"module_overrides": overrides}})
+        target["module_overrides"] = overrides
+        await log_activity("module_access.revoke_flag",
+                           f"Removed MOD Operations from {target_name}", actor, "user", user_id)
         return _module_access_payload(target, org)
 
     if scope in ("org", "both") and org:
