@@ -366,6 +366,32 @@ function CrmRouteElement({ user }) {
   return <Navigate to={resolveHomePath(user)} replace />;
 }
 
+/**
+ * Operations dashboard route guard. A user WITHOUT Operations entitlement must
+ * never render the Operations surface (`/pulse`), even via a direct link or a
+ * remembered-area forward — otherwise the global "Access needed" overlay pops
+ * on top of a page they could reveal by dismissing it. Send them to their
+ * resolved home instead (Pulse Fitness Ltd staff → the /launch area selector).
+ * lite / pulse_pro / MOD accounts keep /pulse as their core home, and admins
+ * and the ?as=operator preview are unaffected.
+ */
+function PulseRouteElement({ user, login }) {
+  const loc = useLocation();
+  if (!user) return <PulseLandingPage onLogin={(d) => login(d.token, d.user)} />;
+  if (isIndependentEngineer(user)) return <Navigate to="/partner-engineer" replace />;
+  const previewAsOperator = new URLSearchParams(loc.search).get('as') === 'operator';
+  const isAdmin = user.is_master_admin || user.is_pulse_admin;
+  const ma = user.module_access || {};
+  // No Operations entitlement → send them to their resolved home (Pulse Fitness
+  // Ltd staff → /launch). Guard against a home that is itself /pulse (a genuine
+  // single-site pulse_pro/lite customer) to avoid a redirect loop.
+  if (!previewAsOperator && !isAdmin && ma.operations === false) {
+    const home = resolveHomePath(user);
+    if (home !== '/pulse') return <Navigate to={home} replace />;
+  }
+  return <LiteDashboardPage />;
+}
+
 export default function AppRoutes({ user, login }) {
   const location = useLocation();
   const { activeSite, allSitesMode } = useAuth();
@@ -668,11 +694,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/instructor" element={<InstructorPortal />} />
 
       {/* ─── Pulse (Iter 216h113 — MOD users land here too) ─── */}
-      <Route path="/pulse" element={
-        user
-          ? (isIndependentEngineer(user) ? <Navigate to="/partner-engineer" replace /> : <LiteDashboardPage />)
-          : <PulseLandingPage onLogin={(d) => login(d.token, d.user)} />
-      } />
+      <Route path="/pulse" element={<PulseRouteElement user={user} login={login} />} />
       <Route path="/pulse-pricing" element={<PulsePricingPage onLogin={(d) => login(d.token, d.user)} />} />
 
       {/* ─── Help ─── */}

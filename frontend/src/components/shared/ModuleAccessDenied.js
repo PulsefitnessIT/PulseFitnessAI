@@ -33,7 +33,6 @@ export default function ModuleAccessDenied() {
   const message = info.message
     || `You don't have access to the ${label} module. Ask your administrator to grant you access.`;
 
-  const dismiss = () => setInfo(null);
   const goBack = () => { setInfo(null); window.location.assign('/launch'); };
 
   return (
@@ -80,14 +79,6 @@ export default function ModuleAccessDenied() {
             style={{ background: 'var(--pulse-primary, #0f172a)' }}
           >
             <ArrowLeft size={16} /> Back to my area
-          </button>
-          <button
-            onClick={dismiss}
-            data-testid="module-access-denied-dismiss-btn"
-            className="w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-colors"
-            style={{ color: 'var(--theme-text-muted, #64748b)' }}
-          >
-            Dismiss
           </button>
         </div>
       </div>
