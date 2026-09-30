@@ -1,55 +1,97 @@
 {
   "project_context": {
-    "description": "Integration of the ASER (Activity Safety Events Register) panel into the MOD Service Portal template.",
-    "goal": "Remove the full-screen createPortal implementation. Render the ASER component inline within the existing shell. Migrate all hardcoded dark theme utility classes to the platform's theme CSS variables."
+    "title": "Pulse Fitness Pro - MOD Operations Staff Dashboard Restyling Blueprint",
+    "description": "Restyling the MOD Operations staff dashboard (at route /bfpo, staff view) to make it visually consistent and indistinguishable from the platform's main Pulse Fitness Pro Operations area.",
+    "target_files": [
+      "/app/frontend/src/pages/BFPO/BFPOApp.js",
+      "/app/frontend/src/pages/BFPO/staff/StaffDashboard.js",
+      "/app/frontend/src/pages/BFPO/ui.js"
+    ]
   },
-  "typography": {
-    "strategy": "Inherit platform typography. Do not enforce custom fonts to maintain absolute consistency with the MOD Service Portal."
-  },
-  "colors": {
-    "mapping_rules": {
-      "primary_background": "bg-[var(--theme-surface)] (replaces bg-[var(--color-ink-deep)])",
-      "secondary_background": "bg-[var(--theme-surface-hover)] (replaces bg-white/[0.03], bg-white/5)",
-      "primary_text": "text-[var(--theme-text)] (replaces text-white)",
-      "secondary_text": "text-[var(--theme-text-muted)] (replaces text-white/40, text-white/50, text-white/60)",
-      "borders": "border-[var(--theme-border)] (replaces border-white/10, border-white/20)",
-      "brand_accents": "var(--color-brand-cyan), var(--color-brand-blue)"
+  "design_system_tokens": {
+    "colors": {
+      "header_bg": "#000000",
+      "header_border": "border-white/10",
+      "brand_primary": "bg-cyan-600 hover:bg-cyan-700 text-white",
+      "brand_cyan": "var(--color-brand-cyan, #0891b2)",
+      "subnav_bg": "bg-white border-b border-slate-200/80",
+      "pill_active": "bg-cyan-600 text-white shadow-sm shadow-cyan-600/20 font-semibold",
+      "pill_inactive": "text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium",
+      "card_bg": "bg-white",
+      "card_border": "border border-slate-200/80",
+      "card_hover": "hover:border-slate-300 hover:shadow-md transition-all duration-200",
+      "text_primary": "text-slate-900",
+      "text_secondary": "text-slate-500",
+      "text_muted": "text-slate-400"
+    },
+    "typography": {
+      "font_family_header": "'Proxima Nova', 'Satoshi', 'Inter', system-ui, sans-serif",
+      "font_family_body": "'Inter', system-ui, sans-serif",
+      "title_heading": "text-2xl sm:text-3xl font-bold tracking-tight text-slate-900",
+      "subtitle": "text-xs sm:text-sm font-semibold text-cyan-700 tracking-normal",
+      "kpi_value": "text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900",
+      "kpi_label": "text-xs sm:text-sm font-medium text-slate-500",
+      "panel_heading": "text-base font-semibold text-slate-900 flex items-center gap-2"
+    },
+    "layout_grid": {
+      "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+      "kpi_grid": "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mt-6",
+      "attention_grid": "grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8"
     }
   },
-  "layouts": {
-    "shell_integration": "Remove `createPortal(..., document.body)` and the `fixed inset-0 z-[100]` wrapper. Render ASER as a direct child of the portal content area (`relative flex flex-col w-full h-full`).",
-    "header": "Transform the top header to match sibling tabs. Ensure spacing aligns with existing portal views.",
-    "kpi_grid": "Maintain the 10-card grid but update card surfaces to use `--theme-surface` and `--theme-border`.",
-    "charts": "Update recharts tooltip and axis colors to use `--theme-text-muted` and `--theme-surface`."
-  },
-  "component_guidelines": {
-    "register_analytics_toggle": "Refactor to use existing platform classes: `.subtab-bar` for the container, `.subtab-pill` for the buttons, and `.is-active` for the selected state.",
-    "buttons": "Map custom white/dark buttons to platform-standard styles utilizing `--theme-surface-hover` or brand variables.",
-    "modals": "Keep the Email report modal as a centered dialog (`fixed inset-0 z-50 flex items-center justify-center bg-black/50`) but the inner modal card must use `bg-[var(--theme-surface)]` and `border-[var(--theme-border)]`.",
-    "wizard": "Apply standard thematic inputs and selects. Remove dark-mode specific focus rings."
+  "component_blueprints": {
+    "header_and_title_block": {
+      "header_navbar": "Black fixed/sticky header (#000000) with 80px height (h-20), white 10% opacity bottom border (`border-b border-white/10`). Left: Pulse Fitness Primary Logo Badge. Right: AccountMenu with role indicator and user profile.",
+      "title_block": "Max width container (`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2`). Main Title: 'Pulse Fitness Pro · MOD Operations' with bold typography. Subtitle: User greeting 'Welcome back, <userName>' and badge pill 'Pulse Fitness MOD Operations · Global oversight'."
+    },
+    "pill_group_navigation": {
+      "container": "Sticky subnav bar directly below header: `bg-slate-50/80 backdrop-blur-md border-b border-slate-200/80 py-3 px-4`. Scrollable flex row on mobile with hidden scrollbar (`[&::-webkit-scrollbar]:hidden`).",
+      "tabs": "Pill-style rounded buttons (`px-4 py-2 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2`). Active: `bg-cyan-600 text-white shadow-sm shadow-cyan-600/20`. Inactive: `text-slate-600 hover:text-slate-900 hover:bg-slate-200/60`."
+    },
+    "kpi_stat_cards": {
+      "grid_layout": "5-column grid (`grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4`) matching platform Operations overview.",
+      "card_style": "bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group",
+      "icon_badge": "w-11 h-11 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105",
+      "color_variants": {
+        "open": "icon: text-cyan-600, bg: bg-cyan-50 border border-cyan-100/80",
+        "urgent": "icon: text-red-600, bg: bg-red-50 border border-red-100/80",
+        "waiting_parts": "icon: text-amber-600, bg: bg-amber-50 border border-amber-100/80",
+        "overdue": "icon: text-rose-600, bg: bg-rose-50 border border-rose-100/80",
+        "sites": "icon: text-indigo-600, bg: bg-indigo-50 border border-indigo-100/80"
+      },
+      "value_typography": "text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-3 mb-0.5",
+      "label_typography": "text-xs sm:text-sm font-medium text-slate-500"
+    },
+    "attention_panels": {
+      "cards_wrapper": "bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-3",
+      "list_item": "bg-slate-50/60 hover:bg-slate-100/80 border border-slate-200/60 hover:border-slate-300 rounded-xl p-3.5 flex items-center gap-3 transition-all cursor-pointer group",
+      "priority_badges": "P1 Critical: bg-red-50 text-red-700 border-red-200 | P2 High: bg-orange-50 text-orange-700 border-orange-200 | P3 Medium: bg-amber-50 text-amber-700 border-amber-200 | P4 Low: bg-slate-50 text-slate-600 border-slate-200",
+      "health_indicators": "Normal: bg-emerald-500 dot + emerald text | Attention Required: bg-amber-500 dot + amber text | Critical: bg-red-500 dot + red text"
+    },
+    "footer": {
+      "placement": "Render standard platform Footer or bottom-padded footer with subtle top border (`border-t border-slate-200/80 py-8 text-center text-xs text-slate-400`)."
+    }
   },
   "instructions_to_main_agent": [
-    "1. Open `/app/frontend/src/pages/MODPortal/MODASERPortal.js`.",
-    "2. Locate the default export function returning `createPortal(...)` and rewrite it to return standard JSX elements inline without the React portal.",
-    "3. Strip all `fixed inset-0 z-[100]` and `bg-[var(--color-ink-deep)]` classes from the top-level wrapper, replacing them with a relative flex container: `relative flex flex-col w-full h-full bg-[var(--theme-surface)] text-[var(--theme-text)]`.",
-    "4. Perform a systematic replacement of `text-white` with `text-[var(--theme-text)]`.",
-    "5. Replace translucent white text (`text-white/40`, `text-white/50`, `text-white/60`) with `text-[var(--theme-text-muted)]`.",
-    "6. Replace `border-white/10` and `border-white/20` with `border-[var(--theme-border)]`.",
-    "7. Replace `bg-white/[0.03]` and `bg-white/5` with `bg-[var(--theme-surface-hover)]`.",
-    "8. Convert the Register/Analytics switch in the header to use `.subtab-bar` and `.subtab-pill` to match sibling tabs.",
-    "9. Remove the 'Close' button from the ASER header if it's no longer a full-screen overlay, or rewire it to correctly return to the parent view state (e.g. `setAserOpen(false)`).",
-    "10. For Recharts components, ensure the grid lines, axis text, and tooltips use CSS variables instead of hardcoded white/grey.",
-    "11. Add `data-testid` to all toggles, buttons, and form inputs."
+    "1. Open `/app/frontend/src/pages/BFPO/BFPOApp.js`.",
+    "2. Update the staffNav sub-header (lines 129-140) to wrap inside a `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8` container. Apply `bg-slate-50/80 border-b border-slate-200/80 py-3` to the subnav wrapper.",
+    "3. Style the staffNav pill buttons to match the platform's PillTabBar pattern: `px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap`. Set active tab class to `bg-cyan-600 text-white shadow-sm shadow-cyan-600/20` and inactive tab class to `text-slate-600 hover:text-slate-900 hover:bg-slate-200/60`.",
+    "4. Open `/app/frontend/src/pages/BFPO/staff/StaffDashboard.js`.",
+    "5. Update the page title block to use container `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2`. Update heading to `Pulse Fitness Pro · MOD Operations` with title size `text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight`, user greeting `Welcome back, <userName>`, and cyan sub-heading pill `Pulse Fitness MOD Operations · Global oversight`.",
+    "6. Update the KPI tiles grid to 5 columns (`grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4`). Use hover-lift effects (`hover:-translate-y-0.5 transition-all`), rounded-2xl cards (`bg-white border border-slate-200/80 shadow-sm rounded-2xl p-5`), rounded-xl icon badges, bold 3xl/4xl numbers (`text-3xl sm:text-4xl font-extrabold text-slate-900`), and muted labels (`text-xs sm:text-sm font-medium text-slate-500`).",
+    "7. Restyle the 'Needs attention now' and 'Sites requiring attention' sections with clean card wrappers (`bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm`), hover-state list items (`bg-slate-50/60 hover:bg-slate-100/80 border border-slate-200/60 hover:border-slate-300 rounded-xl p-3.5`), priority badges, and health dot status indicators.",
+    "8. Open `/app/frontend/src/pages/BFPO/ui.js`.",
+    "9. Update shared primitives (`Card`, `Badge`, `PriorityBadge`, `Btn`) to ensure rounded radii (`rounded-2xl` for cards, `rounded-full` for badges, `rounded-xl` for buttons) and consistent slate border colors (`border-slate-200/80`).",
+    "10. Ensure all elements contain proper `data-testid` attributes (e.g. `staff-nav-dashboard`, `staff-kpi-open`, `staff-urgent-<id>`, `staff-attention-<id>`)."
   ],
   "accessibility": {
-    "testing_attributes": "All interactive elements MUST include `data-testid` (e.g., `data-testid='aser-tab-analytics'`, `data-testid='aser-export-csv'`)."
+    "testing_attributes": "All interactive and key informational elements MUST include kebab-case data-testid attributes (e.g., data-testid='staff-nav-dashboard', data-testid='staff-kpi-open', data-testid='staff-urgent-item')."
   },
   "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "Follow optical alignment over geometrical alignment.",
-    "Prioritize using pre-existing components from the platform over creating new custom ones.",
-    "Ensure no transparent backgrounds are used on dropdowns or modals where content scrolls underneath.",
-    "Never use AI assistant Emoji characters for icons.",
-    "Use modern button styles with interaction animations (hover states, transitions).",
-    "All changes must preserve the existing component structure and business logic (filters, API calls, state). ONLY the styling and DOM placement are altered."
+    "Maintain full parity with Pulse Fitness Pro Operations design system.",
+    "Prioritize pre-existing tokens and Tailwind utilities over inline custom styles.",
+    "Never use AI assistant emoji characters for icons or labels.",
+    "Ensure interactive state contrast and smooth micro-interactions across hover, focus, and active states.",
+    "Preserve all existing business logic, route handlers, and API queries."
   ]
 }

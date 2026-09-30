@@ -154,7 +154,7 @@ export default function AreaSwitcher({ user, tone = 'header', className = '' }) 
                   style={dark ? { color: 'var(--theme-text-muted)' } : { color: '#475569' }}
                   data-testid="area-switcher-chooser"
                 >
-                  <LayoutGrid size={16} /> Area chooser…
+                  <LayoutGrid size={16} /> Area Selector…
                 </button>
               </div>
             )}

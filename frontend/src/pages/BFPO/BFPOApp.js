@@ -117,21 +117,21 @@ export default function BFPOApp() {
   const Header = (
     <header className="sticky top-0 z-30" style={{ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif" }}>
       <div className="on-dark text-white border-b border-white/10" style={{ backgroundColor: '#000000' }}>
-        <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img src={PULSE_LOGO} alt="Pulse Fitness" className="h-10 rounded-md object-cover"
               style={{ objectPosition: 'center', aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }}
               data-testid="bfpo-logo" />
           </div>
-          <AccountMenu user={user} role={role} online={online} onLogout={logout} />
+          <AccountMenu user={user} role={role} online={online} onLogout={logout} showSync={role !== 'staff'} />
         </div>
       </div>
       {role === 'staff' && (
-        <div className="bg-white border-b border-slate-200">
-          <div className="max-w-6xl mx-auto px-4 py-2.5 flex gap-1.5 overflow-x-auto">
+        <div className="bg-slate-50/80 backdrop-blur-md border-b border-slate-200/80">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
             {staffNav.map((n) => (
               <button key={n.key} onClick={() => setView(n.key)} data-testid={`staff-nav-${n.key}`}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${view === n.key ? 'bg-cyan-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${view === n.key ? 'bg-cyan-600 text-white shadow-sm shadow-cyan-600/20' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'}`}>
                 <n.icon className="w-4 h-4" /> {n.label}
               </button>
             ))}
@@ -142,10 +142,10 @@ export default function BFPOApp() {
   );
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] pb-16">
+    <div className="min-h-screen bg-[#F8F9FA] flex flex-col">
       {welcome && <WelcomeKit data={welcome} onStart={dismissWelcome} onViewJobs={() => { dismissWelcome(); setJobFilter('all_open'); setView('jobs'); }} />}
       {Header}
-      <main>
+      <main className="flex-1">
         {role === 'staff' ? (
           <>
             {view === 'dashboard' && <StaffDashboard userName={user.full_name} role={role} onOpenJobs={(f) => { setStaffFilter(f); setView('jobs'); }} onOpenJob={openStaffJob} />}

@@ -182,7 +182,7 @@ export default function LauncherPage() {
     <div className="min-h-screen overflow-x-hidden pulse-font" style={{ background: 'var(--theme-bg)' }} data-testid="launcher-page">
       <Navbar />
       <div className="pt-24 pb-12 module-fade-in">
-        <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <div className="text-xs font-semibold uppercase tracking-[0.18em] pulse-font-body" style={{ color: 'var(--color-brand-cyan)' }}>Pulse Fitness</div>
             <h1 className="mt-1 text-2xl sm:text-4xl tracking-tight font-semibold pulse-font-heading leading-tight" style={{ color: 'var(--theme-text)' }} data-testid="launcher-greeting">{greeting}, {first}</h1>
@@ -203,7 +203,7 @@ export default function LauncherPage() {
               Remember my choice and take me straight there next time
             </span>
           </label>
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {orderedDestinations.map((d, i) => {
               const Icon = d.icon;
               const tint = d.accent || '#0891b2';

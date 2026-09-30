@@ -3,7 +3,7 @@ import { changePassword } from './bfpoApi';
 import { Btn, inputCls, Field, ROLE_LABEL } from './ui';
 import { Menu, X, LogOut, KeyRound, UserCog, Wifi, WifiOff, Loader2, CheckCircle2, ChevronDown } from 'lucide-react';
 
-export default function AccountMenu({ user, role, online, onLogout }) {
+export default function AccountMenu({ user, role, online, onLogout, showSync = true }) {
   const [open, setOpen] = useState(false);
   const [modal, setModal] = useState(false);
   const ref = useRef(null);
@@ -19,9 +19,11 @@ export default function AccountMenu({ user, role, online, onLogout }) {
   return (
     <div className="relative" ref={ref}>
       <div className="flex items-center gap-3">
-        <span className={`hidden sm:flex items-center gap-1 text-xs ${online ? 'text-emerald-400' : 'text-amber-400'}`} data-testid="bfpo-online">
-          {online ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}{online ? 'Synced' : 'Offline'}
-        </span>
+        {showSync && (
+          <span className={`hidden sm:flex items-center gap-1 text-xs ${online ? 'text-emerald-400' : 'text-amber-400'}`} data-testid="bfpo-online">
+            {online ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}{online ? 'Synced' : 'Offline'}
+          </span>
+        )}
         <button onClick={() => setOpen((v) => !v)} data-testid="bfpo-menu-button"
           className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/20 hover:bg-white/10 transition-colors" aria-label="Open menu">
           <span className="w-7 h-7 rounded-full bg-cyan-600 flex items-center justify-center text-white text-xs font-bold">
