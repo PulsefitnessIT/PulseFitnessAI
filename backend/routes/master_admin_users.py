@@ -247,10 +247,15 @@ def _module_access_payload(target: dict, org: Optional[dict]) -> dict:
     modules.append({
         "key": "mod_operations", "label": "MOD Operations",
         "blurb": "MOD global operations dashboard (/bfpo)",
-        "org_enabled": True, "user_access": mod_ops_on or privileged,
-        "reason": ("Full access — " + priv_label) if privileged
-                  else ("MOD Operations access granted" if mod_ops_on else "No MOD Operations access"),
-        "fix_action": None if privileged else ("revoke_flag" if mod_ops_on else "grant_flag"),
+        "org_enabled": True,
+        # MOD Operations is a genuine per-user opt-in that unlocks the /bfpo tile
+        # and dashboard. It must stay explicitly toggleable for EVERYONE — even
+        # owners/admins who are otherwise "privileged" — otherwise the panel shows
+        # "Full access" with no Grant button and the override never gets set, so
+        # the launcher tile & gate (which key off this override) never light up.
+        "user_access": mod_ops_on,
+        "reason": "MOD Operations access granted" if mod_ops_on else "No MOD Operations access",
+        "fix_action": "revoke_flag" if mod_ops_on else "grant_flag",
     })
 
     return {
