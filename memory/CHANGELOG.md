@@ -793,3 +793,11 @@ Founder: build the "report into Sicon" write-back scaffold behind the flag, disa
 - **Tests**: tests/test_sicon_writeback_jun2026.py (4: worker gate leaves rows pending, simulate exempt, facade idempotent enqueue + summary, flag reflection). Offline link-critical regression: 103 pass across writeback/outbound/readside/relationships/caseeq/engineer/bridge/webapi_v1/case-engine/import-engine/deep-mapping/link-audit/partner-relink. Backend imports clean.
 - Pre-existing environmental: test_iter_215dz_sicon_worker (HTTP master-admin login) fails on auth/429 in this env — unrelated to worker drain logic.
 Files: backend/utils/sicon_outbox_worker.py, backend/utils/sicon_writeback.py, backend/tests/test_sicon_writeback_jun2026.py.
+
+
+## 2026-09-30 — Bug fix: BFPO/MOD header account name "blacked out"
+- Symptom: In the BFPO/MOD portal header (black bar), the account chip name + avatar initial rendered near-black (#18181B) on black in LIGHT theme — user saw a "blacked out" name.
+- Root cause: global rule `index.css:765 [data-theme="light"] .text-white { color: var(--theme-text) !important }` darkens ALL `.text-white` in light mode. The BFPO header black bar (BFPOApp.js) used an inline `backgroundColor:#000000` (not a whitelisted `.bg-*` class) and lacked the `.on-dark` opt-out, so its white text got flipped dark.
+- Fix: added `on-dark` class to the BFPO header black-bar div in `/app/frontend/src/pages/BFPO/BFPOApp.js` (~line 99). `.on-dark .text-white` (index.css:812) keeps descendant white text white in light mode.
+- Verified on preview via headless browser: avatar + name now compute rgb(255,255,255) on black; screenshot confirmed. Self-tested (single CSS-class fix).
+- NOTE: if the user saw this on the DEPLOYED site, a redeploy is required to ship the fix.

@@ -96,7 +96,7 @@ export default function BFPOApp() {
 
   const Header = (
     <header className="sticky top-0 z-30" style={{ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif" }}>
-      <div className="text-white border-b border-white/10" style={{ backgroundColor: '#000000' }}>
+      <div className="on-dark text-white border-b border-white/10" style={{ backgroundColor: '#000000' }}>
         <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img src={PULSE_LOGO} alt="Pulse Fitness" className="h-10 rounded-md object-cover"
