@@ -1,4 +1,13 @@
-# ═══ 2026-06 · BFPO header re-aligned to the platform Navbar chrome ═══
+# ═══ 2026-06 · BFPO portal footer (matches platform chrome) ═══
+Added pages/BFPO/Footer.js — mirrors the MOD Service Portal footer: a white acceptable-use notice
+card (monitored access + Pulse Fitness Support mailto) above a pure-black copyright bar
+("© {year} Pulse Fitness · MOD Service Portal"). Rendered in BFPOApp after <main>; engineer view
+gets pb-16 so the fixed bottom-nav never overlaps it. Copyright tracking is 0.12em on mobile /
+0.28em ≥sm so it never clips at 390px. Verified staff (1920px) + engineer (390px).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 Per user (compared BFPO header vs main app Navbar) — match logo, colours, font, options exactly.
 - BFPOApp.js header: pure black (#000000) bar, Proxima Nova font, real Pulse lockup rendered with the
   SAME treatment as components/shared/Navbar.js (h-10, clipPath inset round 6px, no white chip).

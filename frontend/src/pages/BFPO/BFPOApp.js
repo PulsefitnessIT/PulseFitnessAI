@@ -4,6 +4,7 @@ import { useAuth } from '@/App';
 import { bfpo } from './bfpoApi';
 import { Spinner, Btn, PULSE_LOGO } from './ui';
 import AccountMenu from './AccountMenu';
+import Footer from './Footer';
 import EngineerHome from './engineer/EngineerHome';
 import JobList from './engineer/JobList';
 import JobDetail from './engineer/JobDetail';
@@ -145,6 +146,8 @@ export default function BFPOApp() {
           </>
         )}
       </main>
+
+      <div className={role !== 'staff' ? 'pb-16' : ''}><Footer /></div>
 
       {/* Engineer bottom nav */}
       {role !== 'staff' && (
