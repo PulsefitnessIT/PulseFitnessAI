@@ -1,4 +1,31 @@
-# ═══ 2026-06 · MOD Operations dashboard renamed + Module-Access gated ═══
+# ═══ 2026-06 · PPM planned-servicing checklists (Phase 2) — built & verified ═══
+Configurable inspection checklists + site service certificates, layered on the BFPO portal.
+Backend routes/bfpo_ppm.py (prefix /api/bfpo/ppm, registered in route_registry/core.py):
+- Collections: bfpo_ppm_templates (per equipment_type category, staff-editable), bfpo_ppm_services
+  (per-site service, status due/in_progress/completed, PPM-xxxxx ref), bfpo_ppm_inspections (one per
+  asset, results[] pass/fail/na, status, fault_case_id). bfpo_ppm_counter for refs.
+- Templates: GET/POST /ppm/templates (staff/mod_operations edits items; opt-in gate reused).
+- Services: staff POST /ppm/services (snapshots the site's equipment into inspections, attaches the
+  category template), /allocate; scoped GET /ppm/services (engineers see their sites), GET
+  /ppm/services/{id} (+progress), /start.
+- Inspections: POST /ppm/inspections/{id} (save results → status passed/failed/pending), 
+  /raise-fault (creates a linked svc_case tagged ppm_service_id + marks inspection failed).
+- Complete: POST /ppm/services/{id}/complete (blocks until all assets inspected) → builds branded PDF
+  certificate, auto-files it into db.documents via record_generated_document (org-scoped, category
+  compliance, linked ppm_service), and emails the site contact_email (send_email, best-effort — email
+  delivery LIMITED in preview due to restricted Resend key). GET /ppm/services/{id}/certificate.pdf.
+- Scheduling: manual creation built now; recurring auto-schedule parked for later (per user 2c).
+Frontend pages/BFPO/ppm/: PPMServiceDetail (progress "X of N checked", per-asset checklist panel with
+  pass/fail/na + notes + raise-fault, complete → certificate link), PPMEngineerList, PPMStaff
+  (Services tab: create/allocate/list + cert download; Checklists tab: per-category template editor).
+  Wired into BFPOApp (engineer Home "Services Due" tile → /ppm; staff "Servicing" nav tab).
+Seed: 5 default templates seeded; HMS Rooke site given contact_email for the cert email demo.
+Verified: create→inspect→raise fault (SVC-)→complete→certificate PDF (200) + document filed + email
+  attempted; early-complete blocked (400); engineer scoping holds; UI smoke at 390px & 1920px, 0 overflow.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 Per user: the staff/global dashboard is Pulse Fitness's own UK MOD ops team (not MOD military),
 renamed "Pulse Fitness MOD Operations", and access is now module-gated to select staff.
 - utils/module_access.py: added `mod_operations` to MOD_MODULE_KEYS + new `has_mod_operations(user)`

@@ -39,7 +39,7 @@ SITES = [
      "country": "Gibraltar", "timezone": "Europe/Gibraltar",
      "access_instructions": "Report to main gate with MOD90. Gym is Block C, first floor.",
      "security_notes": "Photography restricted outside the gym. Escort required past reception.",
-     "contact_name": "WO2 D. Marsh", "contact_phone": "+350 200 51234"},
+     "contact_name": "WO2 D. Marsh", "contact_phone": "+350 200 51234", "contact_email": "gib.rooke@bfpo.pulsefitness.test"},
     {"id": "site-gib-2", "territory_id": "terr-gib", "name": "Devil's Tower Camp Fitness Centre",
      "country": "Gibraltar", "timezone": "Europe/Gibraltar",
      "access_instructions": "Vehicle pass required. Loading bay at rear.",
@@ -225,6 +225,19 @@ async def seed():
 
     print(f"Seeded: {len(TERRITORIES)} territories, {len(SITES)} sites, {len(eqs)} equipment, "
           f"{len(USERS)} users, {len(CASES)} cases.")
+
+    # PPM checklist templates (idempotent per category)
+    from routes.bfpo_ppm import DEFAULT_TEMPLATES, _items
+    for category, labels in DEFAULT_TEMPLATES.items():
+        existing = await db.bfpo_ppm_templates.find_one({"organization_id": ORG, "category": category}, {"_id": 0})
+        if existing:
+            continue
+        await db.bfpo_ppm_templates.insert_one({
+            "id": str(uuid.uuid4()), "organization_id": ORG, "category": category,
+            "name": category.replace("_", " ").title() + " service", "items": _items(labels),
+            "updated_at": now(), "updated_by": "seed",
+        })
+    print(f"Seeded PPM templates: {len(DEFAULT_TEMPLATES)} categories.")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { bfpo } from '../bfpoApi';
 import { Card, PriorityBadge, Spinner, Empty, Badge, HEALTH, ROLE_LABEL } from '../ui';
-import { AlertTriangle, Package, RotateCcw, ClipboardList, ChevronRight, Clock } from 'lucide-react';
+import { AlertTriangle, Package, RotateCcw, ClipboardList, ChevronRight, Clock, ClipboardCheck } from 'lucide-react';
 
 const TILES = [
   { key: 'all_open', label: 'Open Jobs', icon: ClipboardList, color: 'text-cyan-600 bg-cyan-50', kpi: 'open' },
@@ -10,16 +10,18 @@ const TILES = [
   { key: 'return_visit', label: 'Return Visits', icon: RotateCcw, color: 'text-indigo-600 bg-indigo-50', kpi: 'return_visit' },
 ];
 
-export default function EngineerHome({ onOpenJobs, onOpenJob }) {
+export default function EngineerHome({ onOpenJobs, onOpenJob, onOpenServices }) {
   const [me, setMe] = useState(null);
   const [jobs, setJobs] = useState([]);
+  const [servicesDue, setServicesDue] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        const [m, j] = await Promise.all([bfpo.get('/me'), bfpo.get('/jobs?when=all_open')]);
+        const [m, j, s] = await Promise.all([bfpo.get('/me'), bfpo.get('/jobs?when=all_open'), bfpo.get('/ppm/services')]);
         setMe(m.data); setJobs(j.data.jobs);
+        setServicesDue((s.data.services || []).filter((x) => x.status !== 'completed').length);
       } finally { setLoading(false); }
     })();
   }, []);
@@ -54,6 +56,20 @@ export default function EngineerHome({ onOpenJobs, onOpenJob }) {
           </button>
         ))}
       </div>
+
+      <button onClick={onOpenServices} className="w-full text-left" data-testid="home-services-due">
+        <Card className="p-4 flex items-center gap-3 hover:shadow-md transition-shadow">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-cyan-600 bg-cyan-50">
+            <ClipboardCheck className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-slate-900">Services Due</p>
+            <p className="text-sm text-slate-500">Planned maintenance inspections</p>
+          </div>
+          <span className="text-2xl font-bold text-slate-900" data-testid="home-services-count">{servicesDue}</span>
+          <ChevronRight className="w-5 h-5 text-slate-300" />
+        </Card>
+      </button>
 
       <div>
         <div className="flex items-center justify-between mb-2">

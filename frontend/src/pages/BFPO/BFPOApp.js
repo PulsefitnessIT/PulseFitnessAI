@@ -15,9 +15,12 @@ import StaffSites from './staff/StaffSites';
 import StaffJobs from './staff/StaffJobs';
 import StaffJobDetail from './staff/StaffJobDetail';
 import StaffVisiting from './staff/StaffVisiting';
+import PPMEngineerList from './ppm/PPMEngineerList';
+import PPMServiceDetail from './ppm/PPMServiceDetail';
+import PPMStaff from './ppm/PPMStaff';
 import {
   Home, ClipboardList, MapPin, Package, History as HistoryIcon, Globe2,
-  LayoutGrid, KeyRound, LogOut, Wifi, WifiOff,
+  LayoutGrid, KeyRound, LogOut, Wifi, WifiOff, ClipboardCheck,
 } from 'lucide-react';
 
 export default function BFPOApp() {
@@ -27,6 +30,7 @@ export default function BFPOApp() {
   const [jobId, setJobId] = useState(null);
   const [jobFilter, setJobFilter] = useState('all_open');
   const [staffFilter, setStaffFilter] = useState({});
+  const [ppmId, setPpmId] = useState(null);
   const [online, setOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
 
   useEffect(() => { setView(role === 'staff' ? 'dashboard' : 'home'); }, [role]);
@@ -70,6 +74,7 @@ export default function BFPOApp() {
   const logout = () => { if (platformLogout) platformLogout(); };
   const openJob = (id) => { setJobId(id); setView('job'); };
   const openStaffJob = (id) => { setJobId(id); setView('staffjob'); };
+  const openPpm = (id) => { setPpmId(id); setView('ppmdetail'); };
 
   const engNav = [
     { key: 'home', label: 'Home', icon: Home },
@@ -82,6 +87,7 @@ export default function BFPOApp() {
     { key: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
     { key: 'sites', label: 'Sites', icon: Globe2 },
     { key: 'jobs', label: 'Jobs', icon: ClipboardList },
+    { key: 'servicing', label: 'Servicing', icon: ClipboardCheck },
     { key: 'visiting', label: 'Visiting Access', icon: KeyRound },
   ];
 
@@ -118,16 +124,20 @@ export default function BFPOApp() {
             {view === 'sites' && <StaffSites onOpenJobs={(f) => { setStaffFilter(f); setView('jobs'); }} />}
             {view === 'jobs' && <StaffJobs initialFilter={staffFilter} onOpenJob={openStaffJob} />}
             {view === 'visiting' && <StaffVisiting />}
+            {view === 'servicing' && <PPMStaff onOpen={openPpm} />}
             {view === 'staffjob' && <StaffJobDetail jobId={jobId} onBack={() => setView('jobs')} />}
+            {view === 'ppmdetail' && <PPMServiceDetail serviceId={ppmId} onBack={() => setView('servicing')} />}
           </>
         ) : (
           <>
-            {view === 'home' && <EngineerHome onOpenJobs={(f) => { setJobFilter(f); setView('jobs'); }} onOpenJob={openJob} />}
+            {view === 'home' && <EngineerHome onOpenJobs={(f) => { setJobFilter(f); setView('jobs'); }} onOpenJob={openJob} onOpenServices={() => setView('ppm')} />}
             {view === 'jobs' && <JobList initialFilter={jobFilter} onOpenJob={openJob} />}
             {view === 'sites' && <Sites />}
             {view === 'equipment' && <Equipment />}
             {view === 'history' && <History onOpenJob={openJob} />}
             {view === 'job' && <JobDetail jobId={jobId} onBack={() => setView('jobs')} onOpenJob={openJob} />}
+            {view === 'ppm' && <PPMEngineerList onOpen={openPpm} onBack={() => setView('home')} />}
+            {view === 'ppmdetail' && <PPMServiceDetail serviceId={ppmId} onBack={() => setView('ppm')} />}
           </>
         )}
       </main>
