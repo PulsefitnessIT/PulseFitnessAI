@@ -1,0 +1,32 @@
+{
+  "summary": "Verified 'MOD Operations' Module Access catalog + grant/revoke flow AND the BFPO staff-endpoint gate that honours module_overrides.mod_operations. 9/9 tests passed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_mod_operations_module_access_jan2026.py",
+    "/app/test_reports/pytest/mod_operations_module_access_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/bfpo.py::_require_staff has a second redundant has_mod_operations() check after _require_bfpo already validated the caller — harmless but dead-belt logic; the initial _role() lookup already gates via has_mod_operations.",
+    "master_admin_users.py: mod_operations grant/revoke branch stores the flag ONLY on the resolved collection (users OR crm_users) — LauncherPage reads module_overrides from the users doc; if a CRM-only user is granted mod_operations it will not surface in the launcher. Acceptable for current scope (Pulse staff), but worth documenting."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_mod_operations_module_access_jan2026.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "n/a (skipped per request)"},
+  "test_credentials": "admin@pulsefitness.com (MFA – tested in-process); staff@bfpo.pulsefitness.test / Bfpo123!; engineer.gib@bfpo.pulsefitness.test / Bfpo123!; owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None – state was toggled and cleaned. Verified post-run: Lee Somers module_overrides={}, owner@isodemo.com module_overrides has no mod_operations key.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests live at /app/backend/tests/test_mod_operations_module_access_jan2026.py — 9 tests, all pass. Master-admin routes require MFA so they are exercised in-process (import + call with synthetic user dict). BFPO endpoints tested via HTTP with the rate-limit bypass header. Cleanup is idempotent (teardown_module unsets mod_operations flag on Lee & owner@isodemo).",
+  "verified": [
+    "GET /master-admin/users/{id}/module-access includes {key:'mod_operations', label:'MOD Operations'} row; for non-privileged target user_access=false, fix_action='grant_flag'.",
+    "POST /master-admin/users/{id}/module-access/mod_operations/grant → DB module_overrides.mod_operations=true; refreshed row user_access=true, fix_action='revoke_flag', result='granted_flag'.",
+    "POST /master-admin/users/{id}/module-access/mod_operations/revoke → DB module_overrides.mod_operations=false; refreshed row user_access=false, fix_action='grant_flag'.",
+    "Grant/revoke with a bogus module key both raise HTTP 400.",
+    "Non-BFPO Pulse operator (owner@isodemo.com) with module_overrides.mod_operations=true → /api/bfpo/staff/team, /api/bfpo/staff/territories, /api/bfpo/sites all 200.",
+    "Same user WITHOUT the flag → 403 on all three staff endpoints.",
+    "Regression: seeded staff@bfpo hits all 3 staff endpoints (200); seeded engineer.gib@bfpo hits engineer endpoints (/api/bfpo/me, /jobs, /sites) with 200 and is 403 on /api/bfpo/staff/team."
+  ]
+}

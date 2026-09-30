@@ -822,3 +822,11 @@ Files: backend/utils/sicon_outbox_worker.py, backend/utils/sicon_writeback.py, b
 - Backend (routes/bfpo.py): create_engineer now sets bfpo_welcome_pending=true for engineer/lead. New endpoints GET /api/bfpo/me/welcome (returns show + territories + sites + open_jobs) and POST /api/bfpo/me/welcome/dismiss. Existing/seeded engineers have no pending flag so they never see it.
 - Frontend: pages/BFPO/engineer/WelcomeKit.js overlay, wired into BFPOApp (fetch on mount for engineer/lead, dismiss on action).
 - Tested via curl (show=true with correct territory/sites/jobs, dismiss flips to false, seeded engineers show=false) and screenshots (desktop + mobile). Temp test users cleaned up.
+
+
+## 2026-09-30 — Feature: MOD Operations as a grantable module + launcher tile
+- MOD Operations is now grantable per-user from the People -> "Module access" panel (Grant/Revoke), stored at user.module_overrides.mod_operations. Previously it was a hidden gate with no UI to enable it for Pulse staff.
+- Backend (routes/master_admin_users.py): added "mod_operations" to _MODULE_META and the module-access catalog (_module_access_payload), plus dedicated grant/revoke branches (reuse the grant_flag/revoke_flag toggle UI) and allowed-module sets.
+- Backend (routes/bfpo.py:_role): now returns "staff" for any user where has_mod_operations() is true (platform admins OR module_overrides.mod_operations), so a granted Pulse staffer with NO bfpo_role reaches the MOD Operations staff dashboard instead of the no-access card.
+- Frontend: MOD Operations tile added to the login launcher (LauncherPage.js) and the nav "Switch area" menu (AreaSwitcher.js), gated on module_overrides.mod_operations, routing to /bfpo. BFPOApp.js synthesizes role 'staff' for granted Pulse staff.
+- Tested: testing_agent backend 9/9 passed (catalog row, grant->DB true->revoke->DB false, bad-module 400, granted non-BFPO user 200 on /bfpo/staff/*, ungranted 403, plus seeded staff/engineer regressions). Frontend self-verified via Playwright (launcher tile visible; granted user lands on staff dashboard). Test state cleaned up.
