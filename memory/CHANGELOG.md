@@ -815,3 +815,10 @@ Files: backend/utils/sicon_outbox_worker.py, backend/utils/sicon_writeback.py, b
 - New collection db.bfpo_invites (single-use token, 7-day expiry). New user fields: phone, bfpo_site_ids. _engineer_scope now includes permanently-allocated bfpo_site_ids in an engineer's visible sites.
 - Invite email via existing Resend integration. NOTE: email does NOT physically send in preview (restricted RESEND_API_KEY) — the API still returns invite_url so staff can copy/share it; delivery only works on production.
 - Tested: testing_agent backend 15/15 passed (auth negatives, duplicate-email 400, invite token lifecycle, short-password rejection, temp-password must_change flag, edit/resend/deactivate, allocated-site scope). UI verified via screenshots. Master-admin positive path untested only because that account enforces MFA.
+
+
+## 2026-09-30 — Feature: Engineer Welcome Kit (first sign-in)
+- Newly-activated BFPO engineers/leads now see a one-time full-screen welcome on their first sign-in: greeting, their territories, their sites (allocated + territory), and open jobs waiting (with priority badges). Two CTAs: "Explore the portal" and "View my jobs".
+- Backend (routes/bfpo.py): create_engineer now sets bfpo_welcome_pending=true for engineer/lead. New endpoints GET /api/bfpo/me/welcome (returns show + territories + sites + open_jobs) and POST /api/bfpo/me/welcome/dismiss. Existing/seeded engineers have no pending flag so they never see it.
+- Frontend: pages/BFPO/engineer/WelcomeKit.js overlay, wired into BFPOApp (fetch on mount for engineer/lead, dismiss on action).
+- Tested via curl (show=true with correct territory/sites/jobs, dismiss flips to false, seeded engineers show=false) and screenshots (desktop + mobile). Temp test users cleaned up.

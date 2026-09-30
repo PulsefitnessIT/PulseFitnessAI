@@ -1010,6 +1010,9 @@ async def create_engineer(data: dict = Body(...), user=Depends(_require_staff)):
         doc["password"] = hash_password(secrets.token_urlsafe(24))
         doc["invite_pending"] = True
 
+    if role in ("engineer", "lead"):
+        # Show the one-time welcome kit on their first sign-in.
+        doc["bfpo_welcome_pending"] = True
     await db.users.insert_one(doc)
     if role in ("engineer", "lead"):
         await db.svc_engineers.update_one(
@@ -1117,6 +1120,53 @@ async def invite_accept(token: str, data: dict = Body(...)):
         "must_change_password": False, "password_updated_at": _now()}})
     await db.bfpo_invites.update_one({"token": token},
                                      {"$set": {"status": "accepted", "accepted_at": _now()}})
+    return {"success": True}
+
+
+# ── Engineer welcome kit (one-time, first sign-in) ───────────────
+
+@router.get("/me/welcome")
+async def my_welcome(user=Depends(_require_bfpo)):
+    role = _role(user)
+    show = bool(user.get("bfpo_welcome_pending")) and role in ("engineer", "lead")
+    terr_ids = list(user.get("bfpo_territory_ids") or [])
+    territories = []
+    if terr_ids:
+        territories = await db.bfpo_territories.find(
+            {"organization_id": BFPO_ORG_ID, "id": {"$in": terr_ids}},
+            {"_id": 0, "id": 1, "name": 1, "country": 1},
+        ).to_list(50)
+    scope = await _engineer_scope(user)
+    site_ids = set(user.get("bfpo_site_ids") or []) | set(scope.get("all_site_ids") or [])
+    site_or = []
+    if terr_ids:
+        site_or.append({"territory_id": {"$in": terr_ids}})
+    if site_ids:
+        site_or.append({"id": {"$in": list(site_ids)}})
+    sites = []
+    if site_or:
+        sites = await db.sites.find(
+            {"organization_id": BFPO_ORG_ID, "$or": site_or},
+            {"_id": 0, "id": 1, "name": 1, "country": 1, "territory_name": 1},
+        ).to_list(200)
+    q = await _scoped_case_query(user, read=True)
+    q["status"] = {"$in": list(OPEN_STATES)}
+    jobs = await db.svc_cases.find(
+        q, {"_id": 0, "id": 1, "reference": 1, "title": 1, "priority": 1, "site_name": 1, "status": 1},
+    ).sort("created_at", -1).to_list(200)
+    return {
+        "show": show, "full_name": user.get("full_name"), "role": role,
+        "territories": territories, "sites": sites,
+        "open_jobs": {"count": len(jobs), "items": jobs[:6]},
+    }
+
+
+@router.post("/me/welcome/dismiss")
+async def dismiss_welcome(user=Depends(_require_bfpo)):
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"bfpo_welcome_pending": False, "bfpo_welcomed_at": _now()}},
+    )
     return {"success": True}
 
 

@@ -11,6 +11,7 @@ import JobDetail from './engineer/JobDetail';
 import Sites from './engineer/Sites';
 import Equipment from './engineer/Equipment';
 import History from './engineer/History';
+import WelcomeKit from './engineer/WelcomeKit';
 import StaffDashboard from './staff/StaffDashboard';
 import StaffSites from './staff/StaffSites';
 import StaffJobs from './staff/StaffJobs';
@@ -35,6 +36,20 @@ export default function BFPOApp() {
   const [staffFilter, setStaffFilter] = useState({});
   const [ppmId, setPpmId] = useState(null);
   const [online, setOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
+  const [welcome, setWelcome] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    if (user && (role === 'engineer' || role === 'lead')) {
+      bfpo.get('/me/welcome').then((r) => { if (alive && r.data.show) setWelcome(r.data); }).catch(() => {});
+    }
+    return () => { alive = false; };
+  }, [user, role]);
+
+  const dismissWelcome = async () => {
+    try { await bfpo.post('/me/welcome/dismiss'); } catch { /* ignore */ }
+    setWelcome(null);
+  };
 
   useEffect(() => { setView(role === 'staff' ? 'dashboard' : 'home'); }, [role]);
 
@@ -125,6 +140,7 @@ export default function BFPOApp() {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] pb-16">
+      {welcome && <WelcomeKit data={welcome} onStart={dismissWelcome} onViewJobs={() => { dismissWelcome(); setJobFilter('all_open'); setView('jobs'); }} />}
       {Header}
       <main>
         {role === 'staff' ? (
