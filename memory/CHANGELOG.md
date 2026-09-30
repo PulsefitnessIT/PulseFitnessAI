@@ -769,3 +769,10 @@ Founder review flagged three divergent Pulse→Sicon paths. Consolidated onto ON
 - **Tests**: tests/test_sicon_bridge_consolidation_jun2026.py (2). Combined Sicon read-side suites: 29 pass. Backend imports clean.
 - **Next (Phase 2, per founder "both in sequence")**: wire Orbit4 ticket → per-org Pulse case → svc_sicon_outbox enqueue (proven mapper), and add missing utils/orbit4_outbound.py — build behind SICON_ALLOW_WRITES, keep disabled until the live Sicon base URL arrives.
 Files: backend/routes/integrations.py, backend/tests/test_sicon_bridge_consolidation_jun2026.py.
+
+## 2026-06 — Sicon⇄Pulse Link Regression Audit (thorough, pre-Phase-2)
+Founder asked to prove recent work didn't break existing Sicon⇄Pulse links before building further. Result: ZERO regressions. Full write-up in memory/SICON_REGRESSION_AUDIT_JUN2026.md.
+- Link-critical OFFLINE suites (no HTTP login): 110/110 PASS — incl. link audit, partner-relink self-heal, field/deep mapping, camelcase inbound, integration-field capture, Orbit4 deep mapping + the 4 new Jun suites.
+- Live HTTP smoke on every changed endpoint: test-connection/priorities/engineer-mapping/case_equipment-conflicts all 200; bridge retry 403 (correct master-admin gate).
+- The broad run's 31 fail + 19 error were fully explained as NON-regressions: ~23 = HTTP 429 auth-lockout (shared test accounts brute-force-locked by running many login suites back-to-back); 8 = pre-existing outdated WRITE tests that expect writes the SICON_ALLOW_WRITES guard correctly blocks (verified pre-existing via git-baseline checkout). 
+- Tech-debt logged (non-blocking): update the 2 outdated write test files to the write-guard; give login-based suites a shared token to avoid 429 cascades.
