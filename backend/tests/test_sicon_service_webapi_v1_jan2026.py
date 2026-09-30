@@ -210,7 +210,9 @@ class _Recorder:
 
 
 def _make_client():
-    c = SiconClient("https://sicon.example.com", "u", "p", company_id=77)
+    # allow_writes=True so the write-guard permits POST/PUT to reach the mock;
+    # the guard's disabled-by-default behaviour is covered in test_sicon_readside.py.
+    c = SiconClient("https://sicon.example.com", "u", "p", company_id=77, allow_writes=True)
     c._bearer = "TEST_BEARER"  # skip real auth
     return c
 
