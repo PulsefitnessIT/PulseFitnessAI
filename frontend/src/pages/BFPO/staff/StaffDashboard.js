@@ -18,13 +18,9 @@ export default function StaffDashboard({ userName, role, onOpenJobs, onOpenJob }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="staff-dashboard">
-      {/* Title block — mirrors the Pulse Fitness Pro Operations header */}
+      {/* Title block */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-          Pulse Fitness <span className="text-cyan-600">Pro</span>
-          <span className="text-slate-300 font-normal"> · </span>
-          <span className="text-slate-500 font-semibold text-xl sm:text-2xl">MOD Operations</span>
-        </h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">MOD Operations</h1>
         <p className="mt-1 text-sm text-slate-500" data-testid="staff-role-label">
           Welcome back, <span className="font-medium text-slate-700">{userName || 'Operations'}</span>
           <span className="mx-1.5 text-slate-300">·</span>
