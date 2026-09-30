@@ -830,3 +830,11 @@ Files: backend/utils/sicon_outbox_worker.py, backend/utils/sicon_writeback.py, b
 - Backend (routes/bfpo.py:_role): now returns "staff" for any user where has_mod_operations() is true (platform admins OR module_overrides.mod_operations), so a granted Pulse staffer with NO bfpo_role reaches the MOD Operations staff dashboard instead of the no-access card.
 - Frontend: MOD Operations tile added to the login launcher (LauncherPage.js) and the nav "Switch area" menu (AreaSwitcher.js), gated on module_overrides.mod_operations, routing to /bfpo. BFPOApp.js synthesizes role 'staff' for granted Pulse staff.
 - Tested: testing_agent backend 9/9 passed (catalog row, grant->DB true->revoke->DB false, bad-module 400, granted non-BFPO user 200 on /bfpo/staff/*, ungranted 403, plus seeded staff/engineer regressions). Frontend self-verified via Playwright (launcher tile visible; granted user lands on staff dashboard). Test state cleaned up.
+
+
+## 2026-09-30 — Bug fix: "Unknown module" when granting MOD Operations from /pulse People panel
+- Symptom: clicking Grant on "MOD Operations" in the /pulse People > "Module access" panel returned an "Unknown module" dialog.
+- Root cause: TWO module-access backends exist. The prior change only patched the Master-Admin one (master_admin_users.py). The /pulse People/HR panel (HRTab.js) calls the STAFFING endpoints (staffing.py), whose allowed set _STAFF_MODULE_KEYS did not include mod_operations. The shared _module_access_payload already rendered the row, so the button appeared but grant 400'd.
+- Fix (routes/staffing.py): added _STAFF_OVERRIDE_MODULES={"mod_operations"} (non-org-gated per-user overrides) into _STAFF_MODULE_KEYS; added an explicit branch in staff_module_grant and staff_module_bulk that sets module_overrides.mod_operations without the org-enablement gate; revoke falls through to the existing override-clearing branch.
+- Tested: testing_agent backend 11/11 passed (grant no longer 400s, DB flips true/false on users+crm_users, org-gate bypassed, bogus key still 400, bulk works, regressions for operations/service_desk and the master-admin path). State cleaned up.
+- NOTE: a production deploy was in progress when this bug was reported; production needs a redeploy carrying this staffing.py fix for the panel to work live.

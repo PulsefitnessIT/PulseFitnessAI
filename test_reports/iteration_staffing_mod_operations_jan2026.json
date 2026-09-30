@@ -1,0 +1,22 @@
+{
+  "summary": "Independently verified the staffing (/pulse People > Module access) fix that adds mod_operations as a non-org-gated per-user override to _STAFF_MODULE_KEYS / _STAFF_OVERRIDE_MODULES in routes/staffing.py. Exercised the three affected handlers in-process with the org owner user dict (portal@pulsefitness.ltd, Pulse Fitness Ltd) against a non-privileged target (Craig Henshall, staff 0a279c7a-…, user 221876bf-…, role=manager). All 11 test cases passed: single grant no longer returns 400 'Unknown module', DB module_overrides.mod_operations flips true/false on both db.users and db.crm_users, the mod_operations row on the returned catalog flips user_access true/false with correct fix_action, the org-enablement gate is bypassed (no 'not enabled for your organisation' 400), bogus keys still return 400, bulk grant/revoke works and does NOT list mod_operations under skipped_org_off, and regressions for 'operations' (org-gated) and 'service_desk' (flag) still behave correctly. Also re-verified the Master-Admin grant/revoke path for mod_operations (result=granted_flag, override flips).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_staffing_mod_operations_jan2026.py",
+    "/app/test_reports/pytest/staffing_mod_operations_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/staffing.py staff_module_revoke: mod_operations correctly falls through to the else branch which sets module_overrides[module]=False. This works and is symmetric with grant, but a small readability nit — an explicit `elif module in _STAFF_OVERRIDE_MODULES` branch in revoke would mirror grant and keep the intent obvious to future readers.",
+    "routes/staffing.py staff_module_bulk: revoke loop uses a plain else that sets overrides[mod]=False for any non-flag module — this means bulk revoke of a core module ('operations') will write module_overrides.operations=False without any org-enablement check. That is the existing behaviour (predates this fix) and is consistent with the single-revoke endpoint, so no action needed, just noting the symmetry.",
+    "Both grant handlers spread target.get('module_overrides') and re-write the whole dict; using $set on the specific dotted key ('module_overrides.mod_operations') would be safer against races where the target dict is stale, but not required for correctness."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "Used in-process invocation with synthetic OWNER dict {id:63cfe3e1-…, role:'owner', organization_id:3ece2d0c-…} for staffing routes, and {is_master_admin:True, _jwt_mfa_verified:True} for master-admin regression — same pattern as previous iteration.",
+  "seed_data_creation": "None. All mutations on target user 221876bf-… and Lee Somers 3355e0bb-… are cleaned up in fixtures/finally blocks ($unset module_overrides.mod_operations on db.users + db.crm_users). is_service_desk restored to its original value.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reusable regression file at /app/backend/tests/test_staffing_mod_operations_jan2026.py. Covers staffing single grant/revoke, bulk grant/revoke, bogus key 400, org-gate bypass for mod_operations, plus regressions for operations (org-gated core) and service_desk (flag), plus master-admin path for mod_operations. Test target: Craig Henshall (staff 0a279c7a-ce4c-4b2b-8bef-c7028471ffb9 / user 221876bf-e6ba-4e5c-a8d1-f4bfa6bce292) — role=manager, non-privileged, in Pulse Fitness Ltd."
+}
