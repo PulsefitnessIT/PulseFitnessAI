@@ -838,3 +838,12 @@ Files: backend/utils/sicon_outbox_worker.py, backend/utils/sicon_writeback.py, b
 - Fix (routes/staffing.py): added _STAFF_OVERRIDE_MODULES={"mod_operations"} (non-org-gated per-user overrides) into _STAFF_MODULE_KEYS; added an explicit branch in staff_module_grant and staff_module_bulk that sets module_overrides.mod_operations without the org-enablement gate; revoke falls through to the existing override-clearing branch.
 - Tested: testing_agent backend 11/11 passed (grant no longer 400s, DB flips true/false on users+crm_users, org-gate bypassed, bogus key still 400, bulk works, regressions for operations/service_desk and the master-admin path). State cleaned up.
 - NOTE: a production deploy was in progress when this bug was reported; production needs a redeploy carrying this staffing.py fix for the panel to work live.
+
+
+## 2026-09-30 — MOD Operations polish + footer fix + launcher/area-selector tweaks
+- FOOTER BUG FIXED: BFPO/MOD layout changed to `min-h-screen flex flex-col` with `<main className="flex-1">` so the footer pins to the bottom instead of floating mid-screen with an empty region below (BFPOApp.js).
+- 'Synced' connectivity pill removed for Pulse Fitness staff on the MOD Operations header (AccountMenu.js gains `showSync` prop; BFPOApp passes `showSync={role !== 'staff'}`). Engineers still see Synced/Offline.
+- MOD Operations staff dashboard restyled to match the main Pulse Fitness Pro Operations area: 'Pulse Fitness Pro · MOD Operations' title block, rounded pill-group nav, 5 tinted KPI stat cards, clean attention panels (StaffDashboard.js + BFPOApp staff nav). Blueprint saved to /app/design_guidelines.json.
+- Launcher tiles now arrange horizontally: grid `sm:grid-cols-2 lg:grid-cols-3`, container widened to max-w-5xl (LauncherPage.js). No hard cap on modules.
+- Renamed 'Area chooser…' -> 'Area Selector…' in the Switch-area menu (AreaSwitcher.js).
+- Tested: testing_agent frontend 6/6 PASS (footer pinned on tall+short pages, Synced removed for staff / kept for engineer, dashboard KPIs + title, launcher 3-col, Area Selector rename, engineer regression). Verified at 1280px and 390px, no overflow/console errors.
