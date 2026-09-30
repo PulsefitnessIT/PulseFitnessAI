@@ -127,8 +127,14 @@ export default function BFPOApp() {
         </div>
       </div>
       {role === 'staff' && (
-        <div className="bg-slate-50/80 backdrop-blur-md border-b border-slate-200/80">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+        <div className="bg-[#F8F9FA] border-b border-slate-200/80">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">MOD Operations</h1>
+            <p className="mt-1 text-sm text-slate-500" data-testid="staff-welcome">
+              Welcome back, <span className="font-medium text-slate-700">{user.full_name || 'Operations'}</span> · Global oversight
+            </p>
+          </div>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 pb-3 flex gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
             {staffNav.map((n) => (
               <button key={n.key} onClick={() => setView(n.key)} data-testid={`staff-nav-${n.key}`}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${view === n.key ? 'bg-cyan-600 text-white shadow-sm shadow-cyan-600/20' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'}`}>

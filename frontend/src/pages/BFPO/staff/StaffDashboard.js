@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { bfpo } from '../bfpoApi';
-import { Spinner, Badge, PriorityBadge, HEALTH, ROLE_LABEL } from '../ui';
+import { Spinner, Badge, PriorityBadge, HEALTH } from '../ui';
 import { ClipboardList, AlertTriangle, Package, Clock, MapPin, ChevronRight } from 'lucide-react';
 
 const TILES = [
@@ -18,18 +18,8 @@ export default function StaffDashboard({ userName, role, onOpenJobs, onOpenJob }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="staff-dashboard">
-      {/* Title block */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">MOD Operations</h1>
-        <p className="mt-1 text-sm text-slate-500" data-testid="staff-role-label">
-          Welcome back, <span className="font-medium text-slate-700">{userName || 'Operations'}</span>
-          <span className="mx-1.5 text-slate-300">·</span>
-          {ROLE_LABEL[role] || 'Pulse MOD Service Staff'} · Global oversight
-        </p>
-      </div>
-
       {/* KPI stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mt-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {TILES.map((t) => (
           <button key={t.key} onClick={() => onOpenJobs(t.filter)} data-testid={`staff-tile-${t.key}`} className="text-left group">
             <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 h-full">
