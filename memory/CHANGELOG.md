@@ -801,3 +801,17 @@ Files: backend/utils/sicon_outbox_worker.py, backend/utils/sicon_writeback.py, b
 - Fix: added `on-dark` class to the BFPO header black-bar div in `/app/frontend/src/pages/BFPO/BFPOApp.js` (~line 99). `.on-dark .text-white` (index.css:812) keeps descendant white text white in light mode.
 - Verified on preview via headless browser: avatar + name now compute rgb(255,255,255) on black; screenshot confirmed. Self-tested (single CSS-class fix).
 - NOTE: if the user saw this on the DEPLOYED site, a redeploy is required to ship the fix.
+
+
+## 2026-09-30 — Feature: BFPO / MOD engineer setup & invitations
+- Added a full "Engineers & Team" management surface so MOD Operations staff (and Master Admin) can provision BFPO engineers/leads/staff at runtime — previously only the seed script could create them.
+- Two host UIs (same component pages/BFPO/staff/StaffEngineers.js): (1) new Engineers tab in the /bfpo staff dashboard; (2) new "BFPO / MOD Engineers" tab under Master Admin -> Organisations -> Onboarding.
+- Captures full name, email, phone, role (engineer/lead/staff), assigned territories and allocated sites. Two password flows: email a set-password link OR issue a temporary password (forced change on first login). Plus resend-invite and deactivate/reactivate.
+- Backend (routes/bfpo.py), all gated by _require_staff (bfpo staff OR master admin + mod_operations):
+  - GET /api/bfpo/staff/territories, GET /api/bfpo/staff/team
+  - POST /api/bfpo/staff/engineers (create + invite/temp)
+  - PATCH /api/bfpo/staff/engineers/{id}, POST .../resend-invite, POST .../status
+  - PUBLIC: GET /api/bfpo/invite/{token}, POST /api/bfpo/invite/{token}/accept (set-password page at /bfpo/invite/:token)
+- New collection db.bfpo_invites (single-use token, 7-day expiry). New user fields: phone, bfpo_site_ids. _engineer_scope now includes permanently-allocated bfpo_site_ids in an engineer's visible sites.
+- Invite email via existing Resend integration. NOTE: email does NOT physically send in preview (restricted RESEND_API_KEY) — the API still returns invite_url so staff can copy/share it; delivery only works on production.
+- Tested: testing_agent backend 15/15 passed (auth negatives, duplicate-email 400, invite token lifecycle, short-password rejection, temp-password must_change flag, edit/resend/deactivate, allocated-site scope). UI verified via screenshots. Master-admin positive path untested only because that account enforces MFA.
