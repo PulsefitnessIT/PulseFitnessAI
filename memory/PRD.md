@@ -1,4 +1,18 @@
-# ═══ 2026-06 · BFPO portal footer (matches platform chrome) ═══
+# ═══ 2026-06 · MOD Operations reporting (jobs/services/SLA) + PDF/Excel export ═══
+Staff-only (mod_operations-gated) filterable reports. Backend routes/bfpo_reports.py
+(prefix /api/bfpo/staff/reports, registered in route_registry/core.py, uses _require_staff):
+- GET "" ?report=jobs|services|sla&territory=&site=&from=&to= → {title, summary[], columns[], rows[]}.
+  jobs = svc_cases (totals, open/closed, priority split, safety); services = bfpo_ppm_services
+  (completed, assets inspected, faults raised); sla = resolve-target compliance % (on time / late /
+  open-breached / open-on-track).
+- GET /export ?fmt=pdf|xlsx → landscape branded PDF (reportlab) or styled xlsx (openpyxl).
+Frontend pages/BFPO/ppm/PPMReports.js: report-type pills, filters, KPI cards, table, PDF/Excel
+  download buttons (fetch with shared cookie session → blob download). Wired as staff "Reports" nav tab.
+Verified: 3 reports return data, PDF (4KB) + XLSX (6KB) export 200, engineer blocked 403, UI 0 overflow.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 Added pages/BFPO/Footer.js — mirrors the MOD Service Portal footer: a white acceptable-use notice
 card (monitored access + Pulse Fitness Support mailto) above a pure-black copyright bar
 ("© {year} Pulse Fitness · MOD Service Portal"). Rendered in BFPOApp after <main>; engineer view

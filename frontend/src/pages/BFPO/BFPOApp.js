@@ -19,9 +19,10 @@ import StaffVisiting from './staff/StaffVisiting';
 import PPMEngineerList from './ppm/PPMEngineerList';
 import PPMServiceDetail from './ppm/PPMServiceDetail';
 import PPMStaff from './ppm/PPMStaff';
+import PPMReports from './ppm/PPMReports';
 import {
   Home, ClipboardList, MapPin, Package, History as HistoryIcon, Globe2,
-  LayoutGrid, KeyRound, LogOut, Wifi, WifiOff, ClipboardCheck,
+  LayoutGrid, KeyRound, LogOut, Wifi, WifiOff, ClipboardCheck, BarChart3,
 } from 'lucide-react';
 
 export default function BFPOApp() {
@@ -89,6 +90,7 @@ export default function BFPOApp() {
     { key: 'sites', label: 'Sites', icon: Globe2 },
     { key: 'jobs', label: 'Jobs', icon: ClipboardList },
     { key: 'servicing', label: 'Servicing', icon: ClipboardCheck },
+    { key: 'reports', label: 'Reports', icon: BarChart3 },
     { key: 'visiting', label: 'Visiting Access', icon: KeyRound },
   ];
 
@@ -130,6 +132,7 @@ export default function BFPOApp() {
             {view === 'jobs' && <StaffJobs initialFilter={staffFilter} onOpenJob={openStaffJob} />}
             {view === 'visiting' && <StaffVisiting />}
             {view === 'servicing' && <PPMStaff onOpen={openPpm} />}
+            {view === 'reports' && <PPMReports />}
             {view === 'staffjob' && <StaffJobDetail jobId={jobId} onBack={() => setView('jobs')} />}
             {view === 'ppmdetail' && <PPMServiceDetail serviceId={ppmId} onBack={() => setView('servicing')} />}
           </>

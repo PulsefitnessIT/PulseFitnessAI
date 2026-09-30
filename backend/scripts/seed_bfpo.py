@@ -180,6 +180,9 @@ async def seed():
     await db.svc_case_events.delete_many({"organization_id": ORG})
     await db.svc_counters.delete_many({"organization_id": ORG})
     await db.bfpo_parts_requests.delete_many({"organization_id": ORG})
+    await db.bfpo_ppm_services.delete_many({"organization_id": ORG})
+    await db.bfpo_ppm_inspections.delete_many({"organization_id": ORG})
+    await db.bfpo_ppm_counter.delete_many({"organization_id": ORG})
     await db.bfpo_visiting_access.delete_many({"organization_id": ORG})
     seq = 0
     eq_by_site: dict = {}

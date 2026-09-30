@@ -14,6 +14,7 @@ from routes.site_staff import router as site_staff_router
 from routes.files import router as files_router
 from routes.bfpo import router as bfpo_router
 from routes.bfpo_ppm import router as bfpo_ppm_router
+from routes.bfpo_reports import router as bfpo_reports_router
 from routes.files_chunked import router as files_chunked_router
 from routes.payments import router as payments_router
 from routes.sites import router as sites_router
@@ -53,5 +54,6 @@ def register_core(api_router: APIRouter) -> None:
         document_branding_router,
         bfpo_router,
         bfpo_ppm_router,
+        bfpo_reports_router,
     ):
         api_router.include_router(r)
