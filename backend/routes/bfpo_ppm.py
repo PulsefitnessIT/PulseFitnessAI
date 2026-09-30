@@ -13,16 +13,17 @@ import io
 import uuid
 import logging
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import Response
 
 from utils.database import db
 from utils.svc_state import OPEN_STATES, NEW
 from routes.bfpo import (
-    BFPO_ORG_ID, _require_bfpo, _require_staff, _role, _visible_site_ids, _now,
+    BFPO_ORG_ID, _require_bfpo, _require_staff, _role, _visible_site_ids, _now, _today,
 )
 from routes.svc.cases import next_reference, compute_sla_targets
 from utils.svc_state import append_event
+from utils.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,42 @@ def _progress(inspections: list) -> dict:
     done = sum(1 for i in inspections if i.get("status") and i["status"] != "pending")
     failed = sum(1 for i in inspections if i.get("status") == "failed")
     return {"total": total, "done": done, "failed": failed, "remaining": total - done}
+
+
+async def _spawn_service(site: dict, due_date: str, engineer_id: str = "", source: str = "manual") -> dict | None:
+    """Create a PPM service for a site, snapshotting its equipment into
+    pending inspections keyed to each asset's category template. Returns the
+    service, or None if the site has no equipment."""
+    equipment = await db.equipment.find(
+        {"organization_id": BFPO_ORG_ID, "site_id": site["id"]}, {"_id": 0}).to_list(1000)
+    if not equipment:
+        return None
+    svc = {
+        "id": str(uuid.uuid4()), "organization_id": BFPO_ORG_ID, "reference": await _ppm_ref(),
+        "site_id": site["id"], "site_name": site.get("name"),
+        "territory_id": site.get("territory_id"), "territory_name": site.get("territory_name"),
+        "country": site.get("country"), "status": "due",
+        "assigned_engineer_id": engineer_id or "", "assigned_engineer_name": "",
+        "due_date": due_date or "", "asset_count": len(equipment), "source": source,
+        "certificate_doc_id": "", "cert_emailed_to": "",
+        "created_at": _now(), "started_at": None, "completed_at": None,
+    }
+    if engineer_id:
+        eng = await db.users.find_one({"id": engineer_id, "organization_id": BFPO_ORG_ID}, {"_id": 0})
+        svc["assigned_engineer_name"] = (eng or {}).get("full_name") or ""
+    await db.bfpo_ppm_services.insert_one(dict(svc))
+    for eq in equipment:
+        tpl = await _template_for(eq.get("equipment_type") or "")
+        items = (tpl or {}).get("items") or _items(GENERIC_ITEMS)
+        await db.bfpo_ppm_inspections.insert_one({
+            "id": str(uuid.uuid4()), "organization_id": BFPO_ORG_ID, "service_id": svc["id"],
+            "equipment_id": eq["id"], "equipment_name": eq.get("name"),
+            "serial": eq.get("serial_number"), "category": eq.get("equipment_type"),
+            "template_id": (tpl or {}).get("id"), "template_name": (tpl or {}).get("name"),
+            "results": [{"item_id": it["id"], "label": it["label"], "result": "", "note": ""} for it in items],
+            "status": "pending", "fault_case_id": "", "inspected_at": None, "inspected_by": "",
+        })
+    return svc
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -150,32 +187,7 @@ async def create_service(data: dict = Body(...), user=Depends(_require_staff)):
         {"organization_id": BFPO_ORG_ID, "site_id": site_id}, {"_id": 0}).to_list(1000)
     if not equipment:
         raise HTTPException(400, "This site has no equipment to inspect")
-    svc = {
-        "id": str(uuid.uuid4()), "organization_id": BFPO_ORG_ID, "reference": await _ppm_ref(),
-        "site_id": site_id, "site_name": site.get("name"),
-        "territory_id": site.get("territory_id"), "territory_name": site.get("territory_name"),
-        "country": site.get("country"), "status": "due",
-        "assigned_engineer_id": data.get("engineer_id") or "", "assigned_engineer_name": "",
-        "due_date": data.get("due_date") or "", "asset_count": len(equipment),
-        "certificate_doc_id": "", "cert_emailed_to": "",
-        "created_at": _now(), "started_at": None, "completed_at": None,
-        "created_by": user.get("full_name") or user.get("email"),
-    }
-    if svc["assigned_engineer_id"]:
-        eng = await db.users.find_one({"id": svc["assigned_engineer_id"], "organization_id": BFPO_ORG_ID}, {"_id": 0})
-        svc["assigned_engineer_name"] = (eng or {}).get("full_name") or ""
-    await db.bfpo_ppm_services.insert_one(dict(svc))
-    for eq in equipment:
-        tpl = await _template_for(eq.get("equipment_type") or "")
-        items = (tpl or {}).get("items") or _items(GENERIC_ITEMS)
-        await db.bfpo_ppm_inspections.insert_one({
-            "id": str(uuid.uuid4()), "organization_id": BFPO_ORG_ID, "service_id": svc["id"],
-            "equipment_id": eq["id"], "equipment_name": eq.get("name"),
-            "serial": eq.get("serial_number"), "category": eq.get("equipment_type"),
-            "template_id": (tpl or {}).get("id"), "template_name": (tpl or {}).get("name"),
-            "results": [{"item_id": it["id"], "label": it["label"], "result": "", "note": ""} for it in items],
-            "status": "pending", "fault_case_id": "", "inspected_at": None, "inspected_by": "",
-        })
+    svc = await _spawn_service(site, data.get("due_date") or "", data.get("engineer_id") or "", "manual")
     return {"ok": True, "service": svc}
 
 
@@ -412,4 +424,121 @@ def _build_certificate_pdf(svc: dict, inspections: list, user: dict) -> bytes:
     return buf.getvalue()
 
 
-__all__ = ["router", "DEFAULT_TEMPLATES", "_items"]
+__all__ = ["router", "site_portal_router", "DEFAULT_TEMPLATES", "_items"]
+
+
+# ─────────────────────────────────────────────────────────────────
+# Recurring auto-scheduling (quarterly / annual per site)
+# ─────────────────────────────────────────────────────────────────
+
+_FREQ_MONTHS = {"quarterly": 3, "annual": 12}
+
+
+def _add_months(iso_date: str, months: int) -> str:
+    from datetime import date
+    y, m, d = (int(x) for x in iso_date[:10].split("-"))
+    m2 = m - 1 + months
+    y += m2 // 12
+    m = m2 % 12 + 1
+    for dd in (d, 28):
+        try:
+            return date(y, m, dd).isoformat()
+        except ValueError:
+            continue
+    return date(y, m, 28).isoformat()
+
+
+@router.get("/schedules")
+async def list_schedules(user=Depends(_require_staff)):
+    sites = await db.sites.find({"organization_id": BFPO_ORG_ID}, {"_id": 0}).sort("name", 1).to_list(500)
+    return {"schedules": [{"site_id": s["id"], "site_name": s.get("name"),
+                           "territory_name": s.get("territory_name"),
+                           "frequency": s.get("ppm_frequency") or "none",
+                           "next_due": s.get("ppm_next_due") or ""} for s in sites]}
+
+
+@router.post("/schedules")
+async def set_schedule(data: dict = Body(...), user=Depends(_require_staff)):
+    site_id = data.get("site_id")
+    freq = (data.get("frequency") or "none").lower()
+    if freq not in ("none", "quarterly", "annual"):
+        raise HTTPException(400, "frequency must be none | quarterly | annual")
+    site = await db.sites.find_one({"id": site_id, "organization_id": BFPO_ORG_ID}, {"_id": 0})
+    if not site:
+        raise HTTPException(404, "Site not found")
+    upd = {"ppm_frequency": freq}
+    if freq != "none":
+        upd["ppm_next_due"] = data.get("next_due") or _today()
+    await db.sites.update_one({"id": site_id, "organization_id": BFPO_ORG_ID}, {"$set": upd})
+    return {"ok": True}
+
+
+async def _run_autoschedule() -> dict:
+    """For each site whose schedule is due, create a 'due' PPM service (unless one
+    is already open) and advance next_due by the cadence. Idempotent per day."""
+    today = _today()
+    created, advanced = [], 0
+    sites = await db.sites.find(
+        {"organization_id": BFPO_ORG_ID, "ppm_frequency": {"$in": list(_FREQ_MONTHS.keys())}}, {"_id": 0},
+    ).to_list(500)
+    for s in sites:
+        nxt = s.get("ppm_next_due") or today
+        if nxt[:10] > today:
+            continue
+        open_exists = await db.bfpo_ppm_services.find_one(
+            {"organization_id": BFPO_ORG_ID, "site_id": s["id"], "status": {"$ne": "completed"}}, {"_id": 0, "id": 1})
+        if not open_exists:
+            svc = await _spawn_service(s, due_date=nxt, source="auto-schedule")
+            if svc:
+                created.append(svc["reference"])
+        new_next = _add_months(nxt, _FREQ_MONTHS[s["ppm_frequency"]])
+        while new_next <= today:
+            new_next = _add_months(new_next, _FREQ_MONTHS[s["ppm_frequency"]])
+        await db.sites.update_one({"id": s["id"], "organization_id": BFPO_ORG_ID},
+                                  {"$set": {"ppm_next_due": new_next, "ppm_last_generated": _now()}})
+        advanced += 1
+    logger.info("PPM autoschedule: created=%s advanced=%s", created, advanced)
+    return {"created": created, "sites_advanced": advanced}
+
+
+@router.post("/cron/autoschedule")
+async def cron_autoschedule(request: Request):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    import hmac
+    import os as _os
+    import asyncio as _asyncio
+    secret = _os.environ.get("WEBHOOK_CRON_SECRET")
+    auth = request.headers.get("authorization") or ""
+    if not secret or not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:], secret):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    _asyncio.create_task(_run_autoschedule())
+    return {"accepted": True}
+
+
+# ─────────────────────────────────────────────────────────────────
+# Site-facing view — surfaces PPM in the MODService portal under
+# Faults > Planned Preventative Maintenance. Matches the caller's site.
+# ─────────────────────────────────────────────────────────────────
+
+site_portal_router = APIRouter(prefix="/mod/site", tags=["MOD · BFPO PPM (site portal)"])
+
+
+@site_portal_router.get("/ppm")
+async def site_portal_ppm(site_name: str = "", site_id: str = "", user=Depends(get_current_user)):
+    """PPM services for a site, for display in the MODService site portal.
+    Keyed by site_id or site_name so it lines up with the site's own record."""
+    q = {"organization_id": BFPO_ORG_ID}
+    if site_id:
+        q["site_id"] = site_id
+    elif site_name:
+        q["site_name"] = site_name
+    else:
+        return {"services": []}
+    rows = await db.bfpo_ppm_services.find(q, {"_id": 0}).sort("created_at", -1).to_list(200)
+    for s in rows:
+        insp = await db.bfpo_ppm_inspections.find(
+            {"service_id": s["id"], "organization_id": BFPO_ORG_ID}, {"_id": 0, "status": 1}).to_list(1000)
+        s["progress"] = _progress(insp)
+        s["certificate_url"] = (f"/api/bfpo/ppm/services/{s['id']}/certificate.pdf"
+                                if s.get("status") == "completed" else "")
+    return {"services": rows}

@@ -6,3 +6,10 @@ crons:
     method: POST
     # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
     enabled: true
+  - name: ppm-autoschedule
+    description: "Daily check that auto-creates due BFPO planned-maintenance services per site on their quarterly/annual cadence"
+    cron: "0 6 * * *"
+    endpoint: "{{BASE_URL}}/api/bfpo/ppm/cron/autoschedule"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

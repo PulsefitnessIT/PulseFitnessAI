@@ -152,6 +152,7 @@ async def seed():
         terr = next(t for t in TERRITORIES if t["id"] == s["territory_id"])
         await db.sites.update_one({"id": s["id"]}, {"$set": {
             **s, "organization_id": ORG, "territory_name": terr["name"], "created_at": now(),
+            "ppm_frequency": "quarterly", "ppm_next_due": iso(days=-1)[:10],
         }}, upsert=True)
 
     eqs = make_equipment()

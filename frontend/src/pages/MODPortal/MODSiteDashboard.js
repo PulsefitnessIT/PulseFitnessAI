@@ -80,6 +80,7 @@ export default function MODSiteDashboard() {
   const [quotesPending, setQuotesPending] = useState(0);
   const [queuedCount, setQueuedCount] = useState(0);
   const [activeDrill, setActiveDrill] = useState(null);
+  const [ppm, setPpm] = useState([]);
 
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
@@ -97,6 +98,10 @@ export default function MODSiteDashboard() {
       setDash(d.data);
       setNudges(n.data.nudges || []);
       setActiveDrill(dr.data?.drill || null);
+      const sn = d.data?.site?.name || d.data?.site_name || '';
+      const sid = d.data?.site?.id || d.data?.site_id || '';
+      axios.get(`${base}/mod/site/ppm`, { headers: h, params: { site_name: sn, site_id: sid } })
+        .then((p) => setPpm(p.data?.services || [])).catch(() => {});
       axios.get(`${base}/mod/site/quotes`, { headers: h })
         .then(q => setQuotesPending(q.data?.pending_count || 0)).catch(() => {});
     } catch (e) {
@@ -317,6 +322,30 @@ export default function MODSiteDashboard() {
             </div>
           )}
         </section>
+        {/* Planned Preventative Maintenance (from Pulse Fitness MOD Operations) */}
+        {(ppm || []).length > 0 && (
+          <section data-testid="mod-site-ppm">
+            <h2 className="text-white/70 font-bold text-xs uppercase tracking-wider mb-3">
+              Faults · Planned Preventative Maintenance · {ppm.length}
+            </h2>
+            <div className="space-y-2">
+              {ppm.map((s) => (
+                <div key={s.id} className="rounded-xl border border-white/10 bg-white/[0.02] p-4 flex items-center gap-3" data-testid={`mod-ppm-${s.id}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white">{s.reference} · {s.site_name}</p>
+                    <p className="text-xs text-white/50">{s.progress?.done || 0}/{s.progress?.total || 0} assets checked{s.due_date ? ` · due ${s.due_date}` : ''}{s.progress?.failed ? ` · ${s.progress.failed} fault(s)` : ''}</p>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${s.status === 'completed' ? 'bg-emerald-400/20 text-emerald-300' : s.status === 'due' ? 'bg-amber-400/20 text-amber-300' : 'bg-cyan-400/20 text-cyan-300'}`}>
+                    {s.status === 'in_progress' ? 'In progress' : s.status === 'due' ? 'Due' : 'Completed'}
+                  </span>
+                  {s.certificate_url && (
+                    <a href={`${AUTH_API || API}${s.certificate_url}`} target="_blank" rel="noreferrer" className="text-cyan-300 text-xs font-bold underline-offset-2 hover:underline" data-testid={`mod-ppm-cert-${s.id}`}>Certificate</a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
 
       {wizardOpen && (

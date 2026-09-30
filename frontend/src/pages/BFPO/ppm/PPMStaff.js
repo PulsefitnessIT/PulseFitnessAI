@@ -11,10 +11,11 @@ export default function PPMStaff({ onOpen }) {
         <h1 className="text-2xl font-bold text-slate-900">Planned Servicing</h1>
         <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
           <button onClick={() => setTab('services')} data-testid="ppm-tab-services" className={`px-3 py-1.5 rounded-md text-sm font-semibold ${tab === 'services' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}>Services</button>
+          <button onClick={() => setTab('schedules')} data-testid="ppm-tab-schedules" className={`px-3 py-1.5 rounded-md text-sm font-semibold ${tab === 'schedules' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}>Schedules</button>
           <button onClick={() => setTab('templates')} data-testid="ppm-tab-templates" className={`px-3 py-1.5 rounded-md text-sm font-semibold ${tab === 'templates' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}>Checklists</button>
         </div>
       </div>
-      {tab === 'services' ? <Services onOpen={onOpen} /> : <Templates />}
+      {tab === 'services' ? <Services onOpen={onOpen} /> : tab === 'schedules' ? <Schedules /> : <Templates />}
     </div>
   );
 }
@@ -81,6 +82,44 @@ function Services({ onOpen }) {
         </Card>
       )}
     </>
+  );
+}
+
+function Schedules() {
+  const [rows, setRows] = useState(null);
+  const [saving, setSaving] = useState('');
+  const load = useCallback(() => { bfpo.get('/ppm/schedules').then((r) => setRows(r.data.schedules)); }, []);
+  useEffect(() => { load(); }, [load]);
+  const save = async (site_id, frequency) => {
+    setSaving(site_id);
+    try { await bfpo.post('/ppm/schedules', { site_id, frequency }); await load(); }
+    finally { setSaving(''); }
+  };
+  if (!rows) return <Spinner />;
+  return (
+    <div data-testid="ppm-schedules">
+      <p className="text-sm text-slate-500 mb-3">Services auto-generate as "due" on each site's cadence. The scheduler runs daily.</p>
+      <Card className="overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th className="text-left p-3">Site</th><th className="text-left p-3 hidden md:table-cell">Territory</th><th className="text-left p-3">Cadence</th><th className="text-left p-3">Next due</th></tr></thead>
+          <tbody>
+            {rows.map((s) => (
+              <tr key={s.site_id} className="border-t border-slate-100" data-testid={`ppm-sched-${s.site_id}`}>
+                <td className="p-3 font-medium text-slate-800">{s.site_name}</td>
+                <td className="p-3 hidden md:table-cell text-slate-500">{s.territory_name}</td>
+                <td className="p-3">
+                  <select className={inputCls + ' max-w-[160px]'} value={s.frequency} disabled={saving === s.site_id}
+                    onChange={(e) => save(s.site_id, e.target.value)} data-testid={`ppm-sched-freq-${s.site_id}`}>
+                    <option value="none">None</option><option value="quarterly">Quarterly</option><option value="annual">Annual</option>
+                  </select>
+                </td>
+                <td className="p-3 text-slate-600">{s.frequency === 'none' ? '—' : (s.next_due || '—')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
   );
 }
 

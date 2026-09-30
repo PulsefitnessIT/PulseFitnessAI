@@ -1,4 +1,22 @@
-# ═══ 2026-06 · MOD Operations reporting (jobs/services/SLA) + PDF/Excel export ═══
+# ═══ 2026-06 · Recurring PPM auto-scheduling + MODService-portal surfacing ═══
+- Recurring scheduler: sites carry ppm_frequency (quarterly/annual/none) + ppm_next_due. Cron
+  POST /api/bfpo/ppm/cron/autoschedule (WEBHOOK_CRON_SECRET Bearer auth, mirrors sicon cron) runs a
+  backgrounded _run_autoschedule() that creates a 'due' service per site whose next_due<=today (skips
+  if one is already open) and advances next_due by the cadence. Idempotent (2nd run = no dupes).
+  .emergent/crons.yml: added "ppm-autoschedule" daily 06:00 UTC (now 2 crons total, ≤5).
+- Staff config: PPMStaff "Schedules" tab (GET/POST /ppm/schedules) to set per-site cadence.
+- MODService portal surfacing: GET /api/mod/site/ppm?site_name=&site_id= (bfpo_ppm.site_portal_router,
+  any authed MOD user, keyed to the site) + a "Faults · Planned Preventative Maintenance" section added
+  to pages/MODPortal/MODSiteDashboard.js (fetches by dash.site name/id; additive, empty-safe).
+  NOTE/CAVEAT: demo BFPO sites are SEPARATE records from the live MOD site portal's sites, so the section
+  populates only when the MOD site's name/id matches a BFPO site — i.e. once sites are unified (the
+  original plan's "reuse existing MOD site records" assumption). Endpoint + UI verified working by name.
+- Refactored create_service to reuse _spawn_service(). Verified: cron 401/200 + 6 due services created,
+  idempotent, schedules advance to next quarter; site-portal returns matching site's PPM / empty on no match.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 Staff-only (mod_operations-gated) filterable reports. Backend routes/bfpo_reports.py
 (prefix /api/bfpo/staff/reports, registered in route_registry/core.py, uses _require_staff):
 - GET "" ?report=jobs|services|sla&territory=&site=&from=&to= → {title, summary[], columns[], rows[]}.
