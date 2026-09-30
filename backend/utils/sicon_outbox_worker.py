@@ -48,7 +48,7 @@ from typing import Any, Optional
 
 from utils.database import db
 from utils.sicon_client import SiconAPIError, SiconClient
-from utils.sicon_common import get_sicon_client, log_sicon_event
+from utils.sicon_common import get_sicon_client, log_sicon_event, env_allow_writes
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +67,8 @@ class DrainResult:
     failed: int = 0
     dead_letter: int = 0
     skipped_no_config: int = 0
+    writes_disabled: bool = False
+    skipped_writes_disabled: int = 0
     simulated: bool = False
     by_kind: dict[str, dict[str, int]] = field(default_factory=dict)
 
@@ -186,6 +188,16 @@ async def tick(*, organization_id: Optional[str] = None,
     cursor = db[OUTBOX].find(q, projection={"_id": 0}).sort("created_at", 1).limit(max_rows)
     rows = [r async for r in cursor]
     if not rows:
+        result.finished_at = _now_iso()
+        return result
+
+    # Phase 2 write-back safety gate (§27): while SICON_ALLOW_WRITES is false we
+    # do NOT send. Real drains short-circuit here, leaving rows 'pending' so the
+    # queue is preserved (no dead_letter churn) and switches on cleanly at
+    # go-live. 'simulate' (demo) mode is exempt — it never hits the network.
+    if not simulate and not env_allow_writes():
+        result.writes_disabled = True
+        result.skipped_writes_disabled = len(rows)
         result.finished_at = _now_iso()
         return result
 
