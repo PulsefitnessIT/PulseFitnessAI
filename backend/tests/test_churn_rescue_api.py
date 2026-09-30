@@ -18,7 +18,7 @@ import requests
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
     # Fallback for local testing
-    BASE_URL = "https://aftersales-engine.preview.emergentagent.com"
+    BASE_URL = "https://aftersales-engine-1.preview.emergentagent.com"
 
 # Test credentials
 ADMIN_EMAIL = "admin@gymaxisai.com"

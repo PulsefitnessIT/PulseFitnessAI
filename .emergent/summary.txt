@@ -1,163 +1,185 @@
-<analysis>**original_problem_statement**: Design and build a complete Aftersales Maintenance Contract Automation Engine for PulseFitness.ai. The scope includes Estate Onboarding, Staff Portal enhancements (UI normalization, Staff Expenses, AI-based receipt scanning, Manager approvals, Vehicle Checks), MODService custom domain deployment, and comprehensive Sage 200 / Sicon Service WebAPI integrations. Recently expanded to include robust Fleet Management (Register/Imports, Expiries, Fines tracking), Staff DBS tracking, PDF/CSV reporting, and UI/UX Auth refinements (Edge/iCloud password manager support).
+<analysis>**original_problem_statement**: Design and build a complete Aftersales Maintenance Contract Automation Engine for PulseFitness.ai. The scope includes Estate Onboarding, Staff Portal enhancements, Vehicle/Fleet Management, and a secure, production-grade Sicon Service / Sage 200 WebAPI integration. 
+PRODUCT REQUIREMENTS: The Sicon integration must be strictly READ-ONLY (Phase 1) using . PulseFitness.ai acts as the operational layer/middleware (connecting Orbit4 and Sicon) while respecting data ownership (no duplicate models, no blind overwrites). Ensure idempotent syncs, resilient architecture, and proper Sicon case relationships (Equipment → Appointment → Resource → Time Booking).
 
 **User's preferred language**: English (INSTRUCT next agent to respond in English only)
 
-**what currently exists?**: A mature React + FastAPI CRM and Operations platform. It features an Aftersales Engine, Contract AI Assistant, unified Staff/Engineer Portal with Vehicle Checks, MODService tenant isolation via hostname, and a fully built (but pending live credentials) Sicon Service WebAPI mapping. Currently, it also includes a comprehensive Fleet Management module with manager dash expiries (Lease, MOT), Fine management, DBS compliance tracking for staff, and robust form handling for 3rd-party password manager autofills.
+**what currently exists?**: A mature React + FastAPI CRM and Operations platform. Features include an Aftersales Engine, heavily optimized 120k-scale data ingestion, and a robust Sicon Sync infrastructure (locks, checkpoints, outbox queue). The Sicon integration has been aligned to proven v1 WebAPI routes, mapping workflows for engineers are built, and Phase 2 write-back scaffolding has been consolidated into a single flag-gated outbox mechanism (currently disabled). The built Sicon API implementation has been successfully audited and verified to strictly match the external Bruno API specifications.
 
-**Last working item**:
-    - Last item agent was working: Fixing a React controlled-input race condition on the login form in  that was preventing iCloud Password Manager / Edge from successfully autofilling credentials. Changed inputs to uncontrolled () and read direct DOM values on submit.
+**Last working item**: 
+    - Last item agent was working: Auditing the existing Sicon API integration codebase ( and ) against the provided Bruno/OpenCollection API specification document to ensure full alignment.
     - Status: USER VERIFICATION PENDING
-    - Agent Testing Done: Y
-    - Which testing method agent to use?: Frontend testing agent
+    - Agent Testing Done: Y (Audit successfully completed)
+    - Which testing method agent to use?: NA
     - User Testing Done: N
 
-**All Pending/In progress Issue list**:
-  Issue 1: Sicon Bruno mapping finalization & Auth route missing (P1)
-     - Attempted fixes: Agent previously generated a best-effort Auth route.
-     - Next debug checklist: Await user providing the missing *Sicon.WebApi.Platform* collection zip, or decide whether to fold the 188 mappings back into .
-     - Why fix this issue and what will be achieved with the fix?: Finalizes the complete Sicon mapping context before the user's meeting with Sicon.
-     - Status: BLOCKED (User input/files pending)
+**All Pending/In progress Issue list**:  
+  Issue 1: Case-Store Decision / Service Desk Redirection (P0)
+     - Attempted fixes: Discussed with user whether Sicon cases should surface in the engineer Service Desk () instead of only the Operations Portal fault log (). User responded ambiguously (a) to the latest prompt.
+     - Next debug checklist: Await explicit user instruction. If approved, redirect imported Sicon cases into , attach  for idempotency, allocate  reference, and re-target tracking notes to .
+     - Why fix this issue and what will be achieved with the fix?: Necessary for engineers to actively work on imported Sicon cases inside the Pulse app.
+     - Status: BLOCKED (User explicit verification/decision pending)
      - Is recurring issue? N
-     - Should Test frontend/backend/both after fix: NA
+     - Should Test frontend/backend/both after fix: Backend
+     - Blocked on other issue: User decision
 
-  Issue 2: Production SENDER_EMAIL delivery verification (Resend) (P2)
-     - Attempted fixes: Email functionality implemented; logs cleanly in preview environments.
+  Issue 2: Sicon Live Connectivity (P0)
+     - Attempted fixes: Created an email template for the user to send to Sicon ().
+     - Next debug checklist: Await reachable base URL, port, integration service account, and production  from Sicon.
+     - Why fix this issue and what will be achieved with the fix?: Unblocks actual end-to-end certification of the integration.
+     - Status: BLOCKED
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix: Backend
+
+  Issue 3: Production SENDER_EMAIL delivery verification (Resend) (P1)
+     - Attempted fixes: Email functionality implemented but fails in preview due to restricted keys.
      - Next debug checklist: Await user testing live email delivery on production.
-     - Why fix this issue and what will be achieved with the fix?: Ensures emails physically reach inboxes in production (blocked by preview container restrictions).
-     - Status: BLOCKED (User verification in production pending)
+     - Why fix this issue?: Ensures emails physically reach inboxes.
+     - Status: USER VERIFICATION PENDING
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix: NA
 
-  Issue 3: Sage 200 / Sicon API connections mocked (P2)
-     - Attempted fixes: Full production-ready Sicon integration suite is built, sitting in dry-run mode.
-     - Next debug checklist: Await user providing the live Sicon WebAPI URL, version, and credentials.
-     - Why fix this issue and what will be achieved with the fix?: Finalizes the automation of billing/service sync into Sage.
-     - Status: BLOCKED (Awaiting credentials from user)
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix: Both
-
   Issue 4: Stripe Live Key in Git History (P2)
      - Attempted fixes: Instructed user to contact support.
-     - Next debug checklist: The user MUST email support@emergent.sh to purge a historical commit.
      - Status: BLOCKED
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix: NA
 
-**In progress Task List**: 
-  None.
+**In progress Task List**:
+  Task 1: Wire enqueue call-sites for Write-back (P1)
+     - Where to resume: Call // from the svc-case lifecycle so state changes queue Sicon intents.
+     - What will be achieved with this?: Prepares the system for Phase 2 (still remains behind ).
+     - Status: BLOCKED (Depends on Case-Store Decision [Issue 1])
+     - Should Test frontend/backend/both after fix: Backend
+     - Blocked on something: Issue 1
 
-**Upcoming and Future Tasks**
+  Task 2: Orbit4 inbound webhook → Pulse case (P1)
+     - Where to resume: Complete the per-org  receiver.
+     - What will be achieved with this?: Allows field tickets from Orbit4 to correctly create Pulse cases, finalizing the Orbit4 -> Pulse leg of the middleware.
+     - Status: NOT STARTED
+     - Should Test frontend/backend/both after fix: Backend
+     - Blocked on something: None
+
+  Task 3: Auto-start scaffold (P1)
+     - Where to resume: Add  so the drain loop runs on a 30s timer once writes are flipped on.
+     - Status: NOT STARTED
+     - Should Test frontend/backend/both after fix: Backend
+
+  Task 4: Platform Visual Continuity — Phase 2 (P2)
+     - Status: BLOCKED (Parked by user to focus on features/bugs)
+
+**Upcoming and Future Tasks**:
     Upcoming Tasks:
-    - Task 1: Fine reminders (P1): Implement a bell nudge for any unpaid vehicle fines older than ~14 days.
-    - Task 2: DBS weekly email (P2): Create a Monday digest sent to managers alongside the existing in-app DBS reminder.
-    - Task 3: Compliance-at-a-glance panel (P2): Combine DBS, Right-to-Work, and outstanding fines in a single manager dashboard view.
-    
-    Future Tasks:
-    - Task 4: Cash Collection Automation (P2): Direct Debit/Stripe mandate execution (Currently, DD is tracked as a UI flag only).
+    - Task 1: Wire Sicon Appointments → Diary (P0). Depends on Case-Store decision.
+    - Task 2: Add needs review badge for UNMAPPED_EQUIPMENT on the Service Desk header (P1).
+    - Task 3: Add numeric confidence + LINKED/PROBABLE_MATCH/NEW/CONFLICT/IGNORED/ERROR in Equipment Import Preview (P1).
+    - Task 4: Sicon write-back admin panel showing  (P1).
+    - Task 5: DBS weekly email digest (P2).
 
-**Completed work in this session**
-- Fixing Staff Re-issue login logic: Fixed token routing to use correct brand domains instead of preview environments. (DONE)
-- Fleet Register UI & Excel Import: Built Fleet Manager view, imported 45 Pulse Fitness vehicles, created searchable assigned driver picker. (DONE)
-- DBS Profile Integration: Added Enhanced DBS tracking & calendar expiry fields to HR Staff Profiles and 'My Details' in Staff Portal. (DONE)
-- Notification Bell & UI Tweaks: Moved bell into the top header (colored white), removed 'Active employee' shells, fixed dark mode card bleeding, lateral scroll on mobile. (DONE)
-- Vehicle Fines CRUD & Dashboard Expiries: Added Fine management (value, notes, file upload) to vehicle details. Added 60-day lease/MOT expiries to Fleet Dash. Added DBS expiry nudges. (DONE)
-- Fleet PDF & CSV Exports: Created H&S compliant PDF pack (using ReportLab) and CSV generation for the entire Fleet Register. (DONE)
-- Edge/iCloud Autofill Support: Modified login form markup (,  tags) and converted controlled React inputs to uncontrolled () to allow 3rd-party password managers to autofill reliably. (DONE)
+    Future Tasks:
+    - Task 6: Live certification of Sicon triad + 50-asset pull (upon receipt of live Base URL).
+    - Task 7: Contract read-side integration (currently parked as Sicon plugin returns 404).
+    - Task 8: Staged rollout runner (1 customer -> 100 -> 1k -> full).
+    - Task 9: Scheduled incremental syncs.
+
+**Completed work in this session**:
+- Sicon Implementation Audit against Bruno API Specs: Verified Auth endpoints, all V1 read endpoints (Ping, CaseType, Equipment, case relationships), Contract Plugin, and Write Policies. Confirmed 100% alignment with the provided documentation (DONE).
 
 **Earlier issues found/mentioned but not fixed**
-   - None ignored.
+   - Issue 1: HTTP 429 Auth-lockouts on Shared Test Accounts
+     - Debug checklist: Review login/auth fixtures in pytest suites (e.g., ). Adjust suites to share tokens rather than rapidly re-authenticating.
+     - Why to solve this issue and what will be achieved with this?: Prevents false-positive test failures during broad offline regression testing.
+     - Should Test frontend/backend/both after fix: Backend (Pytest)
+     - Is recurring issue? Y
 
 **Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: Invalid RESEND_API_KEY in preview environment.
-  - Recurrence count: 7
-  - Status: BLOCKED (Expected behavior in preview environments).
-  - Stripe live key in Git history.
+  - Issue recurrence in previous fork: Invalid RESEND_API_KEY in preview environment, Stripe live key in Git history.
+  - Recurrence count: 13
+  - Status: BLOCKED
 
 **Code Architecture**
 /app
-├── backend/routes/auth.py & account.py (Auth token and password reset logic)
-├── backend/routes/vehicle_checks.py (Vehicle/Fleet CRUD, Fines, Expiries, PDF/CSV generators)
-├── backend/routes/staffing_hr.py & staff_portal.py (Staff profiles, DBS metadata, portal user profile)
-├── backend/utils/pulse_doc_template.py (ReportLab PDF styles)
-├── frontend/src/components/shared/Navbar.js (Login modal, autofill support logic)
-├── frontend/src/pages/LiteDashboard/staffing/VehiclesTab.js (Fleet Register manager UI)
+├── backend/utils/sicon_client.py, sicon_import.py, sicon_common.py (Sicon Core)
+├── backend/utils/sicon_links.py (External mapping logic e.g., Engineer Mapping)
+├── backend/utils/sicon_outbox_worker.py, sicon_writeback.py (Phase 2 Write-back scaffold)
+├── backend/utils/orbit4_client.py, orbit4_outbound.py (Orbit4 Middleware components)
+├── backend/routes/crm_afs_onboarding.py, ppm_engine.py (PPM Generation + Backfill)
+├── backend/routes/sicon.py (Sicon Endpoints & Conflict resolution)
+├── frontend/src/pages/Admin/IntegrationsSiconConnect.js (Sicon API health testing UI)
+├── frontend/src/pages/SiconMappings.js, SiconDashboard.js (Sicon Mappings and Conflicts UI)
 
 **Key Technical Concepts**
-React, FastAPI, MongoDB, ReportLab (PDF Generation), Object Storage (Vehicle photos/Fines documents). 
-- **Uncontrolled React Inputs for Autofill**: To prevent React's state-driven lifecycle from overwriting 3rd-party password manager injections, login forms are currently uncontrolled and read  on submit.
+React, FastAPI, MongoDB, Outbox Pattern (for reliable syncs), Sync Checkpointing, Null-protection, Idempotency. PulseFitness acts as middleware connecting Orbit4 and Sicon.
 
 **key DB schema**
-  - : Logs fleet data including  (MOT, Expiries),  list, .
-  - : Includes HR data, mapped , and .
-  - : Manages multi-tenant password resets.
+  - : Operations portal fault log (customer-facing). Currently receives Sicon cases.
+  - : Service Desk for engineers.
+  - , , , : Sicon state and sync queue tables.
 
 **changes in tech stack**
-  - None.
+  - None, but enforced a singular strict outbox write pattern to avoid Sicon double-writes.
 
-**All files of reference**
-  - 
-  - 
-  - 
-  - 
-  - 
-  -  (Script executed for one-off import)
+**All files of reference** 
+  - ,  (Why: Successfully audited against the user's provided Sicon Bruno API specifications).
+  -  & 
+  -  
+  - , 
+  -  
+  - , 
+  - , 
 
 **Areas that need refactoring**:
-  -  and  are massive components causing occasional JavaScript heap out of memory errors. If tests/compilation hang, run frontend: ERROR (not running)
-frontend: started.
+  - Test suites invoking rapid login sequences cause HTTP 429 lockouts (e.g., ).
+  - Stale backend code comment about Sicon page size defaulting to  (currently correctly configured as  in env, just needs code comment cleanup).
 
 **key api endpoints**
-  -  (Reads email/password strictly from form DOM post-fix)
-  -  (Re-issue token fixes)
-  -  (Lease & MOT expiries)
-  -  &  (Fleet export)
+  -  (Triggers PPM backfill during onboarding)
+  -  (Retrieves Engineer/Resource mappings)
+  -  (Test mode for the outbox)
+  -  (Orbit4 middleware retry endpoint)
 
 **Critical Info for New Agent**
-  - **Login Form Autofill Architecture**: Do NOT convert  login inputs back to  controlled components. They must remain uncontrolled () so Edge and iCloud Password Managers can securely autofill without React wiping the DOM values.
-  - **OOM Errors**: The frontend app is huge. Use frontend: stopped
-frontend: started instantly if Webpack hangs or gives an allocation failed error.
-  - **Single Codebase**: Remember MODService runs on the same repository via hostname tenant detection. Do not spin up separate DB logic.
+  - **READ-ONLY Integration Policy**: DO NOT perform any write operations to Sicon.  must remain . Phase 2 write-back functions are scaffolded but strictly gated behind this flag.
+  - **Sicon Case Store Routing**: There is a pending decision on where imported Sicon cases should land ( vs ). Do not wire appointments or re-route these cases without user confirmation. 
+  - **Live Connectivity Blocked**: The Sicon environment () is not reachable from this cloud container. All testing for Sicon logic must be done offline using mocked httpx transport ().
 
 **documents and test reports created in this job**
-  -  (Updated)
-  - 
   - 
   - 
   - 
 
-**Last 10 User Messages and any pending HUMAN messages**
- 1. *[User]*: Edge browser isn't remembering credentials, iCloud autofill puts values but password doesn't auto-populate on submit.
- 2. *[Agent]*: Diagnosed React controlled-input race condition against Password Manager DOM injection. Modified login fields to uncontrolled inputs and adjusted  HTML tags. Tested and fixed.
- 3. *[User]*: Fleet PDF Pack: Add a printable PDF of the whole fleet register
- 4. *[Agent]*: Utilized ReportLab to generate a Pulse-branded PDF Pack for board reports.
- 5. *[User]*: Requested Link fleet drivers to actually link the Excel imported string labels to existing system users.
- 6. *[Agent]*: Created a searchable driver dropdown picker in the manager UI, enabling production matching.
- 7. *[User]*: Asked What are the next items?
- 8. *[Agent]*: Outlined blocked items (Sicon, Resend) and provided next viable builds (Fine Reminders, PDF Pack, Driver Links).
- 9. *[User]*: Staff Portal to include DBS, Vehicle modal to have Details & Check sheet options, Notification bell white, lateral scroll on mobile menus, fines section.
- 10. *[Agent]*: Implemented massive chunk of UI fixes, Mobile menus, Fines CRUD operations & object storage.
- *(No pending Human Messages)*
+**Last 10 User Messages and any pending HUMAN messages** 
+ 1. *[User]*: Directed to continue as agent saw best.
+ 2. *[Agent]*: Aligned read-side routes, added relationships to importer. Asked questions about Case-store decision.
+ 3. *[User]*: Asked if integration paths were robust, requested review of Orbit4 integration.
+ 4. *[Agent]*: Reviewed Orbit4, discovered rogue legacy write bridge. 
+ 5. *[User]*: Directed to deprecate legacy bridge and consolidate on proven client while waiting for base URL.
+ 6. *[User]*: Instructed to continue with Phase 2 Sicon write-back scaffolding.
+ 7. *[User]*: Uploaded Sicon Bruno API specifications  and asked to audit codebase.
+ 8. *[User]*: Asked to use  tool to confirm the audit plan.
+ 9. *[Agent]*: Audited spec against codebase, confirmed 100% alignment, sent findings via .
+ 10. *[User]*: Replied a *(Ambiguous reply. Agent must request clear instruction on the Case-Store decision before proceeding with further Sicon mapping).*
 
 **Project Health Check:**
-Broken: None.
-Mocked: Sage 200 / Sicon API connections; Resend emails in the preview container.
+Broken: Some tests exhibit 429 lockouts (Environment issue).
+Mocked: Sage 200 / Sicon API live requests.
 
 **3rd Party Integrations**
-  - Claude Sonnet 4.6 — uses Emergent LLM Key (OCR scanning)
+  - Claude Sonnet 4.6 — uses Emergent LLM Key 
   - Stripe (Payments) — requires User API Key
   - Resend (Emails) — requires User API Key
   - Sage 200 / Sicon WebAPI — requires User API Key
+  - Orbit4 (Ticketing) — requires User API Key
 
 **Testing status**
-  - Testing agent used after significant changes: YES (Tested Mobile UI guards, Driver Picker, Navbar autofills).
-  - Troubleshoot agent used after agent stuck in loop: NO.
-  - Test files created: Yes (Listed in documents section).
-  - Known regressions: None detected.
+  - Testing agent used after significant changes: NO (Audit performed manually by agent reading files)
+  - Troubleshoot agent used after agent stuck in loop: NO
+  - Test files created: None this session
+  - Known regressions: None (HTTP 429 test failures are confirmed environmental/test-auth artifacts, not code regressions).
 
 **Credentials to test flow:**
-  -  /  (Owner of Pulse Fitness Ltd, specifically configured for Fleet Register & Dash testing)
-  -  (Manager Admin)
-  -  /  (Staff portal tests)
+  -  /  (Owner / Master admin tools - REQUIRES MFA)
+  -  /  (Manager Admin - No MFA)
+  -  /  (Staff portal)
 
 **What agent forgot to execute**
-Nothing. All requested modifications, bug fixes, exports, auth configurations, and feature setups were completed successfully.</analysis>
+The agent did not explicitly re-prompt the user for a clear yes/no on the  after the user replied with a single character a. The next agent MUST seek clear direction on  (Service Desk Redirection) before writing logic to wire appointments to the diary.</analysis>

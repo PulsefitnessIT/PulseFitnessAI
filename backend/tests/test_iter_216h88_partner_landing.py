@@ -13,7 +13,7 @@ import requests
 BASE_URL = (
     os.environ.get("REACT_APP_BACKEND_URL")
     or os.environ.get("TEST_API_URL")
-    or "https://aftersales-engine.preview.emergentagent.com"
+    or "https://aftersales-engine-1.preview.emergentagent.com"
 ).rstrip("/")
 
 

@@ -12,6 +12,7 @@ from routes.equipment import public_router as equipment_public_router
 from routes.issues import router as issues_router
 from routes.site_staff import router as site_staff_router
 from routes.files import router as files_router
+from routes.bfpo import router as bfpo_router
 from routes.files_chunked import router as files_chunked_router
 from routes.payments import router as payments_router
 from routes.sites import router as sites_router
@@ -49,5 +50,6 @@ def register_core(api_router: APIRouter) -> None:
         equipment_transfer_router,
         parts_requests_router,
         document_branding_router,
+        bfpo_router,
     ):
         api_router.include_router(r)

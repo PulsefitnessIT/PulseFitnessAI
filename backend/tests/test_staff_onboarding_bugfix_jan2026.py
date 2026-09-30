@@ -9,7 +9,7 @@ import uuid
 import requests
 import pytest
 
-BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or os.environ.get("TEST_API_URL") or "https://aftersales-engine.preview.emergentagent.com").rstrip("/")
+BASE_URL = (os.environ.get("REACT_APP_BACKEND_URL") or os.environ.get("TEST_API_URL") or "https://aftersales-engine-1.preview.emergentagent.com").rstrip("/")
 HR_EMAIL = "owner@isodemo.com"
 HR_PASS = "IsoDemo123!"
 

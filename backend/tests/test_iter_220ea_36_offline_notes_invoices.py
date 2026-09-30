@@ -16,7 +16,7 @@ import requests
 
 from conftest import rate_limit_bypass_headers
 
-BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "https://aftersales-engine.preview.emergentagent.com").rstrip("/")
+BASE = (os.environ.get("REACT_APP_BACKEND_URL") or "https://aftersales-engine-1.preview.emergentagent.com").rstrip("/")
 ADMIN_EMAIL = os.environ.get("TEST_MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
 ADMIN_PW = os.environ.get("TEST_MASTER_ADMIN_PASSWORD", "MasterAdmin123!")
 FRONT = pathlib.Path("/app/frontend/src/pages/ServiceOps/Engineer")
