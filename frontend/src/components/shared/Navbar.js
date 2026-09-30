@@ -489,7 +489,9 @@ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
  <div className="absolute right-0 top-full mt-2 w-56 rounded-lg shadow-xl z-50 overflow-hidden" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)', border: '1px solid var(--theme-border)' }} data-testid="user-dropdown-menu">
  <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--theme-border)' }}>
  <p className="text-sm font-medium truncate" style={{ color: 'var(--theme-text)' }}>{user?.full_name}</p>
- <p className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>{user?.email}</p>
+ {!['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type) && (
+<p className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>{user?.email}</p>
+)}
  </div>
  <div className="py-1">
  <button
