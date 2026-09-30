@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { bfpo } from '../bfpoApi';
-import { Card, Spinner, Badge, PriorityBadge, HEALTH, STATUS_LABEL } from '../ui';
+import { Card, Spinner, Badge, PriorityBadge, HEALTH, STATUS_LABEL, ROLE_LABEL } from '../ui';
 import { ClipboardList, AlertTriangle, Package, Clock, MapPin, ChevronRight } from 'lucide-react';
 
 const TILES = [
@@ -10,7 +10,7 @@ const TILES = [
   { key: 'overdue', label: 'Overdue', icon: Clock, color: 'text-rose-600 bg-rose-50', filter: { overdue: 'true' } },
 ];
 
-export default function StaffDashboard({ onOpenJobs, onOpenJob }) {
+export default function StaffDashboard({ userName, role, onOpenJobs, onOpenJob }) {
   const [data, setData] = useState(null);
   useEffect(() => { bfpo.get('/staff/dashboard').then((r) => setData(r.data)); }, []);
   if (!data) return <Spinner />;
@@ -18,8 +18,9 @@ export default function StaffDashboard({ onOpenJobs, onOpenJob }) {
 
   return (
     <div className="p-6 max-w-6xl mx-auto" data-testid="staff-dashboard">
-      <h1 className="text-2xl font-bold text-slate-900">Global BFPO Operations</h1>
-      <p className="text-slate-500">Live view across all territories</p>
+      <p className="text-sm text-slate-500">Welcome back,</p>
+      <h1 className="text-2xl font-bold text-slate-900">{userName || 'Global BFPO Operations'}</h1>
+      <p className="text-sm font-semibold text-cyan-700 mt-0.5" data-testid="staff-role-label">{ROLE_LABEL[role] || 'Pulse MOD Service Staff'} · Global oversight</p>
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mt-5">
         {TILES.map((t) => (

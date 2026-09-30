@@ -1,4 +1,19 @@
-# ═══ 2026-06 · BFPO login unified into the MOD Service login (no separate screen) ═══
+# ═══ 2026-06 · BFPO header polish — platform logo, role-under-name, hamburger menu ═══
+Per user feedback on the BFPO header:
+- pages/BFPO/BFPOApp.js header now shows the real Pulse Fitness logo (ui.js PULSE_LOGO, the same
+  1013x313 badge asset used on MODServiceLogin) inside a white chip at natural aspect — replaces the
+  old Globe2 icon + "MOD/BFPO" subtitle.
+- The "MOD / BFPO Engineer" (ui.js ROLE_LABEL) now sits UNDER the user's name on the engineer home
+  (EngineerHome.js) and staff dashboard (StaffDashboard.js gained userName+role props).
+- New pages/BFPO/AccountMenu.js: hamburger (top-right) dropdown with user name+role, sync status,
+  Account settings + Change password (opens AccountModal), and Sign out (platform logout). Password
+  change calls POST /api/account/change-password ({current_password,new_password}); bfpoApi.changePassword().
+- Verified at 390px (engineer) and 1920px (staff): logo renders, role label shows, menu + account
+  modal + password form all functional, 0 overflow.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 User asked BFPO engineers to sign in via the existing modservice.pulsefitness.com login,
 keeping everything in one place, and for the BFPO UI to match the platform design.
 - Removed the standalone BFPO login page (pages/BFPO/BFPOLogin.js deleted).

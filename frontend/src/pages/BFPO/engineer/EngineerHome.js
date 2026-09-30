@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { bfpo } from '../bfpoApi';
-import { Card, PriorityBadge, Spinner, Empty, Badge, HEALTH } from '../ui';
+import { Card, PriorityBadge, Spinner, Empty, Badge, HEALTH, ROLE_LABEL } from '../ui';
 import { AlertTriangle, Package, RotateCcw, ClipboardList, ChevronRight, Clock } from 'lucide-react';
 
 const TILES = [
@@ -32,6 +32,7 @@ export default function EngineerHome({ onOpenJobs, onOpenJob }) {
       <div>
         <p className="text-sm text-slate-500">Welcome back,</p>
         <h1 className="text-2xl font-bold text-slate-900">{me?.user?.name}</h1>
+        <p className="text-sm font-semibold text-cyan-700 mt-0.5" data-testid="engineer-role-label">{ROLE_LABEL[me?.user?.role] || 'MOD / BFPO Engineer'}</p>
         <div className="flex flex-wrap gap-2 mt-2">
           {(me?.territories || []).map((t) => (
             <Badge key={t.id} className="bg-slate-100 text-slate-600 border-slate-200">{t.name}</Badge>

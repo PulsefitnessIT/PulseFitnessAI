@@ -26,3 +26,10 @@ export async function uploadFile(file) {
   });
   return r.data;
 }
+
+export async function changePassword(current_password, new_password) {
+  const r = await axios.post(`${API}/account/change-password`,
+    { current_password, new_password },
+    { headers: { Authorization: authHeader() }, withCredentials: true });
+  return r.data;
+}

@@ -80,6 +80,14 @@ export function Field({ label, children, hint }) {
 
 export const inputCls = 'w-full rounded-xl border border-slate-300 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent';
 
+export const ROLE_LABEL = {
+  engineer: 'MOD / BFPO Engineer',
+  lead: 'MOD / BFPO Lead Engineer',
+  staff: 'Pulse MOD Service Staff',
+};
+
+export const PULSE_LOGO = 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg';
+
 export function localTime(iso, tz) {
   if (!iso) return '—';
   try {

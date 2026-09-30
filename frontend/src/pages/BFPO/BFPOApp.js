@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/App';
 import { bfpo } from './bfpoApi';
-import { Spinner, Btn } from './ui';
+import { Spinner, Btn, PULSE_LOGO } from './ui';
+import AccountMenu from './AccountMenu';
 import EngineerHome from './engineer/EngineerHome';
 import JobList from './engineer/JobList';
 import JobDetail from './engineer/JobDetail';
@@ -72,20 +73,13 @@ export default function BFPOApp() {
 
   const Header = (
     <header className="bg-slate-900 text-white sticky top-0 z-30">
-      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-cyan-600 flex items-center justify-center"><Globe2 className="w-4 h-4" /></div>
-          <div className="leading-tight">
-            <p className="font-bold text-sm">Pulse Fitness</p>
-            <p className="text-[10px] text-cyan-400 font-semibold uppercase tracking-wide">MOD / BFPO {role === 'staff' ? 'Operations' : 'Engineer'}</p>
+      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="bg-white rounded-lg px-2.5 py-1.5 flex items-center" data-testid="bfpo-logo-chip">
+            <img src={PULSE_LOGO} alt="Pulse Fitness" className="h-6 w-auto object-contain" data-testid="bfpo-logo" />
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className={`flex items-center gap-1 text-xs ${online ? 'text-emerald-400' : 'text-amber-400'}`} data-testid="bfpo-online">
-            {online ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}{online ? 'Synced' : 'Offline'}
-          </span>
-          <button onClick={logout} className="flex items-center gap-1 text-xs text-slate-300 hover:text-white" data-testid="bfpo-logout"><LogOut className="w-4 h-4" /> Sign out</button>
-        </div>
+        <AccountMenu user={user} role={role} online={online} onLogout={logout} />
       </div>
       {role === 'staff' && (
         <div className="max-w-6xl mx-auto px-4 flex gap-1 overflow-x-auto">
@@ -101,12 +95,12 @@ export default function BFPOApp() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-16">
+    <div className="min-h-screen bg-[#F8F9FA] pb-16">
       {Header}
       <main>
         {role === 'staff' ? (
           <>
-            {view === 'dashboard' && <StaffDashboard onOpenJobs={(f) => { setStaffFilter(f); setView('jobs'); }} onOpenJob={openStaffJob} />}
+            {view === 'dashboard' && <StaffDashboard userName={user.full_name} role={role} onOpenJobs={(f) => { setStaffFilter(f); setView('jobs'); }} onOpenJob={openStaffJob} />}
             {view === 'sites' && <StaffSites onOpenJobs={(f) => { setStaffFilter(f); setView('jobs'); }} />}
             {view === 'jobs' && <StaffJobs initialFilter={staffFilter} onOpenJob={openStaffJob} />}
             {view === 'visiting' && <StaffVisiting />}
