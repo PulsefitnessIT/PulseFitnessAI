@@ -70,6 +70,9 @@ async def _require_bfpo(user=Depends(get_current_user)) -> dict:
 async def _require_staff(user=Depends(_require_bfpo)) -> dict:
     if _role(user) != "staff":
         raise HTTPException(403, "MOD service staff access required")
+    from utils.module_access import has_mod_operations
+    if not has_mod_operations(user):
+        raise HTTPException(403, "Requires the Pulse Fitness MOD Operations module")
     return user
 
 

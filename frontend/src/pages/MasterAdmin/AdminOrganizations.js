@@ -1901,6 +1901,7 @@ useEffect(() => {
      { key: 'mod_console',  label: 'MOD Console & ASER', desc: 'MOD console + ASER reporting' },
      { key: 'mod_faults',   label: 'Fault Reporting',    desc: 'Service-personnel fault logging' },
      { key: 'mod_equipment', label: 'Equipment Register', desc: 'Per-site equipment registers' },
+    { key: 'mod_operations', label: 'Pulse Fitness MOD Operations', desc: 'MOD global operations overview dashboard' },
    ] : [
      { key: 'operations', label: 'Operations', desc: 'Service desk, equipment, faults' },
      { key: 'memberships', label: 'Memberships', desc: 'Members, classes, billing' },
@@ -1932,7 +1933,7 @@ useEffect(() => {
        <div className="space-y-1.5">
          {visible.map(m => {
           const engineerRole = (userForm.role === 'engineer');
-          const defaultOn = !(engineerRole && m.key === 'operations');
+          const defaultOn = !(engineerRole && m.key === 'operations') && m.key !== 'mod_operations';
           const checked = overrides[m.key] === undefined ? defaultOn : !!overrides[m.key];
            return (
              <label
@@ -2297,6 +2298,7 @@ useEffect(() => {
     { key: 'mod_console',  label: 'MOD Console & ASER', desc: 'MOD console + ASER reporting' },
     { key: 'mod_faults',   label: 'Fault Reporting',    desc: 'Service-personnel fault logging' },
     { key: 'mod_equipment', label: 'Equipment Register', desc: 'Per-site equipment registers' },
+    { key: 'mod_operations', label: 'Pulse Fitness MOD Operations', desc: 'MOD global operations overview dashboard' },
   ] : [
     { key: 'operations', label: 'Operations', desc: 'Service desk, equipment, faults' },
     { key: 'memberships', label: 'Memberships', desc: 'Members, classes, billing' },
@@ -2323,7 +2325,7 @@ useEffect(() => {
         <div className="space-y-1.5">
           {visible.map(m => {
             const engineerRole = (editingUser.role === 'engineer');
-            const defaultOn = !(engineerRole && m.key === 'operations');
+            const defaultOn = !(engineerRole && m.key === 'operations') && m.key !== 'mod_operations';
             const checked = overrides[m.key] === undefined ? defaultOn : !!overrides[m.key];
             return (
               <label

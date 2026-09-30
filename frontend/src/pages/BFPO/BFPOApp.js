@@ -52,6 +52,20 @@ export default function BFPOApp() {
       </div>
     );
   }
+  // MOD Operations overview dashboard is module-gated to select Pulse staff.
+  const hasModOps = !!(user.is_master_admin || user.is_pulse_admin
+    || (user.module_overrides && user.module_overrides.mod_operations === true));
+  if (role === 'staff' && !hasModOps) {
+    return (
+      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-6" data-testid="bfpo-no-modops">
+        <div className="text-center max-w-sm">
+          <p className="text-lg font-bold text-[#212721]">Pulse Fitness MOD Operations</p>
+          <p className="text-sm text-[#505759] mt-1">Your account isn't enabled for the MOD Operations overview dashboard. Ask a Master Admin to grant you the <span className="font-semibold">Pulse Fitness MOD Operations</span> module.</p>
+          <a href="/dashboard" className="inline-block mt-4"><Btn variant="primary">Go to your dashboard</Btn></a>
+        </div>
+      </div>
+    );
+  }
 
   const logout = () => { if (platformLogout) platformLogout(); };
   const openJob = (id) => { setJobId(id); setView('job'); };

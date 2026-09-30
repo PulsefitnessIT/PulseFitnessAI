@@ -83,7 +83,7 @@ export const inputCls = 'w-full rounded-xl border border-slate-300 px-3 py-3 tex
 export const ROLE_LABEL = {
   engineer: 'MOD / BFPO Engineer',
   lead: 'MOD / BFPO Lead Engineer',
-  staff: 'Pulse MOD Service Staff',
+  staff: 'Pulse Fitness MOD Operations',
 };
 
 export const PULSE_LOGO = 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg';

@@ -1,4 +1,20 @@
-# ═══ 2026-06 · BFPO header polish — platform logo, role-under-name, hamburger menu ═══
+# ═══ 2026-06 · MOD Operations dashboard renamed + Module-Access gated ═══
+Per user: the staff/global dashboard is Pulse Fitness's own UK MOD ops team (not MOD military),
+renamed "Pulse Fitness MOD Operations", and access is now module-gated to select staff.
+- utils/module_access.py: added `mod_operations` to MOD_MODULE_KEYS + new `has_mod_operations(user)`
+  (platform admins pass; everyone else needs module_overrides.mod_operations === true — opt-in).
+- routes/bfpo.py `_require_staff`: now also requires has_mod_operations → /api/bfpo/staff/* returns 403
+  without the module (verified 200 with, 403 without).
+- MasterAdmin/AdminOrganizations.js: added "Pulse Fitness MOD Operations" toggle to BOTH MOD module
+  lists (add-user + edit-user); it DEFAULTS OFF (defaultOn excludes mod_operations) so it's opt-in.
+- BFPO/BFPOApp.js: staff without the module see a no-modops card; BFPO/ui.js ROLE_LABEL.staff =
+  "Pulse Fitness MOD Operations".
+- scripts/seed_bfpo.py: seeded staff user granted module_overrides {mod_operations:true}.
+- MOD internal fault-reporters unchanged (stay on modservice portal) per user.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 Per user feedback on the BFPO header:
 - pages/BFPO/BFPOApp.js header now shows the real Pulse Fitness logo (ui.js PULSE_LOGO, the same
   1013x313 badge asset used on MODServiceLogin) inside a white chip at natural aspect — replaces the

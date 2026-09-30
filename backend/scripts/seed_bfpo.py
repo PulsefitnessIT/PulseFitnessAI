@@ -164,6 +164,7 @@ async def seed():
             "full_name": u["full_name"], "password": hash_password(u["pw"]),
             "role": "engineer" if u["bfpo_role"] in ("engineer", "lead") else "staff",
             "bfpo_role": u["bfpo_role"], "bfpo_territory_ids": u["bfpo_territory_ids"],
+            "module_overrides": ({"mod_operations": True} if u["bfpo_role"] == "staff" else {}),
             "account_type": "mod_site", "is_mod_user": True, "is_active": True,
             "must_change_password": False, "created_at": now(),
         }}, upsert=True)

@@ -31,7 +31,7 @@ MODULE_KEYS = ("operations", "memberships", "marketing", "crm")
 # MOD (defence) organisations don't use the gym modules — they get the
 # Operations Portal plus MOD-specific surfaces. These are the per-user module
 # keys the Master Admin selector offers for a mod_* org (Iter — MOD selector).
-MOD_MODULE_KEYS = ("operations", "mod_console", "mod_faults", "mod_equipment")
+MOD_MODULE_KEYS = ("operations", "mod_console", "mod_faults", "mod_equipment", "mod_operations")
 # Modules that require Pulse Pro to bolt onto an org. Operations is
 # bundled with both Lite and Pro so it never appears here.
 BOLT_ON_MODULES = ("memberships", "marketing", "crm")
@@ -187,6 +187,16 @@ def has_module(user: dict, org: Optional[dict], module: str) -> bool:
     return bool(resolve_module_access(user, org).get(module, False))
 
 
+def has_mod_operations(user: Optional[dict]) -> bool:
+    """Opt-in per-user gate for the Pulse Fitness MOD Operations overview
+    dashboard. Platform admins always pass; everyone else must have the
+    `mod_operations` module explicitly granted in their module_overrides."""
+    if _is_platform_admin(user):
+        return True
+    overrides = (user or {}).get("module_overrides") or {}
+    return overrides.get("mod_operations") is True
+
+
 def org_module_access(org: Optional[dict]) -> dict[str, bool]:
     """Pure ORG-level entitlement, independent of any specific user's
     privilege or per-staff overrides. Used by the People drawer's
@@ -289,5 +299,5 @@ __all__ = [
     "MODULE_KEYS", "MOD_MODULE_KEYS", "BOLT_ON_MODULES", "TRIAL_DURATION_DAYS",
     "CRM_MODE_KEYS", "is_mod_org", "allowed_module_keys",
     "resolve_module_access", "has_module", "org_module_access", "trial_status",
-    "crm_modes", "has_crm_access",
+    "crm_modes", "has_crm_access", "has_mod_operations",
 ]
