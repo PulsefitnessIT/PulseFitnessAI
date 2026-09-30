@@ -856,3 +856,11 @@ Files: backend/utils/sicon_outbox_worker.py, backend/utils/sicon_writeback.py, b
 - Fix 2 (ModuleAccessDenied.js): removed the unsafe 'Dismiss' button entirely; only 'Back to my area' (-> /launch) remains.
 - Tested: testing_agent frontend 5/5 PASS on desktop+mobile (no-ops user -> /launch, no Operations tile, no overlay; dismiss testid absent from bundle; /dashboard deep-link also redirects; owner WITH operations still reaches /pulse). Temp fixture cleaned up.
 - OUTSTANDING (data/deploy, not code): 'Lee Somers can't see MOD Operations' — MOD Operations is a per-user opt-in; needs the module-access grant fix DEPLOYED to production, then grant Lee the MOD Operations module (and Operations if he should have it) from People -> Module access.
+
+
+## 2026-09-30 — Bug fix: owners couldn't be granted MOD Operations (launcher tile missing)
+- Symptom: Lee Somers (role=owner) had broad access but no 'MOD Operations' tile in the launcher. The People 'Module access' panel showed MOD Operations as 'Full access' with NO Grant button.
+- Root cause: _module_access_payload (master_admin_users.py) treated `privileged` users (is_master/is_pulse/is_owner) as auto-having MOD Operations -> showed 'Full access' + fix_action None, so the mod_operations override could never be set. But has_mod_operations(), the launcher tile, AreaSwitcher and the /bfpo gate all key off module_overrides.mod_operations (platform admins aside). Owners are NOT platform admins, so the tile/gate never lit up -> mismatch.
+- Fix: MOD Operations row is now ALWAYS toggleable (Grant/Revoke) for everyone incl. owners/admins — user_access & fix_action driven purely by the module_overrides.mod_operations override. An admin/manager can now Grant it; once set, the launcher tile appears and /bfpo opens.
+- Tested: in-process confirmed Lee's panel row now returns fix_action 'grant_flag' (was None); testing_agent frontend 3/3 PASS desktop+mobile (granted owner sees tile -> opens /bfpo staff dashboard; ungranted owner control = no tile; direct /bfpo honours override). Temp QA users cleaned up.
+- PRODUCTION ACTION FOR LEE: redeploy, then in People -> Module access click Grant on 'MOD Operations' for Lee (now a real button); his launcher tile will then appear.
