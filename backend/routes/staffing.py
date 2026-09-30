@@ -774,7 +774,10 @@ async def _resolve_staff_login_flags(org_id: str, rows: list[dict]) -> None:
 
 _STAFF_MODULE_FLAGS = {"service_desk": "is_service_desk", "inventory": "is_inventory"}
 _STAFF_CORE_MODULES = {"operations", "memberships", "marketing", "crm"}
-_STAFF_MODULE_KEYS = _STAFF_CORE_MODULES | set(_STAFF_MODULE_FLAGS)
+# Platform per-user overrides that are NOT gated by org entitlement
+# (e.g. MOD Operations, stored at user.module_overrides.mod_operations).
+_STAFF_OVERRIDE_MODULES = {"mod_operations"}
+_STAFF_MODULE_KEYS = _STAFF_CORE_MODULES | set(_STAFF_MODULE_FLAGS) | _STAFF_OVERRIDE_MODULES
 
 
 async def _staff_for_module_access(staff_id: str, user: dict):
@@ -1052,6 +1055,12 @@ async def staff_module_grant(staff_id: str, module: str, user: dict = Depends(ge
         await db.users.update_one({"id": uid}, {"$set": {field: True}})
         await db.crm_users.update_one({"id": uid}, {"$set": {field: True}})
         target[field] = True
+    elif module in _STAFF_OVERRIDE_MODULES:
+        overrides = {**(target.get("module_overrides") or {})}
+        overrides[module] = True
+        await db.users.update_one({"id": uid}, {"$set": {"module_overrides": overrides}})
+        await db.crm_users.update_one({"id": uid}, {"$set": {"module_overrides": overrides}})
+        target["module_overrides"] = overrides
     else:
         if not org_module_access(org).get(module):
             raise HTTPException(400, "This module isn't enabled for your organisation. Ask an owner or Master Admin to enable it first.")
@@ -1136,6 +1145,8 @@ async def staff_module_bulk(body: BulkModuleAccess, user: dict = Depends(get_cur
         for mod in grant:
             if mod in _STAFF_MODULE_FLAGS:
                 flags[_STAFF_MODULE_FLAGS[mod]] = True
+            elif mod in _STAFF_OVERRIDE_MODULES:
+                overrides[mod] = True
             elif not org_acc.get(mod):
                 if mod not in result["skipped_org_off"]:
                     result["skipped_org_off"].append(mod)
