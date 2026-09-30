@@ -50,6 +50,9 @@ export function firstGrantedModulePath(user) {
 export function resolveHomePath(user) {
   const u = user || {};
   if (u.must_change_password) return '/change-password';
+  // MOD / BFPO Engineer Portal — engineers, leads and MOD service staff sign
+  // in through the standard MOD service login and land directly in /bfpo.
+  if (['engineer', 'lead', 'staff'].includes(u.bfpo_role)) return '/bfpo';
   if (u.role === 'dealer_user') return '/dealer-portal';
   if (u.role === 'logistics') return '/logistics';
   if (u.is_master_admin || u.is_pulse_admin) return '/master-admin';

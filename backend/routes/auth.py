@@ -331,6 +331,8 @@ def _build_login_user_payload(user: dict, org: dict | None, trial_state: dict, f
         #     (no Equipment-wizard prompts for Memberships / CRM /
         #     Marketing trials).
         "primary_module": (org or {}).get('primary_module') or '',
+        "bfpo_role": user.get("bfpo_role") or "",
+        "bfpo_territory_ids": user.get("bfpo_territory_ids") or [],
         "trial": trial_state,
         "features": features,
         # Include module-access matrix so the React ModuleSwitcher can light
@@ -1099,6 +1101,8 @@ async def get_me(user: dict = Depends(get_current_user_portal)) -> dict:
         "is_service_desk": user.get('is_service_desk', False),
         "is_inventory": user.get('is_inventory', False),
         "has_staff_portal": has_staff_portal,
+        "bfpo_role": user.get("bfpo_role") or "",
+        "bfpo_territory_ids": user.get("bfpo_territory_ids") or [],
         # Site Staff Shared Login — flags the shared kiosk account so the
         # Operations fault flow enforces the mandatory "who is logging
         # this fault?" staff dropdown and the UI hides management areas.

@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { bfpo, bfpoToken } from './bfpoApi';
-import BFPOLogin from './BFPOLogin';
-import { Spinner } from './ui';
+import React, { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '@/App';
+import { bfpo } from './bfpoApi';
+import { Spinner, Btn } from './ui';
 import EngineerHome from './engineer/EngineerHome';
 import JobList from './engineer/JobList';
 import JobDetail from './engineer/JobDetail';
@@ -19,19 +20,15 @@ import {
 } from 'lucide-react';
 
 export default function BFPOApp() {
-  const [me, setMe] = useState(undefined); // undefined=loading, null=logged out
+  const { user, loading: authLoading, logout: platformLogout } = useAuth();
+  const role = user?.bfpo_role || '';
   const [view, setView] = useState('home');
   const [jobId, setJobId] = useState(null);
   const [jobFilter, setJobFilter] = useState('all_open');
   const [staffFilter, setStaffFilter] = useState({});
   const [online, setOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
 
-  const loadMe = useCallback(async () => {
-    if (!bfpoToken.get()) { setMe(null); return; }
-    try { const r = await bfpo.get('/me'); setMe(r.data); setView(r.data.user.role === 'staff' ? 'dashboard' : 'home'); }
-    catch { bfpoToken.clear(); setMe(null); }
-  }, []);
-  useEffect(() => { loadMe(); }, [loadMe]);
+  useEffect(() => { setView(role === 'staff' ? 'dashboard' : 'home'); }, [role]);
 
   useEffect(() => {
     const on = () => setOnline(true); const off = () => setOnline(false);
@@ -39,11 +36,23 @@ export default function BFPOApp() {
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, []);
 
-  if (me === undefined) return <div className="min-h-screen bg-slate-50"><Spinner label="Loading portal…" /></div>;
-  if (me === null) return <BFPOLogin onLoggedIn={() => loadMe()} />;
+  if (authLoading) return <div className="min-h-screen bg-[#F8F9FA]"><Spinner label="Loading portal…" /></div>;
+  // Not signed in → send to the standard MOD service login screen.
+  if (!user) return <Navigate to="/MODService" replace />;
+  // Signed in but not a MOD/BFPO account → friendly no-access card.
+  if (!['engineer', 'lead', 'staff'].includes(role)) {
+    return (
+      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-6" data-testid="bfpo-no-access">
+        <div className="text-center max-w-sm">
+          <p className="text-lg font-bold text-[#212721]">This area is for MOD/BFPO personnel</p>
+          <p className="text-sm text-[#505759] mt-1">Your account doesn't have access to the BFPO Engineer Portal.</p>
+          <a href="/dashboard" className="inline-block mt-4"><Btn variant="primary">Go to your dashboard</Btn></a>
+        </div>
+      </div>
+    );
+  }
 
-  const role = me.user.role;
-  const logout = () => { bfpoToken.clear(); setMe(null); };
+  const logout = () => { if (platformLogout) platformLogout(); };
   const openJob = (id) => { setJobId(id); setView('job'); };
   const openStaffJob = (id) => { setJobId(id); setView('staffjob'); };
 

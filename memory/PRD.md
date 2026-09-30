@@ -1,3 +1,27 @@
+# ═══ 2026-06 · BFPO login unified into the MOD Service login (no separate screen) ═══
+User asked BFPO engineers to sign in via the existing modservice.pulsefitness.com login,
+keeping everything in one place, and for the BFPO UI to match the platform design.
+- Removed the standalone BFPO login page (pages/BFPO/BFPOLogin.js deleted).
+- backend/routes/auth.py: both login + /auth/me payload builders now return `bfpo_role` and
+  `bfpo_territory_ids`.
+- frontend/src/utils/moduleHome.js resolveHomePath(): users with bfpo_role in {engineer,lead,staff}
+  now resolve to /bfpo (rule placed first, before mod_site→/pulse). MODServiceLogin.js now navigates
+  via resolveHomePath(data.user) instead of a hardcoded /dashboard.
+- pages/BFPO/BFPOApp.js consumes useAuth() from @/App (shared cookie session + platform logout);
+  no user → <Navigate to="/MODService">; signed-in non-BFPO → friendly no-access card.
+- pages/BFPO/bfpoApi.js uses the shared session (withCredentials + `Authorization: Bearer cookie`,
+  explicit localStorage token wins) — mirrors App.js global axios auth. No separate bfpo_token.
+- Design: BFPO already uses the platform in-app tokens (--primary 192 91% 36% ≈ cyan-600, slate-900
+  text, slate-200 borders) and inherits Proxima Nova (no font utilities set) → consistent with the
+  documented Pulse service design (dark operational header, cyan accent, cards).
+- Verified: /api/auth/login (portal:mod) returns bfpo_role=engineer; establishing that shared session
+  then loading /bfpo renders the engineer home (cookie session picked up), 0 overflow at 390px.
+  NOTE: on the preview domain /MODService external-redirects to the production MOD domain, so preview
+  testing of the actual login screen is done via the /api/auth/login API on the preview origin.
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · MOD / BFPO ENGINEER PORTAL — Phase 1 MVP (testing_agent 19/19 backend PASS + FE smoke) ═══
 NEW role-scoped experience on the SHARED service-case engine (db.svc_cases) — NOT a duplicate job store.
 BFPO engineers overseas work jobs; Pulse UK MOD staff get global oversight. Confirmed decisions:

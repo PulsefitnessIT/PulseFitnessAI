@@ -1,8 +1,15 @@
 # BFPO / MOD Engineer Portal — test credentials
 
 Portal URL (preview): {REACT_APP_BACKEND_URL}/bfpo
-All BFPO logins require the backend `portal:"mod"` flag — the frontend BFPO login
-page sends this automatically. Direct /api/auth/login calls must include `"portal":"mod"`.
+LOGIN: BFPO users sign in through the **MOD Service login screen** (the same
+modservice.pulsefitness.com login the rest of MOD uses) — there is NO separate
+BFPO login. That screen posts /api/auth/login with `portal:"mod"`; on success
+resolveHomePath() routes any user whose `bfpo_role` is engineer/lead/staff
+straight to /bfpo. The /bfpo app reuses the shared platform cookie session
+(no separate token). Direct API calls must include `"portal":"mod"`.
+On the preview domain, /MODService external-redirects to the production MOD
+domain; to exercise the flow in preview, log in via the /api/auth/login API on
+the preview origin (portal:mod) then open /bfpo.
 
 ## BFPO Engineer (Gibraltar-scoped)
 - Email: engineer.gib@bfpo.pulsefitness.test

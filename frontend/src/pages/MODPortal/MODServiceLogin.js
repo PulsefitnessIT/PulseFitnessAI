@@ -22,6 +22,7 @@ import { useAuth } from '@/App';
 import { useSignedOutNotice } from '@/hooks/useSignedOutNotice';import { Loader2, ShieldCheck, ArrowRight, Lock, Mail, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { useSeo } from '@/utils/seo';
 import { COMMERCIAL_URL } from '@/utils/portalMode';
+import { resolveHomePath } from '@/utils/moduleHome';
 
 // ── Official artwork (user-supplied) ──────────────────────────────
 const _PULSE_LOGO = 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg';
@@ -96,7 +97,7 @@ export default function MODServiceLogin() {
       return;
     }
     login(data.token, data.user, data.refresh_token);
-    navigate('/dashboard');
+    navigate(resolveHomePath(data.user) || '/dashboard');
   };
 
   const submit = async (e) => {
