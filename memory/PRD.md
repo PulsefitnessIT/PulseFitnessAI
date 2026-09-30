@@ -1,3 +1,38 @@
+# ═══ 2026-06 · MOD / BFPO ENGINEER PORTAL — Phase 1 MVP (testing_agent 19/19 backend PASS + FE smoke) ═══
+NEW role-scoped experience on the SHARED service-case engine (db.svc_cases) — NOT a duplicate job store.
+BFPO engineers overseas work jobs; Pulse UK MOD staff get global oversight. Confirmed decisions:
+imported/MOD cases are worked in the shared case store (svc_cases); Sicon stays READ-ONLY (untouched here).
+
+Backend — routes/bfpo.py (prefix /api/bfpo, registered in route_registry/core.py):
+- Fixed org BFPO_ORG_ID='bfpo-mod-org'. Roles on user doc: bfpo_role in {engineer,lead,staff} + bfpo_territory_ids[].
+- Server-side scoping: _engineer_scope + _scoped_case_query restrict engineers to their territory sites/jobs
+  (+ active visiting grants). Cross-territory case GET => 404. lead/staff unrestricted. /staff/* => 403 for engineers.
+- Engineer: GET /me (kpis), /jobs?when=, /jobs/{id}; guided workflow POSTs accept, arrive (safety), diagnosis,
+  parts (no part-number needed), outcome (return_visit|unable_access|equipment_unsafe), report-fault (linked case
+  + dup warning), photos, signature (or unavailable+reason), complete; /sites (sensitive fields hidden for engineer),
+  /equipment search + detail history, /history. Branded job-sheet PDF at /jobs/{id}/job-sheet.pdf (reportlab).
+- Staff: /staff/dashboard (KPIs+attention), /staff/sites (country->territory->site health rules), /staff/jobs
+  (filters), /staff/jobs/{id}, /staff/engineers, /staff/jobs/{id}/allocate (+handover), visiting-access CRUD.
+- Operational updates + allocations recorded on svc_case_events (activity timeline). State machine via utils.svc_state.
+- LOGIN NOTE: BFPO users are MOD accounts — /api/auth/login MUST include portal:"mod" (frontend BFPO login adds it).
+
+Frontend — /bfpo route (AppRoutes.js) -> pages/BFPO/BFPOApp.js (role shell, engineer bottom-nav / staff top-nav,
+online/synced pill). Engineer mobile-first: EngineerHome, JobList, JobDetail (guided workflow + SignaturePad),
+Sites, Equipment, History. Staff desktop: StaffDashboard, StaffSites, StaffJobs, StaffJobDetail (allocate+timeline),
+StaffVisiting. Dedicated axios instance (localStorage 'bfpo_token', Bearer). data-testids throughout.
+
+Demo seed — scripts/seed_bfpo.py (idempotent; `python -m scripts.seed_bfpo`): territories Gibraltar/Falklands/
+Cyprus(SBA)/Kenya(BATUK), 6 sites, 26 equipment, 4 login users (Bfpo123!), 9 sample svc_cases.
+Creds: /app/memory/test_credentials_bfpo.md (engineer.gib / engineer.cyp / lead / staff @bfpo.pulsefitness.test).
+
+Verified: testing_agent 19/19 backend PASS (scoping isolation, 403 guard, full workflow, PDF, parts, report-fault,
+staff dashboard/sites-health/filters/allocate, visiting-access) + FE smoke at 390px & 1920px, 0 overflow.
+BACKLOG (Phase 2/3, not built): PPM inspection checklists + service certs; ops reports/PDF-Excel export; notif digests;
+offline-first PWA; QR/barcode scan; AI assists; deeper Sicon/Sage sync; i18n (strings ready, EN only for MVP).
+─────────────────────────────────────────────────────────────────────────────
+
+
+
 # ═══ 2026-06 · STAFF-LOGIN BOUNCE FIX + operator launcher re-verify (testing_agent PASS) ═══
 Prod reports: (1) /staff-login lets staff submit but returns them to the login screen; (2) operator staff
 landing on Operations / "remember my choice" not working.
