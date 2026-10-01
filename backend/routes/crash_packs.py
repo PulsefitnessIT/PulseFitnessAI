@@ -16,7 +16,7 @@ import uuid
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 
 from utils.auth import get_current_user, get_current_user_portal
-from utils.database import db, put_object, APP_NAME
+from utils.database import db, put_object, get_object, APP_NAME
 from routes.staff_portal import (
     _portal_staff, notify_staff, _line_manager_user_id, _is_manager,
 )
@@ -260,6 +260,172 @@ async def manager_get(pack_id: str, user: dict = Depends(get_current_user)):
     if not pack:
         raise HTTPException(404, "Crash pack not found")
     return {"pack": pack, "insurance": await _insurance_for(pack.get("organization_id"))}
+
+
+def _esc(text) -> str:
+    return (str(text or "")).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _build_crash_pdf(pack: dict, insurance: dict, photos: list, org_company=None) -> bytes:
+    """Pulse-branded A4 Fleet Incident Report."""
+    import io as _io
+    from reportlab.lib import colors
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, Image
+    from utils.pulse_doc_template import (
+        pulse_styles, pulse_header, pulse_title, section_label,
+        make_pulse_doc, PULSE_NAVY, PULSE_BORDER, PULSE_LIGHT,
+    )
+
+    s = pulse_styles(); body = s["body"]
+    data = pack.get("data") or {}
+    yd = data.get("your_details") or {}; ac = data.get("accident") or {}; po = data.get("police") or {}
+    gps = ac.get("gps") or {}
+    buf = _io.BytesIO()
+    doc = make_pulse_doc(buf, f"Fleet Incident Report {pack.get('reg_no', '')}", company=org_company)
+    story = [pulse_header(s, org_company)]
+    story += pulse_title(s, "Fleet Incident Report",
+                         f"{pack.get('reporter_name', '—')} · {pack.get('reg_no', '—')} · "
+                         f"Incident #{(pack.get('id') or '')[:8].upper()}")
+    story.append(Spacer(1, 5 * mm))
+
+    def kv(rows, widths):
+        rows = [[Paragraph(f"<b>{_esc(k)}</b>", body), Paragraph(_esc(v), body)] for k, v in rows if v]
+        if not rows:
+            rows = [[Paragraph("—", body), Paragraph("", body)]]
+        t = Table(rows, colWidths=widths)
+        t.setStyle(TableStyle([
+            ("FONT", (0, 0), (-1, -1), "Helvetica", 8.5),
+            ("TEXTCOLOR", (0, 0), (0, -1), PULSE_NAVY),
+            ("BACKGROUND", (0, 0), (-1, -1), PULSE_LIGHT),
+            ("BOX", (0, 0), (-1, -1), 0.5, PULSE_BORDER),
+            ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.white),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        return t
+
+    story.append(section_label(s, "A · Driver & vehicle"))
+    story.append(kv([
+        ("Driver", pack.get("reporter_name")), ("Mobile", yd.get("mobile")),
+        ("Address", yd.get("address")), ("Date of birth", yd.get("date_of_birth")),
+        ("UK residency", yd.get("length_residency")), ("Passed test", yd.get("date_passed_test")),
+        ("Registration", yd.get("reg_number") or pack.get("reg_no")),
+        ("Make / model", yd.get("make_model") or pack.get("make_model")),
+        ("Mileage", yd.get("mileage")), ("Use", yd.get("use")),
+        ("Accidents (5y)", yd.get("accidents_5yr")), ("Convictions (5y)", yd.get("convictions_5yr")),
+        ("Disqualifications (11y)", yd.get("disqualifications_11yr")), ("DVLA medical", yd.get("medical_dvla")),
+        ("Damage to own vehicle", yd.get("vehicle_damage")),
+    ], [45 * mm, 129 * mm]))
+    story.append(Spacer(1, 4 * mm))
+
+    maps = f"https://maps.google.com/?q={gps.get('lat')},{gps.get('lng')}" if gps.get("lat") else ""
+    story.append(section_label(s, "B · Incident"))
+    story.append(kv([
+        ("Date", ac.get("date")), ("Time", ac.get("time")), ("Location", ac.get("location")),
+        ("GPS", (f"{gps.get('lat'):.6f}, {gps.get('lng'):.6f} (±{round(gps.get('accuracy', 0))}m)" if gps.get("lat") else "")),
+        ("Map", maps),
+    ], [45 * mm, 129 * mm]))
+    story.append(Spacer(1, 2 * mm))
+    story.append(Paragraph(_esc(ac.get("detail") or "—"), body))
+    if ac.get("sketch_note"):
+        story.append(Paragraph(f"<b>Sketch note:</b> {_esc(ac.get('sketch_note'))}", body))
+    story.append(Spacer(1, 4 * mm))
+
+    tps = data.get("third_parties") or []
+    story.append(section_label(s, "C · Other drivers"))
+    if not tps:
+        story.append(Paragraph("No other drivers recorded.", body))
+    for i, t in enumerate(tps):
+        bits = " · ".join([x for x in [t.get("name"), t.get("phone"), t.get("vehicle"), t.get("reg"),
+                           t.get("insurer"), (f"{t.get('passengers')} passengers" if t.get("passengers") else None),
+                           t.get("damage"), t.get("injuries")] if x])
+        story.append(Paragraph(f"<b>Driver {i + 1}:</b> {_esc(bits) or '—'}", body))
+    story.append(Spacer(1, 3 * mm))
+
+    ws = data.get("witnesses") or []
+    story.append(section_label(s, "D · Witnesses & police"))
+    if ws:
+        story.append(Paragraph("<b>Witnesses:</b> " + _esc("; ".join(
+            " ".join([x for x in [w.get("name"), w.get("phone"), w.get("note")] if x]) for w in ws)), body))
+    if po.get("attended") == "yes":
+        story.append(Paragraph("<b>Police:</b> " + _esc(" · ".join([x for x in [
+            "Attended", po.get("crime_ref"), po.get("officer_name"), po.get("collar_number"), po.get("station")] if x])), body))
+    else:
+        story.append(Paragraph("Police did not attend.", body))
+    story.append(Spacer(1, 3 * mm))
+
+    story.append(section_label(s, "E · Insurance / claims"))
+    story.append(kv([
+        ("QBE 24h claim line", insurance.get("qbe_claim_line")),
+        ("Policy number", insurance.get("qbe_policy_number")),
+        ("Broker", f"{insurance.get('broker_name', '')} {insurance.get('broker_phone', '')}".strip()),
+    ], [45 * mm, 129 * mm]))
+    story.append(Spacer(1, 4 * mm))
+
+    if photos:
+        story.append(section_label(s, "F · Photos & sketch"))
+        cells = []
+        for label, raw in photos:
+            try:
+                cells.append(Image(_io.BytesIO(raw), width=54 * mm, height=40 * mm, kind="proportional"))
+            except Exception:
+                continue
+        per_row = 3
+        grid = [cells[i:i + per_row] for i in range(0, len(cells), per_row)]
+        for r in grid:
+            while len(r) < per_row:
+                r.append("")
+        if grid:
+            pt = Table(grid, colWidths=[58 * mm] * per_row)
+            pt.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"),
+                                    ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                                    ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 6)]))
+            story.append(pt)
+
+    doc.build(story)
+    return buf.getvalue()
+
+
+@router.get("/crash-packs/{pack_id}/pdf")
+async def manager_pdf(pack_id: str, user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    q = {"id": pack_id}
+    if not user.get("is_master_admin"):
+        q["organization_id"] = user.get("organization_id")
+    pack = await db.crash_packs.find_one(q, {"_id": 0})
+    if not pack:
+        raise HTTPException(404, "Crash pack not found")
+    org = pack.get("organization_id")
+    insurance = await _insurance_for(org)
+    photos = []
+    pm = pack.get("photos") or {}
+    labels = [("vehicle_damage", "Your vehicle"), ("scene", "Scene"),
+              ("other_vehicle", "Other vehicle"), ("sketch", "Sketch")]
+    for slot, label in labels:
+        for fid in (pm.get(slot) or [])[:6]:
+            try:
+                f = await db.files.find_one({"id": fid, "category": "vehicle-photos"}, {"_id": 0, "storage_path": 1})
+                if f and f.get("storage_path"):
+                    raw, _ = get_object(f["storage_path"])
+                    if raw:
+                        photos.append((label, raw))
+            except Exception:
+                pass
+    try:
+        org_company = await db.organizations.find_one({"id": org}, {"_id": 0}) if org else None
+        pdf = _build_crash_pdf(pack, insurance, photos, org_company)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(500, f"Could not generate PDF: {e}")
+    reg = (pack.get("reg_no") or "vehicle").replace(" ", "")
+    driver = (pack.get("reporter_name") or "Driver")
+    when = (pack.get("submitted_at") or "")[:10]
+    safe = lambda t: "".join(ch for ch in str(t) if ch.isalnum() or ch in " -_").strip()
+    fname = " ".join(f"Crash Pack - {safe(driver)} - {safe(reg)} - {when}.pdf".split())
+    from fastapi import Response
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{fname}"'})
 
 
 __all__ = ["router"]

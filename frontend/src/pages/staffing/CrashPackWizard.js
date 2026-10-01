@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import {
   Loader2, X, ChevronLeft, ChevronRight, ShieldAlert, Phone, Copy, Camera,
-  Plus, Trash2, CheckCircle2, Car, Check, PartyPopper,
+  Plus, Trash2, CheckCircle2, Car, Check, PartyPopper, MapPin,
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -85,6 +85,23 @@ export default function CrashPackWizard({ H, jwt, resumePackId, onClose, onDone 
   const [err, setErr] = useState('');
   const [done, setDone] = useState(false);
   const [declared, setDeclared] = useState(false);
+  const [geo, setGeo] = useState(''); // '', 'locating', 'ok', 'denied'
+
+  const captureGps = useCallback(() => {
+    if (!navigator.geolocation) { setGeo('denied'); return; }
+    setGeo('locating');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setD('accident', { gps: {
+          lat: pos.coords.latitude, lng: pos.coords.longitude,
+          accuracy: Math.round(pos.coords.accuracy || 0), captured_at: new Date().toISOString(),
+        } });
+        setGeo('ok');
+      },
+      () => setGeo('denied'),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    );
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     axios.get(`${API}/new-starter/portal/crash-packs/bootstrap`, { headers: H })
@@ -160,6 +177,10 @@ export default function CrashPackWizard({ H, jwt, resumePackId, onClose, onDone 
 
   const ins = boot?.insurance || {};
   const yd = data.your_details || {}; const ac = data.accident || {};
+  // Auto-capture location the first time the driver reaches the accident step.
+  useEffect(() => {
+    if (step === 2 && geo === '' && !(data.accident || {}).gps) captureGps();
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const shell = (body) => (
     <div className="fixed inset-0 z-[200] overflow-y-auto" style={{ background: 'var(--theme-bg)' }} data-testid="crash-pack-wizard-modal">
@@ -274,6 +295,23 @@ export default function CrashPackWizard({ H, jwt, resumePackId, onClose, onDone 
           <label className="block"><Label>Time</Label><input type="time" className={field} style={fStyle} value={ac.time || ''} onChange={(e) => setD('accident', { time: e.target.value })} data-testid="ac-time" /></label>
         </div>
         <label className="block"><Label>Location (street / junction / postcode)</Label><input className={field} style={fStyle} value={ac.location || ''} onChange={(e) => setD('accident', { location: e.target.value })} data-testid="ac-location" /></label>
+        <div className="rounded-xl border p-3" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="ac-gps-card">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2"><MapPin size={18} style={{ color: CORE }} /><span className="text-sm font-semibold" style={{ color: 'var(--theme-text)' }}>Your location</span></div>
+            <button type="button" onClick={captureGps} disabled={geo === 'locating'} data-testid="ac-gps-capture"
+              className="text-xs font-bold px-3 py-1.5 rounded-full border disabled:opacity-50" style={{ borderColor: CORE, color: CORE }}>
+              {geo === 'locating' ? 'Locating…' : ac.gps ? 'Update' : 'Capture'}
+            </button>
+          </div>
+          {ac.gps ? (
+            <div className="mt-2 text-sm" style={{ color: 'var(--theme-text-muted)' }} data-testid="ac-gps-value">
+              📍 {ac.gps.lat.toFixed(5)}, {ac.gps.lng.toFixed(5)} <span className="text-xs">(±{ac.gps.accuracy}m)</span>
+              <a href={`https://maps.google.com/?q=${ac.gps.lat},${ac.gps.lng}`} target="_blank" rel="noreferrer" className="ml-2 font-semibold underline" style={{ color: CORE }}>View map</a>
+            </div>
+          ) : (
+            <p className="mt-2 text-xs" style={{ color: 'var(--theme-text-muted)' }}>{geo === 'denied' ? 'Location unavailable — you can still type the location above.' : 'We’ll pin exactly where this happened. Allow location when asked.'}</p>
+          )}
+        </div>
         <label className="block"><Label>Describe what happened in detail</Label><textarea rows={6} className={field} style={fStyle} value={ac.detail || ''} onChange={(e) => setD('accident', { detail: e.target.value })} placeholder="Road conditions, direction of travel, what each vehicle was doing…" data-testid="ac-detail" /></label>
       </div>
     );

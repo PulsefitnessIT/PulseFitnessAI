@@ -6,12 +6,21 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Loader2, ShieldAlert, Printer, X, Settings, Car } from 'lucide-react';
+import { Loader2, ShieldAlert, Printer, X, Settings, Car, FileDown, MapPin } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const jwt = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : '');
 const fmt = (s) => (s ? new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
 const img = (fid) => `${API}/vehicle-checks/photo/${fid}?auth=${jwt()}`;
+
+async function downloadPdf(id, headers, label) {
+  const r = await axios.get(`${API}/crash-packs/${id}/pdf`, { headers, responseType: 'blob' });
+  const url = URL.createObjectURL(r.data);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${label || 'Crash Pack'}.pdf`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
 
 export default function CrashPacksManager({ headers }) {
   const [packs, setPacks] = useState(null);
@@ -49,7 +58,10 @@ export default function CrashPacksManager({ headers }) {
                   <td className="px-4 py-3 font-semibold" style={{ color: 'var(--theme-text)' }}>{p.reporter_name}</td>
                   <td className="px-4 py-3" style={{ color: 'var(--theme-text)' }}><span className="font-mono font-bold uppercase">{p.reg_no}</span> <span style={{ color: 'var(--theme-text-muted)' }}>{p.make_model}</span></td>
                   <td className="px-4 py-3" style={{ color: 'var(--theme-text-muted)' }}>{fmt(p.submitted_at)}</td>
-                  <td className="px-4 py-3 text-right"><button onClick={() => setOpenId(p.id)} data-testid={`crash-pack-open-${p.id}`} className="text-xs font-bold px-3 py-1.5 rounded-lg" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>View / Print</button></td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <button onClick={() => downloadPdf(p.id, headers, `Crash Pack - ${p.reporter_name} - ${p.reg_no}`)} data-testid={`crash-pack-pdf-${p.id}`} className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border mr-2" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} title="Download PDF"><FileDown size={13} className="inline" /> PDF</button>
+                    <button onClick={() => setOpenId(p.id)} data-testid={`crash-pack-open-${p.id}`} className="text-xs font-bold px-3 py-1.5 rounded-lg" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>View / Print</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -77,6 +89,7 @@ function ReportModal({ id, headers, onClose }) {
           <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 print:hidden">
             <span className="font-bold text-slate-900">Fleet Incident Report</span>
             <div className="flex gap-2">
+              <button onClick={() => downloadPdf(id, headers, 'Crash Pack Report')} data-testid="download-crash-pdf-btn" className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg border border-slate-300 text-slate-700"><FileDown size={15} /> PDF</button>
               <button onClick={() => window.print()} data-testid="print-crash-report-btn" className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg bg-cyan-500 text-white"><Printer size={15} /> Print</button>
               <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={20} /></button>
             </div>
@@ -95,6 +108,14 @@ function ReportModal({ id, headers, onClose }) {
 
               <Section title="B · Incident">
                 <Grid rows={[['Date', ac.date], ['Time', ac.time], ['Location', ac.location]]} />
+                {ac.gps && (
+                  <div className="mt-2 flex items-center gap-2 text-sm" data-testid="report-gps">
+                    <MapPin size={15} className="text-cyan-600" />
+                    <span className="font-mono">{ac.gps.lat?.toFixed(5)}, {ac.gps.lng?.toFixed(5)}</span>
+                    <span className="text-slate-400 text-xs">(±{ac.gps.accuracy}m)</span>
+                    <a href={`https://maps.google.com/?q=${ac.gps.lat},${ac.gps.lng}`} target="_blank" rel="noreferrer" className="text-cyan-600 font-semibold underline print:hidden">View on map</a>
+                  </div>
+                )}
                 <p className="mt-2 whitespace-pre-wrap">{ac.detail || '—'}</p>
                 {ac.sketch_note && <p className="mt-1 text-slate-600"><strong>Sketch note:</strong> {ac.sketch_note}</p>}
               </Section>

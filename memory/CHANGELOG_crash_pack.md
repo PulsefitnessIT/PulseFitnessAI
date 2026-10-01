@@ -25,3 +25,11 @@ Manager (get_current_user, _is_manager; master admin bypasses org scope):
 ## Verified
 Backend E2E via curl: bootstrap/create/save/submit → status submitted, line_manager_user_id set, staff_notification created for manager, manager list+detail OK, insurance defaults (QBE 0808 100 8181, policy Y157953FLT0125A). Frontend compiles. Photo pipeline reuses proven vehicle-photo endpoints.
 NOT yet browser-tested: the wizard UI flow + live photo capture (needs a staff_jwt portal session).
+
+## Update 2026-06 — Server PDF + GPS location
+- Server PDF: GET /api/crash-packs/{id}/pdf (manager; master-admin bypasses org). ReportLab via utils.pulse_doc_template,
+  mirrors vehicle-check PDF; embeds photos through get_object; sections A–F incl GPS + Google Maps link. Verified: returns
+  application/pdf, %PDF- magic, ~6.5KB with an embedded photo. Download buttons added to CrashPacksManager list row + report modal.
+- GPS capture: wizard accident step auto-captures navigator.geolocation (manual Capture/Update button, graceful denied state),
+  stored at data.accident.gps {lat,lng,accuracy,captured_at}. Shown in manager HTML report (Section B, "View on map") and PDF.
+
