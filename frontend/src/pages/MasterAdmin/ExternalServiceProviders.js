@@ -110,13 +110,34 @@ const ExternalServiceProviders = () => {
     const e = existingEngs[i];
     if (!window.confirm(`Remove ${e.full_name}? This deletes their MOD portal login.`)) return;
     setRowBusy(e.id);
+    const doDelete = async (force) => axios.delete(
+      `${API}/master-admin/mod-estate/external-providers/${editing.id}/engineers/${e.id}${force ? '?force=true' : ''}`,
+      { headers: headers() });
     try {
-      await axios.delete(`${API}/master-admin/mod-estate/external-providers/${editing.id}/engineers/${e.id}`, { headers: headers() });
+      const { data } = await doDelete(false);
       toast.success(`${e.full_name} removed`);
       setExistingEngs((arr) => arr.filter((_, idx) => idx !== i));
       load();
     } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Could not remove engineer');
+      const detail = err?.response?.data?.detail;
+      if (err?.response?.status === 409 && detail?.code === 'engineer_has_open_cases') {
+        const n = detail.open_case_count;
+        const ok = window.confirm(
+          `⚠️ ${e.full_name} still has ${n} OPEN service case${n === 1 ? '' : 's'} assigned.\n\n`
+          + `Removing them will UNASSIGN those case${n === 1 ? '' : 's'} (the case history is kept, but they'll have no engineer until you reassign).\n\n`
+          + `Remove anyway?`);
+        if (!ok) { setRowBusy(null); return; }
+        try {
+          const { data } = await doDelete(true);
+          toast.success(`${e.full_name} removed — ${data.unassigned_cases || 0} case(s) unassigned`);
+          setExistingEngs((arr) => arr.filter((_, idx) => idx !== i));
+          load();
+        } catch (err2) {
+          toast.error(err2?.response?.data?.detail?.message || err2?.response?.data?.detail || 'Could not remove engineer');
+        }
+      } else {
+        toast.error((detail && (detail.message || detail)) || 'Could not remove engineer');
+      }
     } finally { setRowBusy(null); }
   };
   const reissueLogin = async (e, mode) => {

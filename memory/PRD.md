@@ -1,4 +1,15 @@
-# [2026-06] FEATURE — External Service Providers: reissue engineer login
+# [2026-06] FEATURE — External Service Providers: open-case removal safeguard
+Removing a provider engineer now guards against orphaned history.
+Backend DELETE .../engineers/{engineer_id} takes ?force=bool. Counts OPEN cases
+(db.svc_cases where assigned_engineer_id==engineer_id AND status in utils.svc_state.OPEN_STATES).
+If >0 and not force → HTTP 409 {code:'engineer_has_open_cases', message, open_case_count}.
+With force=true → UNASSIGNS those open cases (assigned_engineer_id/name cleared, case kept) then deletes
+the login; returns {success, unassigned_cases}. Field confirmed: cases link via assigned_engineer_id = user id.
+Frontend (ExternalServiceProviders.js): removeExisting() shows a clear "⚠️ N open cases — removing will
+unassign them (history kept). Remove anyway?" confirm, then retries with force=true. Verified E2E
+(409 blocks, force unassigns 1 case & deletes user, case status preserved).
+
+
 Per-engineer "Resend invite / Reset temp password" on the editor row.
 Backend: POST /master-admin/mod-estate/external-providers/{supplier_id}/engineers/{engineer_id}/reissue
   body {mode:'invite'|'temp', temp_password?}. invite → mints fresh /bfpo invite (reuses bfpo _issue_invite),

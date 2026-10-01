@@ -2172,23 +2172,47 @@ async def update_provider_engineer(supplier_id: str, engineer_id: str, data: dic
 
 
 @router.delete("/master-admin/mod-estate/external-providers/{supplier_id}/engineers/{engineer_id}")
-async def delete_provider_engineer(supplier_id: str, engineer_id: str,
+async def delete_provider_engineer(supplier_id: str, engineer_id: str, force: bool = False,
                                    user: dict = Depends(get_current_user)) -> dict:
     """Remove an external-provider engineer entirely — deletes the /bfpo login,
-    its engineer-provisioning row and any pending invite."""
+    its engineer-provisioning row and any pending invite.
+
+    SAFEGUARD: if the engineer still has OPEN service cases assigned, refuse
+    with 409 unless force=true. On a forced removal we UNASSIGN those open
+    cases (clearing the engineer link) so the case history is preserved rather
+    than orphaned."""
     require_master_admin(user)
+    from utils.svc_state import OPEN_STATES
     eng = await db.users.find_one(
         {"id": engineer_id, "mod_estate_supplier_id": supplier_id},
         {"_id": 0, "id": 1, "full_name": 1, "email": 1})
     if not eng:
         raise HTTPException(404, "Engineer not found for this provider")
+
+    open_q = {"assigned_engineer_id": engineer_id, "status": {"$in": list(OPEN_STATES)}}
+    open_count = await db.svc_cases.count_documents(open_q)
+    if open_count > 0 and not force:
+        raise HTTPException(409, {
+            "code": "engineer_has_open_cases",
+            "message": f"{eng.get('full_name') or 'This engineer'} still has {open_count} open service case(s).",
+            "open_case_count": open_count,
+        })
+
+    unassigned = 0
+    if open_count > 0:
+        res = await db.svc_cases.update_many(
+            open_q, {"$set": {"assigned_engineer_id": "", "assigned_engineer_name": "",
+                              "updated_at": _now()}})
+        unassigned = res.modified_count
+
     await db.users.delete_one({"id": engineer_id})
     await db.svc_engineers.delete_many({"id": engineer_id})
     await db.bfpo_invites.delete_many({"user_id": engineer_id})
     await log_activity("external_provider_engineer_removed",
-                       f"Removed engineer {eng.get('full_name') or eng.get('email') or engineer_id}",
+                       f"Removed engineer {eng.get('full_name') or eng.get('email') or engineer_id}"
+                       + (f" (unassigned {unassigned} open case(s))" if unassigned else ""),
                        user.get("email", "system"), "user", engineer_id)
-    return {"success": True}
+    return {"success": True, "unassigned_cases": unassigned}
 
 
 @router.post("/master-admin/mod-estate/external-providers/{supplier_id}/engineers/{engineer_id}/reissue")
