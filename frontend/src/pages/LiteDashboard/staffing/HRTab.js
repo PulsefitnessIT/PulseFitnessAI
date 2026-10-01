@@ -564,7 +564,7 @@ function StaffModulesPanel({ staffId, headers }) {
       {!loading && data && !data.no_login && (
         <div className="space-y-1.5">
           {(data.modules || []).map((m) => {
-            const isFlag = m.key === 'service_desk' || m.key === 'inventory';
+            const isFlag = m.key === 'service_desk' || m.key === 'inventory' || m.key === 'mod_operations';
             const on = !!m.user_access;
             let right;
             if (m.informational) right = <span className="text-[10px] font-bold uppercase shrink-0" style={{ color: on ? '#059669' : 'var(--theme-text-muted)' }}>{on ? t('staffing.hr_yes', 'Yes') : t('staffing.hr_no', 'No')}</span>;

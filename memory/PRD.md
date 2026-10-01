@@ -1,3 +1,17 @@
+# [2026-06] FIX — MOD Operations launcher tile (Lee Somers, Owner) — ROOT CAUSE FOUND
+Prior 3 attempts all patched the backend (already correct). Real bug was frontend:
+`/app/frontend/src/pages/LiteDashboard/staffing/HRTab.js:567` — `isFlag` only included
+`service_desk`/`inventory`, so for privileged users (owner/master/pulse) the MOD Operations
+row hit the `data.is_privileged` branch and rendered static "Full access" text with NO
+Grant button. Grant never fired → `module_overrides.mod_operations` never set → `/auth/me`
+returned it false → launcher `/bfpo` tile stayed hidden (LauncherPage.js:71-72).
+Fix: added `|| m.key === 'mod_operations'` to `isFlag` so the Grant/Revoke toggle renders
+for everyone, matching backend intent (master_admin_users.py:244-259 already returns
+fix_action grant_flag/revoke_flag for mod_operations regardless of privilege).
+Also auto-granted override to lee.somers@pulsefitness.com in db.users + db.crm_users.
+Verified: QA Owner profile → Edit → Module Access now shows "+ Grant" on MOD Operations row.
+
+
 # ═══ 2026-06 · Recurring PPM auto-scheduling + MODService-portal surfacing ═══
 - Recurring scheduler: sites carry ppm_frequency (quarterly/annual/none) + ppm_next_due. Cron
   POST /api/bfpo/ppm/cron/autoschedule (WEBHOOK_CRON_SECRET Bearer auth, mirrors sicon cron) runs a
