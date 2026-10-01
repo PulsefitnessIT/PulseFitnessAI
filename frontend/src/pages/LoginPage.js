@@ -429,9 +429,11 @@ export default function LoginPage() {
               </label>
               <input
                 type="email"
+                name="username"
+                id="username"
                 autoCapitalize="none"
                 autoCorrect="off"
-                autoComplete="email"
+                autoComplete="username"
                 inputMode="email"
                 spellCheck={false}
                 value={email}
@@ -450,6 +452,9 @@ export default function LoginPage() {
               <div className="relative">
                 <input
                   type={showPass ? 'text' : 'password'}
+                  name="password"
+                  id="current-password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
