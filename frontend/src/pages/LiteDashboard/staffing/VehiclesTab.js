@@ -372,8 +372,8 @@ function DefectTracker({ headers }) {
                   {(d.photo_ids || []).length > 0 && (
                     <div className="flex gap-2 mt-2 flex-wrap" data-testid={`defect-photos-${d.id}`}>
                       {d.photo_ids.map((fid) => (
-                        <a key={fid} href={`${API}/vehicle-checks/photo/${fid}?auth=${token}`} target="_blank" rel="noreferrer">
-                          <img src={`${API}/vehicle-checks/photo/${fid}?auth=${token}`} alt="defect" className="h-16 w-16 object-cover rounded-lg border" style={{ borderColor: 'var(--theme-border)' }} />
+                        <a key={fid} href={`${API}/vehicle-checks/photo/${fid}?auth=${token()}`} target="_blank" rel="noreferrer">
+                          <img src={`${API}/vehicle-checks/photo/${fid}?auth=${token()}`} alt="defect" className="h-16 w-16 object-cover rounded-lg border" style={{ borderColor: 'var(--theme-border)' }} />
                         </a>
                       ))}
                     </div>
