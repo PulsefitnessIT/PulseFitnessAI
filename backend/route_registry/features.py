@@ -71,6 +71,7 @@ from routes.attendance import router as attendance_router
 from routes.payroll import router as payroll_router
 from routes.migration import router as migration_router
 from routes.vehicle_checks import router as vehicle_checks_router
+from routes.crash_packs import router as crash_packs_router
 from routes.staffing_ai_phase6 import router as staffing_ai_phase6_router
 from routes.staffing_orgchart import router as staffing_orgchart_router
 from routes.staffing_orgchart_ai import router as staffing_orgchart_ai_router
@@ -336,6 +337,7 @@ _UNGATED_ROUTERS = (
     payroll_router,
     migration_router,
     vehicle_checks_router,
+    crash_packs_router,
     staffing_ai_phase6_router,
     staffing_orgchart_router,
     staffing_orgchart_ai_router,

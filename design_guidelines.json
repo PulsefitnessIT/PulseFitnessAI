@@ -1,97 +1,234 @@
 {
-  "project_context": {
-    "title": "Pulse Fitness Pro - MOD Operations Staff Dashboard Restyling Blueprint",
-    "description": "Restyling the MOD Operations staff dashboard (at route /bfpo, staff view) to make it visually consistent and indistinguishable from the platform's main Pulse Fitness Pro Operations area.",
-    "target_files": [
-      "/app/frontend/src/pages/BFPO/BFPOApp.js",
-      "/app/frontend/src/pages/BFPO/staff/StaffDashboard.js",
-      "/app/frontend/src/pages/BFPO/ui.js"
+  "project_title": "Pulse Fitness Staff Portal - Crash Pack Wizard & Printable Manager Report",
+  "archetype": "THE PERFORMANCE PRO / CALM REASSURING TACTICAL",
+  "context_type": "mobile_web_app (employee self-service wizard) + desktop admin report view",
+  "theme_strategy": {
+    "default_mode": "light",
+    "support_dark": true,
+    "brand_anchor": "Pulse Fitness Cyan (#19CDFF)",
+    "palette_notes": "Light mode uses slate-50/white surfaces with generous padding and cyan/ink contrast. Dark mode uses Obsidian #0A0A0A canvas with #121212 cards and cyan highlights. NEVER use forbidden purple (#7351B7) or teal (#1B93A4). Genuinely shock-reassuring interface."
+  },
+  "typography": {
+    "heading_font": "Proxima Nova, Maax Rounded, Satoshi, sans-serif",
+    "body_font": "Proxima Nova, Inter, system-ui, sans-serif",
+    "forbidden_fonts": ["Space Grotesk"],
+    "hierarchy": {
+      "h1": "text-3xl sm:text-4xl font-extrabold tracking-tight leading-tight",
+      "h2": "text-xl sm:text-2xl font-bold tracking-tight",
+      "h3": "text-lg sm:text-xl font-semibold",
+      "h4_widget": "text-base font-semibold",
+      "body": "text-base font-normal leading-relaxed",
+      "caption": "text-xs font-medium tracking-wide uppercase text-muted"
+    },
+    "shock_friendly_typography_rules": [
+      "Headings must be clear, calm, and highly legible with high contrast.",
+      "Step titles should use action-oriented simple language e.g. 'Are you safe?', 'Your details', 'The accident'.",
+      "Use minimum text-base (16px) for input text to avoid auto-zoom on mobile safari.",
+      "Large numbers and phone links must be formatted with distinct font-mono or heavy weight for 1-tap dialing."
     ]
   },
-  "design_system_tokens": {
-    "colors": {
-      "header_bg": "#000000",
-      "header_border": "border-white/10",
-      "brand_primary": "bg-cyan-600 hover:bg-cyan-700 text-white",
-      "brand_cyan": "var(--color-brand-cyan, #0891b2)",
-      "subnav_bg": "bg-white border-b border-slate-200/80",
-      "pill_active": "bg-cyan-600 text-white shadow-sm shadow-cyan-600/20 font-semibold",
-      "pill_inactive": "text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium",
-      "card_bg": "bg-white",
-      "card_border": "border border-slate-200/80",
-      "card_hover": "hover:border-slate-300 hover:shadow-md transition-all duration-200",
-      "text_primary": "text-slate-900",
-      "text_secondary": "text-slate-500",
-      "text_muted": "text-slate-400"
-    },
-    "typography": {
-      "font_family_header": "'Proxima Nova', 'Satoshi', 'Inter', system-ui, sans-serif",
-      "font_family_body": "'Inter', system-ui, sans-serif",
-      "title_heading": "text-2xl sm:text-3xl font-bold tracking-tight text-slate-900",
-      "subtitle": "text-xs sm:text-sm font-semibold text-cyan-700 tracking-normal",
-      "kpi_value": "text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900",
-      "kpi_label": "text-xs sm:text-sm font-medium text-slate-500",
-      "panel_heading": "text-base font-semibold text-slate-900 flex items-center gap-2"
-    },
-    "layout_grid": {
-      "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
-      "kpi_grid": "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mt-6",
-      "attention_grid": "grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8"
+  "colors": {
+    "brand_primary": "#19CDFF",
+    "brand_primary_hover": "#4DDBFF",
+    "brand_primary_dark": "#0E7490",
+    "brand_ink": "#0A0C10",
+    "brand_ink_soft": "#212721",
+    "surface_light": "#FFFFFF",
+    "bg_light": "#F8FAFC",
+    "border_light": "#E2E8F0",
+    "surface_dark": "#121212",
+    "bg_dark": "#0A0A0A",
+    "border_dark": "rgba(255, 255, 255, 0.1)",
+    "emergency_red": "#EF4444",
+    "emergency_red_bg": "#FEF2F2",
+    "emergency_red_border": "#FCA5A5",
+    "success_green": "#10B981",
+    "warning_amber": "#F59E0B",
+    "contrast_ratios": {
+      "body_text": ">= 7:1",
+      "buttons": ">= 4.5:1",
+      "phone_taps": ">= 5:1 against card background"
     }
   },
-  "component_blueprints": {
-    "header_and_title_block": {
-      "header_navbar": "Black fixed/sticky header (#000000) with 80px height (h-20), white 10% opacity bottom border (`border-b border-white/10`). Left: Pulse Fitness Primary Logo Badge. Right: AccountMenu with role indicator and user profile.",
-      "title_block": "Max width container (`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2`). Main Title: 'Pulse Fitness Pro · MOD Operations' with bold typography. Subtitle: User greeting 'Welcome back, <userName>' and badge pill 'Pulse Fitness MOD Operations · Global oversight'."
-    },
-    "pill_group_navigation": {
-      "container": "Sticky subnav bar directly below header: `bg-slate-50/80 backdrop-blur-md border-b border-slate-200/80 py-3 px-4`. Scrollable flex row on mobile with hidden scrollbar (`[&::-webkit-scrollbar]:hidden`).",
-      "tabs": "Pill-style rounded buttons (`px-4 py-2 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all flex items-center gap-2`). Active: `bg-cyan-600 text-white shadow-sm shadow-cyan-600/20`. Inactive: `text-slate-600 hover:text-slate-900 hover:bg-slate-200/60`."
-    },
-    "kpi_stat_cards": {
-      "grid_layout": "5-column grid (`grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4`) matching platform Operations overview.",
-      "card_style": "bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between group",
-      "icon_badge": "w-11 h-11 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105",
-      "color_variants": {
-        "open": "icon: text-cyan-600, bg: bg-cyan-50 border border-cyan-100/80",
-        "urgent": "icon: text-red-600, bg: bg-red-50 border border-red-100/80",
-        "waiting_parts": "icon: text-amber-600, bg: bg-amber-50 border border-amber-100/80",
-        "overdue": "icon: text-rose-600, bg: bg-rose-50 border border-rose-100/80",
-        "sites": "icon: text-indigo-600, bg: bg-indigo-50 border border-indigo-100/80"
-      },
-      "value_typography": "text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-3 mb-0.5",
-      "label_typography": "text-xs sm:text-sm font-medium text-slate-500"
-    },
-    "attention_panels": {
-      "cards_wrapper": "bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm space-y-3",
-      "list_item": "bg-slate-50/60 hover:bg-slate-100/80 border border-slate-200/60 hover:border-slate-300 rounded-xl p-3.5 flex items-center gap-3 transition-all cursor-pointer group",
-      "priority_badges": "P1 Critical: bg-red-50 text-red-700 border-red-200 | P2 High: bg-orange-50 text-orange-700 border-orange-200 | P3 Medium: bg-amber-50 text-amber-700 border-amber-200 | P4 Low: bg-slate-50 text-slate-600 border-slate-200",
-      "health_indicators": "Normal: bg-emerald-500 dot + emerald text | Attention Required: bg-amber-500 dot + amber text | Critical: bg-red-500 dot + red text"
-    },
-    "footer": {
-      "placement": "Render standard platform Footer or bottom-padded footer with subtle top border (`border-t border-slate-200/80 py-8 text-center text-xs text-slate-400`)."
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-white/80 dark:bg-black/70 border border-slate-200/50 dark:border-white/10",
+    "reassurance_banner": "bg-amber-500/10 border-2 border-amber-500/30 text-amber-900 dark:text-amber-200 p-4 rounded-2xl flex items-center gap-3",
+    "phone_call_tile": "bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-500/40 hover:border-emerald-500 p-4 rounded-2xl flex items-center justify-between shadow-sm active:scale-[0.99] transition-all",
+    "step_card": "bg-white dark:bg-[#121212] border border-slate-200 dark:border-white/10 rounded-2xl p-5 sm:p-6 shadow-sm",
+    "sticky_bottom_nav": "fixed bottom-0 left-0 right-0 z-50 p-4 bg-white/90 dark:bg-black/90 backdrop-blur-md border-t border-slate-200 dark:border-white/10 shadow-2xl flex items-center justify-between gap-3 max-w-md mx-auto sm:max-w-2xl"
+  },
+  "layout_and_grids": {
+    "wizard_container": "max-w-xl mx-auto px-4 pb-28 pt-4 sm:pt-6 space-y-6",
+    "dashboard_card": "rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#121212] p-5 shadow-sm space-y-4",
+    "bento_manager_report": "max-w-4xl mx-auto p-8 bg-white text-slate-900 shadow-xl rounded-none border border-slate-300 print:shadow-none print:border-none print:p-0",
+    "grid_modes": {
+      "mobile": "grid-cols-1 gap-4",
+      "photos_grid": "grid grid-cols-2 sm:grid-cols-3 gap-3",
+      "repeatable_cards": "space-y-4"
     }
+  },
+  "interaction_patterns": {
+    "tap_targets": "Minimum 48px height for all buttons, inputs, and toggles to support stress-affected one-handed roadside usage.",
+    "yes_no_toggle": "Large segment pill selector: 'YES' (accent state) vs 'NO' (neutral state) with distinct background and min-h-[52px].",
+    "photo_tile": "Big dashed dropzone/camera button (min 120px tall) with direct input capture='camera' or file picker, instant thumbnail display with remove button and progress indicator.",
+    "autosave": "Instant local state & API draft sync after every step change or input blur. Show reassuring 'Draft saved' chip in wizard top header.",
+    "emergency_header": "Fixed insurance claim line (0808 100 8181 option 3) accessible at all times in Step 0 and expandable emergency banner."
+  },
+  "wizard_step_flow": [
+    {
+      "step": 0,
+      "title": "Are you safe?",
+      "subtitle": "Immediate emergency support & key legal guidance",
+      "key_elements": [
+        "Reassurance banner: Take a deep breath. We are here to help.",
+        "QBE 24 Hour Claim Line: 0808 100 8181 (Option 3) - Click to call button",
+        "Circle Insurance Services Ltd: 01260 292873 (Office hours) - Click to call button",
+        "QBE Policy Number: Y157953FLT0125A (Copy button included)",
+        "Critical Rules Checklist: 'Do not admit liability to anyone', 'If police request documents, state you will present them at nearest Police Station'",
+        "Big CTA: 'I am safe — Start Crash Pack'"
+      ]
+    },
+    {
+      "step": 1,
+      "title": "Your details & vehicle",
+      "subtitle": "Driver information and vehicle status",
+      "key_elements": [
+        "Driver info: Full Name, Home Address, Mobile Number, Date of Birth",
+        "UK Residency & License: Length of UK residency, Date passed driving test",
+        "Vehicle info: Registration, Make & Model, Current Mileage",
+        "Vehicle Use: Social vs Business use toggle",
+        "DVLA & Claims Toggles (Yes/No with instant follow-ups): Accidents in last 3 yrs, Convictions/Points, License disqualifications/suspensions, Medical conditions reported to DVLA",
+        "Damage description to your vehicle"
+      ]
+    },
+    {
+      "step": 2,
+      "title": "The accident",
+      "subtitle": "When and where it happened",
+      "key_elements": [
+        "Accident Date & Time picker (defaults to now)",
+        "Location (Street / Junction / Postcode / Landmark)",
+        "Detailed accident description & road condition notes"
+      ]
+    },
+    {
+      "step": 3,
+      "title": "Photos & Sketch",
+      "subtitle": "Visual evidence capture",
+      "key_elements": [
+        "Camera tiles with mobile native camera support",
+        "Photo categories: Your vehicle damage, Scene / Road layout, Other vehicle(s) damage",
+        "Sketch capture: Option to upload photo of a hand-drawn sketch with notes"
+      ]
+    },
+    {
+      "step": 4,
+      "title": "Third parties",
+      "subtitle": "Other drivers and vehicles involved",
+      "key_elements": [
+        "Repeatable Third-Party Cards (Up to 3+ drivers)",
+        "Fields per third party: Name, Mobile, Address, Insurer Name & Policy #, Vehicle Reg, Vehicle Make/Model, Number of Passengers",
+        "Extent of vehicle damage & Any reported injuries"
+      ]
+    },
+    {
+      "step": 5,
+      "title": "Witnesses",
+      "subtitle": "Bystander & passenger statements",
+      "key_elements": [
+        "Repeatable Witness Cards: Witness Name, Phone Number, Email/Address, Witness Role (Passenger / Bystander)"
+      ]
+    },
+    {
+      "step": 6,
+      "title": "Police details",
+      "subtitle": "If police attended the scene",
+      "key_elements": [
+        "Police attended? (Yes/No toggle)",
+        "Crime / Incident Reference Number",
+        "Officer Name & Officer Collar Number",
+        "Police Station / Constabulary Name"
+      ]
+    },
+    {
+      "step": 7,
+      "title": "Review & Submit",
+      "subtitle": "Final verification",
+      "key_elements": [
+        "Summary view of all captured sections with quick 'Edit' shortcuts",
+        "Declaration confirmation checkbox",
+        "Prominent 'Submit Crash Pack Report' CTA with instant confirmation state and printable download option"
+      ]
+    }
+  ],
+  "printable_manager_report_spec": {
+    "view_location": "Operations > Staffing > Vehicles > Crash Packs tab",
+    "page_format": "A4 Printable Layout (HTML + Print CSS styling)",
+    "header": "Official Pulse Fitness Fleet Incident Report - Confidential",
+    "sections": [
+      "Header Summary: Incident ID, Employee Name, Reg No, Date/Time, Policy Number Y157953FLT0125A",
+      "Section A: Driver & Vehicle Details (incl. DVLA & License declarations)",
+      "Section B: Incident Details & Circumstances",
+      "Section C: Photos & Diagram Grid (Rendered cleanly in 2-column or 3-column photo matrix)",
+      "Section D: Third Party & Witness Register",
+      "Section E: Police Attendance & Reference Details",
+      "Section F: Management Sign-off & Claims Log Status"
+    ],
+    "print_styles": "Includes @media print rules: hides navigation bars, forces white background, clean black text, page-break-inside avoid on photo cards."
+  },
+  "component_name": {
+    "crash_pack_card": "StaffPortal -> Vehicle Tab -> CrashPackEntryCard",
+    "crash_pack_wizard": "StaffPortal -> Vehicle Tab -> CrashPackWizardModal",
+    "manager_crash_packs": "Operations -> Staffing -> Vehicles -> CrashPacksManagerTab",
+    "printable_report": "Operations -> Staffing -> Vehicles -> CrashPackPrintableReport"
+  },
+  "accessibility": {
+    "aria_labels": "All steps have aria-live progress updates and screen-reader readable step indicators.",
+    "focus_management": "Auto-scroll to top of card on step change; maintain focus ring on high-contrast cyan/emerald buttons.",
+    "data_testids": [
+      "crash-pack-entry-card",
+      "report-crash-btn",
+      "crash-pack-wizard-modal",
+      "step-safety-reassurance",
+      "emergency-qbe-call-btn",
+      "emergency-circle-call-btn",
+      "step-your-details",
+      "step-the-accident",
+      "step-photos",
+      "step-third-parties",
+      "step-witnesses",
+      "step-police",
+      "step-review-submit",
+      "add-third-party-btn",
+      "add-witness-btn",
+      "submit-crash-pack-btn",
+      "manager-crash-packs-view",
+      "print-crash-report-btn"
+    ]
+  },
+  "image_urls": {
+    "hero_car_crash": "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800&auto=format&fit=crop&q=80",
+    "vehicle_inspection": "https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=800&auto=format&fit=crop&q=80",
+    "safety_helmet": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
   },
   "instructions_to_main_agent": [
-    "1. Open `/app/frontend/src/pages/BFPO/BFPOApp.js`.",
-    "2. Update the staffNav sub-header (lines 129-140) to wrap inside a `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8` container. Apply `bg-slate-50/80 border-b border-slate-200/80 py-3` to the subnav wrapper.",
-    "3. Style the staffNav pill buttons to match the platform's PillTabBar pattern: `px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap`. Set active tab class to `bg-cyan-600 text-white shadow-sm shadow-cyan-600/20` and inactive tab class to `text-slate-600 hover:text-slate-900 hover:bg-slate-200/60`.",
-    "4. Open `/app/frontend/src/pages/BFPO/staff/StaffDashboard.js`.",
-    "5. Update the page title block to use container `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2`. Update heading to `Pulse Fitness Pro · MOD Operations` with title size `text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight`, user greeting `Welcome back, <userName>`, and cyan sub-heading pill `Pulse Fitness MOD Operations · Global oversight`.",
-    "6. Update the KPI tiles grid to 5 columns (`grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4`). Use hover-lift effects (`hover:-translate-y-0.5 transition-all`), rounded-2xl cards (`bg-white border border-slate-200/80 shadow-sm rounded-2xl p-5`), rounded-xl icon badges, bold 3xl/4xl numbers (`text-3xl sm:text-4xl font-extrabold text-slate-900`), and muted labels (`text-xs sm:text-sm font-medium text-slate-500`).",
-    "7. Restyle the 'Needs attention now' and 'Sites requiring attention' sections with clean card wrappers (`bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm`), hover-state list items (`bg-slate-50/60 hover:bg-slate-100/80 border border-slate-200/60 hover:border-slate-300 rounded-xl p-3.5`), priority badges, and health dot status indicators.",
-    "8. Open `/app/frontend/src/pages/BFPO/ui.js`.",
-    "9. Update shared primitives (`Card`, `Badge`, `PriorityBadge`, `Btn`) to ensure rounded radii (`rounded-2xl` for cards, `rounded-full` for badges, `rounded-xl` for buttons) and consistent slate border colors (`border-slate-200/80`).",
-    "10. Ensure all elements contain proper `data-testid` attributes (e.g. `staff-nav-dashboard`, `staff-kpi-open`, `staff-urgent-<id>`, `staff-attention-<id>`)."
+    "Integrate the 'Crash Pack' card seamlessly inside Staff Portal > Vehicle tab without disrupting existing vehicle check or fleet features.",
+    "Ensure Step 0 shows all required emergency details verbatim: QBE 24 Hour Claim Line 0808 100 8181 (option 3), Circle Insurance Services Ltd 01260 292873, Policy Y157953FLT0125A.",
+    "Make phone numbers tap-to-call using tel: links with prominent green icon styling.",
+    "Build shock-friendly Yes/No toggles with large tap targets and zero cramped elements.",
+    "Support offline/draft saving between steps so state is never lost if signal drops at roadside.",
+    "In Operations > Staffing > Vehicles, add the 'Crash Packs' tab with table of submitted packs and printable A4 report modal.",
+    "Strictly follow data-testid attributes listed in guidelines."
   ],
-  "accessibility": {
-    "testing_attributes": "All interactive and key informational elements MUST include kebab-case data-testid attributes (e.g., data-testid='staff-nav-dashboard', data-testid='staff-kpi-open', data-testid='staff-urgent-item')."
-  },
   "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "Maintain full parity with Pulse Fitness Pro Operations design system.",
-    "Prioritize pre-existing tokens and Tailwind utilities over inline custom styles.",
-    "Never use AI assistant emoji characters for icons or labels.",
-    "Ensure interactive state contrast and smooth micro-interactions across hover, focus, and active states.",
-    "Preserve all existing business logic, route handlers, and API queries."
+    "Layered shadows (ambient + direct) for card depth.",
+    "Crisp edges via semi-transparent borders + shadows.",
+    "Nested radii: child <= parent; concentric.",
+    "Hue consistency: tint borders/shadows/text toward bg hue.",
+    "Accessible charts & high-contrast UI elements.",
+    "Content must be visible with increased contrast on :hover/:active/:focus.",
+    "Meet contrast - prefer APCA over WCAG 2.",
+    "Customize scrollbars; NO gutter.",
+    "All interactive elements MUST include data-testid attribute."
   ]
 }

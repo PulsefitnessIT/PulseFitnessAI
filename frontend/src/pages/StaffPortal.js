@@ -16,6 +16,7 @@ import {
 import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
 import Navbar from '../components/shared/Navbar';
 import ExpensesTab from './StaffExpensesTab';
+import CrashPackWizard from './staffing/CrashPackWizard';
 import PillTabBar from '../components/shared/PillTabBar';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -1420,23 +1421,80 @@ const VSTATUS = {
 function VehicleTab({ H, jwt }) {
   const [data, setData] = useState(null);
   const [openId, setOpenId] = useState(null);
+  const [packs, setPacks] = useState([]);
+  const [crash, setCrash] = useState(null); // { resumePackId? } when wizard open
   const load = useCallback(() => {
     axios.get(`${API}/new-starter/portal/vehicles`, { headers: H })
       .then((r) => setData(r.data)).catch(() => setData({ vehicles: [] }));
   }, [H]);
-  useEffect(() => { load(); }, [load]);
+  const loadPacks = useCallback(() => {
+    axios.get(`${API}/new-starter/portal/crash-packs`, { headers: H })
+      .then((r) => setPacks(r.data.packs || [])).catch(() => setPacks([]));
+  }, [H]);
+  useEffect(() => { load(); loadPacks(); }, [load, loadPacks]);
 
   if (!data) return <Loader2 className="animate-spin text-cyan-500" />;
   if (openId) return <VehicleCheckForm H={H} jwt={jwt} vehicleId={openId} onBack={() => { setOpenId(null); load(); }} />;
 
-  if (!data.vehicles?.length) return <Empty icon={Truck} title="No vehicle assigned" hint="Your manager assigns vehicles and the weekly check you need to complete." />;
+  const hasVehicle = !!data.vehicles?.length;
 
   return (
-    <div className="space-y-3" data-testid="staff-vehicle-tab">
-      <p className="text-sm text-slate-500">Complete your weekly vehicle check. Week commencing <strong>{fmtDate(data.week_commencing)}</strong>.</p>
-      {data.vehicles.map((v) => (
-        <VehiclePortalCard key={v.id} v={v} jwt={jwt} onCheck={() => setOpenId(v.id)} />
-      ))}
+    <div className="space-y-4" data-testid="staff-vehicle-tab">
+      {hasVehicle && (
+        <CrashPackEntryCard packs={packs} canReport={hasVehicle}
+          onReport={() => setCrash({})} onResume={(id) => setCrash({ resumePackId: id })} />
+      )}
+      {!hasVehicle ? (
+        <Empty icon={Truck} title="No vehicle assigned" hint="Your manager assigns vehicles and the weekly check you need to complete." />
+      ) : (
+        <>
+          <p className="text-sm text-slate-500">Complete your weekly vehicle check. Week commencing <strong>{fmtDate(data.week_commencing)}</strong>.</p>
+          {data.vehicles.map((v) => (
+            <VehiclePortalCard key={v.id} v={v} jwt={jwt} onCheck={() => setOpenId(v.id)} />
+          ))}
+        </>
+      )}
+      {crash && (
+        <CrashPackWizard H={H} jwt={jwt} resumePackId={crash.resumePackId}
+          onClose={() => { setCrash(null); loadPacks(); }} onDone={loadPacks} />
+      )}
+    </div>
+  );
+}
+
+function CrashPackEntryCard({ packs, onReport, onResume }) {
+  const drafts = (packs || []).filter((p) => p.status === 'draft');
+  const submitted = (packs || []).filter((p) => p.status === 'submitted');
+  return (
+    <div className="rounded-2xl border-2 p-5 shadow-sm" style={{ background: 'var(--theme-surface)', borderColor: '#FDE68A' }} data-testid="crash-pack-entry-card">
+      <div className="flex items-start gap-3">
+        <span className="rounded-xl p-2.5" style={{ background: '#FEF3C7' }}><ShieldAlert size={20} className="text-amber-600" /></span>
+        <div className="flex-1 min-w-0">
+          <div className="font-bold text-base" style={{ color: 'var(--theme-text)' }}>Been in a crash?</div>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>We'll guide you through it step by step and help you capture what's needed.</p>
+          <button onClick={onReport} data-testid="report-crash-btn"
+            className="mt-3 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-base" style={{ background: '#EF4444', color: 'white' }}>
+            <ShieldAlert size={18} /> Report a crash
+          </button>
+        </div>
+      </div>
+      {(drafts.length > 0 || submitted.length > 0) && (
+        <div className="mt-4 pt-4 border-t space-y-2" style={{ borderColor: 'var(--theme-border)' }}>
+          {drafts.map((p) => (
+            <button key={p.id} onClick={() => onResume(p.id)} data-testid={`crash-draft-${p.id}`}
+              className="w-full flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left" style={{ borderColor: 'var(--theme-border)' }}>
+              <span className="text-sm" style={{ color: 'var(--theme-text)' }}><strong>{p.reg_no}</strong> · unfinished draft</span>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">Resume</span>
+            </button>
+          ))}
+          {submitted.map((p) => (
+            <div key={p.id} className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--theme-border)' }} data-testid={`crash-submitted-${p.id}`}>
+              <span className="text-sm" style={{ color: 'var(--theme-text)' }}><strong>{p.reg_no}</strong> · {p.submitted_at ? fmtDate(p.submitted_at) : 'submitted'}</span>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">Submitted</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

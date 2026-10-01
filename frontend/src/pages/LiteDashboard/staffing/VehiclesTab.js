@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { Truck, Plus, ShieldAlert, FileDown, FileText, FileArchive, Link2, Loader2, X, Check, Trash2 } from 'lucide-react';
+import CrashPacksManager from './CrashPacksManager';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : '');
@@ -49,7 +50,7 @@ export default function VehiclesTab({ headers }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="inline-flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--theme-border)' }}>
-          {[['dashboard', 'Overview'], ['register', 'Fleet register'], ['checks', 'Weekly checks'], ['defects', 'Defects']].map(([id, lab]) => (
+          {[['dashboard', 'Overview'], ['register', 'Fleet register'], ['checks', 'Weekly checks'], ['defects', 'Defects'], ['crash', 'Crash Packs']].map(([id, lab]) => (
             <button key={id} onClick={() => setView(id)} data-testid={`vehicles-view-${id}`}
               className="px-4 py-1.5 text-xs font-semibold"
               style={view === id ? { background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' } : { color: 'var(--theme-text-muted)' }}>{lab}</button>
@@ -71,6 +72,8 @@ export default function VehiclesTab({ headers }) {
         <WeeklyChecks headers={headers} week={data.week_commencing} onOpen={setDetail} />
       ) : view === 'defects' ? (
         <DefectTracker headers={headers} />
+      ) : view === 'crash' ? (
+        <CrashPacksManager headers={headers} />
       ) : (
         <FleetDashboard headers={headers} onGoto={setView} />
       )}
