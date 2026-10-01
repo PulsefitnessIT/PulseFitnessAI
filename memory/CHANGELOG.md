@@ -864,3 +864,13 @@ Files: backend/utils/sicon_outbox_worker.py, backend/utils/sicon_writeback.py, b
 - Fix: MOD Operations row is now ALWAYS toggleable (Grant/Revoke) for everyone incl. owners/admins — user_access & fix_action driven purely by the module_overrides.mod_operations override. An admin/manager can now Grant it; once set, the launcher tile appears and /bfpo opens.
 - Tested: in-process confirmed Lee's panel row now returns fix_action 'grant_flag' (was None); testing_agent frontend 3/3 PASS desktop+mobile (granted owner sees tile -> opens /bfpo staff dashboard; ungranted owner control = no tile; direct /bfpo honours override). Temp QA users cleaned up.
 - PRODUCTION ACTION FOR LEE: redeploy, then in People -> Module access click Grant on 'MOD Operations' for Lee (now a real button); his launcher tile will then appear.
+
+
+## 2026-10-01 — Fix: password-manager autofill on login pages
+- Symptom: saved credentials not offered/autofilled on PulseFitness.ai (reported on Edge + iCloud Passwords; also affects 1Password/Bitwarden/Chrome/Safari).
+- Root cause: login inputs were semantic-form-wrapped but had NO name / id / autocomplete attributes, so password managers couldn't recognise the username/password fields.
+- Fix (no auth logic changed): added proper attributes to all login forms —
+  - PulseLandingPage.js (primary /): <form autoComplete='on'>, username input id='login-username' name='username' autocomplete='username' inputMode='email'; password input id='login-password' name='password' autocomplete='current-password'.
+  - CRM/CRMLogin.js login fields, MODPortal/MODServiceLogin.js fields, StaffLogin.js fields: name/id + autocomplete username/current-password.
+- Tested: testing_agent frontend 100% — Pulse login dialog markup correct on desktop+mobile, login still succeeds (POST /auth/login 200 + JWT, no error toast); CRM/MOD/Staff attributes confirmed. No auth regression.
+- NOTE: requires redeploy to reach production pulsefitness.ai.
