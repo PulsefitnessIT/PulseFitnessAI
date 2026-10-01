@@ -1865,4 +1865,264 @@ async def ai_kit_import_commit(
     return totals
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# Unified "External Service Providers"
+#
+# One place to onboard every external company that services MOD / overseas
+# sites: the company itself (an estate-level `mod_estate_suppliers` registry
+# row) PLUS its field engineers, each a real /bfpo portal login. Engineers
+# flagged MOD/BFPO get a territory + site allocation; all get an invite link
+# or a temporary password. Engineer logins are linked back to the provider
+# via `mod_estate_supplier_id`, so the directory card shows them and their
+# covered sites. Replaces the separate Dealer/Engineer + BFPO-Engineers +
+# Service-Providers flows.
+# ─────────────────────────────────────────────────────────────────────────
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+async def _email_taken(email: str) -> bool:
+    return bool(
+        await db.users.find_one({"email": email}, {"_id": 0, "id": 1})
+        or await db.crm_users.find_one({"email": email}, {"_id": 0, "id": 1})
+    )
+
+
+async def _resolve_bfpo_lookup():
+    """Territory id→name and site id→(name, territory_id) maps for the BFPO estate."""
+    from routes.bfpo import BFPO_ORG_ID
+    terrs = {t["id"]: t async for t in db.bfpo_territories.find(
+        {"organization_id": BFPO_ORG_ID}, {"_id": 0, "id": 1, "name": 1, "country": 1})}
+    sites = {s["id"]: s async for s in db.sites.find(
+        {"organization_id": BFPO_ORG_ID}, {"_id": 0, "id": 1, "name": 1, "territory_id": 1, "country": 1})}
+    return terrs, sites
+
+
+async def _provision_provider_engineer(e: dict, supplier_id: str, provider_name: str,
+                                       default_mod: bool, actor_id: str) -> dict:
+    """Create ONE external-provider engineer as a /bfpo portal login, linked to
+    the provider. Reuses the BFPO invite / temp-password mechanisms verbatim."""
+    from routes.bfpo import BFPO_ORG_ID, _issue_invite, _gen_temp_password
+
+    raw_mod = (e.get("mod_bfpo") or "inherit").lower()
+    is_mod = default_mod if raw_mod == "inherit" else (raw_mod == "yes")
+    uid = str(uuid.uuid4())
+    email = (e.get("email") or "").strip().lower()
+    full_name = (e.get("full_name") or "").strip()
+    now = _now()
+    doc = {
+        "id": uid, "organization_id": BFPO_ORG_ID, "email": email, "username": email,
+        "full_name": full_name, "phone": (e.get("phone") or "").strip(),
+        "role": "engineer", "bfpo_role": "engineer",
+        "bfpo_territory_ids": [t for t in (e.get("territory_ids") or []) if t] if is_mod else [],
+        "bfpo_site_ids": [s for s in (e.get("site_ids") or []) if s] if is_mod else [],
+        "module_overrides": {},
+        "account_type": "mod_site", "is_mod_user": True, "is_active": True,
+        "is_mod_bfpo": is_mod,
+        "mod_estate_supplier_id": supplier_id, "provider_name": provider_name,
+        "must_change_password": False, "created_at": now, "created_by": actor_id,
+        "bfpo_welcome_pending": True, "created_via": "external_provider_onboarding",
+    }
+    mode = (e.get("password_mode") or "invite").lower()
+    if mode not in ("invite", "temp"):
+        mode = "invite"
+    temp_password = None
+    invite_url = None
+    if mode == "temp":
+        temp_password = (e.get("temp_password") or "").strip() or _gen_temp_password()
+        if len(temp_password) < 8:
+            raise HTTPException(400, f"{full_name}: temporary password must be at least 8 characters")
+        doc["password"] = hash_password(temp_password)
+        doc["must_change_password"] = True
+    else:
+        doc["password"] = hash_password(secrets.token_urlsafe(24))
+        doc["invite_pending"] = True
+
+    await db.users.insert_one(doc)
+    await db.svc_engineers.update_one(
+        {"id": uid, "organization_id": BFPO_ORG_ID},
+        {"$set": {"id": uid, "organization_id": BFPO_ORG_ID, "full_name": full_name,
+                  "email": email, "active": True, "created_at": now}}, upsert=True)
+    if mode == "invite":
+        invite_url = await _issue_invite(doc)
+
+    return {
+        "id": uid, "full_name": full_name, "email": email, "is_mod_bfpo": is_mod,
+        "territory_ids": doc["bfpo_territory_ids"], "site_ids": doc["bfpo_site_ids"],
+        "mode": mode, "temp_password": temp_password, "invite_url": invite_url,
+    }
+
+
+@router.get("/master-admin/mod-estate/bfpo-territories")
+async def list_bfpo_territories(user: dict = Depends(get_current_user)) -> dict:
+    require_master_admin(user)
+    from routes.bfpo import BFPO_ORG_ID
+    terrs = await db.bfpo_territories.find(
+        {"organization_id": BFPO_ORG_ID}, {"_id": 0, "id": 1, "name": 1, "country": 1}
+    ).sort("name", 1).to_list(500)
+    return {"territories": terrs}
+
+
+@router.get("/master-admin/mod-estate/bfpo-sites")
+async def list_bfpo_sites(user: dict = Depends(get_current_user)) -> dict:
+    require_master_admin(user)
+    from routes.bfpo import BFPO_ORG_ID
+    sites = await db.sites.find(
+        {"organization_id": BFPO_ORG_ID, "territory_id": {"$exists": True, "$ne": None}},
+        {"_id": 0, "id": 1, "name": 1, "territory_id": 1, "country": 1},
+    ).sort("name", 1).to_list(5000)
+    return {"sites": sites}
+
+
+@router.get("/master-admin/mod-estate/external-providers")
+async def list_external_providers(estate_id: str = DEFAULT_ESTATE_ID,
+                                  user: dict = Depends(get_current_user)) -> dict:
+    """Provider cards — each company plus its /bfpo engineer logins and the
+    MOD sites those engineers cover (resolved from the BFPO estate)."""
+    require_master_admin(user)
+    estate_id = _kebab(estate_id) or DEFAULT_ESTATE_ID
+    sups = await db.mod_estate_suppliers.find(
+        {"mod_estate_id": estate_id}, {"_id": 0}).sort("name", 1).to_list(2000)
+    sup_ids = [s["id"] for s in sups]
+    engineers_by_sup: dict = {}
+    if sup_ids:
+        async for u in db.users.find(
+            {"mod_estate_supplier_id": {"$in": sup_ids}, "bfpo_role": {"$exists": True}},
+            {"_id": 0, "id": 1, "full_name": 1, "email": 1, "phone": 1, "is_mod_bfpo": 1,
+             "bfpo_territory_ids": 1, "bfpo_site_ids": 1, "invite_pending": 1,
+             "must_change_password": 1, "mod_estate_supplier_id": 1},
+        ):
+            engineers_by_sup.setdefault(u["mod_estate_supplier_id"], []).append(u)
+
+    terrs, sites = await _resolve_bfpo_lookup()
+    providers = []
+    for s in sups:
+        engs = engineers_by_sup.get(s["id"], [])
+        site_ids_union, eng_out, any_mod = set(), [], False
+        for u in engs:
+            tids = u.get("bfpo_territory_ids") or []
+            sids = u.get("bfpo_site_ids") or []
+            site_ids_union.update(sids)
+            if u.get("is_mod_bfpo"):
+                any_mod = True
+            eng_out.append({
+                "id": u["id"], "full_name": u.get("full_name"), "email": u.get("email"),
+                "phone": u.get("phone", ""), "is_mod_bfpo": bool(u.get("is_mod_bfpo")),
+                "territory_names": [terrs[t]["name"] for t in tids if t in terrs],
+                "site_names": [sites[x]["name"] for x in sids if x in sites],
+                "login_status": "invite_pending" if u.get("invite_pending")
+                                else ("temp_password" if u.get("must_change_password") else "active"),
+            })
+        providers.append({
+            "id": s["id"], "name": s.get("name"), "contact_name": s.get("contact_name", ""),
+            "email": s.get("email", ""), "phone": s.get("phone", ""),
+            "countries": s.get("countries", []), "regions": s.get("regions", []),
+            "notes": s.get("notes", ""),
+            "is_mod_bfpo": any_mod, "engineer_count": len(eng_out), "engineers": eng_out,
+            "sites": sorted(
+                [{"id": x, "name": sites[x]["name"],
+                  "territory": terrs.get(sites[x].get("territory_id"), {}).get("name", "")}
+                 for x in site_ids_union if x in sites],
+                key=lambda d: d["name"]),
+        })
+    return {"providers": providers, "count": len(providers)}
+
+
+def _clean_engineers_payload(engineers_in, require_fields=True):
+    if not isinstance(engineers_in, list):
+        raise HTTPException(400, "engineers must be a list")
+    cleaned, seen = [], set()
+    for i, e in enumerate(engineers_in):
+        if not isinstance(e, dict):
+            raise HTTPException(400, f"Engineer #{i+1} is malformed")
+        name = (e.get("full_name") or "").strip()
+        email = (e.get("email") or "").strip().lower()
+        if require_fields and (not name or not email):
+            raise HTTPException(400, f"Engineer #{i+1}: name and email are required")
+        if email and not _EMAIL_RE.match(email):
+            raise HTTPException(400, f"Engineer #{i+1}: '{email}' is not a valid email")
+        if email in seen:
+            raise HTTPException(400, f"Engineer #{i+1}: duplicate email {email}")
+        seen.add(email)
+        cleaned.append({**e, "full_name": name, "email": email})
+    return cleaned
+
+
+@router.post("/master-admin/mod-estate/external-providers")
+async def create_external_provider(data: dict = Body(...),
+                                   user: dict = Depends(get_current_user)) -> dict:
+    """Create an external service-provider company + its /bfpo engineer logins."""
+    require_master_admin(user)
+    actor_id = user.get("id")
+    actor_email = user.get("email", "system")
+    estate_id = _kebab(data.get("estate_id") or DEFAULT_ESTATE_ID) or DEFAULT_ESTATE_ID
+
+    name = (data.get("name") or "").strip()
+    if not name:
+        raise HTTPException(400, "Provider company name is required")
+    default_mod = (data.get("mod_bfpo_default") or "yes").lower() == "yes"
+
+    engineers = _clean_engineers_payload(data.get("engineers") or [])
+    for e in engineers:  # fail before any writes
+        if await _email_taken(e["email"]):
+            raise HTTPException(400, f"Email {e['email']} is already in use")
+
+    country = (data.get("country") or "").strip()
+    supplier = {
+        "id": str(uuid.uuid4()), "mod_estate_id": estate_id, "name": name,
+        "contact_name": (data.get("contact_name") or "").strip(),
+        "email": (data.get("email") or "").strip().lower(),
+        "phone": (data.get("phone") or "").strip(),
+        "countries": [country] if country else [c.strip() for c in (data.get("countries") or []) if c and c.strip()],
+        "regions": [r.strip() for r in (data.get("regions") or []) if r and r.strip()],
+        "manufacturer_keywords": [], "notes": (data.get("notes") or "").strip(),
+        "created_at": _now(), "created_via": "external_provider_onboarding",
+    }
+    await db.mod_estate_suppliers.insert_one({**supplier})
+    supplier.pop("_id", None)
+
+    results = []
+    for e in engineers:
+        results.append(await _provision_provider_engineer(e, supplier["id"], name, default_mod, actor_id))
+
+    await log_activity(
+        "external_provider_onboarded",
+        f"Onboarded external provider '{name}' with {len(results)} engineer login(s)",
+        actor_email, "mod_estate_supplier", supplier["id"])
+    return {"success": True, "provider": supplier, "engineers": results}
+
+
+@router.patch("/master-admin/mod-estate/external-providers/{supplier_id}")
+async def update_external_provider(supplier_id: str, data: dict = Body(...),
+                                   user: dict = Depends(get_current_user)) -> dict:
+    """Edit provider company fields and/or add new engineer logins."""
+    require_master_admin(user)
+    actor_id = user.get("id")
+    sup = await db.mod_estate_suppliers.find_one({"id": supplier_id}, {"_id": 0})
+    if not sup:
+        raise HTTPException(404, "Provider not found")
+
+    fields = {}
+    for key in ("name", "contact_name", "email", "phone", "notes"):
+        if key in data:
+            val = (data.get(key) or "").strip()
+            fields[key] = val.lower() if key == "email" else val
+    if "country" in data:
+        country = (data.get("country") or "").strip()
+        fields["countries"] = [country] if country else []
+    if fields:
+        await db.mod_estate_suppliers.update_one({"id": supplier_id}, {"$set": fields})
+
+    default_mod = (data.get("mod_bfpo_default") or "yes").lower() == "yes"
+    new_engineers = _clean_engineers_payload(data.get("engineers") or [])
+    for e in new_engineers:
+        if await _email_taken(e["email"]):
+            raise HTTPException(400, f"Email {e['email']} is already in use")
+    results = []
+    provider_name = fields.get("name") or sup.get("name")
+    for e in new_engineers:
+        results.append(await _provision_provider_engineer(e, supplier_id, provider_name, default_mod, actor_id))
+
+    return {"success": True, "engineers": results}
+
+
 __all__ = ["router"]

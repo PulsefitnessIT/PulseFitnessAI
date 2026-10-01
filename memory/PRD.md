@@ -1,3 +1,37 @@
+# [2026-06] FEATURE — Unified "External Service Providers" onboarding (consolidation)
+Merged THREE overlapping Master-Admin onboarding flows (Dealer/Engineer, BFPO/MOD Engineers,
+Service Providers) into a single "External Service Providers" tile per founder decision (option B —
+Pulse has no UK distribution partners, so one flow for ALL external dealers/engineers).
+
+Frontend:
+- NEW /app/frontend/src/pages/MasterAdmin/ExternalServiceProviders.js — card list (company +
+  engineer chips + covered MOD sites + MOD/BFPO badge) and a rich Add/Edit form (company fields +
+  company-level MOD/BFPO default dropdown + per-engineer override + territory→sites cascade + per
+  engineer invite-link/temp-password). Success screen shows credentials to copy.
+- AdminOnboardingHub.js: 'mod-providers' tile relabelled "External Service Providers" → renders the
+  new component; removed 'dealer' (DealerOnboardingWizard) and 'bfpo-engineers' (StaffEngineers)
+  tiles and the now-empty "Partners" group. (Old component files left in place, just unreferenced.)
+
+Backend (/app/backend/routes/master_admin_mod_estate.py, appended):
+- GET  /master-admin/mod-estate/bfpo-territories  → db.bfpo_territories (dropdown)
+- GET  /master-admin/mod-estate/bfpo-sites        → db.sites w/ territory_id (site picker)
+- GET  /master-admin/mod-estate/external-providers → providers (mod_estate_suppliers) + their
+  engineer logins (db.users linked by mod_estate_supplier_id) + resolved territory/site names + union of covered sites
+- POST /master-admin/mod-estate/external-providers → creates the mod_estate_suppliers company row
+  + one /bfpo engineer login per engineer (reuses bfpo _issue_invite / _gen_temp_password / hash_password).
+  Engineers flagged MOD/BFPO get bfpo_role=engineer, bfpo_territory_ids, bfpo_site_ids,
+  organization_id=BFPO_ORG_ID, is_mod_bfpo=True, mod_estate_supplier_id, provider_name; svc_engineers upsert.
+- PATCH /master-admin/mod-estate/external-providers/{id} → edit company + add new engineer logins.
+Idempotency: duplicate email (db.users+db.crm_users) → 400 before any writes.
+
+Verified E2E in preview (master-admin token minted directly; MFA only gates /login not token validation):
+onboarded Inda Fitness + John Maina (Kenya/BATUK, site-ken-1, temp pw) → appears as provider card with
+MOD/BFPO badge + covered site, AND John logs into MOD portal (portal:"mod") with bfpo_role=engineer,
+territory terr-ken. Edge cases pass: dup email 400, non-MOD engineer (no territory), invite-link engineer.
+NOTE: Inda Fitness/John Maina exist only in PRODUCTION originally — founder to re-add via the new flow in prod
+(or run the same POST). test engineer "Peter Office" cleaned from preview.
+
+
 # [2026-06] FIX — MOD Operations launcher tile (Lee Somers, Owner) — ROOT CAUSE FOUND
 Prior 3 attempts all patched the backend (already correct). Real bug was frontend:
 `/app/frontend/src/pages/LiteDashboard/staffing/HRTab.js:567` — `isFlag` only included
