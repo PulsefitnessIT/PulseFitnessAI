@@ -1440,10 +1440,6 @@ function VehicleTab({ H, jwt }) {
 
   return (
     <div className="space-y-4" data-testid="staff-vehicle-tab">
-      {hasVehicle && (
-        <CrashPackEntryCard packs={packs} canReport={hasVehicle}
-          onReport={() => setCrash({})} onResume={(id) => setCrash({ resumePackId: id })} />
-      )}
       {!hasVehicle ? (
         <Empty icon={Truck} title="No vehicle assigned" hint="Your manager assigns vehicles and the weekly check you need to complete." />
       ) : (
@@ -1452,6 +1448,8 @@ function VehicleTab({ H, jwt }) {
           {data.vehicles.map((v) => (
             <VehiclePortalCard key={v.id} v={v} jwt={jwt} onCheck={() => setOpenId(v.id)} />
           ))}
+          <CrashPackEntryCard packs={packs}
+            onReport={() => setCrash({})} onResume={(id) => setCrash({ resumePackId: id })} />
         </>
       )}
       {crash && (
@@ -1466,20 +1464,20 @@ function CrashPackEntryCard({ packs, onReport, onResume }) {
   const drafts = (packs || []).filter((p) => p.status === 'draft');
   const submitted = (packs || []).filter((p) => p.status === 'submitted');
   return (
-    <div className="rounded-2xl border-2 p-5 shadow-sm" style={{ background: 'var(--theme-surface)', borderColor: '#FDE68A' }} data-testid="crash-pack-entry-card">
-      <div className="flex items-start gap-3">
-        <span className="rounded-xl p-2.5" style={{ background: '#FEF3C7' }}><ShieldAlert size={20} className="text-amber-600" /></span>
-        <div className="flex-1 min-w-0">
-          <div className="font-bold text-base" style={{ color: 'var(--theme-text)' }}>Been in a crash?</div>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--theme-text-muted)' }}>We'll guide you through it step by step and help you capture what's needed.</p>
-          <button onClick={onReport} data-testid="report-crash-btn"
-            className="mt-3 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-base" style={{ background: '#EF4444', color: 'white' }}>
-            <ShieldAlert size={18} /> Report a crash
-          </button>
+    <div className="mt-6 pt-4 border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid="crash-pack-entry-card">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--theme-text-muted)' }}>
+          <ShieldAlert size={16} className="text-amber-500" />
+          <span>Been in a crash in a company vehicle?</span>
         </div>
+        <button onClick={onReport} data-testid="report-crash-btn"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors hover:bg-red-50"
+          style={{ borderColor: '#FCA5A5', color: '#DC2626' }}>
+          <ShieldAlert size={15} /> Report a crash
+        </button>
       </div>
       {(drafts.length > 0 || submitted.length > 0) && (
-        <div className="mt-4 pt-4 border-t space-y-2" style={{ borderColor: 'var(--theme-border)' }}>
+        <div className="mt-3 space-y-1.5">
           {drafts.map((p) => (
             <button key={p.id} onClick={() => onResume(p.id)} data-testid={`crash-draft-${p.id}`}
               className="w-full flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left" style={{ borderColor: 'var(--theme-border)' }}>
@@ -1489,7 +1487,7 @@ function CrashPackEntryCard({ packs, onReport, onResume }) {
           ))}
           {submitted.map((p) => (
             <div key={p.id} className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--theme-border)' }} data-testid={`crash-submitted-${p.id}`}>
-              <span className="text-sm" style={{ color: 'var(--theme-text)' }}><strong>{p.reg_no}</strong> · {p.submitted_at ? fmtDate(p.submitted_at) : 'submitted'}</span>
+              <span className="text-sm" style={{ color: 'var(--theme-text-muted)' }}><strong>{p.reg_no}</strong> · {p.submitted_at ? fmtDate(p.submitted_at) : 'submitted'}</span>
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">Submitted</span>
             </div>
           ))}

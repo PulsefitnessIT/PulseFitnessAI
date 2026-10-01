@@ -4,6 +4,7 @@
  * supports phone-camera photo capture. Insurance guidance is shown at the end.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
   Loader2, X, ChevronLeft, ChevronRight, ShieldAlert, Phone, Copy, Camera,
@@ -182,7 +183,7 @@ export default function CrashPackWizard({ H, jwt, resumePackId, onClose, onDone 
     if (step === 2 && geo === '' && !(data.accident || {}).gps) captureGps();
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const shell = (body) => (
+  const shell = (body) => createPortal((
     <div className="fixed inset-0 z-[200] overflow-y-auto" style={{ background: 'var(--theme-bg)' }} data-testid="crash-pack-wizard-modal">
       <div className="sticky top-0 z-10 backdrop-blur-md border-b px-4 py-3 flex items-center justify-between gap-3"
         style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
@@ -199,8 +200,8 @@ export default function CrashPackWizard({ H, jwt, resumePackId, onClose, onDone 
       {!done && (
         <div className="fixed bottom-0 left-0 right-0 z-20 p-4 backdrop-blur-md border-t flex items-center justify-between gap-3"
           style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
-          <button onClick={() => go(-1)} disabled={step === 0 || busy} data-testid="crash-prev"
-            className="inline-flex items-center gap-1 px-4 py-3 rounded-xl border font-semibold disabled:opacity-40" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><ChevronLeft size={18} /> Back</button>
+          <button onClick={() => (step === 0 ? onClose() : go(-1))} disabled={busy} data-testid="crash-prev"
+            className="inline-flex items-center gap-1 px-4 py-3 rounded-xl border font-semibold disabled:opacity-40" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><ChevronLeft size={18} /> {step === 0 ? 'Exit' : 'Back'}</button>
           <div className="text-xs font-semibold" style={{ color: 'var(--theme-text-muted)' }}>Step {step + 1} / {STEPS.length}</div>
           {step < STEPS.length - 1 ? (
             <button onClick={() => go(1)} disabled={busy} data-testid="crash-next"
@@ -213,7 +214,7 @@ export default function CrashPackWizard({ H, jwt, resumePackId, onClose, onDone 
       )}
       {err && <div className="fixed bottom-20 left-0 right-0 px-4 z-30"><div className="max-w-xl mx-auto rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm px-4 py-2.5" data-testid="crash-error">{err}</div></div>}
     </div>
-  );
+  ), document.body);
 
   if (!boot) return shell(<div className="flex justify-center py-16"><Loader2 className="animate-spin" style={{ color: CORE }} /></div>);
 
