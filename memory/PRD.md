@@ -1,4 +1,13 @@
-# [2026-06] FEATURE — External Service Providers: edit/remove existing engineers
+# [2026-06] FEATURE — External Service Providers: reissue engineer login
+Per-engineer "Resend invite / Reset temp password" on the editor row.
+Backend: POST /master-admin/mod-estate/external-providers/{supplier_id}/engineers/{engineer_id}/reissue
+  body {mode:'invite'|'temp', temp_password?}. invite → mints fresh /bfpo invite (reuses bfpo _issue_invite),
+  sets invite_pending; temp → sets new bcrypt temp password (reuses _gen_temp_password), must_change_password,
+  clears pending invites. Returns {mode, invite_url?|temp_password?}. 404 if engineer not under supplier.
+Frontend (ExternalServiceProviders.js): editor row now has a "Reissue login" control with Resend-invite /
+Reset-temp-password buttons + inline copyable result box. Verified E2E (both modes + 404 + UI renders temp pw).
+
+
 Added full CRUD on provider engineers (previously only add).
 Backend (/app/backend/routes/master_admin_mod_estate.py):
 - PATCH /master-admin/mod-estate/external-providers/{supplier_id}/engineers/{engineer_id}

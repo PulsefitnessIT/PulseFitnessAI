@@ -2191,4 +2191,43 @@ async def delete_provider_engineer(supplier_id: str, engineer_id: str,
     return {"success": True}
 
 
+@router.post("/master-admin/mod-estate/external-providers/{supplier_id}/engineers/{engineer_id}/reissue")
+async def reissue_provider_engineer_login(supplier_id: str, engineer_id: str, data: dict = Body(...),
+                                          user: dict = Depends(get_current_user)) -> dict:
+    """Reissue login details for an existing provider engineer — either resend a
+    fresh set-password invite link, or set a new temporary password. Reuses the
+    BFPO invite / temp-password mechanisms."""
+    require_master_admin(user)
+    from routes.bfpo import _issue_invite, _gen_temp_password
+    eng = await db.users.find_one(
+        {"id": engineer_id, "mod_estate_supplier_id": supplier_id}, {"_id": 0})
+    if not eng:
+        raise HTTPException(404, "Engineer not found for this provider")
+
+    mode = (data.get("mode") or "invite").lower()
+    if mode not in ("invite", "temp"):
+        mode = "invite"
+
+    if mode == "temp":
+        temp = (data.get("temp_password") or "").strip() or _gen_temp_password()
+        if len(temp) < 8:
+            raise HTTPException(400, "Temporary password must be at least 8 characters")
+        await db.users.update_one({"id": engineer_id}, {"$set": {
+            "password": hash_password(temp), "must_change_password": True,
+            "invite_pending": False}})
+        await db.bfpo_invites.delete_many({"user_id": engineer_id})
+        await log_activity("external_provider_engineer_reissue",
+                           f"Set a new temporary password for {eng.get('full_name') or engineer_id}",
+                           user.get("email", "system"), "user", engineer_id)
+        return {"mode": "temp", "temp_password": temp}
+
+    await db.users.update_one({"id": engineer_id}, {"$set": {
+        "invite_pending": True, "must_change_password": False}})
+    invite_url = await _issue_invite(eng)
+    await log_activity("external_provider_engineer_reissue",
+                       f"Resent a set-password invite to {eng.get('full_name') or engineer_id}",
+                       user.get("email", "system"), "user", engineer_id)
+    return {"mode": "invite", "invite_url": invite_url}
+
+
 __all__ = ["router"]

@@ -41,6 +41,7 @@ const ExternalServiceProviders = () => {
   const [engineers, setEngineers] = useState([]);
   const [existingEngs, setExistingEngs] = useState([]);
   const [rowBusy, setRowBusy] = useState(null);
+  const [reissue, setReissue] = useState({}); // { [engId]: {busy, mode, invite_url, temp_password} }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -117,6 +118,18 @@ const ExternalServiceProviders = () => {
     } catch (err) {
       toast.error(err?.response?.data?.detail || 'Could not remove engineer');
     } finally { setRowBusy(null); }
+  };
+  const reissueLogin = async (e, mode) => {
+    setReissue((r) => ({ ...r, [e.id]: { busy: true } }));
+    try {
+      const { data } = await axios.post(`${API}/master-admin/mod-estate/external-providers/${editing.id}/engineers/${e.id}/reissue`, { mode }, { headers: headers() });
+      setReissue((r) => ({ ...r, [e.id]: { busy: false, ...data } }));
+      toast.success(mode === 'invite' ? 'Invite link reissued' : 'New temporary password set');
+      load();
+    } catch (err) {
+      setReissue((r) => ({ ...r, [e.id]: { busy: false } }));
+      toast.error(err?.response?.data?.detail || 'Could not reissue login');
+    }
   };
 
   const renderTerrSites = (eng, onField, idPrefix) => {
@@ -282,6 +295,20 @@ const ExternalServiceProviders = () => {
                   </label>
                 </div>
                 {e.mod_bfpo === 'yes' && renderTerrSites(e, (k, v) => setExist(i, k, v), `esp-existing-${i}`)}
+                <div className="rounded-lg border border-dashed border-slate-200 p-2.5 space-y-2" data-testid={`esp-existing-reissue-${i}`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-semibold text-slate-500">Reissue login:</span>
+                    <button type="button" onClick={() => reissueLogin(e, 'invite')} disabled={reissue[e.id]?.busy} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-cyan-200 text-cyan-700 hover:bg-cyan-50 disabled:opacity-50" data-testid={`esp-existing-reissue-invite-${i}`}><Link2 size={12} /> Resend invite</button>
+                    <button type="button" onClick={() => reissueLogin(e, 'temp')} disabled={reissue[e.id]?.busy} className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-amber-200 text-amber-700 hover:bg-amber-50 disabled:opacity-50" data-testid={`esp-existing-reissue-temp-${i}`}><KeyRound size={12} /> Reset temp password</button>
+                    {reissue[e.id]?.busy && <Loader2 size={12} className="animate-spin text-slate-400" />}
+                  </div>
+                  {reissue[e.id]?.invite_url && (
+                    <div className="flex items-center gap-2"><input readOnly value={reissue[e.id].invite_url} className="flex-1 text-[11px] font-mono px-2 py-1.5 rounded border border-slate-200 bg-white truncate" data-testid={`esp-existing-invite-url-${i}`} /><button onClick={() => copy(reissue[e.id].invite_url)} className="p-1.5 rounded border border-slate-200 hover:bg-white"><Copy size={13} /></button></div>
+                  )}
+                  {reissue[e.id]?.temp_password && (
+                    <div className="flex items-center gap-2"><code className="flex-1 text-[12px] font-mono px-2 py-1.5 rounded border border-slate-200 bg-white" data-testid={`esp-existing-temp-pw-${i}`}>{reissue[e.id].temp_password}</code><button onClick={() => copy(reissue[e.id].temp_password)} className="p-1.5 rounded border border-slate-200 hover:bg-white"><Copy size={13} /></button></div>
+                  )}
+                </div>
                 <div className="flex justify-end">
                   <button onClick={() => saveExisting(i)} disabled={rowBusy === e.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-cyan-500 text-white hover:bg-cyan-600 disabled:opacity-50" data-testid={`esp-existing-save-${i}`}>
                     {rowBusy === e.id ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />} Save changes
