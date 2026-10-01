@@ -2344,6 +2344,28 @@ def _build_expenses_xlsx(month: str, claims: list[dict]) -> bytes:
     return out.getvalue()
 
 
+@router.get("/new-starter/expenses/review/{claim_id}/export-xlsx")
+async def expenses_review_claim_export_xlsx(claim_id: str, user: dict = Depends(get_current_user)):
+    """Download a SINGLE claim in the exact Pulse expense template (.xlsx)."""
+    if (user.get("role") not in HR_ROLES) and not user.get("is_master_admin"):
+        raise HTTPException(403, "Not authorised")
+    claim = await db.staff_expense_claims.find_one(
+        {"id": claim_id, "organization_id": user.get("organization_id")},
+        {"_id": 0, "receipts": 0})
+    if not claim:
+        raise HTTPException(404, "Claim not found")
+    month = claim.get("claim_month") or ""
+    try:
+        xlsx = _build_expenses_xlsx(month, [claim])
+    except Exception as e:
+        raise HTTPException(500, f"Could not build spreadsheet: {e}")
+    fname = _safe(f"Expense-{claim.get('staff_name', '')}-{month}", "Expense") + ".xlsx"
+    return Response(
+        content=xlsx,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
 @router.get("/new-starter/expenses/review/export-xlsx")
 async def expenses_export_xlsx(month: str = Query(...), include_reimbursed: bool = Query(False),
                                user: dict = Depends(get_current_user)):

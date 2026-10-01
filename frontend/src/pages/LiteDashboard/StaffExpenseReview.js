@@ -135,6 +135,16 @@ export default function StaffExpenseReview({ headers }) {
     finally { setBusy(''); }
   };
 
+  const downloadClaimXlsx = async (c) => {
+    setBusy(c.id + 'xlsx'); setErr('');
+    try {
+      const r = await axios.get(`${API}/new-starter/expenses/review/${c.id}/export-xlsx`, { headers, responseType: 'blob' });
+      dl(r.data, `Expense-${(c.staff_name || '').replace(/[^A-Za-z0-9]+/g, '-')}-${(c.claim_month || '').replace(/[^A-Za-z0-9]+/g, '-')}.xlsx`,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    } catch { setErr('Could not build the Pulse template for this claim.'); }
+    finally { setBusy(''); }
+  };
+
   return (
     <div data-testid="staff-expense-review">
       <h2 className="text-lg font-bold mb-1 flex items-center gap-2"><Receipt size={18} className="text-cyan-600" /> Expenses</h2>
@@ -273,14 +283,20 @@ export default function StaffExpenseReview({ headers }) {
                 </div>
                 {isOpen && (
                   <div className="px-4 pb-4 border-t border-slate-100 pt-3" data-testid={`exp-review-detail-${c.id}`}>
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                       <p className="text-xs font-semibold text-slate-600">Expense lines & receipts</p>
-                      {receiptLines.length > 0 && (
-                        <button onClick={() => downloadClaimReceipts(c)} disabled={busy === c.id + 'zip'} data-testid={`exp-review-receipts-${c.id}`}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 text-slate-700 disabled:opacity-50">
-                          {busy === c.id + 'zip' ? <RotateCw size={12} className="animate-spin" /> : <FileArchive size={12} />} Receipts (ZIP)
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => downloadClaimXlsx(c)} disabled={busy === c.id + 'xlsx'} data-testid={`exp-review-xlsx-${c.id}`}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white disabled:opacity-50">
+                          {busy === c.id + 'xlsx' ? <RotateCw size={12} className="animate-spin" /> : <FileSpreadsheet size={12} />} Pulse template (.xlsx)
                         </button>
-                      )}
+                        {receiptLines.length > 0 && (
+                          <button onClick={() => downloadClaimReceipts(c)} disabled={busy === c.id + 'zip'} data-testid={`exp-review-receipts-${c.id}`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 text-slate-700 disabled:opacity-50">
+                            {busy === c.id + 'zip' ? <RotateCw size={12} className="animate-spin" /> : <FileArchive size={12} />} Receipts (ZIP)
+                          </button>
+                        )}
+                      </div>
                     </div>
                     {lines.length === 0 ? (
                       <p className="text-xs text-slate-400">No itemised expenses (mileage only).</p>

@@ -39051,3 +39051,9 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Backend: staff_portal.py PUT /new-starter/portal/expenses/{id} now allows status in (draft, rejected, submitted). expenses/core.py PUT /expenses/{id} now allows (DRAFT, NEEDS_DETAILS, SUBMITTED). Approved/reimbursed/locked remain read-only.
 - Frontend: StaffExpensesTab.js shows a cyan "awaiting approval — you can still edit" banner + single "Save changes" button (data-testid exp-save-changes) for submitted claims. EngineerExpenses.js row shows Edit for submitted (no Submit/Cancel), form shows single "Save changes" when editing a submitted claim.
 - Verified: curl e2e on portal.staff@pulsedemo.test — edit submitted claim → 200, status stays submitted. Frontend compiles clean.
+
+## [2026-06] Expenses — per-claim download to Pulse template (manager)
+- Managers can now download a single claimer's individual claim onto the exact Pulse Fitness expense template (.xlsx) from the Staff Expense Review. Button "Pulse template (.xlsx)" (data-testid exp-review-xlsx-<id>) sits next to "Receipts (ZIP)" inside each claim's expanded detail.
+- Backend: new GET /api/new-starter/expenses/review/{claim_id}/export-xlsx (HR_ROLES/master admin only) reuses _build_expenses_xlsx(month, [claim]) → Summary tab + one per-employee sheet, title "Pulse Fitness Limited - Expense Claim". Filename Expense-<name>-<month>.xlsx.
+- Frontend: StaffExpenseReview.js downloadClaimXlsx handler. Month-level export-xlsx unaffected (no route conflict; verified).
+- Verified: curl on owner@isodemo.com — single-claim xlsx 200 (sheets [Summary, Alex Rivera], A1 correct); month export still 200. Frontend compiles clean.
