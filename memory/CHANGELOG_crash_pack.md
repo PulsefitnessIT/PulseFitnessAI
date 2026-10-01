@@ -32,4 +32,8 @@ NOT yet browser-tested: the wizard UI flow + live photo capture (needs a staff_j
   application/pdf, %PDF- magic, ~6.5KB with an embedded photo. Download buttons added to CrashPacksManager list row + report modal.
 - GPS capture: wizard accident step auto-captures navigator.geolocation (manual Capture/Update button, graceful denied state),
   stored at data.accident.gps {lat,lng,accuracy,captured_at}. Shown in manager HTML report (Section B, "View on map") and PDF.
+- Static map in PDF: _static_map_png() stitches public OpenStreetMap tiles (no API key, User-Agent set) into a 560x320 marker
+  map centred on the GPS point, embedded in the PDF Incident section. Wrapped in try/except → PDF still builds if tiles/GPS
+  unavailable. Verified: PDF with GPS now ~124KB incl map, %PDF- valid.
+
 

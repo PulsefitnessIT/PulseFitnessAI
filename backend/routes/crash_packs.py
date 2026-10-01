@@ -266,7 +266,46 @@ def _esc(text) -> str:
     return (str(text or "")).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def _build_crash_pdf(pack: dict, insurance: dict, photos: list, org_company=None) -> bytes:
+def _static_map_png(lat: float, lng: float, zoom: int = 15, width: int = 560, height: int = 320) -> bytes | None:
+    """Compose a static OSM map centred on lat/lng with a marker. No API key —
+    stitches public OpenStreetMap tiles. Returns PNG bytes, or None on failure."""
+    import math
+    import io as _io
+    import requests
+    from PIL import Image as PILImage, ImageDraw
+
+    try:
+        n = 2 ** zoom
+        size = 256 * n
+        siny = max(min(math.sin(lat * math.pi / 180), 0.9999), -0.9999)
+        cx = (lng + 180.0) / 360.0 * size
+        cy = (0.5 - math.log((1 + siny) / (1 - siny)) / (4 * math.pi)) * size
+        left, top = cx - width / 2, cy - height / 2
+        tx0, ty0 = int(left // 256), int(top // 256)
+        tx1, ty1 = int((left + width) // 256), int((top + height) // 256)
+        canvas = PILImage.new("RGB", ((tx1 - tx0 + 1) * 256, (ty1 - ty0 + 1) * 256), (233, 233, 233))
+        headers = {"User-Agent": "PulseFitness-CrashPack/1.0 (fleet incident report)"}
+        for tx in range(tx0, tx1 + 1):
+            for ty in range(ty0, ty1 + 1):
+                if not (0 <= tx < n and 0 <= ty < n):
+                    continue
+                r = requests.get(f"https://tile.openstreetmap.org/{zoom}/{tx}/{ty}.png", headers=headers, timeout=12)
+                if r.status_code == 200:
+                    canvas.paste(PILImage.open(_io.BytesIO(r.content)).convert("RGB"), ((tx - tx0) * 256, (ty - ty0) * 256))
+        ox, oy = int(left - tx0 * 256), int(top - ty0 * 256)
+        crop = canvas.crop((ox, oy, ox + width, oy + height))
+        d = ImageDraw.Draw(crop)
+        mx, my = width // 2, height // 2
+        d.ellipse([mx - 8, my - 8, mx + 8, my + 8], fill=(220, 38, 38), outline=(255, 255, 255), width=2)
+        d.ellipse([mx - 2, my - 2, mx + 2, my + 2], fill=(255, 255, 255))
+        out = _io.BytesIO()
+        crop.save(out, "PNG")
+        return out.getvalue()
+    except Exception:
+        return None
+
+
+def _build_crash_pdf(pack: dict, insurance: dict, photos: list, org_company=None, map_png: bytes | None = None) -> bytes:
     """Pulse-branded A4 Fleet Incident Report."""
     import io as _io
     from reportlab.lib import colors
@@ -331,6 +370,13 @@ def _build_crash_pdf(pack: dict, insurance: dict, photos: list, org_company=None
     story.append(Paragraph(_esc(ac.get("detail") or "—"), body))
     if ac.get("sketch_note"):
         story.append(Paragraph(f"<b>Sketch note:</b> {_esc(ac.get('sketch_note'))}", body))
+    if map_png:
+        import io as _io2
+        story.append(Spacer(1, 3 * mm))
+        try:
+            story.append(Image(_io2.BytesIO(map_png), width=140 * mm, height=80 * mm, kind="proportional"))
+        except Exception:
+            pass
     story.append(Spacer(1, 4 * mm))
 
     tps = data.get("third_parties") or []
@@ -415,7 +461,11 @@ async def manager_pdf(pack_id: str, user: dict = Depends(get_current_user)):
                 pass
     try:
         org_company = await db.organizations.find_one({"id": org}, {"_id": 0}) if org else None
-        pdf = _build_crash_pdf(pack, insurance, photos, org_company)
+        gps = ((pack.get("data") or {}).get("accident") or {}).get("gps") or {}
+        map_png = None
+        if gps.get("lat") is not None and gps.get("lng") is not None:
+            map_png = _static_map_png(float(gps["lat"]), float(gps["lng"]))
+        pdf = _build_crash_pdf(pack, insurance, photos, org_company, map_png)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(500, f"Could not generate PDF: {e}")
     reg = (pack.get("reg_no") or "vehicle").replace(" ", "")
