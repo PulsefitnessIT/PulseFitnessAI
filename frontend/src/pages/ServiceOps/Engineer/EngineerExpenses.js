@@ -351,15 +351,24 @@ export default function EngineerExpenses() {
           </label>
 
           <div className="flex gap-2 pt-2">
-            <button onClick={() => save(false)} disabled={saving}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-slate-300 text-slate-700 font-semibold text-sm" data-testid="exp-save-draft">
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Save draft
-            </button>
-            <button onClick={() => save(true)} disabled={saving}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-orange-500 text-white font-semibold text-sm" data-testid="exp-submit">
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-              {cfg?.approval_mode === 'off' ? 'Save & approve' : 'Submit'}
-            </button>
+            {editId && form.status === 'submitted' ? (
+              <button onClick={() => save(false)} disabled={saving}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-orange-500 text-white font-semibold text-sm" data-testid="exp-save-changes">
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Save changes
+              </button>
+            ) : (
+              <>
+                <button onClick={() => save(false)} disabled={saving}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-slate-300 text-slate-700 font-semibold text-sm" data-testid="exp-save-draft">
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Save draft
+                </button>
+                <button onClick={() => save(true)} disabled={saving}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-orange-500 text-white font-semibold text-sm" data-testid="exp-submit">
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  {cfg?.approval_mode === 'off' ? 'Save & approve' : 'Submit'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -418,10 +427,11 @@ export default function EngineerExpenses() {
           </div>
         ) : rows.map((e) => {
           const editable = e.status === 'draft' || e.status === 'needs_details';
+          const canEdit = editable || e.status === 'submitted';
           const hasReceipt = (e.receipt_paths || []).length > 0;
           return (
           <div key={e.id} className="bg-white rounded-xl border border-slate-100 p-3" data-testid={`exp-row-${e.id}`}>
-            <button onClick={() => editable ? openEdit(e) : null} className={`w-full text-left flex items-center gap-3 ${editable ? '' : 'cursor-default'}`} data-testid={`exp-open-${e.id}`}>
+            <button onClick={() => canEdit ? openEdit(e) : null} className={`w-full text-left flex items-center gap-3 ${canEdit ? '' : 'cursor-default'}`} data-testid={`exp-open-${e.id}`}>
               {hasReceipt ? (
                 <ReceiptThumb expenseId={e.id} className="w-11 h-11 rounded-lg shrink-0" />
               ) : (
@@ -440,11 +450,11 @@ export default function EngineerExpenses() {
                 <StatusPill status={e.status} />
               </div>
             </button>
-            {editable && (
+            {canEdit && (
               <div className="flex gap-2 mt-2 pt-2 border-t border-slate-50">
                 <button onClick={() => openEdit(e)} className="flex-1 text-xs font-semibold text-slate-600 py-1 flex items-center justify-center gap-1" data-testid={`exp-edit-${e.id}`}><Pencil size={12} /> Edit</button>
-                <button onClick={() => submitExisting(e.id)} className="flex-1 text-xs font-semibold text-orange-600 py-1 flex items-center justify-center gap-1" data-testid={`exp-submit-${e.id}`}><Send size={12} /> {e.status === 'needs_details' ? 'Resubmit' : 'Submit'}</button>
-                <button onClick={() => cancelExisting(e.id)} className="flex-1 text-xs font-semibold text-slate-400 py-1 flex items-center justify-center gap-1" data-testid={`exp-cancel-${e.id}`}><Trash2 size={12} /> Cancel</button>
+                {editable && <button onClick={() => submitExisting(e.id)} className="flex-1 text-xs font-semibold text-orange-600 py-1 flex items-center justify-center gap-1" data-testid={`exp-submit-${e.id}`}><Send size={12} /> {e.status === 'needs_details' ? 'Resubmit' : 'Submit'}</button>}
+                {editable && <button onClick={() => cancelExisting(e.id)} className="flex-1 text-xs font-semibold text-slate-400 py-1 flex items-center justify-center gap-1" data-testid={`exp-cancel-${e.id}`}><Trash2 size={12} /> Cancel</button>}
               </div>
             )}
             {e.review_note && (e.status === 'needs_details' || e.status === 'rejected') && (

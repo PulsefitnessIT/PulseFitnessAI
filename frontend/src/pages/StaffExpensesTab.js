@@ -95,7 +95,8 @@ export default function ExpensesTab({ H }) {
     finally { setBusy(false); }
   };
 
-  const editable = claim && (claim.status === 'draft' || claim.status === 'rejected');
+  const editable = claim && (claim.status === 'draft' || claim.status === 'rejected' || claim.status === 'submitted');
+  const isSubmitted = claim && claim.status === 'submitted';
 
   // ── running totals (client-side mirror of the backend) ──
   const mileageTotal = (claim?.mileage || []).reduce((s, m) => s + (Number(m.miles) || 0) * m.rate, 0);
@@ -282,6 +283,11 @@ export default function ExpensesTab({ H }) {
           Returned by your manager: {claim.review_note}
         </div>
       )}
+      {isSubmitted && (
+        <div className="mb-3 p-3 rounded-lg text-sm" style={{ background: 'rgba(14,165,233,0.1)', color: '#0369a1' }} data-testid="exp-editable-note">
+          Submitted and awaiting approval — you can still make changes until your manager approves it.
+        </div>
+      )}
 
       {/* Header */}
       <div className="p-4 rounded-xl border mb-4" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
@@ -422,7 +428,14 @@ export default function ExpensesTab({ H }) {
           <span className="text-xl font-extrabold" style={{ color: 'var(--theme-text)' }} data-testid="exp-grand-total">{gbp(grand)}</span>
         </div>
         {err && <div className="mb-3 p-2.5 rounded-lg text-sm flex items-center gap-2" style={{ background: 'rgba(239,68,68,0.1)', color: '#dc2626' }} data-testid="exp-error"><AlertCircle size={15} />{err}</div>}
-        {editable ? (
+        {isSubmitted ? (
+          <div className="flex items-center gap-2">
+            <button onClick={save} disabled={busy} data-testid="exp-save-changes" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: busy ? 0.5 : 1 }}>
+              {busy ? <RotateCw size={15} className="animate-spin" /> : <CheckCircle2 size={15} />} Save changes
+            </button>
+            {msg && <span className="text-sm inline-flex items-center gap-1" style={{ color: '#059669' }} data-testid="exp-saved"><CheckCircle2 size={14} /> {msg}</span>}
+          </div>
+        ) : editable ? (
           <div className="flex items-center gap-2">
             <button onClick={save} disabled={busy} data-testid="exp-save" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold" style={{ background: 'transparent', color: 'var(--theme-text)', border: '1px solid var(--theme-border)', opacity: busy ? 0.5 : 1 }}>
               {busy ? <RotateCw size={15} className="animate-spin" /> : null} Save draft
@@ -433,7 +446,7 @@ export default function ExpensesTab({ H }) {
             {msg && <span className="text-sm inline-flex items-center gap-1" style={{ color: '#059669' }} data-testid="exp-saved"><CheckCircle2 size={14} /> {msg}</span>}
           </div>
         ) : (
-          <div className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>This claim has been submitted and is now read-only.</div>
+          <div className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>This claim has been approved and is now read-only.</div>
         )}
       </div>
     </div>

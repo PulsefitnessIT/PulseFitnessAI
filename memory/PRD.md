@@ -39045,3 +39045,9 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 ## 2026-06 · Tender Quote Wizard
 - Custom (tender) package now offers Quick panel OR a 6-step Tender Wizard (Upload→Summary→Service→Repairs→Travel→Build). AI extracts service + repair £/hr (per type, single-rate fallback) + travel + a tender summary; user selects which schedules to include; repairs stored & optionally costed via estimated annual hours. Rate cards include repairs. crm_aftersales.py + AftersalesApp.js.
 - Backlog: (a) surface AI retry state if extraction 503s under load; (b) quiet the two pre-existing 500s on Build Quote tab load; (c) remember manual machine→type mappings.
+
+## [2026-06] Expenses — edit after submit (before approval)
+- Staff/Office Expense Claims (Staff Portal → Expenses) AND Field Engineer Expenses (Service Ops) now let the CLAIMER edit a claim while it is still `submitted` (awaiting manager approval). Status stays `submitted` (silent edit, no audit entry, per founder request).
+- Backend: staff_portal.py PUT /new-starter/portal/expenses/{id} now allows status in (draft, rejected, submitted). expenses/core.py PUT /expenses/{id} now allows (DRAFT, NEEDS_DETAILS, SUBMITTED). Approved/reimbursed/locked remain read-only.
+- Frontend: StaffExpensesTab.js shows a cyan "awaiting approval — you can still edit" banner + single "Save changes" button (data-testid exp-save-changes) for submitted claims. EngineerExpenses.js row shows Edit for submitted (no Submit/Cancel), form shows single "Save changes" when editing a submitted claim.
+- Verified: curl e2e on portal.staff@pulsedemo.test — edit submitted claim → 200, status stays submitted. Frontend compiles clean.

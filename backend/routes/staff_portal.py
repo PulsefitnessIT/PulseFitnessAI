@@ -1724,8 +1724,8 @@ async def portal_expenses_update(claim_id: str, body: ExpClaimUpdate,
         {"id": claim_id, "organization_id": staff["organization_id"], "staff_person_id": staff["id"]})
     if not claim:
         raise HTTPException(404, "Claim not found")
-    if claim.get("status") not in ("draft", "rejected"):
-        raise HTTPException(409, "This claim has been submitted and can't be edited.")
+    if claim.get("status") not in ("draft", "rejected", "submitted"):
+        raise HTTPException(409, "This claim can no longer be edited (it's already approved).")
     if body.car_registration is not None:
         claim["car_registration"] = body.car_registration.strip()
     if body.claim_month is not None:

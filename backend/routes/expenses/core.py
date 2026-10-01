@@ -242,8 +242,8 @@ async def update_expense(expense_id: str, body: ExpenseBody, user=Depends(get_cu
     owner = e.get("user_id") == user.get("id")
     if e.get("status") in LOCKED_STATUSES:
         raise HTTPException(409, "This expense is locked (exported/reimbursed). Use a correction.")
-    if owner and e.get("status") not in (DRAFT, NEEDS_DETAILS) and not can_review(user):
-        raise HTTPException(409, "Only draft or needs-details expenses can be edited")
+    if owner and e.get("status") not in (DRAFT, NEEDS_DETAILS, SUBMITTED) and not can_review(user):
+        raise HTTPException(409, "This expense can no longer be edited")
 
     gross = round(body.gross_amount or 0.0, 2)
     mileage = body.mileage.model_dump() if body.mileage else e.get("mileage")
