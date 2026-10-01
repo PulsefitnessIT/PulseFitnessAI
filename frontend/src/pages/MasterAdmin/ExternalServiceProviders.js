@@ -39,6 +39,8 @@ const ExternalServiceProviders = () => {
 
   const [company, setCompany] = useState({ name: '', contact_name: '', email: '', phone: '', country: '', notes: '', mod_bfpo_default: 'yes' });
   const [engineers, setEngineers] = useState([]);
+  const [existingEngs, setExistingEngs] = useState([]);
+  const [rowBusy, setRowBusy] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,6 +64,7 @@ const ExternalServiceProviders = () => {
     setEditing(null); setResult(null);
     setCompany({ name: '', contact_name: '', email: '', phone: '', country: '', notes: '', mod_bfpo_default: 'yes' });
     setEngineers([emptyEngineer()]);
+    setExistingEngs([]);
     setView('form');
   };
   const openEdit = (p) => {
@@ -72,6 +75,12 @@ const ExternalServiceProviders = () => {
       mod_bfpo_default: p.is_mod_bfpo ? 'yes' : 'yes',
     });
     setEngineers([]); // only ADD new engineers while editing
+    setExistingEngs((p.engineers || []).map((e) => ({
+      id: e.id, full_name: e.full_name || '', email: e.email || '', phone: e.phone || '',
+      mod_bfpo: e.is_mod_bfpo ? 'yes' : 'no',
+      territory_ids: e.territory_ids || [], site_ids: e.site_ids || [],
+      login_status: e.login_status,
+    })));
     setView('form');
   };
   const backToList = () => { setView('list'); setResult(null); load(); };
@@ -79,6 +88,69 @@ const ExternalServiceProviders = () => {
   const setEng = (i, k, v) => setEngineers((arr) => arr.map((e, idx) => (idx === i ? { ...e, [k]: v } : e)));
   const addEng = () => setEngineers((arr) => [...arr, emptyEngineer()]);
   const removeEng = (i) => setEngineers((arr) => arr.filter((_, idx) => idx !== i));
+
+  const setExist = (i, k, v) => setExistingEngs((arr) => arr.map((e, idx) => (idx === i ? { ...e, [k]: v } : e)));
+  const saveExisting = async (i) => {
+    const e = existingEngs[i];
+    if (!e.full_name.trim()) return toast.error('Full name is required');
+    setRowBusy(e.id);
+    try {
+      await axios.patch(`${API}/master-admin/mod-estate/external-providers/${editing.id}/engineers/${e.id}`, {
+        full_name: e.full_name, phone: e.phone, mod_bfpo: e.mod_bfpo,
+        territory_ids: e.territory_ids, site_ids: e.site_ids,
+      }, { headers: headers() });
+      toast.success(`${e.full_name} updated`);
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Could not update engineer');
+    } finally { setRowBusy(null); }
+  };
+  const removeExisting = async (i) => {
+    const e = existingEngs[i];
+    if (!window.confirm(`Remove ${e.full_name}? This deletes their MOD portal login.`)) return;
+    setRowBusy(e.id);
+    try {
+      await axios.delete(`${API}/master-admin/mod-estate/external-providers/${editing.id}/engineers/${e.id}`, { headers: headers() });
+      toast.success(`${e.full_name} removed`);
+      setExistingEngs((arr) => arr.filter((_, idx) => idx !== i));
+      load();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Could not remove engineer');
+    } finally { setRowBusy(null); }
+  };
+
+  const renderTerrSites = (eng, onField, idPrefix) => {
+    const selTerr = (eng.territory_ids || [])[0] || '';
+    const terrSites = sites.filter((s) => s.territory_id === selTerr);
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg bg-cyan-50/40 border border-cyan-100 p-3">
+        <label className="block"><span className={labelCls}>Territory</span>
+          <select className={`mt-1 ${inputCls}`} value={selTerr} onChange={(ev) => { onField('territory_ids', ev.target.value ? [ev.target.value] : []); onField('site_ids', []); }} data-testid={`${idPrefix}-territory`}>
+            <option value="">Select territory…</option>
+            {territories.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </label>
+        <div className="block">
+          <span className={labelCls}>Sites {selTerr && `(${terrSites.length})`}</span>
+          <div className="mt-1 max-h-32 overflow-auto rounded-lg border border-slate-200 bg-white p-2 space-y-1" data-testid={`${idPrefix}-sites`}>
+            {!selTerr && <p className="text-[11px] text-slate-400">Pick a territory first.</p>}
+            {selTerr && terrSites.length === 0 && <p className="text-[11px] text-slate-400">No sites in this territory.</p>}
+            {terrSites.map((s) => {
+              const on = (eng.site_ids || []).includes(s.id);
+              return (
+                <label key={s.id} className="flex items-center gap-2 text-[13px] text-slate-700 cursor-pointer">
+                  <input type="checkbox" checked={on} className="accent-cyan-500"
+                    onChange={(ev) => onField('site_ids', ev.target.checked ? [...(eng.site_ids || []), s.id] : (eng.site_ids || []).filter((x) => x !== s.id))}
+                    data-testid={`${idPrefix}-site-${s.id}`} />
+                  {s.name}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const copy = (txt) => { navigator.clipboard?.writeText(txt); toast.success('Copied'); };
 
@@ -182,6 +254,43 @@ const ExternalServiceProviders = () => {
           <label className="block"><span className={labelCls}>Notes</span><textarea rows={2} className={`mt-1 ${inputCls} resize-none`} value={company.notes} onChange={(e) => setCompany((c) => ({ ...c, notes: e.target.value }))} data-testid="esp-company-notes" /></label>
           {editing && <p className="text-[11px] text-slate-400">Editing <strong>{editing.name}</strong>. Existing engineers are unchanged — add new engineer logins below.</p>}
         </section>
+
+        {/* Current engineers (edit / remove) */}
+        {editing && existingEngs.length > 0 && (
+          <section className="rounded-xl border border-slate-200 p-4 space-y-4" data-testid="esp-existing-engineers">
+            <div className="flex items-center gap-2 text-slate-800"><Wrench size={16} className="text-cyan-500" /><h3 className="text-sm font-bold">Current engineers</h3></div>
+            {existingEngs.map((e, i) => (
+              <div key={e.id} className="rounded-lg border border-slate-200 p-3 space-y-3 bg-white" data-testid={`esp-existing-row-${i}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className={labelCls}>{e.email}
+                    <span className={`ml-2 ${e.login_status === 'active' ? 'text-emerald-600' : e.login_status === 'invite_pending' ? 'text-cyan-600' : 'text-amber-600'}`}>
+                      {e.login_status === 'active' ? 'Active' : e.login_status === 'invite_pending' ? 'Invite sent' : 'Temp pw'}
+                    </span>
+                  </span>
+                  <button onClick={() => removeExisting(i)} disabled={rowBusy === e.id} className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-500 hover:text-red-700 disabled:opacity-50" data-testid={`esp-existing-remove-${i}`}>
+                    <Trash2 size={13} /> Remove
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <label className="block"><span className={labelCls}>Full name *</span><input className={`mt-1 ${inputCls}`} value={e.full_name} onChange={(ev) => setExist(i, 'full_name', ev.target.value)} data-testid={`esp-existing-name-${i}`} /></label>
+                  <label className="block"><span className={labelCls}>Phone</span><input className={`mt-1 ${inputCls}`} value={e.phone} onChange={(ev) => setExist(i, 'phone', ev.target.value)} data-testid={`esp-existing-phone-${i}`} /></label>
+                  <label className="block"><span className={labelCls}>MOD / BFPO</span>
+                    <select className={`mt-1 ${inputCls}`} value={e.mod_bfpo} onChange={(ev) => setExist(i, 'mod_bfpo', ev.target.value)} data-testid={`esp-existing-mod-${i}`}>
+                      <option value="yes">Yes — MOD/BFPO</option>
+                      <option value="no">No</option>
+                    </select>
+                  </label>
+                </div>
+                {e.mod_bfpo === 'yes' && renderTerrSites(e, (k, v) => setExist(i, k, v), `esp-existing-${i}`)}
+                <div className="flex justify-end">
+                  <button onClick={() => saveExisting(i)} disabled={rowBusy === e.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-cyan-500 text-white hover:bg-cyan-600 disabled:opacity-50" data-testid={`esp-existing-save-${i}`}>
+                    {rowBusy === e.id ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />} Save changes
+                  </button>
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
 
         {/* Engineers */}
         <section className="rounded-xl border border-slate-200 p-4 space-y-4">

@@ -1,4 +1,18 @@
-# [2026-06] FEATURE — Unified "External Service Providers" onboarding (consolidation)
+# [2026-06] FEATURE — External Service Providers: edit/remove existing engineers
+Added full CRUD on provider engineers (previously only add).
+Backend (/app/backend/routes/master_admin_mod_estate.py):
+- PATCH /master-admin/mod-estate/external-providers/{supplier_id}/engineers/{engineer_id}
+  → edit full_name, phone, MOD/BFPO association (mod_bfpo yes/no), bfpo_territory_ids, bfpo_site_ids.
+  Switching to "no" clears territory/sites; svc_engineers full_name kept in sync. Email/login identity unchanged.
+- DELETE /master-admin/mod-estate/external-providers/{supplier_id}/engineers/{engineer_id}
+  → removes the /bfpo login + svc_engineers row + pending bfpo_invites. 404 if not under that supplier.
+- external-providers GET now also returns each engineer's territory_ids/site_ids (needed to pre-fill the editor).
+Frontend (ExternalServiceProviders.js): Edit view now renders a "Current engineers" section — each engineer
+editable (name, phone, MOD/BFPO select, territory→sites cascade) with per-row Save changes + Remove; the
+"add new" engineers section remains below. Verified E2E in preview (PATCH toggle clears/restores territory,
+DELETE cleans up user+svc_engineers, 404 on missing, UI editor renders & pre-fills).
+
+
 Merged THREE overlapping Master-Admin onboarding flows (Dealer/Engineer, BFPO/MOD Engineers,
 Service Providers) into a single "External Service Providers" tile per founder decision (option B —
 Pulse has no UK distribution partners, so one flow for ALL external dealers/engineers).

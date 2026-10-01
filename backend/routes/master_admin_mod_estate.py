@@ -2007,6 +2007,7 @@ async def list_external_providers(estate_id: str = DEFAULT_ESTATE_ID,
             eng_out.append({
                 "id": u["id"], "full_name": u.get("full_name"), "email": u.get("email"),
                 "phone": u.get("phone", ""), "is_mod_bfpo": bool(u.get("is_mod_bfpo")),
+                "territory_ids": tids, "site_ids": sids,
                 "territory_names": [terrs[t]["name"] for t in tids if t in terrs],
                 "site_names": [sites[x]["name"] for x in sids if x in sites],
                 "login_status": "invite_pending" if u.get("invite_pending")
@@ -2123,6 +2124,71 @@ async def update_external_provider(supplier_id: str, data: dict = Body(...),
         results.append(await _provision_provider_engineer(e, supplier_id, provider_name, default_mod, actor_id))
 
     return {"success": True, "engineers": results}
+
+
+@router.patch("/master-admin/mod-estate/external-providers/{supplier_id}/engineers/{engineer_id}")
+async def update_provider_engineer(supplier_id: str, engineer_id: str, data: dict = Body(...),
+                                   user: dict = Depends(get_current_user)) -> dict:
+    """Edit one existing external-provider engineer (name, phone, MOD/BFPO
+    association, territory & sites). Email/login identity is not changed here."""
+    require_master_admin(user)
+    eng = await db.users.find_one(
+        {"id": engineer_id, "mod_estate_supplier_id": supplier_id}, {"_id": 0})
+    if not eng:
+        raise HTTPException(404, "Engineer not found for this provider")
+
+    fields = {}
+    if "full_name" in data:
+        fn = (data.get("full_name") or "").strip()
+        if not fn:
+            raise HTTPException(400, "Full name is required")
+        fields["full_name"] = fn
+    if "phone" in data:
+        fields["phone"] = (data.get("phone") or "").strip()
+
+    # MOD/BFPO association + territory/site allocation
+    raw_mod = (data.get("mod_bfpo") or "").lower()
+    is_mod = eng.get("is_mod_bfpo") if raw_mod not in ("yes", "no") else (raw_mod == "yes")
+    if raw_mod in ("yes", "no"):
+        fields["is_mod_bfpo"] = is_mod
+    if not is_mod:
+        fields["bfpo_territory_ids"] = []
+        fields["bfpo_site_ids"] = []
+    else:
+        if "territory_ids" in data:
+            fields["bfpo_territory_ids"] = [t for t in (data.get("territory_ids") or []) if t]
+        if "site_ids" in data:
+            fields["bfpo_site_ids"] = [s for s in (data.get("site_ids") or []) if s]
+
+    if fields:
+        await db.users.update_one({"id": engineer_id}, {"$set": fields})
+        if "full_name" in fields:
+            await db.svc_engineers.update_one(
+                {"id": engineer_id}, {"$set": {"full_name": fields["full_name"]}})
+    await log_activity("external_provider_engineer_updated",
+                       f"Updated engineer {eng.get('full_name') or engineer_id}",
+                       user.get("email", "system"), "user", engineer_id)
+    return {"success": True}
+
+
+@router.delete("/master-admin/mod-estate/external-providers/{supplier_id}/engineers/{engineer_id}")
+async def delete_provider_engineer(supplier_id: str, engineer_id: str,
+                                   user: dict = Depends(get_current_user)) -> dict:
+    """Remove an external-provider engineer entirely — deletes the /bfpo login,
+    its engineer-provisioning row and any pending invite."""
+    require_master_admin(user)
+    eng = await db.users.find_one(
+        {"id": engineer_id, "mod_estate_supplier_id": supplier_id},
+        {"_id": 0, "id": 1, "full_name": 1, "email": 1})
+    if not eng:
+        raise HTTPException(404, "Engineer not found for this provider")
+    await db.users.delete_one({"id": engineer_id})
+    await db.svc_engineers.delete_many({"id": engineer_id})
+    await db.bfpo_invites.delete_many({"user_id": engineer_id})
+    await log_activity("external_provider_engineer_removed",
+                       f"Removed engineer {eng.get('full_name') or eng.get('email') or engineer_id}",
+                       user.get("email", "system"), "user", engineer_id)
+    return {"success": True}
 
 
 __all__ = ["router"]
