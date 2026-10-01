@@ -184,7 +184,7 @@ export default function CrashPackWizard({ H, jwt, resumePackId, onClose, onDone 
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const shell = (body) => createPortal((
-    <div className="fixed inset-0 z-[200] overflow-y-auto" style={{ background: 'var(--theme-bg)' }} data-testid="crash-pack-wizard-modal">
+    <div className="fixed inset-0 z-[2000] overflow-y-auto" style={{ background: 'var(--theme-bg)' }} data-testid="crash-pack-wizard-modal">
       <div className="sticky top-0 z-10 backdrop-blur-md border-b px-4 py-3 flex items-center justify-between gap-3"
         style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
         <button onClick={onClose} className="inline-flex items-center gap-1 text-sm font-semibold" style={{ color: 'var(--theme-text-muted)' }} data-testid="crash-pack-close"><X size={18} /> Close</button>
@@ -198,7 +198,7 @@ export default function CrashPackWizard({ H, jwt, resumePackId, onClose, onDone 
       )}
       <div className="max-w-xl mx-auto px-4 pb-28 pt-5 space-y-5">{body}</div>
       {!done && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 p-4 backdrop-blur-md border-t flex items-center justify-between gap-3"
+        <div className="fixed bottom-0 left-0 right-0 z-20 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-md border-t flex items-center justify-between gap-3"
           style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
           <button onClick={() => (step === 0 ? onClose() : go(-1))} disabled={busy} data-testid="crash-prev"
             className="inline-flex items-center gap-1 px-4 py-3 rounded-xl border font-semibold disabled:opacity-40" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }}><ChevronLeft size={18} /> {step === 0 ? 'Exit' : 'Back'}</button>
