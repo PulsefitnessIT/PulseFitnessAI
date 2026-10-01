@@ -431,8 +431,11 @@ export default function MODServiceLogin() {
                   <div className="mt-1.5 relative">
                     <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: PULSE.greyLight }} />
                     <input
+                      id="mod-login-email"
+                      name="username"
                       type="text"
-                      autoComplete="email"
+                      autoComplete="username"
+                      inputMode="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="rank.firstname.lastname@army.mod.local"
@@ -456,6 +459,8 @@ export default function MODServiceLogin() {
                   <div className="mt-1.5 relative">
                     <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: PULSE.greyLight }} />
                     <input
+                      id="mod-login-password"
+                      name="password"
                       type={showPassword ? 'text' : 'password'}
                       autoComplete="current-password"
                       value={password}

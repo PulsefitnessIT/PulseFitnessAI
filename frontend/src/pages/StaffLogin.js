@@ -62,13 +62,13 @@ export default function StaffLogin() {
       </p>
 
       <label className="block mt-5 text-sm font-medium text-slate-700">Email</label>
-      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} data-testid="staff-login-email"
+      <input id="staff-login-email" name="username" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} data-testid="staff-login-email"
         className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder="you@company.com" />
 
       {mode === 'login' && (
         <>
           <label className="block mt-3 text-sm font-medium text-slate-700">Password</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} data-testid="staff-login-password"
+          <input id="staff-login-password" name="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} data-testid="staff-login-password"
             onKeyDown={(e) => { if (e.key === 'Enter' && email && password) login(); }}
             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5" placeholder="Your password" />
         </>

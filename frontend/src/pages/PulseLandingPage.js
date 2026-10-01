@@ -1738,12 +1738,16 @@ export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '', red
           <DialogTitle className="text-2xl font-bold text-[var(--color-surface-dark-panel-alt)]">{t('pulse.lm_title', 'Welcome back')}</DialogTitle>
           <DialogDescription className="text-[var(--color-text-slate)]">{t('pulse.lm_sub', 'Sign in to your Pulse Fitness portal')}</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4" data-testid="pulse-login-form">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4" autoComplete="on" data-testid="pulse-login-form">
           {banner && <div>{banner}</div>}
           <div>
-            <label className="text-xs font-semibold text-[var(--color-text-slate)] mb-1.5 block">{t('pulse.lm_email', 'Your email or site code')}</label>
+            <label htmlFor="login-username" className="text-xs font-semibold text-[var(--color-text-slate)] mb-1.5 block">{t('pulse.lm_email', 'Your email or site code')}</label>
             <Input
+              id="login-username"
+              name="username"
               type="text"
+              autoComplete="username"
+              inputMode="email"
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
@@ -1756,10 +1760,13 @@ export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '', red
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-[var(--color-text-slate)] mb-1.5 block">{t('pulse.lm_password', 'Password')}</label>
+            <label htmlFor="login-password" className="text-xs font-semibold text-[var(--color-text-slate)] mb-1.5 block">{t('pulse.lm_password', 'Password')}</label>
             <div className="relative">
               <Input
+                id="login-password"
+                name="password"
                 type={showPass ? 'text' : 'password'}
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('pulse.lm_pass_ph', 'Enter password')}

@@ -168,12 +168,12 @@ export default function CRMLogin({ onLogin }) {
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs mb-1.5 uppercase tracking-wider font-medium" style={{ color: txtM }}>Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-2.5 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-info-ios)]" style={{ background: inputBg, border: `1px solid ${border}`, color: txt }} placeholder="you@company.com" required data-testid="crm-login-email" />
+              <input id="crm-login-email" name="username" autoComplete="username" type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-2.5 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-info-ios)]" style={{ background: inputBg, border: `1px solid ${border}`, color: txt }} placeholder="you@company.com" required data-testid="crm-login-email" />
             </div>
             <div>
               <label className="block text-xs mb-1.5 uppercase tracking-wider font-medium" style={{ color: txtM }}>Password</label>
               <div className="relative">
-                <input type={showPwd ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-2.5 pr-10 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-info-ios)]" style={{ background: inputBg, border: `1px solid ${border}`, color: txt }} placeholder="Your password" required data-testid="crm-login-password" />
+                <input id="crm-login-password" name="password" autoComplete="current-password" type={showPwd ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-2.5 pr-10 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-info-ios)]" style={{ background: inputBg, border: `1px solid ${border}`, color: txt }} placeholder="Your password" required data-testid="crm-login-password" />
                 <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: txtM }}>{showPwd ? <EyeOff size={16} /> : <Eye size={16} />}</button>
               </div>
             </div>
