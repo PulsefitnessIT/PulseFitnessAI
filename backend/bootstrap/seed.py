@@ -400,4 +400,56 @@ async def seed_test_accounts() -> None:
         upsert=True,
     )
     clear_failed_logins(email)
-    logger.info("Test account seeded/healed: %s", email)
+
+    # ── Master-admin test fixture (Pulse-branded so the boot-time GymAxis
+    # decommission never purges it) — used by the master-admin e2e tests.
+    ma_email = "admin@gymaxisai.com"
+    ma_pwd = "MasterAdmin123!"
+    ma = await db.users.find_one({"email": ma_email}, {"_id": 0, "organization_id": 1})
+    ma_org = ma.get("organization_id") if ma else str(uuid.uuid4())
+    if not ma:
+        await db.organizations.insert_one({
+            "id": ma_org, "name": "Pulse Fitness — Test Admin",
+            "subscription_tier": "premium", "created_at": now,
+        })
+    await db.users.update_one(
+        {"email": ma_email},
+        {"$set": {
+            "email": ma_email, "full_name": "Master Admin (test)",
+            "password": hash_password(ma_pwd), "role": "owner",
+            "organization_id": ma_org, "is_master_admin": True,
+            "active": True, "is_active": True, "must_change_password": False,
+            "password_changed_at": now,
+        },
+         "$setOnInsert": {"id": str(uuid.uuid4()), "created_at": now},
+         "$unset": {"lockout_until": "", "temp_password_expires_at": ""}},
+        upsert=True,
+    )
+    clear_failed_logins(ma_email)
+
+    # ── CRM-admin test fixture (db.crm_users; logs in via /api/crm/auth/login).
+    try:
+        from routes.crm_auth import crm_hash_password
+        crm_email = "crm@gymaxisai.com"
+        crm_pwd = "CRMAdmin123!"
+        crm_org = await db.organizations.find_one(
+            {"name": "Pulse Fitness — Test CRM", "portal_type": "crm"}, {"_id": 0, "id": 1})
+        crm_org_id = crm_org["id"] if crm_org else str(uuid.uuid4())
+        if not crm_org:
+            await db.organizations.insert_one({
+                "id": crm_org_id, "name": "Pulse Fitness — Test CRM",
+                "portal_type": "crm", "subscription_tier": "enterprise",
+                "status": "active", "created_at": now,
+            })
+        await db.crm_users.update_one(
+            {"email": crm_email},
+            {"$set": {"email": crm_email, "full_name": "CRM Admin (test)",
+                      "password": crm_hash_password(crm_pwd), "role": "admin",
+                      "organization_id": crm_org_id},
+             "$setOnInsert": {"id": str(uuid.uuid4()), "created_at": now}},
+            upsert=True,
+        )
+    except Exception as e:
+        logger.warning("CRM test-admin seed skipped: %s", e)
+
+    logger.info("Test accounts seeded/healed: %s, %s, crm.test@pulsefitness.com", email, ma_email)

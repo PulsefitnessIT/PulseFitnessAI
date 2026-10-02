@@ -39075,3 +39075,10 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 
 ## [2026-06] FastAPI/starlette security upgrade
 - FastAPI 0.125.0→0.142.2, starlette 0.49.1→1.7.0 (clears all starlette CVEs incl CVE-2026-48710). pydantic/uvicorn unchanged. Fixed Query(regex=)→pattern= in payment_risk.py. Backend smoke-verified (startup lifecycle, auth, middleware, CORS, multipart upload all OK). Full regression pending (user-owned).
+
+## [2026-06] Enabled full live e2e testing (seed fixtures + MFA toggle)
+- bootstrap/seed.py::seed_test_accounts now durably seeds the regression fixtures the suite hardcodes: admin@gymaxisai.com (master admin, is_master_admin), crm@gymaxisai.com (db.crm_users admin), alongside lee.somers@pulsefitness.com. Runs AFTER the boot-time gymaxis decommission so they persist; hard-gated OFF in production (_is_production) and gated by SEED_TEST_ACCOUNTS (=1 in preview .env).
+- Preview .env: SEED_TEST_ACCOUNTS=1, ENFORCE_MASTER_ADMIN_MFA=false (preview only — production keeps MFA enforced via its own deploy env). Both user-approved.
+- Verified: master.admin + crm.admin + pulse_pro all authenticate; previously-all-failing master-admin live file (test_iter_216h117) now 3/5 pass (remaining 2 are domain-logic/data assertions for the owner to address).
+- Stripe price guard (test_stripe_prices_guard_216o) left as production/CI-only — it validates the live Stripe catalog (12 GymAxis-branded products) which exists only in the real deployment; cannot/should not be DB-seeded. User-approved.
+- "gymaxis" = legacy pre-PulseFitness brand; these are internal test fixtures, and prod still auto-decommissions gymaxis records.
