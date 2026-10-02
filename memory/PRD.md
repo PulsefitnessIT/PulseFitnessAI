@@ -39063,3 +39063,8 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Visiting Access tab REMOVED from MOD Operations staffNav (view render + backend routes kept; just hidden). KeyRound import dropped.
 - Two-way engineer directory sync: bfpo.py create_engineer (POST /bfpo/staff/engineers) now links engineer/lead invites to an auto in-house provider "Pulse Fitness (in-house)" (id pulse-inhouse-mod, mod_estate_id=uk-mod) via mod_estate_supplier_id + provider_name + is_mod_bfpo, so they appear in Master Admin → External Service Providers. Verified via DB + external-providers query simulation.
 - Confirmed Master Admin→MOD Operations direction already works: provider-provisioned engineers (John Maina / Inda Fitness) are returned by GET /bfpo/staff/team (5 members).
+
+## [2026-06] Security hardening for CREST/OWASP pen test
+- Audited platform against the Stripe OLT pen-test proposal (OWASP Top 10 2021 + API). No Critical/High code vulns; strong existing controls.
+- Fixes: (A10) SSRF guard on org-chart importer (staffing_orgchart_ai.py); (A04/A01) expense self-approval + self-reimburse blocked unless solo org (expenses/core.py) — verified 403; (A04) mileage amount recomputed server-side (distance×rate) on create+update; (A08) Stripe Connect webhook now fails closed (pulse_stripe_phase2.py).
+- Deploy-time config to set: EXPOSE_API_DOCS=false, pin CORS to prod host, set STRIPE_CONNECT_WEBHOOK_SECRET. Full readiness in /app/memory/SECURITY_PENTEST_READINESS_2026.md.

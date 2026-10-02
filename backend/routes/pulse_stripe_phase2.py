@@ -110,8 +110,15 @@ async def stripe_connect_webhook(request: Request):
     # When the webhook secret is set, refuse anything that doesn't sign cleanly.
     # When it isn't (dev / pre-prod), we still log everything but skip auth so
     # the operator can wire integration tests without a Stripe webhook in front.
-    if STRIPE_CONNECT_WEBHOOK_SECRET and not _verify_signature(payload, sig, STRIPE_CONNECT_WEBHOOK_SECRET):
-        raise HTTPException(status_code=400, detail="Invalid signature")
+    # Fail closed: require a valid signature. The only way to skip verification
+    # is an explicit dev override (STRIPE_CONNECT_WEBHOOK_ALLOW_UNSIGNED=true),
+    # so a missing/empty secret in production rejects forged Connect events.
+    allow_unsigned = (os.environ.get("STRIPE_CONNECT_WEBHOOK_ALLOW_UNSIGNED", "") or "").lower() == "true"
+    if STRIPE_CONNECT_WEBHOOK_SECRET:
+        if not _verify_signature(payload, sig, STRIPE_CONNECT_WEBHOOK_SECRET):
+            raise HTTPException(status_code=400, detail="Invalid signature")
+    elif not allow_unsigned:
+        raise HTTPException(status_code=400, detail="Webhook signature verification not configured")
 
     try:
         event = json.loads(payload)

@@ -131,7 +131,10 @@ async def create_expense(body: ExpenseBody, user=Depends(get_current_user)):
     gross = round(body.gross_amount or 0.0, 2)
     mileage = body.mileage.model_dump() if body.mileage else None
     if body.expense_type == "mileage" and mileage:
-        gross = round(mileage.get("calculated_amount") or 0.0, 2)
+        # Server authoritative: never trust a client-supplied calculated_amount;
+        # always recompute from distance × rate (defeats amount tampering).
+        mileage["calculated_amount"] = round((mileage.get("distance") or 0.0) * (mileage.get("rate") or 0.0), 2)
+        gross = mileage["calculated_amount"]
 
     dup = await find_duplicate(org_id, user.get("id"), body.merchant, gross, body.transaction_date)
 
@@ -248,7 +251,10 @@ async def update_expense(expense_id: str, body: ExpenseBody, user=Depends(get_cu
     gross = round(body.gross_amount or 0.0, 2)
     mileage = body.mileage.model_dump() if body.mileage else e.get("mileage")
     if body.expense_type == "mileage" and mileage:
-        gross = round(mileage.get("calculated_amount") or gross, 2)
+        # Server authoritative: recompute from distance × rate, never trust the
+        # client-supplied calculated_amount.
+        mileage["calculated_amount"] = round((mileage.get("distance") or 0.0) * (mileage.get("rate") or 0.0), 2)
+        gross = round(mileage["calculated_amount"] or gross, 2)
     update = {
         "category_id": body.category_id or "", "category_name": body.category_name or "",
         "merchant": (body.merchant or "").strip(),
@@ -343,6 +349,10 @@ async def review_expense(expense_id: str, body: ReviewBody, user=Depends(get_cur
     e = await _load(expense_id, user)
     if e.get("status") not in (SUBMITTED, NEEDS_DETAILS):
         raise HTTPException(409, f"Cannot review a {e.get('status')} expense")
+    # Segregation of duties — a reviewer cannot approve/return their own claim
+    # (except solo-operator orgs where there is no second person to approve).
+    if e.get("user_id") == user.get("id") and approval_mode(await get_org(e["organization_id"])) != "off":
+        raise HTTPException(403, "You can't review your own expense — it needs a second approver.")
     actions = {"approve": APPROVED, "reject": REJECTED, "needs_details": NEEDS_DETAILS}
     if body.action not in actions:
         raise HTTPException(400, "Invalid action")
@@ -383,6 +393,10 @@ async def reimburse_expense(expense_id: str, body: ReimburseBody, user=Depends(g
     e = await _load(expense_id, user)
     if e.get("status") not in (APPROVED, EXPORTED):
         raise HTTPException(409, "Only approved/exported expenses can be reimbursed")
+    # Segregation of duties — you cannot mark your own claim as paid (unless a
+    # solo-operator org with no second person).
+    if e.get("user_id") == user.get("id") and approval_mode(await get_org(e["organization_id"])) != "off":
+        raise HTTPException(403, "You can't reimburse your own expense — it needs a second person.")
     update = {
         "status": REIMBURSED, "reimbursement_status": "paid",
         "reimbursed_at": now_iso(), "payment_batch": body.payment_batch or "",

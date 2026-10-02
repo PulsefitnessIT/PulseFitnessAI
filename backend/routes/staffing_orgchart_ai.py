@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from utils.auth import get_current_user
 from utils.database import db, EMERGENT_LLM_KEY
 from utils.ai_guardrails import sanitize_prompt
+from utils.ssrf_guard import assert_safe_external_url
 from routes.staffing import _org, _require_manager
 
 logger = logging.getLogger(__name__)
@@ -252,7 +253,8 @@ async def import_document(
         data = await file.read()
         filename = file.filename or "upload"
     elif file_url:
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as c:
+        assert_safe_external_url(file_url)
+        async with httpx.AsyncClient(timeout=30, follow_redirects=False) as c:
             r = await c.get(file_url)
             if r.status_code != 200:
                 raise HTTPException(400, "Could not download that file")
