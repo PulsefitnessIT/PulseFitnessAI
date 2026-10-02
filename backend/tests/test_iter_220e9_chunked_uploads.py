@@ -341,7 +341,20 @@ def test_chunked_router_registered_in_core():
     from fastapi import APIRouter
     api = APIRouter()
     register_core(api)
-    paths = {r.path for r in api.routes}
+    # FastAPI 0.133+ keeps included sub-routers as lazy _IncludedRouter
+    # wrappers (exposing the real APIRouter via .original_router) instead of
+    # flattening their APIRoutes into the parent .routes list, so recurse.
+    def _collect(router, acc):
+        for r in router.routes:
+            orig = getattr(r, 'original_router', None)
+            if orig is not None:
+                _collect(orig, acc)
+            else:
+                p = getattr(r, 'path', None)
+                if p:
+                    acc.add(p)
+    paths = set()
+    _collect(api, paths)
     assert any("/files/upload/chunks/init" in p for p in paths)
     assert any("/files/upload/chunks/{upload_id}/complete" in p for p in paths)
 
