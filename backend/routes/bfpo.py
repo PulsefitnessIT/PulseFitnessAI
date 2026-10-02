@@ -38,11 +38,33 @@ logger = logging.getLogger(__name__)
 
 BFPO_ORG_ID = "bfpo-mod-org"
 
+# Two-way directory sync: engineers invited from the MOD Operations portal are
+# linked to this auto "in-house" provider so they also surface in Master Admin →
+# External Service Providers (mirrors provider-provisioned engineers).
+MOD_ESTATE_ID = "uk-mod"
+INHOUSE_SUPPLIER_ID = "pulse-inhouse-mod"
+INHOUSE_PROVIDER_NAME = "Pulse Fitness (in-house)"
+
 router = APIRouter(prefix="/bfpo", tags=["MOD · BFPO Engineer Portal"])
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+async def _ensure_inhouse_supplier() -> str:
+    """Get-or-create the in-house provider company in the external-provider
+    directory so MOD-Operations-invited engineers appear in Master Admin."""
+    existing = await db.mod_estate_suppliers.find_one({"id": INHOUSE_SUPPLIER_ID}, {"_id": 0, "id": 1})
+    if not existing:
+        await db.mod_estate_suppliers.insert_one({
+            "id": INHOUSE_SUPPLIER_ID, "mod_estate_id": MOD_ESTATE_ID,
+            "name": INHOUSE_PROVIDER_NAME, "contact_name": "", "email": "", "phone": "",
+            "countries": [], "regions": [], "manufacturer_keywords": [],
+            "notes": "Pulse Fitness in-house MOD/BFPO engineers (invited from MOD Operations).",
+            "is_inhouse": True, "created_at": _now(),
+        })
+    return INHOUSE_SUPPLIER_ID
 
 
 def _today() -> str:
@@ -1016,6 +1038,11 @@ async def create_engineer(data: dict = Body(...), user=Depends(_require_staff)):
     if role in ("engineer", "lead"):
         # Show the one-time welcome kit on their first sign-in.
         doc["bfpo_welcome_pending"] = True
+        # Two-way sync — surface this engineer in Master Admin → External
+        # Service Providers, grouped under the auto in-house provider.
+        doc["mod_estate_supplier_id"] = await _ensure_inhouse_supplier()
+        doc["provider_name"] = INHOUSE_PROVIDER_NAME
+        doc["is_mod_bfpo"] = True
     await db.users.insert_one(doc)
     if role in ("engineer", "lead"):
         await db.svc_engineers.update_one(

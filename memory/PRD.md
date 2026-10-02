@@ -39057,3 +39057,9 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Backend: new GET /api/new-starter/expenses/review/{claim_id}/export-xlsx (HR_ROLES/master admin only) reuses _build_expenses_xlsx(month, [claim]) → Summary tab + one per-employee sheet, title "Pulse Fitness Limited - Expense Claim". Filename Expense-<name>-<month>.xlsx.
 - Frontend: StaffExpenseReview.js downloadClaimXlsx handler. Month-level export-xlsx unaffected (no route conflict; verified).
 - Verified: curl on owner@isodemo.com — single-claim xlsx 200 (sheets [Summary, Alex Rivera], A1 correct); month export still 200. Frontend compiles clean.
+
+## [2026-06] MOD Operations — header redesign, two-way engineer sync, remove Visiting Access
+- Design regression fixed: /bfpo STAFF view (BFPOApp.js) now renders the shared platform <Navbar/> (dark/light toggle, language EN selector, Switch area, user menu) + shared <PillTabBar/> for the Dashboard/Sites/Jobs/Servicing/Reports/Engineers tabs — matches Staff Portal. Engineer (mobile) view header unchanged.
+- Visiting Access tab REMOVED from MOD Operations staffNav (view render + backend routes kept; just hidden). KeyRound import dropped.
+- Two-way engineer directory sync: bfpo.py create_engineer (POST /bfpo/staff/engineers) now links engineer/lead invites to an auto in-house provider "Pulse Fitness (in-house)" (id pulse-inhouse-mod, mod_estate_id=uk-mod) via mod_estate_supplier_id + provider_name + is_mod_bfpo, so they appear in Master Admin → External Service Providers. Verified via DB + external-providers query simulation.
+- Confirmed Master Admin→MOD Operations direction already works: provider-provisioned engineers (John Maina / Inda Fitness) are returned by GET /bfpo/staff/team (5 members).

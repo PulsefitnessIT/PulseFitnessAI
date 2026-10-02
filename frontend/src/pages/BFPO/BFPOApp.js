@@ -3,6 +3,8 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/App';
 import { bfpo } from './bfpoApi';
 import { Spinner, Btn, PULSE_LOGO } from './ui';
+import Navbar from '@/components/shared/Navbar';
+import PillTabBar from '@/components/shared/PillTabBar';
 import AccountMenu from './AccountMenu';
 import Footer from './Footer';
 import EngineerHome from './engineer/EngineerHome';
@@ -24,7 +26,7 @@ import PPMStaff from './ppm/PPMStaff';
 import PPMReports from './ppm/PPMReports';
 import {
   Home, ClipboardList, MapPin, Package, History as HistoryIcon, Globe2,
-  LayoutGrid, KeyRound, LogOut, Wifi, WifiOff, ClipboardCheck, BarChart3, Users,
+  LayoutGrid, LogOut, Wifi, WifiOff, ClipboardCheck, BarChart3, Users,
 } from 'lucide-react';
 
 export default function BFPOApp() {
@@ -111,10 +113,32 @@ export default function BFPOApp() {
     { key: 'servicing', label: 'Servicing', icon: ClipboardCheck },
     { key: 'reports', label: 'Reports', icon: BarChart3 },
     { key: 'engineers', label: 'Engineers', icon: Users },
-    { key: 'visiting', label: 'Visiting Access', icon: KeyRound },
   ];
 
-  const Header = (
+  const Header = role === 'staff' ? (
+    <>
+      <Navbar />
+      <div className="bg-[#F8F9FA] border-b border-slate-200/80 pt-24" style={{ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif" }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">MOD Operations</h1>
+          <p className="mt-1 text-sm text-slate-500" data-testid="staff-welcome">
+            Welcome back, <span className="font-medium text-slate-700">{user.full_name || 'Operations'}</span> · Global oversight
+          </p>
+          <PillTabBar className="mt-4 pb-3 w-full" activeId={view} testId="staff-nav-tabs" ariaLabel="MOD Operations sections">
+            {staffNav.map((n) => {
+              const isActive = view === n.key;
+              return (
+                <button key={n.key} data-pill-id={n.key} onClick={() => setView(n.key)} data-testid={`staff-nav-${n.key}`}
+                  className={`flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${isActive ? 'bg-cyan-600 text-white shadow-sm shadow-cyan-600/20' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'}`}>
+                  <n.icon className="w-4 h-4" /> {n.label}
+                </button>
+              );
+            })}
+          </PillTabBar>
+        </div>
+      </div>
+    </>
+  ) : (
     <header className="sticky top-0 z-30" style={{ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif" }}>
       <div className="on-dark text-white border-b border-white/10" style={{ backgroundColor: '#000000' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
@@ -123,27 +147,9 @@ export default function BFPOApp() {
               style={{ objectPosition: 'center', aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }}
               data-testid="bfpo-logo" />
           </div>
-          <AccountMenu user={user} role={role} online={online} onLogout={logout} showSync={role !== 'staff'} />
+          <AccountMenu user={user} role={role} online={online} onLogout={logout} showSync />
         </div>
       </div>
-      {role === 'staff' && (
-        <div className="bg-[#F8F9FA] border-b border-slate-200/80">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">MOD Operations</h1>
-            <p className="mt-1 text-sm text-slate-500" data-testid="staff-welcome">
-              Welcome back, <span className="font-medium text-slate-700">{user.full_name || 'Operations'}</span> · Global oversight
-            </p>
-          </div>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 pb-3 flex gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-            {staffNav.map((n) => (
-              <button key={n.key} onClick={() => setView(n.key)} data-testid={`staff-nav-${n.key}`}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${view === n.key ? 'bg-cyan-600 text-white shadow-sm shadow-cyan-600/20' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'}`}>
-                <n.icon className="w-4 h-4" /> {n.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </header>
   );
 
