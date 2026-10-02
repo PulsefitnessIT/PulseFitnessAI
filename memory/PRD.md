@@ -39072,3 +39072,6 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 ## [2026-06] A06 dependency scan & bumps
 - Bumped backend runtime: python-multipart→0.0.32, urllib3→2.8.0, soupsieve→2.10, pypdf→6.19.0, cryptography→50.0.2, pillow→12.3.0; removed PyPDF2 (migrated admin_documents.py to pypdf). Frontend: axios→1.20.0.
 - Constrained/monitored: starlette (FastAPI<0.50 pin), aiohttp (litellm==3.13.4 pin). Frontend react-scripts dev-tree vulns are not in the prod bundle. Details in SECURITY_PENTEST_READINESS_2026.md.
+
+## [2026-06] FastAPI/starlette security upgrade
+- FastAPI 0.125.0→0.142.2, starlette 0.49.1→1.7.0 (clears all starlette CVEs incl CVE-2026-48710). pydantic/uvicorn unchanged. Fixed Query(regex=)→pattern= in payment_risk.py. Backend smoke-verified (startup lifecycle, auth, middleware, CORS, multipart upload all OK). Full regression pending (user-owned).

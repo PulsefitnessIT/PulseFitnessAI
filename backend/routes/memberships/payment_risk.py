@@ -136,7 +136,7 @@ async def _score_member(org_id: str, member: dict, now: datetime) -> dict:
     dependencies=[Depends(require_module("memberships"))],
 )
 async def list_payment_risk(
-    band: Optional[str] = Query(None, regex="^(low|medium|high)$"),
+    band: Optional[str] = Query(None, pattern="^(low|medium|high)$"),
     limit: int = Query(50, ge=1, le=500),
     user: dict = Depends(get_current_user),
 ):
