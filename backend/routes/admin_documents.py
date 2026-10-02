@@ -34,7 +34,7 @@ def require_admin(user):
 def _extract_pdf_text(data: bytes, max_chars: int = 3000) -> str:
     """Extract text from first few pages of a PDF."""
     try:
-        from PyPDF2 import PdfReader
+        from pypdf import PdfReader
         reader = PdfReader(io.BytesIO(data))
         text = ""
         for page in reader.pages[:3]:

@@ -39068,3 +39068,7 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Audited platform against the Stripe OLT pen-test proposal (OWASP Top 10 2021 + API). No Critical/High code vulns; strong existing controls.
 - Fixes: (A10) SSRF guard on org-chart importer (staffing_orgchart_ai.py); (A04/A01) expense self-approval + self-reimburse blocked unless solo org (expenses/core.py) — verified 403; (A04) mileage amount recomputed server-side (distance×rate) on create+update; (A08) Stripe Connect webhook now fails closed (pulse_stripe_phase2.py).
 - Deploy-time config to set: EXPOSE_API_DOCS=false, pin CORS to prod host, set STRIPE_CONNECT_WEBHOOK_SECRET. Full readiness in /app/memory/SECURITY_PENTEST_READINESS_2026.md.
+
+## [2026-06] A06 dependency scan & bumps
+- Bumped backend runtime: python-multipart→0.0.32, urllib3→2.8.0, soupsieve→2.10, pypdf→6.19.0, cryptography→50.0.2, pillow→12.3.0; removed PyPDF2 (migrated admin_documents.py to pypdf). Frontend: axios→1.20.0.
+- Constrained/monitored: starlette (FastAPI<0.50 pin), aiohttp (litellm==3.13.4 pin). Frontend react-scripts dev-tree vulns are not in the prod bundle. Details in SECURITY_PENTEST_READINESS_2026.md.
