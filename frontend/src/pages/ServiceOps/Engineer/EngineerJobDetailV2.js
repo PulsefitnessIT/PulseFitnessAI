@@ -345,6 +345,16 @@ export default function EngineerJobDetailV2() {
 
   useEffect(() => { load(); }, [load]);
 
+  const acknowledge = useCallback(async () => {
+    try {
+      await axios.post(`${API}/svc/engineer/jobs/${caseId}/acknowledge`, {}, auth());
+      notify.success(t('service.eng_jd_acknowledged', 'Job acknowledged — the office has been notified'));
+      load();
+    } catch {
+      notify.error(t('service.eng_jd_ack_failed', 'Could not acknowledge the job'));
+    }
+  }, [caseId, load]);
+
   const activeTimer = useMemo(() => (job?.time_entries || []).find(t => !t.end_at) || null, [job]);
 
   if (loading && !job) {
@@ -387,6 +397,16 @@ export default function EngineerJobDetailV2() {
                   </span>
                 );
               })()}
+              {job.acknowledged_at ? (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200" data-testid="job-ack-chip">
+                  <CheckCircle2 size={11} /> {t('service.eng_jd_ack', 'Acknowledged')}
+                </span>
+              ) : (
+                <button type="button" onClick={acknowledge} data-testid="job-acknowledge-btn"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-cyan-600 text-white hover:bg-cyan-700 transition-colors">
+                  <CheckCircle2 size={11} /> {t('service.eng_jd_ack_btn', 'Acknowledge')}
+                </button>
+              )}
             </div>
           </div>
           {/* Iter 220c — autosave indicator. Lets engineers know the draft is safe. */}

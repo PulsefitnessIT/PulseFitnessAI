@@ -26,6 +26,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 from utils.auth import get_current_user
 from utils.database import db
+from utils.svc_state import ASSIGNED, coerce_status
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/svc/ppm", tags=["Service Ops · PPM Calendar"])
@@ -516,6 +517,7 @@ async def schedule_detail(schedule_id: str, user: dict = Depends(get_current_use
         {"pm_schedule_id": schedule_id, "organization_id": operator},
         {"_id": 0, "id": 1, "reference": 1, "status": 1, "scheduled_at": 1,
          "assigned_engineer_name": 1, "assigned_engineer_names": 1, "completed_at": 1,
+         "assigned_at": 1, "received_at": 1, "acknowledged_at": 1,
          "resolution": 1, "resolution_notes": 1, "work_summary": 1, "engineer_notes": 1,
          "calibration_result": 1, "calibration_captured": 1},
         sort=[("created_at", -1)])
@@ -538,6 +540,9 @@ async def schedule_detail(schedule_id: str, user: dict = Depends(get_current_use
         workings = {
             "reference": job.get("reference") or "", "status": job.get("status") or "",
             "completed": completed, "engineer": engineer,
+            "assigned_at": job.get("assigned_at") or "",
+            "received_at": job.get("received_at") or "",
+            "acknowledged_at": job.get("acknowledged_at") or "",
             "scheduled_at": job.get("scheduled_at") or "", "completed_at": job.get("completed_at") or "",
             "summary": job.get("work_summary") or job.get("resolution") or job.get("resolution_notes") or "",
             "engineer_notes": job.get("engineer_notes") or "",
@@ -908,10 +913,30 @@ async def schedule_ppm(data: dict = Body(...), user: dict = Depends(get_current_
             "assigned_engineer_id": engineers[0]["id"],
             "assigned_engineer_name": eng_names,
             "assigned_engineer_names": [e["name"] for e in engineers],
-            "status": "assigned",
+            "status": coerce_status(ASSIGNED),
             "assigned_at": _now(),
+            "received_at": None, "received_by": None,
+            "acknowledged_at": None, "acknowledged_by": None,
         })
     await db.svc_cases.update_one({"id": case_id, "organization_id": operator}, {"$set": case_update})
+
+    # Notify each allocated engineer — in-app + Web Push (create_notification
+    # fires both). This is the step that was previously missing, so an
+    # allocated PPM never reached the engineer.
+    if engineers:
+        try:
+            from routes.svc.notifications import create_notification
+            _site = sched.get("site_name") or sched.get("equipment_name") or "Equipment"
+            for e in engineers:
+                await create_notification(
+                    user_id=e["id"], organization_id=operator, kind="job_assigned",
+                    title="New job allocated",
+                    body=f"{service_type} · {_site} — due {due_date}",
+                    link=f"/engineer/jobs/{case_id}",
+                    source_type="svc_case", source_id=case_id,
+                )
+        except Exception as exc:
+            logging.getLogger(__name__).warning("ppm allocate notify failed: %s", exc)
 
     # Roll the schedule forward one year (annual) from the scheduled date.
     next_pm = (_parse_ymd(due_date) + relativedelta(months=12)).isoformat()

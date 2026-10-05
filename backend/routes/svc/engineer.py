@@ -531,6 +531,34 @@ async def engineer_jobs(
     return {"jobs": rows, "count": len(rows)}
 
 
+@router.post("/jobs/{case_id}/acknowledge")
+async def engineer_acknowledge_job(case_id: str, user=Depends(get_current_user)):
+    """Engineer explicitly confirms they will do the allocated job.
+
+    Second stage of the Allocated → Received → Acknowledged lifecycle the
+    Service Desk surfaces. Also backfills `received_at` if the ack arrives
+    before a detail-screen open ever marked it."""
+    of = _of(user)
+    case = await db.svc_cases.find_one({"id": case_id, **of})
+    if not case:
+        raise HTTPException(404, "Job not found")
+    if case.get("assigned_engineer_id") != user["id"] and not user.get("is_master_admin"):
+        raise HTTPException(404, "Job not found")
+    now = _now()
+    patch = {"acknowledged_at": now, "acknowledged_by": user["id"]}
+    if not case.get("received_at"):
+        patch.update({"received_at": now, "received_by": user["id"]})
+    await db.svc_cases.update_one({"id": case_id, **of}, {"$set": patch})
+    try:
+        from utils.svc_state import append_event
+        await append_event(case_id=case_id, organization_id=of.get("organization_id", ""),
+                           event_type="acknowledged", actor=user,
+                           body="Engineer acknowledged the job")
+    except Exception:
+        pass
+    return {"ok": True, "acknowledged_at": now, "received_at": patch.get("received_at") or case.get("received_at")}
+
+
 @router.get("/jobs/{case_id}")
 async def engineer_job_detail(case_id: str, user=Depends(get_current_user)):
     """Full job context for the engineer detail screen."""
@@ -544,6 +572,20 @@ async def engineer_job_detail(case_id: str, user=Depends(get_current_user)):
         # jobs. Return 404 (not 403) so attackers can't enumerate
         # case IDs by status code.
         raise HTTPException(404, "Job not found")
+    # Two-stage receipt — mark "received" the first time the assigned engineer
+    # opens the job so the Service Desk can show Allocated → Received.
+    if case.get("assigned_engineer_id") == user["id"] and not case.get("received_at"):
+        _rnow = _now()
+        await db.svc_cases.update_one({"id": case_id, **of},
+                                      {"$set": {"received_at": _rnow, "received_by": user["id"]}})
+        case["received_at"] = _rnow
+        case["received_by"] = user["id"]
+        try:
+            from utils.svc_state import append_event
+            await append_event(case_id=case_id, organization_id=of.get("organization_id", ""),
+                               event_type="received", actor=user, body="Engineer opened the job")
+        except Exception:
+            pass
     # Iter 220dr — auto-attach the customer-logged asset(s) the very
     # first time the engineer opens the case, so the Equipment tab
     # is never empty when the operator already picked the machine.

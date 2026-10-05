@@ -203,3 +203,43 @@ async def append_event(
         pass
     row.pop("_id", None)
     return row
+
+
+# ─────────────────────────────────────────────────────────────────
+# Strict status enforcement (Iter — prevent casing/vocabulary drift)
+# ─────────────────────────────────────────────────────────────────
+
+def coerce_status(value: str) -> str:
+    """Validate + normalise a case status to the canonical lowercase vocab.
+
+    Every writer that sets ``svc_cases.status`` directly (rather than via
+    ``transition``) MUST pass its value through here so a stray ``"ASSIGNED"``
+    or unknown state can never reach the DB and silently fall out of the
+    engineer/desk queries (which filter on the lowercase OPEN_STATES set).
+    Raises ValueError on anything not in ALL_STATES.
+    """
+    if not isinstance(value, str):
+        raise ValueError(f"Invalid case status {value!r}")
+    norm = value.strip().lower()
+    if norm not in ALL_STATES:
+        raise ValueError(f"Unknown case status {value!r} (expected one of {ALL_STATES})")
+    return norm
+
+
+async def normalize_legacy_statuses() -> int:
+    """One-shot startup healer: lowercase any legacy svc_cases.status values
+    that differ only by case from a canonical state (e.g. the old
+    ``"ASSIGNED"`` PPM allocations). Returns the count fixed."""
+    fixed = 0
+    cursor = db.svc_cases.find(
+        {"status": {"$nin": list(ALL_STATES)}},
+        {"id": 1, "status": 1},
+    )
+    async for c in cursor:
+        s = c.get("status")
+        if isinstance(s, str) and s.strip().lower() in ALL_STATES:
+            await db.svc_cases.update_one(
+                {"id": c["id"]}, {"$set": {"status": s.strip().lower()}}
+            )
+            fixed += 1
+    return fixed

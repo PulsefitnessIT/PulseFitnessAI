@@ -443,6 +443,14 @@ async def _full_boot() -> None:
     except Exception as e:
         logger.error(f"Test account seed failed: {e}")
 
+    try:
+        from utils.svc_state import normalize_legacy_statuses
+        _n = await normalize_legacy_statuses()
+        if _n:
+            logger.info("svc_cases status normaliser fixed %d legacy value(s)", _n)
+    except Exception as e:
+        logger.error(f"svc status normalise failed: {e}")
+
     # Iter 272 — one-time backfill: relink stranded partner_engineers rows
     # (pending/stale user_id) to their owning users so engineers don't land
     # on the empty "Become a Partner Engineer / Apply now" screen. Marker-

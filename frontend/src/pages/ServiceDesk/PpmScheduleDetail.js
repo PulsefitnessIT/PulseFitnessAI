@@ -88,6 +88,20 @@ export default function PpmScheduleDetail({ scheduleId, onClose, onAllocate, onD
                 <p className="text-xs font-bold uppercase tracking-wide text-emerald-700 mb-1.5 flex items-center gap-1.5">
                   <CheckCircle2 size={13} /> Engineer's workings {w.completed ? '' : `· ${w.status || 'in progress'}`}
                 </p>
+                <div className="flex items-center gap-1.5 flex-wrap mb-1.5" data-testid="ppm-receipt-badge">
+                  {(() => {
+                    const stage = w.acknowledged_at ? 'acknowledged' : (w.received_at ? 'received' : 'allocated');
+                    const map = {
+                      allocated: ['Allocated', 'bg-amber-100 text-amber-700'],
+                      received: ['Received', 'bg-sky-100 text-sky-700'],
+                      acknowledged: ['Acknowledged', 'bg-emerald-100 text-emerald-700'],
+                    };
+                    const [label, cls] = map[stage];
+                    return <span className={`text-[10px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5 ${cls}`} data-testid={`ppm-receipt-stage-${stage}`}>{label}</span>;
+                  })()}
+                  {w.received_at ? <span className="text-[10px] text-zinc-400">seen {fmtDate(w.received_at)}</span> : null}
+                  {w.acknowledged_at ? <span className="text-[10px] text-zinc-400">· ack {fmtDate(w.acknowledged_at)}</span> : null}
+                </div>
                 <div className="text-xs space-y-1 text-zinc-700 dark:text-zinc-300">
                   {w.reference ? <p><span className="text-zinc-400">Job:</span> {w.reference}</p> : null}
                   {w.engineer ? <p><span className="text-zinc-400">Engineer:</span> {w.engineer}</p> : null}
