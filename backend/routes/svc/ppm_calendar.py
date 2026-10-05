@@ -908,7 +908,7 @@ async def schedule_ppm(data: dict = Body(...), user: dict = Depends(get_current_
             "assigned_engineer_id": engineers[0]["id"],
             "assigned_engineer_name": eng_names,
             "assigned_engineer_names": [e["name"] for e in engineers],
-            "status": "ASSIGNED",
+            "status": "assigned",
             "assigned_at": _now(),
         })
     await db.svc_cases.update_one({"id": case_id, "organization_id": operator}, {"$set": case_update})
