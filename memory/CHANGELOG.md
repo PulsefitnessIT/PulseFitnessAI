@@ -1,3 +1,21 @@
+# 2026-10-05 — Fix: PPM jobs showed no machines / no treadmill calibration (Fire Station PPM)
+
+**Symptom:** After engineers could see bulk-allocated PPM jobs (Devon & Somerset Fire & Rescue), the job showed no machines to service and no treadmill calibration form.
+
+**Root cause (confirmed via production read):** PPM cases are scoped to the Pulse **operator** org, but customer equipment + schedules live under the **customer** org (`ppm_customer_org_id`). `_ensure_customer_machines_attached` (engineer.py) joined `db.equipment` filtered by the case's operator org, so it resolved zero equipment — leaving machine rows as generic placeholders (`asset_type: null`, name "N machines"). With no real asset type, treadmill detection off the machine rows failed. Equipment_ids and treadmill typing were actually correct; the join org-scope was the bug.
+
+**Fix (backend/routes/svc/engineer.py `_ensure_customer_machines_attached`):**
+- Resolve equipment by `id` only (equipment is under the customer org, ids come from the trusted case).
+- Made it **self-healing/idempotent**: it now UPSERTS — refreshing existing placeholder rows with the real asset_name/type/serial/manufacturer/model when equipment resolves, while never overwriting engineer-entered fields (serviced/cleaned/notes/custom_fields). Runs on every job-detail open (`GET /svc/engineer/jobs/{id}`), so existing D&S jobs repair themselves the next time the engineer opens them.
+- Treadmill calibration ("Fire Station Service") then renders because treadmills are detected both from the repaired machine rows and the by-id equipment fallback.
+
+**Verified in preview:** (1) Full Fire Station bulk flow → 5 machines attach with correct names/types/serials, 3 treadmills detected, calibration endpoint returns 3 treadmills × 8 params. (2) Self-heal test: pre-seeded generic placeholder rows were repaired to correct type while preserving serviced=True/notes; treadmill + calibration then resolved. No duplicate rows.
+
+**Needs:** production redeploy. After deploy, William re-opens the job → machines + treadmill calibration appear automatically.
+
+---
+
+
 # 2026-10-05 — Fix: Bulk PPM allocation never reached engineers (production incident)
 
 **Symptom:** Engineer William Ollis (william.ollis@pulsefitness.com) saw an empty job list in the Engineer App despite PPM jobs appearing on the Service Desk calendar (Devon & Somerset Fire & Rescue, imported via the Bulk schedule wizard).

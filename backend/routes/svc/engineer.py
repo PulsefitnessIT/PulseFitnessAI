@@ -135,55 +135,56 @@ async def _ensure_customer_machines_attached(case: dict, of: dict) -> None:
         return
     case_id = case["id"]
     try:
-        existing = await db.svc_work_visit_machines.find(
-            {**of, "case_id": case_id, "asset_id": {"$in": candidate_ids}},
-            {"_id": 0, "asset_id": 1},
-        ).to_list(100)
-        existing_ids = {r.get("asset_id") for r in existing if r.get("asset_id")}
-        to_attach = [eid for eid in candidate_ids if eid not in existing_ids]
-        if not to_attach:
-            return
+        # Equipment lives under the CUSTOMER org, not the operator org — the ids
+        # come from the trusted case's own equipment list, so resolve by id only.
         equipment_rows = await db.equipment.find(
-            {"id": {"$in": to_attach}},
+            {"id": {"$in": candidate_ids}},
             {"_id": 0, "id": 1, "name": 1, "equipment_type": 1,
              "manufacturer": 1, "model": 1, "serial_number": 1},
-        ).to_list(100)
+        ).to_list(200)
         eq_by_id = {r["id"]: r for r in equipment_rows}
-        order_index = await db.svc_work_visit_machines.count_documents(
-            {**of, "case_id": case_id},
-        )
+        existing = await db.svc_work_visit_machines.find(
+            {**of, "case_id": case_id}, {"_id": 0, "asset_id": 1},
+        ).to_list(500)
+        existing_ids = {r.get("asset_id") for r in existing if r.get("asset_id")}
+        order_index = len(existing)
         now = _now()
-        rows = []
-        for eid in to_attach:
-            eq = eq_by_id.get(eid) or {}
+        to_insert = []
+        for eid in candidate_ids:
+            eq = eq_by_id.get(eid)
             label = (
-                f"{eq.get('manufacturer') or ''} {eq.get('model') or eq.get('name') or ''}".strip()
-                or eq.get("name")
+                f"{(eq or {}).get('manufacturer') or ''} "
+                f"{(eq or {}).get('model') or (eq or {}).get('name') or ''}".strip()
+                or (eq or {}).get("name")
                 or case.get("asset_name")
                 or "Equipment"
             )
-            rows.append({
-                "id": str(uuid.uuid4()),
-                **of,
-                "case_id": case_id,
-                "asset_id": eid,
-                "asset_name": label[:200],
-                "asset_serial": (eq.get("serial_number") or "")[:120] or None,
-                "asset_type": (eq.get("equipment_type") or "")[:120] or None,
-                "manufacturer": eq.get("manufacturer") or None,
-                "model": eq.get("model") or None,
-                "serviced": False,
-                "cleaned": False,
-                "notes": None,
-                "custom_fields": {},
-                "order_index": order_index,
-                "created_at": now,
+            resolved = {
+                "asset_name": (label or "Equipment")[:200],
+                "asset_serial": ((eq or {}).get("serial_number") or "")[:120] or None,
+                "asset_type": ((eq or {}).get("equipment_type") or "")[:120] or None,
+                "manufacturer": (eq or {}).get("manufacturer") or None,
+                "model": (eq or {}).get("model") or None,
                 "updated_at": now,
-                "source": "customer_logged",
-            })
-            order_index += 1
-        if rows:
-            await db.svc_work_visit_machines.insert_many(rows)
+            }
+            if eid in existing_ids:
+                # Self-heal: refresh placeholder rows (null type / "N machines")
+                # with the real asset name/type/serial — but ONLY when we could
+                # actually resolve the equipment, and never touch engineer-entered
+                # fields (serviced / cleaned / notes / custom_fields).
+                if eq:
+                    await db.svc_work_visit_machines.update_one(
+                        {**of, "case_id": case_id, "asset_id": eid}, {"$set": resolved})
+            else:
+                to_insert.append({
+                    "id": str(uuid.uuid4()), **of, "case_id": case_id, "asset_id": eid,
+                    **resolved, "serviced": False, "cleaned": False, "notes": None,
+                    "custom_fields": {}, "order_index": order_index,
+                    "created_at": now, "source": "customer_logged",
+                })
+                order_index += 1
+        if to_insert:
+            await db.svc_work_visit_machines.insert_many(to_insert)
     except Exception as exc:  # noqa: BLE001
         logger.warning(
             "[engineer] customer-machine auto-attach failed for case=%s: %s",
