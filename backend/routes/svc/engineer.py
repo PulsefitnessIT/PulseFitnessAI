@@ -144,7 +144,7 @@ async def _ensure_customer_machines_attached(case: dict, of: dict) -> None:
         if not to_attach:
             return
         equipment_rows = await db.equipment.find(
-            {**of, "id": {"$in": to_attach}},
+            {"id": {"$in": to_attach}},
             {"_id": 0, "id": 1, "name": 1, "equipment_type": 1,
              "manufacturer": 1, "model": 1, "serial_number": 1},
         ).to_list(100)
