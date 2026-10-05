@@ -14,7 +14,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { Search, Wrench, Building2, MapPin, Calendar, Hash, ClipboardList } from 'lucide-react';
+import { Search, Wrench, Building2, MapPin, Calendar, Hash, ClipboardList, PackagePlus, PackageMinus, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -95,6 +95,8 @@ const DeskEquipment = ({ API }) => {
           {t('service.eq_subtitle', "Search every customer's kit by name, model, manufacturer or serial number. Read-only view — use the customer's own console to make changes.")}
         </p>
       </header>
+
+      <EquipmentChangeReview API={API} />
 
       {/* Site-first: choose a customer + site to view and select machines */}
       <Card className="p-4 bg-white border-slate-200 dark:bg-zinc-900 dark:border-zinc-800" data-testid="desk-equipment-sitefirst">
@@ -238,3 +240,91 @@ const DeskEquipment = ({ API }) => {
 };
 
 export default DeskEquipment;
+
+// ─────────────────────────────────────────────────────────────────
+// Office review queue for engineer-proposed equipment add/remove.
+// Nothing is applied to a site's asset list until approved here.
+// ─────────────────────────────────────────────────────────────────
+function EquipmentChangeReview({ API }) {
+  const [rows, setRows] = useState([]);
+  const [pending, setPending] = useState(0);
+  const [open, setOpen] = useState(false);
+  const [busyId, setBusyId] = useState(null);
+  const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
+
+  const load = useCallback(async () => {
+    try {
+      const r = await axios.get(`${API}/svc/desk/equipment-change-requests`, { ...auth(), params: { status: 'pending' } });
+      setRows(r.data?.requests || []);
+      setPending(r.data?.pending_count || 0);
+    } catch { setRows([]); setPending(0); }
+  }, [API]);
+  useEffect(() => { load(); }, [load]);
+
+  const decide = async (id, action) => {
+    setBusyId(id);
+    try {
+      await axios.post(`${API}/svc/desk/equipment-change-requests/${id}/${action}`, {}, auth());
+      await load();
+    } catch (e) {
+      // eslint-disable-next-line no-alert
+      window.alert(e?.response?.data?.detail || `Could not ${action}`);
+    } finally { setBusyId(null); }
+  };
+
+  if (pending === 0 && !open) return null;
+
+  return (
+    <Card className="p-4 bg-white border-amber-200 dark:bg-zinc-900 dark:border-amber-900/50" data-testid="equipment-change-review">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between" data-testid="equipment-change-review-toggle">
+        <span className="text-sm font-bold flex items-center gap-2 text-amber-800 dark:text-amber-300">
+          <ClipboardList size={15} /> Equipment changes to review
+          {pending > 0 && <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500 text-white" data-testid="equipment-change-badge">{pending}</span>}
+        </span>
+        <span className="text-xs text-slate-400">{open ? 'Hide' : 'Show'}</span>
+      </button>
+      {open && (
+        <div className="mt-3 space-y-2" data-testid="equipment-change-list">
+          {rows.length === 0 ? (
+            <p className="text-xs text-slate-500">No changes awaiting review.</p>
+          ) : rows.map((r) => (
+            <div key={r.id} className="rounded-lg border border-slate-200 dark:border-zinc-800 p-3 flex items-start justify-between gap-3" data-testid={`equipment-change-${r.id}`}>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  {r.change_type === 'add'
+                    ? <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700"><PackagePlus size={11} /> Add</span>
+                    : <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-700"><PackageMinus size={11} /> Remove</span>}
+                  <span className="text-sm font-bold text-slate-900 dark:text-zinc-100 truncate">
+                    {r.change_type === 'add' ? (r.proposed?.name || 'New equipment') : (r.equipment_name || 'Equipment')}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {r.site_name || '—'}{r.customer_name ? ` · ${r.customer_name}` : ''} · by {r.engineer_name}
+                </p>
+                {r.change_type === 'add' && (
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {[r.proposed?.equipment_type, r.proposed?.manufacturer, r.proposed?.model].filter(Boolean).join(' · ')}
+                    {r.proposed?.serial_number ? ` · SN ${r.proposed.serial_number}` : ''}
+                  </p>
+                )}
+                {r.change_type === 'remove' && r.reason && <p className="text-[11px] text-slate-500 mt-0.5">Reason: {r.reason}</p>}
+                {r.proposed?.notes && <p className="text-[11px] text-slate-500 mt-0.5">{r.proposed.notes}</p>}
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button size="sm" variant="outline" disabled={busyId === r.id} onClick={() => decide(r.id, 'reject')} data-testid={`equipment-change-reject-${r.id}`}
+                  className="text-rose-600 border-rose-200 hover:bg-rose-50">
+                  {busyId === r.id ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />}
+                </Button>
+                <Button size="sm" disabled={busyId === r.id} onClick={() => decide(r.id, 'approve')} data-testid={`equipment-change-approve-${r.id}`}
+                  className="bg-emerald-600 text-white hover:bg-emerald-700">
+                  {busyId === r.id ? <Loader2 size={13} className="animate-spin mr-1" /> : <CheckCircle2 size={13} className="mr-1" />} Approve
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+

@@ -54,6 +54,33 @@ export default function WorkVisitMachinesCard({ caseId }) {
   const [assetSearch, setAssetSearch] = useState('');
   // Iter 220cj — Site equipment picker (multi-select w/ Select All)
   const [sitePickerOpen, setSitePickerOpen] = useState(false);
+  // Engineer-proposed equipment changes (office must approve before they apply)
+  const [proposeOpen, setProposeOpen] = useState(false);
+  const [proposals, setProposals] = useState([]);
+
+  const loadProposals = useCallback(async () => {
+    if (!caseId) return;
+    try {
+      const r = await axios.get(`${API}/svc/engineer/jobs/${caseId}/equipment-change-requests`, auth());
+      setProposals(r.data?.requests || []);
+    } catch { setProposals([]); }
+  }, [caseId]);
+  useEffect(() => { loadProposals(); }, [loadProposals]);
+
+  const proposeRemoval = async (row) => {
+    if (!row?.asset_id) { notify.error('This row has no linked asset to remove'); return; }
+    const reason = window.prompt(`Propose removing "${row.asset_name}" from the site asset list?\n\nThe office will review before it is archived. Add a reason (optional):`, '');
+    if (reason === null) return;
+    try {
+      await axios.post(`${API}/svc/engineer/equipment-change-requests`, {
+        case_id: caseId, change_type: 'remove',
+        equipment_id: row.asset_id, equipment_name: row.asset_name || '', reason,
+      }, auth());
+      notify.success('Removal proposed — sent to the office for review');
+      loadProposals();
+    } catch (e) { notify.error('Could not propose removal', e?.response?.data?.detail || e?.message); }
+  };
+
 
   const load = useCallback(async () => {
     if (!caseId) { setLoading(false); return; }
@@ -259,16 +286,32 @@ export default function WorkVisitMachinesCard({ caseId }) {
             <Package size={16} />
             <span>From site</span>
           </button>
-          <Link
-            to={`/svc/engineer/equipment/new?case_id=${encodeURIComponent(caseId || '')}`}
+          <button
+            type="button"
+            onClick={() => setProposeOpen(true)}
             className="inline-flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs font-extrabold hover:bg-slate-50"
-            data-testid="machines-new-asset-link"
-            title="Create a brand-new equipment record and attach it"
+            data-testid="machines-propose-asset-btn"
+            title="Propose a brand-new asset for this site — the office reviews it before it's added"
           >
             <PackagePlus size={16} />
-            <span>New asset</span>
-          </Link>
+            <span>Propose new</span>
+          </button>
         </div>
+        {proposals.length > 0 && (
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-2.5" data-testid="machines-proposals">
+            <p className="text-[11px] font-extrabold uppercase tracking-wide text-amber-700 mb-1">Proposed changes · office review</p>
+            <ul className="space-y-1">
+              {proposals.map((p) => (
+                <li key={p.id} className="text-[11px] text-amber-900 flex items-center justify-between gap-2" data-testid={`machine-proposal-${p.id}`}>
+                  <span className="truncate">
+                    {p.change_type === 'add' ? `Add: ${p.proposed?.name || ''}` : `Remove: ${p.equipment_name || ''}`}
+                  </span>
+                  <span className={`shrink-0 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${p.status === 'pending' ? 'bg-amber-200 text-amber-800' : p.status === 'approved' ? 'bg-emerald-200 text-emerald-800' : 'bg-rose-200 text-rose-800'}`}>{p.status}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -298,6 +341,7 @@ export default function WorkVisitMachinesCard({ caseId }) {
               onCopyDown={(fields) => copyDown(row.id, fields)}
               onAttachPhoto={(file) => attachPhoto(row.id, file)}
               onRemovePhoto={(photoId) => removePhoto(row.id, photoId)}
+              onProposeRemoval={() => proposeRemoval(row)}
               showCopyDown={idx < rows.length - 1}
               assetOptions={filteredAssets}
               assetSearch={assetSearch}
@@ -315,6 +359,67 @@ export default function WorkVisitMachinesCard({ caseId }) {
           onImported={() => { setSitePickerOpen(false); load(); }}
         />
       ) : null}
+      {proposeOpen ? (
+        <ProposeEquipmentModal
+          caseId={caseId}
+          onClose={() => setProposeOpen(false)}
+          onProposed={() => { setProposeOpen(false); loadProposals(); }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+// Engineer proposes a brand-new asset for the site. Goes to the office review
+// queue — nothing is added to the live asset list until approved.
+function ProposeEquipmentModal({ caseId, onClose, onProposed }) {
+  const [form, setForm] = useState({ name: '', equipment_type: '', manufacturer: '', model: '', serial_number: '', notes: '' });
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const submit = async () => {
+    if (!form.name.trim()) { notify.error('Give the equipment a name'); return; }
+    setBusy(true);
+    try {
+      await axios.post(`${API}/svc/engineer/equipment-change-requests`, {
+        case_id: caseId, change_type: 'add', proposed: form,
+      }, auth());
+      notify.success('New equipment proposed — sent to the office for review');
+      onProposed?.();
+    } catch (e) { notify.error('Could not propose', e?.response?.data?.detail || e?.message); }
+    finally { setBusy(false); }
+  };
+  const inp = 'w-full mt-1 text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white';
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" data-testid="propose-equipment-modal">
+      <div className="bg-white w-full sm:max-w-md max-h-[92vh] sm:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+          <p className="text-sm font-bold text-slate-900">Propose new equipment</p>
+          <button onClick={onClose} className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600" data-testid="propose-equipment-close"><X size={16} /></button>
+        </div>
+        <div className="p-4 overflow-y-auto space-y-2.5">
+          <p className="text-[11px] text-slate-500">The office reviews this before it's added to the site's asset list.</p>
+          <div><label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Name *</label>
+            <input className={inp} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Technogym Run 1000" data-testid="propose-name" /></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div><label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Type</label>
+              <input className={inp} value={form.equipment_type} onChange={(e) => set('equipment_type', e.target.value)} placeholder="Treadmill" data-testid="propose-type" /></div>
+            <div><label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Serial no.</label>
+              <input className={inp} value={form.serial_number} onChange={(e) => set('serial_number', e.target.value)} data-testid="propose-serial" /></div>
+            <div><label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Manufacturer</label>
+              <input className={inp} value={form.manufacturer} onChange={(e) => set('manufacturer', e.target.value)} data-testid="propose-manufacturer" /></div>
+            <div><label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Model</label>
+              <input className={inp} value={form.model} onChange={(e) => set('model', e.target.value)} data-testid="propose-model" /></div>
+          </div>
+          <div><label className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Notes</label>
+            <textarea className={inp} rows={2} value={form.notes} onChange={(e) => set('notes', e.target.value)} data-testid="propose-notes" /></div>
+        </div>
+        <div className="px-4 py-3 border-t border-slate-200 flex gap-2">
+          <button onClick={onClose} className="flex-1 border border-slate-300 rounded-xl py-2.5 text-sm font-semibold" data-testid="propose-cancel">Cancel</button>
+          <button onClick={submit} disabled={busy} className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:bg-slate-300 text-white rounded-xl py-2.5 text-sm font-bold inline-flex items-center justify-center gap-1.5" data-testid="propose-submit">
+            {busy ? <><Loader2 size={12} className="animate-spin" /> Sending…</> : <><PackagePlus size={14} /> Propose</>}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -999,7 +1104,7 @@ function MachineTextField({
 
 function MachineRow({
   row, index, caseId, expanded, onExpand, onPatch, onDelete, onCopyDown,
-  onAttachPhoto, onRemovePhoto,
+  onAttachPhoto, onRemovePhoto, onProposeRemoval,
   showCopyDown, assetOptions: _assetOptions,
   assetSearch: _assetSearch, setAssetSearch: _setAssetSearch,
   refreshRows,
@@ -1204,11 +1309,20 @@ function MachineRow({
             </div>
             <button
               type="button"
+              onClick={onProposeRemoval}
+              className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 px-2 py-1 rounded-full hover:bg-amber-50"
+              data-testid={`machine-propose-removal-${row.id}`}
+              title="Propose removing this asset from the site list (office approves)"
+            >
+              <PackagePlus size={10} className="rotate-45" /> Propose removal
+            </button>
+            <button
+              type="button"
               onClick={onDelete}
               className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 px-2 py-1 rounded-full hover:bg-rose-50"
               data-testid={`machine-delete-${row.id}`}
             >
-              <Trash2 size={10} /> Remove
+              <Trash2 size={10} /> Remove from visit
             </button>
           </div>
         </div>

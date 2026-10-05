@@ -44,6 +44,7 @@ export default function PpmScheduleDetail({ scheduleId, onClose, onAllocate, onD
 
   const s = data?.schedule;
   const w = data?.workings;
+  const visits = data?.visits || [];
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
@@ -83,41 +84,7 @@ export default function PpmScheduleDetail({ scheduleId, onClose, onAllocate, onD
               </div>
             </div>
 
-            {w && (
-              <div className="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20 p-3" data-testid="ppm-detail-workings">
-                <p className="text-xs font-bold uppercase tracking-wide text-emerald-700 mb-1.5 flex items-center gap-1.5">
-                  <CheckCircle2 size={13} /> Engineer's workings {w.completed ? '' : `· ${w.status || 'in progress'}`}
-                </p>
-                <div className="flex items-center gap-1.5 flex-wrap mb-1.5" data-testid="ppm-receipt-badge">
-                  {(() => {
-                    const stage = w.acknowledged_at ? 'acknowledged' : (w.received_at ? 'received' : 'allocated');
-                    const map = {
-                      allocated: ['Allocated', 'bg-amber-100 text-amber-700'],
-                      received: ['Received', 'bg-sky-100 text-sky-700'],
-                      acknowledged: ['Acknowledged', 'bg-emerald-100 text-emerald-700'],
-                    };
-                    const [label, cls] = map[stage];
-                    return <span className={`text-[10px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5 ${cls}`} data-testid={`ppm-receipt-stage-${stage}`}>{label}</span>;
-                  })()}
-                  {w.received_at ? <span className="text-[10px] text-zinc-400">seen {fmtDate(w.received_at)}</span> : null}
-                  {w.acknowledged_at ? <span className="text-[10px] text-zinc-400">· ack {fmtDate(w.acknowledged_at)}</span> : null}
-                </div>
-                <div className="text-xs space-y-1 text-zinc-700 dark:text-zinc-300">
-                  {w.reference ? <p><span className="text-zinc-400">Job:</span> {w.reference}</p> : null}
-                  {w.engineer ? <p><span className="text-zinc-400">Engineer:</span> {w.engineer}</p> : null}
-                  {w.completed_at ? <p><span className="text-zinc-400">Completed:</span> {fmtDate(w.completed_at)}</p> : null}
-                  {w.calibration_captured ? <p><span className="text-zinc-400">Calibration:</span> {String(w.calibration_result || '').toUpperCase() || 'captured'}</p> : null}
-                  {w.summary ? <p className="pt-1">{w.summary}</p> : null}
-                  {(w.machine_work || []).length > 0 && (
-                    <div className="pt-1.5 space-y-0.5">
-                      {w.machine_work.map((mw, i) => (
-                        <p key={i} className="text-[11px]"><span className="font-medium">{mw.asset_name}</span>{mw.serviced ? ' · serviced' : ''}{mw.cleaned ? ' · cleaned' : ''}{mw.notes ? ` — ${mw.notes}` : ''}</p>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            {visits.length > 0 && <VisitsPanel visits={visits} />}
           </div>
         )}
 
@@ -139,3 +106,115 @@ export default function PpmScheduleDetail({ scheduleId, onClose, onAllocate, onD
     </div>
   );
 }
+
+function VisitsPanel({ visits }) {
+  const [active, setActive] = useState(0);
+  const v = visits[active] || {};
+  const dateLabel = (x) => (x.completed_at || x.scheduled_at || x.assigned_at
+    ? fmtDate(x.completed_at || x.scheduled_at || x.assigned_at) : 'Visit');
+  const stage = v.acknowledged_at ? 'acknowledged' : (v.received_at ? 'received' : 'allocated');
+  const stageMap = {
+    allocated: ['Allocated', 'bg-amber-100 text-amber-700'],
+    received: ['Received', 'bg-sky-100 text-sky-700'],
+    acknowledged: ['Acknowledged', 'bg-emerald-100 text-emerald-700'],
+  };
+  const [stLabel, stCls] = stageMap[stage];
+  const calibMachines = v.calibration?.machines || [];
+  return (
+    <div data-testid="ppm-detail-visits">
+      <p className="text-xs font-bold uppercase tracking-wide text-zinc-400 mb-1.5 flex items-center gap-1.5">
+        <CheckCircle2 size={13} /> Engineer's workings
+      </p>
+      {visits.length > 1 && (
+        <div className="flex gap-1 flex-wrap mb-2" data-testid="ppm-visit-tabs">
+          {visits.map((x, i) => (
+            <button key={x.case_id || i} onClick={() => setActive(i)} data-testid={`ppm-visit-tab-${i}`}
+              className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${i === active ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-zinc-900 text-zinc-600 border-zinc-200 dark:border-zinc-700'}`}>
+              {dateLabel(x)}{x.completed ? '' : ' ·'}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20 p-3">
+        <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
+          <span className={`text-[10px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5 ${stCls}`} data-testid={`ppm-receipt-stage-${stage}`}>{stLabel}</span>
+          {!v.completed && <span className="text-[10px] text-zinc-400">{v.status || 'in progress'}</span>}
+          {v.received_at ? <span className="text-[10px] text-zinc-400">seen {fmtDate(v.received_at)}</span> : null}
+          {v.acknowledged_at ? <span className="text-[10px] text-zinc-400">· ack {fmtDate(v.acknowledged_at)}</span> : null}
+        </div>
+        <div className="text-xs space-y-1 text-zinc-700 dark:text-zinc-300">
+          {v.reference ? <p><span className="text-zinc-400">Job:</span> {v.reference}</p> : null}
+          {v.engineer ? <p><span className="text-zinc-400">Engineer:</span> {v.engineer}</p> : null}
+          {v.scheduled_at ? <p><span className="text-zinc-400">Visit date:</span> {fmtDate(v.scheduled_at)}</p> : null}
+          {v.completed_at ? <p><span className="text-zinc-400">Completed:</span> {fmtDate(v.completed_at)}</p> : null}
+          {v.summary ? <p className="pt-1 whitespace-pre-wrap">{v.summary}</p> : null}
+        </div>
+
+        {(v.machine_work || []).length > 0 && (
+          <div className="mt-2.5">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400 mb-1">Machines worked ({v.machine_work.length})</p>
+            <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-800 max-h-56 overflow-auto" data-testid="ppm-visit-machine-work">
+              {v.machine_work.map((mw, i) => (
+                <div key={i} className="px-2.5 py-1.5" data-testid={`ppm-visit-machine-${i}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="min-w-0">
+                      <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-100 block truncate">{mw.asset_name || 'Machine'}</span>
+                      <span className="text-[10px] text-zinc-400">
+                        {mw.asset_type ? mw.asset_type : ''}{mw.asset_type && mw.asset_serial ? ' · ' : ''}{mw.asset_serial ? `SN ${mw.asset_serial}` : ''}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-1 shrink-0">
+                      {mw.serviced ? <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Serviced</span> : null}
+                      {mw.cleaned ? <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700">Cleaned</span> : null}
+                    </span>
+                  </div>
+                  {mw.notes ? <p className="text-[11px] text-zinc-500 mt-0.5 whitespace-pre-wrap">{mw.notes}</p> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {(v.calibration_captured || calibMachines.length > 0 || (v.calibration?.readings || []).length > 0) && (
+          <div className="mt-2.5" data-testid="ppm-visit-calibration">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400 mb-1">
+              Treadmill calibration {v.calibration_result ? `· ${String(v.calibration_result).toUpperCase()}` : ''}
+            </p>
+            {calibMachines.length > 0 ? (
+              <div className="space-y-2">
+                {calibMachines.map((m, mi) => (
+                  <div key={mi} className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-2" data-testid={`ppm-calib-machine-${mi}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] font-bold">{m.equipment_name || 'Treadmill'}{m.serial ? ` · SN ${m.serial}` : ''}</span>
+                      <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${m.overall_result === 'fail' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>{String(m.overall_result || 'pass').toUpperCase()}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                      {(m.readings || []).map((r, ri) => (
+                        <div key={ri} className="flex items-center justify-between text-[10px]">
+                          <span className="text-zinc-500 truncate">{r.label}</span>
+                          <span className={r.result === 'fail' ? 'text-rose-600 font-semibold' : 'text-zinc-700 dark:text-zinc-300'}>{r.measured || '—'}{r.result === 'fail' ? ' ✗' : ''}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (v.calibration?.readings || []).length > 0 ? (
+              <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-2 grid grid-cols-2 gap-x-3 gap-y-0.5">
+                {v.calibration.readings.map((r, ri) => (
+                  <div key={ri} className="flex items-center justify-between text-[10px]">
+                    <span className="text-zinc-500 truncate">{r.label}</span>
+                    <span className={r.result === 'fail' ? 'text-rose-600 font-semibold' : 'text-zinc-700 dark:text-zinc-300'}>{r.measured || '—'}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-zinc-500">Calibration captured.</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+

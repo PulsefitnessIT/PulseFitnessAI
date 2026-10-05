@@ -597,32 +597,40 @@ async def schedule_detail(schedule_id: str, user: dict = Depends(get_current_use
             "model": e.get("model") or "", "serial_number": e.get("serial_number") or "",
         } for e in eqs]
 
-    # Related engineer job (if scheduled / completed)
-    job = await db.svc_cases.find_one(
+    # Related engineer jobs/visits (newest first) — a schedule can have
+    # several visits over time (full history for the office case view).
+    jobs = await db.svc_cases.find(
         {"pm_schedule_id": schedule_id, "organization_id": operator},
         {"_id": 0, "id": 1, "reference": 1, "status": 1, "scheduled_at": 1,
          "assigned_engineer_name": 1, "assigned_engineer_names": 1, "completed_at": 1,
          "assigned_at": 1, "received_at": 1, "acknowledged_at": 1,
          "resolution": 1, "resolution_notes": 1, "work_summary": 1, "engineer_notes": 1,
          "calibration_result": 1, "calibration_captured": 1},
-        sort=[("created_at", -1)])
-    workings = None
-    if job:
+    ).sort("created_at", -1).to_list(100)
+
+    async def _build_visit(job: dict) -> dict:
         status = str(job.get("status") or "").lower()
-        completed = status in ("closed", "resolved", "completed")
+        completed = status in ("closed", "resolved", "completed", "invoiced")
         engineer = job.get("assigned_engineer_name") or ", ".join(job.get("assigned_engineer_names") or [])
         machine_work = []
-        if completed:
-            async for m in db.svc_work_visit_machines.find(
-                {"case_id": job["id"]},
-                {"_id": 0, "asset_name": 1, "serviced": 1, "cleaned": 1, "notes": 1,
-                 "result": 1, "custom_fields": 1}):
-                machine_work.append({
-                    "asset_name": m.get("asset_name") or "", "serviced": m.get("serviced"),
-                    "cleaned": m.get("cleaned"), "notes": m.get("notes") or "",
-                    "result": m.get("result") or "",
-                })
-        workings = {
+        async for m in db.svc_work_visit_machines.find(
+            {"case_id": job["id"]},
+            {"_id": 0, "asset_name": 1, "asset_type": 1, "asset_serial": 1,
+             "serviced": 1, "cleaned": 1, "notes": 1, "result": 1, "order_index": 1}):
+            machine_work.append({
+                "asset_name": m.get("asset_name") or "", "asset_type": m.get("asset_type") or "",
+                "asset_serial": m.get("asset_serial") or "",
+                "serviced": m.get("serviced"), "cleaned": m.get("cleaned"),
+                "notes": m.get("notes") or "", "result": m.get("result") or "",
+                "order_index": m.get("order_index") or 0,
+            })
+        machine_work.sort(key=lambda x: x.get("order_index") or 0)
+        calib = await db.svc_case_calibrations.find_one(
+            {"case_id": job["id"], "organization_id": operator},
+            {"_id": 0, "overall_result": 1, "machines": 1, "readings": 1, "notes": 1},
+            sort=[("created_at", -1)])
+        return {
+            "case_id": job.get("id"),
             "reference": job.get("reference") or "", "status": job.get("status") or "",
             "completed": completed, "engineer": engineer,
             "assigned_at": job.get("assigned_at") or "",
@@ -633,8 +641,12 @@ async def schedule_detail(schedule_id: str, user: dict = Depends(get_current_use
             "engineer_notes": job.get("engineer_notes") or "",
             "calibration_result": job.get("calibration_result") or "",
             "calibration_captured": bool(job.get("calibration_captured")),
+            "calibration": calib,
             "machine_work": machine_work,
         }
+
+    visits = [await _build_visit(j) for j in jobs]
+    workings = visits[0] if visits else None
 
     return {
         "schedule": {
@@ -646,6 +658,7 @@ async def schedule_detail(schedule_id: str, user: dict = Depends(get_current_use
             "site_id": s.get("site_id") or "", "organization_id": s.get("organization_id"),
         },
         "machines": machines,
+        "visits": visits,
         "workings": workings,
     }
 
