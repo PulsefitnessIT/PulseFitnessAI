@@ -1,0 +1,32 @@
+{
+  "summary": "Verified the PulseFitness Service Desk bug fix: PPM jobs allocated via POST /api/svc/ppm/schedule now reach the engineer's job list. Backend end-to-end test (owner@isodemo.com) allocates a PPM to self and to jordan.blake; the resulting svc_cases doc has status='assigned' (lowercase) and assigned_engineer_id set, and the case appears in GET /api/svc/engineer/jobs for when=open and when=today. Both regression tests pass (2/2).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_svc_ppm_engineer_allocation.py",
+    "/app/test_reports/pytest/ppm_engineer_alloc.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ppm_calendar.py schedule_ppm() now writes status 'assigned' (lowercase) matching OPEN_STATES in utils/svc_state.py — fix is correct.",
+    "Consider adding an invariant / enum type for svc_cases.status to prevent future casing drift. The engineer_jobs query trusts lowercase canonical states; any writer must honour that contract. Introducing a shared Pydantic Literal/Enum (e.g. CaseStatus) used by every writer would eliminate this class of case-sensitivity bugs.",
+    "Suggest adding a quick migration/healer on startup that normalizes svc_cases.status to lowercase, in case any other writer still produces uppercase values."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_svc_ppm_engineer_allocation.py (new regression test)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "not tested (preview host returned Cloudflare 502 during the smoke run; backend on same host responded fine, so this is an intermittent edge/proxy issue, not a product bug)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (org iso-demo-org; is both operator and svc_engineer id=iso-owner). Alt engineer id for allocation: 4cb67443-d6a3-4279-bad3-765207cbd13a (jordan.blake). Rate-limit bypass header: X-RateLimit-Bypass: test-bypass-secret-for-ci-runs-only-2026.",
+  "seed_data_creation": "Tests may create a new PPM schedule via POST /api/svc/ppm/schedules only if none is found via /api/svc/ppm/search. Each test run also creates a new svc_cases doc (ppm) under organization iso-demo-org — these are not deleted; cleanup can be added if accumulation is a concern.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Regression test file: /app/backend/tests/test_svc_ppm_engineer_allocation.py. Run via `cd /app/backend && pytest tests/test_svc_ppm_engineer_allocation.py -v -s`. It (1) finds-or-creates a PPM schedule for iso-demo-org, (2) allocates it via POST /api/svc/ppm/schedule to owner (iso-owner), (3) asserts GET /api/svc/engineer/jobs returns the ppm case with status=='assigned' for when=open and when=today, (4) also allocates to jordan.blake and reads /api/svc/cases/{id} to confirm persisted status=='assigned' and assigned_engineer_id. The fix in routes/svc/ppm_calendar.py (line ~911 status: 'assigned') is verified correct.",
+  "rca_of_the_issue": "RCA: utils/svc_state.py defines ASSIGNED='assigned' and OPEN_STATES as a set of lowercase canonical states. GET /api/svc/engineer/jobs filters db.svc_cases with {status: {$in: OPEN_STATES}}. The PPM allocate path in routes/svc/ppm_calendar.py::schedule_ppm() previously wrote status='ASSIGNED' (uppercase) to svc_cases on allocation, so Mongo (case-sensitive) excluded those docs from the engineer's query and the engineer saw an empty list despite being assigned. Fix: write 'assigned' (lowercase) at line ~911 of ppm_calendar.py; a one-off DB heal normalized existing stuck docs. Reproduction (pre-fix): allocate any PPM via POST /api/svc/ppm/schedule, then GET /api/svc/engineer/jobs?when=open — case missing. Post-fix verification: same flow — case present with status 'assigned'. Mitigation suggestion: enforce a shared CaseStatus enum on every writer, and add a startup normalizer for legacy uppercase values."
+}

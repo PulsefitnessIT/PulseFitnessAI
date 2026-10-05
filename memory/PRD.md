@@ -39082,3 +39082,9 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Verified: master.admin + crm.admin + pulse_pro all authenticate; previously-all-failing master-admin live file (test_iter_216h117) now 3/5 pass (remaining 2 are domain-logic/data assertions for the owner to address).
 - Stripe price guard (test_stripe_prices_guard_216o) left as production/CI-only — it validates the live Stripe catalog (12 GymAxis-branded products) which exists only in the real deployment; cannot/should not be DB-seeded. User-approved.
 - "gymaxis" = legacy pre-PulseFitness brand; these are internal test fixtures, and prod still auto-decommissions gymaxis records.
+
+## [2026-06] BUGFIX — PPM jobs not reaching engineer (status casing)
+- Symptom: Service Desk → Maintenance/Jobs PPM (e.g. Fire Service PPM) allocated to an engineer never appeared in the engineer's job list.
+- Root cause: routes/svc/ppm_calendar.py::schedule_ppm wrote svc_cases status as uppercase literal "ASSIGNED"; engineer read (GET /svc/engineer/jobs) filters status ∈ OPEN_STATES which are lowercase canonical states (utils/svc_state.py). Case-sensitive mismatch → job excluded.
+- Fix: write "assigned" (lowercase) at ppm_calendar.py ~line 911; one-off DB heal normalized 1 stuck case. Verified by testing_agent (backend 100%, 2/2 regression tests; new test tests/test_svc_ppm_engineer_allocation.py).
+- Suggested hardening (not done): shared CaseStatus enum enforced on all svc_cases writers + startup normalizer for legacy uppercase values.
