@@ -155,6 +155,9 @@ async def approve_change_request(req_id: str, data: dict = Body(default={}), use
         applied = {"equipment_id": eq_id}
     else:
         eq_id = req.get("equipment_id")
+        target = await db.equipment.find_one({"id": eq_id}, {"_id": 1})
+        if not target:
+            raise HTTPException(404, "Equipment to remove no longer exists")
         await db.equipment.update_one(
             {"id": eq_id},
             {"$set": {"status": "archived", "archived_at": now,

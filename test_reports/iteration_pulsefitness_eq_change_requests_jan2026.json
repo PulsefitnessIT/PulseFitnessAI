@@ -1,0 +1,27 @@
+{
+  "summary": "End-to-end tested the engineer equipment-change-request flow and office review + PPM visit tabs feature. Backend: 7/7 pytest cases pass against the live preview URL (propose add/remove, pending list + pending_count, approve creates equipment asset for 'add', reject marks rejected, 409 on double-approve, PPM schedule detail returns visits array). Frontend: engineer app shows real machine names on 'Machines on this visit' card for case SVC-00026 (Technogym Run 1000 x2, Wattbike QA), Propose-new modal opens, submits, appears in 'Proposed changes · office review' banner with PENDING status; per-row machine-propose-removal-<id> testid present. Service Desk > Equipment shows the 'Equipment changes to review' panel with pending-count badge; expanding lists requests; Approve applies the change, badge/approve-button count both decrement. Service Desk > Maintenance opens the QA Fire Station 20 Nov 2026 PPM detail modal exposing data-testid=ppm-detail with 'Machines on site' (real names) and 'Engineer's workings' (data-testid=ppm-detail-visits + ppm-visit-machine-work). ppm-visit-tabs is only rendered when multiple visits exist (only 1 visit in seed, so tabs testid absent — correct conditional).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Engineer job Equipment tab", "issues": ["Top header still shows generic 'What the customer logged · 3 machines' from the case summary; task spec concerned the 'Machines on this visit' card which does correctly show real names. Non-blocking."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_equipment_change_requests.py",
+    "/app/test_reports/pytest/equipment_change_requests.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "equipment_change_requests.py approve/reject are idempotent via 409 — good.",
+    "On 'remove' approve, there is no check that the equipment doc exists before archiving (update_one is a no-op if missing). Low risk since equipment_id comes from the trusted job's equipment list, but consider validating + returning 404 if asset not found."
+  ],
+  "updated_files": ["/app/backend/tests/test_equipment_change_requests.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (operator with is_service_desk + engineer access)",
+  "seed_data_creation": "Created several TEST_-prefixed equipment-change-requests (approved/rejected/pending) and corresponding TEST_Rowing Machine / TEST_UI_Treadmill_X / TEST_UI_OR_Bike / TEST_UI_OfficeReview_Bike assets under iso-demo-org · QA Fire Station via the live propose/approve APIs. These are expected per the task spec and should be left in place.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Pending equipment-change-requests may remain in svc_equipment_change_requests for iso-demo-org after this run (one TEST_UI_OR_Bike2 pending was created by the final UI run but not approved; the Service Desk badge should show it). ppm-visit-tabs testid only appears when a schedule has >1 visit. If a future test requires tabs, seed a second visit on the schedule for case SVC-00026."
+}

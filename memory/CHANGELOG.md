@@ -1,3 +1,23 @@
+# 2026-10-05 — Feature: Engineer equipment change-requests (office approval) + richer office Case View
+
+**Part A — Engineer proposes equipment add/remove; office approves (nothing applied until approved):**
+- New backend `routes/svc/equipment_change_requests.py` + `svc_equipment_change_requests` collection (registered in route_registry/features.py).
+  - Engineer: `POST /api/svc/engineer/equipment-change-requests` (change_type add|remove), `GET /api/svc/engineer/jobs/{case_id}/equipment-change-requests`.
+  - Office: `GET /api/svc/desk/equipment-change-requests` (+pending_count), `POST .../{id}/approve`, `POST .../{id}/reject`.
+  - Approve ADD → creates a real `db.equipment` asset under the customer org + site (status active). Approve REMOVE → sets the asset `status: archived` (soft remove; 404 guard if asset gone). Idempotent (409 on double-decision).
+- Frontend: engineer `WorkVisitMachinesCard.js` — replaced direct "New asset" with **"Propose new"** modal, added per-row **"Propose removal"**, and a **"Proposed changes · office review"** banner showing status. Office `DeskEquipment.js` — new **"Equipment changes to review"** panel with pending-count badge + Approve/Reject.
+
+**Part B — Office Case View (PpmScheduleDetail) now shows engineer's workings properly:**
+- `schedule_detail` returns a `visits[]` array (all visits for a schedule, newest first); each visit includes per-machine detail (asset_name, asset_type, asset_serial, serviced, cleaned, notes) + the calibration record (per-treadmill readings). Kept `workings` for back-compat.
+- Frontend `PpmScheduleDetail.js` — new `VisitsPanel`: **date-labelled tabs** (when >1 visit), per-machine rows with serviced/cleaned badges + notes, and a treadmill-calibration grid (speed/incline pass/fail). Replaces the old flat repeated "N machines" list.
+
+**Tested:** testing_agent — backend 100% (7/7), frontend 100%, no issues, retest_needed=false. Also direct-verified: propose add/remove → approve creates/archives, pending count, visits shape, machine self-heal.
+
+**Needs:** production redeploy.
+
+---
+
+
 # 2026-10-05 — Fix: PPM jobs showed no machines / no treadmill calibration (Fire Station PPM)
 
 **Symptom:** After engineers could see bulk-allocated PPM jobs (Devon & Somerset Fire & Rescue), the job showed no machines to service and no treadmill calibration form.
