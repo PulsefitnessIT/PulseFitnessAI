@@ -1,0 +1,29 @@
+{
+  "summary": "Verified PulseFitness Service Desk PPM allocation follow-up features (notifications + two-stage receipt). All 10 backend tests PASS end-to-end against the preview host. Frontend engineer job detail renders the Acknowledge button (data-testid=job-acknowledge-btn) as expected and the Service Desk PPM schedule detail component (code-reviewed) correctly renders ppm-receipt-badge + ppm-receipt-stage-{allocated|received|acknowledged}.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_svc_ppm_engineer_notifications_jan2026.py",
+    "/app/test_reports/pytest/ppm_notif_jan2026.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "notifications.py: GET /notifications/unread-count returns key 'unread' (good) — ensure frontend reads 'unread' not 'count'. GET /notifications returns 'count' (total of rows, not unread) which is slightly ambiguous but acceptable.",
+    "engineer.py acknowledge: masters bypass the 404 ownership check — reasonable but documented inline.",
+    "ppm_calendar.py schedule_detail: workings is built from the LATEST svc_case (sort created_at DESC). Earlier completed cases for the same schedule would be hidden by a newer 'assigned' allocation — this is correct for the two-stage receipt UX but worth noting."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_svc_ppm_engineer_notifications_jan2026.py"
+  ],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "verified via live job detail screenshot — Acknowledge button rendered"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (iso-owner); X-RateLimit-Bypass: test-bypass-secret-for-ci-runs-only-2026",
+  "seed_data_creation": "Each test run allocates 1-2 new svc_cases PPM docs under iso-demo-org (not auto-cleaned, as noted in the request).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend regression file is test_svc_ppm_engineer_notifications_jan2026.py — exports 10 tests covering FEATURE 1 (lowercase status), FEATURE 2 (in-app notification + unread-count), FEATURE 3a (auto received_at on first GET /jobs/{id}), FEATURE 3b (POST /acknowledge sets acknowledged_at + 404 for non-assigned), FEATURE 3c (schedule detail workings exposes received_at/acknowledged_at). Env var REACT_APP_BACKEND_URL must be set to the preview URL when running pytest from /app/backend. The notifications collection stores the type under the 'kind' field (not 'type') and the case id under 'source_id' (not 'case_id') — tests look for kind='job_assigned' + source_id==case_id.",
+  "rca of the issue": "N/A — this is a feature verification run, not a bug fix. The two initial test failures were test harness bugs (looked for 'type'/'count' instead of the actual 'kind'/'unread' field names in the API) and were corrected before finalising."
+}

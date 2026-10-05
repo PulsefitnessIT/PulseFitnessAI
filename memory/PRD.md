@@ -39088,3 +39088,9 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Root cause: routes/svc/ppm_calendar.py::schedule_ppm wrote svc_cases status as uppercase literal "ASSIGNED"; engineer read (GET /svc/engineer/jobs) filters status ∈ OPEN_STATES which are lowercase canonical states (utils/svc_state.py). Case-sensitive mismatch → job excluded.
 - Fix: write "assigned" (lowercase) at ppm_calendar.py ~line 911; one-off DB heal normalized 1 stuck case. Verified by testing_agent (backend 100%, 2/2 regression tests; new test tests/test_svc_ppm_engineer_allocation.py).
 - Suggested hardening (not done): shared CaseStatus enum enforced on all svc_cases writers + startup normalizer for legacy uppercase values.
+
+## [2026-06] PPM allocation follow-ups — status enforcement, notifications, receipt tracking
+- FEATURE 1 — CaseStatus enforcement: utils/svc_state.py adds coerce_status() (validates/normalises to lowercase canonical states, rejects junk like "ASSIGNED") + normalize_legacy_statuses() startup healer (wired in server.py). ppm_calendar allocation now uses coerce_status(ASSIGNED).
+- FEATURE 2 — Engineer notifications on allocation: ppm_calendar.schedule_ppm now calls create_notification per allocated engineer → in-app (svc_notifications) + Web Push. Closes the "job never reached the engineer" gap.
+- FEATURE 3 — Two-stage receipt: svc_cases gains received_at/received_by (auto-set when engineer first opens GET /svc/engineer/jobs/{id}) + acknowledged_at/acknowledged_by (new POST /svc/engineer/jobs/{id}/acknowledge). Engineer app shows Acknowledge button → Acknowledged chip (EngineerJobDetailV2.js). Service Desk PPM schedule detail shows Allocated→Received→Acknowledged badge (PpmScheduleDetail.js; schedule_detail workings exposes the fields).
+- Verified: testing_agent 10/10 backend pass + frontend button rendered. Regression files: tests/test_svc_ppm_engineer_notifications_jan2026.py, tests/test_svc_ppm_engineer_allocation.py.
