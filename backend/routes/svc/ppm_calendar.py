@@ -282,6 +282,67 @@ async def _make_ppm_schedule(*, org, customer_id, customer_name, site_id, site_n
     return doc
 
 
+async def _spawn_ppm_engineer_job(*, operator, user, sched_doc, service_type, due_date,
+                                  engineer_id, engineer_name, checklist_items) -> dict | None:
+    """Spawn an engineer job (``svc_cases``) from a PPM schedule and assign it
+    to one engineer, mirroring ``POST /svc/ppm/schedule`` so that BULK-scheduled
+    visits actually reach the engineer app. Returns the created case, or ``None``
+    when no engineer is attached (schedule stays a plan only)."""
+    eng_id = (engineer_id or "").strip()
+    if not eng_id:
+        return None
+    from routes.svc.intake import _create_case
+    eng = await db.svc_engineers.find_one(
+        {"organization_id": operator, "id": eng_id}, {"_id": 0, "id": 1, "full_name": 1})
+    eng_name = (eng or {}).get("full_name") or (engineer_name or "").strip()
+    site_label = sched_doc.get("site_name") or sched_doc.get("equipment_name") or "Equipment"
+    due = str(due_date)[:10] if due_date else _today().isoformat()
+    payload = {
+        "title": f"{service_type} · {site_label}",
+        "description": f"Scheduled {service_type.lower()}.",
+        "case_type": "ppm", "priority": "p3",
+        "equipment_ids": sched_doc.get("equipment_ids") or [],
+        "customer_name": sched_doc.get("customer_name") or "",
+        "site_id": sched_doc.get("site_id") or "",
+        "site_name": sched_doc.get("site_name") or "",
+        "asset_name": sched_doc.get("equipment_name") or "",
+        "estimated_minutes": 90,
+    }
+    case = await _create_case(payload=payload, source="ppm", user=user)
+    case_id = case["id"]
+    await db.svc_cases.update_one(
+        {"id": case_id, "organization_id": operator},
+        {"$set": {
+            "scheduled_at": f"{due}T09:00:00+00:00",
+            "pm_schedule_id": sched_doc.get("id"),
+            "service_type": service_type,
+            "checklist_items": checklist_items or [],
+            "ppm_customer_org_id": sched_doc.get("organization_id"),
+            "assigned_engineer_ids": [eng_id],
+            "assigned_engineer_id": eng_id,
+            "assigned_engineer_name": eng_name,
+            "assigned_engineer_names": [eng_name] if eng_name else [],
+            "status": coerce_status(ASSIGNED),
+            "assigned_at": _now(),
+            "received_at": None, "received_by": None,
+            "acknowledged_at": None, "acknowledged_by": None,
+            "updated_at": _now(),
+        }},
+    )
+    try:
+        from routes.svc.notifications import create_notification
+        await create_notification(
+            user_id=eng_id, organization_id=operator, kind="job_assigned",
+            title="New job allocated",
+            body=f"{service_type} · {site_label} — due {due}",
+            link=f"/engineer/jobs/{case_id}",
+            source_type="svc_case", source_id=case_id,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("bulk ppm allocate notify failed: %s", exc)
+    return case
+
+
 async def _service_type_checklist(operator, name) -> list:
     st = await db.ppm_service_types.find_one(
         {"organization_id": operator, "name": name}, {"_id": 0, "checklist_items": 1})
@@ -338,6 +399,7 @@ async def bulk_ppm_schedules(data: dict = Body(...), user: dict = Depends(get_cu
 
     assignments = data.get("assignments") or []
     if assignments:
+        jobs = 0
         for a in assignments:
             sid = (a.get("site_id") or "").strip()
             if not sid:
@@ -349,7 +411,7 @@ async def bulk_ppm_schedules(data: dict = Body(...), user: dict = Depends(get_cu
             eqs = await db.equipment.find(
                 {"organization_id": customer_org, "site_id": sid}, {"_id": 0, "id": 1}).to_list(4000)
             eq_ids = [e["id"] for e in eqs]
-            await _make_ppm_schedule(
+            sched_doc = await _make_ppm_schedule(
                 org=customer_org, customer_id=customer_org, customer_name=cust_name,
                 site_id=sid, site_name=site.get("name"), site_address=site.get("address") or "",
                 equipment_ids=eq_ids,
@@ -360,7 +422,18 @@ async def bulk_ppm_schedules(data: dict = Body(...), user: dict = Depends(get_cu
                 assigned_engineer_name=(a.get("engineer_name") or "").strip(),
                 machine_count=len(eq_ids))
             created += 1
-        return {"success": True, "schedules_created": created, "sites": len(assignments)}
+            # If an engineer was allocated, spawn the engineer job so it reaches
+            # the engineer app (not just the planning calendar).
+            if (a.get("engineer_id") or "").strip():
+                job = await _spawn_ppm_engineer_job(
+                    operator=operator, user=user, sched_doc=sched_doc,
+                    service_type=service_type, due_date=visit,
+                    engineer_id=a.get("engineer_id"), engineer_name=a.get("engineer_name"),
+                    checklist_items=checklist)
+                if job:
+                    jobs += 1
+        return {"success": True, "schedules_created": created,
+                "sites": len(assignments), "jobs_created": jobs}
 
     # ── Legacy stagger mode ──
     site_ids = [s for s in (data.get("site_ids") or []) if s]
@@ -374,6 +447,7 @@ async def bulk_ppm_schedules(data: dict = Body(...), user: dict = Depends(get_cu
     granularity = (data.get("granularity") or "site").strip()
     eng_id = (data.get("engineer_id") or "").strip()
     eng_name = (data.get("engineer_name") or "").strip()
+    jobs = 0
     for i, sid in enumerate(site_ids):
         site = await db.sites.find_one({"id": sid}, {"_id": 0, "name": 1, "address": 1})
         if not site:
@@ -384,7 +458,7 @@ async def bulk_ppm_schedules(data: dict = Body(...), user: dict = Depends(get_cu
         if granularity == "equipment" and eqs:
             for e in eqs:
                 visit = start + relativedelta(days=created * stagger) if stagger else start
-                await _make_ppm_schedule(
+                sched_doc = await _make_ppm_schedule(
                     org=customer_org, customer_id=customer_org, customer_name=cust_name,
                     site_id=sid, site_name=site.get("name"), site_address=site.get("address") or "",
                     equipment_ids=[e["id"]], equipment_name=e.get("name"),
@@ -392,10 +466,15 @@ async def bulk_ppm_schedules(data: dict = Body(...), user: dict = Depends(get_cu
                     checklist_items=checklist, created_by=user.get("id") or "operator",
                     assigned_engineer_id=eng_id, assigned_engineer_name=eng_name, machine_count=1)
                 created += 1
+                if eng_id and await _spawn_ppm_engineer_job(
+                        operator=operator, user=user, sched_doc=sched_doc,
+                        service_type=service_type, due_date=visit,
+                        engineer_id=eng_id, engineer_name=eng_name, checklist_items=checklist):
+                    jobs += 1
         else:
             visit = start + relativedelta(days=i * stagger) if stagger else start
             eq_ids = [e["id"] for e in eqs]
-            await _make_ppm_schedule(
+            sched_doc = await _make_ppm_schedule(
                 org=customer_org, customer_id=customer_org, customer_name=cust_name,
                 site_id=sid, site_name=site.get("name"), site_address=site.get("address") or "",
                 equipment_ids=eq_ids,
@@ -405,7 +484,13 @@ async def bulk_ppm_schedules(data: dict = Body(...), user: dict = Depends(get_cu
                 assigned_engineer_id=eng_id, assigned_engineer_name=eng_name,
                 machine_count=len(eq_ids))
             created += 1
-    return {"success": True, "schedules_created": created, "sites": len(site_ids)}
+            if eng_id and await _spawn_ppm_engineer_job(
+                    operator=operator, user=user, sched_doc=sched_doc,
+                    service_type=service_type, due_date=visit,
+                    engineer_id=eng_id, engineer_name=eng_name, checklist_items=checklist):
+                jobs += 1
+    return {"success": True, "schedules_created": created,
+            "sites": len(site_ids), "jobs_created": jobs}
 
 
 @router.post("/plan/group")
@@ -880,6 +965,13 @@ async def schedule_ppm(data: dict = Body(...), user: dict = Depends(get_current_
         ):
             engineers.append({"id": e["id"], "name": e.get("full_name") or ""})
     eng_names = ", ".join(e["name"] for e in engineers if e["name"])
+
+    # Fail loudly rather than silently creating an UNASSIGNED job: if the
+    # caller picked engineer(s) but none resolve on the operator roster, the
+    # allocation would otherwise look successful while never reaching anyone.
+    if engineer_ids and not engineers:
+        raise HTTPException(
+            422, "Selected engineer(s) are not on this operator's roster — job not allocated.")
 
     # Create the engineer job (operator-scoped svc_case).
     from routes.svc.intake import _create_case

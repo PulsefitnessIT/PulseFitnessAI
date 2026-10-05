@@ -1,3 +1,23 @@
+# 2026-10-05 — Fix: Bulk PPM allocation never reached engineers (production incident)
+
+**Symptom:** Engineer William Ollis (william.ollis@pulsefitness.com) saw an empty job list in the Engineer App despite PPM jobs appearing on the Service Desk calendar (Devon & Somerset Fire & Rescue, imported via the Bulk schedule wizard).
+
+**Root cause:** `POST /svc/ppm/schedules/bulk` (ppm_calendar.py) only created `ppm_schedules` (calendar entries) with `assigned_engineer_id` stored *on the schedule*. It never created an `svc_case`. The Engineer App reads `db.svc_cases` (filter `assigned_engineer_id == user.id`), so bulk-allocated visits never produced an engineer job. Only the single "Schedule & assign" modal (`/svc/ppm/schedule`) spawned a case. Confirmed: production had PPM schedules on the calendar but zero assigned svc_cases.
+
+**Fix (backend/routes/svc/ppm_calendar.py):**
+- Added `_spawn_ppm_engineer_job()` helper — creates an `svc_case` (case_type=ppm, status=coerce_status(ASSIGNED)), sets `assigned_engineer_id/ids/name/names`, `scheduled_at`, `pm_schedule_id`, and fires in-app + Web Push notification. Mirrors the single-allocation flow.
+- Wired it into BOTH bulk modes (wizard `assignments` + legacy `site_ids` stagger): when an assignment carries an `engineer_id`, a job is now spawned and the engineer is notified. Response now includes `jobs_created`.
+- Hardened the single flow `/svc/ppm/schedule`: if engineer(s) were picked but none resolve on the operator roster, it now raises HTTP 422 instead of silently creating an unassigned job with a false success toast.
+
+**Verified:** In preview, calling `bulk_ppm_schedules` with an engineer created an `svc_case` (status `assigned`, correct engineer id), and the exact engineer-job-list query returned it (9→10). Test artifacts cleaned up.
+
+**IMPORTANT follow-ups:**
+- Needs a production redeploy for the fix to take effect.
+- Devon & Somerset schedules already imported in production (pre-fix) will NOT retroactively get jobs — either re-run the bulk schedule after deploy, or add a one-time backfill endpoint that spawns jobs for existing `ppm_schedules` with `assigned_engineer_id` set but no linked svc_case.
+
+---
+
+
 # CHANGELOG
 
 ## 2026-06 — Per-site PPM backfill (batched + backgrounded)
