@@ -88,6 +88,19 @@ export default function PPMCalendar() {
     finally { setBackfilling(false); }
   };
 
+  const [backfillingJobs, setBackfillingJobs] = useState(false);
+  const backfillJobs = async () => {
+    setBackfillingJobs(true);
+    try {
+      const r = await api.post('/svc/ppm/backfill-jobs', {});
+      const n = r.data?.jobs_created || 0;
+      if (n > 0) notify.success(`Created ${n} engineer job(s) from allocated visits — engineers notified`);
+      else notify.success('All allocated visits already have engineer jobs');
+      await load();
+    } catch { notify.error('Could not create engineer jobs'); }
+    finally { setBackfillingJobs(false); }
+  };
+
   // ── Search booked visits (all months) ──
   useEffect(() => {
     const term = query.trim();
@@ -189,6 +202,11 @@ export default function PPMCalendar() {
           <Button variant="outline" size="sm" onClick={backfill} disabled={backfilling} data-testid="ppm-backfill-btn">
             {backfilling ? <Loader2 size={13} className="animate-spin mr-1.5" /> : <RefreshCw size={13} className="mr-1.5" />}
             Plan from installs
+          </Button>
+          <Button variant="outline" size="sm" onClick={backfillJobs} disabled={backfillingJobs} data-testid="ppm-backfill-jobs-btn"
+            title="Create engineer jobs for allocated visits that haven't been sent to engineers yet">
+            {backfillingJobs ? <Loader2 size={13} className="animate-spin mr-1.5" /> : <Users size={13} className="mr-1.5" />}
+            Send to engineers
           </Button>
           <Button variant={manageMode ? 'default' : 'outline'} size="sm" onClick={() => (manageMode ? exitManage() : setManageMode(true))} data-testid="ppm-manage-btn"
             className={manageMode ? 'bg-rose-600 text-white hover:bg-rose-700' : ''}>

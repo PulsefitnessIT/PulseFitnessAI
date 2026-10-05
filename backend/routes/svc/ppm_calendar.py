@@ -829,6 +829,47 @@ async def backfill_ppm(user: dict = Depends(get_current_user)) -> dict:
     return {"success": True, "schedules_created": created, "equipment_scanned": scanned}
 
 
+@router.post("/backfill-jobs")
+async def backfill_ppm_jobs(data: dict = Body(default={}), user: dict = Depends(get_current_user)) -> dict:
+    """One-tap backfill: for PPM schedules that already have an engineer
+    allocated but never spawned an engineer job (e.g. visits created by the
+    bulk wizard before the job-spawn fix), create the missing ``svc_cases`` and
+    notify the engineer. Idempotent — schedules that already have a linked job
+    are skipped. Optional ``customer_org_id`` narrows the scope to one customer."""
+    operator = _operator(user)
+    org_ids = await _customer_org_ids(operator)
+    only_customer = (data.get("customer_org_id") or "").strip()
+    q = {
+        "organization_id": {"$in": [only_customer] if only_customer else org_ids},
+        "source": "service_desk", "active": True,
+        "assigned_engineer_id": {"$nin": [None, ""]},
+    }
+    scanned = created = skipped = 0
+    cursor = db.ppm_schedules.find(q, {"_id": 0})
+    async for sched in cursor:
+        scanned += 1
+        existing = await db.svc_cases.find_one(
+            {"organization_id": operator, "pm_schedule_id": sched["id"]}, {"_id": 1})
+        if existing:
+            skipped += 1
+            continue
+        try:
+            job = await _spawn_ppm_engineer_job(
+                operator=operator, user=user, sched_doc=sched,
+                service_type=sched.get("service_type") or "Preventative Maintenance Service",
+                due_date=sched.get("next_pm"),
+                engineer_id=sched.get("assigned_engineer_id"),
+                engineer_name=sched.get("assigned_engineer_name"),
+                checklist_items=sched.get("checklist_items"))
+            if job:
+                created += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("PPM job backfill failed for schedule %s: %s", sched.get("id"), exc)
+    return {"success": True, "jobs_created": created,
+            "schedules_scanned": scanned, "already_had_jobs": skipped}
+
+
+
 # ── Unified calendar ─────────────────────────────────────────────
 
 def _status_for(next_pm: date | None, scheduled: bool, today: date) -> str:
