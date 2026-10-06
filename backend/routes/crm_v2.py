@@ -267,6 +267,14 @@ async def _sync_mod_site_companies(user: dict) -> None:
         })
     if to_insert:
         await db.crm2_companies.insert_many(to_insert)
+    # Wire the Equipment & Assets tab: point the mirror at its estate org so
+    # sites-and-equipment returns the MOD site's real assets. Backfill any
+    # earlier mirrors created before this link existed.
+    await db.crm2_companies.update_many(
+        {**of, "type": "mod_site",
+         "$or": [{"linked_organization_id": {"$exists": False}},
+                 {"linked_organization_id": ""}, {"linked_organization_id": None}]},
+        [{"$set": {"linked_organization_id": "$mod_org_id"}}])
 
 
 @router.get("/companies")
@@ -642,7 +650,8 @@ async def company_service_activity(company_id: str, user=Depends(get_crm_user)):
     if not org:
         raise HTTPException(403, "Organization context required")
     company = await db.crm2_companies.find_one(
-        {"id": company_id, "organization_id": org}, {"_id": 0, "id": 1, "name": 1})
+        {"id": company_id, "organization_id": org},
+        {"_id": 0, "id": 1, "name": 1, "mod_org_id": 1, "type": 1})
     if not company:
         raise HTTPException(404, "Company not found")
 
@@ -652,6 +661,19 @@ async def company_service_activity(company_id: str, user=Depends(get_crm_user)):
     if name:
         or_clause.append({"customer_name": safe_regex_exact(name)})
 
+    # MOD sites keep their service data under their own estate org (mod_org_id),
+    # not the CRM operator org — read directly from that org so engineers' jobs
+    # and PPM show on the mirrored company page.
+    mod_org = company.get("mod_org_id") or ""
+    svc_org = mod_org or org
+    if mod_org:
+        case_query = {"organization_id": mod_org}
+        ppm_query = {"organization_id": mod_org, "active": True}
+    else:
+        case_query = {"organization_id": org, "$or": or_clause}
+        ppm_query = {"organization_id": org, "active": True,
+                     "$or": [{"company_id": company_id}] + ([{"customer_name": safe_regex_exact(name)}] if name else [])}
+
     fields = {
         "_id": 0, "id": 1, "reference": 1, "title": 1, "status": 1, "priority": 1,
         "case_type": 1, "site_name": 1, "site_postcode": 1, "scheduled_at": 1,
@@ -659,7 +681,7 @@ async def company_service_activity(company_id: str, user=Depends(get_crm_user)):
         "created_at": 1, "updated_at": 1, "closed_at": 1,
     }
     cases = await db.svc_cases.find(
-        {"organization_id": org, "$or": or_clause}, fields
+        case_query, fields
     ).sort("updated_at", -1).to_list(200)
 
     open_cases = [c for c in cases if c.get("status") in OPEN_STATES]
@@ -670,7 +692,7 @@ async def company_service_activity(company_id: str, user=Depends(get_crm_user)):
     engineers = []
     for eid in eng_ids:
         eng = await db.svc_engineers.find_one(
-            {"organization_id": org, "id": eid},
+            {"organization_id": svc_org, "id": eid},
             {"_id": 0, "full_name": 1, "name": 1, "phone": 1, "status": 1, "on_site": 1, "en_route": 1})
         loc = await db.svc_engineer_locations.find_one(
             {"engineer_id": eid}, {"_id": 0, "lat": 1, "lng": 1, "recorded_at": 1, "case_id": 1})
@@ -703,12 +725,12 @@ async def company_service_activity(company_id: str, user=Depends(get_crm_user)):
     if name:
         ppm_or.append({"customer_name": safe_regex_exact(name)})
     next_ppm = await db.svc_ppm_schedules.find_one(
-        {"organization_id": org, "active": True, "$or": ppm_or},
+        ppm_query,
         {"_id": 0, "next_due_date": 1, "visits_per_year": 1, "tier": 1, "interval_days": 1},
         sort=[("next_due_date", 1)])
 
     last = closed_cases[0] if closed_cases else None
-    linked = any(c.get("company_id") == company_id for c in cases) or bool(
+    linked = bool(mod_org) or any(c.get("company_id") == company_id for c in cases) or bool(
         await db.svc_engineer_customers.find_one(
             {"organization_id": org, "company_id": company_id}, {"_id": 1}))
 
