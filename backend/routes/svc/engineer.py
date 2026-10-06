@@ -1310,15 +1310,29 @@ async def _calibration_cert_response(case_id: str, of: dict):
 # Canonical treadmill calibration parameters — MUST match the Pulse Fitness
 # "Certificate of Service" (speed 3/6/9/12 mph, incline 0/5/10/15 %).
 TREADMILL_CALIBRATION_READINGS = [
-    {"label": "Speed — 3 mph", "target": "3", "unit": "mph", "tolerance": ""},
-    {"label": "Speed — 6 mph", "target": "6", "unit": "mph", "tolerance": ""},
-    {"label": "Speed — 9 mph", "target": "9", "unit": "mph", "tolerance": ""},
-    {"label": "Speed — 12 mph", "target": "12", "unit": "mph", "tolerance": ""},
-    {"label": "Incline — 0%", "target": "0", "unit": "%", "tolerance": ""},
-    {"label": "Incline — 5%", "target": "5", "unit": "%", "tolerance": ""},
-    {"label": "Incline — 10%", "target": "10", "unit": "%", "tolerance": ""},
-    {"label": "Incline — 15%", "target": "15", "unit": "%", "tolerance": ""},
+    {"label": "Speed — 3 mph", "target": "3", "unit": "mph", "tolerance": "", "type": "speed"},
+    {"label": "Speed — 6 mph", "target": "6", "unit": "mph", "tolerance": "", "type": "speed"},
+    {"label": "Speed — 9 mph", "target": "9", "unit": "mph", "tolerance": "", "type": "speed"},
+    {"label": "Speed — 12 mph", "target": "12", "unit": "mph", "tolerance": "", "type": "speed"},
+    {"label": "Incline — 0%", "target": "0", "unit": "%", "tolerance": "", "type": "incline"},
+    {"label": "Incline — 5%", "target": "5", "unit": "%", "tolerance": "", "type": "incline"},
+    {"label": "Incline — 10%", "target": "10", "unit": "%", "tolerance": "", "type": "incline"},
+    {"label": "Incline — 15%", "target": "15", "unit": "%", "tolerance": "", "type": "incline"},
 ]
+
+
+def _reading_axis(r: dict) -> str:
+    """Classify a calibration reading as 'speed' or 'incline'. Uses the explicit
+    `type` when present, else falls back to the label/unit (keeps older stored
+    records working)."""
+    t = str(r.get("type") or "").strip().lower()
+    if t in ("speed", "incline"):
+        return t
+    label = str(r.get("label") or "").lower()
+    unit = str(r.get("unit") or "").lower()
+    if "incline" in label or unit == "%":
+        return "incline"
+    return "speed"
 
 
 def _default_calibration_readings(service_type: str, asset_name: str) -> list:
@@ -1424,6 +1438,7 @@ async def save_job_calibration(
                 "measured": str(r.get("measured") or "").strip(),
                 "tolerance": str(r.get("tolerance") or "").strip(),
                 "unit": str(r.get("unit") or "").strip(),
+                "type": _reading_axis(r),
                 "result": (str(r.get("result") or "").strip().lower() or "na"),
             })
         return out

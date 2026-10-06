@@ -4,12 +4,90 @@
  * engineer's workings. Offers Allocate / Delete actions.
  */
 import { useEffect, useState } from 'react';
-import { Loader2, X, MapPin, Wrench, CheckCircle2, Trash2, CalendarClock, User } from 'lucide-react';
+import { Loader2, X, MapPin, Wrench, CheckCircle2, Trash2, CalendarClock, User, Printer } from 'lucide-react';
 import { api } from '@/lib/api';
 import { notify } from '@/components/notifications';
 import { Button } from '@/components/ui/button';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+
+// Classify a calibration reading as 'speed' or 'incline' (explicit type → label → unit).
+const axisOf = (r) => {
+  const t = String(r?.type || '').toLowerCase();
+  if (t === 'speed' || t === 'incline') return t;
+  const l = String(r?.label || '').toLowerCase();
+  const u = String(r?.unit || '').toLowerCase();
+  if (l.includes('incline') || u === '%') return 'incline';
+  return 'speed';
+};
+// Human-friendly set-point label (strip "Speed — "/"Incline — " prefix; fall back to target+unit).
+const humanizeReading = (r) => {
+  let lbl = String(r?.label || '').replace(/^(speed|incline)\s*[—–-]\s*/i, '').trim();
+  if (!lbl) lbl = r?.target ? `${r.target}${r.unit ? ` ${r.unit}` : ''}` : '';
+  return lbl || '—';
+};
+
+function buildReportHtml(data) {
+  const s = data?.schedule || {};
+  const machines = data?.machines || [];
+  const visits = data?.visits || [];
+  const esc = (x) => String(x ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const yn = (b) => (b ? '✓' : '—');
+  const calibHtml = (readings) => {
+    const sp = readings.filter((r) => axisOf(r) === 'speed');
+    const inc = readings.filter((r) => axisOf(r) === 'incline');
+    const sect = (title, rows) => (rows.length ? `<div class="cal"><div class="calh">${title}</div><table class="rt"><tr><th>Set point</th><th>Measured</th><th>Result</th></tr>${rows.map((r) => `<tr><td>${esc(humanizeReading(r))}</td><td>${esc(r.measured || '—')}</td><td class="${r.result === 'fail' ? 'fail' : 'pass'}">${esc((r.result || 'pass').toUpperCase())}</td></tr>`).join('')}</table></div>` : '');
+    return sect('Speed (mph)', sp) + sect('Incline (%)', inc);
+  };
+  const visitsHtml = visits.map((v) => {
+    const cm = v.calibration?.machines || [];
+    const flat = v.calibration?.readings || [];
+    const mw = (v.machine_work || []).map((m) => `<tr><td>${esc(m.asset_name)}</td><td>${esc(m.asset_type || '')}</td><td>${esc(m.asset_serial || '')}</td><td>${yn(m.serviced)}</td><td>${yn(m.cleaned)}</td><td>${esc(m.notes || '')}</td></tr>`).join('');
+    const calib = cm.length
+      ? cm.map((m) => `<div class="cm"><div class="cmh">${esc(m.equipment_name || 'Treadmill')}${m.serial ? ` · SN ${esc(m.serial)}` : ''} — <b>${esc((m.overall_result || 'pass').toUpperCase())}</b></div>${calibHtml(m.readings || [])}</div>`).join('')
+      : (flat.length ? calibHtml(flat) : '');
+    return `<div class="visit">
+      <h3>Visit — ${esc(fmtDate(v.scheduled_at || v.completed_at))} ${v.reference ? `(Job ${esc(v.reference)})` : ''}</h3>
+      <p class="meta">Engineer: ${esc(v.engineer || '—')} · Status: ${esc(v.status || '—')}${v.completed_at ? ` · Completed ${esc(fmtDate(v.completed_at))}` : ''}</p>
+      ${v.summary ? `<p class="summary">${esc(v.summary)}</p>` : ''}
+      ${mw ? `<h4>Machines worked</h4><table class="rt"><tr><th>Machine</th><th>Type</th><th>Serial</th><th>Serviced</th><th>Cleaned</th><th>Notes</th></tr>${mw}</table>` : ''}
+      ${calib ? `<h4>Treadmill calibration${v.calibration_result ? ` · ${esc(String(v.calibration_result).toUpperCase())}` : ''}</h4>${calib}` : ''}
+    </div>`;
+  }).join('');
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Service report — ${esc(s.site_name || '')}</title>
+  <style>
+    body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;margin:32px;font-size:12px}
+    h1{font-size:20px;margin:0 0 2px} h2{font-size:13px;margin:16px 0 6px;color:#555;text-transform:uppercase;letter-spacing:.04em}
+    h3{font-size:14px;margin:14px 0 2px} h4{font-size:12px;margin:10px 0 4px;color:#444}
+    .sub{color:#666;margin:0 0 12px} .meta{color:#666;margin:2px 0 6px} .summary{margin:4px 0;white-space:pre-wrap}
+    table.rt{border-collapse:collapse;width:100%;margin:4px 0 8px} .rt th,.rt td{border:1px solid #ddd;padding:4px 7px;text-align:left;font-size:11px}
+    .rt th{background:#f5f5f5;font-weight:700} .fail{color:#b00020;font-weight:700} .pass{color:#0a7d33}
+    .visit{border-top:2px solid #eee;padding-top:8px;margin-top:10px} .cal{margin:4px 0} .calh{font-weight:700;font-size:11px;color:#333;margin:4px 0 2px}
+    .cm{border:1px solid #eee;border-radius:6px;padding:6px 8px;margin:6px 0} .cmh{font-weight:700;font-size:11px;margin-bottom:3px}
+    .foot{margin-top:24px;color:#999;font-size:10px;border-top:1px solid #eee;padding-top:8px}
+    @media print{body{margin:14mm}}
+  </style></head><body>
+  <h1>Service Report</h1>
+  <p class="sub">${esc(s.site_name || '')}${s.customer_name ? ` · ${esc(s.customer_name)}` : ''}${s.service_type ? ` · ${esc(s.service_type)}` : ''}</p>
+  <p class="meta">Scheduled: ${esc(fmtDate(s.date))}${s.engineer ? ` · Engineer: ${esc(s.engineer)}` : ''}${s.site_address ? ` · ${esc(s.site_address)}` : ''}</p>
+  <h2>Machines on site (${machines.length})</h2>
+  <table class="rt"><tr><th>Machine</th><th>Type</th><th>Serial</th></tr>${machines.map((m) => `<tr><td>${esc(m.name)}</td><td>${esc(m.equipment_type || '')}</td><td>${esc(m.serial_number || '')}</td></tr>`).join('') || '<tr><td colspan="3">None</td></tr>'}</table>
+  <h2>Engineer's workings${visits.length > 1 ? ` (${visits.length} visits)` : ''}</h2>
+  ${visitsHtml || '<p>No completed visits yet.</p>'}
+  <p class="foot">Generated by PulseFitness.ai · ${esc(new Date().toLocaleString('en-GB'))}</p>
+  </body></html>`;
+}
+
+function printReport(data) {
+  const win = window.open('', '_blank', 'width=900,height=1000');
+  if (!win) { notify.error('Please allow pop-ups to print the report'); return; }
+  win.document.open();
+  win.document.write(buildReportHtml(data));
+  win.document.close();
+  win.focus();
+  setTimeout(() => { try { win.print(); } catch { /* user can print manually */ } }, 350);
+}
+
 
 export default function PpmScheduleDetail({ scheduleId, onClose, onAllocate, onDeleted }) {
   const [data, setData] = useState(null);
@@ -94,12 +172,19 @@ export default function PpmScheduleDetail({ scheduleId, onClose, onAllocate, onD
               className="text-rose-600 border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/30">
               {deleting ? <Loader2 size={13} className="animate-spin mr-1.5" /> : <Trash2 size={13} className="mr-1.5" />} Delete visit
             </Button>
-            {!w?.completed && (
-              <Button size="sm" onClick={() => onAllocate?.(s)} data-testid="ppm-detail-allocate"
-                className="bg-[var(--color-brand-cyan)] text-[var(--color-ink)]">
-                Allocate engineer &amp; date
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {visits.length > 0 && (
+                <Button variant="outline" size="sm" onClick={() => printReport(data)} data-testid="ppm-detail-print">
+                  <Printer size={13} className="mr-1.5" /> Print report
+                </Button>
+              )}
+              {!w?.completed && (
+                <Button size="sm" onClick={() => onAllocate?.(s)} data-testid="ppm-detail-allocate"
+                  className="bg-[var(--color-brand-cyan)] text-[var(--color-ink)]">
+                  Allocate engineer &amp; date
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -184,29 +269,17 @@ function VisitsPanel({ visits }) {
               <div className="space-y-2">
                 {calibMachines.map((m, mi) => (
                   <div key={mi} className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-2" data-testid={`ppm-calib-machine-${mi}`}>
-                    <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center justify-between mb-1.5">
                       <span className="text-[11px] font-bold">{m.equipment_name || 'Treadmill'}{m.serial ? ` · SN ${m.serial}` : ''}</span>
                       <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${m.overall_result === 'fail' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>{String(m.overall_result || 'pass').toUpperCase()}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-                      {(m.readings || []).map((r, ri) => (
-                        <div key={ri} className="flex items-center justify-between text-[10px]">
-                          <span className="text-zinc-500 truncate">{r.label}</span>
-                          <span className={r.result === 'fail' ? 'text-rose-600 font-semibold' : 'text-zinc-700 dark:text-zinc-300'}>{r.measured || '—'}{r.result === 'fail' ? ' ✗' : ''}</span>
-                        </div>
-                      ))}
-                    </div>
+                    <CalibrationReadings readings={m.readings || []} testid={`ppm-calib-machine-${mi}`} />
                   </div>
                 ))}
               </div>
             ) : (v.calibration?.readings || []).length > 0 ? (
-              <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-2 grid grid-cols-2 gap-x-3 gap-y-0.5">
-                {v.calibration.readings.map((r, ri) => (
-                  <div key={ri} className="flex items-center justify-between text-[10px]">
-                    <span className="text-zinc-500 truncate">{r.label}</span>
-                    <span className={r.result === 'fail' ? 'text-rose-600 font-semibold' : 'text-zinc-700 dark:text-zinc-300'}>{r.measured || '—'}</span>
-                  </div>
-                ))}
+              <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-2">
+                <CalibrationReadings readings={v.calibration.readings} testid="ppm-calib-flat" />
               </div>
             ) : (
               <p className="text-[11px] text-zinc-500">Calibration captured.</p>
@@ -218,3 +291,28 @@ function VisitsPanel({ visits }) {
   );
 }
 
+
+function CalibrationReadings({ readings, testid }) {
+  const rows = readings || [];
+  const speed = rows.filter((r) => axisOf(r) === 'speed');
+  const incline = rows.filter((r) => axisOf(r) === 'incline');
+  const Section = ({ title, items, tid }) => (items.length ? (
+    <div className="mb-1.5" data-testid={tid}>
+      <p className="text-[9px] font-extrabold uppercase tracking-wide text-zinc-400 mb-0.5">{title}</p>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+        {items.map((r, i) => (
+          <div key={i} className="flex items-center justify-between text-[10px]">
+            <span className="text-zinc-500 truncate">{humanizeReading(r)}</span>
+            <span className={r.result === 'fail' ? 'text-rose-600 font-semibold' : 'text-zinc-700 dark:text-zinc-300'}>{r.measured || '—'}{r.result === 'fail' ? ' ✗' : ''}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null);
+  return (
+    <div>
+      <Section title="Speed (mph)" items={speed} tid={`${testid}-speed`} />
+      <Section title="Incline (%)" items={incline} tid={`${testid}-incline`} />
+    </div>
+  );
+}
