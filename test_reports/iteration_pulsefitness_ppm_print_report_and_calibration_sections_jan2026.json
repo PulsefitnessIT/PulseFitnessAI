@@ -1,0 +1,23 @@
+{
+  "summary": "Verified both UI changes to PpmScheduleDetail modal for seeded QA Fire Station PPM visit (20 Nov 2026, schedule_id 6f925557-d6b1-47cd-afc1-6705c80725ac, case 0bf5a90a-e9c4-454a-a1b1-912b5cebee4d). (1) Treadmill calibration block now renders TWO clearly labelled sections — 'SPEED (MPH)' and 'INCLINE (%)' — each with 4 readings; the Incline 15% / 14.6 reading is correctly flagged FAIL and rendered in text-rose-600 red with a ✗ marker. (2) The 'Print report' button (data-testid=ppm-detail-print) is visible in the modal footer, is clickable, and opens a new browser window containing a formatted 'Service Report' with site name 'QA Fire Station', machines-on-site info, engineer's workings, Technogym Run equipment, and a treadmill calibration section containing both 'Speed (mph)' and 'Incline (%)' rows (including the 14.6 fail value). API /api/svc/ppm/schedules/{id} returns calibration.machines[].readings with type speed|incline and per-reading result pass|fail (overall_result=fail), confirming backend contract. All behaviours match the review request.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PpmScheduleDetail.js is now ~319 lines, still OK but close to becoming unwieldy with print HTML, CalibrationReadings, VisitsPanel all co-located; could be split into VisitsPanel.jsx + CalibrationReadings.jsx + reportBuilder.js if more features are added.",
+    "printReport() opens window.open() with no user feedback if popup is blocked — consider showing a toast when win is null."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None (used existing seeded QA Fire Station PPM visit / SVC-00026 / case 0bf5a90a-e9c4-454a-a1b1-912b5cebee4d).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login hits 429 rate limit easily when probing repeatedly from the automation runner — wait ~90s between re-login attempts. Modal is opened via Service Desk → Maintenance tab → next-month to Nov 2026 → click [data-testid=ppm-day-2026-11-20] button. Modal exposes data-testids ppm-detail, ppm-visit-calibration, ppm-calib-machine-0-speed, ppm-calib-machine-0-incline, ppm-detail-print. Print popup URL is about:blank with injected HTML (window.open + document.write + window.print).",
+  "rca of the issue": "N/A — both features render and function as specified."
+}

@@ -1,3 +1,20 @@
+# 2026-10-05 — PPM visit: Print report + Speed/Incline calibration labelling
+
+**1. Print report (Service Desk PPM visit card):** Added a "Print report" button (data-testid=ppm-detail-print) in the PpmScheduleDetail modal footer. `buildReportHtml`/`printReport` open a formatted, print-ready "Service Report" covering the site, machines-on-site, every visit's engineer workings (machines serviced/cleaned + notes) and treadmill calibration tables grouped into Speed (mph) / Incline (%).
+
+**2. Calibration Speed + Incline labelling:** The office calibration view previously rendered one flat, unlabelled grid. Root cause (confirmed via production read of SVC-00013): data pipeline already captures/stores/returns both axes, but there was no `type` tag and no section headers. Fix:
+- Backend (engineer.py): tagged `TREADMILL_CALIBRATION_READINGS` with `type: speed|incline`; added `_reading_axis()` (type → label → unit fallback) and stamped `type` into `_norm_readings` so new + legacy readings classify correctly.
+- Frontend (PpmScheduleDetail.js): new `CalibrationReadings` component splits readings into labelled "Speed (mph)" and "Incline (%)" sections (per-treadmill matrix and flat modes); fails render red with ✗. Same grouping used in the printed report.
+
+**Note on legacy data:** Production record SVC-00013 was captured under the OLDER template (5 speed points only, no incline) — incline literally was never recorded there, so it can only show Speed until re-captured. The current template captures 4 speed + 4 incline; after redeploy all NEW calibrations show both axes.
+
+**Tested:** testing_agent frontend — 100%, no issues. Confirmed SPEED (MPH) + INCLINE (%) labelled sections (4 each), fail in red, and the Print report window renders both axes. Backend schedule_detail returns type-tagged readings.
+
+**Needs:** production redeploy.
+
+---
+
+
 # 2026-10-05 — Feature: Engineer equipment change-requests (office approval) + richer office Case View
 
 **Part A — Engineer proposes equipment add/remove; office approves (nothing applied until approved):**
