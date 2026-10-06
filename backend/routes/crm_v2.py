@@ -228,6 +228,47 @@ async def delete_activity(activity_id: str, user=Depends(get_crm_user)):
 # COMPANIES — The master commercial record
 # ═══════════════════════════════════════════
 
+async def _sync_mod_site_companies(user: dict) -> None:
+    """Mirror MOD-site estate orgs (db.organizations account_type='mod_site')
+    into crm2_companies as type='mod_site' for the viewing operator, so they
+    appear in the company list and open the standard company detail page.
+    Idempotent — only inserts sites not yet mirrored."""
+    of = _of(user)
+    orgs = await db.organizations.find(
+        {"account_type": "mod_site"},
+        {"_id": 0, "id": 1, "name": 1, "mod_branch": 1, "address": 1,
+         "address_line1": 1, "city": 1, "county": 1, "postcode": 1,
+         "country": 1, "phone": 1, "email": 1},
+    ).to_list(5000)
+    if not orgs:
+        return
+    existing = await db.crm2_companies.find(
+        {**of, "type": "mod_site"}, {"_id": 0, "mod_org_id": 1}).to_list(5000)
+    have = {e.get("mod_org_id") for e in existing}
+    now = datetime.now(timezone.utc).isoformat()
+    to_insert = []
+    for o in orgs:
+        if o["id"] in have:
+            continue
+        to_insert.append({
+            "id": f"modco-{o['id']}", **of,
+            "name": o.get("name") or "MOD Site",
+            "type": "mod_site", "source": "mod_site", "mod_org_id": o["id"],
+            "mod_branch": (o.get("mod_branch") or "").upper(),
+            "sector": "MOD / Defence",
+            "address": o.get("address") or "",
+            "address_line1": o.get("address_line1") or "",
+            "city": o.get("city") or "", "county": o.get("county") or "",
+            "postcode": o.get("postcode") or "",
+            "country": o.get("country") or "United Kingdom",
+            "phone": o.get("phone") or "", "email": o.get("email") or "",
+            "owner_id": user.get("id"), "owner_name": user.get("full_name") or "",
+            "created_at": now, "updated_at": now,
+        })
+    if to_insert:
+        await db.crm2_companies.insert_many(to_insert)
+
+
 @router.get("/companies")
 async def list_companies(
     search: str = "", sector: str = "", status: str = "", type: str = "",
@@ -250,6 +291,15 @@ async def list_companies(
     type_value = type or status
     if type_value:
         q["type"] = type_value
+        # MOD sites live as separate estate orgs — mirror them into the CRM
+        # company list (type='mod_site') so they appear and open exactly like
+        # commercial companies for the viewing operator. Idempotent sync-on-read.
+        if type_value == "mod_site":
+            await _sync_mod_site_companies(user)
+    else:
+        # 'All' and commercial filters must NOT include MOD sites — they only
+        # show under the dedicated MOD Sites chip.
+        q["type"] = {"$ne": "mod_site"}
     if territory_id:
         q["territory_id"] = territory_id
     if scope == "mine":

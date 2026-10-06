@@ -1,3 +1,22 @@
+# 2026-10-06 — MOD Sites: CRM parity with commercial companies + MOD Operations site flow
+
+**Root cause:** MOD sites were stored only as separate estate orgs (`db.organizations`, `account_type='mod_site'`), disconnected from `crm2_companies` (CRM list) and from the BFPO portal (which read `db.sites` under hardcoded `bfpo-mod-org`). So the CRM "MOD Sites" button opened a management popup instead of listing companies, and the MOD Operations "Global Site View" was empty.
+
+**Issue 1 — CRM (make MOD sites behave like commercial companies):**
+- Backend `crm_v2.py`: added `_sync_mod_site_companies()` — idempotent sync-on-read that mirrors every `mod_site` estate org into `crm2_companies` (type='mod_site', source='mod_site', mod_org_id link, branch, address) scoped to the viewing operator. Wired into `GET /crm/v2/companies` when `type=mod_site`. MOD sites are EXCLUDED from "All"/commercial filters (`type != mod_site`) so the two lists stay separate.
+- Because mirrors are real `crm2_companies` docs, clicking a MOD site opens the standard company detail page (Overview/Contacts/Deals/Equipment/etc.) identically to Penkridge.
+- Frontend `CRMCompanies.js`: "MOD Sites" is now a FILTER CHIP (sets typeFilter='mod_site') instead of opening the Import more/Remove popup. Those tools no longer appear on the CRM companies screen (they remain in Master Admin → MOD Estate). Added MOD branch badge on the cards.
+
+**Issue 2 — MOD Operations "Global Site View" empty:**
+- Backend `bfpo.py` `_compute_site_health()`: now also includes `mod_site` estate orgs (open-case counts per org), surfaced grouped by country → service branch (ARMY/RAF/NAVY as the territory). `/staff/sites` tree now populates.
+
+**Tested:** Direct function tests (mirror 15+ sites, idempotent; BFPO health lists MOD sites by country/branch) + live API: `type=mod_site` returns 15 companies, `All` returns 6 with 0 MOD leakage. Backend + frontend compile clean.
+
+**Needs:** production redeploy.
+
+---
+
+
 # 2026-10-05 — PPM visit: Print report + Speed/Incline calibration labelling
 
 **1. Print report (Service Desk PPM visit card):** Added a "Print report" button (data-testid=ppm-detail-print) in the PpmScheduleDetail modal footer. `buildReportHtml`/`printReport` open a formatted, print-ready "Service Report" covering the site, machines-on-site, every visit's engineer workings (machines serviced/cleaned + notes) and treadmill calibration tables grouped into Speed (mph) / Incline (%).

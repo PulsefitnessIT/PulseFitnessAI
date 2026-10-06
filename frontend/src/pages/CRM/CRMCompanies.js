@@ -23,7 +23,7 @@ import {
 } from '@/utils/crmDropdowns';
 
 const TYPES = ['all', 'prospect', 'customer', 'partner', 'former'];
-const TYPE_COLORS = { prospect: 'var(--color-warning)', customer: 'var(--color-success-alt)', partner: 'var(--color-info-ios)', former: 'var(--color-text-faint-alt)' };
+const TYPE_COLORS = { prospect: 'var(--color-warning)', customer: 'var(--color-success-alt)', partner: 'var(--color-info-ios)', former: 'var(--color-text-faint-alt)', mod_site: 'var(--color-info-ios)' };
 
 /* ═══ COMPANY LIST ═══ */
 function CompanyList({ onSelect, c, isDark, API, headers }) {
@@ -266,8 +266,10 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
               {t === 'all' ? 'All' : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
-          <button onClick={openModSites} className="ml-1 px-3 py-1.5 text-xs font-semibold rounded-md inline-flex items-center gap-1.5 border"
-            style={{ borderColor: c.border, color: c.text }} data-testid="crm-mod-sites-btn">
+          <button onClick={() => setTypeFilter('mod_site')}
+            className={`ml-1 px-3 py-1.5 text-xs font-semibold rounded-md inline-flex items-center gap-1.5 border ${typeFilter === 'mod_site' ? 'bg-[var(--color-info-ios)] text-white' : ''}`}
+            style={typeFilter !== 'mod_site' ? { borderColor: c.border, color: c.text } : { borderColor: 'var(--color-info-ios)' }}
+            data-testid="crm-mod-sites-btn">
             <ShieldCheck size={13} /> MOD Sites
           </button>
         </div>
@@ -282,7 +284,7 @@ function CompanyList({ onSelect, c, isDark, API, headers }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{co.name}</p>
-              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: `${TYPE_COLORS[co.type] || 'var(--color-text-faint-alt)'}20`, color: TYPE_COLORS[co.type] || 'var(--color-text-faint-alt)' }}>{co.type}</span>
+              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: `${TYPE_COLORS[co.type] || 'var(--color-text-faint-alt)'}20`, color: TYPE_COLORS[co.type] || 'var(--color-text-faint-alt)' }}>{co.type === 'mod_site' ? (co.mod_branch || 'MOD') : co.type}</span>
               {/* Iter 216h276 — visual badge so master admins can tell
                   Pulse-tenant mirrors apart from CRM-native rows. */}
               {co.source === 'tenant_mirror' && (

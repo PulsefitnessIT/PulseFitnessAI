@@ -671,6 +671,22 @@ async def _compute_site_health() -> list:
                     "country": s.get("country"), "territory_id": s.get("territory_id"),
                     "territory_name": s.get("territory_name"),
                     "open_jobs": len(open_cases), "health": _site_health(stats)})
+
+    # Imported MOD estate sites live as their own tenant orgs
+    # (db.organizations, account_type='mod_site'), not in db.sites — surface
+    # them here grouped by country then service branch (ARMY / RAF / NAVY).
+    mod_orgs = await db.organizations.find(
+        {"account_type": "mod_site"},
+        {"_id": 0, "id": 1, "name": 1, "country": 1, "mod_branch": 1},
+    ).to_list(5000)
+    for o in mod_orgs:
+        oc = await db.svc_cases.count_documents(
+            {"organization_id": o["id"], "status": {"$in": list(OPEN_STATES)}})
+        branch = (o.get("mod_branch") or "").upper() or "MOD"
+        out.append({"site_id": o["id"], "site_name": o.get("name") or "MOD Site",
+                    "country": o.get("country") or "United Kingdom",
+                    "territory_id": None, "territory_name": branch,
+                    "open_jobs": oc, "health": "attention" if oc else "normal"})
     return out
 
 
