@@ -63,6 +63,7 @@ from routes.staffing import (
     _require_manager,
     _resolve_staff_login_flags,
     grant_viewer_can_see,
+    GRANT_VIEWER_HIDDEN as _GRANT_VIEWER_HIDDEN,
 )
 
 logger = logging.getLogger(__name__)
@@ -79,14 +80,6 @@ PROFILE_FIELDS = {
     "right_to_work_status", "notes",
     "dbs_number", "dbs_expiry_date",
 }
-
-
-# Personal / financial fields hidden from cross-department grant viewers.
-_GRANT_VIEWER_HIDDEN = (
-    "address_line1", "address_line2", "city", "postcode", "date_of_birth", "ni_number",
-    "bank_name", "bank_sort_code", "bank_account", "bank_account_last4", "hourly_cost",
-    "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relationship",
-)
 
 
 class ProfileUpdate(BaseModel):

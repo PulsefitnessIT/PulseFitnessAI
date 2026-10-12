@@ -449,10 +449,7 @@ async def list_staff(include_inactive: bool = Query(False), user: dict = Depends
             q.update(scope)
     proj = {"_id": 0}
     if grant_viewer:
-        proj.update({k: 0 for k in (
-            "address_line1", "address_line2", "city", "postcode", "date_of_birth", "ni_number",
-            "bank_name", "bank_sort_code", "bank_account", "bank_account_last4", "hourly_cost",
-            "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relationship")})
+        proj.update({k: 0 for k in GRANT_VIEWER_HIDDEN})
     rows = await db.staff_members.find(q, proj).sort("full_name", 1).to_list(1000)
     if manager:
         # Backfill non-loginable shells for any staff (with an email) that has
@@ -468,6 +465,15 @@ async def list_staff(include_inactive: bool = Query(False), user: dict = Depends
 # Job roles that get a company-wide view of the staff register regardless of
 # their own department/site (in addition to platform owners / master admins).
 _SEE_ALL_STAFF_JOB_ROLES = {"hr", "payroll", "director", "owner"}
+
+
+# Personal / financial fields hidden from non-manager cross-department grant viewers.
+GRANT_VIEWER_HIDDEN = (
+    "address", "address_line1", "address_line2", "city", "postcode", "country",
+    "date_of_birth", "ni_number", "phone", "mobile", "personal_email",
+    "bank_name", "bank_sort_code", "bank_account", "bank_account_last4", "hourly_cost",
+    "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relationship",
+)
 
 
 async def _my_staff_doc(user: dict, org_id: str) -> dict | None:

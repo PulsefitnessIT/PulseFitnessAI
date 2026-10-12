@@ -18,8 +18,8 @@ export function DeptVisibilityPanel({ staffId, headers, departments = [], ownDep
   useEffect(() => {
     setAll(!!grant?.all);
     setPicked(grant?.departments || []);
-    setSaved(false);
-  }, [staffId, grant]);
+  }, [grant]);
+  useEffect(() => { setSaved(false); }, [staffId]);
 
   const toggle = (d) => setPicked((p) => (p.includes(d) ? p.filter((x) => x !== d) : [...p, d]));
 

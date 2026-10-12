@@ -39094,3 +39094,10 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - FEATURE 2 — Engineer notifications on allocation: ppm_calendar.schedule_ppm now calls create_notification per allocated engineer → in-app (svc_notifications) + Web Push. Closes the "job never reached the engineer" gap.
 - FEATURE 3 — Two-stage receipt: svc_cases gains received_at/received_by (auto-set when engineer first opens GET /svc/engineer/jobs/{id}) + acknowledged_at/acknowledged_by (new POST /svc/engineer/jobs/{id}/acknowledge). Engineer app shows Acknowledge button → Acknowledged chip (EngineerJobDetailV2.js). Service Desk PPM schedule detail shows Allocated→Received→Acknowledged badge (PpmScheduleDetail.js; schedule_detail workings exposes the fields).
 - Verified: testing_agent 10/10 backend pass + frontend button rendered. Regression files: tests/test_svc_ppm_engineer_notifications_jan2026.py, tests/test_svc_ppm_engineer_allocation.py.
+
+## 2026-06 — Dept Permissions (cross-department visibility grants) — DONE
+- `staff_members.dept_visibility = {all, departments[], updated_by, updated_at}`; set via `PUT /api/staffing/staff/{id}/dept-visibility` (Owners / Master Admins / HR job role only). `GET /api/staffing/my-visibility` exposes sees_all / grant / can_grant.
+- `_staff_visibility_scope` now unions own dept + granted depts (or lifts dept limit for `all`); own-site limits ALWAYS still apply. Non-manager grant holders get a read-only scoped HR list + profile (personal/financial fields stripped — `GRANT_VIEWER_HIDDEN`).
+- UI: "Department visibility" panel in HR → Profile (DeptVisibilityPanel.js), amber grant badge in HR staff list, HR tab shown read-only (Profile only) for grant-holding staff.
+- Tested: testing agent iteration_dept_permissions_jan2026 (address leak + Saved indicator fixed after), backend/tests/test_dept_visibility_jan2026.py 13/13.
+- Backlog unchanged: Sicon Appointments → Diary (P0), mod_bulk_import test fix (P1), Desk Alerts / Reassign Nudge / Ack badges (P1).

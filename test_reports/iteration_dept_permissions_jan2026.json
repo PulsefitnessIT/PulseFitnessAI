@@ -1,0 +1,36 @@
+{
+  "summary": "Dept Permissions (grant-based cross-dept visibility) end-to-end testing. 12/13 pytest cases pass. Owner / Manager / Lead frontend flows all verified (dept-visibility-panel visibility gating, grant badges on HR list, HR tab hidden for lead without grant). One real backend data-leak bug: scoped grant viewer sees peer's `address` field.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/staffing/staff (grant_viewer projection)", "issue": "The projection in list_staff (staffing.py ~L451-455) strips address_line1/line2/city/postcode/date_of_birth/ni_number/bank_* but NOT the generic `address` field. Rows like SPDEMO_emp_staff store the full street in a single `address` key, so lead@isodemo.com (grant viewer) can see 'Alex Rivera' address '99 New Street, Leeds, LS1 2AB'. Add `address` (and probably `date_of_birth` string + `phone`/`mobile` if also leaked) to the hidden-field list, aligned with staffing_hr._GRANT_VIEWER_HIDDEN. Reproduced in test_lead_with_all_depts_grant_sees_site_a_only."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DeptVisibilityPanel", "issue": "After clicking Save, the [data-testid=dept-visibility-save] action succeeds (grant persists → amber hr-staff-dept-grant-<id> badge appears on list row) but the [data-testid=dept-visibility-saved] confirmation element was not detectable (likely very short-lived toast or test id missing/wrong). Not blocking since the save truly succeeds, but the explicit 'Saved' acknowledgement data-testid in the spec should remain visible for a brief, scriptable period (e.g. 1.5–2s).", "selector": "[data-testid=dept-visibility-saved]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_dept_visibility_jan2026.py",
+    "/app/test_reports/pytest/dept_visibility.xml"
+  ],
+  "action_items": [
+    "BACKEND: Add 'address' (and audit for any other single-field analogues like 'phone','mobile','date_of_birth' as plain strings) to the grant_viewer projection in routes/staffing.py list_staff so scoped lead/supervisor viewers cannot see peer home address.",
+    "FRONTEND (optional): Confirm DeptVisibilityPanel renders [data-testid=dept-visibility-saved] for ~1.5–2s after Save so automated tests can latch onto it; grant badge already works."
+  ],
+  "critical_code_review_comments": [
+    "staffing.py list_staff projection and staffing_hr._GRANT_VIEWER_HIDDEN define sensitive fields in TWO places — they drift. Consider centralising to one constant used by both the list projection and the profile post-filter to avoid future leaks.",
+    "backend/routes/staffing.py is 3003 lines — exceeds the 700-line guideline. Candidate for a split (visibility helpers, list_staff, HR mutations)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "92% (12/13)", "frontend": "100% of in-scope UI assertions (one soft 'Saved' indicator timing nit)"},
+  "test_credentials": "owner@isodemo.com / manager@isodemo.com / lead@isodemo.com — password IsoDemo123! (from /app/memory/test_credentials.md 'Dept Permissions demo')",
+  "seed_data_creation": "None — reused existing deptdemo seed. All grants cleared at test teardown and manager row primary_role reverted to 'manager' (verified via owner API).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "pytest file at /app/backend/tests/test_dept_visibility_jan2026.py covers: /api/staffing/my-visibility shape, PUT /dept-visibility auth (plain-manager 403, unknown dept 400, empty body clears), manager scope (Service only → +Sales/Warehouse after grant, never Site B), lead no-grant self-only, lead with all_depts grant sees Site A incl. Ian IT A but not Sid Sales B, hr/profile Site A allowed / Site B 403, lead PATCH forbidden, HR job-role grants (set primary_role=hr → can_grant becomes true → PUT succeeds). Frontend verified via Playwright: owner sees DeptVisibilityPanel with all-toggle + per-department pills + Save; grant adds amber hr-staff-dept-grant-<id> badge on HR list row; plain manager does NOT see panel and his HR list is correctly scoped to 3 Service/Site-A staff; lead@isodemo.com without a grant has no People/HR tab at all. One real backend bug: grant_viewer projection misses generic 'address' field (data leak).",
+  "rca of the issue": "list_staff's MongoDB projection in /app/backend/routes/staffing.py (~line 451) enumerates address_line1/line2/city/postcode but not the single 'address' field. Some staff documents (particularly SPDEMO_* self-service portal rows) persist the full postal address as one 'address' string, so it survives the projection and is returned to a non-manager grant viewer. Fix: add 'address' (0) to the projection dict and ideally share the hidden-field list with staffing_hr._GRANT_VIEWER_HIDDEN. Low-risk one-line change."
+}
