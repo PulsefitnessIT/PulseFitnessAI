@@ -198,6 +198,74 @@ async def bfpo_me(user=Depends(_require_bfpo)):
     }
 
 
+_MOD_PRIORITY_MAP = {"urgent": "p1", "high": "p2", "medium": "p3", "low": "p4"}
+
+
+async def _bridge_mod_fault_to_bfpo(issue: dict) -> Optional[str]:
+    """Mirror a MOD fault (db.issues) into a BFPO job (svc_cases under
+    BFPO_ORG_ID) so it surfaces in the MOD Operations dashboard AND to the
+    site's engineers (unassigned). Idempotent — returns the linked case id."""
+    if not issue:
+        return None
+    if issue.get("bfpo_case_id"):
+        return issue["bfpo_case_id"]
+    site_id = issue.get("mod_site_id") or issue.get("organization_id")
+    org = await db.organizations.find_one(
+        {"id": site_id},
+        {"_id": 0, "name": 1, "country": 1, "mod_branch": 1,
+         "territory_id": 1, "territory_name": 1}) or {}
+    equip = {}
+    if issue.get("equipment_id"):
+        equip = await db.equipment.find_one(
+            {"id": issue["equipment_id"]},
+            {"_id": 0, "name": 1, "equipment_type": 1, "serial_number": 1}) or {}
+    pr = (issue.get("priority") or issue.get("severity") or "medium").lower()
+    priority = _MOD_PRIORITY_MAP.get(pr, "p3")
+    safety = pr in ("urgent", "high") or issue.get("safe_in_service") is False
+    branch = (org.get("mod_branch") or "").upper()
+    now = datetime.now(timezone.utc).isoformat()
+    case_id = str(uuid.uuid4())
+    case = {
+        "id": case_id, "organization_id": BFPO_ORG_ID,
+        "reference": issue.get("mod_ticket_ref") or f"MOD-{case_id[:6].upper()}",
+        "title": f"{(issue.get('fault_type_mod') or 'Fault').title()} — "
+                 f"{equip.get('name') or issue.get('machine_type') or 'Equipment'}",
+        "description": issue.get("issue_description") or "",
+        "status": NEW, "case_type": "fault", "priority": priority,
+        "safety_critical": bool(safety),
+        "site_id": site_id, "site_name": org.get("name") or "MOD Site",
+        "country": org.get("country") or "United Kingdom",
+        "territory_id": org.get("territory_id"),
+        "territory_name": org.get("territory_name") or branch or "MOD",
+        "asset_name": equip.get("name") or issue.get("machine_type") or "",
+        "asset_serial": equip.get("serial_number") or issue.get("serial_number") or "",
+        "fault_code": issue.get("fault_type_mod") or "",
+        "customer_name": org.get("name") or "MOD Site",
+        "source": "mod_fault", "mod_issue_id": issue.get("id"),
+        "mod_ticket_ref": issue.get("mod_ticket_ref"),
+        "assigned_engineer_id": None,
+        "created_at": now, "updated_at": now,
+    }
+    await db.svc_cases.insert_one(case)
+    await db.issues.update_one({"id": issue["id"]}, {"$set": {"bfpo_case_id": case_id}})
+    return case_id
+
+
+async def _ensure_mod_faults_bridged(limit: int = 1000) -> int:
+    """Idempotently bridge any open MOD faults not yet mirrored into BFPO jobs."""
+    n = 0
+    cursor = db.issues.find(
+        {"mod_site_id": {"$ne": None}, "status": {"$ne": "resolved"},
+         "$or": [{"bfpo_case_id": {"$exists": False}}, {"bfpo_case_id": None},
+                 {"bfpo_case_id": ""}]},
+        {"_id": 0}).limit(limit)
+    async for issue in cursor:
+        if await _bridge_mod_fault_to_bfpo(issue):
+            n += 1
+    return n
+
+
+
 _FILTER_MAP = {
     "all_open": {"status": {"$in": list(OPEN_STATES)}},
     "new": {"status": {"$in": [NEW, "triaged", ASSIGNED]}},
@@ -218,11 +286,20 @@ _JOB_PROJECTION = {
 
 @router.get("/jobs")
 async def bfpo_jobs(when: str = Query("all_open"), user=Depends(_require_bfpo)):
+    await _ensure_mod_faults_bridged()
     base_q = await _scoped_case_query(user)
     q = {**base_q, **_FILTER_MAP.get(when, _FILTER_MAP["all_open"])}
-    sort = [("closed_at", -1)] if when == "completed" else [("priority", 1), ("sla_resolve_at", 1)]
+    sort = [("closed_at", -1)] if when == "completed" else [("safety_critical", -1), ("priority", 1), ("sla_resolve_at", 1)]
     rows = await db.svc_cases.find(q, _JOB_PROJECTION).sort(sort).to_list(200)
     return {"jobs": rows, "count": len(rows)}
+
+
+@router.post("/faults/sync")
+async def bfpo_sync_mod_faults(user=Depends(_require_bfpo)):
+    """One-tap backfill: bridge any open MOD faults into BFPO jobs so they
+    appear in the MOD Operations dashboard and engineer lists."""
+    n = await _ensure_mod_faults_bridged()
+    return {"success": True, "bridged": n}
 
 
 @router.get("/jobs/{case_id}")

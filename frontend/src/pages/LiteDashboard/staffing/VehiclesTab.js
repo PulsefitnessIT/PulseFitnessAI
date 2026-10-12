@@ -331,7 +331,6 @@ function DefectTracker({ headers }) {
   const [data, setData] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [booking, setBooking] = useState(null); // defect being booked-in
-  const token = String(headers?.Authorization || headers?.authorization || '').replace(/^Bearer\s+/i, '');
   const load = useCallback(() => {
     const qs = status === 'all' ? '' : `?status=${status}`;
     axios.get(`${API}/vehicle-defects${qs}`, { headers }).then((r) => setData(r.data)).catch(() => setData({ defects: [], counts: {} }));

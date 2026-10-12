@@ -1749,6 +1749,14 @@ async def mod_fault_submit(
     }
     await db.issues.insert_one(doc)
 
+    # Bridge the MOD fault into a BFPO job so it surfaces in the MOD Operations
+    # dashboard and to the site's engineers (deferred import avoids a cycle).
+    try:
+        from routes.bfpo import _bridge_mod_fault_to_bfpo
+        await _bridge_mod_fault_to_bfpo(doc)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("MOD fault to BFPO bridge failed for %s: %s", issue_id, exc)
+
     # Engineer-callout faults get an Engineer Appointment Booking form so the
     # site can book our engineer onto the base (details surface on the fault
     # card). Auto-generated for high/urgent priority (deterministic — no AI).

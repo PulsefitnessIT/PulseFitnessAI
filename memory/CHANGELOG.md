@@ -1,3 +1,20 @@
+# 2026-10-12 — Three critical fixes: Vehicles Defects crash, MOD engineer routing, MOD fault → BFPO bridge
+
+**Bug 1 — Vehicles → Defects white-screen crash (VehiclesTab.js):** The `DefectTracker` component redeclared `const token` as a string, shadowing the module-level `token()` helper. Rendering any defect photo calls `token()` → `TypeError: token is not a function` → whole app crashed (every submitted defect has a photo, so it crashed every time). Fix: removed the unused shadowing local; `token()` now resolves.
+
+**Bug 2 — MOD/BFPO engineers wrongly routed to Operations (LoginPage.js):** `routeAfterLogin` honoured a `?next=` deep-link unconditionally, so a stale `next=/dashboard` sent MOD engineers into Operations. Fix: `nextParam` is now ignored when the resolved home is a dedicated role shell (`/bfpo`, `/dealer-portal`, `/logistics`, `/partner-engineer`) — MOD engineers always land on `/bfpo`.
+
+**Bug 3 — MOD faults not reaching BFPO engineers or MOD Operations:** Faults were written to `db.issues` under the MOD site's own org, while the BFPO engineer app + MOD Operations read `svc_cases` under `bfpo-mod-org`. Added a bridge (`bfpo.py::_bridge_mod_fault_to_bfpo`): every MOD fault now mirrors into a BFPO job (status=new, case_type=fault, priority p1–p4, `safety_critical`, site/country/territory tags, source='mod_fault', unassigned) so it appears in the MOD Operations dashboard AND to that site's engineers. Wired on fault submit (`mod_portal.py::mod_fault_submit`) and auto-backfilled idempotently on `/bfpo/jobs` load; plus one-tap `POST /bfpo/faults/sync`. Jobs list now sorts `safety_critical` to the top. Engineers accept + schedule the visit via the existing BFPO job flow.
+
+Also reset master-admin MFA on preview (cleared `user_mfa`; `ENFORCE_MASTER_ADMIN_MFA=false`) so `admin@pulsefitness.com` logs in without MFA.
+
+**Verified:** Bug 3 bridge tested directly (new submit + backfill of 9 faults, idempotent, correct svc_case shape incl. p1/safety_critical). Bugs 1 & 2 verified at code + compile level (not deployed-UI click-through). Backend + frontend compile clean; `/bfpo/faults/sync` route live.
+
+**Needs:** production redeploy.
+
+---
+
+
 # 2026-10-06 — MOD Sites: CRM parity with commercial companies + MOD Operations site flow
 
 **Root cause:** MOD sites were stored only as separate estate orgs (`db.organizations`, `account_type='mod_site'`), disconnected from `crm2_companies` (CRM list) and from the BFPO portal (which read `db.sites` under hardcoded `bfpo-mod-org`). So the CRM "MOD Sites" button opened a management popup instead of listing companies, and the MOD Operations "Global Site View" was empty.
