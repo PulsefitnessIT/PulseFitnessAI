@@ -1,3 +1,18 @@
+# 2026-10-12 — Fix: HR could not see all departments' staff (Staffing → Job Roles/People)
+
+**Root cause:** `GET /staffing/staff` gated full visibility behind `_is_manager(user)` which reads the platform LOGIN role (`users.role`). The HR "see everyone" override lived in `_staff_visibility_scope` but was only reached for managers. The role-sync `_platform_role_from_staff_role` omitted `hr`/`payroll`, so an HR staffer's login role stayed `staff` → `_is_manager` was False → they hit the "own record only" branch and saw almost no one.
+
+**Fix (backend/routes/staffing.py):**
+- Added `_user_sees_all_staff(user, org_id)` — grants full staff-register visibility when the user's Staffing job role is in `_SEE_ALL_STAFF_JOB_ROLES` (hr/payroll/director/owner), independent of login role. `list_staff` now keys the manager branch off `_is_manager(user) OR _user_sees_all_staff(...)`.
+- Added `hr`/`payroll` to `_platform_role_from_staff_role` → their login role syncs to `manager` going forward.
+
+**Tested:** HR user with login role 'staff' + job role 'hr' now sees all staff across all departments; a regular gym-floor staffer still sees only their own record. Backend clean.
+
+**Needs:** production redeploy.
+
+---
+
+
 # 2026-10-12 — Three critical fixes: Vehicles Defects crash, MOD engineer routing, MOD fault → BFPO bridge
 
 **Bug 1 — Vehicles → Defects white-screen crash (VehiclesTab.js):** The `DefectTracker` component redeclared `const token` as a string, shadowing the module-level `token()` helper. Rendering any defect photo calls `token()` → `TypeError: token is not a function` → whole app crashed (every submitted defect has a photo, so it crashed every time). Fix: removed the unused shadowing local; `token()` now resolves.

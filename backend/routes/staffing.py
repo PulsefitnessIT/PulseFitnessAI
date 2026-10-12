@@ -254,7 +254,7 @@ def _platform_role_from_staff_role(primary_role) -> str:
         return "engineer"
     # People-management roles → platform "manager". NOTE: "administrator" is an
     # office/admin job (not a people-manager) so it maps to "staff", not manager.
-    if r in {"manager", "supervisor", "director", "duty_manager", "sales_manager"}:
+    if r in {"manager", "supervisor", "director", "duty_manager", "sales_manager", "hr", "payroll"}:
         return "manager"
     return "staff"
 
@@ -424,13 +424,17 @@ async def list_staff(include_inactive: bool = Query(False), user: dict = Depends
     collections in sync without changing every user-creation code path.
     """
     org_id = _org(user)
+    # HR / Payroll / Director / Owner get a full company-wide view even if their
+    # platform LOGIN role wasn't synced to 'manager' — key off the Staffing job
+    # role directly so visibility never depends on the role-sync having run.
+    manager = _is_manager(user) or await _user_sees_all_staff(user, org_id)
     # ── Auto-backfill missing staff_members rows for managers ──────
-    if _is_manager(user):
+    if manager:
         await _ensure_staff_for_org_users(org_id)
     q: dict = {"organization_id": org_id}
     if not include_inactive:
         q["active"] = True
-    if not _is_manager(user):
+    if not manager:
         sid = await _my_staff_id_async(user, org_id)
         q["id"] = sid or "__none__"
     else:
@@ -442,7 +446,7 @@ async def list_staff(include_inactive: bool = Query(False), user: dict = Depends
         if scope:
             q.update(scope)
     rows = await db.staff_members.find(q, {"_id": 0}).sort("full_name", 1).to_list(1000)
-    if _is_manager(user):
+    if manager:
         # Backfill non-loginable shells for any staff (with an email) that has
         # no linked login yet — so they become real users in Master Admin and
         # their module access can be set before they ever sign in.
@@ -495,6 +499,24 @@ async def _staff_visibility_scope(user: dict, org_id: str) -> dict | None:
     if not clauses:
         return None  # no dept/site set on the manager → don't hide anyone
     return {"$and": clauses} if len(clauses) > 1 else clauses[0]
+
+
+async def _user_sees_all_staff(user: dict, org_id: str) -> bool:
+    """True when the viewing user should see the whole staff register: platform
+    owners/master admins, or anyone whose Staffing job role is HR / Payroll /
+    Director / Owner — independent of their platform login role."""
+    if _role(user) in {"owner", "master_admin"}:
+        return True
+    me = await db.staff_members.find_one(
+        {"organization_id": org_id, "$or": [
+            c for c in (
+                {"user_id": user.get("id")} if user.get("id") else None,
+                {"email": (user.get("email") or "").lower()} if user.get("email") else None,
+            ) if c
+        ] or [{"id": "__never__"}]},
+        {"_id": 0, "primary_role": 1},
+    )
+    return ((me or {}).get("primary_role") or "").strip().lower() in _SEE_ALL_STAFF_JOB_ROLES
 
 
 async def _ensure_staff_for_org_users(org_id: str) -> int:
