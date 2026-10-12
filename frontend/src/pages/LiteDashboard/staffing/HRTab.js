@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { RELATIONSHIP_OPTIONS } from '@/utils/crmDropdowns';
 import DatePicker, { formatDDMMYYYY } from '@/components/shared/DatePicker';
+import { DeptVisibilityPanel } from '@/pages/LiteDashboard/staffing/DeptVisibilityPanel';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const hrPhotoSrc = (u) => (u ? (u.startsWith('/api') ? `${process.env.REACT_APP_BACKEND_URL}${u}` : u) : '');
@@ -589,7 +590,7 @@ function StaffModulesPanel({ staffId, headers }) {
 }
 
 
-function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, inviteBusy, onDelete, departments = [], photoUrl }) {
+function ProfilePanel({ staffId, headers, isManager, canGrant = false, onUpdated, onInvite, inviteBusy, onDelete, departments = [], photoUrl }) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -992,6 +993,12 @@ function ProfilePanel({ staffId, headers, isManager, onUpdated, onInvite, invite
 
         {editing && isManager && (
           <StaffModulesPanel staffId={staffId} headers={headers} />
+        )}
+
+        {canGrant && (
+          <DeptVisibilityPanel staffId={staffId} headers={headers} departments={departments}
+            ownDepartment={profile.department} grant={profile.dept_visibility}
+            onSaved={() => { load(); onUpdated && onUpdated(); }} />
         )}
 
         {editing && isManager && onDelete && (
@@ -1523,7 +1530,7 @@ function DetailChangeRequestsPanel({ headers, isManager }) {
   );
 }
 
-export default function HRTab({ headers, isManager }) {
+export default function HRTab({ headers, isManager, canGrant = false, scopedViewer = false }) {
   const { t } = useTranslation();
   const [staffList, setStaffList] = useState([]);
   const [activeId, setActiveId] = useState(null);
@@ -1748,6 +1755,13 @@ export default function HRTab({ headers, isManager }) {
                       <p className="text-[10px] uppercase tracking-wider flex items-center gap-1.5 flex-wrap" style={{ color: 'var(--theme-text-muted)' }}>
                         {humanizeRole(s.primary_role)}
                         {s.department && <span className="normal-case text-[9px] px-1 rounded" style={{ background: 'rgba(25,205,255,0.15)', color: 'var(--color-brand-cyan)' }}>{s.department}</span>}
+                        {(s.dept_visibility?.all || s.dept_visibility?.departments?.length > 0) && (
+                          <span className="normal-case text-[9px] px-1 rounded" style={{ background: 'rgba(245,158,11,0.15)', color: '#d97706' }}
+                            title={s.dept_visibility.all ? 'Sees all departments' : `Also sees: ${s.dept_visibility.departments.join(', ')}`}
+                            data-testid={`hr-staff-dept-grant-${s.id}`}>
+                            {s.dept_visibility.all ? 'Sees all depts' : `+${s.dept_visibility.departments.length} dept${s.dept_visibility.departments.length > 1 ? 's' : ''}`}
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -1764,7 +1778,7 @@ export default function HRTab({ headers, isManager }) {
           ) : (
             <>
               <div className="inline-flex rounded-full border overflow-hidden" style={{ borderColor: 'var(--theme-border)' }}>
-                {SUB_TABS.map((st) => {
+                {SUB_TABS.filter((st) => !scopedViewer || st.id === 'profile').map((st) => {
                   const Icon = st.icon;
                   const on = sub === st.id;
                   return (
@@ -1781,10 +1795,10 @@ export default function HRTab({ headers, isManager }) {
                   );
                 })}
               </div>
-              {sub === 'profile'      && <ProfilePanel      staffId={active.id} headers={headers} isManager={isManager} onUpdated={load} onInvite={issueCredentials} inviteBusy={credsBusy === active.id} onDelete={() => removeStaff(active)} departments={departments} photoUrl={active.photo_url} />}
-              {sub === 'documents'    && <DocumentsPanel    staffId={active.id} headers={headers} isManager={isManager} />}
-              {sub === 'disciplinary' && <DisciplinaryPanel staffId={active.id} headers={headers} isManager={isManager} />}
-              {sub === 'training'     && <TrainingPanel     staffId={active.id} headers={headers} isManager={isManager} />}
+              {(sub === 'profile' || scopedViewer) && <ProfilePanel staffId={active.id} headers={headers} isManager={isManager} canGrant={canGrant} onUpdated={load} onInvite={issueCredentials} inviteBusy={credsBusy === active.id} onDelete={() => removeStaff(active)} departments={departments} photoUrl={active.photo_url} />}
+              {!scopedViewer && sub === 'documents'    && <DocumentsPanel    staffId={active.id} headers={headers} isManager={isManager} />}
+              {!scopedViewer && sub === 'disciplinary' && <DisciplinaryPanel staffId={active.id} headers={headers} isManager={isManager} />}
+              {!scopedViewer && sub === 'training'     && <TrainingPanel     staffId={active.id} headers={headers} isManager={isManager} />}
             </>
           )}
         </div>

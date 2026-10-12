@@ -62,6 +62,7 @@ from routes.staffing import (
     _org,
     _require_manager,
     _resolve_staff_login_flags,
+    grant_viewer_can_see,
 )
 
 logger = logging.getLogger(__name__)
@@ -78,6 +79,14 @@ PROFILE_FIELDS = {
     "right_to_work_status", "notes",
     "dbs_number", "dbs_expiry_date",
 }
+
+
+# Personal / financial fields hidden from cross-department grant viewers.
+_GRANT_VIEWER_HIDDEN = (
+    "address_line1", "address_line2", "city", "postcode", "date_of_birth", "ni_number",
+    "bank_name", "bank_sort_code", "bank_account", "bank_account_last4", "hourly_cost",
+    "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relationship",
+)
 
 
 class ProfileUpdate(BaseModel):
@@ -202,8 +211,16 @@ async def _check_view_scope(user: dict, org_id: str, staff_id: str | None) -> st
 @router.get("/staffing/hr/profile/{staff_id}")
 async def get_profile(staff_id: str, user: dict = Depends(get_current_user)):
     org_id = _org(user)
-    await _check_view_scope(user, org_id, staff_id)
+    other = False
+    if not _is_manager(user) and staff_id != await _my_staff_id_async(user, org_id) \
+            and await grant_viewer_can_see(user, org_id, staff_id):
+        other = True  # cross-department grant holder — read-only, scrubbed
+    else:
+        await _check_view_scope(user, org_id, staff_id)
     sm = await _staff_or_404(org_id, staff_id)
+    if other:
+        for k in _GRANT_VIEWER_HIDDEN:
+            sm.pop(k, None)
     # Recognise whether this person already has / was sent a platform login so
     # the UI can show "Re-issue login" vs "Invite to platform".
     await _resolve_staff_login_flags(org_id, [sm])

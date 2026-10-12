@@ -428,13 +428,15 @@ async def list_staff(include_inactive: bool = Query(False), user: dict = Depends
     # platform LOGIN role wasn't synced to 'manager' — key off the Staffing job
     # role directly so visibility never depends on the role-sync having run.
     manager = _is_manager(user) or await _user_sees_all_staff(user, org_id)
+    # Non-managers holding a cross-department grant get a scoped (read-only) view.
+    grant_viewer = not manager and _has_grant(await _my_staff_doc(user, org_id))
     # ── Auto-backfill missing staff_members rows for managers ──────
     if manager:
         await _ensure_staff_for_org_users(org_id)
     q: dict = {"organization_id": org_id}
     if not include_inactive:
         q["active"] = True
-    if not manager:
+    if not manager and not grant_viewer:
         sid = await _my_staff_id_async(user, org_id)
         q["id"] = sid or "__none__"
     else:
@@ -445,7 +447,13 @@ async def list_staff(include_inactive: bool = Query(False), user: dict = Depends
         scope = await _staff_visibility_scope(user, org_id)
         if scope:
             q.update(scope)
-    rows = await db.staff_members.find(q, {"_id": 0}).sort("full_name", 1).to_list(1000)
+    proj = {"_id": 0}
+    if grant_viewer:
+        proj.update({k: 0 for k in (
+            "address_line1", "address_line2", "city", "postcode", "date_of_birth", "ni_number",
+            "bank_name", "bank_sort_code", "bank_account", "bank_account_last4", "hourly_cost",
+            "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relationship")})
+    rows = await db.staff_members.find(q, proj).sort("full_name", 1).to_list(1000)
     if manager:
         # Backfill non-loginable shells for any staff (with an email) that has
         # no linked login yet — so they become real users in Master Admin and
@@ -462,33 +470,52 @@ async def list_staff(include_inactive: bool = Query(False), user: dict = Depends
 _SEE_ALL_STAFF_JOB_ROLES = {"hr", "payroll", "director", "owner"}
 
 
+async def _my_staff_doc(user: dict, org_id: str) -> dict | None:
+    """The caller's own staff_members row (by user_id, then email)."""
+    ors = [c for c in (
+        {"user_id": user.get("id")} if user.get("id") else None,
+        {"email": (user.get("email") or "").lower()} if user.get("email") else None,
+    ) if c]
+    if not ors:
+        return None
+    return await db.staff_members.find_one(
+        {"organization_id": org_id, "$or": ors},
+        {"_id": 0, "id": 1, "primary_role": 1, "department": 1, "site_ids": 1, "dept_visibility": 1},
+    )
+
+
+def _grant_of(me: dict | None) -> dict:
+    """Normalised cross-department grant: {"all": bool, "departments": [..]}."""
+    g = (me or {}).get("dept_visibility") or {}
+    return {"all": bool(g.get("all")), "departments": [d for d in (g.get("departments") or []) if d]}
+
+
+def _has_grant(me: dict | None) -> bool:
+    g = _grant_of(me)
+    return g["all"] or bool(g["departments"])
+
+
 async def _staff_visibility_scope(user: dict, org_id: str) -> dict | None:
-    """Return a Mongo query fragment restricting a manager's view of the staff
+    """Return a Mongo query fragment restricting the caller's view of the staff
     register, or None when they may see everyone.
 
-    Owners / master admins → None (see all). Managers whose own staff job role
-    is HR / Payroll / Director → None (see all). Any other manager is scoped to
-    their OWN department AND site(s): staff must share the manager's department
-    and be allocated to one of the manager's sites (staff with no site
-    restriction count as present at every site)."""
+    Owners / master admins / HR / Payroll / Director job roles → None. Anyone
+    else is scoped to their own department (plus any departments granted via
+    ``dept_visibility``; ``all`` lifts the department limit) AND their own
+    site(s) — site limits always apply, including to granted departments."""
     if _role(user) in {"owner", "master_admin"}:
         return None
-    me = await db.staff_members.find_one(
-        {"organization_id": org_id, "$or": [
-            c for c in (
-                {"user_id": user.get("id")} if user.get("id") else None,
-                {"email": (user.get("email") or "").lower()} if user.get("email") else None,
-            ) if c
-        ] or [{"id": "__never__"}]},
-        {"_id": 0, "primary_role": 1, "department": 1, "site_ids": 1},
-    )
+    me = await _my_staff_doc(user, org_id)
     job_role = ((me or {}).get("primary_role") or "").strip().lower()
     if job_role in _SEE_ALL_STAFF_JOB_ROLES:
         return None
+    grant = _grant_of(me)
     clauses: list[dict] = []
     my_dept = ((me or {}).get("department") or "").strip()
-    if my_dept:
-        clauses.append({"department": my_dept})
+    depts = list(dict.fromkeys(d for d in [my_dept, *grant["departments"]] if d))
+    # A manager with no department of their own is not dept-limited (legacy).
+    if not grant["all"] and depts and (my_dept or not _is_manager(user)):
+        clauses.append({"department": {"$in": depts}})
     my_sites = (me or {}).get("site_ids") or user.get("allowed_site_ids") or []
     if my_sites:
         clauses.append({"$or": [
@@ -498,7 +525,10 @@ async def _staff_visibility_scope(user: dict, org_id: str) -> dict | None:
         ]})
     if not clauses:
         return None  # no dept/site set on the manager → don't hide anyone
-    return {"$and": clauses} if len(clauses) > 1 else clauses[0]
+    scope = {"$and": clauses} if len(clauses) > 1 else clauses[0]
+    if not _is_manager(user) and me:
+        scope = {"$or": [scope, {"id": me["id"]}]}  # grant holders always see themselves
+    return scope
 
 
 async def _user_sees_all_staff(user: dict, org_id: str) -> bool:
@@ -507,16 +537,86 @@ async def _user_sees_all_staff(user: dict, org_id: str) -> bool:
     Director / Owner — independent of their platform login role."""
     if _role(user) in {"owner", "master_admin"}:
         return True
-    me = await db.staff_members.find_one(
-        {"organization_id": org_id, "$or": [
-            c for c in (
-                {"user_id": user.get("id")} if user.get("id") else None,
-                {"email": (user.get("email") or "").lower()} if user.get("email") else None,
-            ) if c
-        ] or [{"id": "__never__"}]},
-        {"_id": 0, "primary_role": 1},
-    )
+    me = await _my_staff_doc(user, org_id)
     return ((me or {}).get("primary_role") or "").strip().lower() in _SEE_ALL_STAFF_JOB_ROLES
+
+
+async def _can_grant_dept_visibility(user: dict, org_id: str) -> bool:
+    """Owners, Master Admins and HR (Staffing job role) may grant visibility."""
+    if _role(user) in {"owner", "master_admin"}:
+        return True
+    me = await _my_staff_doc(user, org_id)
+    return ((me or {}).get("primary_role") or "").strip().lower() == "hr"
+
+
+async def grant_viewer_can_see(user: dict, org_id: str, staff_id: str) -> bool:
+    """For non-managers holding a cross-department grant: is ``staff_id`` in
+    their scoped view?"""
+    me = await _my_staff_doc(user, org_id)
+    if not _has_grant(me):
+        return False
+    q: dict = {"id": staff_id, "organization_id": org_id}
+    scope = await _staff_visibility_scope(user, org_id)
+    if scope:
+        q = {"$and": [q, scope]}
+    return bool(await db.staff_members.find_one(q, {"_id": 0, "id": 1}))
+
+
+class DeptVisibilityUpdate(BaseModel):
+    all_departments: bool = False
+    departments: list[str] = Field(default_factory=list)
+
+
+@router.get("/staffing/my-visibility")
+async def my_visibility(user: dict = Depends(get_current_user)):
+    """What the caller can see in the staff register + whether they may grant
+    cross-department visibility to others."""
+    org_id = _org(user)
+    me = await _my_staff_doc(user, org_id)
+    sees_all = await _user_sees_all_staff(user, org_id)
+    return {
+        "sees_all": sees_all,
+        "own_department": (me or {}).get("department"),
+        "grant": _grant_of(me),
+        "has_grant": _has_grant(me),
+        "can_grant": await _can_grant_dept_visibility(user, org_id),
+    }
+
+
+@router.put("/staffing/staff/{staff_id}/dept-visibility")
+async def set_dept_visibility(staff_id: str, body: DeptVisibilityUpdate,
+                              user: dict = Depends(get_current_user)):
+    """Grant / change / clear a staff member's cross-department visibility.
+    Owners, Master Admins and HR only."""
+    org_id = _org(user)
+    if not await _can_grant_dept_visibility(user, org_id):
+        raise HTTPException(403, "Only Owners, Master Admins and HR can change department visibility")
+    target = await db.staff_members.find_one(
+        {"id": staff_id, "organization_id": org_id}, {"_id": 0, "id": 1, "full_name": 1, "department": 1})
+    if not target:
+        raise HTTPException(404, "staff not found")
+    bad = [d for d in body.departments if d not in DEPARTMENTS]
+    if bad:
+        raise HTTPException(400, f"Unknown department(s): {', '.join(bad)}")
+    own = (target.get("department") or "").strip()
+    depts = sorted({d for d in body.departments if d != own}, key=str.lower)
+    if not body.all_departments and not depts:
+        await db.staff_members.update_one({"id": staff_id, "organization_id": org_id},
+                                          {"$unset": {"dept_visibility": ""}})
+        grant = None
+    else:
+        grant = {"all": body.all_departments, "departments": [] if body.all_departments else depts,
+                 "updated_by": user.get("email"), "updated_at": _now().isoformat()}
+        await db.staff_members.update_one({"id": staff_id, "organization_id": org_id},
+                                          {"$set": {"dept_visibility": grant}})
+    try:
+        from routes.master_admin import log_activity
+        label = "all departments" if body.all_departments else (", ".join(depts) or "cleared")
+        await log_activity("staff_dept_visibility", f"{user.get('email')} set department visibility for "
+                           f"{target.get('full_name') or staff_id}: {label}", user.get("email"), "staff", staff_id)
+    except Exception:  # noqa: BLE001
+        pass
+    return {"staff_id": staff_id, "dept_visibility": grant}
 
 
 async def _ensure_staff_for_org_users(org_id: str) -> int:

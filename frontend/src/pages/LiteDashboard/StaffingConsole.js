@@ -149,6 +149,15 @@ export default function StaffingConsole({ hideBell = false } = {}) {
   }, [user, previewAsStaff]);
   const isManager = !previewAsStaff && (role === 'owner' || role === 'manager' || role === 'master_admin');
   const isMOD = ['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type);
+  // Cross-department visibility: grant holders (non-managers) get a read-only HR
+  // view; Owners / Master Admins / HR may grant it.
+  const [visibility, setVisibility] = useState(null);
+  useEffect(() => {
+    if (!token) return;
+    axios.get(`${API}/staffing/my-visibility`, { headers })
+      .then((r) => setVisibility(r.data)).catch(() => setVisibility(null));
+  }, [headers, token]);
+  const scopedViewer = !isManager && !previewAsStaff && !!visibility?.has_grant;
 
   // Build the visible group tree for this role. MOD tenants only get a
   // Staff roster + Transfers (everything else is managed out-of-band).
@@ -161,7 +170,7 @@ export default function StaffingConsole({ hideBell = false } = {}) {
         { id: 'mod-transfer', label: trLabel('Transfers'), icon: ArrowRightLeft, leaf: 'mod-transfer' },
       ];
     }
-    const childOK = (c) => c.roles.includes(role);
+    const childOK = (c) => c.roles.includes(role) || (c.id === 'hr' && scopedViewer);
     const list = GROUPS_ALL
       .map((g) => {
         if (g.children) {
@@ -177,7 +186,7 @@ export default function StaffingConsole({ hideBell = false } = {}) {
       if (idx > 0) { const [c] = list.splice(idx, 1); list.unshift(c); }
     }
     return list;
-  }, [role, isMOD, trLabel]);
+  }, [role, isMOD, trLabel, scopedViewer]);
 
   // Flatten to leaf ids so we can map a leaf → its parent group.
   const leafToGroup = useMemo(() => {
@@ -339,7 +348,7 @@ export default function StaffingConsole({ hideBell = false } = {}) {
         {tab === 'comms'       && <CommsTab        headers={headers} isManager={isManager} isMOD={isMOD} />}
         {tab === 'operations'  && <OperationsTab   headers={headers} isManager={isManager} />}
         {tab === 'vehicles'    && <VehiclesTab     headers={headers} />}
-        {tab === 'hr'          && <HRTab           headers={headers} isManager={isManager} />}
+        {tab === 'hr'          && <HRTab           headers={headers} isManager={isManager} canGrant={!previewAsStaff && !!visibility?.can_grant} scopedViewer={scopedViewer} />}
         {tab === 'onboarding'  && <StaffOnboarding headers={headers} />}
         {tab === 'team-access' && <TeamAccessTab   headers={headers} />}
         {tab === 'access-matrix' && <TeamAccessMatrixTab headers={headers} />}
