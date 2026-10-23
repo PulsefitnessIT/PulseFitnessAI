@@ -1527,7 +1527,14 @@ async def grant_report_modules(staff_id: str, body: ModuleGrant,
     # back to the org-level entitlement).
     if report.get("user_id"):
         overrides = {m: (m in granted) for m in BOLT_ON if m in avail}
-        user_set: dict = {"module_overrides": overrides}
+        # Operations must be explicitly granted too — otherwise a portal-only
+        # staffer inherits the org's Operations access and lands there.
+        if "operations" in avail:
+            overrides["operations"] = "operations" in granted
+        target = await db.users.find_one({"id": report["user_id"]}, {"_id": 0, "module_overrides": 1})
+        extra = {k: v for k, v in ((target or {}).get("module_overrides") or {}).items()
+                 if k not in overrides}
+        user_set: dict = {"module_overrides": {**extra, **overrides}}
         now = _now()
         # Per-user capability grants — stamp Service Desk / Inventory straight
         # onto the user record so they can reach those apps (or lose access).

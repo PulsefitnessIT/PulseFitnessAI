@@ -796,6 +796,19 @@ function CheckDetailModal({ checkId, headers, onClose, onReviewed }) {
           )}
         </div>
       )}
+      {(d.driver_notes || (d.photos?.extra || []).length > 0) && (
+        <div className="rounded-lg border p-3 mb-3" style={{ borderColor: 'var(--theme-border)' }} data-testid="check-detail-driver-notes">
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-1">Driver notes</div>
+          {d.driver_notes && <p className="text-sm text-slate-700 whitespace-pre-wrap">{d.driver_notes}</p>}
+          {(d.photos?.extra || []).length > 0 && (
+            <div className="flex gap-2 mt-2 flex-wrap">{d.photos.extra.map((fid) => (
+              <a key={fid} href={`${API}/vehicle-checks/photo/${fid}?auth=${token()}`} target="_blank" rel="noreferrer">
+                <img src={`${API}/vehicle-checks/photo/${fid}?auth=${token()}`} alt="driver" className="h-16 w-16 object-cover rounded-lg border" />
+              </a>))}
+            </div>
+          )}
+        </div>
+      )}
       <div className="space-y-3 max-h-64 overflow-y-auto">
         {(d.template?.sections || []).map((s) => (
           <div key={s.key}>

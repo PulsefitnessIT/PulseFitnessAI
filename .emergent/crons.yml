@@ -13,3 +13,11 @@ crons:
     method: POST
     # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
     enabled: true
+  - name: vehicle-check-remind
+    description: "Friday 2pm UK email reminding drivers to finish their outstanding weekly vehicle check"
+    cron: "0 14 * * 5"
+    timezone: "Europe/London"
+    endpoint: "{{BASE_URL}}/api/vehicle-checks/cron/weekly-reminder"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

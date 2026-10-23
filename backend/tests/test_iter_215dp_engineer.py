@@ -22,7 +22,7 @@ from tests.conftest import rate_limit_bypass_headers
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
 if not BASE_URL:
-    BASE_URL = "https://aftersales-engine-1.preview.emergentagent.com"
+    BASE_URL = "https://sicon-sync-hub.preview.emergentagent.com"
 
 # Session-scoped login to avoid rate limiting
 _SESSION_TOKEN = None

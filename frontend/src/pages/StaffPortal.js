@@ -93,13 +93,14 @@ const PRIMARY_TABS = ['home', 'mytime', 'vehicle', 'holidays'];
 export default function StaffPortal() {
   const [jwt] = useState(() => sessionStorage.getItem('staff_jwt') || localStorage.getItem('token') || '');
   const [me, setMe] = useState(null);
-  const [tab, setTab] = useState('home');
+  const [deepLink] = useState(() => new URLSearchParams(window.location.search));
+  const [tab, setTab] = useState(() => (TABS.some(([id]) => id === deepLink.get('tab')) ? deepLink.get('tab') : 'home'));
   const [moreOpen, setMoreOpen] = useState(false);
   const H = jwt ? { Authorization: `Bearer ${jwt}` } : {};
   const usingPlatformToken = !sessionStorage.getItem('staff_jwt') && !!localStorage.getItem('token');
 
   useEffect(() => {
-    if (!jwt) { window.location.href = '/login'; return; }
+    if (!jwt) { window.location.href = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`; return; }
     axios.get(`${API}/new-starter/me`, { headers: H })
       .then((r) => setMe(r.data))
       .catch(async () => {
@@ -201,7 +202,7 @@ export default function StaffPortal() {
             {tab === 'timesheets' && <TimesheetsTab H={H} />}
             {tab === 'holidays' && <HolidaysTab H={H} />}
             {tab === 'expenses' && <ExpensesTab H={H} />}
-            {tab === 'vehicle' && <VehicleTab H={H} jwt={jwt} />}
+            {tab === 'vehicle' && <VehicleTab H={H} jwt={jwt} initialVehicleId={deepLink.get('vehicle')} />}
             {tab === 'documents' && <DocumentsTab H={H} />}
             {tab === 'access' && <AccessTab H={H} />}
             {tab === 'details' && <MyDetailsTab me={me} H={H} />}
@@ -1418,9 +1419,9 @@ const VSTATUS = {
   reviewed: ['Reviewed ✓', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
 };
 
-function VehicleTab({ H, jwt }) {
+function VehicleTab({ H, jwt, initialVehicleId }) {
   const [data, setData] = useState(null);
-  const [openId, setOpenId] = useState(null);
+  const [openId, setOpenId] = useState(initialVehicleId || null);
   const [packs, setPacks] = useState([]);
   const [crash, setCrash] = useState(null); // { resumePackId? } when wizard open
   const load = useCallback(() => {
@@ -1584,7 +1585,8 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
   const [itemNotes, setItemNotes] = useState({});
   const [details, setDetails] = useState({});
   const [defect, setDefect] = useState({});
-  const [photos, setPhotos] = useState({ vehicle: {}, defect: [] });
+  const [photos, setPhotos] = useState({ vehicle: {}, defect: [], extra: [] });
+  const [driverNotes, setDriverNotes] = useState('');
   const [declaration, setDeclaration] = useState(false);
   const [busy, setBusy] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -1600,7 +1602,8 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
       setItemNotes(c.item_notes || {});
       setDetails({ ...c.details, driver_name: (c.details?.driver_name) || r.data.check?.driver_name });
       setDefect(c.defect || {});
-      setPhotos(c.photos || { vehicle: {}, defect: [] });
+      setPhotos({ vehicle: {}, defect: [], extra: [], ...(c.photos || {}) });
+      setDriverNotes(c.driver_notes || '');
       setDeclaration(!!c.declaration?.confirmed);
     }).catch((e) => setErr(e?.response?.data?.detail || 'Could not load the check.'));
   }, [vehicleId, H]);
@@ -1612,7 +1615,7 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
 
   const persist = async (submit) => {
     setBusy(true); setErr(''); setSaved('');
-    const body = { vehicle_id: vehicleId, details, items, item_notes: itemNotes, defect, photos };
+    const body = { vehicle_id: vehicleId, details, items, item_notes: itemNotes, defect, photos, driver_notes: driverNotes };
     try {
       const url = submit ? 'submit' : 'save';
       const r = await axios.post(`${API}/new-starter/portal/vehicle-check/${url}`, body, { headers: H });
@@ -1635,7 +1638,7 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
       const fd = new FormData(); fd.append('file', prepared);
       const r = await axios.post(`${API}/new-starter/portal/vehicle-check/photo`, fd, { headers: { ...H, 'Content-Type': 'multipart/form-data' } });
       if (!r.data?.file_id) throw new Error('no_file_id');
-      if (slot === 'defect') setPhotos((p) => ({ ...p, defect: [...(p.defect || []), r.data.file_id] }));
+      if (slot === 'defect' || slot === 'extra') setPhotos((p) => ({ ...p, [slot]: [...(p[slot] || []), r.data.file_id] }));
       else setPhotos((p) => ({ ...p, vehicle: { ...(p.vehicle || {}), [slot]: r.data.file_id } }));
     } catch (e) {
       setErr(e?.response?.data?.detail || 'Photo upload failed — please check your connection and try again.');
@@ -1744,6 +1747,11 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
         </Card>
       )}
 
+      <DriverNotesCard notes={driverNotes} setNotes={setDriverNotes} photos={photos.extra || []}
+        locked={locked} photoBusy={photoBusy} jwt={jwt}
+        onUpload={(f) => uploadPhoto(f, 'extra')}
+        onRemove={(fid) => setPhotos((p) => ({ ...p, extra: (p.extra || []).filter((x) => x !== fid) }))} />
+
       {!locked && (
         <Card testId="vehicle-declaration">
           <label className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
@@ -1761,6 +1769,40 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
         </Card>
       )}
     </div>
+  );
+}
+
+function DriverNotesCard({ notes, setNotes, photos, locked, photoBusy, jwt, onUpload, onRemove }) {
+  if (locked && !notes && photos.length === 0) return null;
+  return (
+    <Card testId="vehicle-driver-notes-card">
+      <h3 className="font-bold text-slate-900 mb-1 flex items-center gap-2"><PenLine size={16} /> Notes for your manager</h3>
+      <p className="text-xs text-slate-500 mb-3">Anything else worth knowing about the vehicle this week, plus any extra photos.</p>
+      <textarea value={notes} disabled={locked} onChange={(e) => setNotes(e.target.value)} rows={4} maxLength={4000}
+        data-testid="vehicle-driver-notes" placeholder="e.g. Small scratch on rear bumper, parked at the depot, tyre pressure warning came on once…"
+        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-50 disabled:text-slate-600" />
+      <div className="mt-3 flex gap-2 flex-wrap items-center">
+        {photos.map((fid) => (
+          <div key={fid} className="relative" data-testid={`vehicle-extra-photo-${fid}`}>
+            <a href={`${API}/vehicle-checks/photo/${fid}?auth=${jwt}`} target="_blank" rel="noreferrer">
+              <img src={`${API}/vehicle-checks/photo/${fid}?auth=${jwt}`} alt="extra" className="h-16 w-16 object-cover rounded-lg border border-slate-200" />
+            </a>
+            {!locked && (
+              <button type="button" onClick={() => onRemove(fid)} data-testid={`vehicle-extra-photo-remove-${fid}`}
+                className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-slate-900 text-white text-[11px] leading-5 text-center">×</button>
+            )}
+          </div>
+        ))}
+        {!locked && photos.length < 12 && (
+          <label data-testid="vehicle-extra-photo-label"
+            className={`inline-flex items-center gap-2 text-xs font-bold cursor-pointer px-3 py-2 rounded-lg border border-slate-300 text-slate-600 transition-colors hover:bg-slate-50 ${photoBusy ? 'cursor-wait opacity-70' : ''}`}>
+            {photoBusy ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />} {photoBusy ? 'Uploading…' : 'Add photo'}
+            <input type="file" accept="image/*" disabled={photoBusy} className="hidden" data-testid="vehicle-extra-photo"
+              onChange={(e) => { const f = e.target.files[0]; e.target.value = ''; if (f) onUpload(f); }} />
+          </label>
+        )}
+      </div>
+    </Card>
   );
 }
 

@@ -161,6 +161,15 @@ def resolve_module_access(user: dict, org: Optional[dict]) -> dict[str, bool]:
     overrides = user.get("module_overrides")
     is_engineer = user.get("role") == "engineer"
 
+    # Pulse Fitness Ltd (operator company) staff logins are opt-in: a module is
+    # only on when it has been explicitly granted, so a portal-only staffer
+    # lands in the Staff Portal instead of inheriting every org module.
+    if user.get("role") == "staff" and (org or {}).get("is_operator_company"):
+        ov = overrides if isinstance(overrides, dict) else {}
+        out = {k: bool(org_access.get(k)) and ov.get(k) is True for k in MODULE_KEYS}
+        out["crm_lite"] = bool(out.get("marketing")) or bool(out.get("crm"))
+        return out
+
     def _engineer_ops_guard(access: dict) -> None:
         # Engineers work from the Engineer App, not the Operations module.
         # Never grant Operations to an engineer unless a master admin has

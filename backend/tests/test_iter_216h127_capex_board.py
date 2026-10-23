@@ -10,7 +10,7 @@ import os
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL") or
-       "https://aftersales-engine-1.preview.emergentagent.com").rstrip("/")
+       "https://sicon-sync-hub.preview.emergentagent.com").rstrip("/")
 
 JACK_EMAIL = "jack.ottey@thirdspace.london"
 JACK_PASSWORD = "Test123!"

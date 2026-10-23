@@ -23,7 +23,7 @@ import pytest
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL")
-       or "https://aftersales-engine-1.preview.emergentagent.com").rstrip("/")
+       or "https://sicon-sync-hub.preview.emergentagent.com").rstrip("/")
 DB_NAME = os.environ.get("DB_NAME") or "test_database"
 
 

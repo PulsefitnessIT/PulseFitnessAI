@@ -17,11 +17,15 @@ import logging
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
+import asyncio
+import hmac
+import os
+
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from utils.auth import get_current_user, get_current_user_portal, verify_token
+from utils.auth import AUTH_COOKIE_NAME, get_current_user, get_current_user_portal, verify_token
 from utils.database import APP_NAME, db, get_object, put_object
 from routes.staffing import _org, _require_manager
 from routes.staff_portal import _line_manager_user_id, _portal_staff, notify_staff
@@ -884,7 +888,8 @@ ITEM_STATUS_LABEL = {"ok": "OK", "defect": "DEFECT", "na": "N/A"}
 
 
 def _build_check_pdf(check: dict, template: dict, org_company: dict | None,
-                     photos_bytes: list[bytes] | None = None) -> bytes:
+                     photos_bytes: list[bytes] | None = None,
+                     extra_bytes: list[bytes] | None = None) -> bytes:
     """Pulse-branded PDF of a completed weekly vehicle check for the H&S file."""
     import io as _io
     from reportlab.lib import colors
@@ -1023,6 +1028,29 @@ def _build_check_pdf(check: dict, template: dict, org_company: dict | None,
             story.append(pt)
             story.append(Spacer(1, 3 * mm))
 
+    if (check.get("driver_notes") or "").strip():
+        story.append(section_label(s, "Driver notes"))
+        story.append(Paragraph(_esc(check["driver_notes"]).replace("\n", "<br/>"), body))
+        story.append(Spacer(1, 4 * mm))
+
+    if extra_bytes:
+        story.append(section_label(s, "Additional photos"))
+        cells = []
+        for raw in extra_bytes:
+            try:
+                cells.append(Image(_io.BytesIO(raw), width=54 * mm, height=40 * mm, kind="proportional"))
+            except Exception:
+                continue
+        rows = [cells[i:i + 3] for i in range(0, len(cells), 3)]
+        for r in rows:
+            r.extend([""] * (3 - len(r)))
+        if rows:
+            et = Table(rows, colWidths=[58 * mm] * 3)
+            et.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"),
+                                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6), ("LEFTPADDING", (0, 0), (-1, -1), 0)]))
+            story.append(et)
+            story.append(Spacer(1, 3 * mm))
+
     decl = check.get("declaration") or {}
     story.append(section_label(s, "Driver declaration"))
     story.append(Paragraph(_esc(template.get("declaration", "")), body))
@@ -1054,17 +1082,21 @@ def _check_pdf_filename(doc: dict) -> str:
 async def _render_check_pdf(doc: dict, org: str) -> bytes:
     """Build a self-contained PDF for a check, embedding its defect photos."""
     template = _build_template(doc.get("vehicle_type") or doc.get("check_type", "car"), doc.get("is_ev", False))
-    photos_bytes: list[bytes] = []
-    for fid in (((doc.get("photos") or {}).get("defect")) or [])[:9]:
-        try:
-            f = await db.files.find_one({"id": fid, "organization_id": org, "category": "vehicle-photos"}, {"_id": 0})
-            if f and f.get("storage_path"):
-                data, _ = get_object(f["storage_path"])
-                if data:
-                    photos_bytes.append(data)
-        except Exception:
-            logger.warning("vehicle PDF: could not load photo %s", fid)
-    return _build_check_pdf(doc, template, None, photos_bytes)
+    async def _load(ids: list) -> list[bytes]:
+        out: list[bytes] = []
+        for fid in ids[:9]:
+            try:
+                f = await db.files.find_one({"id": fid, "organization_id": org, "category": "vehicle-photos"}, {"_id": 0})
+                if f and f.get("storage_path"):
+                    data, _ = get_object(f["storage_path"])
+                    if data:
+                        out.append(data)
+            except Exception:
+                logger.warning("vehicle PDF: could not load photo %s", fid)
+        return out
+    photos = doc.get("photos") or {}
+    return _build_check_pdf(doc, template, None, await _load(photos.get("defect") or []),
+                            await _load(photos.get("extra") or []))
 
 
 @router.get("/vehicle-checks/{check_id}/pdf")
@@ -1189,8 +1221,8 @@ async def portal_get_check(vehicle_id: str = Query(...), week: str | None = Quer
             "driver_staff_id": staff["id"], "driver_name": staff.get("full_name"),
             "details": {"reg_no": veh.get("reg_no"), "make_model": veh.get("make_model"),
                         "odometer": veh.get("odometer", ""), "date": date.today().isoformat()},
-            "items": {}, "item_notes": {}, "defect": {}, "photos": {"vehicle": {}, "defect": []},
-            "declaration": {}, "status": "due",
+            "items": {}, "item_notes": {}, "defect": {}, "photos": {"vehicle": {}, "defect": [], "extra": []},
+            "driver_notes": "", "declaration": {}, "status": "due",
         }
     return {"vehicle": veh, "template": template, "check": existing, "week_commencing": week}
 
@@ -1203,6 +1235,7 @@ class SaveCheckBody(BaseModel):
     item_notes: dict = {}
     defect: dict = {}
     photos: dict = {}
+    driver_notes: str = ""
 
 
 async def _upsert_check(user, body: SaveCheckBody, submit: bool):
@@ -1250,12 +1283,15 @@ async def _upsert_check(user, body: SaveCheckBody, submit: bool):
                     "reg_no": veh.get("reg_no"), "make_model": veh.get("make_model")},
         "items": items, "defect": defect, "item_notes": item_notes,
         "has_defects": has_defects or not_safe, "updated_at": now,
+        "driver_notes": (body.driver_notes or "").strip()[:4000],
     }
     # Don't wipe previously-uploaded photos when a save omits them.
-    if incoming_photos.get("vehicle") or incoming_photos.get("defect"):
-        set_doc["photos"] = incoming_photos
+    if incoming_photos.get("vehicle") or incoming_photos.get("defect") or incoming_photos.get("extra"):
+        set_doc["photos"] = {"vehicle": incoming_photos.get("vehicle") or {},
+                             "defect": list(incoming_photos.get("defect") or []),
+                             "extra": list(incoming_photos.get("extra") or [])[:12]}
     elif not existing:
-        set_doc["photos"] = {"vehicle": {}, "defect": []}
+        set_doc["photos"] = {"vehicle": {}, "defect": [], "extra": []}
     if submit:
         set_doc["status"] = "submitted"
         set_doc["submitted_at"] = now
@@ -1361,15 +1397,21 @@ async def portal_upload_photo(file: UploadFile = File(...), user: dict = Depends
 
 
 @router.get("/vehicle-checks/photo/{file_id}")
-async def vehicle_photo(file_id: str, authorization: str = Header(None), auth: str = Query(None)):
+async def vehicle_photo(file_id: str, request: Request, authorization: str = Header(None), auth: str = Query(None)):
     """Dual-auth image serve (manager platform token OR driver portal token, via
-    header or ?auth= query param so <img src> works)."""
-    token = None
+    header, ?auth= query param, or the HttpOnly session cookie so <img src> works)."""
+    candidates = []
     if authorization and authorization.startswith("Bearer "):
-        token = authorization[7:]
-    elif auth:
-        token = auth
-    payload = verify_token(token) if token else None
+        candidates.append(authorization[7:])
+    if auth:
+        candidates.append(auth)
+    candidates.append(request.cookies.get(AUTH_COOKIE_NAME))
+    payload = None
+    for tok in candidates:
+        if tok and tok.lower() not in ("null", "undefined", "cookie"):
+            payload = verify_token(tok)
+            if payload:
+                break
     if not payload:
         raise HTTPException(401, "unauthorised")
     viewer = await db.users.find_one({"id": payload.get("user_id")}, {"_id": 0, "organization_id": 1, "is_master_admin": 1})
@@ -1382,3 +1424,111 @@ async def vehicle_photo(file_id: str, authorization: str = Header(None), auth: s
         raise HTTPException(403, "forbidden")
     data, ct = get_object(doc["storage_path"])
     return Response(content=data, media_type=doc.get("content_type", ct))
+
+
+# ═══════════════════ Weekly reminder email (end of week) ═══════════════════
+def _portal_base_url() -> str:
+    return (os.environ.get("APP_PUBLIC_URL") or os.environ.get("FRONTEND_URL") or "https://pulsefitness.ai").rstrip("/")
+
+
+def _reminder_html(first_name: str, week: str, rows: list[dict]) -> str:
+    items = "".join(
+        f'<tr><td style="padding:10px 0;border-bottom:1px solid #e2e8f0;"><strong style="letter-spacing:1px;">{_esc(r["reg_no"])}</strong>'
+        f'<div style="color:#64748b;font-size:13px;">{_esc(r.get("make_model") or "")}</div></td>'
+        f'<td style="padding:10px 0;border-bottom:1px solid #e2e8f0;text-align:right;">'
+        f'<a href="{r["link"]}" style="display:inline-block;background:#19CDFF;color:#00121a;font-weight:700;'
+        f'padding:10px 18px;border-radius:8px;text-decoration:none;">Complete check</a></td></tr>'
+        for r in rows)
+    return (
+        '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#0f172a;">'
+        f'<h2 style="margin:0 0 8px;">Hi {_esc(first_name)},</h2>'
+        f'<p>Your weekly vehicle check for the week commencing <strong>{_esc(week)}</strong> has not been completed yet.</p>'
+        '<p>Please complete it as soon as possible. The button takes you straight to your check sheet.</p>'
+        f'<table style="width:100%;border-collapse:collapse;margin:16px 0;">{items}</table>'
+        '<p style="color:#64748b;font-size:13px;">If the vehicle is unsafe to drive, report the defect in the check and do not drive it.</p>'
+        '</div>')
+
+
+async def send_weekly_check_reminders(org_id: str | None = None) -> dict:
+    """Email every driver who still has an outstanding check this week, once per
+    driver per week, with a direct link to each vehicle's check sheet."""
+    from utils.email import send_email
+    week = _week_commencing()
+    q: dict = {"active": {"$ne": False}, "driver_staff_ids.0": {"$exists": True}}
+    if org_id:
+        q["organization_id"] = org_id
+    vehicles = await db.vehicles.find(q, {"_id": 0, "id": 1, "organization_id": 1, "reg_no": 1,
+                                          "make_model": 1, "driver_staff_ids": 1}).to_list(5000)
+    base = _portal_base_url()
+    per_driver: dict[tuple, list] = {}
+    for v in vehicles:
+        done = await db.vehicle_checks.find_one(
+            {"organization_id": v["organization_id"], "vehicle_id": v["id"], "week_commencing": week,
+             "status": {"$in": ["submitted", "reviewed"]}}, {"_id": 1})
+        if done:
+            continue
+        for sid in v.get("driver_staff_ids") or []:
+            per_driver.setdefault((v["organization_id"], sid), []).append(
+                {"reg_no": v["reg_no"], "make_model": v.get("make_model"),
+                 "link": f"{base}/staff-portal?tab=vehicle&vehicle={v['id']}"})
+    sent = skipped = failed = 0
+    for (org, sid), rows in per_driver.items():
+        key = f"{org}:{sid}:{week}"
+        if await db.vehicle_check_reminders.find_one({"key": key, "status": "sent"}, {"_id": 1}):
+            skipped += 1
+            continue
+        staff = await db.staff_members.find_one(
+            {"organization_id": org, "id": sid, "active": {"$ne": False}},
+            {"_id": 0, "full_name": 1, "email": 1, "user_id": 1})
+        if not staff:
+            skipped += 1
+            continue
+        email = (staff.get("email") or "").strip()
+        if not email and staff.get("user_id"):
+            u = await db.users.find_one({"id": staff["user_id"]}, {"_id": 0, "email": 1})
+            email = (u or {}).get("email") or ""
+        if not email:
+            skipped += 1
+            continue
+        first = (staff.get("full_name") or "there").split(" ")[0]
+        status = "sent"
+        try:
+            res = await send_email(email, "Reminder: your weekly vehicle check is outstanding",
+                                   _reminder_html(first, week, rows), organization_id=org,
+                                   kind="vehicle_check_reminder")
+            if res is False or (isinstance(res, dict) and res.get("success") is False):
+                status = "failed"
+        except Exception:
+            logger.exception("vehicle reminder email failed for %s", email)
+            status = "failed"
+        sent += status == "sent"
+        failed += status == "failed"
+        await db.vehicle_check_reminders.update_one(
+            {"key": key},
+            {"$set": {"key": key, "organization_id": org, "staff_id": sid, "week_commencing": week,
+                      "email": email, "vehicles": [r["reg_no"] for r in rows], "status": status,
+                      "updated_at": _now()}},
+            upsert=True)
+        await notify_staff(
+            org=org, recipient_kind="employee", recipient_staff_id=sid,
+            type="vehicle_check_reminder", title="Weekly vehicle check outstanding",
+            body=f"Please complete your check for {', '.join(r['reg_no'] for r in rows)}.",
+            link="vehicle", dedupe_key=f"veh_remind:{sid}:{week}")
+    return {"week_commencing": week, "sent": sent, "skipped": skipped, "failed": failed}
+
+
+@router.post("/vehicle-checks/cron/weekly-reminder")
+async def vehicle_reminder_cron(request: Request):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    secret = os.environ.get("WEBHOOK_CRON_SECRET")
+    authz = request.headers.get("authorization") or ""
+    if not secret or not authz.startswith("Bearer ") or not hmac.compare_digest(authz[7:], secret):
+        raise HTTPException(401, "unauthorized")
+    asyncio.create_task(send_weekly_check_reminders())
+    return {"accepted": True}
+
+
+@router.post("/vehicle-checks/send-reminders")
+async def vehicle_reminder_now(user: dict = Depends(get_current_user)):
+    _require_manager(user)
+    return await send_weekly_check_reminders(_org(user))

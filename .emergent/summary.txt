@@ -1,146 +1,156 @@
-<analysis>**original_problem_statement**: Design and build a complete Aftersales Maintenance Contract Automation Engine for PulseFitness.ai. The scope includes Estate Onboarding, Staff Portal enhancements, Vehicle/Fleet Management, and a secure, production-grade Sicon Service / Sage 200 WebAPI integration. 
-PRODUCT REQUIREMENTS: The Sicon integration must be strictly READ-ONLY (Phase 1) using . PulseFitness.ai acts as the operational layer/middleware (connecting Orbit4 and Sicon) while respecting data ownership (no duplicate models, no blind overwrites). Ensure idempotent syncs, resilient architecture, and proper Sicon case relationships (Equipment → Appointment → Resource → Time Booking).
+<analysis>**original_problem_statement**: Design and build a complete Aftersales Maintenance Contract Automation Engine for PulseFitness.ai (including Sicon Service / Sage 200 WebAPI integration with READ-ONLY Phase 1) AND build a MOD / BFPO Engineer Portal. 
+PRODUCT REQUIREMENTS:
+1. Sicon integration must be strictly READ-ONLY. PulseFitness.ai acts as middleware.
+2. MOD / BFPO Engineer Portal.
+3. External Service Providers hub.
+4. Staff Portal - Crash Packs.
+5. Engineer Job allocations.
+6. Core dependencies and App Security.
+7. **New Requirements added in this session**: 
+   - Dept Permissions: Allow admins/owners to grant specific managers cross-department visibility without assigning HR status.
+   - AI Image Generation: Add Marketing AI Image generation using Gemini Nano Banana and Emergent Object Storage for saving/reusing assets, gated to Owners/Managers/Master Admins.
 
 **User's preferred language**: English (INSTRUCT next agent to respond in English only)
 
-**what currently exists?**: A mature React + FastAPI CRM and Operations platform. Features include an Aftersales Engine, heavily optimized 120k-scale data ingestion, and a robust Sicon Sync infrastructure (locks, checkpoints, outbox queue). The Sicon integration has been aligned to proven v1 WebAPI routes, mapping workflows for engineers are built, and Phase 2 write-back scaffolding has been consolidated into a single flag-gated outbox mechanism (currently disabled). The built Sicon API implementation has been successfully audited and verified to strictly match the external Bruno API specifications.
+**what currently exists?**: A mature React + FastAPI CRM platform with Sicon Sync infrastructure, MOD/BFPO Portal, Staff Portal, and External Providers hub. Extended in this session with a robust cross-department visibility grant system (Dept Permissions) and an upgraded Marketing AI Director capable of generating and storing marketing images using Gemini Nano Banana and Emergent Object Storage.
 
-**Last working item**: 
-    - Last item agent was working: Auditing the existing Sicon API integration codebase ( and ) against the provided Bruno/OpenCollection API specification document to ensure full alignment.
+**Last working item**:
+    - Last item agent was working: Fixing minor UI flicker and rendering logic for the Marketing AI Director role-gating (ensuring the can_create permissions check finishes before rendering the UI to avoid layout shifts). 
     - Status: USER VERIFICATION PENDING
-    - Agent Testing Done: Y (Audit successfully completed)
-    - Which testing method agent to use?: NA
+    - Agent Testing Done: Y
+    - Which testing method agent to use?: NA (Testing is already done and passed via ).
     - User Testing Done: N
 
-**All Pending/In progress Issue list**:  
-  Issue 1: Case-Store Decision / Service Desk Redirection (P0)
-     - Attempted fixes: Discussed with user whether Sicon cases should surface in the engineer Service Desk () instead of only the Operations Portal fault log (). User responded ambiguously (a) to the latest prompt.
-     - Next debug checklist: Await explicit user instruction. If approved, redirect imported Sicon cases into , attach  for idempotency, allocate  reference, and re-target tracking notes to .
-     - Why fix this issue and what will be achieved with the fix?: Necessary for engineers to actively work on imported Sicon cases inside the Pulse app.
-     - Status: BLOCKED (User explicit verification/decision pending)
-     - Is recurring issue? N
+**All Pending/In progress Issue list**:
+  - Issue 1:  test assertion failures (P0 - **URGENT: Ignored by previous agent**)
+     - Attempted fixes: Main agent has consistently bypassed this to focus on new feature requests.
+     - Next debug checklist: Fix the 2 remaining domain-logic assertion failures in  concerning bulk-import result shapes and non-admin 403 responses.
+     - Why fix this issue and what will be achieved with the fix?: Restores 100% green e2e testing suite.
+     - Status: NOT STARTED
+     - Is recurring issue? Y
      - Should Test frontend/backend/both after fix: Backend
-     - Blocked on other issue: User decision
+     - Blocked on other issue: None
 
-  Issue 2: Sicon Live Connectivity (P0)
-     - Attempted fixes: Created an email template for the user to send to Sicon ().
+  - Issue 2: Sicon Live Connectivity (P1)
+     - Attempted fixes: Awaiting credentials from Sicon.
      - Next debug checklist: Await reachable base URL, port, integration service account, and production  from Sicon.
-     - Why fix this issue and what will be achieved with the fix?: Unblocks actual end-to-end certification of the integration.
      - Status: BLOCKED
-     - Is recurring issue? N
+     - Is recurring issue? Y
      - Should Test frontend/backend/both after fix: Backend
+     - Blocked on other issue: User/Sicon providing live URLs.
 
-  Issue 3: Production SENDER_EMAIL delivery verification (Resend) (P1)
-     - Attempted fixes: Email functionality implemented but fails in preview due to restricted keys.
-     - Next debug checklist: Await user testing live email delivery on production.
-     - Why fix this issue?: Ensures emails physically reach inboxes.
+  - Issue 3: Production SENDER_EMAIL delivery verification (Resend) (P2)
      - Status: USER VERIFICATION PENDING
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix: NA
 
-  Issue 4: Stripe Live Key in Git History (P2)
-     - Attempted fixes: Instructed user to contact support.
-     - Status: BLOCKED
+  - Issue 4: Stripe Live Key in Git History (P2)
+     - Status: BLOCKED (Requires platform support intervention)
      - Is recurring issue? Y
      - Should Test frontend/backend/both after fix: NA
 
 **In progress Task List**:
-  Task 1: Wire enqueue call-sites for Write-back (P1)
+  - Task 1: Wire enqueue call-sites for Write-back (P1)
      - Where to resume: Call // from the svc-case lifecycle so state changes queue Sicon intents.
-     - What will be achieved with this?: Prepares the system for Phase 2 (still remains behind ).
-     - Status: BLOCKED (Depends on Case-Store Decision [Issue 1])
+     - What will be achieved with this?: Prepares the system for Phase 2 writes (behind ).
+     - Status: NOT STARTED 
      - Should Test frontend/backend/both after fix: Backend
-     - Blocked on something: Issue 1
+     - Blocked on something: None
 
-  Task 2: Orbit4 inbound webhook → Pulse case (P1)
+  - Task 2: Orbit4 inbound webhook → Pulse case (P1)
      - Where to resume: Complete the per-org  receiver.
-     - What will be achieved with this?: Allows field tickets from Orbit4 to correctly create Pulse cases, finalizing the Orbit4 -> Pulse leg of the middleware.
      - Status: NOT STARTED
      - Should Test frontend/backend/both after fix: Backend
      - Blocked on something: None
 
-  Task 3: Auto-start scaffold (P1)
-     - Where to resume: Add  so the drain loop runs on a 30s timer once writes are flipped on.
+  - Task 3: Auto-start scaffold (P1)
+     - Where to resume: Add  so the drain loop runs on a 30s timer.
      - Status: NOT STARTED
      - Should Test frontend/backend/both after fix: Backend
+     - Blocked on something: None
 
-  Task 4: Platform Visual Continuity — Phase 2 (P2)
-     - Status: BLOCKED (Parked by user to focus on features/bugs)
-
-**Upcoming and Future Tasks**:
+**Upcoming and Future Tasks**
     Upcoming Tasks:
-    - Task 1: Wire Sicon Appointments → Diary (P0). Depends on Case-Store decision.
-    - Task 2: Add needs review badge for UNMAPPED_EQUIPMENT on the Service Desk header (P1).
-    - Task 3: Add numeric confidence + LINKED/PROBABLE_MATCH/NEW/CONFLICT/IGNORED/ERROR in Equipment Import Preview (P1).
-    - Task 4: Sicon write-back admin panel showing  (P1).
-    - Task 5: DBS weekly email digest (P2).
+    - Task 1: Wire Sicon Appointments → Diary (P0) - **UNBLOCKED** (Route Sicon cases to ). *Note: Agent spent the previous sessions doing operational bug fixes and new feature integrations.*
+    - Task 2: Desk Alerts (Notify Service Desk/manager when an allocated job is unacknowledged for X hours) (P1)
+    - Task 3: Reassign Nudge (Allow one-tap reassign and re-notify if an engineer declines or does not acknowledge) (P1)
+    - Task 4: Ack In Lists (Display Received/Acknowledged badge on PPM calendar chips and engineer job lists) (P1)
+    - Task 5: Shared Status Enum (Extend  validation across all remaining  writers for thorough coverage) (P1)
+    - Task 6: Modernise test fixtures by migrating hard-coded  emails to conftest constants (P2)
+    - Task 7: Restore MFA testing parity by adding a CI step that runs master-admin tests with pre-enrolled TOTP (P2)
+    - Task 8: Add needs review badge for UNMAPPED_EQUIPMENT on the Service Desk header (P1).
+    - Task 9: Add numeric confidence + LINKED/PROBABLE_MATCH/NEW/CONFLICT/IGNORED/ERROR in Equipment Import Preview (P1).
+    - Task 10: Sicon write-back admin panel showing  (P1).
+    - Task 11: DBS weekly email digest (P2).
 
     Future Tasks:
-    - Task 6: Live certification of Sicon triad + 50-asset pull (upon receipt of live Base URL).
-    - Task 7: Contract read-side integration (currently parked as Sicon plugin returns 404).
-    - Task 8: Staged rollout runner (1 customer -> 100 -> 1k -> full).
-    - Task 9: Scheduled incremental syncs.
+    - Task 12: Live certification of Sicon triad + 50-asset pull.
+    - Task 13: Sicon Contract read-side integration.
+    - Task 14: Scheduled incremental syncs for Sicon.
+    - Task 15: BFPO Phase 3 (Full offline-first / installable PWA behavior, QR/barcode scanning, AI assists).
 
-**Completed work in this session**:
-- Sicon Implementation Audit against Bruno API Specs: Verified Auth endpoints, all V1 read endpoints (Ping, CaseType, Equipment, case relationships), Contract Plugin, and Write Policies. Confirmed 100% alignment with the provided documentation (DONE).
+**Completed work in this session**
+- Dept Permissions: Built backend logic and frontend  enabling admins/owners to grant specific managers cross-department visibility without assigning HR status (DONE).
+- Marketing AI Image Generation: Integrated Gemini Nano Banana via the  tool into the Marketing AI Director. (DONE).
+- Emergent Object Storage: Replaced base64 image strings with Emergent Object storage to save and retrieve generated marketing assets (DONE).
+- Creative Studio Gating: Restricted Image creation capabilities strictly to Owners, Managers, and Master Admins, while leaving the gallery in read-only mode for other staff (DONE).
 
 **Earlier issues found/mentioned but not fixed**
-   - Issue 1: HTTP 429 Auth-lockouts on Shared Test Accounts
-     - Debug checklist: Review login/auth fixtures in pytest suites (e.g., ). Adjust suites to share tokens rather than rapidly re-authenticating.
-     - Why to solve this issue and what will be achieved with this?: Prevents false-positive test failures during broad offline regression testing.
-     - Should Test frontend/backend/both after fix: Backend (Pytest)
-     - Is recurring issue? Y
+   - Issue 1:  test assertion failures. 
+     - Debug checklist: Review the domain logic for bulk-import result shapes and non-admin 403 response assertions inside .
+     - Why to solve this issue and what will be achieved with this?: Achieve a 100% green e2e testing suite.
+     - Should Test frontend/backend/both after fix: Backend
+     - Is recurring issue? Y (Passed down multiple forks, ignored by last agent).
 
 **Known issue recurrence from previous fork**
   - Issue recurrence in previous fork: Invalid RESEND_API_KEY in preview environment, Stripe live key in Git history.
-  - Recurrence count: 13
+  - Recurrence count: 19
   - Status: BLOCKED
 
 **Code Architecture**
 /app
-├── backend/utils/sicon_client.py, sicon_import.py, sicon_common.py (Sicon Core)
-├── backend/utils/sicon_links.py (External mapping logic e.g., Engineer Mapping)
-├── backend/utils/sicon_outbox_worker.py, sicon_writeback.py (Phase 2 Write-back scaffold)
-├── backend/utils/orbit4_client.py, orbit4_outbound.py (Orbit4 Middleware components)
-├── backend/routes/crm_afs_onboarding.py, ppm_engine.py (PPM Generation + Backfill)
-├── backend/routes/sicon.py (Sicon Endpoints & Conflict resolution)
-├── frontend/src/pages/Admin/IntegrationsSiconConnect.js (Sicon API health testing UI)
-├── frontend/src/pages/SiconMappings.js, SiconDashboard.js (Sicon Mappings and Conflicts UI)
+├── backend/routes/staffing.py (Updated: Added visibility grants logic )
+├── backend/routes/staffing_hr.py (Updated)
+├── backend/routes/marketing_director.py (Updated: Integrated AI image gen and object storage)
+├── backend/routes/marketing/creative_storage.py (New: Handles Object Storage I/O)
+├── frontend/src/pages/LiteDashboard/staffing/DeptVisibilityPanel.js (New: Cross-dept grant UI)
+├── frontend/src/pages/LiteDashboard/staffing/HRTab.js (Updated: Mounts visibility panel)
+└── frontend/src/pages/Marketing/AIDirectorPanel.js (Updated: Image generation UI and permission gating)
 
 **Key Technical Concepts**
-React, FastAPI, MongoDB, Outbox Pattern (for reliable syncs), Sync Checkpointing, Null-protection, Idempotency. PulseFitness acts as middleware connecting Orbit4 and Sicon.
+Cross-department RBAC (Role-Based Access Control) grants, AI Image Generation (Gemini Nano Banana), Emergent Object Storage integration, Component Role-Gating.
 
 **key DB schema**
-  - : Operations portal fault log (customer-facing). Currently receives Sicon cases.
-  - : Service Desk for engineers.
-  - , , , : Sicon state and sync queue tables.
+  - : Service jobs.
+  - : Core org structure.
+  - : Stores AI director briefs and metadata.
+  - : Tracks files stored in Emergent Object Storage.
 
 **changes in tech stack**
-  - None, but enforced a singular strict outbox write pattern to avoid Sicon double-writes.
+  -  library installed and utilized for Gemini Nano Banana image generation and Emergent Object Storage API calls.
 
 **All files of reference** 
-  - ,  (Why: Successfully audited against the user's provided Sicon Bruno API specifications).
-  -  & 
-  -  
-  - , 
-  -  
-  - , 
-  - , 
+  - 
+  - 
+  - 
+  - 
+  - 
 
 **Areas that need refactoring**:
-  - Test suites invoking rapid login sequences cause HTTP 429 lockouts (e.g., ).
-  - Stale backend code comment about Sicon page size defaulting to  (currently correctly configured as  in env, just needs code comment cleanup).
+  -  is broken and needs to be addressed urgently.
+  - Sicon API integration tasks () are P0 but get perpetually blocked by new feature requests.
 
 **key api endpoints**
-  -  (Triggers PPM backfill during onboarding)
-  -  (Retrieves Engineer/Resource mappings)
-  -  (Test mode for the outbox)
-  -  (Orbit4 middleware retry endpoint)
+  - 
+  - 
+  - 
+  - 
+  - 
 
 **Critical Info for New Agent**
-  - **READ-ONLY Integration Policy**: DO NOT perform any write operations to Sicon.  must remain . Phase 2 write-back functions are scaffolded but strictly gated behind this flag.
-  - **Sicon Case Store Routing**: There is a pending decision on where imported Sicon cases should land ( vs ). Do not wire appointments or re-route these cases without user confirmation. 
-  - **Live Connectivity Blocked**: The Sicon environment () is not reachable from this cloud container. All testing for Sicon logic must be done offline using mocked httpx transport ().
+  - **Prioritization Warning**: The previous agent entirely ignored the pending P0 bugs ( test failure) and Sicon pipeline tasks to work on new feature requests. You MUST prioritize the  test fixes to ensure pipeline health before picking up new features.
+  - **Sicon Phase 1 is READ-ONLY**: Do not flip .
+  - **Image Storage**: Always use Emergent Object Storage (via  patterns) rather than base64 strings in the DB to avoid token bloat and DB bloat.
 
 **documents and test reports created in this job**
   - 
@@ -148,38 +158,34 @@ React, FastAPI, MongoDB, Outbox Pattern (for reliable syncs), Sync Checkpointing
   - 
 
 **Last 10 User Messages and any pending HUMAN messages** 
- 1. *[User]*: Directed to continue as agent saw best.
- 2. *[Agent]*: Aligned read-side routes, added relationships to importer. Asked questions about Case-store decision.
- 3. *[User]*: Asked if integration paths were robust, requested review of Orbit4 integration.
- 4. *[Agent]*: Reviewed Orbit4, discovered rogue legacy write bridge. 
- 5. *[User]*: Directed to deprecate legacy bridge and consolidate on proven client while waiting for base URL.
- 6. *[User]*: Instructed to continue with Phase 2 Sicon write-back scaffolding.
- 7. *[User]*: Uploaded Sicon Bruno API specifications  and asked to audit codebase.
- 8. *[User]*: Asked to use  tool to confirm the audit plan.
- 9. *[Agent]*: Audited spec against codebase, confirmed 100% alignment, sent findings via .
- 10. *[User]*: Replied a *(Ambiguous reply. Agent must request clear instruction on the Case-Store decision before proceeding with further Sicon mapping).*
+ - *[User]*: Dept Permissions: Enable admins to grant specific managers cross-department visibility without assigning HR status. -> *[Agent]* Created  and backend logic (DONE).
+ - *[User]*: Please use ask_human tool and confirm your plan now. -> *[Agent]* Queried for clarification on Dept Permissions (DONE).
+ - *[User]*: Add the Image Generation AI Models integration to my app. -> *[Agent]* Asked for clarification (DONE).
+ - *[User]*: Clarified Gemini Nano Banana via Universal Key, save to object storage, limit creation to Owners/Managers/Master Admins. -> *[Agent]* Upgraded AI Director, integrated Object Storage, and applied role-gating (DONE).
 
 **Project Health Check:**
-Broken: Some tests exhibit 429 lockouts (Environment issue).
-Mocked: Sage 200 / Sicon API live requests.
+Broken: Pytest assertion logic ( testing suite assertions are failing).
+Mocked: Sicon API integration, Resend Emails in Preview.
 
 **3rd Party Integrations**
-  - Claude Sonnet 4.6 — uses Emergent LLM Key 
+  - Gemini Nano Banana gemini-3.1-flash-image-preview (Image Generation) — uses Emergent LLM Key
+  - Claude Sonnet 5.5 — uses Emergent LLM Key 
   - Stripe (Payments) — requires User API Key
   - Resend (Emails) — requires User API Key
   - Sage 200 / Sicon WebAPI — requires User API Key
   - Orbit4 (Ticketing) — requires User API Key
 
 **Testing status**
-  - Testing agent used after significant changes: NO (Audit performed manually by agent reading files)
+  - Testing agent used after significant changes: YES (Tested Dept Permissions and AI Image Storage/Gating flows).
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: None this session
-  - Known regressions: None (HTTP 429 test failures are confirmed environmental/test-auth artifacts, not code regressions).
+  - Test files created: 
+  - Known regressions:  continues to fail.
 
 **Credentials to test flow:**
-  -  /  (Owner / Master admin tools - REQUIRES MFA)
-  -  /  (Manager Admin - No MFA)
-  -  /  (Staff portal)
+  - Master Admin (Preview):  / 
+  - Standard Admin:  / 
+  - Test Engineer (Also Operator):  (Mapped as ID )
+  - Testing Admin Suite Fixtures:  / 
 
 **What agent forgot to execute**
-The agent did not explicitly re-prompt the user for a clear yes/no on the  after the user replied with a single character a. The next agent MUST seek clear direction on  (Service Desk Redirection) before writing logic to wire appointments to the diary.</analysis>
+The agent successfully completed the new feature requests (Dept Permissions and Marketing AI Image Generation) but completely forgot/ignored the pending items from the previous handoff summary. Specifically, the agent ignored the **P0  broken tests** and the **P0 Sicon Appointment -> Diary** integration task. The next agent MUST address the failing  pytest assertions before moving forward.</analysis>
