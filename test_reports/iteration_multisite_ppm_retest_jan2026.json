@@ -1,0 +1,55 @@
+{
+  "summary": "Retested the fixes from iteration_triage_images_multisite_report_jan2026. All 4 requested items work. (1) Multi-site: the original 20-test file passes. A new retest file (14 tests) confirms the manager gets an exact 403 on hr/profile, employee-file and module-access for deptdemo-sales-b. The owner gets 200 on all three. The manager gets 200 for their own staff. The 5 list endpoints contain no Site B staff and only ids from the manager's /staff list, and the owner still sees Site B in all 5. A sweep of all 47 /api/staffing GET routes found no Site B leak in GET responses, except the workforce-dashboard. Staffing UI as manager (Dashboard/People-HR/Rota/Performance): 3 Service staff only, no Site B text, no API or page errors. (2) PPM print: tested on real API data in Node and in the UI print popup. Every machine is listed when there are no visits (Machines table), when the latest visit has no machine_work (rows appended as 'Not serviced'), and on a 14-machine site with 10 visits. The Engineer box shows the latest visit's engineer and falls back to the scheduled engineer when blank. The print has no 'Machines on site' list and has the Pulse letterhead. (3) Auto-find: with all items checked in the last 7 days the button is hidden. After backdating 2 items to 8 days ago it shows 'Auto-find 2 images', the batch examines exactly 2, and after the no-match run the button is gone. (4) The SVC-00026 PDF returns 200 and contains 'Service Report' and 'TREADMILL CALIBRATION · SPEED & INCLINE · FAIL'. NEW issues found: the workforce-dashboard is not site-scoped, and several per-staff write endpoints have no site/department guard.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/staffing/workforce-dashboard (routes/staffing.py ~2718)", "issue": "Not scoped. active_staff counts the whole org (manager sees 16 but can see only 3 staff). staff_docs/week_shifts load the whole org, so on_now/upcoming/open_shifts/heatmap/labour cost include other sites. Reproduced: the owner created a shift today for deptdemo-sales-b and the manager's response contained 'Sid Sales B' in on_now. The UI shows this on Staffing > Dashboard.", "priority": "HIGH"},
+      {"endpoint": "PATCH /api/staffing/staff/{id}, PATCH /api/staffing/hr/profile/{id} (and by code review: DELETE /api/staffing/staff/{id}, POST /staff/{id}/issue-credentials, POST /staff/{id}/module-access/{module}/grant|revoke, PUT /staff/{id}/dept-visibility, PATCH /staffing/offboarding/{id})", "issue": "No assert_staff_visible guard. The manager got 200 patching Site B staff deptdemo-sales-b (HR city field and staff full_name), and the 200 response returns the full staff record, so a manager can read Site B data through writes. DELETE/issue-credentials/grant were not executed (destructive) but have the same missing guard.", "priority": "HIGH"},
+      {"endpoint": "POST /api/staffing/shifts, PATCH /api/staffing/shifts/{id}", "issue": "The manager can create a shift for Site B staff (200) and edit an existing Site B shift (200). Add assert_staff_visible(body.staff_id) on create, and check the existing shift's staff_id on PATCH/DELETE.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/staffing/forms/submissions", "issue": "Manager (Service dept scope) sees submissions from 2 staff outside their /staff list (9fa89a88… Jordan Blake, SPDEMO_emp_staff). This is department scope, not Site B."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PpmScheduleDetail.buildReportHtml", "issue": "Edge case: workedKeys uses asset_serial||asset_name while machines use serial_number||name. A machine_work entry with no serial, for a machine that has one, is treated as unworked, so the machine shows twice (worked row plus 'Not serviced'). Reproduced in Node. Matching on serial OR name would fix it. Real seeded data matches by serial, so there is no visible issue today.", "selector": "[data-testid=ppm-detail-print]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Staffing > Dashboard (manager)", "issue": "The 'Active staff 16' KPI does not match the 3 people shown in People/Rota (backend workforce-dashboard not scoped).", "affected_selectors": ["[data-testid=kpi-active-staff]"]},
+      {"flow": "Login rate-limited", "issue": "Still no visible error on 429 at the login page (seen again during this run).", "affected_selectors": ["[data-testid=gx-login-submit]"]}
+    ],
+    "design_issues": [
+      {"screen": "PPM print report", "issues": ["Section heading reads 'Machines worked' even when every row is 'Not serviced' (e.g. Demo Branch B SVC-00012). Consider 'Machines' or showing a serviced count."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_jan2026_multisite_images_report.py",
+    "/app/backend/tests/test_jan2026_multisite_scope_retest.py",
+    "/app/backend/tests/test_jan2026_staffing_scope_sweep.py",
+    "/app/tests/ppm_report_eval.js",
+    "/app/test_reports/pytest/multisite_retest.xml",
+    "/app/test_reports/pytest/multisite_scope_retest.xml",
+    "/app/test_reports/pytest/staffing_scope_sweep.xml"
+  ],
+  "action_items": [
+    "Scope /api/staffing/workforce-dashboard: filter staff_members, staff_shifts (by staff_id in the visible set or by site) and the active_staff count with scoped_staff_filter/_visible_staff_ids.",
+    "Add assert_staff_visible(user, staff_id) to all per-staff write routes: PATCH/DELETE /staffing/staff/{id}, PATCH /staffing/hr/profile/{id}, POST issue-credentials, module-access grant/revoke, PUT dept-visibility, PATCH offboarding/{id}.",
+    "Guard shift writes: POST /staffing/shifts (body.staff_id) and PATCH/DELETE /staffing/shifts/{id} (existing shift's staff_id and the new staff_id).",
+    "Optional: scope /staffing/forms/submissions to visible staff; make the PPM report match machines on serial OR name; rename the 'Machines worked' heading when there is no work."
+  ],
+  "critical_code_review_comments": [
+    "The scope fix was applied to read endpoints only. Write endpoints bypass it, and their 200 responses echo the full record, so the read guard can be bypassed.",
+    "workforce_dashboard uses only organization_id. Any new aggregate endpoint should go through one helper (scoped_staff_filter) to avoid this class of leak.",
+    "routes/staffing.py is about 3060 lines and should be split."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_jan2026_multisite_scope_retest.py (new)",
+    "/app/backend/tests/test_jan2026_staffing_scope_sweep.py (new; reads /tmp/staffing_gets.txt route list - regenerate with grep of @router.get('/staffing/...') if missing)",
+    "/app/tests/ppm_report_eval.js (new)"
+  ],
+  "success_rate": {"backend": "Requested items 100% (20/20 original plus 11/11 retest). New gap tests 0/3 pass.", "frontend": "100% of the requested flows (manager Staffing UI, PPM print, auto-find button)"},
+  "seed_data_creation": "None kept. Temporary: one Site B shift (deleted), PRODEMO_eq_1/2 and the iso TEST_UI_OR_Bike auto_image_looked_up_at backdated then restored, deptdemo-sales-b city patched then reset to null.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest from /app/backend (running from /app fails conftest import). The login rate limit is 5 per 5 min: send header X-RateLimit-Bypass with RATE_LIMIT_BYPASS_SECRET from backend/.env (in Playwright, route only **/api/auth/login, because routing all /api/auth/** breaks the session on reload). The bulk auto-find button only appears in the Pro view: lite.docs@pulsedemo.test / LiteDocs123! (/pulse > Equipment). owner@isodemo uses the full dashboard without it. PPM: /service-desk?tab=maintenance, search 'Branch' (ef98ce2e, 1 visit with no machine_work), 'QA Fire' (6f925557, SVC-00026) or 'Head' (9ba2bdb5, 14 machines/10 visits). e775a230 has no visits (not searchable; test via API plus Node). The manager is department-scoped to Service (3 staff: deptdemo-lead, Manager Demo 996e6ae6…, deptdemo-svc)."
+}

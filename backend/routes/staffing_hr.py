@@ -232,6 +232,8 @@ async def update_profile(
     body: ProfileUpdate,
     user: dict = Depends(get_current_user),
 ):
+    from routes.staffing import assert_staff_visible as _asv
+    await _asv(user, _org(user), staff_id)
     """Manager-only update of HR profile fields. Existing core fields
     (full_name / role / hourly_cost) keep their dedicated endpoint to
     avoid scope creep on this one."""
@@ -562,6 +564,8 @@ async def get_offboarding(staff_id: str, user: dict = Depends(get_current_user))
 
 @router.post("/staffing/offboarding/{staff_id}/start")
 async def start_offboarding(staff_id: str, body: OffboardStart, user: dict = Depends(get_current_user)):
+    from routes.staffing import assert_staff_visible as _asv
+    await _asv(user, _org(user), staff_id)
     _require_manager(user)
     org_id = _org(user)
     from routes.staffing import assert_staff_visible
@@ -586,6 +590,8 @@ async def start_offboarding(staff_id: str, body: OffboardStart, user: dict = Dep
 
 @router.patch("/staffing/offboarding/{staff_id}")
 async def update_offboarding(staff_id: str, body: OffboardPatch, user: dict = Depends(get_current_user)):
+    from routes.staffing import assert_staff_visible as _asv
+    await _asv(user, _org(user), staff_id)
     _require_manager(user)
     org_id = _org(user)
     case = await db.staff_offboarding_cases.find_one({"staff_id": staff_id, "organization_id": org_id})
@@ -613,6 +619,8 @@ async def update_offboarding(staff_id: str, body: OffboardPatch, user: dict = De
 
 @router.post("/staffing/offboarding/{staff_id}/complete")
 async def complete_offboarding(staff_id: str, user: dict = Depends(get_current_user)):
+    from routes.staffing import assert_staff_visible as _asv
+    await _asv(user, _org(user), staff_id)
     """Finalise the leaver: set termination fields, archive the staff record and
     REVOKE their login (auth disabled + live sessions invalidated)."""
     _require_manager(user)

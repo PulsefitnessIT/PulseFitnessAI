@@ -560,6 +560,18 @@ async def scoped_staff_filter(user: dict, org_id: str) -> dict:
     return {} if vis is None else {"id": {"$in": list(vis)}}
 
 
+async def _assert_shift_visible(user: dict, org_id: str, shift_id: str, new_staff_id: str | None = None) -> None:
+    """Site/department-scoped managers may only change shifts in their scope."""
+    cur = await db.staff_shifts.find_one({"id": shift_id, "organization_id": org_id}, {"_id": 0, "staff_id": 1, "site_id": 1})
+    if not cur:
+        return
+    _locked = _site_lock_ids(user)
+    if _locked and cur.get("site_id") and cur["site_id"] not in _locked:
+        raise HTTPException(403, "This site is outside your access.")
+    await assert_staff_visible(user, org_id, cur.get("staff_id"))
+    await assert_staff_visible(user, org_id, new_staff_id)
+
+
 def _site_lock_ids(user: dict) -> list | None:
     """Sites a site-restricted (non-owner) login is limited to, else None."""
     if _role(user) in {"owner", "master_admin"} or user.get("is_master_admin"):
@@ -622,6 +634,8 @@ async def my_visibility(user: dict = Depends(get_current_user)):
 @router.put("/staffing/staff/{staff_id}/dept-visibility")
 async def set_dept_visibility(staff_id: str, body: DeptVisibilityUpdate,
                               user: dict = Depends(get_current_user)):
+    from routes.staffing import assert_staff_visible as _asv
+    await _asv(user, _org(user), staff_id)
     """Grant / change / clear a staff member's cross-department visibility.
     Owners, Master Admins and HR only."""
     org_id = _org(user)
@@ -1211,6 +1225,8 @@ async def compliance_overview(user: dict = Depends(get_current_user)):
 
 @router.post("/staffing/staff/{staff_id}/module-access/{module}/grant")
 async def staff_module_grant(staff_id: str, module: str, user: dict = Depends(get_current_user)):
+    from routes.staffing import assert_staff_visible as _asv
+    await _asv(user, _org(user), staff_id)
     from routes.master_admin_users import _module_access_payload
     from routes.master_admin import log_activity
     from utils.module_access import org_module_access
@@ -1251,6 +1267,8 @@ async def staff_module_grant(staff_id: str, module: str, user: dict = Depends(ge
 
 @router.post("/staffing/staff/{staff_id}/module-access/{module}/revoke")
 async def staff_module_revoke(staff_id: str, module: str, user: dict = Depends(get_current_user)):
+    from routes.staffing import assert_staff_visible as _asv
+    await _asv(user, _org(user), staff_id)
     from routes.master_admin_users import _module_access_payload
     from routes.master_admin import log_activity
     if module not in _STAFF_MODULE_KEYS:
@@ -1345,6 +1363,8 @@ async def staff_module_bulk(body: BulkModuleAccess, user: dict = Depends(get_cur
 
 @router.patch("/staffing/staff/{staff_id}")
 async def update_staff(staff_id: str, body: StaffUpdate, user: dict = Depends(get_current_user)):
+    from routes.staffing import assert_staff_visible as _asv
+    await _asv(user, _org(user), staff_id)
     _require_manager(user)
     org_id = _org(user)
     patch = {k: v for k, v in body.dict().items() if v is not None}
@@ -1419,6 +1439,8 @@ async def update_staff(staff_id: str, body: StaffUpdate, user: dict = Depends(ge
 
 @router.delete("/staffing/staff/{staff_id}")
 async def archive_staff(staff_id: str, user: dict = Depends(get_current_user)):
+    from routes.staffing import assert_staff_visible as _asv
+    await _asv(user, _org(user), staff_id)
     _require_manager(user)
     org_id = _org(user)
     existing = await db.staff_members.find_one({"id": staff_id, "organization_id": org_id}, {"_id": 0, "user_id": 1})
@@ -1474,6 +1496,8 @@ async def issue_staff_credentials(
     body: StaffCredentialsRequest | None = None,
     user: dict = Depends(get_current_user),
 ):
+    from routes.staffing import assert_staff_visible as _asv
+    await _asv(user, _org(user), staff_id)
     import secrets
     from utils.auth import hash_password
 
@@ -1716,6 +1740,10 @@ async def create_shift(body: ShiftCreate, user: dict = Depends(get_current_user)
     # No staff → open shift that managers can publish or staff can claim.
     if not doc.get("staff_id"):
         doc["status"] = "open"
+    await assert_staff_visible(user, org_id, doc.get("staff_id"))
+    _locked = _site_lock_ids(user)
+    if _locked and doc.get("site_id") and doc["site_id"] not in _locked:
+        raise HTTPException(403, "This site is outside your access.")
     await db.staff_shifts.insert_one(doc.copy())
     # Compliance check: soft warn on breaches (doesn't block).
     warnings = await _check_compliance(org_id, doc)
@@ -1730,6 +1758,7 @@ async def update_shift(shift_id: str, body: ShiftUpdate, user: dict = Depends(ge
     if "status" in patch and patch["status"] not in VALID_SHIFT_STATUS:
         raise HTTPException(400, "invalid status")
     patch["updated_at"] = _now().isoformat()
+    await _assert_shift_visible(user, org_id, shift_id, patch.get("staff_id"))
     res = await db.staff_shifts.update_one({"id": shift_id, "organization_id": org_id}, {"$set": patch})
     if res.matched_count == 0:
         raise HTTPException(404, "shift not found")
@@ -1742,6 +1771,7 @@ async def update_shift(shift_id: str, body: ShiftUpdate, user: dict = Depends(ge
 async def delete_shift(shift_id: str, user: dict = Depends(get_current_user)):
     _require_manager(user)
     org_id = _org(user)
+    await _assert_shift_visible(user, org_id, shift_id)
     res = await db.staff_shifts.delete_one({"id": shift_id, "organization_id": org_id})
     if res.deleted_count == 0:
         raise HTTPException(404, "shift not found")
@@ -2593,6 +2623,7 @@ async def move_shift(
     trip instead of a full PATCH with every field."""
     _require_manager(user)
     org_id = _org(user)
+    await _assert_shift_visible(user, org_id, shift_id, body.get("staff_id"))
     patch: dict = {"updated_at": _now().isoformat()}
     if "staff_id" in body:
         new_sid = body.get("staff_id") or None
@@ -2739,19 +2770,18 @@ async def workforce_dashboard(user: dict = Depends(get_current_user)):
     wk_start = (now.date() - timedelta(days=now.weekday())).isoformat()
     wk_end = (now.date() - timedelta(days=now.weekday()) + timedelta(days=6)).isoformat()
 
+    _scope = await scoped_staff_filter(user, org_id)
     active_staff = await db.staff_members.count_documents(
-        {"organization_id": org_id, "active": True},
+        {"organization_id": org_id, "active": True, **_scope},
     )
 
     # Load all shifts for this week in one go; we'll slice for each KPI.
-    week_shifts = await db.staff_shifts.find(
-        {
-            "organization_id": org_id,
-            "date": {"$gte": wk_start, "$lte": wk_end},
-            "status": {"$ne": "cancelled"},
-        },
-        {"_id": 0},
-    ).to_list(5000)
+    _sq = {"organization_id": org_id, "date": {"$gte": wk_start, "$lte": wk_end}, "status": {"$ne": "cancelled"}}
+    if _scope:
+        _sq["staff_id"] = {"$in": _scope["id"]["$in"] + [None, ""]}
+    if _site_lock_ids(user):
+        _sq["site_id"] = {"$in": _site_lock_ids(user)}
+    week_shifts = await db.staff_shifts.find(_sq, {"_id": 0}).to_list(5000)
 
     staff_docs = {s["id"]: s async for s in db.staff_members.find(
         {"organization_id": org_id}, {"_id": 0, "id": 1, "full_name": 1, "hourly_cost": 1, "primary_role": 1},

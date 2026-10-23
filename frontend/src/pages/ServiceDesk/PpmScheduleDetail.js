@@ -39,8 +39,8 @@ function buildReportHtml(data) {
     const sect = (title, rows) => (rows.length ? `<div class="cal"><div class="calh">${title}</div><table class="rt"><tr><th>Set point</th><th>Measured</th><th>Result</th></tr>${rows.map((r) => `<tr><td>${esc(humanizeReading(r))}</td><td>${esc(r.measured || '—')}</td><td class="${r.result === 'fail' ? 'fail' : 'pass'}">${esc((r.result || 'pass').toUpperCase())}</td></tr>`).join('')}</table></div>` : '');
     return sect('Speed (mph)', sp) + sect('Incline (%)', inc);
   };
-  const workedKeys = new Set(visits.flatMap((v) => (v.machine_work || []).map((m) => String(m.asset_serial || m.asset_name || '').toLowerCase())));
-  const unworked = machines.filter((m) => !workedKeys.has(String(m.serial_number || m.name || '').toLowerCase()));
+  const workedKeys = new Set(visits.flatMap((v) => (v.machine_work || []).flatMap((m) => [m.asset_serial, m.asset_name].filter(Boolean).map((x) => String(x).toLowerCase()))));
+  const unworked = machines.filter((m) => ![m.serial_number, m.name].filter(Boolean).some((x) => workedKeys.has(String(x).toLowerCase())));
   const visitsHtml = visits.map((v, vi) => {
     const cm = (v.calibration?.machines || []).filter((m) => (m.readings || []).length);
     const flat = v.calibration?.readings || [];
