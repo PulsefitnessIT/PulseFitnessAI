@@ -1,0 +1,41 @@
+{
+  "summary": "I tested 4 items, using the backend (pytest, 10 tests) and the UI (Playwright). BUG 1 (broken photos) is fixed. Photos load with the cookie session and requests with no auth get 401. In the UI the defect photos and the extra photos in the check modal load (naturalWidth > 0). BUG 2 (routing) is fixed. A portal-only driver goes from /login to /staff-portal, and /dashboard and /launch both redirect to /staff-portal. After granting ['operations'], module_overrides.operations becomes true and login lands on /launch with exactly the Staff Portal and Operations tiles. After revoking, the user is portal-only again. FEATURE 3 (driver notes + extra photos) works: upload, remove, save draft, reload, submit, read-only lock, the manager modal block with photo, and the PDF (notes text plus an embedded image). FEATURE 4 (weekly reminder) works. The cron endpoint returns 401 without a token or with a wrong one, and {accepted:true} with the right secret. The manager send returns {week_commencing, sent, skipped, failed}, writes the reminder doc, the bell notification is written, and drivers with a submitted check are not emailed. Resend fails in preview with 'API key is invalid', so status is failed, which is acceptable. A logged-out deep link goes to /login?next=..., then straight to the check form. I found 2 minor backend bugs (see below).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/new-starter/portal/vehicle-check/save|submit", "issue": "Removing the last photo is not saved. If a save has photos.vehicle, photos.defect and photos.extra all empty, _upsert_check keeps the stored photos (vehicle_checks.py ~L1289). Reproduced: saved with extra=[fid], then saved with extra=[], and GET still returns [fid]. It happens whenever the driver removes their only extra or defect photo and has no other photos. Fix: replace photos whenever the client sends the 'photos' key (e.g. 'photos' in body.model_fields_set), not only when it is non-empty."},
+      {"endpoint": "POST /api/new-starter/portal/vehicle-check/save", "issue": "A draft save on a submitted or reviewed check sets its status back to 'in_progress'. set_doc.setdefault('status','in_progress') always sets it, and the guard below never restores the old status (vehicle_checks.py ~L1300). The UI hides Save draft once the check is locked, so only a direct API call can trigger it. Fix: reject saves on submitted/reviewed checks (409), or keep existing['status']."},
+      {"endpoint": "db.vehicle_check_reminders", "issue": "Old reminder docs from 17:11 (portal.staff@pulsedemo.test, craig.henshall@pulsefitness.com) are marked status 'sent', but the backend log shows Resend failed for them ('API key is invalid'). They were probably written by earlier code that did not check res is False. These people will be skipped for week 2026-10-19 even though no email went out. Delete these preview docs."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Staff Portal navbar (portal-only driver)", "issues": ["The 'Switch area' menu still shows 'Main app' and 'Area Selector...' to a user who only has the Staff Portal. Both just redirect back to /staff-portal, which is confusing. Hide the menu (or those items) when only one area is available."]},
+      {"screen": "Global", "issues": ["The floating AI assistant button overlaps the 'Allow cookies' button on the cookie banner (bottom-right)."]},
+      {"screen": "Vehicle check form after submit", "issues": ["After submit, onBack() closes the form but the URL keeps ?tab=vehicle&vehicle=..., so a refresh reopens the read-only form. Clear the 'vehicle' search param on back or submit."]},
+      {"screen": "Staff Portal extra photo input", "issues": ["The input does not have the 'multiple' attribute, so the driver adds photos one at a time (the 12-photo cap works). Consider adding multiple selection."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_vehicle_notes_reminders_routing_jan2026.py", "/app/test_reports/pytest/vehicle_notes_jan2026.xml"],
+  "action_items": [
+    "Fix _upsert_check so clearing all photos (e.g. removing the only extra or defect photo) is saved",
+    "Stop draft saves from reverting submitted/reviewed checks to in_progress (block them or keep the status)",
+    "Optional: hide 'Main app' / 'Area Selector' in Switch area for single-area staff users",
+    "Optional: delete the stale 'sent' docs in db.vehicle_check_reminders from the failed Resend run"
+  ],
+  "critical_code_review_comments": [
+    "vehicle_checks.py is 1535 lines; split it (reminders, PDF and portal routes into separate modules).",
+    "_portal_base_url falls back to a hardcoded 'https://pulsefitness.ai'; per env policy this should fail fast or log a warning.",
+    "send_weekly_check_reminders runs one find_one per vehicle and per driver (N+1). This is fine at current scale, but consider batching with $in for large fleets.",
+    "photos.extra / photos.defect file ids from the client are not checked against db.files for the org. The serve endpoint enforces org on read, so impact is low."
+  ],
+  "updated_files": ["/app/backend/tests/test_vehicle_notes_reminders_routing_jan2026.py"],
+  "success_rate": {"backend": "90% (9/10; the 1 failure is the real save-after-submit status bug)", "frontend": "100% of the requested flows"},
+  "seed_data_creation": "VCTEST_vehicle has a submitted check for this week (id 69ccc711-3534-4ee1-b866-2edea439bf79) with driver_notes 'TEST_UI note: tyre warning came on once' and 1 extra photo. VCTEST_staff was granted, then had operations revoked (module_overrides.operations=False). I cleared db.rate_buckets several times to avoid login 429s.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "/api/auth/login is rate-limited (shared db.rate_buckets); the pytest file clears it before each login. Owner portal@pulsefitness.ltd uses the Pulse Pro dashboard, where /dashboard?tab=staffing is not honoured, so click the 'Staffing' tab text, then staffing-tab-vehicles, then vehicles-view-checks or vehicles-view-defects. The demo defect photo is a seeded 1x1 PNG (naturalWidth 1), so it shows as a black square, but it loads. Running the pytest reminder tests deletes the VCTEST check, so the check becomes outstanding again.",
+  "rca of the issue": "Photos bug: <img> tags cannot send an Authorization header, and localStorage token is the sentinel 'cookie'. The fix reads the ga_session cookie and is verified. Routing: operator-company staff inherited the org-level operations access. Opt-in resolution is verified."
+}

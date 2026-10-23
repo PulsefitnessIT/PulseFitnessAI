@@ -28,7 +28,10 @@ function accessibleAreas(user) {
   const ma = user.moduleAccess || user.module_access || {};
   const hasAnyModule = ['operations', 'memberships', 'marketing', 'crm'].some((k) => ma && ma[k]);
   const operatorTypes = ['full', 'pulse_pro', 'lite', 'mod_site', 'mod_branch', 'mod_org'];
-  const canMain = isMaster || operatorTypes.includes(at) || hasAnyModule || user.role === 'owner';
+  // Operator-company staff logins are opt-in, so they only get "Main app" when
+  // a module has actually been granted to them.
+  const optInStaff = user.role === 'staff' && user.is_operator_company === true;
+  const canMain = isMaster || hasAnyModule || user.role === 'owner' || (operatorTypes.includes(at) && !optInStaff);
   if (canMain) areas.push({ id: 'main', label: 'Main app', path: mainPath, icon: Activity });
 
   const canServiceDesk = isMaster || user.is_service_desk === true || user.role === 'service_desk';

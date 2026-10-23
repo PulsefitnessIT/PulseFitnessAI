@@ -1434,8 +1434,13 @@ function VehicleTab({ H, jwt, initialVehicleId }) {
   }, [H]);
   useEffect(() => { load(); loadPacks(); }, [load, loadPacks]);
 
+  const closeCheck = () => {
+    setOpenId(null); load();
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.has('vehicle')) { sp.delete('vehicle'); window.history.replaceState(null, '', `${window.location.pathname}?${sp}`); }
+  };
   if (!data) return <Loader2 className="animate-spin text-cyan-500" />;
-  if (openId) return <VehicleCheckForm H={H} jwt={jwt} vehicleId={openId} onBack={() => { setOpenId(null); load(); }} />;
+  if (openId) return <VehicleCheckForm H={H} jwt={jwt} vehicleId={openId} onBack={closeCheck} />;
 
   const hasVehicle = !!data.vehicles?.length;
 
@@ -1797,8 +1802,8 @@ function DriverNotesCard({ notes, setNotes, photos, locked, photoBusy, jwt, onUp
           <label data-testid="vehicle-extra-photo-label"
             className={`inline-flex items-center gap-2 text-xs font-bold cursor-pointer px-3 py-2 rounded-lg border border-slate-300 text-slate-600 transition-colors hover:bg-slate-50 ${photoBusy ? 'cursor-wait opacity-70' : ''}`}>
             {photoBusy ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />} {photoBusy ? 'Uploading…' : 'Add photo'}
-            <input type="file" accept="image/*" disabled={photoBusy} className="hidden" data-testid="vehicle-extra-photo"
-              onChange={(e) => { const f = e.target.files[0]; e.target.value = ''; if (f) onUpload(f); }} />
+            <input type="file" accept="image/*" multiple disabled={photoBusy} className="hidden" data-testid="vehicle-extra-photo"
+              onChange={async (e) => { const fs = [...e.target.files].slice(0, 12 - photos.length); e.target.value = ''; for (const f of fs) await onUpload(f); }} />
           </label>
         )}
       </div>

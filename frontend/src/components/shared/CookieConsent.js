@@ -59,7 +59,7 @@ const CookieConsent = () => {
   if (anyModalOpen) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 sm:bottom-4 sm:right-4 sm:left-auto z-40 p-3 sm:p-0 pointer-events-none" data-bottom-banner="cookie" data-testid="cookie-consent-banner" data-brand={isPulse ? 'pulse' : 'gymaxis'}>
+    <div className="fixed bottom-0 left-0 right-0 sm:bottom-4 sm:right-4 sm:left-auto z-[60] p-3 sm:p-0 pointer-events-none" data-bottom-banner="cookie" data-testid="cookie-consent-banner" data-brand={isPulse ? 'pulse' : 'gymaxis'}>
       <div className="w-full sm:w-[340px] bg-black border border-zinc-800 rounded-xl shadow-2xl p-5 pointer-events-auto" style={{ color: '#ffffff' }}>
         <p className="text-sm leading-relaxed" style={{ color: '#ffffff' }}>
           {t('cookie.message', 'This website uses cookies to ensure you get the best experience on our website.')}

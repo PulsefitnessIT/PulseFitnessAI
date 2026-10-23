@@ -1286,7 +1286,7 @@ async def _upsert_check(user, body: SaveCheckBody, submit: bool):
         "driver_notes": (body.driver_notes or "").strip()[:4000],
     }
     # Don't wipe previously-uploaded photos when a save omits them.
-    if incoming_photos.get("vehicle") or incoming_photos.get("defect") or incoming_photos.get("extra"):
+    if "photos" in body.model_fields_set:
         set_doc["photos"] = {"vehicle": incoming_photos.get("vehicle") or {},
                              "defect": list(incoming_photos.get("defect") or []),
                              "extra": list(incoming_photos.get("extra") or [])[:12]}
@@ -1297,9 +1297,9 @@ async def _upsert_check(user, body: SaveCheckBody, submit: bool):
         set_doc["submitted_at"] = now
         set_doc["declaration"] = {"confirmed": True, "driver_name": (body.details or {}).get("driver_name") or staff.get("full_name"), "at": now}
     else:
-        set_doc.setdefault("status", "in_progress")
-        if not existing or existing.get("status") not in ("submitted", "reviewed"):
-            set_doc["status"] = "in_progress"
+        if existing and existing.get("status") in ("submitted", "reviewed"):
+            raise HTTPException(409, "This check has already been submitted.")
+        set_doc["status"] = "in_progress"
 
     if existing:
         await db.vehicle_checks.update_one(
