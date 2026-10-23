@@ -1,0 +1,23 @@
+{
+  "summary": "Frontend-only retest of the Staff Portal vehicle check after the 'Notes for your Manager' -> 'Additional notes' rename and the JSX compile fix. Logged in as vc.driver@pulsefitness.test (lands on /staff-portal). Tested at 390x844 (bottom-nav-vehicle) and 1920x800 (staff-tab-vehicle). All 4 requested items passed: the heading reads exactly 'Additional notes' and the text 'Notes for your manager' appears nowhere on the page; there is no error overlay and no page errors; the card button shows 'Complete check' and then 'View check' after a real submit of all 28 items; 'Vehicle details' expands vehicle-info-VCTEST_vehicle; uploading 2 extra photos showed 'Uploading 1/2…' then 'Uploading 2/2…' then 'Add photos'; Save draft was disabled during the upload; both thumbnails rendered; the notes and both photos persisted after Save draft and a reload; the submitted (locked) view still shows the card with 2 photos; horizontal overflow is 0 at both sizes.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Vehicle check form, 390x844", "issues": ["The floating feedback and AI FAB buttons on the bottom right partly overlap the 'Submit check' button in the declaration card when scrolled to the bottom. It is still clickable once scrolled, but adding bottom padding would help (minor)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": ["Optional: add bottom padding on mobile so the floating FABs don't cover the Save draft / Submit check buttons"],
+  "critical_code_review_comments": [
+    "StaffPortal.js is about 1830 lines; consider splitting the vehicle check parts (VehicleTab, VehiclePortalCard, VehicleCheckForm, DriverNotesCard) into their own module.",
+    "In DriverNotesCard, uploadMany calls onUpload one file at a time. A failed file sets the error but the loop carries on, which is fine. The queue label isn't cleared if the component unmounts mid-upload (harmless)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "seed_data_creation": "None. The VCTEST_vehicle check was deleted before and after testing, so it is editable again.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Driver vc.driver@pulsefitness.test / Driver123! lands on /staff-portal. On mobile use bottom-nav-vehicle; on desktop use staff-tab-vehicle. Delete db.vehicle_checks for VCTEST_vehicle to reset, and clear db.rate_buckets if login gets throttled. Click Decline on the cookie banner. 28 checklist items: click every OK button inside [data-testid^=vehicle-item-] to answer them all."
+}

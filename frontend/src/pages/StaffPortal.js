@@ -1655,7 +1655,7 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
   const sr = d.vehicle?.service_record || {};
 
   return (
-    <div className="space-y-4" data-testid="vehicle-check-form">
+    <div className="space-y-4 pb-20 sm:pb-0" data-testid="vehicle-check-form">
       <div className="flex items-center justify-between gap-2">
         <button onClick={onBack} data-testid="vehicle-check-back" className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800"><ChevronLeft size={16} /> Vehicles</button>
         {locked && <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Submitted — read only</span>}

@@ -1,3 +1,19 @@
+# [2026-06] FEATURE/BUGFIX — Vehicle checks: Additional notes, extra photos, weekly reminder; photo + routing fixes
+- Staff Portal check form: "Additional notes" card (driver_notes, max 4000) + up to 12 extra photos (photos.extra, multi-select,
+  upload progress). Shown in manager CheckDetailModal (check-detail-driver-notes) + check PDF. Draft-save on a submitted check → 409.
+  Photos are replaced whenever the 'photos' key is sent (so removing the last photo now sticks).
+- Weekly reminder: send_weekly_check_reminders() in routes/vehicle_checks.py — one email per driver/week listing outstanding vehicles
+  with deep link {APP_PUBLIC_URL|FRONTEND_URL}/staff-portal?tab=vehicle&vehicle={id}; dedupe db.vehicle_check_reminders; bell notification.
+  Cron `vehicle-check-remind` Fri 14:00 Europe/London → POST /api/vehicle-checks/cron/weekly-reminder (WEBHOOK_CRON_SECRET).
+  Manager manual run: POST /api/vehicle-checks/send-reminders. StaffPortal reads ?tab=&vehicle= deep links; logged-out → /login?next=.
+- FIX broken defect photos: /api/vehicle-checks/photo/{id} now accepts the ga_session cookie (localStorage token is the 'cookie' sentinel).
+- FIX staff routed to Operations: utils/module_access.resolve_module_access — operator-company (is_operator_company) role=='staff'
+  logins are OPT-IN (module only if module_overrides[key] is True). Team-access grant now writes module_overrides.operations.
+  AreaSwitcher hides "Main app" for such users. Portal-only staff → /staff-portal directly; staff with modules → /launch.
+- Cookie banner raised to z-[60] above floating buttons.
+- Tests: backend/tests/test_vehicle_notes_reminders_routing_jan2026.py; reports iteration_vehicle_notes_*_jan2026.json (all pass).
+- Still pending (P0 from handoff): mod_bulk_import test failures; Sicon Appointments → Diary. Resend key invalid in preview (emails fail there).
+
 # [2026-06] FEATURE — External Service Providers: open-case removal safeguard
 Removing a provider engineer now guards against orphaned history.
 Backend DELETE .../engineers/{engineer_id} takes ?force=bool. Counts OPEN cases
