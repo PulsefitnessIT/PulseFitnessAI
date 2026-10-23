@@ -50,6 +50,7 @@ from utils.churn_signals import (
 )
 from utils.database import db
 from utils.module_guard import require_module
+from routes.marketing.creative_storage import require_creator, store_data_url
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -750,7 +751,7 @@ async def director_brief_launch(
             "brand_lock": bool(doc.get("brand_lock")),
             "brand_kit_applied": True,
             "source": doc.get("poster_model") or "gemini-3.1-flash-image-preview",
-            "variants": [{"url": doc["poster_data_url"], "model": doc.get("poster_model")}],
+            "variants": [await store_data_url(org_id, doc["poster_data_url"], doc.get("poster_model"))],
             "from_brief_id": brief_id,
             "created_at": _now_iso(),
         })
@@ -969,6 +970,7 @@ async def director_expand_from_asset(
     expand it into a full Director brief — multi-format copy + strategy +
     optionally regenerate the poster. The asset's headline / sub-headline /
     CTA / prompt / category are used as the seed."""
+    require_creator(user)
     org_id = user.get("organization_id")
     asset = await db.marketing_creative_assets.find_one(
         {"id": asset_id, "organization_id": org_id}, {"_id": 0},

@@ -9,7 +9,9 @@ from __future__ import annotations
 import base64
 import os
 
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile
+import asyncio
+
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, Response, UploadFile
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -23,6 +25,15 @@ from routes.marketing.helpers import (
     _require_feature,
     logger,
 )
+from routes.marketing.creative_storage import (
+    can_create,
+    migrate_assets,
+    require_creator,
+    store_data_url,
+    store_image,
+    variant_b64,
+)
+from utils.database import get_object
 
 router = APIRouter()
 
@@ -66,6 +77,13 @@ async def list_resolutions(_: dict = Depends(get_current_user)):
     return {"presets": [{"id": k, **v} for k, v in RESOLUTION_PRESETS.items()]}
 
 
+def _public(asset: dict) -> dict:
+    """Asset as returned to clients — never exposes raw storage paths."""
+    out = {k: v for k, v in asset.items() if k != "_id"}
+    out["variants"] = [{k: v for k, v in x.items() if k != "storage_path"} for x in out.get("variants") or []]
+    return out
+
+
 @router.post("/marketing/creative/generate", dependencies=[Depends(require_module("marketing"))])
 async def generate_creative(body: dict = Body(...), user: dict = Depends(get_current_user)):
     """Generate marketing imagery via OpenAI gpt-image-1 through the
@@ -98,6 +116,7 @@ async def generate_creative(body: dict = Body(...), user: dict = Depends(get_cur
       • mood                      free-form (e.g. "energetic", "calm")
       • style                     visual style (photorealistic, illustrated…)
     """
+    require_creator(user)
     org_id = await _org_id(user)
     entitlement = await _get_entitlement(user)
     _require_feature(entitlement, "ai_creative_studio")
@@ -130,18 +149,9 @@ async def generate_creative(body: dict = Body(...), user: dict = Depends(get_cur
     # Extract base64 image data from reference asset variants so we can
     # pass them as actual visual inputs to Gemini Nano Banana (not just
     # text descriptors).
-    def _extract_base64(asset: dict) -> str | None:
-        url = ((asset.get("variants") or [{}])[0] or {}).get("url") or ""
-        if not url.startswith("data:"):
-            return None
-        try:
-            return url.split(",", 1)[1]
-        except Exception:
-            return None
-
     reference_b64s: list[str] = []
     for r in refs:
-        data = _extract_base64(r)
+        data = await variant_b64((r.get("variants") or [{}])[0] or {})
         if data:
             reference_b64s.append(data)
 
@@ -190,87 +200,38 @@ async def generate_creative(body: dict = Body(...), user: dict = Depends(get_cur
 
     variants: list[dict] = []
     api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        raise HTTPException(503, "Image generation is not configured")
+    from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent  # type: ignore
+    file_contents = [ImageContent(b) for b in reference_b64s]
+    model_id = "gemini-3.1-flash-image-preview"
 
-    # ── Primary path: Gemini Nano Banana ───────────────────────────────
-    # Why Nano Banana? It accepts BOTH a text prompt AND multiple reference
-    # images, so when the user uploads a face / logo / equipment asset and
-    # ticks it as a reference, it actually appears in the generated poster
-    # — instead of being silently ignored (which is what happened with
-    # gpt-image-1, which is text-prompt only).
-    nano_succeeded = False
-    if api_key:
+    async def _one_variant() -> list[dict]:
+        # Fresh chat per variant — Nano Banana is non-deterministic, giving natural variation.
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"creative-{org_id}-{_new_id()}",
+            system_message="You are a senior fitness brand art director. Output a high-impact poster image.",
+        )
+        chat.with_model("gemini", model_id).with_params(modalities=["image", "text"])
+        msg = UserMessage(text=full_prompt, file_contents=file_contents or None)
         try:
-            from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent  # type: ignore
-            file_contents = [ImageContent(b) for b in reference_b64s]
-            for _ in range(n):
-                # Fresh chat per variant — Nano Banana is non-deterministic
-                # so this gives us natural variation.
-                chat = LlmChat(
-                    api_key=api_key,
-                    session_id=f"creative-{org_id}-{_new_id()}",
-                    system_message=(
-                        "You are a senior fitness brand art director. "
-                        "Output a high-impact poster image."
-                    ),
-                )
-                chat.with_model("gemini", "gemini-3.1-flash-image-preview")
-                chat.with_params(modalities=["image", "text"])
-                msg = UserMessage(
-                    text=full_prompt,
-                    file_contents=file_contents if file_contents else None,
-                )
-                try:
-                    _text, images = await chat.send_message_multimodal_response(msg)
-                    for img in (images or []):
-                        b64_data = img.get("data") if isinstance(img, dict) else None
-                        if not b64_data:
-                            continue
-                        mime = (img.get("mime_type") if isinstance(img, dict) else None) or "image/png"
-                        data_url = f"data:{mime};base64,{b64_data}"
-                        variants.append({"url": data_url, "model": "gemini-3.1-flash-image-preview"})
-                        nano_succeeded = True
-                except Exception as exc:  # pragma: no cover
-                    logger.info("[marketing] nano banana variant failed: %s", exc)
-        except Exception as exc:  # pragma: no cover
-            logger.info("[marketing] nano banana unavailable: %s", exc)
+            _text, images = await chat.send_message_multimodal_response(msg)
+        except Exception as exc:  # noqa: BLE001
+            logger.info("[marketing] nano banana variant failed: %s", exc)
+            return []
+        out = []
+        for img in (images or []):
+            b64_data = img.get("data") if isinstance(img, dict) else None
+            if b64_data:
+                out.append(await store_image(org_id, base64.b64decode(b64_data),
+                                             img.get("mime_type") or "image/png", model_id))
+        return out
 
-    # ── Fallback: gpt-image-1 (no reference image support) ──────────────
-    if not nano_succeeded and api_key:
-        try:
-            from emergentintegrations.llm.openai.image_generation import OpenAIImageGeneration  # type: ignore
-            image_gen = OpenAIImageGeneration(api_key=api_key)
-            try:
-                images = await image_gen.generate_images(
-                    prompt=full_prompt,
-                    model="gpt-image-1",
-                    number_of_images=n,
-                )
-                for img_bytes in (images or []):
-                    if not img_bytes:
-                        continue
-                    data_url = "data:image/png;base64," + base64.b64encode(img_bytes).decode()
-                    variants.append({"url": data_url, "model": "gpt-image-1"})
-            except Exception as exc:  # pragma: no cover
-                logger.info("[marketing] openai image gen failed: %s", exc)
-        except Exception as exc:  # pragma: no cover
-            logger.info("[marketing] AI creative unavailable: %s", exc)
-
-    # If AI returned nothing, fall back to a deterministic SVG gradient so
-    # the UX stays alive during dev/preview without an LLM key.
+    for chunk in await asyncio.gather(*[_one_variant() for _ in range(n)]):
+        variants.extend(chunk)
     if not variants:
-        for _ in range(n):
-            colour = brand_kit.get("primary_color", "#0055FF")
-            head_text = (headline or prompt)[:36]
-            svg = (
-                f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}">'
-                f'<defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">'
-                f'<stop offset="0%" stop-color="{colour}"/><stop offset="100%" stop-color="#0a0a2a"/>'
-                f'</linearGradient></defs><rect width="{width}" height="{height}" fill="url(#g)"/>'
-                f'<text x="{width // 2}" y="{height // 2}" font-family="Inter,sans-serif" font-size="{max(32, width // 18)}" font-weight="700" '
-                f'text-anchor="middle" fill="white">{head_text}</text></svg>'
-            )
-            data = "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode()
-            variants.append({"url": data, "model": "fallback_svg"})
+        raise HTTPException(502, "The image AI couldn't create an image this time — please try again or simplify the prompt.")
 
     asset = {
         "id": _new_id(), "organization_id": org_id, "created_by": user["id"],
@@ -282,16 +243,16 @@ async def generate_creative(body: dict = Body(...), user: dict = Depends(get_cur
         "reference_count": len(reference_b64s),
         "brand_lock": brand_lock,
         "brand_kit_applied": bool(brand_kit),
-        "source": variants[0]["model"] if variants and variants[0].get("model") != "fallback_svg" else "fallback_svg",
+        "source": model_id,
         "variants": variants,
         "used_by_campaign_ids": [], "used_by_post_ids": [],
         "created_at": _now_iso(),
     }
     await db.marketing_creative_assets.insert_one(asset)
     await db.marketing_subscriptions.update_one(
-        {"organization_id": org_id}, {"$inc": {"usage_this_period.ai_generations": n}},
+        {"organization_id": org_id}, {"$inc": {"usage_this_period.ai_generations": len(variants)}},
     )
-    return {"asset": {k: v for k, v in asset.items() if k != "_id"}}
+    return {"asset": _public(asset)}
 
 
 @router.post("/marketing/creative/import-brand-asset", dependencies=[Depends(require_module("marketing"))])
@@ -303,6 +264,7 @@ async def import_brand_library_asset(body: dict = Body(...), user: dict = Depend
     Iter 238g — completes the round-trip wire-up of
     `/api/marketing/image-library` into the Creative Studio picker.
     """
+    require_creator(user)
     org_id = await _org_id(user)
     entitlement = await _get_entitlement(user)
     _require_feature(entitlement, "ai_creative_studio")
@@ -324,7 +286,7 @@ async def import_brand_library_asset(body: dict = Body(...), user: dict = Depend
         {"_id": 0},
     )
     if existing:
-        return {"asset": existing, "reused": True}
+        return {"asset": _public(existing), "reused": True}
 
     src_url = (lib_row.get("url") or "").strip()
     data_url = src_url
@@ -356,13 +318,12 @@ async def import_brand_library_asset(body: dict = Body(...), user: dict = Depend
         "brand_kit_applied": False,
         "source": "brand_library",
         "library_id": library_id,
-        "variants": [{"url": data_url, "model": "brand_library"}],
+        "variants": [await store_data_url(org_id, data_url, "brand_library")],
         "used_by_campaign_ids": [], "used_by_post_ids": [],
         "created_at": _now_iso(),
     }
     await db.marketing_creative_assets.insert_one(asset.copy())
-    asset.pop("_id", None)
-    return {"asset": asset, "reused": False}
+    return {"asset": _public(asset), "reused": False}
 
 
 @router.post("/marketing/creative/upload", dependencies=[Depends(require_module("marketing"))])
@@ -382,6 +343,7 @@ async def upload_creative(
       • photo      — a general photo (default)
       • other
     """
+    require_creator(user)
     org_id = await _org_id(user)
     entitlement = await _get_entitlement(user)
     _require_feature(entitlement, "ai_creative_studio")
@@ -391,9 +353,7 @@ async def upload_creative(
     raw = await file.read()
     if len(raw) > 5 * 1024 * 1024:
         raise HTTPException(400, "Image too large — max 5 MB")
-    import base64
-    mime = file.content_type
-    data_url = f"data:{mime};base64," + base64.b64encode(raw).decode()
+    stored = await store_image(org_id, raw, file.content_type, "user_upload")
     cat = (category or "other").strip().lower()
     if cat not in ("logo", "face", "equipment", "photo", "other"):
         cat = "other"
@@ -404,16 +364,17 @@ async def upload_creative(
         "filename": file.filename,
         "label": (label or "").strip() or None,
         "brand_kit_applied": False, "source": "user_upload",
-        "variants": [{"url": data_url, "model": "user_upload"}],
+        "variants": [stored],
         "used_by_campaign_ids": [], "used_by_post_ids": [],
         "created_at": _now_iso(),
     }
     await db.marketing_creative_assets.insert_one(asset)
-    return {"asset": {k: v for k, v in asset.items() if k != "_id"}}
+    return {"asset": _public(asset)}
 
 
 @router.delete("/marketing/creative/{asset_id}", dependencies=[Depends(require_module("marketing"))])
 async def delete_creative(asset_id: str, user: dict = Depends(get_current_user)):
+    require_creator(user)
     org_id = await _org_id(user)
     res = await db.marketing_creative_assets.delete_one({"id": asset_id, "organization_id": org_id})
     if res.deleted_count == 0:
@@ -427,4 +388,23 @@ async def list_creative(user: dict = Depends(get_current_user)):
     items = await db.marketing_creative_assets.find(
         {"organization_id": org_id}, {"_id": 0},
     ).sort("created_at", -1).limit(60).to_list(length=60)
-    return {"assets": items}
+    await migrate_assets(items)  # lazily move legacy base64 images into storage
+    return {"assets": [_public(a) for a in items], "can_create": can_create(user)}
+
+
+@router.get("/marketing/creative/file/{token}")
+async def creative_file(token: str, download: bool = Query(False)):
+    """Serve a stored Creative Studio image by its unguessable token."""
+    asset = await db.marketing_creative_assets.find_one(
+        {"variants.token": token}, {"_id": 0, "id": 1, "variants": 1})
+    v = next((x for x in (asset or {}).get("variants") or [] if x.get("token") == token), None)
+    if not v or not v.get("storage_path"):
+        raise HTTPException(404, "Image not found")
+    data, ctype = await asyncio.to_thread(get_object, v["storage_path"])
+    mime = v.get("mime") or ctype
+    headers = {"Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff",
+               "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'"}
+    if download:
+        ext = (v["storage_path"].rsplit(".", 1) + ["png"])[1]
+        headers["Content-Disposition"] = f'attachment; filename="creative-{asset["id"][:8]}.{ext}"'
+    return Response(content=data, media_type=mime, headers=headers)

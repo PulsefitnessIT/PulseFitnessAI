@@ -125,7 +125,8 @@ if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
 
 # Object Storage
-STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
+_STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
+STORAGE_URL = _STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
 APP_NAME = "gymaxis-ai"
 storage_key: Optional[str] = None
 

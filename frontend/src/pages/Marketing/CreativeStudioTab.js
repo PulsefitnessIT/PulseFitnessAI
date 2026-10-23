@@ -100,9 +100,14 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
   // Full-screen poster preview state. {url, headline, dims, style} or null.
   const [lightbox, setLightbox] = useState(null);
   const fileRef = useRef(null);
+  // Owners / Managers / Master Admins create; everyone else views & downloads.
+  const [canCreate, setCanCreate] = useState(null);
+  // Stored images are served by the backend at /api/marketing/creative/file/<token>.
+  const imgSrc = (u) => (u && u.startsWith('/api/') ? `${API}${u}` : u);
+  const dlHref = (u) => (u && u.startsWith('/api/') ? `${API}${u}?download=1` : u);
 
   const load = () => axios.get(`${API}/api/marketing/creative`, { headers })
-    .then((r) => setAssets(r.data.assets || []))
+    .then((r) => { setAssets(r.data.assets || []); setCanCreate(r.data.can_create !== false); })
     .catch(() => {});
 
   useEffect(() => {
@@ -167,12 +172,8 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
         reference_asset_ids: selectedRefs,
         brand_lock: brandLock,
       };
-      const { data } = await axios.post(`${API}/api/marketing/creative/generate`, payload, { headers });
-      if (data.asset?.source === 'fallback_svg') {
-        notify.warning(t('mkt.cs_fallback_title', 'Using preview fallback'), t('mkt.cs_fallback_body', 'AI service is busy — placeholder shown. Try again or contact support if this persists.'));
-      } else {
-        notify.success(t('mkt.cs_generated', 'Generated {{n}} variant(s) at {{w}}×{{h}}', { n, w: data.asset?.width, h: data.asset?.height }));
-      }
+      const { data } = await axios.post(`${API}/api/marketing/creative/generate`, payload, { headers, timeout: 180000 });
+      notify.success(t('mkt.cs_generated', 'Generated {{n}} variant(s) at {{w}}×{{h}}', { n: data.asset?.variants?.length || n, w: data.asset?.width, h: data.asset?.height }));
       setPrompt('');
       load();
     } catch (err) {
@@ -260,7 +261,14 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
 
   return (
     <div className="space-y-4" data-testid="marketing-creative-tab">
+      {canCreate === false && (
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400 flex items-center gap-2" data-testid="creative-view-only-banner">
+          <ImageIcon size={14} className="text-[var(--color-brand-blue)]" />
+          {t('mkt.cs_view_only', 'You can view and download images here. Ask an Owner or Manager to create new ones.')}
+        </div>
+      )}
       {/* Two-column workspace */}
+      {canCreate && (
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4">
         {/* Left: Builder form */}
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 space-y-4 shadow-sm">
@@ -488,7 +496,7 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
                       title={row.label || 'Brand library image'}
                       data-testid={`creative-brand-${row.id}`}
                     >
-                      <img src={row.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      <img src={imgSrc(row.url)} alt="" className="w-full h-full object-cover" loading="lazy" />
                       {selected && (
                         <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-[var(--color-brand-blue)] text-white flex items-center justify-center">
                           <Check size={11} />
@@ -527,7 +535,7 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
                     title={a.label || a.filename || 'Reference asset'}
                     data-testid={`creative-ref-${a.id}`}>
                     {v?.url ? (
-                      <img src={v.url} alt="" className="w-full h-full object-cover" />
+                      <img src={imgSrc(v.url)} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-zinc-100 dark:bg-zinc-800">
                         <ImageIcon size={16} className="text-zinc-400" />
@@ -551,6 +559,8 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
         </div>
       </div>
 
+      )}
+
       {/* Generated outputs gallery */}
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm">
         <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
@@ -565,8 +575,8 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" data-testid="creative-gallery">
             {generatedAssets.flatMap((a) => (a.variants || []).map((v, idx) => (
               <div key={`${a.id}-${idx}`} className="aspect-square rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800 relative group cursor-pointer" data-testid={`creative-asset-${a.id}-${idx}`}
-                onClick={() => setLightbox({ url: v.url, headline: a.headline || a.prompt, dims: `${a.width}×${a.height}`, style: a.style })}>
-                <img src={v.url} alt={a.prompt} className="w-full h-full object-cover" />
+                onClick={() => setLightbox({ url: imgSrc(v.url), download: dlHref(v.url), headline: a.headline || a.prompt, dims: `${a.width}×${a.height}`, style: a.style })}>
+                <img src={imgSrc(v.url)} alt={a.prompt} className="w-full h-full object-cover" loading="lazy" />
                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex flex-col justify-end p-3">
                   <p className="text-white text-[10px] line-clamp-3 mb-1">{a.headline || a.prompt}</p>
                   <p className="text-white/70 text-[9px] mb-2">{a.width}×{a.height}{a.style ? ` · ${a.style}` : ''}</p>
@@ -574,9 +584,10 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
                     {a.source === 'fallback_svg' && (
                       <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/80 text-white">{t('mkt.cs_preview', 'Preview')}</span>
                     )}
-                    <a href={v.url} download className="ml-auto p-1 rounded hover:bg-white/20 text-white" title={t('mkt.cs_download', 'Download')} onClick={(e) => e.stopPropagation()}>
+                    <a href={dlHref(v.url)} download className="ml-auto p-1 rounded hover:bg-white/20 text-white" title={t('mkt.cs_download', 'Download')} onClick={(e) => e.stopPropagation()} data-testid={`creative-download-${a.id}-${idx}`}>
                       <Upload size={11} className="rotate-180" />
                     </a>
+                    {canCreate && (<>
                     <button onClick={async (e) => {
                       e.stopPropagation();
                       try {
@@ -597,6 +608,7 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
                     <button onClick={(e) => { e.stopPropagation(); remove(a.id, a.headline || a.prompt); }} className="p-1 rounded hover:bg-white/20 text-white" data-testid={`creative-delete-${a.id}`} aria-label={t('mkt.cs_delete', 'Delete')}>
                       <Trash2 size={11} />
                     </button>
+                    </>)}
                   </div>
                 </div>
               </div>
@@ -631,8 +643,9 @@ const CreativeStudioTab = ({ API, headers, entitlement }) => {
                 {lightbox.dims}{lightbox.style ? ` · ${lightbox.style}` : ''}
               </p>
               <a
-                href={lightbox.url}
+                href={lightbox.download || lightbox.url}
                 download
+                data-testid="creative-lightbox-download"
                 className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 rounded-md bg-white/10 hover:bg-white/20 text-white text-xs font-bold"
                 onClick={(e) => e.stopPropagation()}
               >

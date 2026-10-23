@@ -268,6 +268,7 @@ async def create_indexes() -> None:
         )
         await db.marketing_audiences.create_index([("organization_id", 1)])
         await db.marketing_creative_assets.create_index([("organization_id", 1)])
+        await db.marketing_creative_assets.create_index([("variants.token", 1)], sparse=True)
         # Onboarding packets dashboard
         await db.onboarding_packets.create_index(
             [("organization_id", 1), ("created_at", -1)],
