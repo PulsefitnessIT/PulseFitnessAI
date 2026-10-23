@@ -1,0 +1,22 @@
+{
+  "summary": "Frontend-only retest of the receipt-upload follow-ups. Ran Playwright on mobile (390x844) as vc.driver against claim c47ace2f (draft). FIX1: Snap with only bad.heic (random bytes) gives POST 415, and exp-error shows 'That photo format couldn't be read — please take the receipt photo again.' (the generic 'Could not read those receipts' text is gone). Snap with good.jpg + bad.heic gives 200 + 415; one line is added and the banner reads 'Some receipts didn't upload: That photo format couldn't be read — please take the receipt photo again.' PASS. FIX2: per-line exp-line-receipt-0 got the same file twice and fired 2 POSTs (200, 200). input.value is '' after each change. exp-line-retake input also resets to '' after upload. PASS. FIX3: after the Snap failure with the page scrolled to the top, the exp-error banner is in the viewport (y=601 of 844; y=585 for the mixed-batch case). PASS. Regression: Snap of a 14MB JPEG + 15MB HEIC (IMG_0001.HEIC) gives 2x 200 and lines go from 1 to 3. Per-line upload of the 15MB HEIC on a new line gives 200. There are 4 receipt thumbnails for 4 lines. Save draft persisted all 4 lines with receipt_ids (checked in the DB). PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "snapNewReceipts keeps only the last failDetail, so different failures in one batch (e.g. 413 + 415) show only one reason. Acceptable.",
+    "On a mixed batch, line 227 overwrites the lowscan/duplicate warning with 'Some receipts didn't upload'. This is intended priority, but the user loses the 'hard to read' hint for the line that was added (the line itself is still flagged)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100% (4/4 retest items + regression)"},
+  "seed_data_creation": "Used existing claim c47ace2f-163f-4492-a921-549d587d08e0. Afterwards its lines were reset to [] via mongo; the uploaded receipts remain in claim.receipts.",
+  "test_credentials": "vc.driver@pulsefitness.test / Driver123!",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "On mobile the staff-tab-expenses pill is hidden (it is behind the bottom 'More' nav), so click it via JS: document.querySelector('[data-testid=staff-tab-expenses]').click(). Test files were generated in /tmp/rt (bad.heic random bytes; big.jpg 14MB; IMG_0001.HEIC 15MB, 4032x3024 q80 via pillow_heif; good.jpg). The exp-saved message is transient and was not caught after Save draft, but the DB confirmed the save persisted."
+}

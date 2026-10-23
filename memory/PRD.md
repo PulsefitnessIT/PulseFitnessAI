@@ -39136,3 +39136,9 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Vehicle photos: utils/image_compress.compress_photo (EXIF rotate, max 2000px, JPEG q80, HEIC→JPEG via pillow-heif) applied server-side on /new-starter/portal/vehicle-check/photo, /new-starter/portal/crash-packs/photo, /vehicles/fine-upload (images only). Those routes moved to the 25MB upload tier in utils/security_plus.UPLOAD_PATH_PREFIXES (were 2MB default). Fine upload also compresses in-browser (compressImage).
 - `backfill_compress_vehicle_photos()` (routes/vehicle_checks.py) startup task shrinks existing stored photos in place (overwrites same storage path), sets files.compressed / original_size; idempotent.
 - Verified via API: 18.6MB→1.1MB (noise worst case), HEIC served as JPEG, backfill 18.6MB→1.1MB and second run no-op; certificate download renders new Pulse design.
+
+## 2026-06 — Staff Portal expense receipts: Live Photo / large upload fix — DONE
+- Root cause: POST /api/new-starter/portal/expenses/{id}/receipt fell under the 2MB default body guard and photos were sent uncompressed → iPhone Live Photos / HEIC (3–5MB+) got 413. (A web app cannot disable Live Photos on the phone.)
+- Fix: route moved to 25MB upload tier (security_plus._is_upload_path); server compresses images via utils/image_compress (HEIC→JPEG, max 2000px, EXIF rotate), PDFs untouched; unreadable HEIC → 415 friendly message. StaffExpensesTab.js compresses in-browser (compressImage), shows server error detail on Snap + per-line paths, resets file inputs so retries work, scrolls error banner into view.
+- Tested: iteration_receipt_large_upload_jan2026 (backend 10/10) + _retest_jan2026 (frontend 100%).
+- Known minor: replacing a line's receipt leaves the old one in claim.receipts/storage; >25MB may surface as proxy 502 instead of 413.
