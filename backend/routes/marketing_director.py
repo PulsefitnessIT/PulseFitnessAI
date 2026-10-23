@@ -50,7 +50,7 @@ from utils.churn_signals import (
 )
 from utils.database import db
 from utils.module_guard import require_module
-from routes.marketing.creative_storage import require_creator, store_data_url
+from routes.marketing.creative_storage import require_creator, store_data_url, store_poster
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -402,6 +402,7 @@ async def director_build(body: dict = Body(...), user: dict = Depends(get_curren
       { brief_id, strategy{}, copy{}, alt_tones[], poster_url,
         segment_variants[]?, segment_counts{}? }
     """
+    require_creator(user)
     org_id = user.get("organization_id")
     if not org_id:
         raise HTTPException(400, "User has no organization context")
@@ -483,6 +484,8 @@ async def director_build(body: dict = Body(...), user: dict = Depends(get_curren
             session_id=session_id + "-img",
         )
 
+    poster_url, poster_variant = await store_poster(
+        org_id, poster_url, "gemini-3.1-flash-image-preview")
     brief_id = _new_id()
     doc = {
         "id": brief_id,
@@ -498,6 +501,7 @@ async def director_build(body: dict = Body(...), user: dict = Depends(get_curren
         "copy": plan.get("copy") or {},
         "alt_tones": plan.get("alt_tones") or [],
         "poster_data_url": poster_url,
+        "poster_variant": poster_variant,
         "poster_model": "gemini-3.1-flash-image-preview" if poster_url else None,
         "campaign_id": None,
         "created_at": _now_iso(),
@@ -533,7 +537,7 @@ async def director_build(body: dict = Body(...), user: dict = Depends(get_curren
 
     # Don't return the full base64 poster in this response if the data URL
     # is huge — but for now the frontend wants it. Strip the _id only.
-    return {k: v for k, v in doc.items() if k != "_id"}
+    return {k: v for k, v in doc.items() if k not in ("_id", "poster_variant")}
 
 
 @router.post(
@@ -548,6 +552,7 @@ async def director_refine(body: dict = Body(...), user: dict = Depends(get_curre
         "make it punchier"  "add urgency"  "less salesy"
         "shorten the email" "more premium tone" "highlight the offer"
     """
+    require_creator(user)
     org_id = user.get("organization_id")
     brief_id = (body.get("brief_id") or "").strip()
     instruction = (body.get("instruction") or "").strip()
@@ -601,21 +606,24 @@ async def director_refine(body: dict = Body(...), user: dict = Depends(get_curre
             height=int(brief.get("resolution", {}).get("h") or 1350),
             session_id=f"refine-img-{brief_id}-{_new_id()[:6]}",
         )
+        poster_variant = brief.get("poster_variant")
         if regenerated:
-            poster_url = regenerated
+            poster_url, poster_variant = await store_poster(
+                org_id, regenerated, "gemini-3.1-flash-image-preview")
 
     update = {
         "strategy": new_plan.get("strategy") or brief["strategy"],
         "copy": new_plan.get("copy") or brief["copy"],
         "alt_tones": new_plan.get("alt_tones") or brief["alt_tones"],
         "poster_data_url": poster_url,
+        **({"poster_variant": poster_variant} if regen_image else {}),
         "refined_count": int(brief.get("refined_count", 0)) + 1,
         "last_refined_at": _now_iso(),
         "last_refinement": instruction,
     }
     await db.marketing_director_briefs.update_one({"id": brief_id}, {"$set": update})
     brief.update(update)
-    return {k: v for k, v in brief.items() if k != "_id"}
+    return {k: v for k, v in brief.items() if k not in ("_id", "poster_variant")}
 
 
 @router.get(
@@ -639,10 +647,16 @@ async def director_briefs_list(user: dict = Depends(get_current_user)):
 async def director_brief_get(brief_id: str, user: dict = Depends(get_current_user)):
     org_id = user.get("organization_id")
     doc = await db.marketing_director_briefs.find_one(
-        {"id": brief_id, "organization_id": org_id}, {"_id": 0},
+        {"id": brief_id, "organization_id": org_id}, {"_id": 0, "poster_variant": 0},
     )
     if not doc:
         raise HTTPException(404, "Brief not found")
+    if (doc.get("poster_data_url") or "").startswith("data:"):  # lazy move of legacy base64 poster
+        url, variant = await store_poster(org_id, doc["poster_data_url"], doc.get("poster_model"))
+        if variant:
+            await db.marketing_director_briefs.update_one(
+                {"id": brief_id}, {"$set": {"poster_data_url": url, "poster_variant": variant}})
+            doc["poster_data_url"] = url
     return doc
 
 
@@ -655,6 +669,7 @@ async def director_brief_delete(brief_id: str, user: dict = Depends(get_current_
     refunded — this is purely a tidy-up. Linked campaigns are left intact
     (they continue to live in the campaigns list and can be deleted from
     there if no longer wanted)."""
+    require_creator(user)
     org_id = user.get("organization_id")
     res = await db.marketing_director_briefs.delete_one(
         {"id": brief_id, "organization_id": org_id},
@@ -683,6 +698,7 @@ async def director_brief_launch(
                                         even when not full autopilot
       audience_id: str                — link to a saved audience
     """
+    require_creator(user)
     org_id = user.get("organization_id")
     doc = await db.marketing_director_briefs.find_one(
         {"id": brief_id, "organization_id": org_id}, {"_id": 0},
@@ -751,7 +767,8 @@ async def director_brief_launch(
             "brand_lock": bool(doc.get("brand_lock")),
             "brand_kit_applied": True,
             "source": doc.get("poster_model") or "gemini-3.1-flash-image-preview",
-            "variants": [await store_data_url(org_id, doc["poster_data_url"], doc.get("poster_model"))],
+            "variants": [doc.get("poster_variant")
+                         or await store_data_url(org_id, doc["poster_data_url"], doc.get("poster_model"))],
             "from_brief_id": brief_id,
             "created_at": _now_iso(),
         })
@@ -1011,6 +1028,7 @@ async def director_expand_from_asset(
         await db.marketing_director_briefs.update_one(
             {"id": result["id"]},
             {"$set": {"poster_data_url": poster_url,
+                      "poster_variant": variants[0] if variants[0].get("token") else None,
                       "poster_model": asset.get("source") or "user_upload",
                       "from_asset_id": asset_id}},
         )

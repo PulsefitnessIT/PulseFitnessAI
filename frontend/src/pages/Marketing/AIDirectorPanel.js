@@ -678,7 +678,9 @@ const Stat = ({ icon: Icon, label, value, hint }) => (
 
 const PosterCard = ({ brief, onRegenerate, refineBusy }) => {
   const { t } = useTranslation();
-  const url = brief?.poster_data_url;
+  const raw = brief?.poster_data_url;
+  // Stored posters are served by the backend at /api/marketing/creative/file/<token>.
+  const url = raw && raw.startsWith('/api/') ? `${process.env.REACT_APP_BACKEND_URL}${raw}` : raw;
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3" data-testid="director-poster-card">
       <div className="flex items-center justify-between mb-2">

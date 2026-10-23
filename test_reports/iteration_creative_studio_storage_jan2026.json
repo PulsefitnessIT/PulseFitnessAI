@@ -1,0 +1,42 @@
+{
+  "summary": "Tested Creative Studio Nano Banana generation with object storage and role gating, on both backend and frontend. Backend: 9/9 pytest pass. This covers list + can_create for owner/lead, upload to storage, file serving, ?download=1 attachment, unknown token 404, and lead getting 403 on generate/upload/delete/import-brand-asset/expand-from-asset. It also covers generating with a storage-backed reference (n=2, source gemini-3.1-flash-image-preview, reference_count=1, real image bytes), and owner delete with 404 on re-delete and on the file URL. Frontend: on Quick Poster, owner sees the builder and asset library; Generate added a new tile rendered from /api/marketing/creative/file/<token>; hover download and lightbox download hrefs carry ?download=1. Lead sees the view-only banner with no builder, upload, delete or expand controls; gallery images load, a real download works (creative-b86e4bf3.jpg) and the lightbox renders the image. One gap: the AI Director endpoints (build/refine/briefs delete/launch) are NOT role-gated, so lead can still generate Nano Banana posters through the AI Director tab.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/marketing/creative/director/build (also /director/refine, DELETE /director/briefs/{id}, /briefs/{id}/launch)", "issue": "No require_creator() check. lead@isodemo.com (staff) reached validation (400 'prompt is required' / 'brief_id and instruction are required', 404 'Brief not found') instead of 403. A view-only user can therefore generate Nano Banana images, and the posters land in marketing_creative_assets on launch, which breaks the 'only Owners/Managers/Master Admins generate' requirement. The frontend AI Director tab also shows 'Generate Campaign' to lead.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "marketing_director briefs", "issue": "Brief docs still keep poster_data_url (base64) in Mongo (lines ~500, 611, 1013). Only the launched poster asset is moved into storage, so base64-in-Mongo remains for briefs."},
+      {"endpoint": "DELETE /api/marketing/creative/{id}", "issue": "Only the Mongo doc is deleted. Storage objects are orphaned (no storage delete). Acceptable if the storage API has no delete, but worth noting."},
+      {"endpoint": "GET /api/marketing/creative/file/{token}", "issue": "get_object failure (storage outage or missing object) is unhandled and would return 500, not a clean 404/502."},
+      {"endpoint": "POST /api/marketing/creative/generate", "issue": "Docstring is stale: it mentions OpenAI gpt-image-1 and a placeholder fallback, but the code is Nano Banana only. Also, store_image runs outside the per-variant try, so a storage failure gives a 500 instead of the clean 502 message."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Lead → Creative Studio → AI Director (default tab)", "issue": "Builder and Generate Campaign button are fully visible and usable for a view-only user. They need the same canCreate gating as Quick Poster.", "affected_selectors": ["[data-testid='cs-tab-director']"]}
+    ],
+    "design_issues": [
+      {"screen": "Creative Studio gallery", "issues": ["A leftover main-agent test asset 'legacy-test-1' (solid pink square, prompt 'legacy') shows in the iso-demo-org gallery. Delete it."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_creative_studio_storage_jan2026.py", "/app/test_reports/pytest/creative_storage.xml"],
+  "action_items": [
+    "Add require_creator(user) to director/build, director/refine, DELETE director/briefs/{id}, briefs/{id}/launch (and probably churn-risk generate/approve). Hide the AI Director build UI for canCreate=false.",
+    "Store director brief posters in object storage instead of poster_data_url base64 in Mongo.",
+    "Delete test asset id 'legacy-test-1' from marketing_creative_assets.",
+    "Optional: wrap get_object in creative_file and store_image in generate with clean 404/502 errors; update the stale generate docstring."
+  ],
+  "critical_code_review_comments": [
+    "Role gating is only applied to the creative.py endpoints and expand-from-asset. The director module, which also calls Nano Banana, is ungated.",
+    "can_create relies on user.role in {owner, manager, ...}. Make sure org managers whose platform role is 'staff' with a manager job_role are handled as intended.",
+    "The file token is a capability URL with no auth, served with nosniff + CSP. That is fine, but deleted assets' storage objects remain."
+  ],
+  "updated_files": ["/app/backend/tests/test_creative_studio_storage_jan2026.py"],
+  "success_rate": {"backend": "100% of tested creative endpoints (9/9); director role-gate gap found", "frontend": "100% of requested flows; AI Director gating gap"},
+  "seed_data_creation": "None kept. Created 1 TEST_ upload (deleted via API) and 2 TEST_ generated assets (3 variants, deleted from Mongo).",
+  "test_credentials": "owner@isodemo.com / IsoDemo123!, lead@isodemo.com / IsoDemo123!",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Quick Poster is under Marketing → Creative Studio → cs-tab-asset (default is AI Director). Click the visible marketing-tab-creative/mkt-pill-creative via JS because a duplicate hidden pill exists. The frontend dev server OOM-crashed once during compile and auto-restarted (~1 min). 3 Nano Banana variants were used this run. Re-run the pytest file and add 403 checks for the director endpoints after the fix."
+}

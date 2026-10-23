@@ -86,20 +86,11 @@ def _public(asset: dict) -> dict:
 
 @router.post("/marketing/creative/generate", dependencies=[Depends(require_module("marketing"))])
 async def generate_creative(body: dict = Body(...), user: dict = Depends(get_current_user)):
-    """Generate marketing imagery via OpenAI gpt-image-1 through the
-    emergentintegrations stack. Falls back to a placeholder gradient if the
-    integration is unavailable so the UX still works in dev mode.
-
-    DEFERRED: True multi-image pixel composition (where uploaded logos, faces,
-    and equipment shots are baked into the output verbatim) requires the
-    OpenAI Image Edits API with multiple `image[]` inputs. The
-    emergentintegrations SDK currently only exposes single-prompt
-    `generate_images()`. When multi-image input lands we will:
-      • call `image_gen.edit_images(prompt=..., images=[logo, face, equip])`
-      • drop the descriptive `Composition references` block from the prompt
-    For now we describe each reference asset's category + label in the
-    prompt itself — gpt-image-1 honours these fairly well for style/subject
-    cues.
+    """Generate marketing imagery with Gemini Nano Banana (Emergent LLM key).
+    Uploaded reference assets (logos, faces, equipment) are passed as real
+    image inputs. Output images go to Emergent Object Storage. Owners,
+    Managers and Master Admins only; no silent fallback — a clear 502 is
+    returned when nothing could be generated.
 
     Extended fields:
       • headline                  poster text overlay
@@ -223,9 +214,13 @@ async def generate_creative(body: dict = Body(...), user: dict = Depends(get_cur
         out = []
         for img in (images or []):
             b64_data = img.get("data") if isinstance(img, dict) else None
-            if b64_data:
+            if not b64_data:
+                continue
+            try:
                 out.append(await store_image(org_id, base64.b64decode(b64_data),
                                              img.get("mime_type") or "image/png", model_id))
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("[marketing] creative storage failed: %s", exc)
         return out
 
     for chunk in await asyncio.gather(*[_one_variant() for _ in range(n)]):
@@ -392,15 +387,28 @@ async def list_creative(user: dict = Depends(get_current_user)):
     return {"assets": [_public(a) for a in items], "can_create": can_create(user)}
 
 
+@router.get("/marketing/creative/permissions", dependencies=[Depends(require_module("marketing"))])
+async def creative_permissions(user: dict = Depends(get_current_user)):
+    return {"can_create": can_create(user)}
+
+
 @router.get("/marketing/creative/file/{token}")
 async def creative_file(token: str, download: bool = Query(False)):
     """Serve a stored Creative Studio image by its unguessable token."""
     asset = await db.marketing_creative_assets.find_one(
         {"variants.token": token}, {"_id": 0, "id": 1, "variants": 1})
     v = next((x for x in (asset or {}).get("variants") or [] if x.get("token") == token), None)
+    if not v:  # AI Director brief posters not yet launched into the gallery
+        brief = await db.marketing_director_briefs.find_one(
+            {"poster_variant.token": token}, {"_id": 0, "id": 1, "poster_variant": 1})
+        asset, v = brief, (brief or {}).get("poster_variant")
     if not v or not v.get("storage_path"):
         raise HTTPException(404, "Image not found")
-    data, ctype = await asyncio.to_thread(get_object, v["storage_path"])
+    try:
+        data, ctype = await asyncio.to_thread(get_object, v["storage_path"])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[marketing] creative file fetch failed: %s", exc)
+        raise HTTPException(404, "Image not available") from exc
     mime = v.get("mime") or ctype
     headers = {"Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff",
                "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'"}

@@ -94,3 +94,16 @@ async def migrate_assets(assets: list[dict]) -> None:
             continue
         await db.marketing_creative_assets.update_one({"id": a["id"]}, {"$set": {"variants": new}})
         a["variants"] = new
+
+
+async def store_poster(org_id: str, url: str | None, model: str | None) -> tuple[str | None, dict | None]:
+    """Move an AI Director poster into storage → (file url, variant). Keeps the
+    original URL if it isn't a data: URL or storage is unavailable."""
+    if not url or not url.startswith("data:"):
+        return url, None
+    try:
+        v = await store_data_url(org_id, url, model)
+        return v["url"], v
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[creative] poster storage failed: %s", exc)
+        return url, None
