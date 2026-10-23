@@ -1,0 +1,41 @@
+{
+  "summary": "Tested the fix for Live Photo / large receipt uploads on both backend and frontend. Backend: 10/10 pytest pass. A 15.3MB HEIC (image/heic, IMG_0001.HEIC, 4032x3024) returns 200 and is stored as a 2000x1500 image/jpeg of about 1.18MB. An 18.8MB JPEG returns 200 and shrinks to 2000px. EXIF orientation=6 is respected (3000x1000 is stored as 667x2000). PDFs are stored byte-identical as application/pdf. A 26MB body gets 413 {detail:'Request body exceeds 26214400 bytes'}, but through the public URL it intermittently comes back as 502 (see minor issue). Random-bytes HEIC gives 415 with the 'take the receipt photo again' detail. Claim create/list/get, PUT lines with receipt_id, and submit all work. Vehicle-check photo (15MB HEIC + 18MB JPEG) and crash-pack photo (18MB JPEG) return 200. Frontend at 390x844 as vc.driver: Snap receipt (multiple) with a 10.9MB JPEG + 15.3MB HEIC gives 2x POST 200, two lines created with receipts attached, stored server-side as JPEG 2000x1500. Per-line 'Add/Replace receipt' with the 10.9MB JPEG gives 200, the line shows 'Replace receipt' with a thumbnail, and Save draft persists receipt_id. Per-line upload of an unreadable HEIC shows the server detail in the exp-error banner. The OCR 'hard to read' banners were expected for synthetic noise images.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/new-starter/portal/expenses/{claim_id}/receipt (>25MB)", "issue": "The middleware rejects early on Content-Length without reading the body. Through the public ingress the client gets an HTML 502 Bad Gateway about 40% of the time instead of the JSON 413 (5 tries: 3x413, 2x502). The frontend then shows the generic 'Receipt upload failed' message. Low impact because the client compresses first and real phone photos are far below 25MB. Optional fix: drain/consume the body before returning 413, or have the frontend check file size before upload."},
+      {"endpoint": "POST .../receipt (Replace receipt)", "issue": "When a line's receipt is replaced, the old receipt stays in claim.receipts and in object storage (orphaned). Seen in the DB: 3 receipts for 2 lines."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "StaffExpensesTab snapNewReceipts", "issue": "The per-file catch is empty ('skip this file'), so the server's detail (e.g. 415 'take the receipt photo again', 413) is never shown on the Snap path. The user sees 'Could not read those receipts — try adding a line manually.', which gives the wrong advice for a bad HEIC. The review request says the banner shows the server detail; that is only true for the per-line upload.", "selector": "[data-testid='exp-snap-receipt'] input", "priority": "MEDIUM"},
+      {"component": "StaffExpensesTab per-line receipt inputs (~lines 374, 408)", "issue": "onChange does not reset e.target.value. Picking the same file again (e.g. retrying after a failure) does not fire onChange, so the retry silently does nothing.", "selector": "[data-testid^='exp-line-receipt-'] input, [data-testid^='exp-line-retake-'] input", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Staff Portal > Expenses claim (mobile)", "issues": ["The exp-error banner sits at the bottom next to Save/Submit, far from the Snap receipt button at the top of the Expenses card, so on mobile a user who just snapped may not see the error without scrolling."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_receipt_large_upload_jan2026.py", "/app/test_reports/pytest/receipt_large_upload.xml"],
+  "action_items": [
+    "snapNewReceipts: collect e?.response?.data?.detail from failed files and show it, e.g. the first detail or 'N photos failed: <detail>', instead of the generic message",
+    "Reset e.target.value='' in the per-line receipt / re-take input onChange handlers",
+    "Optional: make the >25MB rejection reliably return a JSON 413 through the proxy, and/or add a client-side size check with a friendly message",
+    "Optional: remove the replaced receipt from claim.receipts and storage when a line's receipt is replaced"
+  ],
+  "critical_code_review_comments": [
+    "compress_photo returns None for any JPEG that would not get smaller. Such a JPEG over 2000px is stored at full size; the response is still image/jpeg, so this is acceptable.",
+    "Receipt upload reads the full file into memory before the 25MB check. The middleware guard covers this, so it is fine.",
+    "PIL decompression-bomb limit (about 179MP) raises an exception, and compress_photo then returns None. For non-HEIC files this stores the original, which is fine."
+  ],
+  "updated_files": ["/app/backend/tests/test_receipt_large_upload_jan2026.py"],
+  "success_rate": {"backend": "100% (10/10; the 413 test retries because of the proxy 502 flake)", "frontend": "90% (all upload flows work; the Snap path hides the server error detail)"},
+  "flaky_tests": ["test_over_25mb_413: about 40% of first attempts return a proxy 502 instead of 413; the test retries up to 4 times"],
+  "seed_data_creation": "Test claims for months 2027-11/2027-12 for VCTEST_staff and the test vehicle-photo file docs were deleted via mongo after testing. Two submit calls sent 'Expense claim to review' notifications to the vc.driver line manager.",
+  "test_credentials": "vc.driver@pulsefitness.test / Driver123! (from /app/memory/test_credentials.md)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The test file caches the portal token in /tmp/rcpt_token.txt to avoid the login rate limiter. A browser login as the same user revokes the earlier token, so delete the cache if you get a 401. A noise HEIC at 4800x3600 q80 is undecodable by pillow_heif itself (encoder quirk); use 4032x3024 q80 (about 15MB). Chromium cannot decode HEIC, so compressImage falls back to the original and the server converts it, which is the correct Live Photo path. OCR returns not_receipt/unreadable for synthetic images, which is expected.",
+  "rca of the issue": "Original bug: the receipt route was under the 2MB default body guard and photos were sent uncompressed, so iPhone HEIC Live Photos (3-5MB+) got 413. Verified fixed: the route is now in the 25MB tier and the server compresses to JPEG up to 2000px. The client-side compressImage also shrinks the images the browser can decode."
+}

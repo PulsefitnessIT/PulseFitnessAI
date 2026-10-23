@@ -5,7 +5,7 @@
  * and Net/VAT/Total (+ "no VAT on receipt" toggle), snap a receipt photo for
  * AI autofill, watch the running total, then submit for approval.
  */
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { compressImage } from '../utils/compressImage';
 import {
@@ -56,6 +56,8 @@ export default function ExpensesTab({ H }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
+  const errRef = useRef(null);
+  useEffect(() => { if (err) errRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, [err]);
 
   const load = useCallback(async () => {
     try {
@@ -161,6 +163,7 @@ export default function ExpensesTab({ H }) {
 
   const uploadReceipt = async (i, file) => {
     if (!file) return;
+    if (file.size > 25 * 1024 * 1024 && !file.type?.startsWith('image/')) { setErr('That file is too large (max 25MB).'); return; }
     setLine(i, { _uploading: true });
     const fd = new FormData(); fd.append('file', await compressImage(file));
     try {
@@ -189,7 +192,7 @@ export default function ExpensesTab({ H }) {
     const list = Array.from(files || []);
     if (!list.length) return;
     setBusy(true); setErr(''); setMsg('');
-    let added = 0, dups = 0, lowscans = 0;
+    let added = 0, dups = 0, lowscans = 0, failDetail = '';
     const working = [...(claim.lines || [])];
     for (const file of list) {
       try {
@@ -209,7 +212,7 @@ export default function ExpensesTab({ H }) {
         if (line._lowscan) lowscans += 1;
         working.push(line);
         added += 1;
-      } catch { /* skip this file, keep going */ }
+      } catch (e) { failDetail = e?.response?.data?.detail || failDetail; }
     }
     setClaim((c) => ({ ...c, lines: [...working].sort(byDate) }));
     setBusy(false);
@@ -220,7 +223,8 @@ export default function ExpensesTab({ H }) {
       ? 'Heads up: one receipt looks like a duplicate (same merchant, date & amount) — check the flagged line.'
       : `Heads up: ${dups} receipts look like duplicates — check the flagged lines.`);
     if (added) { setMsg(added === 1 ? 'Receipt added' : `${added} receipts added`); setTimeout(() => setMsg(''), 2500); }
-    else if (!dups && !lowscans) setErr('Could not read those receipts — try adding a line manually.');
+    else if (!dups && !lowscans) setErr(typeof failDetail === 'string' && failDetail ? failDetail : 'Could not read those receipts — try adding a line manually.');
+    if (added && failDetail && typeof failDetail === 'string') setErr(`Some receipts didn't upload: ${failDetail}`);
   };
 
   const inputCls = 'w-full px-2.5 py-2 rounded-lg text-sm';
@@ -371,7 +375,7 @@ export default function ExpensesTab({ H }) {
                     <AlertCircle size={13} /> {scanMsg(l._lowscan.reason)}
                     <label className="inline-flex items-center gap-1 cursor-pointer underline" data-testid={`exp-line-retake-${i}`}>
                       <Camera size={12} /> Re-take photo
-                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => uploadReceipt(i, e.target.files?.[0])} />
+                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { uploadReceipt(i, e.target.files?.[0]); e.target.value = ''; }} />
                     </label>
                   </div>
                 )}
@@ -405,7 +409,7 @@ export default function ExpensesTab({ H }) {
                     <label className="inline-flex items-center gap-1.5 text-xs font-medium cursor-pointer" style={{ color: 'var(--color-brand-cyan)' }} data-testid={`exp-line-receipt-${i}`}>
                       {l._uploading ? <RotateCw size={13} className="animate-spin" /> : <Upload size={13} />}
                       {l.receipt_id ? 'Replace receipt' : 'Add receipt photo'}
-                      <input type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => uploadReceipt(i, e.target.files?.[0])} />
+                      <input type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => { uploadReceipt(i, e.target.files?.[0]); e.target.value = ''; }} />
                     </label>
                     <button onClick={() => removeLine(i)} className="ml-auto text-xs" style={{ color: '#dc2626' }} data-testid={`exp-line-remove-${i}`}><Trash2 size={13} className="inline" /> Remove</button>
                   </div>
@@ -428,7 +432,7 @@ export default function ExpensesTab({ H }) {
           <span className="pulse-font-heading font-bold" style={{ color: 'var(--theme-text)' }}><PoundSterling size={16} className="inline mr-1" style={{ color: 'var(--color-brand-cyan)' }} />Total to claim</span>
           <span className="text-xl font-extrabold" style={{ color: 'var(--theme-text)' }} data-testid="exp-grand-total">{gbp(grand)}</span>
         </div>
-        {err && <div className="mb-3 p-2.5 rounded-lg text-sm flex items-center gap-2" style={{ background: 'rgba(239,68,68,0.1)', color: '#dc2626' }} data-testid="exp-error"><AlertCircle size={15} />{err}</div>}
+        {err && <div ref={errRef} className="mb-3 p-2.5 rounded-lg text-sm flex items-center gap-2" style={{ background: 'rgba(239,68,68,0.1)', color: '#dc2626' }} data-testid="exp-error"><AlertCircle size={15} />{err}</div>}
         {isSubmitted ? (
           <div className="flex items-center gap-2">
             <button onClick={save} disabled={busy} data-testid="exp-save-changes" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: busy ? 0.5 : 1 }}>
