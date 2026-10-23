@@ -1,0 +1,29 @@
+{
+  "summary": "Retest of the minor fixes from iteration_remove_subheadings_pdf_logo_jan2026. Backend: 7/7 pytest pass. Staffing endpoints now return 401 without auth or with a bad token, 200 with the ops token, and the CRM-token fallback returns 200. Frontend: at 390x844 the warranty cards fit the viewport (right edge 374, no horizontal scroll), and the renewal nudge reads 'out of warranty cover' when all at-risk units are expired. In the Staff Portal the bottom-nav More label shows the active More-sheet tab and shows 'More' on the primary tabs. Some items were checked by reading the code only (see verified_by_code_review).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_passing": [
+    "GET /api/staffing/compliance and /api/staffing/shifts: no auth gives 401, a garbage Bearer token gives 401, the portal@pulsefitness.ltd token gives 200",
+    "CRM token (POST /api/crm/auth/login owner@isodemo.com) on GET /api/staffing/shifts gives 200 (fallback works)",
+    "MOD Test Site /pulse?tab=warranties at 390x844: 8 cards, max card right edge 374 (<=390), document scrollWidth 390, warranty-download-certificate present as the first child (no empty spacer), nudge text '7 units are out of warranty cover' with counts 1 active / 0 expiring / 7 expired",
+    "Staff Portal vc.driver at 390x844: label is 'More' on home; More-sheet tabs rota, help and documents set the label to 'My Rota', 'Help & Tutorials' and 'Documents', and the sheet closes after selection; the primary tabs home, mytime, vehicle and holidays set it back to 'More'; the deep link ?tab=access gives 'System Access'; no horizontal overflow"
+  ],
+  "verified_by_code_review": [
+    "CustomerWarrantiesTab 'nearing the end of warranty cover' wording when any unit is expiring: no test data has expiring units. The logic atRisk.every(expired) ? out_of_cover : nearing is correct",
+    "CustomerWarrantiesTab with no items: the download wrapper only renders when items.length > 0, so there is no spacer",
+    "CustomerCertificatesTab: the next-due wrapper only renders when data.next_service_due is set, so there is no empty row. The cert-next-due 'Next service due' block is kept. No test org has certificates, so this could not be checked in the UI"
+  ],
+  "test_report_links": ["/app/backend/tests/test_jan2026_staffing_auth_401.py", "/app/test_reports/pytest/staffing_auth_401.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "On mobile the cookie consent banner covers the Staff Portal bottom nav until it is dismissed. This is expected consent UX but worth noting",
+    "dual_auth: if a platform token is invalid and the CRM fallback also fails, get_crm_user raises the 401, which is correct"
+  ],
+  "updated_files": ["/app/backend/tests/test_jan2026_staffing_auth_401.py"],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% of UI-testable items (the expiring wording and certificates checked by code review only)"},
+  "test_credentials": "portal@pulsefitness.ltd / PulseFleet123!, owner@isodemo.com / IsoDemo123! (CRM), test@army.mod.test / ModTest123! (portal=mod), vc.driver@pulsefitness.test / Driver123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Tokens come from POST /api/auth/login with header X-RateLimit-Bypass. Inject them in Playwright as the ga_session cookie plus localStorage token. On mobile, dismiss the cookie banner (the 'Decline' text) before clicking the Staff Portal bottom nav. Warranties data: MOD Test Site at /pulse?tab=warranties."
+}

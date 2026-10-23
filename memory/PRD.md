@@ -39142,3 +39142,10 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Fix: route moved to 25MB upload tier (security_plus._is_upload_path); server compresses images via utils/image_compress (HEIC→JPEG, max 2000px, EXIF rotate), PDFs untouched; unreadable HEIC → 415 friendly message. StaffExpensesTab.js compresses in-browser (compressImage), shows server error detail on Snap + per-line paths, resets file inputs so retries work, scrolls error banner into view.
 - Tested: iteration_receipt_large_upload_jan2026 (backend 10/10) + _retest_jan2026 (frontend 100%).
 - Known minor: replacing a line's receipt leaves the old one in claim.receipts/storage; >25MB may surface as proxy 502 instead of 413.
+
+## 2026-06 — PDF logo-only header + remove repeated tab titles — DONE
+- utils/pulse_doc_template.pulse_header: when the default Pulse logo is used, the "Pulse Fitness" wordmark text is no longer printed (logo enlarged to 22mm). Tenant-uploaded logos still show their name. Footer keeps "Pulse Fitness Limited" registered office. Applies to all pulse_header PDFs (service reports, invoices, quotes, certificates…).
+- Removed the title/subtitle repeated right under pill menus (action buttons kept): BFPO/MOD Ops Sites/Jobs/Visiting/Engineers/Servicing/Reports; Staff Portal Help/Rota/Access; Ops portal Quotes, Gym Layout, Customer Deliveries/Warranties/Certificates; Staffing Shift templates/Team access matrix/Compliance. Kept: module headers above pill bars, Service Desk shell hero (above pills), MOD user guide intro, "Week of {date}" workforce header.
+- Follow-ups: dual_auth no longer 500s without credentials (401); warranty cards no mobile overflow; renewal nudge wording for all-expired; Staff Portal mobile "More" button shows the active More-tab name.
+- Tests: iteration_remove_subheadings_pdf_logo_jan2026.json, iteration_followup_minor_fixes_jan2026.json (all pass).
+- Note: stored fire certificates use their own builder (no duplicate wordmark) — no re-backfill needed.
