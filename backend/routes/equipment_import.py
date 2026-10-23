@@ -934,6 +934,9 @@ async def confirm_import(import_id: str, body: dict = None, user: dict = Depends
     invoice_doc = _build_invoice_doc(imp, import_ctx)
     if imp.get("invoice_storage_path"):
         await db.files.insert_one(invoice_doc)
+    from routes.equipment import schedule_image_backfill
+    from utils.auth import get_organization_filter
+    schedule_image_backfill(get_organization_filter(user))
     return {"message": f"{created} equipment items imported", "created": created}
 
 
@@ -1128,6 +1131,9 @@ async def confirm_bulk_import(batch_id: str, body: dict = None, user: dict = Dep
         {"id": batch_id},
         {"$set": {"status": "imported", "imported_at": datetime.now(timezone.utc).isoformat(), "total_created": total_created}},
     )
+    from routes.equipment import schedule_image_backfill
+    from utils.auth import get_organization_filter
+    schedule_image_backfill(get_organization_filter(user))
     return {
         "message": f"{total_created} equipment items imported from {len(batch.get('import_ids', []))} invoices",
         "created": total_created,

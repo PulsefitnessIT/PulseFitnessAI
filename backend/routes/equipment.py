@@ -439,7 +439,9 @@ async def import_equipment_csv_slash(file: UploadFile = File(...), user: dict = 
     contents = await file.read()
     validate_upload(file_bytes=contents, filename=file.filename, allowed=MIME_SPREADSHEETS, max_size=10 * 1024 * 1024)
     reader = csv.DictReader(io.StringIO(contents.decode('utf-8')))
-    return await _import_csv_rows(reader, user, _CSV_FIELDS_TITLE)
+    out = await _import_csv_rows(reader, user, _CSV_FIELDS_TITLE)
+    schedule_image_backfill(get_organization_filter(user))
+    return out
 
 
 @router.post("/equipment/import-csv")
@@ -450,7 +452,9 @@ async def import_equipment_csv_dash(file: UploadFile = File(...), user: dict = D
     content = await file.read()
     validate_upload(file_bytes=content, filename=file.filename, allowed=MIME_SPREADSHEETS, max_size=10 * 1024 * 1024)
     reader = csv.DictReader(io.StringIO(content.decode('utf-8')))
-    return await _import_csv_rows(reader, user, _CSV_FIELDS_SNAKE)
+    out = await _import_csv_rows(reader, user, _CSV_FIELDS_SNAKE)
+    schedule_image_backfill(get_organization_filter(user))
+    return out
 
 
 @router.get("/equipment/csv-template")
@@ -1526,12 +1530,42 @@ async def batch_lookup_equipment_images(
 
     Processes up to ``limit`` equipment that currently have no photo_url and
     no auto_image_url. Returns a summary; skipped entries have a reason."""
-    org_filter = get_organization_filter(user)
+    return await _lookup_images_chunk(get_organization_filter(user), limit)
+
+
+_BACKFILL_RUNNING: set[str] = set()
+
+
+def schedule_image_backfill(org_filter: dict) -> None:
+    """Fire-and-forget: find manufacturer images for every machine still
+    missing one (used straight after an equipment import)."""
+    import asyncio
+    key = str(sorted(org_filter.items()))
+    if key in _BACKFILL_RUNNING:
+        return
+
+    async def _run():
+        _BACKFILL_RUNNING.add(key)
+        try:
+            while (await _lookup_images_chunk(org_filter, 8))["total_examined"] == 8:
+                pass
+        except Exception:
+            logger.exception("background image backfill failed")
+        finally:
+            _BACKFILL_RUNNING.discard(key)
+    asyncio.create_task(_run())
+
+
+async def _lookup_images_chunk(org_filter: dict, limit: int) -> dict:
     limit = max(1, min(int(limit), 200))
+    # Skip machines already tried (no match) so repeated chunks always move
+    # forward instead of re-examining the same unmatched items forever.
     cursor = db.equipment.find({
         **org_filter,
         "photo_url": {"$in": [None, ""]},
         "auto_image_url": {"$in": [None, ""]},
+        "spec_sheet_id": {"$in": [None, ""]},
+        "auto_image_looked_up_at": {"$in": [None, ""]},
     }, {"_id": 0}).limit(limit)
     items = await cursor.to_list(limit)
 
@@ -1561,10 +1595,14 @@ async def batch_lookup_equipment_images(
                 matched += 1
                 processed.append({"id": eq["id"], "name": eq.get("name"), "status": "matched", "verified": result.get("verified")})
             else:
+                await db.equipment.update_one({"id": eq["id"]}, {"$set": {
+                    "auto_image_looked_up_at": _now_iso(), "auto_image_status": "no_match"}})
                 skipped += 1
                 processed.append({"id": eq["id"], "name": eq.get("name"), "status": "no_match"})
         except Exception as exc:
             logger.warning("Image lookup failed for %s: %s", eq.get("id"), exc)
+            await db.equipment.update_one({"id": eq["id"]}, {"$set": {
+                "auto_image_looked_up_at": _now_iso(), "auto_image_status": "error"}})
             skipped += 1
             processed.append({"id": eq["id"], "name": eq.get("name"), "status": "error", "error": str(exc)})
 

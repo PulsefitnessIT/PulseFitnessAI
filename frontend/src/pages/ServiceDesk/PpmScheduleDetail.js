@@ -39,10 +39,13 @@ function buildReportHtml(data) {
     const sect = (title, rows) => (rows.length ? `<div class="cal"><div class="calh">${title}</div><table class="rt"><tr><th>Set point</th><th>Measured</th><th>Result</th></tr>${rows.map((r) => `<tr><td>${esc(humanizeReading(r))}</td><td>${esc(r.measured || '—')}</td><td class="${r.result === 'fail' ? 'fail' : 'pass'}">${esc((r.result || 'pass').toUpperCase())}</td></tr>`).join('')}</table></div>` : '');
     return sect('Speed (mph)', sp) + sect('Incline (%)', inc);
   };
-  const visitsHtml = visits.map((v) => {
-    const cm = v.calibration?.machines || [];
+  const workedKeys = new Set(visits.flatMap((v) => (v.machine_work || []).map((m) => String(m.asset_serial || m.asset_name || '').toLowerCase())));
+  const unworked = machines.filter((m) => !workedKeys.has(String(m.serial_number || m.name || '').toLowerCase()));
+  const visitsHtml = visits.map((v, vi) => {
+    const cm = (v.calibration?.machines || []).filter((m) => (m.readings || []).length);
     const flat = v.calibration?.readings || [];
-    const mw = (v.machine_work || []).map((m) => `<tr><td>${esc(m.asset_name)}</td><td>${esc(m.asset_type || '')}</td><td>${esc(m.asset_serial || '')}</td><td>${yn(m.serviced)}</td><td>${yn(m.cleaned)}</td><td>${esc(m.notes || '')}</td></tr>`).join('');
+    const extra = vi === 0 && (v.machine_work || []).length ? unworked.map((m) => `<tr><td>${esc(m.name)}</td><td>${esc(m.equipment_type || '')}</td><td>${esc(m.serial_number || '')}</td><td>—</td><td>—</td><td>Not serviced</td></tr>`).join('') : '';
+    const mw = (v.machine_work || []).map((m) => `<tr><td>${esc(m.asset_name)}</td><td>${esc(m.asset_type || '')}</td><td>${esc(m.asset_serial || '')}</td><td>${yn(m.serviced)}</td><td>${yn(m.cleaned)}</td><td>${esc(m.notes || '')}</td></tr>`).join('') + extra;
     const calib = cm.length
       ? cm.map((m) => `<div class="cm"><div class="cmh">${esc(m.equipment_name || 'Treadmill')}${m.serial ? ` · SN ${esc(m.serial)}` : ''} — <b>${esc((m.overall_result || 'pass').toUpperCase())}</b></div>${calibHtml(m.readings || [])}</div>`).join('')
       : (flat.length ? calibHtml(flat) : '');
@@ -64,17 +67,29 @@ function buildReportHtml(data) {
     .rt th{background:#f5f5f5;font-weight:700} .fail{color:#b00020;font-weight:700} .pass{color:#0a7d33}
     .visit{border-top:2px solid #eee;padding-top:8px;margin-top:10px} .cal{margin:4px 0} .calh{font-weight:700;font-size:11px;color:#333;margin:4px 0 2px}
     .cm{border:1px solid #eee;border-radius:6px;padding:6px 8px;margin:6px 0} .cmh{font-weight:700;font-size:11px;margin-bottom:3px}
-    .foot{margin-top:24px;color:#999;font-size:10px;border-top:1px solid #eee;padding-top:8px}
+    .foot{margin-top:24px;color:#5B6570;font-size:9px;border-top:1px solid #C9D4E5;padding-top:8px}
+    table.lh{width:100%;border-collapse:collapse;border-bottom:2px solid #0B3D91;margin-bottom:10px} .lh td{vertical-align:top;padding:0 0 8px}
+    .wm{font-size:20px;font-weight:700;color:#0B3D91;vertical-align:middle;margin-left:6px} .co{text-align:right;font-size:10px;color:#5B6570;line-height:1.45}
+    h1.ttl{font-size:28px;margin:10px 0 10px}
+    table.boxes{width:100%;border-collapse:separate;border-spacing:0} .boxes td{width:50%;vertical-align:top;padding:0 6px 0 0} .boxes td+td{padding:0 0 0 6px}
+    .bx{border:1px solid #000;padding:6px 8px;min-height:64px;line-height:1.5}
+    table.ref{width:100%;border-collapse:collapse;margin:10px 0 4px;border:1px solid #000} .ref th,.ref td{padding:4px 7px;text-align:left;font-size:11px;border-bottom:1px solid #000} .ref th{font-weight:700} .ref th:not(:first-child){border-left:1px solid #000}
     @media print{body{margin:14mm}}
   </style></head><body>
-  <h1>Service Report</h1>
-  <p class="sub">${esc(s.site_name || '')}${s.customer_name ? ` · ${esc(s.customer_name)}` : ''}${s.service_type ? ` · ${esc(s.service_type)}` : ''}</p>
-  <p class="meta">Scheduled: ${esc(fmtDate(s.date))}${s.engineer ? ` · Engineer: ${esc(s.engineer)}` : ''}${s.site_address ? ` · ${esc(s.site_address)}` : ''}</p>
-  <h2>Machines on site (${machines.length})</h2>
-  <table class="rt"><tr><th>Machine</th><th>Type</th><th>Serial</th></tr>${machines.map((m) => `<tr><td>${esc(m.name)}</td><td>${esc(m.equipment_type || '')}</td><td>${esc(m.serial_number || '')}</td></tr>`).join('') || '<tr><td colspan="3">None</td></tr>'}</table>
+  <table class="lh"><tr>
+    <td><img src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg" alt="Pulse Fitness" style="height:46px;border-radius:4px"/> <span class="wm">Pulse Fitness</span></td>
+    <td class="co"><b>Part of The Pulse Group</b><br/>Radnor Park, Greenfield Road<br/>Congleton, Cheshire, CW12 4TW<br/>+44 (0)1260 294600 · info@pulsefitness.com<br/>www.pulsefitness.com · <span style="color:#1763B5">#pulsefitness</span></td>
+  </tr></table>
+  <h1 class="ttl">Service Report</h1>
+  <table class="boxes"><tr>
+    <td><div class="bx"><b>Customer / Site Address</b><br/>${[s.customer_name, s.site_name, s.site_address].filter(Boolean).map(esc).join('<br/>') || '—'}</div></td>
+    <td><div class="bx"><b>Engineer</b><br/>${esc(s.engineer || '—')}<br/>${esc(s.service_type || '')}</div></td>
+  </tr></table>
+  <table class="ref"><tr><th>Scheduled</th><td>${esc(fmtDate(s.date))}</td><th>Service</th><td>${esc(s.service_type || '—')}</td><th>Machines</th><td>${machines.length}</td></tr>
+    <tr><th>Visits</th><td>${visits.length}</td><th>Latest job</th><td>${esc(visits[0]?.reference || '—')}</td><th>Issued</th><td>${esc(new Date().toLocaleDateString('en-GB'))}</td></tr></table>
   <h2>Engineer's workings${visits.length > 1 ? ` (${visits.length} visits)` : ''}</h2>
   ${visitsHtml || '<p>No completed visits yet.</p>'}
-  <p class="foot">Generated by PulseFitness.ai · ${esc(new Date().toLocaleString('en-GB'))}</p>
+  <p class="foot"><b style="color:#0B3D91">A pulseglobal Company</b><br/>Registered Office: Pulse Fitness Limited, Radnor Park, Greenfield Road, Congleton, Cheshire, CW12 4TW. Company Registration No 4354059. VAT Registration No 785413509.<br/>Generated by PulseFitness.ai · ${esc(new Date().toLocaleString('en-GB'))}</p>
   </body></html>`;
 }
 

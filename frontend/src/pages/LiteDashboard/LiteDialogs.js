@@ -166,6 +166,48 @@ const EquipmentDetailContent = ({ selectedEquipment, serviceProviders, getEquipm
     );
   };
 
+  const [editingType, setEditingType] = useState(false);
+  const [typeValue, setTypeValue] = useState(selectedEquipment.equipment_type || '');
+  useEffect(() => { setTypeValue(selectedEquipment.equipment_type || ''); setEditingType(false); }, [selectedEquipment.id, selectedEquipment.equipment_type]);
+  const saveType = async () => {
+    const next = (typeValue || '').trim();
+    if (!next || next === (selectedEquipment.equipment_type || '')) { setEditingType(false); setTypeValue(selectedEquipment.equipment_type || ''); return; }
+    try {
+      await axios.patch(`${API_BASE}/equipment/${selectedEquipment.id}`, { equipment_type: next },
+        { headers: { Authorization: `Bearer ${authToken}` } });
+      selectedEquipment.equipment_type = next;
+      setEditingType(false);
+      notify.success('Equipment type updated');
+    } catch (err) {
+      notify.error(err?.response?.data?.detail || 'Could not update equipment type');
+    }
+  };
+  const TYPE_OPTIONS = ['Treadmill', 'Cross Trainer', 'Upright Bike', 'Recumbent Bike', 'Spin Bike', 'Rower', 'Stepper', 'Ski Erg', 'Air Bike', 'Selectorised', 'Plate Loaded', 'Cable Machine', 'Free Weights', 'Rack', 'Bench', 'Functional', 'Other'];
+  const renderTypeCell = () => {
+    if (!canEditSupplier) return selectedEquipment.equipment_type || '—';
+    if (!editingType) {
+      return (
+        <button type="button" onClick={() => setEditingType(true)} className="inline-flex items-center gap-1.5 hover:opacity-80 text-left"
+          data-testid="lite-equip-type-edit-btn" title="Edit equipment type">
+          <span>{selectedEquipment.equipment_type || <span className="text-[var(--color-text-muted)] italic">Not set</span>}</span>
+          <Pencil size={11} className="text-[var(--color-text-muted)] shrink-0" />
+        </button>
+      );
+    }
+    return (
+      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <input list="lite-equip-type-list" value={typeValue} autoFocus maxLength={60}
+          onChange={(e) => setTypeValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') saveType(); if (e.key === 'Escape') { setTypeValue(selectedEquipment.equipment_type || ''); setEditingType(false); } }}
+          className="h-7 flex-1 min-w-0 px-2 rounded border border-[var(--theme-border)] bg-[var(--theme-surface)] text-[var(--theme-text)] text-sm focus:outline-none focus:border-[var(--color-brand-cyan-hover)]"
+          data-testid="lite-equip-type-input" />
+        <datalist id="lite-equip-type-list">{TYPE_OPTIONS.map((o) => <option key={o} value={o} />)}</datalist>
+        <button type="button" onClick={saveType} className="h-7 w-7 shrink-0 rounded bg-[var(--color-brand-cyan-hover)] text-white inline-flex items-center justify-center" title="Save type" data-testid="lite-equip-type-save"><Check size={14} /></button>
+        <button type="button" onClick={() => { setTypeValue(selectedEquipment.equipment_type || ''); setEditingType(false); }} className="h-7 w-7 shrink-0 rounded border border-[var(--theme-border)] text-[var(--color-text-muted)] inline-flex items-center justify-center" title="Cancel" data-testid="lite-equip-type-cancel"><X size={14} /></button>
+      </div>
+    );
+  };
+
   const eqFaults = getEquipmentFaults(selectedEquipment);
   const eqFiles = getEquipmentFiles(selectedEquipment);
   const warrantyActive = selectedEquipment.warranty_expiry && new Date(selectedEquipment.warranty_expiry) > new Date();
@@ -322,7 +364,7 @@ const EquipmentDetailContent = ({ selectedEquipment, serviceProviders, getEquipm
                 columns={2}
                 accent={brandAccent}
                 tiles={[
-                  { label: 'Type', value: selectedEquipment.equipment_type, testId: 'lite-equip-type' },
+                  { label: 'Type', value: renderTypeCell(), testId: 'lite-equip-type' },
                   { label: 'Serial', value: selectedEquipment.serial_number, mono: true, testId: 'lite-equip-serial' },
                   {
                     label: 'Manufacturer',
@@ -832,6 +874,10 @@ const LiteDialogs = ({
   const [triageResult, setTriageResult] = useState(null);
   const [triaging, setTriaging] = useState(false);
   const [showFixMethod, setShowFixMethod] = useState(false);
+  const triageRef = useRef(null);
+  useEffect(() => {
+    if (triageResult) setTimeout(() => triageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  }, [triageResult]);
 
   const FIX_METHODS = [
     { value: 'followed_ai_steps', label: 'Followed AI repair steps' },
@@ -1082,7 +1128,8 @@ const LiteDialogs = ({
                   the first time triage results come back. */}
               {triageResult && isPro && (
                 <details
-                  className="mt-2 rounded-lg border border-[rgb(var(--rgb-brand-blue)/0.25)] bg-[rgb(var(--rgb-brand-blue)/0.08)]"
+                  ref={triageRef}
+                  className="mt-2 rounded-lg border border-[rgb(var(--rgb-brand-blue)/0.25)] bg-[rgb(var(--rgb-brand-blue)/0.08)] scroll-mt-4"
                   open
                   data-testid="ai-triage-result-dropdown"
                 >

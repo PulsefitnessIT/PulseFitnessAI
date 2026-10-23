@@ -67,6 +67,10 @@ const FaultDialogs = ({
  const suppressCloseRef = useRef(false);
  const uploadActiveRef = useRef(false);
  useEffect(() => { if (showIssueDialog) uploadActiveRef.current = false; }, [showIssueDialog]);
+ const triageRef = useRef(null);
+ useEffect(() => {
+   if (issueStep === 'triage' && triageResult) setTimeout(() => triageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+ }, [issueStep, triageResult]);
  // Wrap the back-gesture close so it ALSO respects the upload suppress guard —
  // the OS file chooser fires a popstate when it returns focus, which would
  // otherwise close the whole dialog mid-upload (root cause of "adding a photo
@@ -458,7 +462,7 @@ const FaultDialogs = ({
 
  {/* Step 2: AI Triage Results */}
  {issueStep === 'triage' && triageResult && (
- <div className="space-y-4" data-testid="triage-results">
+ <div className="space-y-4 scroll-mt-4" data-testid="triage-results" ref={triageRef}>
  {faultMachines.length > 1 && (
  <div className="flex gap-1 overflow-x-auto pb-2" data-testid="machine-tabs">
  {faultMachines.map((m, idx) => (

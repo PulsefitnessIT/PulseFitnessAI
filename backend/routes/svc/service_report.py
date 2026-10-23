@@ -209,6 +209,8 @@ async def _gather_report_data(case_id: str, of: dict) -> dict:
         "machines": machines,
         "return_parts": return_parts,
         "engineer_branding": (engineer_user or {}).get("branding") or {},
+        "calibration": await db.svc_case_calibrations.find_one(
+            {"case_id": case_id, **of}, {"_id": 0, "signature": 0}, sort=[("created_at", -1)]),
     }
 
 
@@ -287,14 +289,6 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
         title=f"Service Report · {case.get('reference', '')}",
     )
     styles = getSampleStyleSheet()
-    h_title = ParagraphStyle(
-        "h_title", parent=styles["Title"], fontSize=20, leading=24,
-        textColor=colors.HexColor(brand_primary), spaceAfter=0,
-    )
-    h_sub = ParagraphStyle(
-        "h_sub", parent=styles["Normal"], fontSize=10, leading=12,
-        textColor=colors.HexColor("#64748B"), spaceAfter=0,
-    )
     h_section = ParagraphStyle(
         "h_section", parent=styles["Heading4"], fontSize=10, leading=12,
         textColor=colors.HexColor(brand_dark),
@@ -312,82 +306,69 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
 
     story: list = []
 
-    # ── Header band ────────────────────────────────────────────────
-    org_name = org.get("name") or "Pulse Fitness"
-    # Iter 220i — when a custom logo is provided (engineer override or
-    # org default), float it on the left of the title row.
-    if logo_bytes:
-        try:
-            logo_img = Image(io.BytesIO(logo_bytes), width=24 * mm, height=12 * mm, kind="proportional")
-            header_left = Table(
-                [[logo_img, Paragraph(f"<b>{org_name}</b>", h_title)]],
-                colWidths=[28 * mm, 82 * mm],
-            )
-            header_left.setStyle(TableStyle([
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ]))
-        except Exception:
-            header_left = Paragraph(f"<b>{org_name}</b>", h_title)
-    else:
-        header_left = Paragraph(f"<b>{org_name}</b>", h_title)
-    header_right = Paragraph(
-        "<b>Service Report</b><br/>"
-        f"Ref: {case.get('reference', case.get('id', '')[:8])}<br/>"
-        f"Generated: {datetime.now(timezone.utc).strftime('%d %b %Y · %H:%M UTC')}",
-        h_sub,
-    )
-    header_table = Table([[header_left, header_right]], colWidths=[110 * mm, 65 * mm])
-    header_table.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-        ("LINEBELOW", (0, 0), (-1, -1), 1, colors.HexColor(brand_primary)),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-    ]))
-    story.append(header_table)
+    # ── Pulse Fitness headed paper (invoice-style layout) ──────────────
+    from utils.pulse_doc_template import pulse_header, pulse_styles
+    _ps = pulse_styles()
+    story.append(pulse_header(_ps))
+    story.append(Spacer(1, 5 * mm))
+    story.append(Paragraph("<b>Service Report</b>", ParagraphStyle(
+        "inv_title", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=24, leading=28,
+        textColor=colors.HexColor("#0F172A"))))
     story.append(Spacer(1, 4 * mm))
 
-    # ── Job & site meta ───────────────────────────────────────────
-    story.append(Paragraph("VISIT DETAILS", h_section))
-    cust_lines = list(filter(None, [
-        case.get("customer_name") or "",
-        case.get("site_name") or "",
-        " ".join(filter(None, [case.get("site_address", ""), case.get("site_postcode", "")])),
-    ]))
-    meta_rows = [
-        ["Site",     "<br/>".join(cust_lines) or "—"],
-        ["Job type", case.get("_case_type_label") or _case_type_label(case.get("case_type")) or "—"],
-    ]
-    # Iter 220eb — Only show a machine/asset row when it's a real,
-    # customer-meaningful value. Empty fields and internal scheduling
-    # slugs (e.g. "ASSET_Sched_Case_…") are noise on a customer report.
+    def _box(title: str, lines: list[str]) -> Table:
+        tb = Table([[Paragraph(f"<b>{title}</b>", body)], [Paragraph("<br/>".join(lines) or "—", body)]],
+                   colWidths=[85 * mm])
+        tb.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 0.8, colors.black),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+            ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, -1), (-1, -1), 8),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        return tb
+
+    esc = lambda x: str(x or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    site_lines = [esc(x) for x in [case.get("customer_name"), case.get("site_name"),
+                                     case.get("site_address"), case.get("site_postcode")] if x]
+    eng_lines = []
+    if engineer.get("full_name") or engineer.get("email"):
+        eng_lines.append(esc(engineer.get("full_name") or engineer.get("email")))
+    if engineer.get("vehicle_reg"):
+        eng_lines.append(f"Van: {esc(engineer['vehicle_reg'])}")
     asset_name = (case.get("asset_name") or "").strip()
     if asset_name and not asset_name.upper().startswith("ASSET_"):
-        meta_rows.append(["Asset", asset_name])
-    meta_rows += [
-        ["Issue",    case.get("title") or "—"],
-        ["Priority", (case.get("priority") or "p3").upper()],
-        ["Status",   (case.get("status") or "").replace("_", " ").title() or "—"],
-        ["Visit closed", _fmt_date(case.get("closed_at") or case.get("updated_at"))],
-    ]
-    if engineer.get("full_name") or engineer.get("email"):
-        eng_line = engineer.get("full_name") or engineer.get("email")
-        if engineer.get("vehicle_reg"):
-            eng_line += f"  ·  Van: {engineer['vehicle_reg']}"
-        skills = engineer.get("skills") or []
-        if skills:
-            eng_line += f"  ·  {', '.join(skills[:4])}"
-        meta_rows.append(["Engineer", eng_line])
-    rows = [[Paragraph(f"<b>{k}</b>", muted), Paragraph(v, body)] for (k, v) in meta_rows]
-    t = Table(rows, colWidths=[28 * mm, 147 * mm])
-    t.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-    ]))
-    story.append(t)
+        eng_lines.append(f"Asset: {esc(asset_name)}")
+    boxes = Table([[_box("Customer / Site Address", site_lines), _box("Engineer", eng_lines)]],
+                  colWidths=[90 * mm, 85 * mm])
+    boxes.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                               ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+    story.append(boxes)
     story.append(Spacer(1, 4 * mm))
+
+    def _kv(k, v):
+        return [Paragraph(f"<b>{k}</b>", body), Paragraph(esc(v) or "—", body)]
+    ref_rows = [
+        _kv("Job No", case.get("reference") or case.get("id", "")[:8])
+        + _kv("Job Type", case.get("_case_type_label") or _case_type_label(case.get("case_type")))
+        + _kv("Priority", (case.get("priority") or "p3").upper()),
+        _kv("Visit Date", _fmt_date(case.get("closed_at") or case.get("updated_at")))
+        + _kv("Status", (case.get("status") or "").replace("_", " ").title())
+        + _kv("Issued", datetime.now(timezone.utc).strftime("%d/%m/%Y")),
+    ]
+    rt = Table(ref_rows, colWidths=[20 * mm, 38 * mm, 20 * mm, 40 * mm, 18 * mm, 39 * mm])
+    rt.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.8, colors.black),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.8, colors.black),
+        ("LINEBEFORE", (2, 0), (2, -1), 0.8, colors.black),
+        ("LINEBEFORE", (4, 0), (4, -1), 0.8, colors.black),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]))
+    story.append(rt)
+    if case.get("title"):
+        story.append(Spacer(1, 3 * mm))
+        story.append(Paragraph(f"<b>Issue:</b> {esc(case.get('title'))}", body))
+    story.append(Spacer(1, 5 * mm))
 
     # ── Time on site ──────────────────────────────────────────────
     travel = sum(int(e.get("duration_minutes") or 0) for e in time_entries if e.get("category") == "travel")
@@ -588,6 +569,52 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
             story.append(card)
             story.append(Spacer(1, 3 * mm))
         story.append(Spacer(1, 1 * mm))
+
+    # Treadmill calibration — speed & incline readings (Fire Station services).
+    cal = payload.get("calibration") or {}
+    cal_groups = [m for m in (cal.get("machines") or []) if m.get("readings")]
+    if not cal_groups and cal.get("readings"):
+        cal_groups = [{"equipment_name": cal.get("equipment_name") or "Treadmill",
+                       "readings": cal["readings"], "overall_result": cal.get("overall_result")}]
+    if cal_groups:
+        def _axis(r):
+            t = str(r.get("type") or "").lower()
+            if t in ("speed", "incline"):
+                return t
+            return "incline" if ("incline" in str(r.get("label") or "").lower() or str(r.get("unit") or "") == "%") else "speed"
+
+        def _esc(t):
+            return str(t or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        story.append(Paragraph(
+            f"TREADMILL CALIBRATION · SPEED &amp; INCLINE · {_esc((cal.get('overall_result') or 'pass').upper())}", h_section))
+        for g in cal_groups:
+            head = _esc(g.get("equipment_name") or "Treadmill") + (f" · S/N {_esc(g.get('serial'))}" if g.get("serial") else "")
+            story.append(Paragraph(f"<b>{head}</b> — {_esc((g.get('overall_result') or 'pass').upper())}", body))
+            for axis, title in (("speed", "Speed"), ("incline", "Incline")):
+                rows = [r for r in g["readings"] if _axis(r) == axis]
+                if not rows:
+                    continue
+                data = [[Paragraph(f"<b>{title} set point</b>", muted), Paragraph("<b>Target</b>", muted),
+                         Paragraph("<b>Measured</b>", muted), Paragraph("<b>Result</b>", muted)]]
+                for r in rows:
+                    res = (r.get("result") or "na").upper()
+                    colr = "#B91C1C" if res == "FAIL" else "#047857" if res == "PASS" else "#64748B"
+                    data.append([Paragraph(_esc(r.get("label") or "—"), body),
+                                 Paragraph(_esc(f"{r.get('target') or ''} {r.get('unit') or ''}".strip() or "—"), body),
+                                 Paragraph(_esc(r.get("measured") or "—"), body),
+                                 Paragraph(f"<font color='{colr}'><b>{res}</b></font>", body)])
+                t = Table(data, colWidths=[70 * mm, 35 * mm, 35 * mm, 35 * mm], repeatRows=1)
+                t.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F1F5F9")),
+                    ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#E2E8F0")),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ]))
+                story.append(t)
+                story.append(Spacer(1, 2 * mm))
+        if (cal.get("notes") or "").strip():
+            story.append(Paragraph(_esc(cal["notes"]), muted))
+        story.append(Spacer(1, 3 * mm))
 
     # ── Iter 220ea·24 · Return Visit Brief ────────────────────────
     # Consolidates everything still outstanding after this visit:
@@ -850,7 +877,7 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
 
     # ── Footer ────────────────────────────────────────────────────
     footer = Paragraph(
-        f"Generated by {org_name} via Pulse Fitness · Questions? Reply to this email or contact your service desk.",
+        f"Generated by {org.get('name') or 'Pulse Fitness'} via Pulse Fitness · Questions? Reply to this email or contact your service desk.",
         muted,
     )
     story.append(footer)

@@ -831,8 +831,10 @@ async def list_timesheets(
     _require_manager(user)
     org_id = _org(user)
     ws, we = _week_bounds(week_start)
+    from routes.staffing import _visible_staff_ids
+    _vis = await _visible_staff_ids(user, org_id)
     staff = await db.staff_members.find(
-        {"organization_id": org_id, "active": True},
+        {"organization_id": org_id, "active": True, **({"id": {"$in": list(_vis)}} if _vis is not None else {})},
         {"_id": 0, "id": 1, "full_name": 1, "primary_role": 1, "hourly_cost": 1},
     ).to_list(1000)
     out = []

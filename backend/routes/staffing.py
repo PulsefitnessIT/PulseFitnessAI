@@ -537,6 +537,21 @@ async def _staff_visibility_scope(user: dict, org_id: str) -> dict | None:
     return scope
 
 
+async def _visible_staff_ids(user: dict, org_id: str) -> set | None:
+    """Staff ids the caller may see (site + department scope), or None = all."""
+    scope = await _staff_visibility_scope(user, org_id)
+    if scope is None:
+        return None
+    return {s["id"] async for s in db.staff_members.find({"organization_id": org_id, **scope}, {"_id": 0, "id": 1})}
+
+
+def _site_lock_ids(user: dict) -> list | None:
+    """Sites a site-restricted (non-owner) login is limited to, else None."""
+    if _role(user) in {"owner", "master_admin"} or user.get("is_master_admin"):
+        return None
+    return user.get("allowed_site_ids") or None
+
+
 async def _user_sees_all_staff(user: dict, org_id: str) -> bool:
     """True when the viewing user should see the whole staff register: platform
     owners/master admins, or anyone whose Staffing job role is HR / Payroll /
@@ -1636,6 +1651,9 @@ async def list_shifts(
         q["site_id"] = site_id
     if status:
         q["status"] = status
+    _locked = _site_lock_ids(user)
+    if _locked:
+        q["site_id"] = site_id if site_id in _locked else {"$in": _locked}
     if staff_id and _is_manager(user):
         q["staff_id"] = staff_id
     if not _is_manager(user):
@@ -1737,6 +1755,10 @@ async def list_leave(user: dict = Depends(get_current_user)):
     if not _is_manager(user):
         sid = await _my_staff_id_async(user, org_id)
         q["staff_id"] = sid or "__none__"
+    else:
+        _vis = await _visible_staff_ids(user, org_id)
+        if _vis is not None:
+            q["staff_id"] = {"$in": list(_vis)}
     rows = await db.staff_leave_requests.find(q, {"_id": 0}).sort("start_date", -1).to_list(500)
     # Team clash detection (managers only): flag date overlaps with same-department teammates.
     if _is_manager(user):
@@ -2102,6 +2124,9 @@ async def live_floor(site_id: str | None = Query(None), user: dict = Depends(get
     q = {"organization_id": org_id, "date": today, "status": {"$ne": "cancelled"}}
     if site_id:
         q["site_id"] = site_id
+    _locked = _site_lock_ids(user)
+    if _locked:
+        q["site_id"] = site_id if site_id in _locked else {"$in": _locked}
     shifts = await db.staff_shifts.find(q, {"_id": 0}).to_list(500)
     staff = {s["id"]: s async for s in db.staff_members.find({"organization_id": org_id, "active": True}, {"_id": 0})}
     on_now, upcoming, finished = [], [], []
