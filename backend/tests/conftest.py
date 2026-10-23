@@ -45,6 +45,8 @@ def drive_async(coro):
     return loop.run_until_complete(coro)
 
 API_BASE_URL = os.environ.get("TEST_API_URL", "https://sicon-sync-hub.preview.emergentagent.com")
+if not os.environ.get("REACT_APP_BACKEND_URL"):
+    os.environ["REACT_APP_BACKEND_URL"] = API_BASE_URL
 
 MASTER_ADMIN_EMAIL = os.environ.get("TEST_MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")
 MASTER_ADMIN_PASSWORD = os.environ.get("TEST_MASTER_ADMIN_PASSWORD", "MasterAdmin123!")

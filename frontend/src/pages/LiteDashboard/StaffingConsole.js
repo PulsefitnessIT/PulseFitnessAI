@@ -540,10 +540,10 @@ function RotaTab({ headers, isManager }) {
 
       <Card testId="rota-grid">
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full text-xs table-fixed min-w-[48rem]">
             <thead>
               <tr style={{ color: 'var(--theme-text-muted)' }}>
-                <th className="text-left py-2 font-semibold px-2">{t('staffing.sc_rota_staff', 'Staff')}</th>
+                <th className="text-left py-2 font-semibold px-2 w-40">{t('staffing.sc_rota_staff', 'Staff')}</th>
                 {days.map((d) => (
                   <th key={d} className="text-left py-2 font-semibold px-2 whitespace-nowrap">{d.slice(5)}</th>
                 ))}
@@ -596,7 +596,7 @@ function RotaTab({ headers, isManager }) {
                             data-testid={`rota-shift-${sh.id}`}>
                             {(hasError || hasWarn) && <AlertTriangle size={10} style={{ color: hasError ? '#EF4444' : '#F59E0B' }} />}
                             {!hasError && !hasWarn && <Clock size={10} />}
-                            <span className="flex-1">{sh.start_time}–{sh.end_time}</span>
+                            <span className="flex-1 min-w-0 truncate">{sh.start_time}–{sh.end_time}</span>
                             {isManager && <button type="button" onClick={() => deleteShift(sh.id)} className="opacity-0 group-hover:opacity-100 transition-opacity" data-testid={`rota-delete-${sh.id}`}><Trash2 size={10} /></button>}
                           </div>
                         ); })}

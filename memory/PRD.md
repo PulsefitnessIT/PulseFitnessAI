@@ -12,7 +12,7 @@
   AreaSwitcher hides "Main app" for such users. Portal-only staff → /staff-portal directly; staff with modules → /launch.
 - Cookie banner raised to z-[60] above floating buttons.
 - Tests: backend/tests/test_vehicle_notes_reminders_routing_jan2026.py; reports iteration_vehicle_notes_*_jan2026.json (all pass).
-- Still pending (P0 from handoff): mod_bulk_import test failures; Sicon Appointments → Diary. Resend key invalid in preview (emails fail there).
+- Still pending (P0 from handoff): Sicon Appointments → Diary (mod_bulk_import tests FIXED 2026-06). Resend key invalid in preview (emails fail there).
 
 # [2026-06] FEATURE — External Service Providers: open-case removal safeguard
 Removing a provider engineer now guards against orphaned history.
@@ -39124,3 +39124,9 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Gating: generate/upload/delete/import/AI Director build/refine/delete/launch/expand = Owners, Managers, Master Admins (`require_creator`); others view & download only (`GET /api/marketing/creative/permissions`; UI hides builder + AI Director tab, shows view-only banner).
 - Tested: iteration_creative_studio_storage_jan2026 (9/9) + iteration_creative_director_gating_jan2026 (15/15, frontend 100%).
 - Known: storage has no delete API → deleted assets leave orphaned objects (soft by design).
+
+## 2026-06 — Pending-issue cleanup (mod_bulk_import tests, Rota grid, MOD pill bar) — DONE
+- mod_bulk_import tests: failures were stale test expectations, not app bugs. 216h117 — register password now meets 12-char policy; credentials-CSV header includes country/region/serviced_by/service_supplier; master token cached (avoids login rate-limit 429/401 flake). 216h50 — template header asserts check prefix/membership (templates intentionally gained columns). conftest.py now defaults REACT_APP_BACKEND_URL to API_BASE_URL (fixes "No scheme supplied" errors across ~195 test files). Result: 216h117 + 216h138 + mod_bulk_import_e2e + 216h50 = 32 passed, 1 skipped.
+- Rota week grid (StaffingConsole.js RotaTab): table-fixed + w-40 staff column + min-w-[48rem] → all 7 day columns equal width (verified 151px each @1920); scrolls inside card on mobile.
+- MOD pill bar: verified live MOD portal renders via LiteDashboardPage using shared PillTabBar (already uniform). MODPortal/MODSiteDashboard.js is lazy-imported but never routed (dead code) — left untouched.
+- Next (awaiting user go-ahead): Sicon Appointments → Diary (P0), Desk Alerts / Reassign Nudge / Ack badges (P1).

@@ -22,7 +22,12 @@ from tests.conftest import _test_backend_url
 API = _test_backend_url() + "/api"
 
 
+_TOK_CACHE: dict = {}
+
+
 def _master_token() -> str:
+    if _TOK_CACHE.get('t'):
+        return _TOK_CACHE['t']
     try:
         r = requests.post(
             f"{API}/auth/login",
@@ -32,7 +37,8 @@ def _master_token() -> str:
     except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
         pytest.skip(f"Live API unreachable ({type(e).__name__}) — skipping live-server test")
     r.raise_for_status()
-    return r.json()["token"]
+    _TOK_CACHE["t"] = r.json()["token"]
+    return _TOK_CACHE["t"]
 
 
 def _seed_demo(tok: str) -> dict:
@@ -92,7 +98,7 @@ def test_template_download_returns_canonical_headers() -> None:
         headers={"Authorization": f"Bearer {tok}"},
         timeout=15,
     )
-    assert r.status_code == 200
+    assert r.status_code == 200, r.text
     reader = csv.reader(io.StringIO(r.text))
     headers = next(reader)
     for required in ("site_name", "mod_branch", "mod_force", "postcode",
@@ -113,7 +119,7 @@ def test_bulk_import_requires_master_admin() -> None:
     reg = requests.post(
         f"{API}/auth/register",
         json={
-            "email": email, "password": "Test12345!",
+            "email": email, "password": "Test12345!Strong",
             "full_name": "Bulk Test", "company_name": f"Test Org {suffix}",
         },
         timeout=15,
@@ -203,6 +209,7 @@ def test_bulk_import_creates_sites_and_returns_credentials(monkeypatch=None) -> 
     reader = csv.reader(io.StringIO(exp.text))
     rows = list(reader)
     assert rows[0] == ["site_name", "site_code", "username", "password", "branch", "force",
+                       "country", "region", "serviced_by", "service_supplier",
                        "contact_email", "notified"]
     # 1 header + 2 data rows
     assert len(rows) == 3

@@ -216,3 +216,61 @@ class TestDashboard:
         assert j["kpis"]["active_staff"] >= 16
         assert shifts["b"] in d.text
         assert shifts["b_open"] in d.text
+
+
+# ── 4. conflicts endpoint + bulk copy-week scoping ──
+SRC_WEEK, TGT_WEEK = "2027-03-01", "2027-03-08"
+
+
+@pytest.fixture(scope="module")
+def b_overlap(owner):
+    ids = []
+    for st, en in (("09:00", "12:00"), ("10:00", "13:00")):
+        r = owner.post(f"{BASE_URL}/api/staffing/shifts", json={"staff_id": STAFF_B, "site_id": SITE_B, "date": SRC_WEEK,
+                       "start_time": st, "end_time": en, "notes": "TEST_B_overlap"}, timeout=30)
+        assert r.status_code == 200, r.text[:200]
+        ids.append(r.json()["shift"]["id"])
+    yield ids
+    for sid in ids:
+        owner.delete(f"{BASE_URL}/api/staffing/shifts/{sid}", timeout=30)
+
+
+class TestConflictsAndBulk:
+    def test_conflicts_scoped(self, manager, owner, b_overlap):
+        p = {"start_date": SRC_WEEK, "end_date": "2027-03-07"}
+        ro = owner.get(f"{BASE_URL}/api/staffing/conflicts", params=p, timeout=30)
+        assert ro.status_code == 200
+        assert any(c.get("staff_id") == STAFF_B for c in ro.json()["conflicts"]), "owner should see Site B conflict"
+        rm = manager.get(f"{BASE_URL}/api/staffing/conflicts", params=p, timeout=30)
+        assert rm.status_code == 200
+        assert not any(c.get("staff_id") == STAFF_B for c in rm.json()["conflicts"]), "Site B conflict leaked to manager"
+        assert "Sid Sales B" not in rm.text
+
+    def test_bulk_site_b_403(self, manager):
+        r = manager.post(f"{BASE_URL}/api/staffing/shifts/bulk", json={"source_start": SRC_WEEK, "target_start": TGT_WEEK,
+                         "site_id": SITE_B}, timeout=30)
+        assert r.status_code == 403, f"{r.status_code} {r.text[:200]}"
+
+    def test_bulk_copies_only_site_a(self, manager, owner, b_overlap):
+        ra = manager.post(f"{BASE_URL}/api/staffing/shifts", json={"staff_id": STAFF_A, "site_id": SITE_A, "date": SRC_WEEK,
+                          "start_time": "06:00", "end_time": "07:00", "notes": "TEST_A_bulk"}, timeout=30)
+        assert ra.status_code == 200, ra.text[:200]
+        a_id = ra.json()["shift"]["id"]
+        created = []
+        try:
+            r = manager.post(f"{BASE_URL}/api/staffing/shifts/bulk", json={"source_start": SRC_WEEK, "target_start": TGT_WEEK},
+                             timeout=30)
+            assert r.status_code == 200, r.text[:200]
+            created = r.json()["created_ids"]
+            assert r.json()["created_count"] >= 1
+            rows = owner.get(f"{BASE_URL}/api/staffing/shifts", params={"date_from": TGT_WEEK, "date_to": "2027-03-14"},
+                             timeout=30).json()
+            rows = rows if isinstance(rows, list) else rows.get("shifts") or rows.get("items") or []
+            mine = [s for s in rows if s["id"] in created]
+            assert len(mine) == len(created)
+            assert all(s.get("site_id") != SITE_B and s.get("staff_id") != STAFF_B for s in mine), \
+                f"bulk copied Site B: {[(s.get('site_id'), s.get('staff_id')) for s in mine]}"
+            assert any(s.get("notes") == "TEST_A_bulk" for s in mine)
+        finally:
+            for sid in created + [a_id]:
+                owner.delete(f"{BASE_URL}/api/staffing/shifts/{sid}", timeout=30)

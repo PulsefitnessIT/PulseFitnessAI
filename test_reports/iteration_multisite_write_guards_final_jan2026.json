@@ -1,0 +1,26 @@
+{
+  "summary": "Final backend retest of the 3 HIGH multi-site issues and the minor items. test_jan2026_multisite_write_guards.py now has 24 tests: the original 21 plus 3 new ones for GET /staffing/conflicts and POST /shifts/bulk. All 24 pass. (a) The manager's workforce-dashboard open_shifts has no Site B open shift, and the owner still sees it. (b) Dashboard compliance.top and GET /staffing/conflicts, using 2 overlapping Site B shifts for deptdemo-sales-b, show no Site B staff to the manager. The owner still sees the conflict. (c) As the manager, PATCH of a Site A shift with site_id=iso-demo-site-b returns 403. (d) As the manager, POST /shifts/bulk with site_id=iso-demo-site-b returns 403. Without site_id it copies only the Site A shift, and no Site B shift is cloned. (e) As the manager, POST /hr/documents for Site B staff returns 403. Regression: the 4 requested files pass (94/94).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/staffing/shifts/bulk and workforce-dashboard week_shifts", "issue": "Code review: when a site lock applies, the filter is site_id $in locked. This silently skips Site A shifts that have no site_id (they are not cloned or counted). Consider $in locked + [None, '']."},
+      {"endpoint": "GET /api/staffing/leave (clash pool)", "issue": "Code review, unchanged: staff_docs and the clash pool are still read org-wide."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_jan2026_multisite_write_guards.py",
+    "/app/test_reports/pytest/multisite_write_guards_final.xml",
+    "/app/test_reports/pytest/multisite_regression_final.xml"
+  ],
+  "action_items": [
+    "Optional: include site_id null/'' in the site-lock filters for bulk copy and dashboard week_shifts.",
+    "Optional: 5 soft-deleted (active:false) 'TEST_SiteB Temp2' staff records from earlier runs remain in iso-demo-org. Hard-delete them if wanted."
+  ],
+  "updated_files": ["/app/backend/tests/test_jan2026_multisite_write_guards.py (added TestConflictsAndBulk: 3 tests)"],
+  "success_rate": {"backend": "100% (24/24 new and 94/94 regression)", "frontend": "not tested (backend only)"},
+  "seed_data_creation": "None kept. All TEST_ shifts, including the 2027-03 source and target weeks, were deleted (DB count 0). The temp Site B staff was deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Export REACT_APP_BACKEND_URL and RATE_LIMIT_BYPASS_SECRET=test-bypass-secret-for-ci-runs-only-2026 (value from backend/.env) before running pytest. The bulk and conflicts tests use the weeks 2027-03-01 and 2027-03-08. GET /staffing/shifts takes date_from/date_to."
+}
