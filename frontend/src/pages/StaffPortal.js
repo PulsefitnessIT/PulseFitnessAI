@@ -11,7 +11,7 @@ import {
   CheckCircle2, AlertCircle, Plus, Trash2, Users,
   Home, Play, Square, Coffee, Sun, Thermometer, ChevronLeft, ChevronRight,
   ClipboardCheck, PenLine, Truck, Camera, ShieldAlert, Check, X, MoreHorizontal,
-  IdCard, HelpCircle, BookOpen, Receipt, Car, PoundSterling, Upload, Send,
+  IdCard, HelpCircle, Receipt, Car, PoundSterling, Upload, Send,
 } from 'lucide-react';
 import StaffNotificationBell from '@/components/staffing/StaffNotificationBell';
 import Navbar from '../components/shared/Navbar';
@@ -327,11 +327,7 @@ function HelpTab({ jwt, H }) {
   };
   return (
     <Card testId="staff-help">
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2"><BookOpen size={18} className="text-cyan-500" /> Help &amp; Tutorials</h2>
-          <p className="text-sm text-slate-500 mt-0.5">Quick guides for every part of your Staff Portal.</p>
-        </div>
+      <div className="flex items-start justify-end gap-3 mb-4">
         <button onClick={download} disabled={dl} data-testid="help-download-handbook"
           className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
           {dl ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Handbook PDF
@@ -766,7 +762,6 @@ function RotaTab({ H }) {
   if (shifts.length === 0) return <Empty icon={Calendar} title="No upcoming shifts" hint="Your manager hasn't scheduled you in the next 4 weeks." />;
   return (
     <Card testId="staff-rota">
-      <h2 className="font-bold text-slate-900 mb-3">Your upcoming shifts</h2>
       <div className="space-y-2">
         {shifts.map((s) => (
           <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-4 py-3" data-testid={`staff-shift-${s.id}`}>
@@ -1149,7 +1144,6 @@ function AccessTab({ H }) {
   const [label, cls] = STATUS[data.status] || STATUS.not_started;
   return (
     <Card testId="staff-access">
-      <h2 className="font-bold text-slate-900 mb-1">System & module access</h2>
       <p className="text-sm text-slate-500 mb-3">Your line manager decides which parts of PulseFitness.ai you can use.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
         <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3"><div className="text-[11px] text-slate-400 uppercase tracking-wide">Line manager</div><div className="text-sm font-semibold text-slate-800" data-testid="access-line-manager">{data.line_manager || 'Not assigned yet'}</div></div>

@@ -27,7 +27,6 @@ export default function StaffJobs({ initialFilter = {}, onOpenJob }) {
 
   return (
     <div className="p-6 max-w-6xl mx-auto" data-testid="staff-jobs">
-      <h1 className="text-2xl font-bold text-slate-900 mb-4">Live Jobs</h1>
       <Card className="p-4 mb-4">
         <div className="flex items-center gap-2 text-slate-500 text-sm font-semibold mb-3"><Filter className="w-4 h-4" /> Filters</div>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">

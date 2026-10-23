@@ -128,15 +128,22 @@ def pulse_header(s: dict, company: dict | None = None) -> Table:
     """
     c = company or PULSE
     logo_bytes = c.get("logo_bytes")
+    pulse_logo = False
     if logo_bytes:
         logo = _logo_flowable(logo_bytes=logo_bytes)
     elif c.get("use_default_logo", company is None):
-        logo = _logo_flowable()
+        logo = _logo_flowable(size_mm=22)
+        pulse_logo = logo is not None
     else:
         logo = None
     name = c.get("name") or PULSE["name"]
-    left_inner = [[logo, Paragraph(_esc(name), s["wordmark"])]] if logo else [[Paragraph(_esc(name), s["wordmark"])]]
-    left = Table(left_inner, colWidths=([18 * mm, 60 * mm] if logo else [78 * mm]))
+    if pulse_logo:  # Pulse logo already carries the wordmark
+        left_inner, widths = [[logo]], [78 * mm]
+    elif logo:
+        left_inner, widths = [[logo, Paragraph(_esc(name), s["wordmark"])]], [18 * mm, 60 * mm]
+    else:
+        left_inner, widths = [[Paragraph(_esc(name), s["wordmark"])]], [78 * mm]
+    left = Table(left_inner, colWidths=widths)
     left.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 4),

@@ -7,7 +7,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import { FileText, Loader2, PenLine, CheckCircle2, ChevronLeft, RotateCcw, ShieldCheck, FileSignature } from 'lucide-react';
+import { FileText, Loader2, PenLine, CheckCircle2, ChevronLeft, RotateCcw, ShieldCheck } from 'lucide-react';
 import { notify } from '@/components/notifications';
 
 const money = (n, cur = 'GBP') => new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur }).format(Number(n) || 0);
@@ -89,10 +89,6 @@ export default function LiteQuotesTab({ API, headers, onChanged }) {
   if (!active) {
     return (
       <div data-testid="lite-quotes-list">
-        <div className="flex items-center gap-2 mb-4">
-          <FileSignature size={18} style={{ color: 'var(--color-brand-cyan, #0055FF)' }} />
-          <h2 className="text-lg font-bold" style={{ color: 'var(--theme-text)' }}>Quotes</h2>
-        </div>
         {list.length === 0 ? (
           <div className="rounded-2xl border py-16 px-6 text-center" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="lite-quotes-empty">
             <FileText size={30} className="mx-auto text-slate-300" />

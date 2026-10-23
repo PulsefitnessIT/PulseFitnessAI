@@ -124,11 +124,7 @@ export default function StaffEngineers() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto" data-testid="staff-engineers">
-      <div className="flex items-start justify-between gap-3 mb-5">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">Engineers &amp; Team</h1>
-          <p className="text-slate-500">Set up MOD/BFPO engineers, allocate their territories and sites, and send a password link.</p>
-        </div>
+      <div className="flex items-start justify-end gap-3 mb-5">
         <Btn variant="primary" onClick={openCreate} data-testid="add-engineer-btn"><Plus className="w-4 h-4" /> Invite engineer</Btn>
       </div>
 

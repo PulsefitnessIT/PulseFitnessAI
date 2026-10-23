@@ -40,14 +40,7 @@ export default function CustomerDeliveriesTab() {
 
   return (
     <div className="space-y-5" data-testid="customer-deliveries-tab">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: 'linear-gradient(135deg, #19CDFF, #0BB0DD)' }}><Truck size={20} className="text-white" /></div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">{t('deliveries.title', 'Deliveries & Installations')}</h2>
-            <p className="text-sm text-slate-500">{t('deliveries.subtitle', 'Track your incoming equipment, installation status and warranty.')}</p>
-          </div>
-        </div>
+      <div className="flex items-center justify-end gap-3">
         <LanguageSwitcher />
       </div>
 

@@ -334,11 +334,7 @@ export default function ShiftTemplatesTab({ headers, isManager }) {
 
   return (
     <div className="space-y-4" data-testid="shift-templates-tab">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{t('staffing.tpl_reusable', 'Reusable shifts')}</p>
-          <h3 className="text-base font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{t('staffing.tpl_title', 'Shift templates')}</h3>
-        </div>
+      <div className="flex items-center justify-end gap-2 flex-wrap">
         {isManager && (
           <button type="button" onClick={() => setEditing({})}
             className="h-9 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5"

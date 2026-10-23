@@ -52,11 +52,6 @@ export default function PPMReports() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto" data-testid="ppm-reports">
-      <div className="flex items-center gap-2 mb-4">
-        <BarChart3 className="w-6 h-6 text-cyan-600" />
-        <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
-      </div>
-
       <div className="flex gap-1.5 mb-4 flex-wrap">
         {TYPES.map((t) => (
           <button key={t.key} onClick={() => setType(t.key)} data-testid={`report-type-${t.key}`}

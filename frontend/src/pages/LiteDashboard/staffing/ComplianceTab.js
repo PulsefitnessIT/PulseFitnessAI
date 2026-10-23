@@ -115,10 +115,7 @@ export default function ComplianceTab({ headers }) {
     <div className="space-y-6" data-testid="compliance-tab">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="flex items-center gap-2 text-xl font-bold text-slate-800">
-            <ShieldCheck size={22} className="text-cyan-600" /> Compliance at a glance
-          </h2>
-          <p className="mt-0.5 text-sm text-slate-500">
+          <p className="text-sm text-slate-500">
             DBS certificates, Right-to-Work checks and outstanding vehicle fines across {s.staff_count} staff.
           </p>
         </div>

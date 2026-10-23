@@ -65,7 +65,6 @@ export default function TeamAccessMatrixTab({ headers }) {
     <div className="space-y-4" data-testid="team-access-matrix-tab">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>Who can see what</h2>
           <p className="text-sm pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
             Everyone's effective module access. To change it, open the person in <span style={{ fontWeight: 600 }}>HR</span>.
           </p>

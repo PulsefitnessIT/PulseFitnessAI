@@ -7,8 +7,7 @@ export default function PPMStaff({ onOpen }) {
   const [tab, setTab] = useState('services');
   return (
     <div className="p-6 max-w-6xl mx-auto" data-testid="ppm-staff">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-slate-900">Planned Servicing</h1>
+      <div className="flex items-center justify-start mb-4">
         <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
           <button onClick={() => setTab('services')} data-testid="ppm-tab-services" className={`px-3 py-1.5 rounded-md text-sm font-semibold ${tab === 'services' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}>Services</button>
           <button onClick={() => setTab('schedules')} data-testid="ppm-tab-schedules" className={`px-3 py-1.5 rounded-md text-sm font-semibold ${tab === 'schedules' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}>Schedules</button>

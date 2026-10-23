@@ -43,12 +43,7 @@ export default function CustomerCertificatesTab() {
   return (
     <div className="space-y-4" data-testid="customer-certificates-tab">
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-            <FileCheck2 className="text-blue-600" size={20} /> Service &amp; Calibration Certificates
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5">Your completed station service certificates, ready to download.</p>
-        </div>
+        <div />
         {data.next_service_due && (
           <div className="rounded-xl bg-blue-50 ring-1 ring-blue-200 px-4 py-2 text-center" data-testid="cert-next-due">
             <div className="text-[11px] text-blue-600 uppercase tracking-wide flex items-center gap-1"><CalendarClock size={12} /> Next service due</div>

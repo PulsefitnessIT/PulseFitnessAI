@@ -29,8 +29,7 @@ export default function StaffVisiting() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto" data-testid="staff-visiting">
-      <h1 className="text-2xl font-bold text-slate-900 mb-1">Visiting Engineer Access</h1>
-      <p className="text-slate-500 mb-5">Grant a UK engineer temporary access to a site for a date range.</p>
+      <p className="text-slate-500 text-sm mb-4">Grant a UK engineer temporary access to a site for a date range.</p>
 
       <Card className="p-4 mb-6">
         <p className="font-semibold text-slate-900 flex items-center gap-2 mb-3"><Plus className="w-4 h-4 text-cyan-600" /> New grant</p>

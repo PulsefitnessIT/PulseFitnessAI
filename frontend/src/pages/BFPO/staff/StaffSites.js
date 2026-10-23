@@ -9,8 +9,6 @@ export default function StaffSites({ onOpenJobs }) {
   if (!tree) return <Spinner />;
   return (
     <div className="p-6 max-w-6xl mx-auto" data-testid="staff-sites">
-      <h1 className="text-2xl font-bold text-slate-900 mb-1">Global Site View</h1>
-      <p className="text-slate-500 mb-5">By country and territory</p>
       <div className="space-y-6">
         {tree.map((c) => (
           <div key={c.country} data-testid={`staff-country-${c.country}`}>

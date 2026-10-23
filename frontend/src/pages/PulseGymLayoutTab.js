@@ -676,8 +676,7 @@ const PulseGymLayoutTab = () => {
   /* ═══ LIST ═══ */
   return(
     <div className="space-y-4" data-testid="gym-layout-list">
-      <div className="flex items-center justify-between">
-        <div><h3 className="text-white font-semibold text-lg">Gym Floor Plans</h3><p className="text-[var(--color-text-muted)] text-sm">Import CAD drawings and plan equipment placement.</p></div>
+      <div className="flex items-center justify-end">
         <Button onClick={()=>setShowCreate(true)} className="bg-[var(--pulse-primary-hover)] hover:bg-[var(--pulse-primary-light)] text-white" data-testid="create-layout-btn"><Plus size={16} className="mr-2"/>New Layout</Button>
       </div>
       {layouts.length===0?(
