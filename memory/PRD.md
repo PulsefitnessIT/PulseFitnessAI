@@ -39101,3 +39101,10 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - UI: "Department visibility" panel in HR → Profile (DeptVisibilityPanel.js), amber grant badge in HR staff list, HR tab shown read-only (Profile only) for grant-holding staff.
 - Tested: testing agent iteration_dept_permissions_jan2026 (address leak + Saved indicator fixed after), backend/tests/test_dept_visibility_jan2026.py 13/13.
 - Backlog unchanged: Sicon Appointments → Diary (P0), mod_bulk_import test fix (P1), Desk Alerts / Reassign Nudge / Ack badges (P1).
+
+## 2026-06 — Marketing Creative Studio: Nano Banana + Object Storage — DONE
+- Image generation = Gemini Nano Banana (`gemini-3.1-flash-image-preview`, Emergent LLM key) only; removed silent gpt-image-1 / fake-SVG fallbacks → clear 502 on failure.
+- All Creative Studio images (generated, uploads, brand-library imports, AI Director posters) stored in Emergent Object Storage (`routes/marketing/creative_storage.py`); variants hold `{storage_path, token, mime, url:/api/marketing/creative/file/<token>}`; legacy base64 assets/briefs lazily migrated on list/get. `GET /api/marketing/creative/file/{token}` (?download=1) serves bytes.
+- Gating: generate/upload/delete/import/AI Director build/refine/delete/launch/expand = Owners, Managers, Master Admins (`require_creator`); others view & download only (`GET /api/marketing/creative/permissions`; UI hides builder + AI Director tab, shows view-only banner).
+- Tested: iteration_creative_studio_storage_jan2026 (9/9) + iteration_creative_director_gating_jan2026 (15/15, frontend 100%).
+- Known: storage has no delete API → deleted assets leave orphaned objects (soft by design).

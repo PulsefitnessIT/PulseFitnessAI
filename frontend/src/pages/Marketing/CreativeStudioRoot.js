@@ -15,7 +15,7 @@ const CreativeStudioRoot = ({ API, headers, entitlement }) => {
   const [view, setView] = useState('director');
   const [seedBriefId, setSeedBriefId] = useState(null);
   // Only Owners / Managers / Master Admins create images; others get the gallery only.
-  const [canCreate, setCanCreate] = useState(true);
+  const [canCreate, setCanCreate] = useState(null);
   useEffect(() => {
     axios.get(`${API}/api/marketing/creative/permissions`, { headers })
       .then((r) => {
@@ -23,7 +23,7 @@ const CreativeStudioRoot = ({ API, headers, entitlement }) => {
         setCanCreate(ok);
         if (!ok) setView((v) => (v === 'director' ? 'asset' : v));
       })
-      .catch(() => {});
+      .catch(() => setCanCreate(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
   }, []);
 
@@ -86,13 +86,15 @@ const CreativeStudioRoot = ({ API, headers, entitlement }) => {
         <p className="text-[10px] text-zinc-500 dark:text-zinc-400 max-w-md">
           {view === 'director'
             ? t('mkt.csr_help_director', '✨ Full campaign — strategy, copy across every channel, brand-locked image, segment variants & auto-scheduling. Start here.')
+            : view === 'asset' && canCreate === false
+              ? t('mkt.csr_help_asset_view', '🖼️ View and download your team’s marketing images.')
             : view === 'asset'
               ? t('mkt.csr_help_asset', '🖼️ Quick one-off poster only. For a full campaign with email + IG + SMS + push copy, use AI Director.')
               : t('mkt.csr_help_churn', "💔 True 1:1 win-back — detect each lapsing member's exact exit signal and let Claude write a bespoke rescue message that names their behaviour.")}
         </p>
       </div>
 
-      {view === 'director' && canCreate
+      {canCreate === null ? null : view === 'director' && canCreate
         ? <AIDirectorPanel API={API} headers={headers} entitlement={entitlement} seedBriefId={seedBriefId} onSeedConsumed={() => setSeedBriefId(null)}/>
         : view === 'asset'
           ? <LegacyCreativeStudioTab API={API} headers={headers} entitlement={entitlement}/>

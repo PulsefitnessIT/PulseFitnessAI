@@ -1,0 +1,27 @@
+{
+  "summary": "RETEST of iteration_creative_studio_storage_jan2026 fixes. Backend 15/15 pytest PASS: /permissions returns can_create false for lead and true for owner; lead gets 403 on director/build (also with an empty body), director/refine, DELETE director/briefs/{id} and briefs/{id}/launch, using both fake and real brief ids; lead can still list and get briefs. Owner director/build (1 Claude + Nano Banana call, ~45s) returns a poster_data_url of /api/marketing/creative/file/<token>, with no data:, no poster_variant and no storage_path. The file serves image bytes. GET brief returns the same URL. Launch creates a gallery asset whose variant URL is a file URL that serves the image. Unknown token returns 404. A token whose storage object is missing returns 404 'Image not available', not 500. Frontend PASS: lead sees no cs-tab-director, Quick Poster is active by default, creative-view-only-banner is shown, Churn Rescue tab is present, no director prompt input. Owner sees the AI Director tab and the builder. Loading the brief from history renders director-poster-img from the backend file URL (naturalWidth 928). Quick Poster shows no view-only banner for owner.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "store_poster", "issue": "If storage upload fails it silently falls back to keeping the base64 data: URL in the brief doc. This is acceptable degradation, but it is only logged as a warning."},
+      {"endpoint": "DELETE director/briefs/{id} and DELETE /creative/{id}", "issue": "Storage objects are still orphaned after deletion. Known and acceptable."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Creative Studio (lead / view-only)", "issues": ["The Quick Poster help text still says 'For a full campaign ... use AI Director', but the AI Director tab is hidden for this user. Consider different copy when canCreate is false.", "canCreate starts as true, so a view-only user briefly sees the Director tab and AIDirectorPanel mounts before /permissions resolves. This is a flicker plus unneeded director API calls. Consider initialising to null and rendering after the check."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_creative_director_gating_jan2026.py", "/app/test_reports/pytest/creative_director_gating.xml"],
+  "action_items": ["Optional: initialise canCreate to null to avoid the Director tab flicker for view-only users", "Optional: adjust the Quick Poster help copy for view-only users"],
+  "critical_code_review_comments": ["The launch reuses brief.poster_variant (same token) for the asset, so deleting the asset leaves the file reachable via the brief fallback until the brief is deleted. This is fine, but note it for intended semantics."],
+  "updated_files": ["/app/backend/tests/test_creative_director_gating_jan2026.py"],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "100%"},
+  "seed_data_creation": "None kept. 1 TEST_ brief, its campaign and its poster asset were created and then deleted from Mongo. A temporary TEST_missing_obj asset was inserted and removed. 1 Claude + 1 Nano Banana call used.",
+  "test_credentials": "owner@isodemo.com / IsoDemo123!, lead@isodemo.com / IsoDemo123!",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login testids: gx-login-email/password/submit. Open Creative Studio by JS-clicking the visible mkt-pill-creative. TestOwnerBuildLaunch in the new pytest file makes a real LLM + image call; deselect it with -k 'not OwnerBuildLaunch' to save credits. The brief, campaign and asset it creates must be cleaned up manually (no TEST_ teardown in the file)."
+}
