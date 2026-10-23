@@ -1,0 +1,48 @@
+{
+  "summary": "Retest of the 3 HIGH multi-site issues. New file test_jan2026_multisite_write_guards.py: 18 of 21 tests pass. (1) Per-staff writes: the manager gets 403 on PATCH /staff/{id} and PATCH /hr/profile/{id} for deptdemo-sales-b. On a disposable Site B staff created by the owner, the manager also gets 403 on DELETE, issue-credentials, module-access grant/revoke, PUT dept-visibility, PATCH offboarding and POST offboarding/start. The owner gets 200 on all of these, and the manager still gets 200 patching Site A staff deptdemo-svc. (2) Shifts: the manager gets 403 creating a shift for Site B staff, creating an open shift on Site B, and on PATCH/DELETE/move of a Site B shift or Site B open shift. The manager also cannot move a Site A shift onto Site B staff. The manager's full Site A flow works: create, patch, move to another Site A staff, create and delete a Site A open shift, delete. The owner is unaffected. (3) Workforce dashboard: active_staff is 3 for the manager, matching /staff (owner sees 16). on_now and upcoming contain no Site B staff, and the UI KPI shows 3. However, open_shifts and compliance still leak Site B data (see issues). (4) Regression: the 4 requested files pass (94/94). UI smoke as manager: the Rota shows only 3 Service staff and no Site B text. Dragging a Site A shift from Sam Service A to Dept Lead Demo worked, the API confirmed the move was saved, and no API calls failed.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/staffing/workforce-dashboard -> open_shifts (routes/staffing.py ~2883)", "issue": "The open_shifts query filters only by organization_id/status/date. It ignores _site_lock_ids and scope, so the manager receives a Site B open shift (site_id iso-demo-site-b, created by the owner) in open_shifts. Reproduced in test_mgr_dashboard_scoped.", "priority": "HIGH"},
+      {"endpoint": "GET /api/staffing/workforce-dashboard -> compliance, and GET /api/staffing/conflicts", "issue": "_conflicts_for_range(org_id, ...) scans every shift in the org, and staff_docs is loaded org-wide. Reproduced: with 2 overlapping Site B shifts for deptdemo-sales-b, the manager's dashboard compliance.top lists {staff_id: deptdemo-sales-b, staff_name: 'Sid Sales B'}, and /staffing/conflicts returns the same conflict. Filter the findings to the visible staff ids and site lock.", "priority": "HIGH"},
+      {"endpoint": "PATCH /api/staffing/shifts/{id} with body.site_id", "issue": "_assert_shift_visible checks the existing site and the new staff_id, but not the new site_id. The manager re-pointed their own Site A shift to site_id=iso-demo-site-b and got 200. Add the _site_lock_ids check on patch['site_id'].", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/staffing/hr/documents (also by code review: POST /hr/disciplinary, POST /hr/training, PATCH/DELETE of those records by record id)", "issue": "No assert_staff_visible on body.staff_id. The manager created an HR document for a Site B staff member and got 200. Records addressed by record id are not checked against the owning staff_id either."},
+      {"endpoint": "GET /api/staffing/offboarding and GET /api/staffing/offboarding/{staff_id}", "issue": "Code review: not scoped. The list returns cases for the whole org with person names, and the per-staff GET has no assert_staff_visible."},
+      {"endpoint": "POST /api/staffing/shifts/bulk (Copy week)", "issue": "Code review: clones every org shift in the source week, including Site B shifts, unless site_id is passed. It has no scope or site-lock filter."},
+      {"endpoint": "GET /api/staffing/workforce-dashboard week_shifts", "issue": "When a site lock applies, the query uses site_id $in locked, which drops Site A shifts that have no site_id. These shifts are visible in the Rota but missing from the dashboard. Consider $in locked + [None, '']."},
+      {"endpoint": "GET /api/staffing/leave (clash detection)", "issue": "Code review: the clash pool and staff_docs are org-wide, so clashes may name out-of-scope staff in the same department name."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Staffing > Rota (week grid)", "issues": ["Today's column (10-23) is about 2.5x wider than the other day columns, so the grid looks unbalanced."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_jan2026_multisite_write_guards.py",
+    "/app/test_reports/pytest/multisite_write_guards.xml",
+    "/app/test_reports/pytest/multisite_regression_write_guards.xml"
+  ],
+  "action_items": [
+    "workforce_dashboard: scope the open_shifts query. Apply the _site_lock_ids site filter, and use staff_id in the visible set or null.",
+    "Scope _conflicts_for_range results (dashboard compliance and GET /staffing/conflicts) to the visible staff ids and the site lock.",
+    "update_shift: return 403 when patch.site_id is outside _site_lock_ids. The same applies to move_shift if it ever accepts site_id.",
+    "Add assert_staff_visible(body.staff_id) to POST /hr/documents, /hr/disciplinary and /hr/training. For PATCH/DELETE by record id, check the record's staff_id.",
+    "Scope GET /staffing/offboarding (list and per-staff) and POST /staffing/shifts/bulk."
+  ],
+  "critical_code_review_comments": [
+    "In update_profile and set_dept_visibility, the auto-inserted guard sits above the docstring, so the docstring is now a dead string expression. This is cosmetic.",
+    "In several routes, the _asv guard runs before _require_manager, so a non-manager probing Site B staff gets 403 'outside your site' rather than a role error. This is acceptable.",
+    "Aggregation helpers (_conflicts_for_range, leave clash pool, staff_docs maps) still read the whole org. Route every org-wide read through scoped_staff_filter.",
+    "routes/staffing.py is 3092 lines and should be split."
+  ],
+  "updated_files": ["/app/backend/tests/test_jan2026_multisite_write_guards.py (new)"],
+  "success_rate": {"backend": "88% of new tests (18/21; the 3 failures are real bugs). Regression 100% (94/94).", "frontend": "100% (manager Rota drag/drop and Dashboard KPI)"},
+  "seed_data_creation": "None kept. The temporary Site B staff 'TEST_SiteB Temp' was deleted by the owner, all TEST_ shifts were deleted, and the TEST_doc HR document was archived through DELETE. deptdemo-sales-b is unchanged (full_name 'Sid Sales B', city null). The owner sees 16 staff.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest from /app/backend with REACT_APP_BACKEND_URL and RATE_LIMIT_BYPASS_SECRET=test-bypass-secret-for-ci-runs-only exported (the new test file sends the X-RateLimit-Bypass header). Even with the bypass, many logins in a row produced a 429 lockout for about 4 minutes. The app server date is 2026-10-23. UI: /dashboard?tab=staffing, then staffing-tab-rota, then staffing-subtab-rota; drag rota-shift-{id} onto rota-cell-{staffId}-{date}. In the Playwright script, route only **/api/auth/login to add the bypass header."
+}

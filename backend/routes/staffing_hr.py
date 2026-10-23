@@ -288,6 +288,8 @@ async def list_documents(
 async def add_document(body: DocumentCreate, user: dict = Depends(get_current_user)):
     _require_manager(user)
     org_id = _org(user)
+    from routes.staffing import assert_staff_visible
+    await assert_staff_visible(user, org_id, body.staff_id)
     await _staff_or_404(org_id, body.staff_id)
     if body.kind not in VALID_DOC_KINDS:
         raise HTTPException(400, f"kind must be one of {sorted(VALID_DOC_KINDS)}")
@@ -373,6 +375,8 @@ async def list_disciplinary(
 async def add_disciplinary(body: DisciplinaryCreate, user: dict = Depends(get_current_user)):
     _require_manager(user)
     org_id = _org(user)
+    from routes.staffing import assert_staff_visible
+    await assert_staff_visible(user, org_id, body.staff_id)
     await _staff_or_404(org_id, body.staff_id)
     if body.severity not in VALID_SEVERITY:
         raise HTTPException(400, f"severity must be one of {sorted(VALID_SEVERITY)}")
@@ -450,6 +454,8 @@ async def list_training(
 async def add_training(body: TrainingCreate, user: dict = Depends(get_current_user)):
     _require_manager(user)
     org_id = _org(user)
+    from routes.staffing import assert_staff_visible
+    await assert_staff_visible(user, org_id, body.staff_id)
     await _staff_or_404(org_id, body.staff_id)
     doc = {
         "id": str(uuid4()),

@@ -560,7 +560,8 @@ async def scoped_staff_filter(user: dict, org_id: str) -> dict:
     return {} if vis is None else {"id": {"$in": list(vis)}}
 
 
-async def _assert_shift_visible(user: dict, org_id: str, shift_id: str, new_staff_id: str | None = None) -> None:
+async def _assert_shift_visible(user: dict, org_id: str, shift_id: str, new_staff_id: str | None = None,
+                                new_site_id: str | None = None) -> None:
     """Site/department-scoped managers may only change shifts in their scope."""
     cur = await db.staff_shifts.find_one({"id": shift_id, "organization_id": org_id}, {"_id": 0, "staff_id": 1, "site_id": 1})
     if not cur:
@@ -570,6 +571,8 @@ async def _assert_shift_visible(user: dict, org_id: str, shift_id: str, new_staf
         raise HTTPException(403, "This site is outside your access.")
     await assert_staff_visible(user, org_id, cur.get("staff_id"))
     await assert_staff_visible(user, org_id, new_staff_id)
+    if _locked and new_site_id and new_site_id not in _locked:
+        raise HTTPException(403, "This site is outside your access.")
 
 
 def _site_lock_ids(user: dict) -> list | None:
@@ -1758,7 +1761,7 @@ async def update_shift(shift_id: str, body: ShiftUpdate, user: dict = Depends(ge
     if "status" in patch and patch["status"] not in VALID_SHIFT_STATUS:
         raise HTTPException(400, "invalid status")
     patch["updated_at"] = _now().isoformat()
-    await _assert_shift_visible(user, org_id, shift_id, patch.get("staff_id"))
+    await _assert_shift_visible(user, org_id, shift_id, patch.get("staff_id"), patch.get("site_id"))
     res = await db.staff_shifts.update_one({"id": shift_id, "organization_id": org_id}, {"$set": patch})
     if res.matched_count == 0:
         raise HTTPException(404, "shift not found")
@@ -1791,7 +1794,14 @@ async def bulk_create_shifts(body: dict = Body(...), user: dict = Depends(get_cu
         raise HTTPException(400, "source_start and target_start required (YYYY-MM-DD)")
     delta_days = (datetime.fromisoformat(tgt).date() - datetime.fromisoformat(src).date()).days
     q = {"organization_id": org_id, "date": {"$gte": src, "$lt": (datetime.fromisoformat(src).date() + timedelta(days=7)).isoformat()}}
+    _vis = await _visible_staff_ids(user, org_id)
+    if _vis is not None:
+        q["staff_id"] = {"$in": list(_vis) + [None, ""]}
+    if _site_lock_ids(user):
+        q["site_id"] = {"$in": _site_lock_ids(user)}
     if body.get("site_id"):
+        if _site_lock_ids(user) and body["site_id"] not in _site_lock_ids(user):
+            raise HTTPException(403, "This site is outside your access.")
         q["site_id"] = body["site_id"]
     src_rows = await db.staff_shifts.find(q, {"_id": 0}).to_list(10_000)
     created = []
@@ -2740,8 +2750,15 @@ async def conflicts(
 ):
     _require_manager(user)
     org_id = _org(user)
-    findings = await _conflicts_for_range(org_id, start_date, end_date)
+    findings = await _scoped_conflicts(user, org_id, start_date, end_date)
     return {"conflicts": findings, "count": len(findings)}
+
+
+async def _scoped_conflicts(user: dict, org_id: str, start: str, end: str) -> list[dict]:
+    """Conflicts limited to the caller's visible staff (site/department scope)."""
+    findings = await _conflicts_for_range(org_id, start, end)
+    vis = await _visible_staff_ids(user, org_id)
+    return findings if vis is None else [f for f in findings if f.get("staff_id") in vis]
 
 
 # ── Workforce Dashboard ───────────────────────────────────────────
@@ -2880,17 +2897,13 @@ async def workforce_dashboard(user: dict = Depends(get_current_user)):
 
     # Open shifts (next 14 days)
     horizon = (now.date() + timedelta(days=14)).isoformat()
-    open_shifts = await db.staff_shifts.find(
-        {
-            "organization_id": org_id,
-            "status": "open",
-            "date": {"$gte": today, "$lte": horizon},
-        },
-        {"_id": 0},
-    ).sort([("date", 1), ("start_time", 1)]).limit(20).to_list(20)
+    _oq = {"organization_id": org_id, "status": "open", "date": {"$gte": today, "$lte": horizon}}
+    if _site_lock_ids(user):
+        _oq["site_id"] = {"$in": _site_lock_ids(user)}
+    open_shifts = await db.staff_shifts.find(_oq, {"_id": 0}).sort([("date", 1), ("start_time", 1)]).limit(20).to_list(20)
 
     # Compliance: this week's conflicts, top 10
-    conflicts_list = await _conflicts_for_range(org_id, wk_start, wk_end)
+    conflicts_list = await _scoped_conflicts(user, org_id, wk_start, wk_end)
     # Decorate with staff name + shift info for the UI
     shift_by_id = {sh["id"]: sh for sh in week_shifts}
     top_conflicts: list[dict] = []
