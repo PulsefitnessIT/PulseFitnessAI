@@ -451,6 +451,26 @@ async def _full_boot() -> None:
     except Exception as e:
         logger.error(f"svc status normalise failed: {e}")
 
+    async def _cert_rebrand():
+        try:
+            from routes.crm_contracts import backfill_certificate_branding
+            _n = await backfill_certificate_branding()
+            if _n:
+                logger.info("Rebuilt %d stored fire certificate PDF(s) with Pulse branding", _n)
+        except Exception as e:
+            logger.error(f"certificate rebrand backfill failed: {e}")
+    asyncio.create_task(_cert_rebrand())
+
+    async def _vehicle_photo_shrink():
+        try:
+            from routes.vehicle_checks import backfill_compress_vehicle_photos
+            _n = await backfill_compress_vehicle_photos()
+            if _n:
+                logger.info("Compressed %d stored vehicle photo(s)", _n)
+        except Exception as e:
+            logger.error(f"vehicle photo compression backfill failed: {e}")
+    asyncio.create_task(_vehicle_photo_shrink())
+
     # Iter 272 — one-time backfill: relink stranded partner_engineers rows
     # (pending/stale user_id) to their owning users so engineers don't land
     # on the empty "Become a Partner Engineer / Apply now" screen. Marker-

@@ -27,6 +27,7 @@ from pydantic import BaseModel
 
 from utils.auth import AUTH_COOKIE_NAME, get_current_user, get_current_user_portal, verify_token
 from utils.database import APP_NAME, db, get_object, put_object
+from utils.image_compress import compress_photo
 from routes.staffing import _org, _require_manager
 from routes.staff_portal import _line_manager_user_id, _portal_staff, notify_staff
 
@@ -500,11 +501,16 @@ async def upload_fine_doc(file: UploadFile = File(...), user: dict = Depends(get
     ct = file.content_type or "application/octet-stream"
     fname = file.filename or "fine"
     ext = fname.rsplit(".", 1)[-1][:8] if "." in fname else "bin"
+    if ct.startswith("image/") or ext.lower() in ("jpg", "jpeg", "png", "webp", "heic", "heif"):
+        small = await asyncio.to_thread(compress_photo, data)
+        if small:
+            data, ct, ext = small, "image/jpeg", "jpg"
     path = f"{APP_NAME}/vehicle-fines/{org}/{uuid.uuid4()}.{ext}"
     result = put_object(path, data, ct)
     fid = str(uuid.uuid4())
     await db.files.insert_one({"id": fid, "organization_id": org, "category": "vehicle-photos",
-                               "storage_path": result["path"], "content_type": ct, "created_at": _now()})
+                               "storage_path": result["path"], "content_type": ct, "size": len(data),
+                               "compressed": True, "created_at": _now()})
     return {"file_id": fid}
 
 
@@ -1380,10 +1386,13 @@ async def portal_upload_photo(file: UploadFile = File(...), user: dict = Depends
     if ext not in ("jpg", "jpeg", "png", "webp", "heic", "heif"):
         raise HTTPException(415, "Please upload an image (JPG, PNG, WEBP or HEIC).")
     data = await file.read()
-    if len(data) > 15 * 1024 * 1024:
-        raise HTTPException(413, "Image too large — keep under 15MB.")
+    if len(data) > 25 * 1024 * 1024:
+        raise HTTPException(413, "Image too large — keep under 25MB.")
     ct = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
           "webp": "image/webp", "heic": "image/heic", "heif": "image/heif"}.get(ext, "image/jpeg")
+    small = await asyncio.to_thread(compress_photo, data)
+    if small:
+        data, ct, ext = small, "image/jpeg", "jpg"
     path = f"{APP_NAME}/vehicle-photos/{org}/{uuid.uuid4()}.{ext}"
     result = put_object(path, data, ct)
     fid = str(uuid.uuid4())
@@ -1391,9 +1400,30 @@ async def portal_upload_photo(file: UploadFile = File(...), user: dict = Depends
         "id": fid, "user_id": user.get("id"), "organization_id": org,
         "category": "vehicle-photos", "storage_path": result["path"],
         "original_filename": file.filename, "content_type": ct,
-        "size": result.get("size", len(data)), "created_at": _now(),
+        "size": len(data), "compressed": True, "created_at": _now(),
     })
     return {"file_id": fid}
+
+
+async def backfill_compress_vehicle_photos() -> int:
+    """One-time shrink of stored vehicle photos; overwrites the original object
+    in place so storage is reclaimed. Idempotent via the `compressed` flag."""
+    done = 0
+    async for f in db.files.find({"category": "vehicle-photos", "compressed": {"$ne": True}},
+                                 {"_id": 0, "id": 1, "storage_path": 1, "content_type": 1}):
+        flag = {"compressed": True}
+        try:
+            data, _ct = await asyncio.to_thread(get_object, f["storage_path"])
+            small = await asyncio.to_thread(compress_photo, data)
+            if small:
+                await asyncio.to_thread(put_object, f["storage_path"], small, "image/jpeg")
+                flag.update({"content_type": "image/jpeg", "size": len(small), "original_size": len(data)})
+                done += 1
+        except Exception as e:
+            logger.warning("vehicle photo backfill skipped %s: %s", f.get("id"), e)
+            continue
+        await db.files.update_one({"id": f["id"]}, {"$set": flag})
+    return done
 
 
 @router.get("/vehicle-checks/photo/{file_id}")

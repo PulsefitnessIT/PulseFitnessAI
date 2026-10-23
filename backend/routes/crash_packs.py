@@ -11,12 +11,14 @@ image proxy GET /api/vehicle-checks/photo/{file_id} serves them for both the
 driver portal token and the manager platform token.
 """
 from datetime import datetime, timezone
+import asyncio
 import uuid
 
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 
 from utils.auth import get_current_user, get_current_user_portal
 from utils.database import db, put_object, get_object, APP_NAME
+from utils.image_compress import compress_photo
 from routes.staff_portal import (
     _portal_staff, notify_staff, _line_manager_user_id, _is_manager,
 )
@@ -196,10 +198,13 @@ async def crash_upload_photo(file: UploadFile = File(...), user: dict = Depends(
     if ext not in ("jpg", "jpeg", "png", "webp", "heic", "heif"):
         raise HTTPException(415, "Please upload an image (JPG, PNG, WEBP or HEIC).")
     data = await file.read()
-    if len(data) > 15 * 1024 * 1024:
-        raise HTTPException(413, "Image too large — keep under 15MB.")
+    if len(data) > 25 * 1024 * 1024:
+        raise HTTPException(413, "Image too large — keep under 25MB.")
     ct = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
           "webp": "image/webp", "heic": "image/heic", "heif": "image/heif"}.get(ext, "image/jpeg")
+    small = await asyncio.to_thread(compress_photo, data)
+    if small:
+        data, ct, ext = small, "image/jpeg", "jpg"
     path = f"{APP_NAME}/vehicle-photos/{org}/{uuid.uuid4()}.{ext}"
     result = put_object(path, data, ct)
     fid = str(uuid.uuid4())
@@ -207,7 +212,7 @@ async def crash_upload_photo(file: UploadFile = File(...), user: dict = Depends(
         "id": fid, "user_id": user.get("id"), "organization_id": org,
         "category": "vehicle-photos", "kind": "crash", "storage_path": result["path"],
         "original_filename": file.filename, "content_type": ct,
-        "size": result.get("size", len(data)), "created_at": _now(),
+        "size": len(data), "compressed": True, "created_at": _now(),
     })
     return {"file_id": fid}
 

@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { Truck, Plus, ShieldAlert, FileDown, FileText, FileArchive, Link2, Loader2, X, Check, Trash2 } from 'lucide-react';
 import CrashPacksManager from './CrashPacksManager';
+import { compressImage } from '../../../utils/compressImage';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const token = () => (typeof window !== 'undefined' ? localStorage.getItem('token') : '');
@@ -522,7 +523,7 @@ function VehicleModal({ vehicle, drivers, headers, onClose, onSaved }) {
     if (!file) return;
     setFineBusy(true);
     try {
-      const fd = new FormData(); fd.append('file', file);
+      const fd = new FormData(); fd.append('file', await compressImage(file));
       const r = await axios.post(`${API}/vehicles/fine-upload`, fd, { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
       setNf((p) => ({ ...p, file_id: r.data.file_id }));
     } catch { setErr('Fine document upload failed.'); } finally { setFineBusy(false); }

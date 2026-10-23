@@ -2459,6 +2459,35 @@ async def _generate_certificate(visit_id: str, user: dict, auto_send: bool = Fal
     return cert
 
 
+CERT_REBRAND_TAG = "pulse-brand-2026-06"
+
+
+async def backfill_certificate_branding() -> int:
+    """One-time rebuild of stored certificate PDFs with the current Pulse template.
+    Keeps status / sent history; never emails. Idempotent via CERT_REBRAND_TAG."""
+    import base64
+    done = 0
+    async for cert in db.crm2_certificates.find(
+            {"rebrand_tag": {"$ne": CERT_REBRAND_TAG}}, {"_id": 0, "id": 1, "visit_id": 1}):
+        visit = await db.crm2_station_visits.find_one({"id": cert.get("visit_id")}, {"_id": 0})
+        if not visit:
+            continue
+        try:
+            pdf, _c, _s, _f, tver = await _build_cert_pdf_bytes(visit)
+        except Exception as e:
+            __import__("logging").getLogger(__name__).warning("cert rebrand failed %s: %s", cert["id"], e)
+            continue
+        await db.crm2_certificate_files.update_one(
+            {"cert_id": cert["id"]},
+            {"$set": {"cert_id": cert["id"], "pdf_b64": base64.b64encode(pdf).decode(), "at": _now()}},
+            upsert=True)
+        await db.crm2_certificates.update_one(
+            {"id": cert["id"]},
+            {"$set": {"template_version": tver, "rebrand_tag": CERT_REBRAND_TAG, "rebuilt_at": _now()}})
+        done += 1
+    return done
+
+
 async def _send_certificate(cert_id: str, user: dict, override_recipients=None) -> dict:
     import base64
     from utils.email import send_email

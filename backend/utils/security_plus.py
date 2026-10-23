@@ -331,6 +331,8 @@ UPLOAD_PATH_PREFIXES = (
     "/api/equipment-import", "/api/upload", "/api/files", "/api/spec-sheets",
     "/api/equipment/", "/api/mod/site/attachments", "/api/master-admin/invoice/",
     "/api/master-admin/sites/preview-csv", "/api/master-admin/equipment/preview-csv",
+    "/api/new-starter/portal/vehicle-check/photo", "/api/new-starter/portal/crash-packs/photo",
+    "/api/vehicles/fine-upload",
 )
 BULK_IMPORT_PATH_PREFIXES = (
     "/api/master-admin/bulk-import/",

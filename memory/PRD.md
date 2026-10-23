@@ -39130,3 +39130,9 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Rota week grid (StaffingConsole.js RotaTab): table-fixed + w-40 staff column + min-w-[48rem] → all 7 day columns equal width (verified 151px each @1920); scrolls inside card on mobile.
 - MOD pill bar: verified live MOD portal renders via LiteDashboardPage using shared PillTabBar (already uniform). MODPortal/MODSiteDashboard.js is lazy-imported but never routed (dead code) — left untouched.
 - Next (awaiting user go-ahead): Sicon Appointments → Diary (P0), Desk Alerts / Reassign Nudge / Ack badges (P1).
+
+## 2026-06 — Fire certificate rebrand backfill + vehicle photo compression — DONE
+- Fire/Blue Light Service & Calibration Certificates are stored PDFs (crm2_certificate_files.pdf_b64). New `backfill_certificate_branding()` (routes/crm_contracts.py, tag CERT_REBRAND_TAG="pulse-brand-2026-06") rebuilds every stored certificate with the current template at backend startup (background task in server.py). Keeps status/sent history, never emails, idempotent. Preview: 3 rebuilt. Runs on production at next deploy.
+- Vehicle photos: utils/image_compress.compress_photo (EXIF rotate, max 2000px, JPEG q80, HEIC→JPEG via pillow-heif) applied server-side on /new-starter/portal/vehicle-check/photo, /new-starter/portal/crash-packs/photo, /vehicles/fine-upload (images only). Those routes moved to the 25MB upload tier in utils/security_plus.UPLOAD_PATH_PREFIXES (were 2MB default). Fine upload also compresses in-browser (compressImage).
+- `backfill_compress_vehicle_photos()` (routes/vehicle_checks.py) startup task shrinks existing stored photos in place (overwrites same storage path), sets files.compressed / original_size; idempotent.
+- Verified via API: 18.6MB→1.1MB (noise worst case), HEIC served as JPEG, backfill 18.6MB→1.1MB and second run no-op; certificate download renders new Pulse design.
