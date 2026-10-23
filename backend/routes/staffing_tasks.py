@@ -702,9 +702,11 @@ async def compliance_tracker(user: dict = Depends(get_current_user)):
         {"organization_id": org_id, "archived": {"$ne": True}},
         {"_id": 0},
     ).to_list(5000)
+    from routes.staffing import scoped_staff_filter
+    _scope = await scoped_staff_filter(user, org_id)
     staff = {
         s["id"]: s async for s in db.staff_members.find(
-            {"organization_id": org_id, "active": True},
+            {"organization_id": org_id, "active": True, **_scope},
             {"_id": 0, "id": 1, "full_name": 1, "primary_role": 1, "email": 1},
         )
     }

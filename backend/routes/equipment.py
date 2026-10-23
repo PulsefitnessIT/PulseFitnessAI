@@ -1541,7 +1541,7 @@ def schedule_image_backfill(org_filter: dict) -> None:
     missing one (used straight after an equipment import)."""
     import asyncio
     key = str(sorted(org_filter.items()))
-    if key in _BACKFILL_RUNNING:
+    if not org_filter.get("organization_id") or key in _BACKFILL_RUNNING:
         return
 
     async def _run():
@@ -1558,14 +1558,17 @@ def schedule_image_backfill(org_filter: dict) -> None:
 
 async def _lookup_images_chunk(org_filter: dict, limit: int) -> dict:
     limit = max(1, min(int(limit), 200))
-    # Skip machines already tried (no match) so repeated chunks always move
-    # forward instead of re-examining the same unmatched items forever.
+    # Skip machines tried in the last 7 days so repeated chunks always move
+    # forward; older no-match/error items get retried on later runs.
+    from datetime import timedelta
+    _cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
     cursor = db.equipment.find({
         **org_filter,
         "photo_url": {"$in": [None, ""]},
         "auto_image_url": {"$in": [None, ""]},
         "spec_sheet_id": {"$in": [None, ""]},
-        "auto_image_looked_up_at": {"$in": [None, ""]},
+        "$or": [{"auto_image_looked_up_at": {"$in": [None, ""]}},
+                {"auto_image_looked_up_at": {"$lt": _cutoff}}],
     }, {"_id": 0}).limit(limit)
     items = await cursor.to_list(limit)
 

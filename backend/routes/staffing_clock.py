@@ -347,7 +347,8 @@ async def clock_board(
     # rows carry a `user_id` for clocked employees; legacy rows without
     # a user_id (manually-added engineers, kiosk-only staff) are treated
     # as org-wide for now.
-    staff_filter: dict = {"organization_id": org_id, "active": True}
+    from routes.staffing import scoped_staff_filter
+    staff_filter: dict = {"organization_id": org_id, "active": True, **(await scoped_staff_filter(user, org_id))}
     if site_id:
         # Find every user that's allocated to this site OR has no site
         # restriction at all.

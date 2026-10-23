@@ -545,6 +545,21 @@ async def _visible_staff_ids(user: dict, org_id: str) -> set | None:
     return {s["id"] async for s in db.staff_members.find({"organization_id": org_id, **scope}, {"_id": 0, "id": 1})}
 
 
+async def assert_staff_visible(user: dict, org_id: str, staff_id: str | None) -> None:
+    """403 when a site/department-scoped viewer asks for someone outside scope."""
+    if not staff_id:
+        return
+    vis = await _visible_staff_ids(user, org_id)
+    if vis is not None and staff_id not in vis:
+        raise HTTPException(403, "This person is outside your site or department.")
+
+
+async def scoped_staff_filter(user: dict, org_id: str) -> dict:
+    """Mongo fragment limiting staff_members to the caller's visible scope."""
+    vis = await _visible_staff_ids(user, org_id)
+    return {} if vis is None else {"id": {"$in": list(vis)}}
+
+
 def _site_lock_ids(user: dict) -> list | None:
     """Sites a site-restricted (non-owner) login is limited to, else None."""
     if _role(user) in {"owner", "master_admin"} or user.get("is_master_admin"):
@@ -963,6 +978,7 @@ async def _ensure_staff_login_target(sm: dict) -> dict | None:
 @router.get("/staffing/staff/{staff_id}/module-access")
 async def staff_module_access(staff_id: str, user: dict = Depends(get_current_user)):
     from routes.master_admin_users import _module_access_payload
+    await assert_staff_visible(user, _org(user), staff_id)
     sm, target, org = await _staff_for_module_access(staff_id, user)
     if not target:
         synth = {
@@ -1003,7 +1019,19 @@ async def team_module_matrix(user: dict = Depends(get_current_user)):
             sp_emails.add(s["email"].strip().lower())
 
     rows = []
+    _scope = await scoped_staff_filter(user, org_id)
+    _vis_uids, _vis_emails = None, None
+    if _scope:
+        _vis_uids, _vis_emails = set(), set()
+        async for s in db.staff_members.find({"organization_id": org_id, **_scope}, {"_id": 0, "user_id": 1, "email": 1}):
+            if s.get("user_id"):
+                _vis_uids.add(s["user_id"])
+            if s.get("email"):
+                _vis_emails.add(s["email"].strip().lower())
     async for u in db.users.find({"organization_id": org_id}, {"_id": 0, "password": 0, "hashed_password": 0}):
+        if _vis_uids is not None and u.get("id") not in _vis_uids \
+                and (u.get("email") or "").strip().lower() not in _vis_emails:
+            continue
         role = (u.get("role") or "").lower()
         privileged = bool(u.get("is_master_admin") or u.get("is_pulse_admin") or role in {"owner", "master_admin"})
         eff = resolve_module_access(u, org)
@@ -1998,7 +2026,7 @@ async def performance_summary(
     # Default to last 30 days.
     dt_to = datetime.fromisoformat(date_to) if date_to else _now()
     dt_from = datetime.fromisoformat(date_from) if date_from else (dt_to - timedelta(days=30))
-    staff = await db.staff_members.find({"organization_id": org_id, "active": True}, {"_id": 0}).to_list(1000)
+    staff = await db.staff_members.find({"organization_id": org_id, "active": True, **(await scoped_staff_filter(user, org_id))}, {"_id": 0}).to_list(1000)
     if not staff:
         return {"window": {"from": dt_from.isoformat(), "to": dt_to.isoformat()}, "staff": []}
 

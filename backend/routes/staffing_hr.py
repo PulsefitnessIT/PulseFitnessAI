@@ -190,6 +190,8 @@ async def _check_view_scope(user: dict, org_id: str, staff_id: str | None) -> st
     Managers see everything; staff see only themselves. If a staff
     member asks about someone else, raise 403."""
     if _is_manager(user):
+        from routes.staffing import assert_staff_visible
+        await assert_staff_visible(user, org_id, staff_id)
         return staff_id  # manager filter passes through
     sid = await _my_staff_id_async(user, org_id)
     if not sid:
@@ -562,6 +564,8 @@ async def get_offboarding(staff_id: str, user: dict = Depends(get_current_user))
 async def start_offboarding(staff_id: str, body: OffboardStart, user: dict = Depends(get_current_user)):
     _require_manager(user)
     org_id = _org(user)
+    from routes.staffing import assert_staff_visible
+    await assert_staff_visible(user, org_id, staff_id)
     staff = await _staff_or_404(org_id, staff_id)
     existing = await db.staff_offboarding_cases.find_one({"staff_id": staff_id, "organization_id": org_id})
     if existing and existing.get("status") == "in_progress":
@@ -618,6 +622,8 @@ async def complete_offboarding(staff_id: str, user: dict = Depends(get_current_u
         raise HTTPException(404, "No offboarding case — start one first.")
     if case.get("status") == "complete":
         raise HTTPException(400, "This offboarding has already been completed.")
+    from routes.staffing import assert_staff_visible
+    await assert_staff_visible(user, org_id, staff_id)
     staff = await _staff_or_404(org_id, staff_id)
     lwd = case.get("last_working_day")
     await db.staff_members.update_one(
@@ -809,6 +815,8 @@ async def export_employee_file(staff_id: str, format: str = Query("pdf"),
     """Download a full employee file (PDF or Excel) for audits / SARs."""
     _require_manager(user)
     org_id = _org(user)
+    from routes.staffing import assert_staff_visible
+    await assert_staff_visible(user, org_id, staff_id)
     staff = await _staff_or_404(org_id, staff_id)
     f = await _employee_file_data(org_id, staff)
     from utils.export_branding import resolve_export_brand

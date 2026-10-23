@@ -206,8 +206,9 @@ const LiteEquipmentTab = ({
     }
   };
 
+  const recentlyChecked = (eq) => eq.auto_image_looked_up_at && (Date.now() - new Date(eq.auto_image_looked_up_at).getTime()) < 7 * 86400000;
   const missingImages = filteredEquipment.filter(
-    (eq) => !eq.photo_url && !eq.spec_sheet_id && !eq.auto_image_url
+    (eq) => !eq.photo_url && !eq.spec_sheet_id && !eq.auto_image_url && !recentlyChecked(eq)
   ).length;
 
   // Iter 216h108 — chunked auto-lookup. Previously we called the

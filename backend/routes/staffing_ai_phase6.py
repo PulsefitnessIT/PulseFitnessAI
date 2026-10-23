@@ -195,8 +195,9 @@ async def ai_rota_suggest(
     week_end = ws + timedelta(days=6)
 
     # Pull staff + rules + leave overlapping the target week.
+    from routes.staffing import scoped_staff_filter
     staff = await db.staff_members.find(
-        {"organization_id": org_id, "active": True}, {"_id": 0},
+        {"organization_id": org_id, "active": True, **(await scoped_staff_filter(user, org_id))}, {"_id": 0},
     ).to_list(500)
     rules = await db.staff_rules.find_one({"organization_id": org_id}, {"_id": 0}) or {}
     leave = await db.staff_leave_requests.find(
@@ -415,8 +416,9 @@ async def absence_risk(
     sick_window_start = (today - timedelta(days=90)).isoformat()
     late_window_start = (today - timedelta(days=30)).isoformat()
 
+    from routes.staffing import scoped_staff_filter
     staff = await db.staff_members.find(
-        {"organization_id": org_id, "active": True}, {"_id": 0},
+        {"organization_id": org_id, "active": True, **(await scoped_staff_filter(user, org_id))}, {"_id": 0},
     ).to_list(500)
 
     # Sick / no-show counts
