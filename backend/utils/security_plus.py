@@ -343,6 +343,8 @@ BULK_IMPORT_PATH_PREFIXES = (
 
 
 def _is_upload_path(path: str) -> bool:
+    if path.startswith("/api/new-starter/portal/expenses/") and path.endswith("/receipt"):
+        return True
     return any(path.startswith(p) for p in UPLOAD_PATH_PREFIXES)
 
 

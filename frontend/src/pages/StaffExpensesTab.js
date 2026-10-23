@@ -7,6 +7,7 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
+import { compressImage } from '../utils/compressImage';
 import {
   Receipt, Car, PoundSterling, Plus, Trash2, Upload, Send, Loader2,
   ArrowLeft, CheckCircle2, AlertCircle, RotateCw, Camera, ArrowDownUp,
@@ -160,8 +161,8 @@ export default function ExpensesTab({ H }) {
 
   const uploadReceipt = async (i, file) => {
     if (!file) return;
-    const fd = new FormData(); fd.append('file', file);
     setLine(i, { _uploading: true });
+    const fd = new FormData(); fd.append('file', await compressImage(file));
     try {
       const r = await axios.post(`${API}/new-starter/portal/expenses/${claim.id}/receipt`, fd, { headers: H });
       const s = r.data.suggestion || {};
@@ -180,7 +181,7 @@ export default function ExpensesTab({ H }) {
       if (scan.retake) setErr(scanMsg(scan.reason));
       else if (dup) setErr('Heads up: this receipt looks like one already on your claim (same merchant, date & amount).');
       setTimeout(sortLinesByDate, 0);
-    } catch { setLine(i, { _uploading: false }); setErr('Receipt upload failed.'); }
+    } catch (e) { setLine(i, { _uploading: false }); setErr(e?.response?.data?.detail || 'Receipt upload failed — please try again.'); }
   };
 
   // Snap one or more receipts → each becomes a new, AI-filled line, then date-sorted.
@@ -192,7 +193,7 @@ export default function ExpensesTab({ H }) {
     const working = [...(claim.lines || [])];
     for (const file of list) {
       try {
-        const fd = new FormData(); fd.append('file', file);
+        const fd = new FormData(); fd.append('file', await compressImage(file));
         const r = await axios.post(`${API}/new-starter/portal/expenses/${claim.id}/receipt`, fd, { headers: H });
         const s = r.data.suggestion || {};
         const scan = r.data.scan || {};

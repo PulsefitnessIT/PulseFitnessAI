@@ -20,6 +20,7 @@ All data reuses the EXISTING collections (`staff_shifts`,
 is new (one doc per provisioned employee).
 """
 from __future__ import annotations
+import asyncio
 
 import re
 import uuid
@@ -1762,14 +1763,22 @@ async def portal_expenses_receipt(claim_id: str, file: UploadFile = File(...),
     if not claim:
         raise HTTPException(404, "Claim not found")
     data = await file.read()
-    if len(data) > 15 * 1024 * 1024:
-        raise HTTPException(413, "Receipt too large (max 15MB).")
+    if len(data) > 25 * 1024 * 1024:
+        raise HTTPException(413, "Receipt too large (max 25MB).")
     rid = str(uuid.uuid4())
-    ext = (file.filename or "jpg").rsplit(".", 1)[-1][:5] or "jpg"
+    ext = (file.filename or "jpg").rsplit(".", 1)[-1][:5].lower() or "jpg"
+    ctype = file.content_type or "image/jpeg"
+    if ext != "pdf" and ctype != "application/pdf":
+        from utils.image_compress import compress_photo
+        small = await asyncio.to_thread(compress_photo, data)
+        if small:
+            data, ctype, ext = small, "image/jpeg", "jpg"
+        elif ext in ("heic", "heif") or ctype in ("image/heic", "image/heif"):
+            raise HTTPException(415, "That photo format couldn't be read — please take the receipt photo again.")
     path = f"{APP_NAME}/staff-expense-receipts/{staff['organization_id']}/{rid}.{ext}"
-    put_object(path, data, file.content_type or "image/jpeg")
+    put_object(path, data, ctype)
     receipts = claim.get("receipts") or {}
-    receipts[rid] = {"path": path, "content_type": file.content_type or "image/jpeg", "filename": file.filename}
+    receipts[rid] = {"path": path, "content_type": ctype, "filename": file.filename}
     await db.staff_expense_claims.update_one({"id": claim_id}, {"$set": {"receipts": receipts, "updated_at": _now()}})
 
     # Optional AI autofill (best-effort — never blocks the upload).
