@@ -1,0 +1,31 @@
+{
+  "summary": "I retested the 5 frontend fixes with Playwright against the public URL. All 5 pass. (1) The portal-only driver vc.driver@pulsefitness.test goes from /login to /staff-portal, and area-switcher-btn is not rendered (count 0). (2) /staff-portal?tab=vehicle&vehicle=VCTEST_vehicle opens the form. Back returns to the list and the URL becomes ?tab=vehicle, and a reload shows the list. After submit the URL is also cleared. (3) vehicle-extra-photo has the multiple attribute. Selecting 2 images uploads both (2 POST 200s and 2 thumbnails). Removing one, saving the draft and reloading keeps the correct single fid. Removing the last photo, saving and reloading gives an empty set. (4) Cookie banner: the accept and decline buttons are hit-test clean at 4 points each at 1920x800 and 390x844. Nothing covers them (ask-orb-btn z50 and gx-feedback-launcher z40 are under the banner z60). (5) I completed all 28 items with notes and 1 extra photo and submitted. The owner portal@pulsefitness.ltd goes to /launch, then Operations, Staffing, Vehicles, Weekly checks, Open. check-detail-driver-notes shows the note text and the photo loads (naturalWidth 64).",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "POST /api/crm/auth/cross-login", "issue": "Returns 403 on every Staff Portal load for the portal-only driver. The UI is not affected, but it is console noise and a wasted request. Skip cross-login for users without CRM access."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Staff Portal > Vehicle list", "issues": ["After the check is Submitted, the card still shows a 'Complete check' CTA. It opens a read-only form, so label it 'View check'."]},
+      {"screen": "Staff Portal extra photos", "issues": ["Multi-select uploads run one after another, about 3s per photo. The only feedback is the 'Uploading…' label, with no count (e.g. 1/2). If the user saves mid-upload, the photos still uploading are not included in that save."]},
+      {"screen": "Operations > Staffing > Vehicles > Weekly checks", "issues": ["The Week commencing / From / To filters use the browser's native date input (mm/dd/yyyy) instead of the shadcn calendar."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_vehicle_notes_reminders_routing_jan2026.py"],
+  "action_items": [
+    "Optional: change the CTA to 'View check' when the check is submitted",
+    "Optional: show upload progress (n/N) for multi-photo selection",
+    "Optional: stop calling /api/crm/auth/cross-login for portal-only staff (403 noise)"
+  ],
+  "critical_code_review_comments": [
+    "StaffPortal.js closeCheck rebuilds the URL as `${pathname}?${sp}`. If sp is empty, this leaves a trailing '?'. This is harmless but untidy.",
+    "DriverNotesCard puts the JWT in the img src query string (?auth=${jwt}), which can leak it in logs and Referer headers. Prefer the cookie session or short-lived signed URLs."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "skipped (frontend only)", "frontend": "100% (5/5)"},
+  "seed_data_creation": "VCTEST_vehicle now has a SUBMITTED check for week 2026-10-19, with driver_notes 'TEST_retest note: wiper blade worn' and 1 extra photo (f592c850-270b-4af9-8ca6-6975af7772b1). Other test uploads that were removed are orphan files in db.files.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Clear db.rate_buckets if login silently stays on /login. The owner lands on /launch; click Operations, then the 'Staffing' text, then staffing-tab-vehicles, then vehicles-view-checks, then check-open-*. Extra photo uploads take about 3s each, so wait for the thumbnails before saving."
+}

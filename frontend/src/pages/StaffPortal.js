@@ -1531,7 +1531,7 @@ function VehiclePortalCard({ v, jwt, onCheck }) {
         </button>
         <button onClick={onCheck} data-testid={`vehicle-check-btn-${v.id}`}
           className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg" style={{ background: CORE, color: '#00121a' }}>
-          Complete check
+          {['submitted', 'reviewed'].includes(v.this_week?.status) ? 'View check' : 'Complete check'}
         </button>
       </div>
       {open && (
@@ -1767,7 +1767,7 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
           <div className="mt-4 flex items-center justify-between gap-2">
             <span className="text-xs text-slate-400">{answered}/{allIds.length} checks answered {saved && <span className="text-emerald-600 font-semibold ml-2">{saved}</span>}</span>
             <div className="flex gap-2">
-              <button onClick={() => persist(false)} disabled={busy} data-testid="vehicle-save-draft" className="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-slate-600">Save draft</button>
+              <button onClick={() => persist(false)} disabled={busy || photoBusy} data-testid="vehicle-save-draft" className="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-slate-600">Save draft</button>
               <button onClick={submit} disabled={busy || photoBusy} data-testid="vehicle-submit" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold text-slate-900" style={{ background: CORE }}>{busy ? <Loader2 size={14} className="animate-spin" /> : <PenLine size={14} />} Submit check</button>
             </div>
           </div>
@@ -1778,10 +1778,15 @@ function VehicleCheckForm({ H, jwt, vehicleId, onBack }) {
 }
 
 function DriverNotesCard({ notes, setNotes, photos, locked, photoBusy, jwt, onUpload, onRemove }) {
+  const [queue, setQueue] = useState(null);
   if (locked && !notes && photos.length === 0) return null;
+  const uploadMany = async (files) => {
+    for (let i = 0; i < files.length; i += 1) { setQueue(`${i + 1}/${files.length}`); await onUpload(files[i]); }
+    setQueue(null);
+  };
   return (
     <Card testId="vehicle-driver-notes-card">
-      <h3 className="font-bold text-slate-900 mb-1 flex items-center gap-2"><PenLine size={16} /> Notes for your manager</h3>
+      <h3 className="font-bold text-slate-900 mb-1 flex items-center gap-2"><PenLine size={16} /> Additional notes</h3>
       <p className="text-xs text-slate-500 mb-3">Anything else worth knowing about the vehicle this week, plus any extra photos.</p>
       <textarea value={notes} disabled={locked} onChange={(e) => setNotes(e.target.value)} rows={4} maxLength={4000}
         data-testid="vehicle-driver-notes" placeholder="e.g. Small scratch on rear bumper, parked at the depot, tyre pressure warning came on once…"
@@ -1801,9 +1806,9 @@ function DriverNotesCard({ notes, setNotes, photos, locked, photoBusy, jwt, onUp
         {!locked && photos.length < 12 && (
           <label data-testid="vehicle-extra-photo-label"
             className={`inline-flex items-center gap-2 text-xs font-bold cursor-pointer px-3 py-2 rounded-lg border border-slate-300 text-slate-600 transition-colors hover:bg-slate-50 ${photoBusy ? 'cursor-wait opacity-70' : ''}`}>
-            {photoBusy ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />} {photoBusy ? 'Uploading…' : 'Add photo'}
-            <input type="file" accept="image/*" multiple disabled={photoBusy} className="hidden" data-testid="vehicle-extra-photo"
-              onChange={async (e) => { const fs = [...e.target.files].slice(0, 12 - photos.length); e.target.value = ''; for (const f of fs) await onUpload(f); }} />
+            {photoBusy || queue ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />} {photoBusy || queue ? `Uploading${queue ? ` ${queue}` : ''}…` : 'Add photos'}
+            <input type="file" accept="image/*" multiple disabled={photoBusy || !!queue} className="hidden" data-testid="vehicle-extra-photo"
+              onChange={(e) => { const fs = [...e.target.files].slice(0, 12 - photos.length); e.target.value = ''; uploadMany(fs); }} />
           </label>
         )}
       </div>
