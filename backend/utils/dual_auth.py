@@ -28,5 +28,7 @@ async def get_current_user_or_crm(
     except HTTPException:
         # Fall back to the CRM login token (same org, mirrors role +
         # allowed_site_ids from the primary user record).
+        if credentials is None:
+            raise
         from routes.crm_auth import get_crm_user
         return await get_crm_user(request, credentials)

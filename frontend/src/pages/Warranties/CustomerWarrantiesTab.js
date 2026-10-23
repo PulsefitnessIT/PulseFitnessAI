@@ -67,15 +67,15 @@ export default function CustomerWarrantiesTab() {
 
   return (
     <div className="space-y-5" data-testid="customer-warranties-tab">
-      <div className="flex items-center gap-3">
-        {items.length > 0 && (
+      {items.length > 0 && (
+        <div className="flex items-center gap-3">
           <button onClick={downloadCertificate} disabled={downloading}
             className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 shrink-0"
             data-testid="warranty-download-certificate">
             {downloading ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />} {t('warranties.certificate', 'Download certificate')}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Renewal nudge — aftersales cover */}
       {atRisk.length > 0 && (
@@ -84,7 +84,7 @@ export default function CustomerWarrantiesTab() {
             <BellRing size={20} className="mt-0.5 shrink-0 text-amber-600" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold text-amber-900">
-                {atRisk.length} {atRisk.length === 1 ? t('warranties.unit', 'unit is') : t('warranties.units', 'units are')} {t('warranties.nearing', 'nearing the end of warranty cover')}
+                {atRisk.length} {atRisk.length === 1 ? t('warranties.unit', 'unit is') : t('warranties.units', 'units are')} {atRisk.every((w) => w.status === 'expired') ? t('warranties.out_of_cover', 'out of warranty cover') : t('warranties.nearing', 'nearing the end of warranty cover')}
               </p>
               <p className="mt-0.5 text-xs text-amber-800">{t('warranties.nudge_body', 'Keep them protected with a Pulse Fitness aftersales contract — parts, labour and priority support once your warranty ends.')}</p>
               {enquiryOpen ? (
@@ -115,14 +115,14 @@ export default function CustomerWarrantiesTab() {
           <p className="text-sm font-medium text-slate-500">{t('warranties.empty', 'No warranties on record yet. They appear here once your equipment is handed over.')}</p>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2" data-testid="customer-warranties-list">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" data-testid="customer-warranties-list">
           {items.map((w) => {
             const s = STATUS[w.status] || STATUS.unknown;
             const Icon = s.icon;
             const mm = [w.manufacturer, w.model].filter(Boolean).join(' · ');
             const risky = w.status === 'expiring' || w.status === 'expired';
             return (
-              <div key={w.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" data-testid={`customer-warranty-${w.id}`}>
+              <div key={w.id} className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" data-testid={`customer-warranty-${w.id}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate text-base font-bold text-slate-900">{w.name}</p>

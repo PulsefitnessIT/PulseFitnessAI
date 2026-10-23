@@ -264,7 +264,7 @@ function BottomNav({ tab, setTab, onMore }) {
         <button onClick={onMore} data-testid="bottom-nav-more"
           className={`flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold transition-colors ${moreActive ? 'text-cyan-600' : 'text-slate-400'}`}>
           <MoreHorizontal size={20} className="shrink-0" />
-          <span>More</span>
+          <span className="truncate max-w-full" data-testid="bottom-nav-more-label">{moreActive ? (TABS.find(([id]) => id === tab)?.[1] || 'More') : 'More'}</span>
         </button>
       </div>
     </nav>

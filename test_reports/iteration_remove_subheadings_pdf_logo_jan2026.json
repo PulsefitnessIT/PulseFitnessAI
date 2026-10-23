@@ -1,0 +1,49 @@
+{
+  "summary": "Tested (1) service report PDF header: logo only, no 'Pulse Fitness' wordmark, footer keeps 'Pulse Fitness Limited' registered office; (2) removal of the repeated title under the pill bar across BFPO MOD Operations, Staff Portal and the Operations (LiteDashboard) tabs, at desktop 1920x800 and mobile 390x844. Every requested change works. No regressions, JS page errors, blank screens or horizontal overflow came from the change. 5/5 backend pytest pass. I found three minor issues that were already there before this change, plus one UX observation.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/staffing/compliance (unauthenticated)", "issue": "Already there before this change: it returns 500 'Internal server error' instead of 401 when no Authorization header is sent. The backend log shows AttributeError: 'NoneType' object has no attribute 'credentials'. Calls with a token work (200)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CustomerWarrantiesTab warranty card list (mobile 390px)", "issue": "Already there before this change: warranty cards overflow the viewport on the right (card right edge = 512px at 390px viewport, as seen on MOD Test Site). The list uses 'grid gap-3 sm:grid-cols-2' with no grid-cols-1 or min-w-0, so wide inner content (the tier-choice grid-cols-3 or the buttons) stretches the implicit grid track. Fix: add grid-cols-1 and min-w-0 on the cards.", "selector": "[data-testid=customer-warranties-list]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Staff Portal mobile (390px)", "issues": ["Help, Rota, Access, Documents and other tabs sit under the bottom-nav 'More' sheet. With the section titles gone, the only active indicator on mobile is 'More', so the user can't see which section they are on. Consider showing the active tab label (for example on the More button or as a small breadcrumb) on mobile only."]},
+      {"screen": "CustomerWarrantiesTab / CustomerCertificatesTab", "issues": ["A leftover empty wrapper row (an empty flex div when there are no items, or '<div />' plus a next-due block) still takes up a space-y gap at the top when there is nothing in it. Cosmetic only."]},
+      {"screen": "Warranties renewal nudge (MOD Test Site)", "issues": ["Already there before this change: the banner says '7 units are nearing the end of warranty cover' but the counts show 0 expiring and 7 expired, so the wording doesn't match."]},
+      {"screen": "Navbar on /bfpo at 390px as master admin", "issues": ["Already there before this change: the 'Pulse Fitness AI Admin' title wraps onto 3 lines in the black header bar."]}
+    ]
+  },
+  "verified_passing": [
+    "Service report PDF (SVC-00026 plus a closed case, owner@isodemo.com): 200, %PDF, page-1 image (logo) present; 'Pulse Fitness' absent from the top 60pt and from the header-left region; 'Pulse Fitness Limited' registered office and 'Registered Office' present in the footer; right contact block (tagline, phone, email, web, #pulsefitness) intact",
+    "pulse_header default: no wordmark text, logo image rendered; tenant-branded header (use_default_logo False) still renders the company name; the other pulse_header PDF modules (warranty cert, crm quote, engineer invoice, calibration cert) import fine; warranty certificate PDF downloads in the UI (warranty-certificate.pdf)",
+    "/bfpo (master admin): Sites, Jobs, Servicing, Reports and Engineers no longer show 'Global Site View', 'By country and territory', 'Live Jobs', 'Planned Servicing' (as a title), 'Reports' or 'Engineers & Team'. add-engineer-btn is present and right-aligned. ppm-tab-services, ppm-tab-schedules and ppm-tab-templates switch correctly. report-type-jobs, report-type-services and report-type-sla switch and the KPIs update. No overflow at 390px",
+    "The staff nav has no 'visiting' pill (staffNav only has dashboard, sites, jobs, servicing, reports, engineers), so StaffVisiting can't be reached from the UI. Its title removal was only checked by reading the code",
+    "Staff Portal (vc.driver): the Help tab has no 'Help & Tutorials' heading or 'Quick guides' text, and help-download-handbook is present. Rota has no 'Your upcoming shifts' (the empty state shows). Access has no 'System & module access' title and keeps the 'Your line manager decides…' sentence. Checked on desktop and mobile",
+    "LiteDashboard: Quotes (MOD Test Site) has no 'Quotes' h2 and shows the empty state. Gym Layout has no 'Gym Floor Plans' heading, and create-layout-btn ('New Layout') is right-aligned. Staffing Templates has no 'Shift templates' or 'Reusable shifts' title and template-new is present. Who Can See What has no title and team-matrix-search is present. Compliance has no 'Compliance at a glance', compliance-refresh is present and the data loads. Deliveries (lite.docs) has no title block and the cards render. Warranties (MOD Test Site) has no 'Warranty Register' title, and warranty-download-certificate works and downloads. Mobile pills for gym-layout and deliveries render fine",
+    "Certificates tab: no test account has certificates (has_certificates false for every org tested). Checked by reading the code only: the title was removed and the cert-next-due 'Next service due' block was kept"
+  ],
+  "test_report_links": ["/app/backend/tests/test_jan2026_pdf_header_logo_only.py", "/app/test_reports/pytest/pdf_header_logo_only.xml"],
+  "action_items": [
+    "(Optional, low) Mobile Staff Portal: show the active section label when a tab under 'More' is active, since the titles are now gone",
+    "(Optional, low) Remove the empty wrapper divs left in CustomerWarrantiesTab and CustomerCertificatesTab when there are no action buttons",
+    "(Low, existing before this change) Add grid-cols-1 and min-w-0 to customer-warranties-list cards to stop the mobile overflow",
+    "(Low, existing before this change) /api/staffing/compliance should return 401 instead of 500 when called without auth",
+    "(Info) Clean up the unused lucide imports left after the heading removal (BarChart3 in PPMReports, Truck in CustomerDeliveriesTab, ShieldCheck in ComplianceTab and CustomerWarrantiesTab, FileCheck2 in CustomerCertificatesTab) if they are no longer used"
+  ],
+  "critical_code_review_comments": [
+    "pulse_header: the logo-only path only applies when the Pulse default logo file loads (pulse_logo flag). If _LOGO_PATH is missing it falls back to the text wordmark, which is a reasonable safeguard. Tenant-supplied logo_bytes still show the logo plus the name, as intended",
+    "The StaffVisiting view is unreachable: it isn't in the staffNav array in BFPOApp.js"
+  ],
+  "updated_files": ["/app/backend/tests/test_jan2026_pdf_header_logo_only.py"],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% of the requested heading removals verified (certificates and visiting by code review only)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg works for /bfpo (master admin has MOD Ops). lee.somers@pulsefitness.com / LeeMod123! returns 'Invalid credentials' (the credentials file is out of date). The MOD Test Site login test@army.mod.test / ModTest123! with portal=mod is actually the user 'Lee Somers'. Also used owner@isodemo.com, portal@pulsefitness.ltd, lite.docs@pulsedemo.test and vc.driver@pulsefitness.test.",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The login rate limiter blocks UI logins quickly. Get a token from POST /api/auth/login with header X-RateLimit-Bypass (from .env; it still 429s after bursts, so wait about 35s), then in Playwright add a cookie ga_session=<jwt> (secure, SameSite=None) and set localStorage token=<jwt>. Do NOT intercept /api/** with page.route and override headers: it drops cookies and causes false 401s and an 'Invalid CRM token' message. The Quotes tab only appears for MOD orgs, and Warranties data lives on MOD Test Site. Deliveries data: lite.docs@pulsedemo.test. The browser_automation tool fails on some string-heavy lines (e.g. '\\n' or slice-after-colon prints); keep the print statements simple."
+}
