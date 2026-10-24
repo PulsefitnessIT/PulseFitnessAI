@@ -25,7 +25,7 @@ export default function JobDetail({ jobId, onBack, onOpenJob }) {
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2500); };
   const act = async (fn, msg) => {
     setBusy(true);
-    try { await fn(); await load(); if (msg) flash(msg); setPanel(null); }
+    try { const r = await fn(); if (r?.data?.queued) { flash('No signal — saved on this phone, it will send automatically'); setPanel(null); return; } await load(); if (msg) flash(msg); setPanel(null); }
     catch (e) { flash(e?.response?.data?.detail || 'Could not save — your work is stored, we will retry.'); }
     finally { setBusy(false); }
   };
@@ -131,10 +131,10 @@ export default function JobDetail({ jobId, onBack, onOpenJob }) {
         )}
 
         {panel === 'report' && <ReportFaultPanel job={job} busy={busy} onCancel={() => setPanel('workflow')}
-          onDone={(res) => { setPanel(null); flash(res.warning ? res.warning : `Linked case ${res.case.reference} created`); }} jobId={jobId} />}
+          onDone={(res) => { setPanel(null); flash(res.queued ? 'No signal — fault saved on this phone, it will send automatically' : res.warning ? res.warning : `Linked case ${res.case.reference} created`); }} jobId={jobId} />}
 
         {panel === 'complete' && <CompletePanel jobId={jobId} busy={busy} onCancel={() => setPanel('workflow')}
-          onDone={() => { load(); setPanel(null); flash('Job completed — job sheet generated'); }} />}
+          onDone={(queued) => { if (!queued) load(); setPanel(null); flash(queued ? 'No signal — completion saved on this phone, it will send automatically' : 'Job completed — job sheet generated'); }} />}
 
         {/* Timeline */}
         <div>
@@ -320,10 +320,10 @@ function CompletePanel({ jobId, onDone, onCancel }) {
     if (!summary.trim()) { setErr('Please describe the work carried out'); return; }
     setSaving(true); setErr('');
     try {
-      await bfpo.post(`/jobs/${jobId}/complete`, { summary, parts_used: partsUsed, safe_and_working: safe });
+      const done = await bfpo.post(`/jobs/${jobId}/complete`, { summary, parts_used: partsUsed, safe_and_working: safe });
       if (sigUnavailable) await bfpo.post(`/jobs/${jobId}/signature`, { unavailable: true, reason: sigReason });
       else if (sigName && sigData) await bfpo.post(`/jobs/${jobId}/signature`, { signed_by_name: sigName, signed_by_role: sigRole, image_data: sigData });
-      onDone();
+      onDone(!!done?.data?.queued);
     } catch (e) { setErr(e?.response?.data?.detail || 'Could not complete — try again'); }
     finally { setSaving(false); }
   };

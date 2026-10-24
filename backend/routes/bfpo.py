@@ -267,7 +267,7 @@ async def _bridge_mod_fault_to_bfpo(issue: dict) -> Optional[str]:
         "reporter_name": issue.get("reporter_name") or issue.get("reported_by_name") or issue.get("reported_by"),
         "reporter_email": issue.get("reporter_email"), "reporter_phone": issue.get("reporter_phone"),
         "classification_flags": issue.get("classification_flags") or [],
-        "photos_count": len(issue.get("photos") or issue.get("images") or []),
+        "photos_count": len(issue.get("attachment_urls") or issue.get("attachments") or issue.get("photos") or []),
         "safety_critical": bool(safety),
         "site_id": site_id, "site_name": org.get("name") or "MOD Site",
         "country": org.get("country") or "United Kingdom",
@@ -1441,3 +1441,74 @@ async def dismiss_welcome(user=Depends(_require_bfpo)):
 
 
 __all__ = ["router"]
+
+# ─────────────────────────────────────────────────────────────────
+# Urgent-fault alerts (in-app banner) + site fault photos
+# ─────────────────────────────────────────────────────────────────
+
+_ALERT_PROJECTION = {"_id": 0, "id": 1, "reference": 1, "title": 1, "site_name": 1, "priority": 1,
+                     "safety_critical": 1, "created_at": 1, "status": 1, "reporter_name": 1}
+
+
+@router.get("/alerts")
+async def bfpo_alerts(user=Depends(_require_bfpo)):
+    """Open P1 / safety-critical jobs the caller can see and hasn't acknowledged.
+    Staff see every MOD job; engineers see their territory / sites / assigned jobs."""
+    await _safe_bridge()
+    q = await _scoped_case_query(user)
+    acked = set(await db.bfpo_alert_acks.distinct("case_id", {"user_id": user["id"]}))
+    q = {"$and": [q, {"status": {"$in": [NEW, "triaged", ASSIGNED]}},
+                  {"$or": [{"priority": "p1"}, {"safety_critical": True}]}]}
+    rows = await db.svc_cases.find(q, _ALERT_PROJECTION).sort("created_at", -1).limit(50).to_list(50)
+    rows = [r for r in rows if r["id"] not in acked]
+    return {"alerts": rows[:20], "count": len(rows)}
+
+
+@router.post("/alerts/{case_id}/ack")
+async def bfpo_alert_ack(case_id: str, user=Depends(_require_bfpo)):
+    await _get_scoped_case(user, case_id)
+    await db.bfpo_alert_acks.update_one(
+        {"user_id": user["id"], "case_id": case_id},
+        {"$set": {"user_id": user["id"], "case_id": case_id, "at": _now()}}, upsert=True)
+    return {"ok": True}
+
+
+def _issue_photo_paths(issue: dict) -> list[str]:
+    paths = [p for p in (issue.get("attachment_urls") or []) if isinstance(p, str)]
+    for a in issue.get("attachments") or []:
+        if isinstance(a, dict) and a.get("storage_path") and a.get("kind") != "quote":
+            paths.append(a["storage_path"])
+    for p in (issue.get("photos") or []) + (issue.get("images") or []):
+        if isinstance(p, str):
+            paths.append(p)
+        elif isinstance(p, dict) and (p.get("storage_path") or p.get("path")):
+            paths.append(p.get("storage_path") or p.get("path"))
+    return [p for p in paths if p and not p.startswith(("http://", "https://", "data:"))]
+
+
+async def _case_issue(case: dict) -> dict:
+    iid = case.get("mod_issue_id") or (case.get("source_meta") or {}).get("issue_id")
+    return (await db.issues.find_one({"id": iid}, {"_id": 0}) or {}) if iid else {}
+
+
+@router.get("/jobs/{case_id}/site-photos")
+async def bfpo_site_photos(case_id: str, user=Depends(_require_bfpo)):
+    case = await _get_scoped_case(user, case_id)
+    paths = _issue_photo_paths(await _case_issue(case))
+    return {"photos": [{"index": i, "kind": "video" if p.lower().endswith((".mp4", ".mov", ".webm")) else "image"}
+                       for i, p in enumerate(paths)]}
+
+
+@router.get("/jobs/{case_id}/site-photos/{index}")
+async def bfpo_site_photo(case_id: str, index: int, user=Depends(_require_bfpo)):
+    case = await _get_scoped_case(user, case_id)
+    paths = _issue_photo_paths(await _case_issue(case))
+    if index < 0 or index >= len(paths):
+        raise HTTPException(404, "Photo not found")
+    from utils.database import get_object
+    try:
+        data, ct = await asyncio.to_thread(get_object, paths[index])
+    except Exception:
+        raise HTTPException(404, "Photo not available")
+    return Response(content=data, media_type=ct or "image/jpeg",
+                    headers={"Cache-Control": "private, max-age=86400"})

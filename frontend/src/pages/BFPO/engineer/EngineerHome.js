@@ -21,6 +21,8 @@ export default function EngineerHome({ onOpenJobs, onOpenJob, onOpenServices }) 
       try {
         const [m, j, s] = await Promise.all([bfpo.get('/me'), bfpo.get('/jobs?when=all_open'), bfpo.get('/ppm/services')]);
         setMe(m.data); setJobs(j.data.jobs);
+        // Warm the offline cache so every open job (and its site) opens with no signal.
+        if (navigator.onLine) (j.data.jobs || []).slice(0, 40).forEach((x) => { bfpo.get(`/jobs/${x.id}`).catch(() => {}); });
         setServicesDue((s.data.services || []).filter((x) => x.status !== 'completed').length);
       } finally { setLoading(false); }
     })();

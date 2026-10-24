@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { bfpo } from '../bfpoApi';
+import { bfpo, fetchBlobUrl } from '../bfpoApi';
 import { Card, Btn, Spinner, Badge, PriorityBadge, STATUS_LABEL, inputCls, Field, localTime } from '../ui';
 import { ChevronLeft, AlertTriangle, MapPin, Wrench, UserCheck, History, FileText, Loader2, User, ShieldAlert, Camera } from 'lucide-react';
 
@@ -101,7 +101,7 @@ function SiteReport({ job }) {
   const i = job.mod_issue;
   const reporter = i?.reporter_name || i?.reported_by_name || job.reporter_name;
   const flags = i?.classification_flags || job.classification_flags || [];
-  if (!i && !reporter) return null;
+  if (!i && !reporter && job.source !== 'mod_fault') return null;
   return (
     <Card className="p-4 mt-4" data-testid="staff-site-report">
       <p className="text-xs font-semibold text-slate-400 uppercase mb-2 flex items-center gap-1.5"><User className="w-4 h-4" /> Reported by the site</p>
@@ -112,6 +112,7 @@ function SiteReport({ job }) {
         {i?.status && <p><span className="text-slate-500">Site status:</span> <span className="capitalize" data-testid="staff-site-status">{i.status.replace('_', ' ')}</span></p>}
         {i?.safe_in_service === false && <p className="text-red-700 font-semibold">Taken out of service by the site</p>}
       </div>
+      <SitePhotos jobId={job.id} />
       {flags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5" data-testid="staff-site-flags">
           {flags.map((f, k) => <Badge key={k} className="bg-amber-50 text-amber-800 border-amber-200"><ShieldAlert className="w-3 h-3" /> {typeof f === 'string' ? f : (f.label || f.type || 'Sensitive')}</Badge>)}
@@ -134,5 +135,40 @@ function EngineerPhotos({ photos }) {
         ))}
       </div>
     </Card>
+  );
+}
+
+function SitePhotos({ jobId }) {
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    let alive = true; const urls = [];
+    (async () => {
+      try {
+        const r = await bfpo.get(`/jobs/${jobId}/site-photos`);
+        for (const p of r.data.photos || []) {
+          try {
+            const url = await fetchBlobUrl(`/jobs/${jobId}/site-photos/${p.index}`);
+            urls.push(url);
+            if (alive) setItems((x) => [...x, { ...p, url }]);
+          } catch { /* skip unreadable */ }
+        }
+      } catch { /* no photos */ }
+    })();
+    return () => { alive = false; urls.forEach((u) => URL.revokeObjectURL(u)); };
+  }, [jobId]);
+  if (!items.length) return null;
+  return (
+    <div className="mt-3" data-testid="staff-site-photos">
+      <p className="text-xs font-semibold text-slate-400 uppercase mb-1.5 flex items-center gap-1.5"><Camera className="w-3.5 h-3.5" /> Photos from the site ({items.length})</p>
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+        {items.map((p) => (
+          <a key={p.index} href={p.url} target="_blank" rel="noreferrer" data-testid={`staff-site-photo-${p.index}`}>
+            {p.kind === 'video'
+              ? <video src={p.url} className="w-full aspect-square object-cover rounded-lg border border-slate-200" muted />
+              : <img src={p.url} alt={`Site photo ${p.index + 1}`} className="w-full aspect-square object-cover rounded-lg border border-slate-200" />}
+          </a>
+        ))}
+      </div>
+    </div>
   );
 }

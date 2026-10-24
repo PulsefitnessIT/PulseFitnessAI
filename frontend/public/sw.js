@@ -11,10 +11,11 @@
  * cache. They simply fail with the browser's default offline error,
  * and the app layer is expected to surface a toast.
  */
-const CACHE_NAME = 'gymaxis-v14';
-const API_CACHE  = 'gymaxis-api-v14';
+const CACHE_NAME = 'gymaxis-v15';
+const API_CACHE  = 'gymaxis-api-v15';
 const STATIC_ASSETS = [
   '/',
+  '/bfpo',
   '/crm',
   '/service-desk',
   '/manifest.json',
@@ -64,6 +65,8 @@ const OFFLINE_API_PATTERNS = [
   '/api/service-desk',  // summary, provider-customers, audit (org-scoped)
   '/api/svc/scheduler',
   '/api/svc/engineers',
+  // MOD / BFPO engineer app — jobs, sites, kit, history, PPM work offline.
+  '/api/bfpo/',
 ];
 
 // How long a cached API response stays considered "fresh". After this
@@ -148,6 +151,10 @@ self.addEventListener('fetch', (event) => {
         if (url.pathname.startsWith('/service-desk')) {
           const desk = await caches.match('/service-desk');
           if (desk) return desk;
+        }
+        if (url.pathname.startsWith('/bfpo')) {
+          const shell = await caches.match('/bfpo');
+          if (shell) return shell;
         }
         return (await caches.match('/')) || caches.match('/crm');
       })

@@ -14,6 +14,7 @@ import Sites from './engineer/Sites';
 import Equipment from './engineer/Equipment';
 import History from './engineer/History';
 import WelcomeKit from './engineer/WelcomeKit';
+import { UrgentAlertBanner, OfflineSyncBar } from './AlertBanner';
 import StaffDashboard from './staff/StaffDashboard';
 import StaffSites from './staff/StaffSites';
 import StaffJobs from './staff/StaffJobs';
@@ -160,6 +161,8 @@ export default function BFPOApp() {
     <div className={`min-h-screen flex flex-col ${role === 'staff' ? 'pulse-font overflow-x-hidden' : 'bg-[#F8F9FA]'}`} style={role === 'staff' ? { background: 'var(--theme-bg)' } : undefined}>
       {welcome && <WelcomeKit data={welcome} onStart={dismissWelcome} onViewJobs={() => { dismissWelcome(); setJobFilter('all_open'); setView('jobs'); }} />}
       {Header}
+      <OfflineSyncBar online={online} />
+      <UrgentAlertBanner online={online} onOpen={role === 'staff' ? openStaffJob : openJob} />
       <main className="flex-1">
         {role === 'staff' ? (
           <>
