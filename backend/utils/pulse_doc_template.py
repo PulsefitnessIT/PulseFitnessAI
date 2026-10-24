@@ -103,6 +103,20 @@ def pulse_styles() -> dict:
     }
 
 
+_WIDE_LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "pulse-logo-wide.jpg")
+
+
+def _wide_logo_flowable(width_mm: float = 55):
+    if not os.path.exists(_WIDE_LOGO_PATH):
+        return None
+    try:
+        from PIL import Image as _PIL
+        w, h = _PIL.open(_WIDE_LOGO_PATH).size
+        return Image(_WIDE_LOGO_PATH, width=width_mm * mm, height=width_mm * mm * h / w)
+    except Exception:
+        return None
+
+
 def _logo_flowable(size_mm: float = 16, logo_bytes: bytes | None = None):
     if logo_bytes:
         try:
@@ -132,7 +146,7 @@ def pulse_header(s: dict, company: dict | None = None) -> Table:
     if logo_bytes:
         logo = _logo_flowable(logo_bytes=logo_bytes)
     elif c.get("use_default_logo", company is None):
-        logo = _logo_flowable(size_mm=22)
+        logo = _wide_logo_flowable() or _logo_flowable(size_mm=22)
         pulse_logo = logo is not None
     else:
         logo = None

@@ -39149,3 +39149,9 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Follow-ups: dual_auth no longer 500s without credentials (401); warranty cards no mobile overflow; renewal nudge wording for all-expired; Staff Portal mobile "More" button shows the active More-tab name.
 - Tests: iteration_remove_subheadings_pdf_logo_jan2026.json, iteration_followup_minor_fixes_jan2026.json (all pass).
 - Note: stored fire certificates use their own builder (no duplicate wordmark) — no re-backfill needed.
+
+## 2026-06 — New wide Pulse logo on service reports — DONE
+- User-supplied logo saved to backend/assets/pulse-logo-wide.jpg (1193x216). pulse_header now uses it (55mm wide, aspect kept) whenever the default Pulse logo applies; falls back to the square logo if the file is missing.
+- Service report PDFs are rendered on-the-fly, so every completed report shows the new logo on next view/download/email — no data backfill needed. Copies already emailed to customers can't be changed.
+- Fire station certificates use their own layout (blue_light_certificate_pdf) and were not changed.
+- Self-tested: rendered a closed svc_case report via _build_report — new logo, no wordmark text.
