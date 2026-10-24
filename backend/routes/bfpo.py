@@ -20,6 +20,7 @@ import io
 import os
 import uuid
 import secrets
+import asyncio
 import logging
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -233,6 +234,12 @@ async def _bridge_mod_fault_to_bfpo(issue: dict) -> Optional[str]:
         return None
     if issue.get("bfpo_case_id"):
         return issue["bfpo_case_id"]
+    case_id = str(uuid.uuid4())
+    claimed = await db.issues.find_one_and_update(
+        {"id": issue["id"], "$or": [{"bfpo_case_id": {"$exists": False}}, {"bfpo_case_id": None}, {"bfpo_case_id": ""}]},
+        {"$set": {"bfpo_case_id": case_id}})
+    if not claimed:  # another request bridged it first
+        return (await db.issues.find_one({"id": issue["id"]}, {"_id": 0, "bfpo_case_id": 1}) or {}).get("bfpo_case_id")
     site_id = issue.get("mod_site_id") or issue.get("organization_id")
     org = await db.organizations.find_one(
         {"id": site_id},
@@ -248,7 +255,6 @@ async def _bridge_mod_fault_to_bfpo(issue: dict) -> Optional[str]:
     safety = pr in ("urgent", "high") or issue.get("safe_in_service") is False
     branch = (org.get("mod_branch") or "").upper()
     now = datetime.now(timezone.utc).isoformat()
-    case_id = str(uuid.uuid4())
     case = {
         "id": case_id, "organization_id": BFPO_ORG_ID,
         "reference": issue.get("mod_ticket_ref") or f"MOD-{case_id[:6].upper()}",
@@ -279,8 +285,15 @@ async def _bridge_mod_fault_to_bfpo(issue: dict) -> Optional[str]:
     if case["status"] == CLOSED:
         case["closed_at"] = issue.get("resolved_at") or issue.get("closed_at") or now
         case["resolution_notes"] = issue.get("resolution_notes") or "Resolved at site level"
-    await db.svc_cases.insert_one(case)
-    await db.issues.update_one({"id": issue["id"]}, {"$set": {"bfpo_case_id": case_id}})
+    try:
+        await db.svc_cases.insert_one(case)
+    except Exception:
+        await db.issues.update_one({"id": issue["id"]}, {"$set": {"bfpo_case_id": None}})
+        raise
+    reporter = case.get("reporter_name") or "the site"
+    await append_event(case_id=case_id, organization_id=BFPO_ORG_ID, event_type="intake",
+                       actor={"id": "", "full_name": reporter},
+                       body=f"Fault logged by {reporter} at {case['site_name']}")
     return case_id
 
 
@@ -292,6 +305,8 @@ async def _ensure_mod_faults_bridged(limit: int = 2000) -> int:
     Log-a-fault, QR, ASER…) into MOD Operations, and close unworked Ops jobs
     the site has since resolved."""
     mod_ids = await _mod_org_ids()
+    own_desk = set(await db.svc_cases.distinct(
+        "source_meta.issue_id", {"organization_id": {"$in": mod_ids}, "source_meta.issue_id": {"$nin": [None, ""]}}))
     n = 0
     cursor = db.issues.find(
         {"$and": [
@@ -302,30 +317,52 @@ async def _ensure_mod_faults_bridged(limit: int = 2000) -> int:
         ]},
         {"_id": 0}).limit(limit)
     async for issue in cursor:
+        if issue["id"] in own_desk:
+            continue
         if await _bridge_mod_fault_to_bfpo(issue):
             n += 1
     # Site resolved it before anyone picked it up → close the Ops job.
     async for issue in db.issues.find(
             {"bfpo_case_id": {"$nin": [None, ""]}, "status": {"$in": ["resolved", "closed"]},
              "bfpo_closed_synced": {"$ne": True}}, {"_id": 0, "id": 1, "bfpo_case_id": 1, "resolved_at": 1}):
-        await db.svc_cases.update_one(
+        res = await db.svc_cases.update_one(
             {"id": issue["bfpo_case_id"], "status": {"$in": [NEW, "triaged"]}, "assigned_engineer_id": None},
             {"$set": {"status": CLOSED, "closed_at": issue.get("resolved_at") or _now(),
                       "resolution_notes": "Resolved by the site", "updated_at": _now()}})
+        if res.modified_count:
+            await append_event(case_id=issue["bfpo_case_id"], organization_id=BFPO_ORG_ID,
+                               event_type="note", actor={"id": "", "full_name": "MOD site"},
+                               body="Closed — the site marked this fault resolved before an engineer was allocated")
         await db.issues.update_one({"id": issue["id"]}, {"$set": {"bfpo_closed_synced": True}})
     return n
 
 
+_BRIDGE_STATE: dict = {"at": 0.0}
+_BRIDGE_LOCK = asyncio.Lock()
+
+
 async def _safe_bridge() -> None:
-    try:
-        await _ensure_mod_faults_bridged()
-    except Exception as e:
-        logger.warning("MOD fault bridge failed: %s", e)
+    """Bridge on read, throttled to once every 30s per process."""
+    import time
+    if time.time() - _BRIDGE_STATE["at"] < 30 or _BRIDGE_LOCK.locked():
+        return
+    async with _BRIDGE_LOCK:
+        _BRIDGE_STATE["at"] = time.time()
+        try:
+            await _ensure_mod_faults_bridged()
+        except Exception as e:
+            logger.warning("MOD fault bridge failed: %s", e)
 
 
 async def backfill_mod_bridge() -> int:
     """Startup: flag older bridged jobs so engineers can see them, then bridge."""
     await db.svc_cases.update_many({"source": "mod_fault", "bfpo": {"$ne": True}}, {"$set": {"bfpo": True}})
+    try:
+        await db.svc_cases.create_index(
+            "mod_issue_id", unique=True, name="uniq_mod_issue_id",
+            partialFilterExpression={"mod_issue_id": {"$type": "string"}})
+    except Exception as e:
+        logger.warning("mod_issue_id unique index not created: %s", e)
     return await _ensure_mod_faults_bridged(limit=10000)
 
 
@@ -1035,19 +1072,18 @@ def _build_job_sheet_pdf(case: dict, events: list, signature: dict | None) -> by
     w, h = A4
     cyan = colors.HexColor("#0891b2")
     ink = colors.HexColor("#0f172a")
-    y = h - 22 * mm
+    from utils.pulse_doc_template import draw_invoice_header, draw_invoice_footer
+    hdr_bottom = draw_invoice_header(c, h)
     c.setFillColor(ink)
-    c.rect(0, h - 30 * mm, w, 30 * mm, fill=1, stroke=0)
-    c.setFillColor(colors.white)
-    c.setFont("Helvetica-Bold", 20)
-    c.drawString(18 * mm, h - 18 * mm, "PULSE FITNESS")
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(18 * mm, hdr_bottom - 12 * mm, "Electronic Job Sheet")
     c.setFillColor(cyan)
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(18 * mm, h - 24 * mm, "MOD / BFPO Service — Electronic Job Sheet")
-    c.setFillColor(colors.white)
-    c.setFont("Helvetica-Bold", 14)
-    c.drawRightString(w - 18 * mm, h - 20 * mm, case.get("reference") or "")
-    y = h - 40 * mm
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(18 * mm, hdr_bottom - 18 * mm, "MOD / BFPO Service")
+    c.setFillColor(ink)
+    c.setFont("Helvetica-Bold", 13)
+    c.drawRightString(w - 18 * mm, hdr_bottom - 12 * mm, case.get("reference") or "")
+    y = hdr_bottom - 30 * mm
 
     def line(label, value):
         nonlocal y
@@ -1100,9 +1136,12 @@ def _build_job_sheet_pdf(case: dict, events: list, signature: dict | None) -> by
     else:
         c.drawString(18 * mm, y, "No signature captured")
 
-    c.setFillColor(colors.HexColor("#94a3b8"))
-    c.setFont("Helvetica", 7)
-    c.drawString(18 * mm, 12 * mm, f"Generated {_now()[:16].replace('T', ' ')} · Pulse Fitness Ltd · MOD/BFPO Service")
+    class _Pg:
+        page = 1
+    if not draw_invoice_footer(c, _Pg(), left_lines=["MOD / BFPO Job Sheet", f"Generated {_now()[:16].replace('T', ' ')}"]):
+        c.setFillColor(colors.HexColor("#94a3b8"))
+        c.setFont("Helvetica", 7)
+        c.drawString(18 * mm, 12 * mm, f"Generated {_now()[:16].replace('T', ' ')} · Pulse Fitness Ltd · MOD/BFPO Service")
     c.showPage()
     c.save()
     return buf.getvalue()

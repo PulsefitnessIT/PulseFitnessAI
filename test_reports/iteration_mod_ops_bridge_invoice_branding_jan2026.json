@@ -1,0 +1,50 @@
+{
+  "summary": "Tested the HEAD checkpoint changes: (A) Pulse invoice header/footer artwork on PDFs (pulse_doc_template, service_report, PPM HTML print report) and (B) MOD Operations fault bridge in routes/bfpo.py, which mirrors MOD site faults from any intake path into /bfpo, closes jobs the site resolves, and shows the site report and engineer photos on the staff job detail. Backend: 13 of 15 new pytest tests pass. The suite has 2 failing tests: a concurrency race that duplicates jobs, and double-listing of faults the MOD site's own service desk already picked up. bfpo regression suite passes 19/19. ReportLab PDFs look correct on single and multi-page documents. Frontend: /bfpo staff Jobs, job detail, 'Reported by the site' card, reporter name, OFFICIAL-SENSITIVE flag badge and allocation all work. The PPM HTML 'Print report' footer artwork does not print in Chromium.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/bfpo/staff/jobs, /staff/dashboard, /staff/sites, /jobs, POST /faults/sync and the startup backfill_mod_bridge (_ensure_mod_faults_bridged / _bridge_mod_fault_to_bfpo)", "issue": "Race condition: duplicate MOD Ops jobs. The bridge does find (no bfpo_case_id) → insert svc_case → set bfpo_case_id, with no atomic claim. With 15 unbridged faults and 16 parallel GETs I got 1-16 jobs per fault, and it failed in about 4 of 5 runs. This will happen in real use: React.StrictMode is on in index.js so every useEffect runs twice, several staff and engineers load at once, and the startup backfill runs while requests are coming in. Fix: claim the issue atomically before inserting, e.g. issue = find_one_and_update({id, bfpo_case_id: {$in: [None, '']}} or not-exists, {$set: {bfpo_case_id: case_id}}) and only insert if the claim succeeded. Also add a partial unique index on svc_cases.mod_issue_id. Also clean up any duplicates already created (none exist in preview today).", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "_ensure_mod_faults_bridged (exclusion filter)", "issue": "Faults the MOD org's own service desk already has are listed twice in MOD Ops. The filter skips issues that have linked_case_id, but routes/issues.py::_mirror_issue_to_svc_case creates the MOD-org svc_case with source_meta.issue_id and does NOT set linked_case_id on the issue. linked_case_id is only set later by mirror_case_state_to_issue on a state transition. Until then the fault appears twice in MOD Ops: the org's own case via _ops_org_filter plus the new BFPO job. Reproduced in test_own_service_desk_case_not_double_listed. Fix: also skip an issue if db.svc_cases has {'source_meta.issue_id': issue.id}, or stamp linked_case_id when _mirror_issue_to_svc_case runs."},
+      {"endpoint": "_safe_bridge on every staff GET", "issue": "Each staff page load runs a full $or scan of db.issues plus the resolved-sync loop. This is fine at today's volume, but it should be throttled (e.g. at most once every 30-60s, like _MOD_IDS_CACHE) or driven by events. That would also make the race much less likely."},
+      {"endpoint": "Site-resolved auto-close", "issue": "The svc_case is set to closed with a raw update_one, so no svc_case_events entry is written. The staff job timeline will not show why the job closed. Newly bridged jobs also have no 'created' event, so the Activity Timeline card shows as an empty box."},
+      {"endpoint": "GET /api/bfpo/jobs/{id}/job-sheet.pdf", "issue": "The BFPO job sheet PDF has its own builder with no images, so it does not get the new Pulse invoice header/footer. Confirm whether the user wants this branding on job sheets too."},
+      {"endpoint": "tests/test_jan2026_wide_logo_reports.py", "issue": "2 tests are now stale. They assert the 1193x216 wide logo, but pulse_header now draws the 1800x215 invoice header art. Update the assertions."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ServiceDesk/PpmScheduleDetail.js buildReportHtml (Print report)", "issue": "The invoice footer artwork does NOT print. I reproduced the exact CSS in Chromium print-to-PDF: `.ifoot{position:fixed;bottom:-36mm}` inside the `@page` 36mm bottom margin is clipped. A 1-page report has no footer at all. On a 3-page report the footer shows only on page 2, at the TOP of the page and overlapping the table rows. Fix: set @page margin-bottom to 0, give .ifoot position:fixed;bottom:0, and reserve space for it, e.g. wrap the content in a table whose <tfoot> has a 36mm spacer row that repeats on every page, or add body padding-bottom on single-page reports. The header image prints correctly.", "selector": "div.ifoot", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/bfpo staff job detail", "issues": ["Activity Timeline renders an empty white card for newly bridged MOD faults (no events). Show an empty-state message or a 'Logged by site' event."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mod_ops_bridge_invoice_branding_jan2026.py", "/app/test_reports/pytest/mod_ops_bridge_branding.xml"],
+  "action_items": [
+    "HIGH: Make _bridge_mod_fault_to_bfpo atomic (find_one_and_update claim on issues.bfpo_case_id, then insert) and add a partial unique index on svc_cases.mod_issue_id. Re-run test_concurrent_requests_no_duplicate_jobs.",
+    "Skip bridging issues that already have a MOD-org svc_case (source_meta.issue_id), or set linked_case_id in issues.py::_mirror_issue_to_svc_case. Re-run test_own_service_desk_case_not_double_listed.",
+    "Fix the PPM Print report footer CSS so the footer art prints at the bottom of every page without overlapping content.",
+    "Throttle _safe_bridge (e.g. 30-60s cache) instead of running it on every staff GET.",
+    "Write a svc_case_events entry for the site-resolved auto-close and a 'logged by site' event on bridge creation.",
+    "Update the stale assertions in tests/test_jan2026_wide_logo_reports.py to the new 1800x215 header and 1800x310 footer."
+  ],
+  "critical_code_review_comments": [
+    "bfpo.py: _ops_org_filter dropped the old bfpo:True guard and now includes ALL svc_cases of every MOD tenant org (including PPM and other case types) plus anything under BFPO_ORG_ID. Confirm this is intended.",
+    "bfpo.py: write endpoints now update by {'id': case_id} only. This is safe because each one first runs _get_scoped_case or _ops_org_filter, but any new endpoint must keep doing that scoping check.",
+    "bfpo.py sites/{site_id}: the MOD-org fallback only matches account_type 'mod_site', while the rest of the code uses MOD_ORG_TYPES (mod_site/mod_branch/mod_org). This is inconsistent.",
+    "Engineer scope (non-unrestricted engineers): cases from a MOD tenant's own service desk only match on site_id/territory_id, so engineers restricted by territory may not see them.",
+    "bfpo.py is now 1403 lines (over 700). Split the bridge and staff routes into separate modules.",
+    "pulse_doc_template: the header and footer aspect ratios are hard-coded (326/2729, 570/3307) while the assets are 1800x215 and 1800x310. The ratios happen to match closely, but they should be read from the image size."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_ops_bridge_invoice_branding_jan2026.py"],
+  "success_rate": {"backend": "87% (13/15 new tests; bfpo regression 19/19)", "frontend": "90% (MOD Ops job detail/site report/flags/allocate OK; PPM print footer broken)"},
+  "flaky_tests": ["test_concurrent_requests_no_duplicate_jobs fails in about 80% of runs (4 of 5). This is a real race condition in the code, not a test issue."],
+  "test_credentials": "MOD Ops staff: lee.somers@pulsefitness.com / TempPass123! (/login → /bfpo). Service desk owner: owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "Test issues (TEST_modbridge_*) and svc_cases were inserted directly into the MOD Test Site org (abfdabd9...) and all were removed afterwards (0 left over).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest tests/test_mod_ops_bridge_invoice_branding_jan2026.py. It inserts raw MOD issues to simulate the Log-a-fault/QR intake paths and cleans them up in teardown. Two tests should pass after the fixes: the race test and the own-desk double-listing test. For the PPM print check, render the buildReportHtml CSS with Chromium print-to-PDF and confirm the footer sits at the bottom of every page.",
+  "rca of the issue": "Duplicate jobs: _ensure_mod_faults_bridged is called inside every staff GET and is not atomic. Concurrent requests read the same unbridged issue before either one writes bfpo_case_id, so each request inserts its own svc_case. Double listing: the linked_case_id flag the bridge relies on is only written on a case state transition, not when the case is created. PPM footer: Chromium clips position:fixed content that is pushed into the @page margin box with a negative bottom value."
+}

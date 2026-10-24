@@ -216,6 +216,16 @@ def invoice_header_flowable(width: float | None = None):
     return _InvoiceHeader()
 
 
+def draw_invoice_header(canvas, page_h: float) -> float:
+    """Draw the invoice header artwork on a raw canvas; returns its bottom y."""
+    if not os.path.exists(_INV_HEADER):
+        return page_h - 20
+    hh = _INV_W * 326 / 2729
+    top = page_h - 20
+    canvas.drawImage(_INV_HEADER, _INV_X, top - hh, width=_INV_W, height=hh, mask="auto")
+    return top - hh
+
+
 def draw_invoice_footer(canvas, doc, *, left_lines: list[str] | None = None,
                         note: str | None = None, is_mod: bool = False) -> bool:
     """Draw the invoice footer artwork (pulseglobal / registered office / dark bar)

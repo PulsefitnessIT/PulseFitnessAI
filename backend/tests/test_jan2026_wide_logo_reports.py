@@ -62,12 +62,11 @@ class TestPulseHeaderWide:
         buf = io.BytesIO()
         SimpleDocTemplate(buf, pagesize=A4).build([pulse_header(pulse_styles())])
         doc, imgs = _page1_images(buf.getvalue())
-        assert any(i["w"] == 1193 and i["h"] == 216 for i in imgs), imgs
+        # Header is now the Pulse invoice header artwork (logo + contact block).
+        assert any(i["w"] == 1800 for i in imgs), imgs
         assert "Pulse Fitness" not in doc[0].get_text()
-        r = [i for i in imgs if i["w"] == 1193][0]["rects"][0]
-        # 55mm ~ 155.9pt wide, aspect preserved
-        assert abs(r.width - 155.9) < 2, r
-        assert abs(r.width / r.height - 1193 / 216) < 0.1
+        r = [i for i in imgs if i["w"] == 1800][0]["rects"][0]
+        assert abs(r.width - 523) < 2, r
 
 
 # Service report via live API
@@ -88,7 +87,7 @@ class TestServiceReportPdf:
             assert r.status_code == 200, f"{c['id']}: {r.status_code} {r.text[:200]}"
             assert r.content[:4] == b"%PDF"
             doc, imgs = _page1_images(r.content)
-            assert any(i["w"] == 1193 and i["h"] == 216 for i in imgs), f"{c['id']} imgs={imgs}"
+            assert any(i["w"] == 1800 for i in imgs), f"{c['id']} imgs={imgs}"
             top = doc[0].get_text("text", clip=fitz.Rect(0, 0, doc[0].rect.width / 2, 110))
             assert "Pulse Fitness" not in top
             open(f"/tmp/svc_wide_{c['id'][:8]}.pdf", "wb").write(r.content)
