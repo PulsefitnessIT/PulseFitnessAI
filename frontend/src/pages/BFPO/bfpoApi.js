@@ -30,6 +30,28 @@ const writeOutbox = (items) => {
   listeners.forEach((fn) => fn(items.length));
 };
 export const outboxCount = () => readOutbox().length;
+let lastFlushError = '';
+export const outboxError = () => lastFlushError;
+
+const STEP_STATUS = { accept: 'assigned', parts: 'paused_parts', complete: 'closed' };
+// Status a job will have once its queued offline updates are sent (for the UI).
+export function pendingStatusFor(jobId, status) {
+  let st = status;
+  readOutbox().filter((x) => x.url.startsWith(`/jobs/${jobId}/`)).forEach((x) => {
+    const step = x.url.split('/').pop();
+    if (step === 'arrive') { if (x.data?.safe !== false) st = 'on_site'; } else if (STEP_STATUS[step]) st = STEP_STATUS[step];
+  });
+  return st;
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [head, b64] = dataUrl.split(',');
+  const mime = (head.match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
 export const onOutboxChange = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
 
 const isNetworkError = (err) => !err?.response && (err?.code === 'ERR_NETWORK' || err?.message === 'Network Error' || !navigator.onLine);
@@ -60,18 +82,29 @@ export async function flushOutbox() {
           const key = BLOB_PREFIX + data.photo_url.slice(8);
           const dataUrl = localStorage.getItem(key);
           if (dataUrl) {
-            const blob = await (await fetch(dataUrl)).blob();
+            const blob = dataUrlToBlob(dataUrl);
             const up = await uploadFile(new File([blob], 'photo.jpg', { type: blob.type || 'image/jpeg' }));
+            if (up.offline) throw Object.assign(new Error('Network Error'), { code: 'ERR_NETWORK' });
             data = { ...data, photo_url: up.download_url };
+            const q = readOutbox().map((x) => (x.id === it.id ? { ...x, data } : x));
+            writeOutbox(q);
             localStorage.removeItem(key);
           } else {
             data = { ...data, photo_url: '' };
           }
         }
         await client.post(it.url, data, { _fromOutbox: true });
+        lastFlushError = '';
       } catch (e) {
-        if (isNetworkError(e)) break; // still offline — try again later
-        // Server rejected it (e.g. job already moved on) — drop it so the queue can't jam.
+        const code = e?.response?.status;
+        // Only a definitive rejection (job already moved on, bad data) is dropped;
+        // signal loss, server errors and expired sessions keep it for the next try.
+        if (![400, 404, 409, 422].includes(code)) {
+          lastFlushError = isNetworkError(e) ? '' : (code === 401 ? 'Please sign in again to send your saved updates' : 'Could not send yet — will retry');
+          listeners.forEach((fn) => fn(readOutbox().length));
+          break;
+        }
+        lastFlushError = `One saved update was refused: ${e?.response?.data?.detail || 'job already updated'}`;
       }
       items = readOutbox().filter((x) => x.id !== it.id);
       writeOutbox(items);

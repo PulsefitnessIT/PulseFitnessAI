@@ -1456,20 +1456,27 @@ async def bfpo_alerts(user=Depends(_require_bfpo)):
     Staff see every MOD job; engineers see their territory / sites / assigned jobs."""
     await _safe_bridge()
     q = await _scoped_case_query(user)
-    acked = set(await db.bfpo_alert_acks.distinct("case_id", {"user_id": user["id"]}))
+    acked = await db.bfpo_alert_acks.distinct("case_id", {"user_key": _ack_key(user)})
     q = {"$and": [q, {"status": {"$in": [NEW, "triaged", ASSIGNED]}},
-                  {"$or": [{"priority": "p1"}, {"safety_critical": True}]}]}
-    rows = await db.svc_cases.find(q, _ALERT_PROJECTION).sort("created_at", -1).limit(50).to_list(50)
-    rows = [r for r in rows if r["id"] not in acked]
-    return {"alerts": rows[:20], "count": len(rows)}
+                  {"$or": [{"priority": "p1"}, {"safety_critical": True}]},
+                  {"id": {"$nin": acked}}]}
+    count = await db.svc_cases.count_documents(q)
+    rows = await db.svc_cases.find(q, _ALERT_PROJECTION).sort("created_at", -1).limit(20).to_list(20)
+    return {"alerts": rows, "count": count}
+
+
+def _ack_key(user: dict) -> str:
+    # Email is stable across sessions (some admin sessions mint a fresh id each login).
+    return (user.get("email") or "").lower() or user["id"]
 
 
 @router.post("/alerts/{case_id}/ack")
 async def bfpo_alert_ack(case_id: str, user=Depends(_require_bfpo)):
     await _get_scoped_case(user, case_id)
+    key = _ack_key(user)
     await db.bfpo_alert_acks.update_one(
-        {"user_id": user["id"], "case_id": case_id},
-        {"$set": {"user_id": user["id"], "case_id": case_id, "at": _now()}}, upsert=True)
+        {"user_key": key, "case_id": case_id},
+        {"$set": {"user_key": key, "user_id": user["id"], "case_id": case_id, "at": _now()}}, upsert=True)
     return {"ok": True}
 
 

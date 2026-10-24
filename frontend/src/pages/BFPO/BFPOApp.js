@@ -60,6 +60,8 @@ export default function BFPOApp() {
   };
 
   useEffect(() => { setView(role === 'staff' ? 'dashboard' : 'home'); }, [role]);
+  // Engineers arrive here by in-app navigation from /MODService — make sure offline mode is on.
+  useEffect(() => { if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {}); }, []);
 
   useEffect(() => {
     const on = () => setOnline(true); const off = () => setOnline(false);

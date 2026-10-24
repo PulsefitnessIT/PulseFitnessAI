@@ -41,7 +41,7 @@ root.render(
 // of any caching layer.
 if ('serviceWorker' in navigator) {
   const _path = window.location.pathname.toLowerCase();
-  const _pwaScopes = ['/service-desk', '/svc/engineer', '/partner-engineer', '/bfpo'];
+  const _pwaScopes = ['/service-desk', '/svc/engineer', '/partner-engineer', '/bfpo', '/modservice'];
   const _enablePwa = _pwaScopes.some((p) => _path.startsWith(p));
   window.addEventListener('load', () => {
     if (_enablePwa) {

@@ -39,12 +39,16 @@ PW = "Bfpo123!"
 
 
 def _login(email: str) -> str:
-    r = requests.post(
-        f"{BASE_URL}/api/auth/login",
-        json={"email": email, "password": PW, "portal": "mod"},
-        headers=BYPASS,
-        timeout=30,
-    )
+    # engineer.gib password was re-keyed to BfpoEng123! (Jan 2026) — try both
+    for pw in (PW, "BfpoEng123!"):
+        r = requests.post(
+            f"{BASE_URL}/api/auth/login",
+            json={"email": email, "password": pw, "portal": "mod"},
+            headers=BYPASS,
+            timeout=30,
+        )
+        if r.status_code == 200:
+            break
     assert r.status_code == 200, f"login {email} -> {r.status_code} {r.text[:200]}"
     return r.json().get("access_token") or r.json()["token"]
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { bfpo, uploadFile } from '../bfpoApi';
+import { bfpo, uploadFile, pendingStatusFor, onOutboxChange, outboxCount } from '../bfpoApi';
 import { Card, Btn, Badge, Spinner, PriorityBadge, STATUS_LABEL, Field, inputCls, localTime } from '../ui';
 import SignaturePad from './SignaturePad';
 import {
@@ -17,15 +17,20 @@ export default function JobDetail({ jobId, onBack, onOpenJob }) {
   const [toast, setToast] = useState('');
 
   const load = useCallback(async () => {
-    const r = await bfpo.get(`/jobs/${jobId}`);
-    setJob(r.data); setLoading(false);
+    try {
+      const r = await bfpo.get(`/jobs/${jobId}`);
+      setJob({ ...r.data, status: pendingStatusFor(jobId, r.data.status) });
+    } catch { /* offline and not cached — keep what we have */ }
+    setLoading(false);
   }, [jobId]);
   useEffect(() => { load(); }, [load]);
+  // Saved offline updates just went out → show the server's latest state.
+  useEffect(() => { let prev = outboxCount(); return onOutboxChange((n) => { if (n < prev) load(); prev = n; }); }, [load]);
 
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2500); };
   const act = async (fn, msg) => {
     setBusy(true);
-    try { const r = await fn(); if (r?.data?.queued) { flash('No signal — saved on this phone, it will send automatically'); setPanel(null); return; } await load(); if (msg) flash(msg); setPanel(null); }
+    try { const r = await fn(); if (r?.data?.queued) { setJob((j) => (j ? { ...j, status: pendingStatusFor(jobId, j.status) } : j)); flash('No signal — saved on this phone, it will send automatically'); setPanel(null); return; } await load(); if (msg) flash(msg); setPanel(null); }
     catch (e) { flash(e?.response?.data?.detail || 'Could not save — your work is stored, we will retry.'); }
     finally { setBusy(false); }
   };
@@ -134,7 +139,7 @@ export default function JobDetail({ jobId, onBack, onOpenJob }) {
           onDone={(res) => { setPanel(null); flash(res.queued ? 'No signal — fault saved on this phone, it will send automatically' : res.warning ? res.warning : `Linked case ${res.case.reference} created`); }} jobId={jobId} />}
 
         {panel === 'complete' && <CompletePanel jobId={jobId} busy={busy} onCancel={() => setPanel('workflow')}
-          onDone={(queued) => { if (!queued) load(); setPanel(null); flash(queued ? 'No signal — completion saved on this phone, it will send automatically' : 'Job completed — job sheet generated'); }} />}
+          onDone={(queued) => { if (!queued) load(); else setJob((j) => (j ? { ...j, status: pendingStatusFor(jobId, j.status) } : j)); setPanel(null); flash(queued ? 'No signal — completion saved on this phone, it will send automatically' : 'Job completed — job sheet generated'); }} />}
 
         {/* Timeline */}
         <div>
