@@ -151,3 +151,15 @@ class TestSitePhotosAllowList:
     def test_out_of_range_404(self, seeded):
         r = requests.get(f"{API}/bfpo/jobs/{seeded}/site-photos/2", headers=self._h("gib"), timeout=30)
         assert r.status_code == 404
+
+
+# ── Retest: genuinely cookie-less foreign-origin POST (fresh requests call) ──
+class TestCsrfNoCookieRetest:
+    def test_logout_foreign_origin_no_cookie_not_blocked(self):
+        r = requests.post(f"{API}/auth/logout", headers={**BYPASS, "Origin": FOREIGN}, timeout=30)
+        assert r.request.headers.get("Cookie") is None
+        assert not (r.status_code == 403 and "Cross-site" in r.text), r.text[:200]
+
+    def test_logout_foreign_origin_with_cookie_blocked(self):
+        r = requests.post(f"{API}/auth/logout", headers={**BYPASS, "Origin": FOREIGN, "Cookie": "access_token=x"}, timeout=30)
+        assert r.status_code == 403 and "Cross-site" in r.text

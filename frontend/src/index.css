@@ -31,6 +31,8 @@ body.has-bottom-banner main.overflow-y-auto {
   body.has-bottom-banner main.overflow-y-auto {
     padding-bottom: 232px;
   }
+  /* MOD/BFPO engineer sticky action rides above the cookie banner until it's dismissed */
+  body.has-bottom-banner .bfpo-sticky-action { bottom: 232px; }
 }
 
 

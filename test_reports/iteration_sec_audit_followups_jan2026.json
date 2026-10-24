@@ -1,0 +1,31 @@
+{
+  "summary": "Short retest of the follow-ups from iteration_sec_audit_fixes_jan2026. All 4 items pass. (1) Logout ordering: clearOfflineData now finishes before user state resets. Instrumented order: caches.delete('gymaxis-api-v15') start → done → 'gymaxis:auth-changed' fires, and at that point outbox, blob and token are already gone. The confirm dialog shows, and the redirect is /MODService?email=engineer.gib%40...&signedout=1 when using ?portal=modservice on preview. (2) Outbox upgrade path works. (3) The CSRF guard now lets genuinely cookie-less foreign-origin POSTs through and still blocks them when a Cookie is sent. Backend: 18/18 pass. (4) Regressions pass: portal@pulsefitness.ltd login at /login → /launch → Operations dashboard, with no 403s; gib's online Accept Job works (DB status=assigned).",
+  "verified": [
+    "Logout: seeded gymaxis-api-v15 /api/bfpo/TEST_seed, bfpo_outbox_v1 (1 own item) and bfpo_blob_TEST. Confirm '1 saved update has not been sent yet...' was accepted. Afterwards caches=['gymaxis-v15'], and the only localStorage bfpo* key left is bfpo_last_user (no token). Navs: /MODService (BFPOApp <Navigate>), then /MODService?email=..&signedout=1. The login page then strips signedout from the URL and pre-fills the email.",
+    "Outbox A: bfpo_last_user unset with [legacy no-owner, foreign-owner]. Only /jobs/TEST_legacyA/accept was POSTed, the outbox emptied, and last_user was set to gib.",
+    "Outbox B: last_user == gib with [legacy]. The legacy item was POSTed.",
+    "Outbox C: last_user == someone.else with [legacy, foreign]. Everything was wiped and nothing was POSTed.",
+    "Outbox D: same user with [foreign, legacy, own]. legacy and own were POSTed; the foreign item was dropped.",
+    "CSRF: a fresh requests.post (Cookie header confirmed None) with Origin evil.example to /api/auth/logout and /api/public/signup/TEST_nope/track is not 403. The same request with a Cookie header returns 403 'Cross-site request blocked'. Backend logs show 22 blocks, all from evil.example (my tests)."
+  ],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "BFPO engineer job detail (390px mobile)", "issues": ["Until it is dismissed, the cookie consent banner (fixed bottom) covers the fixed 'jobdetail-primary-action' button (Accept Job / Start Job). A tap hits the banner, not the action. Consider raising the action bar above the banner, or adding bottom padding while the banner shows."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_sec_csrf_photos_jan2026.py", "/app/test_reports/pytest/sec_csrf_retest.xml"],
+  "action_items": ["Optional: stop the cookie banner from covering the fixed BFPO primary action button on mobile."],
+  "critical_code_review_comments": [
+    "csrf_origin_guard: the `and request.cookies` in the outer condition makes the inner `origin == 'null' and request.cookies` check redundant. It is harmless and could be simplified.",
+    "App.js logout: if clearOfflineData hangs (caches API stalls), logout hangs too. Consider Promise.race with a short timeout (e.g. 1.5s) before finishLogout."
+  ],
+  "updated_files": ["/app/backend/tests/test_sec_csrf_photos_jan2026.py (added TestCsrfNoCookieRetest, 2 tests)"],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "100%"},
+  "seed_data_creation": "Temporarily cloned svc_case TEST_acc_06ff0b95 (status=new, assigned to gib) to test online accept. It has been deleted, along with its 2 svc_case_events. Outbox tests used page.route to fulfil POSTs to /api/bfpo/jobs/TEST_*, so no real jobs were changed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Engineer login on preview: open /MODService?portal=modservice (this sets the sessionStorage portal_mode, otherwise /MODService and /bfpo redirect to modservice.pulsefitness.com). Get a token via POST /api/auth/login {portal:'mod'} with the X-RateLimit-Bypass header, set localStorage token, then goto /bfpo. The outbox key is 'bfpo_outbox_v1' (not 'bfpo_outbox'). The logout button is inside the menu: bfpo-menu-button → bfpo-menu-logout. Dismiss the cookie banner ('Allow cookies') before tapping jobdetail-primary-action."
+}

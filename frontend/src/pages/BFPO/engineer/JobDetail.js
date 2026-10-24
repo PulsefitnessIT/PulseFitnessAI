@@ -160,7 +160,7 @@ export default function JobDetail({ jobId, onBack, onOpenJob }) {
 
       {/* Sticky primary action */}
       {pa && !panel && (
-        <div className="fixed bottom-16 left-0 right-0 px-4 pb-3 pt-2 bg-gradient-to-t from-white via-white to-transparent max-w-2xl mx-auto">
+        <div className="bfpo-sticky-action fixed bottom-16 left-0 right-0 px-4 pb-3 pt-2 bg-gradient-to-t from-white via-white to-transparent max-w-2xl mx-auto">
           <Btn full variant="primary" onClick={pa.onClick} disabled={busy} data-testid="jobdetail-primary-action" className="shadow-lg py-4 text-base">
             {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : null}{pa.label}
           </Btn>

@@ -39186,3 +39186,12 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Backend: arrive returns 409 if job not accepted; repeat arrive on on_site is a no-op. Ack backfill of user_key at startup.
 - Tests: iteration_bfpo_alerts_offline_photos_jan2026, _offline_retest_, _offline_final_ (all major items pass).
 - Test creds: engineer.gib@bfpo.pulsefitness.test / BfpoEng123! (login via /MODService).
+
+## 2026-06 — Security audit (MOD Ops + engineer app) fixes — DONE (except SEC-002)
+- SEC-001 (HIGH): logout now awaits utils/clearOfflineData.js (deletes Cache Storage '*-api-*', localStorage bfpo_outbox*/bfpo_blob_*) before resetting state (App.js logout → finishLogout). BFPOApp: confirm before logout if unsent updates; bfpo_last_user switch wipes previous user's offline data; outbox items carry owner, foreign-owner items discarded (ownerless legacy items kept).
+- SEC-003 (MEDIUM): utils/security_plus.csrf_origin_guard — cookie-carrying non-GET /api requests with a foreign Origin (not allow-list/regex/same-host) → 403; Bearer, no-Origin and cookie-less requests pass. Brand allow-list now includes https://modservice.pulsefitness.com (+www) — previously only modservice-pulsefitness.com.
+- P3: _issue_photo_paths only allows {APP_NAME}/mod-attachments/{issue site}/ and {APP_NAME}/issues/{issue id}/.
+- UX: BFPO engineer sticky action rises above cookie banner on mobile.
+- SEC-002 (HIGH, OPEN — user/platform action): live Stripe secret key in git history (commit a93c2b43) must be revoked/rotated in Stripe dashboard; platform support for history purge.
+- Remaining hardening (P3, not done): MFA for MOD staff/engineers; dedicated throttles on invite-accept/MOD login.
+- Tests: iteration_sec_audit_fixes_jan2026.json, iteration_sec_audit_followups_jan2026.json (all pass); tests/test_sec_csrf_photos_jan2026.py.
