@@ -141,6 +141,10 @@ def pulse_header(s: dict, company: dict | None = None) -> Table:
     ``email``/``web``/``hashtag`` — empty fields are simply skipped.
     """
     c = company or PULSE
+    if company is None or company is PULSE:
+        hdr = invoice_header_flowable()
+        if hdr is not None:
+            return hdr
     logo_bytes = c.get("logo_bytes")
     pulse_logo = False
     if logo_bytes:
@@ -182,6 +186,64 @@ def pulse_header(s: dict, company: dict | None = None) -> Table:
     return header
 
 
+_ASSETS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
+_INV_HEADER = os.path.join(_ASSETS, "pulse-invoice-header.png")
+_INV_FOOTER = os.path.join(_ASSETS, "pulse-invoice-footer.png")
+# Placement copied from the Pulse invoice template (A4, points).
+_INV_X, _INV_W = 36.0, 523.0
+_INV_FOOTER_X, _INV_FOOTER_W = 39.0, 520.0
+INVOICE_FOOTER_H = _INV_FOOTER_W * 570 / 3307  # ≈ 90pt
+INVOICE_BOTTOM_MARGIN = INVOICE_FOOTER_H + 22  # body clearance above the footer art
+
+
+def invoice_header_flowable(width: float | None = None):
+    """The exact header artwork used on Pulse invoices (logo + contact block)."""
+    if not os.path.exists(_INV_HEADER):
+        return None
+    from reportlab.platypus import Flowable
+
+    class _InvoiceHeader(Flowable):
+        """Drawn at the invoice's absolute x so it lines up exactly, whatever the margins."""
+        def wrap(self, aw, ah):
+            self._w = width or _INV_W
+            self._h = self._w * 326 / 2729
+            return aw, self._h + 4
+
+        def draw(self):
+            frame_x = self.canv.absolutePosition(0, 0)[0]
+            self.canv.drawImage(_INV_HEADER, _INV_X - frame_x, 4, width=self._w, height=self._h, mask="auto")
+
+    return _InvoiceHeader()
+
+
+def draw_invoice_footer(canvas, doc, *, left_lines: list[str] | None = None,
+                        note: str | None = None, is_mod: bool = False) -> bool:
+    """Draw the invoice footer artwork (pulseglobal / registered office / dark bar)
+    plus the page number where the invoice prints it. Returns False if missing."""
+    if not os.path.exists(_INV_FOOTER):
+        return False
+    canvas.saveState()
+    canvas.drawImage(_INV_FOOTER, _INV_FOOTER_X, 0, width=_INV_FOOTER_W,
+                     height=INVOICE_FOOTER_H, mask="auto")
+    canvas.setFillColor(PULSE_TEXT)
+    canvas.setFont("Helvetica", 8)
+    y = INVOICE_FOOTER_H - 22
+    for line in [str(doc.page)] + list(left_lines or []):
+        canvas.drawString(_INV_FOOTER_X + 12, y, line)
+        canvas.setFont("Helvetica", 6)
+        canvas.setFillColor(PULSE_MUTED)
+        y -= 8
+    if is_mod:
+        canvas.setFont("Helvetica", 6)
+        canvas.drawRightString(_INV_FOOTER_X + _INV_FOOTER_W, INVOICE_FOOTER_H + 4, "© Crown Copyright")
+    if note:
+        canvas.setFont("Helvetica", 5.6)
+        canvas.setFillColor(PULSE_MUTED)
+        canvas.drawString(_INV_FOOTER_X + 12, INVOICE_FOOTER_H + 4, note[:200])
+    canvas.restoreState()
+    return True
+
+
 def section_label(s: dict, text: str) -> Paragraph:
     return Paragraph(_esc(text), s["sectlabel"])
 
@@ -197,10 +259,12 @@ def make_pulse_doc(buf, title: str, *, is_mod: bool = False,
     from reportlab.lib.pagesizes import A4
     from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate
 
+    is_pulse = company is None or company is PULSE
+    bottom = max(bottom_mm * mm, INVOICE_BOTTOM_MARGIN) if is_pulse and os.path.exists(_INV_FOOTER) else bottom_mm * mm
     doc = BaseDocTemplate(
         buf, pagesize=A4,
         leftMargin=left_mm * mm, rightMargin=right_mm * mm,
-        topMargin=top_mm * mm, bottomMargin=bottom_mm * mm,
+        topMargin=top_mm * mm, bottomMargin=bottom,
         title=title, author=(company or PULSE).get("name") or "Pulse Fitness",
     )
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
@@ -231,6 +295,11 @@ def pulse_footer_factory(is_mod: bool = False, primary_line: str | None = None,
     is_tenant = company is not None and company is not PULSE
 
     def _footer(canvas, doc):
+        if not is_tenant and not primary_line and draw_invoice_footer(
+                canvas, doc, is_mod=is_mod, note=c.get("footer_note") or (
+                    "Refurbished electrical equipment tested per Electrical Equipment (Safety) "
+                    "Regulations 2016 (GB); ongoing testing/compliance is the end user's responsibility.")):
+            return
         canvas.saveState()
         width = doc.pagesize[0]
         x0 = doc.leftMargin
@@ -277,4 +346,5 @@ __all__ = [
     "PULSE", "PULSE_NAVY", "PULSE_BLUE", "PULSE_TEXT", "PULSE_MUTED",
     "PULSE_LIGHT", "PULSE_BORDER", "pulse_styles", "pulse_header",
     "section_label", "pulse_footer_factory", "make_pulse_doc", "pulse_title",
+    "invoice_header_flowable", "draw_invoice_footer", "INVOICE_BOTTOM_MARGIN",
 ]

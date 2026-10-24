@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { bfpo } from '../bfpoApi';
 import { Card, Btn, Spinner, Badge, PriorityBadge, STATUS_LABEL, inputCls, Field, localTime } from '../ui';
-import { ChevronLeft, AlertTriangle, MapPin, Wrench, UserCheck, History, FileText, Loader2 } from 'lucide-react';
+import { ChevronLeft, AlertTriangle, MapPin, Wrench, UserCheck, History, FileText, Loader2, User, ShieldAlert, Camera } from 'lucide-react';
 
 export default function StaffJobDetail({ jobId, onBack }) {
   const [job, setJob] = useState(null);
@@ -43,8 +43,10 @@ export default function StaffJobDetail({ jobId, onBack }) {
 
       <div className="grid md:grid-cols-2 gap-4 mt-5">
         <Card className="p-4"><div className="flex gap-3"><MapPin className="w-5 h-5 text-slate-400" /><div><p className="text-xs font-semibold text-slate-400 uppercase">Site</p><p className="font-semibold text-slate-900">{job.site_name}</p><p className="text-sm text-slate-500">{job.territory_name} · {job.country}</p></div></div></Card>
-        <Card className="p-4"><div className="flex gap-3"><Wrench className="w-5 h-5 text-slate-400" /><div><p className="text-xs font-semibold text-slate-400 uppercase">Equipment</p><p className="font-semibold text-slate-900">{job.asset_name || '—'}</p></div></div></Card>
+        <Card className="p-4"><div className="flex gap-3"><Wrench className="w-5 h-5 text-slate-400" /><div><p className="text-xs font-semibold text-slate-400 uppercase">Equipment</p><p className="font-semibold text-slate-900">{job.asset_name || '—'}</p>{job.asset_serial && <p className="text-sm text-slate-500 font-mono">{job.asset_serial}</p>}</div></div></Card>
       </div>
+      <SiteReport job={job} />
+      <EngineerPhotos photos={job.photos} />
 
       {/* Allocation / handover */}
       <Card className="p-4 mt-4" data-testid="staff-allocate">
@@ -87,5 +89,45 @@ export default function StaffJobDetail({ jobId, onBack }) {
         </Card>
       </div>
     </div>
+  );
+}
+
+function SiteReport({ job }) {
+  const i = job.mod_issue;
+  const reporter = i?.reporter_name || i?.reported_by_name || job.reporter_name;
+  const flags = i?.classification_flags || job.classification_flags || [];
+  if (!i && !reporter) return null;
+  return (
+    <Card className="p-4 mt-4" data-testid="staff-site-report">
+      <p className="text-xs font-semibold text-slate-400 uppercase mb-2 flex items-center gap-1.5"><User className="w-4 h-4" /> Reported by the site</p>
+      <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm">
+        <p><span className="text-slate-500">Reporter:</span> <span className="font-semibold text-slate-900" data-testid="staff-site-reporter">{reporter || '—'}</span></p>
+        {(i?.reporter_email || i?.reporter_phone) && <p className="text-slate-600">{[i.reporter_email, i.reporter_phone].filter(Boolean).join(' · ')}</p>}
+        {i?.created_at && <p><span className="text-slate-500">Logged:</span> {localTime(i.created_at)}</p>}
+        {i?.status && <p><span className="text-slate-500">Site status:</span> <span className="capitalize" data-testid="staff-site-status">{i.status.replace('_', ' ')}</span></p>}
+        {i?.safe_in_service === false && <p className="text-red-700 font-semibold">Taken out of service by the site</p>}
+      </div>
+      {flags.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5" data-testid="staff-site-flags">
+          {flags.map((f, k) => <Badge key={k} className="bg-amber-50 text-amber-800 border-amber-200"><ShieldAlert className="w-3 h-3" /> {typeof f === 'string' ? f : (f.label || f.type || 'Sensitive')}</Badge>)}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function EngineerPhotos({ photos }) {
+  if (!photos?.length) return null;
+  return (
+    <Card className="p-4 mt-4" data-testid="staff-engineer-photos">
+      <p className="text-xs font-semibold text-slate-400 uppercase mb-2 flex items-center gap-1.5"><Camera className="w-4 h-4" /> Engineer photos ({photos.length})</p>
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+        {photos.map((p) => (
+          <a key={p.id} href={p.file_url} target="_blank" rel="noreferrer" title={p.caption || p.taken_by_name} data-testid={`staff-photo-${p.id}`}>
+            <img src={p.file_url} alt={p.caption || 'Engineer photo'} className="w-full aspect-square object-cover rounded-lg border border-slate-200" loading="lazy" />
+          </a>
+        ))}
+      </div>
+    </Card>
   );
 }

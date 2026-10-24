@@ -51,11 +51,16 @@ async def mirror_case_state_to_issue(*, case: dict, target_state: str, actor: di
     """
     source = case.get("source_meta") or {}
     issue_id = source.get("issue_id")
+    issue_q = {"id": issue_id, "organization_id": case.get("organization_id")}
+    if not issue_id and case.get("mod_issue_id"):
+        # MOD Operations job mirrored from a MOD site fault (lives under the BFPO org).
+        issue_id = case["mod_issue_id"]
+        issue_q = {"id": issue_id}
     if not issue_id:
         return False  # not an Ops-Portal-originated case — nothing to mirror
 
     issue = await db.issues.find_one(
-        {"id": issue_id, "organization_id": case.get("organization_id")},
+        issue_q,
         {"_id": 0, "id": 1, "status": 1, "engineer_assigned_at": 1,
          "engineer_arrived_at": 1, "work_started_at": 1, "work_completed_at": 1,
          "first_response_at": 1, "resolved_at": 1},

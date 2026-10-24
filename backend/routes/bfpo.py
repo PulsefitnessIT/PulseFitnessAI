@@ -133,9 +133,33 @@ async def _engineer_scope(user: dict) -> dict:
             "active_site_ids": list(active_sites), "all_site_ids": list(all_sites)}
 
 
+MOD_ORG_TYPES = ("mod_site", "mod_branch", "mod_org")
+_MOD_IDS_CACHE: dict = {"at": 0.0, "ids": []}
+
+
+async def _mod_org_ids() -> list:
+    """Ids of every MOD tenant org (sites/branches/root) — cached 60s."""
+    import time
+    if time.time() - _MOD_IDS_CACHE["at"] > 60:
+        _MOD_IDS_CACHE["ids"] = [o["id"] async for o in db.organizations.find(
+            {"account_type": {"$in": list(MOD_ORG_TYPES)}}, {"_id": 0, "id": 1})]
+        _MOD_IDS_CACHE["at"] = time.time()
+    return _MOD_IDS_CACHE["ids"]
+
+
+async def _ops_org_filter() -> dict:
+    """Cases MOD Operations sees: BFPO jobs + every MOD tenant's own service-desk cases."""
+    return {"organization_id": {"$in": [BFPO_ORG_ID, *(await _mod_org_ids())]}}
+
+
+async def _case_org(case_id: str) -> str:
+    c = await db.svc_cases.find_one({"id": case_id}, {"_id": 0, "organization_id": 1})
+    return (c or {}).get("organization_id") or BFPO_ORG_ID
+
+
 async def _scoped_case_query(user: dict, *, read: bool = True) -> dict:
     """Base Mongo query restricting cases to what the caller may see."""
-    q = dict(_of())
+    q = await _ops_org_filter()
     scope = await _engineer_scope(user)
     if scope["unrestricted"]:
         return q
@@ -219,7 +243,7 @@ async def _bridge_mod_fault_to_bfpo(issue: dict) -> Optional[str]:
         equip = await db.equipment.find_one(
             {"id": issue["equipment_id"]},
             {"_id": 0, "name": 1, "equipment_type": 1, "serial_number": 1}) or {}
-    pr = (issue.get("priority") or issue.get("severity") or "medium").lower()
+    pr = str(issue.get("priority") or issue.get("severity") or "medium").lower()
     priority = _MOD_PRIORITY_MAP.get(pr, "p3")
     safety = pr in ("urgent", "high") or issue.get("safe_in_service") is False
     branch = (org.get("mod_branch") or "").upper()
@@ -231,7 +255,13 @@ async def _bridge_mod_fault_to_bfpo(issue: dict) -> Optional[str]:
         "title": f"{(issue.get('fault_type_mod') or 'Fault').title()} — "
                  f"{equip.get('name') or issue.get('machine_type') or 'Equipment'}",
         "description": issue.get("issue_description") or "",
-        "status": NEW, "case_type": "fault", "priority": priority,
+        "status": _ISSUE_TO_CASE_STATUS.get(issue.get("status") or "open", NEW),
+        "case_type": "fault", "priority": priority, "bfpo": True,
+        "asset_id": issue.get("equipment_id"),
+        "reporter_name": issue.get("reporter_name") or issue.get("reported_by_name") or issue.get("reported_by"),
+        "reporter_email": issue.get("reporter_email"), "reporter_phone": issue.get("reporter_phone"),
+        "classification_flags": issue.get("classification_flags") or [],
+        "photos_count": len(issue.get("photos") or issue.get("images") or []),
         "safety_critical": bool(safety),
         "site_id": site_id, "site_name": org.get("name") or "MOD Site",
         "country": org.get("country") or "United Kingdom",
@@ -244,25 +274,59 @@ async def _bridge_mod_fault_to_bfpo(issue: dict) -> Optional[str]:
         "source": "mod_fault", "mod_issue_id": issue.get("id"),
         "mod_ticket_ref": issue.get("mod_ticket_ref"),
         "assigned_engineer_id": None,
-        "created_at": now, "updated_at": now,
+        "created_at": issue.get("created_at") or now, "updated_at": now,
     }
+    if case["status"] == CLOSED:
+        case["closed_at"] = issue.get("resolved_at") or issue.get("closed_at") or now
+        case["resolution_notes"] = issue.get("resolution_notes") or "Resolved at site level"
     await db.svc_cases.insert_one(case)
     await db.issues.update_one({"id": issue["id"]}, {"$set": {"bfpo_case_id": case_id}})
     return case_id
 
 
-async def _ensure_mod_faults_bridged(limit: int = 1000) -> int:
-    """Idempotently bridge any open MOD faults not yet mirrored into BFPO jobs."""
+_ISSUE_TO_CASE_STATUS = {"open": NEW, "in_progress": "triaged", "resolved": CLOSED, "closed": CLOSED}
+
+
+async def _ensure_mod_faults_bridged(limit: int = 2000) -> int:
+    """Idempotently mirror every MOD site fault (any intake path — MOD wizard,
+    Log-a-fault, QR, ASER…) into MOD Operations, and close unworked Ops jobs
+    the site has since resolved."""
+    mod_ids = await _mod_org_ids()
     n = 0
     cursor = db.issues.find(
-        {"mod_site_id": {"$ne": None}, "status": {"$ne": "resolved"},
-         "$or": [{"bfpo_case_id": {"$exists": False}}, {"bfpo_case_id": None},
-                 {"bfpo_case_id": ""}]},
+        {"$and": [
+            {"$or": [{"mod_site_id": {"$nin": [None, ""]}}, {"organization_id": {"$in": mod_ids}}]},
+            {"$or": [{"bfpo_case_id": {"$exists": False}}, {"bfpo_case_id": None}, {"bfpo_case_id": ""}]},
+            # already worked by that MOD org's own service desk → visible via _ops_org_filter
+            {"$or": [{"linked_case_id": {"$exists": False}}, {"linked_case_id": None}, {"linked_case_id": ""}]},
+        ]},
         {"_id": 0}).limit(limit)
     async for issue in cursor:
         if await _bridge_mod_fault_to_bfpo(issue):
             n += 1
+    # Site resolved it before anyone picked it up → close the Ops job.
+    async for issue in db.issues.find(
+            {"bfpo_case_id": {"$nin": [None, ""]}, "status": {"$in": ["resolved", "closed"]},
+             "bfpo_closed_synced": {"$ne": True}}, {"_id": 0, "id": 1, "bfpo_case_id": 1, "resolved_at": 1}):
+        await db.svc_cases.update_one(
+            {"id": issue["bfpo_case_id"], "status": {"$in": [NEW, "triaged"]}, "assigned_engineer_id": None},
+            {"$set": {"status": CLOSED, "closed_at": issue.get("resolved_at") or _now(),
+                      "resolution_notes": "Resolved by the site", "updated_at": _now()}})
+        await db.issues.update_one({"id": issue["id"]}, {"$set": {"bfpo_closed_synced": True}})
     return n
+
+
+async def _safe_bridge() -> None:
+    try:
+        await _ensure_mod_faults_bridged()
+    except Exception as e:
+        logger.warning("MOD fault bridge failed: %s", e)
+
+
+async def backfill_mod_bridge() -> int:
+    """Startup: flag older bridged jobs so engineers can see them, then bridge."""
+    await db.svc_cases.update_many({"source": "mod_fault", "bfpo": {"$ne": True}}, {"$set": {"bfpo": True}})
+    return await _ensure_mod_faults_bridged(limit=10000)
 
 
 
@@ -281,12 +345,13 @@ _JOB_PROJECTION = {
     "country": 1, "asset_name": 1, "fault_code": 1, "scheduled_at": 1, "sla_resolve_at": 1,
     "assigned_engineer_id": 1, "assigned_engineer_name": 1, "return_visit": 1,
     "waiting_reason": 1, "created_at": 1, "closed_at": 1, "customer_name": 1,
+    "source": 1, "organization_id": 1, "reporter_name": 1, "classification_flags": 1,
 }
 
 
 @router.get("/jobs")
 async def bfpo_jobs(when: str = Query("all_open"), user=Depends(_require_bfpo)):
-    await _ensure_mod_faults_bridged()
+    await _safe_bridge()
     base_q = await _scoped_case_query(user)
     q = {**base_q, **_FILTER_MAP.get(when, _FILTER_MAP["all_open"])}
     sort = [("closed_at", -1)] if when == "completed" else [("safety_critical", -1), ("priority", 1), ("sla_resolve_at", 1)]
@@ -306,15 +371,19 @@ async def bfpo_sync_mod_faults(user=Depends(_require_bfpo)):
 async def bfpo_job_detail(case_id: str, user=Depends(_require_bfpo)):
     case = await _get_scoped_case(user, case_id)
     events = await db.svc_case_events.find(
-        {"case_id": case_id, "organization_id": BFPO_ORG_ID}, {"_id": 0},
+        {"case_id": case_id}, {"_id": 0},
     ).sort("at", -1).limit(80).to_list(80)
     photos = await db.svc_engineer_photos.find(
-        {"case_id": case_id, "organization_id": BFPO_ORG_ID}, {"_id": 0},
+        {"case_id": case_id}, {"_id": 0},
     ).sort("taken_at", -1).limit(40).to_list(40)
     site = None
     if case.get("site_id"):
         site = await db.sites.find_one(
             {"id": case["site_id"], "organization_id": BFPO_ORG_ID}, {"_id": 0},
+        ) or await db.organizations.find_one(
+            {"id": case["site_id"], "account_type": {"$in": list(MOD_ORG_TYPES)}},
+            {"_id": 0, "id": 1, "name": 1, "country": 1, "mod_branch": 1, "address": 1,
+             "city": 1, "postcode": 1, "contact_email": 1, "contact_phone": 1},
         )
     equipment = []
     eq_ids = list(case.get("equipment_ids") or [])
@@ -322,22 +391,30 @@ async def bfpo_job_detail(case_id: str, user=Depends(_require_bfpo)):
         eq_ids.append(case["asset_id"])
     if eq_ids:
         equipment = await db.equipment.find(
-            {"id": {"$in": eq_ids}, "organization_id": BFPO_ORG_ID}, {"_id": 0},
+            {"id": {"$in": eq_ids}}, {"_id": 0},
         ).to_list(50)
     # asset history — prior closed jobs on the same asset
     asset_history = []
     if case.get("asset_id"):
         asset_history = await db.svc_cases.find(
-            {"organization_id": BFPO_ORG_ID, "asset_id": case["asset_id"],
+            {"organization_id": case.get("organization_id") or BFPO_ORG_ID, "asset_id": case["asset_id"],
              "id": {"$ne": case_id}, "status": {"$in": ["closed", "invoiced", "repaired"]}},
             {"_id": 0, "id": 1, "reference": 1, "title": 1, "closed_at": 1, "resolution_notes": 1},
         ).sort("closed_at", -1).limit(5).to_list(5)
     signature = await db.svc_signatures.find_one(
-        {"case_id": case_id, "organization_id": BFPO_ORG_ID}, {"_id": 0}, sort=[("signed_at", -1)],
+        {"case_id": case_id}, {"_id": 0}, sort=[("signed_at", -1)],
     )
+    mod_issue = None
+    if case.get("mod_issue_id"):
+        mod_issue = await db.issues.find_one(
+            {"id": case["mod_issue_id"]},
+            {"_id": 0, "id": 1, "status": 1, "issue_description": 1, "reporter_name": 1,
+             "reporter_email": 1, "reporter_phone": 1, "reported_by_name": 1, "classification_flags": 1,
+             "safe_in_service": 1, "photos": 1, "images": 1, "created_at": 1, "mod_ticket_ref": 1,
+             "comments": 1, "updates": 1})
     return {**case, "events": events, "photos": photos, "site": site,
             "equipment": equipment, "asset_history": asset_history,
-            "signature": signature, "viewer_role": _role(user)}
+            "signature": signature, "viewer_role": _role(user), "mod_issue": mod_issue}
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -346,7 +423,7 @@ async def bfpo_job_detail(case_id: str, user=Depends(_require_bfpo)):
 
 async def _op_update(case: dict, user: dict, update_type: str, body: str, extra: dict | None = None):
     await append_event(
-        case_id=case["id"], organization_id=BFPO_ORG_ID,
+        case_id=case["id"], organization_id=case.get("organization_id") or BFPO_ORG_ID,
         event_type="operational_update", actor=user, body=body,
         extra={"update_type": update_type, **(extra or {})},
     )
@@ -356,14 +433,14 @@ async def _op_update(case: dict, user: dict, update_type: str, body: str, extra:
 async def bfpo_accept(case_id: str, data: dict = Body(default={}), user=Depends(_require_bfpo)):
     case = await _get_scoped_case(user, case_id, read=False)
     await db.svc_cases.update_one(
-        {"id": case_id, "organization_id": BFPO_ORG_ID},
+        {"id": case_id},
         {"$set": {"assigned_engineer_id": user["id"],
                   "assigned_engineer_name": user.get("full_name") or user.get("email"),
                   "updated_at": _now()}},
     )
     if case.get("status") in (NEW, "triaged"):
         try:
-            await state_transition(case_id=case_id, organization_id=BFPO_ORG_ID,
+            await state_transition(case_id=case_id, organization_id=await _case_org(case_id),
                                    target_state=ASSIGNED, actor=user, reason="engineer accepted job")
         except ValueError:
             pass
@@ -379,9 +456,9 @@ async def bfpo_arrive(case_id: str, data: dict = Body(...), user=Depends(_requir
     updates = {"safety_confirmed": safe, "safety_notes": notes, "arrived_at": _now(), "updated_at": _now()}
     if not safe:
         updates["safety_critical"] = True
-    await db.svc_cases.update_one({"id": case_id, "organization_id": BFPO_ORG_ID}, {"$set": updates})
+    await db.svc_cases.update_one({"id": case_id}, {"$set": updates})
     try:
-        await state_transition(case_id=case_id, organization_id=BFPO_ORG_ID,
+        await state_transition(case_id=case_id, organization_id=await _case_org(case_id),
                                target_state=ON_SITE, actor=user, reason="engineer arrived on site")
     except ValueError:
         pass
@@ -397,9 +474,9 @@ async def bfpo_diagnosis(case_id: str, data: dict = Body(...), user=Depends(_req
     text = (data.get("diagnosis") or "").strip()
     if not text:
         raise HTTPException(400, "diagnosis required")
-    await db.svc_cases.update_one({"id": case_id, "organization_id": BFPO_ORG_ID},
+    await db.svc_cases.update_one({"id": case_id},
                                   {"$set": {"diagnosis": text, "updated_at": _now()}})
-    await append_event(case_id=case_id, organization_id=BFPO_ORG_ID, event_type="note",
+    await append_event(case_id=case_id, organization_id=await _case_org(case_id), event_type="note",
                        actor=user, body=text, extra={"kind": "diagnosis", "visibility": "internal"})
     return {"ok": True}
 
@@ -413,7 +490,7 @@ async def bfpo_parts(case_id: str, data: dict = Body(...), user=Depends(_require
     if not name and not data.get("photo_url"):
         raise HTTPException(400, "Describe the part or attach a photo")
     part = {
-        "id": str(uuid.uuid4()), "organization_id": BFPO_ORG_ID, "case_id": case_id,
+        "id": str(uuid.uuid4()), "organization_id": case.get("organization_id") or BFPO_ORG_ID, "case_id": case_id,
         "case_reference": case.get("reference"), "engineer_id": user["id"],
         "name": name or "Part (see photo)", "description": (data.get("description") or "").strip(),
         "part_number": (data.get("part_number") or "").strip(),
@@ -421,10 +498,10 @@ async def bfpo_parts(case_id: str, data: dict = Body(...), user=Depends(_require
         "status": "pending", "created_at": _now(),
     }
     await db.bfpo_parts_requests.insert_one(part)
-    await db.svc_cases.update_one({"id": case_id, "organization_id": BFPO_ORG_ID},
+    await db.svc_cases.update_one({"id": case_id},
                                   {"$set": {"waiting_reason": "Parts required", "updated_at": _now()}})
     try:
-        await state_transition(case_id=case_id, organization_id=BFPO_ORG_ID,
+        await state_transition(case_id=case_id, organization_id=await _case_org(case_id),
                                target_state=PAUSED_PARTS, actor=user, reason="parts required")
     except ValueError:
         pass
@@ -450,7 +527,7 @@ async def bfpo_outcome(case_id: str, data: dict = Body(...), user=Depends(_requi
                "return_reason": reason or label, "updated_at": _now()}
     if outcome == "equipment_unsafe":
         updates["safety_critical"] = True
-    await db.svc_cases.update_one({"id": case_id, "organization_id": BFPO_ORG_ID}, {"$set": updates})
+    await db.svc_cases.update_one({"id": case_id}, {"$set": updates})
     await _op_update(case, user, outcome, f"{label}: {reason or details or '—'}", {"details": details})
     return await bfpo_job_detail(case_id, user)
 
@@ -517,7 +594,7 @@ async def bfpo_add_photo(case_id: str, data: dict = Body(...), user=Depends(_req
     if not file_url:
         raise HTTPException(400, "file_url required")
     photo = {
-        "id": str(uuid.uuid4()), "organization_id": BFPO_ORG_ID, "case_id": case_id,
+        "id": str(uuid.uuid4()), "organization_id": case.get("organization_id") or BFPO_ORG_ID, "case_id": case_id,
         "case_reference": case.get("reference"), "file_url": file_url,
         "mime_type": data.get("mime_type") or "image/jpeg", "kind": "photo",
         "caption": (data.get("caption") or "").strip(), "taken_at": _now(),
@@ -525,7 +602,7 @@ async def bfpo_add_photo(case_id: str, data: dict = Body(...), user=Depends(_req
         "created_at": _now(),
     }
     await db.svc_engineer_photos.insert_one(photo)
-    await append_event(case_id=case_id, organization_id=BFPO_ORG_ID, event_type="photo",
+    await append_event(case_id=case_id, organization_id=await _case_org(case_id), event_type="photo",
                        actor=user, body=photo["caption"] or "Photo attached", extra={"file_url": file_url})
     photo.pop("_id", None)
     return {"ok": True, "photo": photo}
@@ -537,7 +614,7 @@ async def bfpo_signature(case_id: str, data: dict = Body(...), user=Depends(_req
     case = await _get_scoped_case(user, case_id, read=False)
     if data.get("unavailable"):
         reason = (data.get("reason") or "").strip() or "Signature unavailable"
-        sig = {"id": str(uuid.uuid4()), "organization_id": BFPO_ORG_ID, "case_id": case_id,
+        sig = {"id": str(uuid.uuid4()), "organization_id": case.get("organization_id") or BFPO_ORG_ID, "case_id": case_id,
                "case_reference": case.get("reference"), "signed_by_name": "", "image_data": "",
                "unavailable": True, "unavailable_reason": reason, "signed_at": _now(),
                "captured_by_id": user["id"], "created_at": _now()}
@@ -546,13 +623,13 @@ async def bfpo_signature(case_id: str, data: dict = Body(...), user=Depends(_req
         image = data.get("image_data") or ""
         if not name or not image:
             raise HTTPException(400, "signed_by_name and image_data required")
-        sig = {"id": str(uuid.uuid4()), "organization_id": BFPO_ORG_ID, "case_id": case_id,
+        sig = {"id": str(uuid.uuid4()), "organization_id": case.get("organization_id") or BFPO_ORG_ID, "case_id": case_id,
                "case_reference": case.get("reference"), "signed_by_name": name,
                "signed_by_role": (data.get("signed_by_role") or "").strip(), "image_data": image,
                "unavailable": False, "signed_at": _now(), "captured_by_id": user["id"],
                "created_at": _now()}
     await db.svc_signatures.insert_one(sig)
-    await append_event(case_id=case_id, organization_id=BFPO_ORG_ID, event_type="signature",
+    await append_event(case_id=case_id, organization_id=await _case_org(case_id), event_type="signature",
                        actor=user, body=("Signature unavailable" if sig.get("unavailable")
                                          else f"Signed by {sig['signed_by_name']}"))
     sig.pop("_id", None)
@@ -574,23 +651,23 @@ async def bfpo_complete(case_id: str, data: dict = Body(...), user=Depends(_requ
     }
     if safe_working:
         updates["safety_critical"] = False
-    await db.svc_cases.update_one({"id": case_id, "organization_id": BFPO_ORG_ID}, {"$set": updates})
+    await db.svc_cases.update_one({"id": case_id}, {"$set": updates})
     # walk state → on_site → closed
     if case.get("status") in (ASSIGNED, "en_route", "triaged", NEW, PAUSED_PARTS):
         try:
-            await state_transition(case_id=case_id, organization_id=BFPO_ORG_ID,
+            await state_transition(case_id=case_id, organization_id=await _case_org(case_id),
                                    target_state=ON_SITE, actor=user, reason="auto: completing job")
         except ValueError:
             pass
     for tgt in (AWAITING_SIGN_OFF, CLOSED):
         try:
-            await state_transition(case_id=case_id, organization_id=BFPO_ORG_ID,
+            await state_transition(case_id=case_id, organization_id=await _case_org(case_id),
                                    target_state=tgt, actor=user, reason=summary[:200])
         except ValueError:
             continue
     await _op_update(case, user, "job_completed", f"Job completed: {summary[:120]}",
                      {"safe_and_working": safe_working})
-    updated = await db.svc_cases.find_one({"id": case_id, "organization_id": BFPO_ORG_ID}, {"_id": 0})
+    updated = await db.svc_cases.find_one({"id": case_id}, {"_id": 0})
     return {"ok": True, "case": updated,
             "job_sheet_url": f"/api/bfpo/jobs/{case_id}/job-sheet.pdf"}
 
@@ -645,13 +722,18 @@ async def bfpo_site_detail(site_id: str, user=Depends(_require_bfpo)):
     if ids is not None and site_id not in ids:
         raise HTTPException(404, "Site not found")
     site = await db.sites.find_one({"id": site_id, "organization_id": BFPO_ORG_ID}, {"_id": 0})
+    mod_org = False
+    if not site:
+        site = await db.organizations.find_one(
+            {"id": site_id, "account_type": "mod_site"},
+            {"_id": 0, "id": 1, "name": 1, "country": 1, "mod_branch": 1, "address": 1,
+             "city": 1, "postcode": 1, "contact_email": 1, "contact_phone": 1})
+        mod_org = bool(site)
     if not site:
         raise HTTPException(404, "Site not found")
-    equipment = await db.equipment.find(
-        {"organization_id": BFPO_ORG_ID, "site_id": site_id}, {"_id": 0},
-    ).sort("name", 1).to_list(500)
-    open_jobs = await db.svc_cases.count_documents(
-        {"organization_id": BFPO_ORG_ID, "site_id": site_id, "status": {"$in": list(OPEN_STATES)}})
+    eq_q = {"organization_id": site_id} if mod_org else {"organization_id": BFPO_ORG_ID, "site_id": site_id}
+    equipment = await db.equipment.find(eq_q, {"_id": 0}).sort("name", 1).to_list(500)
+    open_jobs = len(await _open_cases_for_site(site_id, mod_org=mod_org))
     return {"site": site, "equipment": equipment, "open_jobs": open_jobs,
             "sensitive_visible": _role(user) in ("lead", "staff")}
 
@@ -662,6 +744,9 @@ async def bfpo_equipment(search: str = Query(""), user=Depends(_require_bfpo)):
     ids = await _visible_site_ids(user)
     if ids is not None:
         q["site_id"] = {"$in": ids}
+    else:
+        mod_sites = [o["id"] async for o in db.organizations.find({"account_type": "mod_site"}, {"_id": 0, "id": 1})]
+        q = {"organization_id": {"$in": [BFPO_ORG_ID, *mod_sites]}}
     if search:
         from utils.security_plus import safe_regex
         q["$or"] = [{"serial_number": safe_regex(search)}, {"model": safe_regex(search)},
@@ -672,14 +757,15 @@ async def bfpo_equipment(search: str = Query(""), user=Depends(_require_bfpo)):
 
 @router.get("/equipment/{equipment_id}")
 async def bfpo_equipment_detail(equipment_id: str, user=Depends(_require_bfpo)):
-    eq = await db.equipment.find_one({"id": equipment_id, "organization_id": BFPO_ORG_ID}, {"_id": 0})
+    ids = await _visible_site_ids(user)
+    orgs = [BFPO_ORG_ID] if ids is not None else [BFPO_ORG_ID, *(await _mod_org_ids())]
+    eq = await db.equipment.find_one({"id": equipment_id, "organization_id": {"$in": orgs}}, {"_id": 0})
     if not eq:
         raise HTTPException(404, "Equipment not found")
-    ids = await _visible_site_ids(user)
     if ids is not None and eq.get("site_id") not in ids:
         raise HTTPException(404, "Equipment not found")
     history = await db.svc_cases.find(
-        {"organization_id": BFPO_ORG_ID, "asset_id": equipment_id}, {"_id": 0,
+        {**(await _ops_org_filter()), "asset_id": equipment_id}, {"_id": 0,
          "id": 1, "reference": 1, "title": 1, "status": 1, "closed_at": 1, "created_at": 1,
          "resolution_notes": 1},
     ).sort("created_at", -1).limit(30).to_list(30)
@@ -708,7 +794,8 @@ def _site_health(stats: dict) -> str:
 
 @router.get("/staff/dashboard")
 async def staff_dashboard(user=Depends(_require_staff)):
-    base = {"organization_id": BFPO_ORG_ID}
+    await _safe_bridge()
+    base = await _ops_org_filter()
     open_q = {**base, "status": {"$in": list(OPEN_STATES)}}
     kpis = {
         "open": await db.svc_cases.count_documents(open_q),
@@ -733,10 +820,7 @@ async def _compute_site_health() -> list:
     now = _now()
     out = []
     for s in sites:
-        open_cases = await db.svc_cases.find(
-            {"organization_id": BFPO_ORG_ID, "site_id": s["id"], "status": {"$in": list(OPEN_STATES)}},
-            {"_id": 0, "priority": 1, "safety_critical": 1, "sla_resolve_at": 1, "status": 1, "waiting_reason": 1},
-        ).to_list(500)
+        open_cases = await _open_cases_for_site(s["id"])
         stats = {"machines_down": len(open_cases),
                  "unsafe": any(c.get("safety_critical") for c in open_cases),
                  "waiting_parts": any(c.get("status") == PAUSED_PARTS for c in open_cases),
@@ -757,18 +841,41 @@ async def _compute_site_health() -> list:
         {"_id": 0, "id": 1, "name": 1, "country": 1, "mod_branch": 1},
     ).to_list(5000)
     for o in mod_orgs:
-        oc = await db.svc_cases.count_documents(
-            {"organization_id": o["id"], "status": {"$in": list(OPEN_STATES)}})
+        open_cases = await _open_cases_for_site(o["id"], mod_org=True)
         branch = (o.get("mod_branch") or "").upper() or "MOD"
         out.append({"site_id": o["id"], "site_name": o.get("name") or "MOD Site",
                     "country": o.get("country") or "United Kingdom",
                     "territory_id": None, "territory_name": branch,
-                    "open_jobs": oc, "health": "attention" if oc else "normal"})
+                    "open_jobs": len(open_cases), "health": _site_health(_case_stats(open_cases))})
     return out
+
+
+async def _open_cases_for_site(site_id: str, *, mod_org: bool = False) -> list:
+    """Open jobs for a site — BFPO jobs keyed by site_id, plus (for a MOD tenant
+    org) that org's own service-desk cases."""
+    ors = [{"organization_id": BFPO_ORG_ID, "site_id": site_id}]
+    if mod_org:
+        ors.append({"organization_id": site_id})
+    return await db.svc_cases.find(
+        {"$or": ors, "status": {"$in": list(OPEN_STATES)}},
+        {"_id": 0, "priority": 1, "safety_critical": 1, "sla_resolve_at": 1, "status": 1, "waiting_reason": 1},
+    ).to_list(500)
+
+
+def _case_stats(open_cases: list) -> dict:
+    now = _now()
+    return {"machines_down": len(open_cases),
+            "unsafe": any(c.get("safety_critical") for c in open_cases),
+            "waiting_parts": any(c.get("status") == PAUSED_PARTS for c in open_cases),
+            "access_problem": any((c.get("waiting_reason") or "").lower().startswith("unable") for c in open_cases),
+            "overdue": any(c.get("sla_resolve_at") and c["sla_resolve_at"] < now for c in open_cases),
+            "overdue_urgent": any(c.get("sla_resolve_at") and c["sla_resolve_at"] < now
+                                  and (c.get("priority") == "p1" or c.get("safety_critical")) for c in open_cases)}
 
 
 @router.get("/staff/sites")
 async def staff_sites(user=Depends(_require_staff)):
+    await _safe_bridge()
     health = await _compute_site_health()
     grouped: dict = {}
     for s in health:
@@ -791,7 +898,8 @@ async def staff_jobs(
     status: str = Query(""), priority: str = Query(""), safety: str = Query(""),
     overdue: str = Query(""), user=Depends(_require_staff),
 ):
-    q = {"organization_id": BFPO_ORG_ID}
+    await _safe_bridge()
+    q = await _ops_org_filter()
     if territory:
         q["territory_id"] = territory
     if site:
@@ -829,7 +937,7 @@ async def staff_engineers(user=Depends(_require_staff)):
 
 @router.post("/staff/jobs/{case_id}/allocate")
 async def staff_allocate(case_id: str, data: dict = Body(...), user=Depends(_require_staff)):
-    case = await db.svc_cases.find_one({"id": case_id, "organization_id": BFPO_ORG_ID}, {"_id": 0})
+    case = await db.svc_cases.find_one({"id": case_id, **(await _ops_org_filter())}, {"_id": 0})
     if not case:
         raise HTTPException(404, "Job not found")
     eng_id = data.get("engineer_id")
@@ -839,24 +947,24 @@ async def staff_allocate(case_id: str, data: dict = Body(...), user=Depends(_req
     handover = (data.get("handover") or "").strip()
     previous = case.get("assigned_engineer_name")
     await db.svc_cases.update_one(
-        {"id": case_id, "organization_id": BFPO_ORG_ID},
+        {"id": case_id},
         {"$set": {"assigned_engineer_id": eng_id,
                   "assigned_engineer_name": eng.get("full_name") or eng.get("email"),
                   "updated_at": _now()}},
     )
     if case.get("status") in (NEW, "triaged"):
         try:
-            await state_transition(case_id=case_id, organization_id=BFPO_ORG_ID,
+            await state_transition(case_id=case_id, organization_id=await _case_org(case_id),
                                    target_state=ASSIGNED, actor=user, reason="allocated by MOD staff")
         except ValueError:
             pass
     body = f"Allocated to {eng.get('full_name') or eng.get('email')}"
     if previous:
         body = f"Reallocated from {previous} to {eng.get('full_name') or eng.get('email')}"
-    await append_event(case_id=case_id, organization_id=BFPO_ORG_ID, event_type="allocation",
+    await append_event(case_id=case_id, organization_id=await _case_org(case_id), event_type="allocation",
                        actor=user, body=body, extra={"engineer_id": eng_id, "handover": handover})
     if handover:
-        await append_event(case_id=case_id, organization_id=BFPO_ORG_ID, event_type="note",
+        await append_event(case_id=case_id, organization_id=await _case_org(case_id), event_type="note",
                            actor=user, body=handover, extra={"kind": "handover"})
     return {"ok": True}
 
@@ -906,10 +1014,10 @@ async def revoke_visiting_access(grant_id: str, user=Depends(_require_staff)):
 async def bfpo_job_sheet(case_id: str, user=Depends(_require_bfpo)):
     case = await _get_scoped_case(user, case_id)
     events = await db.svc_case_events.find(
-        {"case_id": case_id, "organization_id": BFPO_ORG_ID}, {"_id": 0},
+        {"case_id": case_id}, {"_id": 0},
     ).sort("at", 1).to_list(200)
     signature = await db.svc_signatures.find_one(
-        {"case_id": case_id, "organization_id": BFPO_ORG_ID}, {"_id": 0}, sort=[("signed_at", -1)])
+        {"case_id": case_id}, {"_id": 0}, sort=[("signed_at", -1)])
     pdf = _build_job_sheet_pdf(case, events, signature)
     fname = f"Job Sheet - {case.get('reference')}.pdf"
     return Response(content=pdf, media_type="application/pdf",

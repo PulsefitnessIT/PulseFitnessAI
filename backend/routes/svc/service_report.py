@@ -281,11 +281,12 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
     )
     brand_dark = "#0F172A"
 
+    from utils.pulse_doc_template import INVOICE_BOTTOM_MARGIN
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
         leftMargin=18 * mm, rightMargin=18 * mm,
-        topMargin=16 * mm, bottomMargin=22 * mm,
+        topMargin=8 * mm, bottomMargin=INVOICE_BOTTOM_MARGIN,
         title=f"Service Report · {case.get('reference', '')}",
     )
     styles = getSampleStyleSheet()
@@ -893,6 +894,10 @@ def _paint_page_chrome(canv, doc) -> None:
     from reportlab.lib import colors as _colors
     from reportlab.lib.units import mm
     from utils.pulse_doc_template import PULSE
+    from utils.pulse_doc_template import draw_invoice_footer
+    if draw_invoice_footer(canv, doc, left_lines=[
+            "Service Report", datetime.now(timezone.utc).strftime("%d %b %Y · %H:%M UTC")]):
+        return
     canv.saveState()
     width, _ = doc.pagesize
     page_num = canv.getPageNumber()

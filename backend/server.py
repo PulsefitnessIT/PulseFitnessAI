@@ -471,6 +471,16 @@ async def _full_boot() -> None:
             logger.error(f"vehicle photo compression backfill failed: {e}")
     asyncio.create_task(_vehicle_photo_shrink())
 
+    async def _mod_bridge():
+        try:
+            from routes.bfpo import backfill_mod_bridge
+            _n = await backfill_mod_bridge()
+            if _n:
+                logger.info("Bridged %d MOD site fault(s) into MOD Operations", _n)
+        except Exception as e:
+            logger.error(f"MOD fault bridge backfill failed: {e}")
+    asyncio.create_task(_mod_bridge())
+
     # Iter 272 — one-time backfill: relink stranded partner_engineers rows
     # (pending/stale user_id) to their owning users so engineers don't land
     # on the empty "Become a Partner Engineer / Apply now" screen. Marker-
