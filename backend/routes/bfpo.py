@@ -1073,7 +1073,7 @@ def _build_job_sheet_pdf(case: dict, events: list, signature: dict | None) -> by
     cyan = colors.HexColor("#0891b2")
     ink = colors.HexColor("#0f172a")
     from utils.pulse_doc_template import draw_invoice_header, draw_invoice_footer
-    hdr_bottom = draw_invoice_header(c, h)
+    hdr_bottom = draw_invoice_header(c, h, 18 * mm, w - 18 * mm)
     c.setFillColor(ink)
     c.setFont("Helvetica-Bold", 18)
     c.drawString(18 * mm, hdr_bottom - 12 * mm, "Electronic Job Sheet")

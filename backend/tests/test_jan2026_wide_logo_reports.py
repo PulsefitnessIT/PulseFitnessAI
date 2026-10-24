@@ -111,7 +111,7 @@ class TestFireCertificate:
             pytest.skip("no stored certificates")
         print("certs:", [(c["id"][:8], c.get("status"), c.get("rebrand_tag")) for c in certs])
         for c in certs:
-            assert c.get("rebrand_tag") == "pulse-invoice-art-2026-06", c
+            assert c.get("rebrand_tag") == "pulse-split-header-2026-06", c
             f = files[c["id"]]
             assert f and f.get("pdf_b64"), f"missing file {c['id']}"
             pdf = base64.b64decode(f["pdf_b64"])

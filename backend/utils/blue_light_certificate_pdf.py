@@ -126,7 +126,7 @@ def _page_furniture_factory(logo_bytes, invoice_art: bool = False):
         from utils.pulse_doc_template import draw_invoice_header, draw_invoice_footer
         c.saveState()
         if invoice_art:
-            draw_invoice_header(c, PAGE_H)
+            draw_invoice_header(c, PAGE_H, MARGIN_X, PAGE_W - MARGIN_X, top_gap=32)
             draw_invoice_footer(c, doc)
             _draw_crest(c)
             c.restoreState()

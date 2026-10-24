@@ -196,38 +196,49 @@ INVOICE_FOOTER_H = _INV_FOOTER_W * 570 / 3307  # ≈ 90pt
 INVOICE_BOTTOM_MARGIN = INVOICE_FOOTER_H + 22  # body clearance above the footer art
 
 
+_HDR_LOGO = os.path.join(_ASSETS, "pulse-header-logo.png")
+_HDR_ADDR = os.path.join(_ASSETS, "pulse-header-address.png")
+_PX = _INV_W / 2729  # pt per pixel of the original invoice header artwork
+_LOGO_W, _LOGO_H = 810 * _PX, 151 * _PX
+_ADDR_W, _ADDR_H = 980 * _PX, 192 * _PX
+_LOGO_DY = 15 * _PX  # logo sits slightly lower than the address block (as on the invoice)
+HEADER_H = _ADDR_H
+
+
+def _draw_split_header(canvas, x0: float, x1: float, top: float) -> None:
+    """Logo flush with the content's left edge, address block flush right."""
+    canvas.drawImage(_HDR_LOGO, x0, top - _LOGO_DY - _LOGO_H, width=_LOGO_W, height=_LOGO_H, mask="auto")
+    canvas.drawImage(_HDR_ADDR, x1 - _ADDR_W, top - _ADDR_H, width=_ADDR_W, height=_ADDR_H, mask="auto")
+
+
+def invoice_art_available() -> bool:
+    return all(os.path.exists(p) for p in (_HDR_LOGO, _HDR_ADDR, _INV_FOOTER))
+
+
 def invoice_header_flowable(width: float | None = None):
-    """The exact header artwork used on Pulse invoices (logo + contact block)."""
-    if not os.path.exists(_INV_HEADER):
+    """Invoice header (logo + contact block) spanning the frame's content width."""
+    if not invoice_art_available():
         return None
     from reportlab.platypus import Flowable
 
     class _InvoiceHeader(Flowable):
-        """Drawn at the invoice's absolute x so it lines up exactly, whatever the margins."""
         def wrap(self, aw, ah):
-            self._w = width or _INV_W
-            self._h = self._w * 326 / 2729
-            return aw, self._h + 4
+            self._aw = width or aw
+            return aw, HEADER_H + 10
 
         def draw(self):
-            frame_x = self.canv.absolutePosition(0, 0)[0]
-            self.canv.drawImage(_INV_HEADER, _INV_X - frame_x, 4, width=self._w, height=self._h, mask="auto")
+            _draw_split_header(self.canv, 0, self._aw, HEADER_H + 10)
 
     return _InvoiceHeader()
 
 
-def invoice_art_available() -> bool:
-    return os.path.exists(_INV_HEADER) and os.path.exists(_INV_FOOTER)
-
-
-def draw_invoice_header(canvas, page_h: float) -> float:
-    """Draw the invoice header artwork on a raw canvas; returns its bottom y."""
-    if not os.path.exists(_INV_HEADER):
-        return page_h - 20
-    hh = _INV_W * 326 / 2729
-    top = page_h - 20
-    canvas.drawImage(_INV_HEADER, _INV_X, top - hh, width=_INV_W, height=hh, mask="auto")
-    return top - hh
+def draw_invoice_header(canvas, page_h: float, x0: float = 51, x1: float = 544, top_gap: float = 40) -> float:
+    """Draw the invoice header on a raw canvas between x0..x1; returns its bottom y."""
+    top = page_h - top_gap
+    if not invoice_art_available():
+        return top
+    _draw_split_header(canvas, x0, x1, top)
+    return top - HEADER_H
 
 
 def draw_invoice_footer(canvas, doc, *, left_lines: list[str] | None = None,
