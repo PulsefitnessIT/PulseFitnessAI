@@ -42,6 +42,8 @@ def created():
     ids = []
     yield ids
     for iid in ids:
+        for c in mdb.svc_cases.find({"mod_issue_id": iid}, {"id": 1}):
+            mdb.svc_case_events.delete_many({"case_id": c["id"]})
         mdb.svc_cases.delete_many({"mod_issue_id": iid})
         mdb.issues.delete_one({"id": iid})
 
@@ -60,6 +62,13 @@ def _insert_issue(created, **extra):
     return iid
 
 
+def _sync(staff):
+    """_safe_bridge on GETs is throttled (30s/process) — force the bridge via the unthrottled sync endpoint."""
+    r = staff.post(f"{BASE_URL}/api/bfpo/faults/sync", timeout=60)
+    assert r.status_code == 200, r.text[:300]
+    return r.json()
+
+
 # --- MOD Ops visibility -------------------------------------------------------
 class TestModOpsBridge:
     def test_staff_dashboard_ok(self, staff):
@@ -68,6 +77,7 @@ class TestModOpsBridge:
 
     def test_log_a_fault_issue_appears_in_staff_jobs(self, staff, created):
         iid = _insert_issue(created)
+        _sync(staff)
         r = staff.get(f"{BASE_URL}/api/bfpo/staff/jobs", params={"status": "open"}, timeout=60)
         assert r.status_code == 200
         issue = mdb.issues.find_one({"id": iid})
@@ -88,18 +98,24 @@ class TestModOpsBridge:
         assert d["mod_issue"]["id"] == iid
         assert d["mod_issue"]["reporter_name"] == "TEST Cpl Reporter"
         assert d["site"] and d["site"]["id"] == MOD_SITE_ORG
+        # bridge writes an 'intake' timeline event
+        assert any("Fault logged by" in (e.get("body") or "") for e in d.get("events") or []), d.get("events")
 
     def test_idempotent_no_duplicate(self, staff, created):
+        _sync(staff)
         staff.get(f"{BASE_URL}/api/bfpo/staff/jobs", timeout=60)
         assert mdb.svc_cases.count_documents({"mod_issue_id": created[0]}) == 1
 
     def test_concurrent_requests_no_duplicate_jobs(self, staff, created):
         # 10 unbridged faults + 16 parallel page loads (React StrictMode / several tabs / engineers)
         iids = [_insert_issue(created) for _ in range(10)]
-        urls = [f"{BASE_URL}/api/bfpo/staff/jobs", f"{BASE_URL}/api/bfpo/staff/dashboard",
-                f"{BASE_URL}/api/bfpo/staff/sites", f"{BASE_URL}/api/bfpo/jobs"] * 4
+        # unthrottled sync endpoint x12 in parallel + throttled GETs → exercises the atomic claim
+        reqs = [("post", f"{BASE_URL}/api/bfpo/faults/sync")] * 12 + [
+            ("get", f"{BASE_URL}/api/bfpo/staff/jobs"), ("get", f"{BASE_URL}/api/bfpo/staff/dashboard"),
+            ("get", f"{BASE_URL}/api/bfpo/staff/sites"), ("get", f"{BASE_URL}/api/bfpo/jobs")]
         with cf.ThreadPoolExecutor(16) as ex:
-            list(ex.map(lambda u: staff.get(u, timeout=60).status_code, urls))
+            codes = list(ex.map(lambda m: getattr(staff, m[0])(m[1], timeout=90).status_code, reqs))
+        assert all(c == 200 for c in codes), codes
         counts = [mdb.svc_cases.count_documents({"mod_issue_id": i}) for i in iids]
         assert all(n == 1 for n in counts), f"race: duplicate MOD Ops jobs per fault {counts}"
 
@@ -110,31 +126,34 @@ class TestModOpsBridge:
         mdb.svc_cases.insert_one({"id": cid, "organization_id": MOD_SITE_ORG, "status": "new", "mod_issue_id": iid,
                                   "reference": "TESTOWN", "title": "TEST own desk case",
                                   "source_meta": {"issue_id": iid, "channel": "operations_portal"}})
+        _sync(staff)
         jobs = staff.get(f"{BASE_URL}/api/bfpo/staff/jobs", params={"status": "open"}, timeout=60).json()["jobs"]
         listed = [j for j in jobs if j["id"] == cid or j["id"] == (mdb.issues.find_one({"id": iid}) or {}).get("bfpo_case_id")]
         assert len(listed) == 1, f"fault listed {len(listed)}x in MOD Ops"
 
     def test_site_resolved_closes_unworked_job(self, staff, created):
         iid = _insert_issue(created)
-        staff.get(f"{BASE_URL}/api/bfpo/staff/jobs", timeout=60)
+        _sync(staff)
         cid = mdb.issues.find_one({"id": iid})["bfpo_case_id"]
         mdb.issues.update_one({"id": iid}, {"$set": {"status": "resolved",
                                                      "resolved_at": datetime.now(timezone.utc).isoformat()}})
-        staff.get(f"{BASE_URL}/api/bfpo/staff/jobs", timeout=60)
+        _sync(staff)
         case = mdb.svc_cases.find_one({"id": cid})
         assert case["status"] == "closed"
         assert case.get("resolution_notes") == "Resolved by the site"
+        ev = list(mdb.svc_case_events.find({"case_id": cid}, {"_id": 0}))
+        assert any("resolved before an engineer" in (e.get("body") or "") for e in ev), ev
 
     def test_already_resolved_fault_bridged_closed(self, staff, created):
         iid = _insert_issue(created, status="resolved", resolved_at=datetime.now(timezone.utc).isoformat())
-        staff.get(f"{BASE_URL}/api/bfpo/staff/jobs", timeout=60)
+        _sync(staff)
         cid = mdb.issues.find_one({"id": iid}).get("bfpo_case_id")
         assert cid
         assert mdb.svc_cases.find_one({"id": cid})["status"] == "closed"
 
     def test_linked_case_not_double_bridged(self, staff, created):
         iid = _insert_issue(created, linked_case_id="TEST_existing_case")
-        staff.get(f"{BASE_URL}/api/bfpo/staff/jobs", timeout=60)
+        _sync(staff)
         assert not mdb.issues.find_one({"id": iid}).get("bfpo_case_id")
 
     def test_staff_site_detail_mod_org(self, staff):
@@ -146,6 +165,23 @@ class TestModOpsBridge:
     def test_sync_endpoint(self, staff):
         r = staff.post(f"{BASE_URL}/api/bfpo/faults/sync", timeout=60)
         assert r.status_code == 200 and r.json()["success"] is True
+
+    def test_unique_index_exists(self):
+        idx = mdb.svc_cases.index_information()
+        assert "uniq_mod_issue_id" in idx and idx["uniq_mod_issue_id"].get("unique"), list(idx)
+
+    def test_throttled_get_still_bridges_after_31s(self, staff, created):
+        """GET-triggered bridge is throttled to once/30s; after waiting ≥31s a plain GET must bridge a new fault."""
+        time.sleep(31)
+        iid = _insert_issue(created)
+        t0 = time.time()
+        staff.get(f"{BASE_URL}/api/bfpo/staff/jobs", timeout=60)
+        assert mdb.issues.find_one({"id": iid}).get("bfpo_case_id"), "GET did not bridge after throttle window"
+        # immediate 2nd GET is throttled (no bridge of a newer fault)
+        iid2 = _insert_issue(created)
+        staff.get(f"{BASE_URL}/api/bfpo/staff/jobs", timeout=60)
+        if time.time() - t0 < 29:
+            assert not mdb.issues.find_one({"id": iid2}).get("bfpo_case_id"), "throttle not applied"
 
     def test_unauth_blocked(self):
         r = requests.get(f"{BASE_URL}/api/bfpo/staff/jobs", timeout=30)

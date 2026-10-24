@@ -85,6 +85,11 @@ export default function StaffJobDetail({ jobId, onBack }) {
                 </div>
               </div>
             ))}
+            {!(job.events || []).length && (
+              <p className="text-sm text-slate-500" data-testid="staff-timeline-empty">
+                No activity yet{job.created_at ? ` — logged ${localTime(job.created_at, job.site_timezone)}` : ''}.
+              </p>
+            )}
           </div>
         </Card>
       </div>

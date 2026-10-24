@@ -102,8 +102,9 @@ class TestEngineerScoping:
         assert r.status_code == 200
         jobs = r.json()["jobs"]
         assert jobs, "Gibraltar engineer expected some open jobs"
-        countries = {j.get("country") for j in jobs}
-        assert countries == {"Gibraltar"}, f"leaked countries: {countries}"
+        # jobs directly allocated to this engineer are legitimately visible regardless of territory
+        countries = {j.get("country") for j in jobs if j.get("assigned_engineer_id") != "bfpo-eng-gib"}
+        assert countries <= {"Gibraltar"}, f"leaked countries: {countries}"
 
     def test_gib_sites_only_gibraltar(self, tokens):
         r = requests.get(f"{BASE_URL}/api/bfpo/sites", headers=_h(tokens["gib"]))

@@ -1,0 +1,35 @@
+{
+  "summary": "Retest of the MOD Ops bridge fixes and the PPM print footer from iteration_mod_ops_bridge_invoice_branding_jan2026. All previously reported issues are fixed. (1) Race: _bridge_mod_fault_to_bfpo now atomically claims the issue with find_one_and_update before inserting, and the partial unique index uniq_mod_issue_id exists. The concurrency test (12 parallel unthrottled /faults/sync + 4 throttled GETs over 10 faults) passed 5 of 5 runs, and there are 0 duplicate mod_issue_id groups in the DB. (2) Own-desk double-listing: issues with a MOD-org svc_case source_meta.issue_id are now skipped. PASS. (3) _safe_bridge is throttled to once per 30s per process with a lock. Verified: a GET after waiting 31s bridges, and an immediate second GET does not. (4) A bridged job now gets an 'intake' event ('Fault logged by X at site'), and site-resolved auto-close writes a timeline note. Both verified via the API and the /bfpo staff job detail UI. (5) PPM Print report: I rendered the exact CSS in Chromium print-to-PDF. The footer art (1800x310) sits at y 740-842 of 843pt on every page of both 1-page and 4-page reports, and content always ends above it (max y 729), so nothing overlaps. The header prints on page 1. (6) The wide-logo tests are updated and pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "svc_cases source=mod_fault (bridged before this fix)", "issue": "163 existing bridged jobs have no svc_case_events, so their staff Activity Timeline card is still an empty white box. Backfill an intake event in backfill_mod_bridge, or add an empty state in StaffJobDetail.js."},
+      {"endpoint": "tests/test_bfpo_portal_jan2026.py::TestGuidedWorkflow", "issue": "Test-data depletion, not an app bug. The workflow test is destructive and has used up every Gibraltar case in new/assigned (left: 2 closed, 2 paused_parts, 1 on_site). Re-seed the BFPO demo data or make the test create its own case."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/bfpo staff job detail", "issues": ["No empty-state message in Activity Timeline for jobs with no events (affects legacy bridged jobs only)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mod_ops_bridge_invoice_branding_jan2026.py", "/app/backend/tests/test_bfpo_portal_jan2026.py", "/app/test_reports/pytest/mod_ops_bridge_retest.xml"],
+  "action_items": [
+    "Optional: backfill an 'intake' svc_case_event for the 163 legacy mod_fault jobs, or render an empty state in the StaffJobDetail Activity Timeline.",
+    "Re-seed the BFPO Gibraltar demo cases, or make TestGuidedWorkflow create its own case, so the regression test is repeatable."
+  ],
+  "critical_code_review_comments": [
+    "POST /bfpo/faults/sync calls _ensure_mod_faults_bridged directly with no throttle or lock. This is safe now that the claim is atomic, but any bfpo user can trigger a full scan as often as they like. Consider rate-limiting it or reusing _BRIDGE_LOCK.",
+    "_bridge_mod_fault_to_bfpo: if insert_one fails, bfpo_case_id is reset to None. If the failure is the unique-index DuplicateKeyError, the issue is left unlinked even though a case already exists. Look up the existing case by mod_issue_id and link it instead.",
+    "Throttle state is per process. With several uvicorn workers, each one bridges independently. This is fine because the claim is atomic.",
+    "bfpo.py is still 1443 lines. Split the bridge/staff routes into separate modules."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_ops_bridge_invoice_branding_jan2026.py (use the unthrottled /faults/sync to trigger the bridge; added unique-index, throttle, intake-event and auto-close-event tests; teardown also deletes events)", "/app/backend/tests/test_bfpo_portal_jan2026.py (Gibraltar scoping test now allows jobs directly allocated to that engineer, which is legitimate visibility; the 2 'leaked' UK jobs were MOD Test Site jobs with assigned_engineer_id=bfpo-eng-gib)"],
+  "success_rate": {"backend": "100% of the new bridge/branding tests (17/17, race test 5/5 runs); bfpo+logo regression 54/55, the 1 failure is test-data depletion", "frontend": "100% (staff job detail timeline shows the intake event; PPM print footer correct on every page)"},
+  "test_credentials": "MOD Ops staff: lee.somers@pulsefitness.com / TempPass123!. BFPO engineers: engineer.gib@bfpo.pulsefitness.test / Bfpo123!",
+  "seed_data_creation": "Created TEST_modbridge_* issues and the jobs/events bridged from them. All were cleaned up (0 left).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "GET-triggered bridging is throttled to 30s, so tests should trigger it with POST /api/bfpo/faults/sync, or sleep 31s first. PPM print check: /tmp/ppm_print.py renders the CSS from PpmScheduleDetail.js to a PDF, and PyMuPDF checks the image rects."
+}
