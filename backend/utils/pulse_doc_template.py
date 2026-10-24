@@ -227,7 +227,8 @@ def invoice_header_flowable(width: float | None = None):
             return aw, HEADER_H + 10
 
         def draw(self):
-            _draw_split_header(self.canv, 0, self._aw, HEADER_H + 10)
+            # Frames pad 6pt; boxed tables below run edge-to-edge, so match their edges.
+            _draw_split_header(self.canv, -6, self._aw + 6, HEADER_H + 10)
 
     return _InvoiceHeader()
 

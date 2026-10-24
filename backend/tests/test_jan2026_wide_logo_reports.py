@@ -62,11 +62,9 @@ class TestPulseHeaderWide:
         buf = io.BytesIO()
         SimpleDocTemplate(buf, pagesize=A4).build([pulse_header(pulse_styles())])
         doc, imgs = _page1_images(buf.getvalue())
-        # Header is now the Pulse invoice header artwork (logo + contact block).
-        assert any(i["w"] == 1800 for i in imgs), imgs
+        # Header is now the split invoice header: logo (810px) left + address block (980px) right.
+        assert any(i["w"] == 810 for i in imgs) and any(i["w"] == 980 for i in imgs), imgs
         assert "Pulse Fitness" not in doc[0].get_text()
-        r = [i for i in imgs if i["w"] == 1800][0]["rects"][0]
-        assert abs(r.width - 523) < 2, r
 
 
 # Service report via live API
@@ -116,6 +114,6 @@ class TestFireCertificate:
             assert f and f.get("pdf_b64"), f"missing file {c['id']}"
             pdf = base64.b64decode(f["pdf_b64"])
             doc, imgs = _page1_images(pdf)
-            # invoice header + footer artwork (1800px wide each)
-            assert sum(1 for i in imgs if i["w"] == 1800) >= 2, f"{c['id']} imgs={[(i['w'], i['h']) for i in imgs]}"
+            # split header (logo 810px + address 980px) + invoice footer (1800px)
+            assert {810, 980, 1800} <= {i["w"] for i in imgs}, f"{c['id']} imgs={[(i['w'], i['h']) for i in imgs]}"
             open(f"/tmp/cert_{c['id'][:8]}.pdf", "wb").write(pdf)

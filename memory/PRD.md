@@ -39174,3 +39174,7 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 ## 2026-06 — Fire station certificates use invoice header/footer — DONE
 - blue_light_certificate_pdf: when invoice art exists (pulse_doc_template.invoice_art_available), page furniture = draw_invoice_header + draw_invoice_footer (+ customer crest); bottom margin INVOICE_BOTTOM_MARGIN. Legacy dark banner kept as fallback.
 - CERT_REBRAND_TAG → "pulse-invoice-art-2026-06": startup rebuilt 3 stored certs (status/sent kept, no emails). Still 1 page. tests/test_jan2026_wide_logo_reports.py updated (5 pass).
+
+## 2026-06 — Split invoice header (logo left / address right) — DONE
+- Invoice header art cropped into pulse-header-logo.png (810x151) and pulse-header-address.png (980x192) (backend/assets + frontend/public/brand). pulse_doc_template._draw_split_header puts the logo flush with the content's left edge and the address block flush right; used by pulse_header flowable (offset ±6pt to match boxed tables), draw_invoice_header(canvas, page_h, x0, x1) for certificates (MARGIN_X) and BFPO job sheets (18mm), and the PPM print HTML (flex space-between).
+- CERT_REBRAND_TAG → "pulse-split-header-2026-06" (3 stored certs rebuilt). Test: iteration_split_header_certificates_jan2026.json (pass).

@@ -1,0 +1,24 @@
+{
+  "summary": "Tested the split Pulse invoice header (logo flush-left with the content edge, address block flush-right) across the PDF generators, and the rebuilt fire-station certificates. Checked positions with PyMuPDF and looked at the rendered pages. pulse_header flowable: logo x0 = frame content left and address x1 = frame content right (the 6pt frame padding is included), no overlap, centres line up vertically, old 1800x215 header strip no longer used. Raw-canvas draw_invoice_header returns the correct bottom y. BFPO job sheet: logo at 18mm, address at page width minus 18mm. Live service-report.pdf API: split header present and no body text overlaps it. All 3 stored certificates: rebrand_tag pulse-split-header-2026-06, status kept (2 sent, 1 awaiting_review), 1 page each, logo at x=42 and address right edge at 553, no crest/header overlap, body below the header, 'Qualified to deliver the best' removed. CRM /api/crm/v2/certificates/{id}/download serves the split-header PDF. A fresh build with 2 treadmills is still 1 page. Visually the certificate and service report look clean and balanced. New brand PNGs are served from /brand/ with HTTP 200 and the bytes match the backend assets.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Service report PDF", "issues": ["Very minor: the header logo starts about 6pt in from the left edge of the Customer/Engineer boxes because of the frame padding. It does line up with the 'Service Report' title. Cosmetic only."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_jan2026_split_header.py", "/app/backend/tests/test_jan2026_wide_logo_reports.py", "/app/test_reports/pytest/split_header.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "pulse_doc_template._INV_HEADER (pulse-invoice-header.png) is now dead code. _INV_W is only used to derive _PX. Consider removing it to avoid confusion.",
+    "memory/PRD.md says CERT_REBRAND_TAG is 'pulse-invoice-art-2026-06', but the code uses 'pulse-split-header-2026-06'. Update the PRD.",
+    "The PpmScheduleDetail.js print HTML header (flex logo/address) was not checked in a real print window. My Playwright set_content attempt timed out. The assets themselves are served with HTTP 200."
+  ],
+  "updated_files": ["/app/backend/tests/test_jan2026_split_header.py (new)", "/app/backend/tests/test_jan2026_wide_logo_reports.py (2 outdated assertions updated: they expected the old 1800px header strip; now they expect the 810px logo + 980px address images)"],
+  "success_rate": {"backend": "100% (13 passed, 4 skipped in other files because no data)", "frontend": "assets verified only; HTML print layout not checked visually"},
+  "seed_data_creation": "None. Fresh certificate builds are only in memory, nothing was saved.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Certificates live in crm2_certificates + crm2_certificate_files (pdf_b64) for org iso-demo-org. Download needs a CRM token: POST /api/crm/auth/login with owner@isodemo.com / IsoDemo123!. Header images: logo 810x151px, address 980x192px; footer 1800x310px. Certificate margin X=42pt."
+}
