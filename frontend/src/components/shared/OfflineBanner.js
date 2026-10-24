@@ -58,6 +58,8 @@ export default function OfflineBanner() {
   // cached data to fall back to, and the banner just looks broken
   // on a static page.
   if (!signedIn) return null;
+  // The MOD/BFPO engineer app shows its own offline + saved-updates bar.
+  if (typeof window !== 'undefined' && window.location.pathname.toLowerCase().startsWith('/bfpo')) return null;
   if (!offline && !showBackOnline && !syncing) return null;
 
   let background = '#1F2937';

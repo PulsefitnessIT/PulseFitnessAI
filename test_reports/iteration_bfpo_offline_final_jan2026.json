@@ -1,0 +1,34 @@
+{
+  "summary": "Final retest of BFPO offline + alerts follow-ups. Backend: new test_bfpo_arrive_guard_jan2026.py 5/5 and regression test_bfpo_alerts_photos_jan2026.py 15/16 (1 skip), so 20 passed in total. UI: Playwright mobile 390px, engineer.gib, with context.set_offline and route interception. VERIFIED: (1) Auto-flush messages with no tap on 'Send now'. The online event with a 500 gave '1 saved update waiting to send — Could not send yet — will retry'. The 30s interval flush with a 401 gave '… — Please sign in again to send your saved updates'. After unroute, the next interval flush sent it, the outbox emptied and the job went to assigned. (2) Refusal handling. Queued for job A: accept+arrive+diagnosis, plus accept for job B. A's accept was forced to 409. offline-sync-error showed 'A saved update was refused (and 2 follow-on steps not sent): Job already taken by another engineer'. The outbox emptied, the DB shows job A still 'new' with no diagnosis or arrived_at, and job B is 'assigned'. (3) Backend arrive guard: on 'new' it returns 409 'Accept the job before marking yourself on site' and the case is unchanged (no arrived_at, safety_confirmed or safety_critical). On assigned and en_route it returns 200 and the job goes on_site. A repeat arrive on on_site returns 200. (4) Ack backfill: I inserted a legacy ack with no user_key and restarted the backend. It got user_key=engineer.gib@bfpo.pulsefitness.test and 0 docs are left without user_key. (5) JobList chips use the pending status offline ('On site' / 'Allocated'). (7) Regression: the offline chain accept→arrive→diagnosis→complete→signature was sent in that order and the DB shows closed with diagnosis and resolution_notes. The staff banner showed '+2 more', 'View job' opened the case, and the 'Photos from the site (1)' image loaded. FAILED: (6) The global dark 'You're offline — showing the last cached data.' toast STILL renders on /bfpo (data-testid=offline-banner count=1 on the engineer JobList and JobDetail). It overlaps the amber offline-sync bar. OfflineBanner.js has no /bfpo route exclusion; the file is unchanged apart from an import tweak.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/bfpo/jobs/{id}/arrive", "issue": "A repeat arrive on an on_site job still overwrites arrived_at/safety_* and logs another 'arrived' op update (harmless, but it duplicates activity entries if the outbox replays)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "components/shared/OfflineBanner.js", "issue": "Not implemented: the global offline toast still shows on /bfpo. The fix is missing from the file (no pathname check). Add e.g. `if (window.location.pathname.startsWith('/bfpo')) return null;`, or a useLocation check, since the banner is mounted outside <Routes> at the App root and needs re-render on navigation.", "selector": "[data-testid=offline-banner]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Engineer app offline (mobile)", "issues": ["The global dark toast overlaps the amber 'No signal — you can keep working' bar. The 'No signal — saved on this phone' toast near the bottom is also partly hidden by the cookie banner."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_bfpo_arrive_guard_jan2026.py", "/app/backend/tests/test_bfpo_alerts_photos_jan2026.py", "/app/test_reports/pytest/bfpo_arrive_guard.xml", "/app/test_reports/pytest/bfpo_final_retest.xml"],
+  "action_items": [
+    "OfflineBanner.js: hide the banner on /bfpo routes. OfflineBanner is rendered at the App root outside the Router context, so use window.location.pathname. Also make it re-evaluate on SPA navigation (e.g. listen to popstate, or move it inside BrowserRouter and use useLocation)."
+  ],
+  "critical_code_review_comments": [
+    "flushOutbox drops 'later' steps by jobPrefix '/jobs/{id}/'. This also drops a queued report-fault for that job (a new fault report the engineer raised). Consider excluding report-fault from the dependent-drop.",
+    "The refusal message is cleared at the start of every flush. The 30s interval only runs while the outbox is non-empty, so it persists until the next queued item flushes. OK, but there's no dismiss button on offline-sync-error, so it shows until the next flush or reload (lastFlushError is module state, so a reload clears it).",
+    "Repeat /arrive on on_site re-writes arrived_at and appends a duplicate 'arrived' activity. Consider making it a true no-op when already on_site."
+  ],
+  "updated_files": ["/app/backend/tests/test_bfpo_arrive_guard_jan2026.py (new)"],
+  "success_rate": {"backend": "100% (20/20 + 1 skip)", "frontend": "~86% (6/7 items pass; global offline toast on /bfpo not fixed)"},
+  "test_credentials": "Engineer engineer.gib@bfpo.pulsefitness.test / BfpoEng123! at /MODService?portal=modservice. Lee works with TempPass123! (LeeMod123! is overwritten by the seeder). Admin admin@gymaxisai.com / MasterAdmin123!.",
+  "seed_data_creation": "Created 4 terr-gib cases (test_seed='bfpo_ui_final') plus arrive-guard cases (test_seed='bfpo_arrive_guard'). All are deleted. Also deleted the seeded alert case 354c9636 + issue 6ebe472a (plus acks, events, signature) and removed /tmp/test_alert_ids.txt. The TEST_legacy_ack doc was deleted.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Only the OfflineBanner /bfpo exclusion is left. To verify: sign in as the engineer, open /bfpo, call context.set_offline(True), and check that [data-testid=offline-banner] count is 0. Then check it is 1 on /pulse for Lee. test_bfpo_alerts_photos_jan2026 alert tests need /tmp/test_alert_ids.txt ('<issue_id> <case_id>'), which I removed during cleanup, so reseed before running. Delete Lee's ack on the seeded case before re-running test_ack_is_per_user (the UI 'View job' acks it). Use dispatch_event('click') on engineer nav (the cookie banner overlays it)."
+}

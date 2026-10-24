@@ -502,6 +502,8 @@ async def bfpo_arrive(case_id: str, data: dict = Body(...), user=Depends(_requir
     except ValueError:
         if case.get("status") != ON_SITE:
             raise HTTPException(409, "Accept the job before marking yourself on site")
+    if case.get("status") == ON_SITE and case.get("arrived_at"):
+        return await bfpo_job_detail(case_id, user)  # already on site (e.g. offline replay) — no duplicate entry
     await db.svc_cases.update_one({"id": case_id}, {"$set": updates})
     await _op_update(case, user, "arrived",
                      "Engineer arrived on site — " + ("safe to work" if safe else "SAFETY CONCERN raised"),
