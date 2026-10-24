@@ -29,6 +29,9 @@ const writeOutbox = (items) => {
   try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(items)); } catch { /* storage full */ }
   listeners.forEach((fn) => fn(items.length));
 };
+let outboxOwner = '';
+// Saved updates belong to the engineer who made them; never replay them under another login.
+export const setOutboxOwner = (key) => { outboxOwner = (key || '').toLowerCase(); };
 export const outboxCount = () => readOutbox().length;
 let lastFlushError = '';
 export const outboxError = () => lastFlushError;
@@ -62,7 +65,7 @@ client.interceptors.response.use((r) => r, (err) => {
   if ((cfg.method || '').toLowerCase() === 'post' && QUEUEABLE.test(url) && isNetworkError(err) && !cfg._fromOutbox) {
     let data = cfg.data;
     try { data = typeof data === 'string' ? JSON.parse(data) : data; } catch { /* keep raw */ }
-    writeOutbox([...readOutbox(), { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, url, data, at: new Date().toISOString() }]);
+    writeOutbox([...readOutbox(), { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, owner: outboxOwner, url, data, at: new Date().toISOString() }]);
     return Promise.resolve({ status: 202, data: { queued: true, offline: true } });
   }
   return Promise.reject(err);
@@ -70,10 +73,12 @@ client.interceptors.response.use((r) => r, (err) => {
 
 let flushing = false;
 export async function flushOutbox() {
-  if (flushing || !navigator.onLine) return;
+  if (flushing || !navigator.onLine || !outboxOwner) return;
   flushing = true;
   lastFlushError = '';
   try {
+    const foreign = readOutbox().filter((x) => x.owner !== outboxOwner);
+    if (foreign.length) writeOutbox(readOutbox().filter((x) => x.owner === outboxOwner));
     let items = readOutbox();
     while (items.length) {
       const it = items[0];

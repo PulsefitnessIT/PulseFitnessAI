@@ -65,6 +65,9 @@ app.add_middleware(
 )
 # P1.8 — body size guard (2 MB default, 25 MB for upload paths)
 app.middleware("http")(body_size_guard)
+# CSRF — refuse cookie-authenticated cross-site writes from foreign origins
+from utils.security_plus import csrf_origin_guard
+app.middleware("http")(csrf_origin_guard)
 # P3 — master-admin IP allowlist (env-gated; no-op when MASTER_ADMIN_IP_ALLOWLIST is unset)
 from utils.hardening import master_admin_ip_allowlist
 app.middleware("http")(master_admin_ip_allowlist)

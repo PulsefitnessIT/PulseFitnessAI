@@ -429,6 +429,8 @@ _BRAND_DEFAULT_ORIGINS = [
     # MOD Service portal vanity domain — a non-.ai domain so the MoD BPS web
     # filter (which blanket-blocks the ".ai" AI/ML category) lets it through.
     # Served by a second deployment of this same codebase.
+    "https://modservice.pulsefitness.com",
+    "https://www.modservice.pulsefitness.com",
     "https://modservice-pulsefitness.com",
     "https://www.modservice-pulsefitness.com",
     "https://fitness-ai-migrate.emergent.host",
@@ -500,3 +502,37 @@ async def ensure_security_indexes() -> None:
     await ensure_rate_limiter_indexes()
     await ensure_revocation_indexes()
     await ensure_llm_budget_indexes()
+
+
+# ── CSRF defence (Origin check) ──────────────────────────────────────────
+# Session cookies are SameSite=None, so a third-party page could POST with a
+# signed-in user's cookie. Browsers always send Origin on cross-site
+# state-changing requests; we refuse any that isn't one of our own front-ends.
+_SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+def _origin_trusted(origin: str, request) -> bool:
+    import re
+    from urllib.parse import urlparse
+    if origin in resolve_cors_origins():
+        return True
+    rx = resolve_cors_origin_regex()
+    if rx and re.fullmatch(rx, origin):
+        return True
+    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0].strip().lower()
+    return bool(host) and (urlparse(origin).netloc or "").lower() == host  # same-origin (any deployment's own domain)
+
+
+async def csrf_origin_guard(request, call_next):
+    if request.method not in _SAFE_METHODS and request.url.path.startswith("/api/"):
+        origin = request.headers.get("origin")
+        # Bearer-token calls can't be forged cross-site; non-browser callers (webhooks) send no Origin.
+        if origin and origin != "null" and not request.headers.get("authorization", "").lower().startswith("bearer ") \
+                and not _origin_trusted(origin, request):
+            from starlette.responses import JSONResponse
+            logger.warning("[security] blocked cross-site %s %s from origin %s", request.method, request.url.path, origin)
+            return JSONResponse(status_code=403, content={"detail": "Cross-site request blocked"})
+        if origin == "null" and request.cookies:
+            from starlette.responses import JSONResponse
+            return JSONResponse(status_code=403, content={"detail": "Cross-site request blocked"})
+    return await call_next(request)

@@ -1496,7 +1496,11 @@ def _issue_photo_paths(issue: dict) -> list[str]:
             paths.append(p)
         elif isinstance(p, dict) and (p.get("storage_path") or p.get("path")):
             paths.append(p.get("storage_path") or p.get("path"))
-    return [p for p in paths if p and not p.startswith(("http://", "https://", "data:"))]
+    from utils.database import APP_NAME
+    # Only MOD fault attachments / issue photos — never arbitrary storage paths.
+    site = issue.get("mod_site_id") or issue.get("organization_id") or "-"
+    allowed = (f"{APP_NAME}/mod-attachments/{site}/", f"{APP_NAME}/issues/{issue.get('id') or '-'}/")
+    return [p for p in paths if p and ".." not in p and p.startswith(allowed)]
 
 
 async def _case_issue(case: dict) -> dict:

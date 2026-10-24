@@ -15,6 +15,8 @@ import Equipment from './engineer/Equipment';
 import History from './engineer/History';
 import WelcomeKit from './engineer/WelcomeKit';
 import { UrgentAlertBanner, OfflineSyncBar } from './AlertBanner';
+import { outboxCount, setOutboxOwner, flushOutbox } from './bfpoApi';
+import { clearOfflineData } from '../../utils/clearOfflineData';
 import StaffDashboard from './staff/StaffDashboard';
 import StaffSites from './staff/StaffSites';
 import StaffJobs from './staff/StaffJobs';
@@ -32,6 +34,14 @@ import {
 
 export default function BFPOApp() {
   const { user, loading: authLoading, logout: platformLogout } = useAuth();
+  // Shared devices: a different person signed in → wipe the previous person's offline data.
+  useEffect(() => {
+    const key = (user?.email || user?.id || '').toLowerCase();
+    if (!key) return;
+    const last = localStorage.getItem('bfpo_last_user');
+    const ready = last && last !== key ? clearOfflineData() : Promise.resolve();
+    ready.finally(() => { localStorage.setItem('bfpo_last_user', key); setOutboxOwner(key); flushOutbox(); });
+  }, [user?.email, user?.id]);
   // A Pulse Fitness staffer granted the MOD Operations module (platform admins
   // always qualify) gets the staff operations view even without a bfpo_role.
   const hasModOps = !!(user && (user.is_master_admin || user.is_pulse_admin
@@ -97,7 +107,11 @@ export default function BFPOApp() {
     );
   }
 
-  const logout = () => { if (platformLogout) platformLogout(); };
+  const logout = () => {
+    const n = outboxCount();
+    if (n && !window.confirm(`${n} saved update${n === 1 ? ' has' : 's have'} not been sent yet and will be deleted from this device if you sign out. Sign out anyway?`)) return;
+    if (platformLogout) platformLogout();
+  };
   const openJob = (id) => { setJobId(id); setView('job'); };
   const openStaffJob = (id) => { setJobId(id); setView('staffjob'); };
   const openPpm = (id) => { setPpmId(id); setView('ppmdetail'); };

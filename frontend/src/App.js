@@ -1,6 +1,7 @@
 import { createContext, useState, useContext, useEffect, Suspense } from 'react';
 import { BrowserRouter, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { clearOfflineData } from './utils/clearOfflineData';
 import '@/App.css';
 import i18n from './i18n';
 import { flushPendingLanguageSync } from '@/utils/languagePref';
@@ -856,6 +857,7 @@ function App() {
  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
    window.dispatchEvent(new CustomEvent('gymaxis:auth-changed'));
  }
+ const go = () => {
  if (wasMOD && typeof window !== 'undefined') {
    window.location.replace(engEmail ? `/MODService?email=${encodeURIComponent(engEmail)}&signedout=1` : '/MODService?signedout=1');
  } else if (wasPulse && typeof window !== 'undefined') {
@@ -870,6 +872,9 @@ function App() {
    // user clicks Sign Out.
    window.location.replace('/');
  }
+ };
+ // Wipe offline copies of this user's data before leaving (shared devices).
+ clearOfflineData().finally(go);
  };
 
  if (loading) {
