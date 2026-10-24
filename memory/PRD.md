@@ -39159,3 +39159,7 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 ## 2026-06 — New logo on fire station certificates — DONE
 - backend/assets/pulse-logo-wide-light.png generated from the user's logo (white lettering, cyan ring kept, transparent background) for the dark certificate banner; blue_light_certificate_pdf draws it (150pt wide) instead of the hand-drawn wordmark (fallback kept).
 - CERT_REBRAND_TAG bumped to "pulse-logo-wide-2026-06" → startup backfill rebuilt all 3 stored certificates in preview (status/sent history unchanged, no emails). Runs on production at next deploy.
+
+## 2026-06 — PPM schedule "Print report" (HTML) logo fix — DONE
+- ServiceDesk/PpmScheduleDetail.js builds the service report as browser HTML (separate from the ReportLab pulse_header). Replaced old badge image + "Pulse Fitness" text with /brand/pulse-logo-wide.jpg (copied to frontend/public/brand). Built on demand → all past reports updated.
+- Test: iteration_wide_logo_reports_jan2026.json (all pass). Open cosmetic: header "Part of The Pulse Group" vs footer "A pulseglobal Company" mismatch.

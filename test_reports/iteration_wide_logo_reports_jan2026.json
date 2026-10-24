@@ -1,0 +1,36 @@
+{
+  "summary": "Tested the new wide Pulse Fitness logo in three places: (1) service report PDFs built by pulse_header, (2) fire station certificate PDFs built by blue_light_certificate_pdf, including the 3 already-stored certificates that were rebuilt at startup, and (3) the Service Desk PPM 'Print report' HTML popup in PpmScheduleDetail.js. Every check passed and nothing regressed. 10/10 backend tests passed (5 new, 5 regression).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Service report (HTML print and PDF)", "issues": ["Already there before this change: the header says 'Part of The Pulse Group' but the footer says 'A pulseglobal Company'. The group name doesn't match (cosmetic)."]},
+      {"screen": "Service Desk > Maintenance calendar", "issues": ["Calendar items for the next month took about 3s or more to appear after clicking ppm-next-month. The API is fast, so the UI fetch or render is slow. Minor."]}
+    ]
+  },
+  "verified_passing": [
+    "Asset backend/assets/pulse-logo-wide.jpg is 1193x216. pulse-logo-wide-light.png is RGBA with a transparent wide image. GET {BASE_URL}/brand/pulse-logo-wide.jpg returns 200 and a JPEG of the same byte size",
+    "pulse_header default renders the 1193x216 image at about 155.9pt (55mm) wide with the aspect ratio kept and no 'Pulse Fitness' text",
+    "Live GET /api/svc/cases/{id}/service-report.pdf (owner@isodemo.com) for 3 closed/completed cases: the page-1 image is the wide logo (1193x216) and there is no wordmark in the header. Visually checked: the logo sits on the left and the contact block on the right",
+    "Fire certificates: all 3 stored crm2_certificates (2 sent, 1 awaiting_review) have rebrand_tag 'pulse-logo-wide-2026-06', and their stored PDFs contain the light wide logo image. Visually checked: white 'pulsefitness' with the cyan ring on the dark banner and 'Qualified to deliver the best' on the right. Status was unchanged",
+    "Service Desk > Maintenance > QA Fire Station (20 Nov 2026) > ppm-detail-print opens a popup. The <img> src is {origin}/brand/pulse-logo-wide.jpg, it loads (naturalWidth 1193) and displays at 221x40. There is no .wm wordmark span and no reference to the old iscy9t7o badge. The header-left text is empty (logo only)",
+    "Regression: test_jan2026_pdf_header_logo_only.py 5/5 pass (tenant-branded header still shows the company name, and the other PDF generators import fine)"
+  ],
+  "test_report_links": ["/app/backend/tests/test_jan2026_wide_logo_reports.py", "/app/backend/tests/test_jan2026_pdf_header_logo_only.py", "/app/test_reports/pytest/wide_logo.xml"],
+  "action_items": [
+    "(Info, optional) The old square badge URL (iscy9t7o_...Badge RGB.jpg) is still used in other printable or customer-facing outputs: components/shared/AccountSettings/QrPrintInline.js (QR print sheet), PulseSettingsTab.js, BFPO/ui.js PULSE_LOGO, MODServiceLogin.js, StaffPortal.js, BrandWordmark.js, Navbar.js and theme/useBrand.js. If the user wants the new logo everywhere, those need updating. The service reports and certificates that were asked for are done",
+    "(Low, existing before this change) Align the footer 'A pulseglobal Company' with the header 'Part of The Pulse Group' on the service report"
+  ],
+  "critical_code_review_comments": [
+    "PpmScheduleDetail builds the logo src from window.location.origin. That works for the popup, but a printed or saved HTML copy needs the frontend host to be reachable. This is acceptable",
+    "_wide_logo_flowable opens the image with PIL on every header build. That's cheap, but the size could be cached at module level"
+  ],
+  "updated_files": ["/app/backend/tests/test_jan2026_wide_logo_reports.py"],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% (print report logo verified)"},
+  "test_credentials": "owner@isodemo.com / IsoDemo123! (token via /api/auth/login with the X-RateLimit-Bypass header, injected as the ga_session cookie plus localStorage token)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The PPM schedule with visits is 6f925557 (QA Fire Station, 2026-11-20). Others are 9ba2bdb5 and ef98ce2e (2027-10-05). Open the Service Desk at /service-desk?tab=maintenance, click ppm-next-month, wait up to 20s for ppm-item-2026-11-20-*, then ppm-detail-print (a popup opens). Stored fire certs are in db.crm2_certificates and db.crm2_certificate_files.pdf_b64."
+}
