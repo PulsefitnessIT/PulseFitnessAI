@@ -97,9 +97,7 @@ class TestServiceReportPdf:
 class TestFireCertificate:
     def test_stored_certs_rebranded_and_contain_logo(self):
         import asyncio, base64
-        from PIL import Image
         from utils.database import db
-        lw, lh = Image.open(LIGHT).size
 
         async def q():
             certs = await db.crm2_certificates.find({}, {"_id": 0, "id": 1, "rebrand_tag": 1, "status": 1}).to_list(100)
@@ -113,10 +111,11 @@ class TestFireCertificate:
             pytest.skip("no stored certificates")
         print("certs:", [(c["id"][:8], c.get("status"), c.get("rebrand_tag")) for c in certs])
         for c in certs:
-            assert c.get("rebrand_tag") == "pulse-logo-wide-2026-06", c
+            assert c.get("rebrand_tag") == "pulse-invoice-art-2026-06", c
             f = files[c["id"]]
             assert f and f.get("pdf_b64"), f"missing file {c['id']}"
             pdf = base64.b64decode(f["pdf_b64"])
             doc, imgs = _page1_images(pdf)
-            assert any(i["w"] == lw and i["h"] == lh for i in imgs), f"{c['id']} imgs={[(i['w'], i['h']) for i in imgs]}"
+            # invoice header + footer artwork (1800px wide each)
+            assert sum(1 for i in imgs if i["w"] == 1800) >= 2, f"{c['id']} imgs={[(i['w'], i['h']) for i in imgs]}"
             open(f"/tmp/cert_{c['id'][:8]}.pdf", "wb").write(pdf)

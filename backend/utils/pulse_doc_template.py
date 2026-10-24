@@ -216,6 +216,10 @@ def invoice_header_flowable(width: float | None = None):
     return _InvoiceHeader()
 
 
+def invoice_art_available() -> bool:
+    return os.path.exists(_INV_HEADER) and os.path.exists(_INV_FOOTER)
+
+
 def draw_invoice_header(canvas, page_h: float) -> float:
     """Draw the invoice header artwork on a raw canvas; returns its bottom y."""
     if not os.path.exists(_INV_HEADER):

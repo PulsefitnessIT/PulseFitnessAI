@@ -121,9 +121,16 @@ def _draw_wordmark(c, x, baseline):
     c.drawString(x + 27 + w, baseline, "fitness")
 
 
-def _page_furniture_factory(logo_bytes):
+def _page_furniture_factory(logo_bytes, invoice_art: bool = False):
     def _draw(c, doc):
+        from utils.pulse_doc_template import draw_invoice_header, draw_invoice_footer
         c.saveState()
+        if invoice_art:
+            draw_invoice_header(c, PAGE_H)
+            draw_invoice_footer(c, doc)
+            _draw_crest(c)
+            c.restoreState()
+            return
         # Header banner
         c.setFillColor(BANNER)
         c.rect(0, PAGE_H - BANNER_H, PAGE_W, BANNER_H, fill=1, stroke=0)
@@ -140,6 +147,12 @@ def _page_furniture_factory(logo_bytes):
         c.setFillColor(colors.white)
         c.setFont("Helvetica", 14.5)
         c.drawRightString(PAGE_W - MARGIN_X, band_mid - 5, "Qualified to deliver the best")
+        _draw_crest(c)
+        # Footer banner (legacy)
+        _legacy_footer(c)
+        c.restoreState()
+
+    def _draw_crest(c):
         # Customer crest (top-right, below banner)
         if logo_bytes:
             try:
@@ -156,7 +169,8 @@ def _page_furniture_factory(logo_bytes):
                             preserveAspectRatio=True, mask="auto")
             except Exception:
                 pass
-        # Footer banner
+
+    def _legacy_footer(c):
         c.setFillColor(BANNER)
         c.rect(0, 0, PAGE_W, FOOTER_H, fill=1, stroke=0)
         c.setStrokeColor(CYAN)
@@ -167,7 +181,6 @@ def _page_furniture_factory(logo_bytes):
         c.setFillColor(colors.white)
         c.setFont("Helvetica", 11)
         c.drawRightString(PAGE_W - MARGIN_X, FOOTER_H / 2 - 4, "www.pulsefitness.com")
-        c.restoreState()
     return _draw
 
 
@@ -175,12 +188,14 @@ def build_certificate_pdf(*, contract: dict, station: dict, visit: dict,
                           treadmills: list[dict], config: dict) -> bytes:
     """treadmills: [{serial_number, asset_name, speed:[{target,measured,result}],
     incline:[{target,measured,result}], overall}] using the FINAL measured values."""
+    from utils.pulse_doc_template import INVOICE_BOTTOM_MARGIN, invoice_art_available
     buf = BytesIO()
     logo_bytes = _resolve_logo_bytes(config)
+    invoice_art = invoice_art_available()
     doc = SimpleDocTemplate(
         buf, pagesize=A4, title="Service & Calibration Certificate",
         leftMargin=MARGIN_X, rightMargin=MARGIN_X,
-        topMargin=BANNER_H + 22, bottomMargin=FOOTER_H + 14,
+        topMargin=BANNER_H + 22, bottomMargin=(INVOICE_BOTTOM_MARGIN if invoice_art else FOOTER_H + 14),
     )
     content_w = PAGE_W - 2 * MARGIN_X
 
@@ -324,7 +339,7 @@ def build_certificate_pdf(*, contract: dict, station: dict, visit: dict,
     ]))
     story.append(sig_tbl)
 
-    furniture = _page_furniture_factory(logo_bytes)
+    furniture = _page_furniture_factory(logo_bytes, invoice_art)
     doc.build(story, onFirstPage=furniture, onLaterPages=furniture)
     return buf.getvalue()
 

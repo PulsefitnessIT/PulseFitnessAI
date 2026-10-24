@@ -39170,3 +39170,7 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Ops read scope = BFPO org + all MOD tenant orgs (_ops_org_filter): staff jobs/dashboard/job detail/allocate, site health (fixed wrong org count), MOD site detail + equipment, equipment list/detail. Case mutations use the case's own org (_case_org). Engineer updates mirror back to the site issue (svc_ops_bridge handles mod_issue_id).
 - Staff job detail UI: "Reported by the site" card (reporter, contact, site status, out-of-service, OFFICIAL-SENSITIVE flags), engineer photos grid, empty timeline state.
 - Tests: iteration_mod_ops_bridge_invoice_branding_jan2026.json, iteration_mod_ops_bridge_retest_jan2026.json (all pass). Known: tests/test_bfpo_portal_jan2026.py::TestGuidedWorkflow depletes demo data (needs re-seed).
+
+## 2026-06 — Fire station certificates use invoice header/footer — DONE
+- blue_light_certificate_pdf: when invoice art exists (pulse_doc_template.invoice_art_available), page furniture = draw_invoice_header + draw_invoice_footer (+ customer crest); bottom margin INVOICE_BOTTOM_MARGIN. Legacy dark banner kept as fallback.
+- CERT_REBRAND_TAG → "pulse-invoice-art-2026-06": startup rebuilt 3 stored certs (status/sent kept, no emails). Still 1 page. tests/test_jan2026_wide_logo_reports.py updated (5 pass).
