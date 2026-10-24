@@ -1,0 +1,42 @@
+{
+  "summary": "Verified the security-audit fixes SEC-001 (offline data wipe), SEC-003 (CSRF Origin guard) and P3 (site-photo path allow-list). SEC-002 was not tested, as asked. Backend: the new file tests/test_sec_csrf_photos_jan2026.py passes 15/16. The one failure is a spec mismatch: a foreign-Origin POST with no cookies is still blocked. UI: Playwright as engineer.gib (390px), Lee Somers and owner@isodemo (1920px). All SEC-001a, SEC-001b, SEC-001c and P3 UI checks passed. No legitimate browser call was CSRF-blocked; backend logs only show the 16 blocks from my evil.example tests.",
+  "verified": [
+    "SEC-001a: Before logout, caches were ['gymaxis-v15','gymaxis-api-v15'] with 13 /api/bfpo/ entries. With 1 queued item and a bfpo_blob_ key, sign out showed the confirm '1 saved update has not been sent yet and will be deleted from this device if you sign out. Sign out anyway?'. Cancel kept the token, the outbox, the caches and the menu. Accept led back to the preview origin with caches ['gymaxis-v15'] (no '-api-' cache), no bfpo_outbox or bfpo_blob keys, no token, and /api/auth/me returning 401. bfpo_last_user is kept, by design.",
+    "SEC-001b: With bfpo_last_user='someone.else@x', a foreign outbox item, a foreign blob and a fake cached /api/bfpo/TEST_fake entry, opening /bfpo as gib wiped the fake cache entry, the outbox and the blob, and set bfpo_last_user to the gib email. No POST was made for the foreign item. With the same last user and an outbox of [foreign, legacy with no owner, own], only /jobs/TEST_own/accept was POSTed; the foreign and legacy items were dropped.",
+    "SEC-001c: Accepting a job offline queued the item with its owner and showed 'No signal — you can keep working · 1 update saved on this phone'. Back online, the outbox emptied and the DB shows status=assigned, assigned_engineer_id=bfpo-eng-gib.",
+    "SEC-003: A request with a cookie and Origin evil.example returns 403 'Cross-site request blocked' for POST, PUT, PATCH and DELETE. Origin 'null' with a cookie also returns 403. These pass: origins modservice.pulsefitness.com, pulsefitness.ai and the preview origin; no Origin; Bearer auth with a foreign origin; GET with a foreign origin. In the browser, these all worked with no blocks: login at /login, cookie-only /auth/refresh, crm cross-login, BFPO staff allocate ('Allocation saved'), engineer accept, and loading /service-desk as owner@isodemo.",
+    "P3: An issue with 5 attachment_urls (a valid mod-attachments/{site}/ path, another org, a '..' traversal, staff-documents, and a valid issues/{id}/ path) lists only indexes 0 and 1 for both gib and Lee. Both stream as PNG and /site-photos/2 returns 404. On Staff job detail, staff-site-photos shows 'Photos from the site (1)' with the blob image loaded."
+  ],
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "csrf_origin_guard (utils/security_plus.py:530)", "issue": "Spec mismatch: a foreign Origin is blocked even when the request carries NO cookies. POST /api/public/signup/{slug}/track with Origin https://evil.example and no Cookie returns 403 'Cross-site request blocked'. The review said no-cookie public embeds must not be blocked. Only the Origin 'null' branch checks request.cookies. Fix: add `and request.cookies` to the main condition (CSRF needs ambient credentials), unless blocking all foreign origins is intended."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Logout redirect ordering (App.js logout)", "issue": "setUser(null) runs before clearOfflineData() resolves. BFPOApp's <Navigate to='/MODService'> therefore fires first. On preview, the navigations seen were /MODService (no ?signedout=1) and then a portalMode hard redirect to modservice.pulsefitness.com, not the expected /MODService?email=..&signedout=1. Caches were still cleared in testing, but a cross-origin redirect could unload the page before caches.delete finishes (a race). Fix: await clearOfflineData() before the state resets, e.g. `await clearOfflineData(); setUser(null)...; go()`.", "affected_selectors": ["[data-testid=bfpo-menu-logout]"]},
+      {"flow": "Outbox upgrade path (bfpoApi.flushOutbox)", "issue": "Items queued before this release have no 'owner' field, so they count as foreign and are silently discarded, even for the same engineer. A pilot device holding unsent pre-upgrade updates would lose them without any message. Fix: treat items with no owner as belonging to the current user when bfpo_last_user is unset or equal to the current user, or show a notice when items are discarded.", "affected_selectors": []}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_sec_csrf_photos_jan2026.py", "/app/test_reports/pytest/sec_csrf_photos.xml"],
+  "action_items": [
+    "Decide on and align the CSRF guard for no-cookie foreign-origin requests: add a request.cookies condition so public embeds aren't blocked, per the review spec.",
+    "App.js logout: await clearOfflineData() before setUser(null) and the other state resets, so route guards or the portalMode redirect can't unload the page before caches are deleted, and the user lands on /MODService?signedout=1.",
+    "bfpoApi: keep (or migrate) legacy owner-less outbox items for the same user instead of silently discarding them."
+  ],
+  "critical_code_review_comments": [
+    "_origin_trusted's same-origin fallback trusts x-forwarded-host. This is fine behind the ingress, but it relies on the proxy overwriting the header. A browser can't forge it, so it is OK for CSRF.",
+    "_issue_photo_paths uses mod_site_id OR organization_id, not both. In the DB, MOD issues have mod_site_id == organization_id, so valid photos still work. Any issue where they differ would hide org-prefixed photos.",
+    "clearOfflineData leaves bfpo_last_user. This is intended (it drives the different-user wipe) but stores the last engineer's email on a shared device. Low risk."
+  ],
+  "updated_files": ["/app/backend/tests/test_sec_csrf_photos_jan2026.py"],
+  "success_rate": {"backend": "94% (15/16; the 1 failure is the CSRF no-cookie spec mismatch)", "frontend": "100% of requested flows passed (2 robustness issues reported)"},
+  "test_credentials": "lee.somers@pulsefitness.com uses TempPass123! (re-synced on boot), NOT LeeMod123! as in the review request. One login attempt with LeeMod123! briefly triggered a lockout. Engineer: engineer.gib@bfpo.pulsefitness.test / BfpoEng123! (portal 'mod'). Service desk: owner@isodemo.com / IsoDemo123!.",
+  "seed_data_creation": "Temporary terr-gib svc_cases (test_seed sec_offline, sec_p3, sec_p3_ui) and issues were all deleted. The pytest fixture seeds and cleans its own case and issue. A few tiny TEST_ PNG objects remain in object storage under gymaxis-ai/mod-attachments/TEST_modsite_*/ and gymaxis-ai/issues/<uuid>/.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Engineer UI login on preview: POST /api/auth/login via page fetch (credentials:'include', portal:'mod', X-RateLimit-Bypass), set localStorage.token, then goto /bfpo. Logging out on preview redirects to modservice.pulsefitness.com, so to check preview-origin caches/localStorage, goto BASE/privacy afterwards. Use dispatch_event('click') on the bfpo menu (the cookie banner overlays it). Use async dialog handlers with page.once('dialog', fn). Seeder scripts: /tmp/sec_seed.py and /tmp/sec_p3_ui.py (seed/show/clean)."
+}

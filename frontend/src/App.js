@@ -807,7 +807,9 @@ function App() {
  } catch { return null; }
  };
 
- const logout = () => {
+ const logout = () => { clearOfflineData().finally(finishLogout); };
+
+ const finishLogout = () => {
  // Iter 227 — clear the HttpOnly session cookie server-side (best-effort);
  // it can't be removed from JS. Navigation below happens regardless.
  try { axios.post(`${API}/auth/logout`, {}).catch(() => {}); } catch { /* ignore */ }
@@ -873,8 +875,7 @@ function App() {
    window.location.replace('/');
  }
  };
- // Wipe offline copies of this user's data before leaving (shared devices).
- clearOfflineData().finally(go);
+ go();
  };
 
  if (loading) {

@@ -524,7 +524,8 @@ def _origin_trusted(origin: str, request) -> bool:
 
 
 async def csrf_origin_guard(request, call_next):
-    if request.method not in _SAFE_METHODS and request.url.path.startswith("/api/"):
+    # Only cookie-carrying requests can ride a user's session; public embeds/webhooks pass.
+    if request.method not in _SAFE_METHODS and request.url.path.startswith("/api/") and request.cookies:
         origin = request.headers.get("origin")
         # Bearer-token calls can't be forged cross-site; non-browser callers (webhooks) send no Origin.
         if origin and origin != "null" and not request.headers.get("authorization", "").lower().startswith("bearer ") \

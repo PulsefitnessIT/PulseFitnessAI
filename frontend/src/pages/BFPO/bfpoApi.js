@@ -77,8 +77,10 @@ export async function flushOutbox() {
   flushing = true;
   lastFlushError = '';
   try {
-    const foreign = readOutbox().filter((x) => x.owner !== outboxOwner);
-    if (foreign.length) writeOutbox(readOutbox().filter((x) => x.owner === outboxOwner));
+    // Items saved before owners were recorded belong to whoever is signed in now
+    // (BFPOApp wipes the outbox first if a *different* person signed in).
+    const mine = (x) => !x.owner || x.owner === outboxOwner;
+    if (readOutbox().some((x) => !mine(x))) writeOutbox(readOutbox().filter(mine));
     let items = readOutbox();
     while (items.length) {
       const it = items[0];
