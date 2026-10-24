@@ -69,7 +69,7 @@ function buildReportHtml(data) {
     .cm{border:1px solid #eee;border-radius:6px;padding:6px 8px;margin:6px 0} .cmh{font-weight:700;font-size:11px;margin-bottom:3px}
     .foot{margin-top:24px;color:#5B6570;font-size:9px;border-top:1px solid #C9D4E5;padding-top:8px}
     table.lh{width:100%;border-collapse:collapse;border-bottom:2px solid #0B3D91;margin-bottom:10px} .lh td{vertical-align:top;padding:0 0 8px}
-    .wm{font-size:20px;font-weight:700;color:#0B3D91;vertical-align:middle;margin-left:6px} .co{text-align:right;font-size:10px;color:#5B6570;line-height:1.45}
+    .co{text-align:right;font-size:10px;color:#5B6570;line-height:1.45}
     h1.ttl{font-size:28px;margin:10px 0 10px}
     table.boxes{width:100%;border-collapse:separate;border-spacing:0} .boxes td{width:50%;vertical-align:top;padding:0 6px 0 0} .boxes td+td{padding:0 0 0 6px}
     .bx{border:1px solid #000;padding:6px 8px;min-height:64px;line-height:1.5}
@@ -77,7 +77,7 @@ function buildReportHtml(data) {
     @media print{body{margin:14mm}}
   </style></head><body>
   <table class="lh"><tr>
-    <td><img src="https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg" alt="Pulse Fitness" style="height:46px;border-radius:4px"/> <span class="wm">Pulse Fitness</span></td>
+    <td><img src="${window.location.origin}/brand/pulse-logo-wide.jpg" alt="Pulse Fitness" style="height:40px"/></td>
     <td class="co"><b>Part of The Pulse Group</b><br/>Radnor Park, Greenfield Road<br/>Congleton, Cheshire, CW12 4TW<br/>+44 (0)1260 294600 · info@pulsefitness.com<br/>www.pulsefitness.com · <span style="color:#1763B5">#pulsefitness</span></td>
   </tr></table>
   <h1 class="ttl">Service Report</h1>
