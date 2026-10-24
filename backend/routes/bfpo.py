@@ -357,6 +357,9 @@ async def _safe_bridge() -> None:
 async def backfill_mod_bridge() -> int:
     """Startup: flag older bridged jobs so engineers can see them, then bridge."""
     await db.svc_cases.update_many({"source": "mod_fault", "bfpo": {"$ne": True}}, {"$set": {"bfpo": True}})
+    async for a in db.bfpo_alert_acks.find({"user_key": {"$exists": False}}, {"_id": 1, "user_id": 1}):
+        u = await db.users.find_one({"id": a.get("user_id")}, {"_id": 0, "email": 1})
+        await db.bfpo_alert_acks.update_one({"_id": a["_id"]}, {"$set": {"user_key": ((u or {}).get("email") or "").lower() or a.get("user_id")}})
     try:
         await db.svc_cases.create_index(
             "mod_issue_id", unique=True, name="uniq_mod_issue_id",
@@ -493,12 +496,13 @@ async def bfpo_arrive(case_id: str, data: dict = Body(...), user=Depends(_requir
     updates = {"safety_confirmed": safe, "safety_notes": notes, "arrived_at": _now(), "updated_at": _now()}
     if not safe:
         updates["safety_critical"] = True
-    await db.svc_cases.update_one({"id": case_id}, {"$set": updates})
     try:
         await state_transition(case_id=case_id, organization_id=await _case_org(case_id),
                                target_state=ON_SITE, actor=user, reason="engineer arrived on site")
     except ValueError:
-        pass
+        if case.get("status") != ON_SITE:
+            raise HTTPException(409, "Accept the job before marking yourself on site")
+    await db.svc_cases.update_one({"id": case_id}, {"$set": updates})
     await _op_update(case, user, "arrived",
                      "Engineer arrived on site — " + ("safe to work" if safe else "SAFETY CONCERN raised"),
                      {"safe": safe, "notes": notes})

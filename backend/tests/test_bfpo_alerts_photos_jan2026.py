@@ -115,7 +115,7 @@ class TestAlerts:
             from dotenv import load_dotenv
             load_dotenv("/app/backend/.env")
             MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]].bfpo_alert_acks.delete_many(
-                {"case_id": CASE_ID, "user_id": "bfpo-staff"})
+                {"case_id": CASE_ID, "$or": [{"user_id": "bfpo-staff"}, {"user_key": "staff@bfpo.pulsefitness.test"}]})
         except Exception:
             pass
         assert CASE_ID in [a["id"] for a in _alerts(H["staff2"])["alerts"]]
@@ -178,3 +178,24 @@ class TestSitePhotos:
         r = requests.get(f"{BASE}/bfpo/jobs/{d['alerts'][0]['id']}/site-photos", headers=H["gib"])
         assert r.status_code == 200
         assert isinstance(r.json()["photos"], list)
+
+
+# ── Ack persistence across sessions (user_key = email) + true count ──
+class TestAckPersistence:
+    def test_admin_ack_survives_relogin(self, H):
+        d = _alerts(H["admin"])
+        if not d["alerts"]:
+            pytest.skip("no open alerts for admin")
+        cid = d["alerts"][0]["id"]
+        r = requests.post(f"{BASE}/bfpo/alerts/{cid}/ack", headers=H["admin"], timeout=30)
+        assert r.status_code == 200
+        before = d["count"]
+        h2 = _login("admin@gymaxisai.com", "MasterAdmin123!", "mod")
+        d2 = _alerts(h2)
+        assert cid not in [a["id"] for a in d2["alerts"]]
+        assert d2["count"] == before - 1
+
+    def test_count_matches_db_true_total(self, H):
+        d = _alerts(H["admin"])
+        assert d["count"] >= len(d["alerts"])
+        assert len(d["alerts"]) <= 20

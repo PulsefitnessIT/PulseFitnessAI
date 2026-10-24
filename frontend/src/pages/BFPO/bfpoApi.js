@@ -72,6 +72,7 @@ let flushing = false;
 export async function flushOutbox() {
   if (flushing || !navigator.onLine) return;
   flushing = true;
+  lastFlushError = '';
   try {
     let items = readOutbox();
     while (items.length) {
@@ -94,7 +95,6 @@ export async function flushOutbox() {
           }
         }
         await client.post(it.url, data, { _fromOutbox: true });
-        lastFlushError = '';
       } catch (e) {
         const code = e?.response?.status;
         // Only a definitive rejection (job already moved on, bad data) is dropped;
@@ -104,12 +104,18 @@ export async function flushOutbox() {
           listeners.forEach((fn) => fn(readOutbox().length));
           break;
         }
-        lastFlushError = `One saved update was refused: ${e?.response?.data?.detail || 'job already updated'}`;
+        // Later steps for the same job depended on this one — drop them too.
+        const jobPrefix = it.url.split('/').slice(0, 3).join('/') + '/';
+        const later = readOutbox().filter((x) => x.id !== it.id && x.url.startsWith(jobPrefix));
+        lastFlushError = `A saved update was refused${later.length ? ` (and ${later.length} follow-on step${later.length === 1 ? '' : 's'} not sent)` : ''}: ${e?.response?.data?.detail || 'the job had already changed'}`;
+        writeOutbox(readOutbox().filter((x) => x.id !== it.id && !later.some((l) => l.id === x.id)));
+        items = readOutbox();
+        continue;
       }
       items = readOutbox().filter((x) => x.id !== it.id);
       writeOutbox(items);
     }
-  } finally { flushing = false; }
+  } finally { flushing = false; listeners.forEach((fn) => fn(readOutbox().length)); }
 }
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => { flushOutbox(); });

@@ -36,7 +36,8 @@ export function UrgentAlertBanner({ online, onOpen }) {
 export function OfflineSyncBar({ online }) {
   const [pending, setPending] = useState(outboxCount());
   const [busy, setBusy] = useState(false);
-  useEffect(() => onOutboxChange(setPending), []);
+  const [, setTick] = useState(0);
+  useEffect(() => onOutboxChange((n) => { setPending(n); setTick((t) => t + 1); }), []);
   if (online && !pending) {
     const msg = outboxError();
     return msg ? <div className="bg-amber-100 text-amber-900 border-b border-amber-200 px-4 py-2 text-sm" data-testid="offline-sync-error">{msg}</div> : null;

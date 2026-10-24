@@ -1,0 +1,40 @@
+{
+  "summary": "Retest of the BFPO fixes. Backend: test_bfpo_alerts_photos_jan2026.py + test_bfpo_portal_jan2026.py are 35/35 passing. I added TestAckPersistence: the admin ack survives re-login and the count is the true total. UI: Playwright on mobile 390px with context.set_offline and route interception. VERIFIED: (1) CRITICAL offline parts+photo. The blob is stored, and on reconnect POST /files/upload 200 then /parts 200. The DB bfpo_parts_requests.photo_url is the real storage path, the job is paused_parts, the outbox is empty and the bfpo_blob_* key is removed. (2) Optimistic status: offline Accept -> 'I'm on site — Start Job', arrive -> 'Update Job', parts -> 'Continue Job' + Waiting for Parts, complete -> 'Completed' with no primary button. A full accept->arrive->diagnosis->complete->signature chain offline was sent in order, and the server shows closed with diagnosis and resolution_notes. (3) Offline reload keeps the pending status (job reopened from the cached list shows 'Waiting for parts'). (4) JobDetail reloads after flush (completed recap + server events shown). (5) A 500 on diagnosis keeps the item and stops the flush. 'Send now' later sent diagnosis/complete/signature. A 401 keeps the item, and a 409 drops it. (6) SW is registered and controlling right after /MODService login -> SPA /bfpo with no reload. (7) Alerts: acks keyed by email, $nin, true count. Staff banner (+2 more -> +1 more after View job), engineer banner, and the staff 'Photos from the site (1)' grid with the image loaded are all OK. TWO UI messaging bugs remain in OfflineSyncBar, listed below.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/bfpo/jobs/{id}/arrive", "issue": "Returns 200 on a job still in 'new' (its queued accept had just been refused with 409). The status stays 'new', so state_transition fails silently (the ValueError is swallowed) but the request still reports success. It should return 409 when the transition is invalid."},
+      {"endpoint": "bfpo_alert_acks", "issue": "Acks written before this change only have user_id and no user_key, so every user sees their previously acked alerts again once. A one-off backfill (user_key = user email) would avoid this."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AlertBanner.js OfflineSyncBar (auto-flush errors)", "issue": "After a 5xx/401 during the automatic flush (online event or 30s interval), the bar keeps saying '3 saved updates waiting to send' with no ' — Could not send yet — will retry' / 'Please sign in again…'. RCA: flushOutbox sets lastFlushError and calls listeners with the SAME count. setPending(sameValue) bails out of the React re-render, so outboxError() is never re-read. The message only appeared after the user tapped 'Send now' (the busy state forces a render). Fix: have listeners receive {count, error} or bump a version state.", "selector": "[data-testid=offline-sync-text]", "priority": "MEDIUM"},
+      {"component": "bfpoApi.js flushOutbox (refusal notice)", "issue": "The 'One saved update was refused: …' notice is lost whenever a later queued item succeeds, because `lastFlushError = ''` runs after each successful post. Reproduced: accept got 409, then arrive got 200. The outbox emptied and no offline-sync-error or bar message ever appeared, so the engineer is never told the accept was refused. Fix: only clear the refusal message at the start of a new flush (or keep a list of refusals), and don't clear it on per-item success.", "selector": "[data-testid=offline-sync-error]", "priority": "MEDIUM"},
+      {"component": "flushOutbox dependent steps", "issue": "When a step is refused (e.g. accept 409), the later queued steps for the same job (arrive/diagnosis/complete) are still sent. Consider dropping or holding later items for that job and telling the user.", "selector": "n/a", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Engineer app offline (mobile)", "issues": ["Still there: the global dark toast 'You're offline — showing the last cached data.' overlaps the urgent banner / offline-sync bar at the top."]},
+      {"screen": "Engineer JobList/Home", "issues": ["The list cards don't apply pendingStatusFor, so status chips are stale while offline (the job detail is correct)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_bfpo_alerts_photos_jan2026.py", "/app/backend/tests/test_bfpo_portal_jan2026.py", "/app/test_reports/pytest/bfpo_alerts_retest.xml"],
+  "action_items": [
+    "OfflineSyncBar: make the flush error trigger a re-render (listener payload {count,error} or a version counter) so 'Could not send yet — will retry' / 'Please sign in again…' show after the automatic flush.",
+    "flushOutbox: don't clear a refusal message when a later item succeeds. Make sure 'One saved update was refused: …' is shown (offline-sync-error) until the user sees it.",
+    "Optional: skip or hold later queued steps for a job whose earlier step was refused. Backend /arrive should return 409 when the transition from 'new' is invalid instead of 200."
+  ],
+  "critical_code_review_comments": [
+    "uploadFile() called inside flushOutbox: if the network drops mid-flush, uploadFile's catch saves ANOTHER bfpo_blob_* copy and returns offline:true. flushOutbox then throws, but that duplicate key is never cleaned up (localStorage leak, ~100s of KB per photo).",
+    "If dataUrlToBlob/atob throws (corrupt blob), code is undefined, so the item is kept and the flush breaks forever: one bad item blocks the whole queue. The same happens with a 413 from /files/upload. Consider dropping after N attempts.",
+    "routes /MODService on preview redirect to the production modservice.pulsefitness.com unless ?portal=modservice is set. Testers must use /MODService?portal=modservice."
+  ],
+  "updated_files": ["/app/backend/tests/test_bfpo_alerts_photos_jan2026.py (added TestAckPersistence; ack reset now also matches user_key)"],
+  "success_rate": {"backend": "100% (35/35)", "frontend": "~85% (all requested fixes verified; 2 messaging bugs in sync error display)"},
+  "test_credentials": "lee.somers@pulsefitness.com uses TempPass123! (LeeMod123! returns 401; the seeder overwrites it). Engineer engineer.gib@bfpo.pulsefitness.test / BfpoEng123! at /MODService?portal=modservice. Admin admin@gymaxisai.com / MasterAdmin123!.",
+  "seed_data_creation": "Seeded alert case 354c9636-8507-4e19-bf7e-003ca47badd8 (P1, safety, terr-gib, test_seed='bfpo_retest') + issue 6ebe472a-963d-4813-a223-eeae5e87a773 with 1 photo in storage, kept for regression; ids are in /tmp/test_alert_ids.txt. 4 offline-chain cases were created and then deleted (along with their parts requests/events).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use dispatch_event('click') for engineer nav because the cookie banner overlays the bottom nav. test_bfpo_portal_jan2026 TestGuidedWorkflow closes ANY open gib case (it closed the seeded alert case). Reset 354c9636 to status new before running the alert tests. Route interception (page.route on **/api/bfpo/jobs/*/<step>) works for simulating 500/401/409 during flush."
+}

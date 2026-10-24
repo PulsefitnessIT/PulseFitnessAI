@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { bfpo } from '../bfpoApi';
+import { bfpo, pendingStatusFor } from '../bfpoApi';
 import { Card, PriorityBadge, Spinner, Empty, Badge, STATUS_LABEL } from '../ui';
 import { AlertTriangle, ChevronRight, ClipboardList } from 'lucide-react';
 
@@ -48,7 +48,7 @@ export default function JobList({ initialFilter = 'all_open', onOpenJob }) {
                   <div className="flex items-center gap-2 flex-wrap">
                     <PriorityBadge p={j.priority} />
                     {j.safety_critical && <Badge className="bg-red-100 text-red-700 border-red-200"><AlertTriangle className="w-3 h-3" /> Safety</Badge>}
-                    <Badge className="bg-slate-100 text-slate-600 border-slate-200">{STATUS_LABEL[j.status] || j.status}</Badge>
+                    <Badge className="bg-slate-100 text-slate-600 border-slate-200">{STATUS_LABEL[pendingStatusFor(j.id, j.status)] || pendingStatusFor(j.id, j.status)}</Badge>
                   </div>
                   <p className="font-semibold text-slate-900 truncate mt-1.5">{j.title}</p>
                   <p className="text-sm text-slate-500 truncate">{j.reference} · {j.site_name} · {j.asset_name}</p>
