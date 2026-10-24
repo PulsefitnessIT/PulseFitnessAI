@@ -8,6 +8,7 @@ treadmill calibration table, a 2x2 service-detail block, and Managing Director
 website. The customer crest is swappable per contract (uploaded or URL).
 """
 from __future__ import annotations
+import os
 
 from datetime import datetime
 from io import BytesIO
@@ -103,6 +104,9 @@ def _fmt_date(v) -> str:
         return s
 
 
+_LIGHT_LOGO = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "pulse-logo-wide-light.png")
+
+
 def _draw_wordmark(c, x, baseline):
     c.setStrokeColor(CYAN)
     c.setLineWidth(2.2)
@@ -126,7 +130,13 @@ def _page_furniture_factory(logo_bytes):
         c.setFillColor(BANNER_TOP)
         c.rect(0, PAGE_H - TOPSTRIP_H, PAGE_W, TOPSTRIP_H, fill=1, stroke=0)
         band_mid = PAGE_H - TOPSTRIP_H - (BANNER_H - TOPSTRIP_H) / 2
-        _draw_wordmark(c, MARGIN_X, band_mid - 8)
+        if os.path.exists(_LIGHT_LOGO):
+            lw = 150
+            iw, ih = ImageReader(_LIGHT_LOGO).getSize()
+            lh = lw * ih / iw
+            c.drawImage(_LIGHT_LOGO, MARGIN_X, band_mid - lh / 2, width=lw, height=lh, mask="auto")
+        else:
+            _draw_wordmark(c, MARGIN_X, band_mid - 8)
         c.setFillColor(colors.white)
         c.setFont("Helvetica", 14.5)
         c.drawRightString(PAGE_W - MARGIN_X, band_mid - 5, "Qualified to deliver the best")

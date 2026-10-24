@@ -39155,3 +39155,7 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Service report PDFs are rendered on-the-fly, so every completed report shows the new logo on next view/download/email — no data backfill needed. Copies already emailed to customers can't be changed.
 - Fire station certificates use their own layout (blue_light_certificate_pdf) and were not changed.
 - Self-tested: rendered a closed svc_case report via _build_report — new logo, no wordmark text.
+
+## 2026-06 — New logo on fire station certificates — DONE
+- backend/assets/pulse-logo-wide-light.png generated from the user's logo (white lettering, cyan ring kept, transparent background) for the dark certificate banner; blue_light_certificate_pdf draws it (150pt wide) instead of the hand-drawn wordmark (fallback kept).
+- CERT_REBRAND_TAG bumped to "pulse-logo-wide-2026-06" → startup backfill rebuilt all 3 stored certificates in preview (status/sent history unchanged, no emails). Runs on production at next deploy.

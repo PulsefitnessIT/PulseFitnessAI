@@ -2459,7 +2459,7 @@ async def _generate_certificate(visit_id: str, user: dict, auto_send: bool = Fal
     return cert
 
 
-CERT_REBRAND_TAG = "pulse-brand-2026-06"
+CERT_REBRAND_TAG = "pulse-logo-wide-2026-06"
 
 
 async def backfill_certificate_branding() -> int:
