@@ -39195,3 +39195,11 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - SEC-002 (HIGH, OPEN — user/platform action): live Stripe secret key in git history (commit a93c2b43) must be revoked/rotated in Stripe dashboard; platform support for history purge.
 - Remaining hardening (P3, not done): MFA for MOD staff/engineers; dedicated throttles on invite-accept/MOD login.
 - Tests: iteration_sec_audit_fixes_jan2026.json, iteration_sec_audit_followups_jan2026.json (all pass); tests/test_sec_csrf_photos_jan2026.py.
+
+## 2026-06 — CRM MOD: auto portal link, merged equipment register, locations & moves, MOD contracts, Add Contact fix — DONE
+- crm_v2.ensure_mod_company_link: MOD-site CRM companies auto-link (match MOD org by name if mod_org_id missing; set linked_organization_id + linked_operator_org_id + tenant_org_id). Called on company detail, register, MOD contracts; bulk in _sync_mod_site_companies. Connect-portal candidates include mod_site/mod_branch.
+- Equipment & Assets: "Portal equipment" pill merged into "Equipment register" (portal list shown inside when unlinked). Register groups text-only locations (virtual, "Save as location"); totals.sites counts real locations only.
+- Locations within a site (db.sites under the MOD org): POST/PUT/DELETE /api/crm/v2/companies/{id}/locations[/{loc}] (manager+; delete only when empty; adding absorbs machines with matching location text). Move: POST /api/crm/v2/companies/{id}/equipment/{eid}/move (same site only; equipment.location_history kept; issues follow).
+- MOD contracts: routes/crm_mod_contracts.py (/api/crm/v2/mod-contracts: catalog, locations, list, create, update, delete; manager+). Stored in crm2_contracts contract_type="mod", lines per location × service type A (annual) / B (per visit) / C (quoted, optional quarterly) / repair / refurb (24-month warranty); annual_value = sum of Type A. Excluded from generic /crm/v2/contracts list. UI: CRM → Contracts → "MOD Contracts" tab (Contracts/ModContractsTab.js).
+- Add Contact (company page): job title is now a picklist dropdown; server errors shown; first name + email required with hint; duplicate already-on-company message.
+- Tests: iteration_crm_mod_contracts_locations_jan2026.json (backend 14/14, frontend 100%).

@@ -1083,6 +1083,10 @@ async def rename_company_location(company_id: str, location_id: str, data: dict,
     name = (data.get("name") or "").strip()[:120]
     if not name:
         raise HTTPException(400, "Location name is required")
+    clash = await db.sites.find_one({"organization_id": org_id, "id": {"$ne": location_id}, "status": {"$ne": "archived"},
+                                     "name": {"$regex": f"^{re.escape(name)}$", "$options": "i"}}, {"_id": 1})
+    if clash:
+        raise HTTPException(409, "Another location already has that name")
     r = await db.sites.update_one({"id": location_id, "organization_id": org_id}, {"$set": {"name": name}})
     if not r.matched_count:
         raise HTTPException(404, "Location not found")

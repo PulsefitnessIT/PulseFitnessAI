@@ -1,0 +1,36 @@
+{
+  "summary": "Retest of the follow-ups from iteration_crm_mod_contracts_locations_jan2026 as craig.henshall (CRM manager), plus a temporary sales_rep CRM user. 4 of 5 action items work. (1) The location role gate works: sales_rep gets 403 on POST, PUT and DELETE of locations. (2) The new location rename and remove work in the API and the UI: rename updates the name, remove archives the location, a location with equipment returns 409, an unknown id returns 404, and a blank name returns 400. In the UI, Rename shows on real locations and Remove only on empty ones. (3) totals.sites now counts real locations only (UI showed SITES 3 = Main Gym + Fitness Suite + a new TEST location). (4) ModContractsTab.remove now has try/catch with an error message, and the Email label shows '*' (both checked in the code). (5) NOT FIXED: MOD contracts still come back from GET /api/crm/v2/contracts and from the Live compliance feed. Backend: 7/8 new tests pass, and the earlier suite still passes 12/12 (1 skip).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/crm/v2/contracts", "issue": "The fix was made in routes/crm_contracts.py:177, but that handler never runs. routes/crm_v2.py:2589 registers the same path (/crm/v2/contracts) earlier and has no contract_type filter, so it wins. Reproduced: create an active MOD contract and GET /crm/v2/contracts returns it (contract_type='mod')."},
+      {"endpoint": "GET /api/crm/v2/aftersales/contracts/compliance", "issue": "Not filtered (crm_aftersales.py:2664). Active MOD contracts still appear in the Live compliance feed. /contracts/stats and /contracts/expiring (crm_contracts.py) also still include MOD contracts."},
+      {"endpoint": "PUT /api/crm/v2/companies/{id}/locations/{loc}", "issue": "No duplicate-name check on rename. You can rename a location to the name of an existing one and end up with two locations with the same name. Add uses a case-insensitive dedupe, so rename should match it."},
+      {"endpoint": "DELETE /api/crm/v2/companies/{id}/locations/{loc}", "issue": "You can archive any empty site in the linked org, including its primary or only site. There is no confirm in the UI either (Remove runs at once)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Company > Equipment register", "issues": ["Rename uses window.prompt. Remove has no confirmation. Both are inconsistent with the app's modal style."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_crm_mod_followups_jan2026.py", "/app/backend/tests/test_crm_mod_contracts_locations_jan2026.py", "/app/test_reports/pytest/crm_mod_followups.xml"],
+  "action_items": [
+    "Add the contract_type != 'mod' filter to the list_contracts handler that actually runs, in routes/crm_v2.py:2589 (or remove the duplicate route). The edit in crm_contracts.py:177 has no effect because that route is shadowed.",
+    "Add the same filter to GET /crm/v2/aftersales/contracts/compliance (crm_aftersales.py ~2664), and to /contracts/stats and /contracts/expiring if MOD contracts should be kept out of those as well",
+    "Optional: dedupe check on location rename; confirm before Remove; consider blocking archive of the org's primary site"
+  ],
+  "critical_code_review_comments": [
+    "Two GET /crm/v2/contracts routes are registered (crm_v2.py:2589 and crm_contracts.py:170). The second one is dead code. Consolidate them.",
+    "_require_location_editor duplicates the crm_mod_contracts._require_editor role list. Share one helper."
+  ],
+  "updated_files": ["/app/backend/tests/test_crm_mod_followups_jan2026.py"],
+  "success_rate": {"backend": "87.5% (7/8 new; 12/12 regression, 1 skip)", "frontend": "100% of tested flows (location rename/remove)"},
+  "test_credentials": "craig.henshall@pulsefitness.com / PulseMOD123! (CRM). The test creates and deletes a temporary sales_rep CRM user, test_rep_modfollow@pulsefitness.test.",
+  "seed_data_creation": "None kept. TEST_ locations, the TEST_ MOD contracts and the temporary rep user were all deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest tests/test_crm_mod_followups_jan2026.py. TestModContractsHidden fails until the crm_v2.py duplicate route and the compliance feed are filtered. UI path: /crm?tab=companies > MOD Sites filter > search 'MOD Test' > company-row-modco-abfdabd9... > company-tab-equipment_assets. Testids: sites-equipment-rename-<id>, sites-equipment-remove-<id>. A pre-existing draft MOD contract 'MOD-TEST-1' (id 2570bf89...) sits in another org and was left untouched."
+}

@@ -2592,7 +2592,7 @@ async def list_contracts(
     skip: int = 0, limit: int = 50,
     user=Depends(get_crm_user),
 ):
-    q = {**_of(user)}
+    q = {**_of(user), "contract_type": {"$ne": "mod"}}  # MOD contracts have their own tab
     if company_id:
         q["company_id"] = company_id
     if status:
