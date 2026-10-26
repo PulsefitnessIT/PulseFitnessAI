@@ -4,11 +4,14 @@ import { Loader2 } from 'lucide-react';
 export const PERIODS = ['Days', 'Weeks', 'Months', 'Years'];
 const DATE_FIELDS = new Set(['install_date', 'last_service_date', 'next_service_date', 'warranty_expiry']);
 
+const PLACEHOLDER = /^\s*(unknown|n\/?a|tbc|tbd|none|null|-|0)\s*$/i;
+const shown = (v, missing) => (missing && PLACEHOLDER.test(String(v ?? '')) ? '' : (v ?? ''));
+
 export const GapCell = ({ item, field, missing, onSave, width = 'w-36' }) => {
-  const initial = item[field] ?? '';
+  const initial = shown(item[field], missing);
   const [val, setVal] = useState(initial);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setVal(item[field] ?? ''); }, [item, field]);
+  useEffect(() => { setVal(shown(item[field], missing)); }, [item, field, missing]);
 
   const commit = async (next) => {
     if (String(next ?? '') === String(initial ?? '')) return;

@@ -31,7 +31,7 @@ const GapRow = ({ item, onSave }) => (
   </tr>
 );
 
-export default function EquipmentGapsPanel({ organizationId, headers }) {
+export default function EquipmentGapsPanel({ organizationId, headers, onChanged }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [show, setShow] = useState('incomplete');
@@ -50,8 +50,18 @@ export default function EquipmentGapsPanel({ organizationId, headers }) {
   const saveCell = async (id, field, value) => {
     try {
       const { data: r } = await axios.patch(`${API}/equipment-gaps/${id}`, { [field]: value }, { headers });
-      setData((d) => ({ ...d, items: d.items.map((it) => (it.id === id ? { ...it, ...r.item } : it)) }));
-    } catch (e) { notify.error('Not saved', e?.response?.data?.detail || e.message); throw e; }
+      setData((d) => {
+        const before = d.items.find((it) => it.id === id);
+        const s = { ...d.summary, by_field: { ...d.summary.by_field } };
+        before.missing.forEach((f) => { s.by_field[f] -= 1; });
+        r.item.missing.forEach((f) => { s.by_field[f] = (s.by_field[f] || 0) + 1; });
+        const delta = (before.missing.length ? 1 : 0) - (r.item.missing.length ? 1 : 0);
+        s.complete += delta; s.incomplete -= delta;
+        s.percent_complete = s.total ? Math.round((100 * s.complete) / s.total) : 100;
+        return { ...d, summary: s, items: d.items.map((it) => (it.id === id ? { ...it, ...r.item } : it)) };
+      });
+      onChanged?.();
+    } catch (e) { notify.error('Not saved', e?.response?.data?.detail?.message || e?.response?.data?.detail || e.message); throw e; }
   };
 
   const bulk = async (field, value, onlyBlank) => {
@@ -59,6 +69,7 @@ export default function EquipmentGapsPanel({ organizationId, headers }) {
       const { data: r } = await axios.post(`${API}/equipment-gaps/bulk`, { organization_id: organizationId, site_id: siteId || undefined, field, value, only_blank: onlyBlank }, { headers });
       notify.success(`Updated ${r.updated} asset(s)`);
       load();
+      onChanged?.();
     } catch (e) { notify.error('Bulk fill failed', e?.response?.data?.detail || e.message); }
   };
 

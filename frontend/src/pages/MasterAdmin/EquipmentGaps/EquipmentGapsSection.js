@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Loader2, ClipboardList, Search } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -19,15 +19,25 @@ const ScopeItem = ({ s, active, onPick }) => (
 
 export default function EquipmentGapsSection() {
   const [scopes, setScopes] = useState(null);
+  const [failed, setFailed] = useState(false);
   const [orgId, setOrgId] = useState(() => new URLSearchParams(window.location.search).get('org') || '');
   const [q, setQ] = useState('');
 
-  useEffect(() => {
+  const loadScopes = useCallback(() => {
     axios.get(`${API}/equipment-gaps/scopes`).then(({ data }) => {
+      setFailed(false);
       setScopes(data.scopes || []);
       setOrgId((cur) => cur || data.scopes?.[0]?.organization_id || '');
-    }).catch(() => setScopes([]));
+    }).catch(() => { setFailed(true); setScopes([]); });
   }, []);
+  useEffect(() => { loadScopes(); }, [loadScopes]);
+
+  const pick = (id) => {
+    setOrgId(id);
+    const u = new URL(window.location.href);
+    u.searchParams.set('org', id);
+    window.history.replaceState(null, '', u.toString());
+  };
 
   const list = (scopes || []).filter((s) => s.name.toLowerCase().includes(q.toLowerCase()));
 
@@ -46,12 +56,13 @@ export default function EquipmentGapsSection() {
         </div>
         <div className="space-y-1 max-h-[65vh] overflow-auto" data-testid="gaps-scope-list">
           {scopes === null && <Loader2 className="mx-auto my-6 animate-spin text-zinc-400" />}
-          {scopes?.length === 0 && <p className="text-xs text-emerald-700 p-3" data-testid="gaps-scope-empty">All equipment is complete.</p>}
-          {list.map((s) => <ScopeItem key={s.organization_id} s={s} active={s.organization_id === orgId} onPick={setOrgId} />)}
+          {failed && <p className="text-xs text-red-600 p-3" data-testid="gaps-scope-error">Could not load customers — refresh to try again.</p>}
+          {!failed && scopes?.length === 0 && <p className="text-xs text-emerald-700 p-3" data-testid="gaps-scope-empty">All equipment is complete.</p>}
+          {list.map((s) => <ScopeItem key={s.organization_id} s={s} active={s.organization_id === orgId} onPick={pick} />)}
         </div>
       </Card>
       <Card className="p-5 rounded-xl border-zinc-200 min-w-0">
-        {orgId ? <EquipmentGapsPanel key={orgId} organizationId={orgId} /> : <p className="text-sm text-zinc-500">Pick a customer.</p>}
+        {orgId ? <EquipmentGapsPanel key={orgId} organizationId={orgId} onChanged={loadScopes} /> : <p className="text-sm text-zinc-500">Pick a customer.</p>}
       </Card>
     </div>
   );

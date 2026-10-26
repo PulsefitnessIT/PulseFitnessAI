@@ -1,0 +1,51 @@
+{
+  "summary": "I tested the Sicon equipment template standardisation, the Missing Information API and grid, the AI Kit Import gaps prompt, the Admin bulk-import card, and the MOD engineer capture of missing asset details (mobile, 390px). Backend: 30 pytest cases ran and all 30 pass once the non-staff tests use manager@isodemo.com. The suggested owner@isodemo.com has is_service_desk=true, so it counts as staff and is not a valid non-staff test account. Frontend: every requested flow works end to end. One real problem was found and is not covered by those tests: a site-restricted manager can see other sites' equipment through /api/equipment-gaps.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET/PATCH/POST /api/equipment-gaps*", "issue": "Site isolation is not enforced for non-staff users. manager@isodemo.com (allowed_site_ids=[iso-demo-site-a]) gets equipment for iso-demo-site-b, qa-fire-site and site-less rows from GET /api/equipment-gaps?show=all. With X-Site-Id: iso-demo-site-b and site_id=iso-demo-site-b the call returns 200; it should return 403 site_access_denied like the rest of the app. _scope_org only checks organization_id, so PATCH and bulk can also write to other sites.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "/api/equipment-gaps* (_is_staff)", "issue": "_require_pulse_or_master treats any user with is_service_desk=true as staff, including customer-tenant users such as owner@isodemo.com (org iso-demo-org). They get /equipment-gaps/scopes across every org and can PATCH or bulk-fill any org's equipment. This may be intended for Pulse service desk staff, but customer users with the flag get cross-tenant write access."},
+      {"endpoint": "PATCH /api/equipment-gaps/{id}", "issue": "If the equipment has no organization_id, a staff user gets 400 'organization_id is required' instead of the edit being saved."},
+      {"endpoint": "POST /api/equipment-gaps/bulk only_blank=true", "issue": "Placeholder values (UNKNOWN, N/A) are not treated as blank. Bulk-filling Make with 'only blank cells' skips assets whose Make is 'UNKNOWN', even though the grid shows those cells as missing."},
+      {"endpoint": "GET /api/equipment-gaps/scopes and GET /api/equipment-gaps", "issue": "Write-on-read: every GET runs backfill_customer_refs (update_many) for each org, and the scopes call does this for up to 300 orgs. This could get slow on a large estate."},
+      {"endpoint": "GET /api/equipment-gaps/export.xlsx", "issue": "Dates are exported as ISO yyyy-mm-dd, but the Sicon guide sheet says DD/MM/YYYY. Re-import still works because the parser accepts both."},
+      {"endpoint": "POST /api/master-admin/mod-estate/ai-kit-import/analyse", "issue": "With a Sicon-format xlsx, the AI rewrites Description (e.g. 'TEST_AIKIT Treadmill' became 'Treadmill — 95T'). Sub-location defaults to the sheet name 'SHEET1' even when Sublocation Description is blank, so every Kifaru asset now shows sub_location=SHEET1. Location and install date were kept correctly."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EquipmentGapsPanel summary", "issue": "The % complete figure and the missing-field chips do not update after a cell save; they stay stale (33%) until Refresh or bulk apply (then 67%). Row status updates straight away.", "selector": "[data-testid=gaps-percent]", "priority": "LOW"},
+      {"component": "EquipmentGapsSection scope list", "issue": "The 'X of Y need info' counts never refresh after edits. If the scopes call fails, the error is swallowed and the page says 'All equipment is complete'. Picking a customer does not update ?org= in the URL.", "selector": "[data-testid=gaps-scope-list]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "MOD engineer login via /MODService on the preview domain", "issue": "Not caused by this feature. On the preview host, /MODService redirects to https://modservice.pulsefitness.com, so the login goes to the production backend and returns 'Invalid credentials'. I worked around it by logging in through the preview API and setting localStorage.token. Future UI testing of /bfpo needs the same workaround.", "affected_selectors": ["mod-login-submit"]}
+    ],
+    "design_issues": [
+      {"screen": "Missing information grid / bulk bar / engineer asset form", "issues": ["Dates use the browser's native date input (shown as mm/dd/yyyy in the test browser) instead of the shadcn calendar. UK users expect DD/MM/YYYY, which the Sicon guide also uses.", "The Make cell shows the raw text 'UNKNOWN' and the engineer card subtitle reads 'UNKNOWN · Gym'. Show the placeholder as empty or as 'Needed'."]},
+      {"screen": "Admin bulk imports equipment card", "issues": ["The heading 'REQUIRED CSV COLUMNS' lists all 29 Sicon columns, but only 6 are essential. Relabel it, e.g. 'Sicon template columns (essentials in red)'."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_sicon_equipment_template_gaps_jan2026.py", "/app/test_reports/pytest/sicon_gaps.xml"],
+  "action_items": [
+    "Enforce allowed_site_ids and X-Site-Id in /api/equipment-gaps (list, export, PATCH, bulk) for site-restricted users.",
+    "Decide whether customer-tenant users with is_service_desk=true should get cross-org access in equipment-gaps. If not, restrict staff to Pulse or master admin accounts.",
+    "Treat placeholder values (UNKNOWN, N/A and so on) as blank in the bulk-fill only_blank filter.",
+    "Recompute the grid summary locally (or reload it) after each cell save, and refresh the scope counts.",
+    "Use DD/MM/YYYY (shadcn date picker) for grid and engineer dates, and export DD/MM/YYYY to match the Sicon guide.",
+    "For Sicon-format files in the AI kit importer, keep Description verbatim and don't default sub_location to the sheet name."
+  ],
+  "critical_code_review_comments": [
+    "equipment_gaps._scope_org ignores site-level access (allowed_site_ids), so it bypasses the multi-site isolation model.",
+    "list_gaps, export and scopes run update_many backfills on every GET (side effects on read).",
+    "with_next_service never recomputes when an imported next_service_date exists and next_service_auto is missing. That is correct for manual dates, but an old import with a stale date will not auto-update when last service changes.",
+    "The bfpo details endpoint drops empty values before validation, so an engineer cannot clear a wrong value. This is acceptable for the use case."
+  ],
+  "updated_files": ["/app/backend/tests/test_sicon_equipment_template_gaps_jan2026.py"],
+  "success_rate": {"backend": "100% of feature tests (30/30, with the corrected non-staff user); 1 HIGH site-isolation issue found by manual check", "frontend": "100% of requested flows work (gaps grid, bulk, toggles, site filter, export, AI kit gaps prompt and back, bulk card xlsx, engineer mobile capture)"},
+  "test_credentials": "Engineer is engineer.gib@bfpo.pulsefitness.test / BfpoEng123! with portal='mod'; the request's engineer.gib@bfpo.pulsefitness.com / pulse123 is invalid. The lee.somers@bfpo.pulsefitness.com account does not exist. For non-staff tests use manager@isodemo.com / IsoDemo123!, because owner@isodemo.com is_service_desk=true and counts as staff.",
+  "seed_data_creation": "All test data was created temporarily and then deleted: TEST_ orgs, TEST equipment at Kifaru (2 AI kit rows), equipment at the job site for MOD-2026-33961 (site abfdabd9-...), and the asset_details events. Bulk-import batch history rows remain in 'Recent imports' (ai-kit-mod-site-test-kifaru.csv, e.csv, old.csv).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: REACT_APP_BACKEND_URL=... pytest backend/tests/test_sicon_equipment_template_gaps_jan2026.py; it self-seeds and cleans up. Login is rate-limited (about 5 per few minutes per IP), so the fixtures are session-scoped. For /bfpo UI: page.request.post('/api/auth/login', {portal:'mod'}), then localStorage.setItem('token', jwt), then goto /bfpo (the /MODService page redirects to the production host). The open engineer job used was d2c84c72-119f-4592-8d40-71391d44e132 (status paused_parts, MOD site org abfdabd9-...). Missing info deep-link: /master-admin?section=equipment-gaps&org=<id>. Retest the site-isolation fix with manager@isodemo.com against iso-demo-site-b."
+}

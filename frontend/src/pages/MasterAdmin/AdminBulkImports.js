@@ -236,7 +236,7 @@ const AdminBulkImports = ({ API }) => {
  </div>
 
  <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-3 mb-3">
- <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold mb-1.5">Required CSV columns</p>
+ <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold mb-1.5">{kind === 'equipment' ? 'Sicon template columns (essentials: Customer Ref, Location, Description, Make, Model, Serial Number)' : 'Required CSV columns'}</p>
  <p className="text-[11px] text-zinc-700 font-mono leading-relaxed">{csvHeaders.join(', ')}</p>
  </div>
 

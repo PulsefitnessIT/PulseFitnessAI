@@ -231,6 +231,9 @@ def _analyse_sheet(ws):
     return {
         "tab": ws.title, "is_summary": is_summary,
         "has_header": header_idx is not None, "rows": data_rows,
+        # Sicon template sheet → keep the operator's Description verbatim.
+        "is_sicon": header_idx is not None and any(
+            _clean(c).lower() == "sicon customer ref" for c in (rows[header_idx] or [])),
     }
 
 
@@ -316,11 +319,13 @@ async def analyse_kit_workbook(content: bytes, filename: str) -> dict:
     out_sheets = []
     for sh in sheets:
         rows = []
+        tab_sub = "" if re.fullmatch(r"\s*sheet\s*\d*\s*", sh["tab"] or "", re.I) else _title_case(sh["tab"])
         for r in sh["rows"]:
             k = (r["type"].upper(), r["model"].upper(), r["manufacturer"].upper())
             c = cleaned.get(tkey.get(k), {})
+            ai_name = c.get("name") or _fallback_clean(r["type"], r["model"], r["manufacturer"])["name"]
             rows.append({
-                "name": c.get("name") or _fallback_clean(r["type"], r["model"], r["manufacturer"])["name"],
+                "name": (r["type"] if sh.get("is_sicon") and r["type"] else ai_name),
                 "equipment_type": c.get("equipment_type") or "Other",
                 "manufacturer": c.get("manufacturer") or "",
                 "model": r["model"],
@@ -330,12 +335,12 @@ async def analyse_kit_workbook(content: bytes, filename: str) -> dict:
                 "category": _title_case(r["category"], preserve_acronyms=False),
                 "mod_code": r.get("mod_code", ""),
                 **{f: r.get(f, "") for f in _PASSTHROUGH_FIELDS},
-                "sub_location": r.get("sub_location") or _title_case(sh["tab"]),
+                "sub_location": r.get("sub_location") or tab_sub,
             })
         out_sheets.append({
             "tab": sh["tab"],
             "is_summary": sh["is_summary"] or not sh["has_header"],
-            "suggested_sub_location": _title_case(sh["tab"]),
+            "suggested_sub_location": tab_sub,
             "row_count": len(rows),
             "rows": rows,
         })

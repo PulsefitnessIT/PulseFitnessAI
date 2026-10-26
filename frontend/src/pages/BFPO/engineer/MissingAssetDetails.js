@@ -27,7 +27,7 @@ function AssetForm({ jobId, item, onSaved }) {
     <div className="rounded-xl border border-slate-200 p-3 space-y-2" data-testid={`asset-gap-${item.id}`}>
       <div>
         <p className="font-semibold text-slate-900 text-sm">{item.name || 'Unnamed machine'}</p>
-        <p className="text-xs text-slate-500">{[item.manufacturer, item.model, item.location].filter(Boolean).join(' · ') || 'No details yet'}</p>
+        <p className="text-xs text-slate-500">{[item.manufacturer, item.model, item.location].filter((v) => v && !/^\s*(unknown|n\/?a|tbc|tbd|none|-|0)\s*$/i.test(v)).join(' · ') || 'No details yet'}</p>
       </div>
       {fields.map((f) => (
         <label key={f} className="block">
