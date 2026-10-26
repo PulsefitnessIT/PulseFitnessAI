@@ -3,7 +3,7 @@
  *
  * One place to onboard every external company that services MOD / overseas
  * sites: the company itself plus its field engineers, each a real /bfpo
- * portal login. Engineers flagged MOD/BFPO get a territory + site allocation;
+ * portal login. Engineers flagged MOD/BFPO get the sites they cover;
  * all get an invite link or a temporary password. Replaces the separate
  * Dealer/Engineer, BFPO-Engineers and Service-Providers flows.
  */
@@ -14,6 +14,7 @@ import {
   Pencil, X, Plus, Trash2, CheckCircle2, Copy, Link2, KeyRound, Wrench, ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { EngineerSitePicker } from './EngineerSitePicker';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 const headers = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
@@ -28,7 +29,6 @@ const labelCls = 'text-[11px] font-semibold uppercase tracking-wide text-slate-5
 
 const ExternalServiceProviders = () => {
   const [providers, setProviders] = useState([]);
-  const [territories, setTerritories] = useState([]);
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
@@ -46,13 +46,11 @@ const ExternalServiceProviders = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, t, s] = await Promise.all([
+      const [p, s] = await Promise.all([
         axios.get(`${API}/master-admin/mod-estate/external-providers`, { headers: headers() }),
-        axios.get(`${API}/master-admin/mod-estate/bfpo-territories`, { headers: headers() }),
         axios.get(`${API}/master-admin/mod-estate/bfpo-sites`, { headers: headers() }),
       ]);
       setProviders(p.data?.providers || []);
-      setTerritories(t.data?.territories || []);
       setSites(s.data?.sites || []);
     } catch {
       setProviders([]);
@@ -153,38 +151,9 @@ const ExternalServiceProviders = () => {
     }
   };
 
-  const renderTerrSites = (eng, onField, idPrefix) => {
-    const selTerr = (eng.territory_ids || [])[0] || '';
-    const terrSites = sites.filter((s) => s.territory_id === selTerr);
-    return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg bg-cyan-50/40 border border-cyan-100 p-3">
-        <label className="block"><span className={labelCls}>Territory</span>
-          <select className={`mt-1 ${inputCls}`} value={selTerr} onChange={(ev) => { onField('territory_ids', ev.target.value ? [ev.target.value] : []); onField('site_ids', []); }} data-testid={`${idPrefix}-territory`}>
-            <option value="">Select territory…</option>
-            {territories.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-        </label>
-        <div className="block">
-          <span className={labelCls}>Sites {selTerr && `(${terrSites.length})`}</span>
-          <div className="mt-1 max-h-32 overflow-auto rounded-lg border border-slate-200 bg-white p-2 space-y-1" data-testid={`${idPrefix}-sites`}>
-            {!selTerr && <p className="text-[11px] text-slate-400">Pick a territory first.</p>}
-            {selTerr && terrSites.length === 0 && <p className="text-[11px] text-slate-400">No sites in this territory.</p>}
-            {terrSites.map((s) => {
-              const on = (eng.site_ids || []).includes(s.id);
-              return (
-                <label key={s.id} className="flex items-center gap-2 text-[13px] text-slate-700 cursor-pointer">
-                  <input type="checkbox" checked={on} className="accent-cyan-500"
-                    onChange={(ev) => onField('site_ids', ev.target.checked ? [...(eng.site_ids || []), s.id] : (eng.site_ids || []).filter((x) => x !== s.id))}
-                    data-testid={`${idPrefix}-site-${s.id}`} />
-                  {s.name}
-                </label>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const renderTerrSites = (eng, onField, idPrefix) => (
+    <EngineerSitePicker sites={sites} value={eng.site_ids || []} onChange={(ids) => onField('site_ids', ids)} testid={`${idPrefix}-sites`} />
+  );
 
   const copy = (txt) => { navigator.clipboard?.writeText(txt); toast.success('Copied'); };
 
@@ -349,8 +318,6 @@ const ExternalServiceProviders = () => {
           {engineers.length === 0 && <p className="text-[12px] text-slate-400">No engineers added yet.</p>}
           {engineers.map((e, i) => {
             const effectiveMod = e.mod_bfpo === 'inherit' ? company.mod_bfpo_default === 'yes' : e.mod_bfpo === 'yes';
-            const selTerr = (e.territory_ids || [])[0] || '';
-            const terrSites = sites.filter((s) => s.territory_id === selTerr);
             return (
               <div key={i} className="rounded-lg border border-slate-200 p-3 space-y-3 bg-slate-50/50" data-testid={`esp-engineer-row-${i}`}>
                 <div className="flex items-center justify-between">
@@ -370,32 +337,7 @@ const ExternalServiceProviders = () => {
                   </label>
                 </div>
                 {effectiveMod && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg bg-cyan-50/40 border border-cyan-100 p-3">
-                    <label className="block"><span className={labelCls}>Territory</span>
-                      <select className={`mt-1 ${inputCls}`} value={selTerr} onChange={(ev) => { setEng(i, 'territory_ids', ev.target.value ? [ev.target.value] : []); setEng(i, 'site_ids', []); }} data-testid={`esp-engineer-territory-${i}`}>
-                        <option value="">Select territory…</option>
-                        {territories.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                      </select>
-                    </label>
-                    <div className="block">
-                      <span className={labelCls}>Sites {selTerr && `(${terrSites.length})`}</span>
-                      <div className="mt-1 max-h-32 overflow-auto rounded-lg border border-slate-200 bg-white p-2 space-y-1" data-testid={`esp-engineer-sites-${i}`}>
-                        {!selTerr && <p className="text-[11px] text-slate-400">Pick a territory first.</p>}
-                        {selTerr && terrSites.length === 0 && <p className="text-[11px] text-slate-400">No sites in this territory.</p>}
-                        {terrSites.map((s) => {
-                          const on = (e.site_ids || []).includes(s.id);
-                          return (
-                            <label key={s.id} className="flex items-center gap-2 text-[13px] text-slate-700 cursor-pointer">
-                              <input type="checkbox" checked={on} className="accent-cyan-500"
-                                onChange={(ev) => setEng(i, 'site_ids', ev.target.checked ? [...(e.site_ids || []), s.id] : (e.site_ids || []).filter((x) => x !== s.id))}
-                                data-testid={`esp-engineer-site-${i}-${s.id}`} />
-                              {s.name}
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
+                  <EngineerSitePicker sites={sites} value={e.site_ids || []} onChange={(ids) => setEng(i, 'site_ids', ids)} testid={`esp-engineer-sites-${i}`} />
                 )}
                 <div className="flex flex-wrap items-center gap-4 text-sm">
                   <label className="flex items-center gap-2 cursor-pointer"><input type="radio" checked={e.password_mode === 'invite'} onChange={() => setEng(i, 'password_mode', 'invite')} data-testid={`esp-engineer-invite-${i}`} /> Invite link</label>

@@ -1838,9 +1838,23 @@ async def _resolve_bfpo_lookup():
     from routes.bfpo import BFPO_ORG_ID
     terrs = {t["id"]: t async for t in db.bfpo_territories.find(
         {"organization_id": BFPO_ORG_ID}, {"_id": 0, "id": 1, "name": 1, "country": 1})}
-    sites = {s["id"]: s async for s in db.sites.find(
-        {"organization_id": BFPO_ORG_ID}, {"_id": 0, "id": 1, "name": 1, "territory_id": 1, "country": 1})}
+    sites = {s["id"]: s for s in await _allocatable_sites()}
     return terrs, sites
+
+
+async def _allocatable_sites() -> list:
+    """Every MOD site an engineer can cover: BFPO estate sites + MOD site orgs."""
+    from routes.bfpo import BFPO_ORG_ID
+    out = [s async for s in db.sites.find(
+        {"organization_id": BFPO_ORG_ID}, {"_id": 0, "id": 1, "name": 1, "territory_id": 1, "country": 1})]
+    seen = {s["id"] for s in out}
+    async for o in db.organizations.find(
+            {"account_type": "mod_site"},
+            {"_id": 0, "id": 1, "name": 1, "country": 1}):
+        if o["id"] not in seen:
+            out.append({**o, "is_mod_org": True})
+    out.sort(key=lambda s: (s.get("name") or "").lower())
+    return out
 
 
 async def _provision_provider_engineer(e: dict, supplier_id: str, provider_name: str,
@@ -1911,12 +1925,7 @@ async def list_bfpo_territories(user: dict = Depends(get_current_user)) -> dict:
 @router.get("/master-admin/mod-estate/bfpo-sites")
 async def list_bfpo_sites(user: dict = Depends(get_current_user)) -> dict:
     require_master_admin(user)
-    from routes.bfpo import BFPO_ORG_ID
-    sites = await db.sites.find(
-        {"organization_id": BFPO_ORG_ID, "territory_id": {"$exists": True, "$ne": None}},
-        {"_id": 0, "id": 1, "name": 1, "territory_id": 1, "country": 1},
-    ).sort("name", 1).to_list(5000)
-    return {"sites": sites}
+    return {"sites": await _allocatable_sites()}
 
 
 @router.get("/master-admin/mod-estate/external-providers")

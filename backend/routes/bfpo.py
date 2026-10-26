@@ -170,6 +170,7 @@ async def _scoped_case_query(user: dict, *, read: bool = True) -> dict:
     site_ids = scope["all_site_ids"] if read else scope["active_site_ids"]
     if site_ids:
         ors.append({"site_id": {"$in": site_ids}})
+        ors.append({"organization_id": {"$in": site_ids}})  # MOD site orgs
     q["$or"] = ors
     return q
 
@@ -751,6 +752,8 @@ async def bfpo_sites(user=Depends(_require_bfpo)):
     if ids is not None:
         q["id"] = {"$in": ids}
     sites = await db.sites.find(q, {"_id": 0}).sort("name", 1).to_list(500)
+    if ids is not None:
+        sites += await db.organizations.find({"account_type": "mod_site", "id": {"$in": ids}}, {"_id": 0, "id": 1, "name": 1, "country": 1, "city": 1, "address": 1, "postcode": 1}).sort("name", 1).to_list(500)
     can_sensitive = _role(user) in ("lead", "staff")
     for s in sites:
         if not can_sensitive:
@@ -786,7 +789,7 @@ async def bfpo_equipment(search: str = Query(""), user=Depends(_require_bfpo)):
     q = {"organization_id": BFPO_ORG_ID}
     ids = await _visible_site_ids(user)
     if ids is not None:
-        q["site_id"] = {"$in": ids}
+        q = {"$or": [{"organization_id": BFPO_ORG_ID, "site_id": {"$in": ids}}, {"organization_id": {"$in": ids}}]}
     else:
         mod_sites = [o["id"] async for o in db.organizations.find({"account_type": "mod_site"}, {"_id": 0, "id": 1})]
         q = {"organization_id": {"$in": [BFPO_ORG_ID, *mod_sites]}}
@@ -801,11 +804,11 @@ async def bfpo_equipment(search: str = Query(""), user=Depends(_require_bfpo)):
 @router.get("/equipment/{equipment_id}")
 async def bfpo_equipment_detail(equipment_id: str, user=Depends(_require_bfpo)):
     ids = await _visible_site_ids(user)
-    orgs = [BFPO_ORG_ID] if ids is not None else [BFPO_ORG_ID, *(await _mod_org_ids())]
+    orgs = [BFPO_ORG_ID, *(await _mod_org_ids())]
     eq = await db.equipment.find_one({"id": equipment_id, "organization_id": {"$in": orgs}}, {"_id": 0})
     if not eq:
         raise HTTPException(404, "Equipment not found")
-    if ids is not None and eq.get("site_id") not in ids:
+    if ids is not None and eq.get("site_id") not in ids and eq.get("organization_id") not in ids:
         raise HTTPException(404, "Equipment not found")
     history = await db.svc_cases.find(
         {**(await _ops_org_filter()), "asset_id": equipment_id}, {"_id": 0,
