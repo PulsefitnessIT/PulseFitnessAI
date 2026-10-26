@@ -2003,6 +2003,48 @@ def _clean_engineers_payload(engineers_in, require_fields=True):
     return cleaned
 
 
+async def _sync_provider_to_sites(supplier_id: str) -> int:
+    """Copy an external provider's company details into the supplier
+    directory of every MOD site its engineers cover (and keep already-linked
+    rows in step). Sites already served by a different provider are left alone."""
+    est = await db.mod_estate_suppliers.find_one({"id": supplier_id}, {"_id": 0})
+    if not est:
+        return 0
+    now = _now()
+    prop = {k: est.get(k) or "" for k in ("name", "contact_name", "email", "phone", "notes")}
+    prop["manufacturer_keywords"] = est.get("manufacturer_keywords") or []
+    await db.suppliers.update_many({"estate_supplier_id": supplier_id}, {"$set": {**prop, "updated_at": now}})
+    site_ids: set = set()
+    async for u in db.users.find({"mod_estate_supplier_id": supplier_id, "is_mod_bfpo": True},
+                                 {"_id": 0, "bfpo_site_ids": 1}):
+        site_ids.update(u.get("bfpo_site_ids") or [])
+    linked = 0
+    async for org in db.organizations.find({"id": {"$in": list(site_ids)}, "account_type": "mod_site"},
+                                           {"_id": 0, "id": 1, "service_supplier_id": 1}):
+        cur_id = (org.get("service_supplier_id") or "").strip()
+        cur = await db.suppliers.find_one({"id": cur_id}, {"_id": 0, "id": 1, "estate_supplier_id": 1, "name": 1}) if cur_id else None
+        if cur and cur.get("estate_supplier_id") not in (None, supplier_id):
+            continue  # another provider is assigned to this site
+        if cur and not cur.get("estate_supplier_id") and (cur.get("name") or "").strip().lower() != prop["name"].strip().lower():
+            continue  # a manually chosen supplier — don't overwrite
+        row = await db.suppliers.find_one({"organization_id": org["id"], "estate_supplier_id": supplier_id}, {"_id": 0, "id": 1}) \
+            or cur \
+            or await db.suppliers.find_one({"organization_id": org["id"], "estate_supplier_id": {"$exists": False},
+                                            "name": {"$regex": f"^{re.escape(prop['name'].strip())}$", "$options": "i"}}, {"_id": 0, "id": 1})
+        row_id = row["id"] if row else str(uuid.uuid4())
+        await db.suppliers.update_one(
+            {"id": row_id},
+            {"$set": {**prop, "organization_id": org["id"], "estate_supplier_id": supplier_id,
+                      "supplier_types": ["service"], "supplier_type": "service", "updated_at": now},
+             "$setOnInsert": {"id": row_id, "created_at": now}},
+            upsert=True)
+        await db.organizations.update_one(
+            {"id": org["id"]},
+            {"$set": {"service_supplier_id": row_id, "service_supplier": prop["name"], "serviced_by": "external_supplier"}})
+        linked += 1
+    return linked
+
+
 @router.post("/master-admin/mod-estate/external-providers")
 async def create_external_provider(data: dict = Body(...),
                                    user: dict = Depends(get_current_user)) -> dict:
@@ -2044,7 +2086,8 @@ async def create_external_provider(data: dict = Body(...),
         "external_provider_onboarded",
         f"Onboarded external provider '{name}' with {len(results)} engineer login(s)",
         actor_email, "mod_estate_supplier", supplier["id"])
-    return {"success": True, "provider": supplier, "engineers": results}
+    synced = await _sync_provider_to_sites(supplier["id"])
+    return {"success": True, "provider": supplier, "engineers": results, "sites_synced": synced}
 
 
 @router.patch("/master-admin/mod-estate/external-providers/{supplier_id}")
@@ -2078,7 +2121,8 @@ async def update_external_provider(supplier_id: str, data: dict = Body(...),
     for e in new_engineers:
         results.append(await _provision_provider_engineer(e, supplier_id, provider_name, default_mod, actor_id))
 
-    return {"success": True, "engineers": results}
+    synced = await _sync_provider_to_sites(supplier_id)
+    return {"success": True, "engineers": results, "sites_synced": synced}
 
 
 @router.patch("/master-admin/mod-estate/external-providers/{supplier_id}/engineers/{engineer_id}")
@@ -2123,7 +2167,8 @@ async def update_provider_engineer(supplier_id: str, engineer_id: str, data: dic
     await log_activity("external_provider_engineer_updated",
                        f"Updated engineer {eng.get('full_name') or engineer_id}",
                        user.get("email", "system"), "user", engineer_id)
-    return {"success": True}
+    synced = await _sync_provider_to_sites(supplier_id)
+    return {"success": True, "sites_synced": synced}
 
 
 @router.delete("/master-admin/mod-estate/external-providers/{supplier_id}/engineers/{engineer_id}")

@@ -450,7 +450,7 @@ const AdminBulkImports = ({ API }) => {
  icon={Wrench}
  title="Bulk import equipment"
  description="Upload the Sicon equipment template (Excel or CSV). Rows route by Sicon Customer Ref (the customer/site account number). Re-importing the same serial numbers fills gaps instead of creating duplicates. Older Pulse templates are still accepted."
- headers={['Sicon Customer Ref', 'Location Description', 'Sublocation Description', 'Supplier Reference', 'Supplier Name', 'Contract Number', 'Contract Line No', 'SLA Name', 'Stock Item Code', 'Description', 'Make', 'Model', 'Serial Number', 'Install Date', 'Manufacturer Warranty Expiry Date', 'Last Service Date', 'Service Interval', 'Service Period', 'Next Service Date', 'ID Number', 'Service Template', 'Equipment Group', 'service_provider', 'unit_price', 'replacement_cost', 'length', 'width', 'height', 'MOD-Force', 'MOD Code', 'Asset Tag', 'Condition', 'Equipment Type', 'Manufacture Date']}
+ headers={['Sicon Customer Ref', 'Location Description', 'Sublocation Description', 'Supplier Reference', 'Supplier Name', 'Contract Number', 'Contract Line No', 'SLA Name', 'Stock Item Code', 'Description', 'Make', 'Model', 'Serial Number', 'Install Date', 'Manufacturer Warranty Expiry Date', 'Last Service Date', 'Service Interval', 'Service Period', 'Next Service Date', 'ID Number', 'Service Template', 'Equipment Group', 'service_provider', 'unit_price', 'replacement_cost', 'length', 'width', 'height', 'MOD-Force', 'MOD Code', 'Asset Tag', 'Condition', 'Equipment Type', 'Manufacture Date', 'Contract Start Date', 'Contract End Date']}
  inputRef={equipmentInput}
  />
  <ImportCard

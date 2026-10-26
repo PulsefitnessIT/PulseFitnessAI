@@ -18,6 +18,7 @@ export const GAP_COLUMNS = [
   ['next_service_date', 'Next Service', 'w-36'], ['equipment_group', 'Equipment Group', 'w-32'],
   ['asset_number', 'Asset Tag', 'w-28'], ['condition', 'Condition', 'w-28'],
   ['equipment_type', 'Equipment Type', 'w-32'], ['manufacturing_date', 'Manufacture Date', 'w-36'],
+  ['contract_start_date', 'Contract Start', 'w-36'], ['contract_end_date', 'Contract End', 'w-36'],
 ];
 const MOD_COLUMN = ['mod_code', 'MOD Code', 'w-28'];
 const columnsFor = (isMod) => (isMod ? [GAP_COLUMNS[0], MOD_COLUMN, ...GAP_COLUMNS.slice(1)] : GAP_COLUMNS);

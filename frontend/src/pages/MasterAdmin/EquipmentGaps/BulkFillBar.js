@@ -15,6 +15,8 @@ const BULK_FIELDS = [
   ['install_date', 'Install Date'],
   ['condition', 'Condition'],
   ['equipment_type', 'Equipment Type'],
+  ['contract_start_date', 'Contract Start Date'],
+  ['contract_end_date', 'Contract End Date'],
 ];
 const OPTIONS = { service_period: PERIODS, condition: CONDITIONS };
 

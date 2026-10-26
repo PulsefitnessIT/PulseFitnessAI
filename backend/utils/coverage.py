@@ -126,10 +126,24 @@ async def resolve_equipment_coverage(equipment: dict, db) -> dict:
         r.pop("_rank", None)
 
     has_crm_contract = bool(best)
+    # Imported contract dates on the asset itself also count as cover.
+    has_equipment_contract = False
+    if not best:
+        eq_end = (equipment.get("contract_end_date") or equipment.get("sla_expiry") or "")[:10]
+        eq_start = (equipment.get("contract_start_date") or equipment.get("sla_start") or "")[:10]
+        if eq_end and eq_end >= today and (not eq_start or eq_start <= today):
+            has_equipment_contract = True
+            best = {
+                "contract_id": "", "source": "equipment",
+                "contract_number": equipment.get("contract_number") or equipment.get("sla_contract_ref") or "",
+                "contract_title": "Imported contract", "tier": "", "coverage_type": "full",
+                "start_date": eq_start or None, "end_date": eq_end, "exclusions": "",
+                "expiring_soon": eq_end <= cutoff_90d, "days_until_expiry": _days_until(eq_end),
+            }
     # Service-Desk routing flag. Contract beats warranty when both exist
     # (operators normally invoke the contract since it covers labour;
     # manufacturer warranty is parts-only most of the time).
-    if has_crm_contract:
+    if has_crm_contract or has_equipment_contract:
         cover_type = "contract"
     elif warranty_active:
         cover_type = "warranty"
@@ -138,6 +152,7 @@ async def resolve_equipment_coverage(equipment: dict, db) -> dict:
 
     return {
         "has_crm_contract": has_crm_contract,
+        "has_equipment_contract": has_equipment_contract,
         "warranty_active": warranty_active,
         "warranty_expiry": warranty_expiry,
         "warranty_days_remaining": warranty_days,
@@ -150,6 +165,7 @@ async def resolve_equipment_coverage(equipment: dict, db) -> dict:
 def _empty_coverage() -> dict:
     return {
         "has_crm_contract": False,
+        "has_equipment_contract": False,
         "warranty_active": False,
         "warranty_expiry": None,
         "warranty_days_remaining": None,
@@ -172,7 +188,7 @@ def coverage_to_case_meta(coverage: dict) -> dict:
     return {
         "cover_type": coverage.get("cover_type", "chargeable"),
         "coverage_status": (
-            "covered_contract" if coverage.get("has_crm_contract")
+            "covered_contract" if coverage.get("has_crm_contract") or coverage.get("has_equipment_contract")
             else "covered_warranty" if coverage.get("warranty_active")
             else "uncovered"
         ),

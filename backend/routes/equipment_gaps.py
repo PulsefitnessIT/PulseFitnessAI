@@ -16,13 +16,13 @@ from utils.auth import get_current_user
 from utils.database import db
 from utils.sicon_equipment import (
     EDITABLE_FIELDS, ESSENTIAL_FIELDS, clean_value, incomplete_query,
-    missing_essentials, with_next_service,
+    missing_essentials, sync_contract_aliases, with_next_service,
 )
 
 router = APIRouter()
 
 _BULK_FIELDS = {
-    "condition", "equipment_type",
+    "condition", "equipment_type", "contract_start_date", "contract_end_date",
     "sicon_customer_ref", "location", "sub_location", "manufacturer", "service_interval",
     "service_period", "equipment_group", "sla_name", "contract_number", "service_template",
     "last_service_date", "install_date",
@@ -203,6 +203,8 @@ async def apply_detail_patch(eq: dict, body: dict, allowed, user: dict, source: 
     if "name" in patch and not patch["name"]:
         raise HTTPException(400, "Description cannot be blank")
     with_next_service(eq, patch)
+    if "contract_start_date" in patch or "contract_end_date" in patch:
+        sync_contract_aliases(patch)
     patch.update(_audit(user, source))
     await db.equipment.update_one({"id": eq["id"]}, {"$set": patch})
     updated = {**eq, **patch}
@@ -237,7 +239,8 @@ async def bulk_fill(body: dict = Body(...), user: dict = Depends(get_current_use
         if field not in ("service_interval", "service_period") and not field.endswith("_date"):
             blank.append({field: {"$regex": _PLACEHOLDER_RE, "$options": "i"}})
         q["$or"] = blank
-    res = await db.equipment.update_many(q, {"$set": {field: value, **_audit(user, "grid_bulk")}})
+    extra = {"contract_start_date": {"sla_start": value}, "contract_end_date": {"sla_expiry": value}}.get(field, {})
+    res = await db.equipment.update_many(q, {"$set": {field: value, **extra, **_audit(user, "grid_bulk")}})
     if field in ("last_service_date", "service_interval", "service_period"):
         async for d in db.equipment.find({k: v for k, v in q.items() if k != "$or"}, _PROJECTION):
             p = with_next_service(d, {})
@@ -250,7 +253,8 @@ async def bulk_fill(body: dict = Body(...), user: dict = Depends(get_current_use
     return {"success": True, "updated": res.modified_count}
 
 
-_EXPORT_DATES = {"install_date", "warranty_expiry", "last_service_date", "next_service_date", "manufacturing_date"}
+_EXPORT_DATES = {"install_date", "warranty_expiry", "last_service_date", "next_service_date", "manufacturing_date",
+                 "contract_start_date", "contract_end_date"}
 
 
 @router.get("/equipment-gaps/export.xlsx")

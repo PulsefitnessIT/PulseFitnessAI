@@ -282,7 +282,7 @@ def _equipment_composite_key(site_id, name, model, manufacturer) -> str:
 _EQUIPMENT_ENRICH_FIELDS = (
     "equipment_type", "manufacturer", "model", "serial_number",
     "purchase_date", "warranty_expiry", "sla_start", "sla_expiry",
-    "contract_number", "contract_type", "contract_start_date", "contract_end_date",
+    "contract_number", "contract_type", "contract_start_date", "contract_end_date", "sla_contract_ref",
     "service_provider", "supplier", "supplier_id", "supplier_email", "purchased_from",
     "location", "notes", "sicon_equipment_id", "sage_item_id",
     "length", "width", "height", "purchase_price", "purchase_cost", "replacement_cost",
@@ -1267,6 +1267,7 @@ async def _do_bulk_import_equipment(
                 "sla_start": contract_start_iso or None,
                 "sla_expiry": contract_end_iso or None,
                 "contract_number": str(get_pick(row, "contract_number", "")).strip() or None,
+                "sla_contract_ref": str(get_pick(row, "contract_number", "")).strip() or None,
                 "contract_type": _normalize_contract_type(
                     _normalize(row, "contract_type", "Contract Type", "Contract type")
                     or str(get_pick(row, "contract_type", "")).strip()

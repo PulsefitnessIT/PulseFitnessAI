@@ -207,8 +207,8 @@ HEADER_ALIASES: dict[str, list[str]] = {
         "invoice_customer_ref", "invoice customer ref", "sicon customer ref",
         "customer ref", "customer reference",
     ],
-    "contract_start":    ["contract_start", "contract start", "contract start date"],
-    "contract_end":      ["contract_end", "contract end", "contract end date"],
+    "contract_start":    ["contract_start", "contract start", "contract start date", "contract_start_date", "contract start date (yyyy-mm-dd)"],
+    "contract_end":      ["contract_end", "contract end", "contract end date", "contract_end_date", "contract end date (yyyy-mm-dd)", "contract expiry", "contract expiry date"],
     "contract_number":   ["contract_number", "contract number", "contract code"],
     # Sicon Service template-only columns
     "install_date":      ["install_date", "install date", "installation date", "installation_date"],

@@ -3,7 +3,7 @@ import { Loader2 } from 'lucide-react';
 
 export const PERIODS = ['Days', 'Weeks', 'Months', 'Years'];
 export const CONDITIONS = ['New', 'Good', 'Fair', 'Poor', 'Out of Service'];
-const DATE_FIELDS = new Set(['install_date', 'last_service_date', 'next_service_date', 'warranty_expiry', 'manufacturing_date']);
+const DATE_FIELDS = new Set(['install_date', 'last_service_date', 'next_service_date', 'warranty_expiry', 'manufacturing_date', 'contract_start_date', 'contract_end_date']);
 const OPTIONS = { service_period: PERIODS, condition: CONDITIONS };
 
 const PLACEHOLDER = /^\s*(unknown|n\/?a|tbc|tbd|none|null|-|0)\s*$/i;

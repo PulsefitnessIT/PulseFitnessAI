@@ -22,6 +22,7 @@ SICON_EQUIPMENT_HEADERS = [
     "replacement_cost", "length", "width", "height", "MOD-Force",
     # Pulse analysis codes (end columns)
     "MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date",
+    "Contract Start Date", "Contract End Date",
 ]
 
 # Sicon header → Pulse canonical field.
@@ -58,6 +59,8 @@ SICON_TO_CANONICAL = {
     "Condition": "condition",
     "Equipment Type": "equipment_type",
     "Manufacture Date": "manufacturing_date",
+    "Contract Start Date": "contract_start_date",
+    "Contract End Date": "contract_end_date",
 }
 
 _GUIDE = {
@@ -80,6 +83,8 @@ _GUIDE = {
     "Condition": ("Optional", "Good, Fair, Poor or Out of Service"),
     "Equipment Type": ("Optional", "Treadmill, Bike, Rower, Cross Trainer, Strength… (drives fault forms, parts and lifespan)"),
     "Manufacture Date": ("Optional", "DD/MM/YYYY — from the serial plate"),
+    "Contract Start Date": ("Optional", "DD/MM/YYYY — start of the service contract covering this asset"),
+    "Contract End Date": ("Optional", "DD/MM/YYYY — while in date, faults are treated as contract-covered"),
 }
 
 # Extra Sicon-only fields stored on db.equipment.
@@ -89,7 +94,8 @@ SICON_EXTRA_FIELDS = (
     "service_period", "next_service_date", "id_number", "service_template",
     "equipment_group",
 )
-_DATE_FIELDS = {"install_date", "last_service_date", "next_service_date", "warranty_expiry", "manufacturing_date"}
+_DATE_FIELDS = {"install_date", "last_service_date", "next_service_date", "warranty_expiry", "manufacturing_date",
+                "contract_start_date", "contract_end_date"}
 
 ESSENTIAL_FIELDS = [
     ("sicon_customer_ref", "Customer Ref"),
@@ -108,6 +114,7 @@ EDITABLE_FIELDS = (
     "equipment_group", "stock_item_code", "supplier_reference", "contract_number",
     "contract_line_no", "sla_name", "service_template",
     "mod_code", "asset_number", "condition", "equipment_type", "manufacturing_date",
+    "contract_start_date", "contract_end_date",
 )
 # Subset the field engineer may capture on site.
 ENGINEER_EDITABLE_FIELDS = (
@@ -286,7 +293,8 @@ def template_xlsx() -> bytes:
     ws.title = "Sheet1"
     ws.append(SICON_EQUIPMENT_HEADERS)
     essential = {h for h, (req, _) in _GUIDE.items() if req == "Essential"}
-    analysis = {"MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date"}
+    analysis = {"MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date",
+                "Contract Start Date", "Contract End Date"}
     for col, h in enumerate(SICON_EQUIPMENT_HEADERS, start=1):
         c = ws.cell(row=1, column=col)
         c.font = Font(bold=True, color="FFFFFF")
@@ -336,7 +344,24 @@ def merge_extras(doc: dict, row: dict) -> dict:
         v = get_pick(row, k)
         if v not in (None, "") and not doc.get(k):
             doc[k] = clean_value(k, v)
+    for k, alias in (("contract_start_date", "contract_start"), ("contract_end_date", "contract_end")):
+        v = clean_value(k, get_pick(row, alias)) or clean_value(k, doc.get(k))
+        if v:
+            doc[k] = v
+    sync_contract_aliases(doc)
     sub = get_pick(row, "sub_location")
     if sub and not doc.get("sub_location"):
         doc["sub_location"] = str(sub).strip()
+    return doc
+
+
+def sync_contract_aliases(doc: dict) -> dict:
+    """Mirror contract dates onto the sla_* fields the cover checks read
+    (Service Desk, QR scan, expiry alerts, MOD reports)."""
+    if doc.get("contract_start_date"):
+        doc["sla_start"] = doc["contract_start_date"]
+    if doc.get("contract_end_date"):
+        doc["sla_expiry"] = doc["contract_end_date"]
+    if doc.get("contract_number") and not doc.get("sla_contract_ref"):
+        doc["sla_contract_ref"] = doc["contract_number"]
     return doc

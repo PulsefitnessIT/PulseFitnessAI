@@ -99,7 +99,7 @@ class TestEquipmentTemplateEndpoint:
         from io import StringIO as _SIO
         hdr = next(_csv.reader(_SIO(resp.text)))
         assert hdr[0] == "Sicon Customer Ref" and "Description" in hdr and "Make" in hdr and "Serial Number" in hdr, hdr
-        assert len(hdr) == 34 and hdr[29:] == ["MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date"], hdr
+        assert len(hdr) == 36 and hdr[29:] == ["MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date", "Contract Start Date", "Contract End Date"], hdr
 
     def test_template_matches_master_admin(self, auth_headers):
         """Customer template should match Master Admin template"""

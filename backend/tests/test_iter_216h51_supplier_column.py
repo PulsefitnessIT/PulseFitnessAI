@@ -99,7 +99,7 @@ class TestEquipmentTemplateSupplierColumn:
         from io import StringIO as _SIO
         hdr = next(_csv.reader(_SIO(resp.text)))
         assert hdr[0] == "Sicon Customer Ref" and "Description" in hdr and "Make" in hdr and "Serial Number" in hdr, hdr
-        assert len(hdr) == 34 and hdr[29:] == ["MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date"], hdr
+        assert len(hdr) == 36 and hdr[29:] == ["MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date", "Contract Start Date", "Contract End Date"], hdr
         assert "Supplier Name" in hdr
 
     def test_template_header_order(self, master_admin_token):
@@ -110,7 +110,7 @@ class TestEquipmentTemplateSupplierColumn:
         from io import StringIO as _SIO
         hdr = next(_csv.reader(_SIO(resp.text)))
         assert hdr[0] == "Sicon Customer Ref" and "Description" in hdr and "Make" in hdr and "Serial Number" in hdr, hdr
-        assert len(hdr) == 34 and hdr[29:] == ["MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date"], hdr
+        assert len(hdr) == 36 and hdr[29:] == ["MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date", "Contract Start Date", "Contract End Date"], hdr
         assert "Supplier Name" in hdr
 
     def test_template_example_row_supplier_value(self, master_admin_token):
@@ -121,7 +121,7 @@ class TestEquipmentTemplateSupplierColumn:
         from io import StringIO as _SIO
         hdr = next(_csv.reader(_SIO(resp.text)))
         assert hdr[0] == "Sicon Customer Ref" and "Description" in hdr and "Make" in hdr and "Serial Number" in hdr, hdr
-        assert len(hdr) == 34 and hdr[29:] == ["MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date"], hdr
+        assert len(hdr) == 36 and hdr[29:] == ["MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date", "Contract Start Date", "Contract End Date"], hdr
         assert "Supplier Name" in hdr
 
 class TestEquipmentBulkImportSupplierResolution:
