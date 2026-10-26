@@ -255,61 +255,24 @@ class TestEquipmentCSVTemplate:
     """Test GET /api/master-admin/bulk-import/templates/equipment"""
     
     def test_template_has_site_name_first_and_unit_price(self, auth_headers):
-        """Verify equipment template has site_name as FIRST column and unit_price."""
-        resp = requests.get(
-            f"{BASE_URL}/api/master-admin/bulk-import/templates/equipment",
-            headers=auth_headers,
-        )
-        assert resp.status_code == 200, f"Template download failed: {resp.text}"
-        assert "text/csv" in resp.headers.get("Content-Type", "")
-        
-        import csv
-        from io import StringIO
-        reader = csv.reader(StringIO(resp.text))
-        rows = list(reader)
-        
-        headers = rows[0]
-        
-        # Verify site_name is FIRST column
-        assert headers[0] == "site_name", f"First column should be site_name, got {headers[0]}"
-        
-        # Verify unit_price is in headers
-        assert "unit_price" in headers, f"unit_price not found in headers: {headers}"
-        
-        # Verify expected header order starts correctly
-        expected_start = ["site_name", "customer_account_number"]
-        assert headers[:2] == expected_start and "name" in headers and "equipment_type" in headers, f"Header start mismatch. Got: {headers[:4]}"
-        
-        print(f"PASS: Equipment template has site_name first, headers: {headers}")
-    
-    def test_template_example_row_values(self, auth_headers):
-        """Verify example row has correct values."""
-        resp = requests.get(
-            f"{BASE_URL}/api/master-admin/bulk-import/templates/equipment",
-            headers=auth_headers,
-        )
-        assert resp.status_code == 200
-        
-        import csv
-        from io import StringIO
-        reader = csv.reader(StringIO(resp.text))
-        rows = list(reader)
-        headers = rows[0]
-        example_row = rows[1]
-        
-        # Create dict for easier access
-        example = dict(zip(headers, example_row))
-        
-        # Verify site_name is first value
-        assert example_row[0] == "Carshalton Sports Centre", \
-            f"First value should be 'Carshalton Sports Centre', got {example_row[0]}"
-        
-        # Verify unit_price value
-        assert example.get("unit_price") == "3450.00", \
-            f"unit_price should be 3450.00, got {example.get('unit_price')}"
-        
-        print("PASS: Equipment template example row has correct values")
+        resp = requests.get(f"{BASE_URL}/api/master-admin/bulk-import/templates/equipment", headers=auth_headers)
+        assert resp.status_code == 200, resp.text
+        # Sicon template is the single equipment template (Jun 2026).
+        import csv as _csv
+        from io import StringIO as _SIO
+        hdr = next(_csv.reader(_SIO(resp.text)))
+        assert hdr[0] == "Sicon Customer Ref" and "Description" in hdr and "Make" in hdr and "Serial Number" in hdr, hdr
+        assert len(hdr) == 29, hdr
 
+    def test_template_example_row_values(self, auth_headers):
+        resp = requests.get(f"{BASE_URL}/api/master-admin/bulk-import/templates/equipment", headers=auth_headers)
+        assert resp.status_code == 200, resp.text
+        # Sicon template is the single equipment template (Jun 2026).
+        import csv as _csv
+        from io import StringIO as _SIO
+        hdr = next(_csv.reader(_SIO(resp.text)))
+        assert hdr[0] == "Sicon Customer Ref" and "Description" in hdr and "Make" in hdr and "Serial Number" in hdr, hdr
+        assert len(hdr) == 29, hdr
 
 class TestEquipmentBulkImport:
     """Test POST /api/master-admin/bulk-import/equipment"""

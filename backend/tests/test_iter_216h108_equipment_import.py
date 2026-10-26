@@ -91,23 +91,16 @@ class TestEquipmentTemplateEndpoint:
     """GET /api/account/import/equipment/template"""
     
     def test_template_returns_csv(self, auth_headers):
-        """Template endpoint should return CSV with correct headers"""
-        r = requests.get(f"{BASE_URL}/api/account/import/equipment/template", headers=auth_headers)
-        assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
-        assert "text/csv" in r.headers.get("Content-Type", ""), "Expected CSV content type"
-        
-        # Check that the CSV has the expected headers
-        content = r.text
-        first_line = content.split('\n')[0]
-        expected_headers = [
-            "site_name", "customer_account_number", "supplier", "name",
-            "equipment_type", "manufacturer", "model", "serial_number",
-            "purchase_date", "warranty_expiry", "service_provider",
-            "unit_price", "length", "width", "height", "location", "notes"
-        ]
-        for header in expected_headers:
-            assert header in first_line, f"Missing header: {header}"
-    
+        resp = requests.get(f"{BASE_URL}/api/account/import/equipment/template", headers=auth_headers)
+        assert resp.status_code == 200, resp.text
+        assert "text/csv" in resp.headers.get("Content-Type", "")
+        # Sicon template is the single equipment template (Jun 2026).
+        import csv as _csv
+        from io import StringIO as _SIO
+        hdr = next(_csv.reader(_SIO(resp.text)))
+        assert hdr[0] == "Sicon Customer Ref" and "Description" in hdr and "Make" in hdr and "Serial Number" in hdr, hdr
+        assert len(hdr) == 29, hdr
+
     def test_template_matches_master_admin(self, auth_headers):
         """Customer template should match Master Admin template"""
         # Get customer template

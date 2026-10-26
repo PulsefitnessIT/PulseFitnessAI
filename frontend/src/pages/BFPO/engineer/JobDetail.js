@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { bfpo, uploadFile, pendingStatusFor, onOutboxChange, outboxCount } from '../bfpoApi';
 import { Card, Btn, Badge, Spinner, PriorityBadge, STATUS_LABEL, Field, inputCls, localTime } from '../ui';
 import SignaturePad from './SignaturePad';
+import MissingAssetDetails from './MissingAssetDetails';
 import {
   ChevronLeft, AlertTriangle, MapPin, Wrench, ShieldCheck, ShieldAlert, Package,
   RotateCcw, Ban, PlusCircle, Camera, CheckCircle2, Clock, FileText, History, Loader2,
@@ -101,6 +102,8 @@ export default function JobDetail({ jobId, onBack, onOpenJob }) {
             </div>
           </Card>
         </div>
+
+        {isOpen && <MissingAssetDetails jobId={jobId} />}
 
         {job.diagnosis && (
           <Card className="p-4"><p className="text-xs font-semibold text-slate-400 uppercase">Diagnosis</p><p className="text-slate-700 mt-1">{job.diagnosis}</p></Card>

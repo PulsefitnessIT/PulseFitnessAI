@@ -25,7 +25,7 @@ const downloadTemplate = async (kind) => {
   // auth — the raw fetch previously relied on a localStorage token that is
   // absent/stale in production, causing a 401. responseType:'blob' lets the
   // browser trigger a real download dialog.
-  const r = await axios.get(`${API_BASE}/master-admin/bulk-import/templates/${kind}`, {
+  const r = await axios.get(`${API_BASE}/master-admin/bulk-import/templates/${kind}${kind === 'equipment' ? '?format=xlsx' : ''}`, {
     responseType: 'blob',
   });
   // Surface JSON error responses instead of saving them as a broken .csv.
@@ -39,7 +39,7 @@ const downloadTemplate = async (kind) => {
   const url = URL.createObjectURL(r.data);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${kind}-template.csv`;
+  a.download = kind === 'equipment' ? 'Equipment Import - Sicon Template.xlsx' : `${kind}-template.csv`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -255,7 +255,7 @@ const AdminBulkImports = ({ API }) => {
  <input
  ref={inputRef}
  type="file"
- accept=".csv,text/csv,application/vnd.ms-excel"
+ accept=".csv,.xlsx,text/csv,application/vnd.ms-excel"
  className="hidden"
  data-testid={`bulk-file-${kind}`}
  onChange={(e) => {
@@ -279,7 +279,7 @@ const AdminBulkImports = ({ API }) => {
  <input
  ref={previewInput}
  type="file"
- accept=".csv,text/csv,application/vnd.ms-excel"
+ accept=".csv,.xlsx,text/csv,application/vnd.ms-excel"
  className="hidden"
  data-testid="bulk-preview-file-equipment"
  onChange={(e) => {
@@ -449,8 +449,8 @@ const AdminBulkImports = ({ API }) => {
  kind="equipment"
  icon={Wrench}
  title="Bulk import equipment"
- description="Upload a CSV of every machine across one or many customer floors. Equipment auto-links to sites by site_name; supplier resolves to a row in the suppliers directory so fault emails route correctly. Duplicates by serial_number are skipped."
- headers={['site_name', 'customer_account_number', 'supplier', 'name', 'equipment_type', 'manufacturer', 'model', 'serial_number', 'purchase_date', 'warranty_expiry', 'service_provider', 'unit_price', 'length', 'width', 'height', 'location', 'notes', 'sicon_equipment_id', 'sage_item_id']}
+ description="Upload the Sicon equipment template (Excel or CSV). Rows route by Sicon Customer Ref (the customer/site account number). Re-importing the same serial numbers fills gaps instead of creating duplicates. Older Pulse templates are still accepted."
+ headers={['Sicon Customer Ref', 'Location Description', 'Sublocation Description', 'Supplier Reference', 'Supplier Name', 'Contract Number', 'Contract Line No', 'SLA Name', 'Stock Item Code', 'Description', 'Make', 'Model', 'Serial Number', 'Install Date', 'Manufacturer Warranty Expiry Date', 'Last Service Date', 'Service Interval', 'Service Period', 'Next Service Date', 'ID Number', 'Service Template', 'Equipment Group', 'service_provider', 'unit_price', 'replacement_cost', 'length', 'width', 'height', 'MOD-Force']}
  inputRef={equipmentInput}
  />
  <ImportCard

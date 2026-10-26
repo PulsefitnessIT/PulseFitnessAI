@@ -1529,3 +1529,50 @@ async def bfpo_site_photo(case_id: str, index: int, user=Depends(_require_bfpo))
         raise HTTPException(404, "Photo not available")
     return Response(content=data, media_type=ct or "image/jpeg",
                     headers={"Cache-Control": "private, max-age=86400"})
+
+
+# ─────────────────────────────────────────────────────────────────
+# Engineer — capture missing asset details (Sicon essentials) on site
+# ─────────────────────────────────────────────────────────────────
+
+async def _site_equipment_query(site_id: str) -> dict:
+    mod_org = await db.organizations.find_one({"id": site_id, "account_type": {"$in": list(MOD_ORG_TYPES)}}, {"_id": 0, "id": 1})
+    return {"organization_id": site_id} if mod_org else {"organization_id": BFPO_ORG_ID, "site_id": site_id}
+
+
+@router.get("/jobs/{case_id}/equipment-gaps")
+async def bfpo_job_equipment_gaps(case_id: str, user=Depends(_require_bfpo)):
+    from utils.sicon_equipment import ENGINEER_EDITABLE_FIELDS, missing_essentials
+    case = await _get_scoped_case(user, case_id)
+    if not case.get("site_id"):
+        return {"items": [], "count": 0, "total": 0}
+    q = await _site_equipment_query(case["site_id"])
+    proj = {"_id": 0, "id": 1, "equipment_type": 1, "sicon_customer_ref": 1, **{f: 1 for f in ENGINEER_EDITABLE_FIELDS}}
+    docs = await db.equipment.find(q, proj).sort([("location", 1), ("name", 1)]).to_list(1000)
+    items = []
+    for d in docs:
+        # Customer Ref is office data — the engineer is only asked for what they can see on site.
+        miss = [f for f in missing_essentials(d, customer_ref="-") if f != "sicon_customer_ref"]
+        if not d.get("install_date"):
+            miss.append("install_date")
+        if miss:
+            items.append({**d, "missing": miss})
+    return {"items": items, "count": len(items), "total": len(docs), "fields": list(ENGINEER_EDITABLE_FIELDS)}
+
+
+@router.post("/jobs/{case_id}/equipment/{equipment_id}/details")
+async def bfpo_capture_equipment_details(case_id: str, equipment_id: str, body: dict = Body(...), user=Depends(_require_bfpo)):
+    from utils.sicon_equipment import ENGINEER_EDITABLE_FIELDS
+    from routes.equipment_gaps import _PROJECTION, apply_detail_patch
+    case = await _get_scoped_case(user, case_id)
+    if not case.get("site_id"):
+        raise HTTPException(404, "Equipment not found")
+    q = await _site_equipment_query(case["site_id"])
+    eq = await db.equipment.find_one({**q, "id": equipment_id}, _PROJECTION)
+    if not eq:
+        raise HTTPException(404, "Equipment not found")
+    fields = {k: v for k, v in (body or {}).items() if v not in (None, "")}
+    item = await apply_detail_patch(eq, fields, ENGINEER_EDITABLE_FIELDS, user, "engineer_app")
+    await _op_update(case, user, "asset_details", f"Captured asset details for {item.get('name') or 'equipment'}: {', '.join(sorted(fields))}",
+                     {"equipment_id": equipment_id})
+    return {"success": True, "item": item}

@@ -61,6 +61,7 @@ const CollectionsDashboard = lazy(() => import('./MasterAdmin/CollectionsDashboa
 const DbViewerPanel = lazy(() => import('./MasterAdmin/DbViewerPanel'));
 const PulseDbExplorerPanel = lazy(() => import('./MasterAdmin/PulseDbExplorerPanel'));
 const CataloguePanel = lazy(() => import('./MasterAdmin/CataloguePanel'));
+const EquipmentGapsSection = lazy(() => import('./MasterAdmin/EquipmentGaps/EquipmentGapsSection'));
 const MachineManualsDirectoryPanel = lazy(() => import('./MasterAdmin/MachineManualsDirectoryPanel'));
 // Iter 292 — GymAxis parity: Service Desk customers console
 const ServiceDeskCustomersPanel = lazy(() => import('./MasterAdmin/ServiceDeskCustomersPanel'));
@@ -629,6 +630,8 @@ const MasterAdminPage = ({ _onBack }) => {
         return <PulseDbExplorerPanel />;
       case 'catalogue':
         return <CataloguePanel />;
+      case 'equipment-gaps':
+        return <EquipmentGapsSection />;
       case 'machine-manuals':
         return <MachineManualsDirectoryPanel />;
       case 'service-desk-customers':

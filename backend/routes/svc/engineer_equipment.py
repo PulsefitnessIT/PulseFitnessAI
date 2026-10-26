@@ -503,36 +503,11 @@ _ENGINEER_CSV_FIELD_MAP = {
 
 
 @router.get("/equipment/template-csv")
-async def get_engineer_csv_template(user=Depends(get_current_user)):
-    """Slim CSV template — no Pulse-specific integration columns.
-
-    Engineers download this from the customer-onboarding flow,
-    populate it offline at the gym, and re-upload via
-    ``POST /svc/engineer/customers/{customer_id}/equipment/import-csv``
-    so every row is auto-tagged with the right customer.
-    """
+async def get_engineer_csv_template(format: str = "csv", user=Depends(get_current_user)):
+    """Sicon equipment template (same as every other equipment import)."""
     _of(user)  # 403 if no org context.
-    import csv as _csv
-    import io as _io
-    from fastapi.responses import Response  # local import to avoid cycle
-
-    out = _io.StringIO()
-    writer = _csv.writer(out)
-    writer.writerow(_ENGINEER_CSV_HEADERS)
-    writer.writerow([
-        "Treadmill #1", "Treadmill", "Life Fitness", "Integrity DX",
-        "LF-12345", "2024-01-15", "2027-01-15", "3450.00", "3800.00",
-        "2.1", "0.9", "1.6", "Main Gym", "Cardio Zone",
-        "CON-2024-0142", "2024-01-15", "2029-01-14", "Captured during PM visit",
-    ])
-    return Response(
-        content=out.getvalue(),
-        media_type="text/csv",
-        headers={
-            "Content-Disposition":
-                "attachment; filename=equipment-import-engineer.csv",
-        },
-    )
+    from utils.sicon_equipment import template_response
+    return template_response(format)
 
 
 def _parse_engineer_csv_row(row: dict, user: dict, *, customer: dict,
@@ -632,11 +607,22 @@ async def import_customer_equipment_csv(
     now = _now()
     rows: list[dict] = []
     skipped = 0
+    from utils.sicon_equipment import adapt_row, merge_extras
+    fm = _ENGINEER_CSV_FIELD_MAP
+    sicon_target = {
+        "name": fm["name"], "manufacturer": fm["manufacturer"], "model": fm["model"],
+        "serial_number": fm["serial"], "install_date": fm["purchase_date"], "warranty_expiry": fm["warranty"],
+        "unit_price": fm["purchase_cost"], "replacement_cost": fm["replacement_cost"],
+        "length": fm["length"], "width": fm["width"], "height": fm["height"],
+        "location": fm["location"], "contract_number": fm["contract_number"], "equipment_group": fm["type"],
+    }
     for raw_row in reader:
+        raw_row = adapt_row(raw_row, sicon_target)
         doc = _parse_engineer_csv_row(raw_row, user, customer=customer, now=now)
         if doc is None:
             skipped += 1
             continue
+        merge_extras(doc, raw_row)
         rows.append(doc)
 
     if rows:

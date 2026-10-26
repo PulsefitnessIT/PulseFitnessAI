@@ -36,6 +36,22 @@ _BRANDS = {
 }
 
 _HEADER_HINTS = {
+    # Sicon template columns — listed first so e.g. "Supplier Reference"
+    # never falls through to the plain "supplier" hint.
+    "sicon_customer_ref": ["sicon customer ref", "customer ref", "customer account", "account number"],
+    "supplier_reference": ["supplier reference", "supplier ref"],
+    "contract_line_no": ["contract line"],
+    "sla_name": ["sla name", "sla"],
+    "stock_item_code": ["stock item code", "stock code"],
+    "install_date": ["install date", "installation date", "install / purchase date"],
+    "last_service_date": ["last service"],
+    "service_interval": ["service interval"],
+    "service_period": ["service period"],
+    "next_service_date": ["next service"],
+    "id_number": ["id number", "id no"],
+    "service_template": ["service template"],
+    "equipment_group": ["equipment group"],
+    "mod_force": ["mod-force", "mod force", "force"],
     "type": ["type", "equipment type", "equipment", "description", "item", "asset type"],
     "model": ["model", "model number", "model no"],
     "manufacturer": ["manufacturer", "make", "brand"],
@@ -56,7 +72,7 @@ _HEADER_HINTS = {
     "contract_end": ["contract end", "contract_end", "contract end date"],
     "warranty_expiry": ["warranty expiry", "warranty_expiry", "warranty end", "warranty expiry date"],
     "location": ["location", "area / gym floor", "area", "gym floor"],
-    "sub_location": ["sub location", "sub_location", "room / zone / rack", "room", "zone", "rack"],
+    "sub_location": ["sub location", "sublocation", "sub_location", "room / zone / rack", "room", "zone", "rack"],
     "condition": ["condition", "condition on handover"],
     "classification": ["classification", "security classification"],
     "purchase_date": ["install / purchase date", "install date", "purchase date", "purchase_date"],
@@ -72,7 +88,11 @@ _PASSTHROUGH_FIELDS = (
     "supplier", "service_provider", "contract_number", "contract_type",
     "contract_start", "contract_end", "warranty_expiry", "location",
     "condition", "classification", "purchase_date", "manufacturing_date",
-    "unit_price", "replacement_cost",
+    "unit_price", "replacement_cost", "sub_location",
+    "sicon_customer_ref", "supplier_reference", "contract_line_no", "sla_name",
+    "stock_item_code", "install_date", "last_service_date", "service_interval",
+    "service_period", "next_service_date", "id_number", "service_template",
+    "equipment_group", "mod_force",
 )
 
 _SUMMARY_NAMES = ("total", "totals", "summary", "pivot", "overview", "grand total", "sum")
@@ -82,6 +102,8 @@ _SUMMARY_CELL_HINTS = ("row labels", "sum of", "grand total", "count of")
 def _clean(v) -> str:
     if v is None:
         return ""
+    if hasattr(v, "isoformat") and hasattr(v, "year"):
+        return v.isoformat()[:10]
     s = str(v).strip()
     return "" if s.lower() in ("none", "nan", "na", "n/a", "-") else s
 
@@ -307,8 +329,8 @@ async def analyse_kit_workbook(content: bytes, filename: str) -> dict:
                 "quantity": r["quantity"],
                 "category": _title_case(r["category"], preserve_acronyms=False),
                 "mod_code": r.get("mod_code", ""),
-                "sub_location": r.get("sub_location") or _title_case(sh["tab"]),
                 **{f: r.get(f, "") for f in _PASSTHROUGH_FIELDS},
+                "sub_location": r.get("sub_location") or _title_case(sh["tab"]),
             })
         out_sheets.append({
             "tab": sh["tab"],

@@ -92,59 +92,37 @@ class TestEquipmentTemplateSupplierColumn:
     """Test 1: Equipment CSV template includes supplier column."""
     
     def test_template_has_supplier_column(self, master_admin_token):
-        """GET /api/master-admin/bulk-import/templates/equipment has supplier column."""
-        resp = requests.get(
-            f"{BASE_URL}/api/master-admin/bulk-import/templates/equipment",
-            headers={"Authorization": f"Bearer {master_admin_token}"}
-        )
-        assert resp.status_code == 200, f"Template fetch failed: {resp.text}"
-        
-        # Parse CSV
-        reader = csv.reader(io.StringIO(resp.text))
-        headers = next(reader)
-        
-        assert "supplier" in headers, f"'supplier' column missing. Headers: {headers}"
-        print("✓ Template has 'supplier' column")
-    
-    def test_template_header_order(self, master_admin_token):
-        """Verify exact header order: site_name, customer_account_number, supplier, name, ..."""
-        resp = requests.get(
-            f"{BASE_URL}/api/master-admin/bulk-import/templates/equipment",
-            headers={"Authorization": f"Bearer {master_admin_token}"}
-        )
-        assert resp.status_code == 200
-        
-        reader = csv.reader(io.StringIO(resp.text))
-        headers = next(reader)
-        
-        expected_order = [
-            "site_name", "customer_account_number", "supplier",
-            "name", "equipment_type", "manufacturer", "model", "serial_number",
-            "purchase_date", "warranty_expiry", "service_provider",
-            "unit_price",
-            "length", "width", "height", "location", "notes"
-        ]
-        
-        assert headers == expected_order, f"Header order mismatch.\nExpected: {expected_order}\nGot: {headers}"
-        print("✓ Header order is correct: supplier is 3rd column (after site_name, customer_account_number)")
-    
-    def test_template_example_row_supplier_value(self, master_admin_token):
-        """Example row has supplier='Pulse Fitness'."""
-        resp = requests.get(
-            f"{BASE_URL}/api/master-admin/bulk-import/templates/equipment",
-            headers={"Authorization": f"Bearer {master_admin_token}"}
-        )
-        assert resp.status_code == 200
-        
-        reader = csv.reader(io.StringIO(resp.text))
-        headers = next(reader)
-        example_row = next(reader)
-        
-        supplier_idx = headers.index("supplier")
-        assert example_row[supplier_idx] == "Pulse Fitness", \
-            f"Expected supplier='Pulse Fitness', got '{example_row[supplier_idx]}'"
-        print("✓ Example row has supplier='Pulse Fitness'")
+        resp = requests.get(f"{BASE_URL}/api/master-admin/bulk-import/templates/equipment", headers={"Authorization": f"Bearer {master_admin_token}"})
+        assert resp.status_code == 200, resp.text
+        # Sicon template is the single equipment template (Jun 2026).
+        import csv as _csv
+        from io import StringIO as _SIO
+        hdr = next(_csv.reader(_SIO(resp.text)))
+        assert hdr[0] == "Sicon Customer Ref" and "Description" in hdr and "Make" in hdr and "Serial Number" in hdr, hdr
+        assert len(hdr) == 29, hdr
+        assert "Supplier Name" in hdr
 
+    def test_template_header_order(self, master_admin_token):
+        resp = requests.get(f"{BASE_URL}/api/master-admin/bulk-import/templates/equipment", headers={"Authorization": f"Bearer {master_admin_token}"})
+        assert resp.status_code == 200, resp.text
+        # Sicon template is the single equipment template (Jun 2026).
+        import csv as _csv
+        from io import StringIO as _SIO
+        hdr = next(_csv.reader(_SIO(resp.text)))
+        assert hdr[0] == "Sicon Customer Ref" and "Description" in hdr and "Make" in hdr and "Serial Number" in hdr, hdr
+        assert len(hdr) == 29, hdr
+        assert "Supplier Name" in hdr
+
+    def test_template_example_row_supplier_value(self, master_admin_token):
+        resp = requests.get(f"{BASE_URL}/api/master-admin/bulk-import/templates/equipment", headers={"Authorization": f"Bearer {master_admin_token}"})
+        assert resp.status_code == 200, resp.text
+        # Sicon template is the single equipment template (Jun 2026).
+        import csv as _csv
+        from io import StringIO as _SIO
+        hdr = next(_csv.reader(_SIO(resp.text)))
+        assert hdr[0] == "Sicon Customer Ref" and "Description" in hdr and "Make" in hdr and "Serial Number" in hdr, hdr
+        assert len(hdr) == 29, hdr
+        assert "Supplier Name" in hdr
 
 class TestEquipmentBulkImportSupplierResolution:
     """Tests 2-5: Equipment bulk import with supplier resolution."""

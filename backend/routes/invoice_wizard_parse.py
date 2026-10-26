@@ -39,20 +39,11 @@ _EQUIPMENT_CSV_EXAMPLE_ROWS = [
 
 
 @router.get("/master-admin/equipment/template.csv")
-async def download_equipment_csv_template(user: dict = Depends(get_current_user)):
-    """Download a starter CSV for bulk-adding equipment to a site."""
+async def download_equipment_csv_template(format: str = "csv", user: dict = Depends(get_current_user)):
+    """Sicon equipment template (same as every other equipment import)."""
     require_master_admin(user)
-    buf = _io.StringIO()
-    w = _csv.writer(buf)
-    w.writerow(_EQUIPMENT_CSV_HEADERS)
-    for row in _EQUIPMENT_CSV_EXAMPLE_ROWS:
-        w.writerow(row)
-    buf.seek(0)
-    return StreamingResponse(
-        iter([buf.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="pulsefitness-equipment-template.csv"'},
-    )
+    from utils.sicon_equipment import template_response
+    return template_response(format)
 
 
 @router.post("/master-admin/equipment/preview-csv")
@@ -67,6 +58,7 @@ async def preview_equipment_csv(file: UploadFile = File(...), user: dict = Depen
     reader = _csv.DictReader(_io.StringIO(raw))
     if not reader.fieldnames:
         raise HTTPException(status_code=400, detail="CSV is empty or missing a header row")
+    from utils.sicon_equipment import is_sicon_row, sicon_values
     headers_lower = [(h or "").strip().lower() for h in reader.fieldnames]
     has_any = any(k in headers_lower for k in ("make", "model", "serial_number", "name"))
     if not has_any:
@@ -79,6 +71,11 @@ async def preview_equipment_csv(file: UploadFile = File(...), user: dict = Depen
     errors: list[dict] = []
     for i, raw_row in enumerate(reader, start=2):
         row = {(k or "").strip().lower(): (v or "").strip() for k, v in raw_row.items()}
+        _sv = sicon_values(raw_row) if is_sicon_row(raw_row) else {}
+        for _src, _dst in (("name", "name"), ("serial_number", "serial_number"), ("install_date", "install_date"),
+                           ("warranty_expiry", "warranty_expiry"), ("location", "location"), ("equipment_group", "equipment_type")):
+            if _sv.get(_src) and not row.get(_dst):
+                row[_dst] = str(_sv[_src])
         name = row.get("name") or row.get("model") or row.get("make")
         if not name:
             errors.append({"line": i, "error": "No name/model/make"})

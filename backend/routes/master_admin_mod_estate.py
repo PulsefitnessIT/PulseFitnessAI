@@ -401,81 +401,17 @@ _MOD_EQUIP_FIELDS = [
 
 @router.get("/master-admin/mod-estate/equipment-template.xlsx")
 async def mod_equipment_template_xlsx(user: dict = Depends(get_current_user)):
-    """Presentable Excel workbook to send to a MOD site to capture its
-    equipment. Sheet 1 (Equipment) is the fillable, directly-uploadable
-    sheet; Sheet 2 (How to complete) is a field-by-field guide."""
+    """Sicon equipment template (the one equipment import format)."""
     require_master_admin(user)
-    from fastapi.responses import Response
-    import io
-    import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-
-    wb = openpyxl.Workbook()
-    brand = "19398D"
-    hdr_fill = PatternFill("solid", fgColor=brand)
-    hdr_font = Font(bold=True, color="FFFFFF", size=11)
-    thin = Side(style="thin", color="D9D9D9")
-    border = Border(left=thin, right=thin, top=thin, bottom=thin)
-
-    ws = wb.active
-    ws.title = "Equipment"
-    headers = [f[0] for f in _MOD_EQUIP_FIELDS]
-    ws.append(headers)
-    for col, f in enumerate(_MOD_EQUIP_FIELDS, start=1):
-        c = ws.cell(row=1, column=col)
-        c.fill = hdr_fill
-        c.font = hdr_font
-        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        c.border = border
-        ws.column_dimensions[c.column_letter].width = max(14, min(30, len(f[1]) + 4))
-    # Two example rows so the site sees exactly what "good" looks like.
-    ws.append([f[3] for f in _MOD_EQUIP_FIELDS])
-    ws.append([
-        "Upright Bike — Studio 1", "Bike", "Pulse Fitness", "Series 3 Upright",
-        "PF-UB-014", "", "MOD-Bike", "3", "Spin studio", "Studio 1", "Good", "OFFICIAL",
-        "", "", "", "", "", "Pulse Fitness", "", "", "", "", "", "", "", "", "", "", "",
-    ][: len(headers)])
-    ws.freeze_panes = "A2"
-
-    guide = wb.create_sheet("How to complete")
-    guide.append(["Column", "What to enter", "Required?", "Example", "Allowed values / format"])
-    for col in range(1, 6):
-        c = guide.cell(row=1, column=col)
-        c.fill = hdr_fill
-        c.font = hdr_font
-        c.border = border
-    widths = [22, 34, 14, 26, 40]
-    for i, w in enumerate(widths, start=1):
-        guide.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
-    for f in _MOD_EQUIP_FIELDS:
-        guide.append([f[0], f[1], f[2], f[3], f[4]])
-    guide.insert_rows(1)
-    guide["A1"] = "Fill in the 'Equipment' sheet — one row per machine. Delete the two example rows before returning."
-    guide["A1"].font = Font(bold=True, italic=True, color="19398D")
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    return Response(
-        content=buf.getvalue(),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=MOD_Equipment_Capture_Template.xlsx"},
-    )
+    from utils.sicon_equipment import template_response
+    return template_response("xlsx")
 
 
 @router.get("/master-admin/mod-estate/equipment-template.csv")
 async def mod_equipment_template_csv(user: dict = Depends(get_current_user)):
-    """Machine-readable CSV variant of the MOD equipment template (all columns)."""
     require_master_admin(user)
-    from fastapi.responses import Response
-    import csv as _csv
-    import io
-    buf = io.StringIO()
-    w = _csv.writer(buf)
-    w.writerow([f[0] for f in _MOD_EQUIP_FIELDS])
-    w.writerow([f[3] for f in _MOD_EQUIP_FIELDS])
-    return Response(content=buf.getvalue(), media_type="text/csv",
-                    headers={"Content-Disposition": "attachment; filename=MOD_Equipment_Capture_Template.csv"})
+    from utils.sicon_equipment import template_response
+    return template_response("csv")
 
 
 async def _compute_estate_readiness(estate_id: str) -> dict:
@@ -1760,6 +1696,14 @@ async def ai_kit_import_analyse(
     return preview
 
 
+_SICON_KIT_FIELDS = (
+    "sicon_customer_ref", "supplier_reference", "contract_line_no", "sla_name",
+    "stock_item_code", "install_date", "last_service_date", "service_interval",
+    "service_period", "next_service_date", "id_number", "service_template",
+    "equipment_group", "mod_force",
+)
+
+
 @router.post("/master-admin/mod-estate/ai-kit-import/commit")
 async def ai_kit_import_commit(
     payload: dict = Body(...),
@@ -1808,7 +1752,8 @@ async def ai_kit_import_commit(
                "location", "supplier", "service_provider", "contract_number",
                "contract_type", "contract_start", "contract_end",
                "warranty_expiry", "condition", "classification",
-               "purchase_date", "manufacturing_date", "unit_price", "replacement_cost"]
+               "purchase_date", "manufacturing_date", "unit_price", "replacement_cost",
+               *_SICON_KIT_FIELDS]
     totals = {"imported": 0, "skipped": 0, "updated": 0, "errors": []}
     per_site = []
     site_names = {s["id"]: s.get("name") for s in await db.organizations.find(
@@ -1845,6 +1790,7 @@ async def ai_kit_import_commit(
                 (r.get("manufacturing_date") or "").strip(),
                 (r.get("unit_price") or "").strip(),
                 (r.get("replacement_cost") or "").strip(),
+                *[str(r.get(f) or "").strip() for f in _SICON_KIT_FIELDS],
             ])
             written += 1
         shim = _MemUpload(buf.getvalue().encode("utf-8"), f"ai-kit-{target}.csv")

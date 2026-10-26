@@ -26,6 +26,7 @@ from routes.master_admin_memberships import router as master_admin_memberships_r
 from routes.pulse_master_admin import router as pulse_master_admin_router
 from routes.pulse_stripe_phase2 import router as pulse_stripe_phase2_router
 from routes.master_admin_bulk_import import router as master_admin_bulk_import_router
+from routes.equipment_gaps import router as equipment_gaps_router
 from routes.equipment_image_admin import router as equipment_image_admin_router
 from routes.marketing import router as marketing_router
 from routes.comms import router as comms_router
@@ -131,6 +132,7 @@ def register_admin(api_router: APIRouter) -> None:
         master_admin_memberships_router,
         pulse_master_admin_router, pulse_stripe_phase2_router,
         master_admin_bulk_import_router,
+        equipment_gaps_router,
         mod_bulk_import_router,
         mod_demo_seed_router,
         equipment_image_admin_router,

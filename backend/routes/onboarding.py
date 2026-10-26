@@ -266,18 +266,9 @@ _EQUIPMENT_CSV_SAMPLE_ROWS = [
 
 
 @router.get("/onboarding/equipment-template.csv")
-async def download_equipment_csv_template(_user: dict = Depends(get_current_user)) -> StreamingResponse:
-    """Download a ready-to-fill equipment CSV template with 3 sample rows."""
-    buffer = io.StringIO()
-    writer = csv.writer(buffer)
-    writer.writerow(_EQUIPMENT_CSV_HEADERS)
-    writer.writerows(_EQUIPMENT_CSV_SAMPLE_ROWS)
-    buffer.seek(0)
-    return StreamingResponse(
-        iter([buffer.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=pulsefitness-equipment-template.csv"},
-    )
+async def download_equipment_csv_template(format: str = "csv", _user: dict = Depends(get_current_user)):
+    from utils.sicon_equipment import template_response
+    return template_response(format)
 
 
 def _strip(row: dict, key: str, default: str = "") -> str:
@@ -341,11 +332,16 @@ async def import_equipment_csv(payload: dict = Body(...), user: dict = Depends(g
 
     imported = 0
     skipped = 0
+    from utils.sicon_equipment import adapt_row, merge_extras
+    sicon_target = {k: k for k in ("name", "manufacturer", "model", "serial_number", "location", "warranty_expiry", "supplier")}
+    sicon_target.update({"install_date": "purchase_date", "equipment_group": "equipment_type"})
     for row in reader:
+        row = adapt_row(row, sicon_target)
         doc = _csv_row_to_equipment_doc(row, organization_id, now)
         if doc is None:
             skipped += 1
             continue
+        merge_extras(doc, row)
         await _upsert_equipment_by_serial(doc)
         imported += 1
 

@@ -78,6 +78,7 @@ export const SIDEBAR_ITEMS = [
     id: 'catalogue', label: 'Catalogue & Library', icon: ImageIcon, group: 'main',
     subTabs: [
       { id: 'catalogue',         label: 'Equipment catalogue',  icon: ImageIcon },
+      { id: 'equipment-gaps',    label: 'Missing information',  icon: AlertCircle },
       { id: 'custom-properties', label: 'Custom properties',    icon: ListChecks },
       { id: 'machine-manuals',   label: 'Machine manuals',      icon: FileText },
     ],

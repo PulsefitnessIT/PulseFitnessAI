@@ -11,6 +11,7 @@ import axios from 'axios';
 import { Upload, Loader2, X, CheckCircle2, AlertTriangle, Sparkles, FileSpreadsheet, Download, Zap, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { notify } from '@/components/notifications';
+import EquipmentGapsPanel from './EquipmentGaps/EquipmentGapsPanel';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
@@ -27,14 +28,15 @@ export default function AIKitImportModal({ site, headers, onClose, onImported, g
   const [filteredDupes, setFilteredDupes] = useState(0);
   const [error, setError] = useState('');
   const [dragOver, setDragOver] = useState(false);
+  const [gapsOrg, setGapsOrg] = useState('');
 
   const downloadTemplate = useCallback(async () => {
     try {
-      const res = await axios.get(`${API}/master-admin/mod-estate/equipment-template.csv`,
+      const res = await axios.get(`${API}/master-admin/mod-estate/equipment-template.xlsx`,
         { headers, responseType: 'blob' });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
-      a.href = url; a.download = 'MOD_Equipment_Import_Template.csv';
+      a.href = url; a.download = 'Equipment Import - Sicon Template.xlsx';
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
     } catch {
@@ -127,7 +129,7 @@ export default function AIKitImportModal({ site, headers, onClose, onImported, g
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} data-testid="ai-kit-import-modal">
-      <div className="w-full max-w-5xl max-h-[90vh] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden">
+      <div className={`w-full ${gapsOrg ? 'max-w-7xl' : 'max-w-5xl'} max-h-[90vh] bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden`}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200">
           <div className="flex items-center gap-2">
@@ -308,7 +310,14 @@ export default function AIKitImportModal({ site, headers, onClose, onImported, g
           )}
 
           {/* Done */}
-          {step === 'done' && result && (
+          {gapsOrg && (
+            <div data-testid="ai-kit-gaps-step">
+              <button onClick={() => setGapsOrg('')} className="text-xs text-zinc-500 hover:text-zinc-800 mb-3" data-testid="ai-kit-gaps-back">← Back to import summary</button>
+              <EquipmentGapsPanel organizationId={gapsOrg} headers={headers} />
+            </div>
+          )}
+
+          {step === 'done' && result && !gapsOrg && (
             <div className="text-center py-10" data-testid="ai-kit-done">
               <div className="mx-auto w-14 h-14 rounded-full bg-green-50 flex items-center justify-center mb-4"><CheckCircle2 size={28} className="text-green-600" /></div>
               <p className="text-sm font-bold text-zinc-900 mb-1">Imported {result.imported} items into {site.name}</p>
@@ -328,6 +337,17 @@ export default function AIKitImportModal({ site, headers, onClose, onImported, g
                   ))}
                 </div>
               )}
+              <div className="mt-5 mx-auto max-w-md rounded-lg border border-red-100 bg-red-50/60 px-4 py-3 text-left" data-testid="ai-kit-gaps-prompt">
+                <p className="text-xs font-semibold text-zinc-800">Messy sheets rarely carry everything Sicon needs.</p>
+                <p className="text-[11px] text-zinc-600 mt-0.5">Check Customer Ref, Location, Make, Model and Serial Number for each machine — and fill any blanks now. Gaps are also shown to the engineer on their next visit.</p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {(result.per_site?.length > 1 ? result.per_site : [{ site_id: site.id, site_name: site.name }]).map((p) => (
+                    <Button key={p.site_id} size="sm" onClick={() => setGapsOrg(p.site_id)} data-testid={`ai-kit-fill-gaps-${p.site_id}`}>
+                      Fill in missing details{result.per_site?.length > 1 ? ` · ${p.site_name}` : ''}
+                    </Button>
+                  ))}
+                </div>
+              </div>
               {result.errors?.length > 0 && (
                 <div className="mt-4 mx-auto max-w-lg text-left text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3 max-h-40 overflow-y-auto">
                   {result.errors.slice(0, 30).map((e, i) => <div key={i}>{e}</div>)}

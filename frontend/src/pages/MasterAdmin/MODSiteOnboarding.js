@@ -412,11 +412,11 @@ const MODSiteOnboarding = () => {
         </p>
         <div className="flex flex-wrap gap-2 mt-4">
           <Button variant="outline" data-testid="mod-equip-template-xlsx"
-            onClick={() => downloadBlob('/master-admin/mod-estate/equipment-template.xlsx', 'MOD_Equipment_Capture_Template.xlsx', token).catch((e) => notify.error('Template error', e.message))}>
-            <FileSpreadsheet size={14} className="mr-1.5" /> Capture template (Excel · send to sites)
+            onClick={() => downloadBlob('/master-admin/mod-estate/equipment-template.xlsx', 'Equipment Import - Sicon Template.xlsx', token).catch((e) => notify.error('Template error', e.message))}>
+            <FileSpreadsheet size={14} className="mr-1.5" /> Sicon template (Excel · send to sites)
           </Button>
           <Button variant="outline" data-testid="mod-equip-template-csv"
-            onClick={() => downloadBlob('/master-admin/mod-estate/equipment-template.csv', 'MOD_Equipment_Capture_Template.csv', token).catch((e) => notify.error('Template error', e.message))}>
+            onClick={() => downloadBlob('/master-admin/mod-estate/equipment-template.csv', 'Equipment Import - Sicon Template.csv', token).catch((e) => notify.error('Template error', e.message))}>
             <Download size={14} className="mr-1.5" /> Template (CSV)
           </Button>
           <Button variant="outline" onClick={load} data-testid="mod-equip-refresh">

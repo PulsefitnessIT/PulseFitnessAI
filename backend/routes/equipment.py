@@ -308,31 +308,9 @@ async def export_equipment_csv(user: dict = Depends(get_current_user)) -> Respon
 
 
 @router.get("/equipment/template/csv")
-async def get_equipment_csv_template() -> Response:
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([
-        "Name", "Type", "Manufacturer", "Model", "Serial Number",
-        "Purchase Date (YYYY-MM-DD)", "Warranty Expiry (YYYY-MM-DD)",
-        "Purchase Cost", "Replacement Cost",
-        "Length (m)", "Width (m)", "Height (m)", "Location", "Notes",
-        "Contract Number", "Contract Start Date", "Contract End Date",
-        # Iter 216h240 — integration round-trip columns. Title-case to
-        # match this template's existing convention. Same physical data
-        # as the snake_case variant at /equipment/csv-template.
-        "QR Code", "Manufacturing Date", "Deprecation Date",
-        "Orbit 4 Asset ID", "Sicon Equipment ID",
-    ])
-    writer.writerow([
-        "Treadmill Pro 9000", "Treadmill", "Life Fitness", "95T Discover SE3",
-        "LF-TM-001", "2024-01-15", "2027-01-15", "3450.00", "3800.00",
-        "2.1", "0.9", "1.6", "Main cardio area", "First install",
-        "CON-2024-0142", "2024-01-15", "2029-01-14",
-        "GA-TM-001", "2023-11-01", "2034-01-15", "", "",
-    ])
-    csv_content = output.getvalue()
-    return Response(content=csv_content, media_type="text/csv",
-                    headers={"Content-Disposition": "attachment; filename=equipment_template.csv"})
+async def get_equipment_csv_template(format: str = "csv") -> Response:
+    from utils.sicon_equipment import template_response
+    return template_response(format)
 
 
 def _safe_float(value: str) -> float | None:
@@ -383,9 +361,23 @@ async def _import_csv_rows(reader: csv.DictReader, user: dict, field_map: dict) 
     """Shared CSV import logic for both endpoint variants."""
     imported = 0
     errors: list[str] = []
+    from utils.sicon_equipment import adapt_row, is_sicon_row, merge_extras
+    sicon_target = {
+        "name": field_map["name"], "manufacturer": field_map["manufacturer"], "model": field_map["model"],
+        "serial_number": field_map["serial"], "install_date": field_map["install_date"],
+        "warranty_expiry": field_map["warranty"], "location": field_map["location"],
+        "contract_number": field_map["contract_number"], "service_provider": field_map["service_provider"],
+        "unit_price": field_map["purchase_cost"], "replacement_cost": field_map["replacement_cost"],
+        "length": field_map["length"], "width": field_map["width"], "height": field_map["height"],
+        "equipment_group": field_map["type"],
+    }
     for idx, row in enumerate(reader, start=2):
         try:
-            doc = _parse_csv_row(row, field_map, user)
+            sicon = is_sicon_row(row)
+            row = adapt_row(row, sicon_target)
+            if sicon and not (row.get(field_map["type"]) or "").strip():
+                row[field_map["type"]] = "Equipment"
+            doc = merge_extras(_parse_csv_row(row, field_map, user), row)
             if not doc["name"] or not doc["equipment_type"]:
                 errors.append(f"Row {idx}: Name and Type are required")
                 continue
@@ -458,23 +450,9 @@ async def import_equipment_csv_dash(file: UploadFile = File(...), user: dict = D
 
 
 @router.get("/equipment/csv-template")
-async def get_csv_template() -> Response:
-    template = (
-        "name,equipment_type,manufacturer,model,serial_number,"
-        "purchase_date,warranty_expiry,purchase_cost,replacement_cost,"
-        "service_provider,length,width,height,location,notes,"
-        "contract_number,contract_start_date,contract_end_date,"
-        # Iter 216h240 — integration round-trip columns appended at the
-        # end so existing imports stay compatible. Operators can leave
-        # them blank or populate them when migrating from Orbit 4 / Sicon.
-        "qr_code,manufacturing_date,deprecation_date,orbit4_asset_id,sicon_equipment_id\n"
-        "Treadmill 1,Treadmill,Life Fitness,T5-Go,SN123456,"
-        "2024-01-15,2027-01-15,3450.00,3800.00,"
-        "Pulse Fitness,2.5,1.5,1.8,Main cardio area,First install,"
-        "CON-2024-0142,2024-01-15,2029-01-14,"
-        "GA-TM-001,2023-11-01,2034-01-15,,\n"
-    )
-    return Response(content=template, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=equipment_template.csv"})
+async def get_csv_template(format: str = "csv") -> Response:
+    from utils.sicon_equipment import template_response
+    return template_response(format)
 
 
 LIFESPAN_THRESHOLDS = {

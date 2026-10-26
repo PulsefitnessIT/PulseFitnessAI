@@ -21,7 +21,7 @@ client.interceptors.request.use((cfg) => { cfg.headers.Authorization = authHeade
 // replayed in order when the connection returns.
 const OUTBOX_KEY = 'bfpo_outbox_v1';
 const BLOB_PREFIX = 'bfpo_blob_';
-const QUEUEABLE = /^\/jobs\/[^/]+\/(accept|arrive|diagnosis|parts|outcome|complete|signature|report-fault)$/;
+const QUEUEABLE = /^\/jobs\/[^/]+\/(accept|arrive|diagnosis|parts|outcome|complete|signature|report-fault|equipment\/[^/]+\/details)$/;
 const listeners = new Set();
 
 const readOutbox = () => { try { return JSON.parse(localStorage.getItem(OUTBOX_KEY) || '[]'); } catch { return []; } };

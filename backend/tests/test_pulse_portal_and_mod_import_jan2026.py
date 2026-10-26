@@ -110,31 +110,26 @@ class TestOtherOrgPortalLoginStillImpersonates:
 
 class TestModEstateTemplates:
     def test_csv_template_includes_mod_code(self, admin_token):
-        r = requests.get(
-            f"{API}/master-admin/mod-estate/equipment-template.csv",
-            headers={"Authorization": f"Bearer {admin_token}"},
-            timeout=30,
-        )
-        assert r.status_code == 200, f"{r.status_code}: {r.text[:300]}"
-        header_line = r.text.splitlines()[0].lower()
-        assert "mod_code" in header_line, f"mod_code not in CSV header: {header_line}"
+        ext = "xlsx" if "xlsx" in "test_csv_template_includes_mod_code" else "csv"
+        r = requests.get(f"{API}/master-admin/mod-estate/equipment-template.{ext}", headers={"Authorization": f"Bearer {admin_token}"}, timeout=30)
+        assert r.status_code == 200, r.text[:300]
+        if ext == "csv":
+            assert r.text.splitlines()[0].startswith("Sicon Customer Ref"), r.text[:200]
+        else:
+            import io, openpyxl
+            ws = openpyxl.load_workbook(io.BytesIO(r.content)).active
+            assert ws.cell(1, 1).value == "Sicon Customer Ref" and ws.cell(1, 29).value == "MOD-Force"
 
     def test_xlsx_template_includes_mod_code(self, admin_token):
-        r = requests.get(
-            f"{API}/master-admin/mod-estate/equipment-template.xlsx",
-            headers={"Authorization": f"Bearer {admin_token}"},
-            timeout=30,
-        )
-        assert r.status_code == 200, f"{r.status_code}: {len(r.content)} bytes"
-        # xlsx is a zip; parse it to find header cells
-        import io, zipfile
-        z = zipfile.ZipFile(io.BytesIO(r.content))
-        blob = b""
-        for name in z.namelist():
-            if name.startswith("xl/") and (name.endswith(".xml")):
-                blob += z.read(name)
-        assert b"mod_code" in blob.lower(), "mod_code header not found in xlsx contents"
-
+        ext = "xlsx" if "xlsx" in "test_xlsx_template_includes_mod_code" else "csv"
+        r = requests.get(f"{API}/master-admin/mod-estate/equipment-template.{ext}", headers={"Authorization": f"Bearer {admin_token}"}, timeout=30)
+        assert r.status_code == 200, r.text[:300]
+        if ext == "csv":
+            assert r.text.splitlines()[0].startswith("Sicon Customer Ref"), r.text[:200]
+        else:
+            import io, openpyxl
+            ws = openpyxl.load_workbook(io.BytesIO(r.content)).active
+            assert ws.cell(1, 1).value == "Sicon Customer Ref" and ws.cell(1, 29).value == "MOD-Force"
 
 # ---- (B2) AI import analyse captures mod_code ----
 

@@ -37,6 +37,7 @@ from utils.default_supplier import PULSE_DEFAULT_SUPPLIER_NAME
 from utils.file_validation import MIME_SPREADSHEETS, validate_upload
 
 from routes.pulse_master_admin import _require_pulse_or_master, PULSE_VISIBLE_ACCOUNT_TYPES
+from utils.sicon_equipment import SICON_EXTRA_FIELDS, sicon_extra_fields, template_response as sicon_template_response
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -145,9 +146,9 @@ def _csv_response(headers: list[str], example: list[str], filename: str) -> Resp
 
 
 @router.get("/master-admin/bulk-import/templates/equipment")
-async def template_equipment(user: dict = Depends(get_current_user)) -> Response:
+async def template_equipment(format: str = "csv", user: dict = Depends(get_current_user)) -> Response:
     _require_pulse_or_master(user)
-    return _csv_response(_EQUIPMENT_HEADERS, _EQUIPMENT_EXAMPLE, "equipment-template.csv")
+    return sicon_template_response(format)
 
 
 # Iter 216h108 — customer-facing aliases. Pulse Pro operators (owners
@@ -158,10 +159,10 @@ async def template_equipment(user: dict = Depends(get_current_user)) -> Response
 #     write into another tenant
 #   • share the exact same template + parser
 @router.get("/account/import/equipment/template")
-async def customer_template_equipment(user: dict = Depends(get_current_user)) -> Response:
+async def customer_template_equipment(format: str = "csv", user: dict = Depends(get_current_user)) -> Response:
     if not user.get("organization_id"):
         raise HTTPException(status_code=403, detail="No tenant context")
-    return _csv_response(_EQUIPMENT_HEADERS, _EQUIPMENT_EXAMPLE, "equipment-template.csv")
+    return sicon_template_response(format)
 
 
 @router.post("/account/import/equipment")
@@ -287,6 +288,7 @@ _EQUIPMENT_ENRICH_FIELDS = (
     "length", "width", "height", "purchase_price", "purchase_cost", "replacement_cost",
     "site_id", "mod_force", "asset_number", "sub_location", "category",
     "mod_code", "classification", "qr_code", "manufacturing_date", "condition", "quantity",
+    *SICON_EXTRA_FIELDS, "next_service_auto",
 )
 
 
@@ -422,7 +424,8 @@ async def _resolve_row_target_org(
     """
     if default_org_id:
         return default_org_id, None
-    code = _normalize(row, *_ACCOUNT_HEADER_ALIASES)
+    from utils.spreadsheet_import import get_pick
+    code = _normalize(row, *_ACCOUNT_HEADER_ALIASES) or str(get_pick(row, "invoice_customer_ref", "") or "").strip()
     if not code:
         return None, "Missing customer_account_number (and no target organisation specified)"
     if code in cache:
@@ -1063,6 +1066,7 @@ async def _do_bulk_import_equipment(
     org_doc_cache: dict = {}  # Iter 216h111 — cache org docs for force validation
     site_cache: dict = {}
     supplier_cache: dict = {}
+    org_ref_cache: dict = {}
     # Iter 216h55 — per-org cache of existing serial numbers. One bulk
     # query on first hit per org replaces 500k per-row find_one calls
     # (~30 min → ~3 s on Pulse scale).
@@ -1152,7 +1156,22 @@ async def _do_bulk_import_equipment(
                 "sicon_customer_ref", "customer_ref",
             ) or str(get_pick(row, "invoice_customer_ref", "")).strip()
             site_id, site_err = await _resolve_site_for_org(site_name, invoice_customer_ref, target_org, site_cache)
-            if (site_name or invoice_customer_ref) and not site_id:
+            if not site_id and invoice_customer_ref and not site_name:
+                # Sicon Customer Ref = the customer/site account number. If it
+                # isn't a site ref but is (or could be) the org's own account
+                # number, keep the row as an org-level asset.
+                if target_org not in org_ref_cache:
+                    o = await db.organizations.find_one({"id": target_org}, {"_id": 0, "customer_account_number": 1, "sage_customer_number": 1, "sicon_customer_number": 1}) or {}
+                    org_ref_cache[target_org] = {str(v).strip() for v in o.values() if v}
+                refs = org_ref_cache[target_org]
+                if not refs or invoice_customer_ref in refs:
+                    site_err = None
+                    invoice_customer_ref_ok = True
+                else:
+                    invoice_customer_ref_ok = False
+            else:
+                invoice_customer_ref_ok = False
+            if (site_name or invoice_customer_ref) and not site_id and not invoice_customer_ref_ok:
                 # The operator explicitly named a site that doesn't exist — surface
                 # so they can re-run the sites import first.
                 skipped += 1
@@ -1303,7 +1322,10 @@ async def _do_bulk_import_equipment(
                 "condition": _normalize(row, "condition", "Condition") or str(get_pick(row, "condition", "")).strip() or None,
                 "quantity": _parse_int(_normalize(row, "quantity", "Quantity", "qty", "Qty") or str(get_pick(row, "quantity", "")).strip()),
                 "import_batch_id": batch_id,
+                **sicon_extra_fields(row),
             }
+            if not doc.get("sicon_customer_ref"):
+                doc["sicon_customer_ref"] = invoice_customer_ref or _normalize(row, *_ACCOUNT_HEADER_ALIASES) or None
             # ── Dedupe + idempotent enrich (Iter — sites-first re-import) ──
             # Real serial → dedupe by serial. Placeholder serial (UNKNOWN /
             # blank) → dedupe by the site|name|model|manufacturer composite
