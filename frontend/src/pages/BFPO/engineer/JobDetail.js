@@ -318,9 +318,10 @@ function CompletePanel({ jobId, onDone, onCancel }) {
   const [safe, setSafe] = useState(true);
   const [signoff, setSignoff] = useState({});
   const [contact, setContact] = useState(null);
+  const [reopened, setReopened] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
-  useEffect(() => { bfpo.get(`/jobs/${jobId}/signoff`).then((r) => setContact(r.data?.site_contact)).catch(() => {}); }, [jobId]);
+  useEffect(() => { bfpo.get(`/jobs/${jobId}/signoff`).then((r) => { setContact(r.data?.site_contact); setReopened(!!r.data?.reopened_at); }).catch(() => {}); }, [jobId]);
 
   const submit = async () => {
     if (!summary.trim()) { setErr('Please describe the work carried out'); return; }
@@ -341,7 +342,7 @@ function CompletePanel({ jobId, onDone, onCancel }) {
       <Field label="Work carried out"><textarea className={inputCls} rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} data-testid="complete-summary" /></Field>
       <Field label="Parts used (optional)"><input className={inputCls} value={partsUsed} onChange={(e) => setPartsUsed(e.target.value)} data-testid="complete-parts" /></Field>
       <label className="flex items-center gap-2 text-sm text-slate-700 font-medium"><input type="checkbox" checked={safe} onChange={(e) => setSafe(e.target.checked)} data-testid="complete-safe" /> I confirm the equipment is safe and working</label>
-      <SignOffFields value={signoff} onChange={setSignoff} contact={contact} testid="complete-sig" />
+      <SignOffFields value={signoff} onChange={setSignoff} contact={contact} reopened={reopened} testid="complete-sig" />
       {err && <p className="text-sm text-red-600">{err}</p>}
       <div className="grid grid-cols-1 gap-2">
         <Btn variant="primary" full disabled={saving} onClick={submit} data-testid="complete-submit">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Complete & generate job sheet</Btn>

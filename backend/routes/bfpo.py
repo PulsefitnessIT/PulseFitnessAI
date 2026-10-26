@@ -732,10 +732,10 @@ async def _email_signed_job_sheet(case_id: str) -> str:
 async def bfpo_signoff_info(case_id: str, user=Depends(_require_bfpo)):
     from utils.customer_signoff import latest_signoff, resolve_site_contact
     case = await _get_scoped_case(user, case_id)
-    sig = await latest_signoff(case_id=case_id)
+    sig = await latest_signoff(case_id=case_id, current_only=True)
     if sig:
         sig.pop("image_data", None)
-    return {"site_contact": await resolve_site_contact(case), "signoff": sig}
+    return {"site_contact": await resolve_site_contact(case), "signoff": sig, "reopened_at": case.get("reopened_at")}
 
 
 @router.post("/jobs/{case_id}/update")

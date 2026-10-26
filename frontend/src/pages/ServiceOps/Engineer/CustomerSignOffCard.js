@@ -19,13 +19,18 @@ export const buildSignoffPayload = ({ draft, signatureData, existing, job }) => 
   return { payload: { case_id: job.id, signed_by_name: name, signed_by_email: email, image_data: signatureData } };
 };
 
-export default function CustomerSignOffCard({ draft, setDraft, signatureData, setSignatureData, contact, existing }) {
+export default function CustomerSignOffCard({ draft, setDraft, signatureData, setSignatureData, contact, existing, reopenedAt }) {
   const [showPad, setShowPad] = useState(false);
   const unavailable = !!draft.signature_unavailable;
   const contactEmail = contact?.email || '';
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-2" data-testid="complete-signature-card">
       <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500">Customer sign-off <span className="text-red-500">*</span></p>
+      {reopenedAt && !existing && (
+        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5" data-testid="complete-signoff-reopened">
+          This job was reopened — the earlier sign-off no longer counts. Please capture a fresh customer signature.
+        </p>
+      )}
       {existing && !signatureData && !unavailable && (
         <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-2 py-1.5" data-testid="complete-signoff-existing">
           {existing.unavailable ? `Recorded: customer unable to sign — ${existing.unavailable_reason}` : `Already signed by ${existing.signed_by_name}`}

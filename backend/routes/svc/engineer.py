@@ -1048,10 +1048,10 @@ async def get_signoff(case_id: str, user=Depends(get_current_user)):
     case = await db.svc_cases.find_one({"id": case_id, **_of(user)}, {"_id": 0})
     if not case:
         raise HTTPException(404, "Case not found")
-    sig = await latest_signoff(case_id=case_id)
+    sig = await latest_signoff(case_id=case_id, current_only=True)
     if sig:
         sig.pop("image_data", None)
-    return {"site_contact": await resolve_site_contact(case), "signoff": sig}
+    return {"site_contact": await resolve_site_contact(case), "signoff": sig, "reopened_at": case.get("reopened_at")}
 
 
 @router.post("/signature")

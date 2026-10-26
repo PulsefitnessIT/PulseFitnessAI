@@ -297,3 +297,29 @@ class TestPpmSignoff:
             DB.svc_signatures.delete_many({"ppm_service_id": sid})
             DB.bfpo_ppm_inspections.delete_many({"service_id": sid})
             DB.bfpo_ppm_services.delete_one({"id": sid})
+
+
+class TestReopenNeedsFreshSignoff:
+    def test_reopened_job_requires_new_signature(self, admin, svc_case):
+        import asyncio
+        from utils.svc_state import transition
+        sign = {"case_id": svc_case, "signed_by_name": "First Signer", "image_data": PNG}
+        assert admin.post(f"{BASE_URL}/api/svc/engineer/signature", json=sign).status_code == 200
+        r = admin.post(f"{BASE_URL}/api/svc/engineer/jobs/{svc_case}/complete",
+                       json={"summary": "done", "target": "awaiting_sign_off", "email_report": False})
+        assert r.status_code == 200, r.text
+        # Reopen: awaiting_sign_off → on_site
+        org = DB.svc_cases.find_one({"id": svc_case})["organization_id"]
+        asyncio.run(transition(case_id=svc_case, organization_id=org, target_state="on_site",
+                               actor={"id": "test", "email": "t@x"}, reason="customer rejected"))
+        assert DB.svc_cases.find_one({"id": svc_case}).get("reopened_at")
+        g = admin.get(f"{BASE_URL}/api/svc/engineer/jobs/{svc_case}/signoff").json()
+        assert g["signoff"] is None and g["reopened_at"]
+        r = admin.post(f"{BASE_URL}/api/svc/engineer/jobs/{svc_case}/complete",
+                       json={"summary": "done again", "target": "awaiting_sign_off", "email_report": False})
+        assert r.status_code == 400 and "reopened" in r.json()["detail"]
+        assert admin.post(f"{BASE_URL}/api/svc/engineer/signature",
+                          json={**sign, "signed_by_name": "Second Signer"}).status_code == 200
+        r = admin.post(f"{BASE_URL}/api/svc/engineer/jobs/{svc_case}/complete",
+                       json={"summary": "done again", "target": "awaiting_sign_off", "email_report": False})
+        assert r.status_code == 200, r.text

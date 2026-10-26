@@ -76,6 +76,7 @@ OPEN_STATES = {NEW, TRIAGED, ASSIGNED, EN_ROUTE, ON_SITE, PAUSED_PARTS, PAUSED_C
 # codebase (`["closed", "invoiced", "cancelled", "void"]`) which referenced
 # states that don't exist in this state machine.
 TERMINAL_STATES = {CLOSED, INVOICED, REJECTED}
+SIGNOFF_DONE_STATES = {REPAIRED, AWAITING_SIGN_OFF, CLOSED, INVOICED}
 
 
 def _now() -> str:
@@ -131,6 +132,9 @@ async def transition(
         update["sla_paused_at"] = None
     if target_state == CLOSED:
         update["closed_at"] = _now()
+    # Reopened after completion → a fresh customer sign-off is needed.
+    if current in SIGNOFF_DONE_STATES and target_state not in SIGNOFF_DONE_STATES | {REJECTED}:
+        update["reopened_at"] = _now()
 
     await db.svc_cases.update_one({"id": case_id}, {"$set": update})
 

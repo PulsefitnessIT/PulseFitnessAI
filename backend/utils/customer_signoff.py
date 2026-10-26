@@ -83,14 +83,24 @@ def build_signoff(data: dict, *, case_id: str | None, organization_id: str, refe
             "image_data": image, "unavailable": False, "summary": (data.get("summary") or "").strip()}
 
 
-async def latest_signoff(*, case_id: str | None = None, ppm_service_id: str | None = None) -> dict | None:
-    q = {"case_id": case_id} if case_id else {"ppm_service_id": ppm_service_id}
+async def latest_signoff(*, case_id: str | None = None, ppm_service_id: str | None = None,
+                         current_only: bool = False) -> dict | None:
+    """Latest sign-off. ``current_only`` ignores signatures captured before
+    the job was last reopened (a reopened job needs a fresh sign-off)."""
+    q: dict = {"case_id": case_id} if case_id else {"ppm_service_id": ppm_service_id}
+    if current_only and case_id:
+        case = await db.svc_cases.find_one({"id": case_id}, {"_id": 0, "reopened_at": 1}) or {}
+        if case.get("reopened_at"):
+            q["signed_at"] = {"$gt": case["reopened_at"]}
     return await db.svc_signatures.find_one(q, {"_id": 0}, sort=[("signed_at", -1)])
 
 
 async def require_signoff(*, case_id: str | None = None, ppm_service_id: str | None = None) -> dict:
-    sig = await latest_signoff(case_id=case_id, ppm_service_id=ppm_service_id)
+    sig = await latest_signoff(case_id=case_id, ppm_service_id=ppm_service_id, current_only=True)
     if not sig:
+        reopened = case_id and await db.svc_signatures.count_documents({"case_id": case_id}, limit=1)
+        if reopened:
+            raise HTTPException(400, "This job was reopened — capture a fresh customer sign-off before completing it again")
         raise HTTPException(400, "Customer sign-off is required — capture a signature or record why the customer couldn't sign")
     return sig
 

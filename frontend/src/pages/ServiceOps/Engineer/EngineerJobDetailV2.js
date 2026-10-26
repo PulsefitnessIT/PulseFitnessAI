@@ -3799,7 +3799,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
           Equipment / Parts / Complete). */}
 
       <CustomerSignOffCard draft={draft} setDraft={setDraft} signatureData={signatureData} setSignatureData={setSignatureData}
-        contact={signoffInfo.site_contact} existing={signoffInfo.signoff} />
+        contact={signoffInfo.site_contact} existing={signoffInfo.signoff} reopenedAt={signoffInfo.reopened_at} />
 
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-options-card">
         <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">{t('service.eng_jd_outcome', 'Outcome')}</p>

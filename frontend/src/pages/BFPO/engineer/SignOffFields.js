@@ -13,11 +13,12 @@ export const signoffBody = (v) => {
   return { body: { signed_by_name: v.name.trim(), signed_by_email: (v.email || '').trim(), signed_by_role: (v.role || '').trim(), image_data: v.image } };
 };
 
-export default function SignOffFields({ value, onChange, contact, testid = 'signoff' }) {
+export default function SignOffFields({ value, onChange, contact, reopened, testid = 'signoff' }) {
   const set = (patch) => onChange({ ...value, ...patch });
   return (
     <div className="pt-1 space-y-2" data-testid={testid}>
       <p className="text-xs font-semibold text-slate-400 uppercase">Customer sign-off <span className="text-red-500">*</span></p>
+      {reopened && <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5" data-testid={`${testid}-reopened`}>This job was reopened — please capture a fresh customer signature.</p>}
       {!value.unavailable ? (
         <>
           <div className="grid grid-cols-2 gap-2">
