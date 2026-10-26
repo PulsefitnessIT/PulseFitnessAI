@@ -296,7 +296,9 @@ async def complete_service(service_id: str, data: dict = Body(default={}), user=
     pending = [i for i in insp if not i.get("status") or i["status"] == "pending"]
     if pending:
         raise HTTPException(400, f"{len(pending)} asset(s) still to inspect")
-    from utils.customer_signoff import build_signoff, email_signed_pdf
+    from utils.customer_signoff import build_signoff, email_signed_pdf, recipients, spawn
+    if svc.get("status") == "completed":
+        raise HTTPException(400, "This service has already been completed")
     if not (data or {}).get("signoff"):
         raise HTTPException(400, "Customer sign-off is required — capture a signature or record why the customer couldn't sign")
     sig = build_signoff(data["signoff"], case_id=None, organization_id=BFPO_ORG_ID,
@@ -321,11 +323,12 @@ async def complete_service(service_id: str, data: dict = Body(default={}), user=
     site = await db.sites.find_one({"id": svc["site_id"], "organization_id": BFPO_ORG_ID}, {"_id": 0}) or {}
     emailed_to = ""
     contact = {"name": site.get("contact_name") or "", "email": (site.get("contact_email") or "").lower()}
-    emailed_to = await email_signed_pdf(
+    emailed_to = recipients(sig, contact)[0]
+    spawn(email_signed_pdf(
         sig=sig, contact=contact, pdf=pdf, filename=fname,
         subject=f"Signed PPM service certificate — {svc.get('site_name')} ({svc.get('reference')})",
         intro=f"The planned maintenance service at <b>{svc.get('site_name')}</b> is complete.",
-        organization_id=BFPO_ORG_ID)
+        organization_id=BFPO_ORG_ID))
     await db.bfpo_ppm_services.update_one(
         {"id": service_id, "organization_id": BFPO_ORG_ID},
         {"$set": {"status": "completed", "completed_at": _now(),

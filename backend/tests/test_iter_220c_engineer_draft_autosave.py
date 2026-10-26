@@ -61,6 +61,13 @@ def _make_case(db, admin) -> str:
         "assigned_engineer_id": admin["id"],
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
+    # Jan 2026 — customer sign-off is required before /complete.
+    db.svc_signatures.insert_one({
+        "id": f"sig-{uuid.uuid4().hex[:8]}", "organization_id": admin["organization_id"],
+        "case_id": cid, "signed_by_name": "TEST Customer", "signed_by_email": "",
+        "unavailable": False, "image_data": "data:image/png;base64,iVBORw0KGgo=",
+        "signed_at": datetime.now(timezone.utc).isoformat(),
+    })
     return cid
 
 

@@ -3710,8 +3710,14 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
             </div>
             <p className="text-xs text-slate-600 mt-2">
               {t('service.eng_jd_signed_by', 'Signed by')} <span className="font-bold">{sig.signed_by_name || t('service.eng_jd_customer', 'Customer')}</span>
+              {sig.signed_by_email ? ` · ${sig.signed_by_email}` : ''}
               {sig.signed_at ? ` · ${new Date(sig.signed_at).toLocaleString()}` : ''}
             </p>
+          </div>
+        ) : sig && sig.unavailable ? (
+          <div className="bg-white rounded-2xl border border-amber-200 p-4 text-xs text-amber-800" data-testid="complete-locked-unavailable">
+            Customer unable to sign — {sig.unavailable_reason}
+            {sig.signed_at ? ` · ${new Date(sig.signed_at).toLocaleString()}` : ''}
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-slate-200 p-4 text-xs text-slate-500" data-testid="complete-locked-no-signature">

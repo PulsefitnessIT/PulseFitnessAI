@@ -79,6 +79,13 @@ class TestEngineerPhase2:
             except:
                 pass
 
+    def _sign_off(self, case_id):
+        """Jan 2026 — customer sign-off is required before /complete."""
+        r = self.session.post(f"{BASE_URL}/api/svc/engineer/signature", json={
+            "case_id": case_id, "signed_by_name": "TEST Customer",
+            "image_data": "data:image/png;base64,iVBORw0KGgo="})
+        assert r.status_code == 200, r.text
+
     def _create_test_case(self, status="assigned"):
         """Helper to create a test case assigned to the current user."""
         case_data = {
@@ -461,6 +468,7 @@ class TestEngineerPhase2:
         assert resp.json()["status"] == "en_route"
 
         # Complete directly to closed
+        self._sign_off(case["id"])
         resp = self.session.post(
             f"{BASE_URL}/api/svc/engineer/jobs/{case['id']}/complete",
             json={
@@ -483,6 +491,7 @@ class TestEngineerPhase2:
         self.session.put(f"{BASE_URL}/api/svc/cases/{case['id']}", json={"cover_type": "chargeable"})
 
         # Complete the job
+        self._sign_off(case["id"])
         resp = self.session.post(
             f"{BASE_URL}/api/svc/engineer/jobs/{case['id']}/complete",
             json={

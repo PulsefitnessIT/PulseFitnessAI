@@ -169,7 +169,16 @@ def _get_open_case_for_gib(tok):
     assert r.status_code == 200
     jobs = [j for j in r.json()["jobs"]
             if j.get("country") == "Gibraltar" and j.get("status") in ("new", "assigned")]
-    assert jobs, "No open Gibraltar case to run workflow on"
+    if not jobs:
+        # Previous runs closed the seeded Gibraltar cases — raise a fresh
+        # TEST_ fault off any Gibraltar job so the workflow has something to run on.
+        parents = [j for j in r.json()["jobs"] if j.get("country") == "Gibraltar"]
+        assert parents, "No Gibraltar job to raise a test fault from"
+        rf = requests.post(f"{BASE_URL}/api/bfpo/jobs/{parents[0]['id']}/report-fault",
+                           headers=_h(tok), json={"title": "TEST_ workflow fault",
+                                                  "description": "auto-seeded by test", "priority": "p3"})
+        assert rf.status_code == 200, rf.text
+        return rf.json()["case"]["id"]
     return jobs[0]["id"]
 
 

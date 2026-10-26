@@ -7,7 +7,9 @@ The signed report is then emailed to the signer, copying the site contact.
 """
 from __future__ import annotations
 
+import asyncio
 import base64
+import html as _html
 import io
 import logging
 import re
@@ -20,6 +22,16 @@ from utils.database import db
 
 logger = logging.getLogger(__name__)
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+_TASKS: set = set()
+
+
+def spawn(coro) -> None:
+    """Fire-and-forget that keeps a reference until the task finishes."""
+    t = asyncio.create_task(coro)
+    _TASKS.add(t)
+    t.add_done_callback(_TASKS.discard)
 
 
 def _now() -> str:
@@ -160,7 +172,7 @@ async def email_signed_pdf(*, sig: dict | None, contact: dict, pdf: bytes, filen
     if not to:
         return ""
     from utils.email import send_email
-    who = ((sig or {}).get("signed_by_name") or contact.get("name") or "there").split()[0]
+    who = _html.escape(((sig or {}).get("signed_by_name") or contact.get("name") or "there").split()[0])
     html = (f"<div style='font-family:Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:16px'>"
             f"<h2 style='color:#0f172a;font-size:18px;margin:0 0 12px'>Hi {who},</h2>"
             f"<p style='color:#1f2937;font-size:14px;line-height:1.6'>{intro} Your signed report is attached as a PDF.</p>"

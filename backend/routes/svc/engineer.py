@@ -1073,6 +1073,9 @@ async def add_signature(
     case = await db.svc_cases.find_one({"id": case_id, **of})
     if not case:
         raise HTTPException(404, "Case not found")
+    if case.get("assigned_engineer_id") and case["assigned_engineer_id"] != user["id"] \
+            and not user.get("is_master_admin"):
+        raise HTTPException(404, "Case not found")
     sig = build_signoff(data, case_id=case_id, organization_id=of["organization_id"],
                         reference=case.get("reference"), user=user)
     sig["device_meta"] = (data or {}).get("device_meta") or {}
@@ -1202,10 +1205,10 @@ async def engineer_complete(
     await db.svc_engineer_job_drafts.delete_one(
         {**of, "case_id": case_id, "engineer_id": user["id"]},
     )
-    import asyncio
     from routes.svc.service_report import email_signed_service_report
+    from utils.customer_signoff import spawn
     if (data or {}).get("email_report", True):
-        asyncio.create_task(email_signed_service_report(case_id, of["organization_id"]))
+        spawn(email_signed_service_report(case_id, of["organization_id"]))
     case.pop("_id", None)
     return case
 

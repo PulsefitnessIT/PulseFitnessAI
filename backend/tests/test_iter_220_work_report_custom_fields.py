@@ -228,6 +228,7 @@ def test_for_case_returns_only_matching_scope(db, admin_user, field_cleanup):
         assert "belt_wear" not in keys
     finally:
         db.svc_cases.delete_one({"id": case_id})
+        db.svc_signatures.delete_many({"case_id": case_id})
         db.equipment.delete_one({"id": asset_id})
 
 
@@ -238,6 +239,16 @@ def test_for_case_404_when_missing(field_cleanup):
             headers=_admin_headers(),
         )
     assert r.status_code == 404
+
+
+def _seed_signoff(db, case_id: str, org_id: str) -> None:
+    """Customer sign-off is now required before /complete (Jan 2026)."""
+    db.svc_signatures.insert_one({
+        "id": f"sig-{uuid.uuid4().hex[:8]}", "organization_id": org_id, "case_id": case_id,
+        "signed_by_name": "TEST Customer", "signed_by_email": "", "unavailable": False,
+        "image_data": "data:image/png;base64,iVBORw0KGgo=",
+        "signed_at": datetime.now(timezone.utc).isoformat(),
+    })
 
 
 # ─────────────────── /complete value persistence + required-field guard ───────────────────
@@ -259,6 +270,7 @@ def test_complete_persists_clean_custom_fields(db, admin_user, field_cleanup):
         "assigned_engineer_id": admin_user["id"],
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
+    _seed_signoff(db, case_id, org_id)
     try:
         f1 = _create_field({
             "name": "Current Software",
@@ -296,6 +308,7 @@ def test_complete_persists_clean_custom_fields(db, admin_user, field_cleanup):
         }
     finally:
         db.svc_cases.delete_one({"id": case_id})
+        db.svc_signatures.delete_many({"case_id": case_id})
         db.equipment.delete_one({"id": asset_id})
 
 
@@ -315,6 +328,7 @@ def test_complete_rejects_missing_required_field(db, admin_user, field_cleanup):
         "assigned_engineer_id": admin_user["id"],
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
+    _seed_signoff(db, case_id, org_id)
     try:
         f_req = _create_field({
             "name": "Belt Tension",
@@ -339,6 +353,7 @@ def test_complete_rejects_missing_required_field(db, admin_user, field_cleanup):
         assert "Belt Tension" in r.text
     finally:
         db.svc_cases.delete_one({"id": case_id})
+        db.svc_signatures.delete_many({"case_id": case_id})
         db.equipment.delete_one({"id": asset_id})
 
 
@@ -358,6 +373,7 @@ def test_complete_rejects_non_numeric_for_number_field(db, admin_user, field_cle
         "assigned_engineer_id": admin_user["id"],
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
+    _seed_signoff(db, case_id, org_id)
     try:
         f = _create_field({
             "name": "Drag Factor",
@@ -382,6 +398,7 @@ def test_complete_rejects_non_numeric_for_number_field(db, admin_user, field_cle
         assert "number" in r.text
     finally:
         db.svc_cases.delete_one({"id": case_id})
+        db.svc_signatures.delete_many({"case_id": case_id})
         db.equipment.delete_one({"id": asset_id})
 
 
@@ -401,6 +418,7 @@ def test_complete_accepts_dropdown_value_only_when_in_options(db, admin_user, fi
         "assigned_engineer_id": admin_user["id"],
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
+    _seed_signoff(db, case_id, org_id)
     try:
         f = _create_field({
             "name": "Belt Wear",
@@ -439,6 +457,7 @@ def test_complete_accepts_dropdown_value_only_when_in_options(db, admin_user, fi
         assert doc["work_report_custom_fields"]["belt_wear"] == "Medium"
     finally:
         db.svc_cases.delete_one({"id": case_id})
+        db.svc_signatures.delete_many({"case_id": case_id})
         db.equipment.delete_one({"id": asset_id})
 
 

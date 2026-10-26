@@ -1,0 +1,51 @@
+{
+  "summary": "Tested customer sign-off on engineer reports end-to-end. Backend: new suite test_customer_signoff_jan2026.py, 16/16 passing. It covers the SVC GET signoff and site_contact, POST signature validation (missing name, missing image, invalid email, missing or blank unavailable reason, missing case_id, unknown case 404), the complete gate (400 before sign-off, and status stays unchanged), and sign then complete. It checks the service-report PDF text for name, email and date, and for 'Customer unable to sign' plus the reason. It also covers email_report:false, special characters in the signer name, the calibration certificate 'Customer sign-off' section, the BFPO signature, signoff, complete gate and job-sheet PDF (signed and unavailable), and the BFPO PPM complete with no signoff (400), an invalid signoff (400), and a valid signoff (200: svc_signatures row with ppm_service_id, case_id=None, and the certificate PDF shows the block). Background emails fire and fail gracefully on the invalid Resend key with no crash; the recipient is the signer, or the site contact when there is no signer email. Updated regression tests to post a sign-off before /complete; 4 pre-existing failures in 215dp are unrelated. Frontend (mobile 390x844): the SVC engineer Complete tab CustomerSignOffCard works: the placeholder shows the site contact email, toasts appear for no signature, no reason and bad email, unavailable/capture-instead toggles work, and signature is POSTed before complete, which then locks the job. The unavailable flow also completes. The BFPO JobDetail Complete panel works the same way: inline errors appear, and signature is POSTed before complete, which shows the recap. One minor UI bug.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/bfpo/jobs/{id}/complete", "issue": "If the case is still 'new' (not accepted), the state walk fails silently (ValueErrors swallowed). The endpoint returns ok:true with status 'new', sets completed_at, and still emails a 'Signed job sheet … has been completed'. This predates the change but now sends emails."},
+      {"endpoint": "POST /api/svc/engineer/signature", "issue": "There is no assigned-engineer check (complete has one). Any org user can record a sign-off on another engineer's case."},
+      {"endpoint": "require_signoff (svc + bfpo)", "issue": "Any historical svc_signatures row for the case satisfies the gate. A case reopened after a prior sign-off can be completed again without a fresh customer signature. Consider scoping to signatures after the last reopen or on_site transition."},
+      {"endpoint": "POST /api/bfpo/ppm/services/{id}/complete", "issue": "email_signed_pdf is awaited inline (not a background task), so a slow Resend call blocks the response. There is no guard against completing an already-completed service, so repeat calls add duplicate signatures and documents. The contact comes from site.contact_email instead of resolve_site_contact."},
+      {"endpoint": "utils/customer_signoff.email_signed_pdf", "issue": "signed_by_name and contact name go into the email HTML without escaping (HTML injection in outbound email). Use html.escape."},
+      {"endpoint": "engineer_complete / bfpo_complete", "issue": "The asyncio.create_task(...) result is not kept, so the task can be garbage-collected before it finishes. Keep a reference in a set or use BackgroundTasks."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EngineerJobDetailV2 locked Complete recap", "issue": "When the sign-off was recorded as 'customer unavailable', the read-only recap says 'No customer signature was captured on this job.' and does not show the reason. The branch only checks sig.image_data. It should render 'Customer unable to sign — {unavailable_reason}'. The signed recap also omits signed_by_email.", "selector": "[data-testid='complete-locked-no-signature']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "BFPO SignOffFields", "issues": ["The name, role and email inputs have placeholders only, no visible labels, so filled values like 'PTI' lose context.", "The 'Capture a signature instead' button has no data-testid and neither toggle button has type='button'.", "PPMServiceDetail doesn't pass `contact` to SignOffFields, so the PPM email placeholder never shows the site contact."]},
+      {"screen": "SVC CustomerSignOffCard", "issues": ["The name input placeholder shows the contact name ('Site Manager'), which looks like a pre-filled value. Consider 'Printed name (e.g. Site Manager)'."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_customer_signoff_jan2026.py", "/app/test_reports/pytest/customer_signoff_regression.xml"],
+  "action_items": [
+    "Fix the locked recap in EngineerJobDetailV2 (~line 3705) so it shows unavailable sign-offs with the reason, and the signer email.",
+    "Add the assigned-engineer check to POST /api/svc/engineer/signature.",
+    "Escape the signer and contact names in the email_signed_pdf HTML.",
+    "BFPO complete: reject, or don't email, when the state walk fails to reach awaiting_sign_off/closed.",
+    "PPM complete: move the email to a background task, guard against re-completing, and use resolve_site_contact. Pass contact to SignOffFields in PPMServiceDetail.",
+    "Optional: scope require_signoff to sign-offs captured after the latest reopen."
+  ],
+  "critical_code_review_comments": [
+    "In svc complete() the signature goes through outboxPost, but the fast path (completeAndSendInvoice) uses plain axios. Offline, the fast path fails instead of queueing. Acceptable, but inconsistent.",
+    "Recaptures leave multiple svc_signatures rows (latest wins). This is fine, but a failed complete followed by a retry posts the signature again.",
+    "EngineerJobDetailV2.js is 4333 lines and bfpo.py is 1587. Both are well over the 700-line guideline."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_customer_signoff_jan2026.py (new)",
+    "/app/backend/tests/test_iter_220_work_report_custom_fields.py (seed sign-off before /complete)",
+    "/app/backend/tests/test_iter_220c_engineer_draft_autosave.py (seed sign-off in _make_case)",
+    "/app/backend/tests/test_iter_215dp_engineer.py (_sign_off helper before complete)",
+    "/app/backend/tests/test_bfpo_portal_jan2026.py (auto-raise a TEST_ Gibraltar fault when no open Gibraltar case remains; it already posted a signature)"
+  ],
+  "success_rate": {"backend": "100% of new sign-off tests (16/16); regression set 86/90 (4 failures pre-existing and unrelated: 412 safety_signoff_required on time/start ×3, master-admin bypass on the 403 job-detail test)", "frontend": "95% (all requested flows pass; 1 recap display bug)"},
+  "seed_data_creation": "The BFPO tests create TEST_-titled Gibraltar fault cases (SVC-000xx in the BFPO org) through report-fault, then close them. They are left in place because the BFPO Gibraltar seed had no open cases. PPM test services are deleted after the run. The SVC test cases (TEST_sig_*, TEST_ui_sig_*) were cleaned up.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use admin@gymaxisai.com / MasterAdmin123! (no MFA) for SVC engineer API and UI tests. Seed svc_cases directly with assigned_engineer_id = the admin id and safety_signoff_waived:true, then set localStorage.token and open /svc/engineer/jobs/{id}. The conftest re-seeds that admin user (new id) during runs, so log in per test. Dismiss the cookie banner (Decline) before clicking complete-submit on mobile; it overlays the button. The BFPO engineer logs in via the API with portal:'mod', then localStorage.token, /bfpo → eng-nav-jobs → click the reference → jobdetail-primary-action → workflow-opt-complete. The Resend key is invalid in preview, so service_report_sent_to stays unset.",
+  "rca of the issue": "Locked recap bug: the EngineerJobDetailV2 locked view renders the signature block only when sig.image_data is set. Unavailable sign-offs store image_data='' with unavailable:true, so they fall through to the 'No customer signature' branch."
+}

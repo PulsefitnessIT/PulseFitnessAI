@@ -34,7 +34,7 @@ export default function CustomerSignOffCard({ draft, setDraft, signatureData, se
       {!unavailable ? (
         <>
           <label className="block text-xs font-semibold text-slate-600">Customer name
-            <input className={`${inputCls} mt-1`} value={draft.signature_name || ''} onChange={(e) => setDraft({ signature_name: e.target.value })} placeholder={contact?.name || 'Printed name'} data-testid="complete-signed-by" />
+            <input className={`${inputCls} mt-1`} value={draft.signature_name || ''} onChange={(e) => setDraft({ signature_name: e.target.value })} placeholder={contact?.name ? `Printed name (e.g. ${contact.name})` : 'Printed name'} data-testid="complete-signed-by" />
           </label>
           <label className="block text-xs font-semibold text-slate-600">Email for the signed report
             <input type="email" className={`${inputCls} mt-1`} value={draft.signature_email || ''} onChange={(e) => setDraft({ signature_email: e.target.value })}

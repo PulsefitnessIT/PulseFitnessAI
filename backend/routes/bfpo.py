@@ -701,8 +701,9 @@ async def bfpo_complete(case_id: str, data: dict = Body(...), user=Depends(_requ
     await _op_update(case, user, "job_completed", f"Job completed: {summary[:120]}",
                      {"safe_and_working": safe_working})
     updated = await db.svc_cases.find_one({"id": case_id}, {"_id": 0})
-    import asyncio
-    asyncio.create_task(_email_signed_job_sheet(case_id))
+    if updated and updated.get("status") in (AWAITING_SIGN_OFF, CLOSED):
+        from utils.customer_signoff import spawn
+        spawn(_email_signed_job_sheet(case_id))
     return {"ok": True, "case": updated,
             "job_sheet_url": f"/api/bfpo/jobs/{case_id}/job-sheet.pdf"}
 
