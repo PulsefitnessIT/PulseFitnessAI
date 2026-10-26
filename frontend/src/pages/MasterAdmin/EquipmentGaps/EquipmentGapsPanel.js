@@ -16,16 +16,20 @@ export const GAP_COLUMNS = [
   ['install_date', 'Install Date', 'w-36'], ['last_service_date', 'Last Service', 'w-36'],
   ['service_interval', 'Interval', 'w-20'], ['service_period', 'Period', 'w-24'],
   ['next_service_date', 'Next Service', 'w-36'], ['equipment_group', 'Equipment Group', 'w-32'],
+  ['asset_number', 'Asset Tag', 'w-28'], ['condition', 'Condition', 'w-28'],
+  ['equipment_type', 'Equipment Type', 'w-32'], ['manufacturing_date', 'Manufacture Date', 'w-36'],
 ];
+const MOD_COLUMN = ['mod_code', 'MOD Code', 'w-28'];
+const columnsFor = (isMod) => (isMod ? [GAP_COLUMNS[0], MOD_COLUMN, ...GAP_COLUMNS.slice(1)] : GAP_COLUMNS);
 
-const GapRow = ({ item, onSave }) => (
+const GapRow = ({ item, onSave, columns }) => (
   <tr className={`border-t border-zinc-100 ${item.missing.length ? '' : 'bg-emerald-50/50'}`} data-testid={`gap-row-${item.id}`}>
     <td className="px-2 py-1.5 align-middle">
       {item.missing.length
         ? <span className="text-[10px] font-semibold text-red-600 whitespace-nowrap" data-testid={`gap-row-status-${item.id}`}>{item.missing.length} missing</span>
         : <span className="text-[10px] font-semibold text-emerald-700 inline-flex items-center gap-1" data-testid={`gap-row-status-${item.id}`}><CheckCircle2 size={11} /> Complete</span>}
     </td>
-    {GAP_COLUMNS.map(([f, , w]) => (
+    {columns.map(([f, , w]) => (
       <td key={f} className="px-1.5 py-1.5"><GapCell item={item} field={f} width={w} missing={item.missing.includes(f)} onSave={onSave} /></td>
     ))}
   </tr>
@@ -115,10 +119,10 @@ export default function EquipmentGapsPanel({ organizationId, headers, onChanged 
             <thead className="sticky top-0 z-[1] bg-zinc-50 text-[10px] uppercase tracking-wider text-zinc-500">
               <tr>
                 <th className="px-2 py-2 text-left font-semibold">Status</th>
-                {GAP_COLUMNS.map(([f, l]) => <th key={f} className="px-1.5 py-2 text-left font-semibold whitespace-nowrap">{l}</th>)}
+                {columnsFor(data.is_mod).map(([f, l]) => <th key={f} className="px-1.5 py-2 text-left font-semibold whitespace-nowrap">{l}</th>)}
               </tr>
             </thead>
-            <tbody>{data.items.map((it) => <GapRow key={it.id} item={it} onSave={saveCell} />)}</tbody>
+            <tbody>{data.items.map((it) => <GapRow key={it.id} item={it} onSave={saveCell} columns={columnsFor(data.is_mod)} />)}</tbody>
           </table>
         </div>
       ) : (
@@ -126,7 +130,7 @@ export default function EquipmentGapsPanel({ organizationId, headers, onChanged 
           <CheckCircle2 className="mx-auto mb-2" /> Every asset here has the Sicon essentials.
         </div>
       )}
-      <p className="text-[11px] text-zinc-500">Red cells are Sicon essentials. Changes save as you leave each cell. Next Service is worked out from Last Service + Interval when left blank.</p>
+      <p className="text-[11px] text-zinc-500">Red cells are Sicon essentials{data?.is_mod ? ' (plus MOD Code for MOD sites)' : ''}. Changes save as you leave each cell. Next Service is worked out from Last Service + Interval when left blank.</p>
     </div>
   );
 }

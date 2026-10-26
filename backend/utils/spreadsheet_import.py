@@ -224,6 +224,10 @@ HEADER_ALIASES: dict[str, list[str]] = {
     "service_template":  ["service_template", "service template"],
     "equipment_group":   ["equipment_group", "equipment group"],
     "sicon_customer_ref": ["sicon_customer_ref", "sicon customer ref"],
+    "mod_code":          ["mod_code", "mod code", "mod-code"],
+    "asset_number":      ["asset_number", "asset number", "asset tag", "asset_tag", "asset id", "asset no"],
+    "condition":         ["condition", "asset condition"],
+    "manufacturing_date": ["manufacturing_date", "manufacture date", "manufacturing date", "date of manufacture"],
     # Iter 216h111 — MOD Force tag (Army / RAF / Navy)
     "mod_force":         ["mod_force", "mod-force", "mod force", "force", "service", "mod service", "mod_service", "command", "service branch", "branch of service"],
 }

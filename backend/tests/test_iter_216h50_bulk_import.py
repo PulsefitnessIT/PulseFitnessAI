@@ -262,7 +262,7 @@ class TestEquipmentCSVTemplate:
         from io import StringIO as _SIO
         hdr = next(_csv.reader(_SIO(resp.text)))
         assert hdr[0] == "Sicon Customer Ref" and "Description" in hdr and "Make" in hdr and "Serial Number" in hdr, hdr
-        assert len(hdr) == 29, hdr
+        assert len(hdr) == 34 and hdr[29:] == ["MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date"], hdr
 
     def test_template_example_row_values(self, auth_headers):
         resp = requests.get(f"{BASE_URL}/api/master-admin/bulk-import/templates/equipment", headers=auth_headers)
@@ -272,7 +272,7 @@ class TestEquipmentCSVTemplate:
         from io import StringIO as _SIO
         hdr = next(_csv.reader(_SIO(resp.text)))
         assert hdr[0] == "Sicon Customer Ref" and "Description" in hdr and "Make" in hdr and "Serial Number" in hdr, hdr
-        assert len(hdr) == 29, hdr
+        assert len(hdr) == 34 and hdr[29:] == ["MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date"], hdr
 
 class TestEquipmentBulkImport:
     """Test POST /api/master-admin/bulk-import/equipment"""

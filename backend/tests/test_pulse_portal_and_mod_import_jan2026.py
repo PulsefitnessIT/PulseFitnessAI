@@ -118,7 +118,7 @@ class TestModEstateTemplates:
         else:
             import io, openpyxl
             ws = openpyxl.load_workbook(io.BytesIO(r.content)).active
-            assert ws.cell(1, 1).value == "Sicon Customer Ref" and ws.cell(1, 29).value == "MOD-Force"
+            assert ws.cell(1, 1).value == "Sicon Customer Ref" and ws.cell(1, 29).value == "MOD-Force" and ws.cell(1, 30).value == "MOD Code"
 
     def test_xlsx_template_includes_mod_code(self, admin_token):
         ext = "xlsx" if "xlsx" in "test_xlsx_template_includes_mod_code" else "csv"
@@ -129,7 +129,7 @@ class TestModEstateTemplates:
         else:
             import io, openpyxl
             ws = openpyxl.load_workbook(io.BytesIO(r.content)).active
-            assert ws.cell(1, 1).value == "Sicon Customer Ref" and ws.cell(1, 29).value == "MOD-Force"
+            assert ws.cell(1, 1).value == "Sicon Customer Ref" and ws.cell(1, 29).value == "MOD-Force" and ws.cell(1, 30).value == "MOD Code"
 
 # ---- (B2) AI import analyse captures mod_code ----
 

@@ -1008,3 +1008,4 @@ Files: backend/utils/sicon_outbox_worker.py, backend/utils/sicon_writeback.py, b
 - MOD engineer app: job detail card "While you're on site — N machines need details" (`/api/bfpo/jobs/{id}/equipment-gaps`, POST `.../equipment/{eq}/details`, offline-queued).
 - Essentials: Customer Ref, Location, Description, Make, Model, Serial Number (UNKNOWN/N/A = missing).
 - Tested: iteration_sicon_equipment_template_gaps_jan2026 + retest (backend 45/45, frontend flows pass).
+- 2026-06 follow-up: Sicon template extended to 34 columns — end "analysis code" columns (teal): MOD Code, Asset Tag, Condition, Equipment Type, Manufacture Date. Imported by every equipment importer; editable in the Missing Information grid (MOD Code column shown for MOD orgs; Condition/Type bulk-fillable); engineer card also captures Asset Tag/Condition/Manufacture Date. Blank MOD Code = missing for MOD orgs only (not asked of engineers). Tests: sicon gaps suites 30/30 + regression 66/66.

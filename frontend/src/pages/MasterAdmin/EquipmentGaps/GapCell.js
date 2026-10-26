@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 
 export const PERIODS = ['Days', 'Weeks', 'Months', 'Years'];
-const DATE_FIELDS = new Set(['install_date', 'last_service_date', 'next_service_date', 'warranty_expiry']);
+export const CONDITIONS = ['New', 'Good', 'Fair', 'Poor', 'Out of Service'];
+const DATE_FIELDS = new Set(['install_date', 'last_service_date', 'next_service_date', 'warranty_expiry', 'manufacturing_date']);
+const OPTIONS = { service_period: PERIODS, condition: CONDITIONS };
 
 const PLACEHOLDER = /^\s*(unknown|n\/?a|tbc|tbd|none|null|-|0)\s*$/i;
 const shown = (v, missing) => (missing && PLACEHOLDER.test(String(v ?? '')) ? '' : (v ?? ''));
@@ -27,10 +29,10 @@ export const GapCell = ({ item, field, missing, onSave, width = 'w-36' }) => {
 
   return (
     <div className="relative">
-      {field === 'service_period' ? (
+      {OPTIONS[field] ? (
         <select value={val || ''} onChange={(e) => { setVal(e.target.value); commit(e.target.value); }} className={cls} data-testid={tid}>
           <option value="">—</option>
-          {PERIODS.map((p) => <option key={p} value={p}>{p}</option>)}
+          {OPTIONS[field].map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
       ) : (
         <input

@@ -73,7 +73,7 @@ async def preview_equipment_csv(file: UploadFile = File(...), user: dict = Depen
         row = {(k or "").strip().lower(): (v or "").strip() for k, v in raw_row.items()}
         _sv = sicon_values(raw_row) if is_sicon_row(raw_row) else {}
         for _src, _dst in (("name", "name"), ("serial_number", "serial_number"), ("install_date", "install_date"),
-                           ("warranty_expiry", "warranty_expiry"), ("location", "location"), ("equipment_group", "equipment_type")):
+                           ("warranty_expiry", "warranty_expiry"), ("location", "location"), ("equipment_type", "equipment_type"), ("equipment_group", "equipment_type")):
             if _sv.get(_src) and not row.get(_dst):
                 row[_dst] = str(_sv[_src])
         name = row.get("name") or row.get("model") or row.get("make")

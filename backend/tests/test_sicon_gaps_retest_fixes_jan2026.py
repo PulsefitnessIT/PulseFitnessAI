@@ -28,7 +28,8 @@ SICON = ["Sicon Customer Ref", "Location Description", "Sublocation Description"
          "Install Date", "Manufacturer Warranty Expiry Date", "Last Service Date",
          "Service Interval", "Service Period", "Next Service Date", "ID Number",
          "Service Template", "Equipment Group", "service_provider", "unit_price",
-         "replacement_cost", "length", "width", "height", "MOD-Force"]
+         "replacement_cost", "length", "width", "height", "MOD-Force",
+         "MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date"]
 
 
 def _login(email, pw):

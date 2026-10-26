@@ -22,6 +22,7 @@ from utils.sicon_equipment import (
 router = APIRouter()
 
 _BULK_FIELDS = {
+    "condition", "equipment_type",
     "sicon_customer_ref", "location", "sub_location", "manufacturer", "service_interval",
     "service_period", "equipment_group", "sla_name", "contract_number", "service_template",
     "last_service_date", "install_date",
@@ -32,6 +33,15 @@ _PROJECTION = {"_id": 0, **{f: 1 for f in (
 )}}
 _ORG_REF_FIELDS = ("customer_account_number", "sage_customer_number", "sicon_customer_number")
 _PLACEHOLDER_RE = r"^\s*(unknown|n/?a|tbc|tbd|none|null|-|0)\s*$"
+_MOD_TYPES = ("mod_site", "mod_branch", "mod_org")
+
+
+def _org_is_mod(org: dict) -> bool:
+    return bool(org.get("is_mod") or org.get("account_type") in _MOD_TYPES)
+
+
+def _mod_code_blank() -> dict:
+    return {"$or": [{"mod_code": {"$exists": False}}, {"mod_code": None}, {"mod_code": ""}]}
 
 
 async def _is_staff(user: dict) -> bool:
@@ -98,8 +108,8 @@ async def backfill_customer_refs(org_id: str) -> int:
     return n
 
 
-def _summarise(items: list) -> dict:
-    by_field = {f: 0 for f, _ in ESSENTIAL_FIELDS}
+def _summarise(items: list, is_mod: bool = False) -> dict:
+    by_field = {**({"mod_code": 0} if is_mod else {}), **{f: 0 for f, _ in ESSENTIAL_FIELDS}}
     for it in items:
         for f in it["missing"]:
             by_field[f] += 1
@@ -120,7 +130,10 @@ async def gap_scopes(user: dict = Depends(get_current_user)) -> dict:
     """Organisations that still have incomplete assets (staff only)."""
     if not await _is_staff(user):
         raise HTTPException(403, "Staff access required")
-    pipeline = [{"$match": incomplete_query()}, {"$group": {"_id": "$organization_id", "n": {"$sum": 1}}},
+    mod_ids = [o["id"] async for o in db.organizations.find(
+        {"$or": [{"is_mod": True}, {"account_type": {"$in": list(_MOD_TYPES)}}]}, {"_id": 0, "id": 1})]
+    match = {"$or": [incomplete_query(), {"organization_id": {"$in": mod_ids}, **_mod_code_blank()}]}
+    pipeline = [{"$match": match}, {"$group": {"_id": "$organization_id", "n": {"$sum": 1}}},
                 {"$sort": {"n": -1}}, {"$limit": 300}]
     rows = await db.equipment.aggregate(pipeline).to_list(300)
     out = []
@@ -129,7 +142,8 @@ async def gap_scopes(user: dict = Depends(get_current_user)) -> dict:
         if not oid:
             continue
         if await backfill_customer_refs(oid):
-            r["n"] = await db.equipment.count_documents({"organization_id": oid, **incomplete_query()})
+            cond = {"$or": [incomplete_query(), _mod_code_blank()]} if oid in mod_ids else incomplete_query()
+            r["n"] = await db.equipment.count_documents({"organization_id": oid, **cond})
         if not r["n"]:
             continue
         org = await db.organizations.find_one({"id": oid}, {"_id": 0, "name": 1, "account_type": 1, "is_mod": 1}) or {}
@@ -157,16 +171,18 @@ async def list_gaps(
     if "site_id" in site_q and isinstance(site_q["site_id"], dict):
         sites_q["id"] = site_q["site_id"]
     site_names = {s["id"]: s.get("name") async for s in db.sites.find(sites_q, {"_id": 0, "id": 1, "name": 1})}
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "name": 1, "is_mod": 1, "account_type": 1, **{f: 1 for f in _ORG_REF_FIELDS}}) or {}
+    is_mod = _org_is_mod(org)
     items = []
     for d in docs:
-        d["missing"] = missing_essentials(d)
+        d["missing"] = missing_essentials(d, is_mod=is_mod)
         d["site_name"] = site_names.get(d.get("site_id"))
         items.append(d)
-    summary = _summarise(items)
+    summary = _summarise(items, is_mod)
     if show == "incomplete":
         items = [it for it in items if it["missing"]]
-    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "name": 1, **{f: 1 for f in _ORG_REF_FIELDS}}) or {}
     return {"organization_id": org_id, "organization_name": org.get("name"), "account_number": _org_ref(org) or None,
+            "is_mod": is_mod,
             "sites": [{"id": k, "name": v} for k, v in site_names.items()],
             "items": items, "summary": summary}
 
@@ -190,7 +206,8 @@ async def apply_detail_patch(eq: dict, body: dict, allowed, user: dict, source: 
     patch.update(_audit(user, source))
     await db.equipment.update_one({"id": eq["id"]}, {"$set": patch})
     updated = {**eq, **patch}
-    updated["missing"] = missing_essentials(updated)
+    org = await db.organizations.find_one({"id": eq.get("organization_id")}, {"_id": 0, "is_mod": 1, "account_type": 1}) or {}
+    updated["missing"] = missing_essentials(updated, is_mod=_org_is_mod(org))
     return updated
 
 
@@ -233,7 +250,7 @@ async def bulk_fill(body: dict = Body(...), user: dict = Depends(get_current_use
     return {"success": True, "updated": res.modified_count}
 
 
-_EXPORT_DATES = {"install_date", "warranty_expiry", "last_service_date", "next_service_date"}
+_EXPORT_DATES = {"install_date", "warranty_expiry", "last_service_date", "next_service_date", "manufacturing_date"}
 
 
 @router.get("/equipment-gaps/export.xlsx")

@@ -1,4 +1,5 @@
 const LABELS = {
+  mod_code: 'MOD Code',
   sicon_customer_ref: 'Customer Ref', location: 'Location', name: 'Description',
   manufacturer: 'Make', model: 'Model', serial_number: 'Serial Number',
 };

@@ -1573,6 +1573,7 @@ async def bfpo_capture_equipment_details(case_id: str, equipment_id: str, body: 
         raise HTTPException(404, "Equipment not found")
     fields = {k: v for k, v in (body or {}).items() if v not in (None, "")}
     item = await apply_detail_patch(eq, fields, ENGINEER_EDITABLE_FIELDS, user, "engineer_app")
+    item["missing"] = [f for f in item["missing"] if f not in ("sicon_customer_ref", "mod_code")]
     await _op_update(case, user, "asset_details", f"Captured asset details for {item.get('name') or 'equipment'}: {', '.join(sorted(fields))}",
                      {"equipment_id": equipment_id})
     return {"success": True, "item": item}

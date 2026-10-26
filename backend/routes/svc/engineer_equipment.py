@@ -614,7 +614,7 @@ async def import_customer_equipment_csv(
         "serial_number": fm["serial"], "install_date": fm["purchase_date"], "warranty_expiry": fm["warranty"],
         "unit_price": fm["purchase_cost"], "replacement_cost": fm["replacement_cost"],
         "length": fm["length"], "width": fm["width"], "height": fm["height"],
-        "location": fm["location"], "contract_number": fm["contract_number"], "equipment_group": fm["type"],
+        "location": fm["location"], "contract_number": fm["contract_number"], "equipment_type": fm["type"], "equipment_group": fm["type"],
     }
     for raw_row in reader:
         raw_row = adapt_row(raw_row, sicon_target)

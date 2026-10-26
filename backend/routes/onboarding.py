@@ -334,7 +334,7 @@ async def import_equipment_csv(payload: dict = Body(...), user: dict = Depends(g
     skipped = 0
     from utils.sicon_equipment import adapt_row, merge_extras
     sicon_target = {k: k for k in ("name", "manufacturer", "model", "serial_number", "location", "warranty_expiry", "supplier")}
-    sicon_target.update({"install_date": "purchase_date", "equipment_group": "equipment_type"})
+    sicon_target.update({"install_date": "purchase_date", "equipment_type": "equipment_type", "equipment_group": "equipment_type"})
     for row in reader:
         row = adapt_row(row, sicon_target)
         doc = _csv_row_to_equipment_doc(row, organization_id, now)

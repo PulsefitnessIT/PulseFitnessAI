@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Loader2, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { PERIODS } from './GapCell';
+import { PERIODS, CONDITIONS } from './GapCell';
 
 const BULK_FIELDS = [
   ['sicon_customer_ref', 'Customer Ref'],
@@ -13,7 +13,10 @@ const BULK_FIELDS = [
   ['service_period', 'Service Period'],
   ['last_service_date', 'Last Service Date'],
   ['install_date', 'Install Date'],
+  ['condition', 'Condition'],
+  ['equipment_type', 'Equipment Type'],
 ];
+const OPTIONS = { service_period: PERIODS, condition: CONDITIONS };
 
 export const BulkFillBar = ({ onApply, siteName }) => {
   const [field, setField] = useState('sicon_customer_ref');
@@ -34,10 +37,10 @@ export const BulkFillBar = ({ onApply, siteName }) => {
       <select value={field} onChange={(e) => { setField(e.target.value); setValue(''); }} className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-xs" data-testid="gaps-bulk-field">
         {BULK_FIELDS.map(([f, l]) => <option key={f} value={f}>{l}</option>)}
       </select>
-      {field === 'service_period' ? (
+      {OPTIONS[field] ? (
         <select value={value} onChange={(e) => setValue(e.target.value)} className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-xs" data-testid="gaps-bulk-value">
           <option value="">Choose…</option>
-          {PERIODS.map((p) => <option key={p} value={p}>{p}</option>)}
+          {OPTIONS[field].map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
       ) : (
         <input type={isDate ? 'date' : field === 'service_interval' ? 'number' : 'text'} value={value} onChange={(e) => setValue(e.target.value)}

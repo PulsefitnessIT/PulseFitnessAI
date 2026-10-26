@@ -7,15 +7,17 @@ const LABEL = {
   name: 'Description', location: 'Location', sub_location: 'Sublocation', manufacturer: 'Make',
   model: 'Model', serial_number: 'Serial Number', install_date: 'Install Date',
   last_service_date: 'Last Service Date', id_number: 'ID Number',
+  asset_number: 'Asset Tag', condition: 'Condition', manufacturing_date: 'Manufacture Date',
 };
-const DATES = new Set(['install_date', 'last_service_date']);
+const DATES = new Set(['install_date', 'last_service_date', 'manufacturing_date']);
+const CONDITIONS = ['New', 'Good', 'Fair', 'Poor', 'Out of Service'];
 const PLACEHOLDER = /^\s*(unknown|n\/?a|tbc|tbd|none|null|-|0)\s*$/i;
 
 function AssetForm({ jobId, item, onSaved }) {
   const [vals, setVals] = useState({});
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const fields = [...new Set([...item.missing, 'sub_location'])];
+  const fields = [...new Set([...item.missing, 'sub_location', 'asset_number', 'condition'])];
   const save = async () => {
     setBusy(true); setErr('');
     try {
@@ -33,8 +35,15 @@ function AssetForm({ jobId, item, onSaved }) {
       {fields.map((f) => (
         <label key={f} className="block">
           <span className="text-xs font-semibold text-slate-600">{LABEL[f] || f}{item.missing.includes(f) && <span className="text-red-600"> *</span>}</span>
-          <input type={DATES.has(f) ? 'date' : 'text'} className={`${inputCls} mt-1`} defaultValue={item[f] && !PLACEHOLDER.test(item[f]) ? item[f] : ''}
-            onChange={(e) => setVals((v) => ({ ...v, [f]: e.target.value }))} data-testid={`asset-gap-${f}-${item.id}`} />
+          {f === 'condition' ? (
+            <select className={`${inputCls} mt-1`} defaultValue={item.condition || ''} onChange={(e) => setVals((v) => ({ ...v, condition: e.target.value }))} data-testid={`asset-gap-condition-${item.id}`}>
+              <option value="">—</option>
+              {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          ) : (
+            <input type={DATES.has(f) ? 'date' : 'text'} className={`${inputCls} mt-1`} defaultValue={item[f] && !PLACEHOLDER.test(item[f]) ? item[f] : ''}
+              onChange={(e) => setVals((v) => ({ ...v, [f]: e.target.value }))} data-testid={`asset-gap-${f}-${item.id}`} />
+          )}
         </label>
       ))}
       {err && <p className="text-xs text-red-600">{err}</p>}

@@ -20,6 +20,8 @@ SICON_EQUIPMENT_HEADERS = [
     "Service Interval", "Service Period", "Next Service Date", "ID Number",
     "Service Template", "Equipment Group", "service_provider", "unit_price",
     "replacement_cost", "length", "width", "height", "MOD-Force",
+    # Pulse analysis codes (end columns)
+    "MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date",
 ]
 
 # Sicon header → Pulse canonical field.
@@ -51,6 +53,11 @@ SICON_TO_CANONICAL = {
     "replacement_cost": "replacement_cost",
     "length": "length", "width": "width", "height": "height",
     "MOD-Force": "mod_force",
+    "MOD Code": "mod_code",
+    "Asset Tag": "asset_number",
+    "Condition": "condition",
+    "Equipment Type": "equipment_type",
+    "Manufacture Date": "manufacturing_date",
 }
 
 _GUIDE = {
@@ -68,6 +75,11 @@ _GUIDE = {
     "Service Period": ("Optional", "Days, Weeks, Months or Years"),
     "Next Service Date": ("Optional", "DD/MM/YYYY — worked out from Last Service + Interval if blank"),
     "MOD-Force": ("MOD only", "Army, RAF or Navy"),
+    "MOD Code": ("MOD essential", "MOD equipment code — drives MOD service quote pricing. Required for MOD sites"),
+    "Asset Tag": ("Optional", "Your / the customer's asset or barcode number"),
+    "Condition": ("Optional", "Good, Fair, Poor or Out of Service"),
+    "Equipment Type": ("Optional", "Treadmill, Bike, Rower, Cross Trainer, Strength… (drives fault forms, parts and lifespan)"),
+    "Manufacture Date": ("Optional", "DD/MM/YYYY — from the serial plate"),
 }
 
 # Extra Sicon-only fields stored on db.equipment.
@@ -77,7 +89,7 @@ SICON_EXTRA_FIELDS = (
     "service_period", "next_service_date", "id_number", "service_template",
     "equipment_group",
 )
-_DATE_FIELDS = {"install_date", "last_service_date", "next_service_date", "warranty_expiry"}
+_DATE_FIELDS = {"install_date", "last_service_date", "next_service_date", "warranty_expiry", "manufacturing_date"}
 
 ESSENTIAL_FIELDS = [
     ("sicon_customer_ref", "Customer Ref"),
@@ -95,11 +107,13 @@ EDITABLE_FIELDS = (
     "service_interval", "service_period", "next_service_date", "id_number",
     "equipment_group", "stock_item_code", "supplier_reference", "contract_number",
     "contract_line_no", "sla_name", "service_template",
+    "mod_code", "asset_number", "condition", "equipment_type", "manufacturing_date",
 )
 # Subset the field engineer may capture on site.
 ENGINEER_EDITABLE_FIELDS = (
     "location", "sub_location", "name", "manufacturer", "model", "serial_number",
     "install_date", "last_service_date", "id_number",
+    "asset_number", "condition", "manufacturing_date",
 )
 
 _PLACEHOLDER = {"", "UNKNOWN", "N/A", "NA", "TBC", "TBD", "NONE", "-", "0", "NULL"}
@@ -224,8 +238,10 @@ def is_real_serial(v) -> bool:
     return str(v or "").strip().upper() not in _PLACEHOLDER
 
 
-def missing_essentials(eq: dict, customer_ref: str | None = None) -> list[str]:
+def missing_essentials(eq: dict, customer_ref: str | None = None, is_mod: bool = False) -> list[str]:
     miss = []
+    if is_mod and not str(eq.get("mod_code") or "").strip():
+        miss.append("mod_code")
     for f, _label in ESSENTIAL_FIELDS:
         if f == "sicon_customer_ref":
             if not (eq.get(f) or customer_ref):
@@ -270,10 +286,11 @@ def template_xlsx() -> bytes:
     ws.title = "Sheet1"
     ws.append(SICON_EQUIPMENT_HEADERS)
     essential = {h for h, (req, _) in _GUIDE.items() if req == "Essential"}
+    analysis = {"MOD Code", "Asset Tag", "Condition", "Equipment Type", "Manufacture Date"}
     for col, h in enumerate(SICON_EQUIPMENT_HEADERS, start=1):
         c = ws.cell(row=1, column=col)
         c.font = Font(bold=True, color="FFFFFF")
-        c.fill = PatternFill("solid", fgColor="B91C1C" if h in essential else "19398D")
+        c.fill = PatternFill("solid", fgColor="B91C1C" if h in essential else "0E7490" if h in analysis else "19398D")
         c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         ws.column_dimensions[c.column_letter].width = max(14, min(32, len(h) + 4))
     ws.freeze_panes = "A2"
@@ -285,6 +302,7 @@ def template_xlsx() -> bytes:
         req, desc = _GUIDE.get(h, ("Optional", ""))
         guide.append([h, req, desc])
     guide.append([])
+    guide.append(["Teal headers are Pulse analysis codes (not sent to Sicon). MOD Code is required for MOD sites."])
     guide.append(["Red headers are the Sicon essentials. Re-importing a file with the same serial numbers fills in gaps on existing assets instead of creating duplicates."])
     for i, w in enumerate((34, 12, 80), start=1):
         guide.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
@@ -314,6 +332,10 @@ def merge_extras(doc: dict, row: dict) -> dict:
     for k, v in sicon_extra_fields(row).items():
         if v not in (None, "") and not doc.get(k):
             doc[k] = v
+    for k in ("mod_code", "asset_number", "condition", "manufacturing_date"):
+        v = get_pick(row, k)
+        if v not in (None, "") and not doc.get(k):
+            doc[k] = clean_value(k, v)
     sub = get_pick(row, "sub_location")
     if sub and not doc.get("sub_location"):
         doc["sub_location"] = str(sub).strip()

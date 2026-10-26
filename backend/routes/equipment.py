@@ -369,7 +369,7 @@ async def _import_csv_rows(reader: csv.DictReader, user: dict, field_map: dict) 
         "contract_number": field_map["contract_number"], "service_provider": field_map["service_provider"],
         "unit_price": field_map["purchase_cost"], "replacement_cost": field_map["replacement_cost"],
         "length": field_map["length"], "width": field_map["width"], "height": field_map["height"],
-        "equipment_group": field_map["type"],
+        "equipment_type": field_map["type"], "equipment_group": field_map["type"],
     }
     for idx, row in enumerate(reader, start=2):
         try:

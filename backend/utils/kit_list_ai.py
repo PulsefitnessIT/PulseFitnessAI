@@ -58,7 +58,7 @@ _HEADER_HINTS = {
     "serial_number": ["frame - serial number", "frame serial number", "serial number",
                       "serial", "serial no", "frame serial", "s/n", "sn"],
     "serial_secondary": ["console - serial number", "console serial number", "console serial"],
-    "asset_number": ["servicesport asset number", "asset number", "asset no", "asset id",
+    "asset_number": ["servicesport asset number", "asset number", "asset tag", "asset no", "asset id",
                      "asset tag", "nsn", "mod asset number"],
     "quantity": ["qty", "quantity", "count", "no.", "number"],
     "category": ["category", "class", "group"],
@@ -76,7 +76,7 @@ _HEADER_HINTS = {
     "condition": ["condition", "condition on handover"],
     "classification": ["classification", "security classification"],
     "purchase_date": ["install / purchase date", "install date", "purchase date", "purchase_date"],
-    "manufacturing_date": ["manufacturing date", "manufacturing_date"],
+    "manufacturing_date": ["manufacturing date", "manufacture date", "manufacturing_date"],
     "unit_price": ["unit price", "unit price (£)", "unit_price"],
     "replacement_cost": ["replacement cost", "replacement cost (£)", "replacement_cost"],
 }
