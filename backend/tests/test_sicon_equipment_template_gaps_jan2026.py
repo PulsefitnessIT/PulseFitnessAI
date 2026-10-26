@@ -320,7 +320,7 @@ class TestGaps:
 
     def test_non_staff_other_org_403(self, owner, test_org):
         assert owner.get(f"{BASE_URL}/api/equipment-gaps", params={"organization_id": test_org}).status_code == 403
-        assert owner.patch(f"{BASE_URL}/api/equipment-gaps/TEST_{RUN}_g1", json={"model": "x"}).status_code == 403
+        assert owner.patch(f"{BASE_URL}/api/equipment-gaps/TEST_{RUN}_g1", json={"model": "x"}).status_code in (403, 404)  # 404 = cross-org hidden
         assert owner.post(f"{BASE_URL}/api/equipment-gaps/bulk", json={
             "organization_id": test_org, "field": "location", "value": "x"}).status_code == 403
 

@@ -1,0 +1,36 @@
+{
+  "summary": "Retest of the fixes from iteration_sicon_equipment_template_gaps_jan2026. Backend: a new retest file (15 tests) passes 15/15, and the previous regression file passes 30/30 after one assertion fix. Verified: site isolation for manager@isodemo.com (list, site_id param, X-Site-Id header, PATCH, bulk and export), customer-tenant service-desk users are no longer staff, staff PATCH works on equipment with no organization_id, bulk only_blank fills UNKNOWN/n/a values, export dates are real Excel dates formatted DD/MM/YYYY, and AI kit analyse on a Sicon xlsx keeps Description verbatim with a blank sub_location for Sheet1. Frontend (master admin grid, desktop): the gaps percentage and field chips update right after a cell save (33% → 67% → 100%), scope counts refresh (2 of 3 → 1 of 3, then the org drops off when complete), picking a customer sets ?org= in the URL, a scopes 500 shows gaps-scope-error, an UNKNOWN Make shows as an empty 'Needed' cell, and the toggle labels are visible. Engineer mobile card shows 'Gym' with no 'UNKNOWN' and an empty Make input. Bulk import card label confirmed in code only.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/equipment-gaps/{id}", "issue": "For a non-staff user, another org's item now returns 404, not 403. This is intended (it hides whether the item exists); the old regression assertion was relaxed to accept 403 or 404."},
+      {"endpoint": "POST /api/equipment-gaps/bulk only_blank", "issue": "The placeholder regex only applies when the field is manufacturer. Other bulk fields such as location or sub_location set to 'UNKNOWN' or 'N/A' are still skipped, even though the grid shows them as Needed. Low priority."},
+      {"endpoint": "GET /api/equipment-gaps*, /scopes", "issue": "Still writes on read: backfill_customer_refs runs update_many on every GET. Left over from the previous iteration."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Missing information toggle (gaps-show-incomplete/all)", "issues": ["The active toggle text computes to rgb(24,24,27) on the teal rgb(14,116,144) background, about 3.4:1 contrast. The className has text-white, but something overrides it. Make the active label white."]},
+      {"screen": "Engineer MissingAssetDetails", "issues": ["The input defaultValue only blanks the exact 'UNKNOWN'. Lower-case 'unknown', 'N/A' or 'TBC' would still pre-fill the input, while the subtitle uses the full placeholder regex. Use the same regex in both places.", "Dates still use the native date input (mm/dd/yyyy in the test browser), not a DD/MM/YYYY shadcn picker. Carried over from the previous iteration."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_sicon_gaps_retest_fixes_jan2026.py", "/app/backend/tests/test_sicon_equipment_template_gaps_jan2026.py", "/app/test_reports/pytest/sicon_gaps_retest.xml", "/app/test_reports/pytest/sicon_gaps.xml"],
+  "action_items": [
+    "Optional: make the active gaps-show-* toggle text white for contrast.",
+    "Optional: apply the placeholder regex to every bulk text field (not only manufacturer), and in the engineer input defaultValue."
+  ],
+  "critical_code_review_comments": [
+    "_scope and _check_item_access now delegate to utils.site_scope (build_site_filter and set_request_site_scope). This is consistent with the app-wide RBAC.",
+    "_is_staff runs an organizations lookup for service-desk users on every call; bulk and scope calls repeat it. Negligible cost.",
+    "kit_list_ai: for Sicon files, manufacturer still comes from AI cleaning (c.get('manufacturer') or ''), not the raw Make column. It returned 'Life Fitness' correctly in this test, but consider using the raw Make verbatim for Sicon files, as is already done for name."
+  ],
+  "updated_files": ["/app/backend/tests/test_sicon_gaps_retest_fixes_jan2026.py (new)", "/app/backend/tests/test_sicon_equipment_template_gaps_jan2026.py (owner PATCH of another org's item accepts 403 or 404)"],
+  "success_rate": {"backend": "100% (15/15 retest + 30/30 regression)", "frontend": "100% of fixed items verified (grid, scope list, URL, error state, placeholder cells, toggles, engineer subtitle)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg; manager@isodemo.com / IsoDemo123! (site-a only); owner@isodemo.com / IsoDemo123! (service desk, customer tenant, now non-staff); engineer.gib@bfpo.pulsefitness.test / BfpoEng123! (portal=mod)",
+  "seed_data_creation": "All temporary data was deleted: TEST_<RUN>_* equipment in iso-demo-org (site a, site b, no org), the TEST_retest_org_* org and its equipment, TEST_ui_gaps_org with TEST_ui_1..3, and TEST_ui_eng1 at the MOD job site abfdabd9-...",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run both files with REACT_APP_BACKEND_URL set; they self-seed and clean up. For the engineer UI: page.request.post(<abs url>/api/auth/login, portal=mod), set localStorage token, go to /bfpo, click 'Open Jobs', then joblist-job-d2c84c72-119f-4592-8d40-71391d44e132. Open missing-asset-details-toggle with dispatch_event('click'), because a force click is intercepted by the sticky Continue Job bar or cookie banner. Use absolute URLs in page.request (relative URLs give 'Invalid URL'). One transient ChunkLoadError was seen on /bfpo; it cleared on retry."
+}

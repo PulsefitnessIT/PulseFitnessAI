@@ -39203,3 +39203,5 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - MOD contracts: routes/crm_mod_contracts.py (/api/crm/v2/mod-contracts: catalog, locations, list, create, update, delete; manager+). Stored in crm2_contracts contract_type="mod", lines per location × service type A (annual) / B (per visit) / C (quoted, optional quarterly) / repair / refurb (24-month warranty); annual_value = sum of Type A. Excluded from generic /crm/v2/contracts list. UI: CRM → Contracts → "MOD Contracts" tab (Contracts/ModContractsTab.js).
 - Add Contact (company page): job title is now a picklist dropdown; server errors shown; first name + email required with hint; duplicate already-on-company message.
 - Tests: iteration_crm_mod_contracts_locations_jan2026.json (backend 14/14, frontend 100%).
+
+## Jun 2026 — Sicon equipment template is the single equipment import format; Missing Information grid + engineer capture shipped (see CHANGELOG.md). Open question: MOD Code column not in Sicon template.

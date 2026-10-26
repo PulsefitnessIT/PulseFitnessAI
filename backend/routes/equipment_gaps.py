@@ -217,7 +217,7 @@ async def bulk_fill(body: dict = Body(...), user: dict = Depends(get_current_use
         q["id"] = {"$in": list(body["ids"])}
     if body.get("only_blank", True):
         blank = [{field: {"$exists": False}}, {field: None}, {field: ""}]
-        if field == "manufacturer":
+        if field not in ("service_interval", "service_period") and not field.endswith("_date"):
             blank.append({field: {"$regex": _PLACEHOLDER_RE, "$options": "i"}})
         q["$or"] = blank
     res = await db.equipment.update_many(q, {"$set": {field: value, **_audit(user, "grid_bulk")}})

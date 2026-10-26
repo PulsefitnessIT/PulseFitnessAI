@@ -93,6 +93,7 @@ export default function EquipmentGapsPanel({ organizationId, headers, onChanged 
         <div className="inline-flex gap-1">
           {[['incomplete', 'Needs information'], ['all', 'All assets']].map(([k, l]) => (
             <Button key={k} size="sm" variant={show === k ? 'default' : 'outline'} onClick={() => setShow(k)} data-testid={`gaps-show-${k}`}
+              style={show === k ? { color: '#fff' } : undefined}
               className={`h-8 text-xs ${show === k ? 'bg-[var(--color-brand-blue)] hover:bg-[var(--color-brand-blue-hover)] text-white' : ''}`}>{l}</Button>
           ))}
         </div>

@@ -1000,3 +1000,11 @@ Files: backend/utils/sicon_outbox_worker.py, backend/utils/sicon_writeback.py, b
   - CRM/CRMLogin.js login fields, MODPortal/MODServiceLogin.js fields, StaffLogin.js fields: name/id + autocomplete username/current-password.
 - Tested: testing_agent frontend 100% — Pulse login dialog markup correct on desktop+mobile, login still succeeds (POST /auth/login 200 + JWT, no error toast); CRM/MOD/Staff attributes confirmed. No auth regression.
 - NOTE: requires redeploy to reach production pulsefitness.ai.
+
+## 2026-06 — Sicon equipment template + Missing Information
+- One equipment template everywhere: all 9 equipment template downloads now serve the 29-column Sicon template (`utils/sicon_equipment.py`; xlsx via `?format=xlsx`, red = essentials). Old Pulse formats still import.
+- All equipment importers (master/account bulk, MOD AI kit import, /equipment import-csv, onboarding, engineer, invoice wizard preview) read Sicon headers; new fields stored: sicon_customer_ref, supplier_reference, contract_line_no, sla_name, stock_item_code, install_date, last_service_date, service_interval, service_period, next_service_date (auto = last + interval), id_number, service_template, equipment_group.
+- Missing Information: `routes/equipment_gaps.py` (list/scopes/PATCH/bulk/export.xlsx, site-isolated); Master Admin → Catalogue & Library → Missing information; AI Kit Import done step → "Fill in missing details" grid.
+- MOD engineer app: job detail card "While you're on site — N machines need details" (`/api/bfpo/jobs/{id}/equipment-gaps`, POST `.../equipment/{eq}/details`, offline-queued).
+- Essentials: Customer Ref, Location, Description, Make, Model, Serial Number (UNKNOWN/N/A = missing).
+- Tested: iteration_sicon_equipment_template_gaps_jan2026 + retest (backend 45/45, frontend flows pass).

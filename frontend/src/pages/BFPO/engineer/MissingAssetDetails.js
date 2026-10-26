@@ -9,6 +9,7 @@ const LABEL = {
   last_service_date: 'Last Service Date', id_number: 'ID Number',
 };
 const DATES = new Set(['install_date', 'last_service_date']);
+const PLACEHOLDER = /^\s*(unknown|n\/?a|tbc|tbd|none|null|-|0)\s*$/i;
 
 function AssetForm({ jobId, item, onSaved }) {
   const [vals, setVals] = useState({});
@@ -27,12 +28,12 @@ function AssetForm({ jobId, item, onSaved }) {
     <div className="rounded-xl border border-slate-200 p-3 space-y-2" data-testid={`asset-gap-${item.id}`}>
       <div>
         <p className="font-semibold text-slate-900 text-sm">{item.name || 'Unnamed machine'}</p>
-        <p className="text-xs text-slate-500">{[item.manufacturer, item.model, item.location].filter((v) => v && !/^\s*(unknown|n\/?a|tbc|tbd|none|-|0)\s*$/i.test(v)).join(' · ') || 'No details yet'}</p>
+        <p className="text-xs text-slate-500">{[item.manufacturer, item.model, item.location].filter((v) => v && !PLACEHOLDER.test(v)).join(' · ') || 'No details yet'}</p>
       </div>
       {fields.map((f) => (
         <label key={f} className="block">
           <span className="text-xs font-semibold text-slate-600">{LABEL[f] || f}{item.missing.includes(f) && <span className="text-red-600"> *</span>}</span>
-          <input type={DATES.has(f) ? 'date' : 'text'} className={`${inputCls} mt-1`} defaultValue={item[f] && item[f] !== 'UNKNOWN' ? item[f] : ''}
+          <input type={DATES.has(f) ? 'date' : 'text'} className={`${inputCls} mt-1`} defaultValue={item[f] && !PLACEHOLDER.test(item[f]) ? item[f] : ''}
             onChange={(e) => setVals((v) => ({ ...v, [f]: e.target.value }))} data-testid={`asset-gap-${f}-${item.id}`} />
         </label>
       ))}
