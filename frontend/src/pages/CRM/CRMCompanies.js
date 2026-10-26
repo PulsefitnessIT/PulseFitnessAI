@@ -1009,8 +1009,10 @@ function PortalEquipmentTab({ companyId, API, headers, c, isDark }) {
      POST /api/crm/v2/companies/{id}/link-organization
    The link-organization endpoint is used when the company isn't
    auto-linked by name (returns linked_via='unlinked' from the GET). */
-function SitesAndEquipmentTab({ companyId, companyName, API, headers, c, isDark }) {
+function SitesAndEquipmentTab({ companyId, companyName, API, headers, c, isDark, children }) {
   const [data, setData] = useState(null);
+  const [newLoc, setNewLoc] = useState('');
+  const [locMsg, setLocMsg] = useState('');
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState({});
   const [coverageModal, setCoverageModal] = useState(null);
@@ -1064,9 +1066,29 @@ function SitesAndEquipmentTab({ companyId, companyName, API, headers, c, isDark 
           data-testid="sites-equipment-link-self">
           Link to my organisation
         </button>
+        {children && <div className="mt-4 text-left">{children}</div>}
       </div>
     );
   }
+
+  const realLocations = (data.sites || []).filter((x) => !x.virtual && x.id !== '__unassigned__');
+  const addLocation = async (name) => {
+    const n = (name || '').trim();
+    if (!n) return;
+    setLocMsg('');
+    try {
+      await axios.post(`${API}/crm/v2/companies/${companyId}/locations`, { name: n }, { headers: headers() });
+      setNewLoc(''); await load();
+    } catch (e) { setLocMsg(e?.response?.data?.detail || 'Could not add location'); }
+  };
+  const moveEq = async (eqId, siteId) => {
+    if (!siteId) return;
+    setLocMsg('');
+    try {
+      await axios.post(`${API}/crm/v2/companies/${companyId}/equipment/${eqId}/move`, { site_id: siteId }, { headers: headers() });
+      await load();
+    } catch (e) { setLocMsg(e?.response?.data?.detail || 'Could not move equipment'); }
+  };
 
   const { sites, totals, linked_via } = data;
   return (
@@ -1083,6 +1105,16 @@ function SitesAndEquipmentTab({ companyId, companyName, API, headers, c, isDark 
             <p className="text-xl font-bold mt-0.5" style={{ color: k.tint }}>{k.value}</p>
           </div>
         ))}
+      </div>
+      <div className="flex items-center gap-2 flex-wrap" data-testid="sites-equipment-add-location">
+        <input value={newLoc} onChange={(e) => setNewLoc(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addLocation(newLoc); }}
+          placeholder="Add a location (e.g. Main Gym, Fitness Suite)" className="flex-1 min-w-[200px] px-3 py-1.5 text-xs rounded-md"
+          style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} data-testid="sites-equipment-new-location" />
+        <button type="button" onClick={() => addLocation(newLoc)} disabled={!newLoc.trim()}
+          className="px-3 py-1.5 text-xs font-semibold rounded-md bg-[var(--color-info-ios)] text-white disabled:opacity-50" data-testid="sites-equipment-add-location-btn">
+          <Plus size={12} className="inline -mt-0.5" /> Add location
+        </button>
+        {locMsg && <span className="text-xs text-red-600" data-testid="sites-equipment-msg">{locMsg}</span>}
       </div>
       {linked_via === 'name_match' && (
         <p className="text-[10px] italic" style={{ color: c.textDim }} data-testid="sites-equipment-linked-by-name">
@@ -1105,6 +1137,13 @@ function SitesAndEquipmentTab({ companyId, companyName, API, headers, c, isDark 
               <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: isDark ? 'var(--color-surface-dark-3)' : 'var(--color-neutral-100)', color: c.textDim }}>
                 {s.equipment_count} eq
               </span>
+              {s.virtual && (
+                <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); addLocation(s.name); }}
+                  className="text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ color: 'var(--color-info-ios)', border: '1px solid var(--color-info-ios)' }}
+                  data-testid={`sites-equipment-make-location-${s.id}`}>
+                  Save as location
+                </span>
+              )}
             </div>
           </button>
           {expanded[s.id] && (
@@ -1120,6 +1159,14 @@ function SitesAndEquipmentTab({ companyId, companyName, API, headers, c, isDark 
                       {[eq.manufacturer, eq.model, eq.serial_number && `S/N ${eq.serial_number}`].filter(Boolean).join(' · ')}
                     </p>
                   </div>
+                  {realLocations.length > 0 && (
+                    <select value="" onChange={(e) => moveEq(eq.id, e.target.value)} title="Move to another location"
+                      className="text-[11px] px-1.5 py-1 rounded max-w-[150px]" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}
+                      data-testid={`sites-equipment-move-${eq.id}`}>
+                      <option value="">Move to…</option>
+                      {realLocations.filter((l) => l.id !== s.id).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
+                  )}
                   <CoverageBadge coverage={eq.coverage} isDark={isDark} />
                   <button type="button"
                     onClick={() => setCoverageModal({ equipment_id: eq.id, equipment_name: eq.name, site_id: s.id === '__unassigned__' ? '' : s.id, current_coverage: eq.coverage })}
@@ -1314,6 +1361,8 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
   // of creating a duplicate.
   const [emailMatch, setEmailMatch] = useState(null); // matched contact or null
   const [emailLookupBusy, setEmailLookupBusy] = useState(false);
+  const [contactErr, setContactErr] = useState('');
+  const [jobTitles, setJobTitles] = useState([]);
   const [showAddQuote, setShowAddQuote] = useState(false);
   const [quoteLines, setQuoteLines] = useState([{ description: '', quantity: 1, unit_price: 0, discount: 0 }]);
   const [quoteNotes, setQuoteNotes] = useState('');
@@ -1456,7 +1505,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
       // The dialog surfaces a "Link to this company" action instead.
       return;
     }
-    setSaving(true);
+    setSaving(true); setContactErr('');
     try {
       await axios.post(`${API}/crm/v2/contacts`, {
         ...contactForm, company_id: companyId, company_name: company?.name || '',
@@ -1465,7 +1514,10 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
       setContactForm({ first_name: '', last_name: '', email: '', phone: '', job_title: '', is_decision_maker: false });
       setEmailMatch(null);
       load();
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      const d = e?.response?.data?.detail;
+      setContactErr(typeof d === 'string' ? d : (d?.field_label ? `${d.field_label}: "${d.received}" isn't an allowed value — pick one from the list.` : 'Could not save the contact — please check the details and try again.'));
+    }
     setSaving(false);
   };
 
@@ -1488,6 +1540,13 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
     } catch (e) { console.error(e); }
     setSaving(false);
   };
+
+  useEffect(() => {
+    if (!showAddContact || jobTitles.length) return;
+    axios.get(`${API}/crm/picklists/job_title`, { headers: headers() })
+      .then((r) => setJobTitles((r.data.values || []).map((v) => v.label || v.value || v).filter(Boolean)))
+      .catch(() => {});
+  }, [showAddContact, jobTitles.length, API, headers]);
 
   // Debounced email lookup. Fires 350ms after the user stops typing,
   // skips invalid-looking strings to avoid noise.
@@ -1649,8 +1708,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
       { id: 'audit',      label: 'Audit' },
     ],
     equipment_assets: [
-      { id: 'sites_equipment', label: 'Register' },
-      { id: 'equipment',       label: 'Portal equipment' },
+      { id: 'sites_equipment', label: 'Equipment register' },
       { id: 'assets',          label: `CRM assets (${company.assets?.length || 0})` },
     ],
     site_surveys: [
@@ -2085,7 +2143,9 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
 
         {/* Equipment from Portal */}
         {activeSection === 'sites_equipment' && (
-          <SitesAndEquipmentTab companyId={companyId} companyName={company.name} API={API} headers={headers} c={c} isDark={isDark} />
+          <SitesAndEquipmentTab companyId={companyId} companyName={company.name} API={API} headers={headers} c={c} isDark={isDark}>
+            <PortalEquipmentTab companyId={companyId} API={API} headers={headers} c={c} isDark={isDark} />
+          </SitesAndEquipmentTab>
         )}
 
         {activeSection === 'equipment' && (
@@ -2383,7 +2443,10 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
               </div>
               <div>
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Job Title</label>
-                <input value={contactForm.job_title} onChange={e => setContactForm({...contactForm, job_title: e.target.value})} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
+                <select value={contactForm.job_title} onChange={e => setContactForm({...contactForm, job_title: e.target.value})} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} data-testid="company-add-contact-job-title">
+                  <option value="">— Select —</option>
+                  {jobTitles.map((jt) => <option key={jt} value={jt}>{jt}</option>)}
+                </select>
               </div>
               <div className="col-span-2">
                 <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: c.textMuted }}>
@@ -2391,9 +2454,16 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
                 </label>
               </div>
             </div>
+            {contactErr && <p className="mt-3 text-xs text-red-600" data-testid="company-add-contact-error">{contactErr}</p>}
+            {emailMatch && emailMatch.company_id === companyId && (
+              <p className="mt-3 text-xs" style={{ color: c.textMuted }} data-testid="company-add-contact-already">This person is already a contact here — no need to add them again.</p>
+            )}
+            {!contactErr && (!contactForm.first_name.trim() || !contactForm.email.trim()) && (
+              <p className="mt-3 text-[11px]" style={{ color: c.textDim }} data-testid="company-add-contact-hint">First name and email are required.</p>
+            )}
             <div className="flex gap-2 mt-4 justify-end">
-              <button onClick={() => setShowAddContact(false)} className="px-4 py-2 text-sm" style={{ color: c.textMuted }}>Cancel</button>
-              <button onClick={handleAddContact} disabled={saving || !contactForm.first_name.trim() || !!emailMatch} className="px-4 py-2 bg-[var(--color-info-ios)] text-white text-sm font-medium rounded-md disabled:opacity-50" title={emailMatch ? 'Resolve the duplicate-email warning above first' : undefined}>
+              <button onClick={() => { setShowAddContact(false); setContactErr(''); }} className="px-4 py-2 text-sm" style={{ color: c.textMuted }}>Cancel</button>
+              <button onClick={handleAddContact} data-testid="company-add-contact-submit" disabled={saving || !contactForm.first_name.trim() || !contactForm.email.trim() || !!emailMatch} className="px-4 py-2 bg-[var(--color-info-ios)] text-white text-sm font-medium rounded-md disabled:opacity-50" title={emailMatch ? 'Resolve the duplicate-email warning above first' : undefined}>
                 {saving ? 'Creating...' : 'Create Contact'}
               </button>
             </div>

@@ -17,6 +17,7 @@ import { useContractCatalog, useContractTemplates } from './Contracts/contractCa
 import { ContractsReportsDashboard, ContractsRenewalsDashboard } from './Contracts/ContractDashboards';
 import { ContractReviewQueue, useWorkspaceMode } from './Contracts/ContractReviewQueue';
 import BlueLightTab from './Contracts/BlueLightTab';
+import ModContractsTab from './Contracts/ModContractsTab';
 import CurrencyIcon from '@/components/shared/CurrencyIcon';
 import { useLocalization, formatMoneySync } from '@/utils/localization';
 
@@ -1520,6 +1521,7 @@ export default function CRMContracts() {
     <div>
       <div className="flex gap-1 mb-4 flex-wrap items-center">
         {tabBtn('list', 'Contracts', 'view-tab-list')}
+        {tabBtn('mod', 'MOD Contracts', 'view-tab-mod')}
         {tabBtn('renewals', 'Renewals', 'view-tab-renewals')}
         {tabBtn('reports', 'Reports', 'view-tab-reports')}
         {workspace.capabilities?.show_review_queue && tabBtn('review', 'Review Queue', 'view-tab-review')}
@@ -1534,6 +1536,7 @@ export default function CRMContracts() {
         )}
       </div>
       {view === 'list' && <ContractList onSelect={setSelectedId} workspace={workspace} {...crm} />}
+      {view === 'mod' && <ModContractsTab API={crm.API} headers={crm.headers} c={c} isDark={isDark} />}
       {view === 'renewals' && (
         <ContractsRenewalsDashboard
           API={crm.API} headers={crm.headers} c={c} isDark={isDark}

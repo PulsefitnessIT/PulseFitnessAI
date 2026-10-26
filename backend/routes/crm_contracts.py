@@ -17,6 +17,7 @@ from utils.database import db
 from routes.crm_auth import get_crm_user
 from utils.crm_audit import record_audit
 import uuid
+import re
 
 router = APIRouter(prefix="/crm/v2", tags=["Contracts"])
 
@@ -908,6 +909,8 @@ async def company_sites_and_equipment(company_id: str, user=Depends(get_crm_user
     if not company:
         raise HTTPException(404, "Company not found")
 
+    from routes.crm_v2 import ensure_mod_company_link
+    company = await ensure_mod_company_link(company)
     # Step 1 — resolve linked organization id.
     linked_org_id = company.get("linked_organization_id") or ""
     linked_via = "explicit_link" if linked_org_id else None
@@ -959,8 +962,20 @@ async def company_sites_and_equipment(company_id: str, user=Depends(get_crm_user
 
     # Step 5 — bucket equipment by site, resolve coverage, count totals.
     by_site: dict[str, list[dict]] = {}
+    site_ids = {s["id"] for s in sites}
+    site_by_name = {(s.get("name") or "").strip().lower(): s["id"] for s in sites}
+    text_locations: dict[str, str] = {}
     for eq in equipment:
-        sid = eq.get("site_id") or "__unassigned__"
+        sid = eq.get("site_id") if eq.get("site_id") in site_ids else None
+        if not sid:
+            # Machines tagged only with a location name (e.g. "Nanyuki Gym") still
+            # show under that location rather than "Unassigned".
+            loc = (eq.get("location") or "").strip()
+            sid = site_by_name.get(loc.lower()) if loc else None
+            if not sid and loc:
+                sid = f"loc:{loc.lower()}"
+                text_locations.setdefault(sid, loc)
+        sid = sid or "__unassigned__"
         coverage = _coverage_for_equipment(eq["id"], contract_assets, contracts_by_id, today)
         eq_out = {
             "id": eq.get("id"),
@@ -983,6 +998,11 @@ async def company_sites_and_equipment(company_id: str, user=Depends(get_crm_user
     for s in sites:
         eqs = by_site.get(s["id"], [])
         site_rows.append({**s, "equipment": eqs, "equipment_count": len(eqs)})
+
+    for sid, label in sorted(text_locations.items(), key=lambda kv: kv[1].lower()):
+        eqs = by_site.get(sid, [])
+        site_rows.append({"id": sid, "name": label, "virtual": True,
+                          "equipment": eqs, "equipment_count": len(eqs)})
 
     # If there's equipment on no recognised site, surface it under
     # "Unassigned" so the operator notices the orphan and tags a site.
@@ -1013,6 +1033,67 @@ async def company_sites_and_equipment(company_id: str, user=Depends(get_crm_user
             "expiring_soon": expiring_count,
         },
     }
+
+
+async def _company_linked_org(company_id: str, user: dict) -> str:
+    from routes.crm_v2 import ensure_mod_company_link
+    company = await db.crm2_companies.find_one({"id": company_id, **_of(user)}, {"_id": 0})
+    if not company:
+        raise HTTPException(404, "Company not found")
+    company = await ensure_mod_company_link(company)
+    org_id = company.get("linked_organization_id")
+    if not org_id:
+        raise HTTPException(400, "Link this company to its portal first")
+    return org_id
+
+
+@router.post("/companies/{company_id}/locations")
+async def add_company_location(company_id: str, data: dict, user=Depends(get_crm_user)):
+    """Add a location (gym / building / room) inside the company's linked site."""
+    org_id = await _company_linked_org(company_id, user)
+    name = (data.get("name") or "").strip()[:120]
+    if not name:
+        raise HTTPException(400, "Location name is required")
+    existing = await db.sites.find_one({"organization_id": org_id, "name": {"$regex": f"^{re.escape(name)}$", "$options": "i"},
+                                        "status": {"$ne": "archived"}}, {"_id": 0, "id": 1, "name": 1})
+    if existing:
+        return {"location": existing, "created": False}
+    loc = {"id": str(uuid.uuid4()), "organization_id": org_id, "name": name, "status": "active",
+           "created_at": datetime.now(timezone.utc).isoformat(), "created_by": user.get("id")}
+    await db.sites.insert_one(dict(loc))
+    # Machines already tagged with this location text join it straight away.
+    await db.equipment.update_many(
+        {"organization_id": org_id, "site_id": {"$in": [None, ""]},
+         "location": {"$regex": f"^{re.escape(name)}$", "$options": "i"}},
+        {"$set": {"site_id": loc["id"]}})
+    loc.pop("_id", None)
+    return {"location": loc, "created": True}
+
+
+@router.post("/companies/{company_id}/equipment/{equipment_id}/move")
+async def move_company_equipment(company_id: str, equipment_id: str, data: dict, user=Depends(get_crm_user)):
+    """Move a machine to another location within the same site (history kept)."""
+    if (user.get("role") or "").lower() not in ("owner", "manager", "admin", "master_admin", "super_admin", "sales_manager"):
+        raise HTTPException(403, "Only managers can move equipment")
+    org_id = await _company_linked_org(company_id, user)
+    eq = await db.equipment.find_one({"id": equipment_id, "organization_id": org_id}, {"_id": 0})
+    if not eq:
+        raise HTTPException(404, "Equipment not found on this site")
+    target = await db.sites.find_one({"id": data.get("site_id"), "organization_id": org_id,
+                                      "status": {"$ne": "archived"}}, {"_id": 0, "id": 1, "name": 1})
+    if not target:
+        raise HTTPException(400, "Choose a location within this site")
+    if eq.get("site_id") == target["id"]:
+        return {"moved": False}
+    now = datetime.now(timezone.utc).isoformat()
+    move = {"at": now, "by": user.get("id"), "by_name": user.get("name") or user.get("email"),
+            "from_site_id": eq.get("site_id"), "from": eq.get("location") or "",
+            "to_site_id": target["id"], "to": target["name"], "note": (data.get("note") or "")[:300]}
+    await db.equipment.update_one({"id": equipment_id}, {
+        "$set": {"site_id": target["id"], "location": target["name"], "updated_at": now},
+        "$push": {"location_history": move}})
+    await db.issues.update_many({"equipment_id": equipment_id}, {"$set": {"site_id": target["id"]}})
+    return {"moved": True, "location": target}
 
 
 @router.post("/companies/{company_id}/link-organization")

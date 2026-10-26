@@ -275,6 +275,10 @@ async def _sync_mod_site_companies(user: dict) -> None:
          "$or": [{"linked_organization_id": {"$exists": False}},
                  {"linked_organization_id": ""}, {"linked_organization_id": None}]},
         [{"$set": {"linked_organization_id": "$mod_org_id"}}])
+    await db.crm2_companies.update_many(
+        {**of, "type": "mod_site", "mod_org_id": {"$nin": [None, ""]},
+         "$or": [{"linked_operator_org_id": {"$in": [None, ""]}}, {"linked_operator_org_id": {"$exists": False}}]},
+        [{"$set": {"linked_operator_org_id": "$mod_org_id", "tenant_org_id": "$mod_org_id"}}])
 
 
 @router.get("/companies")
@@ -506,11 +510,37 @@ async def seed_directors_endpoint(company_id: str, user=Depends(get_crm_user)):
     return {"ok": True, "created": created, "directors_on_file": len(company.get("directors") or [])}
 
 
+async def ensure_mod_company_link(company: dict) -> dict:
+    """MOD site companies link automatically to their MOD portal organisation:
+    match by name if the mirror id is missing, then set the portal + register links."""
+    if not company or (company.get("type") or "").lower() not in ("mod_site", "mod"):
+        return company
+    sets: dict = {}
+    mod_org = company.get("mod_org_id")
+    if not mod_org and company.get("name"):
+        o = await db.organizations.find_one(
+            {"account_type": {"$in": ["mod_site", "mod_branch"]},
+             "name": {"$regex": f"^{re.escape(company['name'].strip())}$", "$options": "i"}},
+            {"_id": 0, "id": 1})
+        if o:
+            mod_org = o["id"]
+            sets["mod_org_id"] = mod_org
+    if mod_org:
+        for f in ("linked_organization_id", "linked_operator_org_id", "tenant_org_id"):
+            if not company.get(f):
+                sets[f] = mod_org
+    if sets:
+        await db.crm2_companies.update_one({"id": company["id"]}, {"$set": sets})
+        company = {**company, **sets}
+    return company
+
+
 @router.get("/companies/{company_id}")
 async def get_company(company_id: str, user=Depends(get_crm_user)):
     c = await db.crm2_companies.find_one({"id": company_id, **_of(user)}, {"_id": 0})
     if not c:
         raise HTTPException(404, "Company not found")
+    c = await ensure_mod_company_link(c)
     # Enrich with linked data
     of = _of(user)
     c["contacts"] = await db.crm2_contacts.find({"company_id": company_id, "gdpr_erased": {"$ne": True}, **of}, {"_id": 0}).to_list(100)
@@ -578,7 +608,7 @@ async def portal_link_candidates(q: str = "", user=Depends(get_crm_user)):
     company to, so equipment handovers + fault logging land in their tenant.
     Excludes the seller's own org."""
     query = {
-        "account_type": {"$in": ["lite", "pulse_pro", "pro", "full"]},
+        "account_type": {"$in": ["lite", "pulse_pro", "pro", "full", "mod_site", "mod_branch"]},
         "id": {"$ne": user.get("organization_id")},
     }
     if (q or "").strip():
