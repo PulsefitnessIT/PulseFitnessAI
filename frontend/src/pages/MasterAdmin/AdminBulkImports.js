@@ -39,7 +39,7 @@ const downloadTemplate = async (kind) => {
   const url = URL.createObjectURL(r.data);
   const a = document.createElement('a');
   a.href = url;
-  a.download = kind === 'equipment' ? 'Equipment Import - Sicon Template.xlsx' : `${kind}-template.csv`;
+  a.download = kind === 'equipment' ? 'Equipment Import.xlsx' : `${kind}-template.csv`;
   document.body.appendChild(a);
   a.click();
   a.remove();

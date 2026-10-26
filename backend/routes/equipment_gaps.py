@@ -289,4 +289,4 @@ async def export_gaps(organization_id: Optional[str] = None, site_id: Optional[s
     wb.save(buf)
     return Response(content=buf.getvalue(),
                     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    headers={"Content-Disposition": 'attachment; filename="Equipment Import - Sicon Template.xlsx"'})
+                    headers={"Content-Disposition": 'attachment; filename="Equipment Import.xlsx"'})

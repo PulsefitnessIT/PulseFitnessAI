@@ -416,6 +416,7 @@ const ExternalServiceProviders = () => {
                         <div className="min-w-0 flex items-center gap-1.5">
                           <span className="font-semibold text-zinc-800 truncate">{e.full_name}</span>
                           {e.territory_names?.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 whitespace-nowrap">{e.territory_names.join(', ')}</span>}
+                          {e.site_names?.length > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-100 whitespace-nowrap" title={e.site_names.join(', ')} data-testid={`esp-card-engineer-sites-${e.id}`}>{e.site_names.length === 1 ? e.site_names[0] : `${e.site_names.length} sites`}</span>}
                         </div>
                         <span className={`text-[10px] font-bold uppercase whitespace-nowrap ${e.login_status === 'active' ? 'text-emerald-600' : e.login_status === 'invite_pending' ? 'text-cyan-600' : 'text-amber-600'}`}>
                           {e.login_status === 'active' ? 'Active' : e.login_status === 'invite_pending' ? 'Invite sent' : 'Temp pw'}

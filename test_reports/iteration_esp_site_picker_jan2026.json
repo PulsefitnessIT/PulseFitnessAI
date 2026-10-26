@@ -1,0 +1,34 @@
+{
+  "summary": "Tested ESP engineer site allocation without territories. Backend: 16 pytest cases, 15 pass. GET /master-admin/mod-estate/bfpo-sites returns all 7 BFPO estate sites (including the HQ site with no territory) plus every mod_site org flagged is_mod_org=true, sorted by name, master admin only. Creating a provider with site_ids (mod org + BFPO site) and PATCHing an engineer's site_ids both persist. The provider card shows site names such as 'Aldershot Garrison Gym'. An engineer's scope follows the allocation for /bfpo/sites, /sites/{id}, /jobs (via svc_cases.organization_id), /equipment and /equipment/{id}, and sites that are not allocated return 404. Regression checks pass: engineer.gib keeps territory access, lead /bfpo/sites returns BFPO sites only, company PATCH works, and mod_bfpo=no clears sites. ONE CRITICAL FAIL: /api/bfpo/equipment?search= leaks equipment outside the engineer's scope. Frontend: the Territory dropdown is gone. EngineerSitePicker works for existing engineers (esp-existing-0-sites) and new ones (esp-engineer-sites-0): search filtering, checkbox, chips, remove, Clear and the 'Sites covered (N)' count all work. Save changes and Save provider persist, and after a reload the boxes are still ticked and the card shows site names.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/bfpo/equipment?search=...", "issue": "SCOPE LEAK added by this change. For restricted engineers q = {'$or': [scope...]}, and the search branch then sets q['$or'] = [search regexes], which REPLACES the scope filter with no organization_id filter left. An engineer can search for any equipment in the whole DB (any org, including non-MOD commercial tenants) by serial, model, name or manufacturer. Reproduced: an engineer allocated only Aldershot searched for a Demo Barracks A serial and got that org's equipment. Fix: q = {'$and': [q, {'$or': [search regexes]}]}.", "priority": "CRITICAL"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ESP site picker", "issues": ["The list shows about 66 entries, including many junk test mod_site orgs ('Async Site 0' x many, 'ZZ QA MOD RAF (test) …', '… (AI Import Test)'). Same-name entries can't be told apart. Clean up test orgs or show extra context (branch/city).", "AdminOnboardingHub description for 'mod-providers' still says 'territory & site allocation'. Update the copy, since territories are gone from this flow.", "On the provider card, engineers who only have sites (no territory) get no chip on their row. Sites only appear in the provider-level 'Covers N sites' list. Consider showing site_names per engineer."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_esp_engineer_site_picker_jan2026.py", "/app/test_reports/pytest/esp_site_picker.xml"],
+  "action_items": [
+    "CRITICAL: fix the search $or overwrite in routes/bfpo.py bfpo_equipment (around line 796), e.g. q = {'$and': [q, {'$or': [...]}]}. Then rerun tests/test_esp_engineer_site_picker_jan2026.py::TestEngineerScope::test_equipment_search_does_not_leak",
+    "Update the stale 'territory & site allocation' copy in AdminOnboardingHub.js",
+    "Optional: dedupe or clean junk test mod_site orgs, or add disambiguating info in the picker"
+  ],
+  "critical_code_review_comments": [
+    "bfpo_equipment: the unrestricted branch builds the mod_sites list with an uncached db.organizations scan on every call. Reuse _mod_org_ids(), which is cached, for consistency (note it also includes mod_branch/mod_org).",
+    "bfpo_equipment_detail allows any MOD org type (_mod_org_ids), but bfpo_sites/bfpo_equipment use only account_type=mod_site. This is consistent enough, just be aware of it.",
+    "saveExisting still sends territory_ids (preserved from the existing record). This is good for regression, but there is no longer a UI to remove legacy territories from an engineer."
+  ],
+  "updated_files": ["/app/backend/tests/test_esp_engineer_site_picker_jan2026.py"],
+  "success_rate": {"backend": "94% (15/16)", "frontend": "100%"},
+  "seed_data_creation": "The tests create a temporary TEST_ provider, engineer, 2 svc_cases and 1 equipment row, and delete them on teardown. The UI test provider 'TEST_UI ESP 859d81' and its 2 engineers were deleted.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Master admin MFA is currently OFF (ENFORCE_MASTER_ADMIN_MFA=false), so a UI login at /login with gx-login-* testids goes straight to /master-admin. ESP lives at /master-admin?section=onboarding → onboarding-subtab-mod-providers. Mod org ids: Aldershot e6ae0215-2fe2-4458-8c9b-e5f6e94f1ce7, Demo Barracks A f917152d-6472-4bcf-b74b-28d96ce473b3 (has 8 equipment). The rate limit is bypassed with the x-ratelimit-bypass header.",
+  "rca of the issue": "Equipment search leak: the new restricted-scope query uses a top-level '$or' key, and the pre-existing search code writes q['$or'] on the same dict, so it silently overwrites the scope. Before this change the restricted query used plain organization_id/site_id keys, so the search $or was safe."
+}

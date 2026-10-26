@@ -36,7 +36,7 @@ export default function AIKitImportModal({ site, headers, onClose, onImported, g
         { headers, responseType: 'blob' });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
-      a.href = url; a.download = 'Equipment Import - Sicon Template.xlsx';
+      a.href = url; a.download = 'Equipment Import.xlsx';
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
     } catch {

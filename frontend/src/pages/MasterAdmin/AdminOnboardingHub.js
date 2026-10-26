@@ -34,7 +34,7 @@ const TABS = [
   { id: 'mod-estate',   group: 'Customers', label: 'MOD Estate Setup',    icon: ShieldCheck,     description: 'Guided MOD setup — three independent service Head Offices (Army / RAF / Navy), global sites per service, external suppliers for overseas bases, and a whole-of-MOD reporting view.' },
   { id: 'mod-imports',  group: 'Customers', label: 'MOD Sites (CSV bulk)', icon: FileSpreadsheet, description: 'Provision dozens or thousands of MOD child sites under a HQ / branch with auto-generated kiosk logins.' },
   { id: 'mod-equipment', group: 'Customers', label: 'MOD Equipment & Readiness', icon: Dumbbell, description: 'Onboard each MOD site\'s equipment on their behalf (bulk CSV/Excel, like commercial) and track a per-site go-live checklist — Equipment, Staff, Suppliers, Documents, Check Sheets.' },
-  { id: 'mod-providers', group: 'Customers', label: 'External Service Providers', icon: Truck, description: 'Overseas / external service providers — onboard each company with its field engineers in one pass. Engineers flagged MOD/BFPO get a MOD portal login plus territory & site allocation, via invite link or temporary password.' },
+  { id: 'mod-providers', group: 'Customers', label: 'External Service Providers', icon: Truck, description: 'Overseas / external service providers — onboard each company with its field engineers in one pass. Engineers flagged MOD/BFPO get a MOD portal login plus the sites they cover, via invite link or temporary password.' },
   { id: 'staff',        group: 'Team',      label: 'Onboard Staff',       icon: UserPlus,        description: 'Invite a new team member — admin, owner, manager or staff. Five quick steps; they set their own password from a 72 h invite link.' },
 ];
 

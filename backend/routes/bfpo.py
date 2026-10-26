@@ -795,8 +795,8 @@ async def bfpo_equipment(search: str = Query(""), user=Depends(_require_bfpo)):
         q = {"organization_id": {"$in": [BFPO_ORG_ID, *mod_sites]}}
     if search:
         from utils.security_plus import safe_regex
-        q["$or"] = [{"serial_number": safe_regex(search)}, {"model": safe_regex(search)},
-                    {"name": safe_regex(search)}, {"manufacturer": safe_regex(search)}]
+        q = {"$and": [q, {"$or": [{"serial_number": safe_regex(search)}, {"model": safe_regex(search)},
+                                  {"name": safe_regex(search)}, {"manufacturer": safe_regex(search)}]}]}
     rows = await db.equipment.find(q, {"_id": 0}).sort("name", 1).limit(300).to_list(300)
     return {"equipment": rows, "count": len(rows)}
 

@@ -311,7 +311,7 @@ def template_xlsx() -> bytes:
     return buf.getvalue()
 
 
-TEMPLATE_FILENAME = "Equipment Import - Sicon Template"
+TEMPLATE_FILENAME = "Equipment Import"
 
 
 def template_response(fmt: str = "csv"):
