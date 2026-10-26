@@ -36,8 +36,9 @@ export default function ModContractsTab({ API, headers, c, isDark }) {
 
   const remove = async (id) => {
     if (!window.confirm('Delete this MOD contract?')) return;
-    await axios.delete(`${API}/crm/v2/mod-contracts/${id}`, { headers: headers() });
-    load();
+    setErr('');
+    try { await axios.delete(`${API}/crm/v2/mod-contracts/${id}`, { headers: headers() }); await load(); }
+    catch (e) { setErr(e?.response?.data?.detail || 'Could not delete the contract'); }
   };
 
   const card = { background: isDark ? 'var(--color-surface-dark-1)' : '#fff', border: `1px solid ${c.border}` };

@@ -1081,6 +1081,18 @@ function SitesAndEquipmentTab({ companyId, companyName, API, headers, c, isDark,
       setNewLoc(''); await load();
     } catch (e) { setLocMsg(e?.response?.data?.detail || 'Could not add location'); }
   };
+  const renameLocation = async (loc) => {
+    const name = window.prompt('Rename location', loc.name);
+    if (!name || name.trim() === loc.name) return;
+    setLocMsg('');
+    try { await axios.put(`${API}/crm/v2/companies/${companyId}/locations/${loc.id}`, { name: name.trim() }, { headers: headers() }); await load(); }
+    catch (e) { setLocMsg(e?.response?.data?.detail || 'Could not rename location'); }
+  };
+  const removeLocation = async (loc) => {
+    setLocMsg('');
+    try { await axios.delete(`${API}/crm/v2/companies/${companyId}/locations/${loc.id}`, { headers: headers() }); await load(); }
+    catch (e) { setLocMsg(e?.response?.data?.detail || 'Could not remove location'); }
+  };
   const moveEq = async (eqId, siteId) => {
     if (!siteId) return;
     setLocMsg('');
@@ -1137,6 +1149,12 @@ function SitesAndEquipmentTab({ companyId, companyName, API, headers, c, isDark,
               <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: isDark ? 'var(--color-surface-dark-3)' : 'var(--color-neutral-100)', color: c.textDim }}>
                 {s.equipment_count} eq
               </span>
+              {!s.virtual && s.id !== '__unassigned__' && (
+                <>
+                  <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); renameLocation(s); }} className="text-[10px] underline" style={{ color: c.textDim }} data-testid={`sites-equipment-rename-${s.id}`}>Rename</span>
+                  {s.equipment_count === 0 && <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); removeLocation(s); }} className="text-[10px] underline text-red-600" data-testid={`sites-equipment-remove-${s.id}`}>Remove</span>}
+                </>
+              )}
               {s.virtual && (
                 <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); addLocation(s.name); }}
                   className="text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ color: 'var(--color-info-ios)', border: '1px solid var(--color-info-ios)' }}
@@ -2393,15 +2411,15 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>First Name *</label>
-                <input value={contactForm.first_name} onChange={e => setContactForm({...contactForm, first_name: e.target.value})} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
+                <input value={contactForm.first_name} onChange={e => setContactForm({...contactForm, first_name: e.target.value})} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} data-testid="company-add-contact-first-name" />
               </div>
               <div>
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Last Name</label>
-                <input value={contactForm.last_name} onChange={e => setContactForm({...contactForm, last_name: e.target.value})} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
+                <input value={contactForm.last_name} onChange={e => setContactForm({...contactForm, last_name: e.target.value})} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} data-testid="company-add-contact-last-name" />
               </div>
               <div className="col-span-2">
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>
-                  Email {emailLookupBusy && <span className="ml-1 text-[9px] opacity-60">checking…</span>}
+                  Email * {emailLookupBusy && <span className="ml-1 text-[9px] opacity-60">checking…</span>}
                 </label>
                 <input value={contactForm.email} onChange={e => setContactForm({...contactForm, email: e.target.value})} className="w-full mt-1 px-3 py-2 text-sm rounded-md" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${emailMatch ? 'var(--color-warning)' : c.border}`, color: c.text }} data-testid="company-add-contact-email" />
                 {emailMatch && (

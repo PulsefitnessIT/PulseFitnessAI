@@ -174,7 +174,7 @@ async def list_contracts(
     user=Depends(get_crm_user),
 ):
     """List all contracts with optional filters."""
-    query = _of(user)
+    query = {**_of(user), "contract_type": {"$ne": "mod"}}  # MOD contracts live in their own tab
     if status:
         query["status"] = status
     if company_id:
@@ -1026,7 +1026,7 @@ async def company_sites_and_equipment(company_id: str, user=Depends(get_crm_user
         "linked_via": linked_via,
         "sites": site_rows,
         "totals": {
-            "sites": len(site_rows),
+            "sites": sum(1 for r in site_rows if not r.get("virtual") and r["id"] != "__unassigned__"),
             "equipment": len(flat),
             "covered": covered_count,
             "uncovered": len(flat) - covered_count,
@@ -1050,6 +1050,7 @@ async def _company_linked_org(company_id: str, user: dict) -> str:
 @router.post("/companies/{company_id}/locations")
 async def add_company_location(company_id: str, data: dict, user=Depends(get_crm_user)):
     """Add a location (gym / building / room) inside the company's linked site."""
+    _require_location_editor(user)
     org_id = await _company_linked_org(company_id, user)
     name = (data.get("name") or "").strip()[:120]
     if not name:
@@ -1068,6 +1069,38 @@ async def add_company_location(company_id: str, data: dict, user=Depends(get_crm
         {"$set": {"site_id": loc["id"]}})
     loc.pop("_id", None)
     return {"location": loc, "created": True}
+
+
+def _require_location_editor(user: dict) -> None:
+    if (user.get("role") or "").lower() not in ("owner", "manager", "admin", "master_admin", "super_admin", "sales_manager"):
+        raise HTTPException(403, "Only managers can change locations")
+
+
+@router.put("/companies/{company_id}/locations/{location_id}")
+async def rename_company_location(company_id: str, location_id: str, data: dict, user=Depends(get_crm_user)):
+    _require_location_editor(user)
+    org_id = await _company_linked_org(company_id, user)
+    name = (data.get("name") or "").strip()[:120]
+    if not name:
+        raise HTTPException(400, "Location name is required")
+    r = await db.sites.update_one({"id": location_id, "organization_id": org_id}, {"$set": {"name": name}})
+    if not r.matched_count:
+        raise HTTPException(404, "Location not found")
+    await db.equipment.update_many({"organization_id": org_id, "site_id": location_id}, {"$set": {"location": name}})
+    return {"ok": True}
+
+
+@router.delete("/companies/{company_id}/locations/{location_id}")
+async def remove_company_location(company_id: str, location_id: str, user=Depends(get_crm_user)):
+    """Archive an empty location (machines must be moved out first)."""
+    _require_location_editor(user)
+    org_id = await _company_linked_org(company_id, user)
+    if await db.equipment.count_documents({"organization_id": org_id, "site_id": location_id}):
+        raise HTTPException(409, "Move the equipment out of this location first")
+    r = await db.sites.update_one({"id": location_id, "organization_id": org_id}, {"$set": {"status": "archived"}})
+    if not r.matched_count:
+        raise HTTPException(404, "Location not found")
+    return {"ok": True}
 
 
 @router.post("/companies/{company_id}/equipment/{equipment_id}/move")

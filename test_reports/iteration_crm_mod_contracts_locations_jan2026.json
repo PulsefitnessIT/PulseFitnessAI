@@ -1,0 +1,40 @@
+{
+  "summary": "Tested the CRM MOD work as the Pulse operator CRM user craig.henshall (role=manager). Areas: (1) MOD site companies link themselves to their portal org automatically, (2) Equipment register merged with portal equipment; text-only locations show as 'virtual' groups with 'Save as location'; Add location; Move to… with history kept, (3) Add Contact: job-title dropdown from the picklist, error text, required-field hint, duplicate-email message, (4) the new MOD Contracts tab (catalog A/B/C/repair/refurb, lines per location, CRUD, validation). Backend: 14/14 pass, 1 skip (no unlinked company found). Frontend: every flow tested on the MOD Test Site works end to end. All test data was cleaned up (TEST_ locations, contacts, contracts). The MOD Test Site pulley was moved and then put back in Fitness Suite.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/crm/v2/companies/{id}/locations", "issue": "No role check. Any CRM user can create locations (sites docs) in the linked MOD org, but the move endpoint and MOD contract edits need a manager or above. Use the same _require_editor gate."},
+      {"endpoint": "GET /api/crm/v2/contracts", "issue": "MOD contracts (contract_type='mod') also come back from the generic contracts list and Live-compliance feed. The UI shows them under Contracts with 'No service schedule / No billing schedule / Sicon: Not synced' and '— · expires —'. This may be intended, but confirm. If not, filter them out with contract_type != 'mod', or map start_date/end_date/annual_value to the generic fields."},
+      {"endpoint": "GET /api/crm/v2/companies/{id}/sites-and-equipment", "issue": "totals.sites counts virtual text locations and the 'Unassigned' bucket, so the MOD Test Site shows SITES 4 with only 2 real locations."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Company > Equipment register", "issues": ["There is no way to rename or delete a location once added. A typo means a permanent location."]},
+      {"screen": "Add Contact dialog", "issues": ["The Email label has no '*' even though it is now required. First Name has one."]},
+      {"screen": "MOD Contracts tab", "issues": ["Delete uses window.confirm, which is inconsistent with the app's modals. Delete and load errors are not shown (delete has no try/catch)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_crm_mod_contracts_locations_jan2026.py", "/app/test_reports/pytest/crm_mod_contracts_locations.xml"],
+  "action_items": [
+    "Add a manager role gate to POST /crm/v2/companies/{id}/locations",
+    "Decide whether MOD contracts should appear in the generic Contracts list and Live compliance. Filter them out or map their fields",
+    "Exclude virtual and unassigned buckets from totals.sites (optional)",
+    "Wrap ModContractsTab.remove in try/catch and show the error",
+    "Optional: location rename/delete UI; '*' on the Email label"
+  ],
+  "critical_code_review_comments": [
+    "crm_mod_contracts.py: routes accept raw dict, not Pydantic models. Validation is manual but thorough (service type, price, location belongs to the org, status).",
+    "move_company_equipment: issues.update_many({equipment_id}) has no org filter. It is safe because equipment ids are UUIDs, but add organization_id as defence in depth.",
+    "CRMCompanies.js is ~2630 lines. It should be split (SitesAndEquipmentTab and the contact dialog are good candidates)."
+  ],
+  "updated_files": ["/app/backend/tests/test_crm_mod_contracts_locations_jan2026.py", "/app/frontend/src/pages/CRM/CRMCompanies.js (added data-testid company-add-contact-first-name / -last-name only)"],
+  "success_rate": {"backend": "100% (14/14, 1 skipped)", "frontend": "100% of tested flows"},
+  "test_credentials": "craig.henshall@pulsefitness.com / PulseMOD123! (CRM login). Browser tests injected crm_token + crm_active_mode=business into localStorage. Because no main platform token was set, a 'Your session has expired' toast appears. This is a test-setup artifact, not a bug.",
+  "seed_data_creation": "None kept. TEST_ locations, contacts and contracts were deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "MOD Test Site company id = modco-abfdabd9-ae11-4877-a44d-a36fea7f1f4e, org abfdabd9-.... Its locations are Main Gym (b71c80cb...) and Fitness Suite (b84f5a44...), plus a virtual 'Cardio Suite' (2 machines tagged by text). MOD Contracts UI path: CRM (business mode) > Aftersales Contracts > Contracts & Renewals > MOD Contracts (view-tab-mod). Equipment register path: Companies > MOD Sites > company > Equipment & Assets."
+}
