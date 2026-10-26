@@ -654,24 +654,11 @@ async def bfpo_add_photo(case_id: str, data: dict = Body(...), user=Depends(_req
 
 @router.post("/jobs/{case_id}/signature")
 async def bfpo_signature(case_id: str, data: dict = Body(...), user=Depends(_require_bfpo)):
-    """Body: {signed_by_name, image_data} OR {unavailable: true, reason}"""
+    """Body: {signed_by_name, signed_by_email?, image_data} OR {unavailable: true, reason}"""
+    from utils.customer_signoff import build_signoff
     case = await _get_scoped_case(user, case_id, read=False)
-    if data.get("unavailable"):
-        reason = (data.get("reason") or "").strip() or "Signature unavailable"
-        sig = {"id": str(uuid.uuid4()), "organization_id": case.get("organization_id") or BFPO_ORG_ID, "case_id": case_id,
-               "case_reference": case.get("reference"), "signed_by_name": "", "image_data": "",
-               "unavailable": True, "unavailable_reason": reason, "signed_at": _now(),
-               "captured_by_id": user["id"], "created_at": _now()}
-    else:
-        name = (data.get("signed_by_name") or "").strip()
-        image = data.get("image_data") or ""
-        if not name or not image:
-            raise HTTPException(400, "signed_by_name and image_data required")
-        sig = {"id": str(uuid.uuid4()), "organization_id": case.get("organization_id") or BFPO_ORG_ID, "case_id": case_id,
-               "case_reference": case.get("reference"), "signed_by_name": name,
-               "signed_by_role": (data.get("signed_by_role") or "").strip(), "image_data": image,
-               "unavailable": False, "signed_at": _now(), "captured_by_id": user["id"],
-               "created_at": _now()}
+    sig = build_signoff(data, case_id=case_id, organization_id=case.get("organization_id") or BFPO_ORG_ID,
+                        reference=case.get("reference"), user=user)
     await db.svc_signatures.insert_one(sig)
     await append_event(case_id=case_id, organization_id=await _case_org(case_id), event_type="signature",
                        actor=user, body=("Signature unavailable" if sig.get("unavailable")
@@ -683,10 +670,12 @@ async def bfpo_signature(case_id: str, data: dict = Body(...), user=Depends(_req
 @router.post("/jobs/{case_id}/complete")
 async def bfpo_complete(case_id: str, data: dict = Body(...), user=Depends(_require_bfpo)):
     """Body: {summary, parts_used?, safe_and_working: bool, photo_urls?[]}"""
+    from utils.customer_signoff import require_signoff
     case = await _get_scoped_case(user, case_id, read=False)
     summary = (data.get("summary") or "").strip()
     if not summary:
         raise HTTPException(400, "summary required")
+    await require_signoff(case_id=case_id)
     safe_working = bool(data.get("safe_and_working"))
     updates = {
         "resolution_notes": summary, "parts_used": data.get("parts_used") or "",
@@ -712,8 +701,40 @@ async def bfpo_complete(case_id: str, data: dict = Body(...), user=Depends(_requ
     await _op_update(case, user, "job_completed", f"Job completed: {summary[:120]}",
                      {"safe_and_working": safe_working})
     updated = await db.svc_cases.find_one({"id": case_id}, {"_id": 0})
+    import asyncio
+    asyncio.create_task(_email_signed_job_sheet(case_id))
     return {"ok": True, "case": updated,
             "job_sheet_url": f"/api/bfpo/jobs/{case_id}/job-sheet.pdf"}
+
+
+async def _email_signed_job_sheet(case_id: str) -> str:
+    from utils.customer_signoff import email_signed_pdf, latest_signoff, resolve_site_contact
+    try:
+        case = await db.svc_cases.find_one({"id": case_id}, {"_id": 0}) or {}
+        events = await db.svc_case_events.find({"case_id": case_id}, {"_id": 0}).sort("at", 1).to_list(200)
+        sig = await latest_signoff(case_id=case_id)
+        pdf = _build_job_sheet_pdf(case, events, sig)
+        sent = await email_signed_pdf(
+            sig=sig, contact=await resolve_site_contact(case), pdf=pdf,
+            filename=f"Job Sheet - {case.get('reference')}.pdf",
+            subject=f"Signed job sheet · {case.get('reference')} — {case.get('site_name') or 'MOD service'}",
+            intro=f"Job <b>{case.get('reference')}</b> has been completed.", organization_id=case.get("organization_id"))
+        if sent:
+            await db.svc_cases.update_one({"id": case_id}, {"$set": {"service_report_sent_at": _now(), "service_report_sent_to": sent}})
+        return sent
+    except Exception:
+        logger.exception("BFPO signed job sheet email failed")
+        return ""
+
+
+@router.get("/jobs/{case_id}/signoff")
+async def bfpo_signoff_info(case_id: str, user=Depends(_require_bfpo)):
+    from utils.customer_signoff import latest_signoff, resolve_site_contact
+    case = await _get_scoped_case(user, case_id)
+    sig = await latest_signoff(case_id=case_id)
+    if sig:
+        sig.pop("image_data", None)
+    return {"site_contact": await resolve_site_contact(case), "signoff": sig}
 
 
 @router.post("/jobs/{case_id}/update")
@@ -1124,26 +1145,9 @@ def _build_job_sheet_pdf(case: dict, events: list, signature: dict | None) -> by
     y -= 10 * mm
     c.setFillColor(cyan)
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(18 * mm, y, "SIGN-OFF")
-    y -= 8 * mm
     c.setFillColor(ink)
-    c.setFont("Helvetica", 10)
-    if signature and not signature.get("unavailable"):
-        c.drawString(18 * mm, y, f"Signed by: {signature.get('signed_by_name')}  ({signature.get('signed_by_role') or 'customer'})")
-        img = signature.get("image_data") or ""
-        if img.startswith("data:image"):
-            try:
-                import base64
-                from reportlab.lib.utils import ImageReader
-                raw = base64.b64decode(img.split(",", 1)[1])
-                c.drawImage(ImageReader(io.BytesIO(raw)), 18 * mm, y - 30 * mm, width=60 * mm,
-                            height=25 * mm, preserveAspectRatio=True, mask="auto")
-            except Exception:
-                pass
-    elif signature and signature.get("unavailable"):
-        c.drawString(18 * mm, y, f"Signature unavailable — {signature.get('unavailable_reason')}")
-    else:
-        c.drawString(18 * mm, y, "No signature captured")
+    from utils.customer_signoff import draw_signoff_canvas
+    y = draw_signoff_canvas(c, 18 * mm, y, signature)
 
     class _Pg:
         page = 1

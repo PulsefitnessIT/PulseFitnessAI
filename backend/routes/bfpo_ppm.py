@@ -296,6 +296,13 @@ async def complete_service(service_id: str, data: dict = Body(default={}), user=
     pending = [i for i in insp if not i.get("status") or i["status"] == "pending"]
     if pending:
         raise HTTPException(400, f"{len(pending)} asset(s) still to inspect")
+    from utils.customer_signoff import build_signoff, email_signed_pdf
+    if not (data or {}).get("signoff"):
+        raise HTTPException(400, "Customer sign-off is required — capture a signature or record why the customer couldn't sign")
+    sig = build_signoff(data["signoff"], case_id=None, organization_id=BFPO_ORG_ID,
+                        reference=svc.get("reference"), user=user, ppm_service_id=service_id)
+    await db.svc_signatures.insert_one({**sig})
+    svc["_signoff"] = sig
     pdf = _build_certificate_pdf(svc, insp, user)
     fname = f"PPM Certificate - {svc.get('reference')} - {svc.get('site_name')}.pdf"
     # Auto-file into the site's org documents library (best-effort).
@@ -313,25 +320,12 @@ async def complete_service(service_id: str, data: dict = Body(default={}), user=
     # Email the site that the certificate is available (best-effort).
     site = await db.sites.find_one({"id": svc["site_id"], "organization_id": BFPO_ORG_ID}, {"_id": 0}) or {}
     emailed_to = ""
-    to = site.get("contact_email")
-    if to:
-        try:
-            from utils.email import send_email
-            failed = sum(1 for i in insp if i.get("status") == "failed")
-            await send_email(
-                to=to, kind="mod_ppm_certificate", organization_id=BFPO_ORG_ID,
-                subject=f"PPM service certificate available — {svc.get('site_name')} ({svc.get('reference')})",
-                html=f"""<p>Dear {site.get('contact_name') or 'Site contact'},</p>
-                <p>The planned maintenance service at <strong>{svc.get('site_name')}</strong>
-                ({svc.get('territory_name')}, {svc.get('country')}) is complete.</p>
-                <p>{svc.get('asset_count')} asset(s) inspected · {failed} fault(s) raised.
-                Reference <strong>{svc.get('reference')}</strong>.</p>
-                <p>Your service certificate is now available to view in your MOD Service Operations
-                portal documents.</p>
-                <p>— Pulse Fitness MOD Operations</p>""")
-            emailed_to = to
-        except Exception:
-            logger.exception("PPM cert email failed")
+    contact = {"name": site.get("contact_name") or "", "email": (site.get("contact_email") or "").lower()}
+    emailed_to = await email_signed_pdf(
+        sig=sig, contact=contact, pdf=pdf, filename=fname,
+        subject=f"Signed PPM service certificate — {svc.get('site_name')} ({svc.get('reference')})",
+        intro=f"The planned maintenance service at <b>{svc.get('site_name')}</b> is complete.",
+        organization_id=BFPO_ORG_ID)
     await db.bfpo_ppm_services.update_one(
         {"id": service_id, "organization_id": BFPO_ORG_ID},
         {"$set": {"status": "completed", "completed_at": _now(),
@@ -347,6 +341,8 @@ async def certificate_pdf(service_id: str, user=Depends(_require_bfpo)):
     svc = await _load_service(user, service_id)
     insp = await db.bfpo_ppm_inspections.find(
         {"service_id": service_id, "organization_id": BFPO_ORG_ID}, {"_id": 0}).to_list(1000)
+    from utils.customer_signoff import latest_signoff
+    svc["_signoff"] = await latest_signoff(ppm_service_id=service_id)
     pdf = _build_certificate_pdf(svc, insp, user)
     return Response(content=pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f'inline; filename="PPM {svc.get("reference")}.pdf"'})
@@ -416,6 +412,12 @@ def _build_certificate_pdf(svc: dict, inspections: list, user: dict) -> bytes:
         c.drawString(165 * mm, y, label)
         y -= 6 * mm
 
+    from utils.customer_signoff import draw_signoff_canvas
+    if y < 60 * mm:
+        c.showPage(); y = h - 25 * mm
+    y -= 6 * mm
+    c.setFillColor(ink)
+    draw_signoff_canvas(c, 18 * mm, y, svc.get("_signoff"))
     c.setFillColor(colors.HexColor("#94a3b8"))
     c.setFont("Helvetica", 7)
     c.drawString(18 * mm, 12 * mm, f"Generated {_now()[:16].replace('T', ' ')} · Pulse Fitness Ltd · MOD/BFPO Planned Maintenance")

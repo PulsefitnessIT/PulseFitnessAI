@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { bfpo } from '../bfpoApi';
 import { Card, Btn, Badge, Spinner, Field, inputCls } from '../ui';
+import SignOffFields, { signoffBody } from '../engineer/SignOffFields';
 import { ChevronLeft, CheckCircle2, XCircle, MinusCircle, Wrench, AlertTriangle, FileText, Loader2, ClipboardCheck } from 'lucide-react';
 
 const STATUS_CHIP = {
@@ -14,6 +15,7 @@ export default function PPMServiceDetail({ serviceId, onBack }) {
   const [active, setActive] = useState(null); // inspection being filled
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState('');
+  const [signoff, setSignoff] = useState({});
 
   const load = useCallback(async () => {
     const r = await bfpo.get(`/ppm/services/${serviceId}`);
@@ -27,8 +29,10 @@ export default function PPMServiceDetail({ serviceId, onBack }) {
   const completed = svc.status === 'completed';
 
   const complete = async () => {
+    const so = signoffBody(signoff);
+    if (so.error) { flash(so.error); return; }
     setBusy(true);
-    try { const r = await bfpo.post(`/ppm/services/${serviceId}/complete`, {}); await load(); flash(r.data.emailed_to ? `Certificate issued & emailed to ${r.data.emailed_to}` : 'Service certificate issued'); }
+    try { const r = await bfpo.post(`/ppm/services/${serviceId}/complete`, { signoff: so.body }); await load(); flash(r.data.emailed_to ? `Certificate issued & emailed to ${r.data.emailed_to}` : 'Service certificate issued'); }
     catch (e) { flash(e?.response?.data?.detail || 'Could not complete'); }
     finally { setBusy(false); }
   };
@@ -75,6 +79,10 @@ export default function PPMServiceDetail({ serviceId, onBack }) {
           ))}
         </div>
       </div>
+
+      {!completed && p.remaining === 0 && (
+        <div className="px-4 pb-40"><Card className="p-4"><SignOffFields value={signoff} onChange={setSignoff} testid="ppm-signoff" /></Card></div>
+      )}
 
       {active && <ChecklistPanel inspection={active} onClose={() => setActive(null)}
         onSaved={() => { setActive(null); load(); flash('Inspection saved'); }} onFlash={flash} />}

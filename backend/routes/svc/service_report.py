@@ -728,10 +728,16 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
         except Exception:
             pass
     sig_text = "—"
-    if sig:
+    if sig and sig.get("unavailable"):
+        sig_text = (
+            f"<b>Customer unable to sign</b><br/>{(sig.get('unavailable_reason') or '').replace('&', '&amp;')}"
+            + f"<br/><font color='#64748B' size='8.5'>{_fmt_date(sig.get('signed_at'))}</font>"
+        )
+    elif sig:
         sig_text = (
             f"<b>{sig.get('signed_by_name') or 'Customer'}</b>"
             + (f" · {sig['signed_by_role']}" if sig.get("signed_by_role") else "")
+            + (f"<br/>{sig['signed_by_email']}" if sig.get("signed_by_email") else "")
             + f"<br/><font color='#64748B' size='8.5'>{_fmt_date(sig.get('signed_at'))}</font>"
         )
     story.append(Paragraph("CUSTOMER SIGN-OFF", h_section))
@@ -1200,3 +1206,28 @@ async def send_feedback_request(
 
 __all__ = ["router"]
 
+
+
+
+async def email_signed_service_report(case_id: str, organization_id: str) -> str:
+    """After completion: email the signed service report to the signer
+    (site main contact copied). Best-effort; never raises."""
+    from utils.customer_signoff import email_signed_pdf, latest_signoff, resolve_site_contact
+    try:
+        sig = await latest_signoff(case_id=case_id)
+        pdf, payload = await _build_report(case_id, {"organization_id": organization_id, "is_master_admin": True, "id": "system"})
+        case = payload["case"]
+        ref = case.get("reference", case_id[:8])
+        sent = await email_signed_pdf(
+            sig=sig, contact=await resolve_site_contact(case), pdf=pdf,
+            filename=f"service-report-{ref}.pdf",
+            subject=f"Signed service report · {ref} — {case.get('title', 'Visit complete')}",
+            intro=f"Your service visit <b>{ref}</b> is complete.", organization_id=organization_id)
+        if sent:
+            now_iso = datetime.now(timezone.utc).isoformat()
+            await db.svc_cases.update_one({"id": case_id}, {"$set": {
+                "service_report_sent_at": now_iso, "service_report_sent_to": sent}})
+        return sent
+    except Exception:
+        logger.exception("signed service report email failed for %s", case_id)
+        return ""

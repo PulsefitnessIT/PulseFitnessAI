@@ -36,6 +36,7 @@ import { notify } from '@/components/notifications';
 import { engineerSendOrQueue, useEngineerOfflineQueue } from '@/utils/engineerOfflineQueue';
 import { useLocalization, formatMoneySync, getCachedLocalization } from '@/utils/localization';
 import SignatureCanvas from './SignatureCanvas';
+import CustomerSignOffCard, { buildSignoffPayload } from './CustomerSignOffCard';
 import EngineerDictationButton from './EngineerDictationButton';
 // Iter 220ds — WorkReportCustomFields temporarily not rendered on
 // Complete; the concept is retained (state, payload field) but the
@@ -3506,18 +3507,20 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
   // lose typed text. Falls back to the case's stored values on first
   // open so engineers see what was previously persisted.
   const summary = draft.summary !== undefined ? draft.summary : (job.resolution_notes || '');
-  const signatureName = draft.signature_name || '';
   const target = draft.target || 'awaiting_sign_off';
   const customFields = draft.custom_fields || {};
   const autoInvoice = draft.auto_invoice === undefined ? true : !!draft.auto_invoice;
 
   const [signatureData, setSignatureData] = useState('');
-  const [showSignature, setShowSignature] = useState(false);
   const [busy, setBusy] = useState(false);
   const [draftResult, setDraftResult] = useState(null);
+  const [signoffInfo, setSignoffInfo] = useState({ site_contact: null, signoff: null });
+  useEffect(() => {
+    axios.get(`${API}/svc/engineer/jobs/${job.id}/signoff`, auth()).then((r) => setSignoffInfo(r.data)).catch(() => {});
+  }, [job.id]);
+  const signoffCheck = () => buildSignoffPayload({ draft, signatureData, existing: signoffInfo.signoff, job });
 
   const setSummary = (v) => setDraft({ summary: v });
-  const setSignatureName = (v) => setDraft({ signature_name: v });
   const setTarget = (v) => setDraft({ target: v });
   // Iter 220ea·3 — kept for symmetry with the other draft setters
   // (other tabs use it for editable custom-field rows). Unused at
@@ -3553,19 +3556,13 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
 
   const complete = async () => {
     if (!summary.trim()) { notify.error(t('service.eng_jd_add_summary', 'Add a work summary')); return; }
+    const so = signoffCheck();
+    if (so.error) { notify.error(so.error); return; }
     setBusy(true);
     try {
-      if (signatureData) {
-        // Iter 220eb — Save the signature whenever one was drawn, even
-        // if the engineer left "Signed by" blank (the #1 reason
-        // signatures went missing on reports). Default to the
-        // customer's name on the case, falling back to "Customer".
-        const sigName = signatureName.trim() || job.customer_name || 'Customer';
-        await outboxPost(`${API}/svc/engineer/signature`, {
-          case_id: job.id, signed_by_name: sigName,
-          image_data: signatureData, summary: summary.trim(),
-        }, { headers: auth().headers, kind: 'signature',
-            label: `Sign-off · ${job.reference || job.id}` });
+      if (so.payload) {
+        await outboxPost(`${API}/svc/engineer/signature`, { ...so.payload, summary: summary.trim() },
+          { headers: auth().headers, kind: 'signature', label: `Sign-off · ${job.reference || job.id}` });
       }
       const completeRes = await outboxPost(`${API}/svc/engineer/jobs/${job.id}/complete`, {
         summary: summary.trim(), target,
@@ -3608,6 +3605,8 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
   // failure (e.g. no parts allocated yet) doesn't break the chain.
   const completeAndSendInvoice = async () => {
     if (!summary.trim()) { notify.error(t('service.eng_jd_add_summary_first', 'Add a work summary first')); return; }
+    const so = signoffCheck();
+    if (so.error) { notify.error(so.error); return; }
     setBusy(true);
     try {
       // 1. Stop any active on-site timer.
@@ -3624,15 +3623,9 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
           });
         } catch { /* non-blocking */ }
       }
-      // 2. Capture signature if the engineer drew one.
-      if (signatureData) {
-        const sigName = signatureName.trim() || job.customer_name || t('service.eng_jd_customer', 'Customer');
-        try {
-          await axios.post(`${API}/svc/engineer/signature`, {
-            case_id: job.id, signed_by_name: sigName,
-            image_data: signatureData, summary: summary.trim(),
-          }, auth());
-        } catch { /* non-blocking */ }
+      // 2. Customer sign-off (required).
+      if (so.payload) {
+        await axios.post(`${API}/svc/engineer/signature`, { ...so.payload, summary: summary.trim() }, auth());
       }
       // 3. Complete the job. Cover-aware: covered + no-misuse cases
       //    close out as "repaired" with chargeable=false; everything
@@ -3643,6 +3636,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
         target: fastTarget,
         chargeable: willBill,
         custom_fields: customFields,
+        email_report: false,
       }, auth());
       // 4. Generate the invoice draft — ONLY when we're actually billing.
       let inv = null;
@@ -3798,19 +3792,8 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
           user-requested tab structure (Time / Travel / Photos /
           Equipment / Parts / Complete). */}
 
-      <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-signature-card">
-        <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">{t('service.eng_jd_signature_optional', 'Customer signature (optional)')}</p>
-        <Input label={t('service.eng_jd_signed_by', 'Signed by')} v={signatureName} on={setSignatureName} testid="complete-signed-by" fullWidth />
-        <button type="button" onClick={() => setShowSignature(true)} className="mt-2 w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-bold" data-testid="complete-open-signature">
-          {signatureData ? <><Check size={14} className="text-emerald-600" /> {t('service.eng_jd_sig_captured', 'Signature captured · re-sign')}</> : <><ImageIcon size={14} /> {t('service.eng_jd_capture_sig', 'Capture signature')}</>}
-        </button>
-        {showSignature && (
-          <SignatureCanvas
-            onSubmit={(dataUrl) => { setSignatureData(dataUrl); setShowSignature(false); }}
-            onCancel={() => setShowSignature(false)}
-          />
-        )}
-      </div>
+      <CustomerSignOffCard draft={draft} setDraft={setDraft} signatureData={signatureData} setSignatureData={setSignatureData}
+        contact={signoffInfo.site_contact} existing={signoffInfo.signoff} />
 
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-options-card">
         <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">{t('service.eng_jd_outcome', 'Outcome')}</p>

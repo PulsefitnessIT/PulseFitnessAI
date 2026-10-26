@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { bfpo, uploadFile, pendingStatusFor, onOutboxChange, outboxCount } from '../bfpoApi';
 import { Card, Btn, Badge, Spinner, PriorityBadge, STATUS_LABEL, Field, inputCls, localTime } from '../ui';
-import SignaturePad from './SignaturePad';
+import SignOffFields, { signoffBody } from './SignOffFields';
 import MissingAssetDetails from './MissingAssetDetails';
 import {
   ChevronLeft, AlertTriangle, MapPin, Wrench, ShieldCheck, ShieldAlert, Package,
@@ -316,21 +316,20 @@ function CompletePanel({ jobId, onDone, onCancel }) {
   const [summary, setSummary] = useState('');
   const [partsUsed, setPartsUsed] = useState('');
   const [safe, setSafe] = useState(true);
-  const [sigName, setSigName] = useState('');
-  const [sigRole, setSigRole] = useState('');
-  const [sigData, setSigData] = useState('');
-  const [sigUnavailable, setSigUnavailable] = useState(false);
-  const [sigReason, setSigReason] = useState('');
+  const [signoff, setSignoff] = useState({});
+  const [contact, setContact] = useState(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  useEffect(() => { bfpo.get(`/jobs/${jobId}/signoff`).then((r) => setContact(r.data?.site_contact)).catch(() => {}); }, [jobId]);
 
   const submit = async () => {
     if (!summary.trim()) { setErr('Please describe the work carried out'); return; }
+    const so = signoffBody(signoff);
+    if (so.error) { setErr(so.error); return; }
     setSaving(true); setErr('');
     try {
+      await bfpo.post(`/jobs/${jobId}/signature`, so.body);
       const done = await bfpo.post(`/jobs/${jobId}/complete`, { summary, parts_used: partsUsed, safe_and_working: safe });
-      if (sigUnavailable) await bfpo.post(`/jobs/${jobId}/signature`, { unavailable: true, reason: sigReason });
-      else if (sigName && sigData) await bfpo.post(`/jobs/${jobId}/signature`, { signed_by_name: sigName, signed_by_role: sigRole, image_data: sigData });
       onDone(!!done?.data?.queued);
     } catch (e) { setErr(e?.response?.data?.detail || 'Could not complete — try again'); }
     finally { setSaving(false); }
@@ -342,24 +341,7 @@ function CompletePanel({ jobId, onDone, onCancel }) {
       <Field label="Work carried out"><textarea className={inputCls} rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} data-testid="complete-summary" /></Field>
       <Field label="Parts used (optional)"><input className={inputCls} value={partsUsed} onChange={(e) => setPartsUsed(e.target.value)} data-testid="complete-parts" /></Field>
       <label className="flex items-center gap-2 text-sm text-slate-700 font-medium"><input type="checkbox" checked={safe} onChange={(e) => setSafe(e.target.checked)} data-testid="complete-safe" /> I confirm the equipment is safe and working</label>
-      <div className="pt-1">
-        <p className="text-xs font-semibold text-slate-400 uppercase mb-1">Customer sign-off</p>
-        {!sigUnavailable ? (
-          <>
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              <input className={inputCls} placeholder="Signed by (name)" value={sigName} onChange={(e) => setSigName(e.target.value)} data-testid="complete-sig-name" />
-              <input className={inputCls} placeholder="Role" value={sigRole} onChange={(e) => setSigRole(e.target.value)} data-testid="complete-sig-role" />
-            </div>
-            <SignaturePad onChange={setSigData} />
-            <button className="text-xs text-slate-500 mt-2" onClick={() => setSigUnavailable(true)} data-testid="complete-sig-unavailable">Signature unavailable?</button>
-          </>
-        ) : (
-          <>
-            <input className={inputCls} placeholder="Reason signature unavailable" value={sigReason} onChange={(e) => setSigReason(e.target.value)} data-testid="complete-sig-reason" />
-            <button className="text-xs text-slate-500 mt-2" onClick={() => setSigUnavailable(false)}>Capture a signature instead</button>
-          </>
-        )}
-      </div>
+      <SignOffFields value={signoff} onChange={setSignoff} contact={contact} testid="complete-sig" />
       {err && <p className="text-sm text-red-600">{err}</p>}
       <div className="grid grid-cols-1 gap-2">
         <Btn variant="primary" full disabled={saving} onClick={submit} data-testid="complete-submit">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Complete & generate job sheet</Btn>

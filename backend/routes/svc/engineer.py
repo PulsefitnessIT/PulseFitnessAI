@@ -1041,49 +1041,52 @@ async def delete_photo(photo_id: str, user=Depends(get_current_user)):
     return {"ok": True, "id": photo_id}
 
 
+@router.get("/jobs/{case_id}/signoff")
+async def get_signoff(case_id: str, user=Depends(get_current_user)):
+    """Site main contact (to pre-fill the email) + any sign-off already captured."""
+    from utils.customer_signoff import latest_signoff, resolve_site_contact
+    case = await db.svc_cases.find_one({"id": case_id, **_of(user)}, {"_id": 0})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    sig = await latest_signoff(case_id=case_id)
+    if sig:
+        sig.pop("image_data", None)
+    return {"site_contact": await resolve_site_contact(case), "signoff": sig}
+
+
 @router.post("/signature")
 async def add_signature(
     data: dict,
     user=Depends(get_current_user),
     idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
 ):
-    """Record a customer sign-off signature.
+    """Record the customer sign-off for a job.
 
-    Body: {case_id, signed_by_name, signed_by_role?, image_data (base64),
-           summary?}
+    Body: {case_id, signed_by_name, signed_by_email?, signed_by_role?,
+           image_data (base64), summary?}  OR  {case_id, unavailable: true, reason}
     """
+    from utils.customer_signoff import build_signoff
     of = _of(user)
     case_id = (data or {}).get("case_id")
-    signed_by_name = ((data or {}).get("signed_by_name") or "").strip()
-    image_data = (data or {}).get("image_data") or ""
-    if not case_id or not signed_by_name or not image_data:
-        raise HTTPException(400, "case_id, signed_by_name, image_data required")
+    if not case_id:
+        raise HTTPException(400, "case_id required")
     case = await db.svc_cases.find_one({"id": case_id, **of})
     if not case:
         raise HTTPException(404, "Case not found")
-    sig = {
-        "id": str(uuid.uuid4()),
-        "organization_id": of["organization_id"],
-        "case_id": case_id,
-        "case_reference": case.get("reference"),
-        "signed_by_name": signed_by_name,
-        "signed_by_role": (data.get("signed_by_role") or "").strip(),
-        "signed_at": _now(),
-        "image_data": image_data,
-        "summary": (data.get("summary") or "").strip(),
-        "device_meta": data.get("device_meta") or {},
-        "captured_by_id": user["id"],
-        "captured_by_name": user.get("full_name") or user.get("email") or "",
-        "created_at": _now(),
-    }
+    sig = build_signoff(data, case_id=case_id, organization_id=of["organization_id"],
+                        reference=case.get("reference"), user=user)
+    sig["device_meta"] = (data or {}).get("device_meta") or {}
+    signed_by_name = sig["signed_by_name"] or "customer unavailable"
     sig = await _idempotent_insert(db.svc_signatures, sig, idempotency_key)
     await append_event(
         case_id=case_id, organization_id=of["organization_id"],
         event_type="signature", actor=user,
-        body=f"Signed by {signed_by_name}",
-        extra={"signature_id": sig["id"], "summary": sig["summary"]},
+        body=(f"Customer unable to sign — {sig.get('unavailable_reason')}" if sig.get("unavailable")
+              else f"Signed by {signed_by_name}" + (f" ({sig['signed_by_email']})" if sig.get("signed_by_email") else "")),
+        extra={"signature_id": sig["id"], "summary": sig.get("summary", "")},
     )
-    await sicon_sync.push_signature(sig, case_reference=case.get("reference"))
+    if not sig.get("unavailable"):
+        await sicon_sync.push_signature(sig, case_reference=case.get("reference"))
     # Iter 216h155 — compliance audit. Customer signature is a legally
     # binding sign-off — must be in the immutable audit ledger.
     try:
@@ -1129,6 +1132,8 @@ async def engineer_complete(
     target = (data.get("target") or "awaiting_sign_off").lower()
     if target not in (REPAIRED, AWAITING_SIGN_OFF, CLOSED):
         raise HTTPException(400, "target must be repaired | awaiting_sign_off | closed")
+    from utils.customer_signoff import require_signoff
+    await require_signoff(case_id=case_id)
 
     # Iter 220 — Validate & normalise work-report custom fields before any
     # state transitions, so required-field errors don't leave half-applied
@@ -1197,6 +1202,10 @@ async def engineer_complete(
     await db.svc_engineer_job_drafts.delete_one(
         {**of, "case_id": case_id, "engineer_id": user["id"]},
     )
+    import asyncio
+    from routes.svc.service_report import email_signed_service_report
+    if (data or {}).get("email_report", True):
+        asyncio.create_task(email_signed_service_report(case_id, of["organization_id"]))
     case.pop("_id", None)
     return case
 
@@ -1301,6 +1310,7 @@ async def _calibration_cert_response(case_id: str, of: dict):
         issued_at=(cal.get("created_at") or "")[:16].replace("T", " "),
         notes=cal.get("notes") or "",
         signature_data_url=cal.get("signature") or None,
+        customer_signoff=await _latest_customer_signoff(case_id),
     )
     fname = f"calibration-{case.get('reference') or case_id}.pdf"
     return Response(content=pdf, media_type="application/pdf",
@@ -1484,3 +1494,8 @@ async def save_job_calibration(
 async def engineer_calibration_certificate(case_id: str, user=Depends(get_current_user)):
     return await _calibration_cert_response(case_id, _of(user))
 
+
+
+async def _latest_customer_signoff(case_id: str):
+    from utils.customer_signoff import latest_signoff
+    return await latest_signoff(case_id=case_id)

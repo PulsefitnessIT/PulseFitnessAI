@@ -34,7 +34,8 @@ def _esc(text) -> str:
 def build_calibration_certificate_pdf(*, case_ref, customer_name, site_name,
                                       service_type, readings, overall_result,
                                       engineer_name, issued_at, equipment_name="",
-                                      machines=None, notes="", signature_data_url=None) -> bytes:
+                                      machines=None, notes="", signature_data_url=None,
+                                      customer_signoff=None) -> bytes:
     s = pulse_styles()
     buf = BytesIO()
     doc = make_pulse_doc(buf, f"Calibration Certificate — {case_ref}")
@@ -100,6 +101,10 @@ def build_calibration_certificate_pdf(*, case_ref, customer_name, site_name,
             story.append(Spacer(1, 3 * mm))
         except Exception:
             pass
+
+    from utils.customer_signoff import signoff_flowables
+    story.append(section_label(s, "Customer sign-off"))
+    story.extend(signoff_flowables(customer_signoff, s))
 
     story.append(Paragraph(
         "This certificate records the calibration checks performed on the equipment "

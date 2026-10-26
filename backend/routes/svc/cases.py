@@ -795,6 +795,7 @@ async def _build_calibration_certificate(case_id: str, of: dict):
         issued_at=(cal.get("created_at") or "")[:16].replace("T", " "),
         notes=cal.get("notes") or "",
         signature_data_url=cal.get("signature") or None,
+        customer_signoff=await _latest_customer_signoff(case_id),
     )
     fname = f"calibration-{case.get('reference') or case_id}.pdf"
     return pdf, case, cal, fname
@@ -870,3 +871,8 @@ async def case_calibration_certificate_email(case_id: str, data: dict | None = N
     except Exception as e:
         logger.warning(f"calibration-cert: failed to append audit event: {e!r}")
     return {"ok": True, "to": to, "sent_at": now_iso, "filename": fname}
+
+
+async def _latest_customer_signoff(case_id: str):
+    from utils.customer_signoff import latest_signoff
+    return await latest_signoff(case_id=case_id)
