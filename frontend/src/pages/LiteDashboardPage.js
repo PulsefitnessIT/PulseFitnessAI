@@ -749,7 +749,7 @@ const LiteDashboardPage = () => {
       // Managers & owners see 'Staffing' (full workforce suite).
       // Staff see the same module labelled 'Gym Floor' (their limited
       // personal view) — enforced by StaffingConsole internally.
-      isManagerial
+      (isManagerial || isMOD)
         ? { id: 'staffing', label: t('dashboard.staffing', 'Staffing'),    icon: Users }
         : { id: 'staffing', label: t('dashboard.gym_floor', 'Gym Floor'),   icon: ClipboardList },
     ];
@@ -797,7 +797,15 @@ const LiteDashboardPage = () => {
     // credentials — drop Reports + Staffing for it. (Individuals get their own
     // login via Master Admin.) Its content gates read the same TABS list below,
     // so hiding the pill also blocks the tab body (Iter 241 invariant).
-    .filter((tab) => !(isSharedLogin && (tab.id === 'reports' || tab.id === 'staffing' || tab.id === 'quotes')));
+    // EXCEPTION — MOD site shared logins ARE the site's working account: Service
+    // staff need Staffing (Handover Diary / Live Floor / Ops forms — payroll & HR
+    // stay manager-only inside StaffingConsole) and Reports (incident reports &
+    // risk assessments). Only the owner-level Quotes tab stays hidden for them.
+    .filter((tab) => {
+      if (!isSharedLogin) return true;
+      if (isMOD) return tab.id !== 'quotes';
+      return !(tab.id === 'reports' || tab.id === 'staffing' || tab.id === 'quotes');
+    });
   // Iter 241 — INVARIANT: if a tab pill is offered, its content must
   // render. Content gates derive from the SAME list as the pills so the
   // two can never diverge again (the production blank-tab bug happened
