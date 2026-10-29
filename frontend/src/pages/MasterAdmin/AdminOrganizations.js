@@ -1818,9 +1818,21 @@ useEffect(() => {
     invite mode (no password set by admin). Admin copies link and
     sends manually until Resend DNS verification is live. */
  <div className="space-y-3 mt-2">
- <p className="text-sm text-zinc-600">
- <strong>{lastInvite.full_name}</strong> ({lastInvite.email}) was added. Send them this secure set-password link:
- </p>
+<p className="text-sm text-zinc-600">
+<strong>{lastInvite.full_name}</strong> ({lastInvite.email}) was added.
+</p>
+{lastInvite.invite_email_sent ? (
+<p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2" data-testid="add-user-invite-emailed">Invite emailed to {lastInvite.email}.</p>
+) : (
+<p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2" data-testid="add-user-invite-email-failed">The invite email could not be sent{lastInvite.invite_email_error ? ` — ${lastInvite.invite_email_error}` : ''}. Copy the link below and send it yourself, or try again.</p>
+)}
+<Button size="sm" variant="outline" onClick={async () => {
+  try {
+    const r = await axios.post(`${API}/master-admin/users/${lastInvite.id}/invite-link?send=true`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    setLastInvite({ ...lastInvite, invite_url: r.data.invite_url, invite_email_sent: r.data.invite_email_sent, invite_email_error: r.data.invite_email_error });
+    if (r.data.invite_email_sent) notify.success('Invite emailed', lastInvite.email); else notify.error('Invite email failed', r.data.invite_email_error || 'Try again shortly');
+  } catch (err) { notifyApiError(notify, err, 'Could not resend the invite'); }
+}} data-testid="add-user-invite-resend">Resend invite email</Button>
  <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 space-y-2">
  <div className="flex gap-2">
  <Input readOnly value={lastInvite.invite_url} className="bg-white font-mono text-[11px] flex-1" data-testid="add-user-invite-link" />
@@ -2398,6 +2410,21 @@ useEffect(() => {
  >
  <Mail size={12} className="mr-1" /> Reset Link
  </Button>
+<Button
+size="sm"
+variant="ghost"
+className="h-6 text-[11px] text-[var(--color-brand-blue)] hover:bg-blue-50"
+onClick={async () => {
+  try {
+    const r = await axios.post(`${API}/master-admin/users/${editingUser.id}/invite-link?send=true`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    setLastInviteUrl(r.data?.invite_url);
+    if (r.data?.invite_email_sent) notify.success('Invite emailed', editingUser.email); else notify.error('Invite email failed', r.data?.invite_email_error || 'Copy the link and send it yourself');
+  } catch (err) { notifyApiError(notify, err, 'Could not email the invite'); }
+}}
+data-testid="edit-user-email-invite"
+>
+<Mail size={12} className="mr-1" /> Email invite
+</Button>
  <Button
  type="button"
  size="sm"

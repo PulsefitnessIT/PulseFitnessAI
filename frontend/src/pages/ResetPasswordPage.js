@@ -24,6 +24,7 @@ const ResetPasswordPage = () => {
   const { API } = useAuth();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
+  const loginPath = searchParams.get('portal') === 'mod' ? '/MODService' : '/login';
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -145,7 +146,7 @@ const ResetPasswordPage = () => {
           <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--theme-text)' }}>Password Reset Complete</h2>
           <p className="text-sm mb-6" style={{ color: 'var(--theme-text-muted)' }}>Your password has been changed. You can now log in with your new password.</p>
-          <Link to="/login"><Button data-testid="reset-go-login">Go to Login</Button></Link>
+          <Link to={loginPath}><Button data-testid="reset-go-login">Go to Login</Button></Link>
         </Card>
       </div>
     );

@@ -262,8 +262,12 @@ _CATEGORY_SENDER_ENV = {
     "service": "SENDER_EMAIL_SERVICE",
     "memberships": "SENDER_EMAIL_MEMBERSHIPS",
     "bookings": "SENDER_EMAIL_BOOKINGS",
+    "mod": "MOD_SENDER_EMAIL",
 }
 _CATEGORY_SENDER_DEFAULT = {
+    # MOD Service (modservice.pulsefitness.com). Falls back to the verified
+    # service domain at send time until pulsefitness.com is verified.
+    "mod": "Pulse Fitness MOD Service <modservice@pulsefitness.com>",
     # VERIFIED Resend sending domains (work immediately):
     "service": "Pulse Fitness Service <service@service.pulsefitness.ai>",
     "memberships": "Pulse Fitness Memberships <noreply@memberships.pulsefitness.ai>",
@@ -314,6 +318,8 @@ _CATEGORY_REPLY_DEFAULT = {
 
 def _category_reply_to(category: str | None) -> str | None:
     """Canonical Reply-To for a category (env-overridable), else None."""
+    if category == "mod":
+        return _bare_addr(_category_sender("mod"))
     if category in _CATEGORY_REPLY_ENV:
         return (os.environ.get(_CATEGORY_REPLY_ENV[category]) or "").strip() or _CATEGORY_REPLY_DEFAULT[category]
     return None
@@ -455,7 +461,7 @@ async def send_email(
                 {"id": organization_id},
                 {"_id": 0, "email_sender_friendly_name": 1, "email_sender_reply_to": 1, "name": 1},
             )
-            if org:
+            if org and resolved_category != "mod":
                 friendly = (org.get("email_sender_friendly_name") or org.get("name") or "").strip()
                 reply_to = (org.get("email_sender_reply_to") or "").strip() or None
                 if friendly:
@@ -498,9 +504,25 @@ async def send_email(
         # beyond this ceiling; timeouts fall into the retry-payload path
         # below like any other send failure.
         _send_timeout = float(os.environ.get("EMAIL_SEND_TIMEOUT_SECONDS", "10"))
-        result = await asyncio.wait_for(
-            asyncio.to_thread(resend.Emails.send, params), timeout=_send_timeout,
-        )
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(resend.Emails.send, params), timeout=_send_timeout,
+            )
+        except Exception as first_err:
+            # Sender domain not verified yet (e.g. pulsefitness.com) → resend
+            # once from the verified service domain, keeping the display name
+            # and routing replies to the intended address.
+            fallback = _bare_addr(_CATEGORY_SENDER_DEFAULT["service"])
+            if "not verified" not in str(first_err).lower() or _bare_addr(from_addr) == fallback:
+                raise
+            display = from_addr.split("<")[0].strip() or "Pulse Fitness"
+            logger.warning(f"Sender {from_addr!r} not verified — retrying from {fallback}")
+            params["reply_to"] = params.get("reply_to") or _bare_addr(from_addr)
+            from_addr = f"{display} <{fallback}>"
+            params["from"] = from_addr
+            result = await asyncio.wait_for(
+                asyncio.to_thread(resend.Emails.send, params), timeout=_send_timeout,
+            )
         logger.info(f"Email sent to {to} (subject={subject!r}, resend_id={result.get('id') if isinstance(result, dict) else result})")
         await _record_email_event(to=to, subject=subject, status="sent", error=None)
         return True

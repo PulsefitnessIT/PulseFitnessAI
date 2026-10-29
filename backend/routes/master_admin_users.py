@@ -52,8 +52,50 @@ router = APIRouter()
 
 # ───────────── invite-link issuer ─────────────
 
+def _is_mod_org(org: dict | None) -> bool:
+    return bool(org and (org.get("is_mod") or str(org.get("account_type") or "").startswith("mod")))
+
+
+def _invite_url(token: str, org: dict | None) -> str:
+    """MOD organisations get links on the MOD Service site."""
+    if _is_mod_org(org):
+        base = (os.environ.get("MOD_PORTAL_URL") or os.environ.get("FRONTEND_URL", "")).rstrip("/")
+        return f"{base}/reset-password?token={token}&portal=mod"
+    return f"{os.environ.get('FRONTEND_URL', '').rstrip('/')}/reset-password?token={token}"
+
+
+async def _send_invite_email(email: str, name: str, invite_url: str, org: dict | None, inviter: dict) -> dict:
+    """Email the set-up link. Returns {sent, error}."""
+    import html as _h
+    from utils.email import send_email
+    mod = _is_mod_org(org)
+    brand = "Pulse Fitness MOD Service" if mod else "Pulse Fitness"
+    org_name = _h.escape((org or {}).get("name") or "your organisation")
+    first = _h.escape((name or "there").split()[0])
+    html = (f"<div style='font-family:Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:16px'>"
+            f"<h2 style='color:#0f172a;font-size:20px;margin:0 0 12px'>Hi {first},</h2>"
+            f"<p style='color:#1f2937;font-size:14px;line-height:1.6'>You've been set up as a user for <b>{org_name}</b> on {brand}. "
+            f"Click below to choose your password and sign in.</p>"
+            f"<p style='margin:24px 0'><a href='{invite_url}' style='background:#19398D;color:#fff;padding:12px 22px;border-radius:8px;"
+            f"text-decoration:none;font-weight:bold;font-size:14px'>Set up my account</a></p>"
+            f"<p style='color:#64748B;font-size:12px'>This link expires in 72 hours. If the button doesn't work, paste this into your browser:<br/>"
+            f"<span style='word-break:break-all'>{invite_url}</span></p>"
+            f"<p style='color:#64748B;font-size:13px;margin-top:24px'>Thanks,<br/><b>{brand}</b></p></div>")
+    try:
+        ok = await send_email(to=email, subject=f"Set up your {brand} account", html=html,
+                              organization_id=(org or {}).get("id"),
+                              category="mod" if mod else "support", kind="user_invite")
+    except Exception as e:
+        return {"sent": False, "error": str(e)[:200]}
+    if ok:
+        await log_activity("user_invite_emailed", f"Invite emailed to {email}", inviter.get("email", ""), "user", email)
+        return {"sent": True, "error": None}
+    ev = await db.email_send_events.find_one({"to": email, "status": "failed"}, {"_id": 0, "error": 1}, sort=[("created_at", -1)])
+    return {"sent": False, "error": ((ev or {}).get("error") or "Email provider rejected the send")[:200]}
+
+
 @router.post("/master-admin/users/{user_id}/invite-link")
-async def issue_user_invite_link(user_id: str, user: dict = Depends(get_current_user)):
+async def issue_user_invite_link(user_id: str, send: bool = False, user: dict = Depends(get_current_user)):
     """Iter 215ev — issue a signed set-password link for a user.
 
     Returns a URL the master admin can COPY and send manually (WhatsApp,
@@ -66,9 +108,9 @@ async def issue_user_invite_link(user_id: str, user: dict = Depends(get_current_
     require_master_admin(user)
     await assert_user_in_pulse_scope(user, user_id)
 
-    target = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "email": 1, "full_name": 1})
+    target = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "email": 1, "full_name": 1, "organization_id": 1})
     if not target:
-        target = await db.crm_users.find_one({"id": user_id}, {"_id": 0, "id": 1, "email": 1, "full_name": 1})
+        target = await db.crm_users.find_one({"id": user_id}, {"_id": 0, "id": 1, "email": 1, "full_name": 1, "organization_id": 1})
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -85,10 +127,13 @@ async def issue_user_invite_link(user_id: str, user: dict = Depends(get_current_
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
 
-    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
-    invite_url = f"{frontend_url}/reset-password?token={token}"
+    org = await db.organizations.find_one({"id": target.get("organization_id")}, {"_id": 0, "id": 1, "name": 1, "is_mod": 1, "account_type": 1}) if target.get("organization_id") else None
+    invite_url = _invite_url(token, org)
     await log_activity("user_invite_link_issued", f"Invite link issued for {target.get('email')}", user["email"], "user", target["id"])
+    sent = await _send_invite_email(target.get("email", ""), target.get("full_name", ""), invite_url, org, user) if send else None
     return {
+        "invite_email_sent": bool(sent and sent["sent"]),
+        "invite_email_error": (sent or {}).get("error"),
         "invite_url": invite_url,
         "expires_at": expires_at,
         "email": target.get("email", ""),
@@ -631,8 +676,11 @@ async def add_user_to_organization(org_id: str, body: dict = Body(...), user: di
             "issued_by": user.get("email", ""),
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
-        frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
-        invite_url = f"{frontend_url}/reset-password?token={token}"
+        invite_url = _invite_url(token, org)
+
+    invite_email = None
+    if invite_mode and body.get("send_invite", True):
+        invite_email = await _send_invite_email(email, full_name, invite_url, org, user)
 
     await log_activity("user_added_to_org", f"Added {email} to {org['name']} ({collection}){' [invite]' if invite_mode else ''}", user["email"], "user", user_id)
     return {
@@ -641,6 +689,8 @@ async def add_user_to_organization(org_id: str, body: dict = Body(...), user: di
         "invite_mode": invite_mode,
         "invite_url": invite_url,
         "invite_expires_at": invite_expires_at,
+        "invite_email_sent": bool(invite_email and invite_email["sent"]),
+        "invite_email_error": (invite_email or {}).get("error"),
     }
 
 
