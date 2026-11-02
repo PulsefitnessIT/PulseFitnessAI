@@ -1,0 +1,37 @@
+{
+  "summary": "Retest of the iteration_281 fixes. All 5 items are verified. (1) In light theme, mod-ms-apply and mod-ms-add-save have the bg-cyan-600 class and are clearly visible at desktop and at 390px. Light-theme CSS remaps the colours: computed background is rgb(0,145,202) and text is rgb(24,24,27), not white, giving about 5:1 contrast. (2) When the site has no provider, the dropdown offers only 'Use site default (Pulse Fitness (MOD Service))' and Inda Fitness; the Pulse in-house option is hidden. All 8 rows show 'Pulse Fitness (MOD Service)'. (3) At 390px the supplier name and badge wrap under the machine name, with no truncation and no horizontal overflow (scrollWidth 390). (4) PUT service-provider returns 403 for owner@isodemo.com for assign, clear and create-new. Readiness, equipment-by-category, SLA and site delete also return 403 for that owner. Master admin can still assign (8 machines moved) then clear, and reach readiness, equipment-by-category, SLA and the delete guard (wrong confirm_name is rejected). The operator owner portal@pulsefitness.ltd can reach SLA (200). The MOD site user still gets 403. (5) Regression: the iteration 280/281 files gave 21 passed, 1 skipped (only one estate exists). The UI end-to-end run also passed: Apply Inda to 1 row showed 'Changed by site', and reset to site default restored all rows. One minor API inconsistency remains: the API itself still returns raw/legacy supplier text.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/mod/site/machine-suppliers", "issue": "The name fix is done only in the frontend (MODMachineSuppliersPanel line 55). When follows_default is true and site_default is null, the API still returns the raw equipment.supplier: None after a master-admin clear, or the legacy 'Pulse Fitness'. Other API users (reports, exports, mobile) will see inconsistent names. Optional: normalise to PULSE_NAME on the server too."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Suppliers panel (light theme)", "issues": ["The Apply and Save buttons render dark text (rgb 24,24,27) on rgb(0,145,202) because light-theme CSS remaps text-white and the cyan colour. It is readable (about 5:1) but is not the white-on-cyan the brief describes. Cosmetic only."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_mod_machine_suppliers_iter282.py",
+    "/app/backend/tests/test_mod_machine_suppliers_jan2026.py",
+    "/app/backend/tests/test_mod_machine_suppliers_retest_jan2026.py",
+    "/app/test_reports/pytest/mod_ms_iter282.xml",
+    "/app/test_reports/pytest/mod_ms_iter282_regression.xml"
+  ],
+  "action_items": [
+    "Optional (minor): in GET /api/mod/site/machine-suppliers, return 'Pulse Fitness (MOD Service)' for follows_default rows when site_default is null, so the API matches the UI.",
+    "Optional: if pure white button text is wanted in light theme, add an exception to the light-theme text-white remap for these CTAs."
+  ],
+  "critical_code_review_comments": [
+    "All 7 _can_manage_mod_site call sites in master_admin_mod_estate.py are awaited, and none are left un-awaited in other files.",
+    "_can_manage_mod_site does one extra organizations lookup per call. Acceptable."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_machine_suppliers_iter282.py (new)"],
+  "success_rate": {"backend": "13/15 in the new file. The 2 failures only check that the API returns the normalised name, which is minor and handled in the UI. Regression: 21/21 run passed, 1 skipped.", "frontend": "100%"},
+  "seed_data_creation": "None. MOD Test Site was snapshotted and restored: service_supplier_id None, 0 overrides. TEST_ suppliers were deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "UI login: page.request.post /api/auth/login {email,password,portal:'mod'}, then set localStorage token=<jwt> and theme=light, then go to /pulse and click lite-tab-suppliers (mobile-pill-suppliers at 390px). Run tests/_mod_site_snapshot.py save before tests and restore after. The two name-normalisation tests in test_mod_machine_suppliers_iter282.py fail until the backend normalises the name."
+}

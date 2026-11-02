@@ -39205,3 +39205,10 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Tests: iteration_crm_mod_contracts_locations_jan2026.json (backend 14/14, frontend 100%).
 
 ## Jun 2026 — Sicon equipment template is the single equipment import format; Missing Information grid + engineer capture shipped (see CHANGELOG.md). Open question: MOD Code column not in Sicon template.
+
+## Jun 2026 — Site provider → machines auto-assign + site Bulk Machine Reassign — DONE (iterations 280–282)
+- Master Admin allocating/changing a MOD site's provider (PUT /api/master-admin/mod-estate/sites/{id}/service-provider, or ESP engineer site picker) moves EVERY machine to it (site overrides wiped); clear → all back to Pulse.
+- Machines carry supplier_override / supplier_mode (site_default | pulse | custom). Fault routing skips the site provider for overridden machines; supplier_mode=pulse routes to Pulse only.
+- MOD site staff: /pulse → Suppliers tab → "Machine service suppliers" panel (routes/mod_machine_suppliers.py, MODPortal/MODMachineSuppliersPanel.js): bulk reassign to site default / Pulse in-house / any estate provider / own third-party supplier (can add new). New provider emailed the machine list (category mod).
+- Security: _can_manage_mod_site now limited to master/pulse admin or owner/manager of the operator company.
+- Backlog: API-level normalisation done; remaining P1 items unchanged (Sicon Appointments → Diary P0).

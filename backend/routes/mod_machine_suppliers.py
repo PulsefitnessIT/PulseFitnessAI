@@ -53,7 +53,7 @@ async def list_machine_suppliers(user: dict = Depends(get_current_user)) -> dict
     ).sort("name", 1).to_list(2000)
     for m in machines:
         m["follows_default"] = not m.get("supplier_override")
-        if m.get("supplier_mode") == "pulse":
+        if m.get("supplier_mode") == "pulse" or (m["follows_default"] and not default):
             m["supplier"] = PULSE_NAME
     estate_id = org.get("mod_estate_id") or DEFAULT_ESTATE_ID
     providers = await db.mod_estate_suppliers.find(
