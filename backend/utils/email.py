@@ -265,9 +265,8 @@ _CATEGORY_SENDER_ENV = {
     "mod": "MOD_SENDER_EMAIL",
 }
 _CATEGORY_SENDER_DEFAULT = {
-    # MOD Service (modservice.pulsefitness.com). Falls back to the verified
-    # service domain at send time until pulsefitness.com is verified.
-    "mod": "Pulse Fitness MOD Service <modservice@pulsefitness.com>",
+    # MOD Service — sends from the Resend-verified modservice.pulsefitness.com.
+    "mod": "Pulse Fitness MOD Service <modservice@modservice.pulsefitness.com>",
     # VERIFIED Resend sending domains (work immediately):
     "service": "Pulse Fitness Service <service@service.pulsefitness.ai>",
     "memberships": "Pulse Fitness Memberships <noreply@memberships.pulsefitness.ai>",
@@ -294,7 +293,11 @@ def _category_sender(category: str | None) -> str:
         bare = _bare_addr(sender)
         local, _, domain = bare.partition("@")
         if domain:
-            fixed = f"{local}@{domain.lower()}"
+            domain = domain.lower()
+            # Bare pulsefitness.com isn't verified on Resend; the MOD subdomain is.
+            if category == "mod" and domain == "pulsefitness.com":
+                domain = "modservice.pulsefitness.com"
+            fixed = f"{local}@{domain}"
             sender = sender.replace(bare, fixed)
         return sender
     return SENDER_EMAIL
