@@ -1,0 +1,47 @@
+{
+  "summary": "MOD machine suppliers feature tested. Backend: 10/10 pytest pass (master-admin site provider assign moves ALL 8 machines + wipes overrides, clear resets, GET list, third-party add 400/409, bulk-reassign pulse/supplier/provider/site_default, foreign ids ignored, 400/404 validation, re-allocation wipes overrides). Frontend: the new 'Suppliers' button + modal work functionally, BUT MODSiteDashboard is NOT routed anywhere (AppRoutes only has an unused lazy import `_MODSiteDashboard`), so a real MOD site user logging in at /MODService lands on /launch -> /pulse (unified 'Pulse Fitness · MOD' portal) and can never reach mod-nav-machine-suppliers. Verified the modal via a temporary route (removed afterwards): select, select-all, apply, toast, row supplier/badge update, add third-party + preselect, site_default reset, mobile 390px no overflow. Modal has severe contrast issues. Found an authorization bypass on the master-admin provider endpoint. Site state restored to original snapshot (no provider, original supplier rows/equipment).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "PUT /api/master-admin/mod-estate/sites/{site_id}/service-provider", "issue": "Authorization bypass: _can_manage_mod_site() only checks role in {owner, manager, admin,...}, with NO tenant check. The MOD site user test@army.mod.test (role=owner of MOD Test Site) passed the guard on ANOTHER site 382db6bd-4c27-413d-a8e8-35e5a33940f0 (got 404 'Selected service provider not found' / 400 'Provide an estate_supplier_id', i.e. past auth). Any org owner/manager can change or clear any MOD site's provider and with move_all=True this now wipes all that site's machine overrides. Restrict to master admin / pulse admin (or MOD HQ with site in scope).", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/mod/site/machine-suppliers/bulk-reassign", "issue": "`emailed` is set whenever send_email doesn't raise, but utils.email.send_email returns False on Resend failure instead of raising. Backend logs show 'Email send FAILED ... API key is invalid' while the response/toast says 'emailed <addr>'. Use `ok = await send_email(...); emailed = t['email'] if ok else None`."},
+      {"endpoint": "POST /api/mod/site/machine-suppliers/bulk-reassign", "issue": "Uses an aggregation-pipeline update with literal values; a supplier name starting with '$' (e.g. '$ave Repairs') would get read as a field path. Wrap with {'$literal': ...} (same applies to _assign_site_machines)."},
+      {"endpoint": "GET /api/mod/site/machine-suppliers", "issue": "Legacy per-site row 'Inda Fitness' (id ext-inda-test, john+test@...) shows under 'Your third-party suppliers' as well as estate provider 'Inda Fitness', so the dropdown lists Inda Fitness twice. Dedupe by name too, or migrate that row. Also when org has no mod_estate_id, providers from ALL estates are listed and _resolve_target doesn't check the estate for provider:<id>."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MODSiteDashboard routing", "issue": "MODSiteDashboard (where mod-nav-machine-suppliers lives) isn't mounted on any route. AppRoutes.js line 215 lazy-imports `_MODSiteDashboard` and never uses it. Real login at /MODService?portal=modservice goes to /launch -> /pulse (the unified MOD portal with tabs Start/Dashboard/Equipment/.../Suppliers). Its existing Suppliers tab (lite-tab-suppliers) is the old manufacturer-derived view and shows 0 suppliers / 0 equipment. Users can't reach the new feature. Mount MODMachineSuppliersModal (or a button for it) in the /pulse MOD portal's Suppliers or Equipment tab.", "selector": "[data-testid='mod-nav-machine-suppliers']", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "Bulk reassign toast", "issue": "The toast says 'emailed X' even when the Resend send failed (backend `emailed` bug above).", "affected_selectors": ["toast"]}
+    ],
+    "design_issues": [
+      {"screen": "MODMachineSuppliersModal (light theme)", "issues": ["Very low contrast. Machine names, supplier names (mod-ms-supplier-*), the 'Machine service suppliers' heading, the Select all button text, the select placeholder and the add-form inputs show as dark grey on the near-black modal and are almost unreadable on desktop and at 390px. The global light-theme overrides look like they remap text-white inside a dark surface. Only the serial lines and the coloured badges are readable."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mod_machine_suppliers_jan2026.py", "/app/test_reports/pytest/mod_machine_suppliers.xml"],
+  "action_items": [
+    "CRITICAL: Lock PUT /api/master-admin/mod-estate/sites/{id}/service-provider to master/pulse admin (or HQ with site in scope). Site owners can currently change or clear other sites' providers.",
+    "CRITICAL: Make the Suppliers modal reachable for real MOD site users. MODSiteDashboard is not routed, and users land on /pulse. Add the button/modal to the /pulse MOD portal (e.g. the Suppliers tab).",
+    "Fix modal text contrast: names, heading, buttons, select and inputs are unreadable.",
+    "bulk-reassign: only set `emailed` when send_email returns True.",
+    "Dedupe the duplicate 'Inda Fitness' entry (provider vs legacy third-party row ext-inda-test).",
+    "Optional: use $literal in pipeline updates for supplier names."
+  ],
+  "critical_code_review_comments": [
+    "_can_manage_mod_site has no tenant scoping, used on master-admin routes.",
+    "send_email failures are swallowed (returns False), so the try/except in bulk_reassign never sets emailed=None.",
+    "list_machine_suppliers: est_q is {} when the org has no mod_estate_id, which lists every estate's providers.",
+    "The clear path deletes the site's estate-linked default supplier row; bulk 'provider:<id>' rows for other providers are left behind (harmless but can accumulate)."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_machine_suppliers_jan2026.py (new)", "/app/frontend/src/routes/AppRoutes.js (temporary QA route added then fully reverted, no net change)"],
+  "success_rate": {"backend": "100% functional (10/10), 1 critical security issue", "frontend": "Modal ~100% functional via temp route; 0% reachable in the real app flow"},
+  "test_credentials": "MOD site: test@army.mod.test / ModTest123! (UI must use /MODService?portal=modservice on preview; plain /MODService redirects to production modservice.pulsefitness.com, where the creds are invalid). Master admin: admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (ENFORCE_MASTER_ADMIN_MFA=false, so a token is returned directly). Clear login rate limit with python /app/backend/tests/_clear_login_ratelimit.py",
+  "seed_data_creation": "None persisted. MOD Test Site snapshot (org provider fields, 8 equipment docs, 4 supplier rows) was restored after testing: service_supplier_id=None, original supplier rows incl. 84928bd1 Inda estate row.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run pytest tests/test_mod_machine_suppliers_jan2026.py. It mutates the MOD Test Site (assigns Inda then clears, which deletes estate-linked supplier row 84928bd1), so snapshot/restore if exact state matters. For UI, log in at /MODService?portal=modservice. After the fix, find the Suppliers entry point in the /pulse MOD portal and re-check contrast.",
+  "rca of the issue": "Unreachable UI: E1 added the button to MODSiteDashboard.js, but that component is dead code (unused lazy import `_MODSiteDashboard` in AppRoutes.js). MOD site users are routed to the unified /pulse portal. Security: assign_site_service_provider relies on _can_manage_mod_site(), which is role-only."
+}

@@ -586,9 +586,12 @@ async def mod_site_equipment_by_category(site_id: str, category: str = Query(...
 
 def _can_manage_mod_site(user: dict) -> bool:
     """Owners/managers/admins (operator roles) and master admins may manage
-    MOD sites. Admin staff need this too, so it isn't master-admin only."""
+    MOD sites. Admin staff need this too, so it isn't master-admin only.
+    MOD personnel (site / BFPO users) never manage the estate."""
     if user.get("is_master_admin") or user.get("is_pulse_admin"):
         return True
+    if user.get("is_mod_user") or user.get("is_mod_bfpo") or (user.get("account_type") or "").startswith("mod_"):
+        return False
     return (user.get("role") or "").lower() in {
         "owner", "manager", "director", "admin", "administrator",
         "general_manager", "gm",
@@ -2057,7 +2060,7 @@ async def _assign_site_machines(org_id: str, supplier_row_id: Optional[str], sup
         q["supplier_override"] = {"$ne": True}
     res = await db.equipment.update_many(q, [{"$set": {
         "previous_supplier": "$supplier",
-        "supplier_id": supplier_row_id, "supplier": supplier_name,
+        "supplier_id": {"$literal": supplier_row_id}, "supplier": {"$literal": supplier_name},
         "supplier_override": False, "supplier_mode": "site_default",
         "supplier_assigned_by": "site_provider", "supplier_assigned_at": _now()}}])
     return res.modified_count

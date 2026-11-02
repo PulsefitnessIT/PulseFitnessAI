@@ -24,6 +24,7 @@ import PulseGymLayoutTab from './PulseGymLayoutTab';
 import PulseAIDiagnosisTab from './PulseAIDiagnosisTab';
 import SupplierDashboardTab from './SupplierDashboardTab';
 import MODUserGuide from './MODPortal/MODUserGuide';
+import MODMachineSuppliersPanel from './MODPortal/MODMachineSuppliersPanel';
 import OnboardingWizard from './OnboardingWizard';
 import AddEquipmentDialog from '../components/equipment/AddEquipmentDialog';
 import LiteOverviewTab from './LiteDashboard/LiteOverviewTab';
@@ -1158,6 +1159,7 @@ const LiteDashboardPage = () => {
                 MODProDashboard; floor staff use the standalone /gym-floor. */}
             {isPro && tabVisible('suppliers') && (
               <TabsContent value="suppliers" data-testid="suppliers-content">
+                {isMODSite && <MODMachineSuppliersPanel />}
                 <SupplierDashboardTab />
               </TabsContent>
             )}

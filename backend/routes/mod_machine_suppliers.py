@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Body, Depends, HTTPException
 
 from routes.mod_portal import _require_mod_site
+from routes.master_admin_mod_estate import DEFAULT_ESTATE_ID
 from routes.master_admin import log_activity
 from utils.auth import get_current_user
 from utils.database import db
@@ -54,10 +55,9 @@ async def list_machine_suppliers(user: dict = Depends(get_current_user)) -> dict
         m["follows_default"] = not m.get("supplier_override")
         if m.get("supplier_mode") == "pulse":
             m["supplier"] = PULSE_NAME
-    estate_id = org.get("mod_estate_id")
-    est_q = {"mod_estate_id": estate_id} if estate_id else {}
+    estate_id = org.get("mod_estate_id") or DEFAULT_ESTATE_ID
     providers = await db.mod_estate_suppliers.find(
-        {**est_q, "status": {"$ne": "inactive"}},
+        {"mod_estate_id": estate_id, "status": {"$ne": "inactive"}},
         {"_id": 0, "id": 1, "name": 1, "email": 1, "countries": 1}).sort("name", 1).to_list(500)
     own = await db.suppliers.find(
         {"organization_id": org["id"], "estate_supplier_id": {"$exists": False}, "email": {"$nin": [None, ""]}},
@@ -66,7 +66,9 @@ async def list_machine_suppliers(user: dict = Depends(get_current_user)) -> dict
     providers = [p for p in providers if (p.get("email") or "").lower() != pulse_lc
                  and "in-house" not in (p.get("name") or "").lower()]
     prov_emails = {(p.get("email") or "").lower() for p in providers}
-    own = [s for s in own if (s.get("email") or "").lower() not in prov_emails | {pulse_lc}]
+    prov_names = {(p.get("name") or "").strip().lower() for p in providers}
+    own = [s for s in own if (s.get("email") or "").lower() not in prov_emails | {pulse_lc}
+           and (s.get("name") or "").strip().lower() not in prov_names]
     return {
         "site_default": default,
         "machines": machines,
@@ -117,7 +119,8 @@ async def _resolve_target(org: dict, target: str) -> dict:
         return {"mode": "pulse", "supplier_id": None, "supplier": PULSE_NAME, "email": _pulse_email(), "override": True}
     kind, _, tid = target.partition(":")
     if kind == "provider" and tid:
-        est = await db.mod_estate_suppliers.find_one({"id": tid}, {"_id": 0})
+        est = await db.mod_estate_suppliers.find_one(
+            {"id": tid, "mod_estate_id": org.get("mod_estate_id") or DEFAULT_ESTATE_ID}, {"_id": 0})
         if not est:
             raise HTTPException(404, "Service provider not found.")
         row = await db.suppliers.find_one({"organization_id": org["id"], "estate_supplier_id": tid}, {"_id": 0, "id": 1})
@@ -176,7 +179,8 @@ async def bulk_reassign(data: dict = Body(...), user: dict = Depends(get_current
     now = _now()
     await db.equipment.update_many(
         {"organization_id": org["id"], "id": {"$in": [m["id"] for m in machines]}},
-        [{"$set": {"previous_supplier": "$supplier", "supplier_id": t["supplier_id"], "supplier": t["supplier"],
+        [{"$set": {"previous_supplier": "$supplier", "supplier_id": {"$literal": t["supplier_id"]},
+                   "supplier": {"$literal": t["supplier"]},
                    "supplier_override": t["override"], "supplier_mode": t["mode"],
                    "supplier_assigned_by": "site_staff_bulk", "supplier_assigned_at": now}}])
     actor = user.get("full_name") or user.get("email") or "Site staff"
@@ -187,10 +191,10 @@ async def bulk_reassign(data: dict = Body(...), user: dict = Depends(get_current
     emailed = None
     if t["email"]:
         try:
-            await send_email(t["email"], f"{len(machines)} machine(s) assigned to you — {org.get('name')}",
-                             _reassign_email_html(org.get("name") or "MOD site", who, machines, actor),
-                             organization_id=org["id"], kind="mod_machines_reassigned", category="mod")
-            emailed = t["email"]
+            ok = await send_email(t["email"], f"{len(machines)} machine(s) assigned to you — {org.get('name')}",
+                                  _reassign_email_html(org.get("name") or "MOD site", who, machines, actor),
+                                  organization_id=org["id"], kind="mod_machines_reassigned", category="mod")
+            emailed = t["email"] if ok else None
         except Exception:
             emailed = None
     return {"ok": True, "updated": len(machines), "supplier": who, "mode": t["mode"], "emailed": emailed}
