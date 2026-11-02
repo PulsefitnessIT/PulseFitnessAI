@@ -942,6 +942,9 @@ async def update_equipment(equipment_id: str, data: Dict[str, Any], request: Req
             status_code=403,
             detail="Only owners and managers can change the supplier on equipment",
         )
+    if "supplier" in update_data or "supplier_id" in update_data:
+        update_data["supplier_override"] = True
+        update_data["supplier_mode"] = "custom"
 
     # Iter 216h49 — site moves are an organisational decision and must
     # also be gated. Non-privileged staff cannot transfer kit between sites.

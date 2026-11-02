@@ -750,6 +750,7 @@ async def assign_site_service_provider(site_id: str, data: dict = Body(...),
             {"id": site_id},
             {"$set": {"service_supplier_id": None, "service_supplier": None,
                       "serviced_by": "pulse_fitness"}})
+        await _assign_site_machines(site_id, None, None, move_all=True)
         await log_activity("mod_estate.provider_cleared",
                            f"Cleared overseas service provider for '{org.get('name')}'",
                            user.get("email"), "organization", site_id)
@@ -817,12 +818,13 @@ async def assign_site_service_provider(site_id: str, data: dict = Body(...),
         {"$set": {"service_supplier_id": site_sup_id,
                   "service_supplier": est_sup["name"],
                   "serviced_by": "external_supplier"}})
+    moved = await _assign_site_machines(site_id, site_sup_id, est_sup["name"], move_all=True)
     await log_activity("mod_estate.provider_assigned",
                        f"Assigned overseas service provider '{est_sup['name']}' to '{org.get('name')}'",
                        user.get("email"), "organization", site_id)
     return {
         "ok": True, "site_id": site_id,
-        "service_supplier_id": site_sup_id,
+        "service_supplier_id": site_sup_id, "machines_moved": moved,
         "provider": {"name": est_sup["name"], "email": est_sup.get("email", ""),
                      "allocated": bool((est_sup.get("email") or "").strip())},
     }
@@ -2041,29 +2043,24 @@ async def _sync_provider_to_sites(supplier_id: str) -> int:
         await db.organizations.update_one(
             {"id": org["id"]},
             {"$set": {"service_supplier_id": row_id, "service_supplier": prop["name"], "serviced_by": "external_supplier"}})
-        await _assign_site_machines(org["id"], row_id, prop["name"])
+        await _assign_site_machines(org["id"], row_id, prop["name"], move_all=(cur_id != row_id))
         linked += 1
     return linked
 
 
-async def _assign_site_machines(org_id: str, supplier_row_id: str, supplier_name: str) -> int:
-    """Machines with no routable supplier (blank, or a name not in the site's
-    directory / without an email) go to the site's external provider. Pulse is
-    always copied on MOD faults. Machines already linked to another supplier
-    with an email are left alone — site staff can reassign any machine later."""
-    routable_ids, routable_names = set(), set()
-    async for s in db.suppliers.find({"organization_id": org_id, "email": {"$nin": [None, ""]}}, {"_id": 0, "id": 1, "name": 1}):
-        routable_ids.add(s["id"])
-        routable_names.add((s.get("name") or "").strip().lower())
-    n = 0
-    async for e in db.equipment.find({"organization_id": org_id}, {"_id": 0, "id": 1, "supplier_id": 1, "supplier": 1}):
-        if e.get("supplier_id") in routable_ids or (e.get("supplier") or "").strip().lower() in routable_names:
-            continue
-        await db.equipment.update_one({"id": e["id"]}, {"$set": {
-            "supplier_id": supplier_row_id, "supplier": supplier_name,
-            "previous_supplier": e.get("supplier") or None, "supplier_assigned_by": "external_provider_sync"}})
-        n += 1
-    return n
+async def _assign_site_machines(org_id: str, supplier_row_id: Optional[str], supplier_name: Optional[str],
+                                move_all: bool = False) -> int:
+    """Point a site's machines at its provider. move_all=True (a new / changed
+    allocation) also wipes site-staff overrides; otherwise overridden machines stay."""
+    q: dict = {"organization_id": org_id}
+    if not move_all:
+        q["supplier_override"] = {"$ne": True}
+    res = await db.equipment.update_many(q, [{"$set": {
+        "previous_supplier": "$supplier",
+        "supplier_id": supplier_row_id, "supplier": supplier_name,
+        "supplier_override": False, "supplier_mode": "site_default",
+        "supplier_assigned_by": "site_provider", "supplier_assigned_at": _now()}}])
+    return res.modified_count
 
 
 async def sync_all_external_providers() -> int:

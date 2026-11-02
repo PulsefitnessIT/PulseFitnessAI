@@ -1827,7 +1827,8 @@ async def mod_fault_submit(
     # double-sent (the MOD default supplier resolves to MODService@ and is
     # skipped here since it already got the escalation email above).
     try:
-        overseas_sup_id = (org.get("service_supplier_id") or "").strip() if org.get("is_overseas") else ""
+        overseas_sup_id = (org.get("service_supplier_id") or "").strip() \
+            if org.get("is_overseas") and not equipment.get("supplier_override") else ""
         recipients: dict = {}  # email_lc -> supplier doc
 
         def _add(sd):
@@ -3433,7 +3434,7 @@ async def _resolve_equipment_supplier(eq: dict, site_id: str) -> Optional[dict]:
     Returns the supplier doc or ``None`` if no match. Scope is restricted
     to the same organisation (site_id is the MOD site's organization_id).
     """
-    if not eq:
+    if not eq or eq.get("supplier_mode") == "pulse":
         return None
     # 1. Direct id link
     supplier_id = (eq.get("supplier_id") or "").strip()
