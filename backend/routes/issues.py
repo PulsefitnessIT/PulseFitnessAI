@@ -986,7 +986,8 @@ async def _send_mod_fault_notifications(issue_doc: dict, user: dict) -> None:
 
         # Overseas provider assigned to this site (if any).
         overseas_email, overseas_name = "", ""
-        if org.get("is_overseas") and (org.get("service_supplier_id") or "").strip():
+        # Any external provider nominated for the site (not only overseas).
+        if (org.get("service_supplier_id") or "").strip():
             ov = await db.suppliers.find_one(
                 {"id": org["service_supplier_id"], "organization_id": org_id},
                 {"_id": 0, "name": 1, "email": 1},
@@ -1010,23 +1011,24 @@ async def _send_mod_fault_notifications(issue_doc: dict, user: dict) -> None:
 
         # 1) Pulse MOD Service desk — always in the log; email only if
         #    auto-dispatch didn't already send to MODService@.
-        notified.append({"role": "pulse", "name": "Pulse Fitness (MOD Service)",
-                         "email": pulse_email, "at": now_iso})
+        pulse_entry = {"role": "pulse", "name": "Pulse Fitness (MOD Service)",
+                       "email": pulse_email, "at": now_iso}
+        notified.append(pulse_entry)
         seen.add(pulse_email.lower())
         if pulse_email.lower() not in already_emailed:
-            asyncio.create_task(send_email(
+            pulse_entry["delivered"] = bool(await send_email(
                 pulse_email, subject, html,
-                organization_id=org_id, kind="mod_fault_pulse", category="operations"))
+                organization_id=org_id, kind="mod_fault_pulse", category="mod"))
 
         # 2) Overseas provider — email if not already emailed.
         if overseas_email and overseas_email.lower() not in seen:
-            notified.append({"role": "overseas", "name": overseas_name,
-                             "email": overseas_email, "at": now_iso})
+            ov_entry = {"role": "overseas", "name": overseas_name, "email": overseas_email, "at": now_iso}
+            notified.append(ov_entry)
             seen.add(overseas_email.lower())
             if overseas_email.lower() not in already_emailed:
-                asyncio.create_task(send_email(
+                ov_entry["delivered"] = bool(await send_email(
                     overseas_email, subject, html,
-                    organization_id=org_id, kind="mod_fault_overseas", category="operations"))
+                    organization_id=org_id, kind="mod_fault_overseas", category="mod"))
 
         # 3) Any other supplier auto-dispatch already emailed (machine supplier).
         if dispatched_email and dispatched_email.lower() not in seen:

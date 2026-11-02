@@ -1198,7 +1198,7 @@ async def _issue_invite(user_doc: dict) -> str:
         "status": "sent", "created_at": _now(),
         "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
     })
-    url = f"{_frontend_url()}/bfpo/invite/{token}"
+    url = f"{(os.environ.get('MOD_PORTAL_URL') or _frontend_url()).rstrip('/')}/bfpo/invite/{token}"
     name = user_doc.get("full_name") or "there"
     html = (
         f"<div style='font-family:Arial,sans-serif;max-width:520px;margin:0 auto'>"
@@ -1217,7 +1217,7 @@ async def _issue_invite(user_doc: dict) -> str:
         await send_email(to=user_doc["email"],
                          subject="Set up your Pulse Fitness MOD engineer account",
                          html=html, organization_id=BFPO_ORG_ID,
-                         kind="bfpo_invite", category="support")
+                         kind="bfpo_invite", category="mod")
     except Exception as e:
         logger.warning("BFPO invite email failed for %s: %s", user_doc["email"], e)
     return url

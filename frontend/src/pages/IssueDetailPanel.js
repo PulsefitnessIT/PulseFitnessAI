@@ -541,11 +541,11 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  <div key={`${r.email || i}-${i}`} className="flex items-center justify-between gap-3 text-sm" data-testid={`issue-notified-${issue.id}-${i}`}>
  <div className="min-w-0 flex items-center gap-2">
  <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${r.role === 'pulse' ? 'bg-sky-500/20 text-sky-300' : r.role === 'overseas' ? 'bg-amber-500/20 text-amber-300' : 'bg-zinc-500/20 text-zinc-300'}`}>
- {r.role === 'pulse' ? 'Pulse' : r.role === 'overseas' ? 'Overseas' : 'Supplier'}
+ {r.role === 'pulse' ? 'Pulse' : r.role === 'overseas' ? 'Service provider' : 'Supplier'}
  </span>
  <span className="text-white font-medium truncate">{r.name || r.email}</span>
  </div>
- <span className="text-[var(--color-text-muted)] text-xs truncate shrink-0">{r.email}</span>
+ <span className="text-[var(--color-text-muted)] text-xs truncate shrink-0">{r.email}{r.delivered === false && <span className="ml-2 text-red-400 font-semibold" data-testid={`issue-notified-failed-${issue.id}-${i}`}>· not delivered</span>}</span>
  </div>
  ))}
  </div>

@@ -2041,8 +2041,40 @@ async def _sync_provider_to_sites(supplier_id: str) -> int:
         await db.organizations.update_one(
             {"id": org["id"]},
             {"$set": {"service_supplier_id": row_id, "service_supplier": prop["name"], "serviced_by": "external_supplier"}})
+        await _assign_site_machines(org["id"], row_id, prop["name"])
         linked += 1
     return linked
+
+
+async def _assign_site_machines(org_id: str, supplier_row_id: str, supplier_name: str) -> int:
+    """Machines with no routable supplier (blank, or a name not in the site's
+    directory / without an email) go to the site's external provider. Pulse is
+    always copied on MOD faults. Machines already linked to another supplier
+    with an email are left alone — site staff can reassign any machine later."""
+    routable_ids, routable_names = set(), set()
+    async for s in db.suppliers.find({"organization_id": org_id, "email": {"$nin": [None, ""]}}, {"_id": 0, "id": 1, "name": 1}):
+        routable_ids.add(s["id"])
+        routable_names.add((s.get("name") or "").strip().lower())
+    n = 0
+    async for e in db.equipment.find({"organization_id": org_id}, {"_id": 0, "id": 1, "supplier_id": 1, "supplier": 1}):
+        if e.get("supplier_id") in routable_ids or (e.get("supplier") or "").strip().lower() in routable_names:
+            continue
+        await db.equipment.update_one({"id": e["id"]}, {"$set": {
+            "supplier_id": supplier_row_id, "supplier": supplier_name,
+            "previous_supplier": e.get("supplier") or None, "supplier_assigned_by": "external_provider_sync"}})
+        n += 1
+    return n
+
+
+async def sync_all_external_providers() -> int:
+    """Startup backfill: push every provider's details to its covered sites."""
+    total = 0
+    async for p in db.mod_estate_suppliers.find({}, {"_id": 0, "id": 1}):
+        try:
+            total += await _sync_provider_to_sites(p["id"])
+        except Exception:
+            logger.exception("provider site sync failed for %s", p["id"])
+    return total
 
 
 @router.post("/master-admin/mod-estate/external-providers")

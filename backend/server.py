@@ -425,6 +425,11 @@ async def _full_boot() -> None:
     # lazily on first put/get, so a boot-time failure here is harmless.
     from starlette.concurrency import run_in_threadpool
     try:
+        from routes.master_admin_mod_estate import sync_all_external_providers
+        logger.info(f"External provider site sync: {await sync_all_external_providers()} site(s)")
+    except Exception as e:
+        logger.error(f"External provider site sync failed: {e}")
+    try:
         await run_in_threadpool(init_storage)
         logger.info("Storage initialized")
     except Exception as e:
