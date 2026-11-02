@@ -780,6 +780,8 @@ body.has-bottom-banner main.overflow-y-auto {
 [data-theme="light"] .bg-green-600 .text-white,
 [data-theme="light"] .bg-red-600.text-white,
 [data-theme="light"] .bg-red-600 .text-white,
+[data-theme="light"] .bg-rose-600.text-white,
+[data-theme="light"] .bg-rose-600 .text-white,
 [data-theme="light"] .bg-amber-600.text-white,
 [data-theme="light"] .bg-amber-600 .text-white,
 [data-theme="light"] .bg-zinc-900.text-white,

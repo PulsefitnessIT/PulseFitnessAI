@@ -77,7 +77,7 @@ async def email_health(user: dict = Depends(get_current_user)) -> dict:
         "status": "sent", "created_at": {"$gte": cutoff},
     })
     failed = await db.email_send_events.count_documents({
-        "status": {"$ne": "sent"}, "created_at": {"$gte": cutoff},
+        "status": {"$ne": "sent"}, "created_at": {"$gte": cutoff}, "retry_of": {"$exists": False},
     })
 
     last_sent = await db.email_send_events.find_one(
@@ -104,7 +104,7 @@ async def email_health(user: dict = Depends(get_current_user)) -> dict:
         # yet retried). Strip the payload itself before returning.
         r["retryable"] = bool(
             r.get("status") and r.get("status") != "sent"
-            and r.get("payload")
+            and (r.get("payload") or {}).get("html")
             and not r.get("retried_at")
             and r.get("id")
         )
@@ -233,7 +233,7 @@ async def list_outbound_emails(
         # the response so the UI list stays light.
         r["retryable"] = bool(
             r.get("status") and r.get("status") != "sent"
-            and r.get("payload")
+            and (r.get("payload") or {}).get("html")
             and not r.get("retried_at")
             and r.get("id")
         )
@@ -247,7 +247,7 @@ async def list_outbound_emails(
         "status": "sent", "created_at": {"$gte": cutoff},
     })
     failed_24h = await db.email_send_events.count_documents({
-        "status": {"$ne": "sent"}, "created_at": {"$gte": cutoff},
+        "status": {"$ne": "sent"}, "created_at": {"$gte": cutoff}, "retry_of": {"$exists": False},
     })
     total_all_time = await db.email_send_events.count_documents({})
 
@@ -352,7 +352,7 @@ async def retry_all_failed_emails(user: dict = Depends(get_current_user)) -> dic
 
 @router.post("/master-admin/email-events/{event_id}/retry")
 async def retry_failed_email(event_id: str, user: dict = Depends(get_current_user)) -> dict:
-    """Replay a single failed outbound email (404 / 409 / 502 on error)."""
+    """Replay a single failed outbound email (404 / 409 / 422 on error)."""
     _require_master(user)
     if not RESEND_API_KEY:
         raise HTTPException(503, "RESEND_API_KEY missing — cannot send")

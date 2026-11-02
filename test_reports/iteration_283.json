@@ -1,0 +1,37 @@
+{
+  "summary": "Failed Email Resend feature tested end-to-end. Backend 12/12 pytest pass (retryable_count on both GETs, 404/409/409/409/422 single retry, 422 returns JSON not proxy HTML, retried_at+retry_event_id stamped, no double replay, >7d rows skipped by retry-all, attempted<=60, 403 for non-master on all 4 endpoints, _repair_from swaps @pulsefitness.com -> @modservice.pulsefitness.com and retry rows carry the repaired sender). Frontend: Email pill dialog shows red per-row Resend + 'Resend all failed (N)' next to 'Last 5 attempts'; single Resend -> 'Retry failed / Resend rejected it again: ResendError(API key is invalid)' toast; Resend all -> '0 resent, 60 still failing' toast in ~15s, no crash. Outbound emails page (/master-admin?section=emails) header 'Resend all failed (99)' + expanded failed row Resend both work with same toasts. Found + fixed a light-theme contrast bug: Resend buttons rendered dark text (rgb 24,24,27) on rose-600 because the global [data-theme=light] .text-white override did not whitelist bg-rose-600.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/master-admin/email-events/retry-failed + GET email-health/emails", "issue": "Every failed retry inserts a NEW retryable failed row, so retryable_count never drops while Resend keeps failing (stayed 99 after 2 resend-all runs) and 'Failed (24h)' inflates by up to 60 per tap (245 -> 306 -> 367). Consider excluding retry_of rows from the failed_24h stat, or showing originals-only counts."},
+      {"endpoint": "GET /api/master-admin/email-health & /emails (row.retryable)", "issue": "Per-row retryable flag doesn't apply the 7-day RETRY_WINDOW_DAYS or payload.html check used by _retryable_query, so a row older than 7d (or payload without html) shows a Resend button but isn't counted in 'Resend all (N)'; a payload lacking html shows Resend but returns 409."},
+      {"endpoint": "retry_failed_email docstring", "issue": "Docstring still says 502; code returns 422 (cosmetic)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EmailHealthPill / AdminEmails / ResendAllButton", "issue": "FIXED by testing agent: light theme turned text-white into dark text on bg-rose-600 Resend buttons (low contrast). Added .bg-rose-600(.text-white) to the white-preserve list in index.css. Verified computed color now rgb(255,255,255).", "selector": "[data-testid^=email-health-retry-], [data-testid=emails-retry-0], [data-testid=emails-resend-all]", "priority": "MEDIUM (fixed)"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Email pipeline dialog", "issues": ["'Last 5 attempts' becomes dominated by retry rows after a Resend all, pushing original context out; acceptable but noisy."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter283_email_resend_all.py", "/app/test_reports/pytest/iter283.xml"],
+  "action_items": [
+    "Optional: stop retry rows inflating Failed(24h)/retryable_count (or label count as 'pending resend' that only counts latest attempt per original — already the case, but it never decreases while failing).",
+    "Optional: align per-row `retryable` with _retryable_query (7-day window + payload.html).",
+    "Update retry_failed_email docstring 502 -> 422."
+  ],
+  "critical_code_review_comments": [
+    "retry-failed processes up to 60 sends serially in one request (~15s in preview with fast-failing key); with a valid key + rate limiter this could approach the ingress timeout — consider background job or smaller batch.",
+    "AdminEmails list returns retried_at/retry_event_id unpopped (harmless; datetime serialized)."
+  ],
+  "updated_files": ["/app/frontend/src/index.css", "/app/backend/tests/test_iter283_email_resend_all.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% (after contrast fix)"},
+  "seed_data_creation": "Temporary TEST_iter283* email_send_events rows seeded and deleted afterwards. Note: the Resend-all runs replayed real preview failed rows (~120 originals now have retried_at and spawned new failed retry rows) — harmless in preview since key is invalid.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login admin@pulsefitness.com (MFA off in preview). Outbound emails at /master-admin?section=emails. Seed failed rows with payload.html directly in db.email_send_events to get Resend buttons. Resend key invalid -> all retries fail with 422 / 'X still failing' toast (expected).",
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg; portal@pulsefitness.ltd / PulseFleet123! (403 check)"
+}

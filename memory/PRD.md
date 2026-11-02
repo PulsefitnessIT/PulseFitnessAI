@@ -39212,3 +39212,7 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - MOD site staff: /pulse → Suppliers tab → "Machine service suppliers" panel (routes/mod_machine_suppliers.py, MODPortal/MODMachineSuppliersPanel.js): bulk reassign to site default / Pulse in-house / any estate provider / own third-party supplier (can add new). New provider emailed the machine list (category mod).
 - Security: _can_manage_mod_site now limited to master/pulse admin or owner/manager of the operator company.
 - Backlog: API-level normalisation done; remaining P1 items unchanged (Sicon Appointments → Diary P0).
+
+## Jun 2026 — MOD sender domain fix + Failed Email Resend — DONE (iteration 283)
+- MOD emails always send from verified modservice.pulsefitness.com (utils/email.py _category_sender rewrites bare @pulsefitness.com).
+- Master Admin: red "Resend" on each failed email + "Resend all failed (N)" (Email pill dialog + Outbound emails page). POST /api/master-admin/email-events/retry-failed (last 7 days, max 60/tap); single retry returns 422 on Resend rejection. Retries repair the sender domain. Failed counts exclude retry rows.
