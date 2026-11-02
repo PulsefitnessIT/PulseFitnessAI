@@ -538,7 +538,7 @@ async def mod_site_readiness(estate_id: str = DEFAULT_ESTATE_ID,
     checklist. For each site returns counts + ready flags for Equipment,
     Staff, Suppliers, Documents and Check Sheets so HQ can see, at a glance,
     what each site still needs before going live."""
-    if not _can_manage_mod_site(user):
+    if not await _can_manage_mod_site(user):
         raise HTTPException(status_code=403, detail="Only owners, managers or an admin can manage MOD sites.")
     return await _compute_estate_readiness(estate_id)
 
@@ -549,7 +549,7 @@ async def mod_site_equipment_by_category(site_id: str, category: str = Query(...
     """Drill-down for the 'Kit by category' chip on a MOD site card: the actual
     machines that make up a category count. Category is coalesced the same way
     the readiness aggregation does (category → equipment_type → 'Uncategorised')."""
-    if not _can_manage_mod_site(user):
+    if not await _can_manage_mod_site(user):
         raise HTTPException(status_code=403, detail="Only owners, managers or an admin can manage MOD sites.")
     want = (category or "").strip().lower()
     docs = await db.equipment.find(
@@ -584,7 +584,7 @@ async def mod_site_equipment_by_category(site_id: str, category: str = Query(...
     return {"site_id": site_id, "category": category, "count": len(items), "items": items}
 
 
-def _can_manage_mod_site(user: dict) -> bool:
+async def _can_manage_mod_site(user: dict) -> bool:
     """Owners/managers/admins (operator roles) and master admins may manage
     MOD sites. Admin staff need this too, so it isn't master-admin only.
     MOD personnel (site / BFPO users) never manage the estate."""
@@ -592,10 +592,13 @@ def _can_manage_mod_site(user: dict) -> bool:
         return True
     if user.get("is_mod_user") or user.get("is_mod_bfpo") or (user.get("account_type") or "").startswith("mod_"):
         return False
-    return (user.get("role") or "").lower() in {
+    if (user.get("role") or "").lower() not in {
         "owner", "manager", "director", "admin", "administrator",
         "general_manager", "gm",
-    }
+    }:
+        return False
+    org = await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0, "is_operator_company": 1})
+    return bool((org or {}).get("is_operator_company"))
 
 
 @router.patch("/master-admin/mod-estate/equipment/{equipment_id}")
@@ -604,7 +607,7 @@ async def set_mod_equipment_location(equipment_id: str, data: dict = Body(...),
     """Set (or clear) a machine's LOCATION / zone from the Master Admin estate
     view. Drives the Fault Wizard's location grouping so it mirrors the real
     gym layout. Master-admin (or owner/manager) only, cross-org by design."""
-    if not _can_manage_mod_site(user):
+    if not await _can_manage_mod_site(user):
         raise HTTPException(403, "Only owners, managers or a master admin can set machine locations.")
     eq = await db.equipment.find_one({"id": equipment_id}, {"_id": 0, "id": 1, "name": 1, "organization_id": 1})
     if not eq:
@@ -630,7 +633,7 @@ async def delete_mod_estate_site(site_id: str, confirm_name: str = Query(...),
     the caller to echo the site name (type-to-confirm) so mistaken or test
     sites can be cleaned up without a developer. Cascades to the site's
     equipment, users and suppliers."""
-    if not _can_manage_mod_site(user):
+    if not await _can_manage_mod_site(user):
         raise HTTPException(status_code=403, detail="Only owners, managers or a master admin can remove a site.")
     org = await db.organizations.find_one({"id": site_id}, {"_id": 0, "id": 1, "name": 1, "account_type": 1})
     if not org:
@@ -654,7 +657,7 @@ async def delete_mod_estate_site(site_id: str, confirm_name: str = Query(...),
 async def get_mod_site_sla(site_id: str, user: dict = Depends(get_current_user)) -> dict:
     """Current SLA targets for a MOD site + the UK/overseas defaults so the
     editor can show what the site inherits when left on default."""
-    if not _can_manage_mod_site(user):
+    if not await _can_manage_mod_site(user):
         raise HTTPException(403, "Only owners, managers or a master admin can view SLA settings.")
     org = await db.organizations.find_one(
         {"id": site_id},
@@ -677,7 +680,7 @@ async def set_mod_site_sla(site_id: str, data: dict = Body(...),
       • {"use_default": true}                     — clear overrides (inherit UK/overseas default)
       • {"response_hours": N, "fix_hours": M}      — custom targets (hours, 1..8760)
     """
-    if not _can_manage_mod_site(user):
+    if not await _can_manage_mod_site(user):
         raise HTTPException(403, "Only owners, managers or a master admin can change SLA settings.")
     org = await db.organizations.find_one({"id": site_id}, {"_id": 0, "id": 1, "name": 1, "account_type": 1, "is_overseas": 1})
     if not org:
@@ -729,7 +732,7 @@ async def assign_site_service_provider(site_id: str, data: dict = Body(...),
       • {"name": "...", "email": "...", ...} — create a NEW estate provider + assign
       • {"clear": true}                      — unassign (Pulse-only again)
     """
-    if not _can_manage_mod_site(user):
+    if not await _can_manage_mod_site(user):
         raise HTTPException(403, "Only owners, managers or a master admin can change a site's provider.")
     org = await db.organizations.find_one({"id": site_id}, {"_id": 0})
     if not org:

@@ -1,0 +1,38 @@
+{
+  "summary": "Retest of the iteration_280 fixes for MOD machine suppliers. Backend: the 10 regression tests pass (10/10). A new retest file passed 10 of 12 tests (1 failed, 1 skipped). Fixed and verified: a MOD site user now gets 403 on PUT /master-admin/mod-estate/sites/{id}/service-provider for their own site and for another site; `emailed` is null when Resend fails (logs show 'API key is invalid'); no duplicate 'Inda Fitness' in the options; `$literal` works (a supplier named '$ave Repairs' is stored literally). Frontend: the panel sits at the top of the /pulse Suppliers tab for a real MOD site login. Text contrast is fixed. Select, select all / clear, the Pulse target with toast and badge 'CHANGED BY SITE', adding a third party (preselected under the 'Your third-party suppliers' optgroup), applying it, and 'Use site default' resetting all 8 rows all work. At 390px there is no horizontal overflow. NEW: the Apply button is invisible in light theme, and an unrelated non-MOD org owner can still change any MOD site's provider.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "PUT /api/master-admin/mod-estate/sites/{site_id}/service-provider", "issue": "The fix only blocks MOD accounts. _can_manage_mod_site still lets ANY non-MOD org owner/manager/admin through, with no tenant or operator check. owner@isodemo.com (iso-demo-org, unrelated to MOD) got past the guard: the call returned 404 'Selected service provider not found in the estate registry' instead of 403. With a valid estate_supplier_id or clear:true, that owner could reallocate any MOD site and wipe its machine overrides. Restrict to is_master_admin / is_pulse_admin / operator-company orgs (is_operator_company).", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/mod/site/machine-suppliers", "issue": "If a site has no provider, machines that follow the default show the legacy stored supplier text 'Pulse Fitness' (6 of 8 rows), while the header says the default is 'Pulse Fitness (MOD Service)'. After a site_default reset they show 'Pulse Fitness (MOD Service)'. The displayed name is inconsistent; normalise it on read when follows_default is true and site_default is null."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MODMachineSuppliersPanel Apply button (and add-form Save)", "issue": "Invisible in light theme. The global CSS [data-theme=light] .bg-zinc-900 remaps the background to the surface colour (white), and the button text is white too. Measured computed color rgb(255,255,255) on background rgb(255,255,255). The main CTA can't be seen at desktop or at 390px. The add-form Save (mod-ms-add-save) uses the same classes, so it is affected too. Use a non-remapped colour such as bg-cyan-600 text-white, or wrap it in an explicit dark island.", "selector": "[data-testid='mod-ms-apply'], [data-testid='mod-ms-add-save']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Suppliers panel", "issues": ["With no site provider, 'Use site default (Pulse Fitness (MOD Service))' and 'Pulse Fitness (MOD Service) — in-house' do the same thing, but the second marks rows 'CHANGED BY SITE'. Users may find this confusing; consider hiding the Pulse option when the default is already Pulse.", "On mobile, machine and supplier names are heavily truncated ('Pulse Fitness F…'). Consider stacking supplier and badge under the name below the sm breakpoint."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mod_machine_suppliers_jan2026.py", "/app/backend/tests/test_mod_machine_suppliers_retest_jan2026.py", "/app/backend/tests/_mod_site_snapshot.py", "/app/test_reports/pytest/mod_machine_suppliers_retest.xml", "/app/test_reports/pytest/mod_machine_suppliers_retest2.xml"],
+  "action_items": [
+    "HIGH: Make the Apply button (mod-ms-apply) and add-form Save (mod-ms-add-save) visible in light theme. bg-zinc-900 is remapped to white, so they render white on white.",
+    "HIGH: Tighten _can_manage_mod_site for assign_site_service_provider so owners/managers of unrelated non-MOD orgs (e.g. owner@isodemo.com) get 403. Allow only master admin, pulse admin or operator-company staff.",
+    "Minor: show a consistent supplier name for default-following machines when the site has no provider."
+  ],
+  "critical_code_review_comments": [
+    "_can_manage_mod_site is shared by many master-admin MOD estate routes (readiness, equipment-by-category, equipment PATCH), so any non-MOD org owner can use all of them across tenants.",
+    "bulk_reassign: supplier_override and supplier_mode are not wrapped in $literal. This is safe today because they are a bool and fixed strings."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_machine_suppliers_retest_jan2026.py (new)", "/app/backend/tests/_mod_site_snapshot.py (new snapshot/restore helper)"],
+  "success_rate": {"backend": "10/10 regression; retest 10/11 executed (1 skipped: only one estate exists); 1 remaining authz gap", "frontend": "~90%: every flow works, but the Apply/Save CTAs are invisible in light theme"},
+  "test_credentials": "MOD site: test@army.mod.test / ModTest123!. Log in at /MODService?portal=modservice; the email input is type=text with an army.mod placeholder. Lands on /launch, then click 'Operations' to reach /pulse. Master admin: admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (ENFORCE_MASTER_ADMIN_MFA=false). Non-MOD owner: owner@isodemo.com / IsoDemo123!",
+  "seed_data_creation": "None persisted. The MOD Test Site snapshot (org, 8 equipment docs, 4 supplier rows) was saved before testing and restored afterwards with tests/_mod_site_snapshot.py. service_supplier_id is None again, and the TEST_/'$ave' suppliers were removed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run `python tests/_mod_site_snapshot.py save` before the tests and `restore` after; both test files mutate the MOD Test Site. test_iso_demo_owner should pass once authz is tightened. In the UI, check the computed colour of mod-ms-apply in light theme.",
+  "rca of the issue": "Invisible Apply: index.css line 289 forces [data-theme=light] .bg-zinc-900 to var(--theme-surface), which is white, while text-white stays white. Authz: the fix added only a MOD-account deny branch to _can_manage_mod_site. The role allow-list for every other org is unchanged and has no tenant scoping."
+}
