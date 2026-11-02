@@ -7,6 +7,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { ResendAllButton } from './ResendAllButton';
 import { toast } from 'sonner';
 import { Mail, X, ExternalLink, RefreshCw, RotateCw } from 'lucide-react';
 import { useAuth } from '@/App';
@@ -201,7 +202,10 @@ function EmailHealthDialog({ data, onClose, onRefresh, loading, onRetry, retryin
           )}
 
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 mb-2">Last 5 attempts</div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-zinc-500">Last 5 attempts</div>
+              <ResendAllButton count={data.retryable_count || 0} onDone={onRefresh} testId="email-health-resend-all" />
+            </div>
             {(data.recent || []).length === 0 ? (
               <div className="text-xs text-zinc-400">No activity yet.</div>
             ) : (
@@ -221,11 +225,11 @@ function EmailHealthDialog({ data, onClose, onRefresh, loading, onRetry, retryin
                           type="button"
                           onClick={() => onRetry?.(row.id)}
                           disabled={retryingId === row.id}
-                          className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-zinc-900 text-white text-[10px] font-bold px-2 py-1 hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-wait transition"
+                          className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-rose-600 text-white text-[10px] font-bold px-2 py-1 hover:bg-rose-700 disabled:opacity-60 disabled:cursor-wait transition"
                           data-testid={`email-health-retry-${i}`}
                         >
                           <RotateCw size={10} className={retryingId === row.id ? 'animate-spin' : ''} />
-                          {retryingId === row.id ? 'Retrying…' : 'Try again'}
+                          {retryingId === row.id ? 'Resending…' : 'Resend'}
                         </button>
                       )}
                     </div>

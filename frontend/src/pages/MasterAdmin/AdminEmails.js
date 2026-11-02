@@ -12,6 +12,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import { ResendAllButton } from './ResendAllButton';
 import { toast } from 'sonner';
 import {
   Mail, RefreshCw, Search, CheckCircle2, AlertTriangle, ChevronDown, RotateCw,
@@ -119,15 +120,18 @@ function Header({ data, loading, onRefresh }) {
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 disabled:opacity-50"
-          data-testid="emails-refresh"
-        >
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <ResendAllButton count={data.retryable_count || 0} onDone={onRefresh} testId="emails-resend-all" />
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 disabled:opacity-50"
+            data-testid="emails-refresh"
+          >
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
+          </button>
+        </div>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Stat label="Sent (24h)"   value={data.sent_24h}      tone="green" />
@@ -264,11 +268,11 @@ function ListView({ items, expandedId, setExpandedId, onRetry, retryingId }) {
                           type="button"
                           onClick={(ev) => { ev.stopPropagation(); onRetry?.(e.id); }}
                           disabled={retryingId === e.id}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 text-white text-xs font-semibold px-3 py-1.5 hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-wait transition"
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 text-white text-xs font-semibold px-3 py-1.5 hover:bg-rose-700 disabled:opacity-60 disabled:cursor-wait transition"
                           data-testid={`emails-retry-${i}`}
                         >
                           <RotateCw size={12} className={retryingId === e.id ? 'animate-spin' : ''} />
-                          {retryingId === e.id ? 'Retrying…' : 'Retry send'}
+                          {retryingId === e.id ? 'Resending…' : 'Resend'}
                         </button>
                       ) : (
                         <span className="text-[10px] text-zinc-400 italic" data-testid={`emails-retry-na-${i}`}>

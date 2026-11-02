@@ -178,6 +178,8 @@ async def email_health(user: dict = Depends(get_current_user)) -> dict:
         "senders": senders,
         "domain_verified": domain_verified,
         "recent": recent_rows,
+        "retryable_count": await db.email_send_events.count_documents(
+            _retryable_query(datetime.now(timezone.utc) - timedelta(days=RETRY_WINDOW_DAYS))),
     }
 
 
@@ -253,6 +255,7 @@ async def list_outbound_emails(
         "sender": SENDER_EMAIL or "",
         "window_hours": WINDOW_HOURS,
         "sent_24h": sent_24h,
+        "retryable_count": await db.email_send_events.count_documents(_retryable_query(datetime.now(timezone.utc) - timedelta(days=RETRY_WINDOW_DAYS))),
         "failed_24h": failed_24h,
         "total_all_time": total_all_time,
         "count": len(rows),
@@ -262,31 +265,97 @@ async def list_outbound_emails(
 
 
 
-@router.post("/master-admin/email-events/{event_id}/retry")
-async def retry_failed_email(
-    event_id: str,
-    user: dict = Depends(get_current_user),
-) -> dict:
-    """Iter 216h222 — replay a failed outbound email.
+RETRY_WINDOW_DAYS = 7
 
-    Looks up the failed ``email_send_events`` row by id, re-sends the
-    persisted Resend payload, and (on success) marks the row as
-    ``retried_at`` so it can't be replayed in a loop. Returns the new
-    event row + Resend message id.
 
-    Errors:
-      • 404 — event not found
-      • 409 — event already retried, or already in ``sent`` state, or
-              no payload was persisted (pre-h222 failures cannot be
-              retried — surface that clearly so the operator knows to
-              trigger the original flow again).
-      • 502 — Resend rejected the retry; the new error is captured.
-    """
+def _retryable_query(since: datetime) -> dict:
+    return {"status": {"$ne": "sent"}, "payload.html": {"$exists": True},
+            "retried_at": {"$exists": False}, "created_at": {"$gte": since}}
+
+
+def _repair_from(sender: str) -> str:
+    """Swap an unverified bare pulsefitness.com sender for the verified MOD subdomain."""
+    from utils.email import _bare_addr
+    bare = _bare_addr(sender or "")
+    local, _, domain = bare.partition("@")
+    if domain.lower() == "pulsefitness.com":
+        return (sender or "").replace(bare, f"{local}@modservice.pulsefitness.com")
+    return sender or SENDER_EMAIL
+
+
+async def _replay_event(event: dict) -> dict:
+    """Re-send a failed event's stored payload. Marks the original as retried
+    (success or not) so only the newest attempt stays retryable."""
+    import asyncio as _asyncio
+    import uuid as _uuid
+    import resend as _resend
+    from utils.email import _bare_addr, _CATEGORY_SENDER_DEFAULT
+    from utils.email_rate_limiter import acquire as _rl_acquire
+
+    payload = dict(event.get("payload") or {})
+    payload["from"] = _repair_from(payload.get("from"))
+    to = payload["to"] if isinstance(payload["to"], list) else [payload["to"]]
+    params = {"from": payload["from"], "to": to,
+              "subject": payload.get("subject") or event.get("subject") or "(no subject)",
+              "html": payload["html"]}
+    if payload.get("reply_to"):
+        params["reply_to"] = payload["reply_to"]
+    if payload.get("attachments"):
+        params["attachments"] = payload["attachments"]
+    _resend.api_key = RESEND_API_KEY
+    now = datetime.now(timezone.utc)
+    new_id = str(_uuid.uuid4())
+    row = {"id": new_id, "to": to[0], "subject": params["subject"], "sender": params["from"],
+           "created_at": now, "retry_of": event["id"]}
+    try:
+        await _rl_acquire()
+        try:
+            result = await _asyncio.to_thread(_resend.Emails.send, params)
+        except Exception as first:
+            fallback = _bare_addr(_CATEGORY_SENDER_DEFAULT["service"])
+            if "not verified" not in str(first).lower() or _bare_addr(params["from"]) == fallback:
+                raise
+            display = params["from"].split("<")[0].strip() or "Pulse Fitness"
+            params["reply_to"] = params.get("reply_to") or _bare_addr(params["from"])
+            params["from"] = row["sender"] = f"{display} <{fallback}>"
+            result = await _asyncio.to_thread(_resend.Emails.send, params)
+        resend_id = result.get("id") if isinstance(result, dict) else None
+        await db.email_send_events.insert_one({**row, "status": "sent", "error": "", "resend_id": resend_id})
+        ok, err = True, None
+    except Exception as exc:
+        err = repr(exc)[:500]
+        await db.email_send_events.insert_one({**row, "status": "failed", "error": err, "payload": payload})
+        ok, resend_id = False, None
+    await db.email_send_events.update_one(
+        {"id": event["id"]}, {"$set": {"retried_at": now, "retry_event_id": new_id}})
+    return {"ok": ok, "error": err, "resend_id": resend_id, "retry_event_id": new_id}
+
+
+@router.post("/master-admin/email-events/retry-failed")
+async def retry_all_failed_emails(user: dict = Depends(get_current_user)) -> dict:
+    """One-tap resend of every failed email from the last RETRY_WINDOW_DAYS."""
     _require_master(user)
-
     if not RESEND_API_KEY:
         raise HTTPException(503, "RESEND_API_KEY missing — cannot send")
+    since = datetime.now(timezone.utc) - timedelta(days=RETRY_WINDOW_DAYS)
+    events = await db.email_send_events.find(_retryable_query(since), {"_id": 0}).sort("created_at", -1).to_list(60)
+    sent, failed, errors = 0, 0, []
+    for ev in events:
+        r = await _replay_event(ev)
+        if r["ok"]:
+            sent += 1
+        else:
+            failed += 1
+            errors.append({"to": ev.get("to"), "subject": ev.get("subject"), "error": r["error"]})
+    return {"ok": failed == 0, "attempted": len(events), "sent": sent, "failed": failed, "errors": errors[:10]}
 
+
+@router.post("/master-admin/email-events/{event_id}/retry")
+async def retry_failed_email(event_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Replay a single failed outbound email (404 / 409 / 502 on error)."""
+    _require_master(user)
+    if not RESEND_API_KEY:
+        raise HTTPException(503, "RESEND_API_KEY missing — cannot send")
     event = await db.email_send_events.find_one({"id": event_id}, {"_id": 0})
     if not event:
         raise HTTPException(404, "Email event not found")
@@ -296,85 +365,12 @@ async def retry_failed_email(
         raise HTTPException(409, "This email has already been retried")
     payload = event.get("payload") or {}
     if not payload.get("to") or not payload.get("html"):
-        raise HTTPException(
-            409,
-            "No retry payload stored for this email (pre-216h222 failure). "
-            "Trigger the original flow again instead.",
-        )
-
-    # Re-build the Resend params from the persisted payload. Note:
-    # `html` is already wrapped with operator branding so we DON'T
-    # call ``send_email()`` here (that would double-wrap).
-    try:
-        import resend as _resend
-        _resend.api_key = RESEND_API_KEY
-        params = {
-            "from": payload.get("from"),
-            "to": payload["to"] if isinstance(payload["to"], list) else [payload["to"]],
-            "subject": payload.get("subject") or event.get("subject") or "(no subject)",
-            "html": payload["html"],
-        }
-        if payload.get("reply_to"):
-            params["reply_to"] = payload["reply_to"]
-        if payload.get("attachments"):
-            params["attachments"] = payload["attachments"]
-
-        import asyncio as _asyncio
-        from utils.email_rate_limiter import acquire as _rl_acquire
-        await _rl_acquire()
-        result = await _asyncio.to_thread(_resend.Emails.send, params)
-        resend_id = result.get("id") if isinstance(result, dict) else None
-    except Exception as exc:
-        # Persist the new failure as its own event so the operator
-        # sees the retry attempt in the panel.
-        new_err = repr(exc)
-        import uuid as _uuid
-        new_event_id = str(_uuid.uuid4())
-        try:
-            await db.email_send_events.insert_one({
-                "id": new_event_id,
-                "to": (payload.get("to") or [event.get("to")])[0] if isinstance(payload.get("to"), list) else event.get("to"),
-                "subject": params.get("subject"),
-                "sender": payload.get("from") or SENDER_EMAIL or "",
-                "status": "failed",
-                "error": (new_err or "")[:500],
-                "created_at": datetime.now(timezone.utc),
-                "payload": payload,
-                "retry_of": event_id,
-            })
-        except Exception:
-            pass
-        raise HTTPException(502, f"Retry rejected by Resend: {new_err[:200]}")
-
-    # Mark the original event as retried + log the success.
-    now = datetime.now(timezone.utc)
-    import uuid as _uuid
-    success_event_id = str(_uuid.uuid4())
-    try:
-        await db.email_send_events.insert_one({
-            "id": success_event_id,
-            "to": (payload.get("to") or [event.get("to")])[0] if isinstance(payload.get("to"), list) else event.get("to"),
-            "subject": params.get("subject"),
-            "sender": payload.get("from") or SENDER_EMAIL or "",
-            "status": "sent",
-            "error": "",
-            "created_at": now,
-            "retry_of": event_id,
-            "resend_id": resend_id,
-        })
-        await db.email_send_events.update_one(
-            {"id": event_id},
-            {"$set": {"retried_at": now, "retry_event_id": success_event_id}},
-        )
-    except Exception:
-        logger.exception("retry: failed to write success row (Resend already accepted, non-fatal)")
-
-    return {
-        "ok": True,
-        "retry_event_id": success_event_id,
-        "resend_id": resend_id,
-        "original_event_id": event_id,
-    }
+        raise HTTPException(409, "No retry payload stored for this email. Trigger the original flow again instead.")
+    r = await _replay_event(event)
+    if not r["ok"]:
+        raise HTTPException(422, f"Resend rejected it again: {(r['error'] or '')[:200]}")
+    return {"ok": True, "retry_event_id": r["retry_event_id"], "resend_id": r["resend_id"],
+            "original_event_id": event_id}
 
 
 
