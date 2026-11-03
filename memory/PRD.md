@@ -39221,3 +39221,7 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - See SICON_INTEGRATION_SPEC.md "Jun 2026 — Correction". New utils/sicon_appointments.py; inbound worker pulls appointments per case; outbox kind appointment_engineers with conflict guard; scheduler assign/auto-assign queue allocations (writes still OFF via SICON_ALLOW_WRITES=false).
 - Test endpoint: POST /api/integrations/admin/sicon/simulate-inbound-appointment.
 - Note: tests/test_iter248_sicon_engineer_loop.py relies on a smoke engineer fixture missing from preview DB (pre-existing).
+
+## Jun 2026 — Sicon Diary Sync (read-only) — DONE
+- Service Desk → Scheduler → Diary board: GET /api/svc/scheduler/diary now emits one slot per open Sicon appointment per allocated engineer (source="sicon", slot_id, sicon_appointment_id, duration from ScheduledEnd). Base case slot hidden when visits exist. `sicon_unmatched_visits` listed in left panel ("engineer not linked"). Sicon slots are not draggable (Sicon wins).
+- Appointments store engineer_ids/engineer_names at merge (utils/sicon_appointments.py). Test: tests/test_sicon_appointment_allocation_jun2026.py (6 pass).

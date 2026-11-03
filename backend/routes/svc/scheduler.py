@@ -141,13 +141,57 @@ async def get_diary(
             "sla_resolve_at": 1,
         },
     ).sort("sla_resolve_at", 1).limit(50).to_list(50)
+    visits, unmatched = await _sicon_visit_slots(of, start_dt.isoformat(), end_dt.isoformat())
+    visit_case_ids = {v["id"] for v in visits + unmatched}
+    cases = [c for c in cases if c["id"] not in visit_case_ids] + visits
     return {
         "start": start_dt.isoformat(),
         "days": days,
         "engineers": engineers,
         "cases": cases,
         "unassigned": unassigned,
+        "sicon_visit_count": len(visits),
+        "sicon_unmatched_visits": unmatched,
     }
+
+
+def _minutes_between(start: str, end: str | None, fallback: int) -> int:
+    try:
+        a = datetime.fromisoformat(start.replace("Z", "+00:00"))
+        b = datetime.fromisoformat(end.replace("Z", "+00:00"))
+        mins = int((b - a).total_seconds() // 60)
+        return mins if mins > 0 else fallback
+    except (AttributeError, TypeError, ValueError):
+        return fallback
+
+
+async def _sicon_visit_slots(of: dict, start_iso: str, end_iso: str) -> tuple[list[dict], list[dict]]:
+    """One diary slot per Sicon appointment per allocated engineer (Sicon wins)."""
+    start_key, end_key = start_iso[:19], end_iso[:19]
+    rows = await db.svc_cases.find(
+        {**of, "status": {"$in": list(OPEN_STATES)},
+         "sicon_appointments": {"$elemMatch": {"scheduled_start": {"$gte": start_key, "$lt": end_key}}}},
+        {"_id": 0, "id": 1, "reference": 1, "title": 1, "priority": 1, "status": 1, "site_name": 1,
+         "asset_name": 1, "estimated_minutes": 1, "sla_resolve_at": 1, "sicon_appointments": 1},
+    ).to_list(2000)
+    slots, unmatched = [], []
+    for c in rows:
+        base = {k: v for k, v in c.items() if k != "sicon_appointments"}
+        for a in c.get("sicon_appointments") or []:
+            st = str(a.get("scheduled_start") or "")
+            if a.get("appointment_complete") or not (start_key <= st[:19] < end_key):
+                continue
+            visit = {**base, "source": "sicon", "sicon_appointment_id": a.get("sicon_appointment_id"),
+                     "scheduled_at": st,
+                     "estimated_minutes": _minutes_between(st, a.get("scheduled_end"), c.get("estimated_minutes") or 60),
+                     "visit_engineer_names": a.get("engineer_names") or []}
+            eng_ids = a.get("engineer_ids") or []
+            if not eng_ids:
+                unmatched.append({**visit, "employee_ids": a.get("employee_ids") or []})
+            for eid, name in zip(eng_ids, a.get("engineer_names") or [""] * len(eng_ids)):
+                slots.append({**visit, "slot_id": f"{c['id']}:{a.get('sicon_appointment_id')}:{eid}",
+                              "assigned_engineer_id": eid, "assigned_engineer_name": name})
+    return slots, unmatched
 
 
 # ─────────────────────────────────────────────────────────────────

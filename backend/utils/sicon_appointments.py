@@ -134,6 +134,9 @@ async def merge_sicon_appointment(organization_id: str, payload: dict) -> Option
     if not case:
         return None
     a["employee_ids"] = _ids(a.get("employee_ids"))
+    engs = await resolve_engineers_by_employee_ids(organization_id, a["employee_ids"])
+    a["engineer_ids"] = [x["id"] for x in engs]
+    a["engineer_names"] = [x.get("full_name") or x.get("email") or "" for x in engs]
     a["synced_at"] = _now_iso()
     appts = [x for x in (case.get("sicon_appointments") or [])
              if str(x.get("sicon_appointment_id")) != str(a["sicon_appointment_id"])] + [a]

@@ -23,8 +23,11 @@ def _db():
     return AsyncIOMotorClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
 
 
+LOOP = asyncio.new_event_loop()
+
+
 def run(coro):
-    return asyncio.new_event_loop().run_until_complete(coro)
+    return LOOP.run_until_complete(coro)
 
 
 ENG_A = f"pytest-eng-a-{uuid.uuid4().hex[:4]}"
@@ -133,3 +136,19 @@ def test_non_sicon_case_is_silent():
     from utils.sicon_appointments import push_engineer_allocation
     res = run(push_engineer_allocation({"id": "x", "organization_id": HUB_ORG}, [ENG_A]))
     assert res == {"queued": False, "reason": "Case not yet in Sicon"}
+
+
+def test_diary_shows_one_slot_per_visit_per_engineer():
+    from utils.sicon_appointments import merge_sicon_appointment
+    from routes.svc.scheduler import _sicon_visit_slots
+    run(merge_sicon_appointment(HUB_ORG, {**_appt([61001, 61002], appt_id=70002), "ScheduledStartDate": "2026-07-03T10:00:00",
+                                          "ScheduledEndDate": "2026-07-03T12:30:00"}))
+    run(merge_sicon_appointment(HUB_ORG, {**_appt([88888], appt_id=70003), "ScheduledStartDate": "2026-07-04T08:00:00"}))
+    slots, unmatched = run(_sicon_visit_slots({"organization_id": HUB_ORG}, "2026-07-01T00:00:00+00:00",
+                                              "2026-07-08T00:00:00+00:00"))
+    mine = [s for s in slots if s["id"] == CASE_ID]
+    v2 = [s for s in mine if s["sicon_appointment_id"] == 70002]
+    assert {s["assigned_engineer_id"] for s in v2} == {ENG_A, ENG_B}
+    assert all(s["estimated_minutes"] == 150 and s["source"] == "sicon" for s in v2)
+    assert any(s["sicon_appointment_id"] == 70001 for s in mine), "first visit still on the diary"
+    assert any(u["id"] == CASE_ID and u["sicon_appointment_id"] == 70003 for u in unmatched)

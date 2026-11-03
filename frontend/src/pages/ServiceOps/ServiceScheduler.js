@@ -58,6 +58,7 @@ function slotIsoFor(dayStart, dayIndex, hourSlot) {
 function CaseCard({ c, onDragStart, onClick, compact = false }) {
   const { t } = useTranslation();
   const colour = PRIORITY_COLOUR[c.priority] || '#0891b2';
+  const isSicon = c.source === 'sicon';
   const slaMs = c.sla_resolve_at ? new Date(c.sla_resolve_at).getTime() - Date.now() : 0;
   const breached = c.sla_resolve_at && slaMs < 0;
   const atRisk = c.sla_resolve_at && !breached && slaMs < 2 * 3600 * 1000;
@@ -65,20 +66,27 @@ function CaseCard({ c, onDragStart, onClick, compact = false }) {
   return (
     <button
       type="button"
-      draggable
+      draggable={!isSicon}
       onDragStart={(ev) => onDragStart?.(ev, c)}
       onClick={onClick}
-      className={`text-left rounded-lg border-l-4 ${compact ? 'p-1.5' : 'p-2.5'} hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing`}
+      className={`text-left rounded-lg border-l-4 ${compact ? 'p-1.5' : 'p-2.5'} hover:shadow-md transition-shadow ${isSicon ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
       style={{
-        background: 'var(--theme-surface, #fff)',
+        background: isSicon ? 'rgba(99,102,241,0.08)' : 'var(--theme-surface, #fff)',
         borderColor: 'var(--theme-border)',
         borderLeftColor: colour,
         width: '100%',
       }}
-      data-testid={`scheduler-case-${c.reference}`}
+      data-testid={isSicon ? `scheduler-visit-${c.slot_id}` : `scheduler-case-${c.reference}`}
     >
       <div className="flex items-center justify-between gap-1">
-        <span className="text-[10px] font-extrabold tabular-nums" style={{ color: colour }}>{(c.priority || 'p3').toUpperCase()}</span>
+        <span className="inline-flex items-center gap-1">
+          <span className="text-[10px] font-extrabold tabular-nums" style={{ color: colour }}>{(c.priority || 'p3').toUpperCase()}</span>
+          {isSicon ? (
+            <span className="text-[8px] font-extrabold uppercase tracking-wider px-1 rounded bg-indigo-600 text-white" title="Visit booked in Sicon — change engineers in Sicon" data-testid={`scheduler-visit-badge-${c.slot_id}`}>
+              Sicon{c.visit_engineer_names?.length > 1 ? ` · ${c.visit_engineer_names.length} eng` : ''}
+            </span>
+          ) : null}
+        </span>
         {c.sla_resolve_at ? (
           <span className="inline-flex items-center gap-0.5 text-[9px] font-bold" style={{ color: slaColour }}>
             {breached ? <AlertTriangle size={9} /> : <Clock size={9} />} {breached ? t('service.sched_breach', 'breach') : atRisk ? t('service.sched_risk', 'risk') : t('service.sched_ok', 'ok')}
@@ -137,6 +145,7 @@ export default function ServiceScheduler() {
   }, [cases]);
 
   const onDragStart = (ev, c) => {
+    if (c.source === 'sicon') { ev.preventDefault(); return; }
     ev.dataTransfer.effectAllowed = 'move';
     ev.dataTransfer.setData('text/plain', c.id);
     setDragging(c);
@@ -245,6 +254,20 @@ export default function ServiceScheduler() {
           <div className="flex items-center justify-between">
             <p className="svc-label" style={{ marginBottom: 0 }}>{t('service.sched_unassigned', 'Unassigned')} ({unassigned.length})</p>
           </div>
+          {(diary?.sicon_unmatched_visits || []).length > 0 ? (
+            <div className="rounded-lg border border-indigo-300 bg-indigo-50/60 p-2 space-y-1" data-testid="scheduler-sicon-unmatched">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700">
+                Sicon visits — engineer not linked ({diary.sicon_unmatched_visits.length})
+              </p>
+              <p className="text-[10px] opacity-70">Add the engineer's Sicon Employee ID to show these on their row.</p>
+              {diary.sicon_unmatched_visits.map((v) => (
+                <div key={`${v.id}:${v.sicon_appointment_id}`} className="text-[11px] flex justify-between gap-2" data-testid={`scheduler-sicon-unmatched-${v.sicon_appointment_id}`}>
+                  <span className="font-bold truncate">{v.reference}</span>
+                  <span className="opacity-70 shrink-0">{new Date(v.scheduled_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })} {fmtTime(v.scheduled_at)} · Emp {(v.employee_ids || []).join(', ') || '—'}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
           {unassigned.length === 0 ? (
             <p className="text-xs opacity-60 italic">{t('service.sched_queue_empty', 'Nothing in the queue 🎉')}</p>
           ) : unassigned.map((c) => (
@@ -344,10 +367,10 @@ export default function ServiceScheduler() {
                             const widthSlots = Math.max(1, Math.ceil((c.estimated_minutes || 60) / SLOT_MINUTES));
                             return (
                               <div
-                                key={c.id}
+                                key={c.slot_id || c.id}
                                 className="absolute top-1 bottom-1"
                                 style={{ left: Math.max(0, left), width: widthSlots * SLOT_PX - 4 }}
-                                title={`${c.reference} · ${c.title} · ${fmtTime(c.scheduled_at)}`}
+                                title={`${c.reference} · ${c.title} · ${fmtTime(c.scheduled_at)}${c.source === 'sicon' ? ` · Sicon visit: ${(c.visit_engineer_names || []).join(', ')}` : ''}`}
                               >
                                 <CaseCard c={c} onDragStart={onDragStart} onClick={() => navigate('/service-ops')} compact />
                               </div>
