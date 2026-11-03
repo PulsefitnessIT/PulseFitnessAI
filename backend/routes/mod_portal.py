@@ -1937,6 +1937,24 @@ async def mod_fault_detail(issue_id: str, user: dict = Depends(get_current_user)
     return doc
 
 
+@router.get("/mod/site/faults/{issue_id}/service-report.pdf")
+async def mod_fault_service_report(issue_id: str, user: dict = Depends(get_current_user)):
+    """Site staff download the Pulse Service Report for a fault's job."""
+    org = await _require_mod_site(user)
+    doc = await db.issues.find_one(
+        {"id": issue_id, "$or": [{"organization_id": org["id"]}, {"mod_site_id": org["id"]}]},
+        {"_id": 0, "bfpo_case_id": 1, "linked_case_id": 1})
+    case_id = (doc or {}).get("bfpo_case_id") or (doc or {}).get("linked_case_id")
+    case = await db.svc_cases.find_one({"id": case_id}, {"_id": 0}) if case_id else None
+    if not case:
+        raise HTTPException(404, "No service report yet — the job hasn't been opened by an engineer")
+    from routes.bfpo import build_mod_service_report
+    pdf = await build_mod_service_report(case)
+    fname = f"Service Report - {case.get('reference') or case_id[:8]}.pdf"
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{fname}"'})
+
+
 # Iter 216h115 — Acceptance / closure loop.
 # When a fault is marked resolved we email the original reporter a
 # secret token link. They tap "Confirm fix" (or "Still broken") which

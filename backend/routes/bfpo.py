@@ -16,7 +16,6 @@ never reach another territory's job by changing an id.
 """
 from datetime import datetime, timezone, date, timedelta
 from typing import Optional
-import io
 import os
 import uuid
 import secrets
@@ -712,13 +711,12 @@ async def _email_signed_job_sheet(case_id: str) -> str:
     from utils.customer_signoff import email_signed_pdf, latest_signoff, resolve_site_contact
     try:
         case = await db.svc_cases.find_one({"id": case_id}, {"_id": 0}) or {}
-        events = await db.svc_case_events.find({"case_id": case_id}, {"_id": 0}).sort("at", 1).to_list(200)
         sig = await latest_signoff(case_id=case_id)
-        pdf = _build_job_sheet_pdf(case, events, sig)
+        pdf = await build_mod_service_report(case)
         sent = await email_signed_pdf(
             sig=sig, contact=await resolve_site_contact(case), pdf=pdf,
-            filename=f"Job Sheet - {case.get('reference')}.pdf",
-            subject=f"Signed job sheet · {case.get('reference')} — {case.get('site_name') or 'MOD service'}",
+            filename=f"Service Report - {case.get('reference')}.pdf",
+            subject=f"Signed service report · {case.get('reference')} — {case.get('site_name') or 'MOD service'}",
             intro=f"Job <b>{case.get('reference')}</b> has been completed.", organization_id=case.get("organization_id"))
         if sent:
             await db.svc_cases.update_one({"id": case_id}, {"$set": {"service_report_sent_at": _now(), "service_report_sent_to": sent}})
@@ -1078,87 +1076,21 @@ async def revoke_visiting_access(grant_id: str, user=Depends(_require_staff)):
 # Branded job sheet PDF
 # ─────────────────────────────────────────────────────────────────
 
+async def build_mod_service_report(case: dict) -> bytes:
+    """MOD jobs use the standard Pulse Service Report (MOD badge in header)."""
+    from routes.svc.service_report import _build_report
+    pdf, _ = await _build_report(case["id"], {"organization_id": case["organization_id"],
+                                              "is_master_admin": True, "id": "system"})
+    return pdf
+
+
 @router.get("/jobs/{case_id}/job-sheet.pdf")
 async def bfpo_job_sheet(case_id: str, user=Depends(_require_bfpo)):
     case = await _get_scoped_case(user, case_id)
-    events = await db.svc_case_events.find(
-        {"case_id": case_id}, {"_id": 0},
-    ).sort("at", 1).to_list(200)
-    signature = await db.svc_signatures.find_one(
-        {"case_id": case_id}, {"_id": 0}, sort=[("signed_at", -1)])
-    pdf = _build_job_sheet_pdf(case, events, signature)
-    fname = f"Job Sheet - {case.get('reference')}.pdf"
+    pdf = await build_mod_service_report(case)
+    fname = f"Service Report - {case.get('reference')}.pdf"
     return Response(content=pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f'inline; filename="{fname}"'})
-
-
-def _build_job_sheet_pdf(case: dict, events: list, signature: dict | None) -> bytes:
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.units import mm
-    from reportlab.lib import colors
-    from reportlab.pdfgen import canvas
-
-    buf = io.BytesIO()
-    c = canvas.Canvas(buf, pagesize=A4)
-    w, h = A4
-    cyan = colors.HexColor("#0891b2")
-    ink = colors.HexColor("#0f172a")
-    from utils.pulse_doc_template import draw_invoice_header, draw_invoice_footer
-    hdr_bottom = draw_invoice_header(c, h, 18 * mm, w - 18 * mm)
-    c.setFillColor(ink)
-    c.setFont("Helvetica-Bold", 18)
-    c.drawString(18 * mm, hdr_bottom - 12 * mm, "Electronic Job Sheet")
-    c.setFillColor(cyan)
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(18 * mm, hdr_bottom - 18 * mm, "MOD / BFPO Service")
-    c.setFillColor(ink)
-    c.setFont("Helvetica-Bold", 13)
-    c.drawRightString(w - 18 * mm, hdr_bottom - 12 * mm, case.get("reference") or "")
-    y = hdr_bottom - 30 * mm
-
-    def line(label, value):
-        nonlocal y
-        c.setFillColor(colors.HexColor("#64748b"))
-        c.setFont("Helvetica-Bold", 8)
-        c.drawString(18 * mm, y, label.upper())
-        c.setFillColor(ink)
-        c.setFont("Helvetica", 10)
-        c.drawString(18 * mm, y - 5 * mm, str(value or "—")[:90])
-        y -= 12 * mm
-
-    c.setFillColor(ink)
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(18 * mm, y, case.get("title") or "Service Job")
-    y -= 9 * mm
-    line("Site", f"{case.get('site_name') or ''} · {case.get('territory_name') or ''} · {case.get('country') or ''}")
-    line("Equipment", case.get("asset_name"))
-    line("Reported fault", case.get("description"))
-    line("Priority / Status", f"{(case.get('priority') or '').upper()} · {case.get('status')}")
-    line("Assigned engineer", case.get("assigned_engineer_name"))
-    line("Diagnosis", case.get("diagnosis"))
-    line("Work carried out", case.get("resolution_notes"))
-    line("Parts used", case.get("parts_used"))
-    line("Safe & working confirmed", "Yes" if case.get("safe_and_working") else "No")
-
-    y -= 4 * mm
-    c.setStrokeColor(colors.HexColor("#e2e8f0"))
-    c.line(18 * mm, y, w - 18 * mm, y)
-    y -= 10 * mm
-    c.setFillColor(cyan)
-    c.setFont("Helvetica-Bold", 10)
-    c.setFillColor(ink)
-    from utils.customer_signoff import draw_signoff_canvas
-    y = draw_signoff_canvas(c, 18 * mm, y, signature)
-
-    class _Pg:
-        page = 1
-    if not draw_invoice_footer(c, _Pg(), left_lines=["MOD / BFPO Job Sheet", f"Generated {_now()[:16].replace('T', ' ')}"]):
-        c.setFillColor(colors.HexColor("#94a3b8"))
-        c.setFont("Helvetica", 7)
-        c.drawString(18 * mm, 12 * mm, f"Generated {_now()[:16].replace('T', ' ')} · Pulse Fitness Ltd · MOD/BFPO Service")
-    c.showPage()
-    c.save()
-    return buf.getvalue()
 
 
 # ─────────────────────────────────────────────────────────────────

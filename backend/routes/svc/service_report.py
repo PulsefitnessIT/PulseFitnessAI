@@ -310,23 +310,18 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
     # ── Pulse Fitness headed paper (invoice-style layout) ──────────────
     from utils.pulse_doc_template import pulse_header, pulse_styles
     _ps = pulse_styles()
-    story.append(pulse_header(_ps))
+    is_mod = bool(case.get("bfpo") or case.get("organization_id") == "bfpo-mod-org"
+                  or case.get("source") == "mod_fault"
+                  or str(org.get("account_type") or "").startswith("mod"))
+    story.append(pulse_header(_ps, mod_badge=is_mod))
     story.append(Spacer(1, 5 * mm))
     story.append(Paragraph("<b>Service Report</b>", ParagraphStyle(
         "inv_title", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=24, leading=28,
         textColor=colors.HexColor("#0F172A"))))
     story.append(Spacer(1, 4 * mm))
 
-    def _box(title: str, lines: list[str]) -> Table:
-        tb = Table([[Paragraph(f"<b>{title}</b>", body)], [Paragraph("<br/>".join(lines) or "—", body)]],
-                   colWidths=[85 * mm])
-        tb.setStyle(TableStyle([
-            ("BOX", (0, 0), (-1, -1), 0.8, colors.black),
-            ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-            ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, -1), (-1, -1), 8),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ]))
-        return tb
+    def _box_cell(title: str, lines: list[str]) -> list:
+        return [Paragraph(f"<b>{title}</b>", body), Paragraph("<br/>".join(lines) or "—", body)]
 
     esc = lambda x: str(x or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     site_lines = [esc(x) for x in [case.get("customer_name"), case.get("site_name"),
@@ -339,10 +334,15 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
     asset_name = (case.get("asset_name") or "").strip()
     if asset_name and not asset_name.upper().startswith("ASSET_"):
         eng_lines.append(f"Asset: {esc(asset_name)}")
-    boxes = Table([[_box("Customer / Site Address", site_lines), _box("Engineer", eng_lines)]],
-                  colWidths=[90 * mm, 85 * mm])
-    boxes.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                               ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+    # One table so both boxes share top/bottom edges; outer edges match the ref table (175mm).
+    left, right = _box_cell("Customer / Site Address", site_lines), _box_cell("Engineer", eng_lines)
+    boxes = Table([[left[0], "", right[0]], [left[1], "", right[1]]], colWidths=[85 * mm, 5 * mm, 85 * mm])
+    boxes.setStyle(TableStyle([
+        ("BOX", (0, 0), (0, -1), 0.8, colors.black), ("BOX", (2, 0), (2, -1), 0.8, colors.black),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, -1), (-1, -1), 8),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
     story.append(boxes)
     story.append(Spacer(1, 4 * mm))
 

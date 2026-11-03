@@ -27,6 +27,8 @@ const humanizeReading = (r) => {
   return lbl || '—';
 };
 
+const MW_COLS = '<colgroup><col style="width:30%"/><col style="width:15%"/><col style="width:17%"/><col style="width:10%"/><col style="width:10%"/><col style="width:18%"/></colgroup>';
+
 function buildReportHtml(data) {
   const s = data?.schedule || {};
   const machines = data?.machines || [];
@@ -36,7 +38,7 @@ function buildReportHtml(data) {
   const calibHtml = (readings) => {
     const sp = readings.filter((r) => axisOf(r) === 'speed');
     const inc = readings.filter((r) => axisOf(r) === 'incline');
-    const sect = (title, rows) => (rows.length ? `<div class="cal"><div class="calh">${title}</div><table class="rt"><tr><th>Set point</th><th>Measured</th><th>Result</th></tr>${rows.map((r) => `<tr><td>${esc(humanizeReading(r))}</td><td>${esc(r.measured || '—')}</td><td class="${r.result === 'fail' ? 'fail' : 'pass'}">${esc((r.result || 'pass').toUpperCase())}</td></tr>`).join('')}</table></div>` : '');
+    const sect = (title, rows) => (rows.length ? `<div class="cal"><div class="calh">${title}</div><table class="rt fx"><colgroup><col style="width:45%"/><col style="width:35%"/><col style="width:20%"/></colgroup><tr><th>Set point</th><th>Measured</th><th>Result</th></tr>${rows.map((r) => `<tr><td>${esc(humanizeReading(r))}</td><td>${esc(r.measured || '—')}</td><td class="${r.result === 'fail' ? 'fail' : 'pass'}">${esc((r.result || 'pass').toUpperCase())}</td></tr>`).join('')}</table></div>` : '');
     return sect('Speed (mph)', sp) + sect('Incline (%)', inc);
   };
   const workedKeys = new Set(visits.flatMap((v) => (v.machine_work || []).flatMap((m) => [m.asset_serial, m.asset_name].filter(Boolean).map((x) => String(x).toLowerCase()))));
@@ -53,7 +55,7 @@ function buildReportHtml(data) {
       <h3>Visit — ${esc(fmtDate(v.scheduled_at || v.completed_at))} ${v.reference ? `(Job ${esc(v.reference)})` : ''}</h3>
       <p class="meta">Engineer: ${esc(v.engineer || '—')} · Status: ${esc(v.status || '—')}${v.completed_at ? ` · Completed ${esc(fmtDate(v.completed_at))}` : ''}</p>
       ${v.summary ? `<p class="summary">${esc(v.summary)}</p>` : ''}
-      ${mw ? `<h4>Machines worked</h4><table class="rt"><tr><th>Machine</th><th>Type</th><th>Serial</th><th>Serviced</th><th>Cleaned</th><th>Notes</th></tr>${mw}</table>` : ''}
+      ${mw ? `<h4>Machines worked</h4><table class="rt fx">${MW_COLS}<tr><th>Machine</th><th>Type</th><th>Serial</th><th>Serviced</th><th>Cleaned</th><th>Notes</th></tr>${mw}</table>` : ''}
       ${calib ? `<h4>Treadmill calibration${v.calibration_result ? ` · ${esc(String(v.calibration_result).toUpperCase())}` : ''}</h4>${calib}` : ''}
     </div>`;
   }).join('');
@@ -71,9 +73,11 @@ function buildReportHtml(data) {
     table.lh{width:100%;border-collapse:collapse;border-bottom:2px solid #0B3D91;margin-bottom:10px} .lh td{vertical-align:top;padding:0 0 8px}
     .co{text-align:right;font-size:10px;color:#5B6570;line-height:1.45}
     h1.ttl{font-size:28px;margin:10px 0 10px}
-    table.boxes{width:100%;border-collapse:separate;border-spacing:0} .boxes td{width:50%;vertical-align:top;padding:0 6px 0 0} .boxes td+td{padding:0 0 0 6px}
-    .bx{border:1px solid #000;padding:6px 8px;min-height:64px;line-height:1.5}
-    table.ref{width:100%;border-collapse:collapse;margin:10px 0 4px;border:1px solid #000} .ref th,.ref td{padding:4px 7px;text-align:left;font-size:11px;border-bottom:1px solid #000} .ref th{font-weight:700} .ref th:not(:first-child){border-left:1px solid #000}
+    .boxes{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch}
+    .bx{border:1px solid #000;padding:6px 8px;min-height:64px;line-height:1.5;box-sizing:border-box}
+    table.fx{table-layout:fixed} .fx td,.fx th{overflow-wrap:anywhere}
+    .ilogos{display:flex;align-items:center;gap:12px} .imod{height:50px;border-left:1px solid #C9D4E5;padding-left:12px}
+    table.ref{width:100%;border-collapse:collapse;margin:10px 0 4px;border:1px solid #000;table-layout:fixed} .ref th,.ref td{padding:4px 7px;text-align:left;font-size:11px;border-bottom:1px solid #000} .ref th{font-weight:700} .ref th:not(:first-child){border-left:1px solid #000}
     .ihdr{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px}
     .ilogo{height:40px} .iaddr{height:50px}
     .gen{margin-top:18px;color:#5B6570;font-size:9px}
@@ -85,16 +89,16 @@ function buildReportHtml(data) {
       .ifoot{position:fixed;left:0;right:0;bottom:0} .ifoot img{width:100%;max-width:none;margin:0}}
   </style></head><body>
   <table class="pg"><tbody><tr><td>
-  <div class="ihdr"><img class="ilogo" src="${window.location.origin}/brand/pulse-header-logo.png" alt="Pulse Fitness"/><img class="iaddr" src="${window.location.origin}/brand/pulse-header-address.png" alt="Pulse Fitness, Part of The Pulse Group, Radnor Park, Greenfield Road, Congleton, Cheshire CW12 4TW. +44 (0)1260 294600, info@pulsefitness.com, www.pulsefitness.com"/></div>
+  <div class="ihdr"><div class="ilogos"><img class="ilogo" src="${window.location.origin}/brand/pulse-header-logo.png" alt="Pulse Fitness"/>${s.is_mod ? `<img class="imod" src="${window.location.origin}/brand/mod-badge.png" alt="Ministry of Defence"/>` : ''}</div><img class="iaddr" src="${window.location.origin}/brand/pulse-header-address.png" alt="Pulse Fitness, Part of The Pulse Group, Radnor Park, Greenfield Road, Congleton, Cheshire CW12 4TW. +44 (0)1260 294600, info@pulsefitness.com, www.pulsefitness.com"/></div>
   <h1 class="ttl">Service Report</h1>
-  <table class="boxes"><tr>
-    <td><div class="bx"><b>Customer / Site Address</b><br/>${[s.customer_name, s.site_name, s.site_address].filter(Boolean).map(esc).join('<br/>') || '—'}</div></td>
-    <td><div class="bx"><b>Engineer</b><br/>${esc(visits[0]?.engineer || s.engineer || '—')}<br/>${esc(s.service_type || '')}</div></td>
-  </tr></table>
+  <div class="boxes">
+    <div class="bx"><b>Customer / Site Address</b><br/>${[s.customer_name, s.site_name, s.site_address].filter(Boolean).map(esc).join('<br/>') || '—'}</div>
+    <div class="bx"><b>Engineer</b><br/>${esc(visits[0]?.engineer || s.engineer || '—')}<br/>${esc(s.service_type || '')}</div>
+  </div>
   <table class="ref"><tr><th>Scheduled</th><td>${esc(fmtDate(s.date))}</td><th>Service</th><td>${esc(s.service_type || '—')}</td><th>Machines</th><td>${machines.length}</td></tr>
     <tr><th>Visits</th><td>${visits.length}</td><th>Latest job</th><td>${esc(visits[0]?.reference || '—')}</td><th>Issued</th><td>${esc(new Date().toLocaleDateString('en-GB'))}</td></tr></table>
   <h2>Engineer's workings${visits.length > 1 ? ` (${visits.length} visits)` : ''}</h2>
-  ${visitsHtml || `<p>No completed visits yet.</p>${machines.length ? `<h4>Machines</h4><table class="rt"><tr><th>Machine</th><th>Type</th><th>Serial</th><th>Serviced</th><th>Cleaned</th><th>Notes</th></tr>${machines.map((m) => `<tr><td>${esc(m.name)}</td><td>${esc(m.equipment_type || '')}</td><td>${esc(m.serial_number || '')}</td><td>—</td><td>—</td><td>Not serviced</td></tr>`).join('')}</table>` : ''}`}
+  ${visitsHtml || `<p>No completed visits yet.</p>${machines.length ? `<h4>Machines</h4><table class="rt fx">${MW_COLS}<tr><th>Machine</th><th>Type</th><th>Serial</th><th>Serviced</th><th>Cleaned</th><th>Notes</th></tr>${machines.map((m) => `<tr><td>${esc(m.name)}</td><td>${esc(m.equipment_type || '')}</td><td>${esc(m.serial_number || '')}</td><td>—</td><td>—</td><td>Not serviced</td></tr>`).join('')}</table>` : ''}`}
   <p class="gen">Generated by PulseFitness.ai · ${esc(new Date().toLocaleString('en-GB'))}</p>
   </td></tr></tbody><tfoot><tr><td><div class="fspace"></div></td></tr></tfoot></table>
   <div class="ifoot"><img src="${window.location.origin}/brand/pulse-invoice-footer.png" alt="A pulseglobal Company. Registered Office: Pulse Fitness Limited, Radnor Park, Greenfield Road, Congleton, Cheshire, CW12 4TW. Company Registration No 4354059. VAT Registration No 785413509."/></div>

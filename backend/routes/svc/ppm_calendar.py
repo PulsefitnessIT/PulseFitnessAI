@@ -647,6 +647,8 @@ async def schedule_detail(schedule_id: str, user: dict = Depends(get_current_use
 
     visits = [await _build_visit(j) for j in jobs]
     workings = visits[0] if visits else None
+    site_org = await db.organizations.find_one(
+        {"id": s.get("site_id") or s.get("organization_id")}, {"_id": 0, "account_type": 1}) or {}
 
     return {
         "schedule": {
@@ -656,6 +658,7 @@ async def schedule_detail(schedule_id: str, user: dict = Depends(get_current_use
             "date": s.get("next_pm"), "machine_count": s.get("machine_count", len(eq_ids)),
             "engineer": s.get("assigned_engineer_name") or "",
             "site_id": s.get("site_id") or "", "organization_id": s.get("organization_id"),
+            "is_mod": str(site_org.get("account_type") or "").startswith("mod"),
         },
         "machines": machines,
         "visits": visits,

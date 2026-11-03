@@ -132,7 +132,7 @@ def _logo_flowable(size_mm: float = 16, logo_bytes: bytes | None = None):
     return None
 
 
-def pulse_header(s: dict, company: dict | None = None) -> Table:
+def pulse_header(s: dict, company: dict | None = None, mod_badge: bool = False) -> Table:
     """Branded header: logo + wordmark top-left, company contact block top-right.
 
     ``company`` overrides the default Pulse identity (used by tenant-branded
@@ -142,7 +142,7 @@ def pulse_header(s: dict, company: dict | None = None) -> Table:
     """
     c = company or PULSE
     if company is None or company is PULSE:
-        hdr = invoice_header_flowable()
+        hdr = invoice_header_flowable(mod_badge=mod_badge)
         if hdr is not None:
             return hdr
     logo_bytes = c.get("logo_bytes")
@@ -198,6 +198,8 @@ INVOICE_BOTTOM_MARGIN = INVOICE_FOOTER_H + 22  # body clearance above the footer
 
 _HDR_LOGO = os.path.join(_ASSETS, "pulse-header-logo.png")
 _HDR_ADDR = os.path.join(_ASSETS, "pulse-header-address.png")
+_MOD_BADGE = os.path.join(_ASSETS, "mod-badge.png")
+_MOD_BADGE_RATIO = 1280 / 919
 _PX = _INV_W / 2729  # pt per pixel of the original invoice header artwork
 _LOGO_W, _LOGO_H = 810 * _PX, 151 * _PX
 _ADDR_W, _ADDR_H = 980 * _PX, 192 * _PX
@@ -205,9 +207,19 @@ _LOGO_DY = 15 * _PX  # logo sits slightly lower than the address block (as on th
 HEADER_H = _ADDR_H
 
 
-def _draw_split_header(canvas, x0: float, x1: float, top: float) -> None:
-    """Logo flush with the content's left edge, address block flush right."""
+def _draw_split_header(canvas, x0: float, x1: float, top: float, mod_badge: bool = False) -> None:
+    """Logo flush with the content's left edge, address block flush right.
+    MOD documents add the MOD badge beside the Pulse logo, behind a divider."""
     canvas.drawImage(_HDR_LOGO, x0, top - _LOGO_DY - _LOGO_H, width=_LOGO_W, height=_LOGO_H, mask="auto")
+    if mod_badge and os.path.exists(_MOD_BADGE):
+        bh = _ADDR_H
+        bx = x0 + _LOGO_W + 12
+        canvas.saveState()
+        canvas.setStrokeColorRGB(0.75, 0.78, 0.82)
+        canvas.setLineWidth(0.6)
+        canvas.line(bx, top - bh, bx, top)
+        canvas.restoreState()
+        canvas.drawImage(_MOD_BADGE, bx + 10, top - bh, width=bh * _MOD_BADGE_RATIO, height=bh, mask="auto")
     canvas.drawImage(_HDR_ADDR, x1 - _ADDR_W, top - _ADDR_H, width=_ADDR_W, height=_ADDR_H, mask="auto")
 
 
@@ -215,7 +227,7 @@ def invoice_art_available() -> bool:
     return all(os.path.exists(p) for p in (_HDR_LOGO, _HDR_ADDR, _INV_FOOTER))
 
 
-def invoice_header_flowable(width: float | None = None):
+def invoice_header_flowable(width: float | None = None, mod_badge: bool = False):
     """Invoice header (logo + contact block) spanning the frame's content width."""
     if not invoice_art_available():
         return None
@@ -228,7 +240,7 @@ def invoice_header_flowable(width: float | None = None):
 
         def draw(self):
             # Frames pad 6pt; boxed tables below run edge-to-edge, so match their edges.
-            _draw_split_header(self.canv, -6, self._aw + 6, HEADER_H + 10)
+            _draw_split_header(self.canv, -6, self._aw + 6, HEADER_H + 10, mod_badge=mod_badge)
 
     return _InvoiceHeader()
 

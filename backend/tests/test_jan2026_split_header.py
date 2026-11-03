@@ -79,12 +79,6 @@ class TestUnitHeader:
         assert abs(bottom - (A4[1] - 40 - HEADER_H)) < 0.1
         _assert_split(buf.getvalue(), 51, 544, "raw")
 
-    def test_job_sheet_builder(self):
-        from routes.bfpo import _build_job_sheet_pdf
-        from reportlab.lib.units import mm
-        pdf = _build_job_sheet_pdf({"id": "TEST_x", "reference": "TEST-1", "title": "TEST"}, [], None)
-        _assert_split(pdf, 18 * mm, A4_W - 18 * mm, "job sheet")
-
 
 class TestServiceReportApi:
     def test_service_report_split(self, owner):
