@@ -1095,6 +1095,21 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  )}
  </div>
 
+ {(user?.account_type === 'mod_site' || user?.is_mod_user) && (issue.bfpo_case_id || issue.linked_case_id) && (
+ <div className="flex pt-2">
+  <Button size="sm" variant="outline" className="h-8 text-xs" data-testid="mod-fault-service-report-btn"
+    onClick={async () => {
+      try {
+        const r = await axios.get(`${API}/mod/site/faults/${issue.id}/service-report.pdf`,
+          { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, responseType: 'blob' });
+        window.open(URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' })), '_blank');
+      } catch { notify.error('Service report not available yet'); }
+    }}>
+    <FileText size={12} className="mr-1" /> Service report
+  </Button>
+ </div>
+ )}
+
  {/* Status Actions */}
  {issue.status !== 'resolved' && (
  <div className="flex gap-2 pt-2 border-t border-[var(--theme-border)] flex-wrap">
@@ -1106,19 +1121,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  <Button size="sm" onClick={() => onUpdate(issue.id, 'resolved')} className="bg-green-500 hover:bg-green-600 text-white" data-testid={`detail-resolve-btn-${issue.id}`}>
  Mark Resolved
  </Button>
- {(user?.account_type === 'mod_site' || user?.is_mod_user) && (issue.bfpo_case_id || issue.linked_case_id) && (
-  <Button size="sm" variant="outline" className="h-8 text-xs" data-testid="mod-fault-service-report-btn"
-    onClick={async () => {
-      try {
-        const r = await axios.get(`${API}/mod/site/faults/${issue.id}/service-report.pdf`,
-          { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, responseType: 'blob' });
-        window.open(URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' })), '_blank');
-      } catch { notify.error('Service report not available yet'); }
-    }}>
-    <FileText size={12} className="mr-1" /> Service report
-  </Button>
-)}
-{/* Iter 216h117 — MOD site users can escalate to DIO. Hidden for non-MOD. */}
+ {/* Iter 216h117 — MOD site users can escalate to DIO. Hidden for non-MOD. */}
 {/* Iter 216h137 — Surface the configured DIO contract context above the button so the engineer sees who escalation goes to. */}
 {user?.account_type === 'mod_site' && !issue.escalated_to_dio && (
 <div className="flex items-center gap-2 flex-wrap" data-testid={`detail-dio-block-${issue.id}`}>

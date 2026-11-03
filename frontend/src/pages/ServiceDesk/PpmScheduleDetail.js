@@ -76,13 +76,13 @@ function buildReportHtml(data) {
     .boxes{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch}
     .bx{border:1px solid #000;padding:6px 8px;min-height:64px;line-height:1.5;box-sizing:border-box}
     table.fx{table-layout:fixed} .fx td,.fx th{overflow-wrap:anywhere}
-    .ilogos{display:flex;align-items:center;gap:12px} .imod{height:50px;border-left:1px solid #C9D4E5;padding-left:12px}
+    .ilogos{display:flex;align-items:center;gap:12px} .imod{height:50px}
     table.ref{width:100%;border-collapse:collapse;margin:10px 0 4px;border:1px solid #000;table-layout:fixed} .ref th,.ref td{padding:4px 7px;text-align:left;font-size:11px;border-bottom:1px solid #000} .ref th{font-weight:700} .ref th:not(:first-child){border-left:1px solid #000}
     .ihdr{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px}
     .ilogo{height:40px} .iaddr{height:50px}
     .gen{margin-top:18px;color:#5B6570;font-size:9px}
     table.pg{width:100%;border-collapse:collapse} table.pg>thead>tr>td,table.pg>tbody>tr>td,table.pg>tfoot>tr>td{padding:0;border:0}
-    .ifoot img{display:block;width:100%;max-width:760px;margin-top:16px}
+    .ifoot img{display:block;width:100%;margin-top:16px}
     .fspace{display:none}
     @media print{@page{size:A4;margin:8mm 0 0 0} body{margin:0 12mm}
       .fspace{display:block;height:38mm}

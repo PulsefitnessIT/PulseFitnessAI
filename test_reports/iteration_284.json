@@ -1,0 +1,38 @@
+{
+  "summary": "MOD Service Report consistency tested end-to-end. Backend 12/12 pytest pass (tests/test_mod_service_report_jan2026.py): BFPO engineer job-sheet.pdf for SVC-00038 returns 200 application/pdf, filename 'Service Report - SVC-00038.pdf', text has Service Report / Customer / Site Address / Engineer / Job No and NO 'Electronic Job Sheet' and NO calibration section; MOD PDF page 1 has 4 images vs 3 for non-MOD (MOD badge drawn); 401 without auth; out-of-territory case (Cyprus SVC-00004) blocked for Gibraltar engineer. BFPO staff lee.somers@pulsefitness.com (TempPass123!) also gets 200 + correct filename. Non-MOD SVC-00026 (iso-demo-org, via owner@isodemo.com) still has TREADMILL CALIBRATION. MOD site fault report: 200 linked issue, 404 TEST_ unlinked issue, 404 other-site issue, 401 no auth, 403/404 non-MOD user. PPM GET /api/svc/ppm/schedules/{id} returns is_mod bool (false for iso schedule; true for a TEST_ schedule whose site_id is the MOD Test Site org). Rendered PDFs visually: MOD badge beside Pulse logo with divider, Customer/Engineer boxes equal height and their outer edges flush with the ref table (85+5+85 = 175mm = ref table). Frontend: MOD site user /pulse → Faults → expanded fault shows 'Service report' button for OPEN linked fault and opens PDF in new tab; hidden for TEST_ unlinked fault; BUT also hidden for RESOLVED linked faults (bug). PPM print HTML (Service Desk → Maintenance → search QA Fire → Print): boxes equal height (134-220px) and outer edges (32/868) align exactly with ref table (32/868); Speed/Incline tables identical widths (368/286/163); all .fx tables table-layout fixed; MOD badge rendered when is_mod true (verified via response patch), absent for non-MOD.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/svc/ppm/schedules/{id}", "issue": "is_mod is computed from db.organizations.find_one({id: site_id or organization_id}); for schedules whose site_id is a db.sites id (all current Service Desk schedules) this lookup returns None, so a MOD customer whose sites live in db.sites would get is_mod=false. Works only when site_id is the MOD site org id. Consider also checking the customer org (s.organization_id) account_type / bfpo flags."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "IssueDetailPanel (MOD fault)", "issue": "'Service report' button is rendered INSIDE the `issue.status !== 'resolved'` Status Actions block (IssueDetailPanel.js ~L1099-1120), so it is hidden for resolved faults — exactly when a completed job's service report matters most. Verified: resolved linked fault bdf587ef... shows 0 buttons, open linked fault 79859fb1... shows 1. Move the button outside the status !== 'resolved' conditional.", "selector": "[data-testid='mod-fault-service-report-btn']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Service Report header (PDF + PPM HTML) for MOD", "issues": ["Double vertical divider before the MOD badge: the code draws a grey divider line (PDF canvas.line / CSS .imod border-left) and the mod-badge.png artwork already contains its own dark vertical rule, so two lines appear side by side. Drop one."]},
+      {"screen": "PPM print HTML on-screen preview", "issues": ["Footer image max-width 760px is narrower than content width (~836px at 900px window) so footer doesn't align to the right edge on-screen (print is fine)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mod_service_report_jan2026.py", "/app/test_reports/pytest/pytest_mod_service_report.xml"],
+  "action_items": [
+    "Move the mod-fault-service-report-btn out of the `issue.status !== 'resolved'` block in IssueDetailPanel.js so resolved/closed faults with a linked job can download the Service Report",
+    "Optional: remove duplicate divider next to the MOD badge (badge art already has a rule)",
+    "Optional: make schedule_detail is_mod robust when site_id is a db.sites id (check customer org account_type)"
+  ],
+  "critical_code_review_comments": [
+    "IssueDetailPanel: window.open(blobURL) is called after an awaited axios request — may be popup-blocked on Safari/iOS; consider opening a window synchronously first then setting location, or using a download link fallback",
+    "service_report.py and IssueDetailPanel.js exceed 700 lines (1233 / 1351)",
+    "mod_fault_service_report looks up svc_cases by id without org scope; safe because the issue lookup is site-scoped, but consider also asserting case.organization_id == 'bfpo-mod-org' or case.mod_site_id == org.id"
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_service_report_jan2026.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "80% (button hidden for resolved faults)"},
+  "test_credentials": "engineer.gib@bfpo.pulsefitness.test / BfpoEng123! (portal=mod) works; engineer.gib@bfpo.pulsefitness.com / pulse123 and lee.somers@bfpo.pulsefitness.com / pulse123 given in the request are INVALID. Lee Somers staff = lee.somers@pulsefitness.com / TempPass123!. MOD site test@army.mod.test / ModTest123! (portal=mod). Non-MOD calibrated case SVC-00026 lives in iso-demo-org (use owner@isodemo.com / IsoDemo123!), not admin's org d19de469.",
+  "seed_data_creation": "Temporary TEST_ issue (TEST_ui_unlinked_fault + uuid TEST_ issue) at MOD Test Site and TEST_ ppm_schedules (TEST_mod_ppm_sched + uuid) — all deleted by id after testing (verified 0 remain).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use X-RateLimit-Bypass header (RATE_LIMIT_BYPASS_SECRET) on logins. MOD site faults are under /pulse → lite-tab-faults; click card <p> to expand IssueDetailPanel. All 26 MOD Test Site issues have bfpo_case_id; resolved one bdf587ef-a741-437b-b13f-6d0ff72a7650, open one 79859fb1-be6b-4eb7-b7a4-e7337b7f8a36. PPM report: /service-desk?tab=maintenance as owner@isodemo.com, search 'QA Fire' → ppm-detail-print; override window.open via add_init_script to capture HTML. No real MOD PPM schedules exist; patch GET schedule response to is_mod=true to check badge. pymupdf installed at /tmp/pm (PYTHONPATH) for PDF rendering.",
+  "rca of the issue": "Service report button hidden for resolved faults: the JSX for mod-fault-service-report-btn was inserted inside the `{issue.status !== 'resolved' && (<div ...Status Actions>)}` block next to Mark In Progress/Mark Resolved. Repro: login MOD site, Faults, expand a Resolved fault with a linked job → no button. Fix: render it in a separate block not gated by status."
+}

@@ -649,6 +649,9 @@ async def schedule_detail(schedule_id: str, user: dict = Depends(get_current_use
     workings = visits[0] if visits else None
     site_org = await db.organizations.find_one(
         {"id": s.get("site_id") or s.get("organization_id")}, {"_id": 0, "account_type": 1}) or {}
+    if not site_org.get("account_type") and s.get("organization_id"):
+        site_org = await db.organizations.find_one(
+            {"id": s["organization_id"]}, {"_id": 0, "account_type": 1}) or {}
 
     return {
         "schedule": {

@@ -39225,3 +39225,10 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 ## Jun 2026 — Sicon Diary Sync (read-only) — DONE
 - Service Desk → Scheduler → Diary board: GET /api/svc/scheduler/diary now emits one slot per open Sicon appointment per allocated engineer (source="sicon", slot_id, sicon_appointment_id, duration from ScheduledEnd). Base case slot hidden when visits exist. `sicon_unmatched_visits` listed in left panel ("engineer not linked"). Sicon slots are not draggable (Sicon wins).
 - Appointments store engineer_ids/engineer_names at merge (utils/sicon_appointments.py). Test: tests/test_sicon_appointment_allocation_jun2026.py (6 pass).
+
+## Jun 2026 — MOD Service Reports consistency — DONE (iteration 284)
+- BFPO/MOD jobs now use the standard Service Report (routes/bfpo.py build_mod_service_report → service_report._build_report); old canvas job sheet removed. Email after sign-off sends "Service Report - <ref>.pdf".
+- MOD badge (assets/mod-badge.png, public/brand/mod-badge.png) beside the Pulse logo when case is bfpo / mod_fault / org account_type mod*.
+- Alignment: Customer/Engineer boxes one table (85+5+85mm = ref table width); PPM print HTML uses grid boxes + fixed colgroups (calibration 45/35/20).
+- MOD portal: GET /api/mod/site/faults/{issue_id}/service-report.pdf + "Service report" button in IssueDetailPanel (shown for open and resolved faults with a linked job).
+- Calibration sections render only when readings are captured.

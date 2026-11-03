@@ -212,14 +212,8 @@ def _draw_split_header(canvas, x0: float, x1: float, top: float, mod_badge: bool
     MOD documents add the MOD badge beside the Pulse logo, behind a divider."""
     canvas.drawImage(_HDR_LOGO, x0, top - _LOGO_DY - _LOGO_H, width=_LOGO_W, height=_LOGO_H, mask="auto")
     if mod_badge and os.path.exists(_MOD_BADGE):
-        bh = _ADDR_H
-        bx = x0 + _LOGO_W + 12
-        canvas.saveState()
-        canvas.setStrokeColorRGB(0.75, 0.78, 0.82)
-        canvas.setLineWidth(0.6)
-        canvas.line(bx, top - bh, bx, top)
-        canvas.restoreState()
-        canvas.drawImage(_MOD_BADGE, bx + 10, top - bh, width=bh * _MOD_BADGE_RATIO, height=bh, mask="auto")
+        bh = _ADDR_H  # badge artwork carries its own divider rule
+        canvas.drawImage(_MOD_BADGE, x0 + _LOGO_W + 12, top - bh, width=bh * _MOD_BADGE_RATIO, height=bh, mask="auto")
     canvas.drawImage(_HDR_ADDR, x1 - _ADDR_W, top - _ADDR_H, width=_ADDR_W, height=_ADDR_H, mask="auto")
 
 
