@@ -568,3 +568,12 @@ Sicon provides 20 free-text `AnalysisField` slots on every case. GymAxis populat
 ---
 
 *Document generated April 2026 — GymAxis AI x Sicon Service Integration Specification v1.0*
+
+## Jun 2026 — Correction after Sicon Q&A (supersedes §3.1 AssignedToSageUserID→engineer and §5 engineer row)
+- Engineers are allocated to APPOINTMENTS. Pulse job = Sicon case; each visit = Sicon appointment.
+- Engineer(s) = current appointment's EmployeeIDs (next upcoming open visit, else latest) → svc_engineers.sicon_employee_id (SIJCEMPID); fallback sicon_engineers.email → svc_engineers.email (back-fills the id).
+- case.AssignedToSageUserID = Sicon case admin → svc_cases.sicon_case_admin_id / sicon_case_admin_name. Never the engineer.
+- Sicon wins: inbound changes re-assign + notify added/removed engineers. Outbound: new visit POST /api/Service/Appointments (SiSMCaseID+EmployeeIDs); change PUT /api/Service/Appointments/{id} {EmployeeIDs} only after GET confirms EmployeeIDs == last synced (ExpectedEmployeeIDs) else outbox row → "conflict" + case.sicon_allocation_conflict.
+- Directory: GET /api/service/resources (new, Sicon building) with fallback to /api/service/appointments/resources; links svc_engineers by email.
+- Code: utils/sicon_appointments.py; tests: tests/test_sicon_appointment_allocation_jun2026.py.
+- Requested from Sicon: appointment/resource last-modified + modified-since filter, skills, full postcode/lat-long, availability, leaver end date, van warehouse, paging.

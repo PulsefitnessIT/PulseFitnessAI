@@ -483,6 +483,11 @@ class SiconClient:
         """Engineer directory (Phase C). One page at a time; callers may paginate."""
         return await self._request("GET", "/api/service/appointments/resources")
 
+    async def get_service_resources(self, team: str = "", skill: str = "") -> Dict:
+        """All active engineers, one row each (new Sicon endpoint, Jun 2026)."""
+        params = {k: v for k, v in (("team", team), ("skill", skill)) if v}
+        return await self._request("GET", "/api/service/resources", params=params or None)
+
     async def get_resources_for_appointment(self, appointment_id: int) -> Dict:
         return await self._request("GET", f"/api/service/appointments/{appointment_id}/resources")
 

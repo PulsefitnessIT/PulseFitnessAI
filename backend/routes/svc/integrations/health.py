@@ -446,8 +446,8 @@ async def sicon_simulate_inbound(
     Body: { "organization_id": "...", "payload": { ...Sicon ServiceCall... } }
     `organization_id` defaults to the caller's working org. Runs the exact
     production merge path (`merge_sicon_case`), so what you see here is
-    what a live poll will do — including engineer resolution via
-    `AssignedToSageUserID` → `svc_engineers.sage_user_id`.
+    what a live poll will do. Engineers come from appointments
+    (EmployeeIDs); `AssignedToSageUserID` is stored as the case admin.
     """
     _require_admin(user)
     org_id = (body.get("organization_id")
@@ -476,6 +476,27 @@ async def sicon_simulate_inbound(
         "assigned_engineer_name": case.get("assigned_engineer_name"),
         "scheduled_at": case.get("scheduled_at"),
     }
+
+
+@router.post("/sicon/simulate-inbound-appointment")
+async def sicon_simulate_inbound_appointment(body: dict, user: dict = Depends(get_current_user)):
+    """Demo / test: merge a Sicon Appointment (SiSMCaseID + EmployeeIDs) WITHOUT HTTP."""
+    _require_admin(user)
+    org_id = body.get("organization_id") or user.get("organization_id") or user.get("service_org_id")
+    if not org_id:
+        raise HTTPException(status_code=400, detail="organization_id required")
+    from utils.service_desk_auth import assert_org_in_desk_scope
+    await assert_org_in_desk_scope(user, org_id)
+    from utils.sicon_appointments import merge_sicon_appointment
+    case = await merge_sicon_appointment(org_id, body.get("payload") or {})
+    if not case:
+        raise HTTPException(status_code=404, detail="No Pulse case matches this appointment's SiSMCaseID")
+    return {"ok": True, "case_id": case["id"], "assigned_engineer_ids": case.get("assigned_engineer_ids"),
+            "assigned_engineer_names": case.get("assigned_engineer_names"),
+            "assigned_engineer_id": case.get("assigned_engineer_id"),
+            "sicon_current_appointment_id": case.get("sicon_current_appointment_id"),
+            "sicon_employee_ids": case.get("sicon_employee_ids"), "scheduled_at": case.get("scheduled_at"),
+            "status": case.get("status"), "sicon_unmatched_employee_count": case.get("sicon_unmatched_employee_count")}
 
 
 # ─── Sage drain controls (Phase 8 B · iter 215ea) ───

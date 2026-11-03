@@ -68,6 +68,7 @@ from utils.svc_state import (
     OPEN_STATES, ASSIGNED, NEW, TRIAGED,
 )
 from routes.svc.integrations import sicon_sync
+from utils.sicon_appointments import push_engineer_allocation
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/svc/scheduler", tags=["Service Ops · Scheduler"])
@@ -199,6 +200,7 @@ async def assign_case(data: dict, user=Depends(get_current_user)):
     # Re-fetch case to get updated status after state transition
     case = await db.svc_cases.find_one({"id": case_id, **of}, {"_id": 0})
     await sicon_sync.push_case(case)
+    case["sicon_allocation"] = await push_engineer_allocation(case, [engineer_id])
     return case
 
 
@@ -405,5 +407,6 @@ async def auto_assign(
             response["score"] = top["score"]
             updated = await db.svc_cases.find_one({"id": case_id, **of}, {"_id": 0})
             await sicon_sync.push_case(updated)
+            response["sicon_allocation"] = await push_engineer_allocation(updated, [eng["id"]])
 
     return response

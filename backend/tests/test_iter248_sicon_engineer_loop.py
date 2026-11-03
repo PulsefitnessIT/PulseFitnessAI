@@ -25,7 +25,7 @@ from tests.conftest import _test_backend_url
 
 BASE_URL = _test_backend_url()
 
-MASTER_ADMIN = ("admin@gymaxisai.com", "MasterAdmin123!")
+MASTER_ADMIN = ("admin@pulsefitness.com", "C2s9yJ3YAhydB4d34-Bykg")
 ENGINEER = ("engineer.smoke@gymaxisai.com", "EngTest123!")
 
 HUB_ORG = "9fa701ef-5cc2-4db6-8795-bbfd2c85179d"
@@ -95,6 +95,9 @@ def test_reverse_crosswalks_cover_every_outbound_value():
 # ── Sicon schedules → engineer receives ──────────────────────────
 
 def test_sicon_scheduled_case_lands_in_engineer_app():
+    async def link():
+        await _db().svc_engineers.update_one({"id": SMOKE_ENGINEER_ID}, {"$set": {"sicon_employee_id": "77001"}})
+    asyncio.new_event_loop().run_until_complete(link())
     admin = _login(*MASTER_ADMIN)
     out = _simulate_inbound(admin, {
         "SiSMCaseId": SICON_CASE_ID,
@@ -103,16 +106,18 @@ def test_sicon_scheduled_case_lands_in_engineer_app():
         "Notes": "Scheduled by the Sicon service team.",
         "StatusID": "Assigned",
         "PriorityID": 2,
-        "AssignedToSageUserID": SMOKE_SAGE_USER_ID,
+        "AssignedToSageUserID": 5,  # case admin — NOT the engineer
         "ScheduledDateTime": "2026-06-13T09:00:00+00:00",
         "SubLocation": {"Description": "Pulse Gym — Manchester Central"},
         "ContactName": "Site Manager",
+        "Appointments": [{"SiconAppointmentID": 880001, "ScheduledStartDate": "2026-06-13T09:00:00+00:00",
+                          "EmployeeIDs": [77001]}],
     })
     assert out["created"] is True
     assert out["reference"] == SICON_REF
     assert out["status"] == "assigned"
     assert out["assigned_engineer_id"] == SMOKE_ENGINEER_ID, (
-        "AssignedToSageUserID must resolve via svc_engineers.sage_user_id"
+        "Appointment EmployeeIDs must resolve via svc_engineers.sicon_employee_id"
     )
 
     eng = _login(*ENGINEER)

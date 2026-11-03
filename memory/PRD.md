@@ -39216,3 +39216,8 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 ## Jun 2026 — MOD sender domain fix + Failed Email Resend — DONE (iteration 283)
 - MOD emails always send from verified modservice.pulsefitness.com (utils/email.py _category_sender rewrites bare @pulsefitness.com).
 - Master Admin: red "Resend" on each failed email + "Resend all failed (N)" (Email pill dialog + Outbound emails page). POST /api/master-admin/email-events/retry-failed (last 7 days, max 60/tap); single retry returns 422 on Resend rejection. Retries repair the sender domain. Failed counts exclude retry rows.
+
+## Jun 2026 — Sicon engineer allocation corrected to appointments — DONE
+- See SICON_INTEGRATION_SPEC.md "Jun 2026 — Correction". New utils/sicon_appointments.py; inbound worker pulls appointments per case; outbox kind appointment_engineers with conflict guard; scheduler assign/auto-assign queue allocations (writes still OFF via SICON_ALLOW_WRITES=false).
+- Test endpoint: POST /api/integrations/admin/sicon/simulate-inbound-appointment.
+- Note: tests/test_iter248_sicon_engineer_loop.py relies on a smoke engineer fixture missing from preview DB (pre-existing).

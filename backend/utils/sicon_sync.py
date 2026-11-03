@@ -694,10 +694,13 @@ async def refresh_sicon_engineers(org_id: str) -> Dict:
     if not client:
         return counts
     try:
-        raw = await client.get_resources()
-    except SiconAPIError as e:
-        logger.warning(f"[engineers] fetch failed for org {org_id}: {e}")
-        return counts
+        raw = await client.get_service_resources()
+    except SiconAPIError:
+        try:
+            raw = await client.get_resources()
+        except SiconAPIError as e:
+            logger.warning(f"[engineers] fetch failed for org {org_id}: {e}")
+            return counts
 
     entities = raw.get("entities") if isinstance(raw, dict) else None
     if not entities:
@@ -713,6 +716,13 @@ async def refresh_sicon_engineers(org_id: str) -> Dict:
             {"id": doc["id"]}, {"$set": doc}, upsert=True,
         )
         counts["upserted"] += 1
+        email = (doc.get("email") or "").strip().lower()
+        if email and doc.get("sicon_employee_id") is not None:
+            res = await db.svc_engineers.update_many(
+                {"organization_id": org_id, "email": email},
+                {"$set": {"sicon_employee_id": str(doc["sicon_employee_id"]),
+                          "sicon_team": doc.get("team_name"), "sicon_postcode_area": doc.get("post_code_area")}})
+            counts["linked"] = counts.get("linked", 0) + res.modified_count
     return counts
 
 

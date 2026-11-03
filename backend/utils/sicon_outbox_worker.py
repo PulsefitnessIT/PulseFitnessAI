@@ -49,6 +49,7 @@ from typing import Any, Optional
 from utils.database import db
 from utils.sicon_client import SiconAPIError, SiconClient
 from utils.sicon_common import get_sicon_client, log_sicon_event, env_allow_writes
+from utils.sicon_appointments import SiconAllocationConflict, flag_allocation_conflict
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,9 @@ async def _send_to_sicon(client: SiconClient, kind: str, payload: dict) -> dict:
         return await client.create_tracking_note(sicon_case_id, payload)
     if kind == "appointment":
         return await client.create_appointment(payload)
+    if kind == "appointment_engineers":
+        from utils.sicon_appointments import send_engineer_allocation
+        return await send_engineer_allocation(client, payload)
     if kind in {"signature", "attachment", "part_movement"}:
         # Sicon doesn't expose dedicated endpoints for these yet — record
         # them as a structured tracking note so the audit trail is intact.
@@ -160,6 +164,8 @@ async def _process_row(row: dict, *, simulate: bool) -> tuple[str, Optional[str]
     try:
         await _send_to_sicon(client, kind, row.get("payload") or {})
         return "succeeded", None
+    except SiconAllocationConflict as e:
+        return "conflict", str(e)
     except SiconAPIError as e:
         logger.warning("sicon worker: kind=%s ref=%s api error: %s", kind, row.get("our_reference"), e)
         return "failed", str(e)
@@ -240,6 +246,13 @@ async def tick(*, organization_id: Optional[str] = None,
                     success=True,
                     user_id="worker",
                 )
+        elif final_status == "conflict":
+            result.bump(kind, "conflict")
+            await db[OUTBOX].update_one(
+                {"id": row["id"]},
+                {"$set": {"status": "conflict", "updated_at": _now_iso(), "error": (error or "")[:1000]}},
+            )
+            await flag_allocation_conflict(row, error or "")
         elif final_status == "skipped_no_config":
             result.skipped_no_config += 1
             await db[OUTBOX].update_one(

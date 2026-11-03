@@ -16,9 +16,9 @@ Flow per organisation (sicon_config.enabled == True):
   2. every Sicon ServiceCall is stashed raw in `svc_sicon_inbox`
      (audit + replay), then merged into `svc_cases` via
      `merge_sicon_case` — idempotent on Sicon id / case reference.
-  3. Sicon `AssignedToSageUserID` / resource ids are resolved to
-     `svc_engineers.sage_user_id` (fallback: email) so the case lands
-     on the right engineer's job list.
+  3. Engineers come from each case's Sicon *appointments* (EmployeeIDs →
+     `svc_engineers.sicon_employee_id`, see utils/sicon_appointments.py).
+     `AssignedToSageUserID` is the Sicon case admin, stored separately.
 
 Anti-echo: merges write straight to Mongo (no `push_case`), so an
 inbound update never re-enqueues itself to the outbox.
@@ -64,12 +64,11 @@ def _now_iso() -> str:
 async def resolve_engineer(organization_id: str, payload: dict) -> Optional[dict]:
     """Map a Sicon assignment onto a provisioned `svc_engineers` row.
 
-    Priority: AssignedToSageUserID / ResourceID → `sage_user_id`,
-    then EngineerEmail / ContactEmail-style hints → `email`,
-    then AssignedToSageUser display name → `full_name` (exact match).
+    Only engineer-level hints: ResourceID / AppointmentResourceID →
+    `sage_user_id`/`id`, then EngineerEmail. `AssignedToSageUserID` is the
+    case admin (confirmed by Sicon) and is never treated as the engineer.
     """
     sage_ids = [
-        str(payload.get("AssignedToSageUserID") or "").strip(),
         str(payload.get("ResourceID") or "").strip(),
         str(payload.get("AppointmentResourceID") or "").strip(),
     ]
@@ -88,12 +87,6 @@ async def resolve_engineer(organization_id: str, payload: dict) -> Optional[dict
     if email:
         eng = await db.svc_engineers.find_one(
             {"organization_id": organization_id, "email": email}, {"_id": 0})
-        if eng:
-            return eng
-    name = (payload.get("AssignedToSageUser") or "").strip()
-    if name:
-        eng = await db.svc_engineers.find_one(
-            {"organization_id": organization_id, "full_name": name}, {"_id": 0})
         if eng:
             return eng
     return None
@@ -183,6 +176,9 @@ async def merge_sicon_case(organization_id: str, payload: dict,
         fields["customer_phone"] = e.get("ContactPhone") or e.get("ContactPhoneNumber")
     if e.get("EquipmentSerials"):
         fields["equipment_serials"] = e["EquipmentSerials"]
+    if e.get("AssignedToSageUserID") or e.get("AssignedToSageUser"):
+        fields["sicon_case_admin_id"] = e.get("AssignedToSageUserID")
+        fields["sicon_case_admin_name"] = e.get("AssignedToSageUser") or ""
 
     if engineer:
         fields["assigned_engineer_id"] = engineer["id"]
@@ -223,6 +219,14 @@ async def merge_sicon_case(organization_id: str, payload: dict,
         ))
         await db.svc_cases.insert_one(dict(case))
         case.pop("_id", None)
+
+    embedded = e.get("Appointments") or e.get("appointments") or []
+    if embedded:
+        from utils.sicon_appointments import merge_sicon_appointment
+        for appt in embedded:
+            if isinstance(appt, dict):
+                appt.setdefault("SiSMCaseID", sicon_id)
+                case = await merge_sicon_appointment(organization_id, appt) or case
 
     await append_event(
         case_id=case["id"],
@@ -300,6 +304,7 @@ async def poll_org(organization_id: str) -> dict:
             counts["created" if merged["created"] else "updated"] += 1
             await _stash_inbox(organization_id, item, case_id=merged["case"]["id"],
                                created=merged["created"], source="sicon_poll")
+            await _pull_appointments(client, organization_id, merged["case"])
         except Exception:
             logger.exception("sicon inbound merge failed for %s", organization_id)
             counts["errors"] += 1
@@ -313,6 +318,25 @@ async def poll_org(organization_id: str) -> dict:
         details=f"fetched={counts['fetched']} created={counts['created']} updated={counts['updated']}",
         success=counts["errors"] == 0, user_id="worker")
     return counts
+
+
+async def _pull_appointments(client, organization_id: str, case: dict) -> None:
+    """Read-only: refresh the case's appointments so engineers follow Sicon."""
+    sicon_id = case.get("sicon_case_id")
+    if not sicon_id:
+        return
+    from utils.sicon_appointments import merge_sicon_appointment
+    try:
+        res = await client.get_appointments_for_case(sicon_id)
+    except Exception as exc:
+        logger.info("sicon appointments pull skipped for case %s: %s", sicon_id, exc)
+        return
+    rows = res if isinstance(res, list) else (res.get("entities") or res.get("Items") or res.get("items") or [])
+    for row in rows:
+        r = row.get("entity", row) if isinstance(row, dict) else {}
+        case_ref = r.get("SiSMCaseID") or r.get("SiSMCaseId") or r.get("sismcaseid")
+        if str(case_ref) == str(sicon_id):
+            await merge_sicon_appointment(organization_id, row)
 
 
 async def tick() -> dict:
