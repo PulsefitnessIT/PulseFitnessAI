@@ -677,6 +677,9 @@ async def engineer_dashboard(user=Depends(get_current_user)):
     return {
         "kpis": {
             "site_new_jobs": await _esp_new_count(user),
+            "my_open_jobs": await db.svc_cases.count_documents(
+                {"assigned_engineer_id": user_id, "status": {"$in": ["new", "triaged", "assigned", "en_route",
+                                                                     "on_site", "awaiting_parts", "in_progress"]}}),
             "today_jobs": today_jobs,
             "upcoming_jobs": upcoming_jobs,
             "overdue_jobs": overdue_jobs,

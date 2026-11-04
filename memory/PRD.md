@@ -39248,3 +39248,9 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - New: utils/svc_ops_bridge.mirror_mod_completion; service_report._email_pulse_close_out; email_send_events now store real sender + kind.
 - Test: tests/test_mod_service_process_e2e_jan2026.py.
 - Open: Sicon close-down for MOD jobs is manual (BFPO cases not mapped to Sicon); provider logo placeholder on fault detail.
+
+## Nov 2026 — ROOT CAUSE of "MOD fixes never live": modservice.pulsefitness.com bound to a DIFFERENT, older Emergent deployment
+- This job's deployment (fitness-ai-migrate, id 1b2301c1-4242-4a5d-90f8-dcbdbf3453ee) only has pulsefitness.ai + www. modservice serves old bundle main.a3ca8dae.js; new endpoints 404 there. Same Mongo.
+- User action: unlink modservice from the old deployment → add it in THIS deployment's Domains → CNAME to fitness-ai-migrate.emergent.host. Verify: curl modservice index → same main.*.js as pulsefitness.ai; /api/mod/site/machine-suppliers → 401 not 404.
+- Jimmy (eamonn152@aol.co.uk) data is correct in prod; case MOD-2026-12062 is already assigned to him.
+- Also done (preview, deploy pending): ESP "My customers" = allocated MOD sites (address, contact, machines, open faults); Equipment = all machines on their sites; MOD job detail shows site as customer, site contact/address, reporter, "MOD contract" cover; home tiles "Jobs allocated to you" + "New faults on your sites".

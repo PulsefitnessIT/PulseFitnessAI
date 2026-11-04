@@ -403,8 +403,21 @@ export default function EngineerHomeV2() {
 
             {/* KPI Grid */}
             {kpis.site_new_jobs != null && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <button type="button" onClick={() => navigate('/svc/engineer/jobs?when=open')}
+                className="w-full flex items-center justify-between rounded-xl border-2 border-sky-300 bg-sky-50 px-4 py-3 text-left hover:bg-sky-100 transition-colors"
+                data-testid="kpi-my-open-jobs">
+                <span className="flex items-center gap-2">
+                  <Wrench size={18} className="text-sky-700" />
+                  <span>
+                    <span className="block text-sm font-extrabold text-sky-900">Jobs allocated to you</span>
+                    <span className="block text-xs text-sky-800/80">Open faults to attend and complete</span>
+                  </span>
+                </span>
+                <span className="text-2xl font-extrabold text-sky-800" data-testid="kpi-my-open-jobs-count">{kpis.my_open_jobs ?? 0}</span>
+              </button>
               <button type="button" onClick={() => navigate('/svc/engineer/queue')}
-                className="w-full mb-3 flex items-center justify-between rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 text-left hover:bg-red-100 transition-colors"
+                className="w-full flex items-center justify-between rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 text-left hover:bg-red-100 transition-colors"
                 data-testid="kpi-site-new-jobs">
                 <span className="flex items-center gap-2">
                   <AlertTriangle size={18} className="text-red-600" />
@@ -415,6 +428,7 @@ export default function EngineerHomeV2() {
                 </span>
                 <span className="text-2xl font-extrabold text-red-700" data-testid="kpi-site-new-jobs-count">{kpis.site_new_jobs}</span>
               </button>
+              </div>
             )}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="engineer-home-kpi-grid">
               <KPITile icon={Calendar} label={t('service.eng_home_kpi_today', 'Today')} value={kpis.today_jobs} accent="#0891b2"

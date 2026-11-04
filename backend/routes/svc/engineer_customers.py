@@ -258,6 +258,12 @@ async def list_customers(
     limit: int = Query(default=50, ge=1, le=200),
 ):
     """Org-wide list of saved customers, newest first."""
+    from utils.esp_engineer import esp_site_customers, is_external_engineer
+    if is_external_engineer(user):
+        rows = await esp_site_customers(user)
+        if q:
+            rows = [r for r in rows if q.lower() in f"{r['name']} {r['site_address']} {r['email']}".lower()]
+        return {"customers": rows[:limit], "total": len(rows)}
     org_id = _of(user)
     query: dict = {"organization_id": org_id}
     if q:
@@ -710,6 +716,12 @@ async def import_csv(
 
 @router.get("/{customer_id}")
 async def get_customer(customer_id: str, user=Depends(get_current_user)):
+    from utils.esp_engineer import esp_site_customers, is_external_engineer
+    if is_external_engineer(user):
+        site = next((c for c in await esp_site_customers(user) if c["id"] == customer_id), None)
+        if not site:
+            raise HTTPException(404, "Customer not found")
+        return {**site, "recent_quotes": [], "recent_invoices": [], "crm_company": None}
     org_id = _of(user)
     doc = await db.svc_engineer_customers.find_one(
         {"organization_id": org_id, "id": customer_id}

@@ -63,6 +63,73 @@ async def _case_provider_id(case: dict) -> str | None:
     return est if est and est != INHOUSE_SUPPLIER_ID else None
 
 
+async def mod_job_context(case: dict) -> dict:
+    """Extra fields for MOD jobs in the engineer app: site as the customer,
+    site contact/address, reporter, machine details; covered by MOD contract."""
+    site_id = case.get("site_id") or case.get("organization_id")
+    site = (await _site_cards([site_id]) or [{}])[0] if site_id else {}
+    issue = await db.issues.find_one({"id": case.get("mod_issue_id")}, {"_id": 0}) if case.get("mod_issue_id") else None
+    issue = issue or {}
+    eq_id = case.get("asset_id") or issue.get("equipment_id")
+    eq = await db.equipment.find_one({"id": eq_id}, {"_id": 0, "name": 1, "serial_number": 1, "manufacturer": 1,
+                                                     "model": 1, "location": 1, "asset_tag": 1, "mod_code": 1,
+                                                     "equipment_type": 1}) if eq_id else None
+    out = {
+        "customer_name": case.get("customer_name") or site.get("name") or case.get("site_name") or "MOD site",
+        "customer_email": case.get("customer_email") or issue.get("reporter_email") or site.get("email") or "",
+        "customer_phone": case.get("customer_phone") or issue.get("reporter_phone") or site.get("phone") or "",
+        "site_address": case.get("site_address") or site.get("site_address") or "",
+        "site_contact_name": site.get("contact_name") or "",
+        "reporter_name": case.get("reporter_name") or issue.get("reporter_name") or issue.get("reported_by_name") or "",
+        "fault_description": case.get("description") or issue.get("description") or "",
+        "cover_type": "MOD contract", "coverage_status": "covered", "is_mod_job": True,
+    }
+    if eq:
+        out["asset_name"] = case.get("asset_name") or eq.get("name")
+        out["asset_serial"] = case.get("asset_serial") or eq.get("serial_number")
+        out["mod_machine"] = eq
+    return out
+
+
+async def _site_cards(site_ids: list[str]) -> list[dict]:
+    rows = []
+    async for o in db.organizations.find({"id": {"$in": site_ids}}, {"_id": 0}):
+        contact = await db.users.find_one(
+            {"organization_id": o["id"], "is_active": {"$ne": False}, "is_shared_site_login": {"$ne": True},
+             "role": {"$in": ["owner", "manager", "admin"]}},
+            {"_id": 0, "full_name": 1, "email": 1, "phone": 1}) or {}
+        rows.append({
+            "id": o["id"], "name": o.get("name") or "MOD site",
+            "site_address": ", ".join(x for x in [o.get("address_line1") or o.get("address"), o.get("address_line2"),
+                                                  o.get("city"), o.get("county"), o.get("postcode"),
+                                                  o.get("country")] if x),
+            "address_line1": o.get("address_line1") or o.get("address") or "", "city": o.get("city") or "",
+            "postcode": o.get("postcode") or "", "country": o.get("country") or "",
+            "email": contact.get("email") or o.get("email") or o.get("contact_email") or "",
+            "phone": contact.get("phone") or o.get("phone") or "", "contact_name": contact.get("full_name") or "",
+        })
+    return rows
+
+
+async def esp_site_customers(user: dict) -> list[dict]:
+    """Allocated MOD sites shaped as engineer-app 'customers'."""
+    from utils.svc_state import OPEN_STATES
+    sites = await esp_site_ids(user)
+    if not sites:
+        return []
+    out = []
+    for c in await _site_cards(sites):
+        out.append({
+            **c, "site_name": c["name"],
+            "machine_count": await db.equipment.count_documents({"organization_id": c["id"]}),
+            "open_faults": await db.svc_cases.count_documents(
+                {"status": {"$in": list(OPEN_STATES)},
+                 "$or": [{"site_id": c["id"]}, {"organization_id": c["id"]}]}),
+            "is_mod_site": True, "read_only": True,
+        })
+    return sorted(out, key=lambda c: c["name"])
+
+
 async def auto_allocate_sole_engineer(case: dict) -> str | None:
     """New MOD fault → if its provider has exactly one active engineer, assign it to them."""
     if case.get("assigned_engineer_id"):

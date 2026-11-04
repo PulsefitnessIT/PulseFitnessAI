@@ -576,6 +576,9 @@ async def engineer_job_detail(case_id: str, user=Depends(get_current_user)):
         # jobs. Return 404 (not 403) so attackers can't enumerate
         # case IDs by status code.
         raise HTTPException(404, "Job not found")
+    if case.get("bfpo") or case.get("mod_issue_id"):
+        from utils.esp_engineer import mod_job_context
+        case.update(await mod_job_context(case))
     # Two-stage receipt — mark "received" the first time the assigned engineer
     # opens the job so the Service Desk can show Allocated → Received.
     if case.get("assigned_engineer_id") == user["id"] and not case.get("received_at"):

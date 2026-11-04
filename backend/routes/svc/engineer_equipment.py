@@ -240,6 +240,12 @@ async def list_engineer_equipment(
         flt["customer_id"] = customer_id
     if site_id:
         flt["site_id"] = site_id
+    from utils.esp_engineer import esp_site_ids, is_external_engineer
+    if is_external_engineer(user):
+        # Provider engineers: every machine on their allocated MOD sites.
+        sites = await esp_site_ids(user)
+        pick = [s for s in sites if s in {customer_id, site_id}] or sites
+        flt = {"organization_id": {"$in": pick}}
     if q:
         # Case-insensitive contains across name / serial / model.
         # We don't bother with a $text index — list is bounded at 200.
@@ -258,13 +264,20 @@ async def list_engineer_equipment(
                 "_id": 0, "id": 1, "name": 1, "equipment_type": 1,
                 "manufacturer": 1, "model": 1, "serial_number": 1,
                 "location": 1, "status": 1, "site_id": 1,
-                "customer_id": 1, "customer_name": 1,
+                "customer_id": 1, "customer_name": 1, "organization_id": 1, "asset_tag": 1,
+                "mod_code": 1, "last_service_date": 1, "next_service_date": 1, "supplier": 1,
                 "created_at": 1, "created_by_id": 1, "created_via": 1,
             },
         )
         .sort("created_at", -1)
         .to_list(limit)
     )
+    if is_external_engineer(user):
+        names = {o["id"]: o.get("name") async for o in db.organizations.find(
+            {"id": {"$in": list({r.get("organization_id") for r in rows})}}, {"_id": 0, "id": 1, "name": 1})}
+        for r in rows:
+            r["customer_name"] = r.get("customer_name") or names.get(r.get("organization_id")) or ""
+            r["customer_id"] = r.get("customer_id") or r.get("organization_id")
     return {"equipment": rows, "count": len(rows)}
 
 
