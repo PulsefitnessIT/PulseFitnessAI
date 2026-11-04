@@ -6,6 +6,8 @@ faults/jobs for the MOD sites their provider is allocated to.
 """
 from __future__ import annotations
 
+import re
+
 from utils.database import db
 
 BFPO_ORG_ID = "bfpo-mod-org"
@@ -26,9 +28,14 @@ async def esp_site_ids(user: dict) -> list[str]:
     sites = set(user.get("bfpo_site_ids") or [])
     sup_id = user.get("mod_estate_supplier_id")
     if sup_id:
-        rows = await db.suppliers.find({"estate_supplier_id": sup_id},
-                                       {"_id": 0, "id": 1, "organization_id": 1}).to_list(2000)
-        row_ids = [r["id"] for r in rows]
+        est = await db.mod_estate_suppliers.find_one({"id": sup_id}, {"_id": 0, "name": 1, "email": 1}) or {}
+        match = [{"estate_supplier_id": sup_id}]
+        if est.get("email"):
+            match.append({"email": {"$regex": f"^{re.escape(est['email'].strip())}$", "$options": "i"}})
+        if est.get("name"):
+            match.append({"name": {"$regex": f"^{re.escape(est['name'].strip())}$", "$options": "i"}})
+        rows = await db.suppliers.find({"$or": match}, {"_id": 0, "id": 1, "organization_id": 1}).to_list(2000)
+        row_ids = [r["id"] for r in rows] + [sup_id]
         if row_ids:
             async for o in db.organizations.find({"service_supplier_id": {"$in": row_ids}}, {"_id": 0, "id": 1}):
                 sites.add(o["id"])
