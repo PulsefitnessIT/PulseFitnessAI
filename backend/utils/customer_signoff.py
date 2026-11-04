@@ -42,6 +42,10 @@ async def resolve_site_contact(case: dict) -> dict:
     """Main contact for the job's site: case → site → organisation."""
     name = (case.get("customer_name") or "").strip()
     email = (case.get("customer_email") or "").strip()
+    if not email and case.get("reporter_email"):
+        # MOD faults: the person who logged the fault is the site contact.
+        email = case["reporter_email"].strip()
+        name = name or (case.get("reporter_name") or "").strip()
     site_id = case.get("site_id")
     if site_id and not email:
         site = await db.sites.find_one({"id": site_id}, {"_id": 0}) or {}
@@ -176,7 +180,7 @@ def signoff_flowables(sig: dict | None, styles: dict) -> list:
 
 
 async def email_signed_pdf(*, sig: dict | None, contact: dict, pdf: bytes, filename: str, subject: str,
-                           intro: str, organization_id: str | None) -> str:
+                           intro: str, organization_id: str | None, category: str = "service") -> str:
     """Send the signed report; returns the address it went to ('' if none)."""
     to, cc = recipients(sig, contact)
     if not to:
@@ -190,7 +194,7 @@ async def email_signed_pdf(*, sig: dict | None, contact: dict, pdf: bytes, filen
     try:
         ok = await send_email(to=to, cc=cc or None, subject=subject, html=html, organization_id=organization_id,
                               attachments=[{"filename": filename, "content": base64.b64encode(pdf).decode("ascii")}],
-                              category="service", kind="signed_service_report")
+                              category=category, kind="signed_service_report")
         return to if ok else ""
     except Exception:
         logger.exception("signed report email failed")

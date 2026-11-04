@@ -1211,23 +1211,70 @@ __all__ = ["router"]
 
 async def email_signed_service_report(case_id: str, organization_id: str) -> str:
     """After completion: email the signed service report to the signer
-    (site main contact copied). Best-effort; never raises."""
+    (site main contact copied). MOD jobs also go to Pulse MOD Service so the
+    job can be closed on Sicon. Best-effort; never raises."""
     from utils.customer_signoff import email_signed_pdf, latest_signoff, resolve_site_contact
     try:
         sig = await latest_signoff(case_id=case_id)
         pdf, payload = await _build_report(case_id, {"organization_id": organization_id, "is_master_admin": True, "id": "system"})
         case = payload["case"]
         ref = case.get("reference", case_id[:8])
+        is_mod = bool(case.get("mod_issue_id") or case.get("bfpo"))
         sent = await email_signed_pdf(
             sig=sig, contact=await resolve_site_contact(case), pdf=pdf,
             filename=f"service-report-{ref}.pdf",
             subject=f"Signed service report · {ref} — {case.get('title', 'Visit complete')}",
-            intro=f"Your service visit <b>{ref}</b> is complete.", organization_id=organization_id)
+            intro=f"Your service visit <b>{ref}</b> is complete.", organization_id=organization_id,
+            category="mod" if is_mod else "service")
         if sent:
             now_iso = datetime.now(timezone.utc).isoformat()
             await db.svc_cases.update_one({"id": case_id}, {"$set": {
                 "service_report_sent_at": now_iso, "service_report_sent_to": sent}})
+        if is_mod:
+            await _email_pulse_close_out(case, pdf, sig)
         return sent
     except Exception:
         logger.exception("signed service report email failed for %s", case_id)
         return ""
+
+
+async def _email_pulse_close_out(case: dict, pdf: bytes, sig: dict | None) -> None:
+    """MOD job finished → Pulse MOD Service gets the engineer's notes + signed
+    report so the job can be closed down on Sicon."""
+    import base64
+    import html as _h
+    import os
+    from utils.default_supplier import MOD_SERVICE_EMAIL
+    from utils.email import send_email
+    to = (os.environ.get("MOD_SERVICE_EMAIL") or MOD_SERVICE_EMAIL).strip()
+    ref = case.get("reference") or case["id"][:8]
+    notes = await db.svc_case_events.find(
+        {"case_id": case["id"], "type": "note", "extra.kind": {"$nin": ["sicon_engineer_change", "esp_auto_allocated"]}},
+        {"_id": 0, "body": 1, "actor_name": 1, "at": 1}).sort("at", 1).to_list(50)
+    rows = "".join(f"<li style='margin-bottom:6px'><b>{_h.escape(n.get('actor_name') or '')}</b> "
+                   f"<span style='color:#64748b'>{_h.escape(str(n.get('at') or '')[:16].replace('T', ' '))}</span><br/>"
+                   f"{_h.escape(n.get('body') or '')}</li>" for n in notes)
+    sicon = case.get("sicon_case_id") or case.get("sicon_reference") or "—"
+    html = (f"<div style='font-family:Helvetica,Arial,sans-serif;max-width:620px'>"
+            f"<h2 style='font-size:17px;margin:0 0 8px'>MOD job complete — ready to close on Sicon</h2>"
+            f"<table style='font-size:13px;border-collapse:collapse'>"
+            f"<tr><td style='padding:2px 10px 2px 0;color:#64748b'>Job</td><td><b>{_h.escape(ref)}</b></td></tr>"
+            f"<tr><td style='padding:2px 10px 2px 0;color:#64748b'>Site</td><td>{_h.escape(case.get('site_name') or '')}</td></tr>"
+            f"<tr><td style='padding:2px 10px 2px 0;color:#64748b'>Fault</td><td>{_h.escape(case.get('title') or '')}</td></tr>"
+            f"<tr><td style='padding:2px 10px 2px 0;color:#64748b'>Engineer</td><td>{_h.escape(case.get('assigned_engineer_name') or '')}</td></tr>"
+            f"<tr><td style='padding:2px 10px 2px 0;color:#64748b'>Signed off by</td><td>{_h.escape((sig or {}).get('signed_by_name') or '—')}</td></tr>"
+            f"<tr><td style='padding:2px 10px 2px 0;color:#64748b'>Sicon case</td><td>{_h.escape(str(sicon))}</td></tr></table>"
+            f"<h3 style='font-size:14px;margin:16px 0 6px'>Engineer's notes</h3>"
+            f"<ul style='font-size:13px;padding-left:18px'>{rows or '<li>No notes recorded</li>'}</ul>"
+            f"<p style='font-size:12px;color:#64748b'>The signed service report is attached.</p></div>")
+    try:
+        ok = await send_email(to=to, subject=f"Close on Sicon · {ref} — {case.get('site_name') or 'MOD site'}",
+                              html=html, organization_id=case.get("organization_id"),
+                              attachments=[{"filename": f"service-report-{ref}.pdf",
+                                            "content": base64.b64encode(pdf).decode("ascii")}],
+                              category="mod", kind="mod_job_close_out")
+        if ok:
+            await db.svc_cases.update_one({"id": case["id"]}, {"$set": {
+                "pulse_close_out_sent_at": datetime.now(timezone.utc).isoformat(), "pulse_close_out_sent_to": to}})
+    except Exception:
+        logger.exception("pulse close-out email failed for %s", case.get("id"))

@@ -132,4 +132,37 @@ async def mirror_case_state_to_issue(*, case: dict, target_state: str, actor: di
         return False
 
 
-__all__ = ["mirror_case_state_to_issue"]
+async def mirror_mod_completion(*, case: dict, summary: str, actor: dict | None) -> bool:
+    """MOD job completed in the engineer app (customer already signed) →
+    the MOD fault shows the engineer's report and is marked resolved."""
+    issue_id = case.get("mod_issue_id")
+    if not issue_id:
+        return False
+    from utils.customer_signoff import latest_signoff
+    sig = await latest_signoff(case_id=case["id"]) or {}
+    now = _now()
+    name = (actor or {}).get("full_name") or (actor or {}).get("email") or "Engineer"
+    report = {"summary": summary, "engineer_name": name, "completed_at": now,
+              "signed_by_name": sig.get("signed_by_name") or "", "case_reference": case.get("reference")}
+    issue = await db.issues.find_one({"id": issue_id}, {"_id": 0, "status": 1, "equipment_id": 1}) or {}
+    if issue.get("equipment_id"):
+        await db.equipment.update_one({"id": issue["equipment_id"], "status": "out_of_service"},
+                                      {"$set": {"status": "active"}})
+    set_fields = {"engineer_report": report, "resolution_note": summary, "work_completed_at": now,
+                  "linked_case_id": case.get("id"), "linked_case_reference": case.get("reference"),
+                  "last_case_sync_at": now}
+    if issue.get("status") != "resolved":
+        set_fields.update({"status": "resolved", "resolved_at": now, "resolution_type": "engineer",
+                           "resolved_by": name})
+    try:
+        await db.issues.update_one({"id": issue_id}, {"$set": set_fields, "$push": {"timeline": {
+            "event": "engineer_report", "label": "Engineer report & customer sign-off",
+            "timestamp": now, "by": name, "case_reference": case.get("reference"), "note": summary[:500],
+            "source": "engineer_app"}}})
+        return True
+    except Exception as e:  # pragma: no cover
+        logger.warning("mirror_mod_completion failed for issue %s: %s", issue_id, e)
+        return False
+
+
+__all__ = ["mirror_case_state_to_issue", "mirror_mod_completion"]

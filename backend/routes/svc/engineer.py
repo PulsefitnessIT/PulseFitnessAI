@@ -1200,6 +1200,9 @@ async def engineer_complete(
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     await sicon_sync.push_case(case)
+    if case.get("mod_issue_id"):
+        from utils.svc_ops_bridge import mirror_mod_completion
+        await mirror_mod_completion(case=case, summary=summary, actor=user)
     if target == CLOSED:
         await sage_invoice.enqueue_invoice_for_case(case)
     # Iter 220c — successful complete → drop the engineer's in-flight

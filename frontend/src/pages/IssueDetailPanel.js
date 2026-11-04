@@ -640,12 +640,42 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  </div>
  )}
 
- {issue.resolution_note && (
+ {!issue.engineer_report && issue.resolution_note && (
  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
  <span className="text-green-400 text-sm font-medium">Fix Notes:</span>
  <p className="text-white text-sm mt-1">{issue.resolution_note}</p>
  </div>
  )}
+
+ {issue.engineer_report && (
+ <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg space-y-1" data-testid="issue-engineer-report">
+ <div className="flex items-center justify-between gap-2 flex-wrap">
+ <span className="text-green-600 text-sm font-bold">Engineer's report</span>
+ <span className="text-[11px] text-[var(--color-text-muted)]" data-testid="issue-engineer-report-meta">
+ {issue.engineer_report.engineer_name} · {new Date(issue.engineer_report.completed_at).toLocaleString()}
+ </span>
+ </div>
+ <p className="text-sm whitespace-pre-wrap" data-testid="issue-engineer-report-summary">{issue.engineer_report.summary}</p>
+ {issue.engineer_report.signed_by_name && (
+ <p className="text-xs text-[var(--color-text-muted)]" data-testid="issue-engineer-report-signed">Signed off by {issue.engineer_report.signed_by_name}</p>
+ )}
+ </div>
+ )}
+
+ {(issue.timeline || []).length > 0 && (
+ <div className="p-3 rounded-lg border border-[var(--theme-border)]" data-testid="issue-engineer-timeline">
+ <span className="text-sm font-bold">Engineer progress</span>
+ <ol className="mt-2 space-y-1.5">
+ {issue.timeline.map((t, i) => (
+ <li key={`${t.event}-${i}`} className="text-xs flex gap-2" data-testid={`issue-timeline-${i}`}>
+ <span className="text-[var(--color-text-muted)] shrink-0 w-28">{t.timestamp ? new Date(t.timestamp).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+ <span><b>{t.label || t.event}</b>{t.by ? ` · ${t.by}` : ''}</span>
+ </li>
+ ))}
+ </ol>
+ </div>
+ )}
+
 
  {/* AI Triage — collapsible (Iter 216h263). Users wanted this
      tucked away in a dropdown so the fault card opens with the
