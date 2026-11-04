@@ -362,6 +362,8 @@ async def _record_email_event(
     status: str,
     error: str | None,
     payload: dict | None = None,
+    sender: str | None = None,
+    kind: str | None = None,
 ) -> str | None:
     """Best-effort write to the ``email_send_events`` audit collection.
 
@@ -384,7 +386,8 @@ async def _record_email_event(
         "id": event_id,
         "to": to,
         "subject": subject,
-        "sender": SENDER_EMAIL or "",
+        "sender": sender or SENDER_EMAIL or "",
+        "kind": kind or "",
         "status": status,            # "sent" | "failed" | "no_api_key" | "bad_sender"
         "error": (error or "")[:500],
         "created_at": datetime.now(timezone.utc),
@@ -527,7 +530,8 @@ async def send_email(
                 asyncio.to_thread(resend.Emails.send, params), timeout=_send_timeout,
             )
         logger.info(f"Email sent to {to} (subject={subject!r}, resend_id={result.get('id') if isinstance(result, dict) else result})")
-        await _record_email_event(to=to, subject=subject, status="sent", error=None)
+        await _record_email_event(to=to, subject=subject, status="sent", error=None,
+                                  sender=from_addr, kind=kind)
         return True
     except Exception as e:
         logger.error(f"Email send FAILED via Resend: to={to}, subject={subject!r}, sender={from_addr!r}, error={e!r}")
@@ -545,7 +549,7 @@ async def send_email(
         }
         await _record_email_event(
             to=to, subject=subject, status="failed", error=repr(e),
-            payload=retry_payload,
+            payload=retry_payload, sender=from_addr, kind=kind,
         )
         return False
 

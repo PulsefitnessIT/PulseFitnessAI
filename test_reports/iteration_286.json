@@ -1,0 +1,53 @@
+{
+  "summary": "Tested the whole MOD service process end to end against the live preview: backend API plus Mongo checks, then the MOD portal UI. The process works from start to finish: fault logged → BFPO case bridged → provider and Pulse emailed → ESP engineer claims → en route, H&S checklist, on site, note, customer signature, complete → MOD fault resolved with the engineer report, timeline and PDF → Pulse 'Close on Sicon' email with the PDF and notes → signed report emailed to the reporter. One defect: the three emails sent when a fault is logged go out from noreply@pulsefitness.ai, not modservice.pulsefitness.com. Backend e2e: 10 of 11 passed (2 full runs). Regression: 47 of 47 passed. MOD portal UI: all checks passed.",
+  "process_checklist": {
+    "STEP1_fault_logged_and_bridged": "PASS. The issue is created, bfpo_case_id is set, and the case has organization_id=bfpo-mod-org, site_id=abfdabd9…, mod_issue_id=issue id. notified_recipients = MODService@pulsefitness.com and Inda Fitness <john@gymandfitness.co.ke>.",
+    "STEP1_email_attempts_to_provider_and_pulse": "PASS. email_send_events has rows for MODService@pulsefitness.com ('[MOD Fault] …'), john@gymandfitness.co.ke ('[Fault Log] …') and the reporter ('Fault logged — …'). All are status=failed, which is expected with the invalid Resend key in preview.",
+    "STEP1_sender_modservice_domain": "FAIL. All three fault-intake emails have payload.from='Pulse Fitness <noreply@pulsefitness.ai>', not modservice.pulsefitness.com.",
+    "STEP2_engineer_sees_and_claims": "PASS. site_new_jobs went 14→15. The case appeared in /svc/engineer/queue/territory and was not auto-allocated (Inda has several engineers). POST /queue/{id}/claim returned 200 and assigned esp-test-eng-1.",
+    "STEP3_engineer_works_job": "PASS. time/start travel → en_route. time/start on_site is blocked with 412 safety_signoff_required until POST /svc/engineer/jobs/{id}/safety/signoff (this is the intended H&S gate), then → on_site. Handoff note and /svc/cases/{id}/notes both worked. complete without a signature → 400 'sign-off required'. POST /svc/engineer/signature (the route is /svc/engineer/signature with case_id in the body, NOT /svc/jobs/{id}/signature) → 200. complete → 200, status awaiting_sign_off.",
+    "STEP4_mod_portal_sees_work": "PASS. GET /mod/site/faults/{id} returns status=resolved, engineer_report {summary, engineer_name 'ESP Test Engineer', completed_at, signed_by_name, case_reference}, and resolution_note. The timeline has engineer_en_route, engineer_on_site, work_completed and engineer_report. In the UI (/MODService?portal=modservice → Operations → Faults → card), issue-engineer-report shows the summary and 'Signed off by TEST_ Cpl Signer', and issue-engineer-timeline lists 4 entries. mod-fault-service-report-btn → 200 application/pdf.",
+    "STEP5_pulse_close_out": "PASS. 'Close on Sicon · MOD-2026-xxxxx — MOD Test Site' was sent to MODService@pulsefitness.com from modservice@modservice.pulsefitness.com with the PDF attached (service-report-<ref>.pdf, about 540KB b64). The HTML lists all engineer notes: H&S checklist, handoff note, diagnosis note and fix summary. The signed service report email went to the reporter (james.reed@army.mod.uk) with the mod category sender.",
+    "STEP5_pulse_can_find_case": "PASS via the MOD Operations route. Master admin GET /api/bfpo/staff/jobs contains the ref. GET /api/svc/cases?search=<ref> returns 0 because Service Desk is scoped to the admin's own org and the case sits in bfpo-mod-org. Pulse sees MOD jobs in MOD Operations, not in the generic Service Desk list."
+  },
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/mod/site/faults", "issue": "The fault-intake emails (Pulse desk '[MOD Fault]', provider '[Fault Log]', reporter 'Fault logged') call send_email(to, subject, html) with no category, so they go out from the root SENDER_EMAIL noreply@pulsefitness.ai instead of modservice@modservice.pulsefitness.com. This breaks MOD sender consistency and goes against the stated requirement. Fix: pass category='mod' (plus kind/organization_id) at mod_portal.py lines ~1813, ~1878 and ~1905.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "utils/email._record_email_event", "issue": "email_send_events rows do not store `kind` or the real From address. The `sender` field is always the root SENDER_EMAIL even when the category sender was used, so the outbound-emails panel shows the wrong sender, and kind='mod_job_close_out' cannot be queried. The real From is only in payload.from on failed sends."},
+      {"endpoint": "routes/bfpo._bridge_mod_fault_to_bfpo", "issue": "The case title is built with fault_type_mod.title(), which gives 'Not_Working — …' (underscore shown). It appears in email subjects such as 'Signed service report · MOD-… — Not_Working — …'. Use .replace('_',' ').title() or a label map."},
+      {"endpoint": "mirror_mod_completion vs MOD acceptance loop", "issue": "When the engineer completes the job, the MOD fault is marked resolved but the reporter does not get the confirm-fix token email that the /mark-resolved path sends, and acceptance_status is not set. The 48h reporter confirmation loop is skipped for engineer-completed jobs. Confirm this is intended."},
+      {"endpoint": "MOD fault ↔ engineer notes", "issue": "The MOD portal fault shows only the final summary and timeline labels. The engineer's intermediate notes (diagnosis note, handoff notes) are not pushed onto the issue, although Pulse gets them in the close-out email. If 'all notes feed through to the MOD portal' is a requirement, mirror customer-visible notes onto the issue."},
+      {"endpoint": "later Pulse close on Sicon", "issue": "When Pulse later moves the case to closed, mirror_case_state_to_issue will push another 'Resolved by engineer' timeline entry onto a fault that is already resolved, a duplicate in the progress list (not executed, found in code review)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MOD fault detail · Notified when logged", "issues": ["The Inda Fitness provider row shows an empty grey logo placeholder box"]},
+      {"screen": "MOD fault detail · Engineer's report", "issues": ["The meta line and the 'Signed off by' text are very light grey on a pale green background, so contrast is low"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mod_service_process_e2e_jan2026.py", "/app/test_reports/pytest/mod_process_e2e.xml", "/app/test_reports/pytest/mod_process_regression.xml"],
+  "action_items": [
+    "HIGH: pass category='mod' on the 3 send_email calls in mod_fault_submit (Pulse desk, provider, reporter confirmation) so fault-intake emails use modservice.pulsefitness.com",
+    "Store kind and the actual from_addr in email_send_events (_record_email_event)",
+    "Fix the 'Not_Working' case title formatting in _bridge_mod_fault_to_bfpo",
+    "Decide whether engineer completion should trigger the reporter confirm-fix loop, and whether engineer notes should be mirrored to the MOD fault",
+    "Avoid a duplicate 'Resolved by engineer' timeline entry when an already-resolved MOD case is closed"
+  ],
+  "critical_code_review_comments": [
+    "mod_portal.py mod_fault_submit uses asyncio.create_task(send_email(...)) without category/kind/organization_id, so there is no MOD branding and the sender is wrong",
+    "mirror_mod_completion runs after state_transition, so the timeline gets both 'work_completed' and 'engineer_report' entries. Acceptable, but slightly redundant",
+    "The signature endpoint is POST /api/svc/engineer/signature (case_id in the body), not /svc/jobs/{id}/signature as the review request states"
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_service_process_e2e_jan2026.py"],
+  "success_rate": {"backend": "91% (10/11 e2e checks; 47/47 regression)", "frontend": "100% (MOD portal engineer report, timeline, PDF button)"},
+  "seed_data_creation": "None kept. 2 TEST_ faults were created (MOD-2026-78173, MOD-2026-34070) and fully cleaned up by id: issues, svc_cases, events, signatures, time entries and supplier_cases. The reporter staff fault_count was restored. email_send_events and notification/audit rows from these runs remain (telemetry only).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_mod_service_process_e2e_jan2026.py -v -s -p no:randomly (sequential, self-cleaning; set KEEP_MOD_E2E_DATA=1 to keep the data for UI checks). The on_site timer needs the H&S signoff first (GET/POST /svc/engineer/jobs/{id}/safety[/signoff]). MOD UI login on preview: /MODService?portal=modservice → Operations → Faults tab → click issue-card-{id}. Master admin login returned a token directly (MFA not enforced at that time). Only test_step1_fault_emails_sender_is_modservice_domain should still fail until the category='mod' fix.",
+  "rca of the issue": "Fault-intake emails are sent with send_email(pulse_inbox, subject, html) and similar calls with no category. _category_sender(None) falls back to SENDER_EMAIL='Pulse Fitness <noreply@pulsefitness.ai>'. The close-out and signed-report paths pass category='mod' and correctly use modservice@modservice.pulsefitness.com."
+}

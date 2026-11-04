@@ -105,7 +105,9 @@ async def mirror_case_state_to_issue(*, case: dict, target_state: str, actor: di
             set_fields["resolved_at"] = now
             set_fields["resolution_type"] = "engineer"
             set_fields["resolved_by"] = actor_name
-        timeline_event, timeline_label = "resolved_by_engineer", "Resolved by engineer"
+            timeline_event, timeline_label = "resolved_by_engineer", "Resolved by engineer"
+        else:
+            timeline_event, timeline_label = "job_closed", "Job closed by Pulse Fitness"
     elif target_state == _REJECTED:
         timeline_event, timeline_label = "case_rejected", "Service case rejected — fault reopened"
     else:
@@ -142,8 +144,15 @@ async def mirror_mod_completion(*, case: dict, summary: str, actor: dict | None)
     sig = await latest_signoff(case_id=case["id"]) or {}
     now = _now()
     name = (actor or {}).get("full_name") or (actor or {}).get("email") or "Engineer"
+    notes = await db.svc_case_events.find(
+        {"case_id": case["id"], "type": "note",
+         "extra.kind": {"$nin": ["sicon_engineer_change", "esp_auto_allocated", "sicon_allocation_skipped",
+                                 "sicon_allocation_conflict", "feedback_request_sent"]}},
+        {"_id": 0, "body": 1, "actor_name": 1, "at": 1}).sort("at", 1).to_list(50)
     report = {"summary": summary, "engineer_name": name, "completed_at": now,
-              "signed_by_name": sig.get("signed_by_name") or "", "case_reference": case.get("reference")}
+              "signed_by_name": sig.get("signed_by_name") or "", "case_reference": case.get("reference"),
+              "notes": [{"body": n.get("body") or "", "by": n.get("actor_name") or "", "at": n.get("at")}
+                        for n in notes if (n.get("body") or "").strip() and n.get("body") != summary]}
     issue = await db.issues.find_one({"id": issue_id}, {"_id": 0, "status": 1, "equipment_id": 1}) or {}
     if issue.get("equipment_id"):
         await db.equipment.update_one({"id": issue["equipment_id"], "status": "out_of_service"},
@@ -154,6 +163,10 @@ async def mirror_mod_completion(*, case: dict, summary: str, actor: dict | None)
     if issue.get("status") != "resolved":
         set_fields.update({"status": "resolved", "resolved_at": now, "resolution_type": "engineer",
                            "resolved_by": name})
+    if sig.get("signed_by_name"):
+        # Customer signed on site — that is the site's acceptance of the fix.
+        set_fields.update({"acceptance_status": "accepted", "accepted_at": now,
+                           "accepted_by": sig["signed_by_name"], "acceptance_via": "engineer_signoff"})
     try:
         await db.issues.update_one({"id": issue_id}, {"$set": set_fields, "$push": {"timeline": {
             "event": "engineer_report", "label": "Engineer report & customer sign-off",

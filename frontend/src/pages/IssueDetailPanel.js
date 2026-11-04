@@ -651,13 +651,23 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg space-y-1" data-testid="issue-engineer-report">
  <div className="flex items-center justify-between gap-2 flex-wrap">
  <span className="text-green-600 text-sm font-bold">Engineer's report</span>
- <span className="text-[11px] text-[var(--color-text-muted)]" data-testid="issue-engineer-report-meta">
+ <span className="text-[11px] text-slate-700 font-semibold" data-testid="issue-engineer-report-meta">
  {issue.engineer_report.engineer_name} · {new Date(issue.engineer_report.completed_at).toLocaleString()}
  </span>
  </div>
  <p className="text-sm whitespace-pre-wrap" data-testid="issue-engineer-report-summary">{issue.engineer_report.summary}</p>
+ {(issue.engineer_report.notes || []).length > 0 && (
+ <ul className="mt-1 space-y-1 border-t border-green-500/20 pt-1.5" data-testid="issue-engineer-report-notes">
+ {issue.engineer_report.notes.map((n, i) => (
+ <li key={`${n.at}-${i}`} className="text-xs" data-testid={`issue-engineer-note-${i}`}>
+ <span className="font-semibold text-slate-700">{n.by}{n.at ? ` · ${new Date(n.at).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}:</span> {n.body}
+ </li>
+ ))}
+ </ul>
+ )}
+
  {issue.engineer_report.signed_by_name && (
- <p className="text-xs text-[var(--color-text-muted)]" data-testid="issue-engineer-report-signed">Signed off by {issue.engineer_report.signed_by_name}</p>
+ <p className="text-xs text-slate-700 font-semibold" data-testid="issue-engineer-report-signed">Signed off by {issue.engineer_report.signed_by_name}</p>
  )}
  </div>
  )}

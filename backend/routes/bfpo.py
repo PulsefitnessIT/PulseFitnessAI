@@ -258,7 +258,7 @@ async def _bridge_mod_fault_to_bfpo(issue: dict) -> Optional[str]:
     case = {
         "id": case_id, "organization_id": BFPO_ORG_ID,
         "reference": issue.get("mod_ticket_ref") or f"MOD-{case_id[:6].upper()}",
-        "title": f"{(issue.get('fault_type_mod') or 'Fault').title()} — "
+        "title": f"{(issue.get('fault_type_mod') or 'Fault').replace('_', ' ').title()} — "
                  f"{equip.get('name') or issue.get('machine_type') or 'Equipment'}",
         "description": issue.get("issue_description") or "",
         "status": _ISSUE_TO_CASE_STATUS.get(issue.get("status") or "open", NEW),

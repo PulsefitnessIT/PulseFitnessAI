@@ -39242,3 +39242,9 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 ## Nov 2026 — Auto-allocate MOD faults to a provider's sole engineer — DONE
 - utils/esp_engineer.auto_allocate_sole_engineer, called from routes/bfpo._bridge_mod_fault_to_bfpo when the job is created. Provider = machine supplier first, then site default; skips Pulse in-house. Exactly 1 active engineer → assigned + case note + in-app/push notification. 0 or 2+ → stays in "New faults on your sites".
 - Tests: tests/test_esp_auto_allocate_nov2026.py (4 pass).
+
+## Nov 2026 — MOD end-to-end process audit + fixes — DONE (iteration 286 + retest 29/29 pytest)
+Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emailed (all category=mod, modservice sender) → ESP engineer sees/claims (or auto-allocated) → works job in /svc/engineer → customer signature → complete → MOD fault resolved with engineer_report {summary, notes[], engineer, signed_by} + timeline + accepted via sign-off; equipment back to active → signed report emailed to reporter (resolve_site_contact reporter_email fallback) → Pulse "Close on Sicon · <ref>" email (kind mod_job_close_out) with notes + PDF.
+- New: utils/svc_ops_bridge.mirror_mod_completion; service_report._email_pulse_close_out; email_send_events now store real sender + kind.
+- Test: tests/test_mod_service_process_e2e_jan2026.py.
+- Open: Sicon close-down for MOD jobs is manual (BFPO cases not mapped to Sicon); provider logo placeholder on fault detail.

@@ -1810,7 +1810,7 @@ async def mod_fault_submit(
         + f" — {org.get('name')} — {equipment.get('name')}"
     html = _escalation_email_html(org, equipment, doc)
     try:
-        asyncio.create_task(send_email(pulse_inbox, subject, html))
+        asyncio.create_task(send_email(pulse_inbox, subject, html, organization_id=org["id"], category="mod", kind="mod_fault_pulse"))
         notified_recipients.append({
             "role": "pulse", "name": "Pulse Fitness (MOD Service)",
             "email": pulse_inbox, "at": notified_at,
@@ -1879,6 +1879,7 @@ async def mod_fault_submit(
                 sd.get("email"),
                 f"[Fault Log] {ticket_ref} — {org.get('name')} — {equipment.get('name')}",
                 _supplier_fault_email_html(org, equipment, doc, sd, portal_url=portal_url),
+                organization_id=org["id"], category="mod", kind="mod_fault_supplier",
             ))
             notified.append({"email": sd.get("email"), "name": sd.get("name", "")})
             notified_recipients.append({
@@ -1906,6 +1907,7 @@ async def mod_fault_submit(
             reporter_email,
             f"Fault logged — {ticket_ref}",
             _confirmation_email_html(org, equipment, doc),
+            organization_id=org["id"], category="mod", kind="mod_fault_reporter",
         ))
     except Exception:  # pragma: no cover
         pass
