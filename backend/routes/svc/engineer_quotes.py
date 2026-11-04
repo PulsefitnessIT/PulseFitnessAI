@@ -34,6 +34,21 @@ from pydantic import BaseModel, Field
 
 from utils.auth import get_current_user
 from utils.database import db
+
+
+async def _esp_new_count(user: dict):
+    """ESP engineers: unassigned open faults on their provider's sites (else None)."""
+    from utils.esp_engineer import BFPO_ORG_ID, esp_site_ids, is_external_engineer
+    from utils.svc_state import OPEN_STATES
+    if not is_external_engineer(user):
+        return None
+    sites = await esp_site_ids(user)
+    if not sites:
+        return 0
+    return await db.svc_cases.count_documents({
+        "organization_id": {"$in": [BFPO_ORG_ID, *sites]}, "status": {"$in": list(OPEN_STATES)},
+        "assigned_engineer_id": {"$in": [None, ""]},
+        "$or": [{"site_id": {"$in": sites}}, {"organization_id": {"$in": sites}}]})
 from utils.email import send_email
 from routes.partners import require_engineer_app_access
 
@@ -661,6 +676,7 @@ async def engineer_dashboard(user=Depends(get_current_user)):
 
     return {
         "kpis": {
+            "site_new_jobs": await _esp_new_count(user),
             "today_jobs": today_jobs,
             "upcoming_jobs": upcoming_jobs,
             "overdue_jobs": overdue_jobs,

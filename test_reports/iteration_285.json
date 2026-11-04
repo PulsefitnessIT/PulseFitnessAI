@@ -1,0 +1,43 @@
+{
+  "summary": "ESP (External Service Provider) engineer routing + job-scope fix tested. Backend 14/14 pytest pass (tests/test_esp_engineer_app_routing_nov2026.py): login (portal=mod) + /auth/me return is_external_engineer=true for esp.test.eng@example.com; internal BFPO engineer (engineer.gib) and owner@isodemo return false. /svc/engineer/queue/unassigned + /territory list the own-site job ESP-TEST-1 (MOD Test Site, via provider supplier -> org.service_supplier_id) and NOT ESP-TEST-OTHER; /svc/engineer/jobs?when=open includes unassigned own-site jobs; claim on other-site job -> 404 (DB unchanged), claim own -> 200 + persisted; job detail own 200 / other-site 404; acknowledge other-site 404. Frontend (mobile 390px, preview /?portal=modservice): MOD login lands on /svc/engineer; /dashboard, /pulse, /crm, /service-desk and / all redirect to /svc/engineer; Territory jobs (/svc/engineer/queue) shows MOD Test Site faults (21) incl ESP-TEST-1, 'Allocate to me' sheet -> confirm -> navigates to job detail (claim works end to end). Gaps: Engineer home tiles all show 0 and 'Today' is the default list, so unassigned site faults are only visible via Territory jobs / All open (same '0 jobs' perception as the original complaint); /bfpo and /launch are not guarded for ESP engineers; in-house Pulse MOD engineers (mod_estate_supplier_id='pulse-inhouse-mod') are also classified as external.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "utils/esp_engineer.is_external_engineer", "issue": "Returns true for ANY user with mod_estate_supplier_id, including the in-house provider 'pulse-inhouse-mod' (mod_estate_suppliers.is_inhouse=true; 6 users e.g. qa.bfpo+inv-...@bfpo.pulsefitness.test, bfpo_role engineer/lead). These Pulse in-house MOD engineers will now be redirected to /svc/engineer instead of /bfpo (resolveHomePath checks is_external_engineer before bfpo_role) and their job scope switches from territory/assigned to esp_site_ids (only bfpo_site_ids since no suppliers row has estate_supplier_id=pulse-inhouse-mod). Exclude is_inhouse suppliers / INHOUSE_SUPPLIER_ID from is_external_engineer unless that is intended."},
+      {"endpoint": "GET /api/svc/engineer/queue/territory (ESP)", "issue": "Returns jobs already assigned to other engineers on the site (e.g. 'Assigned · Tomás Bianchi'); ESP clicking View on those gets 404 from job detail. Consider unassigned + mine only, or allow read-only view."},
+      {"endpoint": "POST /api/svc/engineer/jobs/{id}/acknowledge", "issue": "For an unassigned own-site job it returns 404 'Job not found' (requires assignment). Fine if UI never offers ack before claim, but message is misleading."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EngineerHomeV2 (/svc/engineer) for ESP", "issue": "All KPI tiles (Today/Upcoming/Overdue...) show 0 and 'Today's jobs' says 'Nothing on the diary today' even though 14 open site jobs exist (only visible via Territory jobs or /svc/engineer/jobs → All open). Default /svc/engineer/jobs tab is 'Today' → also 0. ESP engineers will still perceive '0 jobs'. Add an 'Open / New on my sites' tile or default ESP to All open.", "selector": "[data-testid='kpi-today']", "priority": "MEDIUM"},
+      {"component": "AppRoutes /bfpo and /launch", "issue": "Not guarded by isLockedEngineer: ESP engineer can open /bfpo (MOD/BFPO Engineer portal showing 0 jobs) and /launch ('No areas assigned yet'). Redirect both to /svc/engineer for ESP.", "selector": "/bfpo, /launch", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Engineer job detail for MOD job", "issues": ["Shows 'Chargeable visit' banner and 'Unknown customer' for a MOD site fault", "Header label inconsistency: home says 'PULSE FITNESS MOD AFTERSALES · ENGINEER', jobs list says 'SERVICE OPS · ENGINEER'"]},
+      {"screen": "Allocate-to-me sheet", "issues": ["Uses native datetime-local picker instead of shadcn calendar"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_esp_engineer_app_routing_nov2026.py", "/app/test_reports/pytest/pytest_esp_engineer.xml"],
+  "action_items": [
+    "Decide whether in-house Pulse MOD engineers (mod_estate_supplier_id='pulse-inhouse-mod') should be external; if not, exclude is_inhouse suppliers in is_external_engineer (backend + resolveHomePath relies on the flag)",
+    "Surface unassigned own-site jobs on the ESP Engineer home (tile/list) or default the jobs list to 'All open' for ESP so they don't see 0 jobs",
+    "Guard /bfpo and /launch with isLockedEngineer → /svc/engineer",
+    "Optional: territory queue for ESP should hide/disable jobs assigned to other engineers"
+  ],
+  "critical_code_review_comments": [
+    "backend/tests/.esp_tok (empty file) and backend/tests/_esp_seed.py were committed; _esp_seed.py mutates a real org (sets organizations.service_supplier_id on the first supplier with estate_supplier_id) — move to scripts/ and avoid mutating seed orgs",
+    "engineer_job_scope returns {'$and':[...]} and callers then set q['$or'] for when=today — safe because scope is wrapped in $and, keep it that way",
+    "esp_site_ids does up to 3 queries per request (suppliers, organizations, equipment.distinct) on every jobs/me/queue call — consider caching or indexing suppliers.estate_supplier_id / organizations.service_supplier_id / equipment.supplier_id",
+    "On preview, /MODService redirects to the production domain modservice.pulsefitness.com — testers must use /?portal=modservice"
+  ],
+  "updated_files": ["/app/backend/tests/test_esp_engineer_app_routing_nov2026.py"],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "85% (routing + claim work; home shows 0, /bfpo & /launch unguarded)"},
+  "test_credentials": "ESP engineer esp.test.eng@example.com / EspTest123! (portal=mod; standard /login returns 403 'MOD personnel must sign in via /MODService'). In preview use /?portal=modservice for the MOD login form.",
+  "seed_data_creation": "None created. Reused main agent's ESP fixtures (esp-test-eng-1, esp-test-case-1, esp-test-case-other). esp-test-case-1 was reset to unassigned then claimed again; final state status=assigned, assigned_engineer_id=esp-test-eng-1 (same as before testing).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest with -p no:xdist. Fixture test file resets esp-test-case-1 to unassigned at module start. ESP sites resolve via suppliers(estate_supplier_id=f339c46a… Inda Fitness, org MOD Test Site) → organizations.service_supplier_id. Engineer queue UI at /svc/engineer/queue; 'Allocate to me' opens a sheet with second 'Allocate to me' confirm button.",
+  "rca of the issue": "Original: ESP engineers (created_via external_provider_onboarding, account_type mod_site) fell through resolveHomePath to /pulse//dashboard, and job feeds only matched assigned_engineer_id/territory while BFPO MOD fault cases are created unassigned with no territory. Fix adds is_external_engineer flag + site-based scope; verified working for jobs/queue/claim. Remaining perception gap: home tiles count only assigned/scheduled jobs."
+}

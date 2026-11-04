@@ -39232,3 +39232,9 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - Alignment: Customer/Engineer boxes one table (85+5+85mm = ref table width); PPM print HTML uses grid boxes + fixed colgroups (calibration 45/35/20).
 - MOD portal: GET /api/mod/site/faults/{issue_id}/service-report.pdf + "Service report" button in IssueDetailPanel (shown for open and resolved faults with a linked job).
 - Calibration sections render only when readings are captured.
+
+## Nov 2026 — ESP engineers locked to Engineer App + see their sites' faults — DONE (iteration 285)
+- utils/esp_engineer.py: is_external_engineer (mod_estate_supplier_id / created_via=external_provider_onboarding; excludes pulse-inhouse-mod), esp_site_ids (bfpo_site_ids + sites whose provider row / machines point at the provider), engineer_job_scope.
+- auth login + /me expose is_external_engineer. Frontend: resolveHomePath → /svc/engineer; AreaSwitcher shows only Engineer app; /, /dashboard, /pulse, /crm, module gates, /bfpo, /launch redirect to /svc/engineer.
+- /svc/engineer/jobs, /me, job detail, queue/unassigned, queue/territory, claim are site-scoped for ESP; Engineer App access gate allows ESP. Home shows "New faults on your sites (N)" tile → Territory jobs → Allocate to me.
+- Known cosmetic: MOD job detail shows "Chargeable visit"/"Unknown customer".

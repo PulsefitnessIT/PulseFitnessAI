@@ -18,7 +18,7 @@ import { useAuth } from '@/App';
 import EngineerErrorBoundary from '@/components/shared/EngineerErrorBoundary';
 import { resolveHomePath } from '@/utils/moduleHome';
 import { can } from '@/utils/capabilities';
-import { isLockedEngineer, lockedEngineerHome } from '@/utils/engineerGuard';
+import { isExternalEngineer, isLockedEngineer, lockedEngineerHome } from '@/utils/engineerGuard';
 
 // Eager-loaded marketing entry points — must be in the initial bundle
 // to avoid a Suspense fallback on landing.
@@ -457,7 +457,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/staff-reset/:token" element={<StaffResetPassword />} />
       <Route path="/staff-portal" element={<StaffPortal />} />
       <Route path="/bfpo/invite/:token" element={<BFPOInviteSetPassword />} />
-      <Route path="/bfpo/*" element={<BFPOApp />} />
+      <Route path="/bfpo/*" element={isExternalEngineer(user) ? <Navigate to="/svc/engineer" replace /> : <BFPOApp />} />
       <Route path="/witness-statement/:token" element={<WitnessStatementPage />} />
       {/* Iter 216h287 — Gap 9: engineer-of-engineer recruit landing.
           Branded one-pager from a peer engineer's referral link. */}
@@ -533,7 +533,7 @@ export default function AppRoutes({ user, login }) {
           `?next=/path` for already-logged-in users (e.g. when the
           SessionResumedBanner deep-links back after a 24h+ expiry). */}
       <Route path="/login" element={<LoginRedirectPage />} />
-      <Route path="/launch" element={user ? <LauncherPage /> : <Navigate to="/login" replace />} />
+      <Route path="/launch" element={user ? (isExternalEngineer(user) ? <Navigate to="/svc/engineer" replace /> : <LauncherPage />) : <Navigate to="/login" replace />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/sso-complete" element={<SSOCompletePage />} />
       <Route path="/change-password" element={user ? <ForceChangePasswordPage /> : <Navigate to="/login" replace />} />

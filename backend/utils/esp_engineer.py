@@ -9,10 +9,13 @@ from __future__ import annotations
 from utils.database import db
 
 BFPO_ORG_ID = "bfpo-mod-org"
+INHOUSE_SUPPLIER_ID = "pulse-inhouse-mod"
 
 
 def is_external_engineer(user: dict | None) -> bool:
     u = user or {}
+    if u.get("mod_estate_supplier_id") == INHOUSE_SUPPLIER_ID:
+        return False  # Pulse's own MOD engineers keep the BFPO portal
     return bool(u.get("mod_estate_supplier_id") or u.get("is_external_engineer")
                 or u.get("created_via") == "external_provider_onboarding")
 

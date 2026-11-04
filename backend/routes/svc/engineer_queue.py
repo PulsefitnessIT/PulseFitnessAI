@@ -137,6 +137,8 @@ async def _esp_site_jobs(user: dict, priority: Optional[str], limit: int, *, una
                "$or": [{"site_id": {"$in": sites}}, {"organization_id": {"$in": sites}}]}
     if unassigned_only:
         q["assigned_engineer_id"] = {"$in": [None, ""]}
+    else:
+        q["assigned_engineer_id"] = {"$in": [None, "", user["id"]]}
     if priority:
         q["priority"] = priority.lower()
     rows = await db.svc_cases.find(q, {
