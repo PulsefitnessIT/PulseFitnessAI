@@ -294,6 +294,12 @@ async def _bridge_mod_fault_to_bfpo(issue: dict) -> Optional[str]:
     await append_event(case_id=case_id, organization_id=BFPO_ORG_ID, event_type="intake",
                        actor={"id": "", "full_name": reporter},
                        body=f"Fault logged by {reporter} at {case['site_name']}")
+    if case["status"] != CLOSED:
+        from utils.esp_engineer import auto_allocate_sole_engineer
+        try:
+            await auto_allocate_sole_engineer(case)
+        except Exception as exc:  # noqa: BLE001 — never block fault intake
+            logger.warning("ESP auto-allocate failed for %s: %s", case_id, exc)
     return case_id
 
 

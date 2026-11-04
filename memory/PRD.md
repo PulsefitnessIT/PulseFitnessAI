@@ -39238,3 +39238,7 @@ engineer (reason "already working this area today"). ruff + eslint clean.
 - auth login + /me expose is_external_engineer. Frontend: resolveHomePath → /svc/engineer; AreaSwitcher shows only Engineer app; /, /dashboard, /pulse, /crm, module gates, /bfpo, /launch redirect to /svc/engineer.
 - /svc/engineer/jobs, /me, job detail, queue/unassigned, queue/territory, claim are site-scoped for ESP; Engineer App access gate allows ESP. Home shows "New faults on your sites (N)" tile → Territory jobs → Allocate to me.
 - Known cosmetic: MOD job detail shows "Chargeable visit"/"Unknown customer".
+
+## Nov 2026 — Auto-allocate MOD faults to a provider's sole engineer — DONE
+- utils/esp_engineer.auto_allocate_sole_engineer, called from routes/bfpo._bridge_mod_fault_to_bfpo when the job is created. Provider = machine supplier first, then site default; skips Pulse in-house. Exactly 1 active engineer → assigned + case note + in-app/push notification. 0 or 2+ → stays in "New faults on your sites".
+- Tests: tests/test_esp_auto_allocate_nov2026.py (4 pass).
