@@ -7,7 +7,7 @@ import pytest
 import requests
 import secrets
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://sicon-sync-hub.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://pulse-mod-estate--6ncsuzra.preview.emergentagent.com')
 
 # Test credentials (loaded from env with local-dev fallbacks)
 MASTER_ADMIN_EMAIL = os.environ.get("TEST_MASTER_ADMIN_EMAIL", "admin@gymaxisai.com")

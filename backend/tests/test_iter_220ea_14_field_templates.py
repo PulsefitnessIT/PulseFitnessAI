@@ -22,7 +22,7 @@ import pytest
 
 
 API_URL = (os.environ.get("REACT_APP_BACKEND_URL")
-           or "https://sicon-sync-hub.preview.emergentagent.com").rstrip("/")
+           or "https://pulse-mod-estate--6ncsuzra.preview.emergentagent.com").rstrip("/")
 ADMIN_EMAIL = "admin@gymaxisai.com"
 ADMIN_PASS = "MasterAdmin123!"
 

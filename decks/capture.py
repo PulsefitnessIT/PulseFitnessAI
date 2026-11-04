@@ -2,7 +2,7 @@ import asyncio, os
 from playwright.async_api import async_playwright
 
 TOKEN = open("/tmp/tok.txt").read().strip()
-BASE = "https://sicon-sync-hub.preview.emergentagent.com"
+BASE = "https://pulse-mod-estate--6ncsuzra.preview.emergentagent.com"
 OUT = "/app/decks/shots/"
 os.makedirs(OUT, exist_ok=True)
 

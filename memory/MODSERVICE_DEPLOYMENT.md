@@ -54,3 +54,14 @@ its MOD login routes to the dedicated MOD domain so there is ONE canonical MOD e
 - /mod/confirm-fix/:token (email action deep-link) is intentionally left working on BOTH domains.
 Code: frontend/src/utils/portalMode.js (MODSERVICE_URL) + routes/AppRoutes.js (ExternalRedirect).
 Activate: Save to Github → Re-publish the pulsefitness.ai deployment.
+
+## Update — zero ".ai" MOD build (Nov 2026)
+MOD web filtering blocks any ".ai" reference, so the MODService BUILD is sanitised
+(only when REACT_APP_PORTAL_MODE=modservice; the commercial build is untouched):
+- `frontend/modservice/index.html` — clean HTML template (no pulsefitness.ai, no "AI"), swapped in by craco.config.js.
+- `frontend/modservice/sanitize.js` — webpack plugin: pulsefitness.ai / gymaxis.ai URLs → modservice.pulsefitness.com,
+  x@pulsefitness.ai → x@pulsefitness.com, "Pulse Fitness AI" → "Pulse Fitness".
+- `frontend/modservice/postbuild.js` (runs from `yarn build`) — drops commercial-only public files (sitemap, llms.txt,
+  decks, briefs), writes MOD robots.txt / security.txt / manifest.json, then FAILS the build if any .ai domain remains.
+- `frontend/src/utils/modServiceSeo.js` — runtime safety net for <head> (wired in AppRoutes.js).
+Verified: MOD build 0 .ai domain refs across all files; commercial build unchanged (7 in index.html, 80 in JS).

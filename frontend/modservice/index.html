@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en" data-brand="pulse">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#1B1C1D" />
+        <!-- Allow both schemes so form controls render natively on light/dark
+             routes. Marketing pages additionally lock the scheme via CSS on
+             their own wrapper (see index.css `[data-theme]` color-scheme). -->
+        <meta name="color-scheme" content="dark light" />
+        <meta name="description" content="Pulse Fitness MOD Service portal - equipment faults, servicing and engineer jobs for MOD sites." />
+        <meta name="author" content="Pulse Fitness" />
+        <meta name="robots" content="noindex, nofollow" />
+        <meta property="og:site_name" content="Pulse Fitness MOD Service" />
+        <meta property="og:title" content="Pulse Fitness MOD Service" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Pulse Fitness" id="apple-app-title" />
+        <!-- Iter 240 — real favicon files (Google Search requires a crawlable
+             icon that's a multiple of 48px; data-URIs are ignored, which is
+             why results showed the generic globe). -->
+        <link rel="icon" href="/favicon.ico" sizes="48x48" />
+        <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+        <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+        <link rel="apple-touch-icon" id="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" id="app-manifest" href="%PUBLIC_URL%/manifest.json" />
+        <script src="%PUBLIC_URL%/pwa-brand.js"></script>
+        <!-- Preload Proxima Nova (brand font). The hero uses Semibold +
+             Extrabold; preloading prevents the FOUT flash during first paint. -->
+        <link rel="preload" href="/fonts/ProximaNova-Semibold.otf" as="font" type="font/otf" crossorigin />
+        <link rel="preload" href="/fonts/ProximaNova-Extrabold.otf" as="font" type="font/otf" crossorigin />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <!-- Consolidated Google Fonts request (was 2 separate requests; dropped
+             unused Space Grotesk family). Saves ~1 RTT + ~40 KB on first paint. -->
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+        <style>
+          /* Pulse Fitness brand font — Proxima Nova (locally hosted, licensed) */
+          @font-face {
+            font-family: 'Proxima Nova';
+            src: url('/fonts/ProximaNova-Regular.otf') format('opentype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: 'Proxima Nova';
+            src: url('/fonts/ProximaNova-Semibold.otf') format('opentype');
+            font-weight: 600;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: 'Proxima Nova';
+            src: url('/fonts/ProximaNova-Bold.otf') format('opentype');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: 'Proxima Nova';
+            src: url('/fonts/ProximaNova-Extrabold.otf') format('opentype');
+            font-weight: 800;
+            font-style: normal;
+            font-display: swap;
+          }
+          /* Pulse Fitness secondary brand font — Maax Rounded (locally hosted) */
+          @font-face {
+            font-family: 'Maax Rounded';
+            src: url('/fonts/MaaxRounded-Regular.otf') format('opentype');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: 'Maax Rounded';
+            src: url('/fonts/MaaxRounded-Italic.otf') format('opentype');
+            font-weight: 400;
+            font-style: italic;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: 'Maax Rounded';
+            src: url('/fonts/MaaxRounded-Medium.otf') format('opentype');
+            font-weight: 500;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: 'Maax Rounded';
+            src: url('/fonts/MaaxRounded-Bold.otf') format('opentype');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: 'Maax Rounded';
+            src: url('/fonts/MaaxRounded-BoldItalic.otf') format('opentype');
+            font-weight: 700;
+            font-style: italic;
+            font-display: swap;
+          }
+        </style>
+        <!--
+        manifest.json provides metadata used when your web app is installed on a
+        user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+        -->
+        <!--
+        Notice the use of %PUBLIC_URL% in the tags above.
+        It will be replaced with the URL of the `public` folder during the build.
+        Only files inside the `public` folder can be referenced from the HTML.
+
+        Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
+        work correctly both with client-side routing and a non-root public URL.
+        Learn how to configure a non-root public URL by running `npm run build`.
+        -->
+        <title>Pulse Fitness MOD Service</title>
+        <script src="%PUBLIC_URL%/perf-error-suppressor.js"></script>
+        <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
+    </head>
+    <body>
+        <noscript>
+            <p>Pulse Fitness MOD Service requires JavaScript. Please enable JavaScript to sign in.</p>
+        </noscript>
+        <div id="root"></div>
+                <script src="%PUBLIC_URL%/posthog-init.js"></script>
+    </body>
+</html>

@@ -17,7 +17,7 @@ from types import SimpleNamespace
 import requests
 
 API = (os.environ.get("REACT_APP_BACKEND_URL") or
-       "https://sicon-sync-hub.preview.emergentagent.com").rstrip("/")
+       "https://pulse-mod-estate--6ncsuzra.preview.emergentagent.com").rstrip("/")
 
 
 def _login(email, pwd):

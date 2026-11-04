@@ -43,7 +43,7 @@ PLAYWRIGHT_BROWSERS_PATH=/pw-browsers \
 
 # Run the suite against the preview environment
 PLAYWRIGHT_BROWSERS_PATH=/pw-browsers \
-E2E_BASE_URL="https://sicon-sync-hub.preview.emergentagent.com" \
+E2E_BASE_URL="https://pulse-mod-estate--6ncsuzra.preview.emergentagent.com" \
   yarn test:mobile-regression
 ```
 

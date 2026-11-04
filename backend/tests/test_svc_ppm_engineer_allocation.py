@@ -19,7 +19,7 @@ import pytest
 import requests
 from datetime import date
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://sicon-sync-hub.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-mod-estate--6ncsuzra.preview.emergentagent.com").rstrip("/")
 BYPASS = "test-bypass-secret-for-ci-runs-only-2026"
 
 OWNER_EMAIL = "owner@isodemo.com"

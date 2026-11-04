@@ -11,7 +11,7 @@ import time
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://sicon-sync-hub.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-mod-estate--6ncsuzra.preview.emergentagent.com").rstrip("/")
 
 COMMERCIAL_EMAIL = "owner@isodemo.com"
 COMMERCIAL_PWD = "IsoDemo123!"

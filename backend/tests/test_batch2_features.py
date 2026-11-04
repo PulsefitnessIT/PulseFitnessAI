@@ -12,7 +12,7 @@ import os
 import uuid
 
 from tests.conftest import REGULAR_USER_EMAIL, REGULAR_USER_PASSWORD
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://sicon-sync-hub.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://pulse-mod-estate--6ncsuzra.preview.emergentagent.com')
 
 # Test credentials sourced centrally from conftest (see _ensure_regular_test_user)
 TEST_EMAIL = REGULAR_USER_EMAIL

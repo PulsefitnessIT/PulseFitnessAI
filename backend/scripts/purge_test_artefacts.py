@@ -22,7 +22,7 @@ import sys
 import httpx
 
 API_BASE = (os.environ.get("REACT_APP_BACKEND_URL")
-            or "https://sicon-sync-hub.preview.emergentagent.com").rstrip("/") + "/api"
+            or "https://pulse-mod-estate--6ncsuzra.preview.emergentagent.com").rstrip("/") + "/api"
 ADMIN_EMAIL = os.environ.get("PURGE_ADMIN_EMAIL", "admin@pulsefitness.ai")
 # Iter 216bo — read the dev master-admin password from env so the script
 # can run unattended without a literal ending up in repository forks.

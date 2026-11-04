@@ -44,7 +44,7 @@ def drive_async(coro):
         asyncio.set_event_loop(loop)
     return loop.run_until_complete(coro)
 
-API_BASE_URL = os.environ.get("TEST_API_URL", "https://sicon-sync-hub.preview.emergentagent.com")
+API_BASE_URL = os.environ.get("TEST_API_URL", "https://pulse-mod-estate--6ncsuzra.preview.emergentagent.com")
 if not os.environ.get("REACT_APP_BACKEND_URL"):
     os.environ["REACT_APP_BACKEND_URL"] = API_BASE_URL
 

@@ -12,7 +12,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://sicon-sync-hub.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://pulse-mod-estate--6ncsuzra.preview.emergentagent.com").rstrip("/")
 
 # Test credentials from test_credentials.md
 OPERATOR_EMAIL = "lee.somers@pulsefitness.com"
