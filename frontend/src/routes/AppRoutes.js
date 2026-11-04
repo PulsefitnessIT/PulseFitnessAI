@@ -18,7 +18,7 @@ import { useAuth } from '@/App';
 import EngineerErrorBoundary from '@/components/shared/EngineerErrorBoundary';
 import { resolveHomePath } from '@/utils/moduleHome';
 import { can } from '@/utils/capabilities';
-import { isIndependentEngineer } from '@/utils/engineerGuard';
+import { isLockedEngineer, lockedEngineerHome } from '@/utils/engineerGuard';
 
 // Eager-loaded marketing entry points — must be in the initial bundle
 // to avoid a Suspense fallback on landing.
@@ -260,7 +260,7 @@ function DashboardRoute({ user }) {
   // Logistics install-team users are confined to the logistics portal.
   if ((user.role || '').toLowerCase() === 'logistics') return <Navigate to="/logistics" replace />;
   // Iter 274 — independent engineers are locked to the Engineer App.
-  if (isIndependentEngineer(user)) return <Navigate to="/partner-engineer" replace />;
+  if (isLockedEngineer(user)) return <Navigate to={lockedEngineerHome(user)} replace />;
   const params = new URLSearchParams(window.location.search);
   const previewAsOperator = params.get('as') === 'operator';
   // Iter 292 — ?as=global lets a master admin (even one whose home org
@@ -346,7 +346,7 @@ function MODForbidden({ children }) {
 function CrmRouteElement({ user }) {
   if (!user) return <CRMApp />;
   // Iter 274 — independent engineers are locked to the Engineer App.
-  if (isIndependentEngineer(user)) return <Navigate to="/partner-engineer" replace />;
+  if (isLockedEngineer(user)) return <Navigate to={lockedEngineerHome(user)} replace />;
   const at = user.account_type;
   const isMaster = user.is_master_admin || user.role === 'master_admin' || user.role === 'master';
   // Master admins always have full CRM access.
@@ -378,7 +378,7 @@ function CrmRouteElement({ user }) {
 function PulseRouteElement({ user, login }) {
   const loc = useLocation();
   if (!user) return <PulseLandingPage onLogin={(d) => login(d.token, d.user)} />;
-  if (isIndependentEngineer(user)) return <Navigate to="/partner-engineer" replace />;
+  if (isLockedEngineer(user)) return <Navigate to={lockedEngineerHome(user)} replace />;
   const previewAsOperator = new URLSearchParams(loc.search).get('as') === 'operator';
   const isAdmin = user.is_master_admin || user.is_pulse_admin;
   const ma = user.module_access || {};
@@ -410,8 +410,8 @@ export default function AppRoutes({ user, login }) {
               ? (user.org_is_operator
                   ? <Navigate to="/dashboard" replace />
                   : <Navigate to="/master-admin" replace />)
-              : isIndependentEngineer(user)
-                ? <Navigate to="/partner-engineer" replace />
+              : isLockedEngineer(user)
+                ? <Navigate to={lockedEngineerHome(user)} replace />
                 : (user.is_pulse_admin && user.org_is_operator)
                     ? <Navigate to="/dashboard" replace />
                     : <LiteDashboardPage />)

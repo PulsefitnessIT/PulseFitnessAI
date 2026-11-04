@@ -78,6 +78,7 @@ import uuid
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query
 
 from utils.database import db
+from utils.esp_engineer import engineer_job_scope, is_external_engineer
 from utils.auth import get_current_user
 from utils.audit import audit_log
 from utils.svc_state import (
@@ -256,7 +257,7 @@ async def engineer_me(user=Depends(get_current_user)):
     )
     is_partner = bool(partner) or bool(user.get("is_partner_engineer"))
     today = datetime.now(timezone.utc).date().isoformat()
-    open_q = {**of, "assigned_engineer_id": user["id"], "status": {"$in": list(OPEN_STATES)}}
+    open_q = {**await engineer_job_scope(user, of), "status": {"$in": list(OPEN_STATES)}}
     today_count = await db.svc_cases.count_documents({**open_q, "scheduled_at": {"$regex": f"^{today}"}})
     open_count = await db.svc_cases.count_documents(open_q)
     # Active timer (an entry with no end_at) — drives the "you're on the clock" pill.
@@ -477,15 +478,16 @@ async def engineer_jobs(
     # Iter 220ec — "closed" lets engineers browse/re-open their recently
     # completed jobs (closed / invoiced / repaired / awaiting sign-off),
     # which were previously invisible once they left the open states.
+    mine = await engineer_job_scope(user, of)
     if when == "closed":
-        q = {**of, "assigned_engineer_id": user["id"],
+        q = {**mine,
              "status": {"$in": ["closed", "invoiced", "repaired", "awaiting_sign_off", "cancelled"]}}
     elif when in ("return_to_fix", "awaiting_parts"):
         # Iter 278d — "Return to Fix": jobs needing a further visit to
         # complete (engineer flagged a return, or parked for parts). Matches
         # the dashboard KPI definition exactly. ``awaiting_parts`` is kept as
         # an alias so older deep-links keep working.
-        q = {**of, "assigned_engineer_id": user["id"],
+        q = {**mine,
              "status": {"$nin": ["closed", "invoiced", "cancelled", "rejected"]},
              "$or": [
                  {"return_to_fix": {"$ne": None}},
@@ -496,12 +498,12 @@ async def engineer_jobs(
         # the past that are still open. Mirrors the dashboard KPI definition
         # (status set + scheduled_at < today) so the count and the list agree.
         today = datetime.now(timezone.utc).date().isoformat()
-        q = {**of, "assigned_engineer_id": user["id"],
+        q = {**mine,
              "status": {"$in": ["assigned", "en_route", "on_site",
                                  "in_progress", "awaiting_parts", "quote_required"]},
              "scheduled_at": {"$lt": today, "$ne": None}}
     else:
-        q = {**of, "assigned_engineer_id": user["id"], "status": {"$in": list(OPEN_STATES)}}
+        q = {**mine, "status": {"$in": list(OPEN_STATES)}}
     if when == "today":
         today = datetime.now(timezone.utc).date().isoformat()
         q["$or"] = [
@@ -564,7 +566,8 @@ async def engineer_acknowledge_job(case_id: str, user=Depends(get_current_user))
 async def engineer_job_detail(case_id: str, user=Depends(get_current_user)):
     """Full job context for the engineer detail screen."""
     of = _of(user)
-    case = _strip(await db.svc_cases.find_one({"id": case_id, **of}))
+    scope = of if not is_external_engineer(user) else await engineer_job_scope(user, of)
+    case = _strip(await db.svc_cases.find_one({"id": case_id, **scope}))
     if not case:
         raise HTTPException(404, "Job not found")
     if case.get("assigned_engineer_id") and case["assigned_engineer_id"] != user["id"] \

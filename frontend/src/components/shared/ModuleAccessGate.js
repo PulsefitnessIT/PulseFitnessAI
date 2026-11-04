@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
-import { isIndependentEngineer } from '@/utils/engineerGuard';
+import { isLockedEngineer, lockedEngineerHome } from '@/utils/engineerGuard';
 import { useAuth } from '@/App';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -124,8 +124,8 @@ export default function ModuleAccessGate({ module, children }) {
 
   // Iter 274 — independent engineers are locked to the Engineer App; never
   // show them a gym-operator upgrade screen.
-  if (isIndependentEngineer(user)) {
-    return <Navigate to="/partner-engineer" replace />;
+  if (isLockedEngineer(user)) {
+    return <Navigate to={lockedEngineerHome(user)} replace />;
   }
 
   if (state.loading) {

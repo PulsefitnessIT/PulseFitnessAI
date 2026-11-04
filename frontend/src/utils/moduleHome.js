@@ -50,6 +50,8 @@ export function firstGrantedModulePath(user) {
 export function resolveHomePath(user) {
   const u = user || {};
   if (u.must_change_password) return '/change-password';
+  // External Service Provider engineers only ever use the Engineer App.
+  if (u.is_external_engineer && !u.is_master_admin && !u.is_pulse_admin) return '/svc/engineer';
   // MOD / BFPO Engineer Portal — engineers, leads and MOD service staff sign
   // in through the standard MOD service login and land directly in /bfpo.
   if (['engineer', 'lead', 'staff'].includes(u.bfpo_role)) return '/bfpo';

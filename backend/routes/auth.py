@@ -8,6 +8,7 @@ import logging
 import re
 
 from utils.database import db
+from utils.esp_engineer import is_external_engineer
 from utils.auth import get_current_user, get_current_user_portal, optional_current_user, hash_password, verify_password, create_token, set_auth_cookie, clear_auth_cookie, purge_legacy_cookie_scopes, record_user_session
 from utils.refresh_tokens import issue_refresh_token, clear_refresh_cookie, renew_access_from_refresh, revoke_refresh_cookie
 from utils.email import send_welcome_email, send_password_reset_email
@@ -333,6 +334,7 @@ def _build_login_user_payload(user: dict, org: dict | None, trial_state: dict, f
         "primary_module": (org or {}).get('primary_module') or '',
         "bfpo_role": user.get("bfpo_role") or "",
         "bfpo_territory_ids": user.get("bfpo_territory_ids") or [],
+        "is_external_engineer": is_external_engineer(user),
         "trial": trial_state,
         "features": features,
         # Include module-access matrix so the React ModuleSwitcher can light
@@ -1103,6 +1105,7 @@ async def get_me(user: dict = Depends(get_current_user_portal)) -> dict:
         "has_staff_portal": has_staff_portal,
         "bfpo_role": user.get("bfpo_role") or "",
         "bfpo_territory_ids": user.get("bfpo_territory_ids") or [],
+        "is_external_engineer": is_external_engineer(user),
         # Site Staff Shared Login — flags the shared kiosk account so the
         # Operations fault flow enforces the mandatory "who is logging
         # this fault?" staff dropdown and the UI hides management areas.

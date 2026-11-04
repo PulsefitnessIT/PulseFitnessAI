@@ -4657,6 +4657,10 @@ async def evaluate_engineer_app_access(user: dict) -> dict:
     # Enrolling as a partner is an opt-in choice — the rules of that
     # contract apply once you've signed up.
     if partner is None:
+        from utils.esp_engineer import is_external_engineer
+        if is_external_engineer(user):
+            return {"allowed": True, "reason": "internal_engineer", "partner": None,
+                    "subscription": {}, "app_fee_tier": {}, "active_grant_count": grant_count}
         internal_engineer = await db.svc_engineers.find_one(
             {"id": user["id"], "organization_id": user.get("organization_id"), "active": {"$ne": False}},
             {"_id": 0, "id": 1},

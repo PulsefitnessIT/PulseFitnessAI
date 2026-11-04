@@ -18,3 +18,11 @@ export const isIndependentEngineer = (u) =>
     || u.account_type === 'partner_engineer'
     || u.role === 'engineer_partner'
   );
+
+// External Service Provider engineers (MOD estate providers) — Engineer App only.
+export const isExternalEngineer = (u) =>
+  !!u && !u.is_master_admin && !u.is_pulse_admin && u.is_external_engineer === true;
+
+export const isLockedEngineer = (u) => isIndependentEngineer(u) || isExternalEngineer(u);
+
+export const lockedEngineerHome = (u) => (isExternalEngineer(u) ? '/svc/engineer' : '/partner-engineer');

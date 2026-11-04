@@ -255,7 +255,7 @@ export default function LoginPage() {
       // Dedicated role shells (restricted portals) must NOT be overridden by a
       // stale/shared ?next= param — e.g. a MOD/BFPO engineer must always land
       // on /bfpo and never be sent into Operations via ?next=/dashboard.
-      const DEDICATED = ['/bfpo', '/dealer-portal', '/logistics', '/partner-engineer'];
+      const DEDICATED = ['/bfpo', '/dealer-portal', '/logistics', '/partner-engineer', '/svc/engineer'];
       const isDedicated = DEDICATED.some((p) => fallback === p || fallback.startsWith(`${p}/`));
       const dest = (nextParam && !isDedicated) ? nextParam : fallback;
       navigate(dest, { replace: true });

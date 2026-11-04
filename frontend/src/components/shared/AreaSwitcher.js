@@ -22,6 +22,10 @@ function accessibleAreas(user) {
   const mainPath = (at === 'pulse_pro' || at === 'lite') ? '/pulse' : '/dashboard';
 
   const areas = [];
+  // External Service Provider engineers: Engineer App only, never the operations portal.
+  if (user.is_external_engineer === true && !isMaster) {
+    return [{ id: 'engineer', label: 'Engineer app', path: '/svc/engineer', icon: HardHat }];
+  }
 
   // Main app — only for users who actually have operator/module access, so a
   // pure field engineer doesn't get a dead "Main app" link.

@@ -1889,6 +1889,7 @@ async def _provision_provider_engineer(e: dict, supplier_id: str, provider_name:
         "mod_estate_supplier_id": supplier_id, "provider_name": provider_name,
         "must_change_password": False, "created_at": now, "created_by": actor_id,
         "bfpo_welcome_pending": True, "created_via": "external_provider_onboarding",
+        "is_external_engineer": True,
     }
     mode = (e.get("password_mode") or "invite").lower()
     if mode not in ("invite", "temp"):

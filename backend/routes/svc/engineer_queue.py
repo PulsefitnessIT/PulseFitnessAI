@@ -29,6 +29,7 @@ from routes.svc.integrations import sicon_sync
 from utils.audit import audit_log
 from utils.auth import get_current_user
 from utils.database import db
+from utils.esp_engineer import BFPO_ORG_ID, esp_site_ids, is_external_engineer
 from utils.postcodes_client import lookup as postcode_lookup, normalise_postcode
 from utils.svc_state import (
     ASSIGNED, OPEN_STATES, TERMINAL_STATES, NEW, TRIAGED, append_event,
@@ -127,6 +128,27 @@ async def _job_coords(job: dict) -> tuple[float, float] | None:
     return None
 
 
+async def _esp_site_jobs(user: dict, priority: Optional[str], limit: int, *, unassigned_only: bool) -> dict:
+    """ESP engineers: open MOD faults on the sites their provider services."""
+    sites = await esp_site_ids(user)
+    if not sites:
+        return {"jobs": [], "count": 0, "territories": []}
+    q: dict = {"organization_id": {"$in": [BFPO_ORG_ID, *sites]}, "status": {"$in": list(OPEN_STATES)},
+               "$or": [{"site_id": {"$in": sites}}, {"organization_id": {"$in": sites}}]}
+    if unassigned_only:
+        q["assigned_engineer_id"] = {"$in": [None, ""]}
+    if priority:
+        q["priority"] = priority.lower()
+    rows = await db.svc_cases.find(q, {
+        "_id": 0, "id": 1, "reference": 1, "title": 1, "priority": 1, "status": 1, "site_name": 1,
+        "site_postcode": 1, "customer_name": 1, "scheduled_at": 1, "sla_resolve_at": 1, "estimated_minutes": 1,
+        "intake_channel": 1, "description": 1, "created_at": 1, "assigned_engineer_id": 1,
+        "assigned_engineer_name": 1}).sort([("priority", 1), ("created_at", -1)]).limit(limit).to_list(limit)
+    names = {o["id"]: o.get("name") async for o in db.organizations.find({"id": {"$in": sites}}, {"_id": 0, "id": 1, "name": 1})}
+    return {"jobs": rows, "count": len(rows), "sort": "default", "origin_source": None,
+            "territories": [{"id": s, "name": names.get(s) or "MOD site"} for s in sites]}
+
+
 @router.get("/unassigned")
 async def list_unassigned(
     priority: Optional[str] = Query(None, description="P1|P2|P3|P4 — optional filter"),
@@ -142,6 +164,8 @@ async def list_unassigned(
     user=Depends(get_current_user),
 ):
     of = _of(user)
+    if is_external_engineer(user):
+        return await _esp_site_jobs(user, priority, limit, unassigned_only=True)
     q = _unassigned_query(of["organization_id"])
     if priority:
         q["priority"] = priority.upper()
@@ -204,6 +228,8 @@ async def list_territory(
     Pulse-only, so this naturally returns nothing for non-Pulse tenants."""
     of = _of(user)
     org_id = of["organization_id"]
+    if is_external_engineer(user):
+        return await _esp_site_jobs(user, priority, limit, unassigned_only=False)
 
     candidate_ids: set[str] = set()
     if user.get("id"):
@@ -591,6 +617,11 @@ async def claim_case(
     )
     if not eng:
         raise HTTPException(403, "Engineer profile required to claim jobs")
+    if is_external_engineer(user):
+        sites = await esp_site_ids(user)
+        if not await db.svc_cases.count_documents(
+                {"id": case_id, "$or": [{"site_id": {"$in": sites}}, {"organization_id": {"$in": sites}}]}):
+            raise HTTPException(404, "Job not found")
     if body.scheduled_at:
         try:
             datetime.fromisoformat(body.scheduled_at.replace("Z", "+00:00"))
