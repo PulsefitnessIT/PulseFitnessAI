@@ -1,0 +1,26 @@
+{
+  "summary": "Independent check of MODService .ai hardening and the ESP engineer (Jimmy preview copy) flow. Backend: 5 of 5 pytest tests passed. Frontend: every requested check passed on desktop at 1920px and mobile at 390px. '/' shows the MOD login (mod-login-form). The rendered title is 'MOD Service Portal — Pulse Fitness'. The raw HTML title is 'Pulse Fitness MOD Service'. There are no .ai domain strings in the raw HTML, in the rendered head on the login and engineer pages, or in any of the 58 text/js/css/json network responses scanned while browsing. Jimmy's login goes to /svc/engineer, which shows 'Hi, Jimmy' and a 'New faults on your sites' banner with a count of 2. Tapping the banner opens /svc/engineer/queue (Territory jobs), which lists GIB-T1 and GIB-T2 at 'Gibraltar (preview test)' and does not list CYP-T1. No horizontal overflow on the login, engineer home or queue at 390px.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Engineer home header", "issue": "The header subtitle says '0 today · 0 upcoming · 0 new' while the banner just below it shows 2 new faults on the engineer's sites. Users may find the two counts confusing.", "selector": "engineer home header subtitle", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_mod_esp_engineer_jimmy.py", "/app/test_reports/pytest/pytest_mod_esp.xml"],
+  "action_items": [
+    "Optional, low priority: make the header '0 new' count agree with the 'New faults on your sites' banner, or relabel one of them.",
+    "Note for the preview only: the dev server serves public/ files without sanitising them, so /robots.txt (1 match), /sitemap.xml (26), /llms.txt (5) and /.well-known/security.txt (3) still contain .ai strings on the preview URL. postbuild.js replaces or removes these in the production build. In the preview, the browser never requests them during login or the engineer flow."
+  ],
+  "critical_code_review_comments": [
+    "modServiceSeo.js only rewrites pulsefitness.ai at runtime; it does not cover gymaxis.ai, while sanitize.js covers both. Consider adding gymaxis to AI_HOST_RE for consistency.",
+    "routes/svc/engineer.py (1510 lines) and routes/master_admin_mod_estate.py (2293 lines) are well over the 700-line guideline. Consider splitting them."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_esp_engineer_jimmy.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None. Used the existing preview Jimmy test account; no data was created or modified (jobs were not allocated).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Preview runs in MOD mode. Jimmy preview login: jimmy.connors.preview@example.test / PreviewJimmy#2026, with portal:'mod' on /api/auth/login. Regression test: tests/test_mod_esp_engineer_jimmy.py (run with -p no:xdist). The conftest seeding call can time out on the first request, which is harmless."
+}
