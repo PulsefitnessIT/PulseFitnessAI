@@ -1,26 +1,33 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
-import en from './locales/en.json';
-import fr from './locales/fr.json';
-import de from './locales/de.json';
+
+// Locale JSON lives in public/locales and is fetched at runtime (kept out of the JS bundle).
+const PublicLocalesBackend = {
+  type: 'backend',
+  init() {},
+  read(lng, _ns, callback) {
+    fetch(`/locales/${lng}.json`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`locale ${lng}: ${r.status}`))))
+      .then((data) => callback(null, data))
+      .catch((err) => callback(err, false));
+  },
+};
 
 i18n
+  .use(PublicLocalesBackend)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources: { en: { translation: en }, fr: { translation: fr }, de: { translation: de } },
     fallbackLng: 'en',
     supportedLngs: ['en', 'fr', 'de'],
-    // Map region variants (fr-FR, fr-CA, de-AT, de-CH, en-GB...) to the base
-    // language so a visitor's browser locale auto-selects FR/DE on first visit.
+    // Map region variants (fr-FR, de-AT, en-GB...) to the base language.
     load: 'languageOnly',
     nonExplicitSupportedLngs: true,
     cleanCode: true,
     interpolation: { escapeValue: false },
+    react: { useSuspense: true },
     detection: {
-      // Returning visitors keep their saved choice; brand-new visitors are
-      // auto-detected from their browser language.
       order: ['localStorage', 'navigator'],
       caches: ['localStorage'],
     },

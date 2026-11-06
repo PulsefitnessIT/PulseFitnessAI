@@ -6,7 +6,7 @@
  * action, or commonly-needed shortcut. Built on `cmdk` (already installed)
  * so we get keyboard navigation, fuzzy matching and accessibility for free.
  */
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Command } from 'cmdk';
 import {
@@ -109,31 +109,6 @@ const buildCommands = ({ navigate, user, setSection }) => {
   return cmds;
 };
 
-
-/* ─────────────────── Public hook ─────────────────── */
-/**
- * `useCommandPalette` returns the [open, setOpen] tuple but ALSO wires the
- * Cmd-K / Ctrl-K listener once at the top of the app. Mount the palette
- * itself via <CommandPalette /> below.
- */
-export function useCommandPalette() {
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const onKey = (e) => {
-      if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setOpen((v) => !v);
-      }
-      if (e.key === 'Escape') setOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-  return [open, setOpen];
-}
-
-
-/* ─────────────────── Public component ─────────────────── */
 
 export default function CommandPalette({ open, setOpen, setSection }) {
   const navigate = useNavigate();

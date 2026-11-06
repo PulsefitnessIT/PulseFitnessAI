@@ -1,4 +1,4 @@
-import { createContext, useState, useContext, useEffect, Suspense } from 'react';
+import { createContext, useState, useContext, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { clearOfflineData } from './utils/clearOfflineData';
@@ -211,14 +211,15 @@ import CookieConsent from './components/shared/CookieConsent';
 import LanguagePrompt from './components/shared/LanguagePrompt';
 import OfflineBanner from './components/shared/OfflineBanner';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
-import AskPulseFitness from './components/AskPulseFitness';
+const AskPulseFitness = lazy(() => import('./components/AskPulseFitness'));
 import NPSWidget from './components/shared/NPSWidget';
 import FeedbackWidget from './components/shared/FeedbackWidget';
 import SessionResumedBanner from './components/shared/SessionResumedBanner';
 import StepUpDialog from './components/StepUpDialog';
 import ModuleAccessDenied from './components/shared/ModuleAccessDenied';
-import UnifiedAssistant from './components/UnifiedAssistant';
-import CommandPalette, { useCommandPalette } from './components/CommandPalette';
+const UnifiedAssistant = lazy(() => import('./components/UnifiedAssistant'));
+const CommandPalette = lazy(() => import('./components/CommandPalette'));
+import { useCommandPalette } from './components/useCommandPalette';
 
 /**
  * Show the legacy AskPulseFitness purple-orb only on routes where the new
@@ -251,8 +252,8 @@ function AskPulseFitnessGuard() {
 }
 import { Toaster } from 'sonner';
 
-import GuidedTour from './components/shared/GuidedTour';
-import SetupChecklist from './components/shared/SetupChecklist';
+const GuidedTour = lazy(() => import('./components/shared/GuidedTour'));
+const SetupChecklist = lazy(() => import('./components/shared/SetupChecklist'));
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -975,10 +976,18 @@ function App() {
  </Suspense>
  </>
  )}
- {user && <UnifiedAssistant />}
+ {user && (
+ <Suspense fallback={null}>
+ <UnifiedAssistant />
+ </Suspense>
+ )}
  {user && !(['mod_site', 'mod_branch', 'mod_org'].includes(user?.account_type)) && <FeedbackWidget />}
- {user && <GuidedTour />}
- {user && <SetupChecklist />}
+ {user && (
+ <Suspense fallback={null}>
+ <GuidedTour />
+ <SetupChecklist />
+ </Suspense>
+ )}
  {user && <GlobalCommandPalette />}
  <BrandAttrSync user={user} />
  </UploadQueueProvider>
@@ -993,7 +1002,11 @@ function App() {
  <SessionResumedBanner />
  <StepUpDialog />
 {user && <ModuleAccessDenied />}
- {user && <AskPulseFitnessGuard />}
+ {user && (
+ <Suspense fallback={null}>
+ <AskPulseFitnessGuard />
+ </Suspense>
+ )}
  {user && <NPSWidget />}
  </div>
  </AuthContext.Provider>
@@ -1010,7 +1023,12 @@ export default App;
  */
 function GlobalCommandPalette() {
   const [open, setOpen] = useCommandPalette();
-  return <CommandPalette open={open} setOpen={setOpen} />;
+  if (!open) return null;
+  return (
+    <Suspense fallback={null}>
+      <CommandPalette open={open} setOpen={setOpen} />
+    </Suspense>
+  );
 }/**
  * BrandAttrSync — keeps `<html data-brand>` in sync with the current
  * route + user account type. Mounted inside `<BrowserRouter>` so it

@@ -20,26 +20,26 @@ import { resolveHomePath } from '@/utils/moduleHome';
 import { can } from '@/utils/capabilities';
 import { isExternalEngineer, isLockedEngineer, lockedEngineerHome } from '@/utils/engineerGuard';
 
-// Eager-loaded marketing entry points — must be in the initial bundle
-// to avoid a Suspense fallback on landing.
-import PulseLandingPage from '@/pages/PulseLandingPage';
-import PulsePricingPage from '@/pages/PulsePricingPage';
-import MarketingHome from '@/pages/Marketing/MarketingHome';
-import ModulePage from '@/pages/Marketing/ModulePage';
-import moduleService from '@/pages/Marketing/modules/service';
-import moduleCrm from '@/pages/Marketing/modules/crm';
-import moduleMemberships from '@/pages/Marketing/modules/memberships';
-import moduleMarketing from '@/pages/Marketing/modules/marketing';
-import moduleStaffing from '@/pages/Marketing/modules/staffing';
-import moduleReporting from '@/pages/Marketing/modules/reporting';
-import SecurityPage from '@/pages/SecurityPage';
-import SecurityMarketingPage from '@/pages/Marketing/SecurityMarketingPage';
-import SecurityDocumentPage from '@/pages/Marketing/SecurityDocumentPage';
-import PricingMarketingPage from '@/pages/Marketing/PricingMarketingPage';
-import ContactMarketingPage from '@/pages/Marketing/ContactMarketingPage';
-import TrustPage from '@/pages/TrustPage';
 import ModuleAccessGate from '@/components/shared/ModuleAccessGate';
 import EngineerOfflineIndicator from '@/components/engineer/EngineerOfflineIndicator';
+
+// Landing page stays eager to avoid a Suspense fallback on first paint.
+import PulseLandingPage from '@/pages/PulseLandingPage';
+const PulsePricingPage = lazy(() => import('@/pages/PulsePricingPage'));
+const lazyModulePage = (load) => lazy(() => Promise.all([import('@/pages/Marketing/ModulePage'), load()])
+  .then(([page, mod]) => ({ default: () => <page.default module={mod.default} /> })));
+const ServiceModulePage = lazyModulePage(() => import('@/pages/Marketing/modules/service'));
+const CrmModulePage = lazyModulePage(() => import('@/pages/Marketing/modules/crm'));
+const MembershipsModulePage = lazyModulePage(() => import('@/pages/Marketing/modules/memberships'));
+const MarketingModulePage = lazyModulePage(() => import('@/pages/Marketing/modules/marketing'));
+const StaffingModulePage = lazyModulePage(() => import('@/pages/Marketing/modules/staffing'));
+const ReportingModulePage = lazyModulePage(() => import('@/pages/Marketing/modules/reporting'));
+const SecurityPage = lazy(() => import('@/pages/SecurityPage'));
+const SecurityMarketingPage = lazy(() => import('@/pages/Marketing/SecurityMarketingPage'));
+const SecurityDocumentPage = lazy(() => import('@/pages/Marketing/SecurityDocumentPage'));
+const PricingMarketingPage = lazy(() => import('@/pages/Marketing/PricingMarketingPage'));
+const ContactMarketingPage = lazy(() => import('@/pages/Marketing/ContactMarketingPage'));
+const TrustPage = lazy(() => import('@/pages/TrustPage'));
 // Iter 220cx — mic FAB mounted globally on every engineer route
 // (not just Home) so engineers can dictate a new job from anywhere.
 const EngineerVoiceToJobButton = lazy(() => import('@/pages/ServiceOps/Engineer/VoiceToJobButton'));
@@ -465,12 +465,12 @@ export default function AppRoutes({ user, login }) {
       {/* Engineer Partner Network retired (legacy) — public application form redirected home. */}
       <Route path="/partners/engineers/apply" element={<Navigate to="/" replace />} />
       <Route path="/legacy-home" element={<Navigate to="/" replace />} />
-      <Route path="/platform/service"     element={<ModulePage module={moduleService} />} />
-      <Route path="/platform/crm"         element={<ModulePage module={moduleCrm} />} />
-      <Route path="/platform/memberships" element={<ModulePage module={moduleMemberships} />} />
-      <Route path="/platform/marketing"   element={<ModulePage module={moduleMarketing} />} />
-      <Route path="/platform/staffing"    element={<ModulePage module={moduleStaffing} />} />
-      <Route path="/platform/reporting"   element={<ModulePage module={moduleReporting} />} />
+      <Route path="/platform/service"     element={<ServiceModulePage />} />
+      <Route path="/platform/crm"         element={<CrmModulePage />} />
+      <Route path="/platform/memberships" element={<MembershipsModulePage />} />
+      <Route path="/platform/marketing"   element={<MarketingModulePage />} />
+      <Route path="/platform/staffing"    element={<StaffingModulePage />} />
+      <Route path="/platform/reporting"   element={<ReportingModulePage />} />
       <Route path="/features" element={<FeaturesPage />} />
       <Route path="/pricing" element={<PricingMarketingPage />} />
       <Route path="/legacy-pricing" element={<PricingPage />} />

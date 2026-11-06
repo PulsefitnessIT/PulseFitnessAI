@@ -25,10 +25,19 @@ if (SENTRY_DSN) {
   });
 }
 
+const BootSpinner = () => (
+  <div data-testid="app-boot-spinner" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+    <div style={{ width: 32, height: 32, border: '3px solid rgba(255,255,255,0.15)', borderTopColor: '#fff', borderRadius: '50%', animation: 'boot-spin 0.8s linear infinite' }} />
+    <style>{'@keyframes boot-spin{to{transform:rotate(360deg)}}'}</style>
+  </div>
+);
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <App />
+    <React.Suspense fallback={<BootSpinner />}>
+      <App />
+    </React.Suspense>
   </React.StrictMode>,
 );
 

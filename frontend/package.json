@@ -74,7 +74,7 @@
     "zod": "^3.24.4"
   },
   "scripts": {
-    "start": "craco start",
+    "start": "NODE_OPTIONS=--max-old-space-size=4096 craco start",
     "build": "craco build",
     "test": "craco test",
     "lint:overlays": "node scripts/check-overlay-clicks.js",
