@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only regression check of the build/perf refactor (runtime-fetched i18n locales, root Suspense BootSpinner, lazy marketing routes, lazy App.js widgets, lazy Cmd/Ctrl-K palette). Everything requested works and the console showed no errors: no 'A component suspended', no ChunkLoadError, no pageerrors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Authenticated pages (e.g. /dashboard), desktop 1920x1080", "issues": ["Cookie consent banner (data-testid cookie-consent-banner, z-[60]) sits on top of the bottom-right UnifiedAssistant FAB (unified-assistant-toggle) and blocks clicks until cookies are accepted or declined. This existed before the refactor."]},
+      {"screen": "/dashboard Operations Start tab", "issues": ["A light-blue banner about 50px tall directly under the sub-nav shows no readable text (faint text appears only briefly). Likely a rotating or empty tip banner. Not related to the refactor; worth a look."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: offset the UnifiedAssistant FAB, or lift it above the cookie banner, while the cookie banner is visible",
+    "Optional: check the empty light-blue banner on /dashboard Start tab"
+  ],
+  "critical_code_review_comments": [
+    "i18n PublicLocalesBackend fetch has no cache-busting/version query; after a deploy that changes locale keys, browsers/CDN may serve stale /locales/*.json. Consider appending a build hash (e.g. ?v=process.env.REACT_APP_BUILD_ID).",
+    "When the user's server-side profile language is set (App.js ~L333-337), it overrides a localStorage i18nextLng preset after login. This is by design, but the DE preset only shows on public pages for users with a saved EN profile.",
+    "GlobalCommandPalette unmounts the palette while closed (fine). The first Ctrl+K press fetches the chunk and opened correctly within 1.2s."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "test_credentials": "lee.somers@bfpo.pulsefitness.com/pulse123 and lee.somers@pulsefitness.com/LeeMod123! both return 'Invalid credentials'. Master admin needs MFA. Used owner@isodemo.com / IsoDemo123! instead. Repeated logins hit 429; got the token via API with the X-RateLimit-Bypass header and put it in localStorage.token.",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Verified: login page EN->FR->DE live switch (fetches /locales/fr.json and /locales/de.json, text changes, no raw keys). localStorage i18nextLng=de before load shows app-boot-spinner, then German login. All 14 lazy routes render with an h1 and no errors: /, /pricing, /contact, /security, /security/details, /legacy-security, /trust, /pulse-pricing, /platform/{service,crm,memberships,marketing,staffing,reporting}. Logged in as owner@isodemo.com: /launch shows ask-orb-btn + gx-feedback-launcher; /dashboard, /memberships, /crm show unified-assistant-toggle, and the toggle opens the Operations Copilot panel. Ctrl+K opens command-palette and Escape closes it on /launch, /dashboard, /memberships, /crm; Ctrl+K toggles closed too. GuidedTour lazy chunk works: dispatching 'gymaxis:start-tour' rendered the step. SetupChecklist intentionally returns null (Iter 215dj removal), so no pill is expected."
+}

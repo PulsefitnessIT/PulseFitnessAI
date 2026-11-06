@@ -39254,3 +39254,10 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - User action: unlink modservice from the old deployment → add it in THIS deployment's Domains → CNAME to fitness-ai-migrate.emergent.host. Verify: curl modservice index → same main.*.js as pulsefitness.ai; /api/mod/site/machine-suppliers → 401 not 404.
 - Jimmy (eamonn152@aol.co.uk) data is correct in prod; case MOD-2026-12062 is already assigned to him.
 - Also done (preview, deploy pending): ESP "My customers" = allocated MOD sites (address, contact, machines, open faults); Equipment = all machines on their sites; MOD job detail shows site as customer, site contact/address, reporter, "MOD contract" cover; home tiles "Jobs allocated to you" + "New faults on your sites".
+
+## 2026-06 — Frontend build memory/perf
+- package.json start: NODE_OPTIONS=--max-old-space-size=4096 (fixes dev "heap out of memory")
+- i18n locales moved to public/locales/*.json, fetched at runtime via custom backend in src/i18n/index.js; root Suspense boot spinner in src/index.js
+- Lazy-loaded marketing pages (AppRoutes.js, landing kept eager) + App.js widgets (AskPulseFitness, UnifiedAssistant, CommandPalette, GuidedTour, SetupChecklist); Cmd-K hook moved to components/useCommandPalette.js
+- Tested: iteration_287 all pass
+- Reminder: modservice.pulsefitness.com deployment builds from its own workspace (no GitHub pull) — must re-import repo into a new job to update
