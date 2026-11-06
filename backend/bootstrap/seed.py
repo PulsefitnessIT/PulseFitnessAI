@@ -154,9 +154,16 @@ async def seed_master_admin() -> None:
     # ── White-label handover — decommission legacy GymAxis records ──────
     # Production's DB predates the Pulse Fitness conversion and may still
     # contain the old `admin@gymaxisai.com` master admin and "GymAxis*"
-    # organisations. Remove them on every boot (idempotent) so a redeploy
-    # cleans production automatically. Never touches the configured master
-    # admin (master_email) or any Pulse-named record.
+    # organisations. Never touches the configured master admin
+    # (master_email) or any Pulse-named record.
+    #
+    # OPT-IN ONLY (LEGACY_GYMAXIS_CLEANUP=1). The live MongoDB is shared by
+    # the pulsefitness.ai and MODService deployments, so hard deletes must
+    # never run implicitly on every boot. The one-off handover cleanup has
+    # already run on earlier deploys; set the flag for a single deliberate
+    # run if legacy records ever need removing again.
+    if os.environ.get("LEGACY_GYMAXIS_CLEANUP", "0") != "1":
+        return
     try:
         async for legacy in db.users.find(
             {"email": {"$regex": "@gymaxisai\\.com$", "$options": "i"}},

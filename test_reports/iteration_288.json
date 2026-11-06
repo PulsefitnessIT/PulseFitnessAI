@@ -1,0 +1,18 @@
+{
+  "summary": "Verified MOD HQ 'site login provisioned' email link fix. _hq_provision_email_html now builds href from MOD_PORTAL_URL (fallback FRONTEND_URL) + '/MODService'; trailing slash stripped; no preview.emergentagent.com / pulsefitness.ai in HTML. Endpoint POST /api/mod/pro/sites/{site_id}/provision-credentials (sole caller, line 3054) tested end-to-end on preview with seeded TEST_ mod_org HQ + mod_site + HQ user (no notify_email, so no email sent): create 200 (rotated=false), rotate 200 (rotated=true, same username), rotate_if_exists=false 409. Master admin (non-MOD-PRO) gets 403 not 500; unauth 401/403. /api/health ok. MOD login '/' renders data-testid=mod-login-form (after a ~13 min frontend cold-start compile that briefly returned 502). Grep of runtime backend code: no preview.emergentagent.com used to build user-facing links (remaining hits are comments, security_checks description strings, and the CORS origin regex in utils/security_plus.py). 8/8 pytest passed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": [{"screen": "MOD login '/'", "issues": ["Royal Air Force card image area rendered blank in screenshot (Army/Navy show logos) - may be lazy-load timing, worth a quick look"]}]},
+  "test_report_links": ["/app/backend/tests/test_mod_hq_provision_email_url.py", "/app/test_reports/pytest/pytest_hq_provision_email.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "If both MOD_PORTAL_URL and FRONTEND_URL are unset, link becomes relative '/MODService' (broken in email) - acceptable since prod sets MOD_PORTAL_URL, but consider logging a warning.",
+    "Site name is interpolated into email HTML without escaping (html.escape) - low risk (HQ-controlled), but trivially hardened.",
+    "routes/mod_portal.py is ~4067 lines - should be split."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_hq_provision_email_url.py"],
+  "success_rate": {"backend": "100%", "frontend": "N/A (light regression: MOD login renders)"},
+  "seed_data_creation": "E2E test seeds TEST_hq_*/TEST_site_* organizations, TEST_user_* HQ user and the provisioned mod_site user, all deleted by id in finally. Tamper-evident mod audit entries (site_login.provision/rotate) for the TEST_ site ids are intentionally left to avoid breaking the audit hash chain.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Preview frontend cold start can take ~13 min (502 meanwhile). Provision endpoint requires mod_org/mod_branch user; test mints JWT via utils.auth.create_token for seeded TEST_ user. Jimmy preview account untouched."
+}
