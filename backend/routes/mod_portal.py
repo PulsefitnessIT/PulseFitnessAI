@@ -3074,6 +3074,10 @@ async def mod_hq_provision_site_credentials(
 
 
 def _hq_provision_email_html(site: dict, username: str, new_password: str) -> str:
+    # Env-driven (never a hard-coded preview host) — MOD_PORTAL_URL is the
+    # MOD Service domain on the MODService deployment.
+    _base = (os.environ.get("MOD_PORTAL_URL") or os.environ.get("FRONTEND_URL", "")).rstrip("/")
+    _mod_login_url = f"{_base}/MODService"
     return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
   <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Site Login</div>
@@ -3087,7 +3091,7 @@ def _hq_provision_email_html(site: dict, username: str, new_password: str) -> st
       <tr><td style="padding:8px 14px;background:#0A0B10;color:#19CDFF;border:1px solid #0A0B10;font-size:11px;font-weight:800;text-transform:uppercase;">Site code</td>
           <td style="padding:8px 14px;background:#0A0B10;color:#fff;border:1px solid #0A0B10;font-family:ui-monospace,Menlo,monospace;font-weight:700;">{new_password}</td></tr>
     </table>
-    <p style="color:#6E7476;font-size:13px;margin-top:18px;">Share this with the on-site PTI via a secure channel. Sign in at <a href="https://pulse-mod-estate--6ncsuzra.preview.emergentagent.com/MODService" style="color:#19CDFF;">/MODService</a> using the username + site code.</p>
+    <p style="color:#6E7476;font-size:13px;margin-top:18px;">Share this with the on-site PTI via a secure channel. Sign in at <a href="{_mod_login_url}" style="color:#19CDFF;">{_mod_login_url}</a> using the username + site code.</p>
   </div>
 </div>"""
 
