@@ -1,0 +1,18 @@
+{
+  "summary": "Backend-only verification of the LEGACY_GYMAXIS_CLEANUP opt-in gate in bootstrap/seed.py seed_master_admin(). Tested directly against the preview test_database (with an assertion that db.name == test_database), using monkeypatch for the env vars. Default mode (unset) and explicit '0': all TEST rows were kept (the @gymaxisai.com user, the 'GymAxis TEST Org' org and its user, and the Pulse control rows). Opt-in mode ('1'): the legacy user, the GymAxis org and its user were removed, while the master admin (same id) and the 'Pulse TEST Org' org and its user were left alone. The master admin heal works in both modes: is_master_admin, active and must_change_password are set correctly. With RESET_ON_BOOT=1 the password is re-synced (new hash, verify_password ok). With RESET_ON_BOOT=0 the hash is unchanged. Regression: the backend restarted cleanly, GET /api/health returns 200, master admin login works, and _hq_provision_email_html uses MOD_PORTAL_URL + '/MODService' (the iteration_288 suite passes 8/8). 17/17 passed. All TEST rows were cleaned up (confirmed 0 remaining).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_seed_legacy_gymaxis_gate.py", "/app/backend/tests/test_mod_hq_provision_email_url.py", "/app/test_reports/pytest/pytest_seed_gate.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "seed_master_admin() still runs a hard delete on every boot: it removes extra users with the exact MASTER_ADMIN_EMAIL (the duplicate cleanup) without any flag. This is scoped to one email, so the risk is low. But since the DB is shared, make sure pulsefitness.ai and MODService either use the same MASTER_ADMIN_EMAIL or deliberately different ones. If both deployments set the same email, each boot could delete the other's duplicate row. Consider gating this too, or doing a soft-merge.",
+    "If the master admin row is missing, seed_master_admin inserts a new 'Pulse Fitness AI Admin' org plus a user. This only adds data, but on a shared DB a typo in MASTER_ADMIN_EMAIL would create a stray org on every new email.",
+    "Backend log shows that at 09:31 (before the fix was live) the old code removed admin@gymaxisai.com from the preview test_database. This is preview only, but if any production boot ran the old code, those deletes already happened there."
+  ],
+  "updated_files": ["/app/backend/tests/test_seed_legacy_gymaxis_gate.py"],
+  "success_rate": {"backend": "100%", "frontend": "N/A (skipped as requested)"},
+  "seed_data_creation": "Each test inserted TEST rows with random uuids (legacy_TEST_*@gymaxisai.com, 'GymAxis TEST Org <tag>', 'Pulse TEST Org <tag>' and their users) and deleted them by id in finally blocks. 0 remaining.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run with: cd /app/backend && python -m pytest tests/test_seed_legacy_gymaxis_gate.py -p no:xdist. It calls seed_master_admin() in-process on test_database, using a module-scoped event loop for motor. Master admin creds: /app/memory/test_credentials.md."
+}
