@@ -4,7 +4,7 @@ Manages third-party integration configs, logs, and the Orbit 4 → Sicon bridge.
 """
 from fastapi import APIRouter, HTTPException, Depends, Request
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 import logging
 import uuid
 import hashlib
@@ -689,57 +689,73 @@ async def test_orbit4_connection(user: dict = Depends(get_current_user)):
 
 @router.post("/integrations/sicon/test-connection")
 async def test_sicon_connection(user: dict = Depends(get_current_user)):
-    """Test the Sicon WebAPI connection using the stored config credentials.
-
-    Pings the Service WebAPI connectivity endpoint and reports a clear
-    connected / auth-failed / unreachable result. Logged to the Event Log."""
+    """Step-by-step check of the saved Sicon config: reach server → sign in →
+    authenticated read → data available (equipment / cases / contracts).
+    Read-only; never returns credentials. Logged to the Event Log."""
     await verify_admin(user)
-    config = await get_integration_config("sicon")
-    if not config:
-        raise HTTPException(status_code=404, detail="Sicon integration not found")
-
-    creds = config.get("credentials") or {}
-    base_url = (config.get("base_url") or "").rstrip("/")
-    if not base_url:
-        return {"status": "error",
+    from utils.sicon_common import get_admin_sicon_client
+    from utils.sicon_client import _extract_records
+    import time as _t
+    client = await get_admin_sicon_client()
+    if not client:
+        return {"status": "error", "steps": [],
                 "message": "No API Base URL configured — set it in Configuration and Save first."}
+    base_url = client.base_url
+    steps: List[Dict[str, Any]] = []
 
-    api_key = creds.get("api_key") or ""
-    company_id = creds.get("company_id") or ""
-    branding = config.get("branding", {})
-    user_agent = branding.get("user_agent", "PulseFitness-ServiceBridge/1.0")
-    ping_url = f"{base_url}/api/SMConnectivity/Ping"
-    req_headers = {"User-Agent": user_agent, "Accept": "application/json"}
-    if api_key:
-        req_headers["Authorization"] = f"Bearer {api_key}"
-    params = {"companyId": company_id} if company_id else None
+    async def step(key, label, fn):
+        t0 = _t.perf_counter()
+        try:
+            detail = await fn()
+            steps.append({"key": key, "label": label, "ok": True, "detail": detail,
+                          "ms": round((_t.perf_counter() - t0) * 1000)})
+            return True
+        except Exception as e:
+            steps.append({"key": key, "label": label, "ok": False, "detail": str(e)[:240],
+                          "ms": round((_t.perf_counter() - t0) * 1000)})
+            return False
 
-    try:
-        async with httpx.AsyncClient(timeout=12) as client:
-            resp = await client.get(ping_url, headers=req_headers, params=params)
-        if resp.status_code == 200:
-            await log_integration_event("sicon", "connection_test", "outbound",
-                                        f"Ping OK — {base_url}")
-            return {"status": "connected",
-                    "message": f"Successfully connected to Sicon WebAPI ({base_url})",
-                    "base_url": base_url, "http_status": 200}
-        if resp.status_code in (401, 403):
-            await log_integration_event("sicon", "connection_test", "outbound",
-                                        f"Auth failed (HTTP {resp.status_code})",
-                                        success=False, error=str(resp.status_code))
-            return {"status": "error",
-                    "message": f"Reached Sicon but authentication failed (HTTP {resp.status_code}). "
-                               "Check the API key / username and Company ID."}
-        await log_integration_event("sicon", "connection_test", "outbound",
-                                    f"Unexpected HTTP {resp.status_code}",
-                                    success=False, error=resp.text[:200])
-        return {"status": "error",
-                "message": f"Reached {base_url} but received HTTP {resp.status_code}."}
-    except Exception as e:
-        await log_integration_event("sicon", "connection_test", "outbound",
-                                    f"Connection failed: {str(e)[:120]}",
-                                    success=False, error=str(e)[:300])
-        return {"status": "error", "message": f"Could not reach {base_url}: {str(e)[:160]}"}
+    async def reach():
+        if await client.svc_ping():
+            return f"Sicon Service WebAPI answered at {base_url}"
+        try:
+            async with httpx.AsyncClient(timeout=10, verify=True) as hc:
+                r = await hc.get(f"{base_url}/api/v1/SiconService/Ping")
+            raise RuntimeError(f"Server reached but the Sicon API was not found (HTTP {r.status_code}). "
+                               "Check the address includes the WebAPI port or path, e.g. https://host:51080")
+        except httpx.HTTPError as e:
+            raise RuntimeError(f"Could not reach {base_url}: {str(e)[:120]}")
+
+    async def sign_in():
+        if client._bearer:
+            return "Using the saved bearer token"
+        await client._authenticate_v1()
+        return "Signed in with the saved username and password"
+
+    async def authed():
+        recs = _extract_records(await client.svc_get_case_types())
+        return f"Read {len(recs)} case types"
+
+    async def data():
+        eq = await client.svc_get_equipment_page(0, 1)
+        cs = await client.svc_get_casesearch_page(0, 1)
+        contracts = "available" if await client.svc_contract_available() else "not available on this Sicon"
+        return (f"{eq.get('totalRecords', '?')} equipment, {cs.get('totalRecords', '?')} cases, "
+                f"contracts {contracts}")
+
+    ok = await step("reach", "Reach Sicon server", reach)
+    ok = ok and await step("auth", "Sign in", sign_in)
+    ok = ok and await step("read", "Authenticated read", authed)
+    ok = ok and await step("data", "Data available", data)
+    if ok:
+        await log_integration_event("sicon", "connection_test", "outbound", f"Connected — {base_url}")
+        return {"status": "connected", "message": f"Connected to Sicon ({base_url})",
+                "base_url": base_url, "steps": steps}
+    failed = next(s for s in steps if not s["ok"])
+    await log_integration_event("sicon", "connection_test", "outbound", f"{failed['label']} failed",
+                                success=False, error=failed["detail"])
+    return {"status": "error", "message": f"{failed['label']} failed: {failed['detail']}",
+            "base_url": base_url, "steps": steps}
 
 
 @router.get("/integrations/orbit4/assets")

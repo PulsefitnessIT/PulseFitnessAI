@@ -78,6 +78,33 @@ async def get_sicon_client(organization_id: str) -> Optional[SiconClient]:
     )
 
 
+async def get_admin_sicon_client() -> Optional[SiconClient]:
+    """Client from the Master Admin → Sicon Service → Configuration screen
+    (db.integrations 'sicon'); blank fields fall back to SICON_* env vars."""
+    from routes.integrations import get_integration_config
+    cfg = await get_integration_config("sicon") or {}
+    creds = cfg.get("credentials") if isinstance(cfg.get("credentials"), dict) else {}
+    base = (cfg.get("base_url") or "").strip()
+    if not base:
+        return get_sicon_client_from_env()
+    try:
+        company_id = int(creds.get("company_id") or os.environ.get("SICON_COMPANY_ID") or 0)
+    except (ValueError, TypeError):
+        company_id = 0
+    client = SiconClient(
+        base_url=base,
+        username=(creds.get("username") or os.environ.get("SICON_USERNAME") or "").strip(),
+        password=creds.get("password") or os.environ.get("SICON_PASSWORD") or "",
+        company_id=company_id,
+        allow_writes=env_allow_writes(),
+        page_size=env_page_size(),
+        contract_base_url=(creds.get("contract_base_url") or "").strip() or None,
+    )
+    if (creds.get("auth_mode") or "bearer") == "bearer" and creds.get("api_key"):
+        client._bearer = creds["api_key"].strip()
+    return client
+
+
 async def log_sicon_event(organization_id: str, action: str, details: str,
                            success: bool, user_id: str = "system") -> None:
     """Write an audit log entry for Sicon API activity."""

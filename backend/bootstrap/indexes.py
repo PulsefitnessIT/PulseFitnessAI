@@ -241,6 +241,13 @@ async def create_indexes() -> None:
             [("organization_id", 1), ("entity", 1), ("started_at", -1)])
         await db.sicon_import_conflicts.create_index(
             [("organization_id", 1), ("external_entity_type", 1), ("status", 1)])
+        await db.sicon_import_differences.create_index(
+            [("organization_id", 1), ("entity", 1), ("external_id", 1), ("field", 1)], unique=True,
+            name="uniq_sicon_import_difference")
+        await db.sicon_import_differences.create_index([("id", 1)], name="sicon_import_difference_id")
+        await db.crm2_companies.create_index([("organization_id", 1), ("sage_customer_id", 1)])
+        await db.crm2_sites.create_index([("organization_id", 1), ("sicon_sub_location_id", 1)])
+        await db.crm2_contracts.create_index([("organization_id", 1), ("sicon_contract_id", 1)])
     except Exception as _e:  # pragma: no cover
         logger.warning(f"sicon read-side import index warning: {_e}")
 

@@ -39261,3 +39261,14 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Lazy-loaded marketing pages (AppRoutes.js, landing kept eager) + App.js widgets (AskPulseFitness, UnifiedAssistant, CommandPalette, GuidedTour, SetupChecklist); Cmd-K hook moved to components/useCommandPalette.js
 - Tested: iteration_287 all pass
 - Reminder: modservice.pulsefitness.com deployment builds from its own workspace (no GitHub pull) — must re-import repo into a new job to update
+
+## 2026-06 — Sicon Test Connection + Onboarding Sync
+- Test Connection button was invisible (light-theme override of bg-zinc-900) → now blue; same fix for Orbit 4
+- /api/integrations/sicon/test-connection now step-by-step (reach → sign in → authed read → data counts) using Configuration-screen creds (utils/sicon_common.get_admin_sicon_client; env fallback); base URL without scheme auto-https
+- Added Password field to Sicon Configuration
+- Onboarding sync (utils/sicon_onboarding.py): preview (writes nothing) → confirm → apply. Customers+sites derived from equipment/case records (no Sicon customer list endpoint); equipment, cases (existing engines with fill_gaps=True); contracts via unconfirmed contract route (shows "unavailable" if missing)
+- Fill-gaps-only; differences → db.sicon_import_differences (Keep Pulse / Use Sicon); ambiguous matches → db.sicon_import_conflicts (customer/site/contract resolvable)
+- Endpoints: POST /api/sicon/read/onboarding/preview, POST /api/sicon/read/onboarding/{run_id}/apply, GET /api/sicon/read/onboarding/latest, GET /api/sicon/read/onboarding/runs/{id}, GET /api/sicon/read/differences, POST /api/sicon/read/differences/{id}/resolve
+- UI: MasterAdmin/SiconOnboardingSync.js (+SiconSyncCounts, SiconDifferencesList) on Configuration tab
+- Tests: tests/test_sicon_onboarding_jun2026.py (3) + existing import/case engine tests green
+- BLOCKER: saved base URL https://SICONTEST-06.bpdemos.co.uk returns IIS 404 for /api/v1/SiconService/* — user must supply full WebAPI address (port/path)

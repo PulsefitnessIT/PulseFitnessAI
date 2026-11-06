@@ -917,6 +917,21 @@ async def read_resolve_conflict(external_id: str, data: Dict[str, Any],
         raise HTTPException(status_code=404, detail="Conflict not found")
     norm = conflict.get("sicon_record", {})
 
+    if entity in ("customer", "site", "contract"):
+        from utils import sicon_onboarding as _onbr
+        try:
+            resolution = await _onbr.resolve_record_conflict(org_id, entity, str(external_id), norm,
+                                                             action, data.get("pulse_id"))
+        except LookupError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        await db.sicon_import_conflicts.update_one(
+            {"organization_id": org_id, "external_entity_type": entity, "external_id": str(external_id)},
+            {"$set": {"status": "resolved", "resolution": resolution,
+                      "resolved_by": user["id"], "resolved_at": datetime.now(timezone.utc).isoformat()}})
+        await log_sicon_event(org_id, "conflict_resolved", f"{entity} {external_id}: {resolution}", True, user["id"])
+        return {"success": True, "resolution": resolution}
     # §12 — case_equipment conflicts (UNMAPPED_EQUIPMENT) resolve differently:
     # they link/create the Pulse ASSET for the Sicon equipment, then attach it
     # to the case's issue. external_id is "{siSMCaseId}:{siconEquipmentId}".
@@ -1278,3 +1293,108 @@ async def sicon_cron_nightly_sync(request: Request):
     _asyncio.create_task(_run_all_org_sicon_sync())
     return {"accepted": True}
 
+
+
+# ── Onboarding sync: customers, sites, equipment, contracts, cases ─
+# Preview (writes nothing) → admin confirms → apply (fill gaps only).
+from utils import sicon_onboarding as _onb  # noqa: E402
+from utils.sicon_common import get_admin_sicon_client  # noqa: E402
+
+_onboarding_tasks: set = set()
+
+
+async def _onboarding_client(user: dict, org_id: str):
+    client = await get_admin_sicon_client() if user.get("is_master_admin") else await get_sicon_client(org_id)
+    if not client:
+        raise HTTPException(status_code=400, detail="Sicon is not configured — save the API Base URL first.")
+    return client
+
+
+async def _start_onboarding(user: dict, apply: bool, preview_run_id: Optional[str] = None) -> Dict[str, Any]:
+    import uuid as _uuid
+    org_id = _require_org(user)
+    client = await _onboarding_client(user, org_id)
+    running = await db.sicon_sync_runs.find_one(
+        {"organization_id": org_id, "entity": "onboarding", "status": {"$in": ["queued", "running"]}}, {"_id": 0, "id": 1})
+    if running:
+        raise HTTPException(status_code=409, detail="A Sicon sync is already running — wait for it to finish.")
+    run_id = str(_uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    await db.sicon_sync_runs.insert_one({
+        "id": run_id, "organization_id": org_id, "entity": "onboarding",
+        "mode": "apply" if apply else "preview", "status": "queued", "counts": {},
+        "preview_run_id": preview_run_id, "started_at": now, "user_id": user["id"],
+        "user_name": user.get("full_name") or user.get("email")})
+    config = await get_sicon_config(org_id) or {}
+    task = _asyncio.create_task(_onb.run_onboarding(org_id, client, config, run_id, apply, user["id"]))
+    _onboarding_tasks.add(task)
+    task.add_done_callback(_onboarding_tasks.discard)
+    await log_sicon_event(org_id, f"onboarding_{'apply' if apply else 'preview'}_started", f"run {run_id}", True, user["id"])
+    return {"success": True, "run_id": run_id, "status": "queued"}
+
+
+@router.post("/sicon/read/onboarding/preview")
+async def onboarding_preview(user: dict = Depends(get_current_user)):
+    """Read every Sicon record and classify it — writes nothing to Pulse."""
+    _require_owner_or_manager(user)
+    return await _start_onboarding(user, apply=False)
+
+
+@router.post("/sicon/read/onboarding/{run_id}/apply")
+async def onboarding_apply(run_id: str, user: dict = Depends(get_current_user)):
+    """Confirm a completed preview and import (new + gap-fill; differences queued)."""
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    prev = await db.sicon_sync_runs.find_one(
+        {"id": run_id, "organization_id": org_id, "entity": "onboarding", "mode": "preview"}, {"_id": 0})
+    if not prev:
+        raise HTTPException(status_code=404, detail="Preview not found")
+    if prev.get("status") != "completed":
+        raise HTTPException(status_code=400, detail="Run a complete preview before importing.")
+    return await _start_onboarding(user, apply=True, preview_run_id=run_id)
+
+
+@router.get("/sicon/read/onboarding/latest")
+async def onboarding_latest(user: dict = Depends(get_current_user)):
+    _require_owner_or_manager(user)
+    org_id = _require_org(user)
+    q = {"organization_id": org_id, "entity": "onboarding"}
+    preview = await db.sicon_sync_runs.find_one({**q, "mode": "preview"}, {"_id": 0}, sort=[("started_at", -1)])
+    applied = await db.sicon_sync_runs.find_one({**q, "mode": "apply"}, {"_id": 0}, sort=[("started_at", -1)])
+    open_diffs = await db.sicon_import_differences.count_documents({"organization_id": org_id, "status": "open"})
+    open_conflicts = await db.sicon_import_conflicts.count_documents({"organization_id": org_id, "status": "open"})
+    return {"preview": preview, "apply": applied, "open_differences": open_diffs, "open_conflicts": open_conflicts}
+
+
+@router.get("/sicon/read/onboarding/runs/{run_id}")
+async def onboarding_run(run_id: str, user: dict = Depends(get_current_user)):
+    _require_owner_or_manager(user)
+    run = await db.sicon_sync_runs.find_one(
+        {"id": run_id, "organization_id": _require_org(user), "entity": "onboarding"}, {"_id": 0})
+    if not run:
+        raise HTTPException(status_code=404, detail="Sync run not found")
+    return run
+
+
+@router.get("/sicon/read/differences")
+async def list_differences(entity: str = "", status: str = "open", limit: int = 200,
+                           user: dict = Depends(get_current_user)):
+    _require_owner_or_manager(user)
+    q: Dict[str, Any] = {"organization_id": _require_org(user)}
+    if entity:
+        q["entity"] = entity
+    if status != "all":
+        q["status"] = status
+    items = await db.sicon_import_differences.find(q, {"_id": 0}).sort("updated_at", -1).to_list(min(limit, 500))
+    return {"differences": items, "count": await db.sicon_import_differences.count_documents(q)}
+
+
+@router.post("/sicon/read/differences/{diff_id}/resolve")
+async def resolve_difference(diff_id: str, data: Dict[str, Any], user: dict = Depends(get_current_user)):
+    _require_owner_or_manager(user)
+    try:
+        return await _onb.resolve_difference(_require_org(user), diff_id, data.get("action"), user["id"])
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -214,8 +214,11 @@ def _new_asset_doc(org_id: str, norm: Dict[str, Any]) -> Dict[str, Any]:
 
 async def apply_equipment_record(org_id: str, norm: Dict[str, Any],
                                  classification: Dict[str, Any],
-                                 run_id: str = "", user_id: str = "system") -> Dict[str, Any]:
-    """Persist one classified record idempotently. Returns {action, pulse_asset_id}."""
+                                 run_id: str = "", user_id: str = "system",
+                                 fill_gaps: bool = False) -> Dict[str, Any]:
+    """Persist one classified record idempotently. Returns {action, pulse_asset_id}.
+    fill_gaps=True (onboarding): never change a populated Pulse field; differences
+    are queued for review instead."""
     seid = norm.get("sicon_equipment_id")
     bucket = classification["bucket"]
 
@@ -230,6 +233,12 @@ async def apply_equipment_record(org_id: str, norm: Dict[str, Any],
         asset_id = classification["pulse_asset_id"]
         existing = await db.equipment.find_one({"id": asset_id}, {"_id": 0}) or {}
         setdoc = _sicon_update_set(existing, norm)
+        if fill_gaps:
+            from utils.sicon_onboarding import gap_fill
+            for f in SICON_SYNCED_FIELDS:
+                setdoc.pop(f, None)
+            setdoc.update(await gap_fill(org_id, "equipment", seid, asset_id, existing,
+                                         {f: norm.get(f) for f in (*SICON_SYNCED_FIELDS, "model")}, run_id))
         linkfields = await _resolve_equipment_links(org_id, norm, existing)
         setdoc.update(linkfields)
         await db.equipment.update_one({"id": asset_id}, {"$set": setdoc})
@@ -542,13 +551,25 @@ def _case_sicon_set(norm: Dict[str, Any], resolved: Dict[str, Any], linkfields: 
 
 
 async def apply_case_record(org_id: str, norm: Dict[str, Any], classification: Dict[str, Any],
-                            config: Dict[str, Any], run_id: str = "") -> Dict[str, Any]:
+                            config: Dict[str, Any], run_id: str = "",
+                            fill_gaps: bool = False) -> Dict[str, Any]:
     scid = norm.get("si_sm_case_id")
     resolved = resolve_case_fields(norm, config)
     linkfields = await _resolve_case_links(org_id, norm)
 
     if classification["bucket"] == "linked":
         issue_id = classification["issue_id"]
+        if fill_gaps:
+            from utils.sicon_onboarding import gap_fill
+            existing = await db.issues.find_one({"id": issue_id}, {"_id": 0}) or {}
+            setdoc = _case_sicon_set(norm, resolved, {})
+            setdoc.update(await gap_fill(org_id, "case", scid, issue_id, existing,
+                                         {**linkfields, "status": resolved.get("status")}, run_id))
+            await db.issues.update_one({"id": issue_id}, {"$set": setdoc})
+            if scid is not None:
+                await links.upsert_link(links.ENTITY_CASE, scid, "issue", issue_id,
+                                        organization_id=org_id, sync_status="linked")
+            return {"action": "updated", "issue_id": issue_id}
         setdoc = _case_sicon_set(norm, resolved, linkfields)
         # Status/severity are Sicon-tracked for imported cases; keep the mapped
         # values in sync but never blank them.

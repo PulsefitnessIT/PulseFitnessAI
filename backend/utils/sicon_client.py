@@ -57,6 +57,14 @@ class SiconAPIError(Exception):
         self.payload = payload or {}
 
 
+def normalise_base_url(url: str) -> str:
+    """Accept 'host.example.com' as well as full URLs — default to https."""
+    url = (url or "").strip().rstrip("/")
+    if url and "://" not in url:
+        url = f"https://{url}"
+    return url
+
+
 def _extract_records(body) -> List:
     """Pull the record list out of a Sicon list envelope, tolerating the
     various array keys Sicon uses across endpoints (records/items/entities/
@@ -83,10 +91,10 @@ class SiconClient:
     def __init__(self, base_url: str, username: str, password: str, company_id: int = 0,
                  timeout: float = 30.0, allow_writes: bool = False, page_size: int = 50,
                  contract_base_url: Optional[str] = None):
-        self.base_url = base_url.rstrip("/")
+        self.base_url = normalise_base_url(base_url)
         # §26 — Sicon Contract Management is a SEPARATE WebAPI/plugin that may
         # sit on a different host/port. Falls back to the service base URL.
-        self.contract_base_url = (contract_base_url or base_url).rstrip("/")
+        self.contract_base_url = normalise_base_url(contract_base_url or base_url)
         self.company_id = company_id
         self.timeout = timeout
         self._auth = (username, password)

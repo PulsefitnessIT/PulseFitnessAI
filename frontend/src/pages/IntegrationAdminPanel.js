@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import axios from 'axios';
 import { notify } from '@/components/notifications';
 import { notifyApiError } from '@/lib/formatApiError';
+import SiconOnboardingSync from '@/pages/MasterAdmin/SiconOnboardingSync';
 import {
   Activity, CheckCircle, XCircle, Clock, ArrowRight,
   RefreshCw, Copy, AlertTriangle, Loader2, Settings,
@@ -306,7 +307,7 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">API Connection</h4>
                 <Button size="sm" onClick={testConnection} disabled={testingConnection} data-testid="test-connection-btn"
-                  className={connectionStatus?.status === 'connected' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}>
+                  className={connectionStatus?.status === 'connected' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}>
                   {testingConnection ? <Loader2 size={14} className="animate-spin mr-1" /> : connectionStatus?.status === 'connected' ? <Wifi size={14} className="mr-1" /> : <WifiOff size={14} className="mr-1" />}
                   {testingConnection ? 'Testing...' : connectionStatus?.status === 'connected' ? 'Connected' : 'Test Connection'}
                 </Button>
@@ -633,7 +634,7 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Verify the saved base URL and credentials reach Sicon.</p>
                 </div>
                 <Button size="sm" onClick={testConnection} disabled={testingConnection} data-testid="sicon-test-connection-btn"
-                  className={connectionStatus?.status === 'connected' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}>
+                  className={connectionStatus?.status === 'connected' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}>
                   {testingConnection ? <Loader2 size={14} className="animate-spin mr-1" /> : connectionStatus?.status === 'connected' ? <Wifi size={14} className="mr-1" /> : <WifiOff size={14} className="mr-1" />}
                   {testingConnection ? 'Testing…' : connectionStatus?.status === 'connected' ? 'Connected' : 'Test Connection'}
                 </Button>
@@ -644,10 +645,22 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
                     {connectionStatus.status === 'connected' ? <CheckCircle size={16} /> : <XCircle size={16} />}
                     <span className="font-medium">{connectionStatus.message}</span>
                   </div>
+                  {connectionStatus.steps?.length > 0 && (
+                    <ul className="mt-2 space-y-1 text-xs" data-testid="sicon-connection-steps">
+                      {connectionStatus.steps.map(st => (
+                        <li key={st.key} className="flex items-start gap-1.5" data-testid={`sicon-connection-step-${st.key}`}>
+                          {st.ok ? <CheckCircle size={13} className="mt-0.5 shrink-0" /> : <XCircle size={13} className="mt-0.5 shrink-0" />}
+                          <span><b>{st.label}</b> — {st.detail} <span className="opacity-60">({st.ms} ms)</span></span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
               {!connectionStatus && <p className="text-xs text-zinc-400 dark:text-zinc-500">Save your credentials first, then click "Test Connection".</p>}
             </Card>
+
+            <SiconOnboardingSync API={API} headers={headers} />
 
             <Card className="p-5 border-zinc-200 dark:border-zinc-800 space-y-4">
               <div className="flex items-center justify-between">
@@ -686,6 +699,12 @@ const IntegrationAdminPanel = ({ integrationId, title, icon: Icon, color, initia
                   <Label className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">Username</Label>
                   <Input value={editConfig.credentials?.username || ''} onChange={e => setEditConfig({...editConfig, credentials: {...(editConfig.credentials || {}), username: e.target.value}})}
                     placeholder="Sage user (for Basic auth)" className="mt-1" data-testid="sicon-username" />
+                </div>
+                <div>
+                  <Label className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">Password</Label>
+                  <Input type="password" value={editConfig.credentials?.password || ''} onChange={e => setEditConfig({...editConfig, credentials: {...(editConfig.credentials || {}), password: e.target.value}})}
+                    placeholder={config?.credentials_set?.password ? '•••••• saved — type to replace' : 'Sicon WebAPI password'} className="mt-1" data-testid="sicon-password" />
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">Used to sign in when no bearer token is saved or it expires.</p>
                 </div>
                 <div>
                   <Label className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-500">Sicon Company ID</Label>
