@@ -1755,7 +1755,8 @@ async def mod_fault_submit(
         "mod_ticket_ref": ticket_ref,
         "fault_type_mod": payload.fault_type,
         "onset": payload.onset,
-        "usable": payload.usable,
+        # A machine that isn't safe to use is not usable.
+        "usable": "no" if str(payload.safe_in_service or "").lower() == "no" else payload.usable,
         "safe_in_service": payload.safe_in_service,
         "reporter_staff_id": staff_id_used,
         "reporter_name": reporter_name,
@@ -1829,10 +1830,37 @@ async def mod_fault_submit(
     notified_recipients = []  # [{role, name, email, at}]
     urgent = priority == "urgent"
     subject = (f"[MOD URGENT] {ticket_ref}" if urgent else f"[MOD Fault] {ticket_ref}") \
-        + f" — {org.get('name')} — {equipment.get('name')}"
+        + f" — {org.get('name')} — {equipment.get('name')}" \
+        + (f" — S/N {equipment.get('serial_number')}" if equipment.get('serial_number') else "")
     html = _escalation_email_html(org, equipment, doc)
+
+    async def _tracked_send(to: str, subj: str, body: str, kind: str) -> None:
+        """Send, then stamp the provider message id + delivered flag on the
+        fault's notified_recipients entry (drives the delivery ticks)."""
+        out: dict = {}
+        try:
+            ok = bool(await send_email(to, subj, body, organization_id=org["id"], category="mod",
+                                       kind=kind, result_out=out))
+        except Exception as send_err:  # noqa: BLE001
+            logger.warning("MOD fault email to %s failed: %s", to, send_err)
+            ok = False
+        fields = {"notified_recipients.$[r].delivered": ok}
+        if out.get("message_id"):
+            fields["notified_recipients.$[r].message_id"] = out["message_id"]
+        try:
+            # Short wait so the recipients list has been written first.
+            for _ in range(10):
+                res = await db.issues.update_one(
+                    {"id": issue_id, "notified_recipients.email": to}, {"$set": fields},
+                    array_filters=[{"r.email": to}])
+                if res.matched_count:
+                    break
+                await asyncio.sleep(0.5)
+        except Exception as upd_err:  # noqa: BLE001
+            logger.warning("MOD fault delivery stamp failed for %s: %s", to, upd_err)
+
     try:
-        asyncio.create_task(send_email(pulse_inbox, subject, html, organization_id=org["id"], category="mod", kind="mod_fault_pulse"))
+        asyncio.create_task(_tracked_send(pulse_inbox, subject, html, "mod_fault_pulse"))
         notified_recipients.append({
             "role": "pulse", "name": "Pulse Fitness (MOD Service)",
             "email": pulse_inbox, "at": notified_at,
@@ -1897,11 +1925,13 @@ async def mod_fault_submit(
                         logger.warning("MOD fault booking auto-create on dispatch failed: %s", be)
                 except Exception as ce:  # pragma: no cover
                     logger.warning("MOD supplier_case auto-create failed: %s", ce)
-            asyncio.create_task(send_email(
+            _serial = (equipment.get("serial_number") or "").strip()
+            asyncio.create_task(_tracked_send(
                 sd.get("email"),
-                f"[Fault Log] {ticket_ref} — {org.get('name')} — {equipment.get('name')}",
+                f"[Fault Log] {ticket_ref} — {org.get('name')} — {equipment.get('name')}"
+                + (f" — S/N {_serial}" if _serial else ""),
                 _supplier_fault_email_html(org, equipment, doc, sd, portal_url=portal_url),
-                organization_id=org["id"], category="mod", kind="mod_fault_supplier",
+                "mod_fault_supplier",
             ))
             notified.append({"email": sd.get("email"), "name": sd.get("name", "")})
             notified_recipients.append({
@@ -3398,14 +3428,174 @@ def _classification_bar(site: dict) -> str:
     )
 
 
-def _reporter_contact_block(doc: dict) -> str:
+import html as _html
+
+
+def _e(v) -> str:
+    """HTML-escape a value for email output (site-typed text is untrusted)."""
+    return _html.escape(str(v if v is not None else ""), quote=True)
+
+
+def _yes_no(v) -> str:
+    t = str(v or "").strip().lower()
+    return {"yes": "Yes", "no": "No", "y": "Yes", "n": "No", "unsure": "Unsure",
+            "true": "Yes", "false": "No"}.get(t, (str(v).strip().capitalize() if v else "Not stated"))
+
+
+def _not_safe(doc: dict) -> bool:
+    return str(doc.get("safe_in_service") or "").strip().lower() in ("no", "n", "false")
+
+
+def _usable_text(doc: dict) -> str:
+    """A machine that isn't safe to use is not usable."""
+    if _not_safe(doc):
+        return "No — not safe to use (taken out of service)"
+    return _yes_no(doc.get("usable"))
+
+
+def _site_address_lines(site: dict) -> list[str]:
+    site = site or {}
+    keys = ("address_line1", "address_line2", "address_line3", "city", "county", "postcode", "country")
+    lines = [str(site.get(k) or "").strip() for k in keys]
+    lines = [x for x in lines if x]
+    # Legacy single-line address only (or structured fields only had a country).
+    if (not lines or lines == [str(site.get("country") or "").strip()]) and site.get("address"):
+        lines = [x.strip() for x in str(site["address"]).split(",") if x.strip()]
+    if site.get("bfpo_number"):
+        lines.append(f"BFPO {site['bfpo_number']}")
+    return lines
+
+
+def _logged_at_text(doc: dict) -> str:
+    raw = doc.get("created_at")
+    try:
+        dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        return dt.strftime("%d %b %Y, %H:%M UTC")
+    except Exception:
+        return str(raw or "")
+
+
+def _asset_tag(eq: dict) -> str:
+    for k in ("asset_tag", "asset_number", "asset_id_ref", "nsn"):
+        if (eq or {}).get(k):
+            return str(eq[k]).strip()
+    return ""
+
+
+def _fault_detail_rows(site: dict, eq: dict, doc: dict) -> list[tuple[str, list[tuple[str, str, bool]]]]:
+    """Sectioned (label, value, monospace) rows shared by every MOD fault email."""
+    eq = eq or {}
+    fault_type = FAULT_TYPE_LABELS.get(doc.get("fault_type_mod"), doc.get("fault_type_mod")) or "Not stated"
+    make = (eq.get("manufacturer") or "").strip()
+    model = (eq.get("model") or "").strip()
+    serial = (eq.get("serial_number") or doc.get("serial_number") or "").strip()
+    # Imported asset lists sometimes hold the start of the serial in "model".
+    if model and serial and serial.lower().startswith(model.lower()):
+        model = ""
+    mtype = (eq.get("equipment_type") or eq.get("machine_type") or doc.get("machine_type") or "").strip()
+    photos = len([p for p in (doc.get("attachment_urls") or []) if p])
+    reporter = doc.get("reporter_name") or "Not provided"
+    if doc.get("reporter_job_title"):
+        reporter += f" ({doc['reporter_job_title']})"
+    job = [
+        ("Job reference", doc.get("mod_ticket_ref") or "", True),
+        ("Priority", (doc.get("priority") or "").upper() or "Not set", False),
+        ("Logged", _logged_at_text(doc), False),
+        ("Logged by", reporter, False),
+    ]
+    site_rows = [
+        ("Site", (site or {}).get("name") or "", False),
+        ("Site address", "\n".join(_site_address_lines(site)) or "Not on file", False),
+    ]
+    machine = [
+        ("Machine", eq.get("name") or "", False),
+        ("Make", make or "Not on file", False),
+        ("Model", model or "Not on file", False),
+        ("Serial number", serial or "Not on file", True),
+    ]
+    if mtype:
+        machine.append(("Type", mtype, False))
+    if eq.get("location"):
+        machine.append(("Location on site", eq["location"], False))
+    if _asset_tag(eq):
+        machine.append(("Asset tag", _asset_tag(eq), True))
+    fault = [
+        ("Fault", fault_type, False),
+        ("Safe to use?", _yes_no(doc.get("safe_in_service")), False),
+        ("Usable?", _usable_text(doc), False),
+        ("Description", doc.get("issue_description") or "", False),
+    ]
+    steps = (doc.get("steps_taken") or "").strip()
+    if steps:
+        fault.append(("Steps taken on site", steps, False))
+    if photos:
+        fault.append(("Photos", f"{photos} attached (shown below)", False))
+    return [("Job", job), ("Site", site_rows), ("Machine", machine), ("Fault", fault)]
+
+
+def _fault_details_html(site: dict, eq: dict, doc: dict) -> str:
+    """Clean, sectioned details table — one item per line (Outlook-safe)."""
+    out = ['<table role="presentation" style="width:100%;color:#1B1D1D;font-size:14px;border-collapse:collapse;margin-top:14px;">']
+    for title, rows in _fault_detail_rows(site, eq, doc):
+        out.append(
+            f'<tr><td colspan="2" style="padding:14px 0 6px 0;font-size:11px;font-weight:800;letter-spacing:0.15em;'
+            f'text-transform:uppercase;color:#0891b2;border-bottom:1px solid #e5e7eb;">{_e(title)}</td></tr>')
+        for label, value, mono in rows:
+            danger = (label in ("Safe to use?", "Usable?") and str(value).startswith("No"))
+            style = "padding:7px 0;vertical-align:top;"
+            if mono:
+                style += "font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;"
+            if danger:
+                style += "color:#b91c1c;font-weight:700;"
+            val = _e(value).replace("\n", "<br>")
+            out.append(
+                f'<tr><td style="padding:7px 12px 7px 0;color:#6E7476;width:150px;vertical-align:top;">{_e(label)}</td>'
+                f'<td style="{style}">{val}</td></tr>')
+    out.append('</table>')
+    return "".join(out)
+
+
+def _sicon_summary_html(site: dict, eq: dict, doc: dict, contact_lines: list[str] | None = None) -> str:
+    """Plain 'Field: value' block for copying / dragging the case into Sicon."""
+    lines = []
+    for title, rows in _fault_detail_rows(site, eq, doc):
+        for label, value, _mono in rows:
+            lines.append(f"{label}: {str(value).replace(chr(10), ', ')}")
+    for c in (contact_lines or []):
+        lines.append(c)
+    text = "\n".join(lines)
+    return (
+        '<div style="margin:18px 28px 22px 28px;padding:12px 14px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;">'
+        '<div style="font-size:11px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#64748b;margin-bottom:6px;">'
+        'Case summary (copy into Sicon)</div>'
+        f'<div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;color:#0f172a;white-space:pre-wrap;">{_e(text)}</div>'
+        '</div>'
+    )
+
+
+def _contact_summary_lines(doc: dict) -> list[str]:
+    out = [f"Contact name: {doc.get('reporter_name') or 'Not provided'}"]
+    if doc.get("reporter_email"):
+        out.append(f"Contact email: {doc['reporter_email']}")
+    if doc.get("reporter_phone"):
+        out.append(f"Contact phone: {doc['reporter_phone']}")
+    return out
+
+
+def _reporter_contact_block(doc: dict, site: dict | None = None) -> str:
     """Prominent 'call them directly' point-of-contact card for MOD fault
     emails, so the service provider can reach the reporter without hunting
-    through the details table."""
-    name = doc.get("reporter_name") or "Not provided"
-    email = (doc.get("reporter_email") or "").strip()
-    phone = (doc.get("reporter_phone") or "").strip()
-    role = (doc.get("reporter_job_title") or "").strip()
+    through the details table. Includes the site name + address."""
+    name = _e(doc.get("reporter_name") or "Not provided")
+    email = _e((doc.get("reporter_email") or "").strip())
+    phone = _e((doc.get("reporter_phone") or "").strip())
+    role = _e((doc.get("reporter_job_title") or "").strip())
+    addr_lines = _site_address_lines(site) if site else []
+    site_html = (
+        f'<div style="margin-top:12px;font-size:13px;color:#334155;line-height:1.5;">'
+        f'<strong style="color:#0f172a;">{_e((site or {}).get("name") or "")}</strong><br>'
+        + "<br>".join(_e(x) for x in addr_lines) + '</div>'
+    ) if site else ""
     phone_html = (
         f'<a href="tel:{phone}" style="display:inline-block;background:#06b6d4;color:#062c33;'
         f'font-weight:800;text-decoration:none;padding:11px 20px;border-radius:8px;font-size:16px;">'
@@ -3421,6 +3611,7 @@ def _reporter_contact_block(doc: dict) -> str:
     <div style="font-size:18px;font-weight:800;color:#0f172a;margin-top:4px;">{name}{f' &middot; {role}' if role else ''}</div>
     <div style="margin-top:6px;font-size:14px;color:#334155;">{email_html}</div>
     <div style="margin-top:12px;">{phone_html}</div>
+    {site_html}
   </div>"""
 
 
@@ -3439,18 +3630,15 @@ def _escalation_email_html(site: dict, eq: dict, doc: dict) -> str:
   {_classification_bar(site)}
   <div style="background:{band_bg};padding:20px 28px;{'' if is_urgent else 'border-bottom:3px solid #19CDFF;'}">
     <div style="font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;color:{band_fg};">{band_label}</div>
-    <h1 style="margin:8px 0 0 0;font-size:22px;color:#fff;">{doc['mod_ticket_ref']} — {site.get('name')}</h1>
+    <h1 style="margin:8px 0 0 0;font-size:22px;color:#fff;">{_e(doc['mod_ticket_ref'])} — {_e(site.get('name'))}</h1>
+    <div style="margin-top:6px;font-size:14px;color:#e5e7eb;">{_e(eq.get('name') or '')}{(' &middot; S/N ' + _e(eq.get('serial_number'))) if eq.get('serial_number') else ''}</div>
   </div>
   <div style="padding:22px 28px;">
-    {_reporter_contact_block(doc)}
-    <table style="width:100%;color:#1B1D1D;font-size:14px;border-collapse:collapse;">
-      <tr><td style="padding:6px 0;color:#6E7476;width:150px;">Asset</td><td style="padding:6px 0;font-weight:600;">{eq.get('name')} ({eq.get('machine_type','')})</td></tr>
-      <tr><td style="padding:6px 0;color:#6E7476;">Fault</td><td style="padding:6px 0;">{FAULT_TYPE_LABELS.get(doc.get('fault_type_mod'), doc.get('fault_type_mod'))} · Safe to use? {doc.get('safe_in_service')} · Usable? {doc.get('usable')}</td></tr>
-      <tr><td style="padding:6px 0;color:#6E7476;vertical-align:top;">Description</td><td style="padding:6px 0;">{doc.get('issue_description','')}</td></tr>
-      {steps_row}
-    </table>
+    {_reporter_contact_block(doc, site)}
+    {_fault_details_html(site, eq, doc)}
   </div>
   {attachment_block}
+  {_sicon_summary_html(site, eq, doc, _contact_summary_lines(doc))}
 </div>"""
 
 
@@ -3548,25 +3736,18 @@ def _supplier_fault_email_html(site: dict, eq: dict, doc: dict, supplier: dict, 
   {_classification_bar(site)}
   <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Supplier Notification</div>
-    <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{doc['mod_ticket_ref']} — {site.get('name')}</h1>
+    <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{_e(doc['mod_ticket_ref'])} — {_e(site.get('name'))}</h1>
+    <div style="margin-top:6px;font-size:14px;color:#e5e7eb;">{_e(eq.get('name') or '')}{(' &middot; S/N ' + _e(eq.get('serial_number'))) if eq.get('serial_number') else ''}</div>
   </div>
   <div style="padding:22px 28px;">
-    <p>Dear {contact},</p>
-    <p>A fault has been logged on a machine you service at <strong>{site.get('name')}</strong>. Please follow up directly with the reporter using the contact details below.</p>
+    <p>Dear {_e(contact)},</p>
+    <p>A fault has been logged on a machine you service at <strong>{_e(site.get('name'))}</strong>. Please follow up directly with the reporter using the contact details below.</p>
     {portal_cta}
-    {_reporter_contact_block(doc)}
-    <table style="width:100%;color:#1B1D1D;font-size:14px;border-collapse:collapse;margin-top:14px;">
-      <tr><td style="padding:6px 0;color:#6E7476;width:140px;">Ticket</td><td style="padding:6px 0;font-weight:700;">{doc['mod_ticket_ref']}</td></tr>
-      <tr><td style="padding:6px 0;color:#6E7476;">Priority</td><td style="padding:6px 0;font-weight:700;">{doc.get('priority','').upper()}</td></tr>
-      <tr><td style="padding:6px 0;color:#6E7476;">Asset</td><td style="padding:6px 0;">{eq.get('name','')} ({eq.get('equipment_type', eq.get('machine_type',''))})</td></tr>
-      <tr><td style="padding:6px 0;color:#6E7476;">Manufacturer</td><td style="padding:6px 0;">{eq.get('manufacturer','—')} · {eq.get('model','')}</td></tr>
-      <tr><td style="padding:6px 0;color:#6E7476;">Serial</td><td style="padding:6px 0;font-family:ui-monospace,Menlo,monospace;">{eq.get('serial_number','—')}</td></tr>
-      <tr><td style="padding:6px 0;color:#6E7476;">Fault</td><td style="padding:6px 0;">{FAULT_TYPE_LABELS.get(doc.get('fault_type_mod'), doc.get('fault_type_mod'))} · Safe? {doc.get('safe_in_service')} · Usable? {doc.get('usable')}</td></tr>
-      <tr><td style="padding:6px 0;color:#6E7476;vertical-align:top;">Description</td><td style="padding:6px 0;">{doc.get('issue_description','')}</td></tr>
-      {steps_row}
-    </table>
+    {_reporter_contact_block(doc, site)}
+    {_fault_details_html(site, eq, doc)}
   </div>
   {attachment_block}
+  {_sicon_summary_html(site, eq, doc, _contact_summary_lines(doc))}
 </div>"""
 
 
