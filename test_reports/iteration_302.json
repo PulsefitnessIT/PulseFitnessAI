@@ -1,0 +1,30 @@
+{
+  "summary": "Backend-only follow-up to iter301 (MOD fault emails). Iter301 suite re-run: 17/17 pass. New suite test_mod_fault_email_followup_iter302.py: 15/16 pass. All 6 requested items work: (1) dead steps_row code gone; (2) when the equipment has no serial but doc.serial_number does, the header shows 'Rower · S/N <doc serial>' in both emails and the Pulse and supplier subjects end with ' — S/N <doc serial>'. The submit flow was checked in-process by patching routes.bfpo._bridge_mod_fault_to_bfpo to set doc.serial_number. The equipment serial wins when both exist. No S/N text or 'None' appears when neither is set. (3) The Photos row is exactly 'N attached' (empty URLs not counted), with no 'shown below'. (4) HTML in steps_taken is escaped in the 'Steps taken on site' row of both emails, including the submit flow. (5) _confirmation_email_html escapes reporter name, machine, site, email, phone, ticket ref and priority. A missing phone renders blank, not 'None'. (6) _tracked_send: create_supplier_case was patched to sleep 3s, so notified_recipients was written at least 3s after the Pulse send. Pulse and supplier entries both still got delivered=True and message_id='TEST_mid'. The one failure is a new edge case: a serial of only spaces gives a blank 'S/N' in the Pulse subject and email headers. No real email was sent (resend guard never hit). All TEST_ data was deleted by id (0 left).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "routes/mod_portal.py mod_fault_submit Pulse subject (line ~1834) + header lines in _escalation_email_html / _supplier_fault_email_html (lines 3630, 3731)", "issue": "These don't .strip() the serial, unlike the supplier subject (line 1929) and the details table. An equipment serial of only spaces gives '[MOD Fault] ... — TEST_Rower — S/N    ' and 'R &middot; S/N   ' in the header, while the supplier subject has no S/N and the table says 'Not on file'. Fix: compute serial = (eq.get('serial_number') or doc.get('serial_number') or '').strip() once and use it in all three places. No current DB equipment has a serial of only spaces, so impact is low."},
+      {"endpoint": "routes/mod_portal.py mod_fault_submit", "issue": "Info: doc.serial_number is always copied from equipment.serial_number (line 1749), so in the live submit flow the doc fallback can't trigger. It only matters for other callers or re-sends. Not a bug."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_mod_fault_email_followup_iter302.py",
+    "/app/backend/tests/test_mod_fault_email_details_iter301.py",
+    "/app/test_reports/pytest/iter302_mod_fault_email.xml"
+  ],
+  "action_items": [
+    "Minor: strip the serial in the Pulse subject and both header lines (use one stripped serial variable) so a serial of only spaces doesn't show a blank 'S/N'. test_whitespace_serial_subject_consistency checks this."
+  ],
+  "critical_code_review_comments": [
+    "Serial expression repeated 5 times (subject, two headers, supplier subject, _fault_detail_rows) with mixed strip behaviour. Extract a _serial(eq, doc) helper.",
+    "routes/mod_portal.py is still about 4260 lines. Move the email builders into their own module.",
+    "portal_url is still put into the href without escaping (server-generated, low risk)."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_fault_email_followup_iter302.py"],
+  "success_rate": {"backend": "97% (32/33: iter301 17/17, iter302 15/16)", "frontend": "not tested (backend only)"},
+  "seed_data_creation": "Temporary TEST_site_/TEST_eq_/TEST_sup_ records, plus issues, supplier_cases, svc_cases, mod_site_staff and mod_audit_log rows for them, created in-test and deleted by id. Checked: 0 left.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_mod_fault_email_followup_iter302.py tests/test_mod_fault_email_details_iter301.py -n0 -p no:cacheprovider. In-process tests that mock mp.send_email, ue.send_email and ue.resend.Emails.send. Doc-serial subjects are tested by patching routes.bfpo._bridge_mod_fault_to_bfpo to change doc. The _tracked_send delay is simulated by patching routes.supplier_portal.create_supplier_case to sleep 3s."
+}
