@@ -74,3 +74,11 @@ Verified: MOD build 0 .ai domain refs across all files; commercial build unchang
   email_send_events and return delivered addresses; issues store auto_dispatch_delivered_to; MOD Pulse alert falls back
   when the thread didn't reach Pulse; fault card shows amber "Email to X not delivered" when applicable.
 - Fault cards: title = make + model (model ignored when it is just a serial prefix → make + name), serial underneath.
+
+## Update — 9 Nov 2026 (round 3)
+- MOD sign-out → plain /MODService (no email in URL, empty readOnly-until-focus login box) for any user on the MOD deployment.
+- Site staff can edit/delete their own supplier messages within 15 min (PATCH/DELETE /api/supplier/case/{token}/comments/gym/{id}; soft delete; "edited" marker).
+- One merged "Notified" card with per-recipient inbox-delivery ticks (GET /api/issues/{id}/delivery-status → Resend last_event; message ids stored on send).
+- Fault-wizard photos (issue.attachment_urls) merged into Attachments at READ time (no migration) → every existing fault back-filled; served via
+  /api/mod/site/attachments/serve (JWT ?token= or session cookie; revoked/disabled users refused; scoped to viewers who can see the fault).
+- MOD emails: footer "Pulse Fitness MOD Service" + MODService@pulsefitness.com; utils/mod_sanitize.sanitize_ai strips any .ai from MOD email html/subject.

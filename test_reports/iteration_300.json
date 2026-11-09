@@ -1,0 +1,14 @@
+{
+  "summary": "Re-ran iteration_299 after confirming the fix is in the file. routes/mod_portal.py L808 now checks active is False, is_active is False and disabled. Restarted the backend. pytest tests/test_mod_attachment_serve_297.py: 17/17 pass. With ?token=JWT, active:false, disabled:true and is_active:false each give 401, and the request returns 200 again once each flag is removed. All 14 cases from iterations 297/298 still pass (cookie, JWT query, sentinel, garbage token, outsider 403, path 400, missing 404, logged-out JWT 401 with cookie fallback).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_mod_attachment_serve_297.py", "/app/test_reports/pytest/pytest_300.xml"],
+  "action_items": [],
+  "critical_code_review_comments": ["The cookie fallback after viewer=None depends on try_get_current_user also refusing inactive users. A previous iteration covered this for the cookie path; it was not re-checked here."],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "skipped"},
+  "seed_data_creation": "Ran tests/_seed_fault_photos_295.py seed, then clean (0 left). The tests restore flags in finally blocks. No emails sent.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Steps: seed, export REACT_APP_BACKEND_URL, run pytest tests/test_mod_attachment_serve_297.py -p no:xdist -o addopts='', then clean."
+}
