@@ -95,3 +95,59 @@ class TestServeAuth:
         s, _ = site
         r = s.get(SERVE, params={"path": "gymaxis-ai/mod-attachments/TEST_295_modorg/TEST_nope.webp"})
         assert r.status_code == 404
+
+
+# Iter 298: ?token= branch must reject revoked JWTs and inactive users
+import sys
+from pymongo import MongoClient
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
+_db = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
+
+
+class TestServeRevocation298:
+    def test_logged_out_jwt_query_401(self):
+        s, data = _login("test_295_outsider@example.test")
+        tok = _jwt(s, data)
+        # own-org-less: outsider can't see P1 (403) — use own-org check via a path in its org? use status before/after
+        before = requests.get(SERVE, params={"path": P1, "token": tok})
+        assert before.status_code == 403, before.text[:200]
+        lo = s.post(f"{BASE_URL}/api/auth/logout", headers={"Authorization": f"Bearer {tok}"})
+        assert lo.status_code == 200, lo.text[:200]
+        r = requests.get(SERVE, params={"path": P1, "token": tok})
+        assert r.status_code == 401, f"{r.status_code} {r.text[:200]}"
+
+    def test_logged_out_site_jwt_query_401_and_cookie_fallback(self, site):
+        s2, d2 = _login("test_295_siteuser@example.test")
+        tok = _jwt(s2, d2)
+        ok = requests.get(SERVE, params={"path": P1, "token": tok})
+        assert ok.status_code == 200
+        lo = s2.post(f"{BASE_URL}/api/auth/logout", headers={"Authorization": f"Bearer {tok}"})
+        assert lo.status_code == 200
+        r = requests.get(SERVE, params={"path": P1, "token": tok})
+        assert r.status_code == 401, f"{r.status_code} {r.text[:200]}"
+        # revoked query token + still-valid cookie (other session) -> 200 via cookie
+        s, _ = site
+        r2 = s.get(SERVE, params={"path": P1, "token": tok})
+        assert r2.status_code == 200, r2.text[:200]
+        assert r2.headers["content-type"].startswith("image/webp")
+
+    def test_is_active_false_query_401(self, site):
+        tok = _jwt(*site)
+        _db.users.update_one({"id": "TEST_295_siteuser"}, {"$set": {"is_active": False}})
+        try:
+            r = requests.get(SERVE, params={"path": P1, "token": tok})
+            assert r.status_code == 401, f"{r.status_code} {r.text[:200]}"
+        finally:
+            _db.users.update_one({"id": "TEST_295_siteuser"}, {"$unset": {"is_active": ""}})
+        assert requests.get(SERVE, params={"path": P1, "token": tok}).status_code == 200
+
+    def test_active_false_query_401(self, site):
+        """Canonical deactivation field used by login (_enforce_account_status) is `active`."""
+        tok = _jwt(*site)
+        _db.users.update_one({"id": "TEST_295_siteuser"}, {"$set": {"active": False}})
+        try:
+            r = requests.get(SERVE, params={"path": P1, "token": tok})
+            assert r.status_code == 401, f"active=False still served: {r.status_code}"
+        finally:
+            _db.users.update_one({"id": "TEST_295_siteuser"}, {"$set": {"active": True}})

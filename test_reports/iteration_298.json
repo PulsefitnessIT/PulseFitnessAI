@@ -1,0 +1,27 @@
+{
+  "summary": "Focused re-test of the ?token= hardening in GET /api/mod/site/attachments/serve. pytest: 15/16 pass. All requested cases pass. (1) A JWT used as ?token= after POST /api/auth/logout returns 401 with no cookie, for both an outsider (403 before logout, 401 after) and the site user (200 before, 401 after). (2) is_active=False on the seed TEST user gives 401 on the ?token= JWT, and 200 again once the flag is removed. (3) The iteration_297 cases are unchanged: JWT -> 200, cookie only -> 200, token=cookie + cookie -> 200, garbage token + cookie -> 200, a revoked query token + a valid cookie from another session -> 200 via the cookie, no auth -> 401, token=cookie with no cookie -> 401, other org -> 403, bad path or '..' -> 400, missing file -> 404. UI: a real MOD login (localStorage.token='cookie') opens Faults > the seeded fault, and both fault-photo thumbnails load (naturalWidth 40, serve requests return 200, the src has no token). The one failing extra test: the new check reads 'is_active', but user accounts are disabled with 'active' (login, pulse_master_admin revoke), so a user with active:false still gets 200 on ?token=.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/mod/site/attachments/serve", "issue": "The inactive-user check reads viewer.get('is_active') is False. The users collection does not use is_active for disabling accounts. Login (_enforce_account_status in routes/auth.py:482) checks 'active' is False. pulse_master_admin.py:307 revokes users with {'active': False}, and master_admin_users.py:1182 sets 'disabled'. Only 2 users in the DB have is_active at all. Reproduced: TEST user with active:false -> ?token= JWT still returns 200. Suggest: reject if viewer.get('active') is False or viewer.get('is_active') is False or viewer.get('disabled')."},
+      {"endpoint": "Cookie session (utils/auth get_current_user / try_get_current_user)", "issue": "This behaviour is app-wide, not new, and is for info. An existing ga_session cookie still works for /api/auth/me and the serve endpoint after the user is set to active:false or disabled:true. Only revocation is checked, so a disabled user keeps access until their token expires."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_mod_attachment_serve_297.py", "/app/test_reports/pytest/pytest_298.xml"],
+  "action_items": [
+    "In mod_attachment_serve, also treat user.active is False (and disabled is True) as inactive in the ?token= branch. Today only is_active is checked, and user accounts do not use that field.",
+    "(Optional, app-wide) Think about checking active/disabled in get_current_user so disabled users lose cookie sessions as well."
+  ],
+  "critical_code_review_comments": [
+    "mod_attachment_serve L808: wrong or incomplete field for deactivation (is_active vs active/disabled).",
+    "Fallback order is correct: a revoked or inactive query token sets viewer=None and then falls through to the cookie, so a stale ?token= in a link does not break a signed-in user.",
+    "is_jwt_revoked honours the effective_at grace window. Logout uses grace 0, so revocation takes effect at once (verified)."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_attachment_serve_297.py"],
+  "success_rate": {"backend": "94% (15/16; all requested cases 100%)", "frontend": "100%"},
+  "seed_data_creation": "Ran tests/_seed_fault_photos_295.py seed before testing and clean afterwards (0 left). The is_active/active/disabled flags were set only on TEST_295_siteuser and restored. No emails sent.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "To run: seed, export REACT_APP_BACKEND_URL, then pytest tests/test_mod_attachment_serve_297.py -p no:xdist -o addopts='', then clean. TestServeRevocation298 does 2 extra logins (watch the rate limit). The MOD login inputs are readonly until clicked: click, then keyboard.type. For the UI path, open the lite-tab-faults tab and click the 'belt slipping' fault; thumbnails are issue-attachment-thumb-fault-photo-0/1-*. test_active_false_query_401 will pass once the 'active' field is checked."
+}
