@@ -364,6 +364,7 @@ async def _record_email_event(
     payload: dict | None = None,
     sender: str | None = None,
     kind: str | None = None,
+    resend_id: str | None = None,
 ) -> str | None:
     """Best-effort write to the ``email_send_events`` audit collection.
 
@@ -392,6 +393,10 @@ async def _record_email_event(
         "error": (error or "")[:500],
         "created_at": datetime.now(timezone.utc),
     }
+    # Provider message id — lets delivery status (delivered / bounced) be
+    # looked up later (same field name the Master Admin retry path uses).
+    if resend_id:
+        doc["resend_id"] = resend_id
     # Stash the full payload on failed sends so they're retryable.
     if status != "sent" and payload:
         doc["payload"] = payload
@@ -413,8 +418,13 @@ async def send_email(
     organization_id: str | None = None,
     kind: str | None = None,
     category: str | None = None,
+    result_out: dict | None = None,
 ):
     """Send an email via Resend.
+
+    ``result_out`` (optional): when a dict is passed, the provider message id
+    is written to ``result_out["message_id"]`` on success so callers can track
+    delivery. Return value is unchanged (True / False).
 
     Iter 216bc — when ``organization_id`` is provided, look up that
     org's ``email_sender_friendly_name`` / ``email_sender_reply_to``
@@ -529,9 +539,12 @@ async def send_email(
             result = await asyncio.wait_for(
                 asyncio.to_thread(resend.Emails.send, params), timeout=_send_timeout,
             )
-        logger.info(f"Email sent to {to} (subject={subject!r}, resend_id={result.get('id') if isinstance(result, dict) else result})")
+        _rid = result.get('id') if isinstance(result, dict) else getattr(result, 'id', None)
+        logger.info(f"Email sent to {to} (subject={subject!r}, resend_id={_rid})")
         await _record_email_event(to=to, subject=subject, status="sent", error=None,
-                                  sender=from_addr, kind=kind)
+                                  sender=from_addr, kind=kind, resend_id=_rid)
+        if result_out is not None:
+            result_out["message_id"] = _rid
         return True
     except Exception as e:
         logger.error(f"Email send FAILED via Resend: to={to}, subject={subject!r}, sender={from_addr!r}, error={e!r}")

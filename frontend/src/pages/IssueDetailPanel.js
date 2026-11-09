@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import SiconServicePanel from './SiconServicePanel';
 import { MODDIOEscalateModal } from './MODPortal/MODDIOEscalateModal';
+import FaultNotifiedCard from '@/components/faults/FaultNotifiedCard';
+import GymCommentBody from '@/components/faults/GymCommentBody';
 
 const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  const { API, user } = useAuth();
@@ -530,52 +532,8 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  </div>
  )}
 
- {Array.isArray(issue.notified_recipients) && issue.notified_recipients.length > 0 && (
- <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20" data-testid={`issue-notified-log-${issue.id}`}>
- <div className="flex items-center gap-2 mb-2">
- <CheckCircle size={14} className="text-emerald-400" />
- <span className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">Notified when logged</span>
- </div>
- <div className="space-y-1.5">
- {issue.notified_recipients.map((r, i) => (
- <div key={`${r.email || i}-${i}`} className="flex items-center justify-between gap-3 text-sm" data-testid={`issue-notified-${issue.id}-${i}`}>
- <div className="min-w-0 flex items-center gap-2">
- <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${r.role === 'pulse' ? 'bg-sky-500/20 text-sky-300' : r.role === 'overseas' ? 'bg-amber-500/20 text-amber-300' : 'bg-zinc-500/20 text-zinc-300'}`}>
- {r.role === 'pulse' ? 'Pulse' : r.role === 'overseas' ? 'Service provider' : 'Supplier'}
- </span>
- <span className="text-white font-medium truncate">{r.name || r.email}</span>
- </div>
- <span className="text-[var(--color-text-muted)] text-xs truncate shrink-0">{r.email}{r.delivered === false && <span className="ml-2 text-red-400 font-semibold" data-testid={`issue-notified-failed-${issue.id}-${i}`}>· not delivered</span>}</span>
- </div>
- ))}
- </div>
- <p className="text-[11px] text-[var(--color-text-muted)] mt-2">
- Emailed {issue.notified_recipients[0]?.at ? new Date(issue.notified_recipients[0].at).toLocaleString() : 'when the job was logged'}.
- </p>
- </div>
- )}
-
- {/* Iter 220ea·40 — confirmation the fault was dispatched to the supplier
-     (auto on submit, or via manual contact). Reassures the operator it
-     actually reached someone. */}
- {issue.supplier_case?.supplier_name && (
- <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20" data-testid={`supplier-sent-banner-${issue.id}`}>
- <div className="flex items-start gap-2.5 min-w-0">
- <CheckCircle size={16} className="text-emerald-400 shrink-0 mt-0.5" />
- <div className="min-w-0">
- <p className="text-emerald-400 text-xs font-semibold">Sent to {issue.supplier_case.supplier_name}</p>
- {issue.supplier_case.supplier_email && (
- <p className="text-[var(--color-text-muted)] text-xs mt-0.5 truncate">{issue.supplier_case.supplier_email}{issue.auto_dispatched_at ? ' · emailed automatically on submit' : ''}</p>
- )}
- </div>
- </div>
- {issue.supplier_case?.token && (
- <Button size="sm" variant="outline" onClick={() => window.open(`/supplier/case/${issue.supplier_case.token}?view=site`, '_blank', 'noopener')} className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 text-xs shrink-0" data-testid={`supplier-sent-view-${issue.id}`}>
- View card
- </Button>
- )}
- </div>
- )}
+ {/* One merged "Notified" card — every recipient with an inbox-delivery tick. */}
+ <FaultNotifiedCard issue={issue} API={API} />
 
  {/* Iter 216h57 — Replaced the blue Supplier Fault Card deep-link
      with a prominent Engineer Visit panel. The Supplier-Card link
@@ -944,7 +902,9 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  </span>
  <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.5)' }}>{new Date(c.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
  </div>
- {c.message && <p className="text-sm leading-relaxed" style={{ color: '#fff' }}>{c.message}</p>}
+ {isSupplier ? (c.message && <p className="text-sm leading-relaxed" style={{ color: '#fff' }}>{c.message}</p>) : (
+ <GymCommentBody comment={c} caseToken={issue.supplier_case.token} API={API} user={user} onChanged={reloadDetail} />
+ )}
  {(c.attachments || []).map((a, i) => (
  <div key={i} className="mt-1.5">
  {a.content_type?.startsWith('image/') ? (

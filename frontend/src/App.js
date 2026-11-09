@@ -861,7 +861,9 @@ function App() {
  }
  const go = () => {
  if (wasMOD && typeof window !== 'undefined') {
-   window.location.replace(engEmail ? `/MODService?email=${encodeURIComponent(engEmail)}&signedout=1` : '/MODService?signedout=1');
+   // MOD: never carry an email in the URL (browser history / proxy logs on
+   // shared base PCs) and never pre-fill the login box.
+   window.location.replace('/MODService?signedout=1');
  } else if (wasPulse && typeof window !== 'undefined') {
    window.location.replace(engEmail ? `/pulse?email=${encodeURIComponent(engEmail)}&signedout=1` : '/pulse?signedout=1');
  } else if (wasEngineer && typeof window !== 'undefined') {

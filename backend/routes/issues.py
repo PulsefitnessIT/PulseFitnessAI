@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Body, Request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+import re
 from typing import Dict, Any, Optional
 import uuid
 import asyncio
@@ -759,10 +760,12 @@ async def _auto_dispatch_to_primary_supplier(issue_doc: dict, user: dict) -> Non
         }
         await db.supplier_case_comments.insert_one(comment)
         delivered_to: list[str] = []
+        message_ids: dict = {}
         if case.get("supplier_email"):
             try:
                 from routes.supplier_portal import _send_comment_notification
-                delivered_to = list(await _send_comment_notification(case, comment, to_supplier=True) or [])
+                delivered_to = list(await _send_comment_notification(
+                    case, comment, to_supplier=True, ids_out=message_ids) or [])
             except Exception as mail_err:
                 # Delivery failure must not undo the dispatch — the supplier
                 # card still exists and the portal link works.
@@ -782,6 +785,10 @@ async def _auto_dispatch_to_primary_supplier(issue_doc: dict, user: dict) -> Non
                 # Addresses the email provider actually accepted — MOD fault
                 # notifications only skip a recipient listed here.
                 "auto_dispatch_delivered_to": delivered_to,
+                # Provider message ids (list — emails contain dots, so not keys)
+                # for the "delivered to inbox" ticks on the fault.
+                "auto_dispatch_message_ids": [
+                    {"email": e, "message_id": mid} for e, mid in message_ids.items()],
             }},
         )
     except Exception as e:
@@ -973,8 +980,12 @@ async def _send_mod_fault_notifications(issue_doc: dict, user: dict) -> None:
         fresh = await db.issues.find_one(
             {"id": issue_doc.get("id")},
             {"_id": 0, "auto_dispatched_supplier_email": 1, "auto_dispatched_supplier_name": 1,
-             "auto_dispatch_delivered_to": 1},
+             "auto_dispatch_delivered_to": 1, "auto_dispatch_message_ids": 1},
         ) or {}
+        thread_ids = {
+            (r.get("email") or "").strip().lower(): r.get("message_id")
+            for r in (fresh.get("auto_dispatch_message_ids") or []) if isinstance(r, dict)
+        }
         dispatched_email = (fresh.get("auto_dispatched_supplier_email") or "").strip()
         dispatched_name = fresh.get("auto_dispatched_supplier_name") or ""
         # Only recipients the shared supplier thread ACTUALLY reached count as
@@ -989,10 +1000,16 @@ async def _send_mod_fault_notifications(issue_doc: dict, user: dict) -> None:
             if to.lower() in already_emailed:
                 entry["delivered"] = True
                 entry["via"] = "supplier_thread"
+                if thread_ids.get(to.lower()):
+                    entry["message_id"] = thread_ids[to.lower()]
                 return
             try:
+                out: dict = {}
                 entry["delivered"] = bool(await send_email(
-                    to, subject, html, organization_id=org_id, kind=kind, category="mod"))
+                    to, subject, html, organization_id=org_id, kind=kind, category="mod",
+                    result_out=out))
+                if out.get("message_id"):
+                    entry["message_id"] = out["message_id"]
             except Exception as send_err:  # one failure must not drop the rest
                 entry["delivered"] = False
                 entry["error"] = str(getattr(send_err, "detail", send_err))[:300]
@@ -1043,7 +1060,9 @@ async def _send_mod_fault_notifications(issue_doc: dict, user: dict) -> None:
             notified.append({"role": "supplier", "name": dispatched_name,
                              "email": dispatched_email, "at": now_iso,
                              "delivered": dispatched_email.lower() in already_emailed,
-                             "via": "supplier_thread"})
+                             "via": "supplier_thread",
+                             **({"message_id": thread_ids[dispatched_email.lower()]}
+                                if thread_ids.get(dispatched_email.lower()) else {})})
             seen.add(dispatched_email.lower())
 
         issue_doc["notified_recipients"] = notified
@@ -1340,6 +1359,163 @@ async def get_issues(user: dict = Depends(get_current_user), site_id: str = None
     return {"issues": issues}
 
 
+_DELIVERED_EVENTS = {"delivered", "opened", "clicked"}
+_BOUNCED_EVENTS = {"bounced", "complained", "failed", "suppressed"}
+_FINAL_DELIVERY = {"delivered", "bounced", "failed"}
+_DELIVERY_RECHECK_SECONDS = 60
+_DELIVERY_MAX_LOOKUPS = 8
+
+
+async def _load_issue_for_user(issue_id: str, user: dict) -> dict:
+    """Same visibility rules as GET /issues/{issue_id}."""
+    from utils.mod_scope import resolve_mod_query_filter
+    org_filter = await resolve_mod_query_filter(user, None)
+    issue = await db.issues.find_one({"id": issue_id, **org_filter}, {"_id": 0})
+    if not issue:
+        raise HTTPException(status_code=404, detail="Issue not found")
+    role = (user.get("role") or "").lower()
+    is_priv = role in ("owner", "manager", "master_admin", "master") or bool(user.get("is_master_admin"))
+    allowed = user.get("allowed_site_ids") or []
+    if not is_priv and allowed and issue.get("site_id") and issue["site_id"] not in allowed:
+        raise HTTPException(status_code=403, detail="You do not have access to that site")
+    return issue
+
+
+def _status_from_event(last_event: str | None) -> str:
+    ev = (last_event or "").lower()
+    if ev in _DELIVERED_EVENTS:
+        return "delivered"
+    if ev in _BOUNCED_EVENTS:
+        return "bounced"
+    return "pending" if ev else "unknown"
+
+
+async def _legacy_resend_id(email: str, at_iso: str | None, serial: str | None) -> str | None:
+    """Older faults (before message ids were stored): find the provider id via
+    the email log — the original send near the logged time, or its Master Admin
+    retry. Only returns an id when the match is unambiguous."""
+    if not email or not at_iso:
+        return None
+    try:
+        at = datetime.fromisoformat(str(at_iso).replace("Z", "+00:00"))
+    except Exception:
+        return None
+    rx = {"$regex": f"^{re.escape(email)}$", "$options": "i"}
+    window = {"$gte": at - timedelta(minutes=3), "$lte": at + timedelta(minutes=3)}
+    rows = await db.email_send_events.find(
+        {"to": rx, "created_at": window},
+        {"_id": 0, "subject": 1, "status": 1, "resend_id": 1, "retry_event_id": 1},
+    ).to_list(20)
+    if len(rows) > 1 and serial:
+        rows = [r for r in rows if serial.lower() in (r.get("subject") or "").lower()] or rows
+    if len(rows) != 1:
+        return None
+    row = rows[0]
+    if row.get("resend_id"):
+        return row["resend_id"]
+    if row.get("retry_event_id"):
+        retry = await db.email_send_events.find_one(
+            {"id": row["retry_event_id"]}, {"_id": 0, "resend_id": 1, "status": 1})
+        if retry and retry.get("status") == "sent":
+            return retry.get("resend_id")
+    return None
+
+
+@router.get("/issues/{issue_id}/delivery-status")
+async def get_issue_delivery_status(issue_id: str, user: dict = Depends(get_current_user)) -> dict:
+    """Everyone emailed about this fault, each with an inbox-delivery status.
+
+    status: delivered (provider confirmed it reached the mail server) |
+    pending (sent, awaiting confirmation) | bounced | failed (never sent) |
+    unknown (older fault, can't be matched). Non-final statuses are re-checked
+    with the email provider at most every 60s; results are saved on the fault.
+    """
+    issue = await _load_issue_for_user(issue_id, user)
+    recipients = [dict(r) for r in (issue.get("notified_recipients") or []) if isinstance(r, dict)]
+    seen = {(r.get("email") or "").lower() for r in recipients}
+
+    # Non-MOD faults have no proof-log: show the dispatched supplier instead.
+    sc = await db.supplier_cases.find_one(
+        {"issue_id": issue_id}, {"_id": 0, "supplier_name": 1, "supplier_email": 1, "token": 1})
+    sup_email = ((sc or {}).get("supplier_email") or issue.get("auto_dispatched_supplier_email") or "").strip()
+    if sup_email and sup_email.lower() not in seen:
+        ids = {(r.get("email") or "").lower(): r.get("message_id")
+               for r in (issue.get("auto_dispatch_message_ids") or []) if isinstance(r, dict)}
+        delivered_list = issue.get("auto_dispatch_delivered_to")
+        entry = {"role": "supplier", "name": (sc or {}).get("supplier_name") or issue.get("auto_dispatched_supplier_name") or sup_email,
+                 "email": sup_email, "at": issue.get("auto_dispatched_at"), "synthetic": True}
+        if ids.get(sup_email.lower()):
+            entry["message_id"] = ids[sup_email.lower()]
+        if isinstance(delivered_list, list):
+            entry["delivered"] = sup_email.lower() in [str(e).lower() for e in delivered_list]
+        recipients.append(entry)
+
+    now = datetime.now(timezone.utc)
+    lookups = 0
+    changed = False
+    for r in recipients:
+        status = r.get("delivery_status")
+        if status in _FINAL_DELIVERY:
+            continue
+        if r.get("delivered") is False and not r.get("message_id"):
+            r["delivery_status"] = "failed"
+            changed = changed or not r.get("synthetic")
+            continue
+        checked = r.get("delivery_checked_at")
+        if checked:
+            try:
+                if (now - datetime.fromisoformat(checked)).total_seconds() < _DELIVERY_RECHECK_SECONDS:
+                    continue
+            except Exception:
+                pass
+        mid = r.get("message_id")
+        if not mid and not r.get("legacy_checked"):
+            mid = await _legacy_resend_id(r.get("email"), r.get("at"), issue.get("serial_number"))
+            r["legacy_checked"] = True
+            if mid:
+                r["message_id"] = mid
+            changed = changed or not r.get("synthetic")
+        if not mid:
+            r.setdefault("delivery_status", "unknown")
+            continue
+        if lookups >= _DELIVERY_MAX_LOOKUPS or not RESEND_API_KEY or not resend:
+            r.setdefault("delivery_status", "pending")
+            continue
+        lookups += 1
+        try:
+            resend.api_key = RESEND_API_KEY
+            info = await asyncio.wait_for(asyncio.to_thread(resend.Emails.get, mid), timeout=8)
+            last_event = info.get("last_event") if isinstance(info, dict) else getattr(info, "last_event", None)
+            r["delivery_status"] = _status_from_event(last_event)
+            r["delivery_event"] = last_event
+        except Exception as e:
+            logger.warning("delivery lookup failed for %s: %s", mid, e)
+            r.setdefault("delivery_status", "pending")
+        r["delivery_checked_at"] = now.isoformat()
+        changed = changed or not r.get("synthetic")
+
+    if changed:
+        persisted = [{k: v for k, v in r.items() if k != "synthetic"} for r in recipients if not r.get("synthetic")]
+        await db.issues.update_one({"id": issue_id}, {"$set": {"notified_recipients": persisted}})
+        sup = next((r for r in recipients if r.get("synthetic")), None)
+        if sup and sup.get("delivery_status"):
+            await db.issues.update_one({"id": issue_id}, {"$set": {
+                "auto_dispatch_delivery_status": sup["delivery_status"],
+                **({"auto_dispatch_message_ids": [{"email": sup["email"].lower(), "message_id": sup["message_id"]}]}
+                   if sup.get("message_id") and not issue.get("auto_dispatch_message_ids") else {}),
+            }})
+
+    out = []
+    for r in recipients:
+        out.append({
+            "role": r.get("role"), "name": r.get("name"), "email": r.get("email"),
+            "at": r.get("at"), "status": r.get("delivery_status") or "unknown",
+            "event": r.get("delivery_event"),
+        })
+    return {"issue_id": issue_id, "recipients": out,
+            "supplier_case_token": (sc or {}).get("token")}
+
+
 @router.get("/issues/{issue_id}")
 async def get_issue_detail(issue_id: str, user: dict = Depends(get_current_user)) -> dict:
     # Iter 216h120 — MOD HQ users may open an issue belonging to any
@@ -1379,7 +1555,7 @@ async def get_issue_detail(issue_id: str, user: dict = Depends(get_current_user)
             "status_history": supplier_case.get("status_history", []),
         }
         comments = await db.supplier_case_comments.find(
-            {"case_id": supplier_case["id"]}, {"_id": 0}
+            {"case_id": supplier_case["id"], "deleted_at": {"$exists": False}}, {"_id": 0, "edit_history": 0}
         ).sort("created_at", 1).to_list(500)
         issue["supplier_case"]["comments"] = comments
         # Mirror read-receipts: mark all unread supplier-authored comments as

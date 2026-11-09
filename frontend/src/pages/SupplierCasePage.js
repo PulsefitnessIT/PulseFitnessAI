@@ -252,6 +252,7 @@ function CommentsSection({ token, comments, onRefresh, caseData, isGymViewer }) 
  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.5)' }}>{new Date(c.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
  </div>
  {c.message && <p className="text-sm leading-relaxed" style={{ color: '#fff' }}>{c.message}</p>}
+ {c.edited_at && <span className="text-[9px] italic" style={{ color: 'rgba(255,255,255,0.65)' }} data-testid={`supplier-comment-edited-${c.id}`}>edited</span>}
  {(c.attachments || []).map((a, i) => (
  <div key={i} className="mt-2">
  {a.content_type?.startsWith('image/') ? (
