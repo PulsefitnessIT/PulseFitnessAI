@@ -12,6 +12,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import PartsRequestsPage from '../PartsRequests/PartsRequestsPage';
 import { groupIssuesByJob } from './groupIssuesByJob';
+import { faultTitle } from '@/utils/faultTitle';
 import ScrollFadeBar from '@/components/shared/ScrollFadeBar';
 import QueuedFaultsList from '@/components/shared/QueuedFaultsList';
 
@@ -47,8 +48,8 @@ const LiteFaultsTab = ({
       <div className="p-5 cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => onSelectIssue(selectedIssue?.id === issue.id ? null : issue)}>
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <div className="flex items-center flex-wrap gap-2 mb-2">
-              <h3 className={`font-semibold text-white ${opts.nested ? 'text-base' : 'text-lg'}`}>{issue.serial_number}</h3>
+            <div className="flex items-center flex-wrap gap-2 mb-1">
+              <h3 className={`font-semibold text-white ${opts.nested ? 'text-base' : 'text-lg'}`} data-testid={`issue-title-${issue.id}`}>{faultTitle(issue).title}</h3>
               <Badge className={getSeverityStyle(issue.severity)} data-testid={`issue-severity-${issue.id}`}>{getSeverityLabel(issue.severity)}</Badge>
               <Badge className={getStatusColor(issue.status)} data-testid={`issue-status-${issue.id}`}>{t(`status.${issue.status}`, issue.status === 'in_progress' ? 'In Progress' : (issue.status?.charAt(0).toUpperCase() + issue.status?.slice(1)))}</Badge>
               {issue.supplier_case?.supplier_name && (
@@ -57,7 +58,10 @@ const LiteFaultsTab = ({
                 </Badge>
               )}
             </div>
-            <p className="text-[var(--color-text-muted)] text-sm">{issue.machine_type}{issue.supplier ? ` | ${issue.supplier}` : ''} | {issue.created_at ? new Date(issue.created_at).toLocaleDateString() : ''}{issue.supplier_ref ? ` | Ref: ${issue.supplier_ref}` : ''}</p>
+            {faultTitle(issue).serial && (
+              <p className="text-xs font-mono text-[var(--color-text-muted)] mb-1.5" data-testid={`issue-serial-${issue.id}`}>S/N {faultTitle(issue).serial}</p>
+            )}
+            <p className="text-[var(--color-text-muted)] text-sm">{faultTitle(issue).titleIsType ? '' : issue.machine_type}{issue.supplier ? ` | ${issue.supplier}` : ''}{(!faultTitle(issue).titleIsType && issue.machine_type) || issue.supplier ? ' | ' : ''}{issue.created_at ? new Date(issue.created_at).toLocaleDateString() : ''}{issue.supplier_ref ? ` | Ref: ${issue.supplier_ref}` : ''}</p>
             <p className="text-white text-sm mt-1">{issue.issue_description?.substring(0, 100)}{issue.issue_description?.length > 100 ? '...' : ''}</p>
             {issue.sicon_case_id && (
               <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px]" data-testid={`job-card-summary-${issue.id}`}>

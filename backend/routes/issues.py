@@ -758,10 +758,11 @@ async def _auto_dispatch_to_primary_supplier(issue_doc: dict, user: dict) -> Non
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         await db.supplier_case_comments.insert_one(comment)
+        delivered_to: list[str] = []
         if case.get("supplier_email"):
             try:
                 from routes.supplier_portal import _send_comment_notification
-                await _send_comment_notification(case, comment, to_supplier=True)
+                delivered_to = list(await _send_comment_notification(case, comment, to_supplier=True) or [])
             except Exception as mail_err:
                 # Delivery failure must not undo the dispatch — the supplier
                 # card still exists and the portal link works.
@@ -778,6 +779,9 @@ async def _auto_dispatch_to_primary_supplier(issue_doc: dict, user: dict) -> Non
                 "auto_dispatched_partner_engineer_id": supplier.get("partner_engineer_id"),
                 "auto_dispatched_at": datetime.now(timezone.utc).isoformat(),
                 "supplier_case_token": case.get("token"),
+                # Addresses the email provider actually accepted — MOD fault
+                # notifications only skip a recipient listed here.
+                "auto_dispatch_delivered_to": delivered_to,
             }},
         )
     except Exception as e:
@@ -968,21 +972,31 @@ async def _send_mod_fault_notifications(issue_doc: dict, user: dict) -> None:
         # Who did auto-dispatch already email? (re-read the issue for the tags)
         fresh = await db.issues.find_one(
             {"id": issue_doc.get("id")},
-            {"_id": 0, "auto_dispatched_supplier_email": 1, "auto_dispatched_supplier_name": 1},
+            {"_id": 0, "auto_dispatched_supplier_email": 1, "auto_dispatched_supplier_name": 1,
+             "auto_dispatch_delivered_to": 1},
         ) or {}
         dispatched_email = (fresh.get("auto_dispatched_supplier_email") or "").strip()
         dispatched_name = fresh.get("auto_dispatched_supplier_name") or ""
-        already_emailed = {dispatched_email.lower()} if dispatched_email else set()
+        # Only recipients the shared supplier thread ACTUALLY reached count as
+        # "already emailed". Previously anyone merely listed on the thread was
+        # skipped, so one rejected thread send meant Pulse got nothing at all.
+        already_emailed = {
+            (e or "").strip().lower()
+            for e in (fresh.get("auto_dispatch_delivered_to") or []) if e
+        }
 
-        # The shared supplier thread (if created) already emailed everyone on
-        # its notify list with the portal link, so don't send a duplicate
-        # plain notification here — but still record them in the proof-log.
-        sc = await db.supplier_cases.find_one(
-            {"issue_id": issue_doc.get("id")}, {"_id": 0, "notify_emails": 1})
-        for r in ((sc or {}).get("notify_emails") or []):
-            em = (r.get("email") or "").strip().lower()
-            if em:
-                already_emailed.add(em)
+        async def _deliver(entry: dict, to: str, kind: str) -> None:
+            if to.lower() in already_emailed:
+                entry["delivered"] = True
+                entry["via"] = "supplier_thread"
+                return
+            try:
+                entry["delivered"] = bool(await send_email(
+                    to, subject, html, organization_id=org_id, kind=kind, category="mod"))
+            except Exception as send_err:  # one failure must not drop the rest
+                entry["delivered"] = False
+                entry["error"] = str(getattr(send_err, "detail", send_err))[:300]
+                logger.warning("MOD fault email to %s failed: %s", to, send_err)
 
         # Overseas provider assigned to this site (if any).
         overseas_email, overseas_name = "", ""
@@ -1015,25 +1029,21 @@ async def _send_mod_fault_notifications(issue_doc: dict, user: dict) -> None:
                        "email": pulse_email, "at": now_iso}
         notified.append(pulse_entry)
         seen.add(pulse_email.lower())
-        if pulse_email.lower() not in already_emailed:
-            pulse_entry["delivered"] = bool(await send_email(
-                pulse_email, subject, html,
-                organization_id=org_id, kind="mod_fault_pulse", category="mod"))
+        await _deliver(pulse_entry, pulse_email, "mod_fault_pulse")
 
         # 2) Overseas provider — email if not already emailed.
         if overseas_email and overseas_email.lower() not in seen:
             ov_entry = {"role": "overseas", "name": overseas_name, "email": overseas_email, "at": now_iso}
             notified.append(ov_entry)
             seen.add(overseas_email.lower())
-            if overseas_email.lower() not in already_emailed:
-                ov_entry["delivered"] = bool(await send_email(
-                    overseas_email, subject, html,
-                    organization_id=org_id, kind="mod_fault_overseas", category="mod"))
+            await _deliver(ov_entry, overseas_email, "mod_fault_overseas")
 
         # 3) Any other supplier auto-dispatch already emailed (machine supplier).
         if dispatched_email and dispatched_email.lower() not in seen:
             notified.append({"role": "supplier", "name": dispatched_name,
-                             "email": dispatched_email, "at": now_iso})
+                             "email": dispatched_email, "at": now_iso,
+                             "delivered": dispatched_email.lower() in already_emailed,
+                             "via": "supplier_thread"})
             seen.add(dispatched_email.lower())
 
         issue_doc["notified_recipients"] = notified
@@ -1194,6 +1204,7 @@ async def get_issues_for_job(
         {"_id": 0},
     ).sort("created_at", 1)
     siblings = await cursor.to_list(length=200)
+    await _batch_enrich_equipment(siblings)
     fired = sum(1 for i in siblings if i.get("status") == "resolved")
     return {
         "job_id": job_id,
@@ -1241,6 +1252,60 @@ async def _batch_enrich_supplier_cases(issues: list[dict]):
             issue["supplier_case"] = {k: v for k, v in sc.items() if k != "issue_id"}
 
 
+async def _batch_enrich_equipment(issues: list[dict]) -> None:
+    """Attach the machine's make / model / name to each issue (one query).
+
+    The fault list titles each card by make + model (operators locate a
+    machine by what it is, not by its serial). Resolution order matches
+    intake: ``coverage_meta.equipment_id`` first, then serial (or name)
+    within the issue's own organisation. Read-only; never stored.
+    """
+    if not issues:
+        return
+    ids, serials, orgs = set(), set(), set()
+    for i in issues:
+        cm = i.get("coverage_meta") if isinstance(i.get("coverage_meta"), dict) else {}
+        if cm.get("equipment_id"):
+            ids.add(cm["equipment_id"])
+        if i.get("serial_number") and i.get("organization_id"):
+            serials.add(i["serial_number"])
+            orgs.add(i["organization_id"])
+    clauses = []
+    if ids:
+        clauses.append({"id": {"$in": list(ids)}})
+    if serials:
+        clauses.append({"organization_id": {"$in": list(orgs)},
+                        "$or": [{"serial_number": {"$in": list(serials)}},
+                                {"name": {"$in": list(serials)}}]})
+    if not clauses:
+        return
+    try:
+        rows = await db.equipment.find(
+            {"$or": clauses},
+            {"_id": 0, "id": 1, "organization_id": 1, "serial_number": 1, "name": 1,
+             "manufacturer": 1, "model": 1, "equipment_type": 1},
+        ).to_list(5000)
+    except Exception as e:  # pragma: no cover — enrichment must never break the list
+        logger.warning("equipment enrichment failed: %s", e)
+        return
+    by_id = {r["id"]: r for r in rows if r.get("id")}
+    by_serial: dict = {}
+    for r in rows:
+        for key in (r.get("serial_number"), r.get("name")):
+            if key:
+                by_serial.setdefault((r.get("organization_id"), key), r)
+    for i in issues:
+        cm = i.get("coverage_meta") if isinstance(i.get("coverage_meta"), dict) else {}
+        eq = by_id.get(cm.get("equipment_id")) or by_serial.get(
+            (i.get("organization_id"), i.get("serial_number")))
+        if not eq:
+            continue
+        i["equipment_make"] = (eq.get("manufacturer") or "").strip() or None
+        i["equipment_model"] = (eq.get("model") or "").strip() or None
+        i["equipment_name"] = (eq.get("name") or "").strip() or None
+        i["equipment_type"] = (eq.get("equipment_type") or "").strip() or None
+
+
 @router.get("/issues")
 async def get_issues(user: dict = Depends(get_current_user), site_id: str = None) -> dict:
     # Iter 216h120 — MOD HQ rebind. See utils.mod_scope.
@@ -1262,6 +1327,7 @@ async def get_issues(user: dict = Depends(get_current_user), site_id: str = None
     issues = await db.issues.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(1000)
 
     await _batch_enrich_supplier_cases(issues)
+    await _batch_enrich_equipment(issues)
 
     for issue in issues:
         if 'serial_number' not in issue and 'machine_name' in issue:

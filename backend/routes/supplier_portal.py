@@ -1535,10 +1535,16 @@ def _build_comment_email_html(case: dict, comment: dict, intro: str, branding: d
     )
 
 
-async def _send_comment_notification(case: dict, comment: dict, to_supplier: bool):
-    """Send email notification when a new comment is posted."""
+async def _send_comment_notification(case: dict, comment: dict, to_supplier: bool) -> list[str]:
+    """Send email notification when a new comment is posted.
+
+    Returns the lower-cased addresses the email provider ACCEPTED, so callers
+    (e.g. MOD fault notifications) only treat a recipient as "already
+    emailed" when delivery really happened. Every attempt is written to the
+    ``email_send_events`` audit log (Master Admin → Outbound emails).
+    """
     if not RESEND_API_KEY or not resend:
-        return
+        return []
     resend.api_key = RESEND_API_KEY
 
     issue = await db.issues.find_one({"id": case.get("issue_id")}, {"_id": 0})
@@ -1589,7 +1595,15 @@ async def _send_comment_notification(case: dict, comment: dict, to_supplier: boo
     else:
         to_list = [params["to_email"]] if params["to_email"] else []
     if not to_list:
-        return
+        return []
+    # MOD faults: send from the verified MOD Service sender (never a ".ai"
+    # domain — MOD networks / mail filters block those, and the commercial
+    # sender isn't what MOD suppliers expect). Commercial cases unchanged.
+    if await _is_mod_case(case, issue):
+        from utils.email import _category_sender, _bare_addr
+        mod_from = _bare_addr(_category_sender("mod"))
+        display = params["from_line"].split("<", 1)[0].strip() or "Pulse Fitness MOD Service"
+        params["from_line"] = f"{display} <{mod_from}>"
     # Prefix subject with job ref so supplier inbox threads stay sane.
     params["subject"] = f"[{case_ref}] {params['subject']}"
 
@@ -1598,6 +1612,8 @@ async def _send_comment_notification(case: dict, comment: dict, to_supplier: boo
     reporter = await _resolve_reporter_contact(issue or {}) if to_supplier else None
     html = _build_comment_email_html(case, comment, params["intro"], branding, issue, case_ref, reporter)
 
+    from utils.email import _record_email_event
+    delivered: list[str] = []
     for to_email in to_list:
         try:
             await asyncio.to_thread(resend.Emails.send, {
@@ -1607,8 +1623,31 @@ async def _send_comment_notification(case: dict, comment: dict, to_supplier: boo
                 "html": html,
             })
             logger.info(f"Comment notification sent to {to_email}")
+            delivered.append(to_email.lower())
+            await _record_email_event(
+                to=to_email, subject=params["subject"], status="sent", error=None,
+                sender=params["from_line"], kind="supplier.case_link")
         except Exception as e:
-            logger.warning(f"Failed to send comment notification: {e}")
+            logger.warning(f"Failed to send comment notification to {to_email}: {e}")
+            await _record_email_event(
+                to=to_email, subject=params["subject"], status="failed", error=str(e)[:500],
+                sender=params["from_line"], kind="supplier.case_link")
+    return delivered
+
+
+async def _is_mod_case(case: dict, issue: dict | None) -> bool:
+    """True when the supplier case belongs to a MOD site / MOD org."""
+    acct = (case.get("organization_account_type") or "").lower()
+    if acct:
+        return acct.startswith("mod")
+    org_id = (issue or {}).get("organization_id")
+    if not org_id:
+        return False
+    try:
+        org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "account_type": 1})
+    except Exception:
+        return False
+    return ((org or {}).get("account_type") or "").lower().startswith("mod")
 
 
 @router.post("/supplier/case/{token}/update-email")
