@@ -65,3 +65,12 @@ MOD web filtering blocks any ".ai" reference, so the MODService BUILD is sanitis
   decks, briefs), writes MOD robots.txt / security.txt / manifest.json, then FAILS the build if any .ai domain remains.
 - `frontend/src/utils/modServiceSeo.js` — runtime safety net for <head> (wired in AppRoutes.js).
 Verified: MOD build 0 .ai domain refs across all files; commercial build unchanged (7 in index.html, 80 in JS).
+
+## Update — MOD fault emails + fault titles (9 Nov 2026)
+- ROOT CAUSE of "no emails": each deployment has its OWN RESEND_API_KEY secret. MODService's was invalid
+  ("API key is invalid"); pulsefitness.ai's was valid (Master Admin resends worked because the .ai backend sent them).
+  Fixed by saving the working key into this job's RESEND_API_KEY (live, 2026-11-09T12:08Z). Keep the two in sync.
+- Supplier-thread emails (_send_comment_notification) use the MOD sender for MOD cases, log every attempt to
+  email_send_events and return delivered addresses; issues store auto_dispatch_delivered_to; MOD Pulse alert falls back
+  when the thread didn't reach Pulse; fault card shows amber "Email to X not delivered" when applicable.
+- Fault cards: title = make + model (model ignored when it is just a serial prefix → make + name), serial underneath.
