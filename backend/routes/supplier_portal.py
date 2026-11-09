@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Request, Response
 from datetime import datetime, timedelta, timezone
+from pydantic import BaseModel
 from typing import Dict, Any, Optional
 import uuid
 import logging
@@ -1216,7 +1217,7 @@ async def get_supplier_case(token: str, request: Request):
         "rating": case.get("rating"),
         "rating_feedback": case.get("rating_feedback"),
         "mod_booking": mod_booking,
-        "comments": await db.supplier_case_comments.find({"case_id": case["id"]}, {"_id": 0}).sort("created_at", 1).to_list(500),
+        "comments": await db.supplier_case_comments.find({"case_id": case["id"], "deleted_at": {"$exists": False}}, {"_id": 0, "edit_history": 0}).sort("created_at", 1).to_list(500),
     }
 
 
@@ -1535,10 +1536,17 @@ def _build_comment_email_html(case: dict, comment: dict, intro: str, branding: d
     )
 
 
-async def _send_comment_notification(case: dict, comment: dict, to_supplier: bool):
-    """Send email notification when a new comment is posted."""
+async def _send_comment_notification(case: dict, comment: dict, to_supplier: bool,
+                                     ids_out: dict | None = None) -> list[str]:
+    """Send email notification when a new comment is posted.
+
+    Returns the lower-cased addresses the email provider ACCEPTED, so callers
+    (e.g. MOD fault notifications) only treat a recipient as "already
+    emailed" when delivery really happened. Every attempt is written to the
+    ``email_send_events`` audit log (Master Admin → Outbound emails).
+    """
     if not RESEND_API_KEY or not resend:
-        return
+        return []
     resend.api_key = RESEND_API_KEY
 
     issue = await db.issues.find_one({"id": case.get("issue_id")}, {"_id": 0})
@@ -1589,7 +1597,16 @@ async def _send_comment_notification(case: dict, comment: dict, to_supplier: boo
     else:
         to_list = [params["to_email"]] if params["to_email"] else []
     if not to_list:
-        return
+        return []
+    # MOD faults: send from the verified MOD Service sender (never a ".ai"
+    # domain — MOD networks / mail filters block those, and the commercial
+    # sender isn't what MOD suppliers expect). Commercial cases unchanged.
+    is_mod_case = await _is_mod_case(case, issue)
+    if is_mod_case:
+        from utils.email import _category_sender, _bare_addr
+        mod_from = _bare_addr(_category_sender("mod"))
+        display = params["from_line"].split("<", 1)[0].strip() or "Pulse Fitness MOD Service"
+        params["from_line"] = f"{display} <{mod_from}>"
     # Prefix subject with job ref so supplier inbox threads stay sane.
     params["subject"] = f"[{case_ref}] {params['subject']}"
 
@@ -1597,18 +1614,50 @@ async def _send_comment_notification(case: dict, comment: dict, to_supplier: boo
     # going to the supplier. The gym side already knows who logged the fault.
     reporter = await _resolve_reporter_contact(issue or {}) if to_supplier else None
     html = _build_comment_email_html(case, comment, params["intro"], branding, issue, case_ref, reporter)
+    if is_mod_case:
+        from utils.mod_sanitize import sanitize_ai
+        html = sanitize_ai(html)
+        params["subject"] = sanitize_ai(params["subject"])
 
+    from utils.email import _record_email_event
+    delivered: list[str] = []
     for to_email in to_list:
         try:
-            await asyncio.to_thread(resend.Emails.send, {
+            sent = await asyncio.to_thread(resend.Emails.send, {
                 "from": params["from_line"],
                 "to": [to_email],
                 "subject": params["subject"],
                 "html": html,
             })
+            rid = sent.get("id") if isinstance(sent, dict) else getattr(sent, "id", None)
             logger.info(f"Comment notification sent to {to_email}")
+            delivered.append(to_email.lower())
+            if ids_out is not None and rid:
+                ids_out[to_email.lower()] = rid
+            await _record_email_event(
+                to=to_email, subject=params["subject"], status="sent", error=None,
+                sender=params["from_line"], kind="supplier.case_link", resend_id=rid)
         except Exception as e:
-            logger.warning(f"Failed to send comment notification: {e}")
+            logger.warning(f"Failed to send comment notification to {to_email}: {e}")
+            await _record_email_event(
+                to=to_email, subject=params["subject"], status="failed", error=str(e)[:500],
+                sender=params["from_line"], kind="supplier.case_link")
+    return delivered
+
+
+async def _is_mod_case(case: dict, issue: dict | None) -> bool:
+    """True when the supplier case belongs to a MOD site / MOD org."""
+    acct = (case.get("organization_account_type") or "").lower()
+    if acct:
+        return acct.startswith("mod")
+    org_id = (issue or {}).get("organization_id")
+    if not org_id:
+        return False
+    try:
+        org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "account_type": 1})
+    except Exception:
+        return False
+    return ((org or {}).get("account_type") or "").lower().startswith("mod")
 
 
 @router.post("/supplier/case/{token}/update-email")
@@ -1638,7 +1687,7 @@ async def get_case_comments(token: str, request: Request):
     if not gym_user or gym_user.get("is_supplier"):
         await _mark_gym_comments_read_by_supplier(case["id"])
     comments = await db.supplier_case_comments.find(
-        {"case_id": case["id"]}, {"_id": 0}
+        {"case_id": case["id"], "deleted_at": {"$exists": False}}, {"_id": 0, "edit_history": 0}
     ).sort("created_at", 1).to_list(500)
     return {"comments": comments}
 
@@ -1761,6 +1810,8 @@ async def add_gym_comment(
         "case_id": case["id"],
         "author_name": author_name or user.get("full_name", "Site Staff"),
         "author_role": "gym",
+        # Who posted it — only this account may edit / delete (15-min window).
+        "author_user_id": user.get("id"),
         "message": message.strip(),
         "attachments": attachments,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -1771,6 +1822,73 @@ async def add_gym_comment(
     await _send_comment_notification(case, comment, to_supplier=True)
 
     return {k: v for k, v in comment.items() if k != "_id"}
+
+
+GYM_COMMENT_EDIT_WINDOW_MINUTES = 15
+
+
+async def _own_editable_gym_comment(token: str, comment_id: str, user: dict) -> dict:
+    """Load a site-staff comment the caller may still change, or raise.
+
+    Rules (server-enforced): same supplier case, posted by the site side,
+    posted by THIS account, not deleted, and within the 15-minute window.
+    """
+    case = await db.supplier_cases.find_one({"token": token}, {"_id": 0, "id": 1})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    c = await db.supplier_case_comments.find_one(
+        {"id": comment_id, "case_id": case["id"]}, {"_id": 0})
+    if not c or c.get("deleted_at"):
+        raise HTTPException(404, "Message not found")
+    if c.get("author_role") != "gym" or not c.get("author_user_id") or c.get("author_user_id") != user.get("id"):
+        raise HTTPException(403, "You can only change messages you wrote")
+    try:
+        created = datetime.fromisoformat(str(c.get("created_at")).replace("Z", "+00:00"))
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+    except Exception:
+        raise HTTPException(403, "This message can no longer be changed")
+    if datetime.now(timezone.utc) - created > timedelta(minutes=GYM_COMMENT_EDIT_WINDOW_MINUTES):
+        raise HTTPException(403, f"Messages can only be changed within {GYM_COMMENT_EDIT_WINDOW_MINUTES} minutes of sending")
+    return c
+
+
+class _GymCommentEdit(BaseModel):
+    message: str
+
+
+@router.patch("/supplier/case/{token}/comments/gym/{comment_id}")
+async def edit_gym_comment(token: str, comment_id: str, body: _GymCommentEdit,
+                           user: dict = Depends(get_current_user)):
+    """Site staff edit their own message (within 15 minutes). The original
+    text is kept in ``edit_history`` for audit; the thread shows "edited"."""
+    c = await _own_editable_gym_comment(token, comment_id, user)
+    new_msg = (body.message or "").strip()
+    if not new_msg and not c.get("attachments"):
+        raise HTTPException(400, "Message cannot be empty — delete it instead")
+    if new_msg == (c.get("message") or ""):
+        return {k: v for k, v in c.items() if k != "edit_history"}
+    now = datetime.now(timezone.utc).isoformat()
+    await db.supplier_case_comments.update_one(
+        {"id": comment_id},
+        {"$set": {"message": new_msg, "edited_at": now},
+         "$push": {"edit_history": {"message": c.get("message") or "", "replaced_at": now,
+                                     "by_user_id": user.get("id")}}},
+    )
+    c.update({"message": new_msg, "edited_at": now})
+    return {k: v for k, v in c.items() if k != "edit_history"}
+
+
+@router.delete("/supplier/case/{token}/comments/gym/{comment_id}")
+async def delete_gym_comment(token: str, comment_id: str, user: dict = Depends(get_current_user)):
+    """Site staff delete their own message (within 15 minutes). Soft delete:
+    hidden from the site and supplier views, kept for audit."""
+    await _own_editable_gym_comment(token, comment_id, user)
+    await db.supplier_case_comments.update_one(
+        {"id": comment_id},
+        {"$set": {"deleted_at": datetime.now(timezone.utc).isoformat(), "deleted_by": user.get("id")}},
+    )
+    return {"success": True, "id": comment_id}
 
 
 async def _update_case_schedule(token: str, case_id: str, issue_id: str,

@@ -787,29 +787,51 @@ async def mod_attachment_upload(
 
 @router.get("/mod/site/attachments/serve")
 async def mod_attachment_serve(
+    request: Request,
     path: str = Query(..., description="Storage path returned from the upload endpoint"),
-    token: str = Query(..., description="JWT — browsers can't attach headers to <img>/<video> src"),
+    token: str = Query("", description="JWT — browsers can't attach headers to <img>/<video> src"),
 ):
     """Serve an uploaded attachment to `<img>` / `<video>` elements.
 
-    Auth goes via query-string because browsers strip Authorization headers
-    on image/video loads. The token is validated, then the path is checked
-    to confirm it lives inside the caller's MOD site folder — preventing a
-    logged-in user at site A from snooping attachments from site B.
+    Auth: a JWT in the query string (email links, header-less clients) OR the
+    signed-in HttpOnly session cookie (in-app thumbnails — real logins keep
+    only the placeholder "cookie" in localStorage, never the JWT). The path is
+    then checked to confirm the viewer may see it — preventing a logged-in
+    user at site A from snooping attachments from site B.
     """
-    payload = verify_token(token)
-    if not payload or payload.get("type") == "mfa_temp":
-        raise HTTPException(401, "Invalid token")
-    viewer = await db.users.find_one({"id": payload.get("user_id")}, {"_id": 0})
+    viewer = None
+    payload = verify_token(token) if token and token != "cookie" else None
+    if payload and payload.get("type") != "mfa_temp":
+        from utils.security_plus import is_jwt_revoked
+        if not await is_jwt_revoked(payload.get("jti")):
+            viewer = await db.users.find_one({"id": payload.get("user_id")}, {"_id": 0})
+            if viewer and (viewer.get("active") is False or viewer.get("is_active") is False
+                           or viewer.get("disabled")):
+                viewer = None
+    if not viewer:
+        from utils.auth import try_get_current_user
+        try:
+            viewer = await try_get_current_user(request)
+        except Exception:
+            viewer = None
     if not viewer:
         raise HTTPException(401, "Invalid token")
 
     # Path must be under this user's MOD site bucket (or master admin override).
+    if not path.startswith(f"{APP_NAME}/mod-attachments/") or ".." in path:
+        raise HTTPException(400, "Not a MOD attachment path")
     expected_prefix_for_site = f"{APP_NAME}/mod-attachments/{viewer.get('organization_id', '')}/"
     if not viewer.get("is_master_admin") and not path.startswith(expected_prefix_for_site):
-        raise HTTPException(403, "Cross-site attachment access denied")
-    if not path.startswith(f"{APP_NAME}/mod-attachments/"):
-        raise HTTPException(400, "Not a MOD attachment path")
+        # MOD HQ / Pulse staff viewing a child site's fault: allowed only if
+        # they can see a fault that references this exact file.
+        from utils.mod_scope import resolve_mod_query_filter
+        try:
+            scope = await resolve_mod_query_filter(viewer, None)
+            ref = await db.issues.find_one({"attachment_urls": path, **scope}, {"_id": 0, "id": 1})
+        except Exception:
+            ref = None
+        if not ref:
+            raise HTTPException(403, "Cross-site attachment access denied")
 
     try:
         data, content_type = get_object(path)
@@ -3074,6 +3096,10 @@ async def mod_hq_provision_site_credentials(
 
 
 def _hq_provision_email_html(site: dict, username: str, new_password: str) -> str:
+    # Env-driven (never a hard-coded preview host) — MOD_PORTAL_URL is the
+    # MOD Service domain on the MODService deployment.
+    _base = (os.environ.get("MOD_PORTAL_URL") or os.environ.get("FRONTEND_URL", "")).rstrip("/")
+    _mod_login_url = f"{_base}/MODService"
     return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
   <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Site Login</div>
@@ -3087,7 +3113,7 @@ def _hq_provision_email_html(site: dict, username: str, new_password: str) -> st
       <tr><td style="padding:8px 14px;background:#0A0B10;color:#19CDFF;border:1px solid #0A0B10;font-size:11px;font-weight:800;text-transform:uppercase;">Site code</td>
           <td style="padding:8px 14px;background:#0A0B10;color:#fff;border:1px solid #0A0B10;font-family:ui-monospace,Menlo,monospace;font-weight:700;">{new_password}</td></tr>
     </table>
-    <p style="color:#6E7476;font-size:13px;margin-top:18px;">Share this with the on-site PTI via a secure channel. Sign in at <a href="https://sicon-sync-hub.preview.emergentagent.com/MODService" style="color:#19CDFF;">/MODService</a> using the username + site code.</p>
+    <p style="color:#6E7476;font-size:13px;margin-top:18px;">Share this with the on-site PTI via a secure channel. Sign in at <a href="{_mod_login_url}" style="color:#19CDFF;">{_mod_login_url}</a> using the username + site code.</p>
   </div>
 </div>"""
 

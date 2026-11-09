@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import SiconServicePanel from './SiconServicePanel';
 import { MODDIOEscalateModal } from './MODPortal/MODDIOEscalateModal';
+import FaultNotifiedCard from '@/components/faults/FaultNotifiedCard';
+import GymCommentBody from '@/components/faults/GymCommentBody';
 
 const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  const { API, user } = useAuth();
@@ -111,6 +113,19 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  };
  loadSiconContext();
  }, [issue?.sicon_case_id, issue?.serial_number, API]);
+
+ // Fault-wizard photos (source "fault_photo") live in MOD storage and load
+ // through the authenticated MOD media endpoint; uploads keep download_url.
+ const attachmentUrl = (att) => {
+ if (att?.source === 'fault_photo' && att.storage_path) {
+ // Real sign-ins use the HttpOnly session cookie (sent automatically on
+ // same-site image loads); only append a JWT when one is actually held.
+ const tk = localStorage.getItem('token') || '';
+ const tokenQs = tk && tk !== 'cookie' ? `&token=${encodeURIComponent(tk)}` : '';
+ return `${API}/mod/site/attachments/serve?path=${encodeURIComponent(att.storage_path)}${tokenQs}`;
+ }
+ return att?.download_url || '';
+ };
 
  const reloadDetail = async () => {
  const token = localStorage.getItem('token');
@@ -530,52 +545,8 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  </div>
  )}
 
- {Array.isArray(issue.notified_recipients) && issue.notified_recipients.length > 0 && (
- <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20" data-testid={`issue-notified-log-${issue.id}`}>
- <div className="flex items-center gap-2 mb-2">
- <CheckCircle size={14} className="text-emerald-400" />
- <span className="text-[var(--color-text-muted)] text-xs uppercase tracking-wide">Notified when logged</span>
- </div>
- <div className="space-y-1.5">
- {issue.notified_recipients.map((r, i) => (
- <div key={`${r.email || i}-${i}`} className="flex items-center justify-between gap-3 text-sm" data-testid={`issue-notified-${issue.id}-${i}`}>
- <div className="min-w-0 flex items-center gap-2">
- <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${r.role === 'pulse' ? 'bg-sky-500/20 text-sky-300' : r.role === 'overseas' ? 'bg-amber-500/20 text-amber-300' : 'bg-zinc-500/20 text-zinc-300'}`}>
- {r.role === 'pulse' ? 'Pulse' : r.role === 'overseas' ? 'Service provider' : 'Supplier'}
- </span>
- <span className="text-white font-medium truncate">{r.name || r.email}</span>
- </div>
- <span className="text-[var(--color-text-muted)] text-xs truncate shrink-0">{r.email}{r.delivered === false && <span className="ml-2 text-red-400 font-semibold" data-testid={`issue-notified-failed-${issue.id}-${i}`}>· not delivered</span>}</span>
- </div>
- ))}
- </div>
- <p className="text-[11px] text-[var(--color-text-muted)] mt-2">
- Emailed {issue.notified_recipients[0]?.at ? new Date(issue.notified_recipients[0].at).toLocaleString() : 'when the job was logged'}.
- </p>
- </div>
- )}
-
- {/* Iter 220ea·40 — confirmation the fault was dispatched to the supplier
-     (auto on submit, or via manual contact). Reassures the operator it
-     actually reached someone. */}
- {issue.supplier_case?.supplier_name && (
- <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20" data-testid={`supplier-sent-banner-${issue.id}`}>
- <div className="flex items-start gap-2.5 min-w-0">
- <CheckCircle size={16} className="text-emerald-400 shrink-0 mt-0.5" />
- <div className="min-w-0">
- <p className="text-emerald-400 text-xs font-semibold">Sent to {issue.supplier_case.supplier_name}</p>
- {issue.supplier_case.supplier_email && (
- <p className="text-[var(--color-text-muted)] text-xs mt-0.5 truncate">{issue.supplier_case.supplier_email}{issue.auto_dispatched_at ? ' · emailed automatically on submit' : ''}</p>
- )}
- </div>
- </div>
- {issue.supplier_case?.token && (
- <Button size="sm" variant="outline" onClick={() => window.open(`/supplier/case/${issue.supplier_case.token}?view=site`, '_blank', 'noopener')} className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 text-xs shrink-0" data-testid={`supplier-sent-view-${issue.id}`}>
- View card
- </Button>
- )}
- </div>
- )}
+ {/* One merged "Notified" card — every recipient with an inbox-delivery tick. */}
+ <FaultNotifiedCard issue={issue} API={API} />
 
  {/* Iter 216h57 — Replaced the blue Supplier Fault Card deep-link
      with a prominent Engineer Visit panel. The Supplier-Card link
@@ -841,14 +812,22 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  {attachments.filter((a) => (a.kind || '').toLowerCase() !== 'quote').length > 0 ? (
  <div className="space-y-2">
  {attachments.filter((a) => (a.kind || '').toLowerCase() !== 'quote').map(att => (
- <div key={att.id} className="flex items-center justify-between p-2 bg-[var(--theme-surface-2)] border border-[var(--theme-border)] rounded">
- <div className="flex items-center gap-2">
- <FileText size={14} className="text-[var(--color-brand-blue)]" />
- <span className="text-[var(--theme-text)] text-sm">{att.filename}</span>
- <span className="text-[var(--color-text-muted)] text-xs">{att.uploaded_by} - {att.uploaded_at ? new Date(att.uploaded_at).toLocaleDateString() : ''}</span>
+ <div key={att.id} className="flex items-center justify-between p-2 bg-[var(--theme-surface-2)] border border-[var(--theme-border)] rounded" data-testid={`issue-attachment-${att.id}`}>
+ <div className="flex items-center gap-2 min-w-0">
+ {(att.content_type || '').startsWith('image/') && attachmentUrl(att) ? (
+ <a href={attachmentUrl(att)} target="_blank" rel="noreferrer" className="shrink-0">
+ <img src={attachmentUrl(att)} alt={att.filename} loading="lazy" className="w-12 h-12 rounded object-cover border border-[var(--theme-border)]" data-testid={`issue-attachment-thumb-${att.id}`} />
+ </a>
+ ) : (
+ <FileText size={14} className="text-[var(--color-brand-blue)] shrink-0" />
+ )}
+ <div className="min-w-0 flex flex-col">
+ <span className="text-[var(--theme-text)] text-sm truncate" data-testid={`issue-attachment-name-${att.id}`}>{att.filename}</span>
+ <span className="text-[var(--color-text-muted)] text-xs truncate">{att.uploaded_by} - {att.uploaded_at ? new Date(att.uploaded_at).toLocaleDateString() : ''}</span>
  </div>
- {att.download_url && (
- <a href={att.download_url} target="_blank" rel="noreferrer" className="text-[var(--color-brand-blue)] hover:text-[var(--color-brand-blue-alt)]">
+ </div>
+ {attachmentUrl(att) && (
+ <a href={attachmentUrl(att)} target="_blank" rel="noreferrer" className="text-[var(--color-brand-blue)] hover:text-[var(--color-brand-blue-alt)] shrink-0 ml-2 p-1" data-testid={`issue-attachment-open-${att.id}`}>
  <ExternalLink size={14} />
  </a>
  )}
@@ -944,7 +923,9 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  </span>
  <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.5)' }}>{new Date(c.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
  </div>
- {c.message && <p className="text-sm leading-relaxed" style={{ color: '#fff' }}>{c.message}</p>}
+ {isSupplier ? (c.message && <p className="text-sm leading-relaxed" style={{ color: '#fff' }}>{c.message}</p>) : (
+ <GymCommentBody comment={c} caseToken={issue.supplier_case.token} API={API} user={user} onChanged={reloadDetail} />
+ )}
  {(c.attachments || []).map((a, i) => (
  <div key={i} className="mt-1.5">
  {a.content_type?.startsWith('image/') ? (

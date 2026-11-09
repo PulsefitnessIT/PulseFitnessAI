@@ -19,6 +19,7 @@ import EngineerErrorBoundary from '@/components/shared/EngineerErrorBoundary';
 import { resolveHomePath } from '@/utils/moduleHome';
 import { can } from '@/utils/capabilities';
 import { isExternalEngineer, isLockedEngineer, lockedEngineerHome } from '@/utils/engineerGuard';
+import { hardenModServiceSeo } from '@/utils/modServiceSeo';
 
 import ModuleAccessGate from '@/components/shared/ModuleAccessGate';
 import EngineerOfflineIndicator from '@/components/engineer/EngineerOfflineIndicator';
@@ -400,6 +401,9 @@ export default function AppRoutes({ user, login }) {
   // so every module re-fetches its now site-scoped data (brief: key tied
   // to the active site). Route navigation within a site is unaffected.
   const siteKey = allSitesMode ? 'all' : (activeSite?.id || 'none');
+  // MODService only: strip every pulsefitness.ai reference from <head>
+  // (canonical / og / twitter / JSON-LD) — no-op on the commercial deployment.
+  useEffect(() => { hardenModServiceSeo(); }, [location.pathname]);
   return (
     <>
     <Routes key={siteKey}>

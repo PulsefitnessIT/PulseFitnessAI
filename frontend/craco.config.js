@@ -1,6 +1,7 @@
 // craco.config.js
 const path = require("path");
 require("dotenv").config();
+const { isModServiceBuild, ModServiceSanitizePlugin } = require("./modservice/sanitize");
 
 // Check if we're in development/preview mode (not production build)
 // Craco sets NODE_ENV=development for start, NODE_ENV=production for build
@@ -64,6 +65,24 @@ let webpackConfig = {
       // Add health check plugin to webpack if enabled
       if (config.enableHealthCheck && healthPluginInstance) {
         webpackConfig.plugins.push(healthPluginInstance);
+      }
+
+      // MODService build (REACT_APP_PORTAL_MODE=modservice) — MOD web filters
+      // block any ".ai" reference, so serve a clean index.html template and
+      // rewrite pulsefitness.ai / gymaxis.ai out of every emitted asset.
+      // Commercial builds skip this block entirely.
+      if (isModServiceBuild()) {
+        const htmlPlugin = webpackConfig.plugins.find(
+          (p) => p && p.constructor && p.constructor.name === 'HtmlWebpackPlugin'
+        );
+        if (htmlPlugin) {
+          const modTemplate = path.resolve(__dirname, 'modservice/index.html');
+          // html-webpack-plugin v5 resolves `options` in its constructor,
+          // so both copies must point at the MOD template.
+          if (htmlPlugin.userOptions) htmlPlugin.userOptions.template = modTemplate;
+          if (htmlPlugin.options) htmlPlugin.options.template = modTemplate;
+        }
+        webpackConfig.plugins.push(new ModServiceSanitizePlugin());
       }
       return webpackConfig;
     },

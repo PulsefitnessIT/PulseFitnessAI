@@ -3,13 +3,14 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, Calendar, ExternalLink, ChevronDown, ChevronRight, CheckCircle, Layers, Package } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Calendar, ExternalLink, ChevronDown, ChevronRight, CheckCircle, Layers, Package } from 'lucide-react';
 import IssueDetailPanel from '../IssueDetailPanel';
 import PPMSubTab from '../PPMSubTab';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import PartsRequestsPage from '../PartsRequests/PartsRequestsPage';
 import { groupIssuesByJob } from '../LiteDashboard/groupIssuesByJob';
+import { faultTitle, faultMetaLine, supplierEmailDelivered } from '@/utils/faultTitle';
 
 const STATUS_BORDER_COLOR = {
  open: 'var(--color-danger)',
@@ -34,19 +35,26 @@ const FaultsTab = ({
      <div className="p-5 cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => onSelectIssue(selectedIssue?.id === issue.id ? null : issue)}>
        <div className="flex items-start justify-between">
          <div className="flex-1">
-           <div className="flex items-center flex-wrap gap-2 mb-2">
-             <h3 className={`font-semibold text-white ${opts.nested ? 'text-base' : 'text-lg'}`}>{issue.serial_number}</h3>
+           <div className="flex items-center flex-wrap gap-2 mb-1">
+             <h3 className={`font-semibold text-white ${opts.nested ? 'text-base' : 'text-lg'}`} data-testid={`issue-title-${issue.id}`}>{faultTitle(issue).title}</h3>
              <Badge className={getSeverityColor(issue.severity)} data-testid={`issue-severity-${issue.id}`}>{getSeverityLabel(issue.severity)}</Badge>
              <Badge className={getStatusColor(issue.status)} data-testid={`issue-status-${issue.id}`}>{issue.status === 'in_progress' ? t('faults.in_progress') : t(`faults.${issue.status}`)}</Badge>
              {issue.resolved_by === 'gymaxis_ai' && <Badge className="bg-green-500/20 text-green-400">{t('faults.ai_fixed')}</Badge>}
              {issue.resolved_by === 'engineer' && <Badge className="bg-orange-500/20 text-orange-400">{t('faults.engineer_flag')}</Badge>}
-            {issue.supplier_case?.supplier_name && (
+            {issue.supplier_case?.supplier_name && (supplierEmailDelivered(issue) ? (
               <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1" data-testid={`issue-supplier-sent-${issue.id}`} title={`Fault sent to ${issue.supplier_case.supplier_name}${issue.supplier_case.supplier_email ? ` (${issue.supplier_case.supplier_email})` : ''}`}>
                 <CheckCircle size={11} /> Sent to {issue.supplier_case.supplier_name}
               </Badge>
-            )}
+            ) : (
+              <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 inline-flex items-center gap-1" data-testid={`issue-supplier-undelivered-${issue.id}`} title={`The email to ${issue.supplier_case.supplier_email || issue.supplier_case.supplier_name} was not delivered. Master Admin → Email log can resend it; the supplier card link below still works.`}>
+                <AlertTriangle size={11} /> Email to {issue.supplier_case.supplier_name} not delivered
+              </Badge>
+            ))}
            </div>
-           <p className="text-[var(--color-text-muted)] text-sm">{issue.machine_type}{issue.supplier ? ` | ${issue.supplier}` : ''} | {new Date(issue.created_at).toLocaleDateString()}{issue.supplier_ref ? ` | Ref: ${issue.supplier_ref}` : ''}</p>
+           {faultTitle(issue).subtitle && (
+             <p className="text-xs font-mono text-[var(--color-text-secondary,var(--color-text-muted))] mb-1.5" data-testid={`issue-serial-${issue.id}`}>{faultTitle(issue).subtitle}</p>
+           )}
+           <p className="text-[var(--color-text-muted)] text-sm" data-testid={`issue-meta-${issue.id}`}>{faultMetaLine(issue, issue.created_at ? new Date(issue.created_at).toLocaleDateString() : '')}</p>
            <p className="text-white text-sm mt-1">{issue.issue_description.substring(0, 100)}{issue.issue_description.length > 100 ? '...' : ''}</p>
            {issue.sicon_case_id && (
              <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px]" data-testid={`job-card-summary-${issue.id}`}>

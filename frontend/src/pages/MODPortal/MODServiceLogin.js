@@ -15,7 +15,7 @@
  * #66CCFF, dark Pulse text #212721) because the MOD are Pulse
  * customers.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '@/App';
@@ -65,8 +65,23 @@ export default function MODServiceLogin() {
 
   const { login } = useAuth();
   const navigate = useNavigate();
-  const { prefillEmail } = useSignedOutNotice();
-  const [email, setEmail] = useState(prefillEmail);
+  // MOD sites share PCs between staff: the login box always starts EMPTY.
+  // Any ?email= (old sign-out links / browser history) is ignored and
+  // stripped from the address bar so no address is ever shown or kept.
+  useSignedOutNotice();
+  const [email, setEmail] = useState('');
+  // Read-only until focused stops browsers silently auto-filling a
+  // previous user's saved login on page load.
+  const [idLocked, setIdLocked] = useState(true);
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('email')) {
+        url.searchParams.delete('email');
+        window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+      }
+    } catch { /* ignore */ }
+  }, []);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -432,9 +447,11 @@ export default function MODServiceLogin() {
                     <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: PULSE.greyLight }} />
                     <input
                       id="mod-login-email"
-                      name="username"
+                      name="mod-login-id"
                       type="text"
-                      autoComplete="username"
+                      autoComplete="off"
+                      readOnly={idLocked}
+                      onFocus={(e) => { setIdLocked(false); e.currentTarget.style.borderColor = PULSE.primary; }}
                       inputMode="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -446,7 +463,6 @@ export default function MODServiceLogin() {
                         color: PULSE.black,
                         caretColor: PULSE.primary,
                       }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = PULSE.primary; }}
                       onBlur={(e) => { e.currentTarget.style.borderColor = PULSE.border; }}
                       data-testid="mod-login-email"
                     />

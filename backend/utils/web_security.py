@@ -173,6 +173,10 @@ _TRANSACTIONAL_KINDS = frozenset({
     "engineer.application_decision",
     "partner.commission_payout",
     "system.ops_alert",
+    # MOD fault alerts — recipients are chosen by code (Pulse MOD desk +
+    # the site's nominated provider), never typed by a user.
+    "mod_fault_pulse",
+    "mod_fault_overseas",
 })
 
 

@@ -54,3 +54,31 @@ its MOD login routes to the dedicated MOD domain so there is ONE canonical MOD e
 - /mod/confirm-fix/:token (email action deep-link) is intentionally left working on BOTH domains.
 Code: frontend/src/utils/portalMode.js (MODSERVICE_URL) + routes/AppRoutes.js (ExternalRedirect).
 Activate: Save to Github → Re-publish the pulsefitness.ai deployment.
+
+## Update — zero ".ai" MOD build (Nov 2026)
+MOD web filtering blocks any ".ai" reference, so the MODService BUILD is sanitised
+(only when REACT_APP_PORTAL_MODE=modservice; the commercial build is untouched):
+- `frontend/modservice/index.html` — clean HTML template (no pulsefitness.ai, no "AI"), swapped in by craco.config.js.
+- `frontend/modservice/sanitize.js` — webpack plugin: pulsefitness.ai / gymaxis.ai URLs → modservice.pulsefitness.com,
+  x@pulsefitness.ai → x@pulsefitness.com, "Pulse Fitness AI" → "Pulse Fitness".
+- `frontend/modservice/postbuild.js` (runs from `yarn build`) — drops commercial-only public files (sitemap, llms.txt,
+  decks, briefs), writes MOD robots.txt / security.txt / manifest.json, then FAILS the build if any .ai domain remains.
+- `frontend/src/utils/modServiceSeo.js` — runtime safety net for <head> (wired in AppRoutes.js).
+Verified: MOD build 0 .ai domain refs across all files; commercial build unchanged (7 in index.html, 80 in JS).
+
+## Update — MOD fault emails + fault titles (9 Nov 2026)
+- ROOT CAUSE of "no emails": each deployment has its OWN RESEND_API_KEY secret. MODService's was invalid
+  ("API key is invalid"); pulsefitness.ai's was valid (Master Admin resends worked because the .ai backend sent them).
+  Fixed by saving the working key into this job's RESEND_API_KEY (live, 2026-11-09T12:08Z). Keep the two in sync.
+- Supplier-thread emails (_send_comment_notification) use the MOD sender for MOD cases, log every attempt to
+  email_send_events and return delivered addresses; issues store auto_dispatch_delivered_to; MOD Pulse alert falls back
+  when the thread didn't reach Pulse; fault card shows amber "Email to X not delivered" when applicable.
+- Fault cards: title = make + model (model ignored when it is just a serial prefix → make + name), serial underneath.
+
+## Update — 9 Nov 2026 (round 3)
+- MOD sign-out → plain /MODService (no email in URL, empty readOnly-until-focus login box) for any user on the MOD deployment.
+- Site staff can edit/delete their own supplier messages within 15 min (PATCH/DELETE /api/supplier/case/{token}/comments/gym/{id}; soft delete; "edited" marker).
+- One merged "Notified" card with per-recipient inbox-delivery ticks (GET /api/issues/{id}/delivery-status → Resend last_event; message ids stored on send).
+- Fault-wizard photos (issue.attachment_urls) merged into Attachments at READ time (no migration) → every existing fault back-filled; served via
+  /api/mod/site/attachments/serve (JWT ?token= or session cookie; revoked/disabled users refused; scoped to viewers who can see the fault).
+- MOD emails: footer "Pulse Fitness MOD Service" + MODService@pulsefitness.com; utils/mod_sanitize.sanitize_ai strips any .ai from MOD email html/subject.

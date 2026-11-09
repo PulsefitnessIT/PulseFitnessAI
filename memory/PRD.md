@@ -22773,7 +22773,7 @@ So any external bookmarks or stray copy-paste links keep working:
   redirects + scan the rest of the codebase for any remaining links
   to the dead paths (`/legal/privacy`, `/legal/terms`).
 * `make regression` → **385 passed, 14 skipped** (up from 379).
-* Live smoke against `https://sicon-sync-hub.preview.emergentagent.com`:
+* Live smoke against `https://pulse-mod-estate--6ncsuzra.preview.emergentagent.com`:
   * `/legal/privacy`     → final URL `/privacy` ✅
   * `/legal/terms`       → final URL `/terms` ✅
   * `/forgot-password`   → final URL `/reset-password` ✅
@@ -33345,7 +33345,7 @@ P6 — final phase of the Master Admin redesign blueprint. Replaces ad-hoc "Add 
   8-10. Backend endpoint calls verified.
   11. Created user appears in unified directory.
   12. Regression: People → Directory still works.
-- **Main agent live smoke**: signed in as `admin@gymaxisai.com`, ran full 5-step flow, created `Wizard Test User`, received invite URL `https://sicon-sync-hub.preview.emergentagent.com/reset-password?token=l47KegLXL2FI…`.
+- **Main agent live smoke**: signed in as `admin@gymaxisai.com`, ran full 5-step flow, created `Wizard Test User`, received invite URL `https://pulse-mod-estate--6ncsuzra.preview.emergentagent.com/reset-password?token=l47KegLXL2FI…`.
 
 ### Pulse Master Admin guardrails
 - 'GymAxis Master Admin' role tile hidden.
@@ -39272,3 +39272,9 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - UI: MasterAdmin/SiconOnboardingSync.js (+SiconSyncCounts, SiconDifferencesList) on Configuration tab
 - Tests: tests/test_sicon_onboarding_jun2026.py (3) + existing import/case engine tests green
 - BLOCKER: saved base URL https://SICONTEST-06.bpdemos.co.uk returns IIS 404 for /api/v1/SiconService/* — user must supply full WebAPI address (port/path)
+
+## 2026-11-09 — Merged GitHub MODService branch (95389a4) into this workspace
+- 3-way merge from common base 9f390848; MODService changes (fault photos, sign-out, messages, FaultNotifiedCard, fault titles/emails, zero-".ai" MOD build: frontend/modservice/*, craco plugin, postbuild) + this workspace's work (Sicon Sync, memory fix, lazy-loading) kept
+- package.json: start keeps NODE_OPTIONS 4096; build = craco build && node modservice/postbuild.js
+- Skipped 176 test files whose only change was the preview URL
+- Verified: MOD build (REACT_APP_PORTAL_MODE=modservice) passes the zero-.ai postbuild check; new MOD backend tests pass (test_mod_esp_engineer_jimmy::test_root_html_clean only passes on a MOD-mode deployment)

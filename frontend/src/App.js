@@ -6,6 +6,7 @@ import '@/App.css';
 import i18n from './i18n';
 import { flushPendingLanguageSync } from '@/utils/languagePref';
 import { ConfirmProvider as NotificationConfirmProvider } from '@/components/notifications';
+import { isModServiceMode } from '@/utils/portalMode';
 
 // ═══ Cookie-based session support ═══
 // The backend sets an HttpOnly `ga_session` cookie on login/register/MFA.
@@ -861,8 +862,10 @@ function App() {
    window.dispatchEvent(new CustomEvent('gymaxis:auth-changed'));
  }
  const go = () => {
- if (wasMOD && typeof window !== 'undefined') {
-   window.location.replace(engEmail ? `/MODService?email=${encodeURIComponent(engEmail)}&signedout=1` : '/MODService?signedout=1');
+ if ((wasMOD || isModServiceMode()) && typeof window !== 'undefined') {
+   // MOD: never carry an email in the URL (browser history / proxy logs on
+   // shared base PCs) and never pre-fill the login box.
+   window.location.replace('/MODService?signedout=1');
  } else if (wasPulse && typeof window !== 'undefined') {
    window.location.replace(engEmail ? `/pulse?email=${encodeURIComponent(engEmail)}&signedout=1` : '/pulse?signedout=1');
  } else if (wasEngineer && typeof window !== 'undefined') {

@@ -75,7 +75,7 @@
   },
   "scripts": {
     "start": "NODE_OPTIONS=--max-old-space-size=4096 craco start",
-    "build": "craco build",
+    "build": "craco build && node modservice/postbuild.js",
     "test": "craco test",
     "lint:overlays": "node scripts/check-overlay-clicks.js",
     "lint:modals": "node scripts/check-modal-footers.js",
