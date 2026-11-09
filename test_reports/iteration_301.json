@@ -1,0 +1,31 @@
+{
+  "summary": "Backend-only in-process tests of MOD fault emails (Pulse desk escalation + supplier). 17/17 pytest pass. Verified: Point of contact = reporter name/email/phone + site name + structured address (line1..country) + legacy comma 'address' fallback + BFPO; JOB/SITE/MACHINE/FAULT sections one item per row in the required order (optional Type/Location/Steps/Photos only when present); serial in table, header line ('Rower · S/N x'), Sicon summary and both subjects (regex-matched '[MOD URGENT] ref — site — machine — S/N x' and '[Fault Log] ... — S/N x'); no '()' output, no S/N text when serial missing; safe_in_service=no -> 'Usable?: No — not safe to use (taken out of service)' even with usable=yes, and stored issue usable='no'; model equal to serial prefix -> 'Not on file'; Sicon block has all Label: value lines + Contact name/email/phone; site-typed text HTML-escaped (script/img/i/u tags); utils.email header with no logo shows site name only (no 38px chip); send_email for a MOD org with category='mod' (resend.Emails.send mocked) produced html/subject/from/reply_to with zero 'pulsefitness.ai' / 'Pulse Fitness AI'; mod_fault_submit called in-process with send_email mocked (result_out message_id='TEST_mid') -> Pulse + supplier notified_recipients both delivered=True and message_id='TEST_mid'. No real email sent (resend guard confirmed not hit). All TEST_ data cleaned up by id (verified 0 leftovers).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "routes/mod_portal.py _escalation_email_html / _supplier_fault_email_html", "issue": "Dead code: `steps_row` is still built (with UNESCAPED steps_taken) in both functions but never used. Remove to avoid someone re-inserting it unescaped."},
+      {"endpoint": "routes/mod_portal.py header line", "issue": "Header 'S/N' line uses eq.serial_number only, while the table falls back to doc.serial_number. If equipment has no serial but the issue does, table shows it but header/subject don't (minor inconsistency)."},
+      {"endpoint": "routes/mod_portal.py _fault_detail_rows Photos", "issue": "'N attached (shown below)' counts attachment_urls even when get_object fails and _inline_attachment_block renders nothing -> says 'shown below' with no photos shown."},
+      {"endpoint": "routes/mod_portal.py _tracked_send", "issue": "Delivery stamp retries only 10x0.5s waiting for notified_recipients to be written; that write happens after create_supplier_case + make_fault_booking for every supplier. If those are slow (>5s) the Pulse entry's delivered/message_id stamp is silently lost. Consider writing notified_recipients before spawning the send tasks."},
+      {"endpoint": "routes/mod_portal.py _confirmation_email_html", "issue": "Reporter confirmation email still interpolates site/equipment/reporter text without _e() escaping (not in scope of this change but same untrusted input)."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_mod_fault_email_details_iter301.py", "/app/test_reports/pytest/iter301_mod_fault_email.xml"],
+  "action_items": [
+    "Optional: remove dead unescaped `steps_row` in both MOD fault email builders",
+    "Optional: use eq serial OR doc serial for header line + subjects for consistency",
+    "Optional: write notified_recipients before create_task(_tracked_send) to remove the 5s stamping race",
+    "Optional: escape fields in _confirmation_email_html"
+  ],
+  "critical_code_review_comments": [
+    "routes/mod_portal.py is ~4270 lines — should be split (email builders could move to a routes/mod_emails.py module).",
+    "portal_url is interpolated into href without escaping (server-generated so low risk)."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_fault_email_details_iter301.py"],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "not tested (backend only requested)"},
+  "seed_data_creation": "Transient TEST_ org/equipment/supplier/issue (+ svc_cases, supplier_cases, mod_site_staff, mod_audit_log rows for the TEST site) created in-test and deleted by id; verified 0 leftovers.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_mod_fault_email_details_iter301.py -n0 -p no:cacheprovider. Tests are in-process (import routes.mod_portal), mock mp.send_email / ue.send_email / ue.resend.Emails.send; FaultSubmit reporter_email must not use .test TLD (EmailStr rejects reserved names)."
+}

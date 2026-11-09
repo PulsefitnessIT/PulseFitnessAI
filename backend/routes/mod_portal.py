@@ -1831,7 +1831,8 @@ async def mod_fault_submit(
     urgent = priority == "urgent"
     subject = (f"[MOD URGENT] {ticket_ref}" if urgent else f"[MOD Fault] {ticket_ref}") \
         + f" — {org.get('name')} — {equipment.get('name')}" \
-        + (f" — S/N {equipment.get('serial_number')}" if equipment.get('serial_number') else "")
+        + (f" — S/N {equipment.get('serial_number') or doc.get('serial_number')}"
+           if (equipment.get('serial_number') or doc.get('serial_number')) else "")
     html = _escalation_email_html(org, equipment, doc)
 
     async def _tracked_send(to: str, subj: str, body: str, kind: str) -> None:
@@ -1849,7 +1850,7 @@ async def mod_fault_submit(
             fields["notified_recipients.$[r].message_id"] = out["message_id"]
         try:
             # Short wait so the recipients list has been written first.
-            for _ in range(10):
+            for _ in range(60):  # up to ~30s (supplier case + booking run first)
                 res = await db.issues.update_one(
                     {"id": issue_id, "notified_recipients.email": to}, {"$set": fields},
                     array_filters=[{"r.email": to}])
@@ -1925,7 +1926,7 @@ async def mod_fault_submit(
                         logger.warning("MOD fault booking auto-create on dispatch failed: %s", be)
                 except Exception as ce:  # pragma: no cover
                     logger.warning("MOD supplier_case auto-create failed: %s", ce)
-            _serial = (equipment.get("serial_number") or "").strip()
+            _serial = (equipment.get("serial_number") or doc.get("serial_number") or "").strip()
             asyncio.create_task(_tracked_send(
                 sd.get("email"),
                 f"[Fault Log] {ticket_ref} — {org.get('name')} — {equipment.get('name')}"
@@ -3529,7 +3530,7 @@ def _fault_detail_rows(site: dict, eq: dict, doc: dict) -> list[tuple[str, list[
     if steps:
         fault.append(("Steps taken on site", steps, False))
     if photos:
-        fault.append(("Photos", f"{photos} attached (shown below)", False))
+        fault.append(("Photos", f"{photos} attached", False))
     return [("Job", job), ("Site", site_rows), ("Machine", machine), ("Fault", fault)]
 
 
@@ -3621,17 +3622,12 @@ def _escalation_email_html(site: dict, eq: dict, doc: dict) -> str:
     band_bg = "#b91c1c" if is_urgent else "#1B1D1D"
     band_label = "MOD · URGENT" if is_urgent else "Pulse Fitness · MOD Service"
     band_fg = "#fff" if is_urgent else "#19CDFF"
-    steps = (doc.get('steps_taken') or '').strip()
-    steps_row = (
-        f'<tr><td style="padding:6px 0;color:#6E7476;vertical-align:top;">Steps taken on site</td>'
-        f'<td style="padding:6px 0;">{steps}</td></tr>'
-    ) if steps else ""
     return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
   {_classification_bar(site)}
   <div style="background:{band_bg};padding:20px 28px;{'' if is_urgent else 'border-bottom:3px solid #19CDFF;'}">
     <div style="font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;color:{band_fg};">{band_label}</div>
     <h1 style="margin:8px 0 0 0;font-size:22px;color:#fff;">{_e(doc['mod_ticket_ref'])} — {_e(site.get('name'))}</h1>
-    <div style="margin-top:6px;font-size:14px;color:#e5e7eb;">{_e(eq.get('name') or '')}{(' &middot; S/N ' + _e(eq.get('serial_number'))) if eq.get('serial_number') else ''}</div>
+    <div style="margin-top:6px;font-size:14px;color:#e5e7eb;">{_e(eq.get('name') or '')}{(' &middot; S/N ' + _e(eq.get('serial_number') or doc.get('serial_number'))) if (eq.get('serial_number') or doc.get('serial_number')) else ''}</div>
   </div>
   <div style="padding:22px 28px;">
     {_reporter_contact_block(doc, site)}
@@ -3647,11 +3643,11 @@ def _confirmation_email_html(site: dict, eq: dict, doc: dict) -> str:
   {_classification_bar(site)}
   <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service</div>
-    <h1 style="color:#fff;margin:8px 0 0 0;font-size:22px;">Fault logged — {doc['mod_ticket_ref']}</h1>
+    <h1 style="color:#fff;margin:8px 0 0 0;font-size:22px;">Fault logged — {_e(doc['mod_ticket_ref'])}</h1>
   </div>
   <div style="padding:22px 28px;">
-    <p>Thanks {doc.get('reporter_name','').split(' ')[0]} — we have your fault report for <strong>{eq.get('name')}</strong> at {site.get('name')}.</p>
-    <p style="color:#6E7476;font-size:13px;">Priority: <strong style="color:#1B1D1D;">{doc.get('priority','').upper()}</strong>. We'll be in touch on {doc.get('reporter_email')} or {doc.get('reporter_phone')} as the engineer is assigned.</p>
+    <p>Thanks {_e((doc.get('reporter_name') or '').split(' ')[0])} — we have your fault report for <strong>{_e(eq.get('name'))}</strong> at {_e(site.get('name'))}.</p>
+    <p style="color:#6E7476;font-size:13px;">Priority: <strong style="color:#1B1D1D;">{_e((doc.get('priority') or '').upper())}</strong>. We'll be in touch on {_e(doc.get('reporter_email'))} or {_e(doc.get('reporter_phone'))} as the engineer is assigned.</p>
   </div>
 </div>"""
 
@@ -3719,11 +3715,6 @@ def _supplier_fault_email_html(site: dict, eq: dict, doc: dict, supplier: dict, 
     supplier portal flow). Branded for MOD-as-Pulse."""
     contact = (supplier or {}).get("contact_name") or (supplier or {}).get("name", "Service Team")
     attachment_block = _inline_attachment_block(doc)
-    steps = (doc.get('steps_taken') or '').strip()
-    steps_row = (
-        f'<tr><td style="padding:6px 0;color:#6E7476;vertical-align:top;">Steps taken on site</td>'
-        f'<td style="padding:6px 0;">{steps}</td></tr>'
-    ) if steps else ""
     portal_cta = (
         f'<div style="margin:18px 0 6px 0;">'
         f'<a href="{portal_url}" style="display:inline-block;background:#19CDFF;color:#04121a;'
@@ -3737,7 +3728,7 @@ def _supplier_fault_email_html(site: dict, eq: dict, doc: dict, supplier: dict, 
   <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Supplier Notification</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{_e(doc['mod_ticket_ref'])} — {_e(site.get('name'))}</h1>
-    <div style="margin-top:6px;font-size:14px;color:#e5e7eb;">{_e(eq.get('name') or '')}{(' &middot; S/N ' + _e(eq.get('serial_number'))) if eq.get('serial_number') else ''}</div>
+    <div style="margin-top:6px;font-size:14px;color:#e5e7eb;">{_e(eq.get('name') or '')}{(' &middot; S/N ' + _e(eq.get('serial_number') or doc.get('serial_number'))) if (eq.get('serial_number') or doc.get('serial_number')) else ''}</div>
   </div>
   <div style="padding:22px 28px;">
     <p>Dear {_e(contact)},</p>
