@@ -118,8 +118,11 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  // through the authenticated MOD media endpoint; uploads keep download_url.
  const attachmentUrl = (att) => {
  if (att?.source === 'fault_photo' && att.storage_path) {
+ // Real sign-ins use the HttpOnly session cookie (sent automatically on
+ // same-site image loads); only append a JWT when one is actually held.
  const tk = localStorage.getItem('token') || '';
- return `${API}/mod/site/attachments/serve?path=${encodeURIComponent(att.storage_path)}&token=${encodeURIComponent(tk)}`;
+ const tokenQs = tk && tk !== 'cookie' ? `&token=${encodeURIComponent(tk)}` : '';
+ return `${API}/mod/site/attachments/serve?path=${encodeURIComponent(att.storage_path)}${tokenQs}`;
  }
  return att?.download_url || '';
  };

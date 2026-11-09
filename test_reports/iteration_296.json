@@ -1,0 +1,26 @@
+{
+  "summary": "Iteration 296, frontend only. Tested the attachments row polish in IssueDetailPanel at 390x844 and 1920x800. Seeded data with tests/_seed_fault_photos_295.py (seed + comments) and cleaned it up afterwards. No emails were sent. I logged in through the real MOD login UI as the TEST_295 site user. LAYOUT: PASS. At 390 the filename and uploader/date are stacked, and the meta is on the line below at both widths. 'Photo 1 (logged with fault)' and 'Photo 2 ...' show as 'Photo 1 (logged with fa…'. The name is 175px wide against 187px needed, so it is only lightly truncated, no longer 'Ph…'. The open icon sits 8px from the text at 390, with no overlap. The job sheet name is not truncated. At 1920 nothing is truncated. scrollWidth equals innerWidth at both widths. REGRESSION: PASS. 'Attachments (3)' shows, the merged Notified card renders, and both supplier messages render. NEW BUG (HIGH): when you log in through the real UI, both fault-photo thumbnails are broken (naturalWidth 0, the alt text 'Photo' shows) and the open link returns 401. iteration_295 most likely injected a raw JWT into localStorage, so this was missed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Fault detail: fault-photo thumbnail and open link (real UI login)", "issue": "The image URL is /api/mod/site/attachments/serve?path=...&token=cookie. Real UI logins use the HttpOnly cookie session and store the sentinel 'cookie' in localStorage.token. The serve endpoint only accepts the token query param, so it calls verify_token('cookie') and returns 401. Result: broken thumbnails, and the open link fails. Verified with curl: token=cookie gives 401 JSON, a real JWT gives 200 image/webp.", "affected_selectors": ["[data-testid^='issue-attachment-thumb-fault-photo-']", "[data-testid^='issue-attachment-open-fault-photo-']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/_seed_fault_photos_295.py", "/app/tests/ui_att_296.py"],
+  "action_items": [
+    "HIGH: Fix the fault-photo serving for cookie sessions. In backend routes/mod_portal.py mod_attachment_serve, make `token` optional and add `request: Request`. If the token is missing or equals 'cookie', read request.cookies.get(AUTH_COOKIE_NAME) from utils/auth. The cookie is SameSite=None; Secure, so it is sent on <img> loads and new-tab loads. Optionally, in IssueDetailPanel attachmentUrl, leave out &token= when localStorage.token === 'cookie'. The same pattern may affect other users of /mod/site/attachments/serve (for example the MOD portal media), so grep for it. Retest by logging in through the real UI, not by injecting a JWT.",
+    "Optional: at 390 the photo names still truncate by about 12px. Adding title={att.filename} to the name span would show the full name on hover or long-press."
+  ],
+  "critical_code_review_comments": [
+    "attachmentUrl (IssueDetailPanel.js:119-123) assumes localStorage.token is a JWT. With cookie auth it is 'cookie', so any img src built from it fails.",
+    "The layout change (flex-col min-w-0 wrapper, shrink-0 ml-2 p-1 open link) is correct."
+  ],
+  "updated_files": ["/app/tests/ui_att_296.py"],
+  "success_rate": {"backend": "skipped (frontend only)", "frontend": "Layout and regression 100%. Thumbnail loading fails with real cookie login (0/2)."},
+  "seed_data_creation": "Created with _seed_fault_photos_295.py seed + comments and removed with 'clean' (0 left).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "MOD login: /MODService. The email input is readonly until clicked, so click [data-testid=mod-login-email] and then type with the keyboard. The user lands on /pulse; then use lite-tab-faults (or mobile-nav-faults at 390) and issue-title-TEST_295_i_photos. Photo ids: fault-photo-0-3cc1d7d5e3 and fault-photo-1-4bbfb98c2c. Check naturalWidth > 0 after a real UI login."
+}

@@ -787,20 +787,28 @@ async def mod_attachment_upload(
 
 @router.get("/mod/site/attachments/serve")
 async def mod_attachment_serve(
+    request: Request,
     path: str = Query(..., description="Storage path returned from the upload endpoint"),
-    token: str = Query(..., description="JWT — browsers can't attach headers to <img>/<video> src"),
+    token: str = Query("", description="JWT — browsers can't attach headers to <img>/<video> src"),
 ):
     """Serve an uploaded attachment to `<img>` / `<video>` elements.
 
-    Auth goes via query-string because browsers strip Authorization headers
-    on image/video loads. The token is validated, then the path is checked
-    to confirm it lives inside the caller's MOD site folder — preventing a
-    logged-in user at site A from snooping attachments from site B.
+    Auth: a JWT in the query string (email links, header-less clients) OR the
+    signed-in HttpOnly session cookie (in-app thumbnails — real logins keep
+    only the placeholder "cookie" in localStorage, never the JWT). The path is
+    then checked to confirm the viewer may see it — preventing a logged-in
+    user at site A from snooping attachments from site B.
     """
-    payload = verify_token(token)
-    if not payload or payload.get("type") == "mfa_temp":
-        raise HTTPException(401, "Invalid token")
-    viewer = await db.users.find_one({"id": payload.get("user_id")}, {"_id": 0})
+    viewer = None
+    payload = verify_token(token) if token and token != "cookie" else None
+    if payload and payload.get("type") != "mfa_temp":
+        viewer = await db.users.find_one({"id": payload.get("user_id")}, {"_id": 0})
+    if not viewer:
+        from utils.auth import try_get_current_user
+        try:
+            viewer = await try_get_current_user(request)
+        except Exception:
+            viewer = None
     if not viewer:
         raise HTTPException(401, "Invalid token")
 
