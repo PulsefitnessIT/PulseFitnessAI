@@ -818,11 +818,13 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  ) : (
  <FileText size={14} className="text-[var(--color-brand-blue)] shrink-0" />
  )}
- <span className="text-[var(--theme-text)] text-sm truncate">{att.filename}</span>
- <span className="text-[var(--color-text-muted)] text-xs shrink-0">{att.uploaded_by} - {att.uploaded_at ? new Date(att.uploaded_at).toLocaleDateString() : ''}</span>
+ <div className="min-w-0 flex flex-col">
+ <span className="text-[var(--theme-text)] text-sm truncate" data-testid={`issue-attachment-name-${att.id}`}>{att.filename}</span>
+ <span className="text-[var(--color-text-muted)] text-xs truncate">{att.uploaded_by} - {att.uploaded_at ? new Date(att.uploaded_at).toLocaleDateString() : ''}</span>
+ </div>
  </div>
  {attachmentUrl(att) && (
- <a href={attachmentUrl(att)} target="_blank" rel="noreferrer" className="text-[var(--color-brand-blue)] hover:text-[var(--color-brand-blue-alt)] shrink-0" data-testid={`issue-attachment-open-${att.id}`}>
+ <a href={attachmentUrl(att)} target="_blank" rel="noreferrer" className="text-[var(--color-brand-blue)] hover:text-[var(--color-brand-blue-alt)] shrink-0 ml-2 p-1" data-testid={`issue-attachment-open-${att.id}`}>
  <ExternalLink size={14} />
  </a>
  )}

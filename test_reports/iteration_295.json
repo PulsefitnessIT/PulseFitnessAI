@@ -1,0 +1,33 @@
+{
+  "summary": "Iteration 295. Tested the MOD fault-photo back-fill, scoped photo serving, removal of '.ai' from MOD emails, the delivery-status follow-ups, MOD logout, and the bigger Edit/Delete buttons on site messages. No real emails were sent: resend.Emails.send/get were mocked. Backend: 13/13 new pytest pass; 1 is skipped as out of scope. GET /api/issues/{id} merges 2 real stored webp files as source=fault_photo items, with storage_path, image/webp and 'Photo N (logged with fault)'. The ids stay the same across calls, the existing job sheet is kept, a path already in attachments is not duplicated, and nothing is written to the DB. The serve endpoint returns: 200 with image bytes for the site user and master admin, 403 for another org's user, 400 for a path outside mod-attachments or with '..', 401 for a bad token. sanitize_ai passes its unit test. send_email for the MOD org (resend mocked) has no pulsefitness.ai or gymaxis.ai in html or subject. Its footer shows 'Pulse Fitness MOD Service' and MODService@pulsefitness.com; from and reply_to are modservice@modservice.pulsefitness.com. The commercial org footer is unchanged ('Pulse Fitness AI', support@pulsefitness.ai). _send_comment_notification for a mod_site case has no '.ai'. delivery-status: 4 lookups that each sleep 2s finished in 2.0s (parallel). A recipient appended during the lookups was kept and the other 4 were saved as delivered (array_filters works). A supplier in auto_dispatch_delivered_to with no message id shows 'pending'. Iteration 294 regression: 16/17 pass. The one failure is test_mod_statuses_and_real_delivered, which needs the real 'send' seed step that was skipped on purpose. Frontend: the MOD site user's fault shows 'Attachments (3)' (2 photos plus the seeded job sheet). Both thumbnails load (naturalWidth 40) and each has an open link that returns 200 image/webp. The job sheet download_url opens in a new tab. There is no horizontal overflow at 1920 or 390. Logout as the Jimmy engineer (/auth/me account_type 'full', role engineer) and as the MOD site user both land on /MODService with no email= and an empty field, and the toast shows only once. Edit/Delete buttons are 28px tall at 12px text; edit, save ('edited') and delete (native confirm) all work. Backend health returns 200.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/issues/{id}", "issue": "The master admin gets 404 for a fault in an org that is not their active org. This is the existing org scoping, not new to this change, so the test is skipped. The master admin can still load the photo bytes through /mod/site/attachments/serve."},
+      {"endpoint": "GET /api/issues/{id}/delivery-status", "issue": "array_filters matches on exact email. If one address is listed twice (for example as both pulse and supplier), both entries get the status of whichever was written last. Edge case."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "IssueDetailPanel Attachments at 390px", "issues": ["The photo row filename shrinks to 'Ph…' because the uploader and date text ('TEST Site User - 11/9/2026') takes the row width. The date also touches the open icon. Suggest putting the meta on a second line under the filename on mobile, or hiding it."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mod_fault_photos_email_ai_295.py", "/app/backend/tests/_seed_fault_photos_295.py", "/app/test_reports/pytest/pytest_295.xml"],
+  "action_items": [
+    "Optional (mobile polish): stack the attachment meta under the filename at 390px so 'Photo 1 (logged with fault)' is readable",
+    "Optional (security): the open link puts the session JWT in a new tab's URL, where it lands in browser history. Consider a short-lived signed media token instead of the main JWT"
+  ],
+  "critical_code_review_comments": [
+    "mod_attachment_serve: a site-locked user (allowed_site_ids) can load any photo in their org's folder, because only the org prefix is checked and not the site. Low risk.",
+    "_merge_fault_photos: an id comes from the photo's position in attachment_urls plus an md5 of its path. Ids stay stable while the list is unchanged. If photos are removed or reordered, ids shift, but this only affects React keys.",
+    "The serve token is passed in the query string (the main JWT), so it appears in access logs and history. This pattern already existed."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_fault_photos_email_ai_295.py", "/app/backend/tests/_seed_fault_photos_295.py"],
+  "success_rate": {"backend": "100% (13/13 new pass, 1 skipped as out of scope; iteration 294 suite 16/17, the 1 failure needs a real email by design)", "frontend": "100%"},
+  "seed_data_creation": "TEST_295_* orgs, users, issues, supplier case and comments in test_database. All removed with 'python tests/_seed_fault_photos_295.py clean', along with the email_send_events rows from the mocked sends. The 2 stored objects gymaxis-ai/mod-attachments/TEST_295_modorg/TEST_295_photo{1,2}.webp are still in storage because there is no delete helper. The iteration 294 seed was also cleaned.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Seed with 'python tests/_seed_fault_photos_295.py seed' (plus 'comments' for the edit/delete rows), then run 'pytest tests/test_mod_fault_photos_email_ai_295.py -p no:xdist'. Afterwards run 'clean'. Don't run the iteration 294 suite at the same time: its real-delivered test sleeps about 250s and blocks. Browser API logins get rate limited (429) after a few in a row; wait about 90s. Site user: test_295_siteuser@example.test / TestPhoto295#2026 (portal=mod). Open the fault at /pulse?tab=faults, then issue-title-TEST_295_i_photos."
+}
