@@ -1,0 +1,32 @@
+{
+  "summary": "Focused re-test of the cookie-session fallback for GET /api/mod/site/attachments/serve. Backend: 12/12 pytest pass. JWT query -> 200; cookie only -> 200; token=cookie + cookie -> 200; bad token + cookie -> 200; no token/no cookie -> 401; token=cookie with no cookie -> 401; other-org cookie and other-org JWT -> 403; path outside mod-attachments or with '..' -> 400; missing file -> 404. UI with a real MOD login form (localStorage.token === 'cookie'): both thumbnails issue-attachment-thumb-fault-photo-0/1 load (naturalWidth 40, the real size of the seeded image), the src has no token param, both issue-attachment-open-* links return 200 image/webp, and opening one in a new tab also returns 200 image/webp. The MODSiteDashboard viewerUrl pattern (&token=cookie) loads in the browser (200, naturalWidth 40). At 390px: no horizontal overflow (scrollWidth 390), open icons sit inside their rows, names truncate with an ellipsis and the meta line sits below them, the same as in iteration_296. The iteration_296 401 bug is fixed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/mod/site/attachments/serve", "issue": "The ?token= JWT path calls verify_token only. It does not check is_jwt_revoked or that the user is active. Reproduced: after POST /api/auth/logout, the same JWT used as ?token= still returns 200, while the same value sent as a cookie returns 401. This was already the case before this fix. Suggest checking is_jwt_revoked(payload['jti']) and user.active in the query-token branch."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_mod_attachment_serve_297.py", "/app/test_reports/pytest/pytest_297.xml"],
+  "action_items": [
+    "(Minor, security hardening) Add the revocation and active-user check to the ?token= branch of mod_attachment_serve",
+    "(Info) MODSiteDashboard is only lazily imported as _MODSiteDashboard in routes/AppRoutes.js and is not mounted on any route, so FaultCard viewerUrl cannot be reached in the UI. Its URL pattern (token=cookie) was checked by building the URL in the browser instead. Either remove the dead page or route it."
+  ],
+  "critical_code_review_comments": [
+    "mod_attachment_serve: the query-JWT branch skips revocation (is_jwt_revoked) and active checks, so a logged-out JWT still works until it expires",
+    "The auth check (401) runs before the path check (400), so an anonymous request with a bad path gets 401. That is acceptable.",
+    "MODSiteDashboard.viewerUrl still appends &token=<localStorage token> (='cookie'). It works because of the backend fallback, but it would be cleaner to match IssueDetailPanel and drop the param when the token is 'cookie'.",
+    "The seed's clean() removes DB rows but not the two stored TEST_295_photo*.webp objects in object storage. They are harmless, but they are left behind."
+  ],
+  "updated_files": ["/app/backend/tests/test_mod_attachment_serve_297.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100%"},
+  "seed_data_creation": "Ran backend/tests/_seed_fault_photos_295.py seed before testing and clean afterwards (0 TEST_295 users/orgs/issues left). No emails sent.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "/api/auth/login needs portal:'mod' for MOD users and is rate-limited (~a few attempts/min, returns 'Too many requests'). To run the regression: seed, then export REACT_APP_BACKEND_URL and run pytest tests/test_mod_attachment_serve_297.py, then clean. In the UI login, localStorage.token is 'cookie'. The thumbnail src has no token param and loads via the ga_session cookie.",
+  "rca of the issue": "iteration_296: real logins keep only the 'cookie' sentinel, so the serve endpoint got token=cookie and returned 401. Fix verified: the endpoint now falls back to try_get_current_user (cookie) when the token is missing or 'cookie'."
+}
