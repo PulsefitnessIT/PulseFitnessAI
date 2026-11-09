@@ -56,3 +56,16 @@ export function faultMetaLine(issue = {}, dateText = '') {
 }
 
 export default faultTitle;
+
+/**
+ * Was the supplier's "new fault" email actually accepted by the provider?
+ * New faults record `auto_dispatch_delivered_to`; older faults (no record)
+ * keep the previous behaviour and count as delivered.
+ */
+export function supplierEmailDelivered(issue = {}) {
+  const delivered = issue.auto_dispatch_delivered_to;
+  if (!Array.isArray(delivered)) return true;
+  const to = clean(issue.supplier_case?.supplier_email || issue.auto_dispatched_supplier_email).toLowerCase();
+  if (!to) return true;
+  return delivered.map((e) => clean(e).toLowerCase()).includes(to);
+}

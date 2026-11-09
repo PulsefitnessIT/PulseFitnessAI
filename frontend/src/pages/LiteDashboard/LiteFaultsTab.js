@@ -12,7 +12,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import PartsRequestsPage from '../PartsRequests/PartsRequestsPage';
 import { groupIssuesByJob } from './groupIssuesByJob';
-import { faultTitle, faultMetaLine } from '@/utils/faultTitle';
+import { faultTitle, faultMetaLine, supplierEmailDelivered } from '@/utils/faultTitle';
 import ScrollFadeBar from '@/components/shared/ScrollFadeBar';
 import QueuedFaultsList from '@/components/shared/QueuedFaultsList';
 
@@ -52,11 +52,15 @@ const LiteFaultsTab = ({
               <h3 className={`font-semibold text-white ${opts.nested ? 'text-base' : 'text-lg'}`} data-testid={`issue-title-${issue.id}`}>{faultTitle(issue).title}</h3>
               <Badge className={getSeverityStyle(issue.severity)} data-testid={`issue-severity-${issue.id}`}>{getSeverityLabel(issue.severity)}</Badge>
               <Badge className={getStatusColor(issue.status)} data-testid={`issue-status-${issue.id}`}>{t(`status.${issue.status}`, issue.status === 'in_progress' ? 'In Progress' : (issue.status?.charAt(0).toUpperCase() + issue.status?.slice(1)))}</Badge>
-              {issue.supplier_case?.supplier_name && (
+              {issue.supplier_case?.supplier_name && (supplierEmailDelivered(issue) ? (
                 <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1" data-testid={`issue-supplier-sent-${issue.id}`} title={`Fault sent to ${issue.supplier_case.supplier_name}${issue.supplier_case.supplier_email ? ` (${issue.supplier_case.supplier_email})` : ''}`}>
                   <CheckCircle size={11} /> {t('faults.sent_to', 'Sent to')} {issue.supplier_case.supplier_name}
                 </Badge>
-              )}
+              ) : (
+                <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 inline-flex items-center gap-1" data-testid={`issue-supplier-undelivered-${issue.id}`} title={`The email to ${issue.supplier_case.supplier_email || issue.supplier_case.supplier_name} was not delivered. Master Admin → Email log can resend it; the supplier card link below still works.`}>
+                  <AlertTriangle size={11} /> Email to {issue.supplier_case.supplier_name} not delivered
+                </Badge>
+              ))}
             </div>
             {faultTitle(issue).subtitle && (
               <p className="text-xs font-mono text-[var(--color-text-secondary,var(--color-text-muted))] mb-1.5" data-testid={`issue-serial-${issue.id}`}>{faultTitle(issue).subtitle}</p>

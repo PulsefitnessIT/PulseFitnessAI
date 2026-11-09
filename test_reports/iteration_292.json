@@ -1,0 +1,23 @@
+{
+  "summary": "Focused retest of the faultMetaLine fix (machine_type is dropped when it equals the title, ignoring case, or when the title came from the type). (1) The iteration_291 node harness passed 612/612, including the 600-combo check for no leading, trailing or double ' | '. (2) New harness tests/fault_title_unit_292.mjs passed 9/9. Model 'Treadmill' + type 'Treadmill' gives 'd'. Technogym SKILLMILL/Treadmill/Inda gives 'Treadmill | Inda | d'. Case-insensitive and whitespace variants, a name equal to the type, and make+model 'Life Treadmill' (which keeps the type) all behave correctly. (3) UI at 390 on /pulse (pulse_pro) and /dashboard (gym) with seeded TEST_ui292 data: 6 cards each showed the right title, small line and meta line. The new edge case (i6) shows title 'Treadmill', 'S/N SN-TM-0006' and meta 'Inda | <date>' with no repeated Treadmill. scrollWidth == innerWidth (390). No email was sent. All TEST_ui292 rows were removed by id, and a count shows 0 left.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard header at 390 (gym)", "issues": ["Already there before this change: a long org name wraps onto 3 lines next to the logo in the header."]}
+    ]
+  },
+  "test_report_links": ["/app/tests/fault_title_unit.mjs", "/app/tests/fault_title_unit_292.mjs", "/app/backend/tests/_seed_fault_title_ui_292.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "faultMetaLine compares only issue.machine_type, but faultTitle falls back to machine_type || equipment_type. This is fine, because the meta line only ever shows machine_type.",
+    "Minor (carried over): faultTitle is called several times per card. It could be computed once and reused."
+  ],
+  "updated_files": ["/app/tests/fault_title_unit_292.mjs", "/app/backend/tests/_seed_fault_title_ui_292.py"],
+  "success_rate": {"backend": "skipped (unchanged)", "frontend": "100%"},
+  "seed_data_creation": "_seed_fault_title_ui_292.py seed|clean creates TEST_ui292_pro and TEST_ui292_gym, each with 4 equipment, 6 issues and 1 supplier_case. Login is test_ui292_<pro|gym>@example.test / TestUiFault#2026. Cleaned by id; 0 left.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Unit: cp frontend/src/utils/faultTitle.js /tmp/faultTitle.mjs && node /app/tests/fault_title_unit.mjs && node /app/tests/fault_title_unit_292.mjs. UI: seed with _seed_fault_title_ui_292.py, log in through the API with the X-RateLimit-Bypass header, set localStorage 'token', then open /pulse?tab=faults or /dashboard and click mobile-pill-issues / tab-issues. Read meta text from [data-testid^=issue-meta-]."
+}

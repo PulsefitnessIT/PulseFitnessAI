@@ -3,14 +3,14 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, Calendar, ExternalLink, ChevronDown, ChevronRight, CheckCircle, Layers, Package } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Calendar, ExternalLink, ChevronDown, ChevronRight, CheckCircle, Layers, Package } from 'lucide-react';
 import IssueDetailPanel from '../IssueDetailPanel';
 import PPMSubTab from '../PPMSubTab';
 import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import PartsRequestsPage from '../PartsRequests/PartsRequestsPage';
 import { groupIssuesByJob } from '../LiteDashboard/groupIssuesByJob';
-import { faultTitle, faultMetaLine } from '@/utils/faultTitle';
+import { faultTitle, faultMetaLine, supplierEmailDelivered } from '@/utils/faultTitle';
 
 const STATUS_BORDER_COLOR = {
  open: 'var(--color-danger)',
@@ -41,11 +41,15 @@ const FaultsTab = ({
              <Badge className={getStatusColor(issue.status)} data-testid={`issue-status-${issue.id}`}>{issue.status === 'in_progress' ? t('faults.in_progress') : t(`faults.${issue.status}`)}</Badge>
              {issue.resolved_by === 'gymaxis_ai' && <Badge className="bg-green-500/20 text-green-400">{t('faults.ai_fixed')}</Badge>}
              {issue.resolved_by === 'engineer' && <Badge className="bg-orange-500/20 text-orange-400">{t('faults.engineer_flag')}</Badge>}
-            {issue.supplier_case?.supplier_name && (
+            {issue.supplier_case?.supplier_name && (supplierEmailDelivered(issue) ? (
               <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1" data-testid={`issue-supplier-sent-${issue.id}`} title={`Fault sent to ${issue.supplier_case.supplier_name}${issue.supplier_case.supplier_email ? ` (${issue.supplier_case.supplier_email})` : ''}`}>
                 <CheckCircle size={11} /> Sent to {issue.supplier_case.supplier_name}
               </Badge>
-            )}
+            ) : (
+              <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 inline-flex items-center gap-1" data-testid={`issue-supplier-undelivered-${issue.id}`} title={`The email to ${issue.supplier_case.supplier_email || issue.supplier_case.supplier_name} was not delivered. Master Admin → Email log can resend it; the supplier card link below still works.`}>
+                <AlertTriangle size={11} /> Email to {issue.supplier_case.supplier_name} not delivered
+              </Badge>
+            ))}
            </div>
            {faultTitle(issue).subtitle && (
              <p className="text-xs font-mono text-[var(--color-text-secondary,var(--color-text-muted))] mb-1.5" data-testid={`issue-serial-${issue.id}`}>{faultTitle(issue).subtitle}</p>
