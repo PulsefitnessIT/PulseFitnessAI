@@ -1327,11 +1327,14 @@ async def get_issues(user: dict = Depends(get_current_user), site_id: str = None
     issues = await db.issues.find(org_filter, {"_id": 0}).sort("created_at", -1).to_list(1000)
 
     await _batch_enrich_supplier_cases(issues)
-    await _batch_enrich_equipment(issues)
 
     for issue in issues:
         if 'serial_number' not in issue and 'machine_name' in issue:
             issue['serial_number'] = issue['machine_name']
+    # After the legacy machine_name → serial backfill so old rows match too.
+    await _batch_enrich_equipment(issues)
+
+    for issue in issues:
         _parse_ai_triage(issue)
 
     return {"issues": issues}

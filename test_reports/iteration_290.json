@@ -1,0 +1,43 @@
+{
+  "summary": "Tested the fault card title change (make + model, with the serial underneath) and the MOD email fixes A, B and C. Backend: 16 of 16 pytest tests pass. They hit the real API for the equipment enrichment and run the email code in-process with resend.Emails.send and utils.email.send_email mocked, so no real email was sent. Frontend: checked LiteFaultsTab (/pulse, pulse_pro org) and the full Dashboard FaultsTab (/dashboard, gym org) at 1920 and 390 wide. Titles, the S/N line, every fallback, the meta line, the 'Sent to Inda Fitness' badge and the 'View supplier card' link all render correctly. There is no horizontal overflow at 390 (scrollWidth == innerWidth). /api/health returns 200 and the backend log has no new tracebacks.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/issues", "issue": "_batch_enrich_equipment runs before the legacy machine_name -> serial_number backfill in get_issues. Old issues that only have machine_name are never matched to their equipment and keep the old title."},
+      {"endpoint": "_send_mod_fault_notifications", "issue": "Checks org account_type == 'mod_site' exactly, but _is_mod_case uses startswith('mod'). The two MOD checks disagree (e.g. for mod_hq). Not a regression, just inconsistent."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "LiteFaultsTab / FaultsTab meta line", "issue": "A stray leading ' | ' still appears when machine_type is empty (or is the title) and issue.supplier is set. The supplier fragment adds its own ' | ' prefix, which renders ' | Supplier | date'. Found by code review; my seeded data had no issue.supplier so it was not rendered in the UI.", "selector": "[data-testid^=issue-card-] p.text-sm", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Fault cards (light theme)", "issues": ["The S/N line is 12px monospace grey on white: readable, but low contrast."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_fault_title_and_mod_email_fix.py",
+    "/app/backend/tests/_seed_fault_title_ui.py",
+    "/app/test_reports/pytest/pytest_fault_title_mod_email.xml"
+  ],
+  "action_items": [
+    "Optional: in get_issues, run the machine_name -> serial_number backfill before _batch_enrich_equipment",
+    "Optional: fix the meta line so it has no leading ' | ' when only issue.supplier is present (build the parts as an array and join with ' | ')",
+    "Optional: use the same MOD check in _send_mod_fault_notifications as in _is_mod_case (startswith('mod'))"
+  ],
+  "critical_code_review_comments": [
+    "Title enrichment: the serial and name match is scoped by organization_id (verified: an org-B serial does not leak onto an org-A issue). The coverage_meta.equipment_id lookup is not org-scoped. That is acceptable because ids are UUIDs, but adding organization_id to that clause would harden it.",
+    "_send_comment_notification calls resend directly and bypasses send_email, so the per-recipient validation and rate limiting are skipped. That was already the case before this change; the new email_send_events rows now make these sends visible.",
+    "_deliver in _send_mod_fault_notifications captures subject and html before they are defined. It works because Python closures look names up late, but it is fragile."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_fault_title_and_mod_email_fix.py",
+    "/app/backend/tests/_seed_fault_title_ui.py"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100% of the requested checks"},
+  "seed_data_creation": "pytest seeds TEST_<run> orgs, users, equipment, issues and suppliers in test_database and deletes them by id at module teardown, along with email_send_events rows for its own example.test addresses. UI seed: tests/_seed_fault_title_ui.py seed|clean creates TEST_ui_org_pro / TEST_ui_org_gym (user test_ui_org_<x>@example.test / TestUiFault#2026). It has been cleaned. One earlier failed run (event-loop error) left 8 TEST_ orgs and 1 TEST_ supplier; I deleted them by their exact ids.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_fault_title_and_mod_email_fix.py -p no:xdist. Its async helper reuses the thread-default event loop; a fresh loop breaks the motor client. All sends are mocked. For UI tests, get a token with the X-RateLimit-Bypass header (RATE_LIMIT_BYPASS_SECRET in backend/.env), because the login IP limit trips quickly. Then set localStorage 'token' and go to /pulse?tab=faults (pulse_pro) or /dashboard, then click tab-issues (desktop) or mobile-pill-issues (mobile)."
+}

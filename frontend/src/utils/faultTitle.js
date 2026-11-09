@@ -4,30 +4,53 @@
  *
  * Make/model come from the linked equipment record (GET /api/issues adds
  * equipment_make / equipment_model / equipment_name / equipment_type).
- * Fallbacks: equipment name → machine type → serial → generic label.
+ * Fallbacks: make + name → equipment name → machine type → serial.
  */
-export function faultTitle(issue = {}) {
-  const serial = (issue.serial_number || '').trim();
-  const make = (issue.equipment_make || '').trim();
-  const model = (issue.equipment_model || '').trim();
-  // Avoid "Life Fitness Life Fitness 95T" when the model already names the make.
-  const makeModel = make && model && model.toLowerCase().startsWith(make.toLowerCase())
-    ? model
-    : [make, model].filter(Boolean).join(' ');
-  const name = (issue.equipment_name || '').trim();
-  const type = (issue.machine_type || issue.equipment_type || '').trim();
+const clean = (v) => (v == null ? '' : String(v).trim());
 
-  const title = makeModel
-    || (name && name !== serial ? name : '')
+export function faultTitle(issue = {}) {
+  const serial = clean(issue.serial_number);
+  const make = clean(issue.equipment_make);
+  let model = clean(issue.equipment_model);
+  const name = clean(issue.equipment_name);
+  const type = clean(issue.machine_type || issue.equipment_type);
+
+  // Imported asset lists sometimes put the first chars of the serial in the
+  // model column (e.g. model "MNLPNN0" for serial MNLPNN020100194) — that's
+  // not a model, so describe the machine by its name instead.
+  if (model && serial && serial.toLowerCase().startsWith(model.toLowerCase())) model = '';
+  const usefulName = name && name !== serial ? name : '';
+
+  const join = (a, b) => (a && b && b.toLowerCase().startsWith(a.toLowerCase()) ? b : [a, b].filter(Boolean).join(' '));
+  const title = (model && join(make, model))
+    || (usefulName && join(make, usefulName))
     || type
     || serial
     || 'Equipment';
+
+  // Small line under the title: machine name (when not already shown) + serial.
+  const nameInTitle = usefulName && title.toLowerCase().includes(usefulName.toLowerCase());
+  const subtitleParts = [];
+  if (usefulName && !nameInTitle && title !== usefulName) subtitleParts.push(usefulName);
+  if (serial && serial !== title) subtitleParts.push(`S/N ${serial}`);
+
   return {
     title,
     serial: serial && serial !== title ? serial : '',
-    // The grey meta line already shows machine_type — skip it if it's the title.
-    titleIsType: !makeModel && !(name && name !== serial) && !!type && title === type,
+    subtitle: subtitleParts.join(' · '),
+    titleIsType: !model && !usefulName && !!type && title === type,
   };
+}
+
+/** Grey meta line: machine type (unless it's the title) | supplier | date | ref. */
+export function faultMetaLine(issue = {}, dateText = '') {
+  const { titleIsType } = faultTitle(issue);
+  return [
+    titleIsType ? '' : clean(issue.machine_type),
+    clean(issue.supplier),
+    dateText,
+    issue.supplier_ref ? `Ref: ${issue.supplier_ref}` : '',
+  ].filter(Boolean).join(' | ');
 }
 
 export default faultTitle;

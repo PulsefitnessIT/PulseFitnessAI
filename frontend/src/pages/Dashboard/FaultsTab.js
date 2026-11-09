@@ -10,7 +10,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import EmptyState from '@/components/shared/EmptyState';
 import PartsRequestsPage from '../PartsRequests/PartsRequestsPage';
 import { groupIssuesByJob } from '../LiteDashboard/groupIssuesByJob';
-import { faultTitle } from '@/utils/faultTitle';
+import { faultTitle, faultMetaLine } from '@/utils/faultTitle';
 
 const STATUS_BORDER_COLOR = {
  open: 'var(--color-danger)',
@@ -47,10 +47,10 @@ const FaultsTab = ({
               </Badge>
             )}
            </div>
-           {faultTitle(issue).serial && (
-             <p className="text-xs font-mono text-[var(--color-text-muted)] mb-1.5" data-testid={`issue-serial-${issue.id}`}>S/N {faultTitle(issue).serial}</p>
+           {faultTitle(issue).subtitle && (
+             <p className="text-xs font-mono text-[var(--color-text-secondary,var(--color-text-muted))] mb-1.5" data-testid={`issue-serial-${issue.id}`}>{faultTitle(issue).subtitle}</p>
            )}
-           <p className="text-[var(--color-text-muted)] text-sm">{faultTitle(issue).titleIsType ? '' : issue.machine_type}{issue.supplier ? ` | ${issue.supplier}` : ''}{(!faultTitle(issue).titleIsType && issue.machine_type) || issue.supplier ? ' | ' : ''}{new Date(issue.created_at).toLocaleDateString()}{issue.supplier_ref ? ` | Ref: ${issue.supplier_ref}` : ''}</p>
+           <p className="text-[var(--color-text-muted)] text-sm" data-testid={`issue-meta-${issue.id}`}>{faultMetaLine(issue, issue.created_at ? new Date(issue.created_at).toLocaleDateString() : '')}</p>
            <p className="text-white text-sm mt-1">{issue.issue_description.substring(0, 100)}{issue.issue_description.length > 100 ? '...' : ''}</p>
            {issue.sicon_case_id && (
              <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px]" data-testid={`job-card-summary-${issue.id}`}>
