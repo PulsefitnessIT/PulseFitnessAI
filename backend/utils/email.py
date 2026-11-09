@@ -144,12 +144,10 @@ def _header_html(brand: dict, accent: str = "#19CDFF") -> str:
             f'vertical-align:middle;border:0;" /></span>'
         )
     elif gym_name:
-        initial = gym_name[:1].upper() or "P"
+        # Name only (no initial chip): Outlook renders an inline-block <div>
+        # as a full-width bar, which showed as a wide "B" block in MOD emails.
         left_block = (
-            f'<div style="display:inline-block;width:38px;height:38px;border-radius:8px;'
-            f'background:{accent};color:#0A0A0A;line-height:38px;text-align:center;font-weight:800;'
-            f'font-size:18px;font-family:Arial,sans-serif;vertical-align:middle;">{initial}</div>'
-            f'<span style="margin-left:10px;color:#ffffff;font-weight:700;font-size:15px;'
+            f'<span style="color:#ffffff;font-weight:700;font-size:16px;'
             f'font-family:Arial,sans-serif;vertical-align:middle;">{gym_name}</span>'
         )
     else:

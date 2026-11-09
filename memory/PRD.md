@@ -39278,3 +39278,8 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - package.json: start keeps NODE_OPTIONS 4096; build = craco build && node modservice/postbuild.js
 - Skipped 176 test files whose only change was the preview URL
 - Verified: MOD build (REACT_APP_PORTAL_MODE=modservice) passes the zero-.ai postbuild check; new MOD backend tests pass (test_mod_esp_engineer_jimmy::test_root_html_clean only passes on a MOD-mode deployment)
+
+## 2026-11-09 — Pulled MODService 427ce80 (MOD fault emails carry full job details)
+- Merged routes/mod_portal.py + utils/email.py; added tests iter301/iter302 (33/33 pass)
+- Fixed iter302 open item: whitespace-only serial no longer shows blank "S/N" (helper _eq_serial)
+- WORKFLOW (user choice): ALL changes are made in THIS workspace. Save to GitHub → main and MODService branches. MOD deployment = fresh job from MODService branch with REACT_APP_PORTAL_MODE=modservice, redeploy. Stop editing in the MOD workspace.
