@@ -151,3 +151,16 @@ class TestServeRevocation298:
             assert r.status_code == 401, f"active=False still served: {r.status_code}"
         finally:
             _db.users.update_one({"id": "TEST_295_siteuser"}, {"$set": {"active": True}})
+
+        assert requests.get(SERVE, params={"path": P1, "token": tok}).status_code == 200
+
+    # iter 299: disabled flag (master_admin_users) must also reject ?token=
+    def test_disabled_true_query_401(self, site):
+        tok = _jwt(*site)
+        _db.users.update_one({"id": "TEST_295_siteuser"}, {"$set": {"disabled": True}})
+        try:
+            r = requests.get(SERVE, params={"path": P1, "token": tok})
+            assert r.status_code == 401, f"disabled=True still served: {r.status_code}"
+        finally:
+            _db.users.update_one({"id": "TEST_295_siteuser"}, {"$unset": {"disabled": ""}})
+        assert requests.get(SERVE, params={"path": P1, "token": tok}).status_code == 200

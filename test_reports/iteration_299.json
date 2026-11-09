@@ -1,0 +1,21 @@
+{
+  "summary": "Follow-up to iteration_298. The fix is NOT in the code. mod_portal.py mod_attachment_serve L808 still reads only `if viewer and viewer.get(\"is_active\") is False`. git shows no change to routes/mod_portal.py. pytest: 15/17 pass. is_active:false -> 401, and 200 again once the flag is removed (PASS). active:false -> 200 (FAIL, expected 401). disabled:true -> 200 (FAIL, expected 401). All 15 cases from iteration 297/298 still pass.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/mod/site/attachments/serve (?token= branch)", "issue": "A user deactivated with active:false or disabled:true can still fetch attachments with their JWT as ?token= (200). The fix described in the request was never saved to routes/mod_portal.py: line 808 is unchanged.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_mod_attachment_serve_297.py", "/app/test_reports/pytest/pytest_299.xml"],
+  "action_items": [
+    "routes/mod_portal.py L808: change the check to `if viewer and (viewer.get('active') is False or viewer.get('is_active') is False or viewer.get('disabled')): viewer = None`, then re-run tests/test_mod_attachment_serve_297.py."
+  ],
+  "critical_code_review_comments": ["The edit appears not to have been saved or applied. Confirm that the file on disk contains the change before asking for a retest."],
+  "updated_files": ["/app/backend/tests/test_mod_attachment_serve_297.py (added test_disabled_true_query_401)"],
+  "success_rate": {"backend": "88% (15/17; new requested cases 1/3)", "frontend": "skipped"},
+  "seed_data_creation": "Ran tests/_seed_fault_photos_295.py seed, then clean afterwards (0 left). Flags were changed only on TEST_295_siteuser and restored in finally blocks. No emails sent.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Steps: seed, export REACT_APP_BACKEND_URL from frontend/.env, run pytest tests/test_mod_attachment_serve_297.py -p no:xdist -o addopts='', then clean. test_active_false_query_401 and test_disabled_true_query_401 should pass once L808 is fixed."
+}

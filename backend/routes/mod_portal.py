@@ -805,7 +805,8 @@ async def mod_attachment_serve(
         from utils.security_plus import is_jwt_revoked
         if not await is_jwt_revoked(payload.get("jti")):
             viewer = await db.users.find_one({"id": payload.get("user_id")}, {"_id": 0})
-            if viewer and viewer.get("is_active") is False:
+            if viewer and (viewer.get("active") is False or viewer.get("is_active") is False
+                           or viewer.get("disabled")):
                 viewer = None
     if not viewer:
         from utils.auth import try_get_current_user
