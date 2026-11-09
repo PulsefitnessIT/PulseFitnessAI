@@ -89,16 +89,16 @@ export default function GymCommentBody({ comment: c, caseToken, API, user, onCha
       {c.message && <p className="text-sm leading-relaxed" style={{ color: '#fff' }} data-testid={`gym-comment-text-${c.id}`}>{c.message}</p>}
       {(c.edited_at || editable) && (
         <div className="flex items-center gap-2 mt-1">
-          {c.edited_at && <span className="text-[9px] italic" style={{ color: 'rgba(255,255,255,0.65)' }} data-testid={`gym-comment-edited-${c.id}`}>edited</span>}
+          {c.edited_at && <span className="text-[11px] italic" style={{ color: 'rgba(255,255,255,0.85)' }} data-testid={`gym-comment-edited-${c.id}`}>edited</span>}
           {editable && (
             <>
               <button type="button" disabled={busy} onClick={() => { setDraft(c.message || ''); setEditing(true); }}
-                className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-white/15 hover:bg-white/25"
+                className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 min-h-[28px] rounded-md bg-white/25 hover:bg-white/35"
                 data-testid={`gym-comment-edit-${c.id}`} title="Edit (available for 15 minutes after sending)">
                 <Pencil size={10} /> Edit
               </button>
               <button type="button" disabled={busy} onClick={remove}
-                className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-white/15 hover:bg-white/25"
+                className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 min-h-[28px] rounded-md bg-white/25 hover:bg-white/35"
                 data-testid={`gym-comment-delete-${c.id}`} title="Delete (available for 15 minutes after sending)">
                 <Trash2 size={10} /> Delete
               </button>

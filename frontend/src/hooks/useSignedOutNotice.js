@@ -10,6 +10,10 @@ import { notify } from '@/components/notifications';
  * "Signed out successfully" toast and strips the flag so a refresh won't
  * re-toast. Returns `prefillEmail` from `?email=` to pre-fill the login form.
  */
+// Guards against the toast firing twice (StrictMode double effects /
+// two mounts during the sign-out redirect).
+let lastSignedOutToastAt = 0;
+
 export function useSignedOutNotice() {
   const [searchParams] = useSearchParams();
   const prefillEmail = searchParams.get('email') || '';
@@ -17,7 +21,10 @@ export function useSignedOutNotice() {
 
   useEffect(() => {
     if (signedOut) {
-      notify.success('Signed out successfully');
+      if (Date.now() - lastSignedOutToastAt > 3000) {
+        lastSignedOutToastAt = Date.now();
+        notify.success('Signed out successfully');
+      }
       const url = new URL(window.location.href);
       url.searchParams.delete('signedout');
       window.history.replaceState({}, '', url.pathname + url.search);

@@ -805,11 +805,20 @@ async def mod_attachment_serve(
         raise HTTPException(401, "Invalid token")
 
     # Path must be under this user's MOD site bucket (or master admin override).
+    if not path.startswith(f"{APP_NAME}/mod-attachments/") or ".." in path:
+        raise HTTPException(400, "Not a MOD attachment path")
     expected_prefix_for_site = f"{APP_NAME}/mod-attachments/{viewer.get('organization_id', '')}/"
     if not viewer.get("is_master_admin") and not path.startswith(expected_prefix_for_site):
-        raise HTTPException(403, "Cross-site attachment access denied")
-    if not path.startswith(f"{APP_NAME}/mod-attachments/"):
-        raise HTTPException(400, "Not a MOD attachment path")
+        # MOD HQ / Pulse staff viewing a child site's fault: allowed only if
+        # they can see a fault that references this exact file.
+        from utils.mod_scope import resolve_mod_query_filter
+        try:
+            scope = await resolve_mod_query_filter(viewer, None)
+            ref = await db.issues.find_one({"attachment_urls": path, **scope}, {"_id": 0, "id": 1})
+        except Exception:
+            ref = None
+        if not ref:
+            raise HTTPException(403, "Cross-site attachment access denied")
 
     try:
         data, content_type = get_object(path)

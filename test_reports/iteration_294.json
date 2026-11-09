@@ -1,0 +1,41 @@
+{
+  "summary": "Tested 3 things: the MOD logout fix, editing/deleting site-staff supplier messages (own messages only, within 15 min) and the merged Notified card with delivery ticks. Backend: 17/17 new pytest pass. One real email was sent in-process to TEST_RECIPIENT_EMAIL. The endpoint then returned 'delivered' (event=delivered) for that recipient. Frontend: every requested UI flow works. MOD site-staff sign-out ends on exactly /MODService with an empty field and no email= anywhere. Opening /MODService?email=Kelvin... directly strips email= and leaves the field empty. The field is readOnly until focused, then typing and sign-in work. Edit, cancel, save (shows 'edited') and delete (with confirm) all work. Buttons show only on your own messages under 15 min. The supplier page shows 'edited' and hides deleted messages. There is one merged card with per-recipient ticks (delivered/failed/pending/unknown) and a View card button. Non-MOD faults show the supplier. The old cards are gone. Fault titles still render (Technogym SKILLMILL).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/issues/{id}/delivery-status", "issue": "Up to 8 Resend lookups run one after another, each with an 8s timeout, so a slow provider can block the request for up to about 64s. Run them in parallel with asyncio.gather (with a semaphore)."},
+      {"endpoint": "GET /api/issues/{id}/delivery-status", "issue": "The endpoint rewrites the whole notified_recipients array with $set. If another writer appends a recipient at the same time, that entry is lost. Update entries in place instead (arrayFilters or a positional update per recipient)."},
+      {"endpoint": "GET /api/issues/{id}/delivery-status", "issue": "If a non-MOD supplier is listed in auto_dispatch_delivered_to but has no message_id and no matching email log row, the tick shows 'unknown' (grey ?, 'not tracked for this older fault'). We know it was sent, so it should show 'pending'/'sent' instead (seen on the TEST gym fault)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MODServiceLogin / useSignedOutNotice", "issue": "After a MOD sign-out the 'Signed out successfully' toast appears twice", "selector": "toast", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "MOD sign-out for the ESP engineer (Jimmy preview)", "issue": "/auth/me returns account_type 'full' for Jimmy (the users row says mod_site), so finishLogout skips the MOD branch and goes to '/' instead of /MODService. In modservice mode '/' is still the MOD login, the field is empty and there is no email=, so the user's requirement is met, but the URL is not exactly /MODService. Similarly, a partner engineer signing out on the MOD deployment would briefly go to /login?email=... before the redirect to '/'. Suggest also sending users to /MODService whenever isModServiceMode() is true.", "affected_selectors": ["engineer-settings-signout-row"]}
+    ],
+    "design_issues": [
+      {"screen": "Supplier Communication bubbles", "issues": ["The 'edited' marker (9px) and the Edit/Delete buttons (10px, white/15 on green) are very small and low-contrast. They are readable but hard to tap on mobile."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_gym_comment_edit_delivery_294.py", "/app/backend/tests/_seed_comment_edit_delivery_294.py", "/app/test_reports/pytest/pytest_294.xml"],
+  "action_items": [
+    "Optional: in finishLogout, also take the MOD branch when isModServiceMode() is true (covers accounts whose /auth/me account_type is not mod_*, such as the Jimmy preview engineer, and stops an email ever reaching the URL on the MOD deployment)",
+    "Fix the duplicate 'Signed out successfully' toast on /MODService",
+    "Run the delivery-status Resend lookups in parallel; update recipients atomically",
+    "Show 'pending' rather than 'unknown' for a supplier listed in auto_dispatch_delivered_to that has no message_id"
+  ],
+  "critical_code_review_comments": [
+    "supplier_portal._own_editable_gym_comment enforces case match, author_role == 'gym', a non-empty author_user_id equal to the caller, not deleted, and the 15-min window. All verified.",
+    "edit_history is excluded in all three read paths (issues detail, the public supplier case, the comments list) and in the PATCH response. Verified.",
+    "Editing a message sends no new email, so the supplier's inbox keeps the original text. That may be intended, but the confirm text only warns about this for delete.",
+    "The site-locked user outside the site gets 404 (not 403) on both GET /issues/{id} and delivery-status, because the MOD scope filter hides the issue first. The two endpoints behave the same."
+  ],
+  "updated_files": ["/app/backend/tests/test_gym_comment_edit_delivery_294.py", "/app/backend/tests/_seed_comment_edit_delivery_294.py", "/app/backend/tests/test_fault_title_and_mod_email_fix.py (fake_notify now accepts the ids_out kwarg; it failed with an unexpected-kwarg error after the new signature)"],
+  "success_rate": {"backend": "100% (17/17 new + 16/16 iteration-293 regression after the test-signature fix)", "frontend": "~95% (all requested flows pass; minor: duplicate toast, Jimmy ends on '/')"},
+  "seed_data_creation": "TEST_294_* orgs, users, issues, supplier_cases and comments were seeded directly in test_database and removed afterwards with `_seed_comment_edit_delivery_294.py clean` (0 left). One real email ('Delivery tick check') was sent to TEST_RECIPIENT_EMAIL; its email_send_events log row was kept.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Seed with `python tests/_seed_comment_edit_delivery_294.py seed`. Only run `send` (one real email) if you need a real delivered tick. Then run the pytest with -p no:xdist. MOD users must log in through the API with portal='mod' and the X-RateLimit-Bypass header. Put the token in localStorage 'token'. Lite/MOD dashboard is at /pulse?tab=faults (lite-tab-faults). Click issue-title-{id}, then toggle-history-{id} to see all comments. The gym /dashboard needs Escape to close the onboarding modal before clicking tab-issues. Logout buttons: nav-user-menu-btn → nav-logout-btn; engineer: engineer-home-menu-btn → engineer-settings-signout-row."
+}

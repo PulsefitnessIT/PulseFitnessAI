@@ -354,7 +354,7 @@ class TestModFaultNotificationsFixB:
         async def fake_recips(*a, **kw):
             return []
 
-        async def fake_notify(case, comment, to_supplier):
+        async def fake_notify(case, comment, to_supplier, ids_out=None):
             return [sup_email]
         monkeypatch.setattr(ri, "_resolve_fault_supplier", fake_resolve)
         monkeypatch.setattr(ri, "_mod_case_recipients", fake_recips)

@@ -113,7 +113,9 @@ async def _resolve_co_brand(organization_id: str | None) -> dict:
         return {"gym_logo": "", "gym_name": "", "partner_logo": partner_logo, "partner_name": partner_name}
     gym_name = (org.get("name") or "").strip() or gym_name
     gym_logo = _abs_url(org.get("logo_url") or "")
-    partner_name = "Pulse Fitness AI"
+    is_mod = (org.get("account_type") or "").lower().startswith("mod")
+    # MOD sites: no ".ai" branding anywhere (MOD mail filters block it).
+    partner_name = "Pulse Fitness MOD Service" if is_mod else "Pulse Fitness AI"
     # Never emit an <img> that won't load — blank it so the header falls back
     # to a clean text wordmark instead of a broken-image icon.
     if gym_logo and not await _img_ok(gym_logo):
@@ -121,6 +123,7 @@ async def _resolve_co_brand(organization_id: str | None) -> dict:
     return {
         "gym_logo": gym_logo, "gym_name": gym_name,
         "partner_logo": partner_logo, "partner_name": partner_name,
+        "is_mod": is_mod,
     }
 
 
@@ -179,6 +182,8 @@ def _footer_html(brand: dict) -> str:
     gym_name = brand.get("gym_name") or ""
     partner_name = brand.get("partner_name") or "Pulse Fitness AI"
     support_email = os.environ.get("EMAIL_SUPPORT_ADDRESS", "support@pulsefitness.ai").strip()
+    if brand.get("is_mod"):
+        support_email = (os.environ.get("MOD_SERVICE_EMAIL") or "MODService@pulsefitness.com").strip()
     postal = os.environ.get("EMAIL_FOOTER_ADDRESS", "Pulse Fitness Ltd, United Kingdom").strip()
     bits = []
     if gym_name:
@@ -355,6 +360,16 @@ def _category_for_kind(kind: str | None) -> str | None:
 
 
 
+async def _org_is_mod(organization_id: str | None) -> bool:
+    if not organization_id:
+        return False
+    try:
+        org = await db.organizations.find_one({"id": organization_id}, {"_id": 0, "account_type": 1})
+    except Exception:
+        return False
+    return ((org or {}).get("account_type") or "").lower().startswith("mod")
+
+
 async def _record_email_event(
     *,
     to: str,
@@ -498,6 +513,11 @@ async def send_email(
         # logo + Pulse Fitness/Pulse Fitness mark) when an organization_id is
         # supplied. Idempotent: already-wrapped HTML passes through.
         branded_html = await wrap_branded(html, organization_id)
+        # MOD safety net: nothing sent for a MOD org may mention a ".ai" domain.
+        if category == "mod" or await _org_is_mod(organization_id):
+            from utils.mod_sanitize import sanitize_ai
+            branded_html = sanitize_ai(branded_html)
+            subject = sanitize_ai(subject)
         params = {
             "from": from_addr,
             "to": [to],

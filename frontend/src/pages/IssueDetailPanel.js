@@ -114,6 +114,16 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  loadSiconContext();
  }, [issue?.sicon_case_id, issue?.serial_number, API]);
 
+ // Fault-wizard photos (source "fault_photo") live in MOD storage and load
+ // through the authenticated MOD media endpoint; uploads keep download_url.
+ const attachmentUrl = (att) => {
+ if (att?.source === 'fault_photo' && att.storage_path) {
+ const tk = localStorage.getItem('token') || '';
+ return `${API}/mod/site/attachments/serve?path=${encodeURIComponent(att.storage_path)}&token=${encodeURIComponent(tk)}`;
+ }
+ return att?.download_url || '';
+ };
+
  const reloadDetail = async () => {
  const token = localStorage.getItem('token');
  try {
@@ -799,14 +809,20 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  {attachments.filter((a) => (a.kind || '').toLowerCase() !== 'quote').length > 0 ? (
  <div className="space-y-2">
  {attachments.filter((a) => (a.kind || '').toLowerCase() !== 'quote').map(att => (
- <div key={att.id} className="flex items-center justify-between p-2 bg-[var(--theme-surface-2)] border border-[var(--theme-border)] rounded">
- <div className="flex items-center gap-2">
- <FileText size={14} className="text-[var(--color-brand-blue)]" />
- <span className="text-[var(--theme-text)] text-sm">{att.filename}</span>
- <span className="text-[var(--color-text-muted)] text-xs">{att.uploaded_by} - {att.uploaded_at ? new Date(att.uploaded_at).toLocaleDateString() : ''}</span>
+ <div key={att.id} className="flex items-center justify-between p-2 bg-[var(--theme-surface-2)] border border-[var(--theme-border)] rounded" data-testid={`issue-attachment-${att.id}`}>
+ <div className="flex items-center gap-2 min-w-0">
+ {(att.content_type || '').startsWith('image/') && attachmentUrl(att) ? (
+ <a href={attachmentUrl(att)} target="_blank" rel="noreferrer" className="shrink-0">
+ <img src={attachmentUrl(att)} alt={att.filename} loading="lazy" className="w-12 h-12 rounded object-cover border border-[var(--theme-border)]" data-testid={`issue-attachment-thumb-${att.id}`} />
+ </a>
+ ) : (
+ <FileText size={14} className="text-[var(--color-brand-blue)] shrink-0" />
+ )}
+ <span className="text-[var(--theme-text)] text-sm truncate">{att.filename}</span>
+ <span className="text-[var(--color-text-muted)] text-xs shrink-0">{att.uploaded_by} - {att.uploaded_at ? new Date(att.uploaded_at).toLocaleDateString() : ''}</span>
  </div>
- {att.download_url && (
- <a href={att.download_url} target="_blank" rel="noreferrer" className="text-[var(--color-brand-blue)] hover:text-[var(--color-brand-blue-alt)]">
+ {attachmentUrl(att) && (
+ <a href={attachmentUrl(att)} target="_blank" rel="noreferrer" className="text-[var(--color-brand-blue)] hover:text-[var(--color-brand-blue-alt)] shrink-0" data-testid={`issue-attachment-open-${att.id}`}>
  <ExternalLink size={14} />
  </a>
  )}

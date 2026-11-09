@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Body, Request
 from datetime import datetime, timedelta, timezone
+import hashlib
 import re
 from typing import Dict, Any, Optional
 import uuid
@@ -1359,6 +1360,48 @@ async def get_issues(user: dict = Depends(get_current_user), site_id: str = None
     return {"issues": issues}
 
 
+_PHOTO_EXT_TYPES = {
+    "webp": "image/webp", "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+    "heic": "image/heic", "mp4": "video/mp4", "mov": "video/quicktime", "webm": "video/webm",
+}
+
+
+def _merge_fault_photos(issue: dict) -> None:
+    """Show photos/videos captured in the fault wizard in the Attachments list.
+
+    The MOD fault wizard stores media as ``attachment_urls`` (storage paths —
+    these are what the fault email embeds) while the Attachments panel reads
+    ``attachments``. Merging at read time back-fills EVERY existing fault
+    with no database writes. Each merged item is flagged ``source:
+    "fault_photo"`` + ``storage_path`` so the client loads it through the
+    authenticated MOD media endpoint.
+    """
+    paths = [p for p in (issue.get("attachment_urls") or []) if isinstance(p, str) and p.strip()]
+    if not paths:
+        return
+    existing = list(issue.get("attachments") or [])
+    have = {a.get("storage_path") for a in existing if isinstance(a, dict)}
+    added = []
+    for i, path in enumerate(paths):
+        if path in have:
+            continue
+        ext = path.rsplit(".", 1)[-1].lower() if "." in path.rsplit("/", 1)[-1] else ""
+        ct = _PHOTO_EXT_TYPES.get(ext, "image/webp")
+        is_video = ct.startswith("video/")
+        added.append({
+            "id": f"fault-photo-{i}-{hashlib.md5(path.encode()).hexdigest()[:10]}",
+            "filename": f"{'Video' if is_video else 'Photo'} {i + 1} (logged with fault)",
+            "storage_path": path,
+            "content_type": ct,
+            "source": "fault_photo",
+            "kind": "video" if is_video else "photo",
+            "uploaded_by": issue.get("created_by_name") or issue.get("reported_by_name") or "Site",
+            "uploaded_at": issue.get("created_at"),
+        })
+    if added:
+        issue["attachments"] = added + existing
+
+
 _DELIVERED_EVENTS = {"delivered", "opened", "clicked"}
 _BOUNCED_EVENTS = {"bounced", "complained", "failed", "suppressed"}
 _FINAL_DELIVERY = {"delivered", "bounced", "failed"}
@@ -1453,6 +1496,7 @@ async def get_issue_delivery_status(issue_id: str, user: dict = Depends(get_curr
     now = datetime.now(timezone.utc)
     lookups = 0
     changed = False
+    to_lookup: list = []
     for r in recipients:
         status = r.get("delivery_status")
         if status in _FINAL_DELIVERY:
@@ -1476,27 +1520,49 @@ async def get_issue_delivery_status(issue_id: str, user: dict = Depends(get_curr
                 r["message_id"] = mid
             changed = changed or not r.get("synthetic")
         if not mid:
-            r.setdefault("delivery_status", "unknown")
+            # Known to have been sent but not trackable → "sent" (grey tick).
+            r.setdefault("delivery_status", "pending" if r.get("delivered") else "unknown")
             continue
         if lookups >= _DELIVERY_MAX_LOOKUPS or not RESEND_API_KEY or not resend:
             r.setdefault("delivery_status", "pending")
             continue
         lookups += 1
-        try:
-            resend.api_key = RESEND_API_KEY
-            info = await asyncio.wait_for(asyncio.to_thread(resend.Emails.get, mid), timeout=8)
-            last_event = info.get("last_event") if isinstance(info, dict) else getattr(info, "last_event", None)
-            r["delivery_status"] = _status_from_event(last_event)
-            r["delivery_event"] = last_event
-        except Exception as e:
-            logger.warning("delivery lookup failed for %s: %s", mid, e)
-            r.setdefault("delivery_status", "pending")
-        r["delivery_checked_at"] = now.isoformat()
-        changed = changed or not r.get("synthetic")
+        to_lookup.append((r, mid))
+
+    # Provider lookups in parallel (bounded) so a slow provider can't stall
+    # the card for several timeouts in a row.
+    if to_lookup:
+        resend.api_key = RESEND_API_KEY
+        sem = asyncio.Semaphore(4)
+
+        async def _lookup(r: dict, mid: str) -> None:
+            async with sem:
+                try:
+                    info = await asyncio.wait_for(asyncio.to_thread(resend.Emails.get, mid), timeout=8)
+                    last_event = info.get("last_event") if isinstance(info, dict) else getattr(info, "last_event", None)
+                    r["delivery_status"] = _status_from_event(last_event)
+                    r["delivery_event"] = last_event
+                except Exception as e:
+                    logger.warning("delivery lookup failed for %s: %s", mid, e)
+                    r.setdefault("delivery_status", "pending")
+                r["delivery_checked_at"] = now.isoformat()
+
+        await asyncio.gather(*[_lookup(r, mid) for r, mid in to_lookup])
+        changed = changed or any(not r.get("synthetic") for r, _ in to_lookup)
 
     if changed:
-        persisted = [{k: v for k, v in r.items() if k != "synthetic"} for r in recipients if not r.get("synthetic")]
-        await db.issues.update_one({"id": issue_id}, {"$set": {"notified_recipients": persisted}})
+        # Update each recipient in place (matched by email) so a concurrent
+        # writer appending a recipient is never overwritten.
+        for r in recipients:
+            if r.get("synthetic") or not r.get("email"):
+                continue
+            fields = {f"notified_recipients.$[r].{k}": r[k]
+                      for k in ("delivery_status", "delivery_event", "delivery_checked_at",
+                                "message_id", "legacy_checked") if k in r}
+            if fields:
+                await db.issues.update_one(
+                    {"id": issue_id}, {"$set": fields},
+                    array_filters=[{"r.email": r["email"]}])
         sup = next((r for r in recipients if r.get("synthetic")), None)
         if sup and sup.get("delivery_status"):
             await db.issues.update_one({"id": issue_id}, {"$set": {
@@ -1593,6 +1659,7 @@ async def get_issue_detail(issue_id: str, user: dict = Depends(get_current_user)
     except Exception:
         pass
 
+    _merge_fault_photos(issue)
     return issue
 
 

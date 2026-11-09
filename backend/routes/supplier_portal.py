@@ -1601,7 +1601,8 @@ async def _send_comment_notification(case: dict, comment: dict, to_supplier: boo
     # MOD faults: send from the verified MOD Service sender (never a ".ai"
     # domain — MOD networks / mail filters block those, and the commercial
     # sender isn't what MOD suppliers expect). Commercial cases unchanged.
-    if await _is_mod_case(case, issue):
+    is_mod_case = await _is_mod_case(case, issue)
+    if is_mod_case:
         from utils.email import _category_sender, _bare_addr
         mod_from = _bare_addr(_category_sender("mod"))
         display = params["from_line"].split("<", 1)[0].strip() or "Pulse Fitness MOD Service"
@@ -1613,6 +1614,10 @@ async def _send_comment_notification(case: dict, comment: dict, to_supplier: boo
     # going to the supplier. The gym side already knows who logged the fault.
     reporter = await _resolve_reporter_contact(issue or {}) if to_supplier else None
     html = _build_comment_email_html(case, comment, params["intro"], branding, issue, case_ref, reporter)
+    if is_mod_case:
+        from utils.mod_sanitize import sanitize_ai
+        html = sanitize_ai(html)
+        params["subject"] = sanitize_ai(params["subject"])
 
     from utils.email import _record_email_event
     delivered: list[str] = []
