@@ -1,0 +1,38 @@
+{
+  "summary": "Retest of the fault card title change and the minor items from iteration_290. (1) faultTitle and faultMetaLine: a node unit harness made 612 assertions and all passed. These cover both production cases exactly: prefix model 'MNLPNN0' gives 'Technogym Lat Pulldown' with 'S/N MNLPNN020100194', and the real model gives 'Technogym SKILLMILL' with 'Self-Powered Treadmill · S/N DJK04D22000131'. The harness also ran 600 machine_type/supplier/date/ref combinations: none produced a leading, trailing or double ' | '. (2) Backend: 5 new tests for the legacy machine_name backfill (now before the enrichment) plus iteration_290's 16 tests: 21 of 21 pass, and resend/send_email stay mocked. (3) UI on /pulse (pulse_pro, LiteFaultsTab) and /dashboard (gym, FaultsTab) at 1920 and 390: titles, the small line, the meta line, the 'Sent to Inda Fitness' badge and the 'View supplier card' link all render correctly. A legacy machine_name-only issue shows 'Concept2 Model D' / 'Rower · S/N LEGACY-SN-0003'. There is no horizontal overflow (scrollWidth == innerWidth at both widths). No real email was sent. All TEST_ rows were removed by id.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "faultMetaLine", "issue": "The machine type is dropped from the meta line only when the title itself came from the machine type (titleIsType). If the title comes from a model or name that happens to equal machine_type, the type still repeats. Example: equipment_model 'Treadmill' with no make, plus machine_type 'Treadmill', gives title 'Treadmill' and meta 'Treadmill | <date>'. This is an edge case and not in real data seen so far. Possible fix: also drop machine_type when it equals the title, ignoring case.", "selector": "[data-testid^=issue-meta-]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard header at 390 (gym)", "issues": ["A long org name ('TEST_ UI291 gym') wraps onto 3 lines next to the logo in the black header. This was already there before this change."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter291_fault_title_legacy_backfill.py",
+    "/app/backend/tests/test_fault_title_and_mod_email_fix.py",
+    "/app/backend/tests/_seed_fault_title_ui_291.py",
+    "/app/tests/fault_title_unit.mjs",
+    "/app/test_reports/pytest/pytest_iter291.xml"
+  ],
+  "action_items": [
+    "Optional: in faultMetaLine, also drop machine_type when it equals the title, ignoring case, not only when titleIsType"
+  ],
+  "critical_code_review_comments": [
+    "get_issues: the backfill now runs before _batch_enrich_equipment. Verified that it is not persisted, does not leak across orgs, and does not overwrite an existing serial_number.",
+    "The coverage_meta.equipment_id lookup in _batch_enrich_equipment is still not org-scoped. Low risk because ids are UUIDs.",
+    "The component calls faultTitle(issue) 3-4 times per card (title, subtitle check, subtitle, and inside faultMetaLine). Calling it once per card and reusing the result would be cheaper. Minor."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter291_fault_title_legacy_backfill.py",
+    "/app/backend/tests/_seed_fault_title_ui_291.py",
+    "/app/tests/fault_title_unit.mjs"
+  ],
+  "success_rate": {"backend": "100% (21/21)", "frontend": "100% of the requested checks"},
+  "seed_data_creation": "pytest seeds TEST_org_legacy_<run> orgs, a user, equipment and issues directly in test_database, then deletes them by id at teardown. UI seed: tests/_seed_fault_title_ui_291.py seed|clean creates TEST_ui291_pro / TEST_ui291_gym (user test_ui291_<x>@example.test / TestUiFault#2026). It has been cleaned, and a regex count shows 0 leftovers.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Unit: cp frontend/src/utils/faultTitle.js /tmp/faultTitle.mjs && node /app/tests/fault_title_unit.mjs. Backend: cd /app/backend && python -m pytest tests/test_iter291_fault_title_legacy_backfill.py tests/test_fault_title_and_mod_email_fix.py -p no:xdist. UI: seed with _seed_fault_title_ui_291.py, log in with the X-RateLimit-Bypass header (RATE_LIMIT_BYPASS_SECRET), set localStorage 'token', then open /pulse?tab=faults or /dashboard and click tab-issues / mobile-pill-issues. The Resend 'API key is invalid' failure in production is waiting on a new key from the user, so it was not tested."
+}

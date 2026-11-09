@@ -44,9 +44,11 @@ export function faultTitle(issue = {}) {
 
 /** Grey meta line: machine type (unless it's the title) | supplier | date | ref. */
 export function faultMetaLine(issue = {}, dateText = '') {
-  const { titleIsType } = faultTitle(issue);
+  const { title, titleIsType } = faultTitle(issue);
+  const type = clean(issue.machine_type);
+  const typeRepeatsTitle = titleIsType || (type && type.toLowerCase() === title.toLowerCase());
   return [
-    titleIsType ? '' : clean(issue.machine_type),
+    typeRepeatsTitle ? '' : type,
     clean(issue.supplier),
     dateText,
     issue.supplier_ref ? `Ref: ${issue.supplier_ref}` : '',
