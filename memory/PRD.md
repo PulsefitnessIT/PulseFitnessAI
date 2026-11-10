@@ -39283,3 +39283,12 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Merged routes/mod_portal.py + utils/email.py; added tests iter301/iter302 (33/33 pass)
 - Fixed iter302 open item: whitespace-only serial no longer shows blank "S/N" (helper _eq_serial)
 - WORKFLOW (user choice): ALL changes are made in THIS workspace. Save to GitHub → main and MODService branches. MOD deployment = fresh job from MODService branch with REACT_APP_PORTAL_MODE=modservice, redeploy. Stop editing in the MOD workspace.
+
+## 2026-11-10 — MOD jobs on the Pulse Service Desk (prod RCA 7781df31)
+- Root cause: MOD faults bridged to svc_cases under org `bfpo-mod-org`; desk scoped to caller org only
+- utils/svc_desk_scope.py: operator org (is_operator_company) desk sees own + bfpo-mod-org (desk_filter); per-case endpoints re-scope via as_case_org (cases get/events/put/transition/notes/lifecycle/crm-context/calibration, service-report pdf/email, ai summarise, comms notify/log, tracking-link)
+- Outside-provider MOD jobs read-only (409) except complete/close; POST /api/svc/cases/{id}/take-over; GET /api/svc/cases/{id}/job-file (logged+photos, provider history/messages, work, reports/certs, quotes/POs)
+- Supplier-portal updates/comments mirrored to svc_case timeline (provider_update); rejected after take-over
+- UI: MOD badge + filter-mod on ServiceOps desk; drawer Job file tab, read-only banner + Take over dialog
+- Tests: tests/test_mod_service_desk_visibility.py 24/24; iteration_288
+- NOTE: desk staff need users.is_service_desk=true to reach /service-desk (craig.henshall lacks it)

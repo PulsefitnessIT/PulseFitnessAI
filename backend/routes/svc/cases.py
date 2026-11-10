@@ -297,7 +297,7 @@ async def case_crm_context(case_id: str, user=Depends(get_current_user)):
     case = await db.svc_cases.find_one(
         {"id": case_id, **_of(user)},
         {"_id": 0, "company_id": 1, "customer_name": 1, "customer_email": 1, "site_postcode": 1})
-    if not case:
+    if case is None:
         raise HTTPException(404, "Case not found")
     org = (user.get("organization_id") or user.get("service_org_id"))
 
@@ -425,6 +425,7 @@ async def transition_case(case_id: str, data: dict, user=Depends(get_current_use
     reason = data.get("reason") or ""
     if target not in ALL_STATES:
         raise HTTPException(400, f"to must be one of {sorted(ALL_STATES)}")
+    await guard_desk_write(user, case_id, target)
     try:
         case = await state_transition(
             case_id=case_id,

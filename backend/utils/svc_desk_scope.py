@@ -20,6 +20,7 @@ from utils.esp_engineer import BFPO_ORG_ID
 _OP_CACHE: dict = {}
 _TTL = 60
 PROVIDER_INACTIVE = ("cancelled", "taken_over", "declined")
+DESK_COMPLETE_STATES = ("repaired", "awaiting_sign_off", "closed")
 
 
 def _home_org(user: dict) -> Optional[str]:
@@ -71,9 +72,10 @@ async def external_provider(case: dict) -> Optional[dict]:
     return sc
 
 
-async def guard_desk_write(user: dict, case_id: str) -> None:
-    """Desk edits are blocked while an outside provider owns the MOD job."""
-    if not user.get("_desk_home_org"):
+async def guard_desk_write(user: dict, case_id: str, target_state: Optional[str] = None) -> None:
+    """Desk edits are blocked while an outside provider owns the MOD job;
+    marking it complete/closed stays allowed."""
+    if not user.get("_desk_home_org") or target_state in DESK_COMPLETE_STATES:
         return
     case = await db.svc_cases.find_one({"id": case_id}, {"_id": 0, "mod_issue_id": 1, "provider_taken_over_at": 1})
     prov = await external_provider(case or {})

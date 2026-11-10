@@ -1229,6 +1229,8 @@ async def update_supplier_case(token: str, data: Dict[str, Any]):
         raise HTTPException(status_code=404, detail="Case not found or link expired")
 
     new_status = data.get("status")
+    if case.get("current_status") in ("taken_over", "cancelled", "declined"):
+        raise HTTPException(status_code=409, detail="This job is no longer with you — Pulse has taken it over.")
     valid_statuses = ["acknowledged", "engineer_scheduled", "in_progress", "parts_ordered", "completed"]
     if new_status not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
@@ -1749,6 +1751,8 @@ async def add_supplier_comment(
     case = await db.supplier_cases.find_one({"token": token}, {"_id": 0})
     if not case:
         raise HTTPException(404, "Case not found")
+    if case.get("current_status") in ("taken_over", "cancelled", "declined"):
+        raise HTTPException(409, "This job is no longer with you — Pulse has taken it over.")
 
     msg = message.strip()
     if not msg and not file:

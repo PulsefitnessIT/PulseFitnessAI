@@ -33,6 +33,8 @@ import './_serviceops.css';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
+// MOD jobs with an outside provider: the desk may still mark them complete.
+const DESK_COMPLETE_STATES = new Set(['repaired', 'awaiting_sign_off', 'closed']);
 
 // Mirrors backend utils/svc_state.py — keep in sync.
 const TRANSITIONS = {
@@ -829,7 +831,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
 
         {/* Footer — transitions + save */}
         <footer className="svc-drawer-foot space-y-2">
-          {tab !== 'timeline' && dirty ? (
+          {tab !== 'timeline' && dirty && !doc?.desk_read_only ? (
             <div className="flex justify-end">
               <button
                 type="button"
@@ -991,12 +993,14 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                 {legalNext.map((s) => {
                   const isDanger = s === 'rejected';
                   const isPositive = s === 'closed' || s === 'invoiced' || s === 'repaired';
+                  const lockedByProvider = doc?.desk_read_only && !DESK_COMPLETE_STATES.has(s);
                   return (
                     <button
                       key={s}
                       type="button"
                       onClick={() => doTransition(s)}
-                      disabled={saving}
+                      disabled={saving || lockedByProvider}
+                      title={lockedByProvider ? 'With an outside provider — take over to change this' : undefined}
                       className={`svc-btn svc-btn-sm ${isPositive ? 'svc-btn-primary' : isDanger ? 'svc-btn-danger' : 'svc-btn-secondary'}`}
                       data-testid={`drawer-transition-${s}`}
                     >

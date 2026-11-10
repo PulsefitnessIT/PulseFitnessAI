@@ -1,0 +1,47 @@
+{
+  "summary": "MOD jobs on the Pulse Service Desk: backend 22/24 pytest pass (after 1 fix by tester), frontend flow fully works. Operator user (craig, Pulse Fitness Ltd) sees the bfpo-mod-org cases with is_mod; mod=1/0 filters split them correctly (totals add up); a non-operator user (owner@isodemo.com) gets no MOD cases and gets 404 on the case, sub-resources and take-over. desk summary and queue include MOD. job-file returns all 5 sections and no supplier token. Provider update mirrors a provider_update event and sets provider_status. PUT gives 409 while a provider is active; take-over works, a second take-over gives 400, and PUT succeeds after. UI: MOD badges, filter-mod, drawer MOD badge, read-only banner, Job file tab with all 5 sections, and the take-over dialog all work. Confirming the dialog hides the banner and shows the toast 'Job taken over — you now have full control'.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/svc/cases/{id}/transition (also /notes)", "issue": "The read-only rule is not enforced on state changes. While an outside provider is active (desk_read_only=true), transition to 'triaged' returned 200 and changed the status. guard_desk_write is only called in PUT /cases/{id}. The drawer footer still shows Triaged/Assigned/Rejected buttons on read-only MOD jobs.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/supplier/case/{token}/update", "issue": "After take-over, the outside provider can still post updates (200). This sets supplier_cases.current_status back from 'taken_over' to e.g. 'in_progress', updates issues.status/supplier_status and mirrors the update onto the desk timeline. It should reject updates when current_status is taken_over, cancelled or declined. The supplier comments endpoint probably needs the same check."},
+      {"endpoint": "utils/svc_desk_scope.external_provider", "issue": "'completed' is not in PROVIDER_INACTIVE. A MOD job the provider has completed stays read-only on the desk for good, so the desk must 'take over' a finished job just to close or invoice it. Please confirm this is intended."},
+      {"endpoint": "GET /api/svc/cases/{id}/crm-context", "issue": "FIXED by tester. It returned 404 'Case not found' for MOD cases with no company_id/customer_name/customer_email/site_postcode. The projection returns {}, which is falsy, so `if not case` raised the 404. Changed it to `if case is None`."},
+      {"endpoint": "PUT/transition on MOD cases → sicon_sync.push_case", "issue": "Desk edits on bfpo-mod-org cases queue Sicon outbox rows (the list showed 'Sicon · queued (3)' for MOD-TEST-1). Please confirm MOD cases should be pushed to Sicon under the BFPO org. The 3 queued rows for MOD-TEST-1 came from testing."},
+      {"endpoint": "POST /api/svc/cases/{id}/take-over", "issue": "No role or capability check: any user in the operator org (any role) can take a job over. Consider limiting it to desk or manager roles, and adding an audit_log entry like transition has."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ServiceCaseDrawer footer", "issue": "Transition buttons and the reason input stay enabled while desk_read_only is true. They should be disabled or hidden until take-over, matching the backend guard once it is added.", "selector": "drawer footer transition buttons", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Desk access for the Pulse operator user", "issue": "craig.henshall@pulsefitness.com has is_service_desk=false, so /service-desk redirects to /launch. The review steps cannot be done with that account. The tester used a temporary TEST_ user in the Pulse org with is_service_desk=true (now deleted). On live, check that the real desk staff in the Pulse operator org have is_service_desk, or the fix will not be visible to them.", "affected_selectors": ["desk-tab-cases"]}
+    ],
+    "design_issues": [
+      {"screen": "Case drawer header", "issues": ["No space between the reference and the title ('MOD-TEST-1Belt slipping')"]},
+      {"screen": "Cases filter bar", "issues": ["The filter-mod select also shows for non-operator orgs, where it does nothing. Consider hiding it unless the org is an operator."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_mod_service_desk_visibility.py", "/app/test_reports/pytest/mod_desk.xml"],
+  "action_items": [
+    "Call guard_desk_write in transition_case (and decide whether notes are also blocked) for provider-owned MOD jobs; disable the drawer footer actions when desk_read_only",
+    "Reject supplier updates and comments once supplier_case.current_status is taken_over, cancelled or declined",
+    "Decide whether a 'completed' provider status should end read-only mode",
+    "Give craig (or the real Pulse desk staff) is_service_desk=true so they can reach /service-desk",
+    "Confirm that Sicon outbox pushes for bfpo-mod-org cases are intended"
+  ],
+  "critical_code_review_comments": [
+    "The read-only enforcement only covers PUT. Other write endpoints that use as_case_org are unguarded: transition, notes, AI, comms send, service-report and others.",
+    "The is_operator_org cache lasts 60s per process; acceptable.",
+    "list_cases aggregates the Sicon outbox with organization_id {$in:[...]}, which works for the mixed org list."
+  ],
+  "updated_files": ["/app/backend/routes/svc/cases.py (crm-context: `if case is None`)", "/app/backend/tests/test_mod_service_desk_visibility.py"],
+  "success_rate": {"backend": "92% (22/24; the 2 failures are real gaps)", "frontend": "100% of the requested flow"},
+  "seed_data_creation": "Created a temporary user TEST_desk_user_mod (test_desk_mod@pulsefitness.com, Pulse org, is_service_desk) for the UI test and deleted it afterwards. Reset TEST_DESK_case (status=new, unset provider_taken_over_at/by) and TEST_DESK_sc (current_status=pending) after the runs. supplier_case status_history and the svc_case events on the TEST docs now include TEST_ entries from the runs.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run `pytest tests/test_mod_service_desk_visibility.py -p no:xdist` from /app/backend. TestProviderFlow is order-dependent and changes TEST_DESK_case and TEST_DESK_sc, so reset them afterwards (supplier_cases current_status=pending; svc_cases status=new, unset provider_taken_over_at/by). test_3 and test_8 are expected to fail until the read-only and provider-after-takeover guards are added. For the UI you need a Pulse-org user with is_service_desk=true; craig does not have it.",
+  "rca of the issue": "crm-context 404: find_one with a narrow projection plus _id:0 returns {} when none of the projected fields exist; `if not {}` is true, so it raised 404. Transition not guarded: guard_desk_write is only wired into update_case."
+}
