@@ -31,6 +31,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from utils.auth import get_current_user
 from utils.database import db
+from utils.svc_desk_scope import as_case_org
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -503,6 +504,7 @@ async def get_tracking_link(case_id: str, request: Request, user=Depends(get_cur
 
     Lazily mints a token the first time it's requested.
     """
+    user = await as_case_org(user, case_id)
     of = _of(user)
     token = await _mint_or_get_token(case_id, of)
     url = f"{_origin(request)}/track/{token}"
@@ -512,6 +514,7 @@ async def get_tracking_link(case_id: str, request: Request, user=Depends(get_cur
 @router.post("/svc/cases/{case_id}/tracking-link/regenerate")
 async def regenerate_tracking_link(case_id: str, request: Request, user=Depends(get_current_user)):
     """Force-mint a fresh token, invalidating any older link."""
+    user = await as_case_org(user, case_id)
     of = _of(user)
     case = await db.svc_cases.find_one({"id": case_id, **of}, {"_id": 0, "id": 1})
     if not case:

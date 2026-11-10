@@ -27,6 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 
 from utils.auth import get_current_user
 from utils.database import db
+from utils.svc_desk_scope import as_case_org
 from utils.email import send_email
 
 logger = logging.getLogger(__name__)
@@ -1020,6 +1021,7 @@ async def _build_report(case_id: str, user: dict) -> tuple[bytes, dict]:
 @router.get("/svc/cases/{case_id}/service-report.pdf")
 async def service_report_pdf(case_id: str, user=Depends(get_current_user)):
     """Stream a branded one-page service report PDF for the given case."""
+    user = await as_case_org(user, case_id)
     pdf, payload = await _build_report(case_id, user)
     case = payload["case"]
     filename = f"service-report-{case.get('reference', case_id[:8])}.pdf"
@@ -1035,6 +1037,7 @@ async def service_report_email(case_id: str, data: dict | None = None, user=Depe
 
     Body (optional): {to: 'name@domain.com', note: 'Optional cover note'}
     """
+    user = await as_case_org(user, case_id)
     pdf, payload = await _build_report(case_id, user)
     case = payload["case"]
     org = payload["org"]

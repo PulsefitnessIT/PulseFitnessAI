@@ -63,6 +63,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from utils.database import db
+from utils.svc_desk_scope import as_case_org
 from utils.auth import get_current_user
 from utils.email import send_email
 from utils.svc_state import append_event
@@ -317,6 +318,7 @@ async def notify_case(case_id: str, data: dict, user=Depends(get_current_user)):
 
     Body: {template_key, override_subject?, override_body_html?, to?}
     """
+    user = await as_case_org(user, case_id)
     of = _of(user)
     case = await db.svc_cases.find_one({"id": case_id, **of}, {"_id": 0})
     if not case:
@@ -433,6 +435,8 @@ async def comms_log(
     limit: int = Query(50, ge=1, le=200),
     user=Depends(get_current_user),
 ):
+    if case_id:
+        user = await as_case_org(user, case_id)
     of = _of(user)
     q: dict = {**of}
     if case_id:

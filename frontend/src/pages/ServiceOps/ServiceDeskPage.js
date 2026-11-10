@@ -268,6 +268,7 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
             sla: filters.sla || '',
             rtf: filters.rtf || '',
             search: filters.search || '',
+            mod: filters.mod || '',
             limit: 100,
           },
         }),
@@ -281,7 +282,7 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
     } catch (e) {
       notify.error('Failed to load service desk', e?.response?.data?.detail || e.message);
     } finally { setLoading(false); }
-  }, [filters.status, filters.priority, filters.case_type, filters.search, filters.assigned, filters.sla, filters.rtf]);
+  }, [filters.status, filters.priority, filters.case_type, filters.search, filters.assigned, filters.sla, filters.rtf, filters.mod]);
 
   useEffect(() => { load(); }, [load]);
   // Auto-refresh every 60s — the SLA clock ticks against the user's screen.
@@ -449,6 +450,17 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
             <option value="ppm">{t('service.type_ppm', 'PPM')}</option>
             <option value="install">{t('service.type_install', 'Install')}</option>
           </select>
+          <select
+            value={filters.mod || ''}
+            onChange={(e) => setFilters((f) => ({ ...f, mod: e.target.value }))}
+            className="svc-select svc-select-sm"
+            style={{ width: 'auto' }}
+            data-testid="filter-mod"
+          >
+            <option value="">All jobs</option>
+            <option value="1">MOD jobs only</option>
+            <option value="0">Hide MOD jobs</option>
+          </select>
           <div className="svc-search ml-auto w-full sm:w-[280px]">
             <Search size={13} />
             <input
@@ -495,6 +507,9 @@ export default function ServiceDeskPage({ initialFilters } = {}) {
                   >
                     <td className="font-bold tabular-nums">
                       {c.reference}
+                      {c.is_mod ? (
+                        <span className="ml-1.5 svc-pill" style={{ background: '#1e3a5f', color: '#fff', fontSize: 10, padding: '1px 6px' }} data-testid={`case-mod-badge-${c.reference}`}>MOD</span>
+                      ) : null}
                       {c.customer_po_number ? (
                         <div className="text-[10px] font-semibold svc-muted" title="Customer PO / reference" data-testid={`case-po-${c.reference}`}>PO: {c.customer_po_number}</div>
                       ) : null}

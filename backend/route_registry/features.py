@@ -107,6 +107,7 @@ from routes.customer_deliveries import router as customer_deliveries_router
 
 # Iter 215dn — Service Operations Phase 1 (replaces Sicon Service)
 from routes.svc.cases import router as svc_cases_router
+from routes.svc.mod_job_file import router as svc_mod_job_file_router
 from routes.svc.intake import router as svc_intake_router
 from routes.svc.desk import router as svc_desk_router
 # Iter 292 — GymAxis parity port: Preventative Maintenance + Master-Admin service-desk console
@@ -351,7 +352,7 @@ _UNGATED_ROUTERS = (
     launch_readiness_router,
     member_app_builder_router,
     # Iter 215dn — Service Ops native routers
-    svc_cases_router, svc_intake_router, svc_desk_router,
+    svc_cases_router, svc_mod_job_file_router, svc_intake_router, svc_desk_router,
     # Iter 292 — GymAxis parity: PM scheduling + Master-Admin desk console
     svc_pm_router, master_admin_service_desk_router, svc_orbit4_router,
     svc_ppm_calendar_router,

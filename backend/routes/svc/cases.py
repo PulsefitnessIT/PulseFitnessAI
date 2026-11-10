@@ -83,6 +83,7 @@ from utils.svc_state import (
     OPEN_STATES, ALL_STATES, SLA_RISK_WINDOW_HOURS,
 )
 from routes.svc.integrations import sicon_sync, sage_invoice
+from utils.svc_desk_scope import as_case_org, desk_filter, guard_desk_write, external_provider, BFPO_ORG_ID
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/svc", tags=["Service Ops · Cases"])
@@ -123,11 +124,15 @@ async def list_cases(
     sla: str = Query("", description="at_risk | breached"),
     rtf: str = Query("", description="1 → Return-to-Fix: open jobs needing a repeat visit"),
     search: str = Query(""),
+    mod: str = Query("", description="1 → MOD jobs only · 0 → hide MOD jobs"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     user=Depends(get_current_user),
 ):
-    q = {**_of(user)}
+    _of(user)
+    q = {**await desk_filter(user)}
+    if mod in ("1", "0") and isinstance(q["organization_id"], dict):
+        q["organization_id"] = BFPO_ORG_ID if mod == "1" else q["organization_id"]["$in"][0]
     if status:
         if status == "open":
             q["status"] = {"$in": list(OPEN_STATES)}
@@ -253,12 +258,16 @@ async def list_cases(
             if state:
                 c["sicon_sync_state"] = state
                 c["sicon_sync_pending"] = pending
+    for c in items:
+        if c.get("organization_id") == BFPO_ORG_ID:
+            c["is_mod"] = True
 
     return {"cases": items, "total": total}
 
 
 @router.get("/cases/{case_id}")
 async def get_case(case_id: str, user=Depends(get_current_user)):
+    user = await as_case_org(user, case_id)
     case = _strip(await db.svc_cases.find_one({"id": case_id, **_of(user)}))
     if not case:
         raise HTTPException(404, "Case not found")
@@ -270,6 +279,11 @@ async def get_case(case_id: str, user=Depends(get_current_user)):
         .to_list(200)
     )
     case["events"] = events
+    if case.get("organization_id") == BFPO_ORG_ID:
+        prov = await external_provider(case)
+        case["is_mod"] = True
+        case["external_provider"] = prov
+        case["desk_read_only"] = bool(prov and user.get("_desk_home_org"))
     return case
 
 
@@ -279,6 +293,7 @@ async def case_crm_context(case_id: str, user=Depends(get_current_user)):
     Service Desk sees who owns the account, open deals and the contract
     tier. Resolves the linked CRM company by canonical ``company_id``
     (name/email fallback). Read-only; never mutates."""
+    user = await as_case_org(user, case_id)
     case = await db.svc_cases.find_one(
         {"id": case_id, **_of(user)},
         {"_id": 0, "company_id": 1, "customer_name": 1, "customer_email": 1, "site_postcode": 1})
@@ -346,6 +361,7 @@ async def list_case_events(
     case_id: str, skip: int = 0, limit: int = 100,
     user=Depends(get_current_user),
 ):
+    user = await as_case_org(user, case_id)
     rows = (
         await db.svc_case_events
         .find({"case_id": case_id, **_of(user)}, {"_id": 0})
@@ -375,9 +391,11 @@ _VALID_PATCH_FIELDS = {
 
 @router.put("/cases/{case_id}")
 async def update_case(case_id: str, data: dict, user=Depends(get_current_user)):
+    user = await as_case_org(user, case_id)
     existing = await db.svc_cases.find_one({"id": case_id, **_of(user)})
     if not existing:
         raise HTTPException(404, "Case not found")
+    await guard_desk_write(user, case_id)
     updates = {k: v for k, v in data.items() if k in _VALID_PATCH_FIELDS}
     if not updates:
         return _strip(existing)
@@ -402,6 +420,7 @@ async def update_case(case_id: str, data: dict, user=Depends(get_current_user)):
 
 @router.post("/cases/{case_id}/transition")
 async def transition_case(case_id: str, data: dict, user=Depends(get_current_user)):
+    user = await as_case_org(user, case_id)
     target = (data.get("to") or "").lower()
     reason = data.get("reason") or ""
     if target not in ALL_STATES:
@@ -467,6 +486,7 @@ async def transition_case(case_id: str, data: dict, user=Depends(get_current_use
 
 @router.post("/cases/{case_id}/notes")
 async def add_note(case_id: str, data: dict, user=Depends(get_current_user)):
+    user = await as_case_org(user, case_id)
     body = (data.get("body") or "").strip()
     if not body:
         raise HTTPException(400, "Note body required")
@@ -551,6 +571,7 @@ def _parse_dt(s):
 
 @router.get("/cases/{case_id}/lifecycle")
 async def case_lifecycle(case_id: str, user=Depends(get_current_user)):
+    user = await as_case_org(user, case_id)
     of = _of(user)
     case = _strip(await db.svc_cases.find_one({"id": case_id, **of}))
     if not case:
@@ -804,6 +825,7 @@ async def _build_calibration_certificate(case_id: str, of: dict):
 @router.get("/cases/{case_id}/calibration/certificate.pdf")
 async def case_calibration_certificate(case_id: str, user=Depends(get_current_user)):
     """Office/manager download of the calibration audit certificate."""
+    user = await as_case_org(user, case_id)
     from fastapi.responses import Response
     pdf, _case, _cal, fname = await _build_calibration_certificate(case_id, _of(user))
     return Response(content=pdf, media_type="application/pdf",
@@ -817,6 +839,7 @@ async def case_calibration_certificate_email(case_id: str, data: dict | None = N
 
     Body (optional): {to: 'name@domain.com', note: 'Optional cover note'}
     """
+    user = await as_case_org(user, case_id)
     import base64
     from utils.email import send_email
     of = _of(user)

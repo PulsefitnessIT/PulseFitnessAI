@@ -77,6 +77,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 
 from utils.database import db
+from utils.svc_desk_scope import as_case_org
 from utils.auth import get_current_user
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -381,6 +382,7 @@ Schema:
 
 @router.post("/summarise/{case_id}")
 async def summarise(case_id: str, user=Depends(get_current_user)):
+    user = await as_case_org(user, case_id)
     of = _of(user)
     case = await db.svc_cases.find_one({"id": case_id, **of}, {"_id": 0})
     if not case:

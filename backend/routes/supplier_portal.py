@@ -1270,6 +1270,17 @@ async def update_supplier_case(token: str, data: Dict[str, Any]):
     )
 
     await _sicon_note_after_supplier_update(case, new_status, data)
+    try:
+        from utils.svc_desk_scope import mirror_provider_update
+        parts = [f"Status: {new_status.replace('_', ' ')}"]
+        for label, key in (("Engineer", "engineer_name"), ("ETA", "estimated_arrival"),
+                           ("Parts", "parts_required"), ("Notes", "notes")):
+            if data.get(key):
+                parts.append(f"{label}: {data[key]}")
+        await mirror_provider_update(case["issue_id"], case.get("supplier_name") or "Provider",
+                                     " · ".join(parts), status=new_status)
+    except Exception as e:
+        logger.warning(f"svc_case provider mirror failed (non-blocking): {e}")
 
     return {"success": True, "new_status": new_status}
 
@@ -1766,6 +1777,13 @@ async def add_supplier_comment(
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.supplier_case_comments.insert_one(comment)
+    try:
+        from utils.svc_desk_scope import mirror_provider_update
+        await mirror_provider_update(case["issue_id"], comment["author_name"],
+                                     f"Message: {msg}" if msg else "Shared an attachment",
+                                     extra={"attachments": attachments, "author_role": author_role})
+    except Exception as e:
+        logger.warning(f"svc_case comment mirror failed (non-blocking): {e}")
 
     # Notify the other party. Gym comments notify the supplier; supplier
     # comments notify the gym (preserved from pre-fix behaviour).

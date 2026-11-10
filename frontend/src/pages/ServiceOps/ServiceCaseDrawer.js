@@ -28,6 +28,7 @@ import {
 import { notify } from '@/components/notifications';
 import CoverageBanner from '@/components/shared/CoverageBanner';
 import ServiceCaseLifecycleTab from './ServiceCaseLifecycleTab';
+import MODJobFileTab, { ProviderReadOnlyBanner } from './MODJobFileTab';
 import './_serviceops.css';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -560,6 +561,9 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                   {statusLabel(t, merged?.status) || merged?.status || '—'}
                 </span>
                 <SLABadge resolveAt={merged?.sla_resolve_at} />
+                {doc?.is_mod ? (
+                  <span className="svc-pill" style={{ background: '#1e3a5f', color: '#fff', fontWeight: 700 }} data-testid="drawer-mod-badge">MOD</span>
+                ) : null}
                 {merged?.customer_po_number ? (
                   <span
                     className="svc-pill inline-flex items-center gap-1"
@@ -584,10 +588,16 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
               <X size={16} />
             </button>
           </div>
+          {doc?.desk_read_only ? (
+            <ProviderReadOnlyBanner caseId={caseId} provider={doc.external_provider} onDone={() => { load(); onChanged?.(); }} />
+          ) : null}
         </header>
 
         {/* Tabs */}
         <div className="svc-tabs" style={{ margin: 0, padding: '0 18px' }}>
+          {doc?.is_mod ? (
+            <TabButton id="jobfile" label="Job file" icon={FileText} active={tab === 'jobfile'} onClick={() => setTab('jobfile')} />
+          ) : null}
           <TabButton id="timeline" label={t('service.cd_tab_timeline', 'Timeline')} icon={Activity} active={tab === 'timeline'} onClick={() => setTab('timeline')} count={events.length} />
           <TabButton id="details" label={t('service.cd_tab_details', 'Details')} icon={Wrench} active={tab === 'details'} onClick={() => setTab('details')} />
           <TabButton id="customer" label={t('service.cd_tab_customer', 'Customer')} icon={UserIcon} active={tab === 'customer'} onClick={() => setTab('customer')} />
@@ -796,6 +806,8 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
               </div>
               <div className="sm:col-span-2"><CrmContextCard caseId={caseId} /></div>
             </div>
+          ) : tab === 'jobfile' ? (
+            <MODJobFileTab caseId={caseId} />
           ) : tab === 'lifecycle' ? (
             <ServiceCaseLifecycleTab caseId={caseId} onNavigate={setTab} />
           ) : (

@@ -32,6 +32,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, Query
 
 from utils.database import db
+from utils.svc_desk_scope import desk_filter
 from utils.auth import get_current_user
 from utils.svc_state import OPEN_STATES, CLOSED, INVOICED, SLA_RISK_WINDOW_HOURS
 
@@ -45,7 +46,8 @@ def _of(user: dict) -> dict:
 @router.get("/summary")
 async def desk_summary(user=Depends(get_current_user)):
     """KPI strip + queue snapshot for the dashboard header."""
-    of = _of(user)
+    _of(user)
+    of = await desk_filter(user)
     now = datetime.now(timezone.utc).isoformat()
 
     open_count = await db.svc_cases.count_documents({**of, "status": {"$in": list(OPEN_STATES)}})
@@ -128,7 +130,8 @@ async def desk_queue(
     user=Depends(get_current_user),
 ):
     """Pre-sorted open queue, default = SLA at risk first."""
-    of = _of(user)
+    _of(user)
+    of = await desk_filter(user)
     sort_spec = [("sla_resolve_at", 1), ("created_at", -1)]
     if sort == "newest":
         sort_spec = [("created_at", -1)]
