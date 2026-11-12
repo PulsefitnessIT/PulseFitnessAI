@@ -78,6 +78,13 @@ async def create_equipment(equipment: EquipmentCreate, user: dict = Depends(get_
     # always service through Pulse Fitness's depot, so manual entry is
     # noise. They can still override per-equipment.
     org_id = user.get("organization_id")
+    lite_org = await db.organizations.find_one({"id": org_id, "account_type": "lite"}, {"_id": 0, "id": 1,
+                                                "account_type": 1}) if org_id else None
+    if lite_org:
+        from utils.default_supplier import ensure_default_supplier, pulse_supplier_fields
+        sup = await ensure_default_supplier(org_id, lite_org)
+        if sup:
+            payload.update(pulse_supplier_fields(sup))
     if org_id and not (payload.get("supplier") or "").strip():
         try:
             org = await db.organizations.find_one(
@@ -942,6 +949,12 @@ async def update_equipment(equipment_id: str, data: Dict[str, Any], request: Req
             status_code=403,
             detail="Only owners and managers can change the supplier on equipment",
         )
+    if ("supplier" in update_data or "supplier_id" in update_data) and not user.get("is_master_admin"):
+        from utils.default_supplier import is_lite_org
+        org_doc = await db.organizations.find_one({"id": user.get("organization_id")}, {"_id": 0, "account_type": 1})
+        if is_lite_org(org_doc):
+            raise HTTPException(status_code=403, detail="On Pulse Lite every machine is serviced by Pulse Fitness Ltd. "
+                                                        "Upgrade to Pulse Pro to use another service provider.")
     if "supplier" in update_data or "supplier_id" in update_data:
         update_data["supplier_override"] = True
         update_data["supplier_mode"] = "custom"

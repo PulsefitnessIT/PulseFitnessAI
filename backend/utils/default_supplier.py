@@ -93,3 +93,30 @@ def can_add_extra_suppliers(user: dict, org: dict | None) -> bool:
         return True
     at = str((org or {}).get("account_type") or "").lower()
     return at != "lite"
+
+
+def is_lite_org(org: dict | None) -> bool:
+    return str((org or {}).get("account_type") or "").lower() == "lite"
+
+
+def pulse_supplier_fields(supplier: dict) -> dict:
+    return {"supplier": supplier.get("name") or PULSE_DEFAULT_SUPPLIER_NAME, "supplier_id": supplier.get("id"),
+            "supplier_email": supplier.get("email") or "", "supplier_override": False, "supplier_mode": "pulse_lite"}
+
+
+async def lock_lite_equipment_to_pulse() -> dict:
+    """Pulse Lite machines are always serviced by Pulse Fitness Ltd. Moves any
+    Lite machine on another provider back to the org's Pulse default
+    (idempotent; only provider fields change, previous value kept)."""
+    stats = {"orgs": 0, "moved": 0}
+    async for org in db.organizations.find({"account_type": "lite"}, {"_id": 0, "id": 1, "account_type": 1,
+                                                                     "is_mod_site": 1, "mod_account_type": 1}):
+        sup = await ensure_default_supplier(org["id"], org)
+        if not sup:
+            continue
+        stats["orgs"] += 1
+        res = await db.equipment.update_many(
+            {"organization_id": org["id"], "supplier_id": {"$ne": sup["id"]}},
+            [{"$set": {"previous_supplier": "$supplier", **pulse_supplier_fields(sup)}}])
+        stats["moved"] += res.modified_count
+    return stats

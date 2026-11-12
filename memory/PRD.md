@@ -39312,3 +39312,9 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - POST /api/me/pro-trial/request (Lite owner, trial used) → pro_trial_requested_at + email to PRO_TRIAL_REQUEST_EMAIL (lee.somers@pulsefitness.com, backend/.env)
 - UI: TrialRequestCard in Plan & Billing; GrantProTrialButton shows "Another trial requested"; grant clears requested/reminder flags
 - Preview Resend key invalid → emails log as failed in preview (works with live key)
+
+## 2026-11-12 — Pulse Lite: provider locked to Pulse Fitness Ltd
+- PATCH /api/equipment/{id} supplier/supplier_id → 403 for Lite orgs (master admin exempt); Pro/trial (account_type pulse_pro) unchanged
+- POST /api/equipment on Lite org always sets the org's default Pulse supplier (supplier_id, supplier_mode 'pulse_lite')
+- Startup backfill utils/default_supplier.lock_lite_equipment_to_pulse (bootstrap/seed.py): moves Lite machines on other providers back to Pulse default (keeps previous_supplier)
+- UI: LiteDialogs hides "Change service provider" for Lite orgs

@@ -288,6 +288,11 @@ async def seed_services() -> None:
     except Exception as e:  # pragma: no cover
         logger.warning("Service-org backfill failed: %s", e)
     try:
+        from utils.default_supplier import lock_lite_equipment_to_pulse
+        logger.info("Lite equipment → Pulse Fitness Ltd: %s", await lock_lite_equipment_to_pulse())
+    except Exception as e:  # pragma: no cover
+        logger.warning("Lite supplier lock failed: %s", e)
+    try:
         from routes.svc.ai_scheduling import ensure_scheduling_indexes
         await ensure_scheduling_indexes()
     except Exception as e:  # pragma: no cover

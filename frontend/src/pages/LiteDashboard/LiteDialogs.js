@@ -1,4 +1,5 @@
 import { notify } from '@/components/notifications';
+import { useAuth } from '@/App';
 import { resolveEquipmentPhoto } from '@/utils/photoUrl';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
@@ -52,7 +53,9 @@ const EquipmentDetailContent = ({ selectedEquipment, serviceProviders, getEquipm
   // Iter 216h114 — Inline Supplier editor. Owners/managers see a
   // dropdown sourced from /api/suppliers so they can re-route fault
   // notifications without leaving the equipment drawer.
-  const canEditSupplier = userRole === 'owner' || userRole === 'manager' || userRole === 'master_admin';
+  const { user } = useAuth();
+  const isLiteOrg = String(user?.account_type || '').toLowerCase() === 'lite';
+  const canEditSupplier = !isLiteOrg && (userRole === 'owner' || userRole === 'manager' || userRole === 'master_admin');
   const [supplierOptions, setSupplierOptions] = useState([]);
   const [editingSupplier, setEditingSupplier] = useState(false);
   const [savingSupplier, setSavingSupplier] = useState(false);
