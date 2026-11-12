@@ -39306,3 +39306,9 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - NudgeBanner text uses var(--theme-text) (was washed in light theme)
 - LiteDashboardPage: Lite owners get SiteSwitcher + start on All sites (once per session, sessionStorage flag)
 - Tests: iteration_289, tests/test_pro_trial_once.py
+
+## 2026-11-12 — Trial ending reminder + trial request
+- utils/pro_trial_reminders.py: hourly cron `pro-trial-reminder` (15 * * * *) → POST /api/me/pro-trial/cron/reminders (WEBHOOK_CRON_SECRET, idempotent via cron_runs + pro_trial_reminder_sent_at). Emails org owners ~24h before earliest module_trials.expires_at with per-module counts (members/plans/class bookings, campaigns/journeys, companies/deals/quotes since trial start)
+- POST /api/me/pro-trial/request (Lite owner, trial used) → pro_trial_requested_at + email to PRO_TRIAL_REQUEST_EMAIL (lee.somers@pulsefitness.com, backend/.env)
+- UI: TrialRequestCard in Plan & Billing; GrantProTrialButton shows "Another trial requested"; grant clears requested/reminder flags
+- Preview Resend key invalid → emails log as failed in preview (works with live key)

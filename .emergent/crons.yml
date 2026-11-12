@@ -21,3 +21,10 @@ crons:
     method: POST
     # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
     enabled: true
+  - name: pro-trial-reminder
+    description: "Hourly check that emails Lite owners their usage a day before the Pulse Pro trial ends"
+    cron: "15 * * * *"
+    endpoint: "{{BASE_URL}}/api/me/pro-trial/cron/reminders"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

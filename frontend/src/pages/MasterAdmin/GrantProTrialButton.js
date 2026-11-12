@@ -32,6 +32,11 @@ export default function GrantProTrialButton({ org }) {
         <p data-testid={`org-pro-trial-status-${org.id}`}>
           {granted ? 'Allocated — waiting for the organisation to start it.' : used ? 'Already used.' : 'Not used yet — available to the owner.'}
         </p>
+        {!granted && org.pro_trial_requested_at && (
+          <p className="text-amber-700 font-semibold" data-testid={`org-pro-trial-requested-${org.id}`}>
+            Another trial requested {new Date(org.pro_trial_requested_at).toLocaleDateString()}{org.pro_trial_requested_by ? ` by ${org.pro_trial_requested_by}` : ''}
+          </p>
+        )}
       </div>
       {used && !granted && (
         <Button size="sm" variant="outline" onClick={grant} disabled={busy} data-testid={`org-grant-pro-trial-${org.id}`}>

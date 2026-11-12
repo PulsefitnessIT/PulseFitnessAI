@@ -20,7 +20,7 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 from utils.auth import get_current_user
 from utils.database import db
@@ -191,7 +191,8 @@ async def upgrade_to_pulse_pro(
         raise HTTPException(409, "Your organisation has already used its free Pulse Pro trial. "
                                  "Contact Pulse Fitness if you'd like another.")
 
-    trial_flags = {"pro_trial_used_at": _now_iso(), "pro_trial_granted": False} if requested_trials else {}
+    trial_flags = {"pro_trial_used_at": _now_iso(), "pro_trial_granted": False,
+                   "pro_trial_reminder_sent_at": None} if requested_trials else {}
     await db.organizations.update_one(
         {"id": org["id"]},
         {"$set": {
@@ -427,6 +428,7 @@ def _pro_trial_state(org: dict) -> dict:
         "used_at": used_at,
         "granted": granted,
         "banner_dismissed": bool(org.get("pro_trial_banner_dismissed_at")),
+        "requested_at": org.get("pro_trial_requested_at"),
         "trial_duration_days": TRIAL_DURATION_DAYS,
     }
 
@@ -461,8 +463,54 @@ async def grant_pro_trial(org_id: str, user: dict = Depends(get_current_user)):
     await db.organizations.update_one({"id": org_id}, {
         "$set": {"pro_trial_granted": True, "pro_trial_granted_at": _now_iso(),
                  "pro_trial_granted_by": user.get("email")},
-        "$unset": unset})
+        "$unset": {**unset, "pro_trial_requested_at": "", "pro_trial_reminder_sent_at": ""}})
     await db.account_change_audit.insert_one({
         "id": f"pro-trial-grant-{org_id}-{int(_now().timestamp())}", "organization_id": org_id,
         "actor_id": user["id"], "kind": "pro_trial_granted", "created_at": _now_iso()})
     return {"ok": True}
+
+
+@router.post("/me/pro-trial/request")
+async def request_another_pro_trial(body: dict = Body(default={}), user: dict = Depends(get_current_user)):
+    """Lite owner whose trial is used asks Pulse for another (emails the Pulse team)."""
+    if (user.get("role") or "").lower() != "owner":
+        raise HTTPException(403, "Only the organisation owner can request another trial.")
+    org = await _resolve_org(user)
+    state = _pro_trial_state(org)
+    if state["available"]:
+        raise HTTPException(400, "Your free trial is still available — start it from Plan & Billing.")
+    if (org.get("account_type") or "").lower() != "lite":
+        raise HTTPException(400, "Only Pulse Lite organisations can request a trial.")
+    if org.get("pro_trial_requested_at"):
+        return {"ok": True, "already_requested": True, "requested_at": org["pro_trial_requested_at"]}
+    from utils.pro_trial_reminders import send_trial_request_alert
+    now = _now_iso()
+    await db.organizations.update_one({"id": org["id"]}, {"$set": {
+        "pro_trial_requested_at": now, "pro_trial_requested_by": user.get("email")}})
+    emailed = await send_trial_request_alert(org, user, str((body or {}).get("note") or "")[:500])
+    return {"ok": True, "requested_at": now, "emailed": emailed}
+
+
+@router.post("/me/pro-trial/cron/reminders")
+async def pro_trial_reminder_cron(request: Request):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    import asyncio
+    import hmac
+    secret = os.environ.get("WEBHOOK_CRON_SECRET")
+    authz = request.headers.get("authorization") or ""
+    if not secret or not authz.startswith("Bearer ") or not hmac.compare_digest(authz[7:], secret):
+        raise HTTPException(401, "unauthorized")
+    run_id = request.headers.get("x-webhook-id") or ""
+    if run_id:
+        try:
+            await db.cron_runs.insert_one({"_id": f"pro-trial-reminders:{run_id}", "at": _now_iso()})
+        except Exception:
+            return {"accepted": True, "duplicate": True}
+    from utils.pro_trial_reminders import sweep_trial_reminders
+    task = asyncio.create_task(sweep_trial_reminders())
+    _CRON_TASKS.add(task)
+    task.add_done_callback(_CRON_TASKS.discard)
+    return {"accepted": True}
+
+
+_CRON_TASKS: set = set()
