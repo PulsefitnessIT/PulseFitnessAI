@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { ArrowUpRight, Check, FileText, Loader2, Plus } from 'lucide-react';
 import { useAuth } from '@/App';
 import { API, useAuthHeaders } from './shared';
+import PulseProUpgradeCta from '@/components/shared/PulseProUpgradeCta';
 
 
 export default function BillingSection({ billing, _onClose }) {
@@ -53,6 +54,7 @@ export default function BillingSection({ billing, _onClose }) {
 
   return (
     <div className="space-y-6" data-testid="account-section-billing">
+      <PulseProUpgradeCta inSettings />
       {/* Trial state — visible when org is in any trial status */}
       {isTrial && (
         <div

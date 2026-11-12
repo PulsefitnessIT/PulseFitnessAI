@@ -204,6 +204,7 @@ const PrimaryContactPasswordReveal = ({ _orgId, primaryContactEmail, primaryCont
 };
 
 import FeatureControlPanel from './FeatureControlPanel';
+import GrantProTrialButton from './GrantProTrialButton';
 import OrgSitesPanel from './OrgSitesPanel';
 import { OrgRowSkeleton } from '@/components/shared/Skeleton';
 
@@ -1455,6 +1456,7 @@ useEffect(() => {
      a billing review fast for finance admins. */}
  {isExpanded && expandedView === 'billing' && (
  <div className="bg-white" data-testid={`org-billing-panel-${org.id}`}>
+ <GrantProTrialButton org={org} />
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
  <div>
  <Label className="text-zinc-500 text-[10px] uppercase tracking-wider">Subscription tier</Label>

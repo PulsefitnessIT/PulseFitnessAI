@@ -186,10 +186,16 @@ async def upgrade_to_pulse_pro(
         return {"ok": True, "already_pro": True}
     if current != "lite":
         raise HTTPException(400, f"Cannot upgrade from '{current}' — only Pulse Lite orgs upgrade to Pro.")
+    requested_trials = body.get("start_trials") or []
+    if requested_trials and not _pro_trial_state(org)["available"]:
+        raise HTTPException(409, "Your organisation has already used its free Pulse Pro trial. "
+                                 "Contact Pulse Fitness if you'd like another.")
 
+    trial_flags = {"pro_trial_used_at": _now_iso(), "pro_trial_granted": False} if requested_trials else {}
     await db.organizations.update_one(
         {"id": org["id"]},
         {"$set": {
+            **trial_flags,
             "account_type": "pulse_pro",
             "previous_account_type": current,
             "upgraded_at": _now_iso(),
@@ -408,3 +414,55 @@ async def module_purchase_status(session_id: str, user: dict = Depends(get_curre
         logger.info("Module %s subscribed (paid) for org %s session %s", module, txn["organization_id"], session_id)
 
     return {"status": session.get("status"), "payment_status": payment_status, "module": module}
+
+
+# ── Pulse Pro trial: once per organisation, dismissible banner ────
+def _pro_trial_state(org: dict) -> dict:
+    trial_starts = [((org.get("module_trials") or {}).get(m) or {}).get("started_at") for m in BOLT_ON_MODULES]
+    used_at = org.get("pro_trial_used_at") or min([s for s in trial_starts if s], default=None)
+    granted = bool(org.get("pro_trial_granted"))
+    is_lite = (org.get("account_type") or "").lower() == "lite"
+    return {
+        "available": is_lite and (not used_at or granted),
+        "used_at": used_at,
+        "granted": granted,
+        "banner_dismissed": bool(org.get("pro_trial_banner_dismissed_at")),
+        "trial_duration_days": TRIAL_DURATION_DAYS,
+    }
+
+
+@router.get("/me/pro-trial")
+async def get_pro_trial(user: dict = Depends(get_current_user)):
+    org = await _resolve_org(user)
+    return {**_pro_trial_state(org),
+            "is_owner": (user.get("role") or "").lower() == "owner" or bool(user.get("is_master_admin"))}
+
+
+@router.post("/me/pro-trial/dismiss-banner")
+async def dismiss_pro_trial_banner(user: dict = Depends(get_current_user)):
+    """Close the dashboard trial banner for the whole organisation, for good.
+    The trial stays available under Account settings → Plan & Billing."""
+    org = await _resolve_org(user)
+    await db.organizations.update_one({"id": org["id"]}, {"$set": {
+        "pro_trial_banner_dismissed_at": _now_iso(), "pro_trial_banner_dismissed_by": user["id"]}})
+    return {"ok": True}
+
+
+@router.post("/master-admin/organizations/{org_id}/grant-pro-trial")
+async def grant_pro_trial(org_id: str, user: dict = Depends(get_current_user)):
+    """Master Admin: allow an organisation that asked for it one more free
+    Pulse Pro trial (resets the bolt-on trial clocks; no data is touched)."""
+    from routes.master_admin import require_master_admin
+    require_master_admin(user)
+    org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "id": 1, "account_type": 1})
+    if not org:
+        raise HTTPException(404, "Organisation not found")
+    unset = {f"module_trials.{m}": "" for m in BOLT_ON_MODULES}
+    await db.organizations.update_one({"id": org_id}, {
+        "$set": {"pro_trial_granted": True, "pro_trial_granted_at": _now_iso(),
+                 "pro_trial_granted_by": user.get("email")},
+        "$unset": unset})
+    await db.account_change_audit.insert_one({
+        "id": f"pro-trial-grant-{org_id}-{int(_now().timestamp())}", "organization_id": org_id,
+        "actor_id": user["id"], "kind": "pro_trial_granted", "created_at": _now_iso()})
+    return {"ok": True}

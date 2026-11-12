@@ -105,7 +105,7 @@ const getStatusColor = (status) => {
 };
 
 const LiteDashboardPage = () => {
-  const { API, user, _logout, _theme, _toggleTheme, activeSite } = useAuth();
+  const { API, user, _logout, _theme, _toggleTheme, activeSite, sites } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const adminView = searchParams.get('view'); // 'lite' or 'pro' for admin preview
@@ -130,11 +130,17 @@ const LiteDashboardPage = () => {
   const isPro = adminView === 'lite'
     ? false
     : (user?.account_type === 'pulse_pro' || isAdmin || isTrialActive || isMOD);
-  // Iter 216i — multi-site overview toggle. Owners/managers can flip the
-  // dashboard into "All sites" mode via the site-switcher dropdown; the
-  // choice is local to this tab and clears as soon as they pick a single
-  // site.
+  // Iter 216i — multi-site overview toggle. Owners start on "All sites" so
+  // they see their whole organisation; picking a single site drops back to
+  // the per-site tabs.
   const [allSitesActive, setAllSitesActive] = useState(false);
+  const isLiteOwner = (user?.role || '').toLowerCase() === 'owner' && (user?.account_type || '').toLowerCase() === 'lite';
+  const ownerAllSitesApplied = useRef(false);
+  useEffect(() => {
+    if (ownerAllSitesApplied.current || !isLiteOwner || (sites?.length || 0) < 2) return;
+    ownerAllSitesApplied.current = true;
+    setAllSitesActive(true);
+  }, [isLiteOwner, sites?.length]);
   const { t } = useTranslation();
   const [equipment, setEquipment] = useState([]);
   const [hasDeliveries, setHasDeliveries] = useState(false);
@@ -908,7 +914,7 @@ const LiteDashboardPage = () => {
                 </h1>
                 <p className="pulse-font-body mb-3" style={{ color: 'var(--theme-text-muted)' }}>{t('dashboard.welcome', 'Welcome back')}, {user?.full_name}</p>
               </div>
-              <div className="flex items-center gap-3 shrink-0 mt-1.5">
+              <div className="flex flex-wrap items-center gap-3 mt-1.5">
                 {isManagerial && (
                   <div className="hidden md:block" data-testid="operations-bell">
                     <StaffNotificationBell
@@ -927,7 +933,7 @@ const LiteDashboardPage = () => {
                     Iter 237 — Pulse Master Admins (role pulse_master_admin /
                     is_pulse_admin) regained access: they manage the whole
                     Pulse estate and must be able to hop between sites. */}
-                {isPro && isManagerial ? (
+                {(isPro || isLiteOwner) && isManagerial ? (
                   <SiteSwitcher
                     onAllSites={() => setAllSitesActive(true)}
                     onPickSite={() => setAllSitesActive(false)}
