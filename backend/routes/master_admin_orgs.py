@@ -487,11 +487,18 @@ async def update_org_features(org_id: str, body: dict = Body(...), user: dict = 
             # them from the incoming payload (previously dropped) and treat
             # either mode being on as implying CRM itself is enabled.
             if m_key == "crm":
-                if "business_enabled" in cfg:
-                    entry["business_enabled"] = bool(cfg["business_enabled"])
-                if "leisure_enabled" in cfg:
-                    entry["leisure_enabled"] = bool(cfg["leisure_enabled"])
-                if entry.get("business_enabled") or entry.get("leisure_enabled"):
+                def _flag(v) -> bool:
+                    return v.strip().lower() in {"true", "1", "yes", "on"} if isinstance(v, str) else bool(v)
+                turned_on = False
+                for mode in ("business_enabled", "leisure_enabled"):
+                    if mode in cfg:
+                        val = _flag(cfg[mode])
+                        turned_on = turned_on or (val and not _flag(existing.get(mode, False)))
+                        entry[mode] = val
+                # The main switch is authoritative. Mode flags are kept as-is
+                # when CRM is switched off so switching back on restores them;
+                # only a mode switched ON in this request implies CRM on.
+                if turned_on:
                     entry["enabled"] = True
             if is_mod and m_key != "operations":
                 entry["enabled"] = False

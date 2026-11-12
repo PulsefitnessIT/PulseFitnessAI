@@ -39292,3 +39292,9 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - UI: MOD badge + filter-mod on ServiceOps desk; drawer Job file tab, read-only banner + Take over dialog
 - Tests: tests/test_mod_service_desk_visibility.py 24/24; iteration_288
 - NOTE: desk staff need users.is_service_desk=true to reach /service-desk (craig.henshall lacks it)
+
+## 2026-11-12 — CRM module switch-off fix (prod RCA 40e7bc15)
+- PUT /api/master-admin/organizations/{id}/features forced crm.enabled=True whenever business/leisure mode flag truthy → main switch could never turn CRM off (one-way latch)
+- Now: main `enabled` authoritative; only a mode switched ON in the same request implies CRM on; mode flags kept when off (restored on re-enable); string flags coerced
+- pulse-portal-login self-heal no longer re-enables modules (only seeds a blank operator org)
+- Disabling a module never deletes data (flags only)

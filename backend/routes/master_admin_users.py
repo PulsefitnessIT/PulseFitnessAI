@@ -1727,15 +1727,14 @@ async def pulse_portal_login(request: Request, user: dict = Depends(get_current_
         mods = o.get("modules") or {}
         return sum(1 for v in mods.values() if isinstance(v, dict) and v.get("enabled"))
 
-    # Self-heal: the chosen operator company must be a FULL platform with every
-    # module enabled so the admin always lands on the complete operator
-    # dashboard (idempotent — only writes when something is missing).
+    # Self-heal ONLY a blank operator company (no modules configured yet).
+    # Never re-enable a module the master admin has deliberately switched off.
     full_modules = {
         k: {"enabled": True, "tier": "pro", "source": "admin"}
         for k in ("operations", "memberships", "marketing", "crm")
     }
     full_modules["crm"]["business_enabled"] = True
-    if org.get("account_type") != "full" or _enabled_count(org) < 4:
+    if not org.get("modules"):
         merged = {**(org.get("modules") or {})}
         for k, v in full_modules.items():
             merged[k] = {**(merged.get(k) or {}), **v}
