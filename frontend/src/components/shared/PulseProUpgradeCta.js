@@ -133,7 +133,7 @@ export default function PulseProUpgradeCta({ inSettings = false }) {
           <X size={15} />
         </button>
       )}
-      <div className="relative flex flex-col lg:flex-row gap-5 lg:items-center">
+      <div className={`relative flex flex-col gap-5 ${inSettings ? '' : 'lg:flex-row lg:items-center'}`}>
         <div className="flex-1 min-w-0">
           <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-200 text-[10px] uppercase tracking-wider font-bold mb-3">
             <Crown size={11} /> Pulse Lite · 3 modules locked
@@ -145,7 +145,7 @@ export default function PulseProUpgradeCta({ inSettings = false }) {
             Memberships, Marketing and CRM activate instantly — no card, no commitment. After 3 days, keep what you use and disable the rest.
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
+          <div className={`grid grid-cols-1 gap-2 mt-4 ${inSettings ? '' : 'sm:grid-cols-3'}`}>
             {BOLT_ONS.map((b) => {
               const Icon = b.icon;
               return (
@@ -168,7 +168,7 @@ export default function PulseProUpgradeCta({ inSettings = false }) {
           </div>
         </div>
 
-        <div className="lg:w-56 flex flex-col gap-2 shrink-0">
+        <div className={`flex flex-col gap-2 shrink-0 ${inSettings ? 'sm:w-64' : 'lg:w-56'}`}>
           {isOwner ? (
             <button
               onClick={startTrial}

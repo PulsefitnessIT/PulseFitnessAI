@@ -39298,3 +39298,11 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Now: main `enabled` authoritative; only a mode switched ON in the same request implies CRM on; mode flags kept when off (restored on re-enable); string flags coerced
 - pulse-portal-login self-heal no longer re-enables modules (only seeds a blank operator org)
 - Disabling a module never deletes data (flags only)
+
+## 2026-11-12 — Pulse Lite trial banner + owner All-sites
+- Trial: one free Pulse Pro trial per org (pro_trial_used_at; legacy module_trials.started_at counts as used); upgrade-to-pro self-serve blocked (409) once used unless Master Admin grants (POST /api/master-admin/organizations/{id}/grant-pro-trial → pro_trial_granted, clears module_trials)
+- GET /api/me/pro-trial, POST /api/me/pro-trial/dismiss-banner (org-wide, permanent)
+- PulseProUpgradeCta: X close; `inSettings` variant in Account settings → Plan & Billing; card titles readable (inline colours); Master Admin Billing tab GrantProTrialButton
+- NudgeBanner text uses var(--theme-text) (was washed in light theme)
+- LiteDashboardPage: Lite owners get SiteSwitcher + start on All sites (once per session, sessionStorage flag)
+- Tests: iteration_289, tests/test_pro_trial_once.py

@@ -187,7 +187,7 @@ async def upgrade_to_pulse_pro(
     if current != "lite":
         raise HTTPException(400, f"Cannot upgrade from '{current}' — only Pulse Lite orgs upgrade to Pro.")
     requested_trials = body.get("start_trials") or []
-    if requested_trials and not _pro_trial_state(org)["available"]:
+    if not user.get("is_master_admin") and not _pro_trial_state(org)["available"]:
         raise HTTPException(409, "Your organisation has already used its free Pulse Pro trial. "
                                  "Contact Pulse Fitness if you'd like another.")
 

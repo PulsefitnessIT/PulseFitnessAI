@@ -1,0 +1,41 @@
+{
+  "summary": "Tested Pulse Pro trial once-per-org + dismissible banner + Master Admin re-grant (backend pytest + UI) and Lite-owner All-sites default. Backend core flow 100% pass (state, dismiss, once-only 409, master grant -> available again -> used -> unavailable, non-master 403, 404). UI: banner card titles now white (rgb 255,255,255) and readable; X dismiss hides banner and it stays hidden after reload; Account settings > Plan & Billing shows pulse-pro-upgrade-cta-settings with Try button (no X); Lite owner lands on All Operations Sites with switcher; Master Admin Billing tab shows org-pro-trial box, 'Allocate another trial' works and status updates. FOUND: (1) Lite owner cannot switch to a different single site from the switcher - bounces back to All sites. (2) Once-per-org bypass: POST /api/me/upgrade-to-pro with {} upgrades a used-trial Lite org to pulse_pro for free.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/me/upgrade-to-pro", "issue": "Once-per-org check only runs when start_trials is non-empty (line 190). An org that already used its trial, back on lite, can POST {} (or start_trials:[]) and is flipped to account_type='pulse_pro' with no trial expiry and no payment. Verified: available=false -> POST {} -> 200 {account_type:'pulse_pro', trials_started:[]}. Either always enforce the check for self-serve upgrades, or require a paid path for no-trial upgrades.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/me/pro-trial/dismiss-banner", "issue": "No owner/manager check - any authenticated org user (e.g. staff) can permanently dismiss the banner for the whole organisation. Consider _require_owner_or_master or managerial check."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "LiteDashboardPage + AppRoutes", "issue": "Lite owner picking a DIFFERENT site in the site switcher stays on All Operations Sites (all-sites-overview still shown, per-site tabs not shown). localStorage active_site_cache does update. Picking the same site a second time works. RCA: AppRoutes renders <Routes key={siteKey}> so changing activeSite remounts LiteDashboardPage; ownerAllSitesApplied useRef resets on remount and the effect at L139-143 sets allSitesActive=true again. Fix: initialise allSitesActive from auth allSitesMode (or localStorage 'active_site_all'), and only apply the owner default when no explicit site choice is stored (e.g. no active_site_cache) - or persist the 'applied' flag in sessionStorage.", "selector": "[data-testid='site-switcher-item-<siteId>']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Account settings > Plan & Billing (pulse-pro-upgrade-cta-settings)", "issues": ["Bolt-on cards are too narrow in the modal: descriptions wrap to 4-5 lines and 'Email/SMS/push' / 'Memberships' text overflows past card edges. Use 1-col or stacked layout at this width."]},
+      {"screen": "Login page", "issues": ["On 429 rate limit ('Too many requests') the login form shows no visible error - Sign In just does nothing."]},
+      {"screen": "Plan & Billing", "issues": ["'Upgrade Plan' button is light-blue with white text - low contrast."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_pro_trial_once.py", "/app/test_reports/pytest/pro_trial_once.xml"],
+  "action_items": [
+    "Fix site-switcher bounce-back for Lite owners (remount resets ownerAllSitesApplied ref) - see RCA",
+    "Close once-per-org bypass in /api/me/upgrade-to-pro when start_trials is empty",
+    "Optionally restrict dismiss-banner to owners/managers",
+    "Fix cramped bolt-on cards in settings CTA; show error on 429 at login"
+  ],
+  "critical_code_review_comments": [
+    "upgrade_to_pulse_pro: requested_trials guard makes once-only check optional",
+    "LiteDashboardPage L136-143: owner default should respect persisted site choice, since <Routes key={siteKey}> remounts the page",
+    "GrantProTrialButton 'used' check depends on the org list payload including pro_trial_used_at/module_trials - works today, keep in sync",
+    "LiteDashboardPage.js is 1337 lines - should be split"
+  ],
+  "updated_files": ["/app/backend/tests/test_pro_trial_once.py"],
+  "success_rate": {"backend": "100% of requested flows (1 HIGH loophole found)", "frontend": "~85% (switcher single-site pick broken)"},
+  "seed_data_creation": "None. Lite org 12cba6ed-... was mutated during tests and RESET afterwards: account_type='lite', pro_trial_* and module_trials unset, modules.memberships/crm/marketing = {enabled:false, source:'admin'}. TEST_ sites untouched. Side effect: several account_change_audit rows (account_type_upgrade, module_trial_start, pro_trial_granted) were inserted for this org.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login is rate-limited (429 after ~5 logins/min) and browser logout revokes sessions; inject a token via localStorage('token') instead of UI logins. MFA enforcement is currently false. Run pytest tests/test_pro_trial_once.py (it resets the org before/after). To reproduce switcher bug: as lite owner on /pulse, open site-switcher-trigger, click site-switcher-item-f06b5893-93ac-4237-a6ac-e97600891859 -> all-sites-overview still visible."
+}

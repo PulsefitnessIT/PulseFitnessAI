@@ -135,10 +135,12 @@ const LiteDashboardPage = () => {
   // the per-site tabs.
   const [allSitesActive, setAllSitesActive] = useState(false);
   const isLiteOwner = (user?.role || '').toLowerCase() === 'owner' && (user?.account_type || '').toLowerCase() === 'lite';
-  const ownerAllSitesApplied = useRef(false);
+  // Applied once per browser session — the page remounts on every site
+  // switch, so a ref alone would bounce the owner back to "All sites".
   useEffect(() => {
-    if (ownerAllSitesApplied.current || !isLiteOwner || (sites?.length || 0) < 2) return;
-    ownerAllSitesApplied.current = true;
+    if (!isLiteOwner || (sites?.length || 0) < 2) return;
+    if (sessionStorage.getItem('lite_owner_all_sites_applied') === '1') return;
+    sessionStorage.setItem('lite_owner_all_sites_applied', '1');
     setAllSitesActive(true);
   }, [isLiteOwner, sites?.length]);
   const { t } = useTranslation();
