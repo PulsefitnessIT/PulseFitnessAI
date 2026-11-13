@@ -1458,7 +1458,11 @@ async def vehicle_photo(file_id: str, request: Request, authorization: str = Hea
 
 # ═══════════════════ Weekly reminder email (end of week) ═══════════════════
 def _portal_base_url() -> str:
-    return (os.environ.get("APP_PUBLIC_URL") or os.environ.get("FRONTEND_URL") or "https://pulsefitness.ai").rstrip("/")
+    # Always an absolute https link: a scheme-less / preview URL makes Android mail apps say "No app installed".
+    base = (os.environ.get("VEHICLE_CHECK_PORTAL_URL") or "https://pulsefitness.ai").strip().rstrip("/")
+    if not base.startswith(("http://", "https://")):
+        base = f"https://{base}"
+    return base.replace("http://", "https://", 1)
 
 
 def _reminder_html(first_name: str, week: str, rows: list[dict]) -> str:
@@ -1470,7 +1474,7 @@ def _reminder_html(first_name: str, week: str, rows: list[dict]) -> str:
         f'padding:10px 18px;border-radius:8px;text-decoration:none;">Complete check</a></td></tr>'
         for r in rows)
     return (
-        '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#0f172a;">'
+        '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px 30px;color:#0f172a;">'
         f'<h2 style="margin:0 0 8px;">Hi {_esc(first_name)},</h2>'
         f'<p>Your weekly vehicle check for the week commencing <strong>{_esc(week)}</strong> has not been completed yet.</p>'
         '<p>Please complete it as soon as possible. The button takes you straight to your check sheet.</p>'

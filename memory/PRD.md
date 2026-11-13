@@ -39318,3 +39318,7 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - POST /api/equipment on Lite org always sets the org's default Pulse supplier (supplier_id, supplier_mode 'pulse_lite')
 - Startup backfill utils/default_supplier.lock_lite_equipment_to_pulse (bootstrap/seed.py): moves Lite machines on other providers back to Pulse default (keeps previous_supplier)
 - UI: LiteDialogs hides "Change service provider" for Lite orgs
+
+## Jun 2026 — Email branding + vehicle check link
+- All emails: wide Pulse Fitness logo (frontend/public/brand/pulse-email-logo-wide.png) in black header; brand fonts via @font-face (Maax Rounded headings, Proxima Nova body, Regular+Bold) in utils/email.py wrap_branded.
+- Vehicle check reminder "Complete check" link now always absolute https from VEHICLE_CHECK_PORTAL_URL (https://pulsefitness.ai) -> /staff-portal?tab=vehicle&vehicle=<id>.

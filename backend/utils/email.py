@@ -41,6 +41,23 @@ def _resolve_gymaxis_mark() -> str:
 
 
 GYMAXIS_LOGO_MARK = _resolve_gymaxis_mark()
+PULSE_EMAIL_LOGO_WIDE = f"{PUBLIC_BASE_URL}/brand/pulse-email-logo-wide.png"
+_FONT_BASE = f"{PUBLIC_BASE_URL}/brand/fonts"
+# Brand fonts (Apple Mail / iOS honour @font-face; Gmail/Outlook fall back to Arial).
+EMAIL_FONT_STYLE = (
+    "<style>"
+    f"@font-face{{font-family:'Proxima Nova';font-weight:400;src:url('{_FONT_BASE}/ProximaNova-Regular.otf') format('opentype');}}"
+    f"@font-face{{font-family:'Proxima Nova';font-weight:700;src:url('{_FONT_BASE}/ProximaNova-Bold.otf') format('opentype');}}"
+    f"@font-face{{font-family:'Maax Rounded';font-weight:400;src:url('{_FONT_BASE}/MaaxRounded-Regular.otf') format('opentype');}}"
+    f"@font-face{{font-family:'Maax Rounded';font-weight:700;src:url('{_FONT_BASE}/MaaxRounded-Bold.otf') format('opentype');}}"
+    ".gymaxis-email-cobrand-wrap,.gymaxis-email-cobrand-wrap p,.gymaxis-email-cobrand-wrap td,"
+    ".gymaxis-email-cobrand-wrap div,.gymaxis-email-cobrand-wrap span,.gymaxis-email-cobrand-wrap a,"
+    ".gymaxis-email-cobrand-wrap li{font-family:'Proxima Nova',Arial,Helvetica,sans-serif !important;}"
+    ".gymaxis-email-cobrand-wrap h1,.gymaxis-email-cobrand-wrap h2,.gymaxis-email-cobrand-wrap h3,"
+    ".gymaxis-email-cobrand-wrap h4,.gymaxis-email-cobrand-wrap .pf-heading"
+    "{font-family:'Maax Rounded','Proxima Nova',Arial,Helvetica,sans-serif !important;}"
+    "</style>"
+)
 PULSE_FITNESS_LOGO = (
     "https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/"
     "iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg"
@@ -152,9 +169,16 @@ def _header_html(brand: dict, accent: str = "#19CDFF") -> str:
         )
     else:
         left_block = ""
-    # Pulse Fitness wordmark as text — "pulse" white + "fitness" cyan, matching
-    # the landing-page lockup and guaranteed to render on the black bar.
-    wordmark = (
+    pulse_logo = brand.get("pulse_logo") or ""
+    if pulse_logo:
+        wordmark = (
+            f'<img src="{pulse_logo}" alt="Pulse Fitness" width="180" '
+            f'style="display:inline-block;width:180px;max-width:100%;height:auto;border:0;vertical-align:middle;" />'
+        )
+    else:
+        wordmark = None
+    # Text fallback: "pulse" white + "fitness" cyan, used only if the logo image is unreachable.
+    wordmark = wordmark or (
         f'<span style="font-family:Arial,Helvetica,sans-serif;font-weight:800;font-size:18px;'
         f'letter-spacing:-0.02em;vertical-align:middle;">'
         f'<span style="color:#ffffff;">pulse</span>'
@@ -162,7 +186,7 @@ def _header_html(brand: dict, accent: str = "#19CDFF") -> str:
     )
     return (
         '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
-        'style="width:100%;background:#0A0A0A;">'
+        'style="width:100%;background:#000000;">'
         '  <tr>'
         f'    <td style="padding:22px 30px;text-align:left;vertical-align:middle;width:50%;">{left_block}</td>'
         f'    <td style="padding:22px 30px;text-align:right;vertical-align:middle;width:50%;">{wordmark}</td>'
@@ -232,9 +256,11 @@ async def wrap_branded(html: str, organization_id: str | None = None) -> str:
     # block so the header just shows the platform mark centred.
     if not brand.get("gym_logo") and not brand.get("gym_name"):
         brand["gym_name"] = ""
+    brand["pulse_logo"] = PULSE_EMAIL_LOGO_WIDE if await _img_ok(PULSE_EMAIL_LOGO_WIDE) else ""
     header = _header_html(brand)
     footer = _footer_html(brand)
     return (
+        f'{EMAIL_FONT_STYLE}'
         '<div class="gymaxis-email-cobrand-wrap" '
         'style="background:#f9fafb;padding:24px 0;font-family:Arial,sans-serif;">'
         '<div style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:12px;'
