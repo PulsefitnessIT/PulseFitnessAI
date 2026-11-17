@@ -202,6 +202,7 @@ export default function MODServiceLogin() {
     <div
       className="min-h-screen relative flex flex-col"
       data-testid="mod-service-login"
+      data-theme="light"
       style={{
         background: PULSE.bg,
         color: PULSE.black,

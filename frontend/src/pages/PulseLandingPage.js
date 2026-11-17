@@ -386,7 +386,7 @@ function Hero({ onSignIn }) {
           transition={{ delay: 0.45, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
           className="relative hidden lg:block"
         >
-          <div className="relative bg-white rounded-3xl border border-[var(--color-border-light)] shadow-[0_40px_90px_-20px_rgba(27,29,29,0.35)] overflow-hidden p-6 ml-auto max-w-sm" data-testid="pulse-hero-preview">
+          <div className="relative bg-white rounded-3xl border border-[var(--color-border-light)] shadow-[0_40px_90px_-20px_rgba(27,29,29,0.35)] overflow-hidden p-6 ml-auto max-w-sm" data-testid="pulse-hero-preview" data-theme="light">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <div className="text-[11px] sm:text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-text-slate)]">{t('pulse.hero_card_eyebrow', 'Your gym · this month')}</div>
@@ -1037,7 +1037,7 @@ function GymFloorShowcase() {
         className="absolute inset-0 opacity-[0.18] pointer-events-none bg-cover bg-center"
         style={{ backgroundImage: 'url(/pulse-photos/strength-floor.webp)' }}
       />
-      <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(180deg, rgba(20,24,31,0.7) 0%, transparent 40%, rgba(20,24,31,0.7) 100%)' }} />
+      <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(180deg, rgba(27,28,29,0.7) 0%, transparent 40%, rgba(27,28,29,0.7) 100%)' }} />
       {/* Decorative grid texture — reads as "operations / shift floor" */}
       <div
         className="absolute inset-0 opacity-[0.04] pointer-events-none"

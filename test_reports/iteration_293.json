@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only retest of the iteration_292 brand-colour failures, plus a regression sweep. Method: the computed-style audit (/app/tests/colour_audit.js via /app/tests/colour_login.py) and screenshots at 1920x800 and 390x844, in light and dark mode. Theme was set through the toggle or localStorage 'theme'. RETEST RESULTS: (1) PASS: the /service-desk Team Performance hero stat values and the FTF ring are white on the dark card in light mode. (2) PASS: the /service-desk stat cards are readable in dark mode (white cards, dark text). (3) PASS: the /bfpo 'Needs attention now' and 'Sites requiring attention' headings are #1B1C1D on white in dark mode, desktop and mobile. (4) PASS: on a direct /login load the Sign In button is a filled Core Blue CTA with white text. (5) PARTIAL: the KPI icon is now #19CDFF, the CRM quick-create button is #19CDFF, and the PulseProUpgradeCta gradients are Core Blue / #0073A4 only. However, the landing gym-floor showcase overlay still uses rgba(20,24,31) (#14181F) at PulseLandingPage.js L1040. NEW ISSUES: invisible text in dark mode on the /staff-portal 'This month' card, the landing hero preview card, and the MOD login page (/MODService or ?portal=modservice) headline and form title. Regression sweep for /master-admin, /dashboard, /service-desk, /crm and /staff-portal on mobile in both themes: no text below 1.5:1 and no off-brand purple, navy or pink.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Staff Portal 'This month' card (DARK mode)", "issue": "The h3 'This month' is white on white (1:1). RCA: Card() in StaffPortal.js L310-311 is hard-coded bg-white, while the dark override turns text-slate-900 white. This is the same pattern as the BFPO bug fixed this round. Fix: add data-theme=\"light\" to the Card or page wrapper, as StaffDashboard.js does, or use theme-aware bg.", "selector": "[data-testid=\"my-day-month\"] h3", "priority": "HIGH"},
+      {"component": "MOD Service login (/?portal=modservice and /MODService, DARK theme in localStorage)", "issue": "The h1 'One platform. / Always ready.' is white on #F7F7F7 (1.07:1) and the h2 'Service credentials' is white on white (1:1). Both are invisible. A user who has used dark mode on the commercial app sees a blank-looking headline. This was also seen on production modservice.pulsefitness.com. Fix: force data-theme=\"light\" on the MODServiceLogin root, or use theme-aware bg.", "selector": "[data-testid=\"mod-hero-headline\"] h1, [data-testid=\"mod-login-form\"] h2", "priority": "HIGH"},
+      {"component": "Pulse landing hero preview card (DARK mode, desktop)", "issue": "'Platform activity' and '£12,450' render #1B1D1D on #26292B (1.16:1), so they are invisible. RCA: PulseLandingPage.js ~L389-393 uses bg-white, which flips dark, but the text uses a fixed var(--color-surface-dark-panel-alt) that does not flip. The 'Saved via self-fix' tile has the same problem.", "selector": "[data-testid=\"pulse-hero-preview\"]", "priority": "MEDIUM"},
+      {"component": "PulseProUpgradeCta body copy (DARK mode)", "issue": "The 'Memberships, Marketing and CRM activate instantly...' text-zinc-300 resolves to #565B5E on #1B1C1D (2.48:1). It is dim but legible. In light mode it is fine. The on-dark helper seems to apply only under light theme.", "selector": "[data-testid=\"pulse-pro-upgrade-cta\"] p.text-zinc-300", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing gym-floor showcase", "issues": ["The navy-tinted overlay gradient rgba(20,24,31,0.7) is still present at PulseLandingPage.js L1040 (inline style). Retest item 5 is not fully done. Replace it with Soft Black rgba(27,28,29,0.7)."]},
+      {"screen": "index.css tokens (code-level, not visible yet)", "issues": ["--rgb-info-ios is still '0 122 255' (iOS blue) at L228, while --color-info-ios is now #19CDFF. Hover and tint backgrounds in CRMApp/CRMSettings/CRMCPQ/CRMDocuments/CRMDemoTour/CRMLogin still tint iOS blue. Set it to 25 205 255.", "--rgb-accent-purple '153 102 255' remains (L229).", "--rgb-pulse-primary is '37, 99, 235' (Tailwind blue-600 navy-ish, and comma-separated, so rgb(var(..)/0.25) is invalid CSS) at L1495. It is used by PulseUpgradeRequestModal.js."]}
+    ]
+  },
+  "test_report_links": ["/app/tests/colour_audit.js", "/app/tests/colour_login.py"],
+  "action_items": [
+    "StaffPortal.js Card(): make the 'This month' (and other Card) headings readable in dark mode, e.g. data-theme=\"light\" on the card.",
+    "MODServiceLogin.js: force the light theme on the root so the headline and 'Service credentials' are visible when localStorage theme=dark.",
+    "PulseLandingPage.js L389-393 hero preview: make the text and background flip together in dark mode, or pin the card to light.",
+    "PulseLandingPage.js L1040: replace rgba(20,24,31,...) with rgba(27,28,29,...).",
+    "index.css: set --rgb-info-ios to 25 205 255, remove or replace --rgb-accent-purple, and set --rgb-pulse-primary to '0 145 202' (space-separated)."
+  ],
+  "critical_code_review_comments": [
+    "Recurring pattern: hard-coded bg-white panels combined with global dark-mode text overrides produce white-on-white text. Fixes are applied page by page. Consider a global rule that resets text colours inside .bg-white when html is dark, or a shared Card primitive that is theme-aware.",
+    "The rgb channel tokens drifted from their hex counterparts (info-ios, pulse-primary). Generate both from one source."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "4.5/5 retest items pass (item 5 partial); 3 new HIGH/MEDIUM invisible-text defects in dark mode"},
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Re-run the audit with: g={}; exec(open('/app/tests/colour_login.py').read(), g); then page.evaluate(g['audit']). Set the theme through localStorage.setItem('theme','dark'). lee.somers@pulsefitness.com / TempPass123! is a pulse_pro owner: log in through the standard /login (not portal=mod), then open /bfpo. /MODService on preview redirects to the production modservice.pulsefitness.com, so use /?portal=modservice to stay on preview. The MOD password inputs are readonly until focused: click them, then keyboard.type. /api/auth/login is rate-limited (about 4 logins, then a 3-minute wait). The /staff-portal mobile view once showed 'Could not load your day' (transient, not colour-related). Expected false positives: Core Blue text on white (accepted), white text on photo backgrounds, bg-clip gradient text, amber/emerald status colours, and the Royal Navy logo tile.",
+  "rca of the issue": "The new dark-mode invisible text all comes from one cause. The global [data-theme=dark] overrides recolour text-slate-900/white tokens, but components hard-code bg-white, or use fixed CSS-var text colours on bg-white. So the text and background do not flip together."
+}

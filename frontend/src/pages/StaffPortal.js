@@ -308,7 +308,7 @@ function MoreSheet({ tab, setTab, onClose, jwt }) {
 }
 
 function Card({ children, testId }) {
-  return <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5" data-testid={testId}>{children}</div>;
+  return <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5" data-testid={testId} data-theme="light">{children}</div>;
 }
 
 function HelpTab({ jwt, H }) {

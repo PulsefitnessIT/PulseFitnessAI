@@ -39327,3 +39327,9 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Platform-wide Proxima Nova (style guide): removed Montserrat/Nunito/Outfit/Inter/Satoshi/Maax stacks in src; tailwind fontFamily sans/heading/body = Proxima Nova; base h1 800/h2 400/h3 700/h4-6 600, 0.1em tracking on headings + short buttons (reset for nav/aside/tabs/button content; 0.04em on mobile headings).
 - Emails: Proxima Nova only (Regular/Semibold/Bold/Extrabold), header logo = transparent reverse wordmark (brand/pulse-email-logo-wide.png).
 - Member App Builder font picker intentionally keeps gym-selectable fonts. Proxima Nova Light added (public/fonts + brand/fonts): h2 300, plain buttons + shared ui/button font-light; nav/tab buttons and button content stay 400.
+
+## Jun 2026 — Brand colour pass (style guide)
+- tailwind.config.js: slate/gray/zinc/neutral/stone -> PULSE_NEUTRAL (Silver/Slate/Onyx/Soft Black scale); pink/fuchsia -> Core Blue; rose->red, orange/yellow->amber, lime/emerald->green (status colours kept).
+- ~1,400 hard-coded hex/rgb values remapped (navy/indigo/purple/cool greys/iOS blue). shadcn HSL vars now neutral; vars also reset under [data-theme=light].
+- Excluded on purpose: gym colour pickers (member app builder, brand kit, plan/class editors, email builder), CRM territory map palette, official service logos.
+- Dark-mode fixes: DeskPerformance hero on-dark, BFPO StaffDashboard + StaffPortal cards + MOD login + landing hero card forced data-theme=light. Login imports marketing.css (gx-cta).

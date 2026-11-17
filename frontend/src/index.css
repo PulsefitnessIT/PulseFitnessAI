@@ -69,7 +69,7 @@ body.has-bottom-banner main.overflow-y-auto {
   --pulse-primary: #19cdff;
   --pulse-primary-hover: #19CDFF;
   --pulse-primary-deep: #19CDFF;     /* iter 215bw — darker shade for hover shadow / depth */
-  --rgb-pulse-primary: 102, 204, 255; /* iter 215bw — for rgba(var(...) / alpha) usage */
+  --rgb-pulse-primary: 25 205 255; /* iter 215bw — for rgba(var(...) / alpha) usage */
   --pulse-black: #1B1C1D;
   --pulse-grey-dark: #565B5E;
   --pulse-grey-light: #9A9FA1;
@@ -225,8 +225,8 @@ body.has-bottom-banner main.overflow-y-auto {
   --rgb-warning:             245 158 11;
   --rgb-danger:              239 68 68;
   --rgb-danger-alt:          255 59 48;
-  --rgb-info-ios:            0 122 255;
-  --rgb-accent-purple:       153 102 255;
+  --rgb-info-ios:            25 205 255;
+  --rgb-accent-purple:       25 205 255;
 }
 
 [data-theme="light"] {
@@ -1492,7 +1492,7 @@ html[data-brand="gymaxis"] {
   --pulse-primary:           #0091CA;
   --pulse-primary-hover:     #0091CA;
   --pulse-primary-deep:      #0073A4;
-  --rgb-pulse-primary:       37, 99, 235;
+  --rgb-pulse-primary:       25 205 255;
   --rgb-brand-cyan:          25 205 255;
   --rgb-brand-cyan-hover:    0 145 202;
   --brand-color:             #0091CA;
