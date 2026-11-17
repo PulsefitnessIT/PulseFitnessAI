@@ -378,19 +378,19 @@ fontFamily: "'Proxima Nova', system-ui, sans-serif",
  <span className="text-white font-bold text-xl">{branding?.company_name?.charAt(0) || 'P'}</span>
  </div>
  )}
- <div>
+ <div className="min-w-0">
  {orgLogo ? (
- <span className="font-bold text-xl tracking-tight" style={{ color: 'var(--theme-text)' }} data-testid="org-name-label">
+ <span className="block whitespace-nowrap truncate max-w-[42vw] sm:max-w-none font-bold text-xl tracking-tight" style={{ color: 'var(--theme-text)' }} data-testid="org-name-label">
  {branding?.company_name || ''}
  </span>
  ) : showPulseBrand ? null : shouldShowPulseFitnessLockup ? (
  (user && branding?.company_name && !branding.company_name.toLowerCase().includes('gymaxis')) ? (
- <span className="font-bold text-xl tracking-tight" style={{ fontFamily: "'Proxima Nova', system-ui, sans-serif", color: 'var(--theme-text)' }}>
+ <span className="block whitespace-nowrap truncate max-w-[42vw] sm:max-w-none font-bold text-xl tracking-tight" style={{ fontFamily: "'Proxima Nova', system-ui, sans-serif", color: 'var(--theme-text)' }}>
  {branding.company_name}
  </span>
  ) : null
  ) : (
- <span className="font-bold text-xl" style={{ color: 'var(--theme-text)' }}>{(user && branding?.company_name) || ((user?.account_type === 'pulse_pro' || user?.account_type === 'lite') ? 'Pulse Fitness' : 'Pulse Fitness AI')}</span>
+ <span className="block whitespace-nowrap truncate max-w-[42vw] sm:max-w-none font-bold text-xl" style={{ color: 'var(--theme-text)' }} data-testid="org-name-fallback">{(user && branding?.company_name) || ((user?.account_type === 'pulse_pro' || user?.account_type === 'lite') ? 'Pulse Fitness' : 'Pulse Fitness AI')}</span>
  )}
  </div>
  </Link>

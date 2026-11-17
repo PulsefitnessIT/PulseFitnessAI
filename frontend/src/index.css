@@ -428,6 +428,13 @@ body.has-bottom-banner main.overflow-y-auto {
   h4, h5, h6 { font-weight: 600; }
   button, input, textarea, select { font-family: inherit; }
   button { letter-spacing: 0.1em; }
+  /* Tracking is for short labels only: card/row content, tabs and nav stay normal so they don't truncate. */
+  button :where(p, div, h1, h2, h3, h4, h5, h6, small),
+  [role="tab"], [role="tablist"] button, nav button, aside button,
+  .pill-tab-bar button, .gx-module-switcher-wrap button { letter-spacing: normal; }
+  @media (max-width: 639px) {
+    h1, h2, h3, h4, h5, h6 { letter-spacing: 0.04em; }
+  }
 }
 
 /* ============================================================

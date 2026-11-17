@@ -1,0 +1,46 @@
+{
+  "summary": "Frontend-only typography audit (Proxima Nova + 0.1em heading/button tracking). Ran a getComputedStyle check on every visible h1-h6/p/button/input/label/a/span/td/li on: / , /login, /pricing (public), /master-admin, /dashboard (Global Dashboard), /service-desk, /crm, /staff-portal (Master Admin), and /bfpo (MOD Operations, Lee Somers). Each page was checked at 1920x800 and 390x844. RESULT: 0 elements on any of these pages use Montserrat, Nunito, Outfit, Inter, Satoshi, Maax Rounded, Manrope or Plex. Everything resolves to 'Proxima Nova' and the font loads (document.fonts.check returns true). Buttons get letter-spacing 1.6px (0.1em) and headings get 0.1em unless a Tailwind tracking-* class overrides it. No page scrolls sideways (documentElement.scrollWidth == viewport on every page). Some layout problems on mobile, some of them made worse by the new tracking, are listed below. The command palette (Ctrl+K) also renders in Proxima Nova.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Navbar org title (Global Dashboard /dashboard, /crm, /staff-portal on mobile 390)", "issue": "The 'Pulse Fitness AI Admin' org title (Navbar.js ~line 388, span font-bold text-xl) has no truncate and is not hidden on mobile. It wraps to 3-4 lines (measured h=84-112px) inside the 80px black header. The text is cut off at the top ('Pulse' half hidden) and 'Admin' spills below the header bar. Fix: add 'hidden sm:block truncate max-w-[..]' or 'whitespace-nowrap truncate'.", "selector": "header span (Navbar.js line 383/388/393)", "priority": "HIGH"},
+      {"component": "Master Admin header on mobile 390", "issue": "The H1 'Dashboard Overview' is cut to 'Dashboard O…' with an ellipsis, and so is the subtitle. KPI card labels 'ACTIVE USERS' and 'MONTHLY REVENUE' are cut at the card edge. The 0.1em tracking makes these strings wider and is a contributing cause.", "selector": "/master-admin h1, KPI labels", "priority": "MEDIUM"},
+      {"component": "Mobile admin drawer (/master-admin, 390)", "issue": "The 'Inventory & Distribution' switch-portal row plus its chevron is wider than the other rows. Its chevron sits further right (at the drawer edge), so the column is misaligned.", "selector": "aside Switch Portal rows", "priority": "LOW"},
+      {"component": "Service Desk sidebar (desktop 1920 and mobile)", "issue": "The 'Inventory & Distribution' nav item wraps to 2 lines (h=56 vs 36 for the other items) because the tracked text no longer fits the 195px sidebar.", "selector": "/service-desk aside nav", "priority": "LOW"},
+      {"component": "Tab bars at desktop 1920", "issue": "The extra tracking pushes tab rows past their containers. They scroll sideways, so nothing is unreachable, but the last tab is now cut mid-word at 1920: /dashboard dashboard-tabs (sw 1298 > cw 1246, 'Gym Lay…' cut with no scroll arrow shown), /staff-portal pill-tab-bar (sw 1490 > 1214, 'My Details'/'Help' hidden behind an arrow), and the module switcher ('COMMS CENTR…' cut). /crm crm-tabs-desktop is overflow:visible and 8px too wide (1222 vs 1214).", "selector": "[data-testid=dashboard-tabs], [data-testid=staff-dashboard-tabs] .pill-tab-bar__track, .gx-module-switcher-wrap, [data-testid=crm-tabs-desktop]", "priority": "MEDIUM"},
+      {"component": "Global button letter-spacing rule (index.css 'button { letter-spacing: 0.1em }')", "issue": "The tracking is inherited by all body text inside button-wrapped cards and rows. Examples: MOD Ops 'Needs attention now' job rows, where long titles get truncated earlier ('Not_Working — Pulse Fitness Fusion Dual A…'); Open Jobs KPI labels; the Staff Portal action cards. Body text inside clickable cards is now spaced like a button label. Consider limiting it to the button's own label, e.g. using a .btn class or :where(button) > text, or reset letter-spacing on p/span inside buttons.", "selector": "button p, button span", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "All app screens", "issues": [
+        "Heading weights do not follow the style guide in practice because Tailwind utility classes override the base layer. Measured: H1 = 700 (or 600 on Staff Portal and MOD Ops) instead of 800, and H2 = 600 instead of 400. Only unstyled headings pick up the guide weights.",
+        "Heading tracking is inconsistent. Many H1/H2s carry tracking-tight, giving negative letter-spacing: CRM H1 -0.9px, 'Your CRM Command Center', Staff Portal H1 'Staff Portal', MOD Operations H1, landing/pricing hero H1. Sibling headings ('Your Operations Hub', 'Good evening, Master') use +0.1em, so the same app mixes tight and wide headings.",
+        "Command palette (Ctrl+K): the items render ALL-CAPS and tracked because the Command.Group className 'uppercase tracking-wider font-bold' (CommandPalette.js line 156) is applied to the whole group, not just the heading. Use cmdk's [cmdk-group-heading] selector instead. This is probably pre-existing.",
+        "Login page H1 'Welcome Back' is weight 700, not 800."
+      ]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix the mobile Navbar org title 'Pulse Fitness AI Admin' wrapping and overflowing the header (Navbar.js lines 383-393): truncate it or hide it below sm.",
+    "Stop button letter-spacing from cascading into card body text, e.g. reset letter-spacing on p/span descendants of buttons, or apply 0.1em only to actual button labels.",
+    "Make tab bars fit or show a scroll affordance at 1920: dashboard-tabs ('Gym Layout' cut), staff portal pill tabs, crm-tabs-desktop (8px overflow), module switcher.",
+    "Master Admin mobile: let the H1 and KPI labels wrap, or reduce tracking, so they are not cut off.",
+    "Optional, for the style guide: decide whether heading utility classes should be normalised (H1 800, H2 400) and drop tracking-tight on headings so tracking is consistent.",
+    "Clean up the remaining non-brand font code: index.css line 6 still @imports Google Fonts Inter/Manrope/Nunito, and marketing.css lines 5-6 still @import Inter + Satoshi (fontshare). Nothing renders with them, but they are wasted network requests. MODServiceLogin.js line 208 and PublicQuoteSignPage.js line 97 set a system-ui font stack inline instead of Proxima Nova."
+  ],
+  "critical_code_review_comments": [
+    "index.css:6 and pages/Marketing/marketing.css:5-6 load Inter/Manrope/Nunito/Satoshi web fonts that are no longer used. Remove them (performance, and there is also a CSP/third-party request).",
+    "pages/MODPortal/MODServiceLogin.js:208 uses fontFamily 'ui-sans-serif, system-ui...' and pages/CRM/PublicQuoteSignPage.js:97 uses '-apple-system,...'. Both bypass Proxima Nova, so the MOD Service login and the public quote-sign pages will NOT render in the brand font. Not verified in the browser: /MODService redirects to prod on preview, and quote-sign needs a token.",
+    "index.css line ~401 comment still mentions the 'Maax Rounded display fallback', and Maax .otf files remain in /public/fonts. Harmless, but stale.",
+    "The global 'button { letter-spacing: 0.1em }' is very broad. Many components use <button> as a card container, so the tracking leaks into body copy."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100% font-family compliance on 9 pages x 2 viewports; layout: 6 issues (1 HIGH mobile header overflow)"},
+  "test_credentials": "Master Admin admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg works (MFA enforcement is OFF in preview). The MOD staff credential given in the brief (lee.somers@bfpo.pulsefitness.com / pulse123) returns 401 'Invalid credentials'. Used lee.somers@pulsefitness.com / TempPass123! instead (works, lands on /pulse, /bfpo accessible). LeeMod123! is also invalid now.",
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The audit JS walks the visible text elements, flags fontFamily values that are not Proxima Nova or monospace, and checks scrollWidth > clientWidth plus rect.right > innerWidth. All pages were 100% Proxima Nova. Remaining work is layout: the mobile Navbar org title, tab-bar overflow at 1920, and button letter-spacing leaking into card text. Not tested: the MOD Service login (/MODService redirects to prod on preview), the public quote-sign page, and emails (backend-only).",
+  "rca of the issue": "Navbar title overflow: Navbar.js renders branding.company_name in a text-xl span with no truncate/nowrap or responsive hiding, so on 390px it wraps into a fixed-height header. Tracking regressions: index.css @layer base sets letter-spacing:0.1em on every <button>, it is inherited by descendants, and many cards and rows are <button> elements."
+}
