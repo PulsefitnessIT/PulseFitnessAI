@@ -186,7 +186,7 @@ export default function InvoiceImportWizard({ onComplete, _onClose }) {
  {step === 1 && (
  <div className="text-center" data-testid="import-step-upload">
  <Sparkles size={40} className="mx-auto text-[var(--color-brand-blue)] mb-4" />
- <h2 className="text-2xl font-semibold tracking-tight mb-2" style={{ fontFamily: 'Outfit' }}>AI Equipment Import</h2>
+ <h2 className="text-2xl font-semibold tracking-tight mb-2" style={{ fontFamily: 'Proxima Nova' }}>AI Equipment Import</h2>
  <p className="text-zinc-500 text-sm mb-8 max-w-md mx-auto">
  Upload a supplier invoice (PDF) and our AI will extract all equipment details — make, model, serial numbers, warranty, and pricing — ready for Sicon import.
  </p>
@@ -240,7 +240,7 @@ export default function InvoiceImportWizard({ onComplete, _onClose }) {
  <div data-testid="import-step-review">
  <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
  <div>
- <h2 className="text-xl font-semibold tracking-tight" style={{ fontFamily: 'Outfit' }}>Review Extracted Data</h2>
+ <h2 className="text-xl font-semibold tracking-tight" style={{ fontFamily: 'Proxima Nova' }}>Review Extracted Data</h2>
  <p className="text-zinc-500 text-sm mt-1">Verify and edit before importing</p>
  </div>
  <div className="flex gap-2">
@@ -393,7 +393,7 @@ export default function InvoiceImportWizard({ onComplete, _onClose }) {
  {step === 3 && importData && (
  <div data-testid="import-step-confirm">
  <div className="text-center mb-8">
- <h2 className="text-xl font-semibold tracking-tight" style={{ fontFamily: 'Outfit' }}>
+ <h2 className="text-xl font-semibold tracking-tight" style={{ fontFamily: 'Proxima Nova' }}>
  {confirmed ? 'Import Complete' : 'Confirm Import'}
  </h2>
  <p className="text-zinc-500 text-sm mt-1">

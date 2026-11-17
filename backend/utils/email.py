@@ -43,19 +43,20 @@ def _resolve_gymaxis_mark() -> str:
 GYMAXIS_LOGO_MARK = _resolve_gymaxis_mark()
 PULSE_EMAIL_LOGO_WIDE = f"{PUBLIC_BASE_URL}/brand/pulse-email-logo-wide.png"
 _FONT_BASE = f"{PUBLIC_BASE_URL}/brand/fonts"
-# Brand fonts (Apple Mail / iOS honour @font-face; Gmail/Outlook fall back to Arial).
+# Brand font per style guide: Proxima Nova only (Apple Mail / iOS honour @font-face; others fall back to Arial).
 EMAIL_FONT_STYLE = (
     "<style>"
-    f"@font-face{{font-family:'Proxima Nova';font-weight:400;src:url('{_FONT_BASE}/ProximaNova-Regular.otf') format('opentype');}}"
-    f"@font-face{{font-family:'Proxima Nova';font-weight:700;src:url('{_FONT_BASE}/ProximaNova-Bold.otf') format('opentype');}}"
-    f"@font-face{{font-family:'Maax Rounded';font-weight:400;src:url('{_FONT_BASE}/MaaxRounded-Regular.otf') format('opentype');}}"
-    f"@font-face{{font-family:'Maax Rounded';font-weight:700;src:url('{_FONT_BASE}/MaaxRounded-Bold.otf') format('opentype');}}"
-    ".gymaxis-email-cobrand-wrap,.gymaxis-email-cobrand-wrap p,.gymaxis-email-cobrand-wrap td,"
+    + "".join(
+        f"@font-face{{font-family:'Proxima Nova';font-weight:{w};src:url('{_FONT_BASE}/ProximaNova-{n}.otf') format('opentype');}}"
+        for w, n in ((400, "Regular"), (600, "Semibold"), (700, "Bold"), (800, "Extrabold"))
+    )
+    + ".gymaxis-email-cobrand-wrap,.gymaxis-email-cobrand-wrap p,.gymaxis-email-cobrand-wrap td,"
     ".gymaxis-email-cobrand-wrap div,.gymaxis-email-cobrand-wrap span,.gymaxis-email-cobrand-wrap a,"
-    ".gymaxis-email-cobrand-wrap li{font-family:'Proxima Nova',Arial,Helvetica,sans-serif !important;}"
+    ".gymaxis-email-cobrand-wrap li,.gymaxis-email-cobrand-wrap h1,.gymaxis-email-cobrand-wrap h2,"
+    ".gymaxis-email-cobrand-wrap h3,.gymaxis-email-cobrand-wrap h4"
+    "{font-family:'Proxima Nova',Arial,Helvetica,sans-serif !important;}"
     ".gymaxis-email-cobrand-wrap h1,.gymaxis-email-cobrand-wrap h2,.gymaxis-email-cobrand-wrap h3,"
-    ".gymaxis-email-cobrand-wrap h4,.gymaxis-email-cobrand-wrap .pf-heading"
-    "{font-family:'Maax Rounded','Proxima Nova',Arial,Helvetica,sans-serif !important;}"
+    ".gymaxis-email-cobrand-wrap h4{letter-spacing:0.1em;}"
     "</style>"
 )
 PULSE_FITNESS_LOGO = (

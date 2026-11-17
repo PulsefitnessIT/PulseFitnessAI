@@ -225,7 +225,7 @@ export default function StaffPortal() {
 function FallbackBar({ onLogout }) {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/10"
-      style={{ backgroundColor: '#000000', fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif" }}>
+      style={{ backgroundColor: '#000000', fontFamily: "'Proxima Nova', system-ui, sans-serif" }}>
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center h-20">
           <div className="flex items-center space-x-2.5">

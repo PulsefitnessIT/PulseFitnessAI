@@ -269,13 +269,13 @@ export default function DesignSystemPage() {
           <Section title="Typography" subtitle="Two typefaces carry the whole app.">
             <div className="space-y-4">
               <div>
-                <Label2>pulse-font-heading · Nunito</Label2>
+                <Label2>pulse-font-heading · Proxima Nova</Label2>
                 <div className="pulse-font-heading text-4xl font-semibold tracking-tight" style={{ color: 'var(--theme-text)' }}>Pulse Fitness Pro</div>
                 <div className="pulse-font-heading text-2xl font-semibold tracking-tight" style={{ color: 'var(--theme-text)' }}>Section heading</div>
               </div>
               <div>
-                <Label2>pulse-font-body · Montserrat</Label2>
-                <div className="text-base" style={{ color: 'var(--theme-text)' }}>Body copy runs in Montserrat. 16px default, 13px on buttons, 11px for eyebrows.</div>
+                <Label2>pulse-font-body · Proxima Nova</Label2>
+                <div className="text-base" style={{ color: 'var(--theme-text)' }}>Body copy runs in Proxima Nova. 16px default, 13px on buttons, 11px for eyebrows.</div>
               </div>
             </div>
           </Section>

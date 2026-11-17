@@ -50,7 +50,7 @@ const ChooseModeStep = ({ mode, setMode, tier, setTier, orgs, selectedOrg, setSe
   return (
   <div className="space-y-8" data-testid="onboard-step-choose">
     <div className="text-center">
-      <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight" style={{ fontFamily: 'Outfit' }}>Onboard a Site</h2>
+      <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight" style={{ fontFamily: 'Proxima Nova' }}>Onboard a Site</h2>
       <p className="text-zinc-500 text-sm mt-1">Create a new customer site or add to an existing one</p>
     </div>
 

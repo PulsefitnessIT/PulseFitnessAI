@@ -557,7 +557,7 @@ const DashboardPage = () => {
         <Dialog open={showInvoiceImport} onOpenChange={setShowInvoiceImport}>
           <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-xl font-semibold" style={{ fontFamily: 'Outfit' }}>AI Equipment Import</DialogTitle>
+              <DialogTitle className="text-xl font-semibold" style={{ fontFamily: 'Proxima Nova' }}>AI Equipment Import</DialogTitle>
             </DialogHeader>
             <Suspense fallback={<DashboardTabFallback />}>
             <InvoiceImportWizard

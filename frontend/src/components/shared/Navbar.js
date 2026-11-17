@@ -350,7 +350,7 @@ const Navbar = ({ onOpenSettings, onOpenMasterAdmin, onStartTour, triggerLogin }
 className="fixed top-0 left-0 right-0 z-50 border-b border-white/10"
 style={{
 backgroundColor: '#000000',
-fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
+fontFamily: "'Proxima Nova', system-ui, sans-serif",
 // Force a permanent dark header regardless of the app's light/dark theme
 // (Pulse Fitness marketing: header must always be black with white text).
 '--theme-text': '#ffffff',
@@ -385,7 +385,7 @@ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif",
  </span>
  ) : showPulseBrand ? null : shouldShowPulseFitnessLockup ? (
  (user && branding?.company_name && !branding.company_name.toLowerCase().includes('gymaxis')) ? (
- <span className="font-bold text-xl tracking-tight" style={{ fontFamily: "'Satoshi', 'Inter', system-ui, sans-serif", color: 'var(--theme-text)' }}>
+ <span className="font-bold text-xl tracking-tight" style={{ fontFamily: "'Proxima Nova', system-ui, sans-serif", color: 'var(--theme-text)' }}>
  {branding.company_name}
  </span>
  ) : null

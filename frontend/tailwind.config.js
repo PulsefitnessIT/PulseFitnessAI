@@ -22,6 +22,11 @@ module.exports = {
   ],
   theme: {
         extend: {
+                fontFamily: {
+                        sans: ['"Proxima Nova"', 'system-ui', 'sans-serif'],
+                        heading: ['"Proxima Nova"', 'system-ui', 'sans-serif'],
+                        body: ['"Proxima Nova"', 'system-ui', 'sans-serif'],
+                },
                 borderRadius: {
                         lg: 'var(--radius)',
                         md: 'calc(var(--radius) - 2px)',

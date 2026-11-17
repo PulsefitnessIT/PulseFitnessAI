@@ -503,7 +503,7 @@ function PricingHero() {
  style={{ fontSize: 'clamp(2.25rem, 6vw, 4.5rem)', letterSpacing: '-0.025em', fontFamily: "'Proxima Nova', sans-serif" }}
  >
  Simple, transparent pricing.<br />
- <span className="italic text-[var(--color-brand-cyan)]" style={{ fontFamily: "'Maax Rounded', 'Proxima Nova', sans-serif" }}>No per-seat surprises.</span>
+ <span className="italic text-[var(--color-brand-cyan)]" style={{ fontFamily: "'Proxima Nova', sans-serif" }}>No per-seat surprises.</span>
  </motion.h1>
  <motion.p variants={FADE_UP} className="mt-6 text-lg text-white/80 max-w-2xl mx-auto">
  One platform, three tiers. Start with a 3-day free trial — full Pro access, no card required.

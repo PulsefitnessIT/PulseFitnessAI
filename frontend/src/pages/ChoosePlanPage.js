@@ -199,7 +199,7 @@ export default function ChoosePlanPage() {
           <>
             {/* Individual modules */}
             <div className="mt-12">
-              <h3 className="text-lg font-bold text-zinc-900" style={{ fontFamily: 'Nunito, sans-serif' }}>Choose your modules</h3>
+              <h3 className="text-lg font-bold text-zinc-900" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>Choose your modules</h3>
               <p className="text-sm text-zinc-500 mt-1">Every module is a standalone subscription — mix and match, cancel anytime.</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {[...modules].sort((a, b) => (a.id === 'operations' ? -1 : b.id === 'operations' ? 1 : 0)).map((m) => {

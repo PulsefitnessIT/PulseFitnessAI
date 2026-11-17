@@ -109,7 +109,7 @@ export default function CRMDemoTour({ onClose, onNavigate }) {
           <div className="w-14 h-14 rounded-2xl bg-[rgb(var(--rgb-info-ios)/0.1)] flex items-center justify-center mb-4">
             <Icon size={28} className="text-[var(--color-info-ios)]" />
           </div>
-          <h3 className="text-xl font-semibold text-white mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
+          <h3 className="text-xl font-semibold text-white mb-2" style={{ fontFamily: 'Proxima Nova, sans-serif' }}>
             {current.title}
           </h3>
           <p className="text-[var(--color-neutral-400)] text-sm leading-relaxed mb-3">

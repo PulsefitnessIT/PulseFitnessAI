@@ -24,13 +24,13 @@
      instead of another core SaaS module. */
   --gx-accent-engineers: #F59E0B;
 
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Proxima Nova', system-ui, sans-serif;
   background: var(--gx-bg);
   color: var(--gx-text);
 }
 
 .gx-marketing h1, .gx-marketing h2, .gx-marketing h3, .gx-marketing h4 {
-  font-family: 'Satoshi', 'Inter', sans-serif;
+  font-family: 'Proxima Nova', sans-serif;
   /* Iter 215bc — explicitly fix the heading color to slate-900 so the
      global `@media (prefers-color-scheme: light) [data-theme="dark"] h1`
      rule (defined in index.css for the dark master-admin shell) cannot

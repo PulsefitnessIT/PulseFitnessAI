@@ -146,7 +146,7 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
             draggable={false}
           />
         </RouterLink>
-        <nav className="hidden md:flex items-center gap-7 text-[13px] font-semibold uppercase text-white/85" style={{ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif", letterSpacing: '0.08em' }}>
+        <nav className="hidden md:flex items-center gap-7 text-[13px] font-semibold uppercase text-white/85" style={{ fontFamily: "'Proxima Nova', system-ui, sans-serif", letterSpacing: '0.08em' }}>
           {NAV_LINKS.map((l) => (
             l.to ? (
               <RouterLink key={l.to} to={l.to} className="hover:text-white transition-colors" data-testid={l.testid}>{l.label}</RouterLink>

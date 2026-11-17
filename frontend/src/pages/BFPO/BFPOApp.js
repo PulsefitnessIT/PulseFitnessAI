@@ -159,7 +159,7 @@ export default function BFPOApp() {
       </div>
     </>
   ) : (
-    <header className="sticky top-0 z-30" style={{ fontFamily: "'Proxima Nova', 'Inter', system-ui, sans-serif" }}>
+    <header className="sticky top-0 z-30" style={{ fontFamily: "'Proxima Nova', system-ui, sans-serif" }}>
       <div className="on-dark text-white border-b border-white/10" style={{ backgroundColor: '#000000' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2.5">

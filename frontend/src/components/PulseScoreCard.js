@@ -223,7 +223,7 @@ export const PulseScoreCard = ({ siteId }) => {
                 textAnchor="middle"
                 style={{
                   fill: 'var(--theme-text)',
-                  fontFamily: 'Montserrat, system-ui, sans-serif',
+                  fontFamily: 'Proxima Nova, system-ui, sans-serif',
                   fontWeight: 900,
                   fontSize: 34,
                   letterSpacing: '-0.02em',

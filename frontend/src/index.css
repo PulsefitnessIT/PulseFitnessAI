@@ -3,8 +3,7 @@
    secondary families (Manrope, Nunito, Montserrat) used inside the app, plus
    Inter (premium body) and Satoshi (premium headings) for the new
    `theme-gymaxis` scope rolled out from iter 215av onward. */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&family=Montserrat:wght@300;400;500;600;700;800;900&display=swap');
-@import url('https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Manrope:wght@400;600;800&family=Nunito:wght@400;700;800&display=swap');
 
 /* Proxima Nova @font-face is declared in public/index.html so webpack does
    not try to resolve the /fonts/*.otf paths at build time. */
@@ -402,14 +401,14 @@ body.has-bottom-banner main.overflow-y-auto {
      primary, Maax Rounded display fallback) instead of the app default. */
   .pulse-font,
   .pulse-font :where(h1,h2,h3,h4,h5,h6,p,span,div,button,input,textarea,select,label,a,td,th,li) {
-    font-family: 'Proxima Nova', 'Maax Rounded', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Proxima Nova', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   }
 
   body {
     background: var(--theme-bg);
     color: var(--theme-text-muted);
     -webkit-font-smoothing: antialiased;
-    font-family: 'Proxima Nova', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Proxima Nova', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     transition: background-color 0.3s ease, color 0.3s ease;
     /* Iter 215ak — prevent accidental horizontal scroll on mobile when a
        deep child overflows slightly (e.g. fixed-width inputs). Inner
@@ -418,9 +417,17 @@ body.has-bottom-banner main.overflow-y-auto {
     overflow-x: hidden;
   }
   
+  /* Pulse Fitness style guide: Proxima Nova throughout, 0.1em tracking on headings + buttons. */
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Proxima Nova', 'Inter', system-ui, sans-serif;
+    font-family: 'Proxima Nova', system-ui, sans-serif;
+    letter-spacing: 0.1em;
   }
+  h1 { font-weight: 800; }
+  h2 { font-weight: 400; }
+  h3 { font-weight: 700; }
+  h4, h5, h6 { font-weight: 600; }
+  button, input, textarea, select { font-family: inherit; }
+  button { letter-spacing: 0.1em; }
 }
 
 /* ============================================================
@@ -453,10 +460,10 @@ body.has-bottom-banner main.overflow-y-auto {
 
 /* Pulse Fitness brand font classes */
 .pulse-font-heading {
-  font-family: 'Nunito', 'MaaxRounded', 'Varela Round', sans-serif;
+  font-family: 'Proxima Nova', sans-serif;
 }
 .pulse-font-body {
-  font-family: 'Montserrat', 'Proxima Nova', 'Arial', sans-serif;
+  font-family: 'Proxima Nova', 'Arial', sans-serif;
 }
 
 /* ============================================================
@@ -478,7 +485,7 @@ body.has-bottom-banner main.overflow-y-auto {
   gap: 0.5rem;
   height: 2.25rem; /* 36px */
   padding: 0 0.875rem; /* 14px horizontal */
-  font-family: 'Montserrat', 'Proxima Nova', 'Arial', sans-serif;
+  font-family: 'Proxima Nova', 'Arial', sans-serif;
   font-size: 0.8125rem; /* 13px */
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -637,7 +644,7 @@ body.has-bottom-banner main.overflow-y-auto {
   flex-shrink: 0;
   height: 2rem;
   padding: 0 1rem;
-  font-family: 'Montserrat', 'Proxima Nova', 'Arial', sans-serif;
+  font-family: 'Proxima Nova', 'Arial', sans-serif;
   font-size: 0.8125rem;
   font-weight: 600;
   border-radius: 9999px;
@@ -738,13 +745,13 @@ body.has-bottom-banner main.overflow-y-auto {
 
 /* Apply Pulse fonts when on Pulse portal */
 [data-portal="pulse"] {
-  font-family: 'Montserrat', 'Proxima Nova', 'Arial', sans-serif;
+  font-family: 'Proxima Nova', 'Arial', sans-serif;
 }
 [data-portal="pulse"] h1,
 [data-portal="pulse"] h2,
 [data-portal="pulse"] h3,
 [data-portal="pulse"] h4 {
-  font-family: 'Nunito', 'MaaxRounded', 'Varela Round', sans-serif;
+  font-family: 'Proxima Nova', sans-serif;
 }
 
 /* ============================================================
@@ -1596,14 +1603,14 @@ html[data-brand="gymaxis"] {
 .theme-gymaxis textarea,
 .theme-gymaxis select,
 .theme-gymaxis button {
-  font-family: 'Proxima Nova', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Proxima Nova', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 .theme-gymaxis h1,
 .theme-gymaxis h2,
 .theme-gymaxis h3,
 .theme-gymaxis h4 {
-  font-family: 'Proxima Nova', 'Inter', system-ui, sans-serif;
-  letter-spacing: -0.015em;
+  font-family: 'Proxima Nova', system-ui, sans-serif;
+  letter-spacing: 0.1em;
 }
 
 /* Headings — slightly bumped weight + tighter tracking to feel premium. */
@@ -1730,7 +1737,7 @@ html[data-brand="gymaxis"] {
 [data-portal="pulse"] .theme-gymaxis,
 [data-testid="lite-dashboard"] .theme-gymaxis,
 [data-testid="pulse-landing-page"] .theme-gymaxis {
-  font-family: 'Montserrat', 'Proxima Nova', 'Arial', sans-serif;
+  font-family: 'Proxima Nova', 'Arial', sans-serif;
 }
 [data-portal="pulse"] .theme-gymaxis h1,
 [data-portal="pulse"] .theme-gymaxis h2,
@@ -1740,7 +1747,7 @@ html[data-brand="gymaxis"] {
 [data-testid="lite-dashboard"] .theme-gymaxis h2,
 [data-testid="lite-dashboard"] .theme-gymaxis h3,
 [data-testid="lite-dashboard"] .theme-gymaxis h4 {
-  font-family: 'Nunito', 'MaaxRounded', 'Varela Round', sans-serif;
+  font-family: 'Proxima Nova', sans-serif;
   background-image: none !important;
   -webkit-text-fill-color: initial !important;
   color: var(--pulse-text) !important;
@@ -1757,7 +1764,7 @@ html[data-brand="gymaxis"] {
 }
 .theme-gymaxis .subtab-pill {
   color: var(--gx-text-muted);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Proxima Nova', system-ui, sans-serif;
 }
 .theme-gymaxis .subtab-pill:hover:not([data-active="true"]):not(.is-active) {
   color: var(--gx-text);
