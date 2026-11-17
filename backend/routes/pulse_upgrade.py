@@ -61,7 +61,7 @@ def _pulse_fitness_email_html(r: dict) -> str:
   <div style="padding:28px 32px;background:#fff;">
     <table style="width:100%;border-collapse:collapse;color:#1B1C1D;font-size:14px;">
       <tr><td style="padding:8px 0;color:#6E7476;width:150px;">Contact name</td><td style="padding:8px 0;font-weight:600;">{r['full_name']}</td></tr>
-      <tr><td style="padding:8px 0;color:#6E7476;">Email</td><td style="padding:8px 0;"><a href="mailto:{r['email']}" style="color:#19CDFF;text-decoration:none;">{r['email']}</a></td></tr>
+      <tr><td style="padding:8px 0;color:#6E7476;">Email</td><td style="padding:8px 0;"><a href="mailto:{r['email']}" style="color:#0091CA;text-decoration:none;">{r['email']}</a></td></tr>
       <tr><td style="padding:8px 0;color:#6E7476;">Phone</td><td style="padding:8px 0;">{r['phone'] or '—'}</td></tr>
       <tr><td style="padding:8px 0;color:#6E7476;">Gym / Organisation</td><td style="padding:8px 0;font-weight:600;">{r['gym_name']}</td></tr>
       <tr><td style="padding:8px 0;color:#6E7476;">Sites</td><td style="padding:8px 0;">{r['site_count']}</td></tr>

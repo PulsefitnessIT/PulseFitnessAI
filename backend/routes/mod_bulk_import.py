@@ -485,7 +485,7 @@ def _credentials_email_html(site_name: str, username: str, password: str, contac
   </div>
   <div style="padding:22px 28px;">
     <p>Hello {contact},</p>
-    <p>Your MOD Service Portal site login has been provisioned. Use the credentials below to sign in at <a href="/MODService" style="color:#19CDFF;">/MODService</a>.</p>
+    <p>Your MOD Service Portal site login has been provisioned. Use the credentials below to sign in at <a href="/MODService" style="color:#0091CA;">/MODService</a>.</p>
     <table style="margin-top:14px;border-collapse:collapse;">
       <tr><td style="padding:8px 14px;background:#F7F7F7;border:1px solid #E0E0E0;color:#6E7476;font-size:11px;font-weight:800;text-transform:uppercase;">Username</td>
           <td style="padding:8px 14px;background:#F7F7F7;border:1px solid #E0E0E0;font-weight:700;"><code>{username}</code></td></tr>

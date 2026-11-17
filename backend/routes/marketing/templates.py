@@ -39,7 +39,7 @@ CAMPAIGN_TEMPLATES = [
         "subject": "Welcome to {{gym_name}} — your first session is on us",
         "body_html": ("<h1>Hi {{first_name}}, welcome aboard!</h1>"
                        "<p>You're officially in the family. To make your first week count, we've reserved a free intro session for you.</p>"
-                       "<p><a href=\"{{book_url}}\" style=\"background:#19CDFF;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none\">Book your first session</a></p>"
+                       "<p><a href=\"{{book_url}}\" style=\"background:#19CDFF;color:#1B1C1D;padding:10px 20px;border-radius:6px;text-decoration:none\">Book your first session</a></p>"
                        "<p>Train hard. Recover well. Win.</p>"),
         "creative_brief": "Welcoming, energetic gym lobby photo with morning sunlight, clean modern equipment in background",
     },
@@ -55,7 +55,7 @@ CAMPAIGN_TEMPLATES = [
         "body_html": ("<h1>Get back to it, {{first_name}}</h1>"
                        "<p>Life happens. But your health doesn't pause. Here's a token to make it easier to get back.</p>"
                        "<p><strong>20% off your next month</strong> — applied automatically to your next renewal.</p>"
-                       "<p><a href=\"{{book_url}}\" style=\"background:#19CDFF;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none\">Book a class this week</a></p>"),
+                       "<p><a href=\"{{book_url}}\" style=\"background:#19CDFF;color:#1B1C1D;padding:10px 20px;border-radius:6px;text-decoration:none\">Book a class this week</a></p>"),
         "creative_brief": "Empowering, motivational gym scene — kettlebells, soft morning light, no faces visible (privacy-safe)",
     },
     {
@@ -69,7 +69,7 @@ CAMPAIGN_TEMPLATES = [
         "subject": "🚴 Saturday spin — your bike is waiting, {{first_name}}",
         "body_html": ("<h1>Saturday morning spin — book now</h1>"
                        "<p>Your favourite class is on this Saturday at 09:00. We've reserved a bike with your name on it.</p>"
-                       "<p><a href=\"{{book_url}}\" style=\"background:#19CDFF;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none\">Reserve my spot</a></p>"
+                       "<p><a href=\"{{book_url}}\" style=\"background:#19CDFF;color:#1B1C1D;padding:10px 20px;border-radius:6px;text-decoration:none\">Reserve my spot</a></p>"
                        "<p>30 min. Full energy. No regrets.</p>"),
         "creative_brief": "High-energy spin class with neon studio lighting, riders mid-effort, dramatic shadow play",
     },
@@ -85,7 +85,7 @@ CAMPAIGN_TEMPLATES = [
         "body_html": ("<h1>You're showing up. Time to level up.</h1>"
                        "<p>You've trained 8+ times this month — you're committed. A 1-on-1 PT session can shave weeks off your goals.</p>"
                        "<p><strong>Your first session is on us.</strong> Pick a coach below.</p>"
-                       "<p><a href=\"{{pt_url}}\" style=\"background:#19CDFF;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none\">Choose a coach</a></p>"),
+                       "<p><a href=\"{{pt_url}}\" style=\"background:#19CDFF;color:#1B1C1D;padding:10px 20px;border-radius:6px;text-decoration:none\">Choose a coach</a></p>"),
         "creative_brief": "Premium 1-on-1 PT session, athlete and coach, gym studio, deliberate lighting",
     },
     {
@@ -98,7 +98,7 @@ CAMPAIGN_TEMPLATES = [
         "subject": "Quick action needed — update your payment, {{first_name}}",
         "body_html": ("<h1>Hi {{first_name}}</h1>"
                        "<p>Heads up — your last payment didn't go through. It's a 30-second fix.</p>"
-                       "<p><a href=\"{{billing_url}}\" style=\"background:#19CDFF;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none\">Update payment method</a></p>"
+                       "<p><a href=\"{{billing_url}}\" style=\"background:#19CDFF;color:#1B1C1D;padding:10px 20px;border-radius:6px;text-decoration:none\">Update payment method</a></p>"
                        "<p>Once sorted, your access stays uninterrupted. Any questions, reply to this email.</p>"),
         "creative_brief": "Clean professional banking/security iconography, no gym imagery — keep it clinical",
     },
@@ -113,7 +113,7 @@ CAMPAIGN_TEMPLATES = [
         "subject": "{{first_name}}, refer a friend — get a free month for both of you",
         "body_html": ("<h1>Train better together</h1>"
                        "<p>You're one of our top members. Bring a friend, and both of you get <strong>one free month</strong>.</p>"
-                       "<p><a href=\"{{referral_url}}\" style=\"background:#19CDFF;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none\">Get your referral link</a></p>"),
+                       "<p><a href=\"{{referral_url}}\" style=\"background:#19CDFF;color:#1B1C1D;padding:10px 20px;border-radius:6px;text-decoration:none\">Get your referral link</a></p>"),
         "creative_brief": "Two friends high-fiving post-workout, authentic energy, natural light",
     },
 ]

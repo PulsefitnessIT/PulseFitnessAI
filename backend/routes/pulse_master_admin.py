@@ -139,7 +139,7 @@ async def _send_pulse_admin_invite(email: str, name: str, temp_password: str) ->
         <p style="font-size:13px;line-height:1.6;color:#565B5E;">
           This password expires in 7 days. If you don't use it, ask the platform admin to reissue.
         </p>
-        <a href="{login_url}" style="display:inline-block;margin-top:8px;padding:11px 22px;background:#19CDFF;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">
+        <a href="{login_url}" style="display:inline-block;margin-top:8px;padding:11px 22px;background:#19CDFF;color:#1B1C1D;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">
           Sign in to Master Admin
         </a>
         <p style="font-size:11px;color:#9A9FA1;margin-top:24px;border-top:1px solid #F0F0F0;padding-top:14px;">

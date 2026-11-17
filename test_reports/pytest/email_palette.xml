@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="6" time="6.869" timestamp="2026-11-17T21:46:41.584652+00:00" hostname="agent-env-35c6e032-3082-49a4-b97c-2c347817d980"><testcase classname="tests.test_email_palette" name="test_health" time="5.773" /><testcase classname="tests.test_email_palette" name="test_reminder_html_palette" time="0.363" /><testcase classname="tests.test_email_palette" name="test_wrap_branded_palette" time="0.530" /><testcase classname="tests.test_email_palette" name="test_wrapped_reminder_palette" time="0.003" /><testcase classname="tests.test_email_palette" name="test_static_scan_email_strings" time="0.074" /><testcase classname="tests.test_email_palette" name="test_no_core_blue_link_text" time="0.035"><failure message="AssertionError: ['/app/backend/routes/pulse_upgrade.py:64', '/app/backend/routes/contact.py:84', '/app/backend/routes/mod_portal.py:3147']&#10;assert ['/app/backen...rtal.py:3147'] == []&#10;  &#10;  Left contains 3 more items, first extra item: '/app/backend/routes/pulse_upgrade.py:64'&#10;  &#10;  Full diff:&#10;  - []&#10;  + [&#10;  +     '/app/backend/routes/pulse_upgrade.py:64',...&#10;  &#10;  ...Full output truncated (3 lines hidden), use '-vv' to show">E   AssertionError: ['/app/backend/routes/pulse_upgrade.py:64', '/app/backend/routes/contact.py:84', '/app/backend/routes/mod_portal.py:3147']
+    assert ['/app/backen...rtal.py:3147'] == []
+      
+      Left contains 3 more items, first extra item: '/app/backend/routes/pulse_upgrade.py:64'
+      
+      Full diff:
+      - []
+      + [
+      +     '/app/backend/routes/pulse_upgrade.py:64',...
+      
+      ...Full output truncated (3 lines hidden), use '-vv' to show</failure></testcase></testsuite></testsuites>

@@ -86,7 +86,7 @@ async def send_weekly_digest(user: dict = Depends(get_current_user)):
         {''.join(f'<div style="padding: 8px; margin: 4px 0; background: white; border-left: 3px solid {"red" if e["health_score"] < 50 else "orange" if e["health_score"] < 80 else "green"};"><strong>{e["name"]}</strong> - Health: {e["health_score"]}% | Open Issues: {e["open_issues"]}</div>' for e in digest['equipment_health'][:5]) or '<p>All equipment in good condition</p>'}
 
         <p style="margin-top: 20px; text-align: center;">
-            <a href="#" style="display: inline-block; background: #19CDFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View Full Dashboard</a>
+            <a href="#" style="display: inline-block; background: #19CDFF; color: #1B1C1D; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View Full Dashboard</a>
         </p>
     </div>
     </div>"""

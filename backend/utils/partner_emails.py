@@ -100,7 +100,7 @@ def _wrap(headline: str, body_html: str, cta_label: str | None = None, cta_url: 
     if cta_label and cta_url:
         cta = (
             f'<p style="margin:28px 0 8px;">'
-            f'<a href="{cta_url}" style="background:#19CDFF;color:#fff;text-decoration:none;'
+            f'<a href="{cta_url}" style="background:#19CDFF;color:#1B1C1D;text-decoration:none;'
             f'display:inline-block;padding:12px 22px;border-radius:999px;'
             f'font-weight:700;font-family:Arial,sans-serif;font-size:14px;">{cta_label}</a>'
             f"</p>"

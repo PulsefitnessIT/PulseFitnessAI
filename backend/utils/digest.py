@@ -244,7 +244,7 @@ def render_digest_html(user: dict, payload: dict, freq_label: str) -> str:
     <table width="100%" cellspacing="0" cellpadding="0">{rows_html}</table>
   </div>
   <div style="padding:20px 24px;background:#F7F7F7;text-align:center;">
-    <a href="{app_url}/dashboard" style="display:inline-block;background:#19CDFF;color:#fff;padding:10px 22px;border-radius:6px;font-weight:600;text-decoration:none;">Open dashboard</a>
+    <a href="{app_url}/dashboard" style="display:inline-block;background:#19CDFF;color:#1B1C1D;padding:10px 22px;border-radius:6px;font-weight:600;text-decoration:none;">Open dashboard</a>
     <div style="margin-top:16px;font-size:12px;color:#6E7476;">
       You're receiving this because the {freq_label} digest is on.
       <a href="{app_url}/dashboard" style="color:#0091CA;">Change frequency</a>.

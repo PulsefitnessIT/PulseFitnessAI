@@ -3144,7 +3144,7 @@ def _hq_provision_email_html(site: dict, username: str, new_password: str) -> st
       <tr><td style="padding:8px 14px;background:#1B1C1D;color:#19CDFF;border:1px solid #1B1C1D;font-size:11px;font-weight:800;text-transform:uppercase;">Site code</td>
           <td style="padding:8px 14px;background:#1B1C1D;color:#fff;border:1px solid #1B1C1D;font-family:ui-monospace,Menlo,monospace;font-weight:700;">{new_password}</td></tr>
     </table>
-    <p style="color:#6E7476;font-size:13px;margin-top:18px;">Share this with the on-site PTI via a secure channel. Sign in at <a href="{_mod_login_url}" style="color:#19CDFF;">{_mod_login_url}</a> using the username + site code.</p>
+    <p style="color:#6E7476;font-size:13px;margin-top:18px;">Share this with the on-site PTI via a secure channel. Sign in at <a href="{_mod_login_url}" style="color:#0091CA;">{_mod_login_url}</a> using the username + site code.</p>
   </div>
 </div>"""
 

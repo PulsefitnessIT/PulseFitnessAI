@@ -301,7 +301,7 @@ async def _email_backup_link(user: dict, doc: dict, cfg: dict) -> None:
       <h2 style="color:#0091CA">Master Price List — weekly backup</h2>
       <p>Your scheduled Master Price List backup is ready ({doc['product_count']} products, {doc['format'].upper()}).</p>
       {"<p style='color:#b45309'><strong>This file includes cost / margin data — handle securely.</strong></p>" if sensitive else ""}
-      <p><a href="{link}" style="display:inline-block;background:#19CDFF;color:#fff;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold">Download secure backup</a></p>
+      <p><a href="{link}" style="display:inline-block;background:#19CDFF;color:#1B1C1D;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold">Download secure backup</a></p>
       <p style="color:#9A9FA1;font-size:12px">This secure link expires on {doc['expires_at'][:10]}. Do not forward to unauthorised recipients.</p>
     </div>"""
     for to in recipients:

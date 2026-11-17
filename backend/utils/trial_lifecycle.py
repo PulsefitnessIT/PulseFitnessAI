@@ -100,7 +100,7 @@ def _trial_reminder_html(org_name: str, days_left: int, upgrade_url: str) -> str
         <h2 style="color: #26292B; margin: 0 0 16px;">Hi {org_name},</h2>
         <p style="color: #565B5E; line-height: 1.7;">Your 2-week trial of Pulse Fitness ends in <strong>{days_left} day{'s' if days_left != 1 else ''}</strong>. To keep your equipment data, PPM schedules, and site history, upgrade now and we'll switch you over seamlessly — no re-import required.</p>
         <div style="text-align: center; margin: 32px 0;">
-            <a href="{upgrade_url}" style="display: inline-block; background: #19CDFF; color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 15px;">Upgrade to Pro</a>
+            <a href="{upgrade_url}" style="display: inline-block; background: #19CDFF; color: #1B1C1D; padding: 16px 36px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 15px;">Upgrade to Pro</a>
         </div>
         <p style="color: #9A9FA1; font-size: 13px;">If you'd prefer to chat first, just reply to this email.</p>
     </div>

@@ -420,7 +420,7 @@ async def _send_customer_welcome(user_id: str, email: str, full_name: str,
       <p>Your account for <strong>{company_name}</strong> is ready. You're on our
          <strong>Lite</strong> plan — Operations (dashboard, equipment &amp; faults) is included free.</p>
       <p style="margin:20px 0;">
-        <a href="{set_pw_url}" style="background:#19CDFF;color:#fff;text-decoration:none;
+        <a href="{set_pw_url}" style="background:#19CDFF;color:#1B1C1D;text-decoration:none;
            padding:12px 22px;border-radius:8px;font-weight:600;display:inline-block;">
            Set your password &amp; sign in</a>
       </p>

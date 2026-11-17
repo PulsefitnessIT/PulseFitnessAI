@@ -524,7 +524,7 @@ def _build_card_email_html(req: dict, org_name: str, token: str) -> str:
     {rows}
     {('<p style="font-size:13px;color:#393E41;margin:12px 0 0;"><strong>Notes:</strong> ' + req["notes"] + '</p>') if req.get("notes") else ''}
     <div style="text-align:center;margin:22px 0 6px;">
-      <a href="{url}" style="display:inline-block;background:#19CDFF;color:#fff;text-decoration:none;padding:12px 26px;border-radius:999px;font-size:14px;font-weight:600;">Open Parts Request</a>
+      <a href="{url}" style="display:inline-block;background:#19CDFF;color:#1B1C1D;text-decoration:none;padding:12px 26px;border-radius:999px;font-size:14px;font-weight:600;">Open Parts Request</a>
     </div>
     <p style="text-align:center;font-size:11px;color:#9A9FA1;margin:8px 0 0;">Or paste this link: {url}</p>
   </div>

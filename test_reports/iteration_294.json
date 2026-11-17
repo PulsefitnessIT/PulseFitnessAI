@@ -1,0 +1,45 @@
+{
+  "summary": "Tested the readable Core Blue CSS rule (A) and the email palette remap (B). (B) Backend: /api/health is OK. The rendered _reminder_html, wrap_branded and wrapped reminder contain none of the 8 banned colours, and every hex in them is in the guide or status set. A static scan of the email HTML strings found no banned colours. Leftovers: 3 emails still use Core Blue #19CDFF link text on white (details below). (A) Frontend: a new computed-style audit (/app/tests/core_blue_audit.js) ran on /, /pulse, /login, /?portal=modservice, /master-admin, /dashboard, /service-desk, /crm and /staff-portal, light and dark, at 1920 and 390 width, as admin@pulsefitness.com and owner@isodemo.com. Text using the covered utilities (text-[var(--color-brand-cyan)], text-[var(--pulse-primary)], text-[#19CDFF], inline rgb colour) correctly renders rgb(0,145,202) on light surfaces: 47 elements on the landing page and 9 on the MOD login, including the 'Three Services.' headline. Things that correctly stay bright rgb(25,205,255): the landing hero 'Maintain' word, the black navbars, the Service Desk Team Performance dark card, and the MOD footer. Only one element got the darker blue on a dark surface (the landing 95.5% stat card, ratio 4.8, still readable). Nothing became unreadable. Dark theme: dashboard, CRM, staff portal and MOD login are unchanged, with 0 dark-blue elements. Main gaps: two common Core Blue patterns are not covered by the rule, so a lot of bright Core Blue text is still on white in light mode.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "email HTML: routes/pulse_upgrade.py:64 (customer upgrade email, white body)", "issue": "Link uses color:#19CDFF on #fff, should be #0091CA."},
+      {"endpoint": "email HTML: routes/mod_bulk_import.py:488 (_credentials_email_html body)", "issue": "/MODService link uses color:#19CDFF on white, should be #0091CA."},
+      {"endpoint": "email HTML: routes/mod_portal.py:3147 (site login email)", "issue": "'Sign in at' link uses color:#19CDFF on white, should be #0091CA."},
+      {"endpoint": "utils/email.py:686 send_onboarding_invite_email", "issue": "Subtitle colour #cfe0ff (light periwinkle) is not in the guide. Use white/Silver."},
+      {"endpoint": "PDF generators (out of scope, FYI)", "issue": "Banned colours remain in the reportlab PDFs: tender_pdf_exporter, incident_pdf, capex_pdf_exporter, legacy_report_pdf (#0055FF default), pdf_footer, engineer_quote_pdf, crm_quote_pdf, mod_aser_exports (#6b7280/#e5e7eb)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Active sidebar items: Master Admin AdminSidebar.js L162 and ServiceDeskPage.js L366 (85 uses app-wide)", "issue": "The utility text-[var(--gx-brand-from)] (= #19CDFF) is not in the rule, so the active nav label stays bright #19CDFF on white (1.87:1) in light mode.", "selector": "[data-testid=\"sidebar-overview\"] span, [data-testid=\"desk-tab-dashboard\"] span", "priority": "MEDIUM"},
+      {"component": "Start tab (OpsStartTab / CRM start tab) kickers and step-number circles (179 inline uses app-wide)", "issue": "These use inline style={{color:'var(--color-brand-cyan)'}}. The rule only matches inline 'color: rgb(25, 205, 255)', so they stay bright on #F0F0F0 and white (1.64 to 1.87:1).", "selector": "[data-testid=\"ops-start-tab\"] div.text-[11px].uppercase, [data-testid=\"crm-start-tab\"] div.w-7.h-7.rounded-full", "priority": "MEDIUM"},
+      {"component": "Landing hero preview card", "issue": "A white card with data-theme=light sits inside the hero's data-theme=dark wrapper. The nested [data-theme=dark] exclusion wins, so 'Live' and '+£3.1k' stay bright on white (1.87:1).", "selector": "[data-testid=\"pulse-hero-preview\"] .text-[var(--pulse-primary)]", "priority": "LOW"},
+      {"component": "Landing 'Numbers' 95.5% stat card (PulseHeritageSections.js L172)", "issue": "The card background class bg-[var(--pulse-black,#1B1C1D)] is not in the dark-container exclusions. '95.5%' renders #0091CA on #1B1C1D (4.8:1, readable but dim and not to the guide). It also happens with the theme set to dark, because the landing page has nested light wrappers.", "selector": "[data-testid=\"stat-first-time-fix\"] span", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/service-desk in dark theme", "issues": ["The desk sidebar stays white, and the active 'Dashboard' label is #19CDFF on white (1.87:1). The light-only rule does not cover this. It was like this before."]},
+      {"screen": "Email buttons", "issues": ["Many emails use white text on #19CDFF buttons (about 1.9:1), e.g. password reset and welcome. Consider #00121A/#1B1C1D text, as the vehicle-check reminder already does."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_email_palette.py", "/app/tests/core_blue_audit.js", "/app/tests/core_blue_helpers.py", "/app/test_reports/pytest/email_palette.xml"],
+  "action_items": [
+    "Add text-[var(--gx-brand-from)] to the readable-blue rule in index.css, or swap the active-nav class to a covered one.",
+    "Cover inline style 'color: var(--color-brand-cyan)'. Add [style*=\"color: var(--color-brand-cyan)\"] selectors with the same exclusions, or convert those 179 inline styles to the className.",
+    "Add bg-[var(--pulse-black,#1B1C1D)] (and similar var-fallback dark bg classes) to the dark-container exclusion list.",
+    "Fix the landing hero preview: let a nested [data-theme=light] inside [data-theme=dark] re-enable the rule, or add an explicit class.",
+    "Change the email link colour #19CDFF to #0091CA in pulse_upgrade.py:64, mod_bulk_import.py:488 and mod_portal.py:3147. Replace #cfe0ff in the onboarding invite email."
+  ],
+  "critical_code_review_comments": [
+    "The index.css rule repeats a roughly 40-item :not(:where(...)) list 20 times. Put the dark-surface ancestors behind one marker class, or use :is() for the utilities, to reduce duplication and the risk of missed entries.",
+    "The inline-style matcher depends on React serialising the colour as 'color: rgb(25, 205, 255)'. It misses var() values and any style where colour is not first or after '; '.",
+    "The exclusions only look at ancestor classes. Dark surfaces set by inline style or gradients (e.g. style={{background:'#1B1C1D'}}) are not excluded. None were found on the audited pages, but the risk remains elsewhere."
+  ],
+  "updated_files": ["/app/backend/tests/test_email_palette.py", "/app/tests/core_blue_audit.js", "/app/tests/core_blue_helpers.py"],
+  "success_rate": {"backend": "83% (5/6; the failing test is the Core Blue link-text-on-white check)", "frontend": "80% (covered utilities convert correctly and dark containers stay bright; two common utility patterns are not covered)"},
+  "seed_data_creation": "None. Read-only testing.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Core Blue audit: g={}; exec(open('/app/tests/core_blue_helpers.py').read(), g); await g['cb_login'](page,email,pw); await g['cb_visit'](page,'/path','light'). It reports darkBlueOnDark (#0091CA on a dark bg = regression) and brightOnLight (#19CDFF on light = rule miss). The tailored-banner kicker flagged on landing is a false positive (text over a photo). /master-admin forces light theme. The admin login currently returns a token directly (MFA not enforced at runtime). Backend: pytest /app/backend/tests/test_email_palette.py -p no:xdist. A ChunkLoadError appeared once during a hot-reload compile (transient)."
+}

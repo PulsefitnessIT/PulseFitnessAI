@@ -39333,3 +39333,8 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - ~1,400 hard-coded hex/rgb values remapped (navy/indigo/purple/cool greys/iOS blue). shadcn HSL vars now neutral; vars also reset under [data-theme=light].
 - Excluded on purpose: gym colour pickers (member app builder, brand kit, plan/class editors, email builder), CRM territory map palette, official service logos.
 - Dark-mode fixes: DeskPerformance hero on-dark, BFPO StaffDashboard + StaffPortal cards + MOD login + landing hero card forced data-theme=light. Login imports marketing.css (gx-cta).
+
+## Jun 2026 — Email colours + readable blue
+- Backend email HTML remapped to guide palette (routes/utils, PDFs excluded); Core Blue link text on white -> #0091CA; Core Blue buttons now Soft Black text.
+- Frontend: index.css end rule turns Core Blue text (utilities, gx-brand-from, inline rgb/var) into #0091CA on light surfaces; dark containers excluded.
+- Known: reportlab PDFs still use legacy colours (out of scope).

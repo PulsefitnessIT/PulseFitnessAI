@@ -628,7 +628,7 @@ async def send_welcome_email(email: str, name: str):
             <li><strong>Maintenance Checklists</strong> - Keep your gym safe and compliant</li>
         </ul>
         <p>Get started by logging into your dashboard.</p>
-        <a href="#" style="display: inline-block; background: #19CDFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Go to Dashboard</a>
+        <a href="#" style="display: inline-block; background: #19CDFF; color: #1B1C1D; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Go to Dashboard</a>
     </div>
     </div>"""
     await send_email(email, "Welcome to Pulse Fitness AI", html, category="support")
@@ -662,7 +662,7 @@ async def send_password_reset_email(email: str, name: str, reset_url: str):
         <p style="color: #565B5E; line-height: 1.6;">Hi {name},</p>
         <p style="color: #565B5E; line-height: 1.6;">We received a request to reset your password. Click the button below to set a new password:</p>
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{reset_url}" style="display: inline-block; background: #19CDFF; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px;">Reset Password</a>
+            <a href="{reset_url}" style="display: inline-block; background: #19CDFF; color: #1B1C1D; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px;">Reset Password</a>
         </div>
         <p style="color: #9A9FA1; font-size: 13px; line-height: 1.6;">This link will expire in 1 hour. If you didn't request this, you can safely ignore this email.</p>
         <hr style="border: none; border-top: 1px solid #F0F0F0; margin: 24px 0;" />
@@ -683,7 +683,7 @@ async def send_onboarding_invite_email(email: str, recipient_name: str, customer
     html = f"""<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
     <div style="background: linear-gradient(135deg, #19CDFF 0%, #0073A4 100%); padding: 36px 30px; text-align: center;">
         <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: -0.5px;">Welcome to Pulse Fitness AI</h1>
-        <p style="color: #cfe0ff; margin: 8px 0 0; font-size: 13px;">Your equipment management platform is ready</p>
+        <p style="color: #E0E0E0; margin: 8px 0 0; font-size: 13px;">Your equipment management platform is ready</p>
     </div>
     <div style="padding: 40px 32px;">
         <h2 style="color: #26292B; margin: 0 0 16px; font-size: 20px;">Let's get {customer_name or 'you'} set up</h2>
@@ -703,7 +703,7 @@ async def send_onboarding_invite_email(email: str, recipient_name: str, customer
             </ul>
         </div>
         <div style="text-align: center; margin: 32px 0;">
-            <a href="{share_url}" style="display: inline-block; background: #19CDFF; color: white; padding: 16px 36px;
+            <a href="{share_url}" style="display: inline-block; background: #19CDFF; color: #1B1C1D; padding: 16px 36px;
                text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 15px; letter-spacing: 0.3px;">
                Open Onboarding Form →
             </a>
