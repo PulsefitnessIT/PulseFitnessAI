@@ -108,7 +108,7 @@ export default function DeskPerformance({ API, onNavigate }) {
 
       {/* Hero — FTF gauge + headline throughput */}
       <Card
-        className="p-5 sm:p-6 border-0 overflow-hidden relative cursor-pointer transition-transform active:scale-[0.99]"
+        className="on-dark p-5 sm:p-6 border-0 overflow-hidden relative cursor-pointer transition-transform active:scale-[0.99]"
         style={{ background: 'linear-gradient(135deg, #26292b 0%, #1b1c1d 60%, #1B1C1D 100%)' }}
         role="button" tabIndex={0}
         onClick={() => onNavigate && onNavigate('analytics')}

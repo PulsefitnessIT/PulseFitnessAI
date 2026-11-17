@@ -60,7 +60,7 @@ export const EDGE_TYPES = [
 // Deterministic department colour so branches read consistently.
 const DEPT_COLORS = [
   '#0091ca', '#0091ca', '#0091ca', '#0091ca', '#d97706',
-  '#16a34a', '#d97706', '#dc2626', '#0091ca', '#0d9488',
+  '#16a34a', '#d97706', '#dc2626', '#0091ca', '#0091CA',
 ];
 export function deptColor(dept) {
   if (!dept) return '#9a9fa1';

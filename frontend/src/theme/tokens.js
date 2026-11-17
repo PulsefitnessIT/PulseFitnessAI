@@ -50,7 +50,7 @@ export const colors = {
   danger:          '#EF4444',
   dangerAlt:       '#FF3B30',  // legacy iOS-red
   info:            '#19CDFF',
-  infoIOS:         '#007AFF',  // legacy iOS-blue — DEPRECATED for new code
+  infoIOS:         '#19CDFF',  // legacy iOS-blue — DEPRECATED for new code
 
   // ── ACCENT PALETTE ────────────────────────────────────────────
   accentPurple:    '#9966FF',  // Marketing

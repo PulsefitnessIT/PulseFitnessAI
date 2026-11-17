@@ -338,7 +338,7 @@ const ExplainerCard = ({ configured, live }) => (
   <section
     className="rounded-2xl p-5 text-white shadow-md"
     style={{ background: live
-      ? 'linear-gradient(135deg, #047857 0%, #0d9488 60%, #0091ca 100%)'
+      ? 'linear-gradient(135deg, #047857 0%, #0091CA 60%, #0091ca 100%)'
       : 'linear-gradient(135deg, #0091ca 0%, #19cdff 60%, #19cdff 100%)' }}
     data-testid="sicon-explainer"
   >

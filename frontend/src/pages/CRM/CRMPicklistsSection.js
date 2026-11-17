@@ -154,7 +154,7 @@ export default function CRMPicklistsSection({ API, headers, user, c, isDark }) {
                   onClick={() => setActiveKey(k.key)}
                   className="w-full text-left flex items-center justify-between gap-2 px-3 py-2 rounded-md text-xs transition"
                   style={{
-                    background: active ? 'rgba(0,122,255,0.1)' : 'transparent',
+                    background: active ? 'rgba(25,205,255,0.1)' : 'transparent',
                     color: active ? 'var(--color-info-ios)' : c.textMuted,
                     fontWeight: active ? 600 : 500,
                   }}
@@ -213,7 +213,7 @@ export default function CRMPicklistsSection({ API, headers, user, c, isDark }) {
                       style={{ color: v.deprecated ? c.textDim : c.text, opacity: v.deprecated ? 0.6 : 1 }}
                       data-testid={`picklists-row-${v.id}`}
                     >
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold tracking-wider uppercase" style={{ background: isGlobal ? 'rgba(25, 205, 255,0.12)' : 'rgba(0,122,255,0.10)', color: isGlobal ? '#0091ca' : 'var(--color-info-ios)' }}>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold tracking-wider uppercase" style={{ background: isGlobal ? 'rgba(25, 205, 255,0.12)' : 'rgba(25,205,255,0.10)', color: isGlobal ? '#0091ca' : 'var(--color-info-ios)' }}>
                         {isGlobal ? 'Global' : 'Org'}
                       </span>
                       {editing ? (

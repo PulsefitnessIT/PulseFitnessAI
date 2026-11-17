@@ -127,7 +127,7 @@ body.has-bottom-banner main.overflow-y-auto {
   --color-danger:            #EF4444;
   --color-danger-alt:        #FF3B30;
   --color-info:              #19CDFF;
-  --color-info-ios:          #007AFF;
+  --color-info-ios:          #19CDFF;
 
   --color-accent-purple:     #9966FF;
   --color-accent-indigo:     #5856D6;
@@ -180,7 +180,7 @@ body.has-bottom-banner main.overflow-y-auto {
   --color-gold:              #FFD700;
   --color-bronze:            #CD7F32;
   --color-silver:            #C0C0C0;
-  --color-teal-500:          #14B8A6;
+  --color-teal-500:          #19CDFF;
   --color-teal-deep:         #0A6F8C;
   --color-navy-800:          #1E3A5F;
   --color-navy-900:          #1A2332;
@@ -1081,8 +1081,8 @@ body.has-bottom-banner main.overflow-y-auto {
   background-color: var(--theme-hover-bg) !important;
 }
 /* Preserve white text on CRM coloured action buttons */
-[data-theme="light"] .bg-\[\#007AFF\].text-white,
-[data-theme="light"] .bg-\[\#007AFF\] .text-white,
+[data-theme="light"] .bg-\[\#19CDFF\].text-white,
+[data-theme="light"] .bg-\[\#19CDFF\] .text-white,
 [data-theme="light"] .bg-\[\#005BB5\].text-white,
 [data-theme="light"] .bg-\[\#34C759\].text-white,
 [data-theme="light"] .bg-\[\#34C759\] .text-white,
@@ -1493,8 +1493,8 @@ html[data-brand="gymaxis"] {
   --pulse-primary-hover:     #0091CA;
   --pulse-primary-deep:      #0073A4;
   --rgb-pulse-primary:       37, 99, 235;
-  --rgb-brand-cyan:          37 99 235;
-  --rgb-brand-cyan-hover:    29 78 216;
+  --rgb-brand-cyan:          25 205 255;
+  --rgb-brand-cyan-hover:    0 145 202;
   --brand-color:             #0091CA;
 }
 
@@ -1509,7 +1509,7 @@ html[data-brand="gymaxis"] {
    We now define light defaults at `:root`, and dark overrides under
    `[data-theme="dark"]` so any consumer that respects the html theme
    attribute gets the right palette automatically. */
-:root {
+:root, [data-theme="light"] {
   --background:           0 0% 100%;          /* #FFFFFF */
   --foreground:           210 4% 11%;         /* Soft Black */
   --card:                 0 0% 100%;

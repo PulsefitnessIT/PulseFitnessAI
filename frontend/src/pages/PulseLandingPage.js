@@ -569,7 +569,7 @@ function AIFeatures() {
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           className="relative"
         >
-          <div className="relative bg-white rounded-3xl border border-slate-200 shadow-[0_20px_60px_-15px_rgba(37,99,235,0.25)] p-6" data-testid="pulse-ask-orb-mock">
+          <div className="relative bg-white rounded-3xl border border-slate-200 shadow-[0_20px_60px_-15px_rgba(25,205,255,0.25)] p-6" data-testid="pulse-ask-orb-mock">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--pulse-primary)] to-[var(--color-violet-600)] flex items-center justify-center shadow-md shadow-[rgb(var(--rgb-pulse-primary)/0.3)]">
                 <Sparkles size={18} className="text-white" />
@@ -718,7 +718,7 @@ function MobileExperience() {
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
           className="mx-auto max-w-[280px]"
         >
-          <div className="bg-[var(--color-neutral-700)] rounded-[2.5rem] p-2.5 shadow-[0_30px_80px_-20px_rgba(37,99,235,0.4)] border border-white/10">
+          <div className="bg-[var(--color-neutral-700)] rounded-[2.5rem] p-2.5 shadow-[0_30px_80px_-20px_rgba(25,205,255,0.4)] border border-white/10">
             <div className="bg-white rounded-[2rem] overflow-hidden">
               <div className="h-6 bg-white flex items-center justify-center">
                 <div className="w-20 h-5 rounded-b-xl bg-[var(--color-neutral-700)]" />
@@ -1027,7 +1027,7 @@ function GymFloorShowcase() {
     <section
       className="relative py-20 overflow-hidden"
       style={{
-        background: 'linear-gradient(180deg, var(--color-ink) 0%, #14181F 100%)',
+        background: 'linear-gradient(180deg, var(--color-ink) 0%, #1B1C1D 100%)',
       }}
       data-theme="dark"
       data-testid="pulse-gym-floor-showcase"

@@ -353,7 +353,7 @@ export default function CRMWorkflows() {
               </div>
 
               {/* Trigger */}
-              <div className="p-4 rounded-lg" style={{ background: isDark ? 'var(--color-info-ios)08' : 'var(--color-info-bg)', border: '1px solid rgba(0,122,255,0.15)' }}>
+              <div className="p-4 rounded-lg" style={{ background: isDark ? 'var(--color-info-ios)08' : 'var(--color-info-bg)', border: '1px solid rgba(25,205,255,0.15)' }}>
                 <div className="flex items-center gap-2 mb-3">
                   <Zap size={14} style={{ color: 'var(--color-info-ios)' }} />
                   <span className="text-xs uppercase tracking-wider font-medium" style={{ color: 'var(--color-info-ios)' }}>When...</span>

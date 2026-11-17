@@ -1135,7 +1135,7 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers, navigateTo })
                       {isEditing && (
                         <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)'}` }}>
                           {q.ai_draft && !q.response && (
-                            <div className="mb-2 p-3 rounded-md" style={{ background: isDark ? 'var(--color-info-ios)08' : 'var(--color-info-bg)', border: '1px solid rgba(0,122,255,0.15)' }}>
+                            <div className="mb-2 p-3 rounded-md" style={{ background: isDark ? 'var(--color-info-ios)08' : 'var(--color-info-bg)', border: '1px solid rgba(25,205,255,0.15)' }}>
                               <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--color-info-ios)' }}>AI Draft</p>
                               <p className="text-xs whitespace-pre-wrap" style={{ color: c.textMuted }}>{q.ai_draft.substring(0, 300)}{q.ai_draft.length > 300 ? '...' : ''}</p>
                               <button onClick={() => updateQuestion(q.id, { response: q.ai_draft, status: 'draft' })} className="text-[10px] text-[var(--color-info-ios)] mt-1 hover:underline">Use this draft</button>
@@ -1358,7 +1358,7 @@ function TenderDetail({ tenderId, onBack, c, isDark, API, headers, navigateTo })
                 )}
               </div>
             ) : (
-              <div className="p-4 rounded-lg text-center" style={{ background: isDark ? 'var(--color-info-ios)08' : 'var(--color-info-bg)', border: '1px solid rgba(0,122,255,0.15)' }}>
+              <div className="p-4 rounded-lg text-center" style={{ background: isDark ? 'var(--color-info-ios)08' : 'var(--color-info-bg)', border: '1px solid rgba(25,205,255,0.15)' }}>
                 <Sparkles size={24} className="mx-auto mb-2" style={{ color: 'var(--color-info-ios)' }} />
                 <p className="text-sm" style={{ color: c.textMuted }}>Click "Generate Strategy" to get AI-powered win analysis</p>
                 <p className="text-xs mt-1" style={{ color: c.textDim }}>Add questions first for the best results</p>

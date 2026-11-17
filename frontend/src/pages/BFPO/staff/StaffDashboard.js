@@ -17,7 +17,7 @@ export default function StaffDashboard({ userName, role, onOpenJobs, onOpenJob }
   const k = data.kpis;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="staff-dashboard">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" data-testid="staff-dashboard" data-theme="light">
       {/* KPI stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {TILES.map((t) => (

@@ -1,0 +1,64 @@
+{
+  "summary": "Frontend-only test of the Pulse brand colour pass. I checked /, /pricing, /login, /master-admin, /dashboard, /service-desk (Dashboard, Cases and Scheduler tabs), /crm, /staff-portal, the Lite dashboard /pulse (lite.suptest@pulsedemo.test) and /bfpo (MOD, lee.somers@pulsefitness.com / TempPass123!), at 1920x800 and 390x844, in light and dark mode. Method: a computed-style audit (/app/tests/colour_audit.js) that finds the real background behind each text element, works out the WCAG contrast ratio and flags off-brand hues, plus screenshots to confirm. Most surfaces are on-brand: /login, /pricing, /dashboard, /crm, /staff-portal, /bfpo (light), and /pulse in both themes. In dark mode the body is Soft Black #1B1C1D. FAILURES: (1) The 'Team Performance' dark card on /service-desk has invisible stat numbers in light mode. (2) In dark mode the /service-desk stat cards show dark text on dark cards. (3) In dark mode the /bfpo panel headings are white on white. Off-brand colours remain: an indigo #5B5BF5 KPI icon, an iOS-blue #007AFF CRM '+' button, an amber/orange/rose decorative gradient on the Pulse Pro upgrade card, and a navy-tinted #14181F landing gradient. Core Blue #19CDFF is widely used as text on white (about 1.6-1.9:1 contrast).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Service Desk > Team Performance hero (LIGHT mode, desktop + mobile)", "issue": "The MiniStat values (0 / 0h / 0) and the FTF ring '0%' are #1B1C1D on #26292B (1.17:1), so they are effectively invisible. RCA: the Card's dark background is an inline-style linear-gradient (DeskPerformance.js ~L110). The index.css L782 rule '[data-theme=light] .text-white {color: var(--theme-text)}' flips them to dark, and the preserve-white list (L786-813) has no entry for this card. Fix: add className 'on-dark' to the hero Card (the existing helper at index.css ~L821).", "selector": "[data-testid=\"desk-performance-hero\"] .text-white, [data-testid=\"desk-ftf-rate\"]", "priority": "HIGH"},
+      {"component": "Service Desk dashboard (DARK mode)", "issue": "The stat cards show dark text on dark cards (#1B1C1D on #26292B, 1.17:1): 558/554/0/4, 'Recent Activity', and the desk-perf-* tile numbers and labels. The sidebar role badge 'Master Admin' is white on white. RCA: the page wrapper is 'theme-gymaxis' with data-theme=\"light\", so the dark: variants are cancelled. But shadcn bg-card reads --card, which is set only on html[data-theme=dark] (index.css L1539), and the nested light subtree never resets it. Fix: change index.css L1512 ':root {' to ':root, [data-theme=\"light\"] {'.", "selector": "[data-testid^=\"desk-stat-\"], [data-testid^=\"desk-perf-\"], [data-testid=\"service-desk-page\"] div.inline-flex.items-center.rounded-md", "priority": "HIGH"},
+      {"component": "MOD Operations /bfpo StaffDashboard (DARK mode)", "issue": "The 'Needs attention now' and 'Sites requiring attention' h2 headings are white on white (1:1). The panels are hard-coded bg-white while the dark override turns text-slate-900 white. The KPI cards also stay white on the Soft Black page, which looks inconsistent. File: pages/BFPO/staff/StaffDashboard.js L41-60.", "selector": "[data-testid=\"staff-dashboard\"] h2.text-base.font-semibold.text-slate-900", "priority": "HIGH"},
+      {"component": "/login Sign In button", "issue": "The 'gx-cta' class is defined only in pages/Marketing/marketing.css, a lazy chunk. On a direct /login load the primary button has no background (transparent, Slate text) and looks like plain text instead of a brand CTA.", "selector": "[data-testid=\"gx-login-submit\"]", "priority": "MEDIUM"},
+      {"component": "/master-admin", "issue": "The dark toggle sets html[data-theme=dark], but the Master Admin console stays fully light. This may be intentional; please confirm.", "selector": "[data-testid=\"sidebar-overview\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Off-brand colours (not status)", "issues": [
+        "/master-admin [data-testid=\"kpi-active-users\"] icon is indigo #5B5BF5 (AdminOverview.js L38, OperationsOverview.js L29). AdminPartnerAttribution.js L225 has a gradient that includes #5B5BF5.",
+        "/crm [data-testid=\"quick-create-btn\"] button background is iOS blue #007AFF (index.css L130 --color-info-ios, theme/tokens.js infoIOS). About 10 CRM files still reference it.",
+        "Lite /pulse [data-testid=\"pulse-pro-upgrade-cta\"] (PulseProUpgradeCta.js L117-176) uses status colours as decoration: an amber→orange→rose gradient on the 'Try Pulse Pro free' button, amber→rose gradient text on '3 days, free', amber/rose and fuchsia glow blobs, a Marketing tile gradient of fuchsia→rose (renders blue→red), an emerald→blue Memberships tile and a violet-950 backdrop.",
+        "Landing [data-testid=\"pulse-gym-floor-showcase\"] gradient ends in navy-tinted #14181F (PulseLandingPage.js L1030). Use Soft Black #1B1C1D.",
+        "index.css ~L1495-1497 still sets --rgb-pulse-primary 37,99,235 and --rgb-brand-cyan 37 99 235 (royal blue #2563EB), with hover 29 78 216. These feed PulseUpgradeRequestModal's glow and focus rings.",
+        "Remaining hard-coded hexes: CRMTerritoryMap.js L38-39 palette (#DB2777 pink, #7C3AED/#9333EA purple, #EA580C orange, #0891B2), plus #0F172A navy strokes and text; index.css L183 --color-teal-500 #14B8A6; IntegrationsSiconConnect.js L341 teal #0d9488 gradient; teal #0d9488 swatches in EngineerCaseTypes.js L35 and orgchart/api.js L63.",
+        "Decorative emerald #059669/#10B981 (green used outside status): master-admin kpi-mrr, trials-module-memberships and chart-subscriptions-pie icons and slices.",
+        "Avatar circle background #66CCFF (not in the palette) with a white initial at 1.8:1: [data-testid=\"nav-user-menu-btn\"] div.w-7.h-7.rounded-full."
+      ]},
+      {"screen": "Low contrast: Core Blue #19CDFF used as text on white/#F0F0F0 (1.64-1.87:1); the guide says to use #0091CA/#0073A4", "issues": [
+        "Active nav labels: [data-testid=\"sidebar-overview\"] (master-admin) and [data-testid^=\"desk-tab-\"] active span (service-desk).",
+        "Start tabs: [data-testid=\"ops-start-tab\"] and [data-testid=\"crm-start-tab\"] div.text-[11px].uppercase section labels and the div.w-7.h-7.rounded-full step numbers.",
+        "Service Desk Cases KPIs: [data-testid=\"kpi-open\"], [data-testid=\"kpi-avg-resolve\"], [data-testid=\"kpi-field-engineers\"] p.svc-kpi-value.",
+        "Landing: [data-testid=\"pulse-hero-preview\"] 'Live' and '+£3.1k'; [data-testid=\"pulse-ask-orb-mock\"] chips; [data-testid^=\"heritage-milestone-\"] years; the [data-testid=\"pulse-tailored-banner\"] eyebrow on a blue photo."
+      ]},
+      {"screen": "Low contrast: white text on #19CDFF (1.87:1)", "issues": [
+        "[data-testid=\"crm-mode-leisure\"] active 'Members'; [data-testid=\"desk-log-case\"], [data-testid=\"engineer-roster-add-toggle\"] and [data-testid=\"find-engineer-search\"] .svc-btn-primary; [data-testid=\"replan-remaining-day-btn\"]; landing [data-testid=\"pulse-mobile\"] 'Log new fault'. Use Soft Black text or a #0091CA background."
+      ]},
+      {"screen": "Low contrast: other", "issues": [
+        "slate-400 #9A9FA1 on #F7F7F7 (2.5:1): /pricing footer [data-testid=\"gx-footer\"] headings and links, service-desk 'Last 30 days', and the staff-portal [data-testid=\"my-day-month\"] labels.",
+        "amber-500 text on white (2.15:1): staff-portal [data-testid=\"my-day-today\"] 'Not Confirmed'. White on amber-500: [data-testid=\"sidebar-pending-review-badge\"].",
+        "Scheduler uses the native browser date input instead of the shadcn calendar (service-desk Scheduler hero).",
+        "Mobile service-desk: the floating chat button overlaps the 'LAST 30 DAYS' label."
+      ]}
+    ]
+  },
+  "test_report_links": ["/app/tests/colour_audit.js", "/app/tests/colour_login.py"],
+  "action_items": [
+    "HIGH: add 'on-dark' to the Team Performance hero Card in pages/ServiceDesk/DeskPerformance.js so the white stat numbers stay white in light mode.",
+    "HIGH: in index.css L1512 change ':root {' to ':root, [data-theme=\"light\"] {' so the shadcn --card/--background vars reset inside forced-light subtrees. This fixes the dark-mode Service Desk cards and the 'Master Admin' badge.",
+    "HIGH: /bfpo StaffDashboard dark mode. Give the panels dark:bg-[#26292B] (or force data-theme=light consistently) so the h2 headings aren't white on white.",
+    "Replace #5B5BF5 (AdminOverview, OperationsOverview, AdminPartnerAttribution) and #007AFF (--color-info-ios / tokens.infoIOS in CRM) with Core Blue shades.",
+    "Rework the PulseProUpgradeCta gradients (amber/orange/rose/fuchsia/violet/emerald) to Core Blue/neutrals.",
+    "Fix the leftover --rgb-pulse-primary / --rgb-brand-cyan 37,99,235 at index.css ~L1495, #14181F on the landing page, the CRMTerritoryMap palette, and the teal #0d9488/#14B8A6 tokens.",
+    "Use #0091CA/#0073A4 instead of #19CDFF for text on light backgrounds, and dark text (or a #0091CA background) for white-on-Core-Blue buttons.",
+    "Load the .gx-cta styles globally (or use a different class) so the /login Sign In button has its brand fill."
+  ],
+  "critical_code_review_comments": [
+    "index.css L782 '[data-theme=light] .text-white' is a broad override. Every inline-styled dark surface must opt in via .on-dark or it silently turns dark-on-dark. That is the root cause of the Team Performance bug.",
+    "The shadcn HSL vars are defined at :root and [data-theme=dark] only. Nested data-theme=light wrappers inherit the dark vars from html, so bg-card turns dark while text stays light-theme.",
+    "The tailwind.config.js remap doesn't catch inline hex, CSS vars or JS colour maps (#5B5BF5, #007AFF, #2563EB rgb tokens, #14181F, the CRMTerritoryMap palette)."
+  ],
+  "updated_files": ["/app/tests/colour_audit.js", "/app/tests/colour_login.py"],
+  "success_rate": {"backend": "N/A", "frontend": "60%"},
+  "seed_data_creation": "None. No data was created or modified.",
+  "test_credentials": "Master Admin admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg works with no MFA (ENFORCE_MASTER_ADMIN_MFA=false in backend/.env, although test_credentials.md says ON). lee.somers@bfpo.pulsefitness.com / pulse123 returns 401. lee.somers@pulsefitness.com / TempPass123! works and opens /bfpo (credentials file lists LeeMod123!). The Lite dashboard was reached with lite.suptest@pulsedemo.test / LiteSup123! (/pulse).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Re-run the audit with: g={}; exec(open('/app/tests/colour_login.py').read(), g); then page.evaluate(g['audit']). It returns low-contrast items (ratio <2.6) and off-brand hue hits. Expected false positives: white text on photo backgrounds (landing hero, capabilities, stat-products-image), bg-clip gradient text (pricing title), and amber-700 #b45309 / emerald status pills flagged as 'orange'/'teal'. Use the browser tool's screenshot path as a plain literal string. Dark toggle: [data-testid=theme-toggle-btn]:visible on /dashboard (it is not visible on /master-admin)."
+}

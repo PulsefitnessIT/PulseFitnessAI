@@ -7,6 +7,7 @@
  * keep working.
  */
 import { useState, useEffect } from 'react';
+import '@/pages/Marketing/marketing.css';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';

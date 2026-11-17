@@ -26,7 +26,7 @@ const API = `${BACKEND_URL}/api`;
 
 const KPI_PALETTES = {
   organisations: { fg: '#0091CA', bg: 'rgba(25, 205, 255,0.08)' },
-  users:         { fg: '#5B5BF5', bg: 'rgba(25, 205, 255,0.08)' },
+  users:         { fg: '#19CDFF', bg: 'rgba(25, 205, 255,0.08)' },
   revenue:       { fg: '#059669', bg: 'rgba(5,150,105,0.10)' },
   cases:         { fg: '#D97706', bg: 'rgba(217,119,6,0.10)' },
 };

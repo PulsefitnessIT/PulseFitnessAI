@@ -28,21 +28,21 @@ const BOLT_ONS = [
     key: 'memberships',
     label: 'Memberships',
     icon: Calendar,
-    accent: 'from-emerald-500 to-blue-500',
+    accent: 'from-blue-400 to-blue-700',
     blurb: 'Member portal, class booking, kiosk check-in.',
   },
   {
     key: 'marketing',
     label: 'Marketing',
     icon: Rocket,
-    accent: 'from-fuchsia-500 to-rose-500',
+    accent: 'from-blue-400 to-blue-700',
     blurb: 'Email/SMS/push journeys + AI Creative Studio.',
   },
   {
     key: 'crm',
     label: 'CRM',
     icon: Briefcase,
-    accent: 'from-blue-500 to-violet-500',
+    accent: 'from-blue-400 to-blue-700',
     blurb: 'Lead pipeline, deal flow, AI follow-ups.',
   },
 ];
@@ -114,12 +114,12 @@ export default function PulseProUpgradeCta({ inSettings = false }) {
 
   return (
     <div
-      className={`on-dark relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br from-zinc-950 via-zinc-900 to-violet-950/40 p-5 sm:p-6 ${inSettings ? '' : 'mb-6'}`}
+      className={`on-dark relative overflow-hidden rounded-2xl border border-blue-400/30 bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-700 p-5 sm:p-6 ${inSettings ? '' : 'mb-6'}`}
       data-testid={inSettings ? 'pulse-pro-upgrade-cta-settings' : 'pulse-pro-upgrade-cta'}
     >
       {/* Subtle accent bloom */}
-      <div className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-gradient-to-br from-amber-500/30 to-rose-500/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 -left-20 w-80 h-80 rounded-full bg-gradient-to-br from-fuchsia-500/20 to-blue-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-gradient-to-br from-blue-400/30 to-blue-700/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -left-20 w-80 h-80 rounded-full bg-gradient-to-br from-blue-400/20 to-blue-700/10 blur-3xl" />
 
       {!inSettings && (
         <button
@@ -135,11 +135,11 @@ export default function PulseProUpgradeCta({ inSettings = false }) {
       )}
       <div className={`relative flex flex-col gap-5 ${inSettings ? '' : 'lg:flex-row lg:items-center'}`}>
         <div className="flex-1 min-w-0">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-200 text-[10px] uppercase tracking-wider font-bold mb-3">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-blue-400/15 border border-blue-400/30 text-blue-200 text-[10px] uppercase tracking-wider font-bold mb-3">
             <Crown size={11} /> Pulse Lite · 3 modules locked
           </div>
           <h2 className="pulse-font-heading text-2xl sm:text-3xl font-bold text-white leading-tight">
-            Unlock everything for <span className="bg-gradient-to-r from-amber-300 to-rose-300 bg-clip-text text-transparent">3 days, free</span>.
+            Unlock everything for <span className="bg-gradient-to-r from-blue-300 to-blue-400 bg-clip-text text-transparent">3 days, free</span>.
           </h2>
           <p className="text-sm text-zinc-300 mt-2 max-w-xl">
             Memberships, Marketing and CRM activate instantly — no card, no commitment. After 3 days, keep what you use and disable the rest.
@@ -173,7 +173,7 @@ export default function PulseProUpgradeCta({ inSettings = false }) {
             <button
               onClick={startTrial}
               disabled={busy || done}
-              className="group w-full px-5 py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 text-zinc-900 text-sm font-extrabold uppercase tracking-wider shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 transition-all disabled:opacity-60 inline-flex items-center justify-center gap-2"
+              className="group w-full px-5 py-3.5 rounded-xl bg-blue-400 text-zinc-900 text-sm font-extrabold uppercase tracking-wider shadow-lg shadow-blue-400/20 hover:shadow-blue-400/40 transition-all disabled:opacity-60 inline-flex items-center justify-center gap-2"
               data-testid="pulse-pro-cta-start-btn"
             >
               {busy ? <Loader2 size={16} className="animate-spin" /> : done ? <CheckCircle2 size={16} /> : <Sparkles size={16} />}

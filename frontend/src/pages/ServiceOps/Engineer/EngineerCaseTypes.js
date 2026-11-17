@@ -32,7 +32,7 @@ const auth = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
 });
 
-const SWATCHES = ['#dc2626', '#d97706', '#d97706', '#16a34a', '#0091ca', '#0091ca', '#0d9488', '#0091ca', '#565B5E'];
+const SWATCHES = ['#dc2626', '#d97706', '#d97706', '#16a34a', '#0091ca', '#0091ca', '#0091CA', '#0091ca', '#565B5E'];
 
 export default function EngineerCaseTypes() {
   const navigate = useNavigate();

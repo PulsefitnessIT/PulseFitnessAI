@@ -109,7 +109,7 @@ export default function RevenueAutopilotPanel() {
       <div className="theme-card rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex items-center gap-3 flex-1">
           <div className="w-11 h-11 rounded-xl flex items-center justify-center"
-            style={{ background: 'rgba(29,78,216,0.1)' }}>
+            style={{ background: 'rgba(0,145,202,0.1)' }}>
             <Bot className="w-6 h-6" style={{ color: '#0091ca' }} />
           </div>
           <div>

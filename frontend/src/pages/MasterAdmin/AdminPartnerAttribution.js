@@ -222,7 +222,7 @@ function Stat({ icon: Icon, label, value, testId, accent }) {
           ? 'border-transparent text-white'
           : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'
       }`}
-      style={accent ? { background: 'linear-gradient(135deg, #0091CA 0%, #5B5BF5 50%, #19CDFF 100%)' } : undefined}
+      style={accent ? { background: 'linear-gradient(135deg, #0091CA 0%, #19CDFF 50%, #19CDFF 100%)' } : undefined}
       data-testid={testId}
     >
       <div className={`text-[10px] uppercase tracking-wider font-bold inline-flex items-center gap-1 ${accent ? 'text-white/85' : 'text-zinc-500'}`}>

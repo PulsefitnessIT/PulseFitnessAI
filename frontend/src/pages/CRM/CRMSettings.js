@@ -509,7 +509,7 @@ export default function CRMSettings() {
               <button key={s.id} onClick={() => setActiveSection(s.id)}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm rounded-md transition-all"
                 style={{
-                  background: active ? 'rgba(0,122,255,0.1)' : 'transparent',
+                  background: active ? 'rgba(25,205,255,0.1)' : 'transparent',
                   color: active ? 'var(--color-info-ios)' : c.textMuted,
                 }}
                 data-testid={`settings-tab-${s.id}`}>
