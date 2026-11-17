@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only retest of the iteration_290 typography issues. Checked /, /pricing, /login, /master-admin, /dashboard, /service-desk, /crm, /staff-portal (Master Admin) and /bfpo (MOD Ops) at 1920x800 and 390x844 using getComputedStyle checks and screenshots. FIXED: (1) The Navbar org title on mobile is now one line and truncated ('Pulse …'), with no spill outside the header. (3) The Service Desk 'Inventory & Distribution' item is now on one line (h=36, letter-spacing normal). (4) dashboard-tabs now fits (sw 1246 = cw 1246). Pill-tab, nav and aside buttons now use normal letter-spacing. (5) MOD Ops 'Needs attention now' rows, the Open Jobs KPI labels and the Staff Portal card children now use normal letter-spacing, while Sign In keeps 0.1em (1.4px at 14px). Regression: every page renders in Proxima Nova and no page scrolls sideways at either viewport. NOT FIXED: (2) The /master-admin H1 on mobile still uses 0.1em (2px at 20px) and is still cut to 'Dashboard O…'. An unlayered '.theme-gymaxis h1' rule overrides the new 0.04em mobile rule.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Mobile heading tracking (/master-admin H1 and every h1-h4 inside .theme-gymaxis)", "issue": "The 0.04em mobile rule in index.css ~line 436 sits inside @layer base. The unlayered rule at index.css ~lines 1615-1621 ('.theme-gymaxis h1,h2,h3,h4 { letter-spacing: 0.1em }') always beats layered rules, and it also beats the H1's own 'tracking-tight' class. Measured at 390: H1 'Dashboard Overview' fs=20px ls=2px (0.1em), scrollWidth 226 > clientWidth 160, so it is still cut to 'Dashboard O…'. /dashboard H1 'Global Dashboard' at 390 is also 3px (0.1em). Fix: move the .theme-gymaxis heading rule into @layer base, or add a matching '@media (max-width:639px){ .theme-gymaxis h1,... { letter-spacing:0.04em } }' after it. Also, the heading tracking should not override explicit tracking-* utilities.", "selector": "/master-admin h1", "priority": "MEDIUM"},
+      {"component": "Staff Portal pill-tab-bar at 1920", "issue": "Its buttons now use normal letter-spacing, but the 11 tabs still overflow (sw 1351 > cw 1214, improved from 1490). 'Help & Tutorials' sits behind the scroll arrow. The arrow affordance exists, so this is acceptable, and it is no longer caused by the tracking.", "selector": "[data-testid=staff-dashboard-tabs] .pill-tab-bar__track", "priority": "LOW"},
+      {"component": "CRM crm-tabs-desktop at 1920", "issue": "Still 8px too wide (sw 1222 vs cw 1214, overflow:visible). Its buttons use normal letter-spacing, so this is not caused by the tracking. Likely a padding or gap issue.", "selector": "[data-testid=crm-tabs-desktop]", "priority": "LOW"},
+      {"component": "Module switcher", "issue": "Still 8px too wide at 1920 on /dashboard (609 vs 601). Its items are <Link> elements with Tailwind 'tracking-wider uppercase', so the button reset rule does not apply. They scroll with a fade mask, so this is minor.", "selector": ".gx-module-switcher-wrap [data-testid^=module-switcher-]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Master Admin mobile", "issues": ["The section tab buttons ('Dashboard', 'Pending review') and the portal pills ('Platform', 'Operations Portal') still use 0.1em tracking. They are plain <button>s with no role=tab and no nav/aside ancestor, so the reset selector does not match them. Add role='tab' or a shared class so the reset applies."]},
+      {"screen": "Landing page /", "issues": ["The header 'SIGN IN' / 'LOG IN' buttons use 0.35px and 0.7px tracking (Tailwind tracking-* classes) instead of the 0.1em style-guide value. The /login and /pricing Sign In buttons are correct (1.4px)."]},
+      {"screen": "Toasts (sonner)", "issues": ["Sonner toast <li> elements render in 'ui-sans-serif, system-ui' rather than Proxima Nova (seen on /crm). Set the font via the Toaster toastOptions/className or a [data-sonner-toast] CSS rule."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix the mobile heading tracking override: the unlayered '.theme-gymaxis h1-h4 { letter-spacing:0.1em }' rule (index.css ~1615) beats the @layer base 0.04em mobile rule and tracking-tight, so the /master-admin H1 is still cut off at 390.",
+    "Optional: apply the tracking reset to the Master Admin section tabs and portal pills (plain buttons), and set Proxima Nova on sonner toasts.",
+    "Optional LOW: the crm-tabs-desktop and module switcher are 8px too wide at 1920 (not tracking-related)."
+  ],
+  "critical_code_review_comments": [
+    "index.css: the brand typography is split between the @layer base rules (~418-437) and the unlayered .theme-gymaxis rules (~1608-1625). Unlayered CSS always wins, so any responsive or reset tweak made in the base layer has no effect inside .theme-gymaxis. Consolidate the two into one place.",
+    "The button reset selector ':where(p, div, h*, small)' does not include span. That is fine here because the row spans already use normal tracking, but span-only button content will still inherit 0.1em."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "4 of 5 retest items fixed; regression checks (font and no horizontal overflow) 100%"},
+  "test_credentials": "Master Admin admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg works (no MFA prompt in preview). lee.somers@bfpo.pulsefitness.com / pulse123 still returns 401 'Invalid credentials'. lee.somers@pulsefitness.com / TempPass123! works and can open /bfpo.",
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use a computed-style audit: letterSpacing on h1 at 390 for /master-admin (expect 0.8px for 0.04em at 20px), plus scrollWidth vs clientWidth on [data-testid=staff-dashboard-tabs] .pill-tab-bar__track, [data-testid=crm-tabs-desktop] and .gx-module-switcher-wrap.",
+  "rca of the issue": "Mobile H1 still tracked: CSS cascade layers. The index.css @media rule is inside @layer base, while '.theme-gymaxis h1{letter-spacing:0.1em}' (line ~1620) is unlayered, so it wins regardless of specificity or source order and also overrides Tailwind's tracking-tight on the H1."
+}

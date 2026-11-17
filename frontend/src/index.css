@@ -1617,7 +1617,6 @@ html[data-brand="gymaxis"] {
 .theme-gymaxis h3,
 .theme-gymaxis h4 {
   font-family: 'Proxima Nova', system-ui, sans-serif;
-  letter-spacing: 0.1em;
 }
 
 /* Headings — slightly bumped weight + tighter tracking to feel premium. */

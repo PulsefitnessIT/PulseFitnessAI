@@ -39322,3 +39322,8 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 ## Jun 2026 — Email branding + vehicle check link
 - All emails: wide Pulse Fitness logo (frontend/public/brand/pulse-email-logo-wide.png) in black header; brand fonts via @font-face (Maax Rounded headings, Proxima Nova body, Regular+Bold) in utils/email.py wrap_branded.
 - Vehicle check reminder "Complete check" link now always absolute https from VEHICLE_CHECK_PORTAL_URL (https://pulsefitness.ai) -> /staff-portal?tab=vehicle&vehicle=<id>.
+
+## Jun 2026 — Style guide typography rollout
+- Platform-wide Proxima Nova (style guide): removed Montserrat/Nunito/Outfit/Inter/Satoshi/Maax stacks in src; tailwind fontFamily sans/heading/body = Proxima Nova; base h1 800/h2 400/h3 700/h4-6 600, 0.1em tracking on headings + short buttons (reset for nav/aside/tabs/button content; 0.04em on mobile headings).
+- Emails: Proxima Nova only (Regular/Semibold/Bold/Extrabold), header logo = transparent reverse wordmark (brand/pulse-email-logo-wide.png).
+- Member App Builder font picker intentionally keeps gym-selectable fonts. Proxima Nova Light not supplied (H2/buttons use Regular).
