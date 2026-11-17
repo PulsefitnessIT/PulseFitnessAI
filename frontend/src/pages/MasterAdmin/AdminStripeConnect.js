@@ -183,7 +183,7 @@ const AdminStripeConnect = ({ API, isMasterAdmin }) => {
  charges. This uses Stripe's standard <strong>Connect with Stripe</strong> OAuth — Pulse
  keeps full control of their own Stripe Dashboard.
  </p>
- <Button onClick={startOnboard} disabled={busy} className="bg-[#635BFF] hover:bg-[#4F46E5] text-white rounded-full" data-testid="stripe-connect-start">
+ <Button onClick={startOnboard} disabled={busy} className="bg-[#635BFF] hover:bg-[#0091CA] text-white rounded-full" data-testid="stripe-connect-start">
  {busy ? 'Redirecting…' : <><Link2 size={14} className="mr-1.5" /> Connect with Stripe</>}
  <ExternalLink size={12} className="ml-1.5 opacity-70" />
  </Button>

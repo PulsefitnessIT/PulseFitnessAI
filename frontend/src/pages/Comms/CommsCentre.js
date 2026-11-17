@@ -123,7 +123,7 @@ export default function CommsCentre() {
           <DropdownMenuItem key={id} onClick={() => go(id)} data-testid={`comms-settings-${id}`} className="gap-2 cursor-pointer">
             <Icon size={15} className="text-slate-500" />
             <span className="flex-1">{label}</span>
-            {view === id && <Check size={14} className="text-[#0891b2]" />}
+            {view === id && <Check size={14} className="text-[#0091ca]" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

@@ -139,7 +139,7 @@ const ScreenJob = ({ onView, onSend }) => (
       onClick={onSend}
       data-testid="pe-preview-send"
       className="w-full rounded-lg border border-slate-200 font-bold py-2.5 text-sm hover:bg-slate-50 active:scale-[0.98] transition bg-white dark:bg-zinc-900 dark:border-zinc-800"
-      style={{ color: '#334155' }}
+      style={{ color: '#393E41' }}
     >
       Send to customer
     </button>

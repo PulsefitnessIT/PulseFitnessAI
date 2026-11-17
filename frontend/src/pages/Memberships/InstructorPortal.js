@@ -569,7 +569,7 @@ function ProfileView({ headers }) {
               style={{ border: '2px solid var(--color-brand-cyan)' }} />
           ) : (
             <div className="w-16 h-16 rounded-full grid place-items-center text-xl font-black"
-              style={{ background: 'var(--color-brand-cyan)', color: '#0A0C10' }}>{initials}</div>
+              style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }}>{initials}</div>
           )}
           <div className="flex-1 min-w-0">
             <div className="font-bold truncate">{profile.name}</div>
@@ -597,7 +597,7 @@ function ProfileView({ headers }) {
 
         <button onClick={save} disabled={saving}
           className="mt-4 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-extrabold"
-          style={{ background: 'var(--color-brand-cyan)', color: '#0A0C10' }}
+          style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }}
           data-testid="instructor-profile-save">
           <Save size={13} /> {saving ? 'Saving…' : 'Save profile'}
         </button>

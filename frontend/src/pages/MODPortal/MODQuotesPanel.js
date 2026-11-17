@@ -26,7 +26,7 @@ function SignPad({ onChange }) {
   const ref = useRef(null); const drawing = useRef(false); const has = useRef(false);
   const pos = (e) => { const r = ref.current.getBoundingClientRect(); const t = e.touches ? e.touches[0] : e; return { x: t.clientX - r.left, y: t.clientY - r.top }; };
   const start = (e) => { e.preventDefault(); drawing.current = true; const c = ref.current.getContext('2d'); const p = pos(e); c.beginPath(); c.moveTo(p.x, p.y); };
-  const move = (e) => { if (!drawing.current) return; e.preventDefault(); const c = ref.current.getContext('2d'); const p = pos(e); c.lineWidth = 2.2; c.lineCap = 'round'; c.strokeStyle = '#0F172A'; c.lineTo(p.x, p.y); c.stroke(); has.current = true; };
+  const move = (e) => { if (!drawing.current) return; e.preventDefault(); const c = ref.current.getContext('2d'); const p = pos(e); c.lineWidth = 2.2; c.lineCap = 'round'; c.strokeStyle = '#1B1C1D'; c.lineTo(p.x, p.y); c.stroke(); has.current = true; };
   const end = () => { if (!drawing.current) return; drawing.current = false; if (has.current) onChange(ref.current.toDataURL('image/png')); };
   const clear = () => { const c = ref.current; c.getContext('2d').clearRect(0, 0, c.width, c.height); has.current = false; onChange(''); };
   useEffect(() => { const c = ref.current; c.width = c.offsetWidth; c.height = 150; }, []);
@@ -35,7 +35,7 @@ function SignPad({ onChange }) {
       <canvas ref={ref} data-testid="mod-esign-pad"
         onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
         onTouchStart={start} onTouchMove={move} onTouchEnd={end}
-        style={{ width: '100%', height: 150, background: '#fff', border: '1px dashed #94A3B8', borderRadius: 8, touchAction: 'none', cursor: 'crosshair' }} />
+        style={{ width: '100%', height: 150, background: '#fff', border: '1px dashed #9A9FA1', borderRadius: 8, touchAction: 'none', cursor: 'crosshair' }} />
       <button type="button" onClick={clear} className="mt-1.5 text-[11px] text-white/50 hover:text-white/80 inline-flex items-center gap-1" data-testid="mod-esign-clear">
         <RotateCcw size={11} /> Clear
       </button>
@@ -84,7 +84,7 @@ export default function MODQuotesPanel({ API, onClose, onSigned }) {
 
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-[#0B1220] max-h-[90vh] overflow-hidden flex flex-col"
+      <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-[#1B1C1D] max-h-[90vh] overflow-hidden flex flex-col"
         onClick={e => e.stopPropagation()} data-testid="mod-quotes-panel">
         {/* header */}
         <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
@@ -168,7 +168,7 @@ export default function MODQuotesPanel({ API, onClose, onSigned }) {
                   <SignPad onChange={setSig} />
                   <button onClick={sign} disabled={!sig || signing} data-testid="mod-quote-sign-btn"
                     className="mt-4 w-full py-3 rounded-xl font-extrabold text-white flex items-center justify-center gap-2 disabled:opacity-40"
-                    style={{ background: sig ? '#0055FF' : '#334155' }}>
+                    style={{ background: sig ? '#19CDFF' : '#393E41' }}>
                     {signing ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />} Accept &amp; Sign
                   </button>
                   <p className="text-white/40 text-[11px] mt-2 text-center">By signing you accept this quote on behalf of your site{active.mod_contract_type === 'A' ? ' and activate the service contract' : ''}.</p>

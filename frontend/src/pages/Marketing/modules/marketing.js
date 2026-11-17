@@ -6,7 +6,7 @@ import {
 export default {
   id: 'marketing',
   name: 'Marketing',
-  color: '#D946EF',
+  color: '#19CDFF',
   icon: Megaphone,
 
   heroLine1: 'Campaigns that',
@@ -82,10 +82,10 @@ export default {
 
   integrationsHeadline: 'Marketing is wired into the rest of Pulse Fitness.',
   integrations: [
-    { icon: Users,     name: 'CRM',         color: '#6366F1', to: '/platform/crm',         body: 'CRM segments are your live audiences. No CSV exports, no list rot.' },
-    { icon: Calendar,  name: 'Memberships', color: '#8B5CF6', to: '/platform/memberships', body: 'Class data + capacity + bookings power the auto-generated campaign creative.' },
-    { icon: Wrench,    name: 'Operations',     color: '#06B6D4', to: '/platform/service',     body: 'Resolved equipment fault triggers a "we listened" social post automatically.' },
-    { icon: BarChart3, name: 'Reporting',   color: '#2563EB', to: '/platform/reporting',   body: 'Campaign ROI rolled into the platform-wide revenue dashboard.' },
+    { icon: Users,     name: 'CRM',         color: '#19CDFF', to: '/platform/crm',         body: 'CRM segments are your live audiences. No CSV exports, no list rot.' },
+    { icon: Calendar,  name: 'Memberships', color: '#19CDFF', to: '/platform/memberships', body: 'Class data + capacity + bookings power the auto-generated campaign creative.' },
+    { icon: Wrench,    name: 'Operations',     color: '#19CDFF', to: '/platform/service',     body: 'Resolved equipment fault triggers a "we listened" social post automatically.' },
+    { icon: BarChart3, name: 'Reporting',   color: '#0091CA', to: '/platform/reporting',   body: 'Campaign ROI rolled into the platform-wide revenue dashboard.' },
   ],
 
   resultsHeadline: 'Real numbers from real operators.',

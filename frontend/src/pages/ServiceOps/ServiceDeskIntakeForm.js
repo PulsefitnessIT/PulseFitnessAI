@@ -662,7 +662,7 @@ function CustomerCombobox({ customers, value, onChange }) {
   return (
     <div ref={wrapRef} className="mb-2" style={{ position: 'relative' }} data-testid="intake-customer-combobox">
       <div style={{ position: 'relative' }}>
-        <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--svc-muted-text, #94a3b8)', pointerEvents: 'none' }} />
+        <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--svc-muted-text, #9a9fa1)', pointerEvents: 'none' }} />
         <input
           className="svc-input"
           style={{ paddingLeft: 30, paddingRight: 26 }}
@@ -672,7 +672,7 @@ function CustomerCombobox({ customers, value, onChange }) {
           onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           data-testid="intake-customer-search"
         />
-        <ChevronDown size={14} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--svc-muted-text, #94a3b8)', pointerEvents: 'none' }} />
+        <ChevronDown size={14} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--svc-muted-text, #9a9fa1)', pointerEvents: 'none' }} />
       </div>
       {open && (
         <ul
@@ -681,8 +681,8 @@ function CustomerCombobox({ customers, value, onChange }) {
           style={{
             position: 'absolute', zIndex: 40, top: 'calc(100% + 4px)', left: 0, right: 0,
             maxHeight: 260, overflowY: 'auto', background: 'var(--svc-surface, #fff)',
-            border: '1px solid var(--svc-border, #e2e8f0)', borderRadius: 10,
-            boxShadow: '0 12px 32px rgba(15,23,42,0.14)', padding: 4, margin: 0, listStyle: 'none',
+            border: '1px solid var(--svc-border, #e0e0e0)', borderRadius: 10,
+            boxShadow: '0 12px 32px rgba(27, 28, 29,0.14)', padding: 4, margin: 0, listStyle: 'none',
           }}
         >
           {filtered.length === 0 ? (
@@ -698,11 +698,11 @@ function CustomerCombobox({ customers, value, onChange }) {
                 style={{
                   width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center',
                   gap: 8, padding: '7px 10px', borderRadius: 7, border: 'none', cursor: 'pointer',
-                  background: c.organization_id === value ? 'var(--svc-surface-soft, #f1f5f9)' : 'transparent',
+                  background: c.organization_id === value ? 'var(--svc-surface-soft, #f0f0f0)' : 'transparent',
                   fontSize: 13,
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--svc-surface-soft, #f1f5f9)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = c.organization_id === value ? 'var(--svc-surface-soft, #f1f5f9)' : 'transparent'; }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--svc-surface-soft, #f0f0f0)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = c.organization_id === value ? 'var(--svc-surface-soft, #f0f0f0)' : 'transparent'; }}
               >
                 <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {label(c)}

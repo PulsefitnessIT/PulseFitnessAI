@@ -29,8 +29,8 @@ function auth() {
 }
 
 const LEVEL_LABEL = {
-  verified_partner:  { label: 'Verified',  Icon: BadgeCheck, color: '#0ea5e9' },
-  strategic_partner: { label: 'Strategic', Icon: ShieldCheck, color: '#0e7490' },
+  verified_partner:  { label: 'Verified',  Icon: BadgeCheck, color: '#19cdff' },
+  strategic_partner: { label: 'Strategic', Icon: ShieldCheck, color: '#0073a4' },
 };
 const TIER_BADGE = {
   top_tier:           { cls: 'bg-emerald-100 text-emerald-800', label: 'Top-tier' },

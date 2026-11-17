@@ -201,7 +201,7 @@ export default function Canvas({
     if (!a || !b) return null;
     const sx = a.x + CARD_W / 2; const sy = a.y + CARD_H / 2;
     const ex = b.x + CARD_W / 2; const ey = b.y + CARD_H / 2;
-    return { id: e.id, d: `M ${sx} ${sy} C ${(sx + ex) / 2} ${sy}, ${(sx + ex) / 2} ${ey}, ${ex} ${ey}`, color: EDGE_COLOR[e.line_type] || '#7c3aed' };
+    return { id: e.id, d: `M ${sx} ${sy} C ${(sx + ex) / 2} ${sy}, ${(sx + ex) / 2} ${ey}, ${ex} ${ey}`, color: EDGE_COLOR[e.line_type] || '#0091ca' };
   }).filter(Boolean), [edges, pos]);
 
   // department / site grouping frames
@@ -266,7 +266,7 @@ export default function Canvas({
           ))}
           <svg style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible', width: 1, height: 1, pointerEvents: 'none', zIndex: 5 }}>
             {paths.map((p) => (
-              <path key={p.id} d={p.d} fill="none" stroke="#94a3b8" strokeWidth={1.6} strokeOpacity={p.dim ? 0.15 : 0.6} />
+              <path key={p.id} d={p.d} fill="none" stroke="#9a9fa1" strokeWidth={1.6} strokeOpacity={p.dim ? 0.15 : 0.6} />
             ))}
             {edgePaths.map((p) => (
               <path key={p.id} d={p.d} fill="none" stroke={p.color} strokeWidth={1.6} strokeDasharray="5 4" strokeOpacity={0.7} />

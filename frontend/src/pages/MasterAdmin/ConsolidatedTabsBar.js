@@ -48,7 +48,7 @@ export default function ConsolidatedTabsBar({ tabs, active, onChange, testid }) 
               onClick={() => onChange(t.id)}
               className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-full transition-all ${
                 isActive
-                  ? 'bg-white text-slate-900 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.12)] ring-1 ring-slate-200'
+                  ? 'bg-white text-slate-900 shadow-[0_2px_8px_-2px_rgba(27, 28, 29,0.12)] ring-1 ring-slate-200'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
               data-testid={`consolidated-tab-${t.id}`}

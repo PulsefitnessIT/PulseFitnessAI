@@ -188,7 +188,7 @@ export default function JoinPage() {
     );
   }
 
-  const accent = gym.primary_colour || '#2563EB';
+  const accent = gym.primary_colour || '#0091CA';
   const accent2 = gym.accent_colour || '#19CDFF';
 
   return (

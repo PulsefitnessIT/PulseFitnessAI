@@ -23,7 +23,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const BrandPill = ({ brand }) => {
   const tones = {
-    pulse:   { bg: 'rgba(0,85,255,0.08)',     fg: '#1D4ED8', label: 'Pulse' },
+    pulse:   { bg: 'rgba(25, 205, 255,0.08)',     fg: '#0091CA', label: 'Pulse' },
     gymaxis: { bg: 'rgba(16,185,129,0.10)',   fg: '#047857', label: 'Pulse Fitness' },
   };
   const t = tones[brand] || tones.gymaxis;
@@ -118,7 +118,7 @@ const AdminAllSites = ({ isPulseAdmin = false }) => {
           { label: 'Branches',      value: totals.branches },
           { label: 'Equipment',     value: totals.equipment },
         ].map((t) => (
-          <div key={t.label} className="rounded-lg border bg-white p-3" style={{ borderColor: '#E4E4E7' }}>
+          <div key={t.label} className="rounded-lg border bg-white p-3" style={{ borderColor: '#E0E0E0' }}>
             <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{t.label}</div>
             <div className="text-2xl font-bold text-zinc-900 mt-0.5">{t.value}</div>
           </div>
@@ -126,7 +126,7 @@ const AdminAllSites = ({ isPulseAdmin = false }) => {
       </div>
 
       {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-white p-3" style={{ borderColor: '#E4E4E7' }}>
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-white p-3" style={{ borderColor: '#E0E0E0' }}>
         <div className="relative flex-1 min-w-[200px]">
           <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400" />
           <input
@@ -135,7 +135,7 @@ const AdminAllSites = ({ isPulseAdmin = false }) => {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="w-full pl-7 pr-2 py-1.5 text-sm rounded-md border bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
-            style={{ borderColor: '#E4E4E7' }}
+            style={{ borderColor: '#E0E0E0' }}
             data-testid="admin-all-sites-search"
           />
         </div>
@@ -143,7 +143,7 @@ const AdminAllSites = ({ isPulseAdmin = false }) => {
           value={siteType}
           onChange={(e) => setSiteType(e.target.value)}
           className="text-sm rounded-md border px-2 py-1.5 bg-white"
-          style={{ borderColor: '#E4E4E7' }}
+          style={{ borderColor: '#E0E0E0' }}
           data-testid="admin-all-sites-type-filter"
         >
           <option value="all">All site types</option>
@@ -154,7 +154,7 @@ const AdminAllSites = ({ isPulseAdmin = false }) => {
           value={orgFilter}
           onChange={(e) => setOrgFilter(e.target.value)}
           className="text-sm rounded-md border px-2 py-1.5 bg-white max-w-[220px]"
-          style={{ borderColor: '#E4E4E7' }}
+          style={{ borderColor: '#E0E0E0' }}
           data-testid="admin-all-sites-org-filter"
         >
           <option value="all">All organisations</option>
@@ -172,7 +172,7 @@ const AdminAllSites = ({ isPulseAdmin = false }) => {
       )}
 
       {/* Table */}
-      <div className="rounded-lg border bg-white overflow-x-auto" style={{ borderColor: '#E4E4E7' }}>
+      <div className="rounded-lg border bg-white overflow-x-auto" style={{ borderColor: '#E0E0E0' }}>
         <table className="w-full text-sm" data-testid="admin-all-sites-table">
           <thead className="bg-zinc-50 text-xs uppercase tracking-wider text-zinc-500">
             <tr>
@@ -193,7 +193,7 @@ const AdminAllSites = ({ isPulseAdmin = false }) => {
               <tr
                 key={`${s.organization_id}-${s.id}`}
                 className="border-t hover:bg-zinc-50 cursor-pointer"
-                style={{ borderColor: '#F4F4F5' }}
+                style={{ borderColor: '#F0F0F0' }}
                 onClick={() => openInOrg(s)}
                 data-testid={`admin-all-sites-row-${s.id}`}
               >

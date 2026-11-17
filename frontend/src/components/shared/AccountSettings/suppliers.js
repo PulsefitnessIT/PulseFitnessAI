@@ -336,7 +336,7 @@ export default function SuppliersSection() {
                   <div className="font-semibold text-sm flex items-center gap-2 flex-wrap" style={{ color: 'var(--theme-text)' }}>
                     {s.name}
                     {s.is_default_pulse ? (
-                      <span className="text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded inline-flex items-center gap-1" style={{ background: 'rgba(102,204,255,0.14)', color: 'var(--color-brand-blue)' }} data-testid={`supplier-default-badge-${s.id}`}>
+                      <span className="text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded inline-flex items-center gap-1" style={{ background: 'rgba(25, 205, 255,0.14)', color: 'var(--color-brand-blue)' }} data-testid={`supplier-default-badge-${s.id}`}>
                         <Lock size={9} /> {t('settings.sup_default', 'Default')}
                       </span>
                     ) : null}
@@ -355,7 +355,7 @@ export default function SuppliersSection() {
                     <div className="flex flex-wrap items-center gap-1.5 mt-2">
                       <Tag size={11} style={{ color: 'var(--theme-text-muted)' }} />
                       {s.manufacturer_keywords.map((kw) => (
-                        <span key={kw} className="text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(102,204,255,0.10)', color: 'var(--color-brand-blue)' }}>
+                        <span key={kw} className="text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(25, 205, 255,0.10)', color: 'var(--color-brand-blue)' }}>
                           {kw}
                         </span>
                       ))}

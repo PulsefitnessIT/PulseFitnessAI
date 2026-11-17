@@ -241,7 +241,7 @@ const CustomDomainsPanel = () => {
   return (
     <div className="space-y-6" data-testid="custom-domains-panel">
       {/* Header */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_1px_2px_rgba(27, 28, 29,0.04)]">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-cyan-50 border border-cyan-200 flex items-center justify-center shrink-0">
             <Globe className="w-6 h-6 text-cyan-600" />
@@ -262,7 +262,7 @@ const CustomDomainsPanel = () => {
       </div>
 
       {/* Org selector */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(27, 28, 29,0.04)]">
         <div className="flex items-center gap-3 mb-3">
           <Building2 className="w-4 h-4 text-slate-400" />
           <label className="text-sm font-semibold text-slate-700">Choose organisation</label>
@@ -302,7 +302,7 @@ const CustomDomainsPanel = () => {
       {/* Add domain form */}
       <form
         onSubmit={submitNew}
-        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(27, 28, 29,0.04)]"
         data-testid="cd-add-form"
       >
         <div className="flex items-center gap-2 mb-3">
@@ -351,7 +351,7 @@ const CustomDomainsPanel = () => {
       </form>
 
       {/* Domain list */}
-      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27, 28, 29,0.04)]">
         <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
             <LinkIcon className="w-4 h-4 text-slate-400" />

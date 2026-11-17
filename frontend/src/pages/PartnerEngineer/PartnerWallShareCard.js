@@ -48,7 +48,7 @@ export default function PartnerWallShareCard() {
     if (!data?.public_url || !showQr) return;
     QRCode.toDataURL(data.public_url, {
       width: 320, margin: 2,
-      color: { dark: '#0F172A', light: '#FFFFFF' },
+      color: { dark: '#1B1C1D', light: '#FFFFFF' },
     }).then(setQrUrl).catch(() => setQrUrl(null));
   }, [data?.public_url, showQr]);
 

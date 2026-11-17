@@ -36,10 +36,10 @@ const classifyUser = (u) => {
 const PortalBadge = ({ portal }) => {
   const styles = {
     service_portal: { bg: 'rgba(16,185,129,0.12)', fg: '#047857', label: 'Service Portal' },
-    engineer_app:   { bg: 'rgba(25, 205, 255,0.12)',  fg: '#4f46e5', label: 'Engineer App' },
+    engineer_app:   { bg: 'rgba(25, 205, 255,0.12)',  fg: '#0091ca', label: 'Engineer App' },
     crm:            { bg: 'rgba(245,158,11,0.14)', fg: '#B45309', label: 'CRM' },
-    pulse_platform: { bg: 'rgba(0,85,255,0.12)',   fg: '#0055FF', label: 'Pulse Platform' },
-  }[portal] || { bg: 'rgba(113,113,122,0.12)', fg: '#52525B', label: portal };
+    pulse_platform: { bg: 'rgba(25, 205, 255,0.12)',   fg: '#19CDFF', label: 'Pulse Platform' },
+  }[portal] || { bg: 'rgba(113,113,122,0.12)', fg: '#565B5E', label: portal };
   return (
     <span
       className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide"
@@ -54,12 +54,12 @@ const PortalBadge = ({ portal }) => {
 const RoleChip = ({ user }) => {
   const role = (user.display_role || user.role || 'staff').toLowerCase();
   const map = {
-    'pulse_master_admin':    { label: 'Pulse Admin', bg: '#EFF6FF', fg: '#1D4ED8' },
-    'pulse platform admin':  { label: 'Pulse Admin', bg: '#EFF6FF', fg: '#1D4ED8' },
-    'owner':                 { label: 'Owner',       bg: '#FAF5FF', fg: '#7C3AED' },
+    'pulse_master_admin':    { label: 'Pulse Admin', bg: '#E4F9FF', fg: '#0091CA' },
+    'pulse platform admin':  { label: 'Pulse Admin', bg: '#E4F9FF', fg: '#0091CA' },
+    'owner':                 { label: 'Owner',       bg: '#FAF5FF', fg: '#0091CA' },
     'manager':               { label: 'Manager',     bg: '#ECFDF5', fg: '#047857' },
-    'staff':                 { label: 'Staff',       bg: '#F4F4F5', fg: '#3F3F46' },
-    'partner engineer':      { label: 'Partner Engineer', bg: '#EEF2FF', fg: '#4f46e5' },
+    'staff':                 { label: 'Staff',       bg: '#F0F0F0', fg: '#393E41' },
+    'partner engineer':      { label: 'Partner Engineer', bg: '#EEF2FF', fg: '#0091ca' },
     'master_admin':          { label: 'Master Admin', bg: '#FFEDD5', fg: '#C2410C' },
   };
   const tone = map[role] || map.staff;
@@ -79,9 +79,9 @@ const StatTile = ({ label, value, hint, icon: Icon, accent, active, onClick }) =
     type="button"
     onClick={onClick}
     aria-pressed={active}
-    className="text-left rounded-lg border bg-white p-4 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-8px_rgba(15,23,42,0.18)] focus:outline-none"
+    className="text-left rounded-lg border bg-white p-4 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-8px_rgba(27, 28, 29,0.18)] focus:outline-none"
     style={{
-      borderColor: active ? accent : '#E4E4E7',
+      borderColor: active ? accent : '#E0E0E0',
       boxShadow: active ? `inset 0 0 0 1px ${accent}` : undefined,
       background: active ? `${accent}0A` : '#fff',
     }}
@@ -89,9 +89,9 @@ const StatTile = ({ label, value, hint, icon: Icon, accent, active, onClick }) =
   >
     <div className="flex items-start justify-between mb-1">
       <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{label}</span>
-      {Icon && <Icon size={14} style={{ color: accent || '#71717A' }} />}
+      {Icon && <Icon size={14} style={{ color: accent || '#6E7476' }} />}
     </div>
-    <div className="text-2xl font-bold" style={{ color: accent || '#0A0A0A' }}>{value}</div>
+    <div className="text-2xl font-bold" style={{ color: accent || '#1B1C1D' }}>{value}</div>
     {hint && <div className="text-[10px] text-zinc-500 mt-0.5">{hint}</div>}
   </button>
 );
@@ -164,7 +164,7 @@ const PeopleDirectory = ({ users = [], onOpenUser }) => {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name, email or org..."
             className="pl-7 pr-3 py-1.5 rounded-full border bg-white text-xs"
-            style={{ borderColor: '#E4E4E7', width: 280 }}
+            style={{ borderColor: '#E0E0E0', width: 280 }}
             data-testid="people-search-input"
           />
         </div>
@@ -172,25 +172,25 @@ const PeopleDirectory = ({ users = [], onOpenUser }) => {
 
       {/* Stats strip — each card is an interactive filter (replaces the old pill row) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-3" data-testid="people-stats-strip">
-        <StatTile label="Total active" value={stats.total - stats.archived} icon={Users} accent="#0A0A0A" hint={stats.archived ? `${stats.archived} archived` : ''} active={activePill === 'all'} onClick={() => setFilter('all')} />
-        <StatTile label="Pulse admins" value={stats.pulse_admins} icon={ShieldCheck} accent="#0055FF" active={activePill === 'pulse_admins'} onClick={() => setFilter('pulse_admins')} />
-        <StatTile label="Owners" value={stats.owners} icon={UserCog} accent="#7C3AED" active={activePill === 'owners'} onClick={() => setFilter('owners')} />
+        <StatTile label="Total active" value={stats.total - stats.archived} icon={Users} accent="#1B1C1D" hint={stats.archived ? `${stats.archived} archived` : ''} active={activePill === 'all'} onClick={() => setFilter('all')} />
+        <StatTile label="Pulse admins" value={stats.pulse_admins} icon={ShieldCheck} accent="#19CDFF" active={activePill === 'pulse_admins'} onClick={() => setFilter('pulse_admins')} />
+        <StatTile label="Owners" value={stats.owners} icon={UserCog} accent="#0091CA" active={activePill === 'owners'} onClick={() => setFilter('owners')} />
         <StatTile label="Staff / Managers" value={stats.staff} icon={Briefcase} accent="#10B981" active={activePill === 'staff'} onClick={() => setFilter('staff')} />
-        <StatTile label="Partner Engineers" value={stats.partner_engineers} icon={Wrench} accent="#4F46E5" active={activePill === 'partner_engineers'} onClick={() => setFilter('partner_engineers')} />
+        <StatTile label="Partner Engineers" value={stats.partner_engineers} icon={Wrench} accent="#0091CA" active={activePill === 'partner_engineers'} onClick={() => setFilter('partner_engineers')} />
         <StatTile label="CRM only" value={stats.crm_only} icon={Users} accent="#F59E0B" active={activePill === 'crm_only'} onClick={() => setFilter('crm_only')} />
-        <StatTile label="Role mismatches" value={stats.mismatch} icon={AlertTriangle} accent={stats.mismatch ? '#DC2626' : '#71717A'} hint={stats.mismatch ? 'invited ≠ current' : 'all aligned'} active={activePill === 'mismatch'} onClick={() => setFilter('mismatch')} />
-        <StatTile label="Invites pending" value={stats.invite_pending} icon={Clock} accent={stats.invite_pending ? '#B45309' : '#71717A'} hint={stats.invite_pending ? '72h links unredeemed' : 'all redeemed'} active={activePill === 'invite_pending'} onClick={() => setFilter('invite_pending')} />
-        <StatTile label="Archived" value={stats.archived} icon={Archive} accent="#71717A" active={activePill === 'archived'} onClick={() => setFilter('archived')} />
+        <StatTile label="Role mismatches" value={stats.mismatch} icon={AlertTriangle} accent={stats.mismatch ? '#DC2626' : '#6E7476'} hint={stats.mismatch ? 'invited ≠ current' : 'all aligned'} active={activePill === 'mismatch'} onClick={() => setFilter('mismatch')} />
+        <StatTile label="Invites pending" value={stats.invite_pending} icon={Clock} accent={stats.invite_pending ? '#B45309' : '#6E7476'} hint={stats.invite_pending ? '72h links unredeemed' : 'all redeemed'} active={activePill === 'invite_pending'} onClick={() => setFilter('invite_pending')} />
+        <StatTile label="Archived" value={stats.archived} icon={Archive} accent="#6E7476" active={activePill === 'archived'} onClick={() => setFilter('archived')} />
       </div>
 
       {/* Results table */}
-      <div className="rounded-lg border bg-white overflow-hidden" style={{ borderColor: '#E4E4E7' }} data-testid="people-table">
+      <div className="rounded-lg border bg-white overflow-hidden" style={{ borderColor: '#E0E0E0' }} data-testid="people-table">
         {filtered.length === 0 ? (
           <div className="px-6 py-10 text-center text-sm text-zinc-500" data-testid="people-empty">
             No people match the current filter.
           </div>
         ) : (
-          <div className="divide-y" style={{ borderColor: '#F4F4F5' }}>
+          <div className="divide-y" style={{ borderColor: '#F0F0F0' }}>
             {filtered.map((u) => (
               <button
                 key={`${u.id}-${u.organization_id || ''}`}
@@ -202,7 +202,7 @@ const PeopleDirectory = ({ users = [], onOpenUser }) => {
                 {u.avatar_url ? (
                   <img src={u.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
                 ) : (
-                  <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold" style={{ background: '#F4F4F5', color: '#52525B' }}>
+                  <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold" style={{ background: '#F0F0F0', color: '#565B5E' }}>
                     {(u.full_name || u.email || '?').slice(0, 1).toUpperCase()}
                   </div>
                 )}

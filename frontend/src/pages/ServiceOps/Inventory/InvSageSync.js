@@ -89,7 +89,7 @@ export function SageOrders() {
             <tbody>
               {orders.map((o) => (
                 <tr key={o.id} className="border-t border-slate-100" data-testid={`inv-sage-order-${o.sage_order_number}`}>
-                  <td className="px-4 py-2.5 font-semibold text-[#0B3D91]">{o.sage_order_number}</td>
+                  <td className="px-4 py-2.5 font-semibold text-[#0073A4]">{o.sage_order_number}</td>
                   <td className="font-mono text-xs">{o.sage_customer_account}</td>
                   <td>{o.dealer_name}</td>
                   <td>{o.dealer_country}</td>

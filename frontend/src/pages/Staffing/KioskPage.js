@@ -61,7 +61,7 @@ function PinPad({ onSubmit, error }) {
           0
         </button>
         <button type="button" onClick={submit} className="h-14 rounded-xl text-sm font-bold"
-          style={{ background: '#19CDFF', color: '#001219' }} data-testid="kiosk-pin-submit">
+          style={{ background: '#19CDFF', color: '#1B1C1D' }} data-testid="kiosk-pin-submit">
           OK
         </button>
       </div>
@@ -117,7 +117,7 @@ function PunchScreen({ kioskId, pin, staff, onBack, onPunched }) {
           {actions.map((a) => (
             <button key={a.kind} type="button" onClick={() => punch(a.kind)} disabled={busy}
               className="w-full max-w-[320px] mx-auto h-16 rounded-2xl text-base font-bold inline-flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50"
-              style={{ background: a.bg, color: '#001219' }}
+              style={{ background: a.bg, color: '#1B1C1D' }}
               data-testid={`kiosk-action-${a.kind}`}>
               {busy ? <Loader2 size={20} className="animate-spin" /> : <a.icon size={20} />}
               {a.label}
@@ -161,14 +161,14 @@ export default function KioskPage() {
 
   if (!kioskId) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-white" style={{ background: '#0A0C10' }}>
+      <div className="min-h-screen flex items-center justify-center text-white" style={{ background: '#1B1C1D' }}>
         <p className="text-sm">Missing kiosk id. Use the URL provided by your manager.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen relative" style={{ background: '#0A0C10', color: 'white' }} data-testid="kiosk-page">
+    <div className="min-h-screen relative" style={{ background: '#1B1C1D', color: 'white' }} data-testid="kiosk-page">
       <div className="absolute top-4 right-4 text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: 'rgba(255,255,255,0.4)' }}>
         Kiosk · {data?.kiosk_name || '…'}
       </div>

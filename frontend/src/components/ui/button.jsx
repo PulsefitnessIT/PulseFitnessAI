@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
  * The default variant uses `--color-brand-cyan` which the global brand-attr
  * sync (App.js) overrides per route:
  *   • data-brand="pulse"   → #19CDFF (Pulse cyan, legacy)
- *   • data-brand="gymaxis" → #2563EB (Pulse Fitness blue, premium SaaS)
+ *   • data-brand="gymaxis" → #0091CA (Pulse Fitness blue, premium SaaS)
  * That single CSS variable swap is what stops Pulse cyan leaking into the
  * Pulse Fitness portal. Never reintroduce the hardcoded #19CDFF hex here.
  */

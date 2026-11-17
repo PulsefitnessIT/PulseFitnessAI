@@ -43,7 +43,7 @@ export default function PreferencesSection() {
             ? t('settings.pref_lang_sugg_disable', 'Turn off language suggestions')
             : t('settings.pref_lang_sugg_enable', 'Show language suggestions again')}
         </button>
-        <p className="text-xs mt-2" style={{ color: 'var(--theme-text-muted, #94a3b8)' }} data-testid="account-lang-suggestions-state">
+        <p className="text-xs mt-2" style={{ color: 'var(--theme-text-muted, #9a9fa1)' }} data-testid="account-lang-suggestions-state">
           {langSuggOn
             ? t('settings.pref_lang_sugg_on', 'Language suggestions are on.')
             : t('settings.pref_lang_sugg_off', 'Language suggestions are off.')}

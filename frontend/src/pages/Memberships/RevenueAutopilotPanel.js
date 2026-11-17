@@ -110,7 +110,7 @@ export default function RevenueAutopilotPanel() {
         <div className="flex items-center gap-3 flex-1">
           <div className="w-11 h-11 rounded-xl flex items-center justify-center"
             style={{ background: 'rgba(29,78,216,0.1)' }}>
-            <Bot className="w-6 h-6" style={{ color: '#1d4ed8' }} />
+            <Bot className="w-6 h-6" style={{ color: '#0091ca' }} />
           </div>
           <div>
             <h2 className="text-lg font-bold" style={{ color: 'var(--theme-text)' }}>Revenue Recovery Autopilot</h2>
@@ -128,7 +128,7 @@ export default function RevenueAutopilotPanel() {
             onChange={(e) => saveSettings({ revenue_enabled: e.target.checked })}
             disabled={busy === 'settings'} />
           <span className="w-11 h-6 rounded-full transition-colors relative peer-checked:bg-blue-600"
-            style={{ background: s.revenue_enabled ? '#2563eb' : '#cbd5e1' }}>
+            style={{ background: s.revenue_enabled ? '#0091ca' : '#c9cbcc' }}>
             <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${s.revenue_enabled ? 'translate-x-5' : ''}`} />
           </span>
         </label>
@@ -152,7 +152,7 @@ export default function RevenueAutopilotPanel() {
         </button>
         <button onClick={() => runNow(false)} disabled={!!busy} data-testid="autopilot-run-btn"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
-          style={{ background: '#1d4ed8' }}>
+          style={{ background: '#0091ca' }}>
           {busy === 'run' ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
           Run recovery now
         </button>
@@ -177,10 +177,10 @@ export default function RevenueAutopilotPanel() {
                 disabled={busy === 'settings'} data-testid={`autopilot-level-${l.id}`}
                 className="text-left rounded-xl p-3 border transition-colors"
                 style={{
-                  borderColor: active ? '#2563eb' : 'var(--theme-border)',
+                  borderColor: active ? '#0091ca' : 'var(--theme-border)',
                   background: active ? 'rgba(25, 205, 255,0.06)' : 'transparent',
                 }}>
-                <div className="text-sm font-bold" style={{ color: active ? '#1d4ed8' : 'var(--theme-text)' }}>{l.label}</div>
+                <div className="text-sm font-bold" style={{ color: active ? '#0091ca' : 'var(--theme-text)' }}>{l.label}</div>
                 <div className="text-xs mt-1" style={{ color: 'var(--theme-text-muted)' }}>{l.desc}</div>
               </button>
             );

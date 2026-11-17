@@ -61,7 +61,7 @@ function HeatmapCell({ value, peak }) {
       title={`${value.toFixed(1)} staff-hours`}
       style={{
         background: `rgba(25, 205, 255, ${0.15 + intensity * 0.7})`,
-        color: intensity > 0.6 ? '#001219' : 'var(--theme-text)',
+        color: intensity > 0.6 ? '#1B1C1D' : 'var(--theme-text)',
       }}
     >
       {value >= 1 ? Math.round(value) : ''}
@@ -159,8 +159,8 @@ export default function WorkforceDashboardTab({ headers }) {
         <Kpi icon={Circle}       label={t('staffing.wf_on_now', 'On shift now')}  value={k.on_now ?? 0}         accent="#10B981"  testId="kpi-on-now" hint={t('staffing.wf_scheduled_live', 'Scheduled, live')} />
         <Kpi icon={Clock}        label={t('staffing.wf_running_late', 'Running late')}  value={k.late ?? 0}           accent="#F59E0B"  testId="kpi-late" />
         <Kpi icon={AlertTriangle} label={t('staffing.wf_absent', 'Absent')}       value={k.absent ?? 0}         accent="#EF4444"  testId="kpi-absent" />
-        <Kpi icon={Zap}          label={t('staffing.wf_open_today', 'Open today')}    value={k.open_today ?? 0}     accent="#8B5CF6"  testId="kpi-open-today" hint={t('staffing.wf_need_fill', 'Need fill')} />
-        <Kpi icon={ShieldCheck}  label={t('staffing.wf_coverage', 'Coverage')}      value={`${k.coverage_pct ?? 0}%`} accent="#0EA5E9" testId="kpi-coverage" />
+        <Kpi icon={Zap}          label={t('staffing.wf_open_today', 'Open today')}    value={k.open_today ?? 0}     accent="#19CDFF"  testId="kpi-open-today" hint={t('staffing.wf_need_fill', 'Need fill')} />
+        <Kpi icon={ShieldCheck}  label={t('staffing.wf_coverage', 'Coverage')}      value={`${k.coverage_pct ?? 0}%`} accent="#19CDFF" testId="kpi-coverage" />
       </div>
 
       {/* Week money row */}
@@ -168,7 +168,7 @@ export default function WorkforceDashboardTab({ headers }) {
         <Kpi icon={Clock}         label={t('staffing.wf_scheduled_hours', 'Scheduled hours')}   value={`${w.hours ?? 0}h`}              accent="#19CDFF" testId="week-hours" />
         <Kpi icon={PoundSterling} label={t('staffing.wf_labour_cost', 'Labour cost')}       value={formatGBP(w.labour_cost)}        accent="#10B981" testId="week-cost" />
         <Kpi icon={TrendingUp}    label={t('staffing.wf_overtime', 'Overtime')}          value={`${w.overtime_hours ?? 0}h`}     accent="#F59E0B" testId="week-overtime" />
-        <Kpi icon={PoundSterling} label={t('staffing.wf_avg_hour', 'Avg / hour')}        value={formatGBP(w.avg_hourly)}         accent="#0EA5E9" testId="week-avg" />
+        <Kpi icon={PoundSterling} label={t('staffing.wf_avg_hour', 'Avg / hour')}        value={formatGBP(w.avg_hourly)}         accent="#19CDFF" testId="week-avg" />
       </div>
 
       {/* Heatmap */}

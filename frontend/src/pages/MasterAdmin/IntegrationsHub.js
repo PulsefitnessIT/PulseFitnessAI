@@ -36,7 +36,7 @@ const API_BASE = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const STATUS_TONES = {
   connected:      { label: 'Connected',      bg: '#ECFDF5', fg: '#047857', border: '#A7F3D0', icon: CheckCircle2 },
   degraded:       { label: 'Degraded',       bg: '#FFFBEB', fg: '#B45309', border: '#FDE68A', icon: AlertTriangle },
-  not_configured: { label: 'Not configured', bg: '#FAFAFA', fg: '#52525B', border: '#E4E4E7', icon: XCircle },
+  not_configured: { label: 'Not configured', bg: '#F7F7F7', fg: '#565B5E', border: '#E0E0E0', icon: XCircle },
   down:           { label: 'Down',           bg: '#FEF2F2', fg: '#B91C1C', border: '#FECACA', icon: XCircle },
 };
 
@@ -48,9 +48,9 @@ const ICONS = {
 };
 
 const BRAND_TONES = {
-  pulse:   { label: 'Pulse Fitness', bg: 'rgba(0,85,255,0.08)', fg: '#1D4ED8' },
+  pulse:   { label: 'Pulse Fitness', bg: 'rgba(25, 205, 255,0.08)', fg: '#0091CA' },
   gymaxis: { label: 'Pulse Fitness',       bg: 'rgba(16,185,129,0.10)', fg: '#047857' },
-  all:     { label: 'Both brands',   bg: 'rgba(63,63,70,0.08)', fg: '#3F3F46' },
+  all:     { label: 'Both brands',   bg: 'rgba(63,63,70,0.08)', fg: '#393E41' },
 };
 
 const formatSince = (iso) => {
@@ -103,7 +103,7 @@ const IntegrationCard = ({ row, brand, onOpen }) => {
       type="button"
       onClick={() => onOpen(row.key)}
       className="text-left rounded-xl border bg-white p-4 hover:shadow-md transition-shadow group focus:outline-none focus:ring-2 focus:ring-blue-200"
-      style={{ borderColor: '#E4E4E7' }}
+      style={{ borderColor: '#E0E0E0' }}
       data-testid={`integrations-hub-card-${row.key}`}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
@@ -187,7 +187,7 @@ const MappingCoverageStrip = ({ coverage }) => {
   return (
     <div
       className="rounded-xl border bg-white p-4"
-      style={{ borderColor: '#E4E4E7' }}
+      style={{ borderColor: '#E0E0E0' }}
       data-testid="integrations-hub-mapping-coverage"
     >
       <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
@@ -214,7 +214,7 @@ const MappingCoverageStrip = ({ coverage }) => {
       {/* Progress bar */}
       <div
         className="h-2 rounded-full overflow-hidden"
-        style={{ background: '#F4F4F5' }}
+        style={{ background: '#F0F0F0' }}
         data-testid="mapping-coverage-progress"
       >
         <div
@@ -300,7 +300,7 @@ const IntegrationsHub = ({ isPulseAdmin = false }) => {
     if (openKey === 'sage200') {
       return (
         <div className="space-y-4" data-testid="integrations-hub-sage-panel">
-          <div className="rounded-lg border bg-zinc-50 p-4" style={{ borderColor: '#E4E4E7' }}>
+          <div className="rounded-lg border bg-zinc-50 p-4" style={{ borderColor: '#E0E0E0' }}>
             <h4 className="text-sm font-bold text-zinc-900 mb-2">Sage 200 customer ledger</h4>
             <p className="text-xs text-zinc-600 leading-relaxed">
               Sage 200 customer numbers are stored per-organisation. Posting to Sage is handled by the Sicon Service bridge — so the configuration lives in two places:
@@ -310,7 +310,7 @@ const IntegrationsHub = ({ isPulseAdmin = false }) => {
               <li>The Sicon Service integration must be <strong>Connected</strong> for posts to actually reach Sage.</li>
             </ol>
           </div>
-          <div className="rounded-lg border p-4 overflow-x-auto" style={{ borderColor: '#E4E4E7' }}>
+          <div className="rounded-lg border p-4 overflow-x-auto" style={{ borderColor: '#E0E0E0' }}>
             <h5 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">Field mapping (read-only)</h5>
             <table className="w-full text-xs min-w-[420px]">
               <thead>
@@ -320,10 +320,10 @@ const IntegrationsHub = ({ isPulseAdmin = false }) => {
                 </tr>
               </thead>
               <tbody className="text-zinc-700">
-                <tr className="border-t" style={{ borderColor: '#F4F4F5' }}><td className="py-1.5"><code>organisation.sage_customer_number</code></td><td><code>SLCustomerAccountID</code></td></tr>
-                <tr className="border-t" style={{ borderColor: '#F4F4F5' }}><td className="py-1.5"><code>organisation.sage_customer_reference</code></td><td><code>CustomerReference</code></td></tr>
-                <tr className="border-t" style={{ borderColor: '#F4F4F5' }}><td className="py-1.5"><code>invoice.total</code></td><td><code>NetAmount + VATAmount</code></td></tr>
-                <tr className="border-t" style={{ borderColor: '#F4F4F5' }}><td className="py-1.5"><code>invoice.line_items[].sku</code></td><td><code>StockCode</code></td></tr>
+                <tr className="border-t" style={{ borderColor: '#F0F0F0' }}><td className="py-1.5"><code>organisation.sage_customer_number</code></td><td><code>SLCustomerAccountID</code></td></tr>
+                <tr className="border-t" style={{ borderColor: '#F0F0F0' }}><td className="py-1.5"><code>organisation.sage_customer_reference</code></td><td><code>CustomerReference</code></td></tr>
+                <tr className="border-t" style={{ borderColor: '#F0F0F0' }}><td className="py-1.5"><code>invoice.total</code></td><td><code>NetAmount + VATAmount</code></td></tr>
+                <tr className="border-t" style={{ borderColor: '#F0F0F0' }}><td className="py-1.5"><code>invoice.line_items[].sku</code></td><td><code>StockCode</code></td></tr>
               </tbody>
             </table>
           </div>
@@ -363,19 +363,19 @@ const IntegrationsHub = ({ isPulseAdmin = false }) => {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-testid="integrations-hub-summary">
-        <div className="rounded-lg border bg-white p-3" style={{ borderColor: '#E4E4E7' }}>
+        <div className="rounded-lg border bg-white p-3" style={{ borderColor: '#E0E0E0' }}>
           <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Connected</div>
           <div className="text-2xl font-bold text-emerald-700 mt-0.5">{summary.connected}<span className="text-zinc-400 font-normal text-base"> / {summary.total}</span></div>
         </div>
-        <div className="rounded-lg border bg-white p-3" style={{ borderColor: '#E4E4E7' }}>
+        <div className="rounded-lg border bg-white p-3" style={{ borderColor: '#E0E0E0' }}>
           <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Degraded</div>
-          <div className="text-2xl font-bold mt-0.5" style={{ color: summary.degraded > 0 ? '#B45309' : '#71717A' }}>{summary.degraded}</div>
+          <div className="text-2xl font-bold mt-0.5" style={{ color: summary.degraded > 0 ? '#B45309' : '#6E7476' }}>{summary.degraded}</div>
         </div>
-        <div className="rounded-lg border bg-white p-3" style={{ borderColor: '#E4E4E7' }}>
+        <div className="rounded-lg border bg-white p-3" style={{ borderColor: '#E0E0E0' }}>
           <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Not configured</div>
           <div className="text-2xl font-bold text-zinc-700 mt-0.5">{summary.not_configured}</div>
         </div>
-        <div className="rounded-lg border bg-white p-3" style={{ borderColor: '#E4E4E7' }}>
+        <div className="rounded-lg border bg-white p-3" style={{ borderColor: '#E0E0E0' }}>
           <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Brand scope</div>
           <div className="text-sm font-bold text-zinc-900 mt-1">{brandLabel}</div>
           {isPulseAdmin && <div className="text-[10px] text-blue-700 mt-0.5">Locked (Pulse Master Admin)</div>}

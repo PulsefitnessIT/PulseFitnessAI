@@ -19,7 +19,7 @@ export function Card({ children, className = '', testId }) {
 
 export function StatCard({ label, value, tone = 'navy', testId }) {
   const tones = {
-    navy: 'text-[#0B3D91]',
+    navy: 'text-[#0073A4]',
     amber: 'text-amber-600',
     green: 'text-emerald-600',
     red: 'text-rose-600',
@@ -85,4 +85,4 @@ export function Field({ label, children, hint, required }) {
   );
 }
 
-export const inputCls = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#0B3D91] focus:outline-none focus:ring-1 focus:ring-[#0B3D91]';
+export const inputCls = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#0073A4] focus:outline-none focus:ring-1 focus:ring-[#0073A4]';

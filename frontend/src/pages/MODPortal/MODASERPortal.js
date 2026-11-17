@@ -273,8 +273,8 @@ function RegisterView({ config, dash, entries, loading, filters, setFilters, onO
 }
 
 // ── Analytics / trends ──────────────────────────────────────────────
-const RISK_COLORS = { low: '#34d399', medium: '#fbbf24', high: '#fb923c', critical: '#ef4444' };
-const CHART_PALETTE = ['#22d3ee', '#818cf8', '#f472b6', '#fbbf24', '#34d399', '#fb923c', '#a78bfa', '#f87171', '#2dd4bf', '#60a5fa'];
+const RISK_COLORS = { low: '#34d399', medium: '#fbbf24', high: '#f59e0b', critical: '#ef4444' };
+const CHART_PALETTE = ['#19cdff', '#19cdff', '#19cdff', '#fbbf24', '#34d399', '#f59e0b', '#19cdff', '#f87171', '#2dd4bf', '#19cdff'];
 const REP_LABELS = {
   monitor: 'Monitor', repeated_issue: 'Repeated Issue', escalation_recommended: 'Escalation Recommended',
   replacement_evidence_building: 'Replacement Evidence Building', replacement_strongly_recommended: 'Replacement Strongly Recommended',
@@ -319,9 +319,9 @@ function AnalyticsView({ API, headers }) {
             <YAxis allowDecimals={false} tick={{ fill: 'var(--theme-text-muted)', fontSize: 11 }} />
             <Tooltip contentStyle={tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Line type="monotone" dataKey="entries" name="Entries" stroke="#22d3ee" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="entries" name="Entries" stroke="#19cdff" strokeWidth={2} dot={false} />
             <Line type="monotone" dataKey="high_risk" name="High/critical" stroke="#ef4444" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="removed_from_use" name="Removed from use" stroke="#fb923c" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="removed_from_use" name="Removed from use" stroke="#f59e0b" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -335,7 +335,7 @@ function AnalyticsView({ API, headers }) {
             <YAxis allowDecimals={false} tick={{ fill: 'var(--theme-text-muted)', fontSize: 11 }} />
             <Tooltip contentStyle={tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="sessions_impacted" name="Rehab sessions impacted" fill="#818cf8" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="sessions_impacted" name="Rehab sessions impacted" fill="#19cdff" radius={[3, 3, 0, 0]} />
             <Bar dataKey="rehab_impacted" name="Entries impacting rehab" fill="#2dd4bf" radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -378,7 +378,7 @@ function AnalyticsView({ API, headers }) {
                 <XAxis type="number" allowDecimals={false} tick={{ fill: 'var(--theme-text-muted)', fontSize: 11 }} />
                 <YAxis type="category" dataKey="name" width={120} tick={{ fill: 'var(--theme-text-muted)', fontSize: 10 }} />
                 <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'var(--theme-surface-hover)' }} />
-                <Bar dataKey="value" name="Entries" fill="#22d3ee" radius={[0, 3, 3, 0]} />
+                <Bar dataKey="value" name="Entries" fill="#19cdff" radius={[0, 3, 3, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -393,7 +393,7 @@ function AnalyticsView({ API, headers }) {
                 <XAxis type="number" allowDecimals={false} tick={{ fill: 'var(--theme-text-muted)', fontSize: 11 }} />
                 <YAxis type="category" dataKey="name" width={140} tick={{ fill: 'var(--theme-text-muted)', fontSize: 10 }} />
                 <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'var(--theme-surface-hover)' }} />
-                <Bar dataKey="value" name="Entries" fill="#a78bfa" radius={[0, 3, 3, 0]} />
+                <Bar dataKey="value" name="Entries" fill="#19cdff" radius={[0, 3, 3, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>

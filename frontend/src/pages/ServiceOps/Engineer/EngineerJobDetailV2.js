@@ -2127,9 +2127,9 @@ function TimeTab({ job, busy, setBusy, onChange }) {
           card on a 412px phone. */}
 
       <div className="grid grid-cols-3 gap-2" data-testid="time-totals">
-        <Totals label="On site"   value={fmtMins(totalsByCategory.on_site)} color="#0891b2" />
-        <Totals label="Travel"    value={fmtMins(totalsByCategory.travel)}  color="#0e7490" />
-        <Totals label="Admin"     value={fmtMins(totalsByCategory.admin)}   color="#64748b" />
+        <Totals label="On site"   value={fmtMins(totalsByCategory.on_site)} color="#0091ca" />
+        <Totals label="Travel"    value={fmtMins(totalsByCategory.travel)}  color="#0073a4" />
+        <Totals label="Admin"     value={fmtMins(totalsByCategory.admin)}   color="#6e7476" />
       </div>
 
       {!active ? (
@@ -2206,8 +2206,8 @@ function TimeTab({ job, busy, setBusy, onChange }) {
             {entries.map(e => (
               <li key={e.id} className="py-2 flex items-center gap-3" data-testid={`time-entry-${e.id}`}>
                 <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: e.category === 'on_site' ? '#dbeafe' : e.category === 'travel' ? '#e0e7ff' : '#f1f5f9',
-                           color: e.category === 'on_site' ? '#0891b2' : e.category === 'travel' ? '#0e7490' : '#475569' }}>
+                  style={{ background: e.category === 'on_site' ? '#dbeafe' : e.category === 'travel' ? '#e0e7ff' : '#f0f0f0',
+                           color: e.category === 'on_site' ? '#0091ca' : e.category === 'travel' ? '#0073a4' : '#565B5E' }}>
                   {e.category}
                 </span>
                 <div className="flex-1 min-w-0">
@@ -2345,7 +2345,7 @@ function TravelTab({ job, mileage, onChange }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2">
-        <Totals label="Miles"   value={mileage.total_miles?.toFixed(1) || '0.0'} color="#0e7490" />
+        <Totals label="Miles"   value={mileage.total_miles?.toFixed(1) || '0.0'} color="#0073a4" />
         <Totals label="Billable" value={fmtGBP(mileage.total_amount_gbp)} color="#059669" />
       </div>
 
@@ -2386,7 +2386,7 @@ function TravelTab({ job, mileage, onChange }) {
             <button
               type="button"
               onClick={startTrip}
-              className="inline-flex items-center gap-1 px-3 py-2 rounded-full bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white text-xs font-bold"
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-full bg-gradient-to-br from-[#0091ca] to-[#0073a4] text-white text-xs font-bold"
               data-testid="mileage-trip-start"
             >
               <Play size={12} /> Start trip
@@ -2410,7 +2410,7 @@ function TravelTab({ job, mileage, onChange }) {
           <Input label="To postcode"   v={form.to_postcode}   on={v => setForm(f => ({ ...f, to_postcode: v }))}   testid="mileage-to" />
         </div>
         <Input label="Notes" v={form.notes} on={v => setForm(f => ({ ...f, notes: v }))} testid="mileage-notes" fullWidth />
-        <button onClick={submit} disabled={adding} className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white text-sm font-bold disabled:opacity-50" data-testid="mileage-add-btn">
+        <button onClick={submit} disabled={adding} className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-br from-[#0091ca] to-[#0073a4] text-white text-sm font-bold disabled:opacity-50" data-testid="mileage-add-btn">
           {adding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
           Add mileage
         </button>
@@ -2572,7 +2572,7 @@ function PhotosTab({ job, onChange }) {
         <input ref={photoInput} type="file" accept="image/*" capture="environment" onChange={onPhoto} className="hidden" data-testid="photo-file-input" />
         <input ref={videoInput} type="file" accept="video/*" capture="environment" onChange={onVideo} className="hidden" data-testid="video-file-input" />
         <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={() => photoInput.current?.click()} disabled={uploading} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white text-sm font-bold disabled:opacity-50" data-testid="photo-upload-btn">
+          <button type="button" onClick={() => photoInput.current?.click()} disabled={uploading} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-br from-[#0091ca] to-[#0073a4] text-white text-sm font-bold disabled:opacity-50" data-testid="photo-upload-btn">
             {uploading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
             Photo
           </button>
@@ -3190,7 +3190,7 @@ function PartsTab({ job, onChange }) {
           <Input label="SKU"   v={adhoc.part_sku} on={v => setAdhoc(f => ({ ...f, part_sku: v }))} testid="parts-adhoc-sku" />
           <Input label="Qty"   type="number" v={adhoc.qty} on={v => setAdhoc(f => ({ ...f, qty: Math.max(1, Number(v)) }))} testid="parts-adhoc-qty" />
           <div className="flex items-end">
-            <button onClick={() => adhoc.part_sku && addPartUsage(adhoc.part_sku.toUpperCase(), Number(adhoc.qty) || 1)} disabled={busy || !adhoc.part_sku} className="w-full inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white text-sm font-bold disabled:opacity-50" data-testid="parts-adhoc-add">
+            <button onClick={() => adhoc.part_sku && addPartUsage(adhoc.part_sku.toUpperCase(), Number(adhoc.qty) || 1)} disabled={busy || !adhoc.part_sku} className="w-full inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-gradient-to-br from-[#0091ca] to-[#0073a4] text-white text-sm font-bold disabled:opacity-50" data-testid="parts-adhoc-add">
               <Plus size={14} /> Add
             </button>
           </div>
@@ -3351,7 +3351,7 @@ function PartsRequestModal({ sku, name, machines = [], onCancel, onSubmit, busy 
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={onCancel} className="px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-sm font-bold" data-testid="parts-request-cancel">Cancel</button>
-          <button onClick={() => onSubmit(qty, urgency, notes, machineId || null, machineName || null)} disabled={busy} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white text-sm font-bold disabled:opacity-50" data-testid="parts-request-submit">
+          <button onClick={() => onSubmit(qty, urgency, notes, machineId || null, machineName || null)} disabled={busy} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-[#0091ca] to-[#0073a4] text-white text-sm font-bold disabled:opacity-50" data-testid="parts-request-submit">
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
             Send to admin
           </button>
@@ -4308,7 +4308,7 @@ function CalibrationCapture({ job }) {
               <button onClick={() => rmRow(i)} className="col-span-1 text-zinc-400 text-xs" aria-label="Remove">✕</button>
             </div>
           ))}
-          <button onClick={addRow} className="text-xs font-semibold text-[var(--color-brand-blue,#2563eb)]" data-testid="calibration-add">+ Add reading</button>
+          <button onClick={addRow} className="text-xs font-semibold text-[var(--color-brand-blue,#0091ca)]" data-testid="calibration-add">+ Add reading</button>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (reference instrument, observations)…" className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-2 py-1.5 text-xs" rows={2} data-testid="calibration-notes" />
           <div>
             <button onClick={() => setShowSig((s) => !s)} className="text-xs font-semibold" data-testid="calibration-sign-toggle">

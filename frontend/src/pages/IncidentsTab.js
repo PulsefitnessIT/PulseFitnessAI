@@ -34,9 +34,9 @@ import {
 import IncidentSignaturePad from './IncidentSignaturePad';
 
 const SEVERITY_TONE = {
-  minor: { bg: 'bg-slate-100', text: 'text-slate-700', dot: '#94A3B8' },
+  minor: { bg: 'bg-slate-100', text: 'text-slate-700', dot: '#9A9FA1' },
   moderate: { bg: 'bg-amber-50', text: 'text-amber-700', dot: '#F59E0B' },
-  serious: { bg: 'bg-orange-50', text: 'text-orange-700', dot: '#EA580C' },
+  serious: { bg: 'bg-orange-50', text: 'text-orange-700', dot: '#D97706' },
   major: { bg: 'bg-red-50', text: 'text-red-700', dot: '#DC2626' },
   fatal: { bg: 'bg-rose-100', text: 'text-rose-800', dot: '#9F1239' },
 };
@@ -938,7 +938,7 @@ function RiddorPane({ incident, picklists, onChanged }) {
     <div className="space-y-4 text-sm">
       {riddor.status && riddor.status !== 'not_assessed' ? (
         <div className="rounded-xl border-2 p-4"
-             style={{ borderColor: RIDDOR_TONE[riddor.status]?.text ? undefined : '#E5E7EB' }}>
+             style={{ borderColor: RIDDOR_TONE[riddor.status]?.text ? undefined : '#E0E0E0' }}>
           <div className="flex items-center gap-2 flex-wrap">
             <Badge className={`${RIDDOR_TONE[riddor.status].bg} ${RIDDOR_TONE[riddor.status].text} border-0 font-bold uppercase`}>
               {RIDDOR_TONE[riddor.status].label}
@@ -1284,7 +1284,7 @@ function HseDashboardStrip() {
   if (!data) return null;
   const maxBy = (obj) => Math.max(1, ...Object.values(obj || {}));
   const SEV_BAR = {
-    minor: '#94A3B8', moderate: '#F59E0B', serious: '#EA580C', major: '#DC2626', fatal: '#9F1239',
+    minor: '#9A9FA1', moderate: '#F59E0B', serious: '#D97706', major: '#DC2626', fatal: '#9F1239',
   };
   const renderBar = (k, v, max, color) => (
     <div key={k} className="flex items-center gap-2 text-xs">
@@ -1326,7 +1326,7 @@ function HseDashboardStrip() {
           <div className="space-y-1.5">
             {Object.entries(data.by_severity || {})
               .sort((a, b) => b[1] - a[1])
-              .map(([k, v]) => renderBar(k, v, maxBy(data.by_severity), SEV_BAR[k] || '#64748B'))}
+              .map(([k, v]) => renderBar(k, v, maxBy(data.by_severity), SEV_BAR[k] || '#6E7476'))}
           </div>
         </div>
         <div>
@@ -1334,7 +1334,7 @@ function HseDashboardStrip() {
           <div className="space-y-1.5">
             {Object.entries(data.by_kind || {})
               .sort((a, b) => b[1] - a[1])
-              .map(([k, v]) => renderBar(k, v, maxBy(data.by_kind), '#2563EB'))}
+              .map(([k, v]) => renderBar(k, v, maxBy(data.by_kind), '#0091CA'))}
           </div>
         </div>
         <div>
@@ -1343,7 +1343,7 @@ function HseDashboardStrip() {
             {Object.entries(data.by_category || {})
               .sort((a, b) => b[1] - a[1])
               .slice(0, 8)
-              .map(([k, v]) => renderBar(k, v, maxBy(data.by_category), '#9D4CDD'))}
+              .map(([k, v]) => renderBar(k, v, maxBy(data.by_category), '#19CDFF'))}
           </div>
         </div>
         <div>
@@ -1359,7 +1359,7 @@ function HseDashboardStrip() {
                     <div className="h-full"
                          style={{
                            width: `${(r.count / Math.max(1, ...data.top_assets.map((x) => x.count))) * 100}%`,
-                           background: '#0EA5E9',
+                           background: '#19CDFF',
                          }} />
                   </div>
                   <span className="w-8 text-right font-mono text-slate-800">{r.count}</span>
@@ -1438,7 +1438,7 @@ function TrendSparkline({ points }) {
 function Heatmap({ heatmap }) {
   const max = Math.max(1, ...heatmap.grid_counts.flat());
   const color = (v) => {
-    if (!v) return '#F8FAFC';
+    if (!v) return '#F7F7F7';
     const t = Math.min(1, v / max);
     // navy → red gradient based on intensity
     const r = Math.round(29 + (220 - 29) * t);

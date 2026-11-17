@@ -145,7 +145,7 @@ function TrialRow({ trial, onExtend, onCheckout, onMarkConverted }) {
   const progressColor = trial.trial_status === 'expired' || trial.trial_status === 'suspended' ? 'bg-red-500' : trial.trial_status === 'expiring_soon' ? 'bg-amber-500' : 'bg-emerald-500';
 
   return (
-    <Card className="p-5 border-slate-200 rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.10)] transition-shadow" data-testid={`trial-row-${trial.id}`}>
+    <Card className="p-5 border-slate-200 rounded-2xl shadow-[0_1px_2px_rgba(27, 28, 29,0.04)] hover:shadow-[0_8px_24px_-8px_rgba(27, 28, 29,0.10)] transition-shadow" data-testid={`trial-row-${trial.id}`}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">

@@ -165,7 +165,7 @@ export function DealerServiceDesks() {
         <Card testId="inv-desks-table"><table className="w-full text-sm"><thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400"><th className="px-4 py-3">{t('inv.th.reference', 'Reference')}</th><th>{t('inv.th.dealer', 'Dealer')}</th><th>{t('inv.th.country', 'Country')}</th><th>{t('inv.th.status', 'Status')}</th></tr></thead>
           <tbody>{rows.map((d) => (
             <tr key={d.id} className="cursor-pointer border-b border-slate-100 hover:bg-slate-50" data-testid={`inv-desk-row-${d.reference}`} onClick={() => setSelected(d.id)}>
-              <td className="px-4 py-3 font-semibold text-[#0B3D91]">{d.reference}</td><td>{d.dealer_name}</td><td>{d.country}</td><td><StatusBadge status={d.status} /></td>
+              <td className="px-4 py-3 font-semibold text-[#0073A4]">{d.reference}</td><td>{d.dealer_name}</td><td>{d.country}</td><td><StatusBadge status={d.status} /></td>
             </tr>
           ))}</tbody>
         </table></Card>

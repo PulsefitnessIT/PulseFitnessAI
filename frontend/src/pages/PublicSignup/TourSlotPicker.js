@@ -31,7 +31,7 @@ const fmtTime = (iso) => {
   return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
 };
 
-const TourSlotPicker = ({ API, slug, draftId, email, fullName, value, onChange, accent = '#2563EB' }) => {
+const TourSlotPicker = ({ API, slug, draftId, email, fullName, value, onChange, accent = '#0091CA' }) => {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);

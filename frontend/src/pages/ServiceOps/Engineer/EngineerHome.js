@@ -26,7 +26,7 @@ import EngineerAccessGate from './EngineerAccessGate';
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
 
-const PRIORITY_COLOUR = { p1: '#ef4444', p2: '#f59e0b', p3: '#0891b2', p4: '#6b7280' };
+const PRIORITY_COLOUR = { p1: '#ef4444', p2: '#f59e0b', p3: '#0091ca', p4: '#6e7476' };
 
 function fmtRelative(iso) {
   if (!iso) return '—';
@@ -148,8 +148,8 @@ export default function EngineerHome() {
   }
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: 'var(--theme-bg, #f8fafc)' }} data-testid="engineer-home">
-      <header className="px-4 pt-5 pb-3 sticky top-0 z-10" style={{ background: 'var(--theme-surface, #fff)', borderBottom: '1px solid var(--theme-border, #e5e7eb)' }}>
+    <div className="min-h-screen pb-24" style={{ background: 'var(--theme-bg, #f7f7f7)' }} data-testid="engineer-home">
+      <header className="px-4 pt-5 pb-3 sticky top-0 z-10" style={{ background: 'var(--theme-surface, #fff)', borderBottom: '1px solid var(--theme-border, #e0e0e0)' }}>
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2 min-w-0">
             <button
@@ -163,7 +163,7 @@ export default function EngineerHome() {
               <ArrowLeft size={16} />
             </button>
             <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: '#0891b2' }}>{t('service.eng_home_eyebrow', 'Service Ops · Engineer')}</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: '#0091ca' }}>{t('service.eng_home_eyebrow', 'Service Ops · Engineer')}</p>
             <h1 className="text-xl font-extrabold truncate" style={{ color: 'var(--theme-text)' }} data-testid="engineer-greeting">
               {me?.engineer?.full_name ? t('service.eng_home_hi', 'Hi, {{name}}', { name: me.engineer.full_name.split(' ')[0] }) : t('service.eng_home_field_engineer', 'Field engineer')}
             </h1>
@@ -208,9 +208,9 @@ export default function EngineerHome() {
               onClick={() => setTab(t.id)}
               className="px-3 py-1.5 rounded-full text-xs font-bold"
               style={{
-                background: tab === t.id ? '#0891b2' : 'transparent',
+                background: tab === t.id ? '#0091ca' : 'transparent',
                 color: tab === t.id ? '#fff' : 'var(--theme-text)',
-                border: `1px solid ${tab === t.id ? '#0891b2' : 'var(--theme-border)'}`,
+                border: `1px solid ${tab === t.id ? '#0091ca' : 'var(--theme-border)'}`,
               }}
               data-testid={`engineer-tab-${t.id}`}
             >
@@ -262,7 +262,7 @@ export default function EngineerHome() {
             <p className="text-xs opacity-70 mt-1">{t('service.eng_home_empty_hint', 'Pull down to refresh, or check back later.')}</p>
           </div>
         ) : jobs.map((j) => {
-          const colour = PRIORITY_COLOUR[j.priority] || '#6b7280';
+          const colour = PRIORITY_COLOUR[j.priority] || '#6e7476';
           return (
             <button
               key={j.id}
@@ -310,7 +310,7 @@ export default function EngineerHome() {
               </div>
               <div className="mt-3 flex items-center justify-between text-[11px] opacity-60">
                 <span>{j.estimated_minutes ? t('service.eng_home_mins', '~{{min}} min', { min: j.estimated_minutes }) : t('service.eng_home_unsized', 'unsized')}</span>
-                <span className="inline-flex items-center gap-1 font-bold" style={{ color: '#0891b2' }}>
+                <span className="inline-flex items-center gap-1 font-bold" style={{ color: '#0091ca' }}>
                   {t('service.eng_home_open_cta', 'Open')} <ChevronRight size={12} />
                 </span>
               </div>

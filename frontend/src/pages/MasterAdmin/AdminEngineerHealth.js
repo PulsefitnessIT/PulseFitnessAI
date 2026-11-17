@@ -40,7 +40,7 @@ const BUCKETS = [
   },
   {
     key: 'not_subscribed', label: 'Not subscribed', icon: CreditCard,
-    color: '#7c3aed',
+    color: '#0091ca',
     blurb: "Activated but can't take jobs yet — no active trial/subscription.",
   },
 ];

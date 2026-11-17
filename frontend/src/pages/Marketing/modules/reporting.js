@@ -6,7 +6,7 @@ import {
 export default {
   id: 'reporting',
   name: 'Reporting',
-  color: '#2563EB',
+  color: '#0091CA',
   icon: BarChart3,
 
   heroLine1: 'See the whole',
@@ -82,10 +82,10 @@ export default {
 
   integrationsHeadline: 'Reporting is wired into the rest of Pulse Fitness.',
   integrations: [
-    { icon: Calendar,  name: 'Memberships', color: '#8B5CF6', to: '/platform/memberships', body: 'Class fills, retention, no-shows and Auto-Bill recovery flow in live.' },
-    { icon: Users,     name: 'CRM',         color: '#6366F1', to: '/platform/crm',         body: 'Lead-source ROI, conversion funnels, NPS by segment.' },
-    { icon: Wrench,    name: 'Operations',     color: '#06B6D4', to: '/platform/service',     body: 'Fault density, MTTR, capex pipeline and supplier scorecards.' },
-    { icon: Megaphone, name: 'Marketing',   color: '#D946EF', to: '/platform/marketing',   body: 'Campaign ROI rolled into the same revenue dashboard as plan upgrades.' },
+    { icon: Calendar,  name: 'Memberships', color: '#19CDFF', to: '/platform/memberships', body: 'Class fills, retention, no-shows and Auto-Bill recovery flow in live.' },
+    { icon: Users,     name: 'CRM',         color: '#19CDFF', to: '/platform/crm',         body: 'Lead-source ROI, conversion funnels, NPS by segment.' },
+    { icon: Wrench,    name: 'Operations',     color: '#19CDFF', to: '/platform/service',     body: 'Fault density, MTTR, capex pipeline and supplier scorecards.' },
+    { icon: Megaphone, name: 'Marketing',   color: '#19CDFF', to: '/platform/marketing',   body: 'Campaign ROI rolled into the same revenue dashboard as plan upgrades.' },
   ],
 
   resultsHeadline: 'Real numbers from real operators.',

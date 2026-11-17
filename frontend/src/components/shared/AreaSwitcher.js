@@ -130,7 +130,7 @@ export default function AreaSwitcher({ user, tone = 'header', className = '' }) 
             className={`absolute ${menuPos} w-52 rounded-lg shadow-xl z-50 overflow-hidden`}
             style={dark
               ? { background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }
-              : { background: '#fff', border: '1px solid #e2e8f0' }}
+              : { background: '#fff', border: '1px solid #e0e0e0' }}
             data-testid="area-switcher-menu"
           >
             <p className={`px-4 pt-3 pb-1 text-[10px] uppercase tracking-[0.16em] font-semibold ${dark ? '' : 'text-slate-400'}`}
@@ -144,7 +144,7 @@ export default function AreaSwitcher({ user, tone = 'header', className = '' }) 
                     key={a.id}
                     onClick={() => go(a)}
                     className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${dark ? 'hover:opacity-80' : 'hover:bg-slate-50'} ${on ? 'font-semibold' : ''}`}
-                    style={dark ? { color: 'var(--theme-text)' } : { color: on ? '#0f172a' : '#475569' }}
+                    style={dark ? { color: 'var(--theme-text)' } : { color: on ? '#1b1c1d' : '#565B5E' }}
                     data-testid={`area-switcher-${a.id}`}
                   >
                     <Icon size={16} /> {a.label}
@@ -154,11 +154,11 @@ export default function AreaSwitcher({ user, tone = 'header', className = '' }) 
               })}
             </div>
             {user.is_operator_company === true && (
-              <div className="py-1 border-t" style={dark ? { borderColor: 'var(--theme-border)' } : { borderColor: '#e2e8f0' }}>
+              <div className="py-1 border-t" style={dark ? { borderColor: 'var(--theme-border)' } : { borderColor: '#e0e0e0' }}>
                 <button
                   onClick={() => { setOpen(false); window.location.href = '/launch?choose=1'; }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${dark ? 'hover:opacity-80' : 'hover:bg-slate-50'}`}
-                  style={dark ? { color: 'var(--theme-text-muted)' } : { color: '#475569' }}
+                  style={dark ? { color: 'var(--theme-text-muted)' } : { color: '#565B5E' }}
                   data-testid="area-switcher-chooser"
                 >
                   <LayoutGrid size={16} /> Area Selector…

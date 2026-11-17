@@ -167,7 +167,7 @@ export default function BookingsTab({ headers, slug }) {
             </div>
             <button onClick={payAll} disabled={payingAll}
               className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-extrabold"
-              style={{ background: 'var(--color-brand-cyan)', color: '#0A0C10' }}
+              style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }}
               data-testid="member-pay-all">
               {payingAll ? 'Opening checkout…' : `Pay £${(outstandingPence / 100).toFixed(2)} now →`}
             </button>

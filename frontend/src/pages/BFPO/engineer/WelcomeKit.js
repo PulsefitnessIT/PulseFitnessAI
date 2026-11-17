@@ -9,7 +9,7 @@ export default function WelcomeKit({ data, onStart, onViewJobs }) {
   const firstName = (data.full_name || '').trim().split(' ')[0] || 'there';
 
   return (
-    <div className="fixed inset-0 z-[70] bg-[#F8F9FA] overflow-y-auto" data-testid="bfpo-welcome" style={{ fontFamily: "'Proxima Nova', system-ui, sans-serif" }}>
+    <div className="fixed inset-0 z-[70] bg-[#F7F7F7] overflow-y-auto" data-testid="bfpo-welcome" style={{ fontFamily: "'Proxima Nova', system-ui, sans-serif" }}>
       <div className="on-dark text-white" style={{ backgroundColor: '#000000' }}>
         <div className="max-w-3xl mx-auto px-4 h-20 flex items-center">
           <img src={PULSE_LOGO} alt="Pulse Fitness" className="h-10 rounded-md object-cover" style={{ objectPosition: 'center', aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }} />

@@ -28,11 +28,11 @@ const ACTION_ICONS = {
 
 const ACTION_COLORS = {
   create: 'var(--color-success-green, #10b981)',
-  update: 'var(--color-brand-blue, #1d4ed8)',
+  update: 'var(--color-brand-blue, #0091ca)',
   delete: 'var(--color-danger-red, #ef4444)',
-  stage_change: 'var(--color-info-ios, #3b82f6)',
-  sign: 'var(--color-accent-indigo, #6366f1)',
-  approve: 'var(--color-accent-magenta, #d946ef)',
+  stage_change: 'var(--color-info-ios, #19cdff)',
+  sign: 'var(--color-accent-indigo, #19cdff)',
+  approve: 'var(--color-accent-magenta, #19cdff)',
 };
 
 function formatRelative(iso) {
@@ -84,11 +84,11 @@ export default function CRMAuditTrail({ entityType = '', entityId = '', limit = 
 
   const visible = useMemo(() => entries, [entries]);
 
-  if (loading) return <p className="text-sm text-[color:var(--theme-text-muted,#6b7280)]" data-testid="audit-loading">Loading audit trail…</p>;
+  if (loading) return <p className="text-sm text-[color:var(--theme-text-muted,#6e7476)]" data-testid="audit-loading">Loading audit trail…</p>;
   if (error) return <p className="text-sm text-red-500" data-testid="audit-error">{error}</p>;
   if (!visible.length) {
     return (
-      <div className="rounded-lg border border-dashed p-6 text-center" style={{ borderColor: 'var(--theme-border, #e5e7eb)' }} data-testid="audit-empty">
+      <div className="rounded-lg border border-dashed p-6 text-center" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }} data-testid="audit-empty">
         <Shield size={20} className="mx-auto mb-2 opacity-40" />
         <p className="text-sm opacity-70">{emptyText}</p>
       </div>
@@ -99,12 +99,12 @@ export default function CRMAuditTrail({ entityType = '', entityId = '', limit = 
     <div className="space-y-3" data-testid="audit-trail">
       {visible.map((e, i) => {
         const Icon = ACTION_ICONS[e.action] || Shield;
-        const colour = ACTION_COLORS[e.action] || 'var(--color-brand-blue, #1d4ed8)';
+        const colour = ACTION_COLORS[e.action] || 'var(--color-brand-blue, #0091ca)';
         const hasChanges = Array.isArray(e.changes) && e.changes.length > 0;
         return (
           <div key={e.id || i} className="flex gap-3 relative" data-testid={`audit-entry-${e.id || i}`}>
             {i < visible.length - 1 ? (
-              <div className="absolute left-4 top-8 bottom-0 w-px" style={{ background: 'var(--theme-border, #e5e7eb)' }} />
+              <div className="absolute left-4 top-8 bottom-0 w-px" style={{ background: 'var(--theme-border, #e0e0e0)' }} />
             ) : null}
             <div
               className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 z-10"
@@ -114,7 +114,7 @@ export default function CRMAuditTrail({ entityType = '', entityId = '', limit = 
             </div>
             <div className="flex-1 min-w-0 pb-2">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <p className="text-sm font-semibold" style={{ color: 'var(--theme-text, #111827)' }}>
+                <p className="text-sm font-semibold" style={{ color: 'var(--theme-text, #1B1C1D)' }}>
                   {e.summary}
                 </p>
                 <span className="text-[11px] opacity-60">{formatRelative(e.at)}</span>
@@ -127,7 +127,7 @@ export default function CRMAuditTrail({ entityType = '', entityId = '', limit = 
                 ) : null}
               </div>
               {hasChanges ? (
-                <div className="mt-2 rounded-md border p-2 text-[11px] space-y-1" style={{ borderColor: 'var(--theme-border, #e5e7eb)', background: 'var(--theme-surface, transparent)' }}>
+                <div className="mt-2 rounded-md border p-2 text-[11px] space-y-1" style={{ borderColor: 'var(--theme-border, #e0e0e0)', background: 'var(--theme-surface, transparent)' }}>
                   {e.changes.slice(0, 8).map((ch, k) => (
                     <div key={k} className="flex items-baseline gap-2 flex-wrap" data-testid={`audit-change-${ch.field}`}>
                       <span className="font-semibold min-w-[7rem] opacity-80">{ch.field}</span>

@@ -69,15 +69,15 @@ const Stepper = ({ idx }) => (
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors"
             style={{
-              borderColor: state === 'done' ? '#10B981' : state === 'active' ? '#0055FF' : '#E4E4E7',
-              background:  state === 'done' ? '#10B981' : state === 'active' ? '#EFF6FF' : '#FFFFFF',
-              color:       state === 'done' ? '#FFFFFF' : state === 'active' ? '#1D4ED8' : '#A1A1AA',
+              borderColor: state === 'done' ? '#10B981' : state === 'active' ? '#19CDFF' : '#E0E0E0',
+              background:  state === 'done' ? '#10B981' : state === 'active' ? '#E4F9FF' : '#FFFFFF',
+              color:       state === 'done' ? '#FFFFFF' : state === 'active' ? '#0091CA' : '#9A9FA1',
             }}
           >
             {state === 'done' ? <Check size={14} /> : <Icon size={13} />}
           </div>
           <div className="hidden sm:block">
-            <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: state === 'active' ? '#1D4ED8' : '#71717A' }}>{s.label}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: state === 'active' ? '#0091CA' : '#6E7476' }}>{s.label}</div>
             <div className="text-[10px] text-zinc-400">{s.hint}</div>
           </div>
           {i < STEPS.length - 1 && <div className="w-4 sm:w-8 h-px bg-zinc-200" />}
@@ -257,7 +257,7 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
           onChange={(e) => update({ full_name: e.target.value })}
           placeholder="Jane Smith"
           className="w-full px-3 py-2 text-sm rounded-md border bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
-          style={{ borderColor: '#E4E4E7' }}
+          style={{ borderColor: '#E0E0E0' }}
           data-testid="staff-wizard-name"
         />
       </div>
@@ -270,7 +270,7 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
             onChange={(e) => update({ email: e.target.value })}
             placeholder="jane@pulsefitness.com"
             className="w-full pl-8 pr-3 py-2 text-sm rounded-md border bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
-            style={{ borderColor: '#E4E4E7' }}
+            style={{ borderColor: '#E0E0E0' }}
             data-testid="staff-wizard-email"
           />
         </div>
@@ -289,9 +289,9 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
                 onClick={() => update({ brand: b.id, organization_id: '' })}
                 className="px-3 py-1.5 text-xs font-semibold rounded-md border"
                 style={{
-                  borderColor: form.brand === b.id ? '#1D4ED8' : '#E4E4E7',
-                  background:  form.brand === b.id ? '#EFF6FF' : '#FFFFFF',
-                  color:       form.brand === b.id ? '#1D4ED8' : '#52525B',
+                  borderColor: form.brand === b.id ? '#0091CA' : '#E0E0E0',
+                  background:  form.brand === b.id ? '#E4F9FF' : '#FFFFFF',
+                  color:       form.brand === b.id ? '#0091CA' : '#565B5E',
                 }}
                 data-testid={`staff-wizard-brand-${b.id}`}
               >
@@ -324,8 +324,8 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
                   onClick={() => update({ role: r.id })}
                   className="text-left p-3 rounded-lg border transition-colors"
                   style={{
-                    borderColor: form.role === r.id ? '#1D4ED8' : '#E4E4E7',
-                    background:  form.role === r.id ? '#EFF6FF' : '#FFFFFF',
+                    borderColor: form.role === r.id ? '#0091CA' : '#E0E0E0',
+                    background:  form.role === r.id ? '#E4F9FF' : '#FFFFFF',
                   }}
                   data-testid={`staff-wizard-role-${r.id}`}
                 >
@@ -344,7 +344,7 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
               value={form.organization_id}
               onChange={(e) => update({ organization_id: e.target.value, allowed_site_ids: [] })}
               className="w-full px-3 py-2 text-sm rounded-md border bg-white"
-              style={{ borderColor: '#E4E4E7' }}
+              style={{ borderColor: '#E0E0E0' }}
               data-testid="staff-wizard-org"
             >
               <option value="">Choose an organisation…</option>
@@ -361,7 +361,7 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
   const renderSites = () => {
     if (!orgRequired || !form.organization_id) {
       return (
-        <p className="text-sm text-zinc-500 bg-zinc-50 rounded-md p-3 border" style={{ borderColor: '#E4E4E7' }}>
+        <p className="text-sm text-zinc-500 bg-zinc-50 rounded-md p-3 border" style={{ borderColor: '#E0E0E0' }}>
           Site-lock is only available for org-scoped roles. Platform admins automatically see every site.
         </p>
       );
@@ -377,7 +377,7 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
         <p className="text-xs text-zinc-500">
           Leave empty for <strong className="text-zinc-700">all sites</strong> in the organisation, or tick specific sites to lock this user down to those locations only.
         </p>
-        <div className="rounded-lg border p-2 max-h-64 overflow-y-auto" style={{ borderColor: '#E4E4E7' }} data-testid="staff-wizard-sites-list">
+        <div className="rounded-lg border p-2 max-h-64 overflow-y-auto" style={{ borderColor: '#E0E0E0' }} data-testid="staff-wizard-sites-list">
           {orgSites.length === 0 && (
             <p className="text-xs text-zinc-500 p-3">No sites yet for this organisation — leave empty to grant access to all future sites.</p>
           )}
@@ -419,7 +419,7 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
             <label
               key={m.key}
               className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-white cursor-pointer"
-              style={{ borderColor: '#E4E4E7' }}
+              style={{ borderColor: '#E0E0E0' }}
               data-testid={`staff-wizard-module-${m.key}`}
             >
               <div className="min-w-0">
@@ -458,9 +458,9 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
             </p>
           </div>
           {result.invite_url ? (
-            <div className="rounded-lg border bg-white p-3 space-y-2" style={{ borderColor: '#E4E4E7' }}>
+            <div className="rounded-lg border bg-white p-3 space-y-2" style={{ borderColor: '#E0E0E0' }}>
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Invite link (72 h)</p>
-              <code className="block text-xs text-zinc-700 break-all bg-zinc-50 p-2 rounded border" style={{ borderColor: '#F4F4F5' }} data-testid="staff-wizard-invite-link">
+              <code className="block text-xs text-zinc-700 break-all bg-zinc-50 p-2 rounded border" style={{ borderColor: '#F0F0F0' }} data-testid="staff-wizard-invite-link">
                 {result.invite_url}
               </code>
               <div className="flex gap-2 pt-1">
@@ -509,7 +509,7 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
           ['Sites', orgRequired ? lockedSites : 'All sites (platform)'],
           ['Revoked modules', revoked.length ? revoked.join(', ') : 'None'],
         ].map(([k, v]) => (
-          <div key={k} className="flex items-start justify-between gap-3 py-2 border-b" style={{ borderColor: '#F4F4F5' }}>
+          <div key={k} className="flex items-start justify-between gap-3 py-2 border-b" style={{ borderColor: '#F0F0F0' }}>
             <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">{k}</span>
             <span className="text-sm text-zinc-900 text-right break-words">{v}</span>
           </div>
@@ -565,7 +565,7 @@ const StaffOnboardingWizard = ({ isPulseAdmin = false }) => {
 
       <Stepper idx={idx} />
 
-      <div className="rounded-xl border bg-white p-5" style={{ borderColor: '#E4E4E7' }}>
+      <div className="rounded-xl border bg-white p-5" style={{ borderColor: '#E0E0E0' }}>
         <div className="flex items-center gap-2 mb-4">
           <step.icon size={16} className="text-blue-700" />
           <h3 className="text-base font-bold text-zinc-900">{step.label}</h3>

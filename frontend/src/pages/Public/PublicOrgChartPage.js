@@ -10,15 +10,15 @@ const initials = (n) => (n || '?').split(' ').filter(Boolean).slice(0, 2).map((p
 
 function ROCard({ n, showContact }) {
   const isVac = n.type === 'vacancy';
-  const accent = isVac ? '#ea580c' : deptColor(n.department);
+  const accent = isVac ? '#d97706' : deptColor(n.department);
   return (
     <div className="absolute rounded-2xl bg-white" style={{
       left: n.x, top: n.y, width: CARD_W, minHeight: CARD_H,
-      border: `1.5px ${isVac ? 'dashed' : 'solid'} #e2e8f0`, borderLeft: `4px solid ${accent}`,
-      boxShadow: '0 2px 10px rgba(2,12,40,0.08)',
+      border: `1.5px ${isVac ? 'dashed' : 'solid'} #e0e0e0`, borderLeft: `4px solid ${accent}`,
+      boxShadow: '0 2px 10px rgba(27, 28, 29,0.08)',
     }}>
       <div className="p-3 flex items-start gap-2.5">
-        <div className="flex-shrink-0 rounded-xl flex items-center justify-center text-xs font-bold" style={{ width: 38, height: 38, color: '#fff', background: isVac ? '#fb923c' : accent }}>
+        <div className="flex-shrink-0 rounded-xl flex items-center justify-center text-xs font-bold" style={{ width: 38, height: 38, color: '#fff', background: isVac ? '#f59e0b' : accent }}>
           {n.is_engineer ? <Wrench size={16} /> : initials(n.full_name)}
         </div>
         <div className="min-w-0 flex-1">
@@ -31,7 +31,7 @@ function ROCard({ n, showContact }) {
         {n.site_name && <span className="inline-flex items-center gap-0.5"><MapPin size={9} /> {n.site_name}</span>}
         {showContact && n.email && <span className="inline-flex items-center gap-0.5 truncate" style={{ maxWidth: 120 }}><Mail size={9} /> {n.email}</span>}
         {showContact && n.phone && <span className="inline-flex items-center gap-0.5"><Phone size={9} /> {n.phone}</span>}
-        {isVac && n.recruitment_stage && <span className="font-semibold" style={{ color: '#ea580c' }}>{n.recruitment_stage}</span>}
+        {isVac && n.recruitment_stage && <span className="font-semibold" style={{ color: '#d97706' }}>{n.recruitment_stage}</span>}
       </div>
     </div>
   );
@@ -100,7 +100,7 @@ export default function PublicOrgChartPage() {
         <div style={{ width: contentW * scale, height: contentH * scale, position: 'relative', margin: '0 auto' }}>
           <div style={{ position: 'absolute', left: 0, top: 0, transform: `translate(${-b.minX}px, ${-b.minY}px) scale(${scale})`, transformOrigin: '0 0' }}>
             <svg style={{ position: 'absolute', left: 0, top: 0, overflow: 'visible', width: 1, height: 1, pointerEvents: 'none' }}>
-              {paths.map((p) => <path key={p.id} d={p.d} fill="none" stroke="#94a3b8" strokeWidth={1.6} strokeOpacity={0.6} />)}
+              {paths.map((p) => <path key={p.id} d={p.d} fill="none" stroke="#9a9fa1" strokeWidth={1.6} strokeOpacity={0.6} />)}
             </svg>
             {laid.map((n) => <ROCard key={n.id} n={n} showContact={data.show_contact} />)}
           </div>

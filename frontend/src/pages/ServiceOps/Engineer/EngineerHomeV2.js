@@ -65,7 +65,7 @@ const KPITile = ({ icon: Icon, label, value, accent, testid, onClick }) => (
     data-testid={testid}
   >
     <div className="flex items-center justify-between mb-2">
-      <Icon size={16} style={{ color: accent || '#0891b2' }} />
+      <Icon size={16} style={{ color: accent || '#0091ca' }} />
       {value !== 0 && value != null ? null : <span className="text-xs text-slate-400">·</span>}
     </div>
     <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{label}</p>
@@ -79,7 +79,7 @@ const QuickAction = ({ icon: Icon, label, onClick, primary, testid }) => (
     onClick={onClick}
     className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold border transition-all active:scale-[0.99] ${
       primary
-        ? 'bg-gradient-to-br from-[#0891b2] to-[#0e7490] text-white border-transparent shadow-md hover:shadow-lg'
+        ? 'bg-gradient-to-br from-[#0091ca] to-[#0073a4] text-white border-transparent shadow-md hover:shadow-lg'
         : 'bg-white text-slate-900 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
     }`}
     data-testid={testid}
@@ -431,19 +431,19 @@ export default function EngineerHomeV2() {
               </div>
             )}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="engineer-home-kpi-grid">
-              <KPITile icon={Calendar} label={t('service.eng_home_kpi_today', 'Today')} value={kpis.today_jobs} accent="#0891b2"
+              <KPITile icon={Calendar} label={t('service.eng_home_kpi_today', 'Today')} value={kpis.today_jobs} accent="#0091ca"
                        testid="kpi-today" onClick={() => navigate('/svc/engineer/jobs?when=today')} />
-              <KPITile icon={Clock} label={t('service.eng_home_kpi_upcoming', 'Upcoming')} value={kpis.upcoming_jobs} accent="#0e7490"
+              <KPITile icon={Clock} label={t('service.eng_home_kpi_upcoming', 'Upcoming')} value={kpis.upcoming_jobs} accent="#0073a4"
                        testid="kpi-upcoming" onClick={() => navigate('/svc/engineer/upcoming')} />
               <KPITile icon={AlertTriangle} label={t('service.eng_home_kpi_overdue', 'Overdue')} value={kpis.overdue_jobs} accent="#dc2626"
                        testid="kpi-overdue" onClick={() => navigate('/svc/engineer/jobs?when=overdue')} />
               <KPITile icon={RotateCcw} label={t('service.eng_home_kpi_return_to_fix', 'Return to Fix')} value={kpis.return_to_fix ?? kpis.awaiting_parts} accent="#f59e0b"
                        testid="kpi-return-to-fix" onClick={() => navigate('/svc/engineer/jobs?when=return_to_fix')} />
-              <KPITile icon={FileText} label={t('service.eng_home_kpi_pending_quotes', 'Pending quotes')} value={kpis.quote_pending} accent="#0891b2"
+              <KPITile icon={FileText} label={t('service.eng_home_kpi_pending_quotes', 'Pending quotes')} value={kpis.quote_pending} accent="#0091ca"
                        testid="kpi-pending-quotes" onClick={() => navigate('/svc/engineer/quotes')} />
               <KPITile icon={CheckCircle2} label={t('service.eng_home_kpi_accepted', 'Accepted')} value={kpis.quote_accepted} accent="#059669"
                        testid="kpi-accepted-quotes" onClick={() => navigate('/svc/engineer/quotes?status=accepted')} />
-              <KPITile icon={MessageCircle} label={t('service.eng_home_kpi_awaiting_customer', 'Awaiting customer')} value={kpis.awaiting_customer} accent="#0e7490"
+              <KPITile icon={MessageCircle} label={t('service.eng_home_kpi_awaiting_customer', 'Awaiting customer')} value={kpis.awaiting_customer} accent="#0073a4"
                        testid="kpi-awaiting-customer"
                        onClick={() => navigate('/svc/engineer/quotes?status=sent')} />
               <KPITile icon={Receipt} label={t('service.eng_home_kpi_invoiced', 'Invoiced')} value={kpis.quote_invoiced} accent="#16a34a"

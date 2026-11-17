@@ -157,8 +157,8 @@ export default function TeamSection({ profile, inviteCode }) {
         <div
           className="rounded-xl p-5 space-y-3"
           style={{
-            border: '1px solid color-mix(in srgb, var(--brand-color, #0055FF) 25%, transparent)',
-            background: 'color-mix(in srgb, var(--brand-color, #0055FF) 5%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--brand-color, #19CDFF) 25%, transparent)',
+            background: 'color-mix(in srgb, var(--brand-color, #19CDFF) 5%, transparent)',
           }}
           data-testid="account-team-invite-form"
         >
@@ -253,7 +253,7 @@ export default function TeamSection({ profile, inviteCode }) {
                       className="text-xs px-2.5 py-1 rounded-full border transition-colors"
                       style={{
                         borderColor: checked ? 'var(--brand-color, var(--color-brand-blue))' : 'var(--theme-border)',
-                        background: checked ? 'color-mix(in srgb, var(--brand-color, #0055FF) 12%, transparent)' : 'transparent',
+                        background: checked ? 'color-mix(in srgb, var(--brand-color, #19CDFF) 12%, transparent)' : 'transparent',
                         color: checked ? 'var(--brand-color, var(--color-brand-blue))' : 'var(--theme-text)',
                         fontWeight: checked ? 600 : 400,
                       }}
@@ -419,7 +419,7 @@ export default function TeamSection({ profile, inviteCode }) {
                               className="text-xs px-2.5 py-1 rounded-full border transition-colors"
                               style={{
                                 borderColor: checked ? 'var(--brand-color, var(--color-brand-blue))' : 'var(--theme-border)',
-                                background: checked ? 'color-mix(in srgb, var(--brand-color, #0055FF) 12%, transparent)' : 'transparent',
+                                background: checked ? 'color-mix(in srgb, var(--brand-color, #19CDFF) 12%, transparent)' : 'transparent',
                                 color: checked ? 'var(--brand-color, var(--color-brand-blue))' : 'var(--theme-text)',
                                 fontWeight: checked ? 600 : 400,
                               }}

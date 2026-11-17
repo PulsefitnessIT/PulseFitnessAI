@@ -156,7 +156,7 @@ export default function PartnerReviewPublic() {
                 type="submit"
                 disabled={busy}
                 className="px-5 py-2.5 text-sm font-bold text-white rounded-md disabled:opacity-50 inline-flex items-center gap-2"
-                style={{ background: 'var(--color-brand-blue, #0055FF)' }}
+                style={{ background: 'var(--color-brand-blue, #19CDFF)' }}
                 data-testid="review-submit"
               >
                 {busy ? <Loader2 size={13} className="animate-spin" /> : <Star size={13} />} {busy ? 'Submitting…' : 'Submit review'}

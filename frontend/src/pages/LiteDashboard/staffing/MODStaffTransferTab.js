@@ -162,13 +162,13 @@ export default function MODStaffTransferTab({ headers }) {
   return (
     <div className="space-y-5" data-testid="mod-staff-transfer-tab">
       {/* Header */}
-      <div className="rounded-2xl border p-5" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)' }}>
+      <div className="rounded-2xl border p-5" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)' }}>
         <div className="flex items-start gap-3">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: 'rgba(102,204,255,0.10)' }}
+            style={{ background: 'rgba(25, 205, 255,0.10)' }}
           >
-            <ArrowRightLeft size={18} style={{ color: '#33B8FF' }} />
+            <ArrowRightLeft size={18} style={{ color: '#19CDFF' }} />
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap">
@@ -176,7 +176,7 @@ export default function MODStaffTransferTab({ headers }) {
               {force && (
                 <span
                   className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                  style={{ background: 'rgba(102,204,255,0.12)', color: '#33B8FF', letterSpacing: '0.16em' }}
+                  style={{ background: 'rgba(25, 205, 255,0.12)', color: '#19CDFF', letterSpacing: '0.16em' }}
                   data-testid="mod-transfer-force-badge"
                 >
                   <Shield size={10} className="inline mr-1" />
@@ -195,25 +195,25 @@ export default function MODStaffTransferTab({ headers }) {
       </div>
 
       {/* Search */}
-      <div className="rounded-2xl border p-5" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)' }}>
+      <div className="rounded-2xl border p-5" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)' }}>
         <label className="block">
           <span className="text-[11px] uppercase font-bold tracking-wider" style={{ color: 'var(--theme-text-muted)' }}>
             Find a staff member by email
           </span>
           <div className="mt-2 relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#A2ACAB' }} />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#9A9FA1' }} />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by email address (e.g. j.smith@example.gov)…"
               className="w-full pl-9 pr-9 py-2.5 rounded-lg text-sm border focus:outline-none focus:border-cyan-400 transition-colors"
-              style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
+              style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text)' }}
               data-testid="mod-transfer-search"
               autoComplete="off"
             />
             {searching && (
-              <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin" style={{ color: '#A2ACAB' }} />
+              <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin" style={{ color: '#9A9FA1' }} />
             )}
           </div>
         </label>
@@ -236,16 +236,16 @@ export default function MODStaffTransferTab({ headers }) {
               type="button"
               onClick={() => { setSelected(r); setDestSiteId(''); setReason(''); }}
               className="w-full text-left rounded-xl border bg-white px-4 py-3 hover:border-cyan-400 transition-colors flex items-start gap-3"
-              style={{ borderColor: 'var(--theme-border, #E4E4E7)' }}
+              style={{ borderColor: 'var(--theme-border, #E0E0E0)' }}
               data-testid={`mod-transfer-result-${r.id}`}
             >
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0" style={{ background: 'rgba(102,204,255,0.10)', color: '#33B8FF' }}>
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0" style={{ background: 'rgba(25, 205, 255,0.10)', color: '#19CDFF' }}>
                 {(r.name || '?').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   {r.rank && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: 'rgba(102,204,255,0.12)', color: '#33B8FF' }}>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: 'rgba(25, 205, 255,0.12)', color: '#19CDFF' }}>
                       {r.rank}
                     </span>
                   )}
@@ -264,13 +264,13 @@ export default function MODStaffTransferTab({ headers }) {
                     <MapPin size={11} /> {r.current_site_name}
                   </span>
                   {r.email && (
-                    <span className="inline-flex items-center gap-1 font-medium" style={{ color: '#33B8FF' }}>
+                    <span className="inline-flex items-center gap-1 font-medium" style={{ color: '#19CDFF' }}>
                       <Mail size={11} /> {r.email}
                     </span>
                   )}
                 </div>
               </div>
-              <ArrowRightLeft size={14} className="shrink-0 mt-1" style={{ color: '#33B8FF' }} />
+              <ArrowRightLeft size={14} className="shrink-0 mt-1" style={{ color: '#19CDFF' }} />
             </button>
           ))}
         </div>
@@ -298,8 +298,8 @@ export default function MODStaffTransferTab({ headers }) {
             </button>
 
             <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(102,204,255,0.12)' }}>
-                <Users size={18} style={{ color: '#33B8FF' }} />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(25, 205, 255,0.12)' }}>
+                <Users size={18} style={{ color: '#19CDFF' }} />
               </div>
               <div className="flex-1">
                 <h4 className="text-base font-bold" style={{ color: 'var(--theme-text)' }}>Transfer {selected.name}</h4>
@@ -311,7 +311,7 @@ export default function MODStaffTransferTab({ headers }) {
 
             {/* Contact line */}
             {(selected.email || selected.phone) && (
-              <div className="mb-4 rounded-lg px-3 py-2 text-xs flex items-center gap-3" style={{ background: '#F8F9FA', color: 'var(--theme-text-muted)' }}>
+              <div className="mb-4 rounded-lg px-3 py-2 text-xs flex items-center gap-3" style={{ background: '#F7F7F7', color: 'var(--theme-text-muted)' }}>
                 {selected.email && <span className="inline-flex items-center gap-1"><Mail size={11} /> {selected.email}</span>}
                 {selected.phone && <span className="inline-flex items-center gap-1"><Phone size={11} /> {selected.phone}</span>}
               </div>
@@ -325,7 +325,7 @@ export default function MODStaffTransferTab({ headers }) {
                 value={destSiteId}
                 onChange={(e) => setDestSiteId(e.target.value)}
                 className="mt-1.5 w-full px-3 py-2.5 rounded-lg text-sm border focus:outline-none focus:border-cyan-400 transition-colors"
-                style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
+                style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text)' }}
                 data-testid="mod-transfer-destination"
               >
                 <option value="">— Choose a site —</option>
@@ -350,7 +350,7 @@ export default function MODStaffTransferTab({ headers }) {
                 maxLength={400}
                 placeholder="e.g. Reassignment to PT team at Vimy"
                 className="mt-1.5 w-full px-3 py-2.5 rounded-lg text-sm border focus:outline-none focus:border-cyan-400 transition-colors resize-none"
-                style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
+                style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text)' }}
                 data-testid="mod-transfer-reason"
               />
             </label>
@@ -365,7 +365,7 @@ export default function MODStaffTransferTab({ headers }) {
                 onChange={(e) => setConfirmDob(e.target.value)}
                 max={new Date().toISOString().slice(0, 10)}
                 className="mt-1.5 w-full px-3 py-2.5 rounded-lg text-sm border focus:outline-none focus:border-cyan-400 transition-colors"
-                style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
+                style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text)' }}
                 data-testid="mod-transfer-confirm-dob"
               />
               <span className="text-[11px] mt-1 block" style={{ color: 'var(--theme-text-muted)' }}>
@@ -395,8 +395,8 @@ export default function MODStaffTransferTab({ headers }) {
             )}
 
             {targetSiteName && !proactiveDup && !dupWarning && (
-              <div className="mt-4 rounded-lg px-3 py-2.5 text-xs flex items-start gap-2" style={{ background: 'rgba(102,204,255,0.08)', border: '1px solid rgba(102,204,255,0.25)' }}>
-                <CheckCircle2 size={14} style={{ color: '#33B8FF' }} className="shrink-0 mt-0.5" />
+              <div className="mt-4 rounded-lg px-3 py-2.5 text-xs flex items-start gap-2" style={{ background: 'rgba(25, 205, 255,0.08)', border: '1px solid rgba(25, 205, 255,0.25)' }}>
+                <CheckCircle2 size={14} style={{ color: '#19CDFF' }} className="shrink-0 mt-0.5" />
                 <span style={{ color: 'var(--theme-text)' }}>
                   <strong>{selected.name}</strong> will be moved from <strong>{selected.current_site_name}</strong> to <strong>{targetSiteName}</strong>. Their fault history stays with them.
                 </span>
@@ -418,7 +418,7 @@ export default function MODStaffTransferTab({ headers }) {
                 onClick={submit}
                 disabled={submitting || !destSiteId || !confirmDob || !!proactiveDup}
                 className="px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-2 disabled:opacity-50"
-                style={{ background: '#66CCFF', color: '#212721' }}
+                style={{ background: '#19CDFF', color: '#1B1C1D' }}
                 data-testid="mod-transfer-confirm"
               >
                 {submitting ? <Loader2 size={14} className="animate-spin" /> : <ArrowRightLeft size={14} />}

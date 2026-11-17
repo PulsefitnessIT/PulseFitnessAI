@@ -102,7 +102,7 @@ export default function PulseModulePricing({ onStart }) {
   };
 
   const pillBase = 'px-3.5 h-8 rounded-full text-sm font-semibold transition-colors';
-  const activePill = 'bg-[var(--pulse-primary)] text-[#0A0C10]';
+  const activePill = 'bg-[var(--pulse-primary)] text-[#1B1C1D]';
   const idlePill = 'text-[var(--color-text-slate)] hover:text-[var(--color-surface-dark-panel-alt)]';
 
   return (
@@ -120,7 +120,7 @@ export default function PulseModulePricing({ onStart }) {
 
         {/* Currency + billing controls */}
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3" data-testid="pulse-pricing-controls">
-          <div className="inline-flex rounded-full border border-[var(--color-border-subtle,#e5e7eb)] bg-white p-1" data-testid="pulse-currency-toggle">
+          <div className="inline-flex rounded-full border border-[var(--color-border-subtle,#e0e0e0)] bg-white p-1" data-testid="pulse-currency-toggle">
             {['gbp', 'eur', 'usd'].map((c) => (
               <button key={c} type="button" onClick={() => { setCcyPicked(true); setCurrency(c); }}
                 className={`${pillBase} ${currency === c ? activePill : idlePill}`} data-testid={`pulse-currency-${c}`}>
@@ -128,7 +128,7 @@ export default function PulseModulePricing({ onStart }) {
               </button>
             ))}
           </div>
-          <div className="inline-flex items-center rounded-full border border-[var(--color-border-subtle,#e5e7eb)] bg-white p-1" data-testid="pulse-billing-toggle">
+          <div className="inline-flex items-center rounded-full border border-[var(--color-border-subtle,#e0e0e0)] bg-white p-1" data-testid="pulse-billing-toggle">
             {[['monthly', t('pulse_pricing.monthly', 'Monthly')], ['annual', t('pulse_pricing.annual', 'Annual')]].map(([v, label]) => (
               <button key={v} type="button" onClick={() => setCycle(v)}
                 className={`${pillBase} ${cycle === v ? activePill : idlePill}`} data-testid={`pulse-billing-${v}`}>
@@ -154,11 +154,11 @@ export default function PulseModulePricing({ onStart }) {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.05 }}
-                className={`relative rounded-2xl bg-white p-6 flex flex-col ${featured ? 'border-2 border-[var(--pulse-primary)] shadow-lg' : 'border border-[var(--color-border-subtle,#e5e7eb)]'}`}
+                className={`relative rounded-2xl bg-white p-6 flex flex-col ${featured ? 'border-2 border-[var(--pulse-primary)] shadow-lg' : 'border border-[var(--color-border-subtle,#e0e0e0)]'}`}
                 data-testid={`pulse-module-card-${id}`}
               >
                 {featured ? (
-                  <span className="absolute -top-2.5 left-6 bg-[var(--pulse-primary)] text-[#0A0C10] text-[10px] font-bold uppercase tracking-[0.14em] px-2.5 py-0.5 rounded-full" data-testid="pulse-flagship-badge">
+                  <span className="absolute -top-2.5 left-6 bg-[var(--pulse-primary)] text-[#1B1C1D] text-[10px] font-bold uppercase tracking-[0.14em] px-2.5 py-0.5 rounded-full" data-testid="pulse-flagship-badge">
                     {t('pulse_pricing.recommended', 'Recommended')}
                   </span>
                 ) : null}
@@ -172,7 +172,7 @@ export default function PulseModulePricing({ onStart }) {
                 <button
                   type="button"
                   onClick={() => start(id)}
-                  className={`mt-5 w-full h-11 rounded-full font-semibold text-sm flex items-center justify-center gap-2 transition-colors ${featured ? 'bg-[var(--pulse-primary)] hover:brightness-95 text-[#0A0C10]' : 'border border-[var(--color-border-subtle,#d4d4d8)] text-[var(--color-surface-dark-panel-alt)] hover:border-[var(--pulse-primary)]'}`}
+                  className={`mt-5 w-full h-11 rounded-full font-semibold text-sm flex items-center justify-center gap-2 transition-colors ${featured ? 'bg-[var(--pulse-primary)] hover:brightness-95 text-[#1B1C1D]' : 'border border-[var(--color-border-subtle,#c9cbcc)] text-[var(--color-surface-dark-panel-alt)] hover:border-[var(--pulse-primary)]'}`}
                   data-testid={`pulse-module-start-${id}`}
                 >
                   {user
@@ -187,7 +187,7 @@ export default function PulseModulePricing({ onStart }) {
         {/* Lite — free, included with a Pulse Fitness equipment agreement.
             Light styling to match the module cards on the light pricing page. */}
         <div
-          className="mt-6 rounded-2xl border border-[var(--color-border-subtle,#d4d4d8)] bg-white p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          className="mt-6 rounded-2xl border border-[var(--color-border-subtle,#c9cbcc)] bg-white p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
           data-testid="pulse-module-lite-tile"
         >
           <div className="flex items-start gap-3">
@@ -196,10 +196,10 @@ export default function PulseModulePricing({ onStart }) {
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold text-[var(--color-surface-dark-panel-alt,#0f172a)]">Lite</h3>
-                <span className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[var(--pulse-primary)] text-[#0A0C10]">Free</span>
+                <h3 className="text-lg font-bold text-[var(--color-surface-dark-panel-alt,#1b1c1d)]">Lite</h3>
+                <span className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[var(--pulse-primary)] text-[#1B1C1D]">Free</span>
               </div>
-              <p className="text-sm text-[var(--color-text-slate,#475569)] mt-0.5 max-w-md">
+              <p className="text-sm text-[var(--color-text-slate,#565B5E)] mt-0.5 max-w-md">
                 {t('pulse_pricing.lite_blurb', 'Included free with your Pulse Fitness equipment agreement — asset register, fault logging and your service portal.')}
               </p>
             </div>
@@ -207,7 +207,7 @@ export default function PulseModulePricing({ onStart }) {
           <button
             type="button"
             onClick={goToPortal}
-            className="shrink-0 h-11 px-5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 border border-[var(--color-border-subtle,#d4d4d8)] text-[var(--color-surface-dark-panel-alt,#0f172a)] hover:border-[var(--pulse-primary)] hover:text-[var(--pulse-primary)] transition-colors"
+            className="shrink-0 h-11 px-5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 border border-[var(--color-border-subtle,#c9cbcc)] text-[var(--color-surface-dark-panel-alt,#1b1c1d)] hover:border-[var(--pulse-primary)] hover:text-[var(--pulse-primary)] transition-colors"
             data-testid="pulse-module-lite-cta"
           >
             {user ? t('pulse_pricing.lite_open', 'Open your portal') : t('pulse_pricing.lite_signin', 'Sign in to your portal')} <ArrowRight size={15} />
@@ -220,7 +220,7 @@ export default function PulseModulePricing({ onStart }) {
             type="button"
             onClick={startTrial}
             disabled={trialBusy}
-            className="h-12 px-7 rounded-full font-bold text-sm flex items-center justify-center gap-2 bg-[var(--pulse-primary)] text-[#0A0C10] hover:brightness-95 transition disabled:opacity-60"
+            className="h-12 px-7 rounded-full font-bold text-sm flex items-center justify-center gap-2 bg-[var(--pulse-primary)] text-[#1B1C1D] hover:brightness-95 transition disabled:opacity-60"
             data-testid="pulse-start-trial-btn"
           >
             {trialBusy ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}

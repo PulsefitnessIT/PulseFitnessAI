@@ -95,7 +95,7 @@ function EnrolJourneyButton({ contactId, API, headers, c, isDark, onEnrolled }) 
         type="button"
         onClick={() => setOpen(true)}
         className="px-3 py-1.5 text-xs font-bold rounded-md transition-all hover:opacity-90 flex items-center gap-1.5"
-        style={{ background: 'var(--color-accent-indigo, #6366f1)', color: '#fff' }}
+        style={{ background: 'var(--color-accent-indigo, #19cdff)', color: '#fff' }}
         data-testid="contact-enrol-journey-btn"
         title="Enrol this contact into a B2B email journey"
       >
@@ -171,7 +171,7 @@ function EnrolJourneyButton({ contactId, API, headers, c, isDark, onEnrolled }) 
                         onClick={() => enrol(j)}
                         disabled={busyId === j.id}
                         className="px-3 py-1.5 text-xs font-bold rounded-md transition-all hover:opacity-90 flex items-center gap-1.5 disabled:opacity-50"
-                        style={{ background: 'var(--color-accent-indigo, #6366f1)', color: '#fff' }}
+                        style={{ background: 'var(--color-accent-indigo, #19cdff)', color: '#fff' }}
                         data-testid={`enrol-journey-${j.id}-launch`}
                       >
                         {busyId === j.id ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
@@ -759,7 +759,7 @@ function ContactDetail({ contactId, onBack, c, isDark, API, headers, navigateTo 
                 className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded"
                 style={{
                   background: contact.adoption_sentiment.includes('supporter') ? 'rgba(16,185,129,0.15)' : contact.adoption_sentiment.includes('anti') ? 'rgba(239,68,68,0.15)' : 'rgba(113,113,122,0.15)',
-                  color: contact.adoption_sentiment.includes('supporter') ? 'var(--color-success-alt)' : contact.adoption_sentiment.includes('anti') ? 'var(--color-danger-alt)' : 'var(--color-textMuted, #71717a)',
+                  color: contact.adoption_sentiment.includes('supporter') ? 'var(--color-success-alt)' : contact.adoption_sentiment.includes('anti') ? 'var(--color-danger-alt)' : 'var(--color-textMuted, #6e7476)',
                 }}
                 data-testid="contact-header-sentiment-badge"
                 title="Adoption sentiment (Strategic Selling)"
@@ -772,7 +772,7 @@ function ContactDetail({ contactId, onBack, c, isDark, API, headers, navigateTo 
                 className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded"
                 style={{
                   background: contact.buying_influence_level === 'high' ? 'rgba(244,63,94,0.15)' : contact.buying_influence_level === 'medium' ? 'rgba(245,158,11,0.15)' : 'rgba(113,113,122,0.15)',
-                  color: contact.buying_influence_level === 'high' ? 'var(--color-danger-alt)' : contact.buying_influence_level === 'medium' ? 'var(--color-accent-amber)' : 'var(--color-textMuted, #71717a)',
+                  color: contact.buying_influence_level === 'high' ? 'var(--color-danger-alt)' : contact.buying_influence_level === 'medium' ? 'var(--color-accent-amber)' : 'var(--color-textMuted, #6e7476)',
                 }}
                 data-testid="contact-header-influence-badge"
                 title="Buying influence level (Strategic Selling)"

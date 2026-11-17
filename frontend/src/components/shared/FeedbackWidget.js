@@ -89,7 +89,7 @@ export default function FeedbackWidget() {
 
       {open && (
         <div
-          className="fixed bottom-5 left-5 z-[45] w-[calc(100%-2.5rem)] max-w-sm rounded-2xl bg-white dark:bg-zinc-900 shadow-[0_24px_60px_-15px_rgba(15,23,42,0.4)] border border-zinc-200 dark:border-zinc-800 p-4"
+          className="fixed bottom-5 left-5 z-[45] w-[calc(100%-2.5rem)] max-w-sm rounded-2xl bg-white dark:bg-zinc-900 shadow-[0_24px_60px_-15px_rgba(27, 28, 29,0.4)] border border-zinc-200 dark:border-zinc-800 p-4"
           data-testid="gx-feedback-panel"
         >
           <div className="flex items-start justify-between mb-3">

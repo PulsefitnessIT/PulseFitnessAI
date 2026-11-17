@@ -28,7 +28,7 @@ export default function IncidentSignaturePad({ onChange, height = 140, testId = 
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.lineWidth = 2;
-    ctx.strokeStyle = '#0F172A';
+    ctx.strokeStyle = '#1B1C1D';
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, rect.width, height);
   }, [height]);

@@ -43,10 +43,10 @@ export const BrandPicker = ({ compact = false, isPulseAdmin = false }) => {
     return (
       <div
         className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1.5 text-sm font-medium shadow-sm"
-        style={{ borderColor: '#BFDBFE', color: '#1D4ED8', background: '#EFF6FF' }}
+        style={{ borderColor: '#BFDBFE', color: '#0091CA', background: '#E4F9FF' }}
         data-testid="master-admin-brand-picker-locked"
       >
-        <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#0055FF' }} aria-hidden />
+        <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#19CDFF' }} aria-hidden />
         <span className="font-semibold tracking-tight">Pulse Fitness</span>
       </div>
     );
@@ -58,7 +58,7 @@ export const BrandPicker = ({ compact = false, isPulseAdmin = false }) => {
         type="button"
         onClick={() => setOpen((p) => !p)}
         className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-zinc-50 transition-colors"
-        style={{ borderColor: '#E4E4E7', color: '#0A0A0A' }}
+        style={{ borderColor: '#E0E0E0', color: '#1B1C1D' }}
         data-testid="master-admin-brand-picker-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -72,7 +72,7 @@ export const BrandPicker = ({ compact = false, isPulseAdmin = false }) => {
         <div
           role="listbox"
           className="absolute right-0 mt-1.5 w-56 rounded-lg border bg-white shadow-lg z-50 overflow-hidden"
-          style={{ borderColor: '#E4E4E7' }}
+          style={{ borderColor: '#E0E0E0' }}
           data-testid="master-admin-brand-picker-menu"
         >
           <div className="px-3 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Brand context</div>
@@ -86,16 +86,16 @@ export const BrandPicker = ({ compact = false, isPulseAdmin = false }) => {
                 aria-selected={active}
                 onClick={() => { setBrand(opt.id); setOpen(false); }}
                 className="w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 hover:bg-zinc-50"
-                style={{ background: active ? 'rgba(0,85,255,0.06)' : 'transparent' }}
+                style={{ background: active ? 'rgba(25, 205, 255,0.06)' : 'transparent' }}
                 data-testid={`master-admin-brand-picker-option-${opt.id}`}
               >
                 <span className="inline-block w-2 h-2 rounded-full" style={{ background: opt.accent }} aria-hidden />
                 <span className={active ? 'font-semibold text-zinc-900' : 'text-zinc-700'}>{opt.label}</span>
-                {active && <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-[#0055FF]">Active</span>}
+                {active && <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-[#19CDFF]">Active</span>}
               </button>
             );
           })}
-          <div className="px-3 pt-2 pb-2.5 text-[10px] leading-snug text-zinc-500 border-t" style={{ borderColor: '#F4F4F5' }}>
+          <div className="px-3 pt-2 pb-2.5 text-[10px] leading-snug text-zinc-500 border-t" style={{ borderColor: '#F0F0F0' }}>
             Filters every Master Admin list, dashboard and audit view by brand. Stored locally so it survives reloads.
           </div>
         </div>

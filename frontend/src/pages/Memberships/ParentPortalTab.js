@@ -108,7 +108,7 @@ export default function ParentPortalTab({ API, headers }) {
           the customer-facing parent portal in a new tab. */}
       <section
         className="rounded-2xl border p-4 flex items-center gap-3 flex-wrap"
-        style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'var(--theme-surface, #fff)' }}
+        style={{ borderColor: 'var(--theme-border, #e0e0e0)', background: 'var(--theme-surface, #fff)' }}
         data-testid="parent-portal-preview"
       >
         <div className="rounded-full p-2" style={{ background: 'rgba(34,211,238,0.12)' }}>
@@ -138,7 +138,7 @@ export default function ParentPortalTab({ API, headers }) {
       {/* Vocabulary preview */}
       <section
         className="rounded-2xl border p-4"
-        style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'var(--theme-surface, #fff)' }}
+        style={{ borderColor: 'var(--theme-border, #e0e0e0)', background: 'var(--theme-surface, #fff)' }}
         data-testid="parent-portal-vocab"
       >
         <header className="flex items-start gap-2 flex-wrap mb-2">
@@ -163,7 +163,7 @@ export default function ParentPortalTab({ API, headers }) {
       {/* Push subscriptions */}
       <section
         className="rounded-2xl border p-4 flex items-center gap-3 flex-wrap"
-        style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'var(--theme-surface, #fff)' }}
+        style={{ borderColor: 'var(--theme-border, #e0e0e0)', background: 'var(--theme-surface, #fff)' }}
         data-testid="parent-portal-push"
       >
         <div className="rounded-full p-2" style={{ background: 'rgba(59,130,246,0.12)' }}>
@@ -185,7 +185,7 @@ export default function ParentPortalTab({ API, headers }) {
       {/* Consent forms */}
       <section
         className="rounded-2xl border p-4"
-        style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'var(--theme-surface, #fff)' }}
+        style={{ borderColor: 'var(--theme-border, #e0e0e0)', background: 'var(--theme-surface, #fff)' }}
         data-testid="parent-portal-forms"
       >
         <header className="flex items-start justify-between flex-wrap gap-2 mb-3">
@@ -196,7 +196,7 @@ export default function ParentPortalTab({ API, headers }) {
             <h3 className="text-base font-bold">Forms parents must sign before booking</h3>
             <p className="text-[11.5px] opacity-70 mt-1">Editing a form's body increments its version — every member must re-sign. Archived forms keep their old signatures on file.</p>
           </div>
-          <button type="button" onClick={startNew} className="px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5" style={{ background: 'var(--color-brand-blue, #1d4ed8)', color: '#fff' }} data-testid="parent-portal-form-new">
+          <button type="button" onClick={startNew} className="px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5" style={{ background: 'var(--color-brand-blue, #0091ca)', color: '#fff' }} data-testid="parent-portal-form-new">
             <Plus size={11} /> New form
           </button>
         </header>
@@ -217,7 +217,7 @@ export default function ParentPortalTab({ API, headers }) {
             </label>
             <div className="flex items-center gap-2 justify-end">
               <button type="button" onClick={cancelEdit} className="px-2 py-1 rounded text-xs border" style={{ borderColor: 'var(--theme-border)' }} data-testid="parent-portal-form-cancel">Cancel</button>
-              <button type="button" onClick={save} disabled={saving} className="px-3 py-1.5 rounded text-xs font-bold inline-flex items-center gap-1" style={{ background: 'var(--color-brand-blue, #1d4ed8)', color: '#fff', opacity: saving ? 0.6 : 1 }} data-testid="parent-portal-form-save">
+              <button type="button" onClick={save} disabled={saving} className="px-3 py-1.5 rounded text-xs font-bold inline-flex items-center gap-1" style={{ background: 'var(--color-brand-blue, #0091ca)', color: '#fff', opacity: saving ? 0.6 : 1 }} data-testid="parent-portal-form-save">
                 {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />} Save
               </button>
             </div>
@@ -226,13 +226,13 @@ export default function ParentPortalTab({ API, headers }) {
 
         <ul className="space-y-2 mt-3" data-testid="parent-portal-form-list">
           {forms.length === 0 ? (
-            <li className="text-center py-6 px-3 rounded-xl border-2 border-dashed" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }}>
+            <li className="text-center py-6 px-3 rounded-xl border-2 border-dashed" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }}>
               <FileText size={22} className="mx-auto mb-1 opacity-50" />
               <p className="text-sm font-bold">No forms yet</p>
               <p className="text-xs opacity-70 mt-1">Add your photography consent, medical waiver, or studio rules so parents can sign once and book everywhere.</p>
             </li>
           ) : forms.map((f) => (
-            <li key={f.id} className="flex items-start gap-3 p-3 rounded-lg border" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid={`parent-portal-form-${f.id}`}>
+            <li key={f.id} className="flex items-start gap-3 p-3 rounded-lg border" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }} data-testid={`parent-portal-form-${f.id}`}>
               <div className="rounded-full p-1.5 mt-0.5" style={{ background: 'rgba(16,185,129,0.12)' }}>
                 <ShieldCheck size={14} className="text-emerald-600" />
               </div>
@@ -260,7 +260,7 @@ export default function ParentPortalTab({ API, headers }) {
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-lg border p-2" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }}>
+    <div className="rounded-lg border p-2" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }}>
       <p className="text-[10px] uppercase tracking-wider opacity-60 font-bold">{label}</p>
       <p className="text-sm font-bold mt-0.5 capitalize">{value}</p>
     </div>

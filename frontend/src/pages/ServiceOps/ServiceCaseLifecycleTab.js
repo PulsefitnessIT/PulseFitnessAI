@@ -31,10 +31,10 @@ const STAGE_ICON = {
 
 // Cost-to-serve segments — order matters (renders left→right).
 const COST_SEGMENTS = [
-  { key: 'labour', label: 'Labour', color: '#4f46e5' },
+  { key: 'labour', label: 'Labour', color: '#0091ca' },
   { key: 'parts',  label: 'Parts',  color: '#f59e0b' },
-  { key: 'travel', label: 'Travel', color: '#0ea5e9' },
-  { key: 'other',  label: 'Other',  color: '#94a3b8' },
+  { key: 'travel', label: 'Travel', color: '#19cdff' },
+  { key: 'other',  label: 'Other',  color: '#9a9fa1' },
 ];
 
 function fmtDate(s) {
@@ -53,7 +53,7 @@ function CostToServeBar({ breakdown, total, cur, margin }) {
   const m = margin || {};
   const hasMargin = m.margin_total != null;
   const pct = m.margin_pct;
-  const marginTone = pct == null ? '#64748b' : pct >= 40 ? '#059669' : pct >= 15 ? '#d97706' : '#dc2626';
+  const marginTone = pct == null ? '#6e7476' : pct >= 40 ? '#059669' : pct >= 15 ? '#d97706' : '#dc2626';
   const missing = m.missing_cost || [];
 
   return (
@@ -62,9 +62,9 @@ function CostToServeBar({ breakdown, total, cur, margin }) {
         <div className="flex items-center gap-1.5 svc-muted text-[10px] font-bold uppercase tracking-wider">
           <PoundSterling size={12} /> Cost to serve
         </div>
-        <span className="text-xs font-bold" style={{ color: 'var(--svc-text, #0f172a)' }}>{cur}{total.toFixed(2)}</span>
+        <span className="text-xs font-bold" style={{ color: 'var(--svc-text, #1b1c1d)' }}>{cur}{total.toFixed(2)}</span>
       </div>
-      <div className="flex h-2.5 w-full overflow-hidden rounded-full" style={{ background: 'var(--svc-surface-2, #f1f5f9)' }}>
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full" style={{ background: 'var(--svc-surface-2, #f0f0f0)' }}>
         {segs.map((s) => (
           <div
             key={s.key}
@@ -79,7 +79,7 @@ function CostToServeBar({ breakdown, total, cur, margin }) {
           <div key={s.key} className="flex items-center gap-1.5 text-[11px]" data-testid={`cost-legend-${s.key}`}>
             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
             <span className="svc-muted">{s.label}</span>
-            <span className="font-semibold" style={{ color: 'var(--svc-text, #0f172a)' }}>
+            <span className="font-semibold" style={{ color: 'var(--svc-text, #1b1c1d)' }}>
               {cur}{s.amount.toFixed(2)}
             </span>
             <span className="svc-muted">({Math.round((s.amount / total) * 100)}%)</span>
@@ -89,7 +89,7 @@ function CostToServeBar({ breakdown, total, cur, margin }) {
 
       {/* Margin (charge vs internal cost) — only when a cost basis exists */}
       {hasMargin ? (
-        <div className="mt-2.5 pt-2.5 flex items-center justify-between gap-2" style={{ borderTop: '1px solid var(--svc-border, #e2e8f0)' }} data-testid="lifecycle-margin">
+        <div className="mt-2.5 pt-2.5 flex items-center justify-between gap-2" style={{ borderTop: '1px solid var(--svc-border, #e0e0e0)' }} data-testid="lifecycle-margin">
           <div className="flex items-center gap-1.5">
             <span className="svc-muted text-[10px] font-bold uppercase tracking-wider">Margin</span>
             {m.cost_basis === 'partial' && missing.length > 0 && (
@@ -104,7 +104,7 @@ function CostToServeBar({ breakdown, total, cur, margin }) {
           </div>
         </div>
       ) : (
-        <div className="mt-2.5 pt-2.5 text-[11px] svc-muted" style={{ borderTop: '1px solid var(--svc-border, #e2e8f0)' }} data-testid="lifecycle-margin-empty">
+        <div className="mt-2.5 pt-2.5 text-[11px] svc-muted" style={{ borderTop: '1px solid var(--svc-border, #e0e0e0)' }} data-testid="lifecycle-margin-empty">
           Add part costs &amp; engineer pay rates to unlock job margin.
         </div>
       )}
@@ -180,7 +180,7 @@ export default function ServiceCaseLifecycleTab({ caseId, onNavigate }) {
             <div className="flex items-center gap-1.5 svc-muted text-[10px] font-bold uppercase tracking-wider">
               <c.icon size={12} /> {c.label}
             </div>
-            <div className="text-lg font-bold mt-0.5" style={{ color: 'var(--svc-text, #0f172a)' }}>{c.value}</div>
+            <div className="text-lg font-bold mt-0.5" style={{ color: 'var(--svc-text, #1b1c1d)' }}>{c.value}</div>
           </div>
         ))}
       </div>
@@ -206,7 +206,7 @@ export default function ServiceCaseLifecycleTab({ caseId, onNavigate }) {
           const RowTag = action ? 'button' : 'div';
           return (
             <li key={st.key} className="relative flex gap-3 pb-5" data-testid={`lifecycle-stage-${st.key}`}>
-              {!last && <span className="absolute left-[15px] top-8 bottom-0 w-px" style={{ background: 'var(--svc-border, #e2e8f0)' }} />}
+              {!last && <span className="absolute left-[15px] top-8 bottom-0 w-px" style={{ background: 'var(--svc-border, #e0e0e0)' }} />}
               <span className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${st.done ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
                 <Icon size={15} />
               </span>
@@ -219,7 +219,7 @@ export default function ServiceCaseLifecycleTab({ caseId, onNavigate }) {
                   className={`w-full text-left ${action ? 'group cursor-pointer rounded-md -mx-1 px-1 py-0.5 hover:bg-black/[0.03] transition-colors' : ''}`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <p className={`text-sm font-bold flex items-center gap-1.5 ${st.done ? '' : 'svc-muted'}`} style={st.done ? { color: 'var(--svc-text, #0f172a)' } : undefined}>
+                    <p className={`text-sm font-bold flex items-center gap-1.5 ${st.done ? '' : 'svc-muted'}`} style={st.done ? { color: 'var(--svc-text, #1b1c1d)' } : undefined}>
                       {st.label}
                       {action && (
                         st.key === 'invoice' && openingInvoice
@@ -232,7 +232,7 @@ export default function ServiceCaseLifecycleTab({ caseId, onNavigate }) {
                     {st.at && <span className="svc-muted text-[11px] shrink-0">{fmtDate(st.at)}</span>}
                   </div>
                   {st.detail && <p className="svc-muted text-xs mt-0.5">{st.detail}</p>}
-                  {action?.hint && <p className="text-[10px] mt-0.5" style={{ color: 'var(--svc-accent, #4f46e5)' }}>{action.hint}</p>}
+                  {action?.hint && <p className="text-[10px] mt-0.5" style={{ color: 'var(--svc-accent, #0091ca)' }}>{action.hint}</p>}
                 </RowTag>
 
                 {st.key === 'asset' && st.meta?.manufacturer && (
@@ -243,9 +243,9 @@ export default function ServiceCaseLifecycleTab({ caseId, onNavigate }) {
                   partsOpen ? (
                     <ul className="mt-2 space-y-1" data-testid="lifecycle-parts-detail">
                       {st.meta.parts.map((p, idx) => (
-                        <li key={p.id || idx} className="flex items-center justify-between gap-2 text-[11px] rounded-md px-2 py-1.5" style={{ background: 'var(--svc-surface-2, #f1f5f9)' }}>
+                        <li key={p.id || idx} className="flex items-center justify-between gap-2 text-[11px] rounded-md px-2 py-1.5" style={{ background: 'var(--svc-surface-2, #f0f0f0)' }}>
                           <span className="min-w-0 truncate">
-                            <span className="font-semibold" style={{ color: 'var(--svc-text, #0f172a)' }}>{p.name}</span>
+                            <span className="font-semibold" style={{ color: 'var(--svc-text, #1b1c1d)' }}>{p.name}</span>
                             {p.sku ? <span className="svc-muted"> · {p.sku}</span> : null}
                           </span>
                           <span className="flex items-center gap-2 shrink-0">
@@ -261,7 +261,7 @@ export default function ServiceCaseLifecycleTab({ caseId, onNavigate }) {
                   ) : (
                     <ul className="mt-1 flex flex-wrap gap-1">
                       {st.meta.parts.map((p, idx) => (
-                        <li key={p.id || idx} className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: 'var(--svc-surface-2, #f1f5f9)' }}>{p.name}{p.qty > 1 ? ` ×${p.qty}` : ''}</li>
+                        <li key={p.id || idx} className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: 'var(--svc-surface-2, #f0f0f0)' }}>{p.name}{p.qty > 1 ? ` ×${p.qty}` : ''}</li>
                       ))}
                     </ul>
                   )

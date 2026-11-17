@@ -57,7 +57,7 @@ const FaultTemplatePicker = ({ API, onApply }) => {
   return (
     <div
       className="rounded-md border px-3 py-2.5 mb-3"
-      style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface-2, rgba(0,85,255,0.04))' }}
+      style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface-2, rgba(25, 205, 255,0.04))' }}
       data-testid="fault-template-picker"
     >
       <div className="flex items-center gap-2 mb-2">

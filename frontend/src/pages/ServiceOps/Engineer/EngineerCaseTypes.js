@@ -32,7 +32,7 @@ const auth = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
 });
 
-const SWATCHES = ['#dc2626', '#ea580c', '#d97706', '#16a34a', '#0891b2', '#0284c7', '#0d9488', '#db2777', '#475569'];
+const SWATCHES = ['#dc2626', '#d97706', '#d97706', '#16a34a', '#0091ca', '#0091ca', '#0d9488', '#0091ca', '#565B5E'];
 
 export default function EngineerCaseTypes() {
   const navigate = useNavigate();
@@ -163,7 +163,7 @@ export default function EngineerCaseTypes() {
                   data-testid={`case-type-row-${row.slug}`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: row.color || '#475569' }} />
+                    <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ background: row.color || '#565B5E' }} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-sm font-bold text-slate-900 truncate" data-testid={`case-type-label-${row.slug}`}>{row.label}</p>
@@ -212,7 +212,7 @@ function CaseTypeEditor({ mode, row, onCancel, onSaved }) {
   const isEdit = mode === 'edit';
   const [label, setLabel] = useState(row?.label || '');
   const [description, setDescription] = useState(row?.description || '');
-  const [color, setColor] = useState(row?.color || '#475569');
+  const [color, setColor] = useState(row?.color || '#565B5E');
   const [busy, setBusy] = useState(false);
 
   const save = async () => {

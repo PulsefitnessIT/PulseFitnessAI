@@ -82,8 +82,8 @@ const AVATAR_PALETTE = [
   { bg: '#FDBA74', fg: '#7C2D12' },
   { bg: '#FCD34D', fg: '#78350F' },
   { bg: '#86EFAC', fg: '#14532D' },
-  { bg: '#67E8F9', fg: '#164E63' },
-  { bg: '#93C5FD', fg: '#1E3A8A' },
+  { bg: '#19CDFF', fg: '#164E63' },
+  { bg: '#19CDFF', fg: '#0073A4' },
   { bg: '#C4B5FD', fg: '#4C1D95' },
   { bg: '#F0ABFC', fg: '#701A75' },
   { bg: '#F9A8D4', fg: '#831843' },
@@ -203,7 +203,7 @@ function NewThreadModal({ open, onClose, headers, isManager, isMOD = false, staf
                 className="h-8 px-3 rounded-full text-xs font-bold inline-flex items-center gap-1 transition-colors"
                 style={{
                   background: on ? 'var(--color-brand-cyan)' : 'transparent',
-                  color: on ? '#001219' : 'var(--theme-text-muted)',
+                  color: on ? '#1B1C1D' : 'var(--theme-text-muted)',
                   border: '1px solid var(--theme-border)',
                 }}
                 data-testid={`new-thread-kind-${k}`}>
@@ -230,7 +230,7 @@ function NewThreadModal({ open, onClose, headers, isManager, isMOD = false, staf
             data-testid="new-thread-send-all">
             <span className="w-4 h-4 rounded inline-flex items-center justify-center shrink-0"
               style={{ border: '1px solid var(--color-brand-cyan)', background: sendToAll ? 'var(--color-brand-cyan)' : 'transparent' }}>
-              {sendToAll && <Check size={11} style={{ color: '#001219' }} />}
+              {sendToAll && <Check size={11} style={{ color: '#1B1C1D' }} />}
             </span>
             <span className="text-left">
               {t('staffing.comms_send_everyone', 'Send to everyone at this site')}
@@ -300,7 +300,7 @@ function NewThreadModal({ open, onClose, headers, isManager, isMOD = false, staf
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{t('staffing.comms_cancel', 'Cancel')}</button>
           <button type="button" onClick={submit} disabled={busy}
             className="h-9 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-60"
-            style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
+            style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }}
             data-testid="new-thread-submit">
             {busy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
             {busy ? t('staffing.comms_creating', 'Creating…') : t('staffing.comms_create', 'Create')}
@@ -320,7 +320,7 @@ function MessageRow({ msg, mine, isManager, showAuthor, isGroup, onEdit, onDelet
   const tint = msg.urgent
     ? 'rgba(239,68,68,0.15)'
     : mine ? 'var(--color-brand-cyan)' : 'var(--theme-surface-hover, rgba(255,255,255,0.04))';
-  const txtColour = (msg.urgent || mine) ? '#001219' : 'var(--theme-text)';
+  const txtColour = (msg.urgent || mine) ? '#1B1C1D' : 'var(--theme-text)';
 
   const bubble = (
     <div className={`flex flex-col ${align} gap-0.5 min-w-0`}>
@@ -580,7 +580,7 @@ function Conversation({ thread, headers, isManager, myStaffId, isMOD = false, st
               )}
               <button type="button" onClick={send} disabled={busy || !body.trim()}
                 className="h-9 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1 disabled:opacity-50"
-                style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
+                style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }}
                 data-testid="conversation-send">
                 {busy ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                 {t('staffing.comms_send', 'Send')}
@@ -672,7 +672,7 @@ export default function CommsTab({ headers, isManager, isMOD = false }) {
         </div>
         <button type="button" onClick={() => setShowNew(true)}
           className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5"
-          style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
+          style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }}
           data-testid="comms-new">
           <Plus size={12} /> {t('staffing.comms_new', 'New')}
         </button>
@@ -734,7 +734,7 @@ export default function CommsTab({ headers, isManager, isMOD = false }) {
                       </span>
                       {unread > 0 && (
                         <span className="ml-1 shrink-0 text-[10px] font-bold rounded-full px-1.5 py-0.5"
-                          style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
+                          style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }}
                           data-testid={`thread-unread-${th.id}`}>
                           {unread}
                         </span>

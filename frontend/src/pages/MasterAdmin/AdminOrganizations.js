@@ -44,10 +44,10 @@ const isCompleteEmail = (v) => /^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$/.test((v || '').
 // (lucide-react doesn't accept CSS vars in its `color` prop). The
 // inline hex values below are intentional for icon coloring only.
 const MODULE_OPTIONS = [
-  { id: 'operations',  label: 'Operations',  icon: Wrench,    color: '#06B6D4' },
-  { id: 'crm',         label: 'CRM',         icon: Users,     color: '#6366F1' },
-  { id: 'memberships', label: 'Memberships', icon: Calendar,  color: '#8B5CF6' },
-  { id: 'marketing',   label: 'Marketing',   icon: Megaphone, color: '#D946EF' },
+  { id: 'operations',  label: 'Operations',  icon: Wrench,    color: '#19CDFF' },
+  { id: 'crm',         label: 'CRM',         icon: Users,     color: '#19CDFF' },
+  { id: 'memberships', label: 'Memberships', icon: Calendar,  color: '#19CDFF' },
+  { id: 'marketing',   label: 'Marketing',   icon: Megaphone, color: '#19CDFF' },
   { id: 'service_desk', label: 'Service Desk', icon: Headphones, color: '#F59E0B' },
   { id: 'inventory',   label: 'Inventory & Distribution', icon: Boxes, color: '#10B981' },
 ];
@@ -106,7 +106,7 @@ const ModulesPicker = ({ value, onChange, testIdPrefix = 'org-modules', isLite =
             >
               {on && <CheckCircle2 size={12} className="text-white" strokeWidth={3} />}
             </span>
-            <Icon size={14} style={{ color: locked ? '#a1a1aa' : m.color }} />
+            <Icon size={14} style={{ color: locked ? '#9a9fa1' : m.color }} />
             <span>{m.label}</span>
             {locked && <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">PRO</span>}
           </button>
@@ -854,7 +854,7 @@ useEffect(() => {
  const _portalType = org.portal_type || 'service_portal';
 
  return (
- <Card key={org.id} className={`bg-white border-slate-200 rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden transition-shadow hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.10)] ${STATUS_BORDER[org.status || 'active']}`} data-testid={`org-card-${org.id}`}>
+ <Card key={org.id} className={`bg-white border-slate-200 rounded-2xl shadow-[0_1px_2px_rgba(27, 28, 29,0.04)] overflow-hidden transition-shadow hover:shadow-[0_8px_24px_-8px_rgba(27, 28, 29,0.10)] ${STATUS_BORDER[org.status || 'active']}`} data-testid={`org-card-${org.id}`}>
  <div className="p-4">
  {/* Iter 215ex — mobile: stack the 3 sections vertically. Previously
      the outer flex kept everything on ONE row at all breakpoints, so
@@ -2087,9 +2087,9 @@ useEffect(() => {
                 }}
                 className="text-xs px-2.5 py-1 rounded-full border transition-colors"
                 style={{
-                  borderColor: pinned ? '#0055FF' : '#e4e4e7',
-                  background: pinned ? 'rgba(0,85,255,0.08)' : 'transparent',
-                  color: pinned ? '#0055FF' : '#27272a',
+                  borderColor: pinned ? '#19CDFF' : '#e0e0e0',
+                  background: pinned ? 'rgba(25, 205, 255,0.08)' : 'transparent',
+                  color: pinned ? '#19CDFF' : '#26292b',
                   fontWeight: pinned ? 600 : 400,
                 }}
                 data-testid={`edit-user-site-pick-${s.id}`}

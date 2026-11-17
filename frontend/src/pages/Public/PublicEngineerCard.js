@@ -122,8 +122,8 @@ export default function PublicEngineerCard() {
         className="text-white"
         style={{
           background: org.brand_color
-            ? `linear-gradient(135deg, ${org.brand_color}, #1e293b)`
-            : 'linear-gradient(135deg, #1e3a8a, #1e293b)',
+            ? `linear-gradient(135deg, ${org.brand_color}, #26292b)`
+            : 'linear-gradient(135deg, #0073a4, #26292b)',
         }}
       >
         <div className="max-w-2xl mx-auto px-5 py-6 flex items-center gap-4">

@@ -291,21 +291,21 @@ function UploadQueueDrawer() {
       "
       style={{
         background: 'var(--theme-surface, #fff)',
-        borderColor: 'var(--theme-border, #E4E4E7)',
+        borderColor: 'var(--theme-border, #E0E0E0)',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
       data-testid="upload-queue-drawer"
     >
       {/* Mobile grab handle — hidden on desktop. */}
       <div className="md:hidden flex justify-center pt-1.5 pb-0.5">
-        <div className="w-9 h-1 rounded-full" style={{ background: 'var(--theme-border, #E4E4E7)' }} aria-hidden />
+        <div className="w-9 h-1 rounded-full" style={{ background: 'var(--theme-border, #E0E0E0)' }} aria-hidden />
       </div>
       {/* Header */}
       <button
         type="button"
         onClick={() => setCollapsed(c => !c)}
         className="w-full flex items-center gap-2 px-3 py-2.5 border-b text-left"
-        style={{ borderColor: 'var(--theme-border, #E4E4E7)' }}
+        style={{ borderColor: 'var(--theme-border, #E0E0E0)' }}
         data-testid="upload-queue-toggle"
       >
         <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0" style={{ background: 'rgb(var(--rgb-brand-cyan, 0 214 224) / 0.12)' }}>
@@ -318,14 +318,14 @@ function UploadQueueDrawer() {
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold tracking-tight" style={{ color: 'var(--theme-text, #18181B)' }}>
+          <p className="text-sm font-bold tracking-tight" style={{ color: 'var(--theme-text, #1B1C1D)' }}>
             {inFlight > 0
               ? `Uploading ${uploading} of ${inFlight} file${inFlight === 1 ? '' : 's'}`
               : failed > 0
                 ? `${failed} upload${failed === 1 ? '' : 's'} failed`
                 : `${done} upload${done === 1 ? '' : 's'} complete`}
           </p>
-          <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--theme-text-muted, #71717A)' }}>
+          <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--theme-text-muted, #6E7476)' }}>
             {tasks.length} total · {done} done · {failed} failed{queued > 0 ? ` · ${queued} waiting` : ''}
           </p>
         </div>
@@ -348,15 +348,15 @@ function UploadQueueDrawer() {
 
       {/* Footer */}
       {!collapsed && done > 0 && (
-        <div className="px-3 py-2 border-t flex items-center justify-between" style={{ borderColor: 'var(--theme-border, #E4E4E7)' }}>
-          <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--theme-text-muted, #71717A)' }}>
+        <div className="px-3 py-2 border-t flex items-center justify-between" style={{ borderColor: 'var(--theme-border, #E0E0E0)' }}>
+          <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--theme-text-muted, #6E7476)' }}>
             {done} complete
           </span>
           <button
             type="button"
             onClick={clearDone}
             className="text-xs font-bold underline-offset-2 hover:underline"
-            style={{ color: 'var(--theme-text-muted, #71717A)' }}
+            style={{ color: 'var(--theme-text-muted, #6E7476)' }}
             data-testid="upload-queue-clear-done"
           >
             Clear complete
@@ -395,24 +395,24 @@ function UploadTaskRow({ task, onRetry, onRemove }) {
   return (
     <div
       className="px-3 py-2 border-b last:border-b-0 flex items-start gap-2"
-      style={{ borderColor: 'var(--theme-border-soft, #F4F4F5)' }}
+      style={{ borderColor: 'var(--theme-border-soft, #F0F0F0)' }}
       data-testid={`upload-task-${task.id}`}
     >
       <div className="mt-0.5 shrink-0">
         {isUploading && <Loader2 size={12} className="animate-spin" style={{ color: 'var(--color-brand-cyan, #00D6E0)' }} />}
-        {task.status === STATUS.QUEUED && <Upload size={12} style={{ color: 'var(--theme-text-muted, #71717A)' }} />}
+        {task.status === STATUS.QUEUED && <Upload size={12} style={{ color: 'var(--theme-text-muted, #6E7476)' }} />}
         {isDone && <CheckCircle2 size={12} className="text-emerald-500" />}
         {isFailed && <AlertTriangle size={12} className="text-red-500" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold truncate" style={{ color: 'var(--theme-text, #18181B)' }} title={task.name}>
+        <p className="text-xs font-semibold truncate" style={{ color: 'var(--theme-text, #1B1C1D)' }} title={task.name}>
           {task.name}
         </p>
         {isFailed ? (
           <p className="text-[10px] text-red-500 truncate" title={task.error}>{task.error}</p>
         ) : (
           <>
-            <div className="h-1 rounded-full mt-1 overflow-hidden" style={{ background: 'var(--theme-border-soft, #F4F4F5)' }}>
+            <div className="h-1 rounded-full mt-1 overflow-hidden" style={{ background: 'var(--theme-border-soft, #F0F0F0)' }}>
               <div
                 className="h-full transition-all"
                 style={{
@@ -423,7 +423,7 @@ function UploadTaskRow({ task, onRetry, onRemove }) {
             </div>
             <p
               className="text-[10px] mt-0.5 tabular-nums"
-              style={{ color: 'var(--theme-text-muted, #71717A)' }}
+              style={{ color: 'var(--theme-text-muted, #6E7476)' }}
               data-testid={`upload-task-progress-${task.id}`}
             >
               {isDone
@@ -444,7 +444,7 @@ function UploadTaskRow({ task, onRetry, onRemove }) {
             title="Retry"
             data-testid={`upload-task-retry-${task.id}`}
           >
-            <RotateCw size={11} style={{ color: 'var(--theme-text-muted, #71717A)' }} />
+            <RotateCw size={11} style={{ color: 'var(--theme-text-muted, #6E7476)' }} />
           </button>
         )}
         <button
@@ -454,7 +454,7 @@ function UploadTaskRow({ task, onRetry, onRemove }) {
           title={isUploading ? 'Cancel' : 'Dismiss'}
           data-testid={`upload-task-remove-${task.id}`}
         >
-          <X size={11} style={{ color: 'var(--theme-text-muted, #71717A)' }} />
+          <X size={11} style={{ color: 'var(--theme-text-muted, #6E7476)' }} />
         </button>
       </div>
     </div>

@@ -18,9 +18,9 @@ const STEPS = [
   { id: 'sign', label: 'Sign & Complete', icon: PenTool },
 ];
 
-const RESULT_COLOR = { pass: '#16a34a', review: '#d97706', fail: '#dc2626', incomplete: '#94a3b8' };
+const RESULT_COLOR = { pass: '#16a34a', review: '#d97706', fail: '#dc2626', incomplete: '#9a9fa1' };
 
-const BigButton = ({ onClick, children, color = '#1d4ed8', icon: Icon, testId, disabled, variant }) => (
+const BigButton = ({ onClick, children, color = '#0091ca', icon: Icon, testId, disabled, variant }) => (
   <button data-testid={testId} onClick={onClick} disabled={disabled}
     className="flex items-center justify-center gap-2 rounded-2xl px-5 py-4 text-base font-semibold transition-transform active:scale-95 disabled:opacity-40 w-full"
     style={variant === 'outline'
@@ -126,7 +126,7 @@ export default function BlueLightVisitWizard() {
             <input type="checkbox" id="confirm-site" data-testid="confirm-on-site" className="mt-1 w-5 h-5" />
             <span>I confirm I am at the correct station: <b>{pack.station_name}</b></span>
           </label>
-          <BigButton testId="start-visit-btn" icon={MapPin} disabled={busy} color="#1d4ed8"
+          <BigButton testId="start-visit-btn" icon={MapPin} disabled={busy} color="#0091ca"
             onClick={async () => {
               const ok = document.getElementById('confirm-site')?.checked;
               if (!ok) { setToast({ err: 'Please tick the box to confirm you are at the correct station.' }); return; }
@@ -154,7 +154,7 @@ export default function BlueLightVisitWizard() {
                 .catch(() => {});
             }} className="mt-3 text-sm underline text-blue-600">Download certificate</button>
           )}
-          <BigButton testId="back-to-matrix" color="#1d4ed8" onClick={() => nav('/crm?tab=contracts')}>Back to contracts</BigButton>
+          <BigButton testId="back-to-matrix" color="#0091ca" onClick={() => nav('/crm?tab=contracts')}>Back to contracts</BigButton>
         </div>
       </div>
     );
@@ -180,7 +180,7 @@ export default function BlueLightVisitWizard() {
           {STEPS.map((s, i) => (
             <button key={s.id} onClick={() => setStep(i)} data-testid={`step-tab-${s.id}`}
               className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap"
-              style={{ background: i === step ? '#fff' : 'rgba(255,255,255,0.15)', color: i === step ? '#1d4ed8' : '#dbeafe' }}>
+              style={{ background: i === step ? '#fff' : 'rgba(255,255,255,0.15)', color: i === step ? '#0091ca' : '#dbeafe' }}>
               <s.icon size={12} />{i + 1}. {s.label}
             </button>
           ))}
@@ -191,14 +191,14 @@ export default function BlueLightVisitWizard() {
         {curStep === 'asset_check' && (
           <AssetList assets={assets} title="Confirm every asset" emptyDone={progress.assets_remaining === 0}
             onPick={(a) => { setActiveAsset(a); setMode('audit'); }}
-            badge={(a) => a.audit ? { text: AUDIT_LABEL[a.audit], color: a.audit === 'not_found' ? '#dc2626' : '#16a34a' } : { text: 'Pending', color: '#94a3b8' }}
-            footer={<BigButton testId="add-asset-btn" variant="outline" color="#1d4ed8" icon={Plus}
+            badge={(a) => a.audit ? { text: AUDIT_LABEL[a.audit], color: a.audit === 'not_found' ? '#dc2626' : '#16a34a' } : { text: 'Pending', color: '#9a9fa1' }}
+            footer={<BigButton testId="add-asset-btn" variant="outline" color="#0091ca" icon={Plus}
               onClick={() => { setActiveAsset(null); setMode('addAsset'); }}>Add machine not on list</BigButton>} />
         )}
         {curStep === 'service' && (
           <AssetList assets={presentAssets} title="Service each machine" emptyDone={progress.serviced === progress.to_service}
             onPick={(a) => { setActiveAsset(a); setMode('service'); }}
-            badge={(a) => a.service_outcome ? { text: SERVICE_LABEL[a.service_outcome] || 'Done', color: '#16a34a' } : { text: 'To service', color: '#94a3b8' }} />
+            badge={(a) => a.service_outcome ? { text: SERVICE_LABEL[a.service_outcome] || 'Done', color: '#16a34a' } : { text: 'To service', color: '#9a9fa1' }} />
         )}
         {curStep === 'calibration' && (
           <div className="space-y-3">
@@ -337,7 +337,7 @@ function AuditSheet({ asset, onSubmit, onClose, busy }) {
       {view === 'actions' && (
         <div className="space-y-2">
           <BigButton testId="audit-present" icon={CheckCircle} color="#16a34a" disabled={busy} onClick={() => onSubmit({ action: 'present' })}>Confirm present</BigButton>
-          <BigButton testId="audit-update" icon={PenTool} color="#1d4ed8" variant="outline" onClick={() => setView('update')}>Update details</BigButton>
+          <BigButton testId="audit-update" icon={PenTool} color="#0091ca" variant="outline" onClick={() => setView('update')}>Update details</BigButton>
           <BigButton testId="audit-notfound" icon={XCircle} color="#dc2626" variant="outline" onClick={() => setView('notfound')}>Machine not found</BigButton>
         </div>
       )}
@@ -436,7 +436,7 @@ function ServiceSheet({ asset, onSubmit, onClose, onRaiseFault, busy }) {
     ['serviced_fault_raised', 'Serviced — Fault raised', '#d97706'],
     ['out_of_service', 'Out of service', '#dc2626'],
     ['unable_to_service', 'Unable to service', '#dc2626'],
-    ['further_visit_required', 'Further visit required', '#64748b'],
+    ['further_visit_required', 'Further visit required', '#6e7476'],
   ];
   const [notes, setNotes] = useState('');
   return (
@@ -491,7 +491,7 @@ function CalibrationSheet({ asset, config, existing, onSubmit, onClose, busy }) 
               <option value="">Select…</option>
               {['adjusted_retested', 'fault_raised', 'taken_out_of_service', 'further_repair_required', 'technical_support_contacted'].map(a => <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>)}
             </select>
-            <BigButton testId="calib-retest" icon={RefreshCw} color="#1d4ed8" onClick={() => {
+            <BigButton testId="calib-retest" icon={RefreshCw} color="#0091ca" onClick={() => {
               setSpeed(speedPts.map(t => ({ target: t, measured: '' })));
               setIncline(inclinePts.map(t => ({ target: t, measured: '' })));
               setResult(null); setPhase('speed'); setIdx(0);
@@ -613,7 +613,7 @@ function SignPanel({ blockers, canComplete, onComplete, onPartial, onGoTo, busy 
             ))}
           </ul>
         </div>
-        <BigButton testId="save-partial-btn" variant="outline" color="#64748b" icon={Save}
+        <BigButton testId="save-partial-btn" variant="outline" color="#6e7476" icon={Save}
           onClick={() => { const r = prompt('Reason for partial visit?'); if (r) onPartial(r); }}>Save as partial visit</BigButton>
       </div>
     );

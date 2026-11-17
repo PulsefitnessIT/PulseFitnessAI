@@ -112,13 +112,13 @@ export default function CRMProTrialNudge({ totalContacts = 0, threshold = 250 })
       </button>
       <div
         className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
-        style={{ background: 'linear-gradient(135deg, #6366f1 0%, #d946ef 100%)', color: 'white' }}
+        style={{ background: 'linear-gradient(135deg, #19cdff 0%, #19cdff 100%)', color: 'white' }}
       >
         <Rocket size={16} />
       </div>
       <div className="flex-1 min-w-0 pr-6">
         <p className="text-sm font-bold flex flex-wrap items-center gap-1.5" style={{ color: 'var(--theme-text)' }}>
-          <Sparkles size={12} style={{ color: '#6366f1' }} />
+          <Sparkles size={12} style={{ color: '#19cdff' }} />
           {t('mkt.cpn_headline', "You've built a {{n}}-strong contact base.", { n: totalContacts.toLocaleString('en-GB') })}
         </p>
         <p className="text-xs opacity-75 mt-1 max-w-2xl">
@@ -134,7 +134,7 @@ export default function CRMProTrialNudge({ totalContacts = 0, threshold = 250 })
           onClick={handleStart}
           disabled={starting}
           className="px-4 py-2 rounded-lg text-sm font-bold text-white shrink-0 disabled:opacity-70"
-          style={{ background: 'linear-gradient(135deg, #6366f1 0%, #d946ef 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #19cdff 0%, #19cdff 100%)' }}
           data-testid="crm-pro-trial-nudge-start"
         >
           {starting ? t('mkt.cpn_starting', 'Starting…') : t('mkt.cpn_start_cta', 'Start free {{n}}-day trial', { n: trialDays })}

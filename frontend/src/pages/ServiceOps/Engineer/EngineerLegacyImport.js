@@ -970,7 +970,7 @@ function SignaturePad({ title, who, value, onChange }) {
   const ctxOf = () => {
     const c = canvasRef.current;
     const ctx = c.getContext('2d');
-    ctx.strokeStyle = '#0f172a';
+    ctx.strokeStyle = '#1b1c1d';
     ctx.lineWidth = 2.2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';

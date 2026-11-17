@@ -52,7 +52,7 @@ export default function CoverageBadge({ companyId, postcode, county, compact = f
   return (
     <span
       className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border bg-white"
-      style={{ borderColor: 'var(--theme-border, #E2E8F0)', color: 'var(--theme-text-muted, #475569)' }}
+      style={{ borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text-muted, #565B5E)' }}
       title={`Covered by: ${data.reps.map((r) => `${r.full_name} (${ROLE_SHORT[r.role] || ''})`).join(', ')}`}
       data-testid={testId || 'coverage-badge'}
     >

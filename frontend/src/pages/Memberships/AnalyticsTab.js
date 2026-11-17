@@ -45,7 +45,7 @@ const ROLES = [
 ];
 
 const CYAN = 'var(--color-brand-cyan)';
-const PIE_PALETTE = ['var(--color-brand-cyan)', '#22D3EE', 'var(--color-violet-400)', '#F472B6', '#FCD34D', 'var(--color-success-light)'];
+const PIE_PALETTE = ['var(--color-brand-cyan)', '#19CDFF', 'var(--color-violet-400)', '#19CDFF', '#FCD34D', 'var(--color-success-light)'];
 
 export default function AnalyticsTab({ API, headers }) {
   const { t } = useTranslation();

@@ -12,7 +12,7 @@
  *   • Portal is global, not UK-only.
  *
  * Identity remains Pulse Fitness (white surfaces, cyan accent
- * #66CCFF, dark Pulse text #212721) because the MOD are Pulse
+ * #19CDFF, dark Pulse text #1B1C1D) because the MOD are Pulse
  * customers.
  */
 import { useState, useEffect } from 'react';
@@ -33,15 +33,15 @@ const RAF_LOGO   = 'https://customer-assets.emergentagent.com/job_maintenance-hu
 
 // ── Pulse brand tokens ────────────────────────────────────────────
 const PULSE = {
-  primary:        '#66CCFF',
-  primaryHover:   '#4DBFFF',
-  primaryDeep:    '#33B8FF',
-  black:          '#212721',
-  greyDark:       '#505759',
-  greyLight:      '#A2ACAB',
-  bg:             '#F8F9FA',
+  primary:        '#19CDFF',
+  primaryHover:   '#19CDFF',
+  primaryDeep:    '#19CDFF',
+  black:          '#1B1C1D',
+  greyDark:       '#565B5E',
+  greyLight:      '#9A9FA1',
+  bg:             '#F7F7F7',
   surface:        '#FFFFFF',
-  border:         '#E4E4E7',
+  border:         '#E0E0E0',
 };
 
 // ── Service identities ────────────────────────────────────────────
@@ -234,8 +234,8 @@ export default function MODServiceLogin() {
             <div
               className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-6"
               style={{
-                background: 'rgba(102, 204, 255, 0.10)',
-                border: '1px solid rgba(102, 204, 255, 0.4)',
+                background: 'rgba(25, 205, 255, 0.10)',
+                border: '1px solid rgba(25, 205, 255, 0.4)',
                 color: PULSE.primaryDeep,
               }}
             >
@@ -275,7 +275,7 @@ export default function MODServiceLogin() {
                   style={{
                     background: PULSE.surface,
                     border: `1px solid ${PULSE.border}`,
-                    boxShadow: '0 4px 16px -8px rgba(33, 39, 33, 0.08)',
+                    boxShadow: '0 4px 16px -8px rgba(27, 28, 29, 0.08)',
                   }}
                   data-testid={`mod-service-tile-${s.id}`}
                 >
@@ -325,7 +325,7 @@ export default function MODServiceLogin() {
               style={{
                 background: PULSE.surface,
                 border: `1px solid ${PULSE.border}`,
-                boxShadow: '0 30px 60px -25px rgba(33, 39, 33, 0.18), 0 0 0 1px rgba(102, 204, 255, 0.08) inset',
+                boxShadow: '0 30px 60px -25px rgba(27, 28, 29, 0.18), 0 0 0 1px rgba(25, 205, 255, 0.08) inset',
               }}
               data-testid="mod-login-form"
             >
@@ -360,7 +360,7 @@ export default function MODServiceLogin() {
                       background: PULSE.primary,
                       color: PULSE.black,
                       letterSpacing: '0.14em',
-                      boxShadow: '0 8px 22px -8px rgba(102, 204, 255, 0.55), inset 0 1px 0 rgba(255,255,255,0.5)',
+                      boxShadow: '0 8px 22px -8px rgba(25, 205, 255, 0.55), inset 0 1px 0 rgba(255,255,255,0.5)',
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = PULSE.primaryHover; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = PULSE.primary; }}
@@ -385,7 +385,7 @@ export default function MODServiceLogin() {
                 <div className="mt-6 space-y-4">
                   <div
                     className="rounded-xl p-4 flex flex-col items-center gap-3"
-                    style={{ background: '#F8F9FA', border: `1px solid ${PULSE.border}` }}
+                    style={{ background: '#F7F7F7', border: `1px solid ${PULSE.border}` }}
                     data-testid="mod-login-mfa-qr"
                   >
                     {mfaQrUrl ? (
@@ -528,7 +528,7 @@ export default function MODServiceLogin() {
                     background: PULSE.primary,
                     color: PULSE.black,
                     letterSpacing: '0.22em',
-                    boxShadow: '0 8px 22px -8px rgba(102, 204, 255, 0.55), inset 0 1px 0 rgba(255,255,255,0.5)',
+                    boxShadow: '0 8px 22px -8px rgba(25, 205, 255, 0.55), inset 0 1px 0 rgba(255,255,255,0.5)',
                     display: blockedCommercial ? 'none' : undefined,
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.background = PULSE.primaryHover; }}

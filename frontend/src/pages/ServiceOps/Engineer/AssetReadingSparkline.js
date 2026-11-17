@@ -58,7 +58,7 @@ export default function AssetReadingSparkline({ points, currentValue, testid }) 
   const tone = Math.abs(delta) < (span * 0.05)
     ? 'flat'
     : delta < 0 ? 'down' : 'up';
-  const stroke = tone === 'flat' ? '#64748b' : tone === 'down' ? '#dc2626' : '#059669';
+  const stroke = tone === 'flat' ? '#6e7476' : tone === 'down' ? '#dc2626' : '#059669';
   const Icon = tone === 'flat' ? Minus : tone === 'down' ? TrendingDown : TrendingUp;
   const previous = safePoints[safePoints.length - 1];
   const tooltip = safePoints
@@ -80,7 +80,7 @@ export default function AssetReadingSparkline({ points, currentValue, testid }) 
             cx={x}
             cy={y}
             r={i === pts.length - 1 && live !== null ? 2.5 : 1.5}
-            fill={i === pts.length - 1 && live !== null ? '#0891b2' : stroke}
+            fill={i === pts.length - 1 && live !== null ? '#0091ca' : stroke}
           />
         ))}
       </svg>

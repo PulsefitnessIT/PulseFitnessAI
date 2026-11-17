@@ -96,7 +96,7 @@ export default function CampaignAnalytics({ campaign, API, headers, onClose }) {
                 )}
               </div>
 
-              <button onClick={analyse} disabled={aiBusy} className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 mb-3" style={{ backgroundImage: 'linear-gradient(135deg,#7C3AED,#19CDFF)' }} data-testid="analytics-ai-analyse">
+              <button onClick={analyse} disabled={aiBusy} className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 mb-3" style={{ backgroundImage: 'linear-gradient(135deg,#0091CA,#19CDFF)' }} data-testid="analytics-ai-analyse">
                 {aiBusy ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />}Analyse with AI
               </button>
               {ai && (

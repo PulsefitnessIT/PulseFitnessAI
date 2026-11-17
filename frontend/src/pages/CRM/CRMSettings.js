@@ -150,7 +150,7 @@ function TeamSection({ API, headers, user, c, isDark }) {
               </div>
               <div>
                 <label className="text-[10px] uppercase tracking-wider font-medium" style={{ color: c.textDim }}>Job Title</label>
-                <div className="w-full mt-1 px-3 py-2 text-sm rounded-md flex items-center gap-1.5" style={{ background: isDark ? 'var(--color-ink-alt)' : 'var(--color-bg-subtle, #f8fafc)', border: `1px solid ${c.border}`, color: c.textDim }} data-testid="edit-user-jobtitle">
+                <div className="w-full mt-1 px-3 py-2 text-sm rounded-md flex items-center gap-1.5" style={{ background: isDark ? 'var(--color-ink-alt)' : 'var(--color-bg-subtle, #f7f7f7)', border: `1px solid ${c.border}`, color: c.textDim }} data-testid="edit-user-jobtitle">
                   <Briefcase size={12} /> {showEdit.job_title || 'Not set'}
                 </div>
                 <p className="text-[10px] mt-1" style={{ color: c.textDim }}>Managed in Operations → Staffing. Separate from the CRM role below.</p>

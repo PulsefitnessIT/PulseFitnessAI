@@ -128,13 +128,13 @@ const ScreenTracker = ({ onNext }) => {
       }}>
         {/* Faux road grid */}
         <svg className="absolute inset-0 w-full h-full opacity-40" preserveAspectRatio="none" viewBox="0 0 100 100">
-          <path d="M 0 78 Q 30 70 42 38 T 90 14" stroke="#6366f1" strokeWidth="1.6" fill="none" strokeDasharray="0" strokeLinecap="round" />
-          <line x1="0" y1="20" x2="100" y2="20" stroke="#cbd5e1" strokeWidth="0.4" strokeDasharray="3 2" />
-          <line x1="0" y1="50" x2="100" y2="50" stroke="#cbd5e1" strokeWidth="0.4" strokeDasharray="3 2" />
-          <line x1="0" y1="80" x2="100" y2="80" stroke="#cbd5e1" strokeWidth="0.4" strokeDasharray="3 2" />
-          <line x1="22" y1="0" x2="22" y2="100" stroke="#cbd5e1" strokeWidth="0.4" strokeDasharray="3 2" />
-          <line x1="58" y1="0" x2="58" y2="100" stroke="#cbd5e1" strokeWidth="0.4" strokeDasharray="3 2" />
-          <line x1="84" y1="0" x2="84" y2="100" stroke="#cbd5e1" strokeWidth="0.4" strokeDasharray="3 2" />
+          <path d="M 0 78 Q 30 70 42 38 T 90 14" stroke="#19cdff" strokeWidth="1.6" fill="none" strokeDasharray="0" strokeLinecap="round" />
+          <line x1="0" y1="20" x2="100" y2="20" stroke="#c9cbcc" strokeWidth="0.4" strokeDasharray="3 2" />
+          <line x1="0" y1="50" x2="100" y2="50" stroke="#c9cbcc" strokeWidth="0.4" strokeDasharray="3 2" />
+          <line x1="0" y1="80" x2="100" y2="80" stroke="#c9cbcc" strokeWidth="0.4" strokeDasharray="3 2" />
+          <line x1="22" y1="0" x2="22" y2="100" stroke="#c9cbcc" strokeWidth="0.4" strokeDasharray="3 2" />
+          <line x1="58" y1="0" x2="58" y2="100" stroke="#c9cbcc" strokeWidth="0.4" strokeDasharray="3 2" />
+          <line x1="84" y1="0" x2="84" y2="100" stroke="#c9cbcc" strokeWidth="0.4" strokeDasharray="3 2" />
         </svg>
         {/* Destination pin */}
         <div className="absolute" style={{ left: '72%', top: '10%' }}>

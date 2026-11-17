@@ -137,9 +137,9 @@ export default function MODStaffTab({ headers }) {
 
   return (
     <div className="space-y-5" data-testid="mod-staff-tab">
-      <div className="rounded-2xl border p-5 flex items-start gap-3" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)' }}>
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(102,204,255,0.10)' }}>
-          <Users size={18} style={{ color: '#33B8FF' }} />
+      <div className="rounded-2xl border p-5 flex items-start gap-3" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)' }}>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(25, 205, 255,0.10)' }}>
+          <Users size={18} style={{ color: '#19CDFF' }} />
         </div>
         <div className="flex-1">
           <h3 className="text-base font-bold" style={{ color: 'var(--theme-text)' }}>Staff at this site</h3>
@@ -152,7 +152,7 @@ export default function MODStaffTab({ headers }) {
           type="button"
           onClick={openNew}
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-bold"
-          style={{ background: '#66CCFF', color: '#212721' }}
+          style={{ background: '#19CDFF', color: '#1B1C1D' }}
           data-testid="mod-staff-add"
         >
           <Plus size={14} /> Add staff
@@ -162,7 +162,7 @@ export default function MODStaffTab({ headers }) {
             type="button"
             onClick={() => { setHandoverResult(null); setHandover(BLANK_HANDOVER); setHandoverOpen(true); }}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-bold border"
-            style={{ borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
+            style={{ borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text)' }}
             data-testid="mod-owner-transfer-open"
           >
             <KeyRound size={14} /> Transfer ownership
@@ -171,7 +171,7 @@ export default function MODStaffTab({ headers }) {
       </div>
 
       {/* List */}
-      <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)' }}>
+      <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)' }}>
         {loading ? (
           <div className="p-8 text-center text-sm" style={{ color: 'var(--theme-text-muted)' }}>
             <Loader2 size={16} className="animate-spin inline mr-2" /> Loading staff…
@@ -181,16 +181,16 @@ export default function MODStaffTab({ headers }) {
             No staff added yet. Click <strong>Add staff</strong> above.
           </div>
         ) : (
-          <ul className="divide-y" style={{ borderColor: 'var(--theme-border, #E4E4E7)' }}>
+          <ul className="divide-y" style={{ borderColor: 'var(--theme-border, #E0E0E0)' }}>
             {staff.map((s) => (
               <li key={s.id} className="px-4 sm:px-5 py-3.5 flex items-start gap-3" data-testid={`mod-staff-row-${s.id}`}>
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold shrink-0" style={{ background: 'rgba(102,204,255,0.10)', color: '#33B8FF' }}>
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold shrink-0" style={{ background: 'rgba(25, 205, 255,0.10)', color: '#19CDFF' }}>
                   {(s.name || '?').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     {s.rank && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: 'rgba(102,204,255,0.12)', color: '#33B8FF' }}>
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: 'rgba(25, 205, 255,0.12)', color: '#19CDFF' }}>
                         {s.rank}
                       </span>
                     )}
@@ -240,7 +240,7 @@ export default function MODStaffTab({ headers }) {
                   placeholder="Sgt"
                   maxLength={40}
                   className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-cyan-400"
-                  style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
+                  style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text)' }}
                 />
               </Field>
               <Field label="Full name" testid="mod-staff-field-name" className="sm:col-span-2" required>
@@ -252,7 +252,7 @@ export default function MODStaffTab({ headers }) {
                   required
                   data-testid="mod-staff-field-fullname"
                   className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-cyan-400"
-                  style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
+                  style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text)' }}
                 />
               </Field>
             </div>
@@ -264,7 +264,7 @@ export default function MODStaffTab({ headers }) {
                 onChange={(e) => setForm({ ...form, role: e.target.value })}
                 placeholder="PT Instructor"
                 className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-cyan-400"
-                style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
+                style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text)' }}
               />
             </Field>
 
@@ -276,7 +276,7 @@ export default function MODStaffTab({ headers }) {
                 max={new Date().toISOString().slice(0, 10)}
                 required
                 className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-cyan-400"
-                style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
+                style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text)' }}
               />
               <span className="text-[10.5px] mt-1 block" style={{ color: 'var(--theme-text-muted)' }}>
                 Used to confirm identity when transferring this person between sites.
@@ -291,7 +291,7 @@ export default function MODStaffTab({ headers }) {
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   required
                   className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-cyan-400"
-                  style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
+                  style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text)' }}
                 />
               </Field>
               <Field label="Phone" testid="mod-staff-field-phone" required>
@@ -301,7 +301,7 @@ export default function MODStaffTab({ headers }) {
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   required
                   className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-cyan-400"
-                  style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}
+                  style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text)' }}
                 />
               </Field>
             </div>
@@ -314,7 +314,7 @@ export default function MODStaffTab({ headers }) {
                 type="submit"
                 disabled={submitting}
                 className="px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-2 disabled:opacity-50"
-                style={{ background: '#66CCFF', color: '#212721' }}
+                style={{ background: '#19CDFF', color: '#1B1C1D' }}
                 data-testid="mod-staff-save"
               >
                 {submitting ? <Loader2 size={14} className="animate-spin" /> : null}
@@ -333,7 +333,7 @@ export default function MODStaffTab({ headers }) {
               <X size={16} />
             </button>
             <h4 className="text-base font-bold mb-1 flex items-center gap-2" style={{ color: 'var(--theme-text)' }}>
-              <KeyRound size={16} style={{ color: '#33B8FF' }} /> Transfer site ownership
+              <KeyRound size={16} style={{ color: '#19CDFF' }} /> Transfer site ownership
             </h4>
 
             {handoverResult ? (
@@ -342,21 +342,21 @@ export default function MODStaffTab({ headers }) {
                   Ownership handed over. Your own login has been stepped down — share these with the new owner:
                 </p>
                 {handoverResult.mode === 'password' ? (
-                  <div className="rounded-lg border p-3 text-sm space-y-1.5" style={{ borderColor: 'var(--theme-border, #E4E4E7)' }}>
-                    <div className="flex items-center gap-2"><span style={{ color: 'var(--theme-text-muted)' }}>Login</span> <code className="font-mono px-1.5 py-0.5 rounded" style={{ background: 'rgba(102,204,255,0.12)' }} data-testid="mod-owner-new-email">{handoverResult.email}</code></div>
+                  <div className="rounded-lg border p-3 text-sm space-y-1.5" style={{ borderColor: 'var(--theme-border, #E0E0E0)' }}>
+                    <div className="flex items-center gap-2"><span style={{ color: 'var(--theme-text-muted)' }}>Login</span> <code className="font-mono px-1.5 py-0.5 rounded" style={{ background: 'rgba(25, 205, 255,0.12)' }} data-testid="mod-owner-new-email">{handoverResult.email}</code></div>
                     <div className="flex items-center gap-2">
                       <span style={{ color: 'var(--theme-text-muted)' }}>Password</span>
-                      <code className="font-mono px-1.5 py-0.5 rounded" style={{ background: 'rgba(102,204,255,0.12)' }} data-testid="mod-owner-new-password">{handoverResult.temporary_password}</code>
+                      <code className="font-mono px-1.5 py-0.5 rounded" style={{ background: 'rgba(25, 205, 255,0.12)' }} data-testid="mod-owner-new-password">{handoverResult.temporary_password}</code>
                       <button type="button" onClick={() => { navigator.clipboard?.writeText(handoverResult.temporary_password); toast.success('Password copied'); }} className="p-1 rounded" aria-label="Copy password"><Copy size={12} /></button>
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-lg border p-3 text-sm break-all" style={{ borderColor: 'var(--theme-border, #E4E4E7)' }} data-testid="mod-owner-new-invite">
+                  <div className="rounded-lg border p-3 text-sm break-all" style={{ borderColor: 'var(--theme-border, #E0E0E0)' }} data-testid="mod-owner-new-invite">
                     Invite link sent to <strong>{handoverResult.email}</strong>:<br />{handoverResult.invite_url}
                   </div>
                 )}
                 <div className="mt-5 flex justify-end">
-                  <button type="button" onClick={closeHandover} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: '#66CCFF', color: '#212721' }} data-testid="mod-owner-transfer-done">Done</button>
+                  <button type="button" onClick={closeHandover} className="px-4 py-2 rounded-lg text-sm font-bold" style={{ background: '#19CDFF', color: '#1B1C1D' }} data-testid="mod-owner-transfer-done">Done</button>
                 </div>
               </div>
             ) : (
@@ -367,25 +367,25 @@ export default function MODStaffTab({ headers }) {
                 <Field label="New owner full name" testid="mod-owner-field-name" required>
                   <input type="text" value={handover.successor_name} onChange={(e) => setHandover({ ...handover, successor_name: e.target.value })} required data-testid="mod-owner-input-name"
                     className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-cyan-400"
-                    style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }} />
+                    style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text)' }} />
                 </Field>
                 <Field label="New owner email" testid="mod-owner-field-email" className="mt-3" required>
                   <input type="email" value={handover.successor_email} onChange={(e) => setHandover({ ...handover, successor_email: e.target.value })} required data-testid="mod-owner-input-email"
                     placeholder="new.owner@example.com"
                     className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-cyan-400"
-                    style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }} />
+                    style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text)' }} />
                 </Field>
                 <Field label="Credential" testid="mod-owner-field-mode" className="mt-3">
                   <select value={handover.mode} onChange={(e) => setHandover({ ...handover, mode: e.target.value })} data-testid="mod-owner-input-mode"
                     className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-cyan-400"
-                    style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text)' }}>
+                    style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text)' }}>
                     <option value="password">Generate a temporary password</option>
                     <option value="invite">Send an invite link</option>
                   </select>
                 </Field>
                 <div className="mt-5 flex items-center justify-end gap-2">
                   <button type="button" onClick={closeHandover} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ color: 'var(--theme-text-muted)' }} data-testid="mod-owner-transfer-cancel">Cancel</button>
-                  <button type="submit" disabled={handoverBusy} className="px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-2 disabled:opacity-50" style={{ background: '#66CCFF', color: '#212721' }} data-testid="mod-owner-transfer-submit">
+                  <button type="submit" disabled={handoverBusy} className="px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-2 disabled:opacity-50" style={{ background: '#19CDFF', color: '#1B1C1D' }} data-testid="mod-owner-transfer-submit">
                     {handoverBusy ? <Loader2 size={14} className="animate-spin" /> : null}
                     Transfer ownership
                   </button>

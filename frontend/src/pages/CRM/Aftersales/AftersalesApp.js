@@ -168,7 +168,7 @@ function DashboardTab({ API, headers, c, isDark }) {
           <span className="text-xs" style={{ color: c.textDim }}>Email alerts to</span>
           <input data-testid="afs-alerts-email-input" type="text" value={alertEmail}
             onChange={e => setAlertEmail(e.target.value)} placeholder="coordinator@company.com (blank = org owners)"
-            className="text-xs px-2 py-1 rounded-md border flex-1 min-w-[180px]" style={{ background: isDark ? '#0d0d0d' : '#fff', borderColor: c.border, color: c.text }} />
+            className="text-xs px-2 py-1 rounded-md border flex-1 min-w-[180px]" style={{ background: isDark ? '#1b1c1d' : '#fff', borderColor: c.border, color: c.text }} />
           <button data-testid="afs-alerts-email-save" onClick={saveAlertEmail}
             className="text-xs px-3 py-1 rounded-md" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>
             {savedEmail ? 'Saved ✓' : 'Save'}
@@ -185,12 +185,12 @@ function DashboardTab({ API, headers, c, isDark }) {
               const col = a.threshold_days <= 90 ? 'var(--color-danger)' : a.threshold_days <= 120 ? 'var(--color-accent-amber)' : 'var(--color-info-ios)';
               return (
                 <div key={a.id} data-testid={`afs-alert-${a.id}`} className="flex items-start gap-3 p-3 rounded-lg border"
-                     style={{ background: isDark ? '#0d0d0d' : '#fff', borderColor: c.border }}>
+                     style={{ background: isDark ? '#1b1c1d' : '#fff', borderColor: c.border }}>
                   <span className="mt-0.5 shrink-0">{isWarranty ? <ShieldCheck size={16} style={{ color: col }} /> : <TrendingUp size={16} style={{ color: col }} />}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: col + '22', color: col }}>≤{a.threshold_days}d</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: isDark ? '#1a1a1a' : 'var(--color-neutral-100)', color: c.textDim }}>{isWarranty ? 'WARRANTY' : 'RPI REVIEW'}</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: isDark ? '#26292b' : 'var(--color-neutral-100)', color: c.textDim }}>{isWarranty ? 'WARRANTY' : 'RPI REVIEW'}</span>
                       <span className="text-sm font-semibold truncate" style={{ color: c.text }}>{a.subject}</span>
                     </div>
                     <p className="text-xs mt-0.5" style={{ color: c.textDim }}>{a.body}</p>
@@ -212,7 +212,7 @@ function DashboardTab({ API, headers, c, isDark }) {
         {priorities.length === 0 && <p className="text-sm py-6 text-center" style={{ color: c.textDim }}>Nothing urgent — you're all caught up.</p>}
         {priorities.map((p, i) => (
           <div key={i} data-testid={`afs-priority-${i}`} className="flex items-center gap-3 p-3 rounded-lg border"
-               style={{ background: isDark ? '#0d0d0d' : '#fff', borderColor: c.border }}>
+               style={{ background: isDark ? '#1b1c1d' : '#fff', borderColor: c.border }}>
             <span className="text-[10px] font-bold px-2 py-1 rounded-md" style={{ background: levelColor[p.level] + '22', color: levelColor[p.level] }}>{p.level}</span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate" style={{ color: c.text }}>{p.title}</p>
@@ -1645,7 +1645,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
           <Clock size={13} style={{ color: c.textDim }} />
           <span className="text-xs" style={{ color: c.textDim }}>Chase unsigned quotes at (days before expiry)</span>
           <input data-testid="afs-chase-days-input" type="text" value={chaseDays} onChange={e => setChaseDays(e.target.value)}
-            placeholder="14,5" className="text-xs px-2 py-1 rounded-md border w-24" style={{ background: isDark ? '#0d0d0d' : '#fff', borderColor: c.border, color: c.text }} />
+            placeholder="14,5" className="text-xs px-2 py-1 rounded-md border w-24" style={{ background: isDark ? '#1b1c1d' : '#fff', borderColor: c.border, color: c.text }} />
           <button data-testid="afs-chase-days-save" onClick={saveChaseDays}
             className="text-xs px-3 py-1 rounded-md border" style={{ borderColor: c.border, color: c.text }}>{chaseSaved ? 'Saved ✓' : 'Save'}</button>
           <div className="flex-1" />
@@ -1679,7 +1679,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
                       return null;
                     })()}
                     {(q.chases_sent || []).length > 0 && (
-                      <span data-testid={`afs-quote-chased-${q.id}`} className="text-[10px] px-2 py-0.5 rounded" style={{ background: isDark ? '#1a1a1a' : 'var(--color-neutral-100)', color: c.textDim }}>
+                      <span data-testid={`afs-quote-chased-${q.id}`} className="text-[10px] px-2 py-0.5 rounded" style={{ background: isDark ? '#26292b' : 'var(--color-neutral-100)', color: c.textDim }}>
                         reminded {q.chases_sent.map(x => `${x}d`).join(', ')}
                       </span>
                     )}
@@ -1924,7 +1924,7 @@ function ReportsTab({ API, headers, c, isDark }) {
           {(f.months || []).map(m => (
             <div key={m.month} data-testid={`afs-report-month-${m.month}`} className="flex items-center gap-3">
               <span className="text-xs w-16 shrink-0" style={{ color: c.textDim }}>{m.month}</span>
-              <div className="flex-1 h-4 rounded" style={{ background: isDark ? '#0d0d0d' : 'var(--color-neutral-100)' }}>
+              <div className="flex-1 h-4 rounded" style={{ background: isDark ? '#1b1c1d' : 'var(--color-neutral-100)' }}>
                 <div className="h-4 rounded" style={{ width: `${Math.round(m.amount / maxMonth * 100)}%`, minWidth: m.amount > 0 ? '4px' : '0', background: 'var(--color-brand-cyan)' }} />
               </div>
               <span className="text-xs w-20 text-right tabular-nums" style={{ color: c.text }}>{gbp0(m.amount)}</span>
@@ -1950,10 +1950,10 @@ function ReportsTab({ API, headers, c, isDark }) {
           <div className="flex items-center gap-2">
             <span className="text-xs" style={{ color: c.textDim }}>Labour £/hr</span>
             <input data-testid="afs-reports-labour-rate" type="number" value={labourRate} onChange={e => setLabourRate(e.target.value)}
-              className="text-xs px-2 py-1 rounded-md border w-16" style={{ background: isDark ? '#0d0d0d' : '#fff', borderColor: c.border, color: c.text }} />
+              className="text-xs px-2 py-1 rounded-md border w-16" style={{ background: isDark ? '#1b1c1d' : '#fff', borderColor: c.border, color: c.text }} />
             <span className="text-xs" style={{ color: c.textDim }}>Flag at ≥</span>
             <input data-testid="afs-reports-ratio" type="number" value={ratio} onChange={e => setRatio(e.target.value)}
-              className="text-xs px-2 py-1 rounded-md border w-14" style={{ background: isDark ? '#0d0d0d' : '#fff', borderColor: c.border, color: c.text }} />
+              className="text-xs px-2 py-1 rounded-md border w-14" style={{ background: isDark ? '#1b1c1d' : '#fff', borderColor: c.border, color: c.text }} />
             <span className="text-xs" style={{ color: c.textDim }}>%</span>
             <button data-testid="afs-reports-save" onClick={saveSettings}
               className="text-xs px-3 py-1 rounded-md" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }}>{saved ? 'Saved ✓' : 'Save'}</button>
@@ -2063,7 +2063,7 @@ function AmendModal({ contractId, API, headers, c, isDark, onClose, onApplied })
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xs" style={{ color: c.textDim }}>Effective date</span>
           <input data-testid="afs-amend-effective-date" type="date" value={effDate} onChange={e => { setEffDate(e.target.value); setPreview(null); }}
-            className="text-xs px-2 py-1 rounded-md border" style={{ background: isDark ? '#0d0d0d' : '#fff', borderColor: c.border, color: c.text }} />
+            className="text-xs px-2 py-1 rounded-md border" style={{ background: isDark ? '#1b1c1d' : '#fff', borderColor: c.border, color: c.text }} />
         </div>
         <div className="rounded-lg border mb-3 max-h-56 overflow-y-auto" style={{ borderColor: c.border }} data-testid="afs-amend-asset-list">
           {!data ? <Spinner /> : list.length === 0 ? (
@@ -2077,7 +2077,7 @@ function AmendModal({ contractId, API, headers, c, isDark, onClose, onApplied })
           ))}
         </div>
         {preview && (
-          <div className="rounded-lg p-3 mb-3 text-sm" data-testid="afs-amend-preview-result" style={{ background: isDark ? '#0d0d0d' : 'var(--color-neutral-50)', border: `1px solid ${c.border}` }}>
+          <div className="rounded-lg p-3 mb-3 text-sm" data-testid="afs-amend-preview-result" style={{ background: isDark ? '#1b1c1d' : 'var(--color-neutral-50)', border: `1px solid ${c.border}` }}>
             <div className="flex justify-between" style={{ color: c.textDim }}><span>Annual change</span><span className="font-semibold" style={{ color: c.text }}>{preview.delta_annual >= 0 ? '+' : ''}{gbp(preview.delta_annual)}</span></div>
             <div className="flex justify-between" style={{ color: c.textDim }}><span>One-off pro-rata ({preview.days_remaining}d to anniversary)</span><span className="font-semibold" style={{ color: preview.pro_rata_amount < 0 ? 'var(--color-danger-alt, #EF4444)' : c.text }}>{preview.pro_rata_amount >= 0 ? '+' : ''}{gbp(preview.pro_rata_amount)}</span></div>
             <div className="flex justify-between border-t pt-1 mt-1" style={{ borderColor: c.border }}><span style={{ color: c.text }}>New annual value</span><span className="font-bold" style={{ color: 'var(--color-brand-cyan)' }}>{gbp(preview.new_annual)}</span></div>
@@ -2311,7 +2311,7 @@ function FinanceDashboard({ API, headers, c, isDark }) {
         <div className="rounded-xl border overflow-hidden" style={{ borderColor: c.border }}>
           <table className="w-full text-sm" data-testid="afs-finance-table">
             <thead>
-              <tr style={{ background: isDark ? '#0d0d0d' : 'var(--color-neutral-50)', color: c.textDim }}>
+              <tr style={{ background: isDark ? '#1b1c1d' : 'var(--color-neutral-50)', color: c.textDim }}>
                 <th className="text-left font-semibold px-3 py-2">Customer / Contract</th>
                 <th className="text-right font-semibold px-3 py-2">Annual</th>
                 <th className="text-left font-semibold px-3 py-2">Sage status</th>
@@ -2725,7 +2725,7 @@ function AIAssistantTab({ API, headers, c, isDark }) {
         <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Contract</label>
         <select data-testid="afs-ai-contract" value={contractId} onChange={e => setContractId(e.target.value)}
           className="w-full px-3 py-2 rounded-lg text-sm mb-1"
-          style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+          style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
           {contracts.length === 0 && <option value="">No active contracts</option>}
           {contracts.map(ct => (
             <option key={ct.id} value={ct.id}>{`${ct.company_name} · ${ct.contract_number} · ${gbp(ct.annual_value)}/yr`}</option>
@@ -2738,7 +2738,7 @@ function AIAssistantTab({ API, headers, c, isDark }) {
               {showFacts ? <ChevronDown size={13} /> : <ChevronRight size={13} />} {showFacts ? 'Hide' : 'Show'} the facts the assistant will use
             </button>
             {showFacts && (
-              <div className="mt-2 p-3 rounded-lg border" style={{ borderColor: c.border, background: isDark ? '#0d0d0d' : 'var(--color-neutral-50)' }}>
+              <div className="mt-2 p-3 rounded-lg border" style={{ borderColor: c.border, background: isDark ? '#1b1c1d' : 'var(--color-neutral-50)' }}>
                 <FactSheet facts={facts} c={c} isDark={isDark} />
               </div>
             )}
@@ -2757,7 +2757,7 @@ function AIAssistantTab({ API, headers, c, isDark }) {
           <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>Email type</label>
           <select data-testid="afs-ai-email-type" value={emailType} onChange={e => setEmailType(e.target.value)}
             className="w-full px-3 py-2 rounded-lg text-sm mb-3"
-            style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
+            style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }}>
             {EMAIL_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
           </select>
           <label className="text-xs font-semibold block mb-1" style={{ color: c.textDim }}>
@@ -2766,7 +2766,7 @@ function AIAssistantTab({ API, headers, c, isDark }) {
           <textarea data-testid="afs-ai-instruction" value={instruction} onChange={e => setInstruction(e.target.value)}
             rows={2} placeholder="e.g. mention we're introducing weekend visits from March"
             className="w-full px-3 py-2 rounded-lg text-sm resize-y"
-            style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
+            style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
         </Card>
       )}
 
@@ -2777,7 +2777,7 @@ function AIAssistantTab({ API, headers, c, isDark }) {
             onKeyDown={e => { if (e.key === 'Enter' && canGen) generate(); }}
             placeholder="e.g. When is the next invoice due and how much is it?"
             className="w-full px-3 py-2 rounded-lg text-sm"
-            style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
+            style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
         </Card>
       )}
 
@@ -2810,7 +2810,7 @@ function AIAssistantTab({ API, headers, c, isDark }) {
           <textarea data-testid="afs-ai-output" value={result} onChange={e => setResult(e.target.value)}
             rows={Math.min(24, Math.max(8, result.split('\n').length + 2))}
             className="w-full px-3 py-2 rounded-lg text-sm resize-y font-normal leading-relaxed"
-            style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}`, whiteSpace: 'pre-wrap' }} />
+            style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}`, whiteSpace: 'pre-wrap' }} />
           <p className="text-[11px] mt-2" style={{ color: c.textDim }}>
             Editable draft — review before sending. Figures are drawn from the live contract record.
           </p>
@@ -2820,7 +2820,7 @@ function AIAssistantTab({ API, headers, c, isDark }) {
               <input data-testid="afs-ai-send-to" type="email" value={sendTo} onChange={e => setSendTo(e.target.value)}
                 placeholder="customer@email.com"
                 className="flex-1 min-w-[180px] px-3 py-2 rounded-lg text-sm"
-                style={{ background: isDark ? '#0d0d0d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
+                style={{ background: isDark ? '#1b1c1d' : '#fff', color: c.text, border: `1px solid ${c.border}` }} />
               <button data-testid="afs-ai-send" onClick={sendEmail} disabled={sending || !sendTo.trim() || !result.trim()}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold transition-opacity"
                 style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)', opacity: (sending || !sendTo.trim() || !result.trim()) ? 0.5 : 1 }}>

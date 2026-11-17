@@ -63,7 +63,7 @@ export default function LauncherPage() {
     // (from /auth/me + login payload), with the launcher probe as a supplement.
     if (access.has_staff_portal || user.has_staff_portal === true) {
       out.push({ key: 'staff', label: 'Staff Portal', path: '/staff-portal', icon: UserCircle,
-        desc: 'Your day, time, holidays and payslip info.', accent: '#0891b2' });
+        desc: 'Your day, time, holidays and payslip info.', accent: '#0091ca' });
     }
     MODS.filter((m) => hasModuleAccess(user, m.key)).forEach((m) => out.push(m));
     // MOD Operations — per-user opt-in (module_overrides.mod_operations),
@@ -72,7 +72,7 @@ export default function LauncherPage() {
       || (user.module_overrides && user.module_overrides.mod_operations === true);
     if (hasModOps) {
       out.push({ key: 'mod_operations', label: 'MOD Operations', path: '/bfpo', icon: ShieldCheck,
-        desc: 'MOD global operations — sites, jobs, PPM.', accent: '#0891b2' });
+        desc: 'MOD global operations — sites, jobs, PPM.', accent: '#0091ca' });
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -206,7 +206,7 @@ export default function LauncherPage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {orderedDestinations.map((d, i) => {
               const Icon = d.icon;
-              const tint = d.accent || '#0891b2';
+              const tint = d.accent || '#0091ca';
               const isTop = showMostUsed && i === 0;
               return (
                 <button key={d.key} onClick={() => go(d)} data-testid={`launch-${d.key}`}

@@ -22,7 +22,7 @@ export default function OrgCard({
   const isVacancy = node.type === 'vacancy';
   const isPlaceholder = node.type === 'placeholder';
   const Meta = TYPE_META[node.type] || TYPE_META.staff;
-  const accent = isVacancy ? '#ea580c' : deptColor(node.department);
+  const accent = isVacancy ? '#d97706' : deptColor(node.department);
   const dashed = isVacancy || isPlaceholder;
 
   return (
@@ -32,9 +32,9 @@ export default function OrgCard({
         left: node.x, top: node.y, width: CARD_W, minHeight: CARD_H,
         cursor: dragging ? 'grabbing' : 'grab',
         background: 'var(--theme-surface, #fff)',
-        border: `1.5px ${dashed ? 'dashed' : 'solid'} ${selected ? 'var(--color-brand-cyan, #19cdff)' : 'var(--theme-border, #e2e8f0)'}`,
+        border: `1.5px ${dashed ? 'dashed' : 'solid'} ${selected ? 'var(--color-brand-cyan, #19cdff)' : 'var(--theme-border, #e0e0e0)'}`,
         borderLeft: `4px solid ${accent}`,
-        boxShadow: selected ? '0 8px 28px rgba(2,12,40,0.18)' : '0 2px 10px rgba(2,12,40,0.08)',
+        boxShadow: selected ? '0 8px 28px rgba(27, 28, 29,0.18)' : '0 2px 10px rgba(27, 28, 29,0.08)',
         transition: dragging ? 'none' : 'box-shadow .15s, border-color .15s',
         zIndex: selected ? 20 : 10,
       }}
@@ -49,7 +49,7 @@ export default function OrgCard({
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => { e.stopPropagation(); onOpen(node); }}
         className="absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded-md inline-flex items-center justify-center"
-        style={{ background: 'rgba(2,12,40,0.04)', color: 'var(--theme-text-muted, #64748b)' }}
+        style={{ background: 'rgba(27, 28, 29,0.04)', color: 'var(--theme-text-muted, #6e7476)' }}
         title="Edit card"
         data-testid={`orgcard-open-${node.id}`}      >
         <Pencil size={12} />
@@ -60,7 +60,7 @@ export default function OrgCard({
             className="flex-shrink-0 rounded-xl flex items-center justify-center text-xs font-bold"
             style={{
               width: 38, height: 38, color: '#fff',
-              background: isVacancy ? '#fb923c' : accent,
+              background: isVacancy ? '#f59e0b' : accent,
             }}
           >
             {node.is_engineer ? <Wrench size={16} /> : initials(node.full_name)}
@@ -70,7 +70,7 @@ export default function OrgCard({
           <div className="text-[13px] font-bold truncate pulse-font-heading" style={{ color: 'var(--theme-text, #0f1f3d)' }} title={node.full_name}>
             {node.full_name}
           </div>
-          <div className="text-[11px] truncate" style={{ color: 'var(--theme-text-muted, #64748b)' }} title={humanize(node.job_title)}>
+          <div className="text-[11px] truncate" style={{ color: 'var(--theme-text-muted, #6e7476)' }} title={humanize(node.job_title)}>
             {humanize(node.job_title) || (isVacancy ? t('orgchart.open_role', 'Open role') : '—')}
           </div>
           {toggles.department && node.department && (
@@ -80,10 +80,10 @@ export default function OrgCard({
             </div>
           )}
         </div>
-        <Meta.icon size={13} style={{ color: 'var(--theme-text-muted, #94a3b8)', flexShrink: 0 }} />
+        <Meta.icon size={13} style={{ color: 'var(--theme-text-muted, #9a9fa1)', flexShrink: 0 }} />
       </div>
 
-      <div className="px-3 pb-2 -mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px]" style={{ color: 'var(--theme-text-muted, #64748b)' }}>
+      <div className="px-3 pb-2 -mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px]" style={{ color: 'var(--theme-text-muted, #6e7476)' }}>
         {toggles.site && node.site_name && (
           <span className="inline-flex items-center gap-0.5 truncate" style={{ maxWidth: 90 }}><MapPin size={9} /> {node.site_name}</span>
         )}
@@ -100,7 +100,7 @@ export default function OrgCard({
           <span className="inline-flex items-center gap-0.5 font-semibold" style={{ color: accent }}><Users size={9} /> {reportsCount}</span>
         )}
         {isVacancy && node.recruitment_stage && (
-          <span className="font-semibold" style={{ color: '#ea580c' }}>{node.recruitment_stage}</span>
+          <span className="font-semibold" style={{ color: '#d97706' }}>{node.recruitment_stage}</span>
         )}
       </div>
     </div>

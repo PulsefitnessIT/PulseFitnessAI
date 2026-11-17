@@ -508,7 +508,7 @@ function ContractActivationBoard({ API, headers }) {
                     </div>
                     <button onClick={() => confirm(c)} disabled={busyId === c.id}
                       className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold rounded-md text-white disabled:opacity-50"
-                      style={{ background: 'var(--color-brand-blue, #0055FF)' }} data-testid={`mod-contract-confirm-${c.id}`}>
+                      style={{ background: 'var(--color-brand-blue, #19CDFF)' }} data-testid={`mod-contract-confirm-${c.id}`}>
                       {busyId === c.id ? <Loader2 size={13} className="animate-spin" /> : <CalendarCheck size={13} />} Confirm service
                     </button>
                   </div>

@@ -63,9 +63,9 @@ export default function PublicInstructorPage() {
     try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* ignore */ }
   };
 
-  if (loading) return <div style={{ background: '#0A0C10', color: '#fff', minHeight: '100vh', display: 'grid', placeItems: 'center' }}>Loading…</div>;
+  if (loading) return <div style={{ background: '#1B1C1D', color: '#fff', minHeight: '100vh', display: 'grid', placeItems: 'center' }}>Loading…</div>;
   if (err) return (
-    <div style={{ background: '#0A0C10', color: '#fff', minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
+    <div style={{ background: '#1B1C1D', color: '#fff', minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
       <div style={{ maxWidth: 420, textAlign: 'center' }}>
         <h1 style={{ fontSize: 28, margin: 0 }}>Profile not found</h1>
         <p style={{ opacity: 0.7, marginTop: 12 }}>{err}</p>
@@ -80,7 +80,7 @@ export default function PublicInstructorPage() {
   const initials = (instructor.name || '?').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
   return (
-    <div style={{ background: '#0A0C10', color: '#fff', minHeight: '100vh' }} data-testid="public-instructor-page">
+    <div style={{ background: '#1B1C1D', color: '#fff', minHeight: '100vh' }} data-testid="public-instructor-page">
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '18px 24px', maxWidth: 1080, margin: '0 auto' }}>
@@ -112,7 +112,7 @@ export default function PublicInstructorPage() {
               data-testid="instructor-photo" />
           ) : (
             <div style={{ width: 200, height: 200, borderRadius: '50%', background: primary,
-                          display: 'grid', placeItems: 'center', fontSize: 72, fontWeight: 900, color: '#0A0C10' }}
+                          display: 'grid', placeItems: 'center', fontSize: 72, fontWeight: 900, color: '#1B1C1D' }}
               data-testid="instructor-photo-initials">
               {initials}
             </div>
@@ -133,7 +133,7 @@ export default function PublicInstructorPage() {
                            padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700 }}>{s}</span>
               ))}
               {typeof instructor.years_experience === 'number' && instructor.years_experience > 0 && (
-                <span style={{ background: primary, color: '#0A0C10',
+                <span style={{ background: primary, color: '#1B1C1D',
                                padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 800 }}
                   data-testid="instructor-experience">{instructor.years_experience}y teaching</span>
               )}

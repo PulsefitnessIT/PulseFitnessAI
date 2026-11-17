@@ -11,11 +11,11 @@ import { X, Calendar, AlertTriangle, Loader2, Plus, Trash2, ExternalLink } from 
 
 const BUCKET_COLORS = {
   overdue:  '#dc2626', // red-600
-  critical: '#f97316', // orange-500
+  critical: '#f59e0b', // orange-500
   warning:  '#f59e0b', // amber-500
-  soon:     '#3b82f6', // blue-500
+  soon:     '#19cdff', // blue-500
   ok:       '#10b981', // emerald-500
-  unknown:  '#6b7280', // slate-500
+  unknown:  '#6e7476', // slate-500
 };
 
 const BUCKET_LABEL = {

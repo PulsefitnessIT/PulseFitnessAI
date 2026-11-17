@@ -40,7 +40,7 @@ const auth = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
 });
 
-const Row = ({ icon: Icon, title, subtitle, onClick, accent = '#0891b2', testid, right, disabled, danger }) => (
+const Row = ({ icon: Icon, title, subtitle, onClick, accent = '#0091ca', testid, right, disabled, danger }) => (
   <button
     type="button"
     onClick={onClick}
@@ -264,7 +264,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_partner', 'Partner Engineer')}</p>
             <Row
               icon={Sparkles}
-              accent="#0e7490"
+              accent="#0073a4"
               title={
                 partnerLoading
                   ? t('service.eng_set_partner_loading', 'Loading your plan…')
@@ -307,7 +307,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_payouts', 'Payouts')}</p>
             <Row
               icon={CreditCard}
-              accent="#0e7490"
+              accent="#0073a4"
               title={
                 stripeReady
                   ? t('service.eng_set_stripe_connected', 'Stripe connected')
@@ -338,7 +338,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             <div className="space-y-2">
               <Row
                 icon={Upload}
-                accent="#0891b2"
+                accent="#0091ca"
                 title={importing ? t('service.eng_set_importing', 'Importing customers…') : t('service.eng_set_import_customers', 'Import customers from CSV')}
                 subtitle={t('service.eng_set_import_customers_sub', 'Bulk-add or merge customer records from a CSV file.')}
                 onClick={handleImportClick}
@@ -352,7 +352,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
               />
               <Row
                 icon={Download}
-                accent="#0891b2"
+                accent="#0091ca"
                 title="Download CSV template"
                 subtitle="Get the import template with example rows."
                 onClick={handleDownloadTemplate}
@@ -410,7 +410,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
               />
               <Row
                 icon={Warehouse}
-                accent="#4f46e5"
+                accent="#0091ca"
                 title={t('service.eng_set_stock_mgmt', 'Stock management')}
                 subtitle={t('service.eng_set_stock_mgmt_sub', 'Office overview — all van stock, transfers, stock-take.')}
                 onClick={() => { onClose(); navigate('/svc/engineer/stock-admin'); }}
@@ -418,7 +418,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
               />
               <Row
                 icon={Upload}
-                accent="#0891b2"
+                accent="#0091ca"
                 title={t('service.eng_set_import_parts', 'Import parts')}
                 subtitle={t('service.eng_set_import_parts_sub', 'Bulk-add or update parts from a CSV / Excel spreadsheet.')}
                 onClick={() => { onClose(); navigate('/svc/engineer/catalogue?import=1'); }}
@@ -436,7 +436,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_tools', 'Tools')}</p>
             <Row
               icon={Wand2}
-              accent="#0e7490"
+              accent="#0073a4"
               title={t('service.eng_set_legacy_import', 'Import legacy reports')}
               subtitle={t('service.eng_set_legacy_import_sub', 'Turn old PDFs/spreadsheets into branded service reports with AI.')}
               onClick={() => { onClose(); navigate('/svc/engineer/legacy-import'); }}
@@ -450,7 +450,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_work_reports', 'Work reports')}</p>
             <Row
               icon={Tags}
-              accent="#0891b2"
+              accent="#0091ca"
               title={t('service.eng_set_case_types', 'Case types')}
               subtitle={t('service.eng_set_case_types_sub', 'Repair, PPM & your own job types — each with its own report questions.')}
               onClick={() => { onClose(); navigate('/svc/engineer/case-types'); }}
@@ -458,7 +458,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             />
             <Row
               icon={Sliders}
-              accent="#0e7490"
+              accent="#0073a4"
               title={t('service.eng_set_custom_fields', 'Custom report fields')}
               subtitle={t('service.eng_set_custom_fields_sub', 'Add machine-specific questions (e.g. Drag Factor, Current Software).')}
               onClick={() => { onClose(); navigate('/svc/engineer/work-report-fields'); }}
@@ -471,7 +471,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_brand', 'Brand')}</p>
             <Row
               icon={Palette}
-              accent="#db2777"
+              accent="#0091ca"
               title={t('service.eng_set_logo_colours', 'Logo & colours')}
               subtitle={t('service.eng_set_logo_colours_sub', 'Used on every PDF you email and across your engineer portal.')}
               onClick={() => { onClose(); navigate('/svc/engineer/branding'); }}
@@ -549,7 +549,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             <div className="rounded-2xl border border-slate-200 bg-white p-3">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#0891b215' }}>
-                  <Globe size={18} style={{ color: '#0891b2' }} />
+                  <Globe size={18} style={{ color: '#0091ca' }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-slate-900">{t('service.eng_set_language_title', 'App language')}</p>
@@ -593,7 +593,7 @@ export default function EngineerAccountSettings({ open, onClose, payouts, attent
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-2">{t('service.eng_set_help', 'Help')}</p>
             <Row
               icon={LifeBuoy}
-              accent="#0284c7"
+              accent="#0091ca"
               title={t('service.eng_set_support', 'Support')}
               subtitle={t('service.eng_set_support_sub', 'Chat with the Pulse Fitness team or browse the help centre.')}
               onClick={() => { onClose(); navigate('/support'); }}
@@ -662,7 +662,7 @@ function SecurityEditor({ email }) {
     <div className="rounded-2xl border border-slate-200 bg-white p-3 space-y-3" data-testid="engineer-security-editor">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#0891b215' }}>
-          <Mail size={18} style={{ color: '#0891b2' }} />
+          <Mail size={18} style={{ color: '#0091ca' }} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{t('service.eng_sec_login_email', 'Login email')}</p>

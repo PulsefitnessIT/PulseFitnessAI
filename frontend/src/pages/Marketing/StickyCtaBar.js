@@ -39,7 +39,7 @@ export default function StickyCtaBar() {
   return (
     <div
       role="region" aria-label="Start free trial"
-      className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-1.5rem)] max-w-3xl rounded-2xl bg-white shadow-[0_24px_60px_-20px_rgba(15,23,42,0.35)] border border-slate-200 px-4 py-3 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300 dark:bg-zinc-900 dark:border-zinc-800"
+      className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-1.5rem)] max-w-3xl rounded-2xl bg-white shadow-[0_24px_60px_-20px_rgba(27, 28, 29,0.35)] border border-slate-200 px-4 py-3 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300 dark:bg-zinc-900 dark:border-zinc-800"
       data-testid="gx-sticky-cta"
     >
       <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] flex items-center justify-center text-white shrink-0">

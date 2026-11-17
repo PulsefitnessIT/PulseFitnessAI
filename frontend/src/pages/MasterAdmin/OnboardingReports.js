@@ -42,7 +42,7 @@ const Breakdown = ({ title, data, labelMap }) => {
           <div key={k} className="flex items-center gap-2">
             <span className="text-xs text-zinc-600 w-32 truncate">{labelMap ? (labelMap[k] || k) : k}</span>
             <div className="flex-1 h-2 rounded-full bg-zinc-100 overflow-hidden">
-              <div className="h-full rounded-full bg-[var(--color-brand-blue,#2563EB)]" style={{ width: `${(v / max) * 100}%` }} />
+              <div className="h-full rounded-full bg-[var(--color-brand-blue,#0091CA)]" style={{ width: `${(v / max) * 100}%` }} />
             </div>
             <span className="text-xs text-zinc-500 tabular-nums w-6 text-right">{v}</span>
           </div>

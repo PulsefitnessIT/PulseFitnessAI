@@ -18,10 +18,10 @@ import {
 const API = process.env.REACT_APP_BACKEND_URL;
 
 const MODULE_META = {
-  operations:  { label: 'Operations',  icon: Activity,  accent: '#0EA5E9' },
+  operations:  { label: 'Operations',  icon: Activity,  accent: '#19CDFF' },
   memberships: { label: 'Memberships', icon: Calendar,  accent: '#10B981' },
   marketing:   { label: 'Marketing',   icon: Rocket,    accent: '#F43F5E' },
-  crm:         { label: 'CRM',         icon: Briefcase, accent: '#8B5CF6' },
+  crm:         { label: 'CRM',         icon: Briefcase, accent: '#19CDFF' },
 };
 
 export default function EstateRollupPanel() {
@@ -59,7 +59,7 @@ export default function EstateRollupPanel() {
       {/* By module */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         {Object.entries(data.by_module).map(([key, stats]) => {
-          const meta = MODULE_META[key] || { label: key, icon: BarChart3, accent: '#64748B' };
+          const meta = MODULE_META[key] || { label: key, icon: BarChart3, accent: '#6E7476' };
           const Icon = meta.icon;
           return (
             <div key={key} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4" data-testid={`estate-module-${key}`}>

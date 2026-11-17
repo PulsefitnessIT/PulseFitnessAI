@@ -426,7 +426,7 @@ const Row = ({ index, style, ariaAttributes, jobs, onClaim, onPreview, onOpen, v
         {job.from_referred_gym ? (
           <span
             className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1 border"
-            style={{ background: 'rgba(14,116,144,0.08)', borderColor: 'rgba(14,116,144,0.3)', color: '#0e7490' }}
+            style={{ background: 'rgba(14,116,144,0.08)', borderColor: 'rgba(14,116,144,0.3)', color: '#0073a4' }}
             data-testid={`queue-row-referred-${rowKey}`}
             title="From a gym you referred. You're their primary auto-dispatched supplier."
           >
@@ -777,7 +777,7 @@ export default function EngineerQueue() {
                   : 'bg-white border text-slate-700 hover:bg-slate-50'
               }`}
               style={viewMode === 'my-gyms'
-                ? { background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)' }
+                ? { background: 'linear-gradient(135deg, #0091ca 0%, #0073a4 100%)' }
                 : { borderColor: '#0e749033' }
               }
               data-testid="queue-view-my-gyms"

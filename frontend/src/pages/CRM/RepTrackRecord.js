@@ -43,9 +43,9 @@ function Sparkline({ points, height = 36 }) {
     .join(' ');
   return (
     <svg width={w} height={height} className="overflow-visible" data-testid="track-record-sparkline">
-      <path d={path} fill="none" stroke="var(--color-brand-blue, #1d4ed8)" strokeWidth="2" />
+      <path d={path} fill="none" stroke="var(--color-brand-blue, #0091ca)" strokeWidth="2" />
       {points.map((p, i) => (
-        <circle key={i} cx={i * stepX} cy={height - (p / 100) * (height - 4) - 2} r="3" fill="var(--color-brand-blue, #1d4ed8)" />
+        <circle key={i} cx={i * stepX} cy={height - (p / 100) * (height - 4) - 2} r="3" fill="var(--color-brand-blue, #0091ca)" />
       ))}
     </svg>
   );
@@ -76,7 +76,7 @@ export default function RepTrackRecord({ userId = '', periods = 4, compact = fal
   const sparkPoints = useMemo(() => rows.map(r => r.call_accuracy_pct ?? 0), [rows]);
 
   const trendIcon = summary.trend === 'improving' ? TrendingUp : summary.trend === 'declining' ? TrendingDown : Activity;
-  const trendColour = summary.trend === 'improving' ? 'var(--color-success-green, #10b981)' : summary.trend === 'declining' ? 'var(--color-danger-red, #ef4444)' : 'var(--theme-text-muted, #6b7280)';
+  const trendColour = summary.trend === 'improving' ? 'var(--color-success-green, #10b981)' : summary.trend === 'declining' ? 'var(--color-danger-red, #ef4444)' : 'var(--theme-text-muted, #6e7476)';
   const TrendIcon = trendIcon;
 
   if (loading) return <p className="text-sm opacity-60" data-testid="track-record-loading">Loading track record…</p>;
@@ -95,7 +95,7 @@ export default function RepTrackRecord({ userId = '', periods = 4, compact = fal
       {!compact ? (
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--color-brand-blue, #1d4ed8)' }}>Your forecast track record</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--color-brand-blue, #0091ca)' }}>Your forecast track record</p>
             <h3 className="text-lg font-extrabold" style={{ color: 'var(--theme-text)' }}>
               {data?.owner_name ? `${data.owner_name}'s call accuracy` : 'Call accuracy over time'}
             </h3>
@@ -109,7 +109,7 @@ export default function RepTrackRecord({ userId = '', periods = 4, compact = fal
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2" data-testid="track-record-tiles">
         <div className="rounded-lg border p-3" style={{ borderColor: 'var(--theme-border)' }}>
           <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Average</p>
-          <p className="text-lg font-extrabold tabular-nums mt-0.5" style={{ color: 'var(--color-brand-blue, #1d4ed8)' }}>
+          <p className="text-lg font-extrabold tabular-nums mt-0.5" style={{ color: 'var(--color-brand-blue, #0091ca)' }}>
             {summary.average_accuracy_pct != null ? `${summary.average_accuracy_pct}%` : '—'}
           </p>
         </div>

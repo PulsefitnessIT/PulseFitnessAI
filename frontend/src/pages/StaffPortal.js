@@ -371,8 +371,8 @@ function Empty({ icon: Icon, title, hint }) {
 function StatusPill({ label, color }) {
   return (
     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold"
-      style={{ background: `${color || '#94a3b8'}1a`, color: color || '#94a3b8' }}>
-      <span className="w-2 h-2 rounded-full" style={{ background: color || '#94a3b8' }} /> {label}
+      style={{ background: `${color || '#9a9fa1'}1a`, color: color || '#9a9fa1' }}>
+      <span className="w-2 h-2 rounded-full" style={{ background: color || '#9a9fa1' }} /> {label}
     </span>
   );
 }
@@ -380,9 +380,9 @@ function StatusPill({ label, color }) {
 function BigAction({ icon: Icon, label, onClick, tone = 'primary', testId, disabled }) {
   const tones = {
     primary: { background: CORE, color: '#062a33' },
-    dark: { background: '#0f172a', color: '#fff' },
+    dark: { background: '#1b1c1d', color: '#fff' },
     amber: { background: '#f59e0b', color: '#3a2600' },
-    ghost: { background: '#fff', color: '#0f172a', border: '1px solid #e2e8f0' },
+    ghost: { background: '#fff', color: '#1b1c1d', border: '1px solid #e0e0e0' },
   };
   return (
     <button onClick={onClick} disabled={disabled} data-testid={testId}

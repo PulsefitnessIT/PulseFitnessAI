@@ -29,7 +29,7 @@ function Section({ title, subtitle, icon: Icon, children, testid }) {
   return (
     <div className="rounded-xl border p-5" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid={testid}>
       <div className="flex items-start gap-3 mb-4">
-        <div className="h-9 w-9 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-brand-blue, #1d4ed8)', color: 'white' }}>
+        <div className="h-9 w-9 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-brand-blue, #0091ca)', color: 'white' }}>
           <Icon size={16} />
         </div>
         <div className="flex-1">
@@ -128,7 +128,7 @@ function SharingRules({ rules, entityTypes, accessLevels, onChange }) {
             {accessLevels.map((a) => <option key={a} value={a}>{ACCESS_LABEL[a] || a}</option>)}
           </select>
         </div>
-        <button onClick={submit} disabled={saving} className="px-3 py-2 rounded-md text-sm font-bold text-white inline-flex items-center justify-center gap-1.5" style={{ background: 'var(--color-brand-blue, #1d4ed8)' }} data-testid="rule-save">
+        <button onClick={submit} disabled={saving} className="px-3 py-2 rounded-md text-sm font-bold text-white inline-flex items-center justify-center gap-1.5" style={{ background: 'var(--color-brand-blue, #0091ca)' }} data-testid="rule-save">
           <Plus size={13} /> {saving ? 'Saving…' : 'Save rule'}
         </button>
       </div>
@@ -218,7 +218,7 @@ function FieldPerms({ perms, entityTypes, onChange }) {
           <label className="text-[10px] font-bold uppercase tracking-wider opacity-60">Field name</label>
           <input value={draft.field} onChange={(e) => setDraft({ ...draft, field: e.target.value })} placeholder="e.g. notes, phone, value" className="mt-1 w-full px-2 py-1.5 rounded-md border bg-transparent text-sm" style={{ borderColor: 'var(--theme-border)' }} data-testid="field-name-input" />
         </div>
-        <button onClick={submit} disabled={saving} className="px-3 py-2 rounded-md text-sm font-bold text-white inline-flex items-center justify-center gap-1.5" style={{ background: 'var(--color-brand-blue, #1d4ed8)' }} data-testid="field-save">
+        <button onClick={submit} disabled={saving} className="px-3 py-2 rounded-md text-sm font-bold text-white inline-flex items-center justify-center gap-1.5" style={{ background: 'var(--color-brand-blue, #0091ca)' }} data-testid="field-save">
           <Plus size={13} /> {saving ? 'Saving…' : 'Hide field'}
         </button>
       </div>

@@ -105,7 +105,7 @@ function Approvals({ API }) {
         ].map((tItem) => (
           <button key={tItem.id} onClick={() => setTab(tItem.id)}
             style={tab === tItem.id ? { color: '#ffffff' } : undefined}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${tab === tItem.id ? 'bg-[#0891b2] border-[#0891b2]' : 'bg-[var(--theme-surface-2)] text-[var(--theme-text)] border-[var(--theme-border)] hover:bg-[var(--theme-hover-bg)]'}`}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${tab === tItem.id ? 'bg-[#0091ca] border-[#0091ca]' : 'bg-[var(--theme-surface-2)] text-[var(--theme-text)] border-[var(--theme-border)] hover:bg-[var(--theme-hover-bg)]'}`}
             data-testid={`desk-exp-queue-${tItem.id.split(',')[0]}`}>{tItem.label}</button>
         ))}
       </div>

@@ -64,7 +64,7 @@ export default function MarketingChat() {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-5 right-5 z-[55] w-14 h-14 rounded-full bg-gradient-to-br from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] text-white shadow-[0_18px_40px_-10px_rgba(91,91,245,0.6)] flex items-center justify-center hover:scale-105 transition-transform"
+        className="fixed bottom-5 right-5 z-[55] w-14 h-14 rounded-full bg-gradient-to-br from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] text-white shadow-[0_18px_40px_-10px_rgba(25, 205, 255,0.6)] flex items-center justify-center hover:scale-105 transition-transform"
         aria-label={open ? t('mkt.mc_close', 'Close chat') : t('mkt.mc_open', 'Open chat')}
         data-testid="gx-chat-launcher"
       >
@@ -74,7 +74,7 @@ export default function MarketingChat() {
       {/* Chat panel */}
       {open && (
         <div
-          className="fixed bottom-24 right-5 z-[55] w-[calc(100%-2.5rem)] max-w-md rounded-2xl bg-white shadow-[0_30px_80px_-20px_rgba(15,23,42,0.45)] border border-slate-200 flex flex-col overflow-hidden dark:bg-zinc-900 dark:border-zinc-800"
+          className="fixed bottom-24 right-5 z-[55] w-[calc(100%-2.5rem)] max-w-md rounded-2xl bg-white shadow-[0_30px_80px_-20px_rgba(27, 28, 29,0.45)] border border-slate-200 flex flex-col overflow-hidden dark:bg-zinc-900 dark:border-zinc-800"
           style={{ height: 520 }}
           data-testid="gx-chat-panel"
         >

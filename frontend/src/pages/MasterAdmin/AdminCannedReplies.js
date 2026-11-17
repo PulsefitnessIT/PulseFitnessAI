@@ -80,7 +80,7 @@ export default function AdminCannedReplies() {
               type="button"
               onClick={() => setEditing({ ...EMPTY })}
               className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold"
-              style={{ background: '#0F172A', color: '#FFFFFF' }}
+              style={{ background: '#1B1C1D', color: '#FFFFFF' }}
               data-testid="canned-new"
             >
               <Plus size={12} /> New template
@@ -201,7 +201,7 @@ function EditorModal({ template, onClose, onSaved }) {
             onClick={save}
             disabled={saving}
             className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-50"
-            style={{ background: '#0F172A', color: '#FFFFFF' }}
+            style={{ background: '#1B1C1D', color: '#FFFFFF' }}
             data-testid="canned-save"
           >
             <Save size={12} /> {saving ? 'Saving…' : isNew ? 'Create template' : 'Save changes'}

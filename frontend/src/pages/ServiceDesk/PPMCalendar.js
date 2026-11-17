@@ -157,7 +157,7 @@ export default function PPMCalendar() {
     <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden" data-testid="ppm-calendar">
       <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
-          <CalendarClock size={16} className="text-[var(--color-brand-blue,#2563eb)]" />
+          <CalendarClock size={16} className="text-[var(--color-brand-blue,#0091ca)]" />
           <span className="text-sm font-bold">Maintenance calendar — all customers</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -253,7 +253,7 @@ export default function PPMCalendar() {
                   onDragOver={(e) => { if (dragId && !manageMode) { e.preventDefault(); setDragOverKey(key); } }}
                   onDragLeave={() => setDragOverKey((k) => (k === key ? null : k))}
                   onDrop={(e) => { e.preventDefault(); if (dragId) { reschedule(dragId, key); } setDragId(null); setDragOverKey(null); }}
-                  className={`min-h-[76px] rounded-lg border p-1 ${inMonth ? 'border-zinc-200 dark:border-zinc-800' : 'border-transparent opacity-40'} ${key === todayKey ? 'ring-1 ring-[var(--color-brand-blue,#2563eb)]' : ''} ${dragOverKey === key ? 'ring-2 ring-[var(--color-brand-cyan)] bg-cyan-50/40 dark:bg-cyan-950/20' : ''}`}
+                  className={`min-h-[76px] rounded-lg border p-1 ${inMonth ? 'border-zinc-200 dark:border-zinc-800' : 'border-transparent opacity-40'} ${key === todayKey ? 'ring-1 ring-[var(--color-brand-blue,#0091ca)]' : ''} ${dragOverKey === key ? 'ring-2 ring-[var(--color-brand-cyan)] bg-cyan-50/40 dark:bg-cyan-950/20' : ''}`}
                   data-testid={`ppm-day-${key}`}>
                   <div className="text-[10px] font-semibold text-zinc-400 px-0.5">{d.getDate()}</div>
                   <div className="space-y-0.5 mt-0.5">

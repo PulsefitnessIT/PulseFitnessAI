@@ -83,7 +83,7 @@ export default function ROICalculator() {
           </div>
 
           {/* Output */}
-          <div className="rounded-2xl bg-gradient-to-br from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] p-1 shadow-[0_24px_60px_-20px_rgba(91,91,245,0.55)]">
+          <div className="rounded-2xl bg-gradient-to-br from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] p-1 shadow-[0_24px_60px_-20px_rgba(25, 205, 255,0.55)]">
             <div className="rounded-[15px] bg-white p-6 sm:p-8 h-full flex flex-col dark:bg-zinc-900" data-testid="gx-roi-output">
               <p className="text-[11px] uppercase tracking-[0.18em] font-bold text-slate-500">{t('mkt.roi_year_one', 'Year-one projection')}</p>
               <p className="mt-2 text-5xl sm:text-6xl font-black tracking-tighter gx-gradient-text" data-testid="gx-roi-annual-total">

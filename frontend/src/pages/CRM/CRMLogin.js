@@ -50,7 +50,7 @@ export default function CRMLogin({ onLogin }) {
   const bg = isDark ? 'var(--color-ink-alt)' : 'var(--color-neutral-25)';
   const surface = isDark ? 'var(--color-neutral-900)' : 'var(--color-white)';
   const border = isDark ? 'var(--color-surface-dark-3)' : 'var(--color-border-alt)';
-  const txt = isDark ? 'var(--color-neutral-50)' : '#111827';
+  const txt = isDark ? 'var(--color-neutral-50)' : '#1B1C1D';
   const txtM = isDark ? 'var(--color-neutral-400)' : 'var(--color-text-faint-alt)';
   const inputBg = isDark ? 'var(--color-ink-alt)' : 'var(--color-white)';
 

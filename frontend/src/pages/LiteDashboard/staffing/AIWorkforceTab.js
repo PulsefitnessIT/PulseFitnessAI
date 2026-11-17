@@ -111,7 +111,7 @@ function RotaBuilderPanel({ headers }) {
         <div className="flex items-center gap-2 flex-wrap">
           <button type="button" onClick={generate} disabled={busy}
             className="h-9 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-60"
-            style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
+            style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }}
             data-testid="rota-generate-btn">
             {busy ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
             {busy ? t('staffing.ai_generating', 'Generating…') : t('staffing.ai_generate_rota', 'Generate rota')}
@@ -312,7 +312,7 @@ function SagePayrollPanel({ headers }) {
           <div className="flex items-end">
             <button type="button" onClick={download} disabled={busy}
               className="h-9 w-full rounded-full px-4 text-xs font-bold inline-flex items-center justify-center gap-1.5 disabled:opacity-60"
-              style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
+              style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }}
               data-testid="sage-download-btn">
               {busy ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
               {t('staffing.ai_download_csv', 'Download CSV')}
@@ -345,7 +345,7 @@ export default function AIWorkforceTab({ headers }) {
               className="h-9 px-4 text-xs font-bold inline-flex items-center gap-1.5"
               style={{
                 background: on ? 'var(--color-brand-cyan)' : 'transparent',
-                color: on ? '#001219' : 'var(--theme-text-muted)',
+                color: on ? '#1B1C1D' : 'var(--theme-text-muted)',
                 borderLeft: st.id !== SUB_TABS[0].id ? '1px solid var(--theme-border)' : 'none',
               }}
               data-testid={`ai-sub-${st.id}`}>

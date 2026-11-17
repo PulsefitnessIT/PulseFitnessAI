@@ -2,7 +2,7 @@
  * Pulse Fitness Design Tokens — single source of truth.
  *
  * Use these constants instead of inline hex literals across the app.
- * If you find yourself reaching for `bg-[#0055FF]` or `style={{ color: '#19CDFF' }}`,
+ * If you find yourself reaching for `bg-[#19CDFF]` or `style={{ color: '#19CDFF' }}`,
  * import from here instead.
  */
 
@@ -12,32 +12,32 @@ export const colors = {
   // Pulse operator surfaces (Strategy B), brandBlue for Pulse Fitness
   // marketing + Master Admin.
   brandCyan:       '#19CDFF',  // Pulse Fitness accent (cyan)
-  brandCyanHover:  '#66CCFF',  // hover/light cyan (legacy #66ccff)
-  brandBlue:       '#0055FF',  // Pulse Fitness accent
+  brandCyanHover:  '#19CDFF',  // hover/light cyan (legacy #19cdff)
+  brandBlue:       '#19CDFF',  // Pulse Fitness accent
   brandBlueHover:  '#0044CC',
   brandBlueDark:   '#003DA5',
 
   // ── NEUTRALS ──────────────────────────────────────────────────
-  ink:             '#0A0C10',  // Body text on light surfaces
-  inkAlt:          '#0A0A0A',  // Legacy ultra-black (mostly in CRM)
-  inkMuted:        '#52525B',
-  textMuted:       '#A1A1AA',  // zinc-400 — the most common muted text
-  textFaint:       '#71717A',  // zinc-500
-  textFaintAlt:    '#6B7280',  // legacy gray-500
+  ink:             '#1B1C1D',  // Body text on light surfaces
+  inkAlt:          '#1B1C1D',  // Legacy ultra-black (mostly in CRM)
+  inkMuted:        '#565B5E',
+  textMuted:       '#9A9FA1',  // zinc-400 — the most common muted text
+  textFaint:       '#6E7476',  // zinc-500
+  textFaintAlt:    '#6E7476',  // legacy gray-500
 
   paper:           '#FFFFFF',
-  paperAlt:        '#F4F4F5',
-  border:          '#E4E4E7',
-  borderAlt:       '#E5E7EB',  // legacy Tailwind border colour
-  borderStrong:    '#D4D4D8',
+  paperAlt:        '#F0F0F0',
+  border:          '#E0E0E0',
+  borderAlt:       '#E0E0E0',  // legacy Tailwind border colour
+  borderStrong:    '#C9CBCC',
 
   // ── DARK MODE SURFACES ────────────────────────────────────────
-  surfaceDark:     '#0A0A0A',
-  surfaceDarkAlt:  '#121212',
+  surfaceDark:     '#1B1C1D',
+  surfaceDarkAlt:  '#26292B',
   surfaceDarker:   '#05070A',  // even darker, used for Memberships
   surfaceDarkPanel:'#1F1F1F',
   surfaceDarkPanelAlt:'#1B1D1D',
-  inkOnDark:       '#FAFAFA',
+  inkOnDark:       '#F7F7F7',
   inkOnDarkMuted:  '#A3A3A3',
   borderDark:      '#262626',
 
@@ -49,7 +49,7 @@ export const colors = {
   warningAlt:      '#FBBF24',
   danger:          '#EF4444',
   dangerAlt:       '#FF3B30',  // legacy iOS-red
-  info:            '#3B82F6',
+  info:            '#19CDFF',
   infoIOS:         '#007AFF',  // legacy iOS-blue — DEPRECATED for new code
 
   // ── ACCENT PALETTE ────────────────────────────────────────────

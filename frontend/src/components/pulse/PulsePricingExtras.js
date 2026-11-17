@@ -51,19 +51,19 @@ export default function PulsePricingExtras({ onStart }) {
             <p className="mt-3 text-sm sm:text-base text-[var(--color-text-slate)]">{t('pulse_pricing.roi_subtitle', 'AI triage resolves a large share of faults before an engineer is dispatched. Estimate your saving.')}</p>
           </div>
           <div className="grid gap-6 lg:grid-cols-2 items-stretch">
-            <div className="rounded-2xl border border-[var(--color-border-subtle,#e5e7eb)] bg-white p-7 space-y-6">
+            <div className="rounded-2xl border border-[var(--color-border-subtle,#e0e0e0)] bg-white p-7 space-y-6">
               <RoiSlider label={t('pulse_pricing.roi_machines', 'Machines in estate')} testid="roi-machines-in-estate" value={machines} set={setMachines} min={10} max={500} step={5} />
               <RoiSlider label={t('pulse_pricing.roi_callout', 'Avg engineer callout')} testid="roi-avg-engineer-callout" value={callout} set={setCallout} min={40} max={400} step={10} prefix="£" />
               <RoiSlider label={t('pulse_pricing.roi_per_month', 'Callouts per month')} testid="roi-callouts-per-month" value={perMonth} set={setPerMonth} min={1} max={60} step={1} />
             </div>
-            <div className="rounded-2xl bg-[var(--color-surface-dark-panel-alt,#0f172a)] text-white p-7 flex flex-col justify-center">
+            <div className="rounded-2xl bg-[var(--color-surface-dark-panel-alt,#1b1c1d)] text-white p-7 flex flex-col justify-center">
               <div className="inline-flex items-center gap-2 text-[var(--pulse-primary)] text-sm font-semibold">
                 <TrendingDown size={16} /> {t('pulse_pricing.roi_saving_label', 'Estimated saving')}
               </div>
               <div className="mt-3 text-5xl font-extrabold tracking-tight text-[var(--pulse-primary)]" data-testid="roi-annual-saving">{money(annualSaved)}<span className="text-lg font-semibold text-white/60">{t('pulse_pricing.per_year', '/yr')}</span></div>
               <div className="mt-1 text-sm text-white/70">{t('pulse_pricing.roi_per_month_note', '≈ {{amount}} every month in avoided callouts', { amount: money(monthlySaved) })}</div>
               <p className="mt-4 text-xs text-white/50">{t('pulse_pricing.roi_disclaimer', 'Illustrative — assumes AI triage resolves ~40% of callouts remotely plus proactive monitoring across your estate. Your results will vary.')}</p>
-              <button type="button" onClick={onStart} className="mt-6 h-11 rounded-full bg-[var(--pulse-primary)] text-[#0A0C10] font-semibold text-sm inline-flex items-center justify-center gap-2 hover:brightness-95 transition" data-testid="roi-cta">
+              <button type="button" onClick={onStart} className="mt-6 h-11 rounded-full bg-[var(--pulse-primary)] text-[#1B1C1D] font-semibold text-sm inline-flex items-center justify-center gap-2 hover:brightness-95 transition" data-testid="roi-cta">
                 {t('pulse_pricing.roi_cta', 'Start your free trial')} <ArrowRight size={15} />
               </button>
             </div>
@@ -82,7 +82,7 @@ export default function PulsePricingExtras({ onStart }) {
             {FAQ_KEYS.map((n, i) => {
               const isOpen = open === i;
               return (
-                <div key={n} className="rounded-xl border border-[var(--color-border-subtle,#e5e7eb)] bg-white overflow-hidden" data-testid={`faq-item-${i}`}>
+                <div key={n} className="rounded-xl border border-[var(--color-border-subtle,#e0e0e0)] bg-white overflow-hidden" data-testid={`faq-item-${i}`}>
                   <button type="button" onClick={() => setOpen(isOpen ? -1 : i)}
                     className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left" data-testid={`faq-toggle-${i}`}>
                     <span className="font-semibold text-[var(--color-surface-dark-panel-alt)] text-sm sm:text-base">{t(`pulse_pricing.faq_q${n}`)}</span>

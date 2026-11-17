@@ -40,7 +40,7 @@ function SignaturePad({ onChange, height = 140 }) {
     e.preventDefault();
     const c = ctx();
     const pt = point(e);
-    c.strokeStyle = '#0f172a';
+    c.strokeStyle = '#1b1c1d';
     c.lineWidth = 2;
     c.lineCap = 'round';
     c.beginPath();
@@ -195,7 +195,7 @@ export default function PublicQuoteAcceptPage() {
   return (
     <div className="min-h-screen bg-slate-50" data-testid="public-quote-page">
       {/* Header */}
-      <div className="bg-gradient-to-br from-[#1d4ed8] via-[#6366f1] to-[#8b5cf6] text-white">
+      <div className="bg-gradient-to-br from-[#0091ca] via-[#19cdff] to-[#19cdff] text-white">
         <div className="max-w-3xl mx-auto px-5 py-8">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">Pulse Fitness · Quotation</p>
           <h1 className="text-3xl font-extrabold mt-1" data-testid="public-quote-number">{quote.quote_number}</h1>
@@ -316,7 +316,7 @@ export default function PublicQuoteAcceptPage() {
                 type="button"
                 onClick={accept}
                 disabled={submitting || !name.trim()}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold shadow disabled:opacity-50"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-br from-[#0091ca] to-[#19cdff] text-white text-sm font-bold shadow disabled:opacity-50"
                 data-testid="public-quote-accept-btn"
               >
                 {submitting ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}

@@ -80,7 +80,7 @@ export default function EngineerReferralLanding() {
             <Link
               to={`/partners/engineers/apply?eref=${encodeURIComponent(data.referral_code)}`}
               className="inline-flex items-center gap-2 px-7 py-3.5 rounded-md text-sm font-bold text-white shadow-sm transition-transform hover:scale-[1.02]"
-              style={{ background: 'var(--color-brand-blue, #0055FF)' }}
+              style={{ background: 'var(--color-brand-blue, #19CDFF)' }}
               data-testid="eref-apply-cta"
             >
               <Wrench size={14} /> Apply in 3 minutes <ArrowRight size={14} />

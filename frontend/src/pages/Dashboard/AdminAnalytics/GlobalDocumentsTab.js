@@ -375,7 +375,7 @@ const GlobalDocumentsTab = () => {
  key={c.key}
  onClick={() => setCategoryFilter(categoryFilter === c.key ? 'all' : c.key)}
  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${categoryFilter === c.key ? 'bg-[rgb(var(--rgb-brand-blue)/0.15)] text-[var(--color-brand-blue)]' : ''}`}
- style={categoryFilter !== c.key ? { background: 'var(--theme-surface)', border: '1px solid var(--theme-border)', color: 'var(--theme-text-muted)' } : { border: '1px solid rgba(0,85,255,0.3)' }}
+ style={categoryFilter !== c.key ? { background: 'var(--theme-surface)', border: '1px solid var(--theme-border)', color: 'var(--theme-text-muted)' } : { border: '1px solid rgba(25, 205, 255,0.3)' }}
  data-testid={`category-filter-${c.key}`}
  >
  <c.icon size={12} /> {c.label}

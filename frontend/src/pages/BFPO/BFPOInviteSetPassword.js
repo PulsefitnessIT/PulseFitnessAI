@@ -33,7 +33,7 @@ export default function BFPOInviteSetPassword() {
   };
 
   const Shell = ({ children }) => (
-    <div className="min-h-screen bg-[#F8F9FA] flex flex-col" style={{ fontFamily: "'Proxima Nova', system-ui, sans-serif" }}>
+    <div className="min-h-screen bg-[#F7F7F7] flex flex-col" style={{ fontFamily: "'Proxima Nova', system-ui, sans-serif" }}>
       <div className="on-dark text-white" style={{ backgroundColor: '#000000' }}>
         <div className="max-w-6xl mx-auto px-4 h-20 flex items-center">
           <img src={PULSE_LOGO} alt="Pulse Fitness" className="h-10 rounded-md object-cover" style={{ objectPosition: 'center', aspectRatio: '3.8/1', clipPath: 'inset(12% 3% 12% 3% round 6px)' }} />

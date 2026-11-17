@@ -94,7 +94,7 @@ const SECTIONS = [
 function Cover({ onPrint }) {
   return (
     <div className="rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--theme-border)' }}>
-      <div className="p-8 sm:p-10" style={{ background: 'linear-gradient(135deg, #1B1D1D 0%, #0b1220 100%)', borderBottom: '4px solid #19CDFF' }}>
+      <div className="p-8 sm:p-10" style={{ background: 'linear-gradient(135deg, #1B1D1D 0%, #1B1C1D 100%)', borderBottom: '4px solid #19CDFF' }}>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="text-[11px] font-extrabold uppercase tracking-[0.3em] text-[#19CDFF]">Pulse Fitness · MOD Service</div>
@@ -108,7 +108,7 @@ function Cover({ onPrint }) {
           </div>
           <button
             onClick={onPrint}
-            className="no-print shrink-0 inline-flex items-center gap-2 rounded-lg bg-[#19CDFF] hover:bg-[#66CCFF] text-[#04121a] font-extrabold px-5 py-3 text-sm transition-colors"
+            className="no-print shrink-0 inline-flex items-center gap-2 rounded-lg bg-[#19CDFF] hover:bg-[#19CDFF] text-[#04121a] font-extrabold px-5 py-3 text-sm transition-colors"
             data-testid="mod-guide-download"
           >
             <Printer size={16} /> Download / Print

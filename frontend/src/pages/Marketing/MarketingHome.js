@@ -36,7 +36,7 @@ export const MODULES = (t) => [
   {
     id: 'service',
     icon: Wrench,
-    color: '#06B6D4',
+    color: '#19CDFF',
     to: '/platform/service',
     name: t('mkt.mod_service', 'Operations'),
     tagline: t('mkt.m_service_tag', 'Stop equipment downtime.'),
@@ -52,7 +52,7 @@ export const MODULES = (t) => [
   {
     id: 'crm',
     icon: Users,
-    color: '#6366F1',
+    color: '#19CDFF',
     to: '/platform/crm',
     name: t('mkt.mod_crm', 'CRM'),
     tagline: t('mkt.m_crm_tag', 'Turn leads into members.'),
@@ -67,7 +67,7 @@ export const MODULES = (t) => [
   {
     id: 'memberships',
     icon: Calendar,
-    color: '#8B5CF6',
+    color: '#19CDFF',
     to: '/platform/memberships',
     name: t('mkt.mod_memberships', 'Memberships'),
     tagline: t('mkt.m_mem_tag', 'Classes, plans, walk-ins.'),
@@ -82,7 +82,7 @@ export const MODULES = (t) => [
   {
     id: 'marketing',
     icon: Megaphone,
-    color: '#D946EF',
+    color: '#19CDFF',
     to: '/platform/marketing',
     name: t('mkt.mod_marketing', 'Marketing'),
     tagline: t('mkt.m_mkt_tag', 'Campaigns that convert.'),

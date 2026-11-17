@@ -6,7 +6,7 @@ import {
 export default {
   id: 'memberships',
   name: 'Memberships',
-  color: '#8B5CF6',
+  color: '#19CDFF',
   icon: Calendar,
 
   heroLine1: 'Classes, plans,',
@@ -82,10 +82,10 @@ export default {
 
   integrationsHeadline: 'Memberships is wired into the rest of Pulse Fitness.',
   integrations: [
-    { icon: Users,     name: 'CRM',       color: '#6366F1', to: '/platform/crm',       body: 'Every booking, freeze and family invoice lands on the contact timeline automatically.' },
-    { icon: Megaphone, name: 'Marketing', color: '#D946EF', to: '/platform/marketing', body: 'Member segments ("no class in 14d") are one-click campaign audiences.' },
-    { icon: Wrench,    name: 'Operations',   color: '#06B6D4', to: '/platform/service',   body: 'Equipment fault on a class machine? Booking auto-relocates and members are notified.' },
-    { icon: BarChart3, name: 'Reporting', color: '#2563EB', to: '/platform/reporting', body: 'LTV, retention curves, no-show rates and Auto-Bill recovery on one screen.' },
+    { icon: Users,     name: 'CRM',       color: '#19CDFF', to: '/platform/crm',       body: 'Every booking, freeze and family invoice lands on the contact timeline automatically.' },
+    { icon: Megaphone, name: 'Marketing', color: '#19CDFF', to: '/platform/marketing', body: 'Member segments ("no class in 14d") are one-click campaign audiences.' },
+    { icon: Wrench,    name: 'Operations',   color: '#19CDFF', to: '/platform/service',   body: 'Equipment fault on a class machine? Booking auto-relocates and members are notified.' },
+    { icon: BarChart3, name: 'Reporting', color: '#0091CA', to: '/platform/reporting', body: 'LTV, retention curves, no-show rates and Auto-Bill recovery on one screen.' },
   ],
 
   resultsHeadline: 'Real numbers from real operators.',

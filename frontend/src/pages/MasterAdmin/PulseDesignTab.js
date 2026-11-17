@@ -10,11 +10,11 @@ import { Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
 const PALETTE = [
   { name: 'Brand cyan',          value: '#19CDFF', token: '--color-brand-cyan',           note: 'Primary CTA + accent' },
   { name: 'Brand cyan deep',     value: '#0BB0DD', token: '--color-brand-cyan-deep',      note: 'Cyan gradient end' },
-  { name: 'Ink (heading)',       value: '#0B1220', token: '--color-surface-dark-panel-alt', note: 'Headings on light' },
-  { name: 'Slate (body)',        value: '#475569', token: '--color-text-slate',           note: 'Body copy' },
+  { name: 'Ink (heading)',       value: '#1B1C1D', token: '--color-surface-dark-panel-alt', note: 'Headings on light' },
+  { name: 'Slate (body)',        value: '#565B5E', token: '--color-text-slate',           note: 'Body copy' },
   { name: 'Surface white',       value: '#FFFFFF', token: '--color-white',                note: 'Cards' },
-  { name: 'Subtle slate',        value: '#F1F5F9', token: '--color-slate-50',             note: 'Section bands' },
-  { name: 'Ink dark',            value: '#0F172A', token: '--color-neutral-900',          note: 'Dark CTAs / final hero' },
+  { name: 'Subtle slate',        value: '#F0F0F0', token: '--color-slate-50',             note: 'Section bands' },
+  { name: 'Ink dark',            value: '#1B1C1D', token: '--color-neutral-900',          note: 'Dark CTAs / final hero' },
   { name: 'Success',             value: '#10B981', token: '--color-success',              note: 'Positive state' },
 ];
 
@@ -81,7 +81,7 @@ export default function PulseDesignTab() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 flex flex-wrap items-center gap-3">
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-bold text-[#0F172A]"
+            className="inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-bold text-[#1B1C1D]"
             style={{ background: 'linear-gradient(135deg, #19CDFF 0%, #0BB0DD 100%)', boxShadow: '0 0 24px rgba(25,205,255,0.35)' }}
             data-testid="pulse-ds-btn-primary"
           >

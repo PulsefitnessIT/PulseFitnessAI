@@ -6,6 +6,13 @@ const PULSE_ACCENT = {
   50: '#e4f9ff', 100: '#cff1ff', 200: '#9ce4ff', 300: '#5cd3ff', 400: '#19CDFF',
   500: '#00b8f0', 600: '#0091ca', 700: '#0073a4', 800: '#00608b', 900: '#044f74', 950: '#033350',
 };
+// Pulse style guide neutrals: Silver #E0E0E0, Slate #6E7476, Onyx #393E41, Soft Black #1B1C1D.
+const PULSE_NEUTRAL = {
+  50: '#F7F7F7', 100: '#F0F0F0', 200: '#E0E0E0', 300: '#C9CBCC', 400: '#9A9FA1',
+  500: '#6E7476', 600: '#565B5E', 700: '#393E41', 800: '#26292B', 900: '#1B1C1D', 950: '#121314',
+};
+// Status colours stay red / amber / green; other hues fold into them or Core Blue.
+const twc = require('tailwindcss/colors');
 module.exports = {
     // Activate `dark:` variants when the *nearest* themed ancestor is dark.
     // The :not() guards cancel the variant inside any subtree that explicitly
@@ -40,6 +47,18 @@ module.exports = {
                         violet: PULSE_ACCENT,
                         purple: PULSE_ACCENT,
                         teal: PULSE_ACCENT,
+                        pink: PULSE_ACCENT,
+                        fuchsia: PULSE_ACCENT,
+                        slate: PULSE_NEUTRAL,
+                        gray: PULSE_NEUTRAL,
+                        zinc: PULSE_NEUTRAL,
+                        neutral: PULSE_NEUTRAL,
+                        stone: PULSE_NEUTRAL,
+                        rose: twc.red,
+                        orange: twc.amber,
+                        yellow: twc.amber,
+                        lime: twc.green,
+                        emerald: twc.green,
                         background: 'hsl(var(--background))',
                         foreground: 'hsl(var(--foreground))',
                         card: {

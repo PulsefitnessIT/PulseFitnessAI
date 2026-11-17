@@ -35,7 +35,7 @@ export default function TrialRequestCard() {
   };
 
   return (
-    <div className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border, #e4e4e7)' }} data-testid="trial-request-card">
+    <div className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }} data-testid="trial-request-card">
       <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: 'var(--theme-text)' }}>
         <Gift size={15} /> Free Pulse Pro trial already used
       </p>
@@ -45,7 +45,7 @@ export default function TrialRequestCard() {
         </p>
       ) : (
         <>
-          <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted, #71717a)' }}>
+          <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted, #6e7476)' }}>
             Need more time to try Memberships, Marketing or CRM? Ask the Pulse team for another trial.
           </p>
           <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={500}
@@ -53,7 +53,7 @@ export default function TrialRequestCard() {
             className="mt-2 w-full rounded-md border px-2.5 py-1.5 text-sm bg-transparent" data-testid="trial-request-note" />
           <button type="button" onClick={send} disabled={busy}
             className="mt-2 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold"
-            style={{ background: '#f59e0b', color: '#18181b' }} data-testid="trial-request-btn">
+            style={{ background: '#f59e0b', color: '#1b1c1d' }} data-testid="trial-request-btn">
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Gift size={14} />} Request another trial
           </button>
         </>

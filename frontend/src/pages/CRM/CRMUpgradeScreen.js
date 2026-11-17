@@ -49,7 +49,7 @@ const CRMUpgradeScreen = ({ modes, accountType, membershipsEnabled, _onUpgraded 
     <div className="max-w-4xl mx-auto py-10 px-4" data-testid="crm-upgrade-screen">
       <div className="text-center mb-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4"
-             style={{ background: 'rgba(0,85,255,0.1)', color: 'var(--color-brand-blue)' }}>
+             style={{ background: 'rgba(25, 205, 255,0.1)', color: 'var(--color-brand-blue)' }}>
           <Sparkles size={12} /> Pick the right CRM for your business
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold pulse-font-heading mb-3" style={{ color: 'var(--theme-text)' }}>
@@ -113,7 +113,7 @@ const CRMUpgradeScreen = ({ modes, accountType, membershipsEnabled, _onUpgraded 
         <Card className="p-6 border-zinc-200 dark:border-white/10 flex flex-col" data-testid="crm-upgrade-business-card">
           <div className="flex items-center gap-2.5 mb-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                 style={{ background: 'rgba(0,85,255,0.12)', color: 'var(--color-brand-blue)' }}>
+                 style={{ background: 'rgba(25, 205, 255,0.12)', color: 'var(--color-brand-blue)' }}>
               <Building2 size={20} />
             </div>
             <div>

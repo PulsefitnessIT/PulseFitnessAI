@@ -178,8 +178,8 @@ function FiltersBar({ status, setStatus, search, setSearch }) {
               onClick={() => setStatus(t.id)}
               className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold border transition whitespace-nowrap hover:border-zinc-400"
               style={active
-                ? { background: '#0F172A', color: '#FFFFFF', borderColor: '#0F172A' }
-                : { background: '#FFFFFF', color: '#3F3F46', borderColor: '#E4E4E7' }
+                ? { background: '#1B1C1D', color: '#FFFFFF', borderColor: '#1B1C1D' }
+                : { background: '#FFFFFF', color: '#393E41', borderColor: '#E0E0E0' }
               }
               data-testid={`emails-tab-${t.id}`}
             >

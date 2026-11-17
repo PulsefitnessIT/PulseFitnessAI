@@ -179,7 +179,7 @@ function VisualSections({ m }) {
                 {(v.visualRows || []).map((row, k) => (
                   <div key={k} className="rounded-xl bg-slate-50/80 border border-slate-100 px-3 py-2.5 text-sm flex items-center justify-between dark:border-zinc-800">
                     <span className="font-semibold text-slate-700">{row.l}</span>
-                    <span className="font-bold" style={{ color: row.tone === 'mute' ? '#94A3B8' : m.color }}>{row.r}</span>
+                    <span className="font-bold" style={{ color: row.tone === 'mute' ? '#9A9FA1' : m.color }}>{row.r}</span>
                   </div>
                 ))}
               </div>

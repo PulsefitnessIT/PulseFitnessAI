@@ -146,7 +146,7 @@ export default function DocumentsPanel({ orgId } = {}) {
       {/* ── Pulse Fitness quick-pack banner (platform scope only) ── */}
       {!orgId && (
         <div
-          className="p-4 rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+          className="p-4 rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(27, 28, 29,0.04)]"
           data-testid="documents-pulse-pack-banner"
         >
           <div className="flex items-center gap-3 mb-3">

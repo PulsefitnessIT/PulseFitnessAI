@@ -64,7 +64,7 @@ export default function GDPRPanel() {
   return (
     <div className="space-y-5" data-testid="gdpr-panel">
       <div className="flex items-center gap-2">
-        <ShieldCheck size={18} style={{ color: 'var(--color-brand-blue,#1d4ed8)' }} />
+        <ShieldCheck size={18} style={{ color: 'var(--color-brand-blue,#0091ca)' }} />
         <div>
           <h2 className="text-lg font-extrabold" style={{ color: 'var(--theme-text)' }}>Privacy &amp; GDPR</h2>
           <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>Honour subject access (export) and erasure requests for any member or contact.</p>
@@ -78,7 +78,7 @@ export default function GDPRPanel() {
             className="w-full pl-9 pr-3 py-2 text-sm rounded-lg" style={{ background: 'var(--theme-bg)', border: '1px solid var(--theme-border)', color: 'var(--theme-text)' }} />
         </div>
         <button type="submit" disabled={searching || q.trim().length < 2} data-testid="gdpr-search-btn"
-          className="px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--color-brand-blue,#1d4ed8)' }}>
+          className="px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--color-brand-blue,#0091ca)' }}>
           {searching ? <Loader2 size={15} className="animate-spin" /> : 'Search'}
         </button>
       </form>
@@ -90,11 +90,11 @@ export default function GDPRPanel() {
           <ul className="space-y-2" data-testid="gdpr-results">
             {results.map((r) => (
               <li key={`${r.kind}-${r.id}`} className="rounded-xl border p-3 flex items-center gap-3 flex-wrap" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid={`gdpr-result-${r.id}`}>
-                {r.kind === 'member' ? <User size={16} style={{ color: 'var(--color-brand-blue,#1d4ed8)' }} /> : <Building2 size={16} style={{ color: 'var(--color-brand-cyan,#0891b2)' }} />}
+                {r.kind === 'member' ? <User size={16} style={{ color: 'var(--color-brand-blue,#0091ca)' }} /> : <Building2 size={16} style={{ color: 'var(--color-brand-cyan,#0091ca)' }} />}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold" style={{ color: 'var(--theme-text)' }}>{r.name}</span>
-                    <span className="text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--theme-surface-2,#f1f5f9)', color: 'var(--theme-text-muted)' }}>{r.kind}</span>
+                    <span className="text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--theme-surface-2,#f0f0f0)', color: 'var(--theme-text-muted)' }}>{r.kind}</span>
                     {r.erased && <span className="text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.14)', color: '#b91c1c' }}>Erased</span>}
                   </div>
                   <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{r.email || '—'}</p>
@@ -188,7 +188,7 @@ function RetentionReview() {
   return (
     <div className="rounded-xl border p-4" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }} data-testid="gdpr-retention">
       <div className="flex items-center gap-2 mb-1">
-        <Clock size={15} style={{ color: 'var(--color-brand-cyan,#0891b2)' }} />
+        <Clock size={15} style={{ color: 'var(--color-brand-cyan,#0091ca)' }} />
         <h3 className="text-sm font-extrabold" style={{ color: 'var(--theme-text)' }}>Retention review</h3>
       </div>
       <p className="text-xs mb-3" style={{ color: 'var(--theme-text-muted)' }}>
@@ -202,7 +202,7 @@ function RetentionReview() {
             data-testid="gdpr-retention-months" />
         </label>
         <button type="button" onClick={preview} disabled={loading} data-testid="gdpr-retention-preview-btn"
-          className="px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--color-brand-blue,#1d4ed8)' }}>
+          className="px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50" style={{ background: 'var(--color-brand-blue,#0091ca)' }}>
           {loading ? <Loader2 size={15} className="animate-spin" /> : 'Preview inactive'}
         </button>
       </div>

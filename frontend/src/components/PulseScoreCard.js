@@ -37,8 +37,8 @@ const BRAND_COPY = {
     loading: 'Reading your Pulse…',
     error: 'Could not load The Pulse',
     not_ready_fallback: "Your Pulse will appear once you've added equipment and logged a little activity.",
-    ring_gradient: 'linear-gradient(90deg, #19CDFF, #0055FF)',
-    eyebrow_color: '#0055FF',
+    ring_gradient: 'linear-gradient(90deg, #19CDFF, #19CDFF)',
+    eyebrow_color: '#19CDFF',
   },
   gymaxis: {
     eyebrow: 'Gym Health',
@@ -47,8 +47,8 @@ const BRAND_COPY = {
     loading: 'Reading Gym Health…',
     error: 'Could not load Gym Health',
     not_ready_fallback: "Your Gym Health score will appear once you've added equipment and logged a little activity.",
-    ring_gradient: 'linear-gradient(90deg, #2563EB, #9D4CDD)',
-    eyebrow_color: '#2563EB',
+    ring_gradient: 'linear-gradient(90deg, #0091CA, #19CDFF)',
+    eyebrow_color: '#0091CA',
   },
 };
 
@@ -57,7 +57,7 @@ const BAND_STYLES = {
   Excellent:         { fg: '#10B981', soft: 'rgba(16,185,129,0.10)' },
   Good:              { fg: '#19CDFF', soft: 'rgba(25,205,255,0.12)' },
   Fair:              { fg: '#F59E0B', soft: 'rgba(245,158,11,0.10)' },
-  'Needs Attention': { fg: '#F97316', soft: 'rgba(249,115,22,0.10)' },
+  'Needs Attention': { fg: '#F59E0B', soft: 'rgba(249,115,22,0.10)' },
   Critical:          { fg: '#EF4444', soft: 'rgba(239,68,68,0.10)' },
 };
 
@@ -233,7 +233,7 @@ export const PulseScoreCard = ({ siteId }) => {
                 x="64" y="82"
                 textAnchor="middle"
                 style={{
-                  fill: '#94A3B8',
+                  fill: '#9A9FA1',
                   fontFamily: 'JetBrains Mono, monospace',
                   fontSize: 9,
                   letterSpacing: '0.14em',

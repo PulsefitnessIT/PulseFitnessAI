@@ -18,7 +18,7 @@ function ScanInput({ placeholder, onScan, testId, disabled }) {
   return (
     <div className="flex items-center gap-2">
       <div className="relative flex-1">
-        <ScanLine size={16} className="absolute left-2.5 top-2.5 text-[#0B3D91]" />
+        <ScanLine size={16} className="absolute left-2.5 top-2.5 text-[#0073A4]" />
         <input className={`${inputCls} pl-8`} placeholder={placeholder} value={v} data-testid={testId} disabled={disabled}
           onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} />
       </div>
@@ -30,7 +30,7 @@ function ScanInput({ placeholder, onScan, testId, disabled }) {
 // Step wrapper
 function Step({ n, title, done, active, children }) {
   return (
-    <Card className={`p-4 ${active ? 'ring-2 ring-[#0B3D91]/30' : ''}`} testId={`inv-ful-step-${n}`}>
+    <Card className={`p-4 ${active ? 'ring-2 ring-[#0073A4]/30' : ''}`} testId={`inv-ful-step-${n}`}>
       <div className="mb-3 flex items-center gap-2">
         <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${done ? 'bg-emerald-500 text-white' : active ? 'inv-active text-white' : 'bg-slate-200 text-slate-500'}`}>{done ? '✓' : n}</span>
         <h3 className="text-sm font-bold text-slate-900">{title}</h3>
@@ -201,7 +201,7 @@ export function WarehouseQueue({ stage, title }) {
             <tbody>
               {rows.map((o) => (
                 <tr key={o.id} className="border-b border-slate-100 hover:bg-slate-50" data-testid={`inv-queue-row-${o.reference}`}>
-                  <td className="px-4 py-3 font-semibold text-[#0B3D91]">{o.reference}</td>
+                  <td className="px-4 py-3 font-semibold text-[#0073A4]">{o.reference}</td>
                   <td>{o.dealer_name}</td>
                   <td>{o.dealer_country}</td>
                   <td><StatusBadge status={o.status} /></td>

@@ -240,7 +240,7 @@ function UnitRow({ unit, onAssigned }) {
       <span className="w-40 truncate text-sm text-slate-600">{unit.model || unit.product_code}</span>
       <StatusBadge status={unit.status} />
       {unit.serial_number ? (
-        <span className="ml-auto flex items-center gap-1 text-sm font-semibold text-slate-800" data-testid={`inv-unit-serial-${unit.id}`}><ScanLine size={14} className="text-[#0B3D91]" /> {unit.serial_number}</span>
+        <span className="ml-auto flex items-center gap-1 text-sm font-semibold text-slate-800" data-testid={`inv-unit-serial-${unit.id}`}><ScanLine size={14} className="text-[#0073A4]" /> {unit.serial_number}</span>
       ) : (
         <div className="ml-auto flex items-center gap-2">
           <input className="rounded-lg border border-slate-300 px-2 py-1 text-sm" placeholder={t('inv.orders.scan_type_serial', 'Scan / type serial')} value={serial} data-testid={`inv-unit-input-${unit.id}`} onChange={(e) => setSerial(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && assign()} />
@@ -284,7 +284,7 @@ function OrderDetail({ orderId, onBack }) {
       <div className="flex gap-1 border-b border-slate-200">
         {[['overview', t('inv.orders.tab_overview', 'Overview')], ['fulfilment', t('inv.orders.tab_fulfilment', 'Warehouse Fulfilment')]].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)} data-testid={`inv-order-tab-${id}`}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${tab === id ? 'border-[#0B3D91] text-[#0B3D91]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>{label}</button>
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${tab === id ? 'border-[#0073A4] text-[#0073A4]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>{label}</button>
         ))}
       </div>
 
@@ -425,7 +425,7 @@ export default function InvOrders({ warehouses, initialOrderId }) {
             <tbody>
               {shown.map((o) => (
                 <tr key={o.id} className="cursor-pointer border-b border-slate-100 hover:bg-slate-50" data-testid={`inv-order-row-${o.reference}`} onClick={() => setSelected(o.id)}>
-                  <td className="px-4 py-3 font-semibold text-[#0B3D91]">{o.reference}</td>
+                  <td className="px-4 py-3 font-semibold text-[#0073A4]">{o.reference}</td>
                   <td><SourceBadge source={o.source} /></td>
                   <td>{o.dealer_name}</td>
                   <td>{o.dealer_country}</td>

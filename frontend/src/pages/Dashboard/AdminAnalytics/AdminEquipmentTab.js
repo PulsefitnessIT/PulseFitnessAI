@@ -5,7 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import axios from 'axios';
 import { useAuth } from '@/App';
 
-const COLORS = ['var(--color-info)', 'var(--color-success)', 'var(--color-warning)', 'var(--color-danger)', 'var(--color-accent-violet)', '#EC4899', 'var(--color-teal-500)', 'var(--color-orange)', '#6366F1'];
+const COLORS = ['var(--color-info)', 'var(--color-success)', 'var(--color-warning)', 'var(--color-danger)', 'var(--color-accent-violet)', '#19CDFF', 'var(--color-teal-500)', 'var(--color-orange)', '#19CDFF'];
 
 const AdminEquipmentTab = () => {
   const { API } = useAuth();

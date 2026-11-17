@@ -1,5 +1,5 @@
 :root {
-  --brand-color: #0055FF;
+  --brand-color: #19CDFF;
 }
 
 .App {
@@ -60,7 +60,7 @@
 
 /* Focus visible ring for keyboard navigation */
 *:focus-visible {
-  outline: 2px solid #0055FF;
+  outline: 2px solid #19CDFF;
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -70,7 +70,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid #0055FF;
+  outline: 2px solid #19CDFF;
   outline-offset: 2px;
 }
 

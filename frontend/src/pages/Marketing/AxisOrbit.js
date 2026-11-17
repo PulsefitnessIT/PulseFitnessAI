@@ -168,7 +168,7 @@ export default function AxisOrbit() {
           />
           <div
             className="relative w-full h-full rounded-full bg-white flex items-center justify-center gx-glow dark:bg-zinc-900"
-            style={{ boxShadow: '0 18px 50px -12px rgba(25, 205, 255, .35), 0 0 0 1px rgba(15, 23, 42, .04)' }}
+            style={{ boxShadow: '0 18px 50px -12px rgba(25, 205, 255, .35), 0 0 0 1px rgba(27, 28, 29, .04)' }}
             data-testid="gx-orbit-center"
           >
             <PulseFitnessMark className="w-[68%] h-[68%]" />
@@ -192,8 +192,8 @@ function ModuleNode({ to, icon: Icon, color, label, isActive, dimmed, testId }) 
         className={`gx-orbit-node w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white border border-slate-200 flex items-center justify-center transition-all duration-300 dark:bg-zinc-900 dark:border-zinc-800 ${isActive ? 'gx-orbit-node-active' : ''}`}
         style={{
           boxShadow: isActive
-            ? `0 18px 40px -10px ${color}, 0 0 0 1px rgba(15, 23, 42, .04)`
-            : `0 6px 24px -6px ${color}55, 0 0 0 1px rgba(15, 23, 42, .04)`,
+            ? `0 18px 40px -10px ${color}, 0 0 0 1px rgba(27, 28, 29, .04)`
+            : `0 6px 24px -6px ${color}55, 0 0 0 1px rgba(27, 28, 29, .04)`,
           ['--gx-node-accent']: color,
           transform: isActive ? 'translateY(-4px) scale(1.05)' : 'translateY(0)',
         }}

@@ -17,9 +17,9 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const gbp = (v) => '£' + Number(v || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const STATUS = {
-  draft: { label: 'Draft', bg: 'rgba(100,116,139,0.15)', c: '#64748b' },
+  draft: { label: 'Draft', bg: 'rgba(100,116,139,0.15)', c: '#6e7476' },
   submitted: { label: 'Awaiting manager', bg: 'rgba(245,158,11,0.15)', c: '#d97706' },
-  approved: { label: 'Approved — awaiting payment', bg: 'rgba(6,182,212,0.15)', c: '#0891b2' },
+  approved: { label: 'Approved — awaiting payment', bg: 'rgba(6,182,212,0.15)', c: '#0091ca' },
   reimbursed: { label: 'Reimbursed', bg: 'rgba(16,185,129,0.15)', c: '#059669' },
   rejected: { label: 'Returned to you', bg: 'rgba(239,68,68,0.15)', c: '#dc2626' },
 };
@@ -289,7 +289,7 @@ export default function ExpensesTab({ H }) {
         </div>
       )}
       {isSubmitted && (
-        <div className="mb-3 p-3 rounded-lg text-sm" style={{ background: 'rgba(14,165,233,0.1)', color: '#0369a1' }} data-testid="exp-editable-note">
+        <div className="mb-3 p-3 rounded-lg text-sm" style={{ background: 'rgba(14,165,233,0.1)', color: '#0073a4' }} data-testid="exp-editable-note">
           Submitted and awaiting approval — you can still make changes until your manager approves it.
         </div>
       )}

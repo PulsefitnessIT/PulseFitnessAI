@@ -47,7 +47,7 @@ export default function TeamAccessMatrixTab({ headers }) {
       {on ? (
         <span
           className="inline-flex items-center justify-center w-6 h-6 rounded-full"
-          style={{ background: privileged ? '#6366f11f' : '#10b9811f', color: privileged ? '#6366f1' : '#059669' }}
+          style={{ background: privileged ? '#6366f11f' : '#10b9811f', color: privileged ? '#19cdff' : '#059669' }}
           title={privileged ? 'Granted (admin — sees everything)' : 'Granted'}
         >
           <Check size={14} strokeWidth={3} />
@@ -120,7 +120,7 @@ export default function TeamAccessMatrixTab({ headers }) {
                         {r.name}
                         {r.is_privileged && (
                           <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
-                            style={{ background: '#6366f11f', color: '#6366f1' }} title="Sees everything">
+                            style={{ background: '#6366f11f', color: '#19cdff' }} title="Sees everything">
                             <ShieldCheck size={10} /> {r.privilege_label || 'Admin'}
                           </span>
                         )}
@@ -150,7 +150,7 @@ export default function TeamAccessMatrixTab({ headers }) {
           Granted
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: '#6366f11f', color: '#6366f1' }}><Check size={11} strokeWidth={3} /></span>
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ background: '#6366f11f', color: '#19cdff' }}><Check size={11} strokeWidth={3} /></span>
           Granted via admin/owner (sees everything)
         </span>
         <span className="inline-flex items-center gap-1.5">

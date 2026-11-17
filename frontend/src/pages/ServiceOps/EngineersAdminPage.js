@@ -361,7 +361,7 @@ export default function EngineersAdminPage() {
                     onChange={(e) => setAddForm({ ...addForm, verified: e.target.checked })}
                     data-testid="engineers-add-verified-checkbox"
                   />
-                  <BadgeCheck size={14} color={addForm.verified ? '#10b981' : '#94a3b8'} />
+                  <BadgeCheck size={14} color={addForm.verified ? '#10b981' : '#9a9fa1'} />
                   <span style={{ fontWeight: 600 }}>{t('service.eng_verified', 'Verified engineer')}</span>
                 </label>
               </div>
@@ -544,7 +544,7 @@ export default function EngineersAdminPage() {
                   </td>
                 </tr>
                 {editing ? (
-                  <tr data-testid={`engineer-trust-row-${e.id}`} style={{ background: 'var(--theme-surface-soft, #f8fafc)' }}>
+                  <tr data-testid={`engineer-trust-row-${e.id}`} style={{ background: 'var(--theme-surface-soft, #f7f7f7)' }}>
                     <td colSpan={8} style={{ padding: 12 }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
                         <div>
@@ -589,7 +589,7 @@ export default function EngineersAdminPage() {
                               onChange={(ev) => setEditDraft({ ...editDraft, verified: ev.target.checked })}
                               data-testid={`engineer-verified-checkbox-${e.id}`}
                             />
-                            <BadgeCheck size={14} color={editDraft.verified ? '#10b981' : '#94a3b8'} />
+                            <BadgeCheck size={14} color={editDraft.verified ? '#10b981' : '#9a9fa1'} />
                             <span style={{ fontWeight: 600 }}>{t('service.eng_verified', 'Verified engineer')}</span>
                             <span className="svc-muted text-xs" style={{ marginLeft: 4 }}>
                               {t('service.eng_shown_customers', 'shown to customers on the live-tracking page')}

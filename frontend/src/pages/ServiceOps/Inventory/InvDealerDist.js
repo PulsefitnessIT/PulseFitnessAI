@@ -80,7 +80,7 @@ function ShipmentDetail({ shipmentId, onBack }) {
           <div className="mt-3 space-y-1">
             {(documents || []).length === 0 ? <p className="text-sm text-slate-400">{t('inv.ship.no_docs', 'No documents generated.')}</p> : documents.map((d) => (
               <div key={d.id} className="flex items-center gap-2 border-b border-slate-100 py-1.5 text-sm last:border-0" data-testid={`inv-doc-${d.reference}`}>
-                <FileText size={14} className="text-[#0B3D91]" />
+                <FileText size={14} className="text-[#0073A4]" />
                 <span className="font-semibold">{d.template}</span>
                 <span className="text-xs text-slate-400">{d.reference} · {d.template_version} · rev {d.revision}</span>
                 <span className="ml-auto text-xs text-slate-400">{fmtDate(d.created_at)}</span>
@@ -105,7 +105,7 @@ function ShipmentDetail({ shipmentId, onBack }) {
             <div className="space-y-2">
               {units.map((u) => (
                 <div key={u.id} className="flex items-center gap-3 rounded-lg border border-slate-200 p-2" data-testid={`inv-receipt-unit-${u.id}`}>
-                  <span className="text-sm font-semibold text-slate-700"><ScanLine size={13} className="mr-1 inline text-[#0B3D91]" />{u.serial_number}</span>
+                  <span className="text-sm font-semibold text-slate-700"><ScanLine size={13} className="mr-1 inline text-[#0073A4]" />{u.serial_number}</span>
                   <div className="ml-auto flex gap-2">
                     <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={!!receipt.confirmed[u.id]} data-testid={`inv-receipt-confirm-${u.id}`} onChange={(e) => setReceipt((r) => ({ ...r, confirmed: { ...r.confirmed, [u.id]: e.target.checked }, damaged: { ...r.damaged, [u.id]: false } }))} /> {t('inv.ship.received_lbl', 'Received')}</label>
                     <label className="flex items-center gap-1 text-xs text-rose-600"><input type="checkbox" checked={!!receipt.damaged[u.id]} data-testid={`inv-receipt-damage-${u.id}`} onChange={(e) => setReceipt((r) => ({ ...r, damaged: { ...r.damaged, [u.id]: e.target.checked }, confirmed: { ...r.confirmed, [u.id]: false } }))} /> {t('inv.ship.damaged_lbl', 'Damaged')}</label>
@@ -139,7 +139,7 @@ export function Shipments() {
             <tbody>
               {rows.map((s) => (
                 <tr key={s.id} className="cursor-pointer border-b border-slate-100 hover:bg-slate-50" data-testid={`inv-shipment-row-${s.reference}`} onClick={() => setSelected(s.id)}>
-                  <td className="px-4 py-3 font-semibold text-[#0B3D91]">{s.reference}</td>
+                  <td className="px-4 py-3 font-semibold text-[#0073A4]">{s.reference}</td>
                   <td>{s.dealer_name}</td><td>{s.dealer_country}</td><td>{s.carrier}</td><td className="text-slate-500">{s.tracking || '—'}</td>
                   <td><StatusBadge status={s.status} /></td>
                 </tr>
@@ -212,7 +212,7 @@ export function TransferOrders({ warehouses }) {
             <tbody>
               {rows.map((tr) => (
                 <tr key={tr.id} className="border-b border-slate-100" data-testid={`inv-transfer-row-${tr.reference}`}>
-                  <td className="px-4 py-3 font-semibold text-[#0B3D91]">{tr.reference}</td>
+                  <td className="px-4 py-3 font-semibold text-[#0073A4]">{tr.reference}</td>
                   <td className="text-slate-600"><ArrowRightLeft size={12} className="mr-1 inline" />{whName(tr.source_warehouse_id)} → {whName(tr.dest_warehouse_id)}</td>
                   <td><StatusBadge status={tr.status} /></td>
                   <td className="pr-4 text-right">{NEXT[tr.status] && <Btn variant="secondary" onClick={() => step(tr.id, NEXT[tr.status])} data-testid={`inv-transfer-action-${tr.reference}`}>{statusLabel(NEXT[tr.status])}</Btn>}{tr.status === 'received' && <span className="text-emerald-600"><CheckCircle2 size={16} className="inline" /></span>}</td>

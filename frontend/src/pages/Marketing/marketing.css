@@ -6,19 +6,19 @@
 @import url('https://api.fontshare.com/v2/css?f[]=satoshi@700,500,900&display=swap');
 
 .gx-marketing {
-  --gx-bg: #F8FAFC;
+  --gx-bg: #F7F7F7;
   --gx-bg-paper: #FFFFFF;
-  --gx-text: #0F172A;
-  --gx-text-muted: #475569;
-  --gx-text-dim: #94A3B8;
-  --gx-brand-from: #2563EB;
-  --gx-brand-to: #9D4CDD;
-  --gx-accent-service: #06B6D4;
-  --gx-accent-crm: #6366F1;
-  --gx-accent-memberships: #8B5CF6;
-  --gx-accent-marketing: #D946EF;
-  --gx-accent-staffing: #A855F7;
-  --gx-accent-reporting: #2563EB;
+  --gx-text: #1B1C1D;
+  --gx-text-muted: #565B5E;
+  --gx-text-dim: #9A9FA1;
+  --gx-brand-from: #0091CA;
+  --gx-brand-to: #19CDFF;
+  --gx-accent-service: #19CDFF;
+  --gx-accent-crm: #19CDFF;
+  --gx-accent-memberships: #19CDFF;
+  --gx-accent-marketing: #19CDFF;
+  --gx-accent-staffing: #19CDFF;
+  --gx-accent-reporting: #0091CA;
   /* Iter 220bd — Engineers high-vis amber, distinct from the existing
      cool palette so the 5th node reads as "partner / on-site contractor"
      instead of another core SaaS module. */
@@ -75,8 +75,8 @@
     linear-gradient(90deg,
       var(--gx-brand-from) 0%,
       var(--gx-brand-to)   var(--fill-pct, 100%),
-      #e2e8f0              var(--fill-pct, 100%),
-      #e2e8f0              100%);
+      #e0e0e0              var(--fill-pct, 100%),
+      #e0e0e0              100%);
   outline: none;
   cursor: pointer;
 }
@@ -87,7 +87,7 @@
   background:
     linear-gradient(90deg,
       #ffffff             0%,
-      #f1f5f9             var(--fill-pct, 100%),
+      #f0f0f0             var(--fill-pct, 100%),
       rgba(255,255,255,0.25) var(--fill-pct, 100%),
       rgba(255,255,255,0.25) 100%);
 }
@@ -179,10 +179,10 @@
 }
 .gx-marketing .group:hover .gx-orbit-node,
 .gx-orbit-node-active {
-  border-color: var(--gx-node-accent, #2563EB);
+  border-color: var(--gx-node-accent, #0091CA);
   box-shadow:
-    0 14px 32px -10px var(--gx-node-accent, #2563EB),
-    0 0 0 1px rgba(15, 23, 42, .04);
+    0 14px 32px -10px var(--gx-node-accent, #0091CA),
+    0 0 0 1px rgba(27, 28, 29, .04);
   background-color: #ffffff;
 }
 
@@ -205,8 +205,8 @@
   background-image:
     radial-gradient(circle at 50% 0%, rgba(25, 205, 255,.08), transparent 50%),
     radial-gradient(circle at 80% 80%, rgba(25, 205, 255,.08), transparent 50%),
-    linear-gradient(rgba(15,23,42,.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15,23,42,.04) 1px, transparent 1px);
+    linear-gradient(rgba(27, 28, 29,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(27, 28, 29,.04) 1px, transparent 1px);
   background-size: auto, auto, 48px 48px, 48px 48px;
 }
 
@@ -216,7 +216,7 @@
 }
 .gx-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 20px 40px -15px rgba(15, 23, 42, .12);
+  box-shadow: 0 20px 40px -15px rgba(27, 28, 29, .12);
 }
 /* Iter 216az — when the card itself is clickable (used as <Link> in
  * MarketingHome, ContactMarketingPage, ModulePage), reset the lift on

@@ -24,7 +24,7 @@ export default function SignatureCanvas({ onSubmit, onCancel }) {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.lineWidth = 2.4;
-    ctx.strokeStyle = '#0f172a';
+    ctx.strokeStyle = '#1b1c1d';
   }, []);
 
   const point = (e) => {
@@ -76,11 +76,11 @@ export default function SignatureCanvas({ onSubmit, onCancel }) {
           <button type="button" onClick={onCancel} aria-label="Close" data-testid="signature-cancel" className="p-1 rounded hover:bg-black/10"><X size={16} /></button>
         </div>
         <p className="text-xs opacity-70">Please ask the customer to sign in the area below to confirm the work is complete.</p>
-        <div className="rounded-xl border-2 border-dashed" style={{ borderColor: '#cbd5e1', height: 220 }}>
+        <div className="rounded-xl border-2 border-dashed" style={{ borderColor: '#c9cbcc', height: 220 }}>
           <canvas
             ref={canvasRef}
             className="w-full h-full touch-none rounded-xl"
-            style={{ background: '#f8fafc' }}
+            style={{ background: '#f7f7f7' }}
             onMouseDown={start}
             onMouseMove={move}
             onMouseUp={stop}
@@ -92,7 +92,7 @@ export default function SignatureCanvas({ onSubmit, onCancel }) {
           />
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={clear} className="flex-1 px-3 py-2 rounded-lg border text-sm font-bold inline-flex items-center justify-center gap-1.5" style={{ borderColor: '#cbd5e1' }} data-testid="signature-clear">
+          <button type="button" onClick={clear} className="flex-1 px-3 py-2 rounded-lg border text-sm font-bold inline-flex items-center justify-center gap-1.5" style={{ borderColor: '#c9cbcc' }} data-testid="signature-clear">
             <RotateCcw size={14} /> Clear
           </button>
           <button type="button" onClick={submit} disabled={!hasInk} className="flex-1 px-3 py-2 rounded-lg text-sm font-bold text-white inline-flex items-center justify-center gap-1.5 disabled:opacity-50" style={{ background: '#10b981' }} data-testid="signature-submit">

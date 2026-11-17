@@ -17,7 +17,7 @@ export function DeveloperView({ API, headers }) {
     <div data-testid="comms-developer">
       <div className="flex items-center gap-1.5 mb-4">
         {[['webhooks', 'Webhooks', Webhook], ['keys', 'API keys', KeyRound], ['docs', 'API reference', Code2]].map(([id, label, Icon]) => (
-          <button key={id} onClick={() => setTab(id)} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-semibold border ${tab === id ? '' : 'opacity-70'}`} style={{ borderColor: 'var(--theme-border)', background: tab === id ? 'var(--color-brand-cyan)' : 'transparent', color: tab === id ? 'var(--color-ink, #03212b)' : 'var(--theme-text)' }} data-testid={`dev-tab-${id}`}>
+          <button key={id} onClick={() => setTab(id)} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-semibold border ${tab === id ? '' : 'opacity-70'}`} style={{ borderColor: 'var(--theme-border)', background: tab === id ? 'var(--color-brand-cyan)' : 'transparent', color: tab === id ? 'var(--color-ink, #1B1C1D)' : 'var(--theme-text)' }} data-testid={`dev-tab-${id}`}>
             <Icon size={14} />{label}
           </button>
         ))}
@@ -59,7 +59,7 @@ function Webhooks({ apiRoot, headers, card }) {
     <div>
       <div className="flex justify-between items-center mb-3">
         <p className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>Get notified at your endpoint when comms events happen (HMAC-signed).</p>
-        <button onClick={() => setCreating((v) => !v)} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #03212b)' }} data-testid="webhook-add-btn"><Plus size={15} />Add endpoint</button>
+        <button onClick={() => setCreating((v) => !v)} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #1B1C1D)' }} data-testid="webhook-add-btn"><Plus size={15} />Add endpoint</button>
       </div>
       {creating && (
         <div className="rounded-2xl border p-4 mb-3" style={card} data-testid="webhook-form">
@@ -70,7 +70,7 @@ function Webhooks({ apiRoot, headers, card }) {
             ))}
           </div>
           <p className="text-xs mb-2" style={{ color: 'var(--theme-text-muted)' }}>No events selected = all events.</p>
-          <button onClick={create} className="px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #03212b)' }} data-testid="webhook-save">Create webhook</button>
+          <button onClick={create} className="px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #1B1C1D)' }} data-testid="webhook-save">Create webhook</button>
         </div>
       )}
       <div className="space-y-2">
@@ -120,14 +120,14 @@ function ApiKeys({ apiRoot, headers, card }) {
           <div className="flex items-center gap-2 mb-2 text-sm font-bold" style={{ color: 'var(--theme-text)' }}><CheckCircle2 size={15} className="text-emerald-500" />Copy your key now — it won't be shown again</div>
           <div className="flex items-center gap-2">
             <code className="flex-1 text-xs font-mono px-3 py-2 rounded-lg break-all" style={{ background: 'var(--theme-surface)', color: 'var(--theme-text)' }}>{fresh}</code>
-            <button onClick={() => copy(fresh)} className="p-2 rounded-lg" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #03212b)' }}><Copy size={15} /></button>
+            <button onClick={() => copy(fresh)} className="p-2 rounded-lg" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #1B1C1D)' }}><Copy size={15} /></button>
           </div>
           <button onClick={() => setFresh(null)} className="mt-2 text-xs underline" style={{ color: 'var(--theme-text-muted)' }}>Done</button>
         </div>
       )}
       <div className="rounded-2xl border p-4 mb-3 flex items-center gap-2" style={card}>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Key name (e.g. Zapier)" className="flex-1 px-3 py-2 rounded-lg border text-sm" style={{ background: 'var(--theme-bg)', borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="apikey-name" />
-        <button onClick={create} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #03212b)' }} data-testid="apikey-create"><Plus size={15} />Generate</button>
+        <button onClick={create} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #1B1C1D)' }} data-testid="apikey-create"><Plus size={15} />Generate</button>
       </div>
       <div className="space-y-2">
         {keys.length === 0 && <div className="rounded-2xl border p-8 text-center text-sm" style={{ ...card, color: 'var(--theme-text-muted)' }}>No API keys yet.</div>}

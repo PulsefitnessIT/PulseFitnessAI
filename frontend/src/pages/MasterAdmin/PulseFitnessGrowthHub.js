@@ -455,14 +455,14 @@ export default function PulseFitnessGrowthHub({ onJumpSection }) {
           hint={`${data.trials.converted_30d} converted in 30d`}
           icon={Users}
           series={spark?.trials_started}
-          accentStroke="#2563eb"
+          accentStroke="#0091ca"
         />
         <KpiTile
           label="Blog views" value={data.seo.blog_views_total.toLocaleString()}
           hint={`${data.seo.articles_published} articles published`}
           icon={BookOpen}
           series={spark?.blog_views}
-          accentStroke="#d946ef"
+          accentStroke="#19cdff"
         />
         <KpiTile
           label="Emails sent (30d)" value={data.outbound.sent_30d.toLocaleString()}
@@ -484,7 +484,7 @@ export default function PulseFitnessGrowthHub({ onJumpSection }) {
           hint={`${data.sales_insights.chat_messages_30d} messages`}
           icon={MessageSquare}
           series={spark?.chat_sessions}
-          accentStroke="#7c3aed"
+          accentStroke="#0091ca"
         />
       </div>
 

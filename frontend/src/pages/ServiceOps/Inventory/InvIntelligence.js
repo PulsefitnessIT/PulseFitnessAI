@@ -57,7 +57,7 @@ export function IntelDashboard({ go }) {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Card className="p-4" testId="inv-intel-status">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-900"><Activity size={15} className="text-[#0B3D91]" /> {t('inv.intel.status_title', 'Monitoring status')}</h3>
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-900"><Activity size={15} className="text-[#0073A4]" /> {t('inv.intel.status_title', 'Monitoring status')}</h3>
           <div className="space-y-2 text-sm">
             <div className="flex items-center justify-between border-b border-slate-100 py-1.5"><span className="text-slate-600">{t('inv.intel.last_scan', 'Last scan')}</span><span className="font-semibold text-slate-800">{ov.last_scan ? fmtDate(ov.last_scan) : t('inv.intel.never', 'Never run')}</span></div>
             <div className="flex items-center justify-between border-b border-slate-100 py-1.5"><span className="text-slate-600">{t('inv.intel.open_alerts', 'Open alerts')}</span><span className="font-semibold text-slate-800">{ov.open_alerts || 0}</span></div>
@@ -225,7 +225,7 @@ export function IntelReplenishment() {
                       <td className="px-4 py-2.5 font-mono text-xs">{r.product_code}</td>
                       <td className="tabular-nums text-rose-600">{r.available}</td>
                       <td className="tabular-nums text-slate-500">{r.reorder_point}</td>
-                      <td className="tabular-nums font-semibold text-[#0B3D91]">{r.recommended_qty}</td>
+                      <td className="tabular-nums font-semibold text-[#0073A4]">{r.recommended_qty}</td>
                     </tr>
                   ))}
                 </tbody>

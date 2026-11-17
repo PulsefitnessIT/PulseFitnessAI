@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { VACANCY_STAGES, humanize } from './api';
 
 const STAGE_COLOR = {
-  Planned: '#64748b', Approved: '#2563eb', Recruiting: '#0891b2', Interviewing: '#7c3aed',
-  'Offer Made': '#ca8a04', Filled: '#16a34a', 'On Hold': '#ea580c', Cancelled: '#dc2626',
+  Planned: '#6e7476', Approved: '#0091ca', Recruiting: '#0091ca', Interviewing: '#0091ca',
+  'Offer Made': '#d97706', Filled: '#16a34a', 'On Hold': '#d97706', Cancelled: '#dc2626',
 };
 
 export default function Vacancies({ nodes, byId, onOpen, onAdd, onUpdate }) {
@@ -28,7 +28,7 @@ export default function Vacancies({ nodes, byId, onOpen, onAdd, onUpdate }) {
       ) : (
         <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {vacancies.map((v) => (
-            <div key={v.id} className="rounded-2xl border p-3.5" style={{ borderColor: 'var(--theme-border)', borderLeft: '4px solid #ea580c' }} data-testid={`orgchart-vacancy-${v.id}`}>
+            <div key={v.id} className="rounded-2xl border p-3.5" style={{ borderColor: 'var(--theme-border)', borderLeft: '4px solid #d97706' }} data-testid={`orgchart-vacancy-${v.id}`}>
               <button onClick={() => onOpen(v)} className="text-left w-full">
                 <div className="text-sm font-bold pulse-font-heading" style={{ color: 'var(--theme-text)' }}>{v.full_name}</div>
                 <div className="text-[11px] mb-2" style={{ color: 'var(--theme-text-muted)' }}>
@@ -40,7 +40,7 @@ export default function Vacancies({ nodes, byId, onOpen, onAdd, onUpdate }) {
                   value={v.recruitment_stage || 'Planned'}
                   onChange={(e) => onUpdate(v.id, { recruitment_stage: e.target.value })}
                   className="text-[11px] font-semibold px-2 py-1 rounded-md border outline-none"
-                  style={{ color: STAGE_COLOR[v.recruitment_stage] || '#64748b', borderColor: 'var(--theme-border)', background: 'var(--theme-bg, #fff)' }}
+                  style={{ color: STAGE_COLOR[v.recruitment_stage] || '#6e7476', borderColor: 'var(--theme-border)', background: 'var(--theme-bg, #fff)' }}
                   data-testid={`orgchart-vacancy-stage-${v.id}`}
                 >
                   {VACANCY_STAGES.map((s) => <option key={s} value={s}>{s}</option>)}

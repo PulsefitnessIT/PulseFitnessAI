@@ -145,7 +145,7 @@ function AddStaffDialog({ headers, onClose, onCreated }) {
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-add-staff-cancel">{t('staffing.hr_cancel', 'Cancel')}</button>
             <button type="button" onClick={submit} disabled={saving || !form.full_name.trim() || !isCompleteEmail(form.email)}
               className="px-3 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-50"
-              style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="hr-add-staff-save">
+              style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid="hr-add-staff-save">
               {saving ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />} {t('staffing.hr_add_staff', 'Add staff')}
             </button>
           </div>
@@ -253,7 +253,7 @@ function BulkModulesDialog({ headers, staff, onClose, onApplied }) {
           <button type="button" onClick={onClose} className="px-3 py-2 rounded-lg text-xs font-bold border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-bulk-cancel">{t('staffing.hr_close', 'Close')}</button>
           <button type="button" onClick={apply} disabled={!canApply}
             className="px-3 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-50"
-            style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="hr-bulk-apply">
+            style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid="hr-bulk-apply">
             {busy ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} {t('staffing.hr_bulk_apply', 'Apply to selected')}
           </button>
         </div>
@@ -317,7 +317,7 @@ const RTW_STATUSES = ['', 'verified', 'pending', 'expired'];
 const DOC_KINDS = ['contract', 'id', 'onboarding', 'training', 'policy', 'other'];
 const SEVERITIES = ['informal', 'verbal', 'written', 'final', 'suspension', 'dismissal'];
 const SEVERITY_TINT = {
-  informal: '#94A3B8',
+  informal: '#9A9FA1',
   verbal: '#10B981',
   written: '#F59E0B',
   final: '#EF4444',
@@ -752,7 +752,7 @@ function ProfilePanel({ staffId, headers, isManager, canGrant = false, onUpdated
               style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }} data-testid="hr-profile-cancel">{t('staffing.hr_cancel', 'Cancel')}</button>
             <button type="button" onClick={save} disabled={saving || !isCompleteEmail(form.email)}
               className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-60"
-              style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="hr-profile-save"
+              style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid="hr-profile-save"
               title={!isCompleteEmail(form.email) ? t('staffing.hr_email_required', 'A complete email address is required') : undefined}>
               {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} {t('staffing.hr_save', 'Save')}
             </button>
@@ -1033,7 +1033,7 @@ function CrudList({ title, items, columns, onAdd, onEdit, onDelete, isManager, e
         {isManager && (
           <button type="button" onClick={onAdd}
             className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5"
-            style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
+            style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }}
             data-testid={`${testId}-add`}>
             <Plus size={11} /> {t('staffing.hr_add', 'Add')}
           </button>
@@ -1115,7 +1115,7 @@ function MiniDialog({ open, title, fields, initial, onClose, onSubmit, testId })
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{t('staffing.hr_cancel', 'Cancel')}</button>
           <button type="button" onClick={submit}
             className="h-9 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5"
-            style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid={`${testId}-save`}>
+            style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid={`${testId}-save`}>
             <Check size={11} /> {t('staffing.hr_save', 'Save')}
           </button>
         </div>
@@ -1229,7 +1229,7 @@ function DisciplinaryPanel({ staffId, headers, isManager }) {
         emptyText={t('staffing.hr_no_disc', 'No disciplinary history — clean slate.')}
         onAdd={() => setAdding(true)} onEdit={setEditing} onDelete={remove} isManager={isManager}
         columns={(it) => {
-          const tint = SEVERITY_TINT[it.severity] || '#94A3B8';
+          const tint = SEVERITY_TINT[it.severity] || '#9A9FA1';
           return (
             <>
               <p className="text-sm font-bold inline-flex items-center gap-1.5" style={{ color: 'var(--theme-text)' }}>
@@ -1395,7 +1395,7 @@ function JobRolesModal({ headers, onClose, onChanged }) {
               />
               <button type="button" onClick={addRole} disabled={busy || !adding.trim()}
                 className="h-9 px-3 rounded-md text-xs font-bold inline-flex items-center gap-1 disabled:opacity-50"
-                style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="job-roles-add-btn">
+                style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid="job-roles-add-btn">
                 <Plus size={13} /> {t('staffing.hr_add', 'Add')}
               </button>
             </div>
@@ -1699,7 +1699,7 @@ export default function HRTab({ headers, isManager, canGrant = false, scopedView
             {isManager && (
               <button type="button" onClick={() => setShowAdd(true)}
                 className="h-8 px-2.5 rounded-md text-xs font-bold inline-flex items-center gap-1 shrink-0"
-                style={{ background: 'var(--color-brand-cyan)', color: '#001219' }}
+                style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }}
                 data-testid="hr-add-staff-btn" title={t('staffing.hr_add_staff', 'Add staff')}>
                 <UserPlus size={13} /> {t('staffing.hr_add', 'Add')}
               </button>
@@ -1786,7 +1786,7 @@ export default function HRTab({ headers, isManager, canGrant = false, scopedView
                       className="h-8 px-3 text-xs font-bold inline-flex items-center gap-1.5"
                       style={{
                         background: on ? 'var(--color-brand-cyan)' : 'transparent',
-                        color: on ? '#001219' : 'var(--theme-text-muted)',
+                        color: on ? '#1B1C1D' : 'var(--theme-text-muted)',
                         borderLeft: st.id !== SUB_TABS[0].id ? '1px solid var(--theme-border)' : 'none',
                       }}
                       data-testid={`hr-sub-${st.id}`}>

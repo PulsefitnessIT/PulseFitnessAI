@@ -42,7 +42,7 @@ const OT_RULES = [
 ];
 
 function Badge({ status, statuses }) {
-  const meta = (statuses && statuses[status]) || { label: status, color: '#94a3b8' };
+  const meta = (statuses && statuses[status]) || { label: status, color: '#9a9fa1' };
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
       style={{ background: `${meta.color}1a`, color: meta.color }}>
@@ -97,11 +97,11 @@ function BoardView({ headers }) {
   const s = data?.summary || {};
   const statuses = data?.statuses || {};
   const tiles = [
-    ['Expected working', s.expected_working, '#0f172a'],
+    ['Expected working', s.expected_working, '#1b1c1d'],
     ['Confirmed', s.confirmed, '#16a34a'],
-    ['Holiday', s.holiday, '#2563eb'],
+    ['Holiday', s.holiday, '#0091ca'],
     ['Sick', s.sick, '#dc2626'],
-    ['Off', s.off, '#94a3b8'],
+    ['Off', s.off, '#9a9fa1'],
     ['Needs attention', s.exceptions, '#f59e0b'],
   ];
 

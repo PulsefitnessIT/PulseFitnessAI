@@ -47,7 +47,7 @@ export default function ModuleAccessDenied() {
         className="w-full max-w-md rounded-2xl p-8 text-center"
         style={{
           background: 'var(--theme-surface, #fff)',
-          border: '1px solid var(--theme-border, #e5e7eb)',
+          border: '1px solid var(--theme-border, #e0e0e0)',
           boxShadow: '0 24px 60px rgba(0,0,0,0.35)',
         }}
       >
@@ -59,14 +59,14 @@ export default function ModuleAccessDenied() {
         </div>
         <h1
           className="mt-5 text-xl font-bold pulse-font-heading"
-          style={{ color: 'var(--theme-text, #0f172a)' }}
+          style={{ color: 'var(--theme-text, #1b1c1d)' }}
           data-testid="module-access-denied-title"
         >
           Access needed
         </h1>
         <p
           className="mt-2 text-sm pulse-font-body"
-          style={{ color: 'var(--theme-text-muted, #64748b)' }}
+          style={{ color: 'var(--theme-text-muted, #6e7476)' }}
           data-testid="module-access-denied-message"
         >
           {message}
@@ -76,7 +76,7 @@ export default function ModuleAccessDenied() {
             onClick={goBack}
             data-testid="module-access-denied-back-btn"
             className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors"
-            style={{ background: 'var(--pulse-primary, #0f172a)' }}
+            style={{ background: 'var(--pulse-primary, #1b1c1d)' }}
           >
             <ArrowLeft size={16} /> Back to my area
           </button>

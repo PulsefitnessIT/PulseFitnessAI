@@ -97,10 +97,10 @@ export default function LanguagePrompt() {
       <div
         className="rounded-2xl border border-white/15 shadow-2xl p-4"
         style={{
-          background: 'rgba(15, 23, 42, 0.92)',
+          background: 'rgba(27, 28, 29, 0.92)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
-          color: '#e2e8f0',
+          color: '#e0e0e0',
         }}
       >
         <div className="flex items-start gap-3">

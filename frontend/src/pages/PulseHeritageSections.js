@@ -171,7 +171,7 @@ export function StatsBento() {
           {/* Big first-time-fix cell */}
           <motion.div
             variants={FADE_UP}
-            className="col-span-2 row-span-2 rounded-3xl bg-[var(--pulse-black,#212721)] p-8 sm:p-10 flex flex-col justify-between min-h-[280px] border border-white/10"
+            className="col-span-2 row-span-2 rounded-3xl bg-[var(--pulse-black,#1B1C1D)] p-8 sm:p-10 flex flex-col justify-between min-h-[280px] border border-white/10"
             data-testid="stat-first-time-fix"
           >
             <div className="text-[11px] uppercase tracking-[0.2em] font-bold" style={{ color: 'rgba(255,255,255,0.55)' }}>{t('pulse.st_service', 'Service & maintenance')}</div>
@@ -187,7 +187,7 @@ export function StatsBento() {
           {/* Image cell — 450+ products */}
           <motion.div variants={FADE_UP} className="col-span-2 row-span-2 relative rounded-3xl overflow-hidden min-h-[280px] group" data-testid="stat-products-image">
             <div className="absolute inset-0 bg-cover transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: 'url(/pulse-photos/gym-cardio-angle.webp)', backgroundPosition: 'center 68%' }} />
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(33,39,33,0.97) 0%, rgba(33,39,33,0.82) 45%, rgba(33,39,33,0.4) 100%)' }} />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(27, 28, 29,0.97) 0%, rgba(27, 28, 29,0.82) 45%, rgba(27, 28, 29,0.4) 100%)' }} />
             <div className="relative h-full p-8 sm:p-10 flex flex-col justify-end">
               <div className="font-black leading-none" style={{ color: '#ffffff', fontSize: 'clamp(3rem, 6vw, 5rem)', letterSpacing: '-0.03em', textShadow: '0 2px 24px rgba(0,0,0,0.8)' }}>450+</div>
               <div className="mt-2 text-lg font-bold" style={{ color: '#ffffff', textShadow: '0 1px 16px rgba(0,0,0,0.8)' }}>{t('pulse.st_products_label', 'Fitness products designed & built')}</div>

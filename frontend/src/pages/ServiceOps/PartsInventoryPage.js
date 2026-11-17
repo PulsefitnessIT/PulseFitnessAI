@@ -34,7 +34,7 @@ const TABS = [
 ];
 
 const PO_STATUS_COLOUR = {
-  draft: '#6b7280', submitted: '#0891b2', received: '#10b981', cancelled: '#ef4444',
+  draft: '#6e7476', submitted: '#0091ca', received: '#10b981', cancelled: '#ef4444',
 };
 
 function gbp(n) { return formatMoneySync(n); }
@@ -162,7 +162,7 @@ function CatalogueTab() {
           onClick={create}
           disabled={busy}
           className="col-span-1 sm:col-span-1 px-2 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center justify-center gap-1 disabled:opacity-60"
-          style={{ background: '#0891b2' }}
+          style={{ background: '#0091ca' }}
           data-testid="catalogue-add-submit"
         >
           <Plus size={11} /> {t('service.parts_add', 'Add')}
@@ -220,7 +220,7 @@ function CatalogueTab() {
               />
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setImporting(false)} className="px-3 py-1.5 rounded-md border text-xs font-bold" style={{ borderColor: 'var(--theme-border)' }}>{t('service.parts_cancel', 'Cancel')}</button>
-                <button type="button" onClick={sicon} disabled={busy} className="px-3 py-1.5 rounded-md text-xs font-bold text-white" style={{ background: '#0891b2' }} data-testid="sicon-import-submit">{t('service.parts_run_import', 'Run import')}</button>
+                <button type="button" onClick={sicon} disabled={busy} className="px-3 py-1.5 rounded-md text-xs font-bold text-white" style={{ background: '#0091ca' }} data-testid="sicon-import-submit">{t('service.parts_run_import', 'Run import')}</button>
               </div>
             </div>
           </div>
@@ -334,7 +334,7 @@ function StockTab() {
           <Field className="col-span-1 sm:col-span-1" label={t('service.parts_f_min', 'Min')}><input type="number" min={0} value={draftRule.min_qty} onChange={(e) => setDraftRule({ ...draftRule, min_qty: Number(e.target.value) })} className="ip tabular-nums" data-testid="rule-add-min" /></Field>
           <Field className="col-span-1 sm:col-span-1" label={t('service.parts_f_max', 'Max')}><input type="number" min={0} value={draftRule.max_qty} onChange={(e) => setDraftRule({ ...draftRule, max_qty: Number(e.target.value) })} className="ip tabular-nums" data-testid="rule-add-max" /></Field>
           <Field className="col-span-1 sm:col-span-3" label={t('service.parts_f_supplier', 'Supplier')}><input value={draftRule.supplier} onChange={(e) => setDraftRule({ ...draftRule, supplier: e.target.value })} className="ip" data-testid="rule-add-supplier" /></Field>
-          <button type="button" onClick={submitRule} className="col-span-2 sm:col-span-2 px-2 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center justify-center gap-1" style={{ background: '#0891b2' }} data-testid="rule-add-submit"><Plus size={11} /> {t('service.parts_save_rule', 'Save rule')}</button>
+          <button type="button" onClick={submitRule} className="col-span-2 sm:col-span-2 px-2 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center justify-center gap-1" style={{ background: '#0091ca' }} data-testid="rule-add-submit"><Plus size={11} /> {t('service.parts_save_rule', 'Save rule')}</button>
         </div>
         <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -433,7 +433,7 @@ function POTab() {
           <option value="received">{t('service.parts_st_received', 'Received')}</option>
           <option value="cancelled">{t('service.parts_st_cancelled', 'Cancelled')}</option>
         </select>
-        <button type="button" onClick={() => setCreating(true)} className="px-3 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center gap-1" style={{ background: '#0891b2' }} data-testid="po-create-open"><Plus size={12} /> {t('service.parts_create_po', 'Create PO')}</button>
+        <button type="button" onClick={() => setCreating(true)} className="px-3 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center gap-1" style={{ background: '#0091ca' }} data-testid="po-create-open"><Plus size={12} /> {t('service.parts_create_po', 'Create PO')}</button>
         <div className="ml-auto flex items-center gap-1.5">
           <input value={supplierForLowStock} onChange={(e) => setSupplierForLowStock(e.target.value)} placeholder={t('service.parts_supplier_or_all', 'Supplier or ALL')} className="px-2 py-1.5 rounded-md border text-xs bg-transparent" style={{ borderColor: 'var(--theme-border)' }} data-testid="po-low-stock-supplier" />
           <button type="button" onClick={fromLowStock} className="px-3 py-1.5 rounded-md border text-xs font-bold inline-flex items-center gap-1" style={{ borderColor: 'var(--theme-border)' }} data-testid="po-from-low-stock"><AlertTriangle size={12} /> {t('service.parts_gen_from_low', 'Generate from low-stock')}</button>
@@ -447,7 +447,7 @@ function POTab() {
             {pos.length === 0 ? (
               <tr><td colSpan="6" className="px-3 py-10 text-center opacity-60 text-xs">{t('service.parts_po_empty', 'No purchase orders yet.')}</td></tr>
             ) : pos.map((p) => {
-              const colour = PO_STATUS_COLOUR[p.status] || '#6b7280';
+              const colour = PO_STATUS_COLOUR[p.status] || '#6e7476';
               return (
                 <tr key={p.id} className="border-t" style={{ borderColor: 'var(--theme-border)' }} data-testid={`po-row-${p.reference}`}>
                   <td className="px-3 py-2 font-bold tabular-nums">{p.reference}</td>
@@ -496,7 +496,7 @@ function POTab() {
             </div>
             <div className="px-4 py-3 border-t flex justify-end gap-2" style={{ borderColor: 'var(--theme-border)' }}>
               <button type="button" onClick={() => setCreating(false)} className="px-3 py-1.5 rounded-md border text-xs font-bold" style={{ borderColor: 'var(--theme-border)' }}>{t('service.parts_cancel', 'Cancel')}</button>
-              <button type="button" onClick={create} className="px-3 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center gap-1" style={{ background: '#0891b2' }} data-testid="po-create-submit"><CheckCircle size={11} /> {t('service.parts_create_draft_po', 'Create draft PO')}</button>
+              <button type="button" onClick={create} className="px-3 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center gap-1" style={{ background: '#0091ca' }} data-testid="po-create-submit"><CheckCircle size={11} /> {t('service.parts_create_draft_po', 'Create draft PO')}</button>
             </div>
           </div>
         </div>

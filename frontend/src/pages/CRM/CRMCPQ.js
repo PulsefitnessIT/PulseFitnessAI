@@ -277,7 +277,7 @@ function QuoteDetail({ quoteId, onBack, onSelect, focusSection, c, isDark, API, 
             <button onClick={openEmailDialog} disabled={quote.status === 'superseded'} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5 disabled:opacity-50" style={{ borderColor: 'var(--color-info-ios)40', color: 'var(--color-info-ios)' }} data-testid="quote-email-btn">
               <Mail size={12} /> Email
             </button>
-            <button onClick={() => { setEsignResult(null); setEsignDialog({ to: quote.contact_email || quote.esign_sent_to || '' }); }} disabled={quote.status === 'superseded' || quote.esign_status === 'signed'} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold rounded-md text-white transition-all disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #0055FF, #003ECC)' }} data-testid="quote-esign-btn">
+            <button onClick={() => { setEsignResult(null); setEsignDialog({ to: quote.contact_email || quote.esign_sent_to || '' }); }} disabled={quote.status === 'superseded' || quote.esign_status === 'signed'} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold rounded-md text-white transition-all disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #19CDFF, #003ECC)' }} data-testid="quote-esign-btn">
               <PenLine size={12} /> {quote.esign_status === 'signed' ? 'Signed' : (quote.esign_status === 'sent' ? 'Resend E-Sign' : 'Send for E-Sign')}
             </button>
             <button onClick={loadVersions} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md border transition-all hover:bg-white/5" style={{ borderColor: c.border, color: c.textMuted }} data-testid="quote-versions-btn">
@@ -667,7 +667,7 @@ function QuoteDetail({ quoteId, onBack, onSelect, focusSection, c, isDark, API, 
           <div className="w-full max-w-md rounded-xl overflow-hidden" style={{ background: isDark ? 'var(--color-neutral-900)' : '#fff', border: `1px solid ${c.border}` }}>
             <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: c.border }}>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: '#0055FF' }}>Send for e-signature</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: '#19CDFF' }}>Send for e-signature</p>
                 <h3 className="text-base font-bold" style={{ color: c.text }}>{quote.quote_number}</h3>
               </div>
               <button onClick={() => setEsignDialog(null)} className="opacity-60 hover:opacity-100" style={{ color: c.textMuted }} data-testid="quote-esign-close"><X size={16} /></button>
@@ -685,7 +685,7 @@ function QuoteDetail({ quoteId, onBack, onSelect, focusSection, c, isDark, API, 
                 </div>
                 <div className="p-5 border-t flex gap-2 justify-end" style={{ borderColor: c.border }}>
                   <button onClick={() => setEsignDialog(null)} className="px-4 py-2 text-sm" style={{ color: c.textMuted }} data-testid="quote-esign-cancel">Cancel</button>
-                  <button onClick={sendForEsign} disabled={esignBusy || !esignDialog.to.trim()} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md text-white disabled:opacity-50" style={{ background: '#0055FF' }} data-testid="quote-esign-send">
+                  <button onClick={sendForEsign} disabled={esignBusy || !esignDialog.to.trim()} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md text-white disabled:opacity-50" style={{ background: '#19CDFF' }} data-testid="quote-esign-send">
                     {esignBusy ? <Loader2 size={12} className="animate-spin" /> : <PenLine size={12} />} {esignBusy ? 'Sending…' : 'Send link'}
                   </button>
                 </div>
@@ -698,7 +698,7 @@ function QuoteDetail({ quoteId, onBack, onSelect, focusSection, c, isDark, API, 
                 <p className="text-[11px] mb-3" style={{ color: c.textDim }}>Copy and share this link if needed:</p>
                 <div className="flex items-center gap-2">
                   <input readOnly value={esignResult.link} onFocus={(e) => e.target.select()} className="flex-1 px-2 py-1.5 text-xs rounded-md border" style={{ background: isDark ? 'var(--color-neutral-950)' : '#fff', borderColor: c.border, color: c.text }} data-testid="quote-esign-link" />
-                  <button onClick={() => { navigator.clipboard?.writeText(esignResult.link); notify.success('Link copied'); }} className="px-3 py-1.5 text-xs font-medium rounded-md text-white" style={{ background: '#0055FF' }} data-testid="quote-esign-copy">Copy</button>
+                  <button onClick={() => { navigator.clipboard?.writeText(esignResult.link); notify.success('Link copied'); }} className="px-3 py-1.5 text-xs font-medium rounded-md text-white" style={{ background: '#19CDFF' }} data-testid="quote-esign-copy">Copy</button>
                 </div>
                 <div className="mt-4 flex justify-end">
                   <button onClick={() => setEsignDialog(null)} className="px-4 py-2 text-sm font-medium rounded-md" style={{ color: c.textMuted }} data-testid="quote-esign-done">Done</button>

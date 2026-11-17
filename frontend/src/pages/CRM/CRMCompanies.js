@@ -1441,7 +1441,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
     pending_setup: { bg: '#fef3c7', fg: '#b45309', label: 'Portal: Pending set-up' },
     email_failed: { bg: '#fee2e2', fg: '#dc2626', label: 'Portal: Send failed' },
     missing_email: { bg: '#fee2e2', fg: '#dc2626', label: 'Portal: No email' },
-    not_invited: { bg: 'var(--color-neutral-100, #f1f5f9)', fg: 'var(--color-text-faint-alt, #64748b)', label: 'Portal: Not invited' },
+    not_invited: { bg: 'var(--color-neutral-100, #f0f0f0)', fg: 'var(--color-text-faint-alt, #6e7476)', label: 'Portal: Not invited' },
   };
 
   // Connect portal — link this customer to their own Pulse portal org
@@ -1767,7 +1767,7 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1"
               data-testid="portal-link-chip"
               title={portalConnected ? `Fault-logging & handovers go to ${portalLink.linked_org.name}` : 'Not connected to a customer portal'}
-              style={{ background: portalConnected ? 'var(--color-success-bg, #dcfce7)' : 'var(--color-neutral-100, #f1f5f9)', color: portalConnected ? 'var(--color-success-alt, #16a34a)' : 'var(--color-text-faint-alt, #64748b)' }}>
+              style={{ background: portalConnected ? 'var(--color-success-bg, #dcfce7)' : 'var(--color-neutral-100, #f0f0f0)', color: portalConnected ? 'var(--color-success-alt, #16a34a)' : 'var(--color-text-faint-alt, #6e7476)' }}>
               <Plug size={10} /> {portalConnected ? `Portal: ${portalLink.linked_org.name}` : 'Portal: Not connected'}
             </span>
           </div>

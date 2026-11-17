@@ -356,7 +356,7 @@ fontFamily: "'Proxima Nova', system-ui, sans-serif",
 '--theme-text': '#ffffff',
 '--theme-text-muted': 'rgba(255,255,255,0.82)',
 '--theme-border': 'rgba(255,255,255,0.18)',
-'--theme-surface': '#0a0a0a',
+'--theme-surface': '#1b1c1d',
 }}
 >
  <div className="max-w-7xl mx-auto px-4">
@@ -712,7 +712,7 @@ fontFamily: "'Proxima Nova', system-ui, sans-serif",
   onClick={() => { setIsLogin(false); setShowAuth(true); setMobileMenuOpen(false); }}
   className="w-full justify-center hover:opacity-90 border-0 font-semibold"
   style={{
-    background: 'linear-gradient(135deg, var(--gx-brand-from, #2563EB) 0%, var(--gx-brand-to, #9D4CDD) 100%)',
+    background: 'linear-gradient(135deg, var(--gx-brand-from, #0091CA) 0%, var(--gx-brand-to, #19CDFF) 100%)',
     color: '#fff',
   }}
   data-testid="mobile-trial-btn"

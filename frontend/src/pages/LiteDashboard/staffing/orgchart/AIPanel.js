@@ -7,7 +7,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { ocApi } from './api';
 
-const SEV_COLOR = { high: '#dc2626', medium: '#ea580c', low: '#ca8a04' };
+const SEV_COLOR = { high: '#dc2626', medium: '#d97706', low: '#d97706' };
 
 function Section({ icon: Icon, title, desc, children }) {
   return (
@@ -85,7 +85,7 @@ export default function AIPanel({ chartId, onImported }) {
                       <td className="px-2 py-1.5" style={{ color: 'var(--theme-text-muted)' }}>{r.job_title || '—'}</td>
                       <td className="px-2 py-1.5" style={{ color: 'var(--theme-text-muted)' }}>{r.department || '—'}</td>
                       <td className="px-2 py-1.5" style={{ color: 'var(--theme-text-muted)' }}>{r.manager_name || '—'}</td>
-                      <td className="px-2 py-1.5">{r.vacancy === 'yes' && <span className="text-[10px] font-semibold" style={{ color: '#ea580c' }}>{t('orgchart.ai_vacancy', 'Vacancy')}</span>}</td>
+                      <td className="px-2 py-1.5">{r.vacancy === 'yes' && <span className="text-[10px] font-semibold" style={{ color: '#d97706' }}>{t('orgchart.ai_vacancy', 'Vacancy')}</span>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -109,8 +109,8 @@ export default function AIPanel({ chartId, onImported }) {
               <div className="space-y-1.5">
                 {analysis.issues.map((iss, i) => (
                   <div key={i} className="flex items-start gap-2 text-xs rounded-lg border p-2" style={{ borderColor: 'var(--theme-border)' }}>
-                    <AlertTriangle size={13} style={{ color: SEV_COLOR[iss.severity] || '#ca8a04', flexShrink: 0, marginTop: 1 }} />
-                    <div><span className="font-semibold uppercase text-[9px] tracking-wide" style={{ color: SEV_COLOR[iss.severity] || '#ca8a04' }}>{iss.type} · {iss.severity}</span><div style={{ color: 'var(--theme-text)' }}>{iss.detail}</div></div>
+                    <AlertTriangle size={13} style={{ color: SEV_COLOR[iss.severity] || '#d97706', flexShrink: 0, marginTop: 1 }} />
+                    <div><span className="font-semibold uppercase text-[9px] tracking-wide" style={{ color: SEV_COLOR[iss.severity] || '#d97706' }}>{iss.type} · {iss.severity}</span><div style={{ color: 'var(--theme-text)' }}>{iss.detail}</div></div>
                   </div>
                 ))}
               </div>

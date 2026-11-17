@@ -10,7 +10,7 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto px-4 pt-8 pb-6">
         <div className="rounded-2xl p-4 flex items-start gap-3 bg-white border border-slate-200">
           <ShieldCheck size={16} className="shrink-0 mt-0.5 text-cyan-600" />
-          <p className="text-[12px] leading-relaxed text-[#505759]">
+          <p className="text-[12px] leading-relaxed text-[#565B5E]">
             Access is monitored and recorded. By using this portal you agree to the MOD
             acceptable-use policy. Suspected misuse must be reported to your chain of command.
             Trouble signing in or using the app? Contact your unit PTI or
@@ -21,7 +21,7 @@ export default function Footer() {
         </div>
       </div>
       <footer className="px-5 sm:px-10 py-5 text-white" style={{ background: '#000000' }}>
-        <div className="max-w-6xl mx-auto text-[10px] uppercase font-bold tracking-[0.12em] sm:tracking-[0.28em]" style={{ color: '#A2ACAB' }}>
+        <div className="max-w-6xl mx-auto text-[10px] uppercase font-bold tracking-[0.12em] sm:tracking-[0.28em]" style={{ color: '#9A9FA1' }}>
           © {new Date().getFullYear()} Pulse Fitness · MOD Service Portal
         </div>
       </footer>

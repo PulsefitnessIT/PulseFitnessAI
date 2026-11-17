@@ -14,10 +14,10 @@ import { toast } from 'sonner';
 import { Search, Check, Minus, Download, Briefcase, ChevronRight, Pencil, Loader2 } from 'lucide-react';
 
 const MODULES = [
-  { key: 'operations', label: 'Operations', color: '#0055FF' },
+  { key: 'operations', label: 'Operations', color: '#19CDFF' },
   { key: 'crm', label: 'CRM', color: '#B45309' },
   { key: 'memberships', label: 'Memberships', color: '#047857' },
-  { key: 'marketing', label: 'Marketing', color: '#7C3AED' },
+  { key: 'marketing', label: 'Marketing', color: '#0091CA' },
 ];
 
 const roleLabel = (u) => {
@@ -120,7 +120,7 @@ const OrgPeopleDirectory = ({ users = [], API, onReload, onOpenUser }) => {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name, job title, org…"
               className="pl-7 pr-3 py-1.5 rounded-full border bg-white text-xs"
-              style={{ borderColor: '#E4E4E7', width: 240 }}
+              style={{ borderColor: '#E0E0E0', width: 240 }}
               data-testid="org-people-search"
             />
           </div>
@@ -128,7 +128,7 @@ const OrgPeopleDirectory = ({ users = [], API, onReload, onOpenUser }) => {
             value={moduleFilter}
             onChange={(e) => setModuleFilter(e.target.value)}
             className="px-3 py-1.5 rounded-full border bg-white text-xs font-medium text-zinc-700"
-            style={{ borderColor: '#E4E4E7' }}
+            style={{ borderColor: '#E0E0E0' }}
             data-testid="org-people-module-filter"
           >
             <option value="">All modules</option>
@@ -138,7 +138,7 @@ const OrgPeopleDirectory = ({ users = [], API, onReload, onOpenUser }) => {
             type="button"
             onClick={exportCsv}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border bg-white text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
-            style={{ borderColor: '#E4E4E7' }}
+            style={{ borderColor: '#E0E0E0' }}
             data-testid="org-people-export-csv"
           >
             <Download size={13} /> CSV
@@ -146,13 +146,13 @@ const OrgPeopleDirectory = ({ users = [], API, onReload, onOpenUser }) => {
         </div>
       </div>
 
-      <div className="rounded-lg border bg-white overflow-x-auto" style={{ borderColor: '#E4E4E7' }} data-testid="org-people-table">
+      <div className="rounded-lg border bg-white overflow-x-auto" style={{ borderColor: '#E0E0E0' }} data-testid="org-people-table">
         {filtered.length === 0 ? (
           <div className="px-6 py-10 text-center text-sm text-zinc-500" data-testid="org-people-empty">No people match the current filter.</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b" style={{ borderColor: '#E4E4E7' }}>
+              <tr className="border-b" style={{ borderColor: '#E0E0E0' }}>
                 <th className="text-left px-4 py-2.5 font-semibold text-zinc-600 min-w-[220px]">Person</th>
                 <th className="text-left px-3 py-2.5 font-semibold text-zinc-600 min-w-[150px]">Job title</th>
                 <th className="text-left px-3 py-2.5 font-semibold text-zinc-600 min-w-[140px]">Organisation</th>
@@ -165,7 +165,7 @@ const OrgPeopleDirectory = ({ users = [], API, onReload, onOpenUser }) => {
                 <th className="px-2" />
               </tr>
             </thead>
-            <tbody className="divide-y" style={{ borderColor: '#F4F4F5' }}>
+            <tbody className="divide-y" style={{ borderColor: '#F0F0F0' }}>
               {filtered.map((u) => (
                 <tr
                   key={`${u.id}-${u.organization_id || ''}`}
@@ -175,7 +175,7 @@ const OrgPeopleDirectory = ({ users = [], API, onReload, onOpenUser }) => {
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold" style={{ background: '#F4F4F5', color: '#52525B' }}>
+                      <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold" style={{ background: '#F0F0F0', color: '#565B5E' }}>
                         {(u.full_name || u.email || '?').slice(0, 1).toUpperCase()}
                       </div>
                       <div className="min-w-0">
@@ -195,7 +195,7 @@ const OrgPeopleDirectory = ({ users = [], API, onReload, onOpenUser }) => {
                           onBlur={() => saveTitle(u)}
                           placeholder="Job title"
                           className="px-2 py-1 rounded border text-xs w-36"
-                          style={{ borderColor: '#CBD5E1' }}
+                          style={{ borderColor: '#C9CBCC' }}
                           data-testid={`org-people-title-input-${u.id}`}
                         />
                         {savingId === u.id && <Loader2 size={13} className="animate-spin text-zinc-400" />}

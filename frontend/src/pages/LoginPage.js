@@ -297,7 +297,7 @@ export default function LoginPage() {
       {/* Form card */}
       <main className="flex-1 flex items-center justify-center px-4 pt-10 pb-40 sm:pb-44">
         <div
-          className="w-full max-w-md rounded-3xl bg-white border border-slate-200 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.25)] p-8 sm:p-10"
+          className="w-full max-w-md rounded-3xl bg-white border border-slate-200 shadow-[0_30px_80px_-40px_rgba(27, 28, 29,0.25)] p-8 sm:p-10"
           data-testid="gx-login-card"
         >
           <div className="mb-6">

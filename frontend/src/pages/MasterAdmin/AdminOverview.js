@@ -31,18 +31,18 @@ import UnifiedTrialsCard from './UnifiedTrialsCard';
  * Same visual system as the rest of Master Admin (white Panel cards,
  * slate palette, brand-blue/violet accents). All testids preserved.
  */
-const PIE_COLORS = ['#2563EB', '#10B981', '#F59E0B', '#9D4CDD'];
+const PIE_COLORS = ['#0091CA', '#10B981', '#F59E0B', '#19CDFF'];
 
 const KPI_PALETTES = {
-  organisations: { fg: '#2563EB', bg: 'rgba(25, 205, 255,0.08)' },
-  users:         { fg: '#5B5BF5', bg: 'rgba(91,91,245,0.08)' },
+  organisations: { fg: '#0091CA', bg: 'rgba(25, 205, 255,0.08)' },
+  users:         { fg: '#5B5BF5', bg: 'rgba(25, 205, 255,0.08)' },
   revenue:       { fg: '#059669', bg: 'rgba(5,150,105,0.10)' },
   cases:         { fg: '#D97706', bg: 'rgba(217,119,6,0.10)' },
 };
 
 const Panel = ({ children, className = '', ...rest }) => (
   <div
-    className={`bg-white border border-slate-200 rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${className}`}
+    className={`bg-white border border-slate-200 rounded-2xl shadow-[0_1px_2px_rgba(27, 28, 29,0.04)] ${className}`}
     {...rest}
   >
     {children}
@@ -77,9 +77,9 @@ const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPacke
   // Secondary stats — Failed Payments deliberately omitted here: it has a
   // dedicated alert banner above, so showing it twice was a duplication.
   const secondaryStats = [
-    { label: 'AI Calls', value: stats.ai_usage.total, icon: Zap, color: '#9D4CDD', testid: 'stat-ai-calls',
+    { label: 'AI Calls', value: stats.ai_usage.total, icon: Zap, color: '#19CDFF', testid: 'stat-ai-calls',
       tip: 'Total LLM API calls (Claude, GPT, Gemini) made by users across all features in the current month.' },
-    { label: 'Equipment Tracked', value: stats.total_equipment, icon: BarChart3, color: '#0EA5E9', testid: 'stat-equip-tracked',
+    { label: 'Equipment Tracked', value: stats.total_equipment, icon: BarChart3, color: '#19CDFF', testid: 'stat-equip-tracked',
       tip: 'Every equipment record across every gym, regardless of status (in_service / out_of_service / decommissioned).' },
     { label: 'Resolved Cases', value: stats.resolved_issues, icon: CheckCircle, color: '#059669', testid: 'stat-resolved-cases',
       tip: 'Faults closed across all gyms in the last 30 days (status = resolved or closed).' },
@@ -118,7 +118,7 @@ const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPacke
             role={k.onClick ? 'button' : undefined}
             tabIndex={k.onClick ? 0 : undefined}
             onKeyDown={k.onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); k.onClick(); } } : undefined}
-            className={`p-5 transition-all ${k.onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-8px_rgba(15,23,42,0.18)]' : 'cursor-help hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.10)]'}`}
+            className={`p-5 transition-all ${k.onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-8px_rgba(27, 28, 29,0.18)]' : 'cursor-help hover:shadow-[0_8px_24px_-8px_rgba(27, 28, 29,0.10)]'}`}
             title={k.tip}
             data-testid={k.testid}
           >
@@ -152,12 +152,12 @@ const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPacke
           <h3 className="text-base lg:text-lg font-bold text-slate-900 tracking-tight mb-4">Platform Growth</h3>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={stats.growth_data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94A3B8' }} />
-              <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} width={30} />
-              <Tooltip contentStyle={{ background: '#0F172A', border: 'none', borderRadius: 8, color: '#fff', fontSize: 12 }} />
-              <Line type="monotone" dataKey="users" stroke="#2563EB" strokeWidth={2.5} dot={false} name="Users" />
-              <Line type="monotone" dataKey="organizations" stroke="#9D4CDD" strokeWidth={2.5} dot={false} name="Orgs" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
+              <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9A9FA1' }} />
+              <YAxis tick={{ fontSize: 10, fill: '#9A9FA1' }} width={30} />
+              <Tooltip contentStyle={{ background: '#1B1C1D', border: 'none', borderRadius: 8, color: '#fff', fontSize: 12 }} />
+              <Line type="monotone" dataKey="users" stroke="#0091CA" strokeWidth={2.5} dot={false} name="Users" />
+              <Line type="monotone" dataKey="organizations" stroke="#19CDFF" strokeWidth={2.5} dot={false} name="Orgs" />
             </LineChart>
           </ResponsiveContainer>
         </Panel>
@@ -169,7 +169,7 @@ const AdminOverview = ({ stats, onGoPayments, onGoSuspended, onGoOnboardingPacke
               <Pie data={subData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} paddingAngle={3} dataKey="value">
                 {subData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
               </Pie>
-              <Tooltip contentStyle={{ background: '#0F172A', border: 'none', borderRadius: 8, color: '#fff', fontSize: 12 }} />
+              <Tooltip contentStyle={{ background: '#1B1C1D', border: 'none', borderRadius: 8, color: '#fff', fontSize: 12 }} />
             </PieChart>
           </ResponsiveContainer>
           <div className="mt-2 space-y-1">

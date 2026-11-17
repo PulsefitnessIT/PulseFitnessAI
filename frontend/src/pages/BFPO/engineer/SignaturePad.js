@@ -15,7 +15,7 @@ export default function SignaturePad({ onChange }) {
     c.height = c.offsetHeight * ratio;
     const ctx = c.getContext('2d');
     ctx.scale(ratio, ratio);
-    ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.strokeStyle = '#1b1c1d';
   }, []);
 
   const pos = (e) => {

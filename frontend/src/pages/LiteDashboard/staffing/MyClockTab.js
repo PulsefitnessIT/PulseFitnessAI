@@ -21,7 +21,7 @@ import {
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const STATE_TINT = {
-  off: '#94A3B8',
+  off: '#9A9FA1',
   on_shift: '#10B981',
   on_break: '#F59E0B',
 };
@@ -165,7 +165,7 @@ export default function MyClockTab({ headers }) {
               onClick={() => punch(primary.kind)}
               disabled={busy}
               className="h-12 px-6 rounded-full text-sm font-bold inline-flex items-center gap-2 disabled:opacity-50 transition-transform active:scale-95"
-              style={{ background: primary.bg, color: '#001219' }}
+              style={{ background: primary.bg, color: '#1B1C1D' }}
               data-testid={`my-clock-${primary.kind}`}
             >
               {busy ? <Loader2 size={16} className="animate-spin" /> : <primary.icon size={16} />}

@@ -28,7 +28,7 @@ export function Kpi({ label, value, color = 'neutral' }) {
   }[color];
   return (
     <div
-      className={`rounded-2xl border p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.10)] transition-shadow ${tones}`}
+      className={`rounded-2xl border p-4 shadow-[0_1px_2px_rgba(27, 28, 29,0.04)] hover:shadow-[0_8px_24px_-8px_rgba(27, 28, 29,0.10)] transition-shadow ${tones}`}
       data-testid={`mbr-kpi-${label.replace(/\s+/g, '-').toLowerCase()}`}
     >
       <div className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[color:var(--theme-text-muted)]">{label}</div>

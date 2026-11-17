@@ -41,7 +41,7 @@ export default function PublicEmailViewPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: '#F3F4F6' }} data-testid="email-view-page">
+    <div className="min-h-screen" style={{ background: '#F0F0F0' }} data-testid="email-view-page">
       <div className="text-center py-3 text-xs text-slate-500 bg-white border-b border-slate-200">
         Viewing in browser · {data.subject}
       </div>

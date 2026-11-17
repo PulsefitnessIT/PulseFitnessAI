@@ -101,7 +101,7 @@ export default function DeskPerformance({ API, onNavigate }) {
     <div className="space-y-4" data-testid="desk-performance">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-          <Gauge className="w-4 h-4 text-[var(--gx-brand-from,#ea580c)]" /> {t('service.perf_title', 'Team Performance')}
+          <Gauge className="w-4 h-4 text-[var(--gx-brand-from,#d97706)]" /> {t('service.perf_title', 'Team Performance')}
         </h2>
         <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">{t('service.perf_last_days', 'Last {{n}} days', { n: d.window_days })}</span>
       </div>
@@ -109,7 +109,7 @@ export default function DeskPerformance({ API, onNavigate }) {
       {/* Hero — FTF gauge + headline throughput */}
       <Card
         className="p-5 sm:p-6 border-0 overflow-hidden relative cursor-pointer transition-transform active:scale-[0.99]"
-        style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 60%, #111827 100%)' }}
+        style={{ background: 'linear-gradient(135deg, #26292b 0%, #1b1c1d 60%, #1B1C1D 100%)' }}
         role="button" tabIndex={0}
         onClick={() => onNavigate && onNavigate('analytics')}
         onKeyDown={(e) => { if (e.key === 'Enter') onNavigate && onNavigate('analytics'); }}
@@ -117,7 +117,7 @@ export default function DeskPerformance({ API, onNavigate }) {
       >
         <div
           className="absolute -right-16 -top-16 w-56 h-56 rounded-full opacity-20 blur-2xl pointer-events-none"
-          style={{ background: 'radial-gradient(circle, var(--gx-brand-from,#f97316), transparent 70%)' }}
+          style={{ background: 'radial-gradient(circle, var(--gx-brand-from,#f59e0b), transparent 70%)' }}
         />
         <div className="relative flex flex-col sm:flex-row sm:items-center gap-6">
           <FtfRing rate={d.ftf_rate} trend={d.ftf_trend} />
@@ -188,13 +188,13 @@ export default function DeskPerformance({ API, onNavigate }) {
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate group-hover:text-[var(--gx-brand-from,#ea580c)] transition-colors">{r.name}</span>
+                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate group-hover:text-[var(--gx-brand-from,#d97706)] transition-colors">{r.name}</span>
                     <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 tabular-nums flex-shrink-0">{r.closed}</span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <div className="flex-1 h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-[var(--gx-brand-from,#f97316)] to-[var(--gx-brand-to,#fb923c)]"
+                        className="h-full rounded-full bg-gradient-to-r from-[var(--gx-brand-from,#f59e0b)] to-[var(--gx-brand-to,#f59e0b)]"
                         style={{ width: `${(r.closed / maxClosed) * 100}%`, transition: 'width 700ms ease' }}
                       />
                     </div>

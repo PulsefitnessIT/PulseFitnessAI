@@ -101,12 +101,12 @@ export default function ContactsTab() {
         style={{ borderColor: 'var(--theme-border)', background: 'linear-gradient(135deg, rgb(217 70 239 / 0.06) 0%, rgb(99 102 241 / 0.06) 100%)' }}
         data-testid="crm-lite-badge"
       >
-        <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #d946ef 0%, #6366f1 100%)', color: 'white' }}>
+        <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #19cdff 0%, #19cdff 100%)', color: 'white' }}>
           <Sparkles size={14} />
         </div>
         <div className="min-w-0 text-sm">
           <p className="font-bold" style={{ color: 'var(--theme-text)' }}>
-            <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider mr-1.5" style={{ background: '#6366f122', color: '#6366f1' }}>{t('mkt.ct_crm_lite', 'CRM Lite')}</span>
+            <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider mr-1.5" style={{ background: '#6366f122', color: '#19cdff' }}>{t('mkt.ct_crm_lite', 'CRM Lite')}</span>
             {t('mkt.ct_included', 'included with Marketing')}
           </p>
           <p className="text-xs opacity-70 mt-0.5">
@@ -158,7 +158,7 @@ export default function ContactsTab() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:bg-zinc-900 dark:border-zinc-800">
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-[0_1px_2px_rgba(27, 28, 29,0.04)] dark:bg-zinc-900 dark:border-zinc-800">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-[0.16em] font-bold text-slate-500 dark:bg-zinc-900 dark:border-zinc-800">

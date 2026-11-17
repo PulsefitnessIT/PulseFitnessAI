@@ -13,13 +13,13 @@ import { Loader2, ShieldCheck, CheckCircle2, Save, Send, User, CalendarClock, Bu
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const FIELD = 'w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#19398D]/40 focus:border-[#19398D]';
+const FIELD = 'w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0073A4]/40 focus:border-[#0073A4]';
 const LABEL = 'block text-xs font-semibold text-zinc-500 mb-1';
 
 function Section({ icon: Icon, title, children }) {
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5">
-      <p className="text-sm font-bold text-zinc-900 flex items-center gap-2 mb-3"><Icon size={16} className="text-[#19398D]" /> {title}</p>
+      <p className="text-sm font-bold text-zinc-900 flex items-center gap-2 mb-3"><Icon size={16} className="text-[#0073A4]" /> {title}</p>
       <div className="grid sm:grid-cols-2 gap-3">{children}</div>
     </div>
   );
@@ -96,12 +96,12 @@ export default function MODVisitBookingForm() {
     finally { setSubmitting(false); }
   };
 
-  if (loading) return <div className="min-h-screen grid place-items-center bg-zinc-50"><Loader2 className="animate-spin text-[#19398D]" size={28} /></div>;
+  if (loading) return <div className="min-h-screen grid place-items-center bg-zinc-50"><Loader2 className="animate-spin text-[#0073A4]" size={28} /></div>;
   if (error && !ctx) return <div className="min-h-screen grid place-items-center bg-zinc-50 p-6"><div className="max-w-md text-center"><p className="text-lg font-bold text-zinc-900">Booking form unavailable</p><p className="text-sm text-zinc-500 mt-2">{error}</p></div></div>;
 
   return (
     <div className="min-h-screen bg-zinc-50" data-testid="mod-booking-page">
-      <div className="bg-[#19398D] text-white">
+      <div className="bg-[#0073A4] text-white">
         <div className="max-w-2xl mx-auto px-5 py-8 text-center">
           <p className="text-[11px] uppercase tracking-[2px] text-[#9fc2ff] mb-1">Pulse Fitness · Ministry of Defence</p>
           <h1 className="text-2xl font-black tracking-tight">Engineer Appointment Booking</h1>
@@ -142,7 +142,7 @@ export default function MODVisitBookingForm() {
 
             <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-5" data-testid="booking-engineers">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-bold text-zinc-900 flex items-center gap-2"><User size={16} className="text-[#19398D]" /> Visiting Engineer(s)</p>
+                <p className="text-sm font-bold text-zinc-900 flex items-center gap-2"><User size={16} className="text-[#0073A4]" /> Visiting Engineer(s)</p>
                 <span className="text-[11px] font-semibold text-zinc-400">{engineers.length} of {MAX_ENGINEERS}</span>
               </div>
               <p className="text-xs text-zinc-500 mb-3">Add each engineer attending the base. Name, date of birth and vehicle registration are required for gate access.</p>
@@ -175,7 +175,7 @@ export default function MODVisitBookingForm() {
                 ))}
               </div>
               {engineers.length < MAX_ENGINEERS && (
-                <button type="button" onClick={addEng} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[#19398D] hover:opacity-80" data-testid="booking-add-engineer">
+                <button type="button" onClick={addEng} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[#0073A4] hover:opacity-80" data-testid="booking-add-engineer">
                   <UserPlus size={15} /> Add another engineer
                 </button>
               )}
@@ -187,7 +187,7 @@ export default function MODVisitBookingForm() {
               <button onClick={saveDraft} disabled={saving} className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-lg border border-zinc-300 bg-white hover:bg-zinc-50 disabled:opacity-50" data-testid="booking-save-draft">
                 {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Save draft
               </button>
-              <button onClick={submit} disabled={submitting} className="inline-flex items-center gap-1.5 text-sm font-bold px-5 py-2.5 rounded-lg bg-[#19398D] text-white hover:opacity-90 disabled:opacity-50" data-testid="booking-submit">
+              <button onClick={submit} disabled={submitting} className="inline-flex items-center gap-1.5 text-sm font-bold px-5 py-2.5 rounded-lg bg-[#0073A4] text-white hover:opacity-90 disabled:opacity-50" data-testid="booking-submit">
                 {submitting ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Submit booking
               </button>
             </div>

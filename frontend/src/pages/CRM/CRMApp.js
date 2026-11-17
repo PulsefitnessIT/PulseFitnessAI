@@ -1019,7 +1019,7 @@ export default function CRMApp() {
                         <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
                         <div
                           className="absolute right-0 top-11 w-56 rounded-xl shadow-xl z-50 p-2 flex flex-col gap-1"
-                          style={{ background: isDark ? 'var(--color-ink-alt, #18181b)' : '#ffffff', border: `1px solid ${c.border}` }}
+                          style={{ background: isDark ? 'var(--color-ink-alt, #1b1c1d)' : '#ffffff', border: `1px solid ${c.border}` }}
                           data-testid="crm-toolbar-more-menu"
                         >
                           {(['admin', 'owner', 'manager', 'director'].includes(user?.role)) && (

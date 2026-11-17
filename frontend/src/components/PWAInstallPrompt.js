@@ -23,7 +23,7 @@ export default function PWAInstallPrompt() {
   const brand = onServiceDesk ? 'Service Desk' : (isPulse ? 'Pulse Fitness' : 'Pulse Fitness');
   // Iter 215bw — per-brand PWA chrome.
   const brandLetter = onServiceDesk ? 'S' : (isPulse ? 'P' : 'G');
-  const brandColour = onServiceDesk ? '#f97316' : (isPulse ? 'var(--pulse-primary)' : 'var(--color-info-ios)');
+  const brandColour = onServiceDesk ? '#f59e0b' : (isPulse ? 'var(--pulse-primary)' : 'var(--color-info-ios)');
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showBanner, setShowBanner] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);

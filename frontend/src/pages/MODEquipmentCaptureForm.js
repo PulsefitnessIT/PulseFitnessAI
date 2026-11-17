@@ -119,7 +119,7 @@ export default function MODEquipmentCaptureForm() {
 
   return (
     <div className="min-h-screen bg-zinc-50" data-testid="mod-capture-form">
-      <div className="bg-[#19398D] text-white">
+      <div className="bg-[#0073A4] text-white">
         <div className="max-w-5xl mx-auto px-5 py-6">
           <div className="flex items-center gap-2 text-white/80 text-xs font-semibold uppercase tracking-wider">
             <ShieldCheck size={14} /> Pulse Fitness · MOD equipment capture
@@ -139,7 +139,7 @@ export default function MODEquipmentCaptureForm() {
           <div key={i} className="bg-white rounded-xl border border-zinc-200 p-4" data-testid={`capture-row-${i}`}>
             <div className="flex items-center justify-between mb-3">
               <span className="inline-flex items-center gap-2 text-sm font-bold text-zinc-700">
-                <Dumbbell size={15} className="text-[#19398D]" /> Machine {i + 1}
+                <Dumbbell size={15} className="text-[#0073A4]" /> Machine {i + 1}
               </span>
               {editable && (
                 <button onClick={() => removeRow(i)} className="text-zinc-400 hover:text-red-500 p-1" aria-label="Remove machine" data-testid={`capture-remove-${i}`}>
@@ -159,7 +159,7 @@ export default function MODEquipmentCaptureForm() {
                       value={row[f.key] || ''}
                       onChange={(e) => setCell(i, f.key, e.target.value)}
                       data-testid={`capture-input-${f.key}-${i}`}
-                      className="mt-1 w-full px-2.5 py-1.5 rounded-lg border border-zinc-200 text-sm bg-white focus:outline-none focus:border-[#19398D] disabled:bg-zinc-100"
+                      className="mt-1 w-full px-2.5 py-1.5 rounded-lg border border-zinc-200 text-sm bg-white focus:outline-none focus:border-[#0073A4] disabled:bg-zinc-100"
                     >
                       <option value="">—</option>
                       {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -172,7 +172,7 @@ export default function MODEquipmentCaptureForm() {
                       placeholder={f.example || ''}
                       onChange={(e) => setCell(i, f.key, e.target.value)}
                       data-testid={`capture-input-${f.key}-${i}`}
-                      className="mt-1 w-full px-2.5 py-1.5 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:border-[#19398D] disabled:bg-zinc-100"
+                      className="mt-1 w-full px-2.5 py-1.5 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:border-[#0073A4] disabled:bg-zinc-100"
                     />
                   )}
                 </label>
@@ -184,7 +184,7 @@ export default function MODEquipmentCaptureForm() {
         {editable && (
           <>
             <button onClick={addRow} data-testid="capture-add-row"
-              className="w-full py-3 rounded-xl border-2 border-dashed border-zinc-300 text-zinc-500 hover:border-[#19398D] hover:text-[#19398D] font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors">
+              className="w-full py-3 rounded-xl border-2 border-dashed border-zinc-300 text-zinc-500 hover:border-[#0073A4] hover:text-[#0073A4] font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors">
               <Plus size={16} /> Add another machine
             </button>
 
@@ -194,7 +194,7 @@ export default function MODEquipmentCaptureForm() {
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save draft
               </button>
               <button onClick={submit} disabled={submitting} data-testid="capture-submit"
-                className="px-5 py-2.5 rounded-lg bg-[#19398D] text-white font-bold text-sm inline-flex items-center gap-2 disabled:opacity-50">
+                className="px-5 py-2.5 rounded-lg bg-[#0073A4] text-white font-bold text-sm inline-flex items-center gap-2 disabled:opacity-50">
                 {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Submit for review
               </button>
             </div>

@@ -85,13 +85,13 @@ function Dashboard({ go }) {
         <Card className="p-4" testId="inv-dash-country">
           <h3 className="mb-3 text-sm font-bold text-slate-900">{t('inv.dash.by_country', 'Orders by country')}</h3>
           {d.by_country.length === 0 ? <p className="text-sm text-slate-400">{t('inv.dash.no_orders', 'No orders yet.')}</p> : d.by_country.map((r) => (
-            <div key={r.country} className="flex items-center gap-2 py-1 text-sm"><span className="w-16 font-semibold">{r.country}</span><div className="h-2 flex-1 rounded bg-slate-100"><div className="h-2 rounded bg-[#0B3D91]" style={{ width: `${Math.min(100, r.count * 20)}%` }} /></div><span className="tabular-nums text-slate-500">{r.count}</span></div>
+            <div key={r.country} className="flex items-center gap-2 py-1 text-sm"><span className="w-16 font-semibold">{r.country}</span><div className="h-2 flex-1 rounded bg-slate-100"><div className="h-2 rounded bg-[#0073A4]" style={{ width: `${Math.min(100, r.count * 20)}%` }} /></div><span className="tabular-nums text-slate-500">{r.count}</span></div>
           ))}
         </Card>
         <Card className="p-4" testId="inv-dash-recent">
-          <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-bold text-slate-900">{t('inv.dash.recent', 'Recent orders')}</h3><button className="text-xs font-semibold text-[#0B3D91]" onClick={() => go('orders')}>{t('inv.dash.view_all', 'View all →')}</button></div>
+          <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-bold text-slate-900">{t('inv.dash.recent', 'Recent orders')}</h3><button className="text-xs font-semibold text-[#0073A4]" onClick={() => go('orders')}>{t('inv.dash.view_all', 'View all →')}</button></div>
           {d.recent_orders.length === 0 ? <p className="text-sm text-slate-400">{t('inv.dash.no_orders', 'No orders yet.')}</p> : d.recent_orders.map((o) => (
-            <div key={o.id} className="flex items-center gap-2 border-b border-slate-100 py-2 text-sm last:border-0"><span className="font-semibold text-[#0B3D91]">{o.reference}</span><span className="truncate text-slate-600">{o.dealer_name}</span><span className="ml-auto text-xs text-slate-400">{statusLabel(o.status)}</span></div>
+            <div key={o.id} className="flex items-center gap-2 border-b border-slate-100 py-2 text-sm last:border-0"><span className="font-semibold text-[#0073A4]">{o.reference}</span><span className="truncate text-slate-600">{o.dealer_name}</span><span className="ml-auto text-xs text-slate-400">{statusLabel(o.status)}</span></div>
           ))}
         </Card>
       </div>
@@ -144,7 +144,7 @@ function Warehouses() {
       {rows === null ? <Spinner /> : rows.length === 0 ? <p className="text-sm text-slate-400">{t('inv.wh.none', 'No warehouses yet.')}</p> : rows.map((w) => (
         <Card key={w.id} className="p-4" testId={`inv-wh-row-${w.code}`}>
           <button className="flex w-full items-center gap-3 text-left" onClick={() => toggle(w.id)}>
-            <Warehouse size={18} className="text-[#0B3D91]" />
+            <Warehouse size={18} className="text-[#0073A4]" />
             <div><p className="font-semibold text-slate-900">{w.name}</p><p className="text-xs text-slate-400">{w.code} · {statusLabel(w.type)} · {w.country} · {w.location_count} {t('inv.wh.locations', 'locations')}</p></div>
             <ChevronRight size={16} className={`ml-auto text-slate-400 transition-transform ${expanded === w.id ? 'rotate-90' : ''}`} />
           </button>
@@ -384,7 +384,7 @@ function SettingsView({ warehouses, initialTab = 'general' }) {
   const Toggle = ({ k, label }) => (
     <label className="flex items-center justify-between border-b border-slate-100 py-2.5" data-testid={`inv-setting-${k}`}>
       <span className="text-sm text-slate-700">{label}</span>
-      <input type="checkbox" checked={!!s[k]} onChange={(e) => save({ [k]: e.target.checked })} className="h-4 w-8 accent-[#0B3D91]" />
+      <input type="checkbox" checked={!!s[k]} onChange={(e) => save({ [k]: e.target.checked })} className="h-4 w-8 accent-[#0073A4]" />
     </label>
   );
   return (

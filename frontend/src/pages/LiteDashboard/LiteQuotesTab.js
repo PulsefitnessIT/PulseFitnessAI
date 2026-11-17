@@ -26,7 +26,7 @@ function SignPad({ onChange }) {
   const ref = useRef(null); const drawing = useRef(false); const has = useRef(false);
   const pos = (e) => { const r = ref.current.getBoundingClientRect(); const t = e.touches ? e.touches[0] : e; return { x: t.clientX - r.left, y: t.clientY - r.top }; };
   const start = (e) => { e.preventDefault(); drawing.current = true; const c = ref.current.getContext('2d'); const p = pos(e); c.beginPath(); c.moveTo(p.x, p.y); };
-  const move = (e) => { if (!drawing.current) return; e.preventDefault(); const c = ref.current.getContext('2d'); const p = pos(e); c.lineWidth = 2.2; c.lineCap = 'round'; c.strokeStyle = '#0F172A'; c.lineTo(p.x, p.y); c.stroke(); has.current = true; };
+  const move = (e) => { if (!drawing.current) return; e.preventDefault(); const c = ref.current.getContext('2d'); const p = pos(e); c.lineWidth = 2.2; c.lineCap = 'round'; c.strokeStyle = '#1B1C1D'; c.lineTo(p.x, p.y); c.stroke(); has.current = true; };
   const end = () => { if (!drawing.current) return; drawing.current = false; if (has.current) onChange(ref.current.toDataURL('image/png')); };
   const clear = () => { const c = ref.current; c.getContext('2d').clearRect(0, 0, c.width, c.height); has.current = false; onChange(''); };
   useEffect(() => { const c = ref.current; c.width = c.offsetWidth; c.height = 160; }, []);
@@ -35,7 +35,7 @@ function SignPad({ onChange }) {
       <canvas ref={ref} data-testid="lite-esign-pad"
         onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
         onTouchStart={start} onTouchMove={move} onTouchEnd={end}
-        style={{ width: '100%', height: 160, background: '#fff', border: '1px dashed #CBD5E1', borderRadius: 10, touchAction: 'none', cursor: 'crosshair' }} />
+        style={{ width: '100%', height: 160, background: '#fff', border: '1px dashed #C9CBCC', borderRadius: 10, touchAction: 'none', cursor: 'crosshair' }} />
       <button type="button" onClick={clear} className="mt-2 text-xs text-slate-500 hover:text-slate-700 inline-flex items-center gap-1" data-testid="lite-esign-clear">
         <RotateCcw size={12} /> Clear signature
       </button>
@@ -111,7 +111,7 @@ export default function LiteQuotesTab({ API, headers, onChanged }) {
                 </div>
                 <div className="text-right pl-3">
                   <div className="font-extrabold" style={{ color: 'var(--theme-text)' }}>{money(q.total, q.currency)}</div>
-                  <div className="text-[11px] font-semibold" style={{ color: 'var(--color-brand-cyan, #0055FF)' }}>Review →</div>
+                  <div className="text-[11px] font-semibold" style={{ color: 'var(--color-brand-cyan, #19CDFF)' }}>Review →</div>
                 </div>
               </button>
             ))}
@@ -135,14 +135,14 @@ export default function LiteQuotesTab({ API, headers, onChanged }) {
           </div>
           <p className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>{active.title}</p>
         </div>
-        <a href={`${API}/mod/site/quotes/${active.id}/pdf`} target="_blank" rel="noreferrer" className="text-sm inline-flex items-center gap-1 font-semibold" style={{ color: 'var(--color-brand-cyan, #0055FF)' }} data-testid="lite-quote-pdf">
+        <a href={`${API}/mod/site/quotes/${active.id}/pdf`} target="_blank" rel="noreferrer" className="text-sm inline-flex items-center gap-1 font-semibold" style={{ color: 'var(--color-brand-cyan, #19CDFF)' }} data-testid="lite-quote-pdf">
           <FileText size={15} /> View PDF
         </a>
       </div>
 
       <div className="rounded-2xl border overflow-hidden mb-4" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
         <table className="w-full text-sm">
-          <thead><tr className="text-left" style={{ background: 'var(--theme-surface-alt, #F8FAFC)', color: 'var(--theme-text-muted)' }}>
+          <thead><tr className="text-left" style={{ background: 'var(--theme-surface-alt, #F7F7F7)', color: 'var(--theme-text-muted)' }}>
             <th className="py-2.5 px-4 text-xs">Description</th><th className="w-14 text-center text-xs">Qty</th><th className="w-28 text-right px-4 text-xs">Amount</th>
           </tr></thead>
           <tbody>
@@ -171,7 +171,7 @@ export default function LiteQuotesTab({ API, headers, onChanged }) {
         </div>
       ) : (
         <div className="rounded-2xl border p-5" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
-          <p className="font-bold flex items-center gap-2 mb-3" style={{ color: 'var(--theme-text)' }}><PenLine size={16} style={{ color: 'var(--color-brand-cyan, #0055FF)' }} /> Accept &amp; sign this quote</p>
+          <p className="font-bold flex items-center gap-2 mb-3" style={{ color: 'var(--theme-text)' }}><PenLine size={16} style={{ color: 'var(--color-brand-cyan, #19CDFF)' }} /> Accept &amp; sign this quote</p>
           <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--theme-text-muted)' }}>Your full name</label>
           <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Maj. A. Smith" data-testid="lite-esign-name"
             className="w-full px-3 py-2 rounded-lg border text-sm mb-3" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-bg, #fff)', color: 'var(--theme-text)' }} />
@@ -183,7 +183,7 @@ export default function LiteQuotesTab({ API, headers, onChanged }) {
           </label>
           <button onClick={sign} disabled={!sig || !name.trim() || !agree || signing} data-testid="lite-quote-sign-btn"
             className="mt-4 w-full py-3 rounded-xl font-extrabold text-white flex items-center justify-center gap-2 disabled:opacity-40"
-            style={{ background: (!sig || !name.trim() || !agree) ? '#94A3B8' : '#0055FF' }}>
+            style={{ background: (!sig || !name.trim() || !agree) ? '#9A9FA1' : '#19CDFF' }}>
             {signing ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />} Accept &amp; Sign
           </button>
         </div>

@@ -29,7 +29,7 @@ import { useTranslation } from 'react-i18next';
 const EMAIL_META = {
   welcome:  { label: 'Welcome',  hint: 'For new sign-ups',         color: '#10b981' },
   win_back: { label: 'Win-back', hint: 'For lapsed members',       color: '#f59e0b' },
-  promo:    { label: 'Promo',    hint: 'Current campaign push',    color: '#6366f1' },
+  promo:    { label: 'Promo',    hint: 'Current campaign push',    color: '#19cdff' },
 };
 const SOCIAL_META = {
   instagram: { label: 'Instagram', Icon: Instagram, color: '#e1306c' },
@@ -247,7 +247,7 @@ export default function StarterPackPanel({ API, headers }) {
           <Section icon={Mail} title={t('mkt.sp_email_templates', 'Email templates')}>
             <div className="space-y-2">
               {(pack.emails || []).map((em) => {
-                const meta = EMAIL_META[em.id] || { label: em.id, hint: '', color: '#71717a' };
+                const meta = EMAIL_META[em.id] || { label: em.id, hint: '', color: '#6e7476' };
                 const metaLabel = t('mkt.sp_email_' + em.id + '_label', meta.label);
                 const metaHint = t('mkt.sp_email_' + em.id + '_hint', meta.hint);
                 const launch = emailLaunches[em.id] || {};
@@ -327,7 +327,7 @@ export default function StarterPackPanel({ API, headers }) {
           <Section icon={Sparkles} title={t('mkt.sp_social_posts', 'Social posts')}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               {(pack.social || []).map((sp) => {
-                const meta = SOCIAL_META[sp.id] || { label: sp.platform, Icon: Sparkles, color: '#71717a' };
+                const meta = SOCIAL_META[sp.id] || { label: sp.platform, Icon: Sparkles, color: '#6e7476' };
                 const Icon = meta.Icon;
                 return (
                   <div key={sp.id} className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3" data-testid={`starter-pack-social-${sp.id}`}>

@@ -62,8 +62,8 @@ export default function OfflineBanner() {
   if (typeof window !== 'undefined' && window.location.pathname.toLowerCase().startsWith('/bfpo')) return null;
   if (!offline && !showBackOnline && !syncing) return null;
 
-  let background = '#1F2937';
-  let borderColor = '#374151';
+  let background = '#26292B';
+  let borderColor = '#393E41';
   let testid = 'offline-banner';
   let icon = <WifiOff size={14} />;
   let label = "You're offline — showing the last cached data.";
@@ -75,8 +75,8 @@ export default function OfflineBanner() {
     icon = <CheckCircle2 size={14} />;
     label = 'Back online.';
   } else if (!offline && syncing) {
-    background = '#1E3A8A';
-    borderColor = '#1D4ED8';
+    background = '#0073A4';
+    borderColor = '#0091CA';
     testid = 'sync-banner';
     icon = <RefreshCw size={14} className={flushing ? 'animate-spin' : ''} />;
     label = flushing ? `Syncing ${count} edit${count === 1 ? '' : 's'}…` : `${count} edit${count === 1 ? '' : 's'} waiting to sync`;
@@ -98,7 +98,7 @@ export default function OfflineBanner() {
       {icon}
       <span data-testid="offline-banner-label">{label}</span>
       {offline && count > 0 && (
-        <span className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold" style={{ background: '#111827', color: '#FDE68A' }} data-testid="offline-queue-pill">
+        <span className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold" style={{ background: '#1B1C1D', color: '#FDE68A' }} data-testid="offline-queue-pill">
           <CloudOff size={11} /> {count} pending
         </span>
       )}

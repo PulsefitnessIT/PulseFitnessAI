@@ -124,11 +124,11 @@ export default function NotificationSettings({ onClose }) {
 
           {/* Master subscribe card */}
           <div className="rounded-xl border p-4"
-               style={{ borderColor: status.subscribed ? '#86efac' : '#e2e8f0',
-                        background: status.subscribed ? '#f0fdf4' : '#f8fafc' }}>
+               style={{ borderColor: status.subscribed ? '#86efac' : '#e0e0e0',
+                        background: status.subscribed ? '#f0fdf4' : '#f7f7f7' }}>
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                   style={{ background: status.subscribed ? '#dcfce7' : '#e2e8f0' }}>
+                   style={{ background: status.subscribed ? '#dcfce7' : '#e0e0e0' }}>
                 {status.subscribed
                   ? <Bell size={18} className="text-emerald-700" />
                   : <BellOff size={18} className="text-slate-500" />}

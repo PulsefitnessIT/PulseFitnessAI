@@ -69,7 +69,7 @@ export function DeptVisibilityPanel({ staffId, headers, departments = [], ownDep
       <div className="mt-3 flex items-center gap-2">
         <button type="button" onClick={save} disabled={saving}
           className="h-8 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5 disabled:opacity-50"
-          style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="dept-visibility-save">
+          style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid="dept-visibility-save">
           {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
           {t('staffing.hr_dept_vis_save', 'Save visibility')}
         </button>

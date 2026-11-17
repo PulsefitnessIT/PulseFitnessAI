@@ -49,7 +49,7 @@ const PROFILE_FIELDS = [
 
 const ProgressBar = ({ pct }) => (
   <div className="h-2 w-full rounded-full bg-zinc-200 overflow-hidden" data-testid="onb-progress-bar">
-    <div className="h-full rounded-full bg-[var(--color-brand-blue,#2563EB)] transition-all" style={{ width: `${pct}%` }} />
+    <div className="h-full rounded-full bg-[var(--color-brand-blue,#0091CA)] transition-all" style={{ width: `${pct}%` }} />
   </div>
 );
 

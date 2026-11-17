@@ -209,7 +209,7 @@ export default function PublicTrackingPage() {
   }
 
   const stageIdx = STAGE_TO_INDEX[data.status] ?? 0;
-  const brand = data.organization?.brand_primary || '#0055FF';
+  const brand = data.organization?.brand_primary || '#19CDFF';
   const customerName = data.customer_first_name || 'there';
 
   return (
@@ -244,7 +244,7 @@ export default function PublicTrackingPage() {
                   ? '#fef9c3'
                   : data.status_tone === 'active'
                   ? `${brand}22`
-                  : '#e2e8f0',
+                  : '#e0e0e0',
                 color: data.is_complete ? '#166534' : data.status_tone === 'warn' ? '#92400e' : brand,
               }}
               data-testid="track-status-pill"
@@ -279,8 +279,8 @@ export default function PublicTrackingPage() {
                     <div
                       className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-extrabold"
                       style={{
-                        background: reached ? brand : '#e2e8f0',
-                        color: reached ? '#fff' : '#94a3b8',
+                        background: reached ? brand : '#e0e0e0',
+                        color: reached ? '#fff' : '#9a9fa1',
                       }}
                       data-testid={`track-stage-${stage.key}`}
                     >
@@ -289,7 +289,7 @@ export default function PublicTrackingPage() {
                     {i < data.stages.length - 1 ? (
                       <div
                         className="flex-1 h-1 rounded-full"
-                        style={{ background: i < stageIdx ? brand : '#e2e8f0' }}
+                        style={{ background: i < stageIdx ? brand : '#e0e0e0' }}
                       />
                     ) : null}
                   </React.Fragment>

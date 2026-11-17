@@ -27,9 +27,9 @@ const SUB_TABS = [
 const CERT_BANDS = {
   expired:      { labelKey: 'staffing.ops_cert_expired',    labelDefault: 'Expired',       tint: '#EF4444', bg: 'rgba(239,68,68,0.15)' },
   expiring_30:  { labelKey: 'staffing.ops_cert_exp30',      labelDefault: 'Expires < 30d', tint: '#F59E0B', bg: 'rgba(245,158,11,0.15)' },
-  expiring_90:  { labelKey: 'staffing.ops_cert_exp90',      labelDefault: 'Expires < 90d', tint: '#EAB308', bg: 'rgba(234,179,8,0.12)' },
+  expiring_90:  { labelKey: 'staffing.ops_cert_exp90',      labelDefault: 'Expires < 90d', tint: '#F59E0B', bg: 'rgba(234,179,8,0.12)' },
   ok:           { labelKey: 'staffing.ops_cert_ok',         labelDefault: 'OK',            tint: '#10B981', bg: 'rgba(16,185,129,0.10)' },
-  unknown:      { labelKey: 'staffing.ops_cert_noexpiry',   labelDefault: 'No expiry',     tint: '#94A3B8', bg: 'rgba(148,163,184,0.10)' },
+  unknown:      { labelKey: 'staffing.ops_cert_noexpiry',   labelDefault: 'No expiry',     tint: '#9A9FA1', bg: 'rgba(148,163,184,0.10)' },
 };
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
@@ -93,7 +93,7 @@ function TaskComposer({ open, onClose, onSubmit, _headers, staffList }) {
               className="h-8 px-3 rounded-full text-xs font-bold border"
               style={{
                 background: form.kind === k ? 'var(--color-brand-cyan)' : 'transparent',
-                color: form.kind === k ? '#001219' : 'var(--theme-text-muted)',
+                color: form.kind === k ? '#1B1C1D' : 'var(--theme-text-muted)',
                 borderColor: 'var(--theme-border)',
               }}
               data-testid={`task-kind-${k}`}>{KIND_LABELS[k]}</button>
@@ -117,7 +117,7 @@ function TaskComposer({ open, onClose, onSubmit, _headers, staffList }) {
                       className="h-7 px-2 rounded-full text-[10px] font-bold uppercase tracking-wider border"
                       style={{
                         background: on ? 'var(--color-brand-cyan)' : 'transparent',
-                        color: on ? '#001219' : 'var(--theme-text-muted)',
+                        color: on ? '#1B1C1D' : 'var(--theme-text-muted)',
                         borderColor: 'var(--theme-border)',
                       }}>{d}</button>
                   );
@@ -148,7 +148,7 @@ function TaskComposer({ open, onClose, onSubmit, _headers, staffList }) {
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{t('staffing.ops_cancel', 'Cancel')}</button>
           <button type="button" onClick={submit}
             className="h-9 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5"
-            style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="task-submit">
+            style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid="task-submit">
             <Plus size={12} /> {t('staffing.ops_create', 'Create')}
           </button>
         </div>
@@ -170,7 +170,7 @@ function TaskRow({ task, isManager, staffList, onComplete, onUncomplete, onDelet
   const tint = task.kind === 'opening' ? '#10B981'
     : task.kind === 'closing' ? '#F59E0B'
     : task.kind === 'recurring' ? '#19CDFF'
-    : '#94A3B8';
+    : '#9A9FA1';
   return (
     <div className="rounded-lg border p-3 flex items-start gap-3" style={{
       borderColor: 'var(--theme-border)',
@@ -183,7 +183,7 @@ function TaskRow({ task, isManager, staffList, onComplete, onUncomplete, onDelet
         style={{
           background: completed ? '#10B981' : 'transparent',
           borderColor: completed ? '#10B981' : 'var(--theme-border)',
-          color: '#001219',
+          color: '#1B1C1D',
         }}
         data-testid={`task-toggle-${task.id}`}>
         {completed && <Check size={12} />}
@@ -287,7 +287,7 @@ function TasksPanel({ headers, isManager, staffList }) {
             </button>
             <button type="button" onClick={() => setComposing(true)}
               className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5"
-              style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="tasks-new">
+              style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid="tasks-new">
               <Plus size={11} /> {t('staffing.ops_new_task', 'New task')}
             </button>
           </div>
@@ -406,7 +406,7 @@ function FormBuilder({ open, onClose, onSubmit, initial }) {
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{t('staffing.ops_cancel', 'Cancel')}</button>
           <button type="button" onClick={submit}
             className="h-9 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5"
-            style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="form-save">
+            style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid="form-save">
             <Check size={11} /> {t('staffing.ops_save_form', 'Save form')}
           </button>
         </div>
@@ -464,7 +464,7 @@ function FormSubmitDialog({ open, template, onClose, onSubmit }) {
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{t('staffing.ops_cancel', 'Cancel')}</button>
           <button type="button" onClick={submit}
             className="h-9 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5"
-            style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="form-submit-btn">
+            style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid="form-submit-btn">
             <Send size={11} /> {t('staffing.ops_submit', 'Submit')}
           </button>
         </div>
@@ -533,7 +533,7 @@ function FormsPanel({ headers, isManager }) {
           {isManager && (
             <button type="button" onClick={() => setBuilding({})}
               className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5"
-              style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="forms-new">
+              style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid="forms-new">
               <Plus size={11} /> {t('staffing.ops_new_form', 'New form')}
             </button>
           )}
@@ -579,7 +579,7 @@ function FormsPanel({ headers, isManager }) {
               <div className="flex gap-1.5 mt-auto pt-1">
                 <button type="button" onClick={() => setSubmitting(tpl)}
                   className="flex-1 h-8 rounded-full text-[11px] font-bold inline-flex items-center justify-center gap-1"
-                  style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid={`form-submit-${tpl.id}`}>
+                  style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid={`form-submit-${tpl.id}`}>
                   <Send size={11} /> {t('staffing.ops_fill_in', 'Fill in')}
                 </button>
                 {isManager && (
@@ -655,7 +655,7 @@ function CertEditor({ open, onClose, onSubmit, staffList, initial }) {
             style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text-muted)' }}>{t('staffing.ops_cancel', 'Cancel')}</button>
           <button type="button" onClick={() => onSubmit(form)}
             className="h-9 rounded-full px-4 text-xs font-bold inline-flex items-center gap-1.5"
-            style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="cert-save">
+            style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid="cert-save">
             <Check size={11} /> {t('staffing.ops_save', 'Save')}
           </button>
         </div>
@@ -765,7 +765,7 @@ function CompliancePanel({ headers, isManager, staffList }) {
         {isManager && (
           <button type="button" onClick={() => setAdding(true)}
             className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5"
-            style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="cert-new">
+            style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid="cert-new">
             <Plus size={11} /> {t('staffing.ops_add_cert', 'Add cert')}
           </button>
         )}
@@ -826,7 +826,7 @@ export default function OperationsTab({ headers, isManager }) {
               className="h-8 px-3 text-xs font-bold inline-flex items-center gap-1.5 transition-colors"
               style={{
                 background: on ? 'var(--color-brand-cyan)' : 'transparent',
-                color: on ? '#001219' : 'var(--theme-text-muted)',
+                color: on ? '#1B1C1D' : 'var(--theme-text-muted)',
                 borderLeft: s.id !== SUB_TABS[0].id ? '1px solid var(--theme-border)' : 'none',
               }}
               data-testid={`ops-sub-${s.id}`}>

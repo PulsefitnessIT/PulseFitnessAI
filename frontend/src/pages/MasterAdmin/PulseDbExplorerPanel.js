@@ -92,7 +92,7 @@ const PulseDbExplorerPanel = () => {
 
   return (
     <div className="space-y-5" data-testid="pulse-db-explorer">
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(27, 28, 29,0.04)]">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[rgb(var(--rgb-brand-cyan)/0.12)] flex items-center justify-center text-[var(--color-brand-cyan)]">
             <Database size={18} />

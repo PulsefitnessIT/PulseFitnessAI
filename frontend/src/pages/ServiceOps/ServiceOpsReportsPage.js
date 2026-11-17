@@ -302,7 +302,7 @@ export default function ServiceOpsReportsPage() {
                       className="h-full"
                       style={{
                         width: `${Math.max(2, Math.round((r.revenue / maxRevenue) * 100))}%`,
-                        background: '#0891b2',
+                        background: '#0091ca',
                       }}
                     />
                   </div>
@@ -431,8 +431,8 @@ export default function ServiceOpsReportsPage() {
                         style={{
                           width: `${Math.max(2, Math.round((r.count / maxChannelCount) * 100))}%`,
                           background: r.revenue_gbp > 0
-                            ? '#0891b2'
-                            : '#94a3b8',
+                            ? '#0091ca'
+                            : '#9a9fa1',
                         }}
                       />
                     </div>

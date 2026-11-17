@@ -127,7 +127,7 @@ export default function CampaignsPanel({ API, headers, module = 'all', testIdPre
         <button
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold"
-          style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #03212b)' }}
+          style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #1B1C1D)' }}
           data-testid={`${testIdPrefix}-create-btn`}
         >
           <Plus size={15} />New campaign
@@ -143,7 +143,7 @@ export default function CampaignsPanel({ API, headers, module = 'all', testIdPre
             <Megaphone size={28} className="mx-auto mb-2" style={{ color: 'var(--theme-text-muted)' }} />
             <p className="font-semibold" style={{ color: 'var(--theme-text)' }}>No campaigns yet</p>
             <p className="text-sm mb-4" style={{ color: 'var(--theme-text-muted)' }}>Create your first campaign.</p>
-            <button onClick={() => setShowCreate(true)} className="px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #03212b)' }} data-testid={`${testIdPrefix}-empty-create`}>Create campaign</button>
+            <button onClick={() => setShowCreate(true)} className="px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #1B1C1D)' }} data-testid={`${testIdPrefix}-empty-create`}>Create campaign</button>
           </div>
         ) : (
           <table className="w-full text-sm">
@@ -264,7 +264,7 @@ function CreateModal({ API, headers, meta, defaultModule, onClose, onCreated }) 
         <input value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="e.g. renewals, bookings, quote approvals" className="w-full px-4 py-3 rounded-xl border mb-5 focus:outline-none" style={inputStyle} data-testid="create-goal" />
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 rounded-full text-sm font-semibold hover:bg-black/5 dark:hover:bg-white/5" style={{ color: 'var(--theme-text-muted)' }}>Cancel</button>
-          <button onClick={create} disabled={busy} className="px-5 py-2 rounded-full text-sm font-bold disabled:opacity-50" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #03212b)' }} data-testid="create-confirm">{busy ? 'Creating…' : 'Create & build'}</button>
+          <button onClick={create} disabled={busy} className="px-5 py-2 rounded-full text-sm font-bold disabled:opacity-50" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #1B1C1D)' }} data-testid="create-confirm">{busy ? 'Creating…' : 'Create & build'}</button>
         </div>
       </div>
     </div>

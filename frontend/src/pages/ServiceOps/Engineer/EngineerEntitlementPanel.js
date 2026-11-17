@@ -118,7 +118,7 @@ export function EngineerEntitlementPanel({ caseId, getAuthHeaders }) {
             </p>
           )}
         </div>
-        <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} style={{ color: '#94a3b8' }} />
+        <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} style={{ color: '#9a9fa1' }} />
       </button>
 
       {open && (
@@ -156,13 +156,13 @@ export function EngineerEntitlementPanel({ caseId, getAuthHeaders }) {
                 <select value={kind} onChange={e => setKind(e.target.value)}
                         data-testid="entitlement-feedback-kind"
                         className="w-full px-2 py-1.5 rounded border text-[11px]"
-                        style={{ borderColor: '#cbd5e1' }}>
+                        style={{ borderColor: '#c9cbcc' }}>
                   {KINDS.map(k => <option key={k.key} value={k.key}>{k.label}</option>)}
                 </select>
                 <select value={severity} onChange={e => setSeverity(e.target.value)}
                         data-testid="entitlement-feedback-severity"
                         className="w-full px-2 py-1.5 rounded border text-[11px]"
-                        style={{ borderColor: '#cbd5e1' }}>
+                        style={{ borderColor: '#c9cbcc' }}>
                   <option value="low">Low severity</option>
                   <option value="medium">Medium severity</option>
                   <option value="high">High severity</option>
@@ -172,10 +172,10 @@ export function EngineerEntitlementPanel({ caseId, getAuthHeaders }) {
                           data-testid="entitlement-feedback-body"
                           rows={3}
                           className="w-full px-2 py-1.5 rounded border text-[11px]"
-                          style={{ borderColor: '#cbd5e1' }} />
+                          style={{ borderColor: '#c9cbcc' }} />
                 <div className="flex gap-1.5">
                   <button onClick={() => setComposerOpen(false)} data-testid="entitlement-cancel-feedback-btn"
-                          className="flex-1 py-1.5 rounded text-[11px] font-semibold border" style={{ borderColor: '#cbd5e1', color: '#475569' }}>
+                          className="flex-1 py-1.5 rounded text-[11px] font-semibold border" style={{ borderColor: '#c9cbcc', color: '#565B5E' }}>
                     <XIcon size={11} className="inline mr-0.5" />Cancel
                   </button>
                   <button onClick={submit} disabled={submitting || !body.trim()}

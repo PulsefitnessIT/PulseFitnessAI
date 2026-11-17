@@ -7,7 +7,7 @@ import { deptColor, humanize } from './api';
 
 function PCard({ n }) {
   const { t } = useTranslation();
-  const accent = n.type === 'vacancy' ? '#fb923c' : deptColor(n.department);
+  const accent = n.type === 'vacancy' ? '#f59e0b' : deptColor(n.department);
   return (
     <div className="rounded-2xl px-4 py-3 min-w-[180px]" style={{ background: 'rgba(255,255,255,0.06)', borderLeft: `4px solid ${accent}`, backdropFilter: 'blur(8px)' }}>
       <div className="text-sm font-bold" style={{ color: '#ffffff' }}>{n.full_name}</div>

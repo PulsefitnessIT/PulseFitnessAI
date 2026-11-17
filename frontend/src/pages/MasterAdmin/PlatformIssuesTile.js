@@ -51,7 +51,7 @@ export default function PlatformIssuesTile({ onGoSection }) {
   return (
     <div
       data-testid="platform-issues-tile"
-      className="bg-white border border-slate-200 rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] p-5 lg:p-6"
+      className="bg-white border border-slate-200 rounded-2xl shadow-[0_1px_2px_rgba(27, 28, 29,0.04)] p-5 lg:p-6"
     >
       <div className="flex items-center gap-3 mb-4">
         <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center">

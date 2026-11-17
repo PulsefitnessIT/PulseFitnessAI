@@ -19,13 +19,13 @@ const auth = () => { const _t = localStorage.getItem('crm_token'); return { head
 
 const PODIUM_ICONS = {
   gold: { Icon: Trophy, colour: '#d4af37' },
-  silver: { Icon: Medal, colour: '#9ca3af' },
+  silver: { Icon: Medal, colour: '#9a9fa1' },
   bronze: { Icon: Award, colour: '#a16207' },
 };
 
 function pctColour(pct) {
   if (pct >= 90) return 'var(--color-success-green, #10b981)';
-  if (pct >= 70) return 'var(--color-brand-blue, #1d4ed8)';
+  if (pct >= 70) return 'var(--color-brand-blue, #0091ca)';
   if (pct >= 50) return 'var(--color-warning, #f59e0b)';
   return 'var(--color-danger-red, #ef4444)';
 }

@@ -19,18 +19,18 @@ import { ModalShell, ModalActions, Input, Select } from '@/pages/Memberships/_sh
 import DatePicker from '@/components/shared/DatePicker';
 
 const KIND_META = {
-  recital:     { label: 'Recital',     emoji: 'R', tone: '#a855f7' },
-  showcase:    { label: 'Showcase',    tone: '#ec4899' },
-  competition: { label: 'Competition', tone: '#f97316' },
+  recital:     { label: 'Recital',     emoji: 'R', tone: '#19cdff' },
+  showcase:    { label: 'Showcase',    tone: '#19cdff' },
+  competition: { label: 'Competition', tone: '#f59e0b' },
   workshop:    { label: 'Workshop',    tone: '#10b981' },
-  camp:        { label: 'Camp',        tone: '#3b82f6' },
-  other:       { label: 'Event',       tone: '#64748b' },
+  camp:        { label: 'Camp',        tone: '#19cdff' },
+  other:       { label: 'Event',       tone: '#6e7476' },
 };
 
 const COSTUME_TONES = {
-  needed:   '#94a3b8',
+  needed:   '#9a9fa1',
   ordered:  '#f59e0b',
-  arrived:  '#3b82f6',
+  arrived:  '#19cdff',
   fitted:   '#10b981',
   paid:     '#16a34a',
   refunded: '#ef4444',
@@ -101,17 +101,17 @@ export default function EventsTab({ API, headers }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[320px,1fr] gap-4" data-testid="events-tab">
       {/* Master list */}
-      <aside className="rounded-2xl border p-3" style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'var(--theme-surface, #fff)' }} data-testid="events-list-card">
+      <aside className="rounded-2xl border p-3" style={{ borderColor: 'var(--theme-border, #e0e0e0)', background: 'var(--theme-surface, #fff)' }} data-testid="events-list-card">
         <header className="flex items-center justify-between mb-2">
           <p className="text-[11px] uppercase tracking-wider font-bold opacity-60 inline-flex items-center gap-1">
             <Theater size={11} /> {t('memberships_console.evt_events', 'Events')}
           </p>
-          <button type="button" onClick={() => setCreateOpen(true)} className="px-2 py-1 rounded text-[11px] font-bold inline-flex items-center gap-1" style={{ background: 'var(--color-brand-blue, #1d4ed8)', color: '#fff' }} data-testid="events-create">
+          <button type="button" onClick={() => setCreateOpen(true)} className="px-2 py-1 rounded text-[11px] font-bold inline-flex items-center gap-1" style={{ background: 'var(--color-brand-blue, #0091ca)', color: '#fff' }} data-testid="events-create">
             <Plus size={11} /> {t('memberships_console.evt_new', 'New')}
           </button>
         </header>
         {events.length === 0 ? (
-          <div className="text-center py-8 px-3 rounded-xl border-2 border-dashed" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid="events-empty">
+          <div className="text-center py-8 px-3 rounded-xl border-2 border-dashed" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }} data-testid="events-empty">
             <CalendarRange size={22} className="mx-auto mb-1 opacity-50" />
             <p className="text-sm font-bold">{t('memberships_console.evt_empty_title', 'No events yet')}</p>
             <p className="text-xs opacity-70 mt-1">{t('memberships_console.evt_empty_hint', 'Create your first recital or showcase to start tracking costumes & tickets.')}</p>
@@ -137,7 +137,7 @@ export default function EventsTab({ API, headers }) {
                     onClick={() => setSelectedId(ev.id)}
                     className={`w-full text-left rounded-lg p-2.5 border transition-all ${active ? 'ring-2' : ''}`}
                     style={{
-                      borderColor: active ? meta.tone : 'var(--theme-border, #e2e8f0)',
+                      borderColor: active ? meta.tone : 'var(--theme-border, #e0e0e0)',
                       background: active ? `${meta.tone}14` : 'transparent',
                       cursor: 'pointer', color: 'inherit',
                     }}
@@ -169,7 +169,7 @@ export default function EventsTab({ API, headers }) {
           onArchive={archiveEvent}
         />
       ) : (
-        <div className="rounded-2xl border-2 border-dashed p-12 text-center" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid="events-detail-empty">
+        <div className="rounded-2xl border-2 border-dashed p-12 text-center" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }} data-testid="events-detail-empty">
           <Theater size={28} className="mx-auto mb-2 opacity-50" />
           <p className="text-sm font-bold">{t('memberships_console.evt_select_prompt', 'Select or create an event to start')}</p>
         </div>
@@ -279,8 +279,8 @@ function EventDetailCard({ API, auth, event, onChanged, onArchive }) {
   };
 
   return (
-    <section className="rounded-2xl border" style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'var(--theme-surface, #fff)' }} data-testid="events-detail">
-      <header className="p-4 border-b flex items-start gap-3 flex-wrap" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }}>
+    <section className="rounded-2xl border" style={{ borderColor: 'var(--theme-border, #e0e0e0)', background: 'var(--theme-surface, #fff)' }} data-testid="events-detail">
+      <header className="p-4 border-b flex items-start gap-3 flex-wrap" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }}>
         <div className="rounded-full p-2.5" style={{ background: `${meta.tone}1f` }}>
           <Theater size={18} style={{ color: meta.tone }} />
         </div>
@@ -296,7 +296,7 @@ function EventDetailCard({ API, auth, event, onChanged, onArchive }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={draftWithAI} className="px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5" style={{ background: '#a855f7', color: '#fff' }} data-testid="events-ai-draft">
+          <button type="button" onClick={draftWithAI} className="px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5" style={{ background: '#19cdff', color: '#fff' }} data-testid="events-ai-draft">
             <Sparkles size={11} /> {t('memberships_console.evt_ai_draft', 'AI draft comms')}
           </button>
           <button type="button" onClick={() => onArchive(event)} className="px-2 py-1 rounded text-[11px] border" style={{ borderColor: 'var(--theme-border)' }} data-testid="events-archive">
@@ -307,12 +307,12 @@ function EventDetailCard({ API, auth, event, onChanged, onArchive }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
         {/* Rehearsals */}
-        <div className="rounded-xl border p-3" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid="events-rehearsals">
+        <div className="rounded-xl border p-3" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }} data-testid="events-rehearsals">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[11px] uppercase tracking-wider font-bold opacity-60 inline-flex items-center gap-1">
               <CalendarRange size={11} /> {t('memberships_console.evt_rehearsals', 'Rehearsals')}
             </p>
-            <button type="button" onClick={addRehearsal} className="px-2 py-1 rounded text-[11px] font-bold inline-flex items-center gap-1" style={{ background: 'var(--color-brand-blue, #1d4ed8)', color: '#fff' }} data-testid="events-rehearsal-add">
+            <button type="button" onClick={addRehearsal} className="px-2 py-1 rounded text-[11px] font-bold inline-flex items-center gap-1" style={{ background: 'var(--color-brand-blue, #0091ca)', color: '#fff' }} data-testid="events-rehearsal-add">
               <Plus size={11} /> {t('memberships_console.evt_add', 'Add')}
             </button>
           </div>
@@ -337,7 +337,7 @@ function EventDetailCard({ API, auth, event, onChanged, onArchive }) {
         </div>
 
         {/* Costumes */}
-        <div className="rounded-xl border p-3" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid="events-costumes">
+        <div className="rounded-xl border p-3" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }} data-testid="events-costumes">
           <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <p className="text-[11px] uppercase tracking-wider font-bold opacity-60 inline-flex items-center gap-1">
               <Users size={11} /> {t('memberships_console.evt_costumes', 'Costumes')}
@@ -345,7 +345,7 @@ function EventDetailCard({ API, auth, event, onChanged, onArchive }) {
                 {costumes.length} · {t('memberships_console.evt_total', '{{amount}} total', { amount: fmtGBP(costumeSummary.total_pence) })}
               </span>
             </p>
-            <button type="button" onClick={addCostume} className="px-2 py-1 rounded text-[11px] font-bold inline-flex items-center gap-1" style={{ background: 'var(--color-brand-blue, #1d4ed8)', color: '#fff' }} data-testid="events-costume-add">
+            <button type="button" onClick={addCostume} className="px-2 py-1 rounded text-[11px] font-bold inline-flex items-center gap-1" style={{ background: 'var(--color-brand-blue, #0091ca)', color: '#fff' }} data-testid="events-costume-add">
               <Plus size={11} /> {t('memberships_console.evt_add', 'Add')}
             </button>
           </div>
@@ -354,7 +354,7 @@ function EventDetailCard({ API, auth, event, onChanged, onArchive }) {
           ) : (
             <ul className="space-y-1.5" data-testid="events-costume-list">
               {costumes.map((c) => {
-                const tone = COSTUME_TONES[c.status] || '#94a3b8';
+                const tone = COSTUME_TONES[c.status] || '#9a9fa1';
                 const next = COSTUME_NEXT[c.status];
                 return (
                   <li key={c.id} className="flex items-start gap-2 p-2 rounded border" style={{ borderColor: 'var(--theme-border)' }} data-testid={`events-costume-${c.id}`}>
@@ -385,7 +385,7 @@ function EventDetailCard({ API, auth, event, onChanged, onArchive }) {
           {costumes.length > 0 ? (
             <div className="mt-2 flex flex-wrap gap-1.5" data-testid="events-costume-summary">
               {Object.entries(costumeSummary.by_status || {}).map(([s, n]) => {
-                const tone = COSTUME_TONES[s] || '#94a3b8';
+                const tone = COSTUME_TONES[s] || '#9a9fa1';
                 return (
                   <span key={s} className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase" style={{ background: `${tone}26`, color: tone }} data-testid={`events-costume-summary-${s}`}>
                     {n} {t(`memberships_console.evt_costume_${s}`, s)}
@@ -399,7 +399,7 @@ function EventDetailCard({ API, auth, event, onChanged, onArchive }) {
 
       {/* AI comms drawer */}
       {aiOpen ? (
-        <div className="border-t p-4 space-y-2" style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'rgba(25, 205, 255,0.04)' }} data-testid="events-ai-comms">
+        <div className="border-t p-4 space-y-2" style={{ borderColor: 'var(--theme-border, #e0e0e0)', background: 'rgba(25, 205, 255,0.04)' }} data-testid="events-ai-comms">
           <div className="flex items-center justify-between">
             <p className="text-[11px] uppercase tracking-wider font-bold opacity-60 inline-flex items-center gap-1">
               <Wand2 size={11} className="text-violet-500" /> {t('memberships_console.evt_ai_comms_title', 'AI-drafted parent comms')}

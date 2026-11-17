@@ -126,7 +126,7 @@ export default function ComplianceTab({ headers }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <SummaryCard testid="compliance-card-dbs" icon={IdCard} tint="#7c3aed"
+        <SummaryCard testid="compliance-card-dbs" icon={IdCard} tint="#0091ca"
           title="Enhanced DBS" urgent={dbsUrgent} urgentLabel="need action"
           breakdown={[
             { label: 'valid', value: s.dbs.ok },
@@ -134,7 +134,7 @@ export default function ComplianceTab({ headers }) {
             { label: 'expired', value: s.dbs.expired },
             { label: 'not on file', value: s.dbs.missing },
           ]} />
-        <SummaryCard testid="compliance-card-rtw" icon={ShieldCheck} tint="#0891b2"
+        <SummaryCard testid="compliance-card-rtw" icon={ShieldCheck} tint="#0091ca"
           title="Right to Work" urgent={rtwUrgent} urgentLabel="need action"
           breakdown={[
             { label: 'verified', value: s.right_to_work.ok },

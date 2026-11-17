@@ -51,17 +51,17 @@ const ICON_SIZE = { sm: 12, md: 14, lg: 16, icon: 14, iconSm: 12 };
 const VARIANT = {
   primary: {
     className: 'inline-flex items-center justify-center rounded-lg font-extrabold transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
-    style: { background: 'var(--color-brand-cyan, #00D6E0)', color: 'var(--color-surface-darker, #0A0A0A)' },
+    style: { background: 'var(--color-brand-cyan, #00D6E0)', color: 'var(--color-surface-darker, #1B1C1D)' },
     hoverClass: 'hover:brightness-110',
   },
   secondary: {
     className: 'inline-flex items-center justify-center rounded-lg font-bold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
-    style: { borderColor: 'var(--theme-border, #E4E4E7)', color: 'var(--theme-text, #0A0A0A)', background: 'var(--theme-surface, #FFFFFF)' },
+    style: { borderColor: 'var(--theme-border, #E0E0E0)', color: 'var(--theme-text, #1B1C1D)', background: 'var(--theme-surface, #FFFFFF)' },
     hoverClass: 'hover:bg-zinc-50',
   },
   tertiary: {
     className: 'inline-flex items-center font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed underline-offset-2',
-    style: { color: 'var(--theme-text-muted, #71717A)' },
+    style: { color: 'var(--theme-text-muted, #6E7476)' },
     hoverClass: 'hover:text-zinc-900 hover:underline',
   },
   destructive: {
@@ -74,7 +74,7 @@ const VARIANT = {
     // background by default; reveals a soft hover surface so it sits
     // quietly inside dense tables and drawer headers.
     className: 'inline-flex items-center justify-center rounded-md font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
-    style: { color: 'var(--theme-text-muted, #71717A)', background: 'transparent' },
+    style: { color: 'var(--theme-text-muted, #6E7476)', background: 'transparent' },
     hoverClass: 'hover:bg-black/[0.06] hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-white',
   },
   ghostDestructive: {

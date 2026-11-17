@@ -32,7 +32,7 @@ const StatusPill = ({ ok, labelOk = 'Connected', labelOff = 'Not configured', te
 );
 
 const Row = ({ icon: Icon, name, description, status, action, testId }) => (
-  <div className="flex items-start gap-3 p-3 rounded-lg border bg-white" style={{ borderColor: '#E4E4E7' }} data-testid={testId}>
+  <div className="flex items-start gap-3 p-3 rounded-lg border bg-white" style={{ borderColor: '#E0E0E0' }} data-testid={testId}>
     <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 bg-zinc-50">
       <Icon size={14} className="text-zinc-600" />
     </div>

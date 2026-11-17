@@ -151,14 +151,14 @@ export default function DeskAnalytics({ API }) {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={trend} margin={{ top: 5, right: 10, bottom: 0, left: -20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                   <YAxis yAxisId="n" tick={{ fontSize: 11 }} allowDecimals={false} />
                   <YAxis yAxisId="pct" orientation="right" domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
                   <Tooltip />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar yAxisId="n" dataKey="created" name={t('service.anl_raised', 'Raised')} fill="#94a3b8" radius={[3, 3, 0, 0]} />
-                  <Bar yAxisId="n" dataKey="closed" name={t('service.anl_closed', 'Closed')} fill="#f97316" radius={[3, 3, 0, 0]} />
+                  <Bar yAxisId="n" dataKey="created" name={t('service.anl_raised', 'Raised')} fill="#9a9fa1" radius={[3, 3, 0, 0]} />
+                  <Bar yAxisId="n" dataKey="closed" name={t('service.anl_closed', 'Closed')} fill="#f59e0b" radius={[3, 3, 0, 0]} />
                   <Line yAxisId="pct" dataKey="sla_display" name={t('service.anl_sla_ontime', 'SLA on-time %')} stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} connectNulls />
                 </ComposedChart>
               </ResponsiveContainer>

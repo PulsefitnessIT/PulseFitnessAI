@@ -50,7 +50,7 @@ async function downloadTimesheet(url, headers, fallbackName) {
 const STATE_TINT = {
   on_shift: '#10B981',
   on_break: '#F59E0B',
-  off: '#94A3B8',
+  off: '#9A9FA1',
 };
 
 function fmtTime(iso) {
@@ -129,7 +129,7 @@ function ClockBoard({ headers }) {
           <p className="text-xl font-bold tabular-nums" style={{ color: 'var(--theme-text)' }}>{s.late || 0}</p>
         </div>
         <div className="rounded-lg border p-2" style={{ borderColor: 'var(--theme-border)' }}>
-          <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#94A3B8' }}>{t('staffing.tc_off', 'Off')}</p>
+          <p className="text-[10px] uppercase tracking-wider font-bold" style={{ color: '#9A9FA1' }}>{t('staffing.tc_off', 'Off')}</p>
           <p className="text-xl font-bold tabular-nums" style={{ color: 'var(--theme-text)' }}>{s.off || 0}</p>
         </div>
       </div>
@@ -252,7 +252,7 @@ function TimesheetRow({ ts, headers, onApprove, onDispute }) {
             <div className="flex gap-2 pt-1">
               <button type="button" onClick={() => onApprove(ts)}
                 className="h-8 rounded-full px-3 text-[11px] font-bold inline-flex items-center gap-1"
-                style={{ background: '#10B981', color: '#001219' }} data-testid={`timesheet-approve-${ts.id}`}>
+                style={{ background: '#10B981', color: '#1B1C1D' }} data-testid={`timesheet-approve-${ts.id}`}>
                 <Check size={11} /> {t('staffing.tc_approve', 'Approve')}
               </button>
               <button type="button" onClick={() => onDispute(ts)}
@@ -453,7 +453,7 @@ function KiosksPanel({ headers }) {
         </div>
         <button type="button" onClick={startNew}
           className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1.5"
-          style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="kiosks-new">
+          style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid="kiosks-new">
           <Plus size={12} /> {t('staffing.tc_new_kiosk', 'New kiosk')}
         </button>
       </div>
@@ -477,7 +477,7 @@ function KiosksPanel({ headers }) {
           <div className="flex gap-2">
             <button type="button" onClick={save}
               className="h-8 rounded-full px-3 text-xs font-bold inline-flex items-center gap-1"
-              style={{ background: 'var(--color-brand-cyan)', color: '#001219' }} data-testid="kiosk-save">
+              style={{ background: 'var(--color-brand-cyan)', color: '#1B1C1D' }} data-testid="kiosk-save">
               <Check size={11} /> {t('staffing.tc_save', 'Save')}
             </button>
             <button type="button" onClick={() => { setEditing(null); setForm({ name: '', pin: '' }); }}

@@ -166,7 +166,7 @@ function CrmContextCard({ caseId }) {
       {(data.open_deals || []).length > 0 ? (
         <div className="mt-2 space-y-1" data-testid="drawer-crm-deal-list">
           {data.open_deals.map((d) => (
-            <div key={d.id} className="flex items-center justify-between text-[11px] border-t pt-1" style={{ borderColor: 'var(--svc-border, #e5e7eb)' }}>
+            <div key={d.id} className="flex items-center justify-between text-[11px] border-t pt-1" style={{ borderColor: 'var(--svc-border, #e0e0e0)' }}>
               <span className="truncate">{d.name || 'Deal'}</span>
               <span className="svc-muted whitespace-nowrap">{(d.stage || '').replace(/_/g, ' ')} · {gbp(d.value)}</span>
             </div>
@@ -569,7 +569,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
                 {merged?.customer_po_number ? (
                   <span
                     className="svc-pill inline-flex items-center gap-1"
-                    style={{ background: '#ecfeff', color: '#0e7490', fontWeight: 700 }}
+                    style={{ background: '#ecfeff', color: '#0073a4', fontWeight: 700 }}
                     title={t('service.cd_po_title', "Customer PO / reference — links this chargeable job to the customer's purchase order")}
                     data-testid="drawer-customer-po">
                     PO / Ref: {merged.customer_po_number}
@@ -847,7 +847,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
           {/* Iter 216h83 — Customer Live Tracking link share */}
           <div
             className="rounded-lg border p-2 flex items-center gap-2 flex-wrap"
-            style={{ borderColor: 'var(--theme-border, #e5e7eb)' }}
+            style={{ borderColor: 'var(--theme-border, #e0e0e0)' }}
             data-testid="drawer-tracking-link-row"
           >
             <LinkIcon size={13} className="opacity-70" />
@@ -855,7 +855,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
             {trackingUrl ? (
               <span
                 className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
-                style={{ background: '#dbeafe', color: '#0891b2' }}
+                style={{ background: '#dbeafe', color: '#0091ca' }}
                 data-testid="drawer-tracking-link-active"
               >
                 Link active
@@ -887,7 +887,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
           {(['repaired', 'awaiting_sign_off', 'closed', 'invoiced'].includes(doc?.status)) ? (
             <div
               className="rounded-lg border p-2 flex items-center gap-2 flex-wrap"
-              style={{ borderColor: 'var(--theme-border, #e5e7eb)' }}
+              style={{ borderColor: 'var(--theme-border, #e0e0e0)' }}
               data-testid="drawer-service-report"
             >
               <FileText size={13} className="opacity-70" />
@@ -926,7 +926,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
           {doc?.calibration_captured ? (
             <div
               className="rounded-lg border p-2 flex items-center gap-2 flex-wrap"
-              style={{ borderColor: 'var(--theme-border, #e5e7eb)' }}
+              style={{ borderColor: 'var(--theme-border, #e0e0e0)' }}
               data-testid="drawer-calibration-cert"
             >
               <Award size={13} className="opacity-70" />
@@ -945,7 +945,7 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
               {doc?.calibration_cert_sent_at ? (
                 <span
                   className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
-                  style={{ background: '#dbeafe', color: '#1e40af' }}
+                  style={{ background: '#dbeafe', color: '#0073a4' }}
                   data-testid="drawer-calibration-cert-sent"
                 >
                   {t('service.cd_report_sent_to', 'Sent to {{who}}', { who: doc.calibration_cert_sent_to || t('service.cd_the_customer', 'customer') })}
@@ -1059,7 +1059,7 @@ function RatingPromptModal({ rating, setRating, comment, setComment, busy, targe
             <button key={n} type="button" onClick={() => setRating(n)}
               data-testid={`rating-star-${n}`}
               className="text-3xl leading-none transition-transform hover:scale-110"
-              style={{ color: rating >= n ? '#f59e0b' : '#d4d4d8' }}>
+              style={{ color: rating >= n ? '#f59e0b' : '#c9cbcc' }}>
               ★
             </button>
           ))}

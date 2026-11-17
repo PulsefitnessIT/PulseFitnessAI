@@ -69,7 +69,7 @@ export default function TeamAccessTab({ headers }) {
                     <button key={m.key} onClick={() => toggle(r, m.key)} data-testid={`team-access-toggle-${r.staff_id}-${m.key}`}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors"
                       style={on
-                        ? { background: '#19CDFF', color: '#0B1220', borderColor: '#19CDFF' }
+                        ? { background: '#19CDFF', color: '#1B1C1D', borderColor: '#19CDFF' }
                         : { background: 'transparent', color: 'var(--theme-text-muted)', borderColor: 'var(--theme-border)' }}>
                       {on && <CheckCircle2 size={12} />} {m.label}
                     </button>

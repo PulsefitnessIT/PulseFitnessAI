@@ -107,8 +107,8 @@ const ListPanel = ({
                 className="w-full pl-9 pr-3 py-2 text-sm rounded-md"
                 style={{
                   background: 'var(--theme-input-bg, #fff)',
-                  border: '1px solid var(--theme-border, #E4E4E7)',
-                  color: 'var(--theme-text, #18181B)',
+                  border: '1px solid var(--theme-border, #E0E0E0)',
+                  color: 'var(--theme-text, #1B1C1D)',
                 }}
                 data-testid={search.testId}
               />

@@ -51,19 +51,19 @@ export const ocApi = {
 };
 
 export const EDGE_TYPES = [
-  { id: 'dotted', label: 'Dotted line', color: '#7c3aed' },
-  { id: 'temporary', label: 'Temporary', color: '#0891b2' },
-  { id: 'project', label: 'Project', color: '#ca8a04' },
+  { id: 'dotted', label: 'Dotted line', color: '#0091ca' },
+  { id: 'temporary', label: 'Temporary', color: '#0091ca' },
+  { id: 'project', label: 'Project', color: '#d97706' },
   { id: 'escalation', label: 'Escalation', color: '#dc2626' },
 ];
 
 // Deterministic department colour so branches read consistently.
 const DEPT_COLORS = [
-  '#2563eb', '#7c3aed', '#0891b2', '#db2777', '#ea580c',
-  '#16a34a', '#ca8a04', '#dc2626', '#4f46e5', '#0d9488',
+  '#0091ca', '#0091ca', '#0091ca', '#0091ca', '#d97706',
+  '#16a34a', '#d97706', '#dc2626', '#0091ca', '#0d9488',
 ];
 export function deptColor(dept) {
-  if (!dept) return '#94a3b8';
+  if (!dept) return '#9a9fa1';
   let h = 0;
   for (let i = 0; i < dept.length; i += 1) h = (h * 31 + dept.charCodeAt(i)) % 997;
   return DEPT_COLORS[h % DEPT_COLORS.length];

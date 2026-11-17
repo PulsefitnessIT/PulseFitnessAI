@@ -62,12 +62,12 @@ export default function BillingSection({ billing, _onClose }) {
         <div
           className="rounded-xl p-5"
           style={{
-            border: `1px solid ${trial.status === 'expired' || trial.status === 'suspended' ? '#dc2626' : trial.status === 'expiring_soon' ? '#f59e0b' : 'var(--brand-color, #0055FF)'}`,
+            border: `1px solid ${trial.status === 'expired' || trial.status === 'suspended' ? '#dc2626' : trial.status === 'expiring_soon' ? '#f59e0b' : 'var(--brand-color, #19CDFF)'}`,
             background: trial.status === 'expired' || trial.status === 'suspended'
               ? 'color-mix(in srgb, #dc2626 8%, transparent)'
               : trial.status === 'expiring_soon'
                 ? 'color-mix(in srgb, #f59e0b 8%, transparent)'
-                : 'color-mix(in srgb, var(--brand-color, #0055FF) 5%, transparent)',
+                : 'color-mix(in srgb, var(--brand-color, #19CDFF) 5%, transparent)',
           }}
           data-testid="account-billing-trial-card"
         >
@@ -160,7 +160,7 @@ export default function BillingSection({ billing, _onClose }) {
                   {active ? (
                     <span className="text-[10px] uppercase tracking-wider px-2 py-1 rounded font-bold" style={{
                       color: 'var(--brand-color, var(--color-brand-blue))',
-                      background: 'color-mix(in srgb, var(--brand-color, #0055FF) 12%, transparent)',
+                      background: 'color-mix(in srgb, var(--brand-color, #19CDFF) 12%, transparent)',
                     }}>
                       <Check size={10} className="inline mr-0.5" /> {t('settings.bill_active', 'Active')}
                     </span>

@@ -79,16 +79,16 @@ export default function BFPOApp() {
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, []);
 
-  if (authLoading) return <div className="min-h-screen bg-[#F8F9FA]"><Spinner label="Loading portal…" /></div>;
+  if (authLoading) return <div className="min-h-screen bg-[#F7F7F7]"><Spinner label="Loading portal…" /></div>;
   // Not signed in → send to the standard MOD service login screen.
   if (!user) return <Navigate to="/MODService" replace />;
   // Signed in but not a MOD/BFPO account → friendly no-access card.
   if (!['engineer', 'lead', 'staff'].includes(role)) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-6" data-testid="bfpo-no-access">
+      <div className="min-h-screen bg-[#F7F7F7] flex items-center justify-center p-6" data-testid="bfpo-no-access">
         <div className="text-center max-w-sm">
-          <p className="text-lg font-bold text-[#212721]">This area is for MOD/BFPO personnel</p>
-          <p className="text-sm text-[#505759] mt-1">Your account doesn't have access to the BFPO Engineer Portal.</p>
+          <p className="text-lg font-bold text-[#1B1C1D]">This area is for MOD/BFPO personnel</p>
+          <p className="text-sm text-[#565B5E] mt-1">Your account doesn't have access to the BFPO Engineer Portal.</p>
           <a href="/dashboard" className="inline-block mt-4"><Btn variant="primary">Go to your dashboard</Btn></a>
         </div>
       </div>
@@ -97,10 +97,10 @@ export default function BFPOApp() {
   // MOD Operations overview dashboard is module-gated to select Pulse staff.
   if (role === 'staff' && !hasModOps) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-6" data-testid="bfpo-no-modops">
+      <div className="min-h-screen bg-[#F7F7F7] flex items-center justify-center p-6" data-testid="bfpo-no-modops">
         <div className="text-center max-w-sm">
-          <p className="text-lg font-bold text-[#212721]">Pulse Fitness MOD Operations</p>
-          <p className="text-sm text-[#505759] mt-1">Your account isn't enabled for the MOD Operations overview dashboard. Ask a Master Admin to grant you the <span className="font-semibold">Pulse Fitness MOD Operations</span> module.</p>
+          <p className="text-lg font-bold text-[#1B1C1D]">Pulse Fitness MOD Operations</p>
+          <p className="text-sm text-[#565B5E] mt-1">Your account isn't enabled for the MOD Operations overview dashboard. Ask a Master Admin to grant you the <span className="font-semibold">Pulse Fitness MOD Operations</span> module.</p>
           <a href="/dashboard" className="inline-block mt-4"><Btn variant="primary">Go to your dashboard</Btn></a>
         </div>
       </div>
@@ -174,7 +174,7 @@ export default function BFPOApp() {
   );
 
   return (
-    <div className={`min-h-screen flex flex-col ${role === 'staff' ? 'pulse-font overflow-x-hidden' : 'bg-[#F8F9FA]'}`} style={role === 'staff' ? { background: 'var(--theme-bg)' } : undefined}>
+    <div className={`min-h-screen flex flex-col ${role === 'staff' ? 'pulse-font overflow-x-hidden' : 'bg-[#F7F7F7]'}`} style={role === 'staff' ? { background: 'var(--theme-bg)' } : undefined}>
       {welcome && <WelcomeKit data={welcome} onStart={dismissWelcome} onViewJobs={() => { dismissWelcome(); setJobFilter('all_open'); setView('jobs'); }} />}
       {Header}
       <OfflineSyncBar online={online} />

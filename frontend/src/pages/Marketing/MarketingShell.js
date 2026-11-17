@@ -159,7 +159,7 @@ export function MarketingNav() {
                 onClick={() => { setOpen(false); openTrial(); }}
                 className="w-full rounded-full px-5 py-3 text-sm font-bold transition-shadow hover:shadow-lg"
                 style={{
-                  background: 'linear-gradient(135deg, var(--gx-brand-from, #2563EB) 0%, var(--gx-brand-to, #9D4CDD) 100%)',
+                  background: 'linear-gradient(135deg, var(--gx-brand-from, #0091CA) 0%, var(--gx-brand-to, #19CDFF) 100%)',
                   color: '#fff',
                 }}
                 data-testid="gx-nav-mobile-trial"

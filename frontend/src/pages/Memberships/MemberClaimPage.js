@@ -60,7 +60,7 @@ export default function MemberClaimPage() {
   const name = branding?.name || 'Your studio';
 
   return (
-    <div className="min-h-screen grid place-items-center p-4 bg-[var(--color-surface-darker,#0A0C10)] text-white"
+    <div className="min-h-screen grid place-items-center p-4 bg-[var(--color-surface-darker,#1B1C1D)] text-white"
          data-testid="member-claim-page">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.02)] shadow-2xl overflow-hidden">
         <div className="px-6 py-5" style={{ background: primary }}>
@@ -96,7 +96,7 @@ export default function MemberClaimPage() {
           )}
           <button type="submit" disabled={busy || !token}
             className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-full font-extrabold disabled:opacity-50"
-            style={{ background: primary, color: '#0A0C10' }}
+            style={{ background: primary, color: '#1B1C1D' }}
             data-testid="member-claim-submit">
             {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
             Activate my portal

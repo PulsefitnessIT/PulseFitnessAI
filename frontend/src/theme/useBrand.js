@@ -19,7 +19,7 @@ const PULSE = {
   name: 'Pulse Fitness AI',
   shortName: 'Pulse Fitness',
   accent: '#19CDFF',         // cyan
-  accentText: '#0A0C10',     // dark text on cyan
+  accentText: '#1B1C1D',     // dark text on cyan
   logoUrl: 'https://customer-assets.emergentagent.com/job_maintenance-hub-357/artifacts/iscy9t7o_Pulse%20Fitness%20Primary%20Logo%20Badge%20RGB.jpg',
   fontHeading: 'pulse-font-heading',
   fontBody: 'pulse-font-body',

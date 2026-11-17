@@ -133,7 +133,7 @@ export default function LocalizationPanel() {
               onClick={save}
               disabled={saving}
               className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider px-4 py-2 rounded-md text-white disabled:opacity-50"
-              style={{ background: 'var(--theme-accent, #2563eb)' }}
+              style={{ background: 'var(--theme-accent, #0091ca)' }}
               data-testid="localization-save-btn"
             >
               {saving ? <Loader2 size={13} className="animate-spin" /> : null} {t('settings.loc_save', 'Save market')}

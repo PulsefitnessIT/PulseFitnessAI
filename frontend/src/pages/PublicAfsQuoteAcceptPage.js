@@ -30,7 +30,7 @@ function SignaturePad({ onChange, height = 140 }) {
     if (!drawing.current) return;
     e.preventDefault();
     const c = ctx(); const pt = point(e);
-    c.strokeStyle = '#0B3D91'; c.lineWidth = 2; c.lineCap = 'round';
+    c.strokeStyle = '#0073A4'; c.lineWidth = 2; c.lineCap = 'round';
     c.beginPath(); c.moveTo(lastPt.current.x, lastPt.current.y); c.lineTo(pt.x, pt.y); c.stroke();
     lastPt.current = pt;
   };
@@ -149,7 +149,7 @@ export default function PublicAfsQuoteAcceptPage() {
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="afs-public-page">
-      <div className="text-white" style={{ background: 'linear-gradient(135deg,#0B3D91 0%,#1763B5 60%,#00B5D8 100%)' }}>
+      <div className="text-white" style={{ background: 'linear-gradient(135deg,#0073A4 0%,#1763B5 60%,#00B5D8 100%)' }}>
         <div className="max-w-3xl mx-auto px-5 py-8">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">Pulse Fitness · Maintenance Agreement</p>
           <h1 className="text-3xl font-extrabold mt-1" data-testid="afs-public-quote-number">{quote.quote_number}</h1>
@@ -231,7 +231,7 @@ export default function PublicAfsQuoteAcceptPage() {
             <div className="flex gap-2 mt-4">
               <button type="button" onClick={accept} disabled={submitting || !name.trim()}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white text-sm font-bold shadow disabled:opacity-50"
-                style={{ background: 'linear-gradient(135deg,#0B3D91,#1763B5)' }} data-testid="afs-public-accept-btn">
+                style={{ background: 'linear-gradient(135deg,#0073A4,#1763B5)' }} data-testid="afs-public-accept-btn">
                 {submitting ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />} Accept &amp; sign
               </button>
               <button type="button" onClick={() => setShowDecline(true)}

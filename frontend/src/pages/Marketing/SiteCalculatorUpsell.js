@@ -43,7 +43,7 @@ export default function SiteCalculatorUpsell({ accent = 'var(--gx-brand-from)' }
     >
       <div className="max-w-5xl mx-auto px-6 lg:px-8">
         <div
-          className="relative overflow-hidden rounded-[36px] border border-slate-200 bg-gradient-to-br from-white to-slate-50/60 dark:from-zinc-900 dark:to-zinc-950 p-8 md:p-12 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.25)] dark:border-zinc-800"
+          className="relative overflow-hidden rounded-[36px] border border-slate-200 bg-gradient-to-br from-white to-slate-50/60 dark:from-zinc-900 dark:to-zinc-950 p-8 md:p-12 shadow-[0_30px_80px_-40px_rgba(27, 28, 29,0.25)] dark:border-zinc-800"
           style={{ borderTopColor: accent, borderTopWidth: 4 }}
         >
           <div

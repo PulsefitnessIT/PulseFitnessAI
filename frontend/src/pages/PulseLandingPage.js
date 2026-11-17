@@ -198,7 +198,7 @@ export function PulseHeader({ onSignIn, theme, toggleTheme, i18n }) {
             // matches the rest of the Pulse Fitness palette.
             // Iter 215dk — bumped 36→40px tap target for mobile.
             className="h-10 px-4 rounded-xl font-semibold text-sm uppercase tracking-wide hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: 'var(--pulse-primary)', color: 'var(--color-ink, #0f172a)' }}
+            style={{ backgroundColor: 'var(--pulse-primary)', color: 'var(--color-ink, #1b1c1d)' }}
             data-testid="pulse-header-login-btn"
           >
             <LogIn size={14} className="mr-1.5" /> {t('pulse.sign_in', 'Sign In')}
@@ -301,7 +301,7 @@ function KineticWord() {
 function Hero({ onSignIn }) {
   const { t } = useTranslation();
   return (
-    <section className="relative overflow-hidden bg-[var(--pulse-black,#212721)]" data-theme="dark" data-testid="pulse-hero">
+    <section className="relative overflow-hidden bg-[var(--pulse-black,#1B1C1D)]" data-theme="dark" data-testid="pulse-hero">
       {/* Full-bleed "Heart of Fitness" treadmill row, cinematic dark overlay */}
       <motion.div
         initial={{ opacity: 0, scale: 1.06 }}
@@ -310,8 +310,8 @@ function Hero({ onSignIn }) {
         className="absolute inset-0"
       >
         <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${HERO_BG})` }} />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(100deg, rgba(33,39,33,0.94) 0%, rgba(33,39,33,0.78) 42%, rgba(33,39,33,0.35) 100%)' }} />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(33,39,33,0.9) 0%, transparent 35%, rgba(33,39,33,0.4) 100%)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(100deg, rgba(27, 28, 29,0.94) 0%, rgba(27, 28, 29,0.78) 42%, rgba(27, 28, 29,0.35) 100%)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(27, 28, 29,0.9) 0%, transparent 35%, rgba(27, 28, 29,0.4) 100%)' }} />
       </motion.div>
 
       {/* Floating cyan accent orb */}
@@ -359,7 +359,7 @@ function Hero({ onSignIn }) {
               style={{ backgroundColor: 'var(--pulse-primary)', color: 'var(--color-surface-dark-panel-alt)', fontWeight: 700, letterSpacing: '0.05em' }}
               data-testid="pulse-hero-login-btn"
             >
-              <span className="inline-flex items-center" style={{ color: '#212721' }}><LogIn size={16} className="mr-2" /> {t('pulse.hero_login', 'LOG IN')}</span>
+              <span className="inline-flex items-center" style={{ color: '#1B1C1D' }}><LogIn size={16} className="mr-2" /> {t('pulse.hero_login', 'LOG IN')}</span>
             </Button>
             <Button
               variant="outline"
@@ -1464,7 +1464,7 @@ function TailoredPulse() {
         <Reveal className="mb-10">
           <motion.div variants={FADE_UP} className="relative h-44 sm:h-64 rounded-3xl overflow-hidden" data-testid="pulse-tailored-banner">
             <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url(/pulse-photos/carshalton-igym.webp)' }} />
-            <div className="absolute inset-0 bg-gradient-to-r from-[rgba(33,39,33,0.85)] via-[rgba(33,39,33,0.35)] to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[rgba(27, 28, 29,0.85)] via-[rgba(27, 28, 29,0.35)] to-transparent" />
             <div className="relative h-full flex flex-col justify-end p-7 sm:p-9 on-dark">
               <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[var(--pulse-primary)]">{t('pulse.tai_banner_eyebrow', 'Real installs, real estates')}</div>
               <p className="mt-1.5 text-lg sm:text-2xl font-extrabold max-w-md leading-tight" style={{ color: '#fff', textShadow: '0 2px 20px rgba(0,0,0,0.8)' }}>
@@ -1503,7 +1503,7 @@ function FinalCTA({ onSignIn }) {
   return (
     <section className="relative py-24 overflow-hidden" data-theme="dark" data-testid="pulse-final-cta">
       <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url(/pulse-photos/gym-cardio-angle.webp)' }} />
-      <div className="absolute inset-0" style={{ background: 'rgba(33,39,33,0.88)' }} />
+      <div className="absolute inset-0" style={{ background: 'rgba(27, 28, 29,0.88)' }} />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60rem] h-[60rem] bg-[rgb(var(--rgb-pulse-primary)/0.15)] blur-[120px] rounded-full" />
       <div className="relative max-w-4xl mx-auto px-6 text-center">
         <motion.h2
@@ -1525,7 +1525,7 @@ function FinalCTA({ onSignIn }) {
             style={{ backgroundColor: '#ffffff' }}
             data-testid="pulse-final-login-btn"
           >
-            <span className="inline-flex items-center" style={{ color: '#212721' }}>{t('pulse.cta_login', 'Access Your Portal')} <ArrowRight size={16} className="ml-2" /></span>
+            <span className="inline-flex items-center" style={{ color: '#1B1C1D' }}>{t('pulse.cta_login', 'Access Your Portal')} <ArrowRight size={16} className="ml-2" /></span>
           </Button>
           <Button
             variant="outline"
@@ -1784,7 +1784,7 @@ export function LoginModal({ open, onOpenChange, onLogin, prefillEmail = '', red
             disabled={loading}
             // Iter 215dj — Pulse-branded submit; was solid black.
             className="w-full h-11 rounded-xl font-semibold hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: 'var(--pulse-primary)', color: 'var(--color-ink, #0f172a)' }}
+            style={{ backgroundColor: 'var(--pulse-primary)', color: 'var(--color-ink, #1b1c1d)' }}
             data-testid="pulse-login-submit"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : t('pulse.sign_in', 'Sign In')}

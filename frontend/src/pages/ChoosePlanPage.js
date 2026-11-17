@@ -139,7 +139,7 @@ export default function ChoosePlanPage() {
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           className="max-w-2xl"
         >
-          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-[#0E7490] font-semibold mb-4">
+          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-[#0073A4] font-semibold mb-4">
             <Sparkles size={13} /> Keep your account active
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-zinc-900 leading-[1.08]">
@@ -163,7 +163,7 @@ export default function ChoosePlanPage() {
                 key={c}
                 type="button"
                 onClick={() => setCurrency(c)}
-                className={`px-3.5 h-8 rounded-full text-sm font-semibold transition-colors ${currency === c ? 'bg-[#19CDFF] text-[#0A0C10]' : 'text-zinc-500 hover:text-zinc-900'}`}
+                className={`px-3.5 h-8 rounded-full text-sm font-semibold transition-colors ${currency === c ? 'bg-[#19CDFF] text-[#1B1C1D]' : 'text-zinc-500 hover:text-zinc-900'}`}
                 data-testid={`currency-${c}`}
               >
                 {CCY[c]} {c.toUpperCase()}
@@ -176,14 +176,14 @@ export default function ChoosePlanPage() {
                 key={v}
                 type="button"
                 onClick={() => setCycle(v)}
-                className={`px-3.5 h-8 rounded-full text-sm font-semibold transition-colors ${cycle === v ? 'bg-[#19CDFF] text-[#0A0C10]' : 'text-zinc-500 hover:text-zinc-900'}`}
+                className={`px-3.5 h-8 rounded-full text-sm font-semibold transition-colors ${cycle === v ? 'bg-[#19CDFF] text-[#1B1C1D]' : 'text-zinc-500 hover:text-zinc-900'}`}
                 data-testid={`billing-${v}`}
               >
                 {label}
               </button>
             ))}
             {live?.annual_discount_pct ? (
-              <span className="px-2.5 text-xs font-semibold text-[#0E7490]">Save {live.annual_discount_pct}%</span>
+              <span className="px-2.5 text-xs font-semibold text-[#0073A4]">Save {live.annual_discount_pct}%</span>
             ) : null}
           </div>
         </div>
@@ -211,7 +211,7 @@ export default function ChoosePlanPage() {
                     data-testid={`choose-plan-module-${m.id}`}
                   >
                     {featured ? (
-                      <span className="absolute -top-2.5 left-5 bg-[#19CDFF] text-[#0A0C10] text-[10px] font-bold uppercase tracking-[0.14em] px-2.5 py-0.5 rounded-full" data-testid="choose-plan-flagship-badge">Recommended</span>
+                      <span className="absolute -top-2.5 left-5 bg-[#19CDFF] text-[#1B1C1D] text-[10px] font-bold uppercase tracking-[0.14em] px-2.5 py-0.5 rounded-full" data-testid="choose-plan-flagship-badge">Recommended</span>
                     ) : null}
                     <div>
                       <div className="flex items-baseline justify-between gap-2">
@@ -224,7 +224,7 @@ export default function ChoosePlanPage() {
                       type="button"
                       onClick={() => startCheckout('module', { module_id: m.id })}
                       disabled={busy === m.id}
-                      className={`w-full h-10 rounded-full font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60 ${featured ? 'bg-[#19CDFF] hover:bg-[#4DDBFF] text-[#0A0C10]' : 'border border-zinc-300 text-zinc-800 hover:border-[#19CDFF] hover:bg-[#E6F9FF]'}`}
+                      className={`w-full h-10 rounded-full font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60 ${featured ? 'bg-[#19CDFF] hover:bg-[#4DDBFF] text-[#1B1C1D]' : 'border border-zinc-300 text-zinc-800 hover:border-[#19CDFF] hover:bg-[#E6F9FF]'}`}
                       data-testid={`choose-plan-module-checkout-${m.id}`}
                     >
                       {busy === m.id ? <Loader2 size={14} className="animate-spin" /> : null}
@@ -240,7 +240,7 @@ export default function ChoosePlanPage() {
             <div className="mt-12 rounded-xl border border-zinc-200 bg-white p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-lg bg-[#E6F9FF] flex items-center justify-center flex-shrink-0">
-                  <MessageCircle size={18} className="text-[#0E7490]" />
+                  <MessageCircle size={18} className="text-[#0073A4]" />
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900 text-sm">Prefer to talk it through first?</p>

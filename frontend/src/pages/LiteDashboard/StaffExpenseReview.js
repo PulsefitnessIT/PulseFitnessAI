@@ -29,7 +29,7 @@ function ManagerReceiptThumb({ claimId, receiptId, headers }) {
 }
 const STATUS = {
   submitted: { label: 'Awaiting approval', c: '#d97706' },
-  approved: { label: 'Approved — to pay', c: '#0891b2' },
+  approved: { label: 'Approved — to pay', c: '#0091ca' },
   reimbursed: { label: 'Reimbursed', c: '#059669' },
   rejected: { label: 'Returned', c: '#dc2626' },
 };
@@ -38,7 +38,7 @@ const FLAG_META = {
   duplicate: { label: 'Possible duplicate', icon: Copy, c: '#dc2626' },
   low_scan: { label: 'Low-confidence scan', icon: ScanLine, c: '#b45309' },
   amount_mismatch: { label: 'Amount mismatch', icon: Scale, c: '#be123c' },
-  over_threshold: { label: 'Over threshold', icon: BadgePoundSterling, c: '#7c3aed' },
+  over_threshold: { label: 'Over threshold', icon: BadgePoundSterling, c: '#0091ca' },
 };
 function FLAG_META_ICON({ id }) {
   const Icon = (FLAG_META[id] || {}).icon || AlertTriangle;
@@ -243,7 +243,7 @@ export default function StaffExpenseReview({ headers }) {
                     {(c.flags || []).length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-1.5" data-testid={`exp-review-flags-${c.id}`}>
                         {(c.flags || []).map((f) => {
-                          const meta = FLAG_META[f] || { label: f, icon: AlertTriangle, c: '#64748b' };
+                          const meta = FLAG_META[f] || { label: f, icon: AlertTriangle, c: '#6e7476' };
                           const Icon = meta.icon;
                           return (
                             <span key={f} data-testid={`exp-flag-${f}-${c.id}`}

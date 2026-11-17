@@ -138,7 +138,7 @@ export default function DunningPanel() {
                 <button type="button" onClick={() => retry(r.id)} disabled={busy === `retry-${r.id}` || !r.has_subscription}
                   title={r.has_subscription ? 'Retry the failed Stripe charge' : 'No Stripe subscription on file'}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-40"
-                  style={{ background: 'var(--color-brand-blue,#1d4ed8)' }} data-testid={`dunning-retry-${r.id}`}>
+                  style={{ background: 'var(--color-brand-blue,#0091ca)' }} data-testid={`dunning-retry-${r.id}`}>
                   {busy === `retry-${r.id}` ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />} Retry charge
                 </button>
               </div>

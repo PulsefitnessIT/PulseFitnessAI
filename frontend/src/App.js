@@ -917,7 +917,7 @@ function App() {
    return (
      <div
        className="min-h-screen flex items-center justify-center"
-       style={{ background: '#0A0C10' }}
+       style={{ background: '#1B1C1D' }}
        data-testid="custom-domain-splash"
      >
        <div className="text-sm tracking-widest uppercase" style={{ color: tint }}>Loading…</div>

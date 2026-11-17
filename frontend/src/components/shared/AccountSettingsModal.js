@@ -147,7 +147,7 @@ export default function AccountSettingsModal({ open, onClose, initialSection }) 
         .account-modal-divider { border-color: var(--theme-border); }
         .account-sidebar { background: var(--theme-border-soft); }
         .account-nav-active {
-          background: color-mix(in srgb, var(--brand-color, #0055FF) 15%, transparent);
+          background: color-mix(in srgb, var(--brand-color, #19CDFF) 15%, transparent);
           color: var(--brand-color, var(--color-brand-blue));
         }
         .account-nav-idle {
@@ -162,8 +162,8 @@ export default function AccountSettingsModal({ open, onClose, initialSection }) 
           background: var(--theme-border-soft);
         }
         .account-avatar-placeholder {
-          background: color-mix(in srgb, var(--brand-color, #0055FF) 15%, transparent);
-          border: 1px solid color-mix(in srgb, var(--brand-color, #0055FF) 30%, transparent);
+          background: color-mix(in srgb, var(--brand-color, #19CDFF) 15%, transparent);
+          border: 1px solid color-mix(in srgb, var(--brand-color, #19CDFF) 30%, transparent);
           color: var(--brand-color, var(--color-brand-blue));
         }
       `}</style>

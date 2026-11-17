@@ -95,7 +95,7 @@ function ProviderSection({ provider }) {
         <div className="mt-2 space-y-1" data-testid="jobfile-messages">
           <p className="text-xs font-semibold flex items-center gap-1"><MessageSquare size={12} /> Messages</p>
           {provider.messages.map(m => (
-            <div key={m.id} className="text-xs rounded p-2" style={{ background: 'var(--svc-surface-2, #f4f4f5)' }}>
+            <div key={m.id} className="text-xs rounded p-2" style={{ background: 'var(--svc-surface-2, #f0f0f0)' }}>
               <b>{m.author_name}</b> <span className="svc-muted">{when(m.created_at)}</span>
               <div>{m.message}</div>
               {(m.attachments || []).map((a, i) => <a key={i} href={a.url} target="_blank" rel="noreferrer" className="underline mr-2">{a.filename || 'attachment'}</a>)}

@@ -70,7 +70,7 @@ function buildReportHtml(data) {
     .visit{border-top:2px solid #eee;padding-top:8px;margin-top:10px} .cal{margin:4px 0} .calh{font-weight:700;font-size:11px;color:#333;margin:4px 0 2px}
     .cm{border:1px solid #eee;border-radius:6px;padding:6px 8px;margin:6px 0} .cmh{font-weight:700;font-size:11px;margin-bottom:3px}
     .foot{margin-top:24px;color:#5B6570;font-size:9px;border-top:1px solid #C9D4E5;padding-top:8px}
-    table.lh{width:100%;border-collapse:collapse;border-bottom:2px solid #0B3D91;margin-bottom:10px} .lh td{vertical-align:top;padding:0 0 8px}
+    table.lh{width:100%;border-collapse:collapse;border-bottom:2px solid #0073A4;margin-bottom:10px} .lh td{vertical-align:top;padding:0 0 8px}
     .co{text-align:right;font-size:10px;color:#5B6570;line-height:1.45}
     h1.ttl{font-size:28px;margin:10px 0 10px}
     .boxes{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch}

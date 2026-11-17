@@ -229,13 +229,13 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
       <aside className="w-full max-w-3xl h-full overflow-hidden flex flex-col shadow-2xl border-l" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
         <header className="px-5 py-4 border-b flex items-start justify-between gap-3" style={{ borderColor: 'var(--theme-border)' }}>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: '#0891b2' }}>{caseRow.reference} · {quote?.reference || t('service.svcbill_no_quote_yet', 'No quote yet')}</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: '#0091ca' }}>{caseRow.reference} · {quote?.reference || t('service.svcbill_no_quote_yet', 'No quote yet')}</p>
             <h2 className="text-lg font-extrabold truncate" data-testid="quote-title">{caseRow.title}</h2>
             <p className="text-xs opacity-70">{caseRow.customer_name || '—'}{caseRow.site_name ? ` · ${caseRow.site_name}` : ''}</p>
             {quote ? (
               <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider" style={{
-                background: quote.status === 'invoiced' ? '#dcfce7' : quote.status === 'approved' ? '#dbeafe' : '#f3f4f6',
-                color: quote.status === 'invoiced' ? '#166534' : quote.status === 'approved' ? '#0891b2' : '#374151',
+                background: quote.status === 'invoiced' ? '#dcfce7' : quote.status === 'approved' ? '#dbeafe' : '#f0f0f0',
+                color: quote.status === 'invoiced' ? '#166534' : quote.status === 'approved' ? '#0091ca' : '#393E41',
               }} data-testid="quote-status-pill">{quote.status} · v{quote.version}</span>
             ) : null}
           </div>
@@ -244,7 +244,7 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
 
         <div className="flex-1 overflow-y-auto p-5 space-y-3" data-testid="quote-body">
           {!isLocked ? (
-            <button type="button" onClick={autoFill} disabled={busy === 'autofill'} className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-60" style={{ background: '#0891b2' }} data-testid="quote-autofill">
+            <button type="button" onClick={autoFill} disabled={busy === 'autofill'} className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-60" style={{ background: '#0091ca' }} data-testid="quote-autofill">
               {busy === 'autofill' ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}
               {t('service.svcbill_autofill_btn', 'Auto-fill from labour & parts')}
             </button>
@@ -370,7 +370,7 @@ function QuoteEditor({ caseRow, onClose, onChanged }) {
                 <Save size={11} /> {busy === 'save' ? t('service.svcbill_saving', 'Saving…') : quote ? t('service.svcbill_update_draft', 'Update draft') : t('service.svcbill_save_draft', 'Save draft')}
               </button>
               {quote ? (
-                <button type="button" onClick={approve} disabled={busy === 'approve'} className="px-3 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center gap-1 disabled:opacity-60" style={{ background: '#0891b2' }} data-testid="quote-approve">
+                <button type="button" onClick={approve} disabled={busy === 'approve'} className="px-3 py-1.5 rounded-md text-xs font-bold text-white inline-flex items-center gap-1 disabled:opacity-60" style={{ background: '#0091ca' }} data-testid="quote-approve">
                   <CheckCircle size={11} /> {busy === 'approve' ? t('service.svcbill_approving', 'Approving…') : t('service.svcbill_approve_quote', 'Approve quote')}
                 </button>
               ) : null}

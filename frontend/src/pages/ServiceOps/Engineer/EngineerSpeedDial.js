@@ -33,7 +33,7 @@ const ACTIONS = [
     id: 'voice',
     label: 'Voice-to-job',
     icon: Mic,
-    bg: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)',
+    bg: 'linear-gradient(135deg, #0091ca 0%, #0073a4 100%)',
     testid: 'engineer-speed-dial-voice',
     event: 'gx:open-voice',
   },
@@ -41,7 +41,7 @@ const ACTIONS = [
     id: 'ask',
     label: 'Ask Pulse Fitness',
     icon: Sparkles,
-    bg: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)',
+    bg: 'linear-gradient(135deg, #0091ca 0%, #0073a4 100%)',
     testid: 'engineer-speed-dial-ask',
     event: 'gx:open-ask',
   },
@@ -50,8 +50,8 @@ const ACTIONS = [
     label: 'Send feedback',
     icon: MessageSquarePlus,
     bg: '#ffffff',
-    fg: '#0f172a',
-    border: '1px solid #e2e8f0',
+    fg: '#1b1c1d',
+    border: '1px solid #e0e0e0',
     testid: 'engineer-speed-dial-feedback',
     event: 'gx:open-feedback',
   },
@@ -128,7 +128,7 @@ export default function EngineerSpeedDial() {
         aria-label={open ? t('service.eng_sd_close', 'Close engineer actions') : t('service.eng_sd_open', 'Open engineer actions')}
         aria-expanded={open}
         className="w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
-        style={{ background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)' }}
+        style={{ background: 'linear-gradient(135deg, #0091ca 0%, #0073a4 100%)' }}
       >
         {open ? <X size={22} /> : <Plus size={22} />}
       </button>

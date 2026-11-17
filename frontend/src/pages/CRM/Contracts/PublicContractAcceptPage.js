@@ -46,7 +46,7 @@ export default function PublicContractAcceptPage() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
-    ctx.strokeStyle = '#0F172A';
+    ctx.strokeStyle = '#1B1C1D';
   }, [data]);
 
   const pos = (e) => {
@@ -87,7 +87,7 @@ export default function PublicContractAcceptPage() {
       <div className="max-w-3xl mx-auto bg-white dark:bg-[var(--theme-surface)] rounded-2xl border shadow-sm overflow-hidden">
         {/* Brand header */}
         <header className="px-6 py-4 border-b flex items-center justify-between"
-                style={{ background: 'linear-gradient(135deg, #0055FF, #003db8)' }}>
+                style={{ background: 'linear-gradient(135deg, #19CDFF, #003db8)' }}>
           <div>
             <p className="text-[10px] uppercase tracking-widest text-white/70 font-bold">Service Contract</p>
             <h1 className="text-lg font-extrabold text-white">{data.title}</h1>

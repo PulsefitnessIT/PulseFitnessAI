@@ -127,7 +127,7 @@ export default function PulseProUpgradeCta({ inSettings = false }) {
           onClick={dismiss}
           aria-label="Close trial banner"
           className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full inline-flex items-center justify-center hover:bg-white/10"
-          style={{ color: '#d4d4d8' }}
+          style={{ color: '#c9cbcc' }}
           data-testid="pulse-pro-cta-dismiss"
         >
           <X size={15} />
@@ -160,7 +160,7 @@ export default function PulseProUpgradeCta({ inSettings = false }) {
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-bold leading-tight" style={{ color: '#ffffff' }}>{b.label}</p>
-                    <p className="text-[10px] leading-snug" style={{ color: '#a1a1aa' }}>{b.blurb}</p>
+                    <p className="text-[10px] leading-snug" style={{ color: '#9a9fa1' }}>{b.blurb}</p>
                   </div>
                 </div>
               );

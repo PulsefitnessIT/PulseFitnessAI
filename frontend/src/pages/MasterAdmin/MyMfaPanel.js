@@ -153,7 +153,7 @@ export default function MyMfaPanel() {
           <button
             onClick={startEnrol}
             disabled={busy}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#18181b",color:"#fff"}}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1b1c1d",color:"#fff"}}
             data-testid="my-mfa-start-btn"
           >
             {busy ? <Loader2 size={15} className="animate-spin" /> : <Smartphone size={15} />}
@@ -215,7 +215,7 @@ export default function MyMfaPanel() {
             <button
               onClick={confirmRegen}
               disabled={busy || regenCode.length !== 6}
-              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#18181b",color:"#fff"}}
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1b1c1d",color:"#fff"}}
               data-testid="my-mfa-regen-confirm-btn"
             >
               {busy ? <Loader2 size={15} className="animate-spin" /> : <KeyRound size={15} />}
@@ -264,7 +264,7 @@ export default function MyMfaPanel() {
             <button
               onClick={confirmEnrol}
               disabled={busy || code.length !== 6}
-              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#18181b",color:"#fff"}}
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1b1c1d",color:"#fff"}}
               data-testid="my-mfa-confirm-btn"
             >
               {busy ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
@@ -308,7 +308,7 @@ export default function MyMfaPanel() {
           <button
             onClick={() => { setStage('idle'); setBackupCodes([]); setCode(''); }}
             disabled={!savedAck}
-            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#18181b",color:"#fff"}}
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50" style={{background:"#1b1c1d",color:"#fff"}}
             data-testid="my-mfa-done-btn"
           >
             Done

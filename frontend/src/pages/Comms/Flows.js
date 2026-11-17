@@ -62,7 +62,7 @@ export function FlowsView({ API, headers }) {
     <div data-testid="comms-flows">
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm" style={{ color: 'var(--theme-text-muted)' }}>Automated, trigger-based journeys across email &amp; SMS.</p>
-        <button onClick={newFlow} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #03212b)' }} data-testid="flow-create-btn"><Plus size={15} />New flow</button>
+        <button onClick={newFlow} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #1B1C1D)' }} data-testid="flow-create-btn"><Plus size={15} />New flow</button>
       </div>
       <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--theme-surface)', borderColor: 'var(--theme-border)' }}>
         {loading ? (
@@ -72,7 +72,7 @@ export function FlowsView({ API, headers }) {
             <Workflow size={28} className="mx-auto mb-2" style={{ color: 'var(--theme-text-muted)' }} />
             <p className="font-semibold" style={{ color: 'var(--theme-text)' }}>No flows yet</p>
             <p className="text-sm mb-4" style={{ color: 'var(--theme-text-muted)' }}>Automate welcome series, renewals and win-backs.</p>
-            <button onClick={newFlow} className="px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #03212b)' }} data-testid="flow-empty-create">Create flow</button>
+            <button onClick={newFlow} className="px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #1B1C1D)' }} data-testid="flow-empty-create">Create flow</button>
           </div>
         ) : (
           <div>
@@ -146,7 +146,7 @@ function FlowEditor({ flow, apiRoot, headers, onClose }) {
         <div className="flex items-center gap-2">
           <input value={testContact} onChange={(e) => setTestContact(e.target.value)} placeholder="Test contact id" className="px-3 py-2 rounded-full text-sm border" style={inputStyle} data-testid="flow-test-contact" />
           <button onClick={testSend} className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-semibold border" style={{ borderColor: 'var(--theme-border)', color: 'var(--theme-text)' }} data-testid="flow-test-send"><Send size={14} />Test</button>
-          <button onClick={save} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold disabled:opacity-50" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #03212b)' }} data-testid="flow-save"><Save size={14} />{saving ? 'Saving…' : 'Save'}</button>
+          <button onClick={save} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold disabled:opacity-50" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #1B1C1D)' }} data-testid="flow-save"><Save size={14} />{saving ? 'Saving…' : 'Save'}</button>
         </div>
       </div>
 

@@ -69,7 +69,7 @@ export default function CRMQuoteCompare() {
         <button onClick={() => setActiveTab && setActiveTab('quotes')} className="p-2 rounded-lg" style={{ border: `1px solid ${c.border}`, color: c.textMuted }} data-testid="qc-back" title="Back to Quotes">
           <ArrowLeft size={16} />
         </button>
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-brand-cyan, #19CDFF)', color: '#0A0C10' }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-brand-cyan, #19CDFF)', color: '#1B1C1D' }}>
           <GitCompareArrows size={18} />
         </div>
         <div>

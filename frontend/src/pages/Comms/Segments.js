@@ -54,7 +54,7 @@ export function SegmentsView({ API, headers }) {
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm" style={muted}>Saved &amp; dynamic audiences — reusable across every campaign.</p>
         <div className="flex gap-2">
-          <button onClick={() => setShowAI(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white" style={{ backgroundImage: 'linear-gradient(135deg,#7C3AED,#19CDFF)' }} data-testid="segment-ai-btn"><Wand2 size={15} />AI suggest</button>
+          <button onClick={() => setShowAI(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white" style={{ backgroundImage: 'linear-gradient(135deg,#0091CA,#19CDFF)' }} data-testid="segment-ai-btn"><Wand2 size={15} />AI suggest</button>
           <button onClick={() => setEditing({})} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink)' }} data-testid="segment-create-btn"><Plus size={15} />New segment</button>
         </div>
       </div>
@@ -67,7 +67,7 @@ export function SegmentsView({ API, headers }) {
             <textarea value={aiDesc} onChange={(e) => setAiDesc(e.target.value)} rows={3} placeholder="e.g. lapsed members who haven't visited in 90 days" className={`w-full ${inputCls} mb-4`} style={inputStyle} data-testid="segment-ai-desc" />
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowAI(false)} className="px-4 py-2 rounded-full text-sm font-semibold hover:bg-black/5" style={muted}>Cancel</button>
-              <button onClick={aiSuggest} disabled={aiBusy} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white disabled:opacity-50" style={{ backgroundImage: 'linear-gradient(135deg,#7C3AED,#19CDFF)' }} data-testid="segment-ai-go">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}Build it</button>
+              <button onClick={aiSuggest} disabled={aiBusy} className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white disabled:opacity-50" style={{ backgroundImage: 'linear-gradient(135deg,#0091CA,#19CDFF)' }} data-testid="segment-ai-go">{aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}Build it</button>
             </div>
           </div>
         </div>

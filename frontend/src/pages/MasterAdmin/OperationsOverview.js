@@ -25,15 +25,15 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 const KPI_PALETTES = {
-  organisations: { fg: '#2563EB', bg: 'rgba(25, 205, 255,0.08)' },
-  users:         { fg: '#5B5BF5', bg: 'rgba(91,91,245,0.08)' },
+  organisations: { fg: '#0091CA', bg: 'rgba(25, 205, 255,0.08)' },
+  users:         { fg: '#5B5BF5', bg: 'rgba(25, 205, 255,0.08)' },
   revenue:       { fg: '#059669', bg: 'rgba(5,150,105,0.10)' },
   cases:         { fg: '#D97706', bg: 'rgba(217,119,6,0.10)' },
 };
 
 const Panel = ({ children, className = '', ...rest }) => (
   <div
-    className={`bg-white border border-slate-200 rounded-2xl shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${className}`}
+    className={`bg-white border border-slate-200 rounded-2xl shadow-[0_1px_2px_rgba(27, 28, 29,0.04)] ${className}`}
     {...rest}
   >
     {children}
@@ -77,11 +77,11 @@ const OperationsOverview = ({ token, onGoPayments, onGoSuspended, onGoSection })
   ];
 
   const secondaryStats = [
-    { label: 'Equipment Tracked', value: stats.total_equipment, icon: Wrench, color: '#0EA5E9', testid: 'ops-stat-equip-tracked',
+    { label: 'Equipment Tracked', value: stats.total_equipment, icon: Wrench, color: '#19CDFF', testid: 'ops-stat-equip-tracked',
       tip: 'Every equipment record across Operations gyms, regardless of status.' },
     { label: 'Resolved Cases', value: stats.resolved_issues, icon: CheckCircle, color: '#059669', testid: 'ops-stat-resolved-cases',
       tip: 'Faults closed across Operations gyms (status = resolved or closed).' },
-    { label: 'Supplier Cases', value: stats.total_supplier_cases, icon: Building2, color: '#9D4CDD', testid: 'ops-stat-supplier-cases',
+    { label: 'Supplier Cases', value: stats.total_supplier_cases, icon: Building2, color: '#19CDFF', testid: 'ops-stat-supplier-cases',
       tip: 'Supplier service cases dispatched from Operations gyms.' },
   ];
 
@@ -116,7 +116,7 @@ const OperationsOverview = ({ token, onGoPayments, onGoSuspended, onGoSection })
             role={k.onClick ? 'button' : undefined}
             tabIndex={k.onClick ? 0 : undefined}
             onKeyDown={k.onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); k.onClick(); } } : undefined}
-            className={`p-5 transition-all ${k.onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-8px_rgba(15,23,42,0.18)]' : 'cursor-help hover:shadow-[0_8px_24px_-8px_rgba(15,23,42,0.10)]'}`}
+            className={`p-5 transition-all ${k.onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-8px_rgba(27, 28, 29,0.18)]' : 'cursor-help hover:shadow-[0_8px_24px_-8px_rgba(27, 28, 29,0.10)]'}`}
             title={k.tip}
             data-testid={k.testid}
           >

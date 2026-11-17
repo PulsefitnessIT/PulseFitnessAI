@@ -27,9 +27,9 @@ const PortalPill = ({ portal }) => {
   const map = {
     service_portal: { bg: 'rgba(16,185,129,0.12)', fg: '#047857', label: 'Service Portal' },
     crm:            { bg: 'rgba(245,158,11,0.14)', fg: '#B45309', label: 'CRM' },
-    pulse_platform: { bg: 'rgba(0,85,255,0.12)',   fg: '#0055FF', label: 'Pulse Platform' },
+    pulse_platform: { bg: 'rgba(25, 205, 255,0.12)',   fg: '#19CDFF', label: 'Pulse Platform' },
   };
-  const tone = map[portal] || { bg: 'rgba(113,113,122,0.12)', fg: '#52525B', label: portal };
+  const tone = map[portal] || { bg: 'rgba(113,113,122,0.12)', fg: '#565B5E', label: portal };
   return (
     <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold" style={{ background: tone.bg, color: tone.fg }}>
       {tone.label}
@@ -128,7 +128,7 @@ const ModuleAccessSection = ({ userId, headers }) => {
   };
 
   return (
-    <div className="rounded-lg border bg-white p-4 space-y-3" style={{ borderColor: '#E4E4E7' }} data-testid="people-drawer-module-access">
+    <div className="rounded-lg border bg-white p-4 space-y-3" style={{ borderColor: '#E0E0E0' }} data-testid="people-drawer-module-access">
       <div className="flex items-center gap-2">
         <Layers size={14} className="text-zinc-600" />
         <h3 className="text-sm font-bold text-zinc-900">Module access</h3>
@@ -161,7 +161,7 @@ const ModuleAccessSection = ({ userId, headers }) => {
               </div>
             )}
             {data.modules.map((m) => (
-              <div key={m.key} className="rounded-md border px-2.5 py-2" style={{ borderColor: '#F4F4F5' }} data-testid={`module-access-row-${m.key}`}>
+              <div key={m.key} className="rounded-md border px-2.5 py-2" style={{ borderColor: '#F0F0F0' }} data-testid={`module-access-row-${m.key}`}>
                 <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-center">
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-zinc-900 truncate">{m.label}</div>
@@ -171,7 +171,7 @@ const ModuleAccessSection = ({ userId, headers }) => {
                   <AccessDot on={m.user_access} testid={`module-access-user-${m.key}`} />
                 </div>
                 <div className="flex items-center justify-between gap-2 mt-1">
-                  <span className="text-[10px]" style={{ color: m.user_access ? '#16a34a' : (m.org_enabled ? '#d97706' : '#a1a1aa') }}>
+                  <span className="text-[10px]" style={{ color: m.user_access ? '#16a34a' : (m.org_enabled ? '#d97706' : '#9a9fa1') }}>
                     {m.reason}
                   </span>
                   {m.fix_action && !data.no_login && (
@@ -179,7 +179,7 @@ const ModuleAccessSection = ({ userId, headers }) => {
                       onClick={() => fix(m)}
                       disabled={fixing === m.key}
                       className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md border transition-colors disabled:opacity-50"
-                      style={{ borderColor: '#bfdbfe', color: '#1d4ed8', background: '#eff6ff' }}
+                      style={{ borderColor: '#bfdbfe', color: '#0091ca', background: '#E4F9FF' }}
                       data-testid={`module-access-fix-${m.key}`}
                     >
                       <Wand2 size={11} />
@@ -200,7 +200,7 @@ const ModuleAccessSection = ({ userId, headers }) => {
           </p>
 
           {audit.length > 0 && (
-            <div className="pt-2 border-t" style={{ borderColor: '#F4F4F5' }} data-testid="module-access-audit">
+            <div className="pt-2 border-t" style={{ borderColor: '#F0F0F0' }} data-testid="module-access-audit">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <History size={12} className="text-zinc-400" />
                 <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Recent access changes</span>
@@ -276,7 +276,7 @@ const LoginAccessSection = ({ userId, headers }) => {
   );
 
   return (
-    <div className="rounded-lg border bg-white p-4 space-y-3" style={{ borderColor: '#E4E4E7' }} data-testid="people-drawer-login-access">
+    <div className="rounded-lg border bg-white p-4 space-y-3" style={{ borderColor: '#E0E0E0' }} data-testid="people-drawer-login-access">
       <div className="flex items-center gap-2">
         <KeyRound size={14} className="text-zinc-600" />
         <h3 className="text-sm font-bold text-zinc-900">Login access</h3>
@@ -390,16 +390,16 @@ const UserDetailDrawer = ({ user, onClose, onOpenLegacyEdit, onReload }) => {
         role="dialog"
         aria-modal="true"
         className="fixed top-0 right-0 z-50 h-full w-full sm:w-[440px] bg-white shadow-2xl flex flex-col"
-        style={{ borderLeft: '1px solid #E4E4E7' }}
+        style={{ borderLeft: '1px solid #E0E0E0' }}
         data-testid="people-drawer"
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 p-5 border-b" style={{ borderColor: '#F4F4F5' }}>
+        <div className="flex items-start justify-between gap-3 p-5 border-b" style={{ borderColor: '#F0F0F0' }}>
           <div className="flex items-start gap-3 min-w-0">
             {user.avatar_url ? (
               <img src={user.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
             ) : (
-              <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-lg font-bold" style={{ background: '#F4F4F5', color: '#52525B' }}>
+              <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-lg font-bold" style={{ background: '#F0F0F0', color: '#565B5E' }}>
                 {(user.full_name || user.email || '?').slice(0, 1).toUpperCase()}
               </div>
             )}
@@ -454,7 +454,7 @@ const UserDetailDrawer = ({ user, onClose, onOpenLegacyEdit, onReload }) => {
 
           <LoginAccessSection userId={user.id} headers={headers} />
 
-          <div className="rounded-lg border bg-zinc-50/60 p-4 space-y-3" style={{ borderColor: '#E4E4E7' }}>
+          <div className="rounded-lg border bg-zinc-50/60 p-4 space-y-3" style={{ borderColor: '#E0E0E0' }}>
             <div className="flex items-center gap-2">
               <KeyRound size={14} className="text-zinc-600" />
               <h3 className="text-sm font-bold text-zinc-900">Issue password reset link</h3>
@@ -497,7 +497,7 @@ const UserDetailDrawer = ({ user, onClose, onOpenLegacyEdit, onReload }) => {
         </div>
 
         {/* Footer actions */}
-        <div className="border-t p-4 flex items-center justify-between gap-2" style={{ borderColor: '#F4F4F5' }}>
+        <div className="border-t p-4 flex items-center justify-between gap-2" style={{ borderColor: '#F0F0F0' }}>
           <Button
             variant="tertiary" size="md"
             onClick={onClose}

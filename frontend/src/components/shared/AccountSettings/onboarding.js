@@ -302,7 +302,7 @@ function SurveyPortalPanel() {
               <p className="text-sm font-semibold truncate" style={{ color: 'var(--theme-text)' }}>{s.reference} — {s.site_name || t('settings.ob_your_site', 'Your site')}</p>
               <p className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>{t('settings.ob_info_requested', 'Information requested')}{s.target_install_date ? ` · ${t('settings.ob_target_install', 'target install')} ${String(s.target_install_date).slice(0, 10)}` : ''}</p>
             </div>
-            <span className="text-[10px] font-bold uppercase px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--brand-color, #0055FF) 15%, transparent)', color: 'var(--brand-color, var(--color-brand-blue))' }}>{t('settings.ob_action_needed', 'Action needed')}</span>
+            <span className="text-[10px] font-bold uppercase px-2 py-1 rounded" style={{ background: 'color-mix(in srgb, var(--brand-color, #19CDFF) 15%, transparent)', color: 'var(--brand-color, var(--color-brand-blue))' }}>{t('settings.ob_action_needed', 'Action needed')}</span>
           </button>
         ))}
       </div>

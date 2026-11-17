@@ -70,7 +70,7 @@ export default function StudioBrainTab({ API, headers }) {
       <section
         className="rounded-2xl border p-4 flex items-start gap-3 flex-wrap"
         style={{
-          borderColor: 'var(--theme-border, #e2e8f0)',
+          borderColor: 'var(--theme-border, #e0e0e0)',
           background: 'linear-gradient(135deg, rgba(25, 205, 255,0.10), rgba(59,130,246,0.06))',
         }}
         data-testid="studio-brain-headline"
@@ -122,7 +122,7 @@ export default function StudioBrainTab({ API, headers }) {
 function Kpi({ label, value, hint, icon: Icon, trend }) {
   const trendIcon = trend && trend > 0 ? TrendingUp : (trend !== null && trend !== undefined && trend < 0 ? TrendingDown : null);
   return (
-    <div className="rounded-2xl border p-3" style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'var(--theme-surface, #fff)' }} data-testid={`studio-brain-kpi-${label.toLowerCase().replace(/\s+/g, '-').replace(/[()]/g, '')}`}>
+    <div className="rounded-2xl border p-3" style={{ borderColor: 'var(--theme-border, #e0e0e0)', background: 'var(--theme-surface, #fff)' }} data-testid={`studio-brain-kpi-${label.toLowerCase().replace(/\s+/g, '-').replace(/[()]/g, '')}`}>
       <div className="flex items-center gap-2 opacity-70">
         {Icon ? <Icon size={12} /> : null}
         <span className="text-[10px] uppercase tracking-wider font-bold">{label}</span>
@@ -140,7 +140,7 @@ function Kpi({ label, value, hint, icon: Icon, trend }) {
 
 function RetentionCard({ summary, rows, testid }) {
   return (
-    <section className="rounded-2xl border p-4" style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'var(--theme-surface, #fff)' }} data-testid={`studio-brain-${testid}`}>
+    <section className="rounded-2xl border p-4" style={{ borderColor: 'var(--theme-border, #e0e0e0)', background: 'var(--theme-surface, #fff)' }} data-testid={`studio-brain-${testid}`}>
       <header className="flex items-start justify-between flex-wrap gap-2 mb-3">
         <div>
           <p className="text-[11px] uppercase tracking-wider font-bold opacity-60 inline-flex items-center gap-1">
@@ -155,7 +155,7 @@ function RetentionCard({ summary, rows, testid }) {
         </div>
       </header>
       {rows.length === 0 ? (
-        <div className="text-center py-6 px-3 rounded-xl border-2 border-dashed" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid={`studio-brain-${testid}-empty`}>
+        <div className="text-center py-6 px-3 rounded-xl border-2 border-dashed" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }} data-testid={`studio-brain-${testid}-empty`}>
           <Zap size={22} className="mx-auto mb-1 text-emerald-500" />
           <p className="text-sm font-bold">All clear</p>
           <p className="text-xs opacity-70 mt-1">No students show a concerning attendance pattern. We'll surface any drops as they appear.</p>
@@ -165,7 +165,7 @@ function RetentionCard({ summary, rows, testid }) {
           {rows.map((r, idx) => {
             const tone = RISK_TONES[r.band] || RISK_TONES.low;
             return (
-              <li key={`${r.member_id}-${r.sub_profile_id}-${idx}`} className="flex items-start gap-2 p-2 rounded border" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid={`studio-brain-${testid}-row-${idx}`}>
+              <li key={`${r.member_id}-${r.sub_profile_id}-${idx}`} className="flex items-start gap-2 p-2 rounded border" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }} data-testid={`studio-brain-${testid}-row-${idx}`}>
                 <span style={{ width: 4, alignSelf: 'stretch', background: tone.fg, borderRadius: 2, flexShrink: 0 }} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -208,14 +208,14 @@ function HeatmapCard({ heatmap, testid }) {
   const colourFor = (pct, occurrences) => {
     if (!occurrences) return 'rgba(148,163,184,0.08)';
     if (pct >= 90) return '#dc2626';
-    if (pct >= 75) return '#ea580c';
+    if (pct >= 75) return '#d97706';
     if (pct >= 50) return '#f59e0b';
     if (pct >= 25) return '#84cc16';
-    return '#3b82f6';
+    return '#19cdff';
   };
 
   return (
-    <section className="rounded-2xl border p-4" style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'var(--theme-surface, #fff)' }} data-testid={`studio-brain-${testid}`}>
+    <section className="rounded-2xl border p-4" style={{ borderColor: 'var(--theme-border, #e0e0e0)', background: 'var(--theme-surface, #fff)' }} data-testid={`studio-brain-${testid}`}>
       <header className="mb-3">
         <p className="text-[11px] uppercase tracking-wider font-bold opacity-60 inline-flex items-center gap-1">
           <CalendarRange size={11} /> Occupancy heatmap · last 4 weeks
@@ -262,10 +262,10 @@ function HeatmapCard({ heatmap, testid }) {
         </table>
       </div>
       <div className="flex items-center gap-2 mt-3 text-[10px] opacity-70 flex-wrap" data-testid={`studio-brain-${testid}-legend`}>
-        <LegendSwatch c="#3b82f6" label="<25%" />
+        <LegendSwatch c="#19cdff" label="<25%" />
         <LegendSwatch c="#84cc16" label="25–49%" />
         <LegendSwatch c="#f59e0b" label="50–74%" />
-        <LegendSwatch c="#ea580c" label="75–89%" />
+        <LegendSwatch c="#d97706" label="75–89%" />
         <LegendSwatch c="#dc2626" label="≥ 90%" />
       </div>
       {heatmap.hottest && heatmap.coldest ? (
@@ -300,7 +300,7 @@ function SuggestionsCard({ suggestions, model }) {
   const cold = suggestions.filter((s) => s.kind === 'consolidate_or_drop');
   const other = suggestions.filter((s) => !['open_extra_slot', 'consolidate_or_drop'].includes(s.kind));
   return (
-    <section className="rounded-2xl border p-4" style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'var(--theme-surface, #fff)' }} data-testid="studio-brain-suggestions">
+    <section className="rounded-2xl border p-4" style={{ borderColor: 'var(--theme-border, #e0e0e0)', background: 'var(--theme-surface, #fff)' }} data-testid="studio-brain-suggestions">
       <header className="flex items-start justify-between flex-wrap gap-2 mb-3">
         <div>
           <p className="text-[11px] uppercase tracking-wider font-bold opacity-60 inline-flex items-center gap-1">
@@ -313,7 +313,7 @@ function SuggestionsCard({ suggestions, model }) {
         </span>
       </header>
       {suggestions.length === 0 ? (
-        <div className="text-center py-6 px-3 rounded-xl border-2 border-dashed" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid="studio-brain-suggestions-empty">
+        <div className="text-center py-6 px-3 rounded-xl border-2 border-dashed" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }} data-testid="studio-brain-suggestions-empty">
           <Sparkles size={22} className="mx-auto mb-1 text-violet-500" />
           <p className="text-sm font-bold">Not enough signal yet</p>
           <p className="text-xs opacity-70 mt-1">We need at least a few weeks of booking history to suggest meaningful timetable changes.</p>
@@ -321,9 +321,9 @@ function SuggestionsCard({ suggestions, model }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <SuggestionGroup title="Open another slot" tone="#10b981" items={hot} icon={TrendingUp} testid="hot" />
-          <SuggestionGroup title="Consolidate or drop" tone="#f97316" items={cold} icon={TrendingDown} testid="cold" />
+          <SuggestionGroup title="Consolidate or drop" tone="#f59e0b" items={cold} icon={TrendingDown} testid="cold" />
           {other.length ? (
-            <SuggestionGroup title="Other opportunities" tone="#8b5cf6" items={other} icon={Sparkles} testid="other" />
+            <SuggestionGroup title="Other opportunities" tone="#19cdff" items={other} icon={Sparkles} testid="other" />
           ) : null}
         </div>
       )}
@@ -334,7 +334,7 @@ function SuggestionsCard({ suggestions, model }) {
 function SuggestionGroup({ title, tone, items, icon: Icon, testid }) {
   if (!items.length) {
     return (
-      <div className="rounded-xl border p-3" style={{ borderColor: 'var(--theme-border, #e2e8f0)', opacity: 0.7 }} data-testid={`studio-brain-suggestions-${testid}-empty`}>
+      <div className="rounded-xl border p-3" style={{ borderColor: 'var(--theme-border, #e0e0e0)', opacity: 0.7 }} data-testid={`studio-brain-suggestions-${testid}-empty`}>
         <p className="text-[11px] uppercase tracking-wider font-bold opacity-60 inline-flex items-center gap-1">
           <Icon size={11} style={{ color: tone }} /> {title}
         </p>
@@ -343,7 +343,7 @@ function SuggestionGroup({ title, tone, items, icon: Icon, testid }) {
     );
   }
   return (
-    <div className="rounded-xl border p-3" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid={`studio-brain-suggestions-${testid}`}>
+    <div className="rounded-xl border p-3" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }} data-testid={`studio-brain-suggestions-${testid}`}>
       <p className="text-[11px] uppercase tracking-wider font-bold opacity-60 inline-flex items-center gap-1">
         <Icon size={11} style={{ color: tone }} /> {title}
       </p>

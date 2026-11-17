@@ -245,7 +245,7 @@ const TONE_STYLES = {
   green: { bg: 'rgba(16,185,129,0.12)', fg: '#10b981', label: 'Compliant' },
   amber: { bg: 'rgba(245,158,11,0.14)', fg: '#f59e0b', label: 'Expiring' },
   red: { bg: 'rgba(239,68,68,0.15)', fg: '#ef4444', label: 'Expired' },
-  missing: { bg: 'rgba(148,163,184,0.12)', fg: '#94a3b8', label: 'Missing' },
+  missing: { bg: 'rgba(148,163,184,0.12)', fg: '#9a9fa1', label: 'Missing' },
 };
 
 function ComplianceKpi({ label, value, tone }) {

@@ -8,16 +8,16 @@ import { humanize, NODE_LABELS, VACANCY_STAGES, ocApi, EDGE_TYPES } from './api'
 
 const overlay = {
   position: 'fixed', inset: 0, zIndex: 1000,
-  background: 'rgba(2,12,40,0.45)', display: 'flex', justifyContent: 'flex-end',
+  background: 'rgba(27, 28, 29,0.45)', display: 'flex', justifyContent: 'flex-end',
 };
 const sheet = {
   width: 'min(420px, 100%)', height: '100%', overflowY: 'auto',
-  background: 'var(--theme-surface, #fff)', boxShadow: '-12px 0 40px rgba(2,12,40,0.25)',
+  background: 'var(--theme-surface, #fff)', boxShadow: '-12px 0 40px rgba(27, 28, 29,0.25)',
 };
 const center = { ...overlay, alignItems: 'center', justifyContent: 'center' };
 const modalBox = {
   width: 'min(440px, 92vw)', borderRadius: 18, padding: 22,
-  background: 'var(--theme-surface, #fff)', boxShadow: '0 20px 60px rgba(2,12,40,0.3)',
+  background: 'var(--theme-surface, #fff)', boxShadow: '0 20px 60px rgba(27, 28, 29,0.3)',
 };
 
 function Field({ label, children }) {

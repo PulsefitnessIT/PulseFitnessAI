@@ -173,7 +173,7 @@ function RiskCard({ risk, onRefresh }) {
   return (
     <section
       className="rounded-2xl border p-4"
-      style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'var(--theme-surface, #fff)' }}
+      style={{ borderColor: 'var(--theme-border, #e0e0e0)', background: 'var(--theme-surface, #fff)' }}
       data-testid="family-billing-risk"
     >
       <header className="flex items-start justify-between flex-wrap gap-2 mb-3">
@@ -195,7 +195,7 @@ function RiskCard({ risk, onRefresh }) {
         </div>
       </header>
       {rows.length === 0 ? (
-        <div className="text-center py-6 px-3 rounded-xl border-2 border-dashed" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid="family-billing-risk-empty">
+        <div className="text-center py-6 px-3 rounded-xl border-2 border-dashed" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }} data-testid="family-billing-risk-empty">
           <CheckCircle2 size={22} className="mx-auto mb-1 text-emerald-500" />
           <p className="text-sm font-bold">{t('memberships_console.fam_all_clear', 'All clear')}</p>
           <p className="text-xs opacity-70 mt-1">{t('memberships_console.fam_all_clear_hint', "No members are flagged as payment-risk right now. We'll surface them as soon as a charge fails or an invoice goes overdue.")}</p>
@@ -204,7 +204,7 @@ function RiskCard({ risk, onRefresh }) {
         <div className="overflow-x-auto" data-testid="family-billing-risk-table">
           <table className="w-full text-xs">
             <thead className="text-left">
-              <tr style={{ background: 'var(--theme-surface-2, #f8fafc)' }}>
+              <tr style={{ background: 'var(--theme-surface-2, #f7f7f7)' }}>
                 <th className="p-2 font-bold uppercase text-[10px] opacity-70">{t('memberships_console.fam_col_member', 'Member')}</th>
                 <th className="p-2 font-bold uppercase text-[10px] opacity-70">{t('memberships_console.fam_col_risk', 'Risk')}</th>
                 <th className="p-2 font-bold uppercase text-[10px] opacity-70">{t('memberships_console.fam_col_outstanding', 'Outstanding')}</th>
@@ -216,7 +216,7 @@ function RiskCard({ risk, onRefresh }) {
               {rows.map((r) => {
                 const tone = RISK_TONES[r.band] || RISK_TONES.low;
                 return (
-                  <tr key={r.member_id} style={{ borderTop: '1px solid var(--theme-border, #e2e8f0)' }} data-testid={`family-billing-risk-row-${r.member_id}`}>
+                  <tr key={r.member_id} style={{ borderTop: '1px solid var(--theme-border, #e0e0e0)' }} data-testid={`family-billing-risk-row-${r.member_id}`}>
                     <td className="p-2">
                       <div className="font-bold">{r.member_name}</div>
                       <div className="opacity-60 text-[11px]">{r.member_email}</div>
@@ -263,7 +263,7 @@ function DiscountLadderCard({
   return (
     <section
       className="rounded-2xl border p-4"
-      style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'var(--theme-surface, #fff)' }}
+      style={{ borderColor: 'var(--theme-border, #e0e0e0)', background: 'var(--theme-surface, #fff)' }}
       data-testid={`family-billing-${testid}-card`}
     >
       <header className="flex items-start justify-between gap-2 flex-wrap mb-3">
@@ -274,14 +274,14 @@ function DiscountLadderCard({
           </h3>
           <p className="text-[11.5px] opacity-70 max-w-xl mt-1">{helpCopy}</p>
         </div>
-        <button type="button" onClick={onSave} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5" style={{ background: 'var(--color-brand-blue, #1d4ed8)', color: '#fff', opacity: saving ? 0.6 : 1 }} data-testid={`family-billing-${testid}-save`}>
+        <button type="button" onClick={onSave} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5" style={{ background: 'var(--color-brand-blue, #0091ca)', color: '#fff', opacity: saving ? 0.6 : 1 }} data-testid={`family-billing-${testid}-save`}>
           {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
           {t('memberships_console.fam_save', 'Save')}
         </button>
       </header>
       <div className="space-y-2" data-testid={`family-billing-${testid}-list`}>
         {tiers.map((tier, idx) => (
-          <div key={idx} className="flex items-center gap-2 p-2 rounded-lg border" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid={`family-billing-${testid}-tier-${idx}`}>
+          <div key={idx} className="flex items-center gap-2 p-2 rounded-lg border" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }} data-testid={`family-billing-${testid}-tier-${idx}`}>
             <span className="text-xs font-bold opacity-70 w-28">{rankPrefix(tier[rankKey])}</span>
             <label className="text-[11px] opacity-60">{rankLabel}</label>
             <input type="number" min={2} max={20} value={tier[rankKey]} onChange={(e) => updateTier(idx, rankKey, e.target.value)} className="w-16 px-2 py-1 text-sm rounded border" style={{ borderColor: 'var(--theme-border)' }} data-testid={`family-billing-${testid}-rank-${idx}`} />
@@ -309,7 +309,7 @@ function PaymentPlansCard({ plans, onAdd, onDelete }) {
   return (
     <section
       className="rounded-2xl border p-4"
-      style={{ borderColor: 'var(--theme-border, #e2e8f0)', background: 'var(--theme-surface, #fff)' }}
+      style={{ borderColor: 'var(--theme-border, #e0e0e0)', background: 'var(--theme-surface, #fff)' }}
       data-testid="family-billing-plans"
     >
       <header className="flex items-start justify-between gap-2 flex-wrap mb-3">
@@ -322,12 +322,12 @@ function PaymentPlansCard({ plans, onAdd, onDelete }) {
             {t('memberships_console.fam_plans_help', 'Define a fee once (e.g. £600 termly) and split it across N monthly instalments. Assign to a member from the Members tab — the autopay cron will issue one invoice per period until paid in full.')}
           </p>
         </div>
-        <button type="button" onClick={onAdd} className="px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5" style={{ background: 'var(--color-brand-blue, #1d4ed8)', color: '#fff' }} data-testid="family-billing-plan-add">
+        <button type="button" onClick={onAdd} className="px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5" style={{ background: 'var(--color-brand-blue, #0091ca)', color: '#fff' }} data-testid="family-billing-plan-add">
           <Plus size={11} /> {t('memberships_console.fam_add_plan', 'Add plan')}
         </button>
       </header>
       {plans.length === 0 ? (
-        <div className="text-center py-6 px-3 rounded-xl border-2 border-dashed" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid="family-billing-plans-empty">
+        <div className="text-center py-6 px-3 rounded-xl border-2 border-dashed" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }} data-testid="family-billing-plans-empty">
           <Zap size={22} className="mx-auto mb-1 text-amber-500" />
           <p className="text-sm font-bold">{t('memberships_console.fam_no_plans', 'No payment plans yet')}</p>
           <p className="text-xs opacity-70 mt-1">{t('memberships_console.fam_no_plans_hint', 'Add one to start splitting termly fees into manageable monthly chunks.')}</p>
@@ -335,7 +335,7 @@ function PaymentPlansCard({ plans, onAdd, onDelete }) {
       ) : (
         <ul className="space-y-2" data-testid="family-billing-plan-list">
           {plans.map((p) => (
-            <li key={p.id} className="flex items-center gap-3 p-3 rounded-lg border" style={{ borderColor: 'var(--theme-border, #e2e8f0)' }} data-testid={`family-billing-plan-${p.id}`}>
+            <li key={p.id} className="flex items-center gap-3 p-3 rounded-lg border" style={{ borderColor: 'var(--theme-border, #e0e0e0)' }} data-testid={`family-billing-plan-${p.id}`}>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold truncate">{p.name}</p>
                 <p className="text-[11px] opacity-70 tabular-nums">

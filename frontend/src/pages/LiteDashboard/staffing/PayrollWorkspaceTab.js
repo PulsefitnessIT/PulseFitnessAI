@@ -17,9 +17,9 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const token = () => localStorage.getItem('token');
 
 const STATUS_STYLE = {
-  draft: ['#94a3b8', 'Draft'], returned: ['#b45309', 'Returned'],
-  submitted: ['#2563eb', 'Submitted'], approved: ['#16a34a', 'Approved'],
-  locked: ['#7c3aed', 'Locked'],
+  draft: ['#9a9fa1', 'Draft'], returned: ['#b45309', 'Returned'],
+  submitted: ['#0091ca', 'Submitted'], approved: ['#16a34a', 'Approved'],
+  locked: ['#0091ca', 'Locked'],
 };
 const EX_LABEL = {
   missing_entry: 'Missing entry', unapproved_overtime: 'Unapproved OT',
@@ -29,7 +29,7 @@ const EX_LABEL = {
 };
 
 function Pill({ status }) {
-  const [c, l] = STATUS_STYLE[status] || ['#94a3b8', status];
+  const [c, l] = STATUS_STYLE[status] || ['#9a9fa1', status];
   return <span className="px-2 py-0.5 rounded-full text-[11px] font-bold" style={{ background: `${c}1a`, color: c }}>{l}</span>;
 }
 
@@ -128,7 +128,7 @@ export default function PayrollWorkspaceTab({ headers }) {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2" data-testid="payroll-summary">
-            {[['Ready for payroll', s.ready, '#16a34a'], ['Awaiting approval', s.awaiting_approval, '#2563eb'], ['Missing timesheet', s.missing_timesheet, '#b45309'], ['Exceptions', s.exceptions, '#f59e0b']].map(([l, v, c]) => (
+            {[['Ready for payroll', s.ready, '#16a34a'], ['Awaiting approval', s.awaiting_approval, '#0091ca'], ['Missing timesheet', s.missing_timesheet, '#b45309'], ['Exceptions', s.exceptions, '#f59e0b']].map(([l, v, c]) => (
               <div key={l} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
                 <div className="text-2xl font-bold" style={{ color: c }}>{v ?? 0}</div>
                 <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{l}</div>
@@ -311,12 +311,12 @@ function PayrollReports({ headers }) {
   const t = d?.totals || {};
   const sub = d?.submissions || {};
   const tiles = [
-    ['Hours worked', `${t.worked ?? 0}h`, '#0f172a'],
-    ['Overtime', `${t.overtime ?? 0}h`, '#0891b2'],
-    ['Holiday', `${t.holiday ?? 0}h`, '#2563eb'],
+    ['Hours worked', `${t.worked ?? 0}h`, '#1b1c1d'],
+    ['Overtime', `${t.overtime ?? 0}h`, '#0091ca'],
+    ['Holiday', `${t.holiday ?? 0}h`, '#0091ca'],
     ['Sick', `${t.sick ?? 0}h`, '#dc2626'],
     ['Attendance rate', `${t.attendance_rate ?? 0}%`, '#16a34a'],
-    ['Adjustments', d?.adjustments ?? 0, '#7c3aed'],
+    ['Adjustments', d?.adjustments ?? 0, '#0091ca'],
   ];
 
   return (
@@ -343,11 +343,11 @@ function PayrollReports({ headers }) {
         <div style={{ width: '100%', height: 240 }}>
           <ResponsiveContainer>
             <BarChart data={d?.by_department || []} margin={{ top: 4, right: 8, left: -12, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="department" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="worked" name="Worked" fill="#0891b2" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="worked" name="Worked" fill="#0091ca" radius={[4, 4, 0, 0]} />
               <Bar dataKey="overtime" name="Overtime" fill="#f59e0b" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

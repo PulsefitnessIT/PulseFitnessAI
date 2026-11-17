@@ -27,7 +27,7 @@ async function downloadCheckPdf(checkId, headers) {
 }
 
 const STATUS_TONE = {
-  due: '#F59E0B', in_progress: '#0EA5E9', submitted: '#10B981', reviewed: '#10B981',
+  due: '#F59E0B', in_progress: '#19CDFF', submitted: '#10B981', reviewed: '#10B981',
 };
 const fmtD = (s) => (s ? new Date(s + (s?.length === 10 ? 'T00:00:00' : '')).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—');
 
@@ -206,7 +206,7 @@ function FleetRegister({ data, onEdit, onChanged, headers }) {
                     </div>
                     <div className="text-xs truncate" style={{ color: 'var(--theme-text-muted)' }}>{v.make_model || vtLabel(v)}</div>
                   </div>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: `${STATUS_TONE[v.this_week?.status] || '#94a3b8'}22`, color: STATUS_TONE[v.this_week?.status] || '#94a3b8' }} data-testid={`vehicle-week-${v.id}`}>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: `${STATUS_TONE[v.this_week?.status] || '#9a9fa1'}22`, color: STATUS_TONE[v.this_week?.status] || '#9a9fa1' }} data-testid={`vehicle-week-${v.id}`}>
                     {v.this_week?.has_defects && <ShieldAlert size={10} />}
                     {{ due: 'Due', in_progress: 'In progress', submitted: 'Submitted', reviewed: 'Reviewed' }[v.this_week?.status] || 'Due'}
                   </span>
@@ -308,7 +308,7 @@ function WeeklyChecks({ headers, week, onOpen }) {
                   <td className="py-2 px-3 font-bold uppercase" style={{ color: 'var(--theme-text)' }}>{c.details?.reg_no}</td>
                   <td className="py-2 px-3" style={{ color: 'var(--theme-text-muted)' }}>{c.driver_name}</td>
                   <td className="py-2 px-3" style={{ color: 'var(--theme-text-muted)' }}>{c.submitted_at ? fmtD(c.submitted_at.slice(0, 10)) : '—'}</td>
-                  <td className="py-2 px-3"><span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${STATUS_TONE[c.status] || '#94a3b8'}22`, color: STATUS_TONE[c.status] || '#94a3b8' }}>{c.status}</span></td>
+                  <td className="py-2 px-3"><span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${STATUS_TONE[c.status] || '#9a9fa1'}22`, color: STATUS_TONE[c.status] || '#9a9fa1' }}>{c.status}</span></td>
                   <td className="py-2 px-3">{c.has_defects ? <span className="inline-flex items-center gap-1 text-rose-600 text-xs font-semibold"><ShieldAlert size={13} /> {c.defect?.safe_to_drive === false ? 'Not safe' : 'Yes'}</span> : <span className="text-xs" style={{ color: 'var(--theme-text-muted)' }}>None</span>}</td>
                   <td className="py-2 px-3 text-right whitespace-nowrap">
                     <button onClick={() => downloadCheckPdf(c.id, headers)} data-testid={`check-pdf-${c.id}`} title="Download PDF" className="inline-flex items-center gap-1 text-[11px] font-semibold mr-3" style={{ color: 'var(--theme-text-muted)' }}><FileDown size={13} /> PDF</button>

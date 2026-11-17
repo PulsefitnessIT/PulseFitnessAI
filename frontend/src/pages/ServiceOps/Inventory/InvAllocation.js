@@ -134,7 +134,7 @@ export function CustomerAllocations() {
           {available === null ? <Spinner /> : available.length === 0 ? <p className="text-sm text-slate-400">{t('inv.alloc.available_empty', 'No dealer-held stock available.')}</p> : available.map((a) => (
             <label key={a.unit_id} className="flex items-center gap-3 border-b border-slate-100 py-2 text-sm last:border-0" data-testid={`inv-alloc-stock-${a.serial_number}`}>
               <input type="checkbox" checked={!!sel[a.unit_id]} data-testid={`inv-alloc-pick-${a.serial_number}`} onChange={(e) => setSel((s) => ({ ...s, [a.unit_id]: e.target.checked }))} />
-              <ScanLine size={13} className="text-[#0B3D91]" /> <span className="font-mono text-xs font-semibold">{a.serial_number}</span>
+              <ScanLine size={13} className="text-[#0073A4]" /> <span className="font-mono text-xs font-semibold">{a.serial_number}</span>
               <span className="text-slate-500">{a.model || a.product_code}</span>
               <span className="ml-auto text-xs text-slate-400">{a.dealer_name}</span>
             </label>
@@ -173,7 +173,7 @@ export function CustomerAllocations() {
             <tbody>
               {allocations.map((a) => (
                 <tr key={a.id} className="border-t border-slate-100" data-testid={`inv-alloc-row-${a.reference}`}>
-                  <td className="px-4 py-2.5 font-semibold text-[#0B3D91]">{a.reference}</td>
+                  <td className="px-4 py-2.5 font-semibold text-[#0073A4]">{a.reference}</td>
                   <td className="font-mono text-xs">{a.serial_number}</td>
                   <td>{a.customer_company_name}</td>
                   <td className="text-slate-500">{a.customer_site || '—'}</td>
@@ -514,7 +514,7 @@ export function Installations() {
               <tbody>
                 {rows.map((a) => (
                   <tr key={a.id} className="border-b border-slate-100" data-testid={`inv-install-row-${a.reference}`}>
-                    <td className="px-4 py-3 font-semibold text-[#0B3D91]">{a.reference}</td>
+                    <td className="px-4 py-3 font-semibold text-[#0073A4]">{a.reference}</td>
                     <td className="font-mono text-xs">{a.serial_number}</td>
                     <td>{a.customer_company_name}</td><td className="text-slate-500">{a.customer_site || '—'}</td>
                     <td className={a.planned_install_date ? 'text-slate-600' : 'text-amber-600 font-semibold'}>{a.planned_install_date ? fmtDate(a.planned_install_date) : t('inv.inst.unscheduled', 'Unscheduled')}</td>

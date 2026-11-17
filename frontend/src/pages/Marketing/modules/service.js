@@ -6,7 +6,7 @@ import {
 export default {
   id: 'service',
   name: 'Operations',
-  color: '#06B6D4',
+  color: '#19CDFF',
   icon: Wrench,
 
   heroLine1: 'Run a safer,',
@@ -100,10 +100,10 @@ export default {
 
   integrationsHeadline: 'Operations is wired into the rest of Pulse Fitness.',
   integrations: [
-    { icon: Users,     name: 'CRM',         color: '#6366F1', to: '/platform/crm',         body: 'Faults on a member\'s favourite machine trigger a personal apology email + retention nudge.' },
-    { icon: Calendar,  name: 'Memberships', color: '#8B5CF6', to: '/platform/memberships', body: 'Critical fault on a class machine? Memberships auto-relocates the affected booking.' },
-    { icon: Megaphone, name: 'Marketing',   color: '#D946EF', to: '/platform/marketing',   body: 'Resolved fault triggers a "we listened" post for the studio\'s social channel.' },
-    { icon: BarChart3, name: 'Reporting',   color: '#2563EB', to: '/platform/reporting',   body: 'Fault density, MTTR, capex pipeline and supplier scorecards on one dashboard.' },
+    { icon: Users,     name: 'CRM',         color: '#19CDFF', to: '/platform/crm',         body: 'Faults on a member\'s favourite machine trigger a personal apology email + retention nudge.' },
+    { icon: Calendar,  name: 'Memberships', color: '#19CDFF', to: '/platform/memberships', body: 'Critical fault on a class machine? Memberships auto-relocates the affected booking.' },
+    { icon: Megaphone, name: 'Marketing',   color: '#19CDFF', to: '/platform/marketing',   body: 'Resolved fault triggers a "we listened" post for the studio\'s social channel.' },
+    { icon: BarChart3, name: 'Reporting',   color: '#0091CA', to: '/platform/reporting',   body: 'Fault density, MTTR, capex pipeline and supplier scorecards on one dashboard.' },
   ],
 
   resultsHeadline: 'Real numbers from real operators.',

@@ -28,12 +28,12 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const OVERRIDE_FIELDS = [
   { key: 'primary',       label: 'Primary action',  placeholder: '#19CDFF' },
-  { key: 'primary_hover', label: 'Primary hover',   placeholder: '#4DBFFF' },
+  { key: 'primary_hover', label: 'Primary hover',   placeholder: '#19CDFF' },
   { key: 'accent',        label: 'Accent',          placeholder: '#10B981' },
   { key: 'surface',       label: 'Card surface',    placeholder: '#FFFFFF' },
-  { key: 'text',          label: 'Body text',       placeholder: '#0A0C10' },
-  { key: 'text_muted',    label: 'Muted text',      placeholder: '#52525B' },
-  { key: 'border',        label: 'Border',          placeholder: '#E4E4E7' },
+  { key: 'text',          label: 'Body text',       placeholder: '#1B1C1D' },
+  { key: 'text_muted',    label: 'Muted text',      placeholder: '#565B5E' },
+  { key: 'border',        label: 'Border',          placeholder: '#E0E0E0' },
 ];
 
 /* Iter 216h107 — Tender PDF branding overrides. These do NOT theme the
@@ -53,23 +53,23 @@ const TENDER_BRANDING_FIELDS = [
 const BRAND_PRESETS = {
   pulse: {
     label: 'Pulse Fitness',
-    primary:       '#66CCFF',
-    primary_hover: '#4DBFFF',
+    primary:       '#19CDFF',
+    primary_hover: '#19CDFF',
     accent:        '#19CDFF',
     surface:       '#FFFFFF',
-    text:          '#212721',
-    text_muted:    '#505759',
-    border:        '#E4E4E7',
+    text:          '#1B1C1D',
+    text_muted:    '#565B5E',
+    border:        '#E0E0E0',
   },
   gymaxis: {
     label: 'Pulse Fitness',
-    primary:       '#2563EB',
-    primary_hover: '#1D4ED8',
-    accent:        '#9D4CDD',
+    primary:       '#0091CA',
+    primary_hover: '#0091CA',
+    accent:        '#19CDFF',
     surface:       '#FFFFFF',
-    text:          '#0F172A',
-    text_muted:    '#475569',
-    border:        '#E2E8F0',
+    text:          '#1B1C1D',
+    text_muted:    '#565B5E',
+    border:        '#E0E0E0',
   },
 };
 
@@ -268,7 +268,7 @@ function InboxSlaCard() {
           onClick={save}
           disabled={!dirty || saving}
           className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-50"
-          style={{ background: '#0F172A', color: '#FFFFFF' }}
+          style={{ background: '#1B1C1D', color: '#FFFFFF' }}
           data-testid="sla-save"
         >
           <Save size={12} /> {saving ? 'Saving…' : 'Save SLA settings'}
@@ -439,7 +439,7 @@ function OverridesCard({ orgs, orgId, setOrgId, orgTheme, draft, setDraft, onSav
               onClick={onSave}
               disabled={saving}
               className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-50"
-              style={{ background: '#0F172A', color: '#FFFFFF' }}
+              style={{ background: '#1B1C1D', color: '#FFFFFF' }}
               data-testid="theme-save"
             >
               <Save size={12} /> {saving ? 'Saving…' : 'Save overrides'}
@@ -463,18 +463,18 @@ function OverridesCard({ orgs, orgId, setOrgId, orgTheme, draft, setDraft, onSav
                 className="rounded-lg p-4"
                 style={{
                   background: draft.surface || '#FFFFFF',
-                  color: draft.text || '#0A0C10',
-                  border: `1px solid ${draft.border || '#E4E4E7'}`,
+                  color: draft.text || '#1B1C1D',
+                  border: `1px solid ${draft.border || '#E0E0E0'}`,
                 }}
               >
                 <div className="text-sm font-semibold">Card title</div>
-                <div className="text-xs mt-1" style={{ color: draft.text_muted || '#52525B' }}>
+                <div className="text-xs mt-1" style={{ color: draft.text_muted || '#565B5E' }}>
                   This is how a tenant-themed card looks with the overrides applied.
                 </div>
                 <button
                   type="button"
                   className="mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold"
-                  style={{ background: draft.primary || '#19CDFF', color: '#0A0C10' }}
+                  style={{ background: draft.primary || '#19CDFF', color: '#1B1C1D' }}
                 >
                   Primary action
                 </button>

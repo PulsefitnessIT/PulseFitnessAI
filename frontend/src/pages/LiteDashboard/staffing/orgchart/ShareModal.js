@@ -9,12 +9,12 @@ import { useTranslation } from 'react-i18next';
 import { ocApi } from './api';
 
 const center = {
-  position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(2,12,40,0.45)',
+  position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(27, 28, 29,0.45)',
   display: 'flex', alignItems: 'center', justifyContent: 'center',
 };
 const box = {
   width: 'min(460px, 92vw)', borderRadius: 18, padding: 22,
-  background: 'var(--theme-surface, #fff)', boxShadow: '0 20px 60px rgba(2,12,40,0.3)',
+  background: 'var(--theme-surface, #fff)', boxShadow: '0 20px 60px rgba(27, 28, 29,0.3)',
 };
 
 export default function ShareModal({ chart, onClose, onChanged }) {

@@ -181,7 +181,7 @@ export default function IntegrationsSiconConnect() {
               type="button"
               disabled={saving || !dirty}
               onClick={save}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-[#0091ca] to-[#19cdff] text-white text-sm font-bold disabled:opacity-50"
               data-testid="sicon-save-btn"
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
@@ -338,8 +338,8 @@ const ExplainerCard = ({ configured, live }) => (
   <section
     className="rounded-2xl p-5 text-white shadow-md"
     style={{ background: live
-      ? 'linear-gradient(135deg, #047857 0%, #0d9488 60%, #1d4ed8 100%)'
-      : 'linear-gradient(135deg, #1d4ed8 0%, #6366f1 60%, #8b5cf6 100%)' }}
+      ? 'linear-gradient(135deg, #047857 0%, #0d9488 60%, #0091ca 100%)'
+      : 'linear-gradient(135deg, #0091ca 0%, #19cdff 60%, #19cdff 100%)' }}
     data-testid="sicon-explainer"
   >
     <p className="text-[10px] uppercase tracking-[0.18em] font-bold opacity-90">

@@ -447,7 +447,7 @@ const IssueDetailPanel = ({ issue: issueProp, onUpdate, suppliers = [] }) => {
  [data-portal="pulse"] .issue-detail-themed .border-white\\/10, .theme-gymaxis .issue-detail-themed .border-white\\/10 { border-color: var(--theme-border, var(--color-border-alt)) !important; }
  [data-portal="pulse"] .issue-detail-themed .border-white\\/5, .theme-gymaxis .issue-detail-themed .border-white\\/5 { border-color: var(--theme-border, var(--color-border-alt)) !important; }
  [data-portal="pulse"] .issue-detail-themed .border-t.border-white\\/10, .theme-gymaxis .issue-detail-themed .border-t.border-white\\/10 { border-color: var(--theme-border, var(--color-border-alt)) !important; }
- [data-portal="pulse"] .issue-detail-themed input, [data-portal="pulse"] .issue-detail-themed textarea, .theme-gymaxis .issue-detail-themed input, .theme-gymaxis .issue-detail-themed textarea { background: var(--theme-bg, #fff) !important; border-color: var(--theme-border, #d1d5db) !important; color: var(--theme-text, #111) !important; }
+ [data-portal="pulse"] .issue-detail-themed input, [data-portal="pulse"] .issue-detail-themed textarea, .theme-gymaxis .issue-detail-themed input, .theme-gymaxis .issue-detail-themed textarea { background: var(--theme-bg, #fff) !important; border-color: var(--theme-border, #c9cbcc) !important; color: var(--theme-text, #111) !important; }
  `}</style>
  {/* Iter 216h263 — Supplier Reference / Job Number lifted to the
      top of the detail panel (above the Logged-by header) so it's

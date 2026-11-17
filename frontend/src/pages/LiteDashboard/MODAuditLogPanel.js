@@ -197,7 +197,7 @@ function toneColor(tone) {
   switch (tone) {
     case 'amber': return '#f59e0b';
     case 'rose': return '#f43f5e';
-    case 'violet': return '#a78bfa';
+    case 'violet': return '#19cdff';
     case 'cyan':
     default: return '#19CDFF';
   }

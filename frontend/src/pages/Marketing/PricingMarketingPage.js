@@ -188,7 +188,7 @@ function BundleHero({ siteCount, setSiteCount, billingCycle, setBillingCycle }) 
           <Sparkles size={12} /> {t('mkt.pr_most_popular', 'Most Popular')}
         </span>
       </div>
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-[0_20px_50px_-20px_rgba(15,23,42,0.18)] dark:bg-zinc-900 dark:border-zinc-800">
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-[0_20px_50px_-20px_rgba(27, 28, 29,0.18)] dark:bg-zinc-900 dark:border-zinc-800">
         {/* Billing cycle toggle */}
         <div className="flex justify-center mb-6">
           <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1 dark:bg-zinc-900 dark:border-zinc-800" data-testid="gx-billing-toggle">
@@ -235,7 +235,7 @@ function BundleHero({ siteCount, setSiteCount, billingCycle, setBillingCycle }) 
 
           {/* Right: price card + slider + CTA */}
           <div className="lg:col-span-5">
-            <div className="rounded-2xl bg-gradient-to-br from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] p-5 sm:p-6 text-white shadow-[0_18px_45px_-18px_rgba(91,91,245,0.55)]">
+            <div className="rounded-2xl bg-gradient-to-br from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] p-5 sm:p-6 text-white shadow-[0_18px_45px_-18px_rgba(25, 205, 255,0.55)]">
               <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/80">{t('mkt.pr_your_price', 'Your price')}</div>
               <div className="mt-1 flex items-baseline gap-1.5">
                 <span className="text-5xl font-black tracking-tighter tabular-nums" data-testid="gx-bundle-total">£{total.toLocaleString('en-GB')}</span>
@@ -279,7 +279,7 @@ function ModuleCard({ mod }) {
   const { t } = useTranslation();
   const Icon = mod.icon;
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 transition-shadow hover:shadow-[0_18px_45px_-18px_rgba(15,23,42,0.18)] flex flex-col dark:bg-zinc-900 dark:border-zinc-800" data-testid={`gx-module-${mod.id}`}>
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 transition-shadow hover:shadow-[0_18px_45px_-18px_rgba(27, 28, 29,0.18)] flex flex-col dark:bg-zinc-900 dark:border-zinc-800" data-testid={`gx-module-${mod.id}`}>
       <div className="flex items-start gap-3">
         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${mod.accent} flex items-center justify-center text-white shadow-[0_8px_20px_-8px_rgba(25, 205, 255,0.35)] shrink-0`}>
           <Icon size={18} />
@@ -427,7 +427,7 @@ export default function PulseFitnessPricingPage() {
         {/* Final CTA */}
         <section className="py-16 sm:py-20">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="rounded-3xl bg-gradient-to-br from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] p-8 sm:p-12 text-center text-white shadow-[0_24px_60px_-20px_rgba(91,91,245,0.55)]">
+            <div className="rounded-3xl bg-gradient-to-br from-[var(--gx-brand-from)] to-[var(--gx-brand-to)] p-8 sm:p-12 text-center text-white shadow-[0_24px_60px_-20px_rgba(25, 205, 255,0.55)]">
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter leading-[1.06]">{t('mkt.pr_cta_title', '3 days free. All modules unlocked. No credit card.')}</h2>
               <p className="mt-5 text-base sm:text-lg text-white/90 max-w-xl mx-auto">{t('mkt.pr_cta_sub', 'Get every module + every AI feature for 3 days. Cancel any time. We are real humans on the other end if you need help.')}</p>
               <div className="mt-7 flex flex-wrap items-center justify-center gap-3">

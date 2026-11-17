@@ -146,8 +146,8 @@ export default function BulkPpmWizard({ onClose, onDone }) {
         <div className="px-5 pt-3 flex items-center gap-2">
           {STEPS.map((s, i) => (
             <div key={s} className="flex items-center gap-2">
-              <div className={`flex items-center gap-1.5 text-xs font-semibold ${i === step ? 'text-[var(--color-brand-blue,#2563eb)]' : i < step ? 'text-emerald-600' : 'text-zinc-400'}`}>
-                <span className={`w-5 h-5 rounded-full grid place-items-center text-[10px] ${i === step ? 'bg-[var(--color-brand-blue,#2563eb)] text-white' : i < step ? 'bg-emerald-500 text-white' : 'bg-zinc-200 dark:bg-zinc-700'}`}>{i < step ? '✓' : i + 1}</span>
+              <div className={`flex items-center gap-1.5 text-xs font-semibold ${i === step ? 'text-[var(--color-brand-blue,#0091ca)]' : i < step ? 'text-emerald-600' : 'text-zinc-400'}`}>
+                <span className={`w-5 h-5 rounded-full grid place-items-center text-[10px] ${i === step ? 'bg-[var(--color-brand-blue,#0091ca)] text-white' : i < step ? 'bg-emerald-500 text-white' : 'bg-zinc-200 dark:bg-zinc-700'}`}>{i < step ? '✓' : i + 1}</span>
                 {s}
               </div>
               {i < STEPS.length - 1 && <ChevronRight size={12} className="text-zinc-300" />}
@@ -171,7 +171,7 @@ export default function BulkPpmWizard({ onClose, onDone }) {
                 <div className="flex items-center justify-between">
                   <Label className="text-xs">Sites ({selected.length}/{sites.length})</Label>
                   <button onClick={() => setSelected(allSelected ? [] : sites.map((s) => s.id))} disabled={!sites.length}
-                    className="text-xs font-semibold text-[var(--color-brand-blue,#2563eb)]" data-testid="bulk-selectall">
+                    className="text-xs font-semibold text-[var(--color-brand-blue,#0091ca)]" data-testid="bulk-selectall">
                     {allSelected ? 'Clear all' : 'Select all'}
                   </button>
                 </div>
@@ -243,7 +243,7 @@ export default function BulkPpmWizard({ onClose, onDone }) {
                     <div key={gi} className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3" data-testid={`bulk-group-${gi}`}>
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <MapPin size={13} className="text-[var(--color-brand-blue,#2563eb)] shrink-0" />
+                          <MapPin size={13} className="text-[var(--color-brand-blue,#0091ca)] shrink-0" />
                           <span className="text-sm font-bold truncate">{g.name}</span>
                           <span className="text-[10px] text-zinc-400 shrink-0">{(g.sites || []).length} sites</span>
                         </div>

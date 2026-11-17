@@ -63,9 +63,9 @@ export function MigrateView({ API, headers }) {
   if (summary) {
     const stats = [
       { label: 'Created', value: summary.created, icon: UserPlus, color: '#10b981' },
-      { label: 'Updated', value: summary.updated, icon: RefreshCw, color: '#06b6d4' },
+      { label: 'Updated', value: summary.updated, icon: RefreshCw, color: '#19cdff' },
       { label: 'Suppressed', value: summary.suppressed, icon: ShieldOff, color: '#f59e0b' },
-      { label: 'Skipped', value: summary.skipped, icon: SkipForward, color: '#94a3b8' },
+      { label: 'Skipped', value: summary.skipped, icon: SkipForward, color: '#9a9fa1' },
     ];
     return (
       <div data-testid="migrate-summary">
@@ -82,7 +82,7 @@ export function MigrateView({ API, headers }) {
               </div>
             ))}
           </div>
-          <button onClick={reset} className="mt-6 px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #03212b)' }} data-testid="migrate-again">Import another file</button>
+          <button onClick={reset} className="mt-6 px-4 py-2 rounded-full text-sm font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #1B1C1D)' }} data-testid="migrate-again">Import another file</button>
         </div>
       </div>
     );
@@ -120,7 +120,7 @@ export function MigrateView({ API, headers }) {
           <p className="text-xs mb-4 rounded-lg p-2.5" style={{ background: 'var(--theme-bg)', color: 'var(--theme-text-muted)' }}>
             Tip: map <strong>Subscription status</strong> so unsubscribed/cleaned contacts are added to your suppression list automatically.
           </p>
-          <button onClick={commit} disabled={busy || !mapping.email} className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold disabled:opacity-50" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #03212b)' }} data-testid="migrate-commit">
+          <button onClick={commit} disabled={busy || !mapping.email} className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold disabled:opacity-50" style={{ background: 'var(--color-brand-cyan)', color: 'var(--color-ink, #1B1C1D)' }} data-testid="migrate-commit">
             {busy ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} />}Import {preview.total_rows} contacts
           </button>
         </div>

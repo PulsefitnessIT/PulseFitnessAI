@@ -249,7 +249,7 @@ export default function AdminMODSitesBulkImport() {
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-5">
         {/* Hero */}
         <section className="rounded-2xl p-5 text-white shadow-md"
-          style={{ background: 'linear-gradient(135deg, #1d4ed8 0%, #6366f1 60%, #8b5cf6 100%)' }}>
+          style={{ background: 'linear-gradient(135deg, #0091ca 0%, #19cdff 60%, #19cdff 100%)' }}>
           <p className="text-[10px] uppercase tracking-[0.18em] font-bold opacity-90">Scales to 1000+ sites</p>
           <h2 className="text-2xl font-extrabold mt-1">One CSV. Every MOD facility.</h2>
           <p className="text-sm opacity-95 mt-1 max-w-2xl">
@@ -266,7 +266,7 @@ export default function AdminMODSitesBulkImport() {
             <button
               type="button"
               onClick={downloadTemplate}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#6366f1] text-white text-sm font-bold"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-br from-[#0091ca] to-[#19cdff] text-white text-sm font-bold"
               data-testid="mod-bulk-template-btn"
             >
               <Download size={14} /> Download template.csv
@@ -334,7 +334,7 @@ export default function AdminMODSitesBulkImport() {
         {preview && (
           <Step n={3} label="Review &amp; commit">
             <div className="grid grid-cols-3 gap-3 mb-3" data-testid="mod-bulk-preview-stats">
-              <Stat label="Rows parsed" value={preview.count} color="#1d4ed8" />
+              <Stat label="Rows parsed" value={preview.count} color="#0091ca" />
               <Stat label="Will create" value={preview.would_create} color="#059669" testid="mod-bulk-stat-create" />
               <Stat label="Will skip (exists)" value={preview.would_skip} color="#d97706" testid="mod-bulk-stat-skip" />
             </div>

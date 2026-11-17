@@ -22,18 +22,18 @@
   --svc-success:       var(--color-success, #10b981);
   --svc-warn:          var(--color-warning, #f59e0b);
   --svc-danger:        var(--color-danger, #ef4444);
-  --svc-violet:        #0891b2;
+  --svc-violet:        #0091ca;
 
   --svc-card:          var(--theme-surface, #ffffff);
-  --svc-card-elev:     var(--theme-surface-hover, #f4f4f5);
-  --svc-border:        var(--theme-border, #e4e4e7);
+  --svc-card-elev:     var(--theme-surface-hover, #f0f0f0);
+  --svc-border:        var(--theme-border, #e0e0e0);
   --svc-border-strong: rgba(25, 205, 255, 0.18);
-  --svc-text:          var(--theme-text, #18181b);
-  --svc-muted:         var(--theme-text-muted, #52525b);
+  --svc-text:          var(--theme-text, #1b1c1d);
+  --svc-muted:         var(--theme-text-muted, #565b5e);
 
-  --svc-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.05);
-  --svc-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
-  --svc-shadow-lg: 0 24px 48px -12px rgba(15, 23, 42, 0.18), 0 8px 16px -8px rgba(15, 23, 42, 0.10);
+  --svc-shadow-sm: 0 1px 2px rgba(27, 28, 29, 0.04), 0 1px 3px rgba(27, 28, 29, 0.05);
+  --svc-shadow-md: 0 4px 12px rgba(27, 28, 29, 0.06), 0 2px 4px rgba(27, 28, 29, 0.04);
+  --svc-shadow-lg: 0 24px 48px -12px rgba(27, 28, 29, 0.18), 0 8px 16px -8px rgba(27, 28, 29, 0.10);
 
   font-family: 'Proxima Nova', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--svc-text);
@@ -44,8 +44,8 @@
 [data-theme="dark"] .svc-root,
 [data-theme="dark"] .svc-drawer-overlay,
 [data-theme="dark"] .svc-modal-overlay {
-  --svc-accent-soft:   rgba(102, 204, 255, 0.10);
-  --svc-border-strong: rgba(102, 204, 255, 0.30);
+  --svc-accent-soft:   rgba(25, 205, 255, 0.10);
+  --svc-border-strong: rgba(25, 205, 255, 0.30);
   --svc-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
   --svc-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
   --svc-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55);
@@ -91,7 +91,7 @@
 }
 [data-theme="dark"] .svc-hero {
   background:
-    radial-gradient(80% 120% at 0% 0%, rgba(102, 204, 255, 0.10) 0%, transparent 50%),
+    radial-gradient(80% 120% at 0% 0%, rgba(25, 205, 255, 0.10) 0%, transparent 50%),
     radial-gradient(60% 100% at 100% 0%, rgba(11, 176, 221, 0.10) 0%, transparent 50%),
     var(--svc-card);
 }
@@ -188,7 +188,7 @@
   background: var(--svc-text);
   margin-left: auto;
 }
-[data-theme="dark"] .svc-nav-pill--cta { background: #fff; color: var(--color-ink, #0a0c10); }
+[data-theme="dark"] .svc-nav-pill--cta { background: #fff; color: var(--color-ink, #1b1c1d); }
 .svc-nav-pill--cta:hover { transform: translateY(-1px); }
 /* Iter 216az — reset the hover lift while pressed so the click target
  * doesn't shift out from under the cursor mid-click. */
@@ -455,14 +455,14 @@
 .svc-pill--good   { background: rgba(16, 185, 129, 0.12); color: #047857; }
 .svc-pill--warn   { background: rgba(245, 158, 11, 0.14); color: #b45309; }
 .svc-pill--danger { background: rgba(239, 68, 68, 0.13); color: #b91c1c; }
-.svc-pill--info   { background: rgba(25, 205, 255, 0.12);  color: #0E7490; }
-.svc-pill--violet { background: rgba(11, 176, 221, 0.13); color: #0E7490; }
+.svc-pill--info   { background: rgba(25, 205, 255, 0.12);  color: #0073A4; }
+.svc-pill--violet { background: rgba(11, 176, 221, 0.13); color: #0073A4; }
 
 [data-theme="dark"] .svc-pill--good   { color: #34d399; }
 [data-theme="dark"] .svc-pill--warn   { color: #fbbf24; }
 [data-theme="dark"] .svc-pill--danger { color: #f87171; }
-[data-theme="dark"] .svc-pill--info   { color: #60a5fa; }
-[data-theme="dark"] .svc-pill--violet { color: #66CCFF; }
+[data-theme="dark"] .svc-pill--info   { color: #19cdff; }
+[data-theme="dark"] .svc-pill--violet { color: #19CDFF; }
 
 /* Priority chips */
 .svc-prio {
@@ -473,12 +473,12 @@
 }
 .svc-prio--p1 { background: rgba(239, 68, 68, 0.14); color: #b91c1c; }
 .svc-prio--p2 { background: rgba(245, 158, 11, 0.16); color: #b45309; }
-.svc-prio--p3 { background: rgba(25, 205, 255, 0.14);  color: #0E7490; }
-.svc-prio--p4 { background: rgba(82, 82, 91, 0.14);  color: #52525b; }
+.svc-prio--p3 { background: rgba(25, 205, 255, 0.14);  color: #0073A4; }
+.svc-prio--p4 { background: rgba(82, 82, 91, 0.14);  color: #565b5e; }
 [data-theme="dark"] .svc-prio--p1 { color: #fca5a5; }
 [data-theme="dark"] .svc-prio--p2 { color: #fcd34d; }
-[data-theme="dark"] .svc-prio--p3 { color: #93c5fd; }
-[data-theme="dark"] .svc-prio--p4 { color: #d4d4d8; }
+[data-theme="dark"] .svc-prio--p3 { color: #19cdff; }
+[data-theme="dark"] .svc-prio--p4 { color: #c9cbcc; }
 
 /* ──────────────────────────────────────────────────────────
    8. TABLES
@@ -571,7 +571,7 @@
 
 .svc-drawer-overlay {
   position: fixed; inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(27, 28, 29, 0.55);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   z-index: 250; /* above PWA install prompt (z-[200]) so drawer actions stay clickable */
@@ -607,7 +607,7 @@
 }
 [data-theme="dark"] .svc-drawer-head {
   background:
-    radial-gradient(80% 120% at 0% 0%, rgba(102, 204, 255, 0.10) 0%, transparent 60%),
+    radial-gradient(80% 120% at 0% 0%, rgba(25, 205, 255, 0.10) 0%, transparent 60%),
     var(--svc-card);
 }
 
@@ -617,7 +617,7 @@
 /* Centred modal (used by intake form) */
 .svc-modal-overlay {
   position: fixed; inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(27, 28, 29, 0.55);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   z-index: 250; /* above PWA install prompt (z-[200]) so footer buttons stay clickable */
@@ -784,7 +784,7 @@
 /* Scoped scrollbars for prettier look */
 .svc-shell ::-webkit-scrollbar { width: 10px; height: 10px; }
 .svc-shell ::-webkit-scrollbar-thumb {
-  background: var(--theme-scrollbar, #d4d4d8);
+  background: var(--theme-scrollbar, #c9cbcc);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;

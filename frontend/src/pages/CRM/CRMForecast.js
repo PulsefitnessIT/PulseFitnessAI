@@ -63,7 +63,7 @@ function AttainmentBar({ pct }) {
   const colour = pct >= 100 ? 'var(--color-success-green, #10b981)' : pct >= 70 ? 'var(--color-warning, #f59e0b)' : 'var(--color-danger-red, #ef4444)';
   return (
     <div className="flex items-center gap-2 min-w-[8rem]">
-      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--theme-border, #e5e7eb)' }}>
+      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--theme-border, #e0e0e0)' }}>
         <div style={{ width: `${(clamped / 150) * 100}%`, background: colour, height: '100%' }} />
       </div>
       <span className="text-xs font-semibold tabular-nums" style={{ color: colour }}>{Math.round(pct)}%</span>
@@ -116,7 +116,7 @@ function QuotaCell({ row, periodType, periodKey, onSaved }) {
         style={{ borderColor: 'var(--theme-border)' }}
         data-testid={`quota-input-${row.user_id}`}
       />
-      <button onClick={save} disabled={saving} className="p-1 rounded text-white" style={{ background: 'var(--color-brand-blue, #1d4ed8)' }} aria-label="Save quota" data-testid={`quota-save-${row.user_id}`}>
+      <button onClick={save} disabled={saving} className="p-1 rounded text-white" style={{ background: 'var(--color-brand-blue, #0091ca)' }} aria-label="Save quota" data-testid={`quota-save-${row.user_id}`}>
         <Save size={12} />
       </button>
     </div>
@@ -168,7 +168,7 @@ function CommitCallCell({ row, periodType, periodKey, onSaved }) {
       <button
         onClick={() => setOpen(true)}
         className="text-left text-sm font-semibold tabular-nums hover:underline inline-flex items-center gap-1"
-        style={{ color: row.manager_call > 0 ? 'var(--color-accent-magenta, #d946ef)' : 'var(--theme-text-muted, #6b7280)' }}
+        style={{ color: row.manager_call > 0 ? 'var(--color-accent-magenta, #19cdff)' : 'var(--theme-text-muted, #6e7476)' }}
         data-testid={`call-edit-${row.user_id}`}
         title={row.manager_call_notes || ''}
       >
@@ -198,7 +198,7 @@ function CommitCallCell({ row, periodType, periodKey, onSaved }) {
         data-testid={`call-notes-${row.user_id}`}
       />
       <div className="flex gap-1">
-        <button onClick={save} disabled={saving} className="px-2 py-1 rounded text-white text-xs font-bold inline-flex items-center gap-1" style={{ background: 'var(--color-brand-blue, #1d4ed8)' }} data-testid={`call-save-${row.user_id}`}>
+        <button onClick={save} disabled={saving} className="px-2 py-1 rounded text-white text-xs font-bold inline-flex items-center gap-1" style={{ background: 'var(--color-brand-blue, #0091ca)' }} data-testid={`call-save-${row.user_id}`}>
           <Save size={11} /> {saving ? 'Saving…' : 'Call it'}
         </button>
         {row.manager_call > 0 ? (
@@ -252,7 +252,7 @@ function AccuracyView({ periodType, periodKey }) {
   return (
     <div className="space-y-5" data-testid="forecast-accuracy">
       <div className="rounded-xl border p-4 flex flex-wrap items-center gap-3" style={{ borderColor: 'var(--theme-border)', background: 'var(--theme-surface)' }}>
-        <Camera size={18} style={{ color: 'var(--color-brand-blue, #1d4ed8)' }} />
+        <Camera size={18} style={{ color: 'var(--color-brand-blue, #0091ca)' }} />
         <div className="flex-1 min-w-[16rem]">
           <p className="text-sm font-bold" style={{ color: 'var(--theme-text)' }}>
             {snapshotTaken ? `Snapshot frozen for ${periodKey}` : `No snapshot taken yet for ${periodKey}`}
@@ -265,7 +265,7 @@ function AccuracyView({ periodType, periodKey }) {
           onClick={takeSnapshot}
           disabled={taking}
           className="px-3 py-2 rounded-lg text-sm font-bold text-white inline-flex items-center gap-1.5"
-          style={{ background: 'var(--color-brand-blue, #1d4ed8)' }}
+          style={{ background: 'var(--color-brand-blue, #0091ca)' }}
           data-testid="forecast-take-snapshot"
         >
           <Camera size={13} /> {taking ? 'Saving…' : (snapshotTaken ? 'Re-take snapshot' : 'Take snapshot')}
@@ -291,7 +291,7 @@ function AccuracyView({ periodType, periodKey }) {
                 {tile.value != null ? (
                   <p className="text-lg font-extrabold tabular-nums mt-1" style={{ color: 'var(--theme-text)' }}>{fmtMoney(tile.value)}</p>
                 ) : (
-                  <p className="text-lg font-extrabold tabular-nums mt-1" style={{ color: 'var(--color-brand-blue, #1d4ed8)' }}>
+                  <p className="text-lg font-extrabold tabular-nums mt-1" style={{ color: 'var(--color-brand-blue, #0091ca)' }}>
                     {tile.pct != null ? `${tile.pct}%` : '—'}
                   </p>
                 )}
@@ -354,7 +354,7 @@ function AccuracyView({ periodType, periodKey }) {
                           </td>
                         </tr>
                         {isOpen ? (
-                          <tr style={{ background: 'var(--theme-surface, #f9fafb)' }}>
+                          <tr style={{ background: 'var(--theme-surface, #f7f7f7)' }}>
                             <td colSpan="7" className="px-4 py-4">
                               <RepTrackRecord userId={r.user_id} periods={4} compact />
                             </td>
@@ -421,8 +421,8 @@ export default function CRMForecast() {
               onClick={() => setView('all')}
               className="px-3 py-2 text-xs font-bold"
               style={{
-                background: view === 'all' ? 'var(--color-brand-blue, #1d4ed8)' : 'transparent',
-                color: view === 'all' ? 'white' : 'var(--theme-text-muted, #6b7280)',
+                background: view === 'all' ? 'var(--color-brand-blue, #0091ca)' : 'transparent',
+                color: view === 'all' ? 'white' : 'var(--theme-text-muted, #6e7476)',
               }}
               data-testid="forecast-view-all"
             >All reps</button>
@@ -430,8 +430,8 @@ export default function CRMForecast() {
               onClick={() => setView('team')}
               className="px-3 py-2 text-xs font-bold"
               style={{
-                background: view === 'team' ? 'var(--color-brand-blue, #1d4ed8)' : 'transparent',
-                color: view === 'team' ? 'white' : 'var(--theme-text-muted, #6b7280)',
+                background: view === 'team' ? 'var(--color-brand-blue, #0091ca)' : 'transparent',
+                color: view === 'team' ? 'white' : 'var(--theme-text-muted, #6e7476)',
               }}
               data-testid="forecast-view-team"
             >My team</button>
@@ -439,8 +439,8 @@ export default function CRMForecast() {
               onClick={() => setView('accuracy')}
               className="px-3 py-2 text-xs font-bold"
               style={{
-                background: view === 'accuracy' ? 'var(--color-brand-blue, #1d4ed8)' : 'transparent',
-                color: view === 'accuracy' ? 'white' : 'var(--theme-text-muted, #6b7280)',
+                background: view === 'accuracy' ? 'var(--color-brand-blue, #0091ca)' : 'transparent',
+                color: view === 'accuracy' ? 'white' : 'var(--theme-text-muted, #6e7476)',
               }}
               data-testid="forecast-view-accuracy"
             >Accuracy</button>
@@ -514,7 +514,7 @@ export default function CRMForecast() {
                       <td className="px-3 py-2 font-semibold" style={{ color: 'var(--theme-text)' }}>{r.owner_name}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{fmtMoney(r.pipeline)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{fmtMoney(r.best_case)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--color-brand-blue, #1d4ed8)', fontWeight: 700 }}>{fmtMoney(r.commit)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--color-brand-blue, #0091ca)', fontWeight: 700 }}>{fmtMoney(r.commit)}</td>
                       {isTeamView ? (
                         <td className="px-3 py-2">
                           <CommitCallCell row={r} periodType={periodType} periodKey={periodKey} onSaved={load} />

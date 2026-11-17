@@ -100,7 +100,7 @@ export default function LocaleLanguageNudge() {
   return (
     <div
       className="flex items-center gap-3 px-4 py-2.5 text-sm border-b"
-      style={{ background: 'rgba(25,205,255,0.08)', borderColor: 'var(--theme-border, #e2e8f0)', color: 'var(--theme-text, #0f172a)' }}
+      style={{ background: 'rgba(25,205,255,0.08)', borderColor: 'var(--theme-border, #e0e0e0)', color: 'var(--theme-text, #1b1c1d)' }}
       data-testid="locale-language-nudge"
     >
       <Globe size={16} className="shrink-0" style={{ color: 'var(--color-brand-cyan, #19CDFF)' }} />
@@ -110,7 +110,7 @@ export default function LocaleLanguageNudge() {
         onClick={apply}
         disabled={busy}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-60"
-        style={{ background: 'var(--color-brand-cyan, #19CDFF)', color: 'var(--color-ink, #0b1220)' }}
+        style={{ background: 'var(--color-brand-cyan, #19CDFF)', color: 'var(--color-ink, #1B1C1D)' }}
         data-testid="locale-nudge-apply"
       >
         {busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} {copy.apply}

@@ -24,7 +24,7 @@ const SCENES = [
   {
     id: 'fault-triage',
     icon: Wrench,
-    accent: '#06B6D4',
+    accent: '#19CDFF',
     title: 'Operations · AI fault triage',
     caption: 'Snap the fault. Claude triages it, suggests parts, routes the ticket — in under 6 seconds.',
     body: () => (
@@ -57,7 +57,7 @@ const SCENES = [
   {
     id: 'rota',
     icon: UserCog,
-    accent: '#A855F7',
+    accent: '#19CDFF',
     title: 'Staffing · AI rota in seconds',
     caption: 'Claude builds a fair, compliant week. £-cost roll-up. One-click apply. Sage CSV export.',
     body: () => (
@@ -93,7 +93,7 @@ const SCENES = [
   {
     id: 'campaign',
     icon: Megaphone,
-    accent: '#D946EF',
+    accent: '#19CDFF',
     title: 'Marketing · AI Director writes your campaign',
     caption: 'Pick a goal. AI drafts copy + audience + send time. Approve. Send. £14 average revenue lift per member.',
     body: () => (
@@ -122,7 +122,7 @@ const SCENES = [
   {
     id: 'memberships',
     icon: Calendar,
-    accent: '#8B5CF6',
+    accent: '#19CDFF',
     title: 'Memberships · Family Auto-Bill',
     caption: 'One household. Multiple plans. Sibling discounts auto-applied. One Stripe invoice.',
     body: () => (
@@ -157,7 +157,7 @@ const SCENES = [
   {
     id: 'crm',
     icon: Users,
-    accent: '#6366F1',
+    accent: '#19CDFF',
     title: 'CRM · AI lead scoring',
     caption: 'Prioritise the lead most likely to close. AI explains why. Drop into a sequence. One click.',
     body: () => (
@@ -182,7 +182,7 @@ const SCENES = [
   {
     id: 'reporting',
     icon: BarChart3,
-    accent: '#2563EB',
+    accent: '#0091CA',
     title: 'Reporting · One-screen weekly digest',
     caption: 'Revenue. Churn. Faults. Cohort retention. Auto-emailed every Monday — to you and your owner.',
     body: () => (

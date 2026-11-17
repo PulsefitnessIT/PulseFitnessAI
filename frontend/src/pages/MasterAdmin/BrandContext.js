@@ -15,8 +15,8 @@ import { createContext, useContext, useEffect, useMemo, useState, useCallback } 
 
 const STORAGE_KEY = 'master_admin_brand_filter';
 export const BRAND_OPTIONS = [
-  { id: 'all', label: 'All Brands', short: 'All', accent: '#0A0A0A' },
-  { id: 'pulse', label: 'Pulse Fitness', short: 'Pulse', accent: '#0055FF' },
+  { id: 'all', label: 'All Brands', short: 'All', accent: '#1B1C1D' },
+  { id: 'pulse', label: 'Pulse Fitness', short: 'Pulse', accent: '#19CDFF' },
   { id: 'gymaxis', label: 'Pulse Fitness', short: 'Pulse Fitness', accent: '#10B981' },
 ];
 

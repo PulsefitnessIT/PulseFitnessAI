@@ -144,7 +144,7 @@ export default function AlertBell({ API, headers, count = 0, onViewCentre, onCha
           <div className="border-t border-zinc-100 px-4 py-2">
             <button
               onClick={() => { setOpen(false); onViewCentre?.(); }}
-              className="w-full text-center text-xs font-semibold text-[var(--color-brand-blue,#2563eb)] hover:underline"
+              className="w-full text-center text-xs font-semibold text-[var(--color-brand-blue,#0091ca)] hover:underline"
               data-testid="alert-bell-view-centre"
             >
               Open Security Alert Centre →
