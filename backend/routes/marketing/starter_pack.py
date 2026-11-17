@@ -182,7 +182,7 @@ def _plain_to_html(plain: str) -> str:
         # Preserve single newlines inside a paragraph as <br>.
         safe = html_lib.escape(para).replace("\n", "<br>")
         wrapped.append(
-            f'<p style="margin:0 0 16px 0;line-height:1.55;color:#1f2937;font-size:15px;">{safe}</p>'
+            f'<p style="margin:0 0 16px 0;line-height:1.55;color:#26292B;font-size:15px;">{safe}</p>'
         )
     return (
         '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif;'

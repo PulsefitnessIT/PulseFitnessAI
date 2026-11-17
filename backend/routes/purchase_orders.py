@@ -56,7 +56,7 @@ async def get_purchase_orders(issue_id: str = None, user: dict = Depends(get_cur
 def _resolve_po_email_context(po: dict, user: dict, org: dict | None) -> dict:
     """Resolve branding, recipient, and test mode for PO email."""
     branding = (org or {}).get('branding', {}) or {}
-    brand_color = branding.get('primary_color', '#0055FF')
+    brand_color = branding.get('primary_color', '#19CDFF')
     company_name = branding.get('company_name') or (org.get('name', 'Pulse Fitness AI') if org else 'Pulse Fitness AI')
 
     sender = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
@@ -76,10 +76,10 @@ def _build_po_email_html(po: dict, ctx: dict) -> str:
     """Build the HTML email body for a purchase order."""
     brand_color, company_name = ctx["brand_color"], ctx["company_name"]
     items_html = "".join(
-        f"<tr><td style='padding:8px;border:1px solid #ddd;'>{i.get('description','')}</td>"
-        f"<td style='padding:8px;border:1px solid #ddd;text-align:center;'>{i.get('quantity','')}</td>"
-        f"<td style='padding:8px;border:1px solid #ddd;text-align:right;'>£{float(i.get('unit_price',0)):.2f}</td>"
-        f"<td style='padding:8px;border:1px solid #ddd;text-align:right;'>£{float(i.get('quantity',0))*float(i.get('unit_price',0)):.2f}</td></tr>"
+        f"<tr><td style='padding:8px;border:1px solid #E0E0E0;'>{i.get('description','')}</td>"
+        f"<td style='padding:8px;border:1px solid #E0E0E0;text-align:center;'>{i.get('quantity','')}</td>"
+        f"<td style='padding:8px;border:1px solid #E0E0E0;text-align:right;'>£{float(i.get('unit_price',0)):.2f}</td>"
+        f"<td style='padding:8px;border:1px solid #E0E0E0;text-align:right;'>£{float(i.get('quantity',0))*float(i.get('unit_price',0)):.2f}</td></tr>"
         for i in po.get('items', [])
     )
     test_notice = f'<div style="background:#FFF3CD;border:1px solid #FFC107;padding:12px;margin-bottom:16px;border-radius:6px;font-size:13px;"><strong>Test Mode:</strong> This PO would be sent to <strong>{ctx["intended_recipient"] or "no email"}</strong> ({po["supplier_name"]}) in production.</div>' if ctx["test_mode"] else ''
@@ -89,23 +89,23 @@ def _build_po_email_html(po: dict, ctx: dict) -> str:
     <div style="padding:24px;">
         {test_notice}
         <table style="width:100%;margin-bottom:16px;">
-        <tr><td style="padding:4px;color:#666;">To:</td><td style="padding:4px;font-weight:bold;">{po['supplier_name']}</td></tr>
-        <tr><td style="padding:4px;color:#666;">From:</td><td style="padding:4px;">{po.get('created_by','')} — {company_name}</td></tr>
-        <tr><td style="padding:4px;color:#666;">Date:</td><td style="padding:4px;">{po['created_at'][:10]}</td></tr>
-        {f"<tr><td style='padding:4px;color:#666;'>Delivery:</td><td style='padding:4px;'>{po['delivery_address']}</td></tr>" if po.get('delivery_address') else ''}
+        <tr><td style="padding:4px;color:#6E7476;">To:</td><td style="padding:4px;font-weight:bold;">{po['supplier_name']}</td></tr>
+        <tr><td style="padding:4px;color:#6E7476;">From:</td><td style="padding:4px;">{po.get('created_by','')} — {company_name}</td></tr>
+        <tr><td style="padding:4px;color:#6E7476;">Date:</td><td style="padding:4px;">{po['created_at'][:10]}</td></tr>
+        {f"<tr><td style='padding:4px;color:#6E7476;'>Delivery:</td><td style='padding:4px;'>{po['delivery_address']}</td></tr>" if po.get('delivery_address') else ''}
         </table>
         <table style="width:100%;border-collapse:collapse;margin:20px 0;">
             <thead><tr style="background:{brand_color};color:white;"><th style="padding:10px;text-align:left;">Description</th><th style="padding:10px;">Qty</th><th style="padding:10px;">Unit Price</th><th style="padding:10px;">Total</th></tr></thead>
             <tbody>{items_html}</tbody>
         </table>
-        <div style="text-align:right;padding:12px;background:#f9f9f9;border-radius:8px;">
+        <div style="text-align:right;padding:12px;background:#F7F7F7;border-radius:8px;">
             <p style="margin:4px 0;">Subtotal: £{po['subtotal']:.2f}</p>
             <p style="margin:4px 0;">VAT ({po['vat_rate']}%): £{po['vat_amount']:.2f}</p>
             <p style="font-size:20px;font-weight:bold;margin:8px 0 0;">Total: £{po['total']:.2f}</p>
         </div>
         {f"<p style='margin-top:16px;'><strong>Notes:</strong> {po['notes']}</p>" if po.get('notes') else ''}
     </div>
-    <div style="background:#f5f5f5;padding:16px;text-align:center;font-size:12px;color:#999;">Powered by {company_name} via Pulse Fitness AI</div>
+    <div style="background:#F0F0F0;padding:16px;text-align:center;font-size:12px;color:#9A9FA1;">Powered by {company_name} via Pulse Fitness AI</div>
     </div>"""
 
 
@@ -142,8 +142,8 @@ def _render_po_html(po: dict, org_name: str, org_logo: str | None, items_html: s
     logo = f'<img src="{org_logo}" style="height:50px;margin-right:15px;" />' if org_logo else ""
     notes = f'<div class="notes"><strong>Notes:</strong> {po.get("notes","")}</div>' if po.get('notes') else ''
     return f"""<!DOCTYPE html><html><head><title>PO {po.get('po_number','')}</title>
-    <style>body{{font-family:Arial;color:#333;max-width:800px;margin:0 auto;padding:30px;}}.header{{display:flex;justify-content:space-between;align-items:start;border-bottom:3px solid #0055FF;padding-bottom:15px;margin-bottom:20px;}}.header-left{{display:flex;align-items:center;}}.company{{font-size:22px;font-weight:bold;color:#0055FF;}}.po-number{{font-size:14px;color:#666;}}.meta{{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:25px;}}.meta-box{{background:#f9f9f9;padding:12px;border-radius:6px;}}.meta-box strong{{display:block;font-size:11px;text-transform:uppercase;color:#999;margin-bottom:4px;}}table{{width:100%;border-collapse:collapse;margin-bottom:20px;}}th{{background:#0055FF;color:white;text-align:left;padding:10px 12px;font-size:12px;}}td{{padding:10px 12px;border-bottom:1px solid #eee;font-size:13px;}}.center{{text-align:center;}}.right{{text-align:right;}}.totals{{text-align:right;}}.totals p{{margin:4px 0;font-size:14px;}}.totals .total{{font-size:20px;font-weight:bold;color:#0055FF;}}.notes{{background:#f9f9f9;padding:12px;border-radius:6px;margin-top:15px;font-size:13px;}}</style></head><body>
-    <div class="header"><div class="header-left">{logo}<div><div class="company">{org_name}</div><div class="po-number">Purchase Order: {po.get('po_number','')}</div></div></div><div style="text-align:right;font-size:13px;color:#666;">Date: {po.get('created_at','')[:10]}<br/>Status: {po.get('status','draft').upper()}</div></div>
+    <style>body{{font-family:Arial;color:#393E41;max-width:800px;margin:0 auto;padding:30px;}}.header{{display:flex;justify-content:space-between;align-items:start;border-bottom:3px solid #19CDFF;padding-bottom:15px;margin-bottom:20px;}}.header-left{{display:flex;align-items:center;}}.company{{font-size:22px;font-weight:bold;color:#0091CA;}}.po-number{{font-size:14px;color:#6E7476;}}.meta{{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:25px;}}.meta-box{{background:#F7F7F7;padding:12px;border-radius:6px;}}.meta-box strong{{display:block;font-size:11px;text-transform:uppercase;color:#9A9FA1;margin-bottom:4px;}}table{{width:100%;border-collapse:collapse;margin-bottom:20px;}}th{{background:#19CDFF;color:white;text-align:left;padding:10px 12px;font-size:12px;}}td{{padding:10px 12px;border-bottom:1px solid #F0F0F0;font-size:13px;}}.center{{text-align:center;}}.right{{text-align:right;}}.totals{{text-align:right;}}.totals p{{margin:4px 0;font-size:14px;}}.totals .total{{font-size:20px;font-weight:bold;color:#0091CA;}}.notes{{background:#F7F7F7;padding:12px;border-radius:6px;margin-top:15px;font-size:13px;}}</style></head><body>
+    <div class="header"><div class="header-left">{logo}<div><div class="company">{org_name}</div><div class="po-number">Purchase Order: {po.get('po_number','')}</div></div></div><div style="text-align:right;font-size:13px;color:#6E7476;">Date: {po.get('created_at','')[:10]}<br/>Status: {po.get('status','draft').upper()}</div></div>
     <div class="meta"><div class="meta-box"><strong>Supplier</strong>{po.get('supplier_name','N/A')}<br/>{po.get('supplier_email','')}</div><div class="meta-box"><strong>Delivery Address</strong>{po.get('delivery_address','N/A')}</div></div>
     <table><thead><tr><th>Description</th><th class="center">Qty</th><th class="right">Unit Price</th><th class="right">Total</th></tr></thead><tbody>{items_html}</tbody></table>
     <div class="totals"><p>Subtotal: £{subtotal:.2f}</p><p>VAT (20%): £{vat:.2f}</p><p class="total">Total: £{total:.2f}</p></div>{notes}</body></html>"""
@@ -301,10 +301,10 @@ def _render_contact_html(issue: dict, message: str, company_name: str, brand_col
     return f"""<div style="font-family:Arial;max-width:600px;margin:0 auto;border:1px solid #e5e5e5;border-radius:8px;overflow:hidden;">
     <div style="background:{brand_color};padding:24px;text-align:center;"><h2 style="color:white;margin:0;">{company_name}</h2><p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:14px;">Service Request Communication</p></div>
     <div style="padding:24px;">{test_notice}<p>Dear {supplier_name},</p><p><strong>{company_name}</strong> has a question regarding:</p>
-    <table style="width:100%;border-collapse:collapse;margin:16px 0;"><tr style="border-bottom:1px solid #eee;"><td style="padding:10px;color:#666;width:140px;">Equipment</td><td style="padding:10px;font-weight:bold;">{issue.get('machine_type','N/A')}</td></tr><tr style="border-bottom:1px solid #eee;"><td style="padding:10px;color:#666;">Serial</td><td style="padding:10px;font-weight:bold;">{issue.get('serial_number','N/A')}</td></tr><tr style="border-bottom:1px solid #eee;"><td style="padding:10px;color:#666;">Severity</td><td style="padding:10px;">{issue.get('severity','N/A').upper()}</td></tr><tr style="border-bottom:1px solid #eee;"><td style="padding:10px;color:#666;">Issue</td><td style="padding:10px;">{issue.get('issue_description','N/A')[:200]}</td></tr></table>
-    <div style="background:#f0f7ff;padding:16px;border-radius:8px;margin:16px 0;"><h4 style="margin:0 0 8px;">Message:</h4><p style="margin:0;color:#333;">{message}</p></div>
-    <p style="color:#666;font-size:13px;">Please reply to this email.</p></div>
-    <div style="background:#f5f5f5;padding:16px;text-align:center;font-size:12px;color:#999;">Powered by {company_name} via Pulse Fitness AI</div></div>"""
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;"><tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:10px;color:#6E7476;width:140px;">Equipment</td><td style="padding:10px;font-weight:bold;">{issue.get('machine_type','N/A')}</td></tr><tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:10px;color:#6E7476;">Serial</td><td style="padding:10px;font-weight:bold;">{issue.get('serial_number','N/A')}</td></tr><tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:10px;color:#6E7476;">Severity</td><td style="padding:10px;">{issue.get('severity','N/A').upper()}</td></tr><tr style="border-bottom:1px solid #F0F0F0;"><td style="padding:10px;color:#6E7476;">Issue</td><td style="padding:10px;">{issue.get('issue_description','N/A')[:200]}</td></tr></table>
+    <div style="background:#f0f7ff;padding:16px;border-radius:8px;margin:16px 0;"><h4 style="margin:0 0 8px;">Message:</h4><p style="margin:0;color:#393E41;">{message}</p></div>
+    <p style="color:#6E7476;font-size:13px;">Please reply to this email.</p></div>
+    <div style="background:#F0F0F0;padding:16px;text-align:center;font-size:12px;color:#9A9FA1;">Powered by {company_name} via Pulse Fitness AI</div></div>"""
 
 
 async def _resolve_site_name(data: dict, user: dict, org: dict | None) -> str:

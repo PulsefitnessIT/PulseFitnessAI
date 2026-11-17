@@ -36,8 +36,8 @@ router = APIRouter()
 
 
 _DEFAULT = {
-    "primary_color": "#0055FF",
-    "secondary_color": "#66CCFF",
+    "primary_color": "#19CDFF",
+    "secondary_color": "#19CDFF",
     "primary_logo_asset_id": None,
     "primary_logo_data_url": None,
     "primary_logo_url": None,  # remote URL fallback when no data URL set

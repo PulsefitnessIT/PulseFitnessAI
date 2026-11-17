@@ -176,9 +176,9 @@ async def run_mod_booking_nudges() -> dict:
 
 
 def _fault_booking_nudge_html(site_name: str, ticket_ref: str, booking_url: str) -> str:
-    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;background:#ffffff;color:#1B1D1D;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-  <div style="background:#1B1D1D;padding:18px 26px;border-bottom:3px solid #19CDFF;">
-    <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Reminder</div>
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;background:#ffffff;color:#1B1C1D;border:1px solid #E0E0E0;border-radius:12px;overflow:hidden;">
+  <div style="background:#1B1C1D;padding:18px 26px;border-bottom:3px solid #19CDFF;">
+    <div style="color:#0091CA;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Reminder</div>
     <h1 style="color:#fff;margin:6px 0 0 0;font-size:19px;">Engineer booking form still needs completing</h1>
   </div>
   <div style="padding:22px 26px;">

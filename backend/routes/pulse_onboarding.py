@@ -73,7 +73,7 @@ async def _send_setup_email(*, to_email: str, name: str, org: dict, order_ref: s
       <p style="margin:24px 0"><a href="{link}"
         style="background:#0BB0DD;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:700">
         Set up your Pulse portal access</a></p>
-      <p style="color:#64748b;font-size:13px">Order reference: {order_ref or '—'}. This link is single-use and expires in {SETUP_TOKEN_TTL_HOURS // 24} days.</p>
+      <p style="color:#6E7476;font-size:13px">Order reference: {order_ref or '—'}. This link is single-use and expires in {SETUP_TOKEN_TTL_HOURS // 24} days.</p>
     """, org.get("id"))
     try:
         await send_email(to=to_email, subject="Set up your Pulse Fitness portal access", html=html, kind="portal_setup")

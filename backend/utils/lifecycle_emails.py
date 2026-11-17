@@ -36,27 +36,27 @@ CHOOSE_PLAN_URL = "https://pulsefitness.ai/choose-plan"
 
 def _shell(title: str, body_html: str, cta_text: str, cta_url: str) -> str:
     """Branded HTML shell used by every lifecycle send."""
-    return f"""<!doctype html><html><body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0f172a;">
+    return f"""<!doctype html><html><body style="margin:0;padding:0;background:#F7F7F7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1B1C1D;">
 <div style="max-width:560px;margin:0 auto;padding:24px;">
-  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#ffffff;border-radius:16px;border:1px solid #E0E0E0;overflow:hidden;">
     <tr>
-      <td style="padding:24px 28px;background:linear-gradient(135deg,#2563EB,#9D4CDD);color:#fff;">
+      <td style="padding:24px 28px;background:linear-gradient(135deg,#0091CA,#19CDFF);color:#fff;">
         <div style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;opacity:0.85;">Pulse Fitness AI</div>
         <h1 style="margin:6px 0 0 0;font-size:22px;line-height:1.3;font-weight:800;">{title}</h1>
       </td>
     </tr>
     <tr>
-      <td style="padding:28px;font-size:14px;line-height:1.6;color:#0f172a;">
+      <td style="padding:28px;font-size:14px;line-height:1.6;color:#1B1C1D;">
         {body_html}
         <div style="margin-top:24px;text-align:center;">
-          <a href="{cta_url}" style="display:inline-block;padding:12px 28px;background:#2563EB;color:#fff;text-decoration:none;border-radius:9999px;font-weight:600;font-size:14px;">{cta_text}</a>
+          <a href="{cta_url}" style="display:inline-block;padding:12px 28px;background:#0091CA;color:#fff;text-decoration:none;border-radius:9999px;font-weight:600;font-size:14px;">{cta_text}</a>
         </div>
       </td>
     </tr>
     <tr>
-      <td style="padding:18px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;text-align:center;">
-        <p style="margin:0;">Sent by Pulse Fitness AI · <a href="{LOGIN_URL}" style="color:#2563EB;text-decoration:none;">Sign in</a> · <a href="https://pulsefitness.ai/legal/dpa" style="color:#2563EB;text-decoration:none;">Privacy</a></p>
-        <p style="margin:6px 0 0 0;font-size:11px;color:#94a3b8;">You can manage email preferences inside your account.</p>
+      <td style="padding:18px 28px;background:#F7F7F7;border-top:1px solid #E0E0E0;font-size:12px;color:#6E7476;text-align:center;">
+        <p style="margin:0;">Sent by Pulse Fitness AI · <a href="{LOGIN_URL}" style="color:#0091CA;text-decoration:none;">Sign in</a> · <a href="https://pulsefitness.ai/legal/dpa" style="color:#0091CA;text-decoration:none;">Privacy</a></p>
+        <p style="margin:6px 0 0 0;font-size:11px;color:#9A9FA1;">You can manage email preferences inside your account.</p>
       </td>
     </tr>
   </table>

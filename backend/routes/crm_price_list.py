@@ -698,8 +698,8 @@ async def _email_commit_done(user: dict, version_doc: dict) -> None:
             to=to,
             subject="Pulse Fitness — price list import complete",
             html=(
-                f"<div style=\"font-family:Arial,sans-serif;color:#1e293b\">"
-                f"<h2 style=\"color:#0055FF\">Master Price List — import complete</h2>"
+                f"<div style=\"font-family:Arial,sans-serif;color:#26292B\">"
+                f"<h2 style=\"color:#0091CA\">Master Price List — import complete</h2>"
                 f"<p>Your import has finished and version <strong>{version_doc['label']}</strong> "
                 f"({version_doc['status']}) is ready.</p>"
                 f"<ul><li>{s['created']} created</li><li>{s['updated']} updated</li>"

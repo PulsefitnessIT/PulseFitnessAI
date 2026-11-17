@@ -55,7 +55,7 @@ def _summary_html(data: dict, estate_name: str = "UK Ministry of Defence") -> st
         bg = "#e7f6ec" if ok else "#fdeceb"
         mark = "✓" if ok else "✗"
         return (f'<td style="text-align:center;background:{bg};color:{colour};'
-                f'font-weight:600;padding:6px 8px;border:1px solid #eaecf0;">'
+                f'font-weight:600;padding:6px 8px;border:1px solid #F0F0F0;">'
                 f'{count}&nbsp;{mark}</td>')
 
     rows = []
@@ -72,57 +72,57 @@ def _summary_html(data: dict, estate_name: str = "UK Ministry of Defence") -> st
             for k, _ in step_labels
         )
         rows.append(
-            f'<tr><td style="padding:6px 8px;border:1px solid #eaecf0;font-weight:600;">'
+            f'<tr><td style="padding:6px 8px;border:1px solid #F0F0F0;font-weight:600;">'
             f'{s.get("name","")}</td>'
-            f'<td style="padding:6px 8px;border:1px solid #eaecf0;color:#475467;">'
+            f'<td style="padding:6px 8px;border:1px solid #F0F0F0;color:#475467;">'
             f'{(s.get("force") or "").upper()}</td>'
-            f'<td style="padding:6px 8px;border:1px solid #eaecf0;color:#475467;">{loc}</td>'
+            f'<td style="padding:6px 8px;border:1px solid #F0F0F0;color:#475467;">{loc}</td>'
             f'{cells}'
-            f'<td style="text-align:center;padding:6px 8px;border:1px solid #eaecf0;">'
+            f'<td style="text-align:center;padding:6px 8px;border:1px solid #F0F0F0;">'
             f'{ready_badge}</td></tr>'
         )
     body_rows = "".join(rows) or (
-        '<tr><td colspan="9" style="padding:14px;text-align:center;color:#667085;">'
+        '<tr><td colspan="9" style="padding:14px;text-align:center;color:#6E7476;">'
         'No MOD sites found for this estate.</td></tr>'
     )
 
     head_cells = "".join(
-        f'<th style="padding:8px;background:#19398D;color:#fff;border:1px solid #19398D;'
+        f'<th style="padding:8px;background:#0073A4;color:#fff;border:1px solid #0073A4;'
         f'font-size:12px;text-align:center;">{lbl}</th>' for _, lbl in step_labels
     )
 
     return f"""
     <div style="font-family:Arial,Helvetica,sans-serif;color:#101828;max-width:820px;">
-      <h2 style="color:#19398D;margin:0 0 4px;">MOD Estate — Weekly Go-live Readiness</h2>
-      <p style="color:#667085;margin:0 0 18px;">{estate_name} · week of
+      <h2 style="color:#0073A4;margin:0 0 4px;">MOD Estate — Weekly Go-live Readiness</h2>
+      <p style="color:#6E7476;margin:0 0 18px;">{estate_name} · week of
         {datetime.now(timezone.utc).strftime('%d %b %Y')}</p>
       <table style="border-collapse:collapse;margin-bottom:18px;">
         <tr>
           <td style="padding:10px 18px;background:#f2f4f7;border-radius:8px 0 0 8px;">
             <div style="font-size:24px;font-weight:800;">{total}</div>
-            <div style="font-size:12px;color:#667085;">Total sites</div></td>
+            <div style="font-size:12px;color:#6E7476;">Total sites</div></td>
           <td style="padding:10px 18px;background:#e7f6ec;">
             <div style="font-size:24px;font-weight:800;color:#0a7d3a;">{ready}</div>
-            <div style="font-size:12px;color:#667085;">Go-live ready</div></td>
+            <div style="font-size:12px;color:#6E7476;">Go-live ready</div></td>
           <td style="padding:10px 18px;background:#fef4e6;">
             <div style="font-size:24px;font-weight:800;color:#b54708;">{not_ready}</div>
-            <div style="font-size:12px;color:#667085;">Not yet ready</div></td>
+            <div style="font-size:12px;color:#6E7476;">Not yet ready</div></td>
           <td style="padding:10px 18px;background:#fdeceb;border-radius:0 8px 8px 0;">
             <div style="font-size:24px;font-weight:800;color:#b42318;">{no_equip}</div>
-            <div style="font-size:12px;color:#667085;">Awaiting equipment</div></td>
+            <div style="font-size:12px;color:#6E7476;">Awaiting equipment</div></td>
         </tr>
       </table>
       <table style="border-collapse:collapse;width:100%;font-size:13px;">
         <thead><tr>
-          <th style="padding:8px;background:#19398D;color:#fff;border:1px solid #19398D;text-align:left;">Site</th>
-          <th style="padding:8px;background:#19398D;color:#fff;border:1px solid #19398D;">Force</th>
-          <th style="padding:8px;background:#19398D;color:#fff;border:1px solid #19398D;">Location</th>
+          <th style="padding:8px;background:#0073A4;color:#fff;border:1px solid #0073A4;text-align:left;">Site</th>
+          <th style="padding:8px;background:#0073A4;color:#fff;border:1px solid #0073A4;">Force</th>
+          <th style="padding:8px;background:#0073A4;color:#fff;border:1px solid #0073A4;">Location</th>
           {head_cells}
-          <th style="padding:8px;background:#19398D;color:#fff;border:1px solid #19398D;">Go-live</th>
+          <th style="padding:8px;background:#0073A4;color:#fff;border:1px solid #0073A4;">Go-live</th>
         </tr></thead>
         <tbody>{body_rows}</tbody>
       </table>
-      <p style="color:#667085;font-size:12px;margin-top:16px;">
+      <p style="color:#6E7476;font-size:12px;margin-top:16px;">
         The full checklist (colour-coded per step, plus a summary sheet) is attached as
         <strong>MOD_Estate_Readiness.xlsx</strong>. Automated every Monday morning.
       </p>

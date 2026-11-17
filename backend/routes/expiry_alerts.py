@@ -170,13 +170,13 @@ def _build_email_row(alert: dict) -> str:
     coverage_label = "Warranty" if alert["coverage_type"] == "warranty" else "Contract"
     return (
         f'<tr>'
-        f'<td style="padding:8px 12px;border-bottom:1px solid #eee;font-weight:bold;">{alert["equipment_name"]}</td>'
-        f'<td style="padding:8px 12px;border-bottom:1px solid #eee;">{alert["equipment_type"]}</td>'
-        f'<td style="padding:8px 12px;border-bottom:1px solid #eee;">{alert.get("serial_number","N/A")}</td>'
-        f'<td style="padding:8px 12px;border-bottom:1px solid #eee;">{alert.get("manufacturer","N/A")}</td>'
-        f'<td style="padding:8px 12px;border-bottom:1px solid #eee;">{coverage_label}</td>'
-        f'<td style="padding:8px 12px;border-bottom:1px solid #eee;">{alert["expiry_date"][:10]}</td>'
-        f'<td style="padding:8px 12px;border-bottom:1px solid #eee;font-weight:bold;color:{urgency_color};">'
+        f'<td style="padding:8px 12px;border-bottom:1px solid #F0F0F0;font-weight:bold;">{alert["equipment_name"]}</td>'
+        f'<td style="padding:8px 12px;border-bottom:1px solid #F0F0F0;">{alert["equipment_type"]}</td>'
+        f'<td style="padding:8px 12px;border-bottom:1px solid #F0F0F0;">{alert.get("serial_number","N/A")}</td>'
+        f'<td style="padding:8px 12px;border-bottom:1px solid #F0F0F0;">{alert.get("manufacturer","N/A")}</td>'
+        f'<td style="padding:8px 12px;border-bottom:1px solid #F0F0F0;">{coverage_label}</td>'
+        f'<td style="padding:8px 12px;border-bottom:1px solid #F0F0F0;">{alert["expiry_date"][:10]}</td>'
+        f'<td style="padding:8px 12px;border-bottom:1px solid #F0F0F0;font-weight:bold;color:{urgency_color};">'
         f'{days} day{"s" if days != 1 else ""}</td>'
         f'</tr>'
     )
@@ -189,12 +189,12 @@ def _build_supplier_row(alert: dict) -> str:
     coverage_label = "Warranty" if alert["coverage_type"] == "warranty" else "Contract"
     return (
         f'<tr>'
-        f'<td style="padding:8px 12px;border-bottom:1px solid #eee;font-weight:bold;">{alert["equipment_name"]}</td>'
-        f'<td style="padding:8px 12px;border-bottom:1px solid #eee;">{alert["equipment_type"]}</td>'
-        f'<td style="padding:8px 12px;border-bottom:1px solid #eee;">{alert.get("serial_number","N/A")}</td>'
-        f'<td style="padding:8px 12px;border-bottom:1px solid #eee;">{coverage_label}</td>'
-        f'<td style="padding:8px 12px;border-bottom:1px solid #eee;">{alert["expiry_date"][:10]}</td>'
-        f'<td style="padding:8px 12px;border-bottom:1px solid #eee;font-weight:bold;color:{urgency_color};">'
+        f'<td style="padding:8px 12px;border-bottom:1px solid #F0F0F0;font-weight:bold;">{alert["equipment_name"]}</td>'
+        f'<td style="padding:8px 12px;border-bottom:1px solid #F0F0F0;">{alert["equipment_type"]}</td>'
+        f'<td style="padding:8px 12px;border-bottom:1px solid #F0F0F0;">{alert.get("serial_number","N/A")}</td>'
+        f'<td style="padding:8px 12px;border-bottom:1px solid #F0F0F0;">{coverage_label}</td>'
+        f'<td style="padding:8px 12px;border-bottom:1px solid #F0F0F0;">{alert["expiry_date"][:10]}</td>'
+        f'<td style="padding:8px 12px;border-bottom:1px solid #F0F0F0;font-weight:bold;color:{urgency_color};">'
         f'{days} day{"s" if days != 1 else ""}</td>'
         f'</tr>'
     )
@@ -263,7 +263,7 @@ async def _record_sent_notifications(
 
 
 _TABLE_HEADER_STYLE = (
-    'style="padding:8px 12px;text-align:left;font-size:12px;color:#666;border-bottom:2px solid #ddd;"'
+    'style="padding:8px 12px;text-align:left;font-size:12px;color:#6E7476;border-bottom:2px solid #E0E0E0;"'
 )
 
 
@@ -278,7 +278,7 @@ async def _load_reminder_context(user: dict) -> dict:
     test_mode = "resend.dev" in (os.environ.get("SENDER_EMAIL", "") or "")
     return {
         "org_name": org_name,
-        "brand_color": branding.get("primary_color", "#0055FF"),
+        "brand_color": branding.get("primary_color", "#19CDFF"),
         "company_name": branding.get("company_name") or org_name,
         "admin_email": user["email"],
         "admin_name": user.get("full_name", "Admin"),
@@ -365,16 +365,16 @@ def _render_admin_email(
         f'<div style="background:#F59E0B15;border:2px solid #F59E0B;border-radius:8px;padding:12px 16px;flex:1;text-align:center;">'
         f'<p style="color:#F59E0B;font-size:24px;font-weight:bold;margin:0;">{total}</p>'
         f'<p style="color:#F59E0B;font-size:12px;margin:4px 0 0;">Expiring within 30 days</p></div></div>'
-        f'<table style="width:100%;border-collapse:collapse;margin-bottom:20px;"><thead><tr style="background:#f5f5f5;">'
+        f'<table style="width:100%;border-collapse:collapse;margin-bottom:20px;"><thead><tr style="background:#F0F0F0;">'
         f'<th {_TABLE_HEADER_STYLE}>Equipment</th><th {_TABLE_HEADER_STYLE}>Type</th>'
         f'<th {_TABLE_HEADER_STYLE}>Serial</th><th {_TABLE_HEADER_STYLE}>Manufacturer</th>'
         f'<th {_TABLE_HEADER_STYLE}>Coverage</th><th {_TABLE_HEADER_STYLE}>Expiry</th>'
         f'<th {_TABLE_HEADER_STYLE}>Remaining</th></tr></thead><tbody>{equipment_rows}</tbody></table>'
-        f'<p style="color:#333;"><strong>Recommended actions:</strong></p>'
-        f'<ul style="color:#555;"><li>Contact the relevant manufacturers/suppliers to discuss renewal options</li>'
+        f'<p style="color:#393E41;"><strong>Recommended actions:</strong></p>'
+        f'<ul style="color:#565B5E;"><li>Contact the relevant manufacturers/suppliers to discuss renewal options</li>'
         f'<li>Review equipment condition and repair history before renewing</li>'
         f'<li>Consider extended warranties or service contracts for high-value equipment</li></ul></div>'
-        f'<div style="background:#f5f5f5;padding:16px;text-align:center;font-size:12px;color:#999;">'
+        f'<div style="background:#F0F0F0;padding:16px;text-align:center;font-size:12px;color:#9A9FA1;">'
         f'Powered by {company_name} via Pulse Fitness AI</div></div>'
     )
 
@@ -411,7 +411,7 @@ def _render_supplier_email(
         f'<p>This is an automated reminder that the warranty/contract for the following '
         f'<strong>{alert_count} machine{plural}</strong> at <strong>{company_name}</strong> '
         f'{is_are} approaching {its_their} expiry date:</p>'
-        f'<table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f5f5f5;">'
+        f'<table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#F0F0F0;">'
         f'<th {_TABLE_HEADER_STYLE}>Equipment</th><th {_TABLE_HEADER_STYLE}>Type</th>'
         f'<th {_TABLE_HEADER_STYLE}>Serial</th><th {_TABLE_HEADER_STYLE}>Coverage</th>'
         f'<th {_TABLE_HEADER_STYLE}>Expiry</th><th {_TABLE_HEADER_STYLE}>Remaining</th>'
@@ -419,7 +419,7 @@ def _render_supplier_email(
         f'<p>We would appreciate it if you could contact us regarding renewal options or new coverage for {this_these}.</p>'
         f'<p>Please direct any queries to <strong>{admin_name}</strong> at <a href="mailto:{admin_email}">{admin_email}</a>.</p>'
         f'<p>Kind regards,<br/>{admin_name}<br/>{company_name}</p></div>'
-        f'<div style="background:#f5f5f5;padding:16px;text-align:center;font-size:12px;color:#999;">'
+        f'<div style="background:#F0F0F0;padding:16px;text-align:center;font-size:12px;color:#9A9FA1;">'
         f'Powered by {company_name} via Pulse Fitness AI</div></div>'
     )
 

@@ -519,19 +519,19 @@ async def _handle_invoice_payment_failed(data: dict) -> None:
     if target_email and RESEND_OK:
         amount_str = f"£{amount_due_pence/100:.2f}" if amount_due_pence else "your subscription"
         attempt_str = f"{attempt_count}{'st' if attempt_count == 1 else 'nd' if attempt_count == 2 else 'rd' if attempt_count == 3 else 'th'} attempt"
-        cta = f'<a href="{hosted_invoice_url}" style="display:inline-block;padding:12px 22px;background:#2563EB;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">Update payment method</a>' if hosted_invoice_url else ""
+        cta = f'<a href="{hosted_invoice_url}" style="display:inline-block;padding:12px 22px;background:#0091CA;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">Update payment method</a>' if hosted_invoice_url else ""
         suspended_note = (
             "<p style='color:#dc2626;'><strong>Your account has been temporarily suspended.</strong> Update your payment method to restore access.</p>"
             if fail_count >= 3 else ""
         )
         html = f"""
-        <div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a;">
-            <h2 style="color:#0f172a;">Payment for Pulse Fitness failed ({attempt_str})</h2>
+        <div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#1B1C1D;">
+            <h2 style="color:#1B1C1D;">Payment for Pulse Fitness failed ({attempt_str})</h2>
             <p>We were unable to charge {amount_str} for your subscription.</p>
             {suspended_note}
             <p>Please update your card details to avoid interruption.</p>
             <p>{cta}</p>
-            <p style="color:#6b7280;font-size:12px;margin-top:32px;">
+            <p style="color:#6E7476;font-size:12px;margin-top:32px;">
                 Need help? Reply to this email and our team will assist.
             </p>
         </div>

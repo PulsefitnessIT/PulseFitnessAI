@@ -3774,14 +3774,14 @@ async def welcome_back_send_thanks(token: str) -> HTMLResponse:
             engineer_name = row.get("engineer_name") or "Your service engineer"
             gym_name = row.get("gym_name") or org.get("name") or "your team"
             html = (
-                f'<div style="font-family:Arial,sans-serif;color:#0F172A;line-height:1.55;max-width:560px;margin:0 auto;">'
+                f'<div style="font-family:Arial,sans-serif;color:#1B1C1D;line-height:1.55;max-width:560px;margin:0 auto;">'
                 f'<h2 style="margin:0 0 12px;font-size:22px;font-weight:800;">A quick thank you from {engineer_name}.</h2>'
                 f"<p>Hi team,</p>"
                 f"<p><strong>{engineer_name}</strong> was off the tools recently and wanted to say thanks "
                 f"to <strong>{gym_name}</strong> for keeping things running — and for your patience while they were away.</p>"
                 f"<p>{engineer_name} is back on Pulse Fitness and picking up any open faults now. "
                 f"You shouldn't notice any change in service.</p>"
-                f'<p style="margin-top:18px;font-size:13px;color:#475569;">'
+                f'<p style="margin-top:18px;font-size:13px;color:#565B5E;">'
                 f"This is a one-tap thanks sent directly from {engineer_name}'s welcome-back digest. "
                 f"No reply needed — just a courtesy note."
                 f"</p>"
@@ -3828,14 +3828,14 @@ def _thanks_page_html(headline: str, sub: str) -> str:
         '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
         f"<title>{headline} · Pulse Fitness</title>"
         '<style>body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;'
-        "background:linear-gradient(135deg,#F8FAFC 0%,#EEF2FF 100%);min-height:100vh;"
-        "display:flex;align-items:center;justify-content:center;color:#0F172A;}"
+        "background:linear-gradient(135deg,#F7F7F7 0%,#EEF2FF 100%);min-height:100vh;"
+        "display:flex;align-items:center;justify-content:center;color:#1B1C1D;}"
         ".card{background:#fff;border-radius:18px;padding:32px 28px;max-width:440px;"
-        "box-shadow:0 12px 30px rgba(15,23,42,0.08);text-align:center;}"
+        "box-shadow:0 12px 30px rgba(27,28,29,0.08);text-align:center;}"
         "h1{margin:0 0 10px;font-size:22px;font-weight:800;letter-spacing:-0.01em;}"
-        "p{margin:0;color:#475569;font-size:14px;line-height:1.55;}"
+        "p{margin:0;color:#565B5E;font-size:14px;line-height:1.55;}"
         ".dot{width:54px;height:54px;border-radius:50%;margin:0 auto 18px;"
-        "background:linear-gradient(135deg,#2563EB 0%,#9D4CDD 100%);display:flex;"
+        "background:linear-gradient(135deg,#0091CA 0%,#19CDFF 100%);display:flex;"
         "align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:800;}"
         "</style></head><body>"
         '<div class="card">'

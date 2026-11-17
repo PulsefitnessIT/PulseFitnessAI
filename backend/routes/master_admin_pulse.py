@@ -318,7 +318,7 @@ async def onboard_pulse_site(data: dict = Body(...), user: dict = Depends(get_cu
         "postcode": org_addr["postcode"],
         "country": org_addr["country"],
         "contact_person": owner_name, "email": owner_email,
-        "phone": data.get("phone", ""), "branding": {"primary_color": "#66ccff", "company_name": "Pulse Fitness"},
+        "phone": data.get("phone", ""), "branding": {"primary_color": "#19CDFF", "company_name": "Pulse Fitness"},
     })
 
     site_id = str(uuid.uuid4())

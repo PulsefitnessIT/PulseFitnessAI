@@ -174,12 +174,12 @@ BRAND = {
     "domain": "pulsefitness.ai",
     "tagline": "AI-native operations for UK fitness operators.",
     # Brand palette pulled from /app/frontend/src/index.css :root tokens.
-    "color_primary": "#d946ef",   # fuchsia
-    "color_accent": "#3b82f6",    # blue
-    "color_ink": "#0a0a0a",
+    "color_primary": "#19CDFF",   # fuchsia
+    "color_accent": "#19CDFF",    # blue
+    "color_ink": "#1B1C1D",
     "color_paper": "#ffffff",
-    "color_soft": "#f4f4f5",
-    "gradient": ["#d946ef", "#3b82f6"],
+    "color_soft": "#F0F0F0",
+    "gradient": ["#19CDFF", "#19CDFF"],
 }
 
 

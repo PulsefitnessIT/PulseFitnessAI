@@ -1526,7 +1526,7 @@ async def public_share_page(slug: str):
 <meta name="twitter:image" content="{og_img}">
 <meta name="theme-color" content="{brand}">
 <meta http-equiv="refresh" content="0; url={target}">
-<style>body{{background:#05070A;color:#fff;font-family:-apple-system,sans-serif;display:grid;place-items:center;height:100vh;margin:0;text-align:center;}}a{{color:{brand};}}</style>
+<style>body{{background:#1B1C1D;color:#fff;font-family:-apple-system,sans-serif;display:grid;place-items:center;height:100vh;margin:0;text-align:center;}}a{{color:{brand};}}</style>
 </head><body>
 <div><h1 style="font-weight:800;">{name}</h1><p><a href="{target}">Open the member app →</a></p></div>
 </body></html>"""

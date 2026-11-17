@@ -172,7 +172,7 @@ def _class_share_strings(org: dict, occ: dict, tpl: dict) -> dict:
         "spots_text": spots_text,
         "org_name": org.get("name") or "Your studio",
         "description": desc or f"Join us for {name}",
-        "primary_color": org.get("primary_color") or "#00B2C7",
+        "primary_color": org.get("primary_color") or "#19CDFF",
     }
 
 
@@ -378,7 +378,7 @@ async def class_share_html(slug: str, occ_id: str, request: Request):
   <meta http-equiv="refresh" content="0; url={spa_url}">
   <link rel="canonical" href="{spa_url}">
   <style>
-    body {{ margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#0A0C10; color:#fff; min-height:100vh; display:grid; place-items:center; padding:24px; }}
+    body {{ margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#1B1C1D; color:#fff; min-height:100vh; display:grid; place-items:center; padding:24px; }}
     a {{ color:{s['primary_color']}; font-weight:700; }}
   </style>
 </head>

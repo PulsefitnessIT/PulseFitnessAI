@@ -75,7 +75,7 @@ def _notification_html(r: dict) -> str:
         if not value:
             return ""
         return (
-            f'<tr><td style="padding:8px 0;color:#9ca3af;width:160px;">{label}</td>'
+            f'<tr><td style="padding:8px 0;color:#9A9FA1;width:160px;">{label}</td>'
             f'<td style="padding:8px 0;">{value}</td></tr>'
         )
 
@@ -89,25 +89,25 @@ def _notification_html(r: dict) -> str:
         _row("Preferred time", (r.get("preferred_contact_time") or "").title() or None),
         _row("Heard from", (r.get("heard_from") or "").replace("_", " ").title() or None),
     ])
-    return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#05070A;color:#fff;border-radius:16px;overflow:hidden;">
-  <div style="background:linear-gradient(135deg,#05070A 0%,#0d1117 100%);padding:28px 32px;border-bottom:1px solid rgba(25,205,255,0.3);">
+    return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#1B1C1D;color:#fff;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#1B1C1D 0%,#0d1117 100%);padding:28px 32px;border-bottom:1px solid rgba(25,205,255,0.3);">
     <div style="color:#19CDFF;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:8px;">New Sales Enquiry</div>
     <h1 style="color:#fff;font-size:22px;margin:0;line-height:1.3;font-weight:800;letter-spacing:-0.01em;">{r['name']} — {r.get('company') or 'no company provided'}</h1>
   </div>
-  <div style="padding:28px 32px;background:#0A0B10;">
-    <table style="width:100%;border-collapse:collapse;color:#e5e7eb;font-size:14px;margin-bottom:20px;">
+  <div style="padding:28px 32px;background:#1B1C1D;">
+    <table style="width:100%;border-collapse:collapse;color:#E0E0E0;font-size:14px;margin-bottom:20px;">
       {rows}
     </table>
-    <div style="padding:16px;background:#05070A;border-left:3px solid #19CDFF;border-radius:4px;">
-      <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;">Message</div>
-      <div style="color:#e5e7eb;font-size:14px;line-height:1.6;">{message_html}</div>
+    <div style="padding:16px;background:#1B1C1D;border-left:3px solid #19CDFF;border-radius:4px;">
+      <div style="font-size:11px;font-weight:700;color:#9A9FA1;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:8px;">Message</div>
+      <div style="color:#E0E0E0;font-size:14px;line-height:1.6;">{message_html}</div>
     </div>
     <div style="margin-top:20px;">
-      <a href="mailto:{r['email']}" style="display:inline-block;background:#19CDFF;color:#05070A;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px;letter-spacing:0.05em;text-transform:uppercase;">Reply to {r['name'].split(' ')[0]}</a>
+      <a href="mailto:{r['email']}" style="display:inline-block;background:#19CDFF;color:#1B1C1D;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px;letter-spacing:0.05em;text-transform:uppercase;">Reply to {r['name'].split(' ')[0]}</a>
     </div>
   </div>
-  <div style="background:#05070A;padding:16px 32px;border-top:1px solid rgba(255,255,255,0.05);">
-    <p style="color:#6b7280;font-size:11px;margin:0;">Sent by the Pulse Fitness public contact form · Turnstile-verified · Visible in Master Admin → Growth → Communications inbox</p>
+  <div style="background:#1B1C1D;padding:16px 32px;border-top:1px solid rgba(255,255,255,0.05);">
+    <p style="color:#6E7476;font-size:11px;margin:0;">Sent by the Pulse Fitness public contact form · Turnstile-verified · Visible in Master Admin → Growth → Communications inbox</p>
   </div>
 </div>"""
 

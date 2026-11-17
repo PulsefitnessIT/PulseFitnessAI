@@ -104,8 +104,8 @@ async def _send_rotation_reminder(user: dict, site: dict, days: int, stage: int)
             f"in {days} day{'s' if days != 1 else ''}")
     subject = f"[MOD password rotation · {label}] {site_name} ({branch}) — {when}"
 
-    html = f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-  <div style="background:{'#b91c1c' if urgent else '#1B1D1D'};padding:20px 28px;border-bottom:3px solid #19CDFF;">
+    html = f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1C1D;border-radius:12px;overflow:hidden;border:1px solid #E0E0E0;">
+  <div style="background:{'#b91c1c' if urgent else '#1B1C1D'};padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Password Rotation</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{label} — {site_name}</h1>
   </div>
@@ -170,18 +170,18 @@ async def perform_rotation(site_id: str, actor_user_id: str) -> dict:
     })
     # Email the new code to master admin + site oncall.
     subject = f"[MOD password rotated] {site.get('name')} — new code inside"
-    html = f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-  <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
+    html = f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1C1D;border-radius:12px;overflow:hidden;border:1px solid #E0E0E0;">
+  <div style="background:#1B1C1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · New Site Code</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{site.get('name')}</h1>
   </div>
   <div style="padding:22px 28px;">
     <p>The login code for <strong>{site.get('name')}</strong> has been rotated.</p>
     <table style="margin-top:14px;border-collapse:collapse;">
-      <tr><td style="padding:8px 14px;background:#F5F7F8;border:1px solid #E5E7EB;color:#6E7476;font-size:11px;font-weight:800;text-transform:uppercase;">Username</td>
-          <td style="padding:8px 14px;background:#F5F7F8;border:1px solid #E5E7EB;font-weight:700;"><code>{site_user.get('username')}</code></td></tr>
-      <tr><td style="padding:8px 14px;background:#0A0B10;color:#19CDFF;border:1px solid #0A0B10;font-size:11px;font-weight:800;text-transform:uppercase;">New code</td>
-          <td style="padding:8px 14px;background:#0A0B10;color:#fff;border:1px solid #0A0B10;font-family:ui-monospace,Menlo,monospace;font-weight:700;">{new_password}</td></tr>
+      <tr><td style="padding:8px 14px;background:#F7F7F7;border:1px solid #E0E0E0;color:#6E7476;font-size:11px;font-weight:800;text-transform:uppercase;">Username</td>
+          <td style="padding:8px 14px;background:#F7F7F7;border:1px solid #E0E0E0;font-weight:700;"><code>{site_user.get('username')}</code></td></tr>
+      <tr><td style="padding:8px 14px;background:#1B1C1D;color:#19CDFF;border:1px solid #1B1C1D;font-size:11px;font-weight:800;text-transform:uppercase;">New code</td>
+          <td style="padding:8px 14px;background:#1B1C1D;color:#fff;border:1px solid #1B1C1D;font-family:ui-monospace,Menlo,monospace;font-weight:700;">{new_password}</td></tr>
     </table>
     <p style="color:#6E7476;font-size:13px;margin-top:18px;">Share this with the on-site PTI via a secure channel. The previous code has been invalidated immediately.</p>
   </div>

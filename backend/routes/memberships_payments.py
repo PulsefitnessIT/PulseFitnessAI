@@ -557,18 +557,18 @@ async def _send_payment_failed_email(member: dict, plan: dict) -> None:
     )
     _sym = org_localization(_org)["currency_symbol"]
     amount = f"{_sym}{plan['price_pence']/100:.2f}"
-    html = f"""<div style="font-family:-apple-system,sans-serif;max-width:540px;margin:0 auto;background:#05070A;color:#fff;border-radius:16px;overflow:hidden;">
+    html = f"""<div style="font-family:-apple-system,sans-serif;max-width:540px;margin:0 auto;background:#1B1C1D;color:#fff;border-radius:16px;overflow:hidden;">
   <div style="padding:28px 32px;border-bottom:1px solid rgba(239,68,68,0.3);">
     <div style="color:#EF4444;font-size:10px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;margin-bottom:8px;">Payment failed</div>
     <h1 style="color:#fff;font-size:20px;margin:0;line-height:1.3;font-weight:800;">We couldn't take your {amount} payment</h1>
   </div>
-  <div style="padding:24px 32px;background:#0A0C10;color:#e5e7eb;font-size:14px;line-height:1.6;">
+  <div style="padding:24px 32px;background:#1B1C1D;color:#E0E0E0;font-size:14px;line-height:1.6;">
     <p>Hi {first},</p>
     <p>Your {plan.get('name') or 'membership'} renewal payment of <strong>{amount}</strong> didn't go through — usually this is an expired card or insufficient funds, nothing more serious.</p>
-    <p style="color:#9ca3af;font-size:13px;">Your membership is marked <strong style="color:#F59E0B;">past due</strong> — please update your card to keep access. Reply to this email or pop into reception and we'll sort it in a minute.</p>
+    <p style="color:#9A9FA1;font-size:13px;">Your membership is marked <strong style="color:#F59E0B;">past due</strong> — please update your card to keep access. Reply to this email or pop into reception and we'll sort it in a minute.</p>
   </div>
-  <div style="background:#05070A;padding:14px 32px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
-    <p style="color:#6b7280;font-size:11px;margin:0;">Pulse Fitness Memberships · Billing</p>
+  <div style="background:#1B1C1D;padding:14px 32px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
+    <p style="color:#6E7476;font-size:11px;margin:0;">Pulse Fitness Memberships · Billing</p>
   </div>
 </div>"""
     await send_email(member["email"], f"Payment failed · {plan.get('name') or 'membership'}", html, category="billing")

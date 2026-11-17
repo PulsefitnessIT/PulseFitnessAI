@@ -73,14 +73,14 @@ async def _send_invite_email(email: str, name: str, invite_url: str, org: dict |
     org_name = _h.escape((org or {}).get("name") or "your organisation")
     first = _h.escape((name or "there").split()[0])
     html = (f"<div style='font-family:Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:16px'>"
-            f"<h2 style='color:#0f172a;font-size:20px;margin:0 0 12px'>Hi {first},</h2>"
-            f"<p style='color:#1f2937;font-size:14px;line-height:1.6'>You've been set up as a user for <b>{org_name}</b> on {brand}. "
+            f"<h2 style='color:#1B1C1D;font-size:20px;margin:0 0 12px'>Hi {first},</h2>"
+            f"<p style='color:#26292B;font-size:14px;line-height:1.6'>You've been set up as a user for <b>{org_name}</b> on {brand}. "
             f"Click below to choose your password and sign in.</p>"
-            f"<p style='margin:24px 0'><a href='{invite_url}' style='background:#19398D;color:#fff;padding:12px 22px;border-radius:8px;"
+            f"<p style='margin:24px 0'><a href='{invite_url}' style='background:#0073A4;color:#fff;padding:12px 22px;border-radius:8px;"
             f"text-decoration:none;font-weight:bold;font-size:14px'>Set up my account</a></p>"
-            f"<p style='color:#64748B;font-size:12px'>This link expires in 72 hours. If the button doesn't work, paste this into your browser:<br/>"
+            f"<p style='color:#6E7476;font-size:12px'>This link expires in 72 hours. If the button doesn't work, paste this into your browser:<br/>"
             f"<span style='word-break:break-all'>{invite_url}</span></p>"
-            f"<p style='color:#64748B;font-size:13px;margin-top:24px'>Thanks,<br/><b>{brand}</b></p></div>")
+            f"<p style='color:#6E7476;font-size:13px;margin-top:24px'>Thanks,<br/><b>{brand}</b></p></div>")
     try:
         ok = await send_email(to=email, subject=f"Set up your {brand} account", html=html,
                               organization_id=(org or {}).get("id"),

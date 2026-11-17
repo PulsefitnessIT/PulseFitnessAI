@@ -291,7 +291,7 @@ async def broadcast_class(
                 body_html = (
                     f"<p>Hi {first},</p>"
                     f"<p>{body.message.replace(chr(10), '<br/>')}</p>"
-                    f"<p style='color:#666;font-size:12px'>— {user.get('full_name') or 'Your studio'}</p>"
+                    f"<p style='color:#6E7476;font-size:12px'>— {user.get('full_name') or 'Your studio'}</p>"
                 )
                 try:
                     r = await client.post(

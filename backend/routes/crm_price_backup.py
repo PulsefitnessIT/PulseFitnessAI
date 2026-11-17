@@ -297,12 +297,12 @@ async def _email_backup_link(user: dict, doc: dict, cfg: dict) -> None:
     link = doc["download_url"]
     sensitive = doc.get("sensitive")
     html = f"""
-    <div style="font-family:Arial,sans-serif;color:#1e293b">
-      <h2 style="color:#0055FF">Master Price List — weekly backup</h2>
+    <div style="font-family:Arial,sans-serif;color:#26292B">
+      <h2 style="color:#0091CA">Master Price List — weekly backup</h2>
       <p>Your scheduled Master Price List backup is ready ({doc['product_count']} products, {doc['format'].upper()}).</p>
       {"<p style='color:#b45309'><strong>This file includes cost / margin data — handle securely.</strong></p>" if sensitive else ""}
-      <p><a href="{link}" style="display:inline-block;background:#0055FF;color:#fff;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold">Download secure backup</a></p>
-      <p style="color:#94a3b8;font-size:12px">This secure link expires on {doc['expires_at'][:10]}. Do not forward to unauthorised recipients.</p>
+      <p><a href="{link}" style="display:inline-block;background:#19CDFF;color:#fff;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold">Download secure backup</a></p>
+      <p style="color:#9A9FA1;font-size:12px">This secure link expires on {doc['expires_at'][:10]}. Do not forward to unauthorised recipients.</p>
     </div>"""
     for to in recipients:
         try:

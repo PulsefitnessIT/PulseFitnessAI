@@ -343,7 +343,7 @@ async def public_track(token: str):
     brand_primary = (
         org.get("brand_primary_color")
         or (org.get("brand_kit") or {}).get("primary_color")
-        or "#0055FF"
+        or "#19CDFF"
     )
 
     status = case.get("status") or "new"
@@ -642,8 +642,8 @@ async def public_request_preferred_engineer(token: str, body: dict | None = None
             customer = case.get("customer_name") or "A customer"
             ref = case.get("reference") or case["id"][:8]
             note_html = (
-                f'<blockquote style="border-left:3px solid #6366f1;padding:6px 12px;'
-                f'background:#f5f3ff;color:#475569;margin:14px 0;">{note}</blockquote>'
+                f'<blockquote style="border-left:3px solid #19CDFF;padding:6px 12px;'
+                f'background:#f5f3ff;color:#565B5E;margin:14px 0;">{note}</blockquote>'
                 if note else ""
             )
             html = (

@@ -138,40 +138,40 @@ def _render_dunning_email_html(
         accent = "#DC2626"
 
     return f"""<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;background:#fff;">
-  <div style="background:#0A0C10;padding:28px 30px;text-align:center;">
+  <div style="background:#1B1C1D;padding:28px 30px;text-align:center;">
     <div style="color:{accent};font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:6px;">{headline}</div>
     <h1 style="color:#fff;margin:0;font-size:22px;letter-spacing:-0.3px;">{org_name or 'Pulse Fitness AI'} — invoice {invoice.get('number','')}</h1>
   </div>
-  <div style="padding:32px 30px;color:#1a1a1a;">
+  <div style="padding:32px 30px;color:#26292B;">
     <p style="line-height:1.6;margin:0 0 14px;">Hi,</p>
     <p style="line-height:1.6;margin:0 0 16px;">{intro}</p>
     <table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;">
       <tr>
-        <td style="padding:8px 0;color:#6b7280;">Total due</td>
+        <td style="padding:8px 0;color:#6E7476;">Total due</td>
         <td style="padding:8px 0;text-align:right;font-weight:700;">{total}</td>
       </tr>
       <tr>
-        <td style="padding:8px 0;color:#6b7280;">Invoice date due</td>
+        <td style="padding:8px 0;color:#6E7476;">Invoice date due</td>
         <td style="padding:8px 0;text-align:right;">{due_at}</td>
       </tr>
       <tr>
-        <td style="padding:8px 0;color:#6b7280;">Days overdue</td>
+        <td style="padding:8px 0;color:#6E7476;">Days overdue</td>
         <td style="padding:8px 0;text-align:right;color:{accent};font-weight:700;">{days_overdue} days</td>
       </tr>
     </table>
     <div style="text-align:center;margin:28px 0;">
-      <a href="{download_url}" style="display:inline-block;background:{accent};color:#0A0C10;padding:14px 32px;
+      <a href="{download_url}" style="display:inline-block;background:{accent};color:#1B1C1D;padding:14px 32px;
          text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;letter-spacing:0.3px;">
          {cta} →
       </a>
     </div>
-    <p style="color:#6b7280;font-size:12px;line-height:1.6;text-align:center;">
+    <p style="color:#6E7476;font-size:12px;line-height:1.6;text-align:center;">
       The PDF is also attached. Secure download link expires {expires_str}.
     </p>
-    <p style="color:#9ca3af;font-size:12px;line-height:1.6;margin-top:24px;text-align:center;">{footer}</p>
+    <p style="color:#9A9FA1;font-size:12px;line-height:1.6;margin-top:24px;text-align:center;">{footer}</p>
   </div>
-  <div style="background:#f5f5f5;padding:16px 30px;text-align:center;">
-    <p style="color:#9ca3af;font-size:11px;margin:0;">Sent from {org_name or 'Pulse Fitness AI'} billing</p>
+  <div style="background:#F0F0F0;padding:16px 30px;text-align:center;">
+    <p style="color:#9A9FA1;font-size:11px;margin:0;">Sent from {org_name or 'Pulse Fitness AI'} billing</p>
   </div>
 </div>"""
 

@@ -220,22 +220,22 @@ def render_digest_html(user: dict, payload: dict, freq_label: str) -> str:
     first_name = (user.get("full_name") or user.get("email", "").split("@")[0]).split(" ")[0]
     rows = []
     for item in payload["items"]:
-        tone = {"high": "#ef4444", "med": "#f59e0b", "low": "#3b82f6"}.get(item.get("severity"), "#64748b")
+        tone = {"high": "#ef4444", "med": "#f59e0b", "low": "#19CDFF"}.get(item.get("severity"), "#6E7476")
         title = _humanise_type(item.get("type"))
         body = item.get("customer_safe_message") or item.get("summary") or ""
         rows.append(
-            f'<tr><td style="padding:12px 0;border-bottom:1px solid #e5e7eb;">'
+            f'<tr><td style="padding:12px 0;border-bottom:1px solid #E0E0E0;">'
             f'<div style="display:flex;align-items:flex-start;gap:12px;">'
             f'<div style="width:6px;height:40px;background:{tone};border-radius:3px;"></div>'
-            f'<div><div style="font-weight:600;color:#111827;">{title}</div>'
-            f'<div style="color:#4b5563;font-size:14px;margin-top:4px;">{body}</div>'
+            f'<div><div style="font-weight:600;color:#1B1C1D;">{title}</div>'
+            f'<div style="color:#565B5E;font-size:14px;margin-top:4px;">{body}</div>'
             f'</div></div></td></tr>'
         )
     rows_html = "\n".join(rows)
     app_url = os.environ.get("FRONTEND_URL", "https://app.gymaxis.ai")
-    return f"""<!DOCTYPE html><html><body style="margin:0;background:#f3f4f6;font-family:-apple-system,Segoe UI,Arial,sans-serif;">
+    return f"""<!DOCTYPE html><html><body style="margin:0;background:#F0F0F0;font-family:-apple-system,Segoe UI,Arial,sans-serif;">
 <div style="max-width:600px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-  <div style="background:linear-gradient(90deg,#0055FF,#6366F1);padding:28px;color:#fff;">
+  <div style="background:linear-gradient(90deg,#19CDFF,#19CDFF);padding:28px;color:#fff;">
     <div style="font-size:14px;opacity:0.85;">Your {freq_label} digest</div>
     <div style="font-size:22px;font-weight:700;margin-top:4px;">Hi {first_name},</div>
     <div style="margin-top:10px;font-size:15px;line-height:1.5;">{payload["summary"]}.</div>
@@ -243,11 +243,11 @@ def render_digest_html(user: dict, payload: dict, freq_label: str) -> str:
   <div style="padding:20px 24px;">
     <table width="100%" cellspacing="0" cellpadding="0">{rows_html}</table>
   </div>
-  <div style="padding:20px 24px;background:#f9fafb;text-align:center;">
-    <a href="{app_url}/dashboard" style="display:inline-block;background:#0055FF;color:#fff;padding:10px 22px;border-radius:6px;font-weight:600;text-decoration:none;">Open dashboard</a>
-    <div style="margin-top:16px;font-size:12px;color:#6b7280;">
+  <div style="padding:20px 24px;background:#F7F7F7;text-align:center;">
+    <a href="{app_url}/dashboard" style="display:inline-block;background:#19CDFF;color:#fff;padding:10px 22px;border-radius:6px;font-weight:600;text-decoration:none;">Open dashboard</a>
+    <div style="margin-top:16px;font-size:12px;color:#6E7476;">
       You're receiving this because the {freq_label} digest is on.
-      <a href="{app_url}/dashboard" style="color:#0055FF;">Change frequency</a>.
+      <a href="{app_url}/dashboard" style="color:#0091CA;">Change frequency</a>.
     </div>
   </div>
 </div></body></html>"""

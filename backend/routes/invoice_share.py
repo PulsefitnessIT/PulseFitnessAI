@@ -118,16 +118,16 @@ def _render_invoice_email_html(
             .replace("\n", "<br/>")
         )
         msg_block = (
-            f'<div style="background:#f0f7ff;border-left:4px solid #0055FF;'
-            f'padding:14px 18px;margin:18px 0;border-radius:4px;color:#1a1a1a;'
+            f'<div style="background:#f0f7ff;border-left:4px solid #19CDFF;'
+            f'padding:14px 18px;margin:18px 0;border-radius:4px;color:#26292B;'
             f'line-height:1.6;font-size:14px;">{safe}</div>'
         )
     return f"""<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;background:#fff;">
-  <div style="background:#0A0C10;padding:28px 30px;text-align:center;">
-    <h1 style="color:#19CDFF;margin:0;font-size:22px;letter-spacing:-0.3px;">Invoice from {org_name or 'Pulse Fitness AI'}</h1>
-    <p style="color:#9ca3af;margin:6px 0 0;font-size:13px;">Invoice {invoice.get('number','')}</p>
+  <div style="background:#1B1C1D;padding:28px 30px;text-align:center;">
+    <h1 style="color:#0091CA;margin:0;font-size:22px;letter-spacing:-0.3px;">Invoice from {org_name or 'Pulse Fitness AI'}</h1>
+    <p style="color:#9A9FA1;margin:6px 0 0;font-size:13px;">Invoice {invoice.get('number','')}</p>
   </div>
-  <div style="padding:32px 30px;color:#1a1a1a;">
+  <div style="padding:32px 30px;color:#26292B;">
     <p style="line-height:1.6;margin:0 0 12px;">Hi,</p>
     <p style="line-height:1.6;margin:0 0 16px;">
       Please find attached invoice <strong>{invoice.get('number','')}</strong>
@@ -136,30 +136,30 @@ def _render_invoice_email_html(
     {msg_block}
     <table style="width:100%;border-collapse:collapse;margin:18px 0;font-size:14px;">
       <tr>
-        <td style="padding:8px 0;color:#6b7280;">Total due</td>
+        <td style="padding:8px 0;color:#6E7476;">Total due</td>
         <td style="padding:8px 0;text-align:right;font-weight:700;">{total}</td>
       </tr>
       <tr>
-        <td style="padding:8px 0;color:#6b7280;">Currency</td>
+        <td style="padding:8px 0;color:#6E7476;">Currency</td>
         <td style="padding:8px 0;text-align:right;">{ccy}</td>
       </tr>
       <tr>
-        <td style="padding:8px 0;color:#6b7280;">Status</td>
+        <td style="padding:8px 0;color:#6E7476;">Status</td>
         <td style="padding:8px 0;text-align:right;text-transform:capitalize;">{invoice.get('status','issued')}</td>
       </tr>
     </table>
     <div style="text-align:center;margin:28px 0;">
-      <a href="{download_url}" style="display:inline-block;background:#19CDFF;color:#0A0C10;padding:14px 32px;
+      <a href="{download_url}" style="display:inline-block;background:#19CDFF;color:#1B1C1D;padding:14px 32px;
          text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;letter-spacing:0.3px;">
          Download invoice PDF →
       </a>
     </div>
-    <p style="color:#6b7280;font-size:12px;line-height:1.6;text-align:center;">
+    <p style="color:#6E7476;font-size:12px;line-height:1.6;text-align:center;">
       This secure link expires on {expires_str}. The PDF is also attached to this email.
     </p>
   </div>
-  <div style="background:#f5f5f5;padding:16px 30px;text-align:center;">
-    <p style="color:#9ca3af;font-size:11px;margin:0;">Sent from {org_name or 'Pulse Fitness AI'} billing</p>
+  <div style="background:#F0F0F0;padding:16px 30px;text-align:center;">
+    <p style="color:#9A9FA1;font-size:11px;margin:0;">Sent from {org_name or 'Pulse Fitness AI'} billing</p>
   </div>
 </div>"""
 

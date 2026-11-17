@@ -248,14 +248,14 @@ async def _send_invite_email(transfer: dict) -> None:
         who = f"{eng}{f' ({company})' if company else ''}"
         count = transfer.get("equipment_count", 0)
         html = f"""
-        <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">
+        <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#1B1C1D">
           <h2 style="margin:0 0 12px">Your equipment is ready to import</h2>
           <p>{who} has <strong>{count} machine(s)</strong> on file for you in Pulse Fitness, complete with QR codes and service history.</p>
           <p>Create your free Pulse Fitness Operations portal and these machines &mdash; plus their full history &mdash; will be imported automatically. Nothing changes on the equipment; your existing QR stickers keep working.</p>
           <p style="margin:24px 0">
-            <a href="{link}" style="background:#f97316;color:#fff;padding:12px 22px;border-radius:9999px;text-decoration:none;font-weight:700">Set up your portal &amp; import equipment</a>
+            <a href="{link}" style="background:#F59E0B;color:#fff;padding:12px 22px;border-radius:9999px;text-decoration:none;font-weight:700">Set up your portal &amp; import equipment</a>
           </p>
-          <p style="font-size:12px;color:#64748b">If you didn't expect this, you can ignore this email &mdash; nothing will be shared until you sign up.</p>
+          <p style="font-size:12px;color:#6E7476">If you didn't expect this, you can ignore this email &mdash; nothing will be shared until you sign up.</p>
         </div>
         """
         await send_email(to=email, subject="Your gym equipment is ready to import into Pulse Fitness",

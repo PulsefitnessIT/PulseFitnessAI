@@ -212,9 +212,9 @@ async def _resolve_ppm_site_email(schedule: dict) -> str:
 
 def _ppm_reminder_html(customer, site, equipment, service, due_date) -> str:
     what = equipment or "your equipment"
-    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;background:#fff;color:#1B1D1D;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-  <div style="background:#1B1D1D;padding:18px 26px;border-bottom:3px solid #19CDFF;">
-    <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · Preventative Maintenance</div>
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;background:#fff;color:#1B1C1D;border:1px solid #E0E0E0;border-radius:12px;overflow:hidden;">
+  <div style="background:#1B1C1D;padding:18px 26px;border-bottom:3px solid #19CDFF;">
+    <div style="color:#0091CA;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · Preventative Maintenance</div>
     <h1 style="color:#fff;margin:6px 0 0 0;font-size:19px;">Upcoming service reminder</h1>
   </div>
   <div style="padding:22px 26px;">

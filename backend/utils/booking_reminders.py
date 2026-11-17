@@ -28,7 +28,7 @@ _REMINDER_WAVES = [
     ("2h",  2 * 60,  "See you at"),
 ]
 
-_BRAND_BG = "#05070A"
+_BRAND_BG = "#1B1C1D"
 _BRAND_ACCENT = "#19CDFF"
 
 
@@ -47,18 +47,18 @@ def _reminder_html(first: str, occ: dict, wave_label: str) -> str:
     <div style="color:{_BRAND_ACCENT};font-size:10px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;margin-bottom:8px;">Class reminder · {wave_label}</div>
     <h1 style="color:#fff;font-size:20px;margin:0;line-height:1.3;font-weight:800;">{wave_label} {when.split('·')[-1].strip() if '·' in when else when} — {name}</h1>
   </div>
-  <div style="padding:24px 32px;background:#0A0C10;color:#e5e7eb;font-size:14px;line-height:1.6;">
+  <div style="padding:24px 32px;background:#1B1C1D;color:#E0E0E0;font-size:14px;line-height:1.6;">
     <p>Hi {first},</p>
     <p>Just a friendly nudge — you're booked in:</p>
     <div style="border-left:3px solid {occ.get('colour') or _BRAND_ACCENT};background:rgba(255,255,255,0.03);padding:14px 16px;border-radius:8px;margin:18px 0;">
       <div style="font-weight:800;font-size:15px;color:#fff;">{name}</div>
-      <div style="color:#9ca3af;font-size:13px;margin-top:4px;">{when}</div>
-      {f'<div style="color:#9ca3af;font-size:12px;margin-top:2px;">{sub}</div>' if sub else ''}
+      <div style="color:#9A9FA1;font-size:13px;margin-top:4px;">{when}</div>
+      {f'<div style="color:#9A9FA1;font-size:12px;margin-top:2px;">{sub}</div>' if sub else ''}
     </div>
-    <p style="color:#9ca3af;font-size:13px;">Can't make it? Tap the class in your member app to cancel — earlier is kinder to the waitlist.</p>
+    <p style="color:#9A9FA1;font-size:13px;">Can't make it? Tap the class in your member app to cancel — earlier is kinder to the waitlist.</p>
   </div>
   <div style="background:{_BRAND_BG};padding:14px 32px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
-    <p style="color:#6b7280;font-size:11px;margin:0;">Pulse Fitness Memberships · Reminder</p>
+    <p style="color:#6E7476;font-size:11px;margin:0;">Pulse Fitness Memberships · Reminder</p>
   </div>
 </div>"""
 

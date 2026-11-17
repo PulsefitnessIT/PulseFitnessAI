@@ -221,7 +221,7 @@ async def _send_eta_email(
         ) if msg else "",
         "tracking_link_html": (
             f'<p style="margin-top:12px"><a href="{tracking_url}" '
-            f'style="background:#2563eb;color:#fff;padding:10px 18px;'
+            f'style="background:#0091CA;color:#fff;padding:10px 18px;'
             f'border-radius:8px;text-decoration:none;font-weight:700">'
             f'Track live</a></p>'
         ) if tracking_url else "",

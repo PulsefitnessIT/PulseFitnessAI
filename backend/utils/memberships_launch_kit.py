@@ -60,29 +60,29 @@ def _build_templates(studio_name: str, app_url: str) -> dict[str, str]:
 
 
 def _build_email_html(studio_name: str, brand: str, app_url: str, brag_url: str, share_url: str, templates: dict[str, str]) -> str:
-    return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:620px;margin:0 auto;background:#05070A;color:#fff;border-radius:16px;overflow:hidden;">
+    return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:620px;margin:0 auto;background:#1B1C1D;color:#fff;border-radius:16px;overflow:hidden;">
   <div style="padding:32px;background:linear-gradient(135deg,{brand}33 0%,transparent 100%);border-bottom:1px solid {brand}55;">
     <div style="color:{brand};font-size:10px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;margin-bottom:8px;">Your launch kit is here</div>
     <h1 style="color:#fff;font-size:26px;margin:0;line-height:1.2;font-weight:800;">Go live today, {studio_name}.</h1>
-    <p style="color:#d1d5db;margin:16px 0 0;">Everything you need to tell your members about your new app is attached. Poster for reception. Instagram assets for socials. Message templates for WhatsApp and email — no copywriting required.</p>
+    <p style="color:#C9CBCC;margin:16px 0 0;">Everything you need to tell your members about your new app is attached. Poster for reception. Instagram assets for socials. Message templates for WhatsApp and email — no copywriting required.</p>
   </div>
-  <div style="padding:24px 32px;background:#0A0C10;color:#e5e7eb;font-size:14px;line-height:1.6;">
+  <div style="padding:24px 32px;background:#1B1C1D;color:#E0E0E0;font-size:14px;line-height:1.6;">
     <div style="color:{brand};font-size:10px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:6px;">Your links</div>
     <p style="margin:0 0 6px;">Member app: <a href="{app_url}" style="color:{brand};font-weight:700;text-decoration:none;">{app_url}</a></p>
     <p style="margin:0 0 6px;">Live stats card: <a href="{brag_url}" style="color:{brand};font-weight:700;text-decoration:none;">{brag_url}</a></p>
     <p style="margin:0 0 18px;">Shareable (for WhatsApp/LinkedIn): <a href="{share_url}" style="color:{brand};font-weight:700;text-decoration:none;">{share_url}</a></p>
 
     <div style="color:{brand};font-size:10px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;margin:20px 0 6px;">WhatsApp / SMS broadcast</div>
-    <pre style="background:#05070A;padding:14px;border-radius:8px;color:#e5e7eb;white-space:pre-wrap;font-family:-apple-system,sans-serif;font-size:13px;margin:0;border-left:3px solid {brand};">{templates['whatsapp']}</pre>
+    <pre style="background:#1B1C1D;padding:14px;border-radius:8px;color:#E0E0E0;white-space:pre-wrap;font-family:-apple-system,sans-serif;font-size:13px;margin:0;border-left:3px solid {brand};">{templates['whatsapp']}</pre>
 
     <div style="color:{brand};font-size:10px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;margin:20px 0 6px;">Instagram caption</div>
-    <pre style="background:#05070A;padding:14px;border-radius:8px;color:#e5e7eb;white-space:pre-wrap;font-family:-apple-system,sans-serif;font-size:13px;margin:0;border-left:3px solid {brand};">{templates['instagram']}</pre>
+    <pre style="background:#1B1C1D;padding:14px;border-radius:8px;color:#E0E0E0;white-space:pre-wrap;font-family:-apple-system,sans-serif;font-size:13px;margin:0;border-left:3px solid {brand};">{templates['instagram']}</pre>
 
     <div style="color:{brand};font-size:10px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;margin:20px 0 6px;">Email to members</div>
-    <pre style="background:#05070A;padding:14px;border-radius:8px;color:#e5e7eb;white-space:pre-wrap;font-family:-apple-system,sans-serif;font-size:13px;margin:0;border-left:3px solid {brand};">{templates['email']}</pre>
+    <pre style="background:#1B1C1D;padding:14px;border-radius:8px;color:#E0E0E0;white-space:pre-wrap;font-family:-apple-system,sans-serif;font-size:13px;margin:0;border-left:3px solid {brand};">{templates['email']}</pre>
   </div>
-  <div style="background:#05070A;padding:14px 32px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
-    <p style="color:#6b7280;font-size:11px;margin:0;">Pulse Fitness · Launch kit · Attached: A4 poster PDF · IG square PNG · IG story PNG</p>
+  <div style="background:#1B1C1D;padding:14px 32px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
+    <p style="color:#6E7476;font-size:11px;margin:0;">Pulse Fitness · Launch kit · Attached: A4 poster PDF · IG square PNG · IG story PNG</p>
   </div>
 </div>"""
 

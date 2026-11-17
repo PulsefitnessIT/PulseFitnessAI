@@ -94,7 +94,7 @@ def _build_preview_engineer_email(branding: dict, site_name: str,
     user_stub = {"full_name": "Preview Reporter", "email": "preview.reporter@example.com"}
     case_result = {"case_id": "prvw0001-0000-0000-0000-000000000000", "url": "#preview"}
     org_ctx = {
-        "brand_color": "#0055FF",
+        "brand_color": "#19CDFF",
         "company_name": site_name,
         "supplier_contact": "Service Team",
         "supplier_email": "supplier@example.com",

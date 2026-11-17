@@ -49,7 +49,7 @@ def build_certificate_pdf(payload: dict) -> bytes:
     rec = payload.get("installation") or {}
     warranty = payload.get("warranty") or {}
     hs = payload.get("hs") or {}
-    brand = "#0B3D91"
+    brand = "#0073A4"
     accent = "#19CDFF"
 
     buf = io.BytesIO()
@@ -199,7 +199,7 @@ async def _email_certificate_to_customer(alloc: dict, rec: dict, pdf: bytes, fil
       — it confirms the install, the customer sign-off and your warranty cover. Please keep it for your records.</p>
       <p><b>Equipment:</b> {alloc.get('model') or alloc.get('product_code') or 'Your equipment'}<br/>
       <b>Serial:</b> {alloc.get('serial_number') or '—'}</p>
-      <p style="color:#64748b;font-size:13px">You can also view your installations and warranty any time in your Pulse dashboard.</p>
+      <p style="color:#6E7476;font-size:13px">You can also view your installations and warranty any time in your Pulse dashboard.</p>
     """, user.get("organization_id"))
     await send_email(
         to=email,

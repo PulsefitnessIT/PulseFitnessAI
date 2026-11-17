@@ -637,24 +637,24 @@ def _render_ppm_reminder_html(schedule: dict, task: dict, months_until: int, urg
     sched_date = task.get("scheduled_date", "TBC")
     plural = "s" if months_until != 1 else ""
     return f'''
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">
-  <div style="background:#0A0A0A;padding:20px 28px;">
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;background:#fff;border:1px solid #E0E0E0;border-radius:12px;overflow:hidden;">
+  <div style="background:#1B1C1D;padding:20px 28px;">
     <h1 style="color:#fff;font-size:16px;margin:0;">{urgency}PPM Service Visit Reminder</h1>
-    <p style="color:#888;font-size:12px;margin:4px 0 0;">via Pulse Fitness AI</p>
+    <p style="color:#9A9FA1;font-size:12px;margin:4px 0 0;">via Pulse Fitness AI</p>
   </div>
   <div style="padding:28px;">
-    <p style="color:#111;font-size:14px;line-height:1.5;">Dear {supplier_name},</p>
-    <p style="color:#111;font-size:14px;line-height:1.5;">This is a reminder that a <strong>Planned Preventive Maintenance</strong> visit is due in approximately <strong>{months_until} month{plural}</strong>.</p>
-    <div style="margin:16px 0;padding:16px;background:#F9FAFB;border-radius:8px;border-left:4px solid #3B82F6;">
-      <p style="margin:0 0 8px;font-size:13px;color:#666;"><strong>Site:</strong> {site_name}</p>
-      <p style="margin:0 0 8px;font-size:13px;color:#666;"><strong>Equipment:</strong> {equip_type}</p>
-      <p style="margin:0 0 8px;font-size:13px;color:#666;"><strong>Schedule:</strong> {schedule.get("title", "PPM Service")}</p>
-      <p style="margin:0;font-size:13px;color:#666;"><strong>Due Date:</strong> {sched_date}</p>
+    <p style="color:#1B1C1D;font-size:14px;line-height:1.5;">Dear {supplier_name},</p>
+    <p style="color:#1B1C1D;font-size:14px;line-height:1.5;">This is a reminder that a <strong>Planned Preventive Maintenance</strong> visit is due in approximately <strong>{months_until} month{plural}</strong>.</p>
+    <div style="margin:16px 0;padding:16px;background:#F7F7F7;border-radius:8px;border-left:4px solid #19CDFF;">
+      <p style="margin:0 0 8px;font-size:13px;color:#6E7476;"><strong>Site:</strong> {site_name}</p>
+      <p style="margin:0 0 8px;font-size:13px;color:#6E7476;"><strong>Equipment:</strong> {equip_type}</p>
+      <p style="margin:0 0 8px;font-size:13px;color:#6E7476;"><strong>Schedule:</strong> {schedule.get("title", "PPM Service")}</p>
+      <p style="margin:0;font-size:13px;color:#6E7476;"><strong>Due Date:</strong> {sched_date}</p>
     </div>
-    <p style="color:#111;font-size:14px;line-height:1.5;">Please contact us to arrange the visit at your earliest convenience.</p>
+    <p style="color:#1B1C1D;font-size:14px;line-height:1.5;">Please contact us to arrange the visit at your earliest convenience.</p>
   </div>
-  <div style="padding:14px 28px;background:#F9FAFB;border-top:1px solid #E5E7EB;">
-    <p style="margin:0;font-size:11px;color:#999;">Sent via Pulse Fitness AI — Equipment Management Platform</p>
+  <div style="padding:14px 28px;background:#F7F7F7;border-top:1px solid #E0E0E0;">
+    <p style="margin:0;font-size:11px;color:#9A9FA1;">Sent via Pulse Fitness AI — Equipment Management Platform</p>
   </div>
 </div>'''
 

@@ -1189,13 +1189,13 @@ def _posting_out_email_html(
     notes: Optional[str],
 ) -> str:
     rows = "".join(
-        f"<tr><td style='padding:6px 10px;border-bottom:1px solid #eee;font-weight:700;'>{f.get('mod_ticket_ref','')}</td>"
-        f"<td style='padding:6px 10px;border-bottom:1px solid #eee;'>{f.get('machine_type','')}</td>"
-        f"<td style='padding:6px 10px;border-bottom:1px solid #eee;text-transform:uppercase;font-size:11px;'>{f.get('priority','')}</td></tr>"
+        f"<tr><td style='padding:6px 10px;border-bottom:1px solid #F0F0F0;font-weight:700;'>{f.get('mod_ticket_ref','')}</td>"
+        f"<td style='padding:6px 10px;border-bottom:1px solid #F0F0F0;'>{f.get('machine_type','')}</td>"
+        f"<td style='padding:6px 10px;border-bottom:1px solid #F0F0F0;text-transform:uppercase;font-size:11px;'>{f.get('priority','')}</td></tr>"
         for f in open_faults
     ) or "<tr><td colspan='3' style='padding:10px;color:#6E7476;'>No outstanding open tickets — clean handover.</td></tr>"
     note_block = (
-        f"<p style='margin:14px 0;padding:10px 14px;background:#F5F7F8;border-left:3px solid #19CDFF;'>{notes}</p>"
+        f"<p style='margin:14px 0;padding:10px 14px;background:#F7F7F7;border-left:3px solid #19CDFF;'>{notes}</p>"
         if notes else ""
     )
     successor_line = (
@@ -1205,8 +1205,8 @@ def _posting_out_email_html(
         f"<p><strong>{staff.get('name')}</strong> is posting out on "
         f"<strong>{posting_date.isoformat()}</strong> — please brief in their successor.</p>"
     )
-    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-  <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1C1D;border-radius:12px;overflow:hidden;border:1px solid #E0E0E0;">
+  <div style="background:#1B1C1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Posting-out handover</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{staff.get('name','')}</h1>
   </div>
@@ -1214,8 +1214,8 @@ def _posting_out_email_html(
     {successor_line}
     {note_block}
     <h3 style="margin:16px 0 8px 0;font-size:14px;">Open tickets to take over</h3>
-    <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #eee;">
-      <thead><tr style="background:#F5F7F8;">
+    <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #F0F0F0;">
+      <thead><tr style="background:#F7F7F7;">
         <th style='text-align:left;padding:6px 10px;'>Ticket</th>
         <th style='text-align:left;padding:6px 10px;'>Asset</th>
         <th style='text-align:left;padding:6px 10px;'>Priority</th>
@@ -1559,12 +1559,12 @@ def _format_transfer_email(
         )
 
     html = f"""
-    <div style="font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:#F8F9FA;padding:24px;">
-      <div style="max-width:600px;margin:0 auto;background:#FFFFFF;border:1px solid #E4E4E7;border-radius:18px;overflow:hidden;">
-        <div style="background:#212721;padding:16px 24px;color:#66CCFF;font-size:11px;letter-spacing:0.28em;font-weight:700;text-transform:uppercase;">
+    <div style="font-family:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:#F7F7F7;padding:24px;">
+      <div style="max-width:600px;margin:0 auto;background:#FFFFFF;border:1px solid #E0E0E0;border-radius:18px;overflow:hidden;">
+        <div style="background:#1B1C1D;padding:16px 24px;color:#19CDFF;font-size:11px;letter-spacing:0.28em;font-weight:700;text-transform:uppercase;">
           MOD Service Portal · Staff Transfer
         </div>
-        <div style="padding:24px;color:#212721;line-height:1.55;">
+        <div style="padding:24px;color:#1B1C1D;line-height:1.55;">
           <h2 style="margin:0 0 12px;font-size:20px;font-weight:800;letter-spacing:-0.01em;">
             {staff_name} {verb}
           </h2>
@@ -1573,11 +1573,11 @@ def _format_transfer_email(
           <table style="margin:18px 0 0;border-collapse:collapse;width:100%;font-size:13px;">
             <tr>
               <td style="padding:6px 0;color:#A2ACAB;width:40%;">Transferred at</td>
-              <td style="padding:6px 0;color:#212721;">{transferred_at}</td>
+              <td style="padding:6px 0;color:#1B1C1D;">{transferred_at}</td>
             </tr>
             <tr>
               <td style="padding:6px 0;color:#A2ACAB;">Initiated by</td>
-              <td style="padding:6px 0;color:#212721;">{actor_email}</td>
+              <td style="padding:6px 0;color:#1B1C1D;">{actor_email}</td>
             </tr>
           </table>
           <p style="margin:20px 0 0;color:#A2ACAB;font-size:11px;line-height:1.6;">
@@ -2029,9 +2029,9 @@ def _confirm_fix_token() -> str:
 
 
 def _confirm_fix_email_html(site: dict, issue: dict, link: str) -> str:
-    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1C1D;border-radius:12px;overflow:hidden;border:1px solid #E0E0E0;">
   {_classification_bar(site)}
-  <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
+  <div style="background:#1B1C1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Confirm fix</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{issue.get('mod_ticket_ref','')} marked resolved</h1>
   </div>
@@ -2039,7 +2039,7 @@ def _confirm_fix_email_html(site: dict, issue: dict, link: str) -> str:
     <p>The fault you raised at <strong>{site.get('name','')}</strong> has been marked resolved.</p>
     <p>Please confirm whether the machine is back in service. If we don't hear from you in 48 hours the ticket will auto-reopen.</p>
     <div style="margin:18px 0;">
-      <a href="{link}" style="display:inline-block;background:#19CDFF;color:#0A0B10;padding:12px 18px;border-radius:8px;font-weight:800;text-decoration:none;">Confirm fix &amp; rate</a>
+      <a href="{link}" style="display:inline-block;background:#19CDFF;color:#1B1C1D;padding:12px 18px;border-radius:8px;font-weight:800;text-decoration:none;">Confirm fix &amp; rate</a>
     </div>
     <p style="color:#6E7476;font-size:12px;">Link is single-use and expires in 14 days.</p>
   </div>
@@ -2947,10 +2947,10 @@ async def mod_escalate_to_dio(
 
 def _dio_escalation_email_html(site: dict, issue: dict, eq: dict, note: Optional[str]) -> str:
     note_block = (
-        f"<p style='margin:14px 0;padding:10px 14px;background:#F5F7F8;border-left:3px solid #19CDFF;'><strong>Escalation note:</strong><br>{note}</p>"
+        f"<p style='margin:14px 0;padding:10px 14px;background:#F7F7F7;border-left:3px solid #19CDFF;'><strong>Escalation note:</strong><br>{note}</p>"
         if note else ""
     )
-    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1C1D;border-radius:12px;overflow:hidden;border:1px solid #E0E0E0;">
   {_classification_bar(site)}
   <div style="background:#0A2540;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · DIO Escalation</div>
@@ -3131,18 +3131,18 @@ def _hq_provision_email_html(site: dict, username: str, new_password: str) -> st
     # MOD Service domain on the MODService deployment.
     _base = (os.environ.get("MOD_PORTAL_URL") or os.environ.get("FRONTEND_URL", "")).rstrip("/")
     _mod_login_url = f"{_base}/MODService"
-    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-  <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1C1D;border-radius:12px;overflow:hidden;border:1px solid #E0E0E0;">
+  <div style="background:#1B1C1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Site Login</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{site.get('name')}</h1>
   </div>
   <div style="padding:22px 28px;">
     <p>The site login for <strong>{site.get('name')}</strong> has been provisioned by your HQ.</p>
     <table style="margin-top:14px;border-collapse:collapse;">
-      <tr><td style="padding:8px 14px;background:#F5F7F8;border:1px solid #E5E7EB;color:#6E7476;font-size:11px;font-weight:800;text-transform:uppercase;">Username</td>
-          <td style="padding:8px 14px;background:#F5F7F8;border:1px solid #E5E7EB;font-weight:700;"><code>{username}</code></td></tr>
-      <tr><td style="padding:8px 14px;background:#0A0B10;color:#19CDFF;border:1px solid #0A0B10;font-size:11px;font-weight:800;text-transform:uppercase;">Site code</td>
-          <td style="padding:8px 14px;background:#0A0B10;color:#fff;border:1px solid #0A0B10;font-family:ui-monospace,Menlo,monospace;font-weight:700;">{new_password}</td></tr>
+      <tr><td style="padding:8px 14px;background:#F7F7F7;border:1px solid #E0E0E0;color:#6E7476;font-size:11px;font-weight:800;text-transform:uppercase;">Username</td>
+          <td style="padding:8px 14px;background:#F7F7F7;border:1px solid #E0E0E0;font-weight:700;"><code>{username}</code></td></tr>
+      <tr><td style="padding:8px 14px;background:#1B1C1D;color:#19CDFF;border:1px solid #1B1C1D;font-size:11px;font-weight:800;text-transform:uppercase;">Site code</td>
+          <td style="padding:8px 14px;background:#1B1C1D;color:#fff;border:1px solid #1B1C1D;font-family:ui-monospace,Menlo,monospace;font-weight:700;">{new_password}</td></tr>
     </table>
     <p style="color:#6E7476;font-size:13px;margin-top:18px;">Share this with the on-site PTI via a secure channel. Sign in at <a href="{_mod_login_url}" style="color:#19CDFF;">{_mod_login_url}</a> using the username + site code.</p>
   </div>
@@ -3236,8 +3236,8 @@ async def mod_drill_start(site_id: str, payload: DrillStartPayload, user: dict =
     )
     observers = [e.strip() for e in observers_raw.split(",") if e.strip()]
     subject = f"[MOD DRILL · {payload.scenario}] {ticket_ref} — {site.get('name')} — SIMULATION"
-    html = f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-  <div style="background:#7c3aed;padding:20px 28px;border-bottom:3px solid #c4b5fd;">
+    html = f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1C1D;border-radius:12px;overflow:hidden;border:1px solid #E0E0E0;">
+  <div style="background:#0091CA;padding:20px 28px;border-bottom:3px solid #c4b5fd;">
     <div style="color:#e9d5ff;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">DRILL · SIMULATION · DO NOT DISPATCH</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{ticket_ref} — {site.get('name')}</h1>
   </div>
@@ -3392,13 +3392,13 @@ def _inline_attachment_block(doc: dict, max_images: int = 4) -> str:
             img_html_parts.append(
                 f'<img src="data:{ct};base64,{b64}" alt="Fault photo" '
                 f'style="width:160px;height:160px;border-radius:10px;'
-                f'object-fit:cover;border:1px solid #334155;" />'
+                f'object-fit:cover;border:1px solid #393E41;" />'
             )
         elif (ct or "").startswith("video/"):
             video_html_parts.append(
                 '<div style="display:inline-block;width:160px;height:160px;'
-                'border-radius:10px;border:1px dashed #64748b;background:#0f172a;'
-                'color:#94a3b8;text-align:center;line-height:160px;font-size:12px;'
+                'border-radius:10px;border:1px dashed #6E7476;background:#1B1C1D;'
+                'color:#9A9FA1;text-align:center;line-height:160px;font-size:12px;'
                 'font-weight:600;">📹 Video attached</div>'
             )
     if not img_html_parts and not video_html_parts:
@@ -3406,7 +3406,7 @@ def _inline_attachment_block(doc: dict, max_images: int = 4) -> str:
     return (
         '<div style="padding:0 28px 22px 28px;">'
         '<div style="font-size:11px;font-weight:800;letter-spacing:0.18em;'
-        'text-transform:uppercase;color:#64748b;margin-bottom:10px;">Attachments</div>'
+        'text-transform:uppercase;color:#6E7476;margin-bottom:10px;">Attachments</div>'
         '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
         + "".join(img_html_parts + video_html_parts)
         + '</div></div>'
@@ -3421,7 +3421,7 @@ def _classification_bar(site: dict) -> str:
     if level == "OFFICIAL-SENSITIVE":
         bg, fg = "#1a1205", "#fbbf24"
     else:
-        bg, fg = "#0A0B10", "#19CDFF"
+        bg, fg = "#1B1C1D", "#19CDFF"
     return (
         f'<div style="background:{bg};color:{fg};text-align:center;'
         f'font-size:11px;font-weight:800;letter-spacing:0.28em;'
@@ -3541,11 +3541,11 @@ def _fault_detail_rows(site: dict, eq: dict, doc: dict) -> list[tuple[str, list[
 
 def _fault_details_html(site: dict, eq: dict, doc: dict) -> str:
     """Clean, sectioned details table — one item per line (Outlook-safe)."""
-    out = ['<table role="presentation" style="width:100%;color:#1B1D1D;font-size:14px;border-collapse:collapse;margin-top:14px;">']
+    out = ['<table role="presentation" style="width:100%;color:#1B1C1D;font-size:14px;border-collapse:collapse;margin-top:14px;">']
     for title, rows in _fault_detail_rows(site, eq, doc):
         out.append(
             f'<tr><td colspan="2" style="padding:14px 0 6px 0;font-size:11px;font-weight:800;letter-spacing:0.15em;'
-            f'text-transform:uppercase;color:#0891b2;border-bottom:1px solid #e5e7eb;">{_e(title)}</td></tr>')
+            f'text-transform:uppercase;color:#0091CA;border-bottom:1px solid #E0E0E0;">{_e(title)}</td></tr>')
         for label, value, mono in rows:
             danger = (label in ("Safe to use?", "Usable?") and str(value).startswith("No"))
             style = "padding:7px 0;vertical-align:top;"
@@ -3571,10 +3571,10 @@ def _sicon_summary_html(site: dict, eq: dict, doc: dict, contact_lines: list[str
         lines.append(c)
     text = "\n".join(lines)
     return (
-        '<div style="margin:18px 28px 22px 28px;padding:12px 14px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;">'
-        '<div style="font-size:11px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#64748b;margin-bottom:6px;">'
+        '<div style="margin:18px 28px 22px 28px;padding:12px 14px;background:#F7F7F7;border:1px dashed #C9CBCC;border-radius:8px;">'
+        '<div style="font-size:11px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#6E7476;margin-bottom:6px;">'
         'Case summary (copy into Sicon)</div>'
-        f'<div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;color:#0f172a;white-space:pre-wrap;">{_e(text)}</div>'
+        f'<div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;color:#1B1C1D;white-space:pre-wrap;">{_e(text)}</div>'
         '</div>'
     )
 
@@ -3598,24 +3598,24 @@ def _reporter_contact_block(doc: dict, site: dict | None = None) -> str:
     role = _e((doc.get("reporter_job_title") or "").strip())
     addr_lines = _site_address_lines(site) if site else []
     site_html = (
-        f'<div style="margin-top:12px;font-size:13px;color:#334155;line-height:1.5;">'
-        f'<strong style="color:#0f172a;">{_e((site or {}).get("name") or "")}</strong><br>'
+        f'<div style="margin-top:12px;font-size:13px;color:#393E41;line-height:1.5;">'
+        f'<strong style="color:#1B1C1D;">{_e((site or {}).get("name") or "")}</strong><br>'
         + "<br>".join(_e(x) for x in addr_lines) + '</div>'
     ) if site else ""
     phone_html = (
-        f'<a href="tel:{phone}" style="display:inline-block;background:#06b6d4;color:#062c33;'
+        f'<a href="tel:{phone}" style="display:inline-block;background:#19CDFF;color:#062c33;'
         f'font-weight:800;text-decoration:none;padding:11px 20px;border-radius:8px;font-size:16px;">'
         f'Call {phone}</a>'
-        if phone else '<span style="color:#9ca3af;font-size:13px;">No phone on file</span>'
+        if phone else '<span style="color:#9A9FA1;font-size:13px;">No phone on file</span>'
     )
     email_html = (
-        f'<a href="mailto:{email}" style="color:#0891b2;font-weight:600;text-decoration:none;">{email}</a>'
-        if email else '<span style="color:#9ca3af;">No email on file</span>'
+        f'<a href="mailto:{email}" style="color:#0091CA;font-weight:600;text-decoration:none;">{email}</a>'
+        if email else '<span style="color:#9A9FA1;">No email on file</span>'
     )
-    return f"""<div style="margin:18px 0;padding:16px 18px;background:#ecfeff;border:1px solid #a5f3fc;border-left:4px solid #06b6d4;border-radius:10px;">
-    <div style="font-size:11px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#0891b2;">Point of contact</div>
-    <div style="font-size:18px;font-weight:800;color:#0f172a;margin-top:4px;">{name}{f' &middot; {role}' if role else ''}</div>
-    <div style="margin-top:6px;font-size:14px;color:#334155;">{email_html}</div>
+    return f"""<div style="margin:18px 0;padding:16px 18px;background:#ecfeff;border:1px solid #a5f3fc;border-left:4px solid #19CDFF;border-radius:10px;">
+    <div style="font-size:11px;font-weight:800;letter-spacing:0.15em;text-transform:uppercase;color:#0091CA;">Point of contact</div>
+    <div style="font-size:18px;font-weight:800;color:#1B1C1D;margin-top:4px;">{name}{f' &middot; {role}' if role else ''}</div>
+    <div style="margin-top:6px;font-size:14px;color:#393E41;">{email_html}</div>
     <div style="margin-top:12px;">{phone_html}</div>
     {site_html}
   </div>"""
@@ -3624,15 +3624,15 @@ def _reporter_contact_block(doc: dict, site: dict | None = None) -> str:
 def _escalation_email_html(site: dict, eq: dict, doc: dict) -> str:
     attachment_block = _inline_attachment_block(doc)
     is_urgent = (doc.get('priority') or '').lower() == 'urgent'
-    band_bg = "#b91c1c" if is_urgent else "#1B1D1D"
+    band_bg = "#b91c1c" if is_urgent else "#1B1C1D"
     band_label = "MOD · URGENT" if is_urgent else "Pulse Fitness · MOD Service"
     band_fg = "#fff" if is_urgent else "#19CDFF"
-    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1C1D;border-radius:12px;overflow:hidden;border:1px solid #E0E0E0;">
   {_classification_bar(site)}
   <div style="background:{band_bg};padding:20px 28px;{'' if is_urgent else 'border-bottom:3px solid #19CDFF;'}">
     <div style="font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;color:{band_fg};">{band_label}</div>
     <h1 style="margin:8px 0 0 0;font-size:22px;color:#fff;">{_e(doc['mod_ticket_ref'])} — {_e(site.get('name'))}</h1>
-    <div style="margin-top:6px;font-size:14px;color:#e5e7eb;">{_e(eq.get('name') or '')}{(' &middot; S/N ' + _e(_eq_serial(eq, doc))) if _eq_serial(eq, doc) else ''}</div>
+    <div style="margin-top:6px;font-size:14px;color:#E0E0E0;">{_e(eq.get('name') or '')}{(' &middot; S/N ' + _e(_eq_serial(eq, doc))) if _eq_serial(eq, doc) else ''}</div>
   </div>
   <div style="padding:22px 28px;">
     {_reporter_contact_block(doc, site)}
@@ -3644,15 +3644,15 @@ def _escalation_email_html(site: dict, eq: dict, doc: dict) -> str:
 
 
 def _confirmation_email_html(site: dict, eq: dict, doc: dict) -> str:
-    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1C1D;border-radius:12px;overflow:hidden;border:1px solid #E0E0E0;">
   {_classification_bar(site)}
-  <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
+  <div style="background:#1B1C1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:22px;">Fault logged — {_e(doc['mod_ticket_ref'])}</h1>
   </div>
   <div style="padding:22px 28px;">
     <p>Thanks {_e((doc.get('reporter_name') or '').split(' ')[0])} — we have your fault report for <strong>{_e(eq.get('name'))}</strong> at {_e(site.get('name'))}.</p>
-    <p style="color:#6E7476;font-size:13px;">Priority: <strong style="color:#1B1D1D;">{_e((doc.get('priority') or '').upper())}</strong>. We'll be in touch on {_e(doc.get('reporter_email'))} or {_e(doc.get('reporter_phone'))} as the engineer is assigned.</p>
+    <p style="color:#6E7476;font-size:13px;">Priority: <strong style="color:#1B1C1D;">{_e((doc.get('priority') or '').upper())}</strong>. We'll be in touch on {_e(doc.get('reporter_email'))} or {_e(doc.get('reporter_phone'))} as the engineer is assigned.</p>
   </div>
 </div>"""
 
@@ -3728,12 +3728,12 @@ def _supplier_fault_email_html(site: dict, eq: dict, doc: dict, supplier: dict, 
         f'<div style="font-size:12px;color:#6E7476;margin-top:8px;">Update status, add notes and message the site directly &mdash; no login needed.</div>'
         f'</div>'
     ) if portal_url else ""
-    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1C1D;border-radius:12px;overflow:hidden;border:1px solid #E0E0E0;">
   {_classification_bar(site)}
-  <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
+  <div style="background:#1B1C1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Supplier Notification</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{_e(doc['mod_ticket_ref'])} — {_e(site.get('name'))}</h1>
-    <div style="margin-top:6px;font-size:14px;color:#e5e7eb;">{_e(eq.get('name') or '')}{(' &middot; S/N ' + _e(_eq_serial(eq, doc))) if _eq_serial(eq, doc) else ''}</div>
+    <div style="margin-top:6px;font-size:14px;color:#E0E0E0;">{_e(eq.get('name') or '')}{(' &middot; S/N ' + _e(_eq_serial(eq, doc))) if _eq_serial(eq, doc) else ''}</div>
   </div>
   <div style="padding:22px 28px;">
     <p>Dear {_e(contact)},</p>

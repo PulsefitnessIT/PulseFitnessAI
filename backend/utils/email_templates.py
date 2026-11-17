@@ -22,11 +22,11 @@ FONT_STACK = (
 
 WRAPPER_BG = "#F4F5F7"
 CARD_BG = "#FFFFFF"
-BORDER = "#E4E4E7"
-TEXT_PRIMARY = "#18181B"
-TEXT_SECONDARY = "#3F3F46"
-TEXT_MUTED = "#71717A"
-DEFAULT_BRAND = "#0055FF"
+BORDER = "#E0E0E0"
+TEXT_PRIMARY = "#1B1C1D"
+TEXT_SECONDARY = "#393E41"
+TEXT_MUTED = "#6E7476"
+DEFAULT_BRAND = "#19CDFF"
 
 # Severity / status → email-safe badge palette (bg, text, border).
 _BADGE_PALETTE = {
@@ -37,11 +37,11 @@ _BADGE_PALETTE = {
     "fault": ("#FEF9C3", "#854D0E", "#FDE047"),
     "limited_use": ("#FEF9C3", "#854D0E", "#FDE047"),
     "medium": ("#FEF9C3", "#854D0E", "#FDE047"),
-    "operational_minor": ("#DBEAFE", "#1E40AF", "#93C5FD"),
-    "minor": ("#DBEAFE", "#1E40AF", "#93C5FD"),
-    "low": ("#DBEAFE", "#1E40AF", "#93C5FD"),
+    "operational_minor": ("#DBEAFE", "#0073A4", "#93C5FD"),
+    "minor": ("#DBEAFE", "#0073A4", "#93C5FD"),
+    "low": ("#DBEAFE", "#0073A4", "#93C5FD"),
     "warranty": ("#DCFCE7", "#166534", "#86EFAC"),
-    "neutral": ("#F4F5F7", "#3F3F46", "#E4E4E7"),
+    "neutral": ("#F4F5F7", "#393E41", "#E0E0E0"),
 }
 
 
@@ -98,7 +98,7 @@ def bulletproof_button(url: str, label: str, brand_color: Optional[str] = None,
     )
 
 
-def info_card(inner_html: str, *, bg: str = "#FAFAFA", border: str = BORDER,
+def info_card(inner_html: str, *, bg: str = "#F7F7F7", border: str = BORDER,
               accent: Optional[str] = None) -> str:
     """A bordered content card (used for fault summaries / feature blocks)."""
     border_left = f"border-left:4px solid {accent};" if accent else ""
@@ -124,7 +124,7 @@ def _header(brand_color: str, logo_url: Optional[str], org_name: str,
     if logo_url:
         brand_block = (
             '<table role="presentation" border="0" cellpadding="0" cellspacing="0" '
-            'style="background:#FFFFFF;border:1px solid #E4E4E7;border-radius:8px;">'
+            'style="background:#FFFFFF;border:1px solid #E0E0E0;border-radius:8px;">'
             '<tr><td style="padding:8px 12px;">'
             f'<img src="{esc(logo_url)}" alt="{org_name}" height="40" '
             'style="display:block;height:40px;max-height:40px;width:auto;max-width:180px;'

@@ -210,22 +210,22 @@ def _footer_html(brand: dict) -> str:
     postal = os.environ.get("EMAIL_FOOTER_ADDRESS", "Pulse Fitness Ltd, United Kingdom").strip()
     bits = []
     if gym_name:
-        bits.append(f'<strong style="color:#3f3f46;">{gym_name}</strong>')
+        bits.append(f'<strong style="color:#393E41;">{gym_name}</strong>')
     bits.append(partner_name)
     support_line = (
         f'Questions? Email <a href="mailto:{support_email}" '
-        f'style="color:#0e7490;text-decoration:none;">{support_email}</a>'
+        f'style="color:#0073A4;text-decoration:none;">{support_email}</a>'
         if support_email else ''
     )
     return (
         '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
-        'style="width:100%;background:#f5f5f5;border-top:1px solid #e5e7eb;">'
-        '  <tr><td style="padding:22px 30px;text-align:center;color:#6b7280;font-size:12px;'
+        'style="width:100%;background:#F0F0F0;border-top:1px solid #E0E0E0;">'
+        '  <tr><td style="padding:22px 30px;text-align:center;color:#6E7476;font-size:12px;'
         'font-family:Arial,sans-serif;line-height:1.6;">'
         + ' · '.join(bits)
-        + (f'<br/><span style="color:#6b7280;">{support_line}</span>' if support_line else '')
-        + (f'<br/><span style="color:#9ca3af;font-size:11px;">{postal}</span>' if postal else '')
-        + '<br/><span style="color:#9ca3af;font-size:11px;">'
+        + (f'<br/><span style="color:#6E7476;">{support_line}</span>' if support_line else '')
+        + (f'<br/><span style="color:#9A9FA1;font-size:11px;">{postal}</span>' if postal else '')
+        + '<br/><span style="color:#9A9FA1;font-size:11px;">'
         'You\'re receiving this because of your account with the operator above. '
         'Manage email preferences in your dashboard.</span>'
         '  </td></tr>'
@@ -263,7 +263,7 @@ async def wrap_branded(html: str, organization_id: str | None = None) -> str:
     return (
         f'{EMAIL_FONT_STYLE}'
         '<div class="gymaxis-email-cobrand-wrap" '
-        'style="background:#f9fafb;padding:24px 0;font-family:Arial,sans-serif;">'
+        'style="background:#F7F7F7;padding:24px 0;font-family:Arial,sans-serif;">'
         '<div style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:12px;'
         'overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);">'
         f'{header}'
@@ -614,10 +614,10 @@ async def send_email(
 
 async def send_welcome_email(email: str, name: str):
     html = f"""<div style="font-family: Arial; max-width: 600px; margin: 0 auto;">
-    <div style="background: #0055FF; padding: 30px; text-align: center;">
+    <div style="background: #19CDFF; padding: 30px; text-align: center;">
         <h1 style="color: white; margin: 0;">Welcome to Pulse Fitness AI</h1>
     </div>
-    <div style="padding: 30px; background: #f9f9f9;">
+    <div style="padding: 30px; background: #F7F7F7;">
         <h2>Hi {name},</h2>
         <p>Welcome to Pulse Fitness AI - the complete gym maintenance platform.</p>
         <p>Here's what you can do:</p>
@@ -628,7 +628,7 @@ async def send_welcome_email(email: str, name: str):
             <li><strong>Maintenance Checklists</strong> - Keep your gym safe and compliant</li>
         </ul>
         <p>Get started by logging into your dashboard.</p>
-        <a href="#" style="display: inline-block; background: #0055FF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Go to Dashboard</a>
+        <a href="#" style="display: inline-block; background: #19CDFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Go to Dashboard</a>
     </div>
     </div>"""
     await send_email(email, "Welcome to Pulse Fitness AI", html, category="support")
@@ -636,10 +636,10 @@ async def send_welcome_email(email: str, name: str):
 
 async def send_report_notification(email: str, name: str, report_type: str, report_id: str):
     html = f"""<div style="font-family: Arial; max-width: 600px; margin: 0 auto;">
-    <div style="background: #0055FF; padding: 20px; text-align: center;">
+    <div style="background: #19CDFF; padding: 20px; text-align: center;">
         <h2 style="color: white; margin: 0;">Pulse Fitness AI - Report Ready</h2>
     </div>
-    <div style="padding: 30px; background: #f9f9f9;">
+    <div style="padding: 30px; background: #F7F7F7;">
         <p>Hi {name},</p>
         <p>Your <strong>{report_type}</strong> has been generated and is ready to view.</p>
         <p>Log into your dashboard to view, print, or download the report.</p>
@@ -654,22 +654,22 @@ async def send_report_notification(email: str, name: str, report_type: str, repo
 
 async def send_password_reset_email(email: str, name: str, reset_url: str):
     html = f"""<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-    <div style="background: #0055FF; padding: 30px; text-align: center;">
+    <div style="background: #19CDFF; padding: 30px; text-align: center;">
         <h1 style="color: white; margin: 0; font-size: 22px;">Pulse Fitness AI</h1>
     </div>
     <div style="padding: 40px 30px;">
-        <h2 style="color: #1a1a1a; margin: 0 0 12px;">Password Reset Request</h2>
-        <p style="color: #555; line-height: 1.6;">Hi {name},</p>
-        <p style="color: #555; line-height: 1.6;">We received a request to reset your password. Click the button below to set a new password:</p>
+        <h2 style="color: #26292B; margin: 0 0 12px;">Password Reset Request</h2>
+        <p style="color: #565B5E; line-height: 1.6;">Hi {name},</p>
+        <p style="color: #565B5E; line-height: 1.6;">We received a request to reset your password. Click the button below to set a new password:</p>
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{reset_url}" style="display: inline-block; background: #0055FF; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px;">Reset Password</a>
+            <a href="{reset_url}" style="display: inline-block; background: #19CDFF; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px;">Reset Password</a>
         </div>
-        <p style="color: #888; font-size: 13px; line-height: 1.6;">This link will expire in 1 hour. If you didn't request this, you can safely ignore this email.</p>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-        <p style="color: #aaa; font-size: 12px;">If the button doesn't work, copy and paste this URL into your browser:<br/><a href="{reset_url}" style="color: #0055FF; word-break: break-all;">{reset_url}</a></p>
+        <p style="color: #9A9FA1; font-size: 13px; line-height: 1.6;">This link will expire in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+        <hr style="border: none; border-top: 1px solid #F0F0F0; margin: 24px 0;" />
+        <p style="color: #9A9FA1; font-size: 12px;">If the button doesn't work, copy and paste this URL into your browser:<br/><a href="{reset_url}" style="color: #0091CA; word-break: break-all;">{reset_url}</a></p>
     </div>
-    <div style="background: #f5f5f5; padding: 16px 30px; text-align: center;">
-        <p style="color: #aaa; font-size: 11px; margin: 0;">Pulse Fitness AI · Gym Equipment Maintenance Platform</p>
+    <div style="background: #F0F0F0; padding: 16px 30px; text-align: center;">
+        <p style="color: #9A9FA1; font-size: 11px; margin: 0;">Pulse Fitness AI · Gym Equipment Maintenance Platform</p>
     </div>
     </div>"""
     return await send_email(email, "Reset Your Password — Pulse Fitness AI", html, category="support")
@@ -681,21 +681,21 @@ async def send_onboarding_invite_email(email: str, recipient_name: str, customer
     """Send a branded onboarding invite to a prospective customer's primary contact."""
     greeting = f"Hi {recipient_name}," if recipient_name else "Hello,"
     html = f"""<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-    <div style="background: linear-gradient(135deg, #0055FF 0%, #0033AA 100%); padding: 36px 30px; text-align: center;">
+    <div style="background: linear-gradient(135deg, #19CDFF 0%, #0073A4 100%); padding: 36px 30px; text-align: center;">
         <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: -0.5px;">Welcome to Pulse Fitness AI</h1>
         <p style="color: #cfe0ff; margin: 8px 0 0; font-size: 13px;">Your equipment management platform is ready</p>
     </div>
     <div style="padding: 40px 32px;">
-        <h2 style="color: #1a1a1a; margin: 0 0 16px; font-size: 20px;">Let's get {customer_name or 'you'} set up</h2>
-        <p style="color: #444; line-height: 1.7; margin: 0 0 16px;">{greeting}</p>
-        <p style="color: #444; line-height: 1.7; margin: 0 0 20px;">
+        <h2 style="color: #26292B; margin: 0 0 16px; font-size: 20px;">Let's get {customer_name or 'you'} set up</h2>
+        <p style="color: #565B5E; line-height: 1.7; margin: 0 0 16px;">{greeting}</p>
+        <p style="color: #565B5E; line-height: 1.7; margin: 0 0 20px;">
             {sender_name} has prepared a secure onboarding form so we can configure Pulse Fitness for your sites, staff,
             and equipment in one go. It takes around <strong>10–15 minutes</strong> and auto-saves as you go —
             you can complete it in multiple sessions.
         </p>
-        <div style="background: #f0f7ff; border-left: 4px solid #0055FF; padding: 18px 20px; margin: 24px 0; border-radius: 4px;">
-            <p style="margin: 0 0 6px; color: #0033AA; font-weight: 600; font-size: 13px;">What you'll need</p>
-            <ul style="margin: 0; padding-left: 18px; color: #444; line-height: 1.7; font-size: 14px;">
+        <div style="background: #E4F9FF; border-left: 4px solid #19CDFF; padding: 18px 20px; margin: 24px 0; border-radius: 4px;">
+            <p style="margin: 0 0 6px; color: #0073A4; font-weight: 600; font-size: 13px;">What you'll need</p>
+            <ul style="margin: 0; padding-left: 18px; color: #565B5E; line-height: 1.7; font-size: 14px;">
                 <li>Your legal entity name and billing address</li>
                 <li>Details of each site you operate</li>
                 <li>Staff members who need access (we'll email them to set passwords)</li>
@@ -703,23 +703,23 @@ async def send_onboarding_invite_email(email: str, recipient_name: str, customer
             </ul>
         </div>
         <div style="text-align: center; margin: 32px 0;">
-            <a href="{share_url}" style="display: inline-block; background: #0055FF; color: white; padding: 16px 36px;
+            <a href="{share_url}" style="display: inline-block; background: #19CDFF; color: white; padding: 16px 36px;
                text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 15px; letter-spacing: 0.3px;">
                Open Onboarding Form →
             </a>
         </div>
-        <p style="color: #888; font-size: 13px; line-height: 1.6; text-align: center;">
+        <p style="color: #9A9FA1; font-size: 13px; line-height: 1.6; text-align: center;">
             This secure link expires in {deadline_days} days. Please complete it before then.
         </p>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 28px 0;" />
-        <p style="color: #aaa; font-size: 12px; line-height: 1.6;">
+        <hr style="border: none; border-top: 1px solid #F0F0F0; margin: 28px 0;" />
+        <p style="color: #9A9FA1; font-size: 12px; line-height: 1.6;">
             If the button doesn't work, copy and paste this URL into your browser:<br/>
-            <a href="{share_url}" style="color: #0055FF; word-break: break-all;">{share_url}</a>
+            <a href="{share_url}" style="color: #0091CA; word-break: break-all;">{share_url}</a>
         </p>
     </div>
-    <div style="background: #f5f5f5; padding: 18px 30px; text-align: center;">
-        <p style="color: #888; font-size: 12px; margin: 0;">Pulse Fitness AI · Gym Equipment Maintenance Platform</p>
-        <p style="color: #aaa; font-size: 11px; margin: 4px 0 0;">Sent by {sender_name}</p>
+    <div style="background: #F0F0F0; padding: 18px 30px; text-align: center;">
+        <p style="color: #9A9FA1; font-size: 12px; margin: 0;">Pulse Fitness AI · Gym Equipment Maintenance Platform</p>
+        <p style="color: #9A9FA1; font-size: 11px; margin: 4px 0 0;">Sent by {sender_name}</p>
     </div>
     </div>"""
     return await send_email(email, f"Onboarding invitation for {customer_name or 'your organisation'}", html, category="support")
@@ -729,34 +729,34 @@ async def send_mod_equipment_capture_email(email: str, site_name: str, capture_u
                                            sender_name: str = "Pulse Fitness", expiry_days: int = 60) -> bool:
     """Send a MOD site a secure link to capture their own equipment list online."""
     html = f"""<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-    <div style="background: #19398D; padding: 36px 30px; text-align: center;">
+    <div style="background: #0073A4; padding: 36px 30px; text-align: center;">
         <p style="color:#9fc2ff; margin:0 0 6px; font-size:12px; letter-spacing:1px; text-transform:uppercase;">Pulse Fitness · MOD</p>
         <h1 style="color: white; margin: 0; font-size: 23px; letter-spacing: -0.5px;">Capture your gym equipment</h1>
     </div>
     <div style="padding: 40px 32px;">
-        <h2 style="color:#1a1a1a; margin:0 0 16px; font-size:19px;">{site_name}</h2>
-        <p style="color:#444; line-height:1.7; margin:0 0 20px;">
+        <h2 style="color:#26292B; margin:0 0 16px; font-size:19px;">{site_name}</h2>
+        <p style="color:#565B5E; line-height:1.7; margin:0 0 20px;">
             Please use the secure link below to list every piece of gym equipment at your site — one entry per machine.
             It saves as you go, so you can complete it in stages. When you're finished, submit it and the Pulse Fitness
             team will review and confirm it before anything goes live.
         </p>
-        <div style="background:#f0f5ff; border-left:4px solid #19398D; padding:16px 20px; margin:22px 0; border-radius:4px;">
-            <p style="margin:0; color:#19398D; font-weight:600; font-size:13px;">Have to hand: make/model, serial or asset (NSN) number, and where each machine is located.</p>
+        <div style="background:#f0f5ff; border-left:4px solid #0073A4; padding:16px 20px; margin:22px 0; border-radius:4px;">
+            <p style="margin:0; color:#0073A4; font-weight:600; font-size:13px;">Have to hand: make/model, serial or asset (NSN) number, and where each machine is located.</p>
         </div>
         <div style="text-align:center; margin:32px 0;">
-            <a href="{capture_url}" style="display:inline-block; background:#19398D; color:white; padding:16px 36px;
+            <a href="{capture_url}" style="display:inline-block; background:#0073A4; color:white; padding:16px 36px;
                text-decoration:none; border-radius:8px; font-weight:700; font-size:15px;">Open equipment form →</a>
         </div>
-        <p style="color:#888; font-size:13px; text-align:center;">This secure link expires in {expiry_days} days.</p>
-        <hr style="border:none; border-top:1px solid #eee; margin:28px 0;" />
-        <p style="color:#aaa; font-size:12px; line-height:1.6;">
+        <p style="color:#9A9FA1; font-size:13px; text-align:center;">This secure link expires in {expiry_days} days.</p>
+        <hr style="border:none; border-top:1px solid #F0F0F0; margin:28px 0;" />
+        <p style="color:#9A9FA1; font-size:12px; line-height:1.6;">
             If the button doesn't work, copy and paste this URL into your browser:<br/>
-            <a href="{capture_url}" style="color:#19398D; word-break:break-all;">{capture_url}</a>
+            <a href="{capture_url}" style="color:#0073A4; word-break:break-all;">{capture_url}</a>
         </p>
     </div>
-    <div style="background:#f5f5f5; padding:18px 30px; text-align:center;">
-        <p style="color:#888; font-size:12px; margin:0;">Pulse Fitness AI · MOD Equipment Onboarding</p>
-        <p style="color:#aaa; font-size:11px; margin:4px 0 0;">Sent by {sender_name}</p>
+    <div style="background:#F0F0F0; padding:18px 30px; text-align:center;">
+        <p style="color:#9A9FA1; font-size:12px; margin:0;">Pulse Fitness AI · MOD Equipment Onboarding</p>
+        <p style="color:#9A9FA1; font-size:11px; margin:4px 0 0;">Sent by {sender_name}</p>
     </div>
     </div>"""
     return await send_email(email, f"Capture your gym equipment — {site_name}", html, category="support")
@@ -771,35 +771,35 @@ def _mod_booking_html(site_name: str, booking_url: str, visit_date: str,
         "Please complete the Engineer Appointment Booking form below so we can arrange your "
         "annual MOD service visit and book our engineer onto site."
     )
-    date_line = (f'<div style="background:#f0f5ff; border-left:4px solid #19398D; padding:16px 20px; '
-                 f'margin:22px 0; border-radius:4px;"><p style="margin:0; color:#19398D; font-weight:600; '
+    date_line = (f'<div style="background:#f0f5ff; border-left:4px solid #0073A4; padding:16px 20px; '
+                 f'margin:22px 0; border-radius:4px;"><p style="margin:0; color:#0073A4; font-weight:600; '
                  f'font-size:13px;">Proposed visit date: {visit_date}</p></div>') if visit_date else ""
     return f"""<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-    <div style="background: #19398D; padding: 36px 30px; text-align: center;">
+    <div style="background: #0073A4; padding: 36px 30px; text-align: center;">
         <p style="color:#9fc2ff; margin:0 0 6px; font-size:12px; letter-spacing:1px; text-transform:uppercase;">Pulse Fitness · MOD</p>
         <h1 style="color: white; margin: 0; font-size: 23px; letter-spacing: -0.5px;">Engineer Appointment Booking</h1>
     </div>
     <div style="padding: 40px 32px;">
-        <h2 style="color:#1a1a1a; margin:0 0 16px; font-size:19px;">{site_name}</h2>
-        <p style="color:#444; line-height:1.7; margin:0 0 20px;">{intro}</p>
+        <h2 style="color:#26292B; margin:0 0 16px; font-size:19px;">{site_name}</h2>
+        <p style="color:#565B5E; line-height:1.7; margin:0 0 20px;">{intro}</p>
         {date_line}
-        <p style="color:#444; line-height:1.7; margin:0 0 20px;">
+        <p style="color:#565B5E; line-height:1.7; margin:0 0 20px;">
             We'll need your contact details, plus the visiting engineer's name, date of birth and
             vehicle details for base access. The form saves as you go.
         </p>
         <div style="text-align:center; margin:32px 0;">
-            <a href="{booking_url}" style="display:inline-block; background:#19398D; color:white; padding:16px 36px;
+            <a href="{booking_url}" style="display:inline-block; background:#0073A4; color:white; padding:16px 36px;
                text-decoration:none; border-radius:8px; font-weight:700; font-size:15px;">Open booking form &rarr;</a>
         </div>
-        <hr style="border:none; border-top:1px solid #eee; margin:28px 0;" />
-        <p style="color:#aaa; font-size:12px; line-height:1.6;">
+        <hr style="border:none; border-top:1px solid #F0F0F0; margin:28px 0;" />
+        <p style="color:#9A9FA1; font-size:12px; line-height:1.6;">
             If the button doesn't work, copy and paste this URL into your browser:<br/>
-            <a href="{booking_url}" style="color:#19398D; word-break:break-all;">{booking_url}</a>
+            <a href="{booking_url}" style="color:#0073A4; word-break:break-all;">{booking_url}</a>
         </p>
     </div>
-    <div style="background:#f5f5f5; padding:18px 30px; text-align:center;">
-        <p style="color:#888; font-size:12px; margin:0;">Pulse Fitness AI · MOD Service</p>
-        <p style="color:#aaa; font-size:11px; margin:4px 0 0;">Sent by {sender_name}</p>
+    <div style="background:#F0F0F0; padding:18px 30px; text-align:center;">
+        <p style="color:#9A9FA1; font-size:12px; margin:0;">Pulse Fitness AI · MOD Service</p>
+        <p style="color:#9A9FA1; font-size:11px; margin:4px 0 0;">Sent by {sender_name}</p>
     </div>
     </div>"""
 
@@ -825,31 +825,31 @@ async def send_mod_booking_nudge_email(email: str, site_name: str, booking_url: 
                  f'margin:22px 0; border-radius:4px;"><p style="margin:0; color:#b45309; font-weight:600; '
                  f'font-size:13px;">Proposed visit date: {visit_date}</p></div>') if visit_date else ""
     html = f"""<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-    <div style="background: #19398D; padding: 36px 30px; text-align: center;">
+    <div style="background: #0073A4; padding: 36px 30px; text-align: center;">
         <p style="color:#9fc2ff; margin:0 0 6px; font-size:12px; letter-spacing:1px; text-transform:uppercase;">Pulse Fitness · MOD</p>
         <h1 style="color: white; margin: 0; font-size: 23px; letter-spacing: -0.5px;">Just a gentle reminder</h1>
     </div>
     <div style="padding: 40px 32px;">
-        <h2 style="color:#1a1a1a; margin:0 0 16px; font-size:19px;">{site_name}</h2>
-        <p style="color:#444; line-height:1.7; margin:0 0 20px;">
+        <h2 style="color:#26292B; margin:0 0 16px; font-size:19px;">{site_name}</h2>
+        <p style="color:#565B5E; line-height:1.7; margin:0 0 20px;">
             We sent you an Engineer Appointment Booking form a little while ago and it looks like it's not
             quite finished yet. When you have a moment, please complete it so we can book our engineer onto
             site and confirm your service visit.
         </p>
         {date_line}
         <div style="text-align:center; margin:32px 0;">
-            <a href="{booking_url}" style="display:inline-block; background:#19398D; color:white; padding:16px 36px;
+            <a href="{booking_url}" style="display:inline-block; background:#0073A4; color:white; padding:16px 36px;
                text-decoration:none; border-radius:8px; font-weight:700; font-size:15px;">Finish the booking form &rarr;</a>
         </div>
-        <hr style="border:none; border-top:1px solid #eee; margin:28px 0;" />
-        <p style="color:#aaa; font-size:12px; line-height:1.6;">
+        <hr style="border:none; border-top:1px solid #F0F0F0; margin:28px 0;" />
+        <p style="color:#9A9FA1; font-size:12px; line-height:1.6;">
             If the button doesn't work, copy and paste this URL into your browser:<br/>
-            <a href="{booking_url}" style="color:#19398D; word-break:break-all;">{booking_url}</a>
+            <a href="{booking_url}" style="color:#0073A4; word-break:break-all;">{booking_url}</a>
         </p>
     </div>
-    <div style="background:#f5f5f5; padding:18px 30px; text-align:center;">
-        <p style="color:#888; font-size:12px; margin:0;">Pulse Fitness AI · MOD Service</p>
-        <p style="color:#aaa; font-size:11px; margin:4px 0 0;">Sent by {sender_name}</p>
+    <div style="background:#F0F0F0; padding:18px 30px; text-align:center;">
+        <p style="color:#9A9FA1; font-size:12px; margin:0;">Pulse Fitness AI · MOD Service</p>
+        <p style="color:#9A9FA1; font-size:11px; margin:4px 0 0;">Sent by {sender_name}</p>
     </div>
     </div>"""
     return await send_email(email, f"Reminder: please finish your MOD booking form — {site_name}", html, category="support")
@@ -879,26 +879,26 @@ async def send_trial_signup_notification(trial: dict):
     frontend = os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL") or ""
     admin_link = f"{frontend}/master-admin" if frontend else "/master-admin"
 
-    html = f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#05070A;color:#fff;border-radius:16px;overflow:hidden;">
-  <div style="background:linear-gradient(135deg,#05070A 0%,#0d1117 100%);padding:28px 32px;border-bottom:1px solid rgba(25,205,255,0.3);">
+    html = f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#1B1C1D;color:#fff;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#1B1C1D 0%,#26292B 100%);padding:28px 32px;border-bottom:1px solid rgba(25,205,255,0.3);">
     <div style="color:#19CDFF;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:8px;">New Trial Signup</div>
     <h1 style="color:#fff;font-size:22px;margin:0;line-height:1.3;font-weight:800;letter-spacing:-0.01em;">{name} just started a {days}-day free trial</h1>
   </div>
-  <div style="padding:28px 32px;background:#0A0B10;">
-    <table style="width:100%;border-collapse:collapse;color:#e5e7eb;font-size:14px;">
-      <tr><td style="padding:8px 0;color:#9ca3af;width:130px;">Full name</td><td style="padding:8px 0;font-weight:600;">{name}</td></tr>
-      <tr><td style="padding:8px 0;color:#9ca3af;">Work email</td><td style="padding:8px 0;"><a href="mailto:{email}" style="color:#19CDFF;text-decoration:none;">{email}</a></td></tr>
-      <tr><td style="padding:8px 0;color:#9ca3af;">Company / Gym</td><td style="padding:8px 0;font-weight:600;">{company}</td></tr>
-      <tr><td style="padding:8px 0;color:#9ca3af;">Phone</td><td style="padding:8px 0;">{phone}</td></tr>
-      <tr><td style="padding:8px 0;color:#9ca3af;">Trial length</td><td style="padding:8px 0;">{days} days</td></tr>
-      <tr><td style="padding:8px 0;color:#9ca3af;">Org ID</td><td style="padding:8px 0;font-family:monospace;font-size:12px;color:#9ca3af;">{org_id}</td></tr>
+  <div style="padding:28px 32px;background:#1B1C1D;">
+    <table style="width:100%;border-collapse:collapse;color:#E0E0E0;font-size:14px;">
+      <tr><td style="padding:8px 0;color:#9A9FA1;width:130px;">Full name</td><td style="padding:8px 0;font-weight:600;">{name}</td></tr>
+      <tr><td style="padding:8px 0;color:#9A9FA1;">Work email</td><td style="padding:8px 0;"><a href="mailto:{email}" style="color:#19CDFF;text-decoration:none;">{email}</a></td></tr>
+      <tr><td style="padding:8px 0;color:#9A9FA1;">Company / Gym</td><td style="padding:8px 0;font-weight:600;">{company}</td></tr>
+      <tr><td style="padding:8px 0;color:#9A9FA1;">Phone</td><td style="padding:8px 0;">{phone}</td></tr>
+      <tr><td style="padding:8px 0;color:#9A9FA1;">Trial length</td><td style="padding:8px 0;">{days} days</td></tr>
+      <tr><td style="padding:8px 0;color:#9A9FA1;">Org ID</td><td style="padding:8px 0;font-family:monospace;font-size:12px;color:#9A9FA1;">{org_id}</td></tr>
     </table>
     <div style="margin-top:24px;">
-      <a href="{admin_link}" style="display:inline-block;background:#19CDFF;color:#05070A;padding:12px 24px;text-decoration:none;border-radius:999px;font-weight:700;font-size:13px;letter-spacing:0.05em;text-transform:uppercase;">Open Master Admin →</a>
+      <a href="{admin_link}" style="display:inline-block;background:#19CDFF;color:#1B1C1D;padding:12px 24px;text-decoration:none;border-radius:999px;font-weight:700;font-size:13px;letter-spacing:0.05em;text-transform:uppercase;">Open Master Admin →</a>
     </div>
   </div>
-  <div style="background:#05070A;padding:16px 32px;border-top:1px solid rgba(255,255,255,0.05);">
-    <p style="color:#6b7280;font-size:11px;margin:0;">Sent by the Pulse Fitness trial funnel · landing-page signup</p>
+  <div style="background:#1B1C1D;padding:16px 32px;border-top:1px solid rgba(255,255,255,0.05);">
+    <p style="color:#6E7476;font-size:11px;margin:0;">Sent by the Pulse Fitness trial funnel · landing-page signup</p>
   </div>
 </div>"""
 

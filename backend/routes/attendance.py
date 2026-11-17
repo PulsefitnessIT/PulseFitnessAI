@@ -51,16 +51,16 @@ router = APIRouter()
 # Attendance Request / Timesheet worlds keep working during migration.
 ATTENDANCE_STATUSES: dict[str, dict] = {
     "working":          {"legacy": "IN",   "label": "Working",              "paid": True,  "color": "#16a34a"},
-    "holiday":          {"legacy": "HOL",  "label": "Holiday",              "paid": True,  "color": "#2563eb"},
-    "bank_holiday":     {"legacy": "BH",   "label": "Bank Holiday",         "paid": True,  "color": "#7c3aed"},
+    "holiday":          {"legacy": "HOL",  "label": "Holiday",              "paid": True,  "color": "#0091CA"},
+    "bank_holiday":     {"legacy": "BH",   "label": "Bank Holiday",         "paid": True,  "color": "#0091CA"},
     "sick":             {"legacy": "SICK", "label": "Sick",                 "paid": True,  "color": "#dc2626"},
-    "comp":             {"legacy": "COMP", "label": "Comp / TOIL",          "paid": True,  "color": "#0891b2"},
-    "off":              {"legacy": "OFF",  "label": "Scheduled Off",        "paid": False, "color": "#94a3b8"},
+    "comp":             {"legacy": "COMP", "label": "Comp / TOIL",          "paid": True,  "color": "#0091CA"},
+    "off":              {"legacy": "OFF",  "label": "Scheduled Off",        "paid": False, "color": "#9A9FA1"},
     "unpaid_leave":     {"legacy": "UNP",  "label": "Unpaid Leave",         "paid": False, "color": "#b45309"},
-    "training":         {"legacy": "TRN",  "label": "Training",             "paid": True,  "color": "#9333ea"},
+    "training":         {"legacy": "TRN",  "label": "Training",             "paid": True,  "color": "#0091CA"},
     "business_travel":  {"legacy": "TRV",  "label": "Business Travel",      "paid": True,  "color": "#0d9488"},
     "wfh":              {"legacy": "WFH",  "label": "Working From Home",    "paid": True,  "color": "#15803d"},
-    "other_authorised": {"legacy": "OAL",  "label": "Other Authorised",     "paid": True,  "color": "#4f46e5"},
+    "other_authorised": {"legacy": "OAL",  "label": "Other Authorised",     "paid": True,  "color": "#0091CA"},
     "family_leave":     {"legacy": "FAM",  "label": "Family Leave",         "paid": True,  "color": "#db2777"},
     "not_confirmed":    {"legacy": "",     "label": "Not Confirmed",        "paid": False, "color": "#f59e0b"},
 }

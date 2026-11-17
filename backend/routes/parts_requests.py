@@ -501,35 +501,35 @@ def _build_card_email_html(req: dict, org_name: str, token: str) -> str:
             f'{(" (" + p["part_number"] + ")") if p.get("part_number") else ""}'
             f'{(" — " + p["notes"]) if p.get("notes") else ""}</li>'
             for p in (m.get("parts") or [])
-        ) or '<li style="color:#6B7280;">(no specific parts listed)</li>'
+        ) or '<li style="color:#6E7476;">(no specific parts listed)</li>'
         rows += (
-            f'<div style="margin:0 0 12px;padding:12px 14px;border:1px solid #E5E7EB;border-radius:8px;">'
-            f'<p style="margin:0;font-size:14px;font-weight:600;color:#111;">{m.get("machine_name") or m.get("equipment_type") or "Machine"}'
+            f'<div style="margin:0 0 12px;padding:12px 14px;border:1px solid #E0E0E0;border-radius:8px;">'
+            f'<p style="margin:0;font-size:14px;font-weight:600;color:#1B1C1D;">{m.get("machine_name") or m.get("equipment_type") or "Machine"}'
             f'{(" · " + m["manufacturer"]) if m.get("manufacturer") else ""}{(" " + m["model"]) if m.get("model") else ""}</p>'
-            f'<p style="margin:2px 0 6px;font-size:12px;color:#6B7280;">Serial: {m.get("serial_number") or "—"} · '
-            f'<span style="font-weight:600;color:#0369A1;">{_cover_label(m)}</span></p>'
-            f'<ul style="margin:0;padding:0 0 0 18px;font-size:13px;color:#111;">{parts}</ul></div>'
+            f'<p style="margin:2px 0 6px;font-size:12px;color:#6E7476;">Serial: {m.get("serial_number") or "—"} · '
+            f'<span style="font-weight:600;color:#0073A4;">{_cover_label(m)}</span></p>'
+            f'<ul style="margin:0;padding:0 0 0 18px;font-size:13px;color:#1B1C1D;">{parts}</ul></div>'
         )
     url = _card_url(token)
     return f'''
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#fff;border:1px solid #E5E7EB;border-radius:14px;overflow:hidden;">
-  <div style="background:#0A0A0A;padding:22px 28px;">
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#fff;border:1px solid #E0E0E0;border-radius:14px;overflow:hidden;">
+  <div style="background:#1B1C1D;padding:22px 28px;">
     <h1 style="color:#fff;font-size:18px;margin:0;">Parts Request {req.get('reference','')}</h1>
-    <p style="color:#cbd5e1;font-size:12px;margin:4px 0 0;">from {org_name} · via Pulse Fitness</p>
+    <p style="color:#C9CBCC;font-size:12px;margin:4px 0 0;">from {org_name} · via Pulse Fitness</p>
   </div>
   <div style="padding:24px 28px;">
-    <p style="color:#111;font-size:14px;line-height:1.6;margin:0 0 14px;">
+    <p style="color:#1B1C1D;font-size:14px;line-height:1.6;margin:0 0 14px;">
       {org_name} has requested the parts below. Please review, then acknowledge,
       quote, allocate and despatch using the secure link.</p>
     {rows}
-    {('<p style="font-size:13px;color:#374151;margin:12px 0 0;"><strong>Notes:</strong> ' + req["notes"] + '</p>') if req.get("notes") else ''}
+    {('<p style="font-size:13px;color:#393E41;margin:12px 0 0;"><strong>Notes:</strong> ' + req["notes"] + '</p>') if req.get("notes") else ''}
     <div style="text-align:center;margin:22px 0 6px;">
-      <a href="{url}" style="display:inline-block;background:#0055FF;color:#fff;text-decoration:none;padding:12px 26px;border-radius:999px;font-size:14px;font-weight:600;">Open Parts Request</a>
+      <a href="{url}" style="display:inline-block;background:#19CDFF;color:#fff;text-decoration:none;padding:12px 26px;border-radius:999px;font-size:14px;font-weight:600;">Open Parts Request</a>
     </div>
-    <p style="text-align:center;font-size:11px;color:#9CA3AF;margin:8px 0 0;">Or paste this link: {url}</p>
+    <p style="text-align:center;font-size:11px;color:#9A9FA1;margin:8px 0 0;">Or paste this link: {url}</p>
   </div>
-  <div style="padding:14px 28px;background:#F9FAFB;border-top:1px solid #E5E7EB;">
-    <p style="margin:0;font-size:11px;color:#6B7280;">Sent via Pulse Fitness — Equipment Maintenance Platform</p>
+  <div style="padding:14px 28px;background:#F7F7F7;border-top:1px solid #E0E0E0;">
+    <p style="margin:0;font-size:11px;color:#6E7476;">Sent via Pulse Fitness — Equipment Maintenance Platform</p>
   </div>
 </div>'''
 

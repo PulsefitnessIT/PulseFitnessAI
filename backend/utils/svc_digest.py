@@ -137,25 +137,25 @@ async def send_digest_for_org(
             f"<tr><td style='padding:4px 8px;font-family:ui-monospace,monospace'>{ref}</td>"
             f"<td style='padding:4px 8px'>{prio}</td>"
             f"<td style='padding:4px 8px'>{title}</td>"
-            f"<td style='padding:4px 8px;color:#64748b'>{site}</td>"
-            f"<td style='padding:4px 8px;color:#64748b'>{eng}</td>"
-            f"<td style='padding:4px 8px;color:#64748b;font-family:ui-monospace,monospace'>{ts_short}</td></tr>"
+            f"<td style='padding:4px 8px;color:#6E7476'>{site}</td>"
+            f"<td style='padding:4px 8px;color:#6E7476'>{eng}</td>"
+            f"<td style='padding:4px 8px;color:#6E7476;font-family:ui-monospace,monospace'>{ts_short}</td></tr>"
         )
 
     open_rows = "".join(_row(c, "sla_resolve_at") for c in top_open) or \
-        "<tr><td colspan='6' style='padding:8px;color:#64748b;font-style:italic'>No open cases.</td></tr>"
+        "<tr><td colspan='6' style='padding:8px;color:#6E7476;font-style:italic'>No open cases.</td></tr>"
     closed_rows = "".join(_row(c, "closed_at") for c in recent_closed) or \
-        f"<tr><td colspan='6' style='padding:8px;color:#64748b;font-style:italic'>None closed in {period_label}.</td></tr>"
+        f"<tr><td colspan='6' style='padding:8px;color:#6E7476;font-style:italic'>None closed in {period_label}.</td></tr>"
 
     body = f"""
-<div style='font-family:Inter,system-ui,sans-serif;color:#0f172a;max-width:680px'>
+<div style='font-family:Inter,system-ui,sans-serif;color:#1B1C1D;max-width:680px'>
   <h1 style='font-size:18px;margin:0 0 4px'>{org_name} — service operations digest</h1>
-  <p style='color:#64748b;margin:0 0 16px;font-size:12px'>Window: {period_label} · Generated {now_iso[:16]}Z</p>
+  <p style='color:#6E7476;margin:0 0 16px;font-size:12px'>Window: {period_label} · Generated {now_iso[:16]}Z</p>
 
   <table style='width:100%;border-collapse:collapse;margin:0 0 16px'>
     <tr>
       <td style='padding:8px;background:#eef2ff;border-radius:8px;text-align:center'>
-        <div style='font-size:11px;color:#1d4ed8;font-weight:700'>OPEN</div>
+        <div style='font-size:11px;color:#0091CA;font-weight:700'>OPEN</div>
         <div style='font-size:22px;font-weight:800'>{open_cases}</div>
       </td>
       <td style='padding:8px;background:#ecfdf5;border-radius:8px;text-align:center'>
@@ -174,8 +174,8 @@ async def send_digest_for_org(
   </table>
 
   <h2 style='font-size:14px;margin:16px 0 8px'>Top open cases (SLA-risk first)</h2>
-  <table style='width:100%;border-collapse:collapse;font-size:12px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden'>
-    <thead><tr style='background:#f1f5f9;text-align:left'>
+  <table style='width:100%;border-collapse:collapse;font-size:12px;border:1px solid #E0E0E0;border-radius:8px;overflow:hidden'>
+    <thead><tr style='background:#F0F0F0;text-align:left'>
       <th style='padding:6px 8px;font-size:10px;text-transform:uppercase'>Ref</th>
       <th style='padding:6px 8px;font-size:10px;text-transform:uppercase'>Pri</th>
       <th style='padding:6px 8px;font-size:10px;text-transform:uppercase'>Title</th>
@@ -187,8 +187,8 @@ async def send_digest_for_org(
   </table>
 
   <h2 style='font-size:14px;margin:20px 0 8px'>Recently closed</h2>
-  <table style='width:100%;border-collapse:collapse;font-size:12px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden'>
-    <thead><tr style='background:#f1f5f9;text-align:left'>
+  <table style='width:100%;border-collapse:collapse;font-size:12px;border:1px solid #E0E0E0;border-radius:8px;overflow:hidden'>
+    <thead><tr style='background:#F0F0F0;text-align:left'>
       <th style='padding:6px 8px;font-size:10px;text-transform:uppercase'>Ref</th>
       <th style='padding:6px 8px;font-size:10px;text-transform:uppercase'>Pri</th>
       <th style='padding:6px 8px;font-size:10px;text-transform:uppercase'>Title</th>
@@ -199,7 +199,7 @@ async def send_digest_for_org(
     <tbody>{closed_rows}</tbody>
   </table>
 
-  <p style='font-size:11px;color:#64748b;margin-top:24px'>
+  <p style='font-size:11px;color:#6E7476;margin-top:24px'>
     You're receiving this because the Pulse Fitness Service Ops digest is enabled for {org_name}.
     Toggle it off in <strong>Service Ops → Reports → Email digest</strong>.
   </p>

@@ -986,18 +986,18 @@ async def _notify_aser_created(entry: dict, settings: dict) -> None:
         subject = f"[ASER {entry['aser_ref']}] {entry.get('title')}" + (" — HIGH RISK" if is_high else "")
         html = f"""
         <div style="font-family:Arial,sans-serif;max-width:560px">
-          <h2 style="color:#0F1419;margin:0 0 4px">ASER — Activity Safety Event</h2>
-          <p style="color:#6b7280;font-size:13px;margin:0 0 12px">{entry.get('site_name')} · {entry['aser_ref']}</p>
+          <h2 style="color:#1B1C1D;margin:0 0 4px">ASER — Activity Safety Event</h2>
+          <p style="color:#6E7476;font-size:13px;margin:0 0 12px">{entry.get('site_name')} · {entry['aser_ref']}</p>
           <table style="font-size:13px;border-collapse:collapse;width:100%">
-            <tr><td style="padding:4px 8px;color:#6b7280">Equipment</td><td style="padding:4px 8px"><b>{snap.get('name') or '-'}</b> ({snap.get('serial_number') or '-'})</td></tr>
-            <tr><td style="padding:4px 8px;color:#6b7280">Event</td><td style="padding:4px 8px">{(entry.get('event_type') or '').replace('_',' ').title()}</td></tr>
-            <tr><td style="padding:4px 8px;color:#6b7280">Risk</td><td style="padding:4px 8px">{(rating or '').title()}</td></tr>
-            <tr><td style="padding:4px 8px;color:#6b7280">Rehab sessions impacted</td><td style="padding:4px 8px">{ai.get('sessions_affected', 0)}</td></tr>
-            <tr><td style="padding:4px 8px;color:#6b7280">Equipment status</td><td style="padding:4px 8px">{(entry.get('equipment_status') or '').replace('_',' ').title()}</td></tr>
+            <tr><td style="padding:4px 8px;color:#6E7476">Equipment</td><td style="padding:4px 8px"><b>{snap.get('name') or '-'}</b> ({snap.get('serial_number') or '-'})</td></tr>
+            <tr><td style="padding:4px 8px;color:#6E7476">Event</td><td style="padding:4px 8px">{(entry.get('event_type') or '').replace('_',' ').title()}</td></tr>
+            <tr><td style="padding:4px 8px;color:#6E7476">Risk</td><td style="padding:4px 8px">{(rating or '').title()}</td></tr>
+            <tr><td style="padding:4px 8px;color:#6E7476">Rehab sessions impacted</td><td style="padding:4px 8px">{ai.get('sessions_affected', 0)}</td></tr>
+            <tr><td style="padding:4px 8px;color:#6E7476">Equipment status</td><td style="padding:4px 8px">{(entry.get('equipment_status') or '').replace('_',' ').title()}</td></tr>
           </table>
-          <p style="font-size:13px;color:#111827;margin:12px 0">{entry.get('description','')}</p>
+          <p style="font-size:13px;color:#1B1C1D;margin:12px 0">{entry.get('description','')}</p>
           {('<p style="font-size:13px">' + ' · '.join(flags) + '</p>') if flags else ''}
-          <p style="font-size:11px;color:#9ca3af;margin-top:16px">MOD Service Portal · ASER register. Do not reply — manage this entry in the portal.</p>
+          <p style="font-size:11px;color:#9A9FA1;margin-top:16px">MOD Service Portal · ASER register. Do not reply — manage this entry in the portal.</p>
         </div>"""
         for rcpt in sorted(recipients):
             try:

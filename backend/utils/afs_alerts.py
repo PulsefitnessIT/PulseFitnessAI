@@ -116,27 +116,27 @@ async def _send_alert_digest(org_id: str, created: list[dict]):
         out = []
         for a in items:
             out.append(
-                f'<tr><td style="padding:10px 12px;border-bottom:1px solid #eee;vertical-align:top">'
+                f'<tr><td style="padding:10px 12px;border-bottom:1px solid #F0F0F0;vertical-align:top">'
                 f'<span style="display:inline-block;background:{color};color:#fff;font-size:11px;'
                 f'font-weight:700;padding:2px 8px;border-radius:6px">&le;{a.get("threshold_days")}d</span></td>'
-                f'<td style="padding:10px 12px;border-bottom:1px solid #eee">'
-                f'<strong style="color:#0B3D91">{a.get("subject","")}</strong><br>'
-                f'<span style="color:#555;font-size:13px">{a.get("body","")}</span></td></tr>')
+                f'<td style="padding:10px 12px;border-bottom:1px solid #F0F0F0">'
+                f'<strong style="color:#0073A4">{a.get("subject","")}</strong><br>'
+                f'<span style="color:#565B5E;font-size:13px">{a.get("body","")}</span></td></tr>')
         return "".join(out)
 
     sections = ""
     if warranty:
-        sections += ('<h3 style="color:#0B3D91;margin:18px 0 6px">Warranty ending</h3>'
+        sections += ('<h3 style="color:#0073A4;margin:18px 0 6px">Warranty ending</h3>'
                      '<table style="width:100%;border-collapse:collapse;font-size:14px">'
                      + _rows(warranty, "#E0972A") + "</table>")
     if rpi:
-        sections += ('<h3 style="color:#0B3D91;margin:18px 0 6px">RPI reviews due</h3>'
+        sections += ('<h3 style="color:#0073A4;margin:18px 0 6px">RPI reviews due</h3>'
                      '<table style="width:100%;border-collapse:collapse;font-size:14px">'
                      + _rows(rpi, "#1763B5") + "</table>")
     html = (
         f'<p>You have <strong>{len(created)} new maintenance reminder(s)</strong> in the '
         f'180/120/90-day windows:</p>{sections}'
-        f'<p style="color:#777;font-size:12px;margin-top:20px">Open the Aftersales Contracts dashboard to action these '
+        f'<p style="color:#6E7476;font-size:12px;margin-top:20px">Open the Aftersales Contracts dashboard to action these '
         f'(build a warranty-to-maintenance proposal or run the RPI review).</p>')
     subject = f"Pulse Aftersales: {len(created)} new maintenance reminder(s)"
     for rcpt in recipients:
@@ -320,9 +320,9 @@ async def _send_quote_reminder(org_id: str, quote: dict, days_left: int) -> bool
         f"<strong>{quote.get('quote_number')}</strong> (£{float(summary.get('final_annual') or 0):,.2f}/yr) "
         f"is still awaiting your response and <strong>expires {when}</strong>.</p>"
         f"<p style='margin:22px 0'><a href='{link}' "
-        f"style='background:#0B3D91;color:#fff;text-decoration:none;padding:12px 22px;"
+        f"style='background:#0073A4;color:#fff;text-decoration:none;padding:12px 22px;"
         f"border-radius:10px;font-weight:700;display:inline-block'>Review &amp; respond now</a></p>"
-        f"<p style='color:#777;font-size:12px'>If the button doesn't work, paste this into your browser:<br>{link}</p>")
+        f"<p style='color:#6E7476;font-size:12px'>If the button doesn't work, paste this into your browser:<br>{link}</p>")
     subject = f"Reminder: your Pulse maintenance quote {quote.get('quote_number')} expires {when}"
     return bool(await send_email(email, subject, html, organization_id=org_id,
                                  category="service", kind="afs_quote_chase"))

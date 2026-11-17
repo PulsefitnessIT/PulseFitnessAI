@@ -110,7 +110,7 @@ def _verify_token(token: str) -> tuple[str | None, str | None]:
 # ── Email rendering ───────────────────────────────────────────────────
 
 
-BRAND_PRIMARY = "#2563EB"
+BRAND_PRIMARY = "#0091CA"
 
 
 def _origin(default: str = "https://pulsefitness.ai") -> str:
@@ -318,9 +318,9 @@ def _render_tour_reminder(*, gym: dict, booking: dict) -> tuple[str, str]:
         f"{_origin()}/m/{gym.get('slug') or gym['id']}/join?cancel_tour={booking.get('draft_id') or ''}"
     )
     base_btn = (
-        f'<a href="{cancel_url}" style="display:inline-block;background:#f4f4f5;'
-        f'color:#27272a;padding:10px 20px;border-radius:8px;text-decoration:none;'
-        f'font-weight:500;font-family:Helvetica,Arial,sans-serif;border:1px solid #d4d4d8">'
+        f'<a href="{cancel_url}" style="display:inline-block;background:#F0F0F0;'
+        f'color:#26292B;padding:10px 20px;border-radius:8px;text-decoration:none;'
+        f'font-weight:500;font-family:Helvetica,Arial,sans-serif;border:1px solid #C9CBCC">'
     )
     subject = f"Reminder: your tour at {gym_name} tomorrow"
     html = (
@@ -333,7 +333,7 @@ def _render_tour_reminder(*, gym: dict, booking: dict) -> tuple[str, str]:
         f"<p>If you can't make it any more, no problem — just hit the button below to "
         f"free up the slot for someone else:</p>"
         f"<p>{base_btn}Cancel my tour</a></p>"
-        f"<p style='color:#71717a;font-size:13px'>See you soon!</p>"
+        f"<p style='color:#6E7476;font-size:13px'>See you soon!</p>"
     )
     return subject, html
 

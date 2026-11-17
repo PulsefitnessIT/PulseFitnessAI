@@ -114,7 +114,7 @@ async def seed_memberships_demo() -> None:
         {"id": "plan-annual-unl", "name": "Annual Unlimited",
          "kind": "recurring", "billing_cycle": "annual",
          "price_pence": 65000, "upfront_fee_pence": 0,
-         "included_classes": "unlimited", "colour": "#8B5CF6",
+         "included_classes": "unlimited", "colour": "#19CDFF",
          "display_order": 2},
         {"id": "plan-10pack", "name": "10-Class Pack",
          "kind": "class_pack", "billing_cycle": "oneoff",
@@ -141,7 +141,7 @@ async def seed_memberships_demo() -> None:
     # 4) Class templates — materialise 8 weeks of occurrences on first seed
     templates_seed = [
         {"id": "tpl-yoga", "name": "Vinyasa Yoga", "category": "Yoga",
-         "duration_min": 60, "capacity": 15, "colour": "#8B5CF6",
+         "duration_min": 60, "capacity": 15, "colour": "#19CDFF",
          "recurs_days": [1, 3], "start_time": "07:00",
          "instructor_name": "Maya Patel"},
         {"id": "tpl-hiit", "name": "HIIT Blast", "category": "HIIT",
@@ -155,7 +155,7 @@ async def seed_memberships_demo() -> None:
          "recurs_days": [1, 4], "start_time": "18:00",
          "instructor_name": "Sara O'Neill"},
         {"id": "tpl-strength", "name": "Strength Fundamentals", "category": "Strength",
-         "duration_min": 60, "capacity": 12, "colour": "#0EA5E9",
+         "duration_min": 60, "capacity": 12, "colour": "#19CDFF",
          "recurs_days": [2, 5], "start_time": "17:30",
          "instructor_name": "Tom Briggs"},
     ]

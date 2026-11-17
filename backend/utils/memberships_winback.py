@@ -81,25 +81,25 @@ def _build_html(first_name: str, studio: str, brand: str, streak: int, app_url: 
         top_html = f"""<div style="margin-top:18px;padding:14px 16px;border-left:3px solid {brand};background:rgba(25,205,255,0.06);border-radius:6px;">
           <div style="color:{brand};font-size:10px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:6px;">Trending this week</div>
           <div style="color:#fff;font-size:16px;font-weight:700;">{top_class['name']}</div>
-          <div style="color:#9ca3af;font-size:12px;margin-top:2px;">{top_class['attended']} members attended · one spot has your name on it.</div>
+          <div style="color:#9A9FA1;font-size:12px;margin-top:2px;">{top_class['attended']} members attended · one spot has your name on it.</div>
         </div>"""
     streak_line = (
         f"You were on a {streak}-day streak with us." if streak >= 5 else
         "Your seat is still warm."
     )
-    return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:620px;margin:0 auto;background:#05070A;color:#fff;border-radius:16px;overflow:hidden;">
+    return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:620px;margin:0 auto;background:#1B1C1D;color:#fff;border-radius:16px;overflow:hidden;">
   <div style="padding:32px;background:linear-gradient(135deg,{brand}33 0%,transparent 100%);border-bottom:1px solid {brand}55;">
     <div style="color:{brand};font-size:10px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;margin-bottom:8px;">We've missed you</div>
     <h1 style="color:#fff;font-size:26px;margin:0;line-height:1.2;font-weight:800;">Hey {first_name}, your {studio} family noticed.</h1>
-    <p style="color:#d1d5db;margin:16px 0 0;">{streak_line} It's been a week — let's pick it back up. No guilt, just good sessions.</p>
+    <p style="color:#C9CBCC;margin:16px 0 0;">{streak_line} It's been a week — let's pick it back up. No guilt, just good sessions.</p>
   </div>
-  <div style="padding:24px 32px;background:#0A0C10;color:#e5e7eb;font-size:14px;line-height:1.6;">
-    <a href="{app_url}" style="display:inline-block;padding:14px 28px;border-radius:10px;background:{brand};color:#05070A;font-weight:800;text-decoration:none;font-size:14px;letter-spacing:0.04em;">Book your next class →</a>
+  <div style="padding:24px 32px;background:#1B1C1D;color:#E0E0E0;font-size:14px;line-height:1.6;">
+    <a href="{app_url}" style="display:inline-block;padding:14px 28px;border-radius:10px;background:{brand};color:#1B1C1D;font-weight:800;text-decoration:none;font-size:14px;letter-spacing:0.04em;">Book your next class →</a>
     {top_html}
-    <p style="color:#9ca3af;font-size:12px;margin:22px 0 0;line-height:1.5;">If you want to pause your membership or chat to the team, reply to this email — we're here.</p>
+    <p style="color:#9A9FA1;font-size:12px;margin:22px 0 0;line-height:1.5;">If you want to pause your membership or chat to the team, reply to this email — we're here.</p>
   </div>
-  <div style="background:#05070A;padding:14px 32px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
-    <p style="color:#6b7280;font-size:11px;margin:0;">Pulse Fitness · {studio} · Win-back</p>
+  <div style="background:#1B1C1D;padding:14px 32px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
+    <p style="color:#6E7476;font-size:11px;margin:0;">Pulse Fitness · {studio} · Win-back</p>
   </div>
 </div>"""
 

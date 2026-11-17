@@ -21,7 +21,7 @@ DEFAULT_PULSE_LOGO_URL = (
 )
 
 _INK = "#0B0C10"
-_ACCENT = "#0E7490"
+_ACCENT = "#0073A4"
 
 # In-process cache of fetched URL logos.
 _url_cache: dict[str, bytes | None] = {}

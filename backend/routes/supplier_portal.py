@@ -51,7 +51,7 @@ async def _resolve_platform_branding(organization_id: str | None) -> dict:
     # Customer's imported logo + brand colour (matches the public case page
     # priority). These drive the header of every outbound supplier email.
     logo_url = org.get("logo_url") or branding.get("logo_url") or None
-    brand_color = org.get("brand_color") or branding.get("primary_color") or "#0055FF"
+    brand_color = org.get("brand_color") or branding.get("primary_color") or "#19CDFF"
     org_name = org.get("name") or ""
     is_pulse = _is_pulse_account_type(org.get("account_type"))
     if is_pulse:
@@ -372,15 +372,15 @@ def _build_reassignment_email_html(
             return (
                 f'<span style="display:inline-block;padding:2px 6px;background:#FEE2E2;color:#991B1B;'
                 f'border-radius:999px;font-size:11px;font-weight:600;">{open_ct} open</span>'
-                f'<span style="color:#6B7280;font-size:11px;margin-left:6px;">of {total_ct}</span>'
+                f'<span style="color:#6E7476;font-size:11px;margin-left:6px;">of {total_ct}</span>'
             )
         if total_ct:
-            return f'<span style="color:#6B7280;font-size:11px;">{total_ct} historic</span>'
-        return '<span style="color:#9CA3AF;font-size:11px;">none</span>'
+            return f'<span style="color:#6E7476;font-size:11px;">{total_ct} historic</span>'
+        return '<span style="color:#9A9FA1;font-size:11px;">none</span>'
 
     def _warranty_badge(label: str) -> str:
         if not label:
-            return '<span style="color:#9CA3AF;font-size:11px;">—</span>'
+            return '<span style="color:#9A9FA1;font-size:11px;">—</span>'
         if label == "Expired":
             return '<span style="display:inline-block;padding:2px 6px;background:#FEE2E2;color:#991B1B;border-radius:999px;font-size:11px;font-weight:600;">Expired</span>'
         return f'<span style="color:#065F46;font-size:11px;">{et.esc(label)}</span>'
@@ -416,7 +416,7 @@ def _build_reassignment_email_html(
         f'<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" '
         f'style="border:1px solid {et.BORDER};border-radius:8px;border-collapse:separate;'
         f'overflow:hidden;margin:8px 0 4px;">'
-        f'<tr style="background:#FAFAFA;"><th {th}>Machine</th><th {th}>Location</th>'
+        f'<tr style="background:#F7F7F7;"><th {th}>Machine</th><th {th}>Location</th>'
         f'<th {th}>Faults</th><th {th}>Warranty</th></tr>'
         f'{rows}</table>'
     )
@@ -1143,7 +1143,7 @@ async def get_supplier_case(token: str, request: Request):
     # Brand colour priority: explicit brand_color → branding.primary_color → default
     branding = org.get("branding") or {}
     brand_color = (org.get("brand_color") or branding.get("primary_color")
-                   or ("#0055FF" if is_pulse else "#0055FF"))
+                   or ("#19CDFF" if is_pulse else "#19CDFF"))
     logo_url = org.get("logo_url") or branding.get("logo_url") or None
 
     # MOD Engineer Appointment Booking form — it's the SUPPLIER (Pulse/overseas
@@ -1438,34 +1438,34 @@ def _build_reporter_block(reporter: dict) -> str:
     # Subtle role chip — only renders if we know the role (e.g. "Gym Floor").
     role_chip = (
         f'<span style="display:inline-block;margin-left:8px;padding:2px 8px;'
-        f'background:#E0F2FE;color:#0369A1;font-size:10px;font-weight:700;'
+        f'background:#E0F2FE;color:#0073A4;font-size:10px;font-weight:700;'
         f'border-radius:999px;text-transform:uppercase;letter-spacing:0.04em;">'
         f'{role}</span>'
     ) if role else ""
 
-    name_html = f'<p style="margin:0;font-size:14px;color:#111;font-weight:600;">{name or "Reporter"}{role_chip}</p>'
+    name_html = f'<p style="margin:0;font-size:14px;color:#1B1C1D;font-weight:600;">{name or "Reporter"}{role_chip}</p>'
 
     contact_lines: list[str] = []
     if email:
         contact_lines.append(
-            f'<a href="mailto:{email}" style="color:#0055FF;text-decoration:none;font-weight:500;">{email}</a>'
+            f'<a href="mailto:{email}" style="color:#0091CA;text-decoration:none;font-weight:500;">{email}</a>'
         )
     if phone:
         # Strip non-dial characters for the tel: href so iOS/Android dialers
         # parse cleanly even if the stored number has spaces or dashes.
         tel = re.sub(r"[^\d+]", "", phone)
         contact_lines.append(
-            f'<a href="tel:{tel}" style="color:#0055FF;text-decoration:none;font-weight:500;">{phone}</a>'
+            f'<a href="tel:{tel}" style="color:#0091CA;text-decoration:none;font-weight:500;">{phone}</a>'
         )
     contact_html = (
-        '<p style="margin:6px 0 0;font-size:13px;color:#374151;">'
+        '<p style="margin:6px 0 0;font-size:13px;color:#393E41;">'
         + " · ".join(contact_lines) + "</p>"
         if contact_lines else ""
     )
 
     return f'''
     <div style="margin:16px 0;padding:14px 16px;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:8px;">
-      <p style="margin:0 0 4px;font-size:11px;color:#0369A1;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;">Reported by</p>
+      <p style="margin:0 0 4px;font-size:11px;color:#0073A4;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;">Reported by</p>
       {name_html}
       {contact_html}
     </div>'''
@@ -1525,7 +1525,7 @@ def _build_comment_email_html(case: dict, comment: dict, intro: str, branding: d
                            size="15px", margin="8px 0 0")
             + attach_note
         ),
-        bg="#F8FAFC", accent=brand_color,
+        bg="#F7F7F7", accent=brand_color,
     )
 
     body = (

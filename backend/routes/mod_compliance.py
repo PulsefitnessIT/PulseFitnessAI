@@ -304,9 +304,9 @@ async def sweep_compliance_reminders() -> dict:
 
 
 def _reminder_html(ev: dict, site: Optional[dict], label: str) -> str:
-    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-  <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
-    <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Compliance · {label}</div>
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1C1D;border-radius:12px;overflow:hidden;border:1px solid #E0E0E0;">
+  <div style="background:#1B1C1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
+    <div style="color:#0091CA;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Compliance · {label}</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{ev.get('title','')}</h1>
   </div>
   <div style="padding:22px 28px;">
@@ -314,6 +314,6 @@ def _reminder_html(ev: dict, site: Optional[dict], label: str) -> str:
        <strong>Due:</strong> {ev.get('due_date','')}<br>
        <strong>Type:</strong> {KIND_LABELS.get(ev.get('kind'), ev.get('kind'))}</p>
     {f'<p>{ev.get("notes")}</p>' if ev.get('notes') else ''}
-    {f'<p><a href="{ev.get("doc_url")}" style="color:#19CDFF;">Evidence pack →</a></p>' if ev.get('doc_url') else ''}
+    {f'<p><a href="{ev.get("doc_url")}" style="color:#0091CA;">Evidence pack →</a></p>' if ev.get('doc_url') else ''}
   </div>
 </div>"""

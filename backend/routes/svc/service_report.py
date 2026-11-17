@@ -278,9 +278,9 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
         eng_brand.get("primary_color")
         or org.get("brand_primary_color")
         or (org.get("brand_kit") or {}).get("primary_color"),
-        "#0055FF",
+        "#19CDFF",
     )
-    brand_dark = "#0F172A"
+    brand_dark = "#1B1C1D"
 
     from utils.pulse_doc_template import INVOICE_BOTTOM_MARGIN
     buf = io.BytesIO()
@@ -479,8 +479,8 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
             if m.get("serviced"):
                 chips_html.append("<font color='#047857'><b>✓ SERVICED</b></font>")
             if m.get("cleaned"):
-                chips_html.append("<font color='#0369A1'><b>✓ CLEANED</b></font>")
-            chip_line = " &nbsp;·&nbsp; ".join(chips_html) if chips_html else "<font color='#94A3B8'><i>No work ticked</i></font>"
+                chips_html.append("<font color='#0073A4'><b>✓ CLEANED</b></font>")
+            chip_line = " &nbsp;·&nbsp; ".join(chips_html) if chips_html else "<font color='#9A9FA1'><i>No work ticked</i></font>"
 
             meta_bits = []
             if mtype:
@@ -493,7 +493,7 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
             header_html = (
                 f"<font color='{brand_primary}'><b>#{idx}</b></font> &nbsp; "
                 f"<b>{name}</b>"
-                + (f"  <font color='#64748B' size='8'>{meta_line}</font>" if meta_line else "")
+                + (f"  <font color='#6E7476' size='8'>{meta_line}</font>" if meta_line else "")
             )
             header_para = Paragraph(header_html, body)
             chip_para = Paragraph(chip_line, muted)
@@ -521,7 +521,7 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
                         cap = (p.get("caption") or "").strip()
                         if cap:
                             cap_p = Paragraph(
-                                f"<font color='#64748B' size='8'>{cap[:140]}</font>",
+                                f"<font color='#6E7476' size='8'>{cap[:140]}</font>",
                                 muted,
                             )
                             imgs.append([img, cap_p])
@@ -600,7 +600,7 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
                          Paragraph("<b>Measured</b>", muted), Paragraph("<b>Result</b>", muted)]]
                 for r in rows:
                     res = (r.get("result") or "na").upper()
-                    colr = "#B91C1C" if res == "FAIL" else "#047857" if res == "PASS" else "#64748B"
+                    colr = "#B91C1C" if res == "FAIL" else "#047857" if res == "PASS" else "#6E7476"
                     data.append([Paragraph(_esc(r.get("label") or "—"), body),
                                  Paragraph(_esc(f"{r.get('target') or ''} {r.get('unit') or ''}".strip() or "—"), body),
                                  Paragraph(_esc(r.get("measured") or "—"), body),
@@ -649,10 +649,10 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
                     .replace("\n", "<br/>")
                 )
                 work_lines.append(
-                    f"<b>{nm}</b><br/><font color='#475569'>{txt}</font>"
+                    f"<b>{nm}</b><br/><font color='#565B5E'>{txt}</font>"
                 )
             brief_rows.append([Paragraph(
-                "<font color='#0F172A'><b>Outstanding work</b></font>", muted)])
+                "<font color='#1B1C1D'><b>Outstanding work</b></font>", muted)])
             brief_rows.append([Paragraph("<br/><br/>".join(work_lines), body)])
         # Parts to bring next visit.
         if return_parts:
@@ -675,7 +675,7 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ]))
             brief_rows.append([Paragraph(
-                "<font color='#0F172A'><b>Parts to bring next visit</b></font>", muted)])
+                "<font color='#1B1C1D'><b>Parts to bring next visit</b></font>", muted)])
             brief_rows.append([parts_tbl])
         brief_card = Table(brief_rows, colWidths=[175 * mm])
         brief_card.setStyle(TableStyle([
@@ -732,14 +732,14 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
     if sig and sig.get("unavailable"):
         sig_text = (
             f"<b>Customer unable to sign</b><br/>{(sig.get('unavailable_reason') or '').replace('&', '&amp;')}"
-            + f"<br/><font color='#64748B' size='8.5'>{_fmt_date(sig.get('signed_at'))}</font>"
+            + f"<br/><font color='#6E7476' size='8.5'>{_fmt_date(sig.get('signed_at'))}</font>"
         )
     elif sig:
         sig_text = (
             f"<b>{sig.get('signed_by_name') or 'Customer'}</b>"
             + (f" · {sig['signed_by_role']}" if sig.get("signed_by_role") else "")
             + (f"<br/>{sig['signed_by_email']}" if sig.get("signed_by_email") else "")
-            + f"<br/><font color='#64748B' size='8.5'>{_fmt_date(sig.get('signed_at'))}</font>"
+            + f"<br/><font color='#6E7476' size='8.5'>{_fmt_date(sig.get('signed_at'))}</font>"
         )
     story.append(Paragraph("CUSTOMER SIGN-OFF", h_section))
     if sig_blocks:
@@ -782,7 +782,7 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
             lines.append(f"<font color='#dc2626'>⚠</font>&nbsp;{i['label'].replace('&', '&amp;')} (not ticked)")
         story.append(Paragraph("<br/>".join(lines) or "No items recorded.", body))
         meta = (
-            f"<font size='8.5' color='#64748B'>Signed by <b>{safety.get('engineer_name', 'Engineer')}</b>"
+            f"<font size='8.5' color='#6E7476'>Signed by <b>{safety.get('engineer_name', 'Engineer')}</b>"
             f" at {_fmt_date(safety.get('signed_at'))}"
             + (f" · Remarks: <i>{safety['remarks']}</i>" if safety.get("remarks") else "")
             + "</font>"
@@ -804,7 +804,7 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
                 status_chip = (
                     "<font color='#10b981'><b>✓ completed</b></font>"
                     if p.get("status") == "completed"
-                    else "<font color='#0369a1'><b>✓ issued</b></font>"
+                    else "<font color='#0073A4'><b>✓ issued</b></font>"
                 )
                 valid = ""
                 if p.get("valid_until"):
@@ -815,7 +815,7 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
                 ptw_lines.append(
                     f"{status_chip}&nbsp;"
                     f"<b>{(p.get('template_name') or 'Permit')}</b>"
-                    f" <font color='#64748B'>({hz})</font>{valid}"
+                    f" <font color='#6E7476'>({hz})</font>{valid}"
                     f" · issued by {issuer}"
                 )
             story.append(Paragraph(
@@ -840,9 +840,9 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
                 loto_lines.append(
                     f"<font color='#10b981'>✓</font>&nbsp;"
                     f"<b>{eng}</b> "
-                    f"<font color='#64748B'>at {_fmt_date(rec.get('completed_at'))}</font>"
+                    f"<font color='#6E7476'>at {_fmt_date(rec.get('completed_at'))}</font>"
                     f" — {len(ticked)} steps ticked{energy_html}"
-                    f"<br/><font size='8' color='#64748B'>{step_str}</font>"
+                    f"<br/><font size='8' color='#6E7476'>{step_str}</font>"
                 )
             story.append(Paragraph(
                 "<b>Lockout / Tagout</b><br/>" + "<br/>".join(loto_lines), body,
@@ -853,16 +853,16 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
             coshh_lines = []
             for u in coshh_records:
                 chems = [
-                    f"{e.get('name', '')} <font color='#64748B'>({e.get('hazard_class', '')})</font>"
+                    f"{e.get('name', '')} <font color='#6E7476'>({e.get('hazard_class', '')})</font>"
                     for e in (u.get("entries") or [])
                 ]
                 eng = u.get("engineer_name") or "Engineer"
                 coshh_lines.append(
                     f"<font color='#10b981'>✓</font>&nbsp;"
                     f"<b>{eng}</b> "
-                    f"<font color='#64748B'>at {_fmt_date(u.get('recorded_at'))}</font>"
+                    f"<font color='#6E7476'>at {_fmt_date(u.get('recorded_at'))}</font>"
                     f": {', '.join(chems) if chems else 'no chemicals'}"
-                    + (f"<br/><font size='8' color='#64748B'>{u['notes']}</font>"
+                    + (f"<br/><font size='8' color='#6E7476'>{u['notes']}</font>"
                        if u.get("notes") else "")
                 )
             story.append(Paragraph(
@@ -928,7 +928,7 @@ def _paint_page_chrome(canv, doc) -> None:
 
 
 def _resolve_brand_dark() -> str:
-    return "#0F172A"
+    return "#1B1C1D"
 
 
 async def _resolve_fix_summary(case_id: str, of: dict) -> str:
@@ -1051,18 +1051,18 @@ async def service_report_email(case_id: str, data: dict | None = None, user=Depe
     customer_first = (case.get("customer_name") or "there").split()[0]
     subject = f"Service report · {case.get('reference', case_id[:8])} — {case.get('title', 'Visit complete')}"
     note_html = (
-        f"<p style='margin:0 0 16px 0;color:#1f2937;font-size:14px;line-height:1.6'>{note}</p>"
+        f"<p style='margin:0 0 16px 0;color:#26292B;font-size:14px;line-height:1.6'>{note}</p>"
         if note else ""
     )
     html = (
         f"<div style='font-family:Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:16px'>"
-        f"<h2 style='color:#0f172a;font-size:18px;margin:0 0 12px 0'>Hi {customer_first},</h2>"
-        f"<p style='color:#1f2937;font-size:14px;line-height:1.6;margin:0 0 16px 0'>"
+        f"<h2 style='color:#1B1C1D;font-size:18px;margin:0 0 12px 0'>Hi {customer_first},</h2>"
+        f"<p style='color:#26292B;font-size:14px;line-height:1.6;margin:0 0 16px 0'>"
         f"Your service visit <b>{case.get('reference', '')}</b> is complete. "
         f"The full report is attached as a PDF. It includes photos, parts used, time on site "
         f"and your sign-off.</p>"
         f"{note_html}"
-        f"<p style='color:#64748B;font-size:13px;line-height:1.5;margin:24px 0 0 0'>"
+        f"<p style='color:#6E7476;font-size:13px;line-height:1.5;margin:24px 0 0 0'>"
         f"Thanks,<br/><b>{org_name}</b></p>"
         f"</div>"
     )
@@ -1158,20 +1158,20 @@ async def send_feedback_request(
     subject = f"How did we do? · {case.get('reference', '')}".strip()
     html = (
         f"<div style='font-family:Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;padding:16px'>"
-        f"<h2 style='color:#0f172a;font-size:18px;margin:0 0 12px 0'>Hi {customer_first},</h2>"
-        f"<p style='color:#1f2937;font-size:14px;line-height:1.6;margin:0 0 16px 0'>"
+        f"<h2 style='color:#1B1C1D;font-size:18px;margin:0 0 12px 0'>Hi {customer_first},</h2>"
+        f"<p style='color:#26292B;font-size:14px;line-height:1.6;margin:0 0 16px 0'>"
         f"Thanks for letting us take care of <b>{case.get('reference', '')}</b>. "
         f"Could you spare 30 seconds to tell us how we did? Your feedback goes "
         f"straight to the engineer who attended.</p>"
         f"<p style='margin:24px 0'>"
-        f"<a href='{track_url}' style='display:inline-block;background:#1d4ed8;"
+        f"<a href='{track_url}' style='display:inline-block;background:#0091CA;"
         f"color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;"
         f"font-weight:700;font-size:14px'>Leave feedback</a>"
         f"</p>"
-        f"<p style='color:#64748B;font-size:13px;line-height:1.5;margin:24px 0 0 0'>"
+        f"<p style='color:#6E7476;font-size:13px;line-height:1.5;margin:24px 0 0 0'>"
         f"Or paste this into your browser: <span style='word-break:break-all'>{track_url}</span>"
         f"</p>"
-        f"<p style='color:#64748B;font-size:13px;line-height:1.5;margin:16px 0 0 0'>"
+        f"<p style='color:#6E7476;font-size:13px;line-height:1.5;margin:16px 0 0 0'>"
         f"Thanks,<br/><b>{org_name}</b></p>"
         f"</div>"
     )
@@ -1255,21 +1255,21 @@ async def _email_pulse_close_out(case: dict, pdf: bytes, sig: dict | None) -> No
         {"case_id": case["id"], "type": "note", "extra.kind": {"$nin": ["sicon_engineer_change", "esp_auto_allocated"]}},
         {"_id": 0, "body": 1, "actor_name": 1, "at": 1}).sort("at", 1).to_list(50)
     rows = "".join(f"<li style='margin-bottom:6px'><b>{_h.escape(n.get('actor_name') or '')}</b> "
-                   f"<span style='color:#64748b'>{_h.escape(str(n.get('at') or '')[:16].replace('T', ' '))}</span><br/>"
+                   f"<span style='color:#6E7476'>{_h.escape(str(n.get('at') or '')[:16].replace('T', ' '))}</span><br/>"
                    f"{_h.escape(n.get('body') or '')}</li>" for n in notes)
     sicon = case.get("sicon_case_id") or case.get("sicon_reference") or "—"
     html = (f"<div style='font-family:Helvetica,Arial,sans-serif;max-width:620px'>"
             f"<h2 style='font-size:17px;margin:0 0 8px'>MOD job complete — ready to close on Sicon</h2>"
             f"<table style='font-size:13px;border-collapse:collapse'>"
-            f"<tr><td style='padding:2px 10px 2px 0;color:#64748b'>Job</td><td><b>{_h.escape(ref)}</b></td></tr>"
-            f"<tr><td style='padding:2px 10px 2px 0;color:#64748b'>Site</td><td>{_h.escape(case.get('site_name') or '')}</td></tr>"
-            f"<tr><td style='padding:2px 10px 2px 0;color:#64748b'>Fault</td><td>{_h.escape(case.get('title') or '')}</td></tr>"
-            f"<tr><td style='padding:2px 10px 2px 0;color:#64748b'>Engineer</td><td>{_h.escape(case.get('assigned_engineer_name') or '')}</td></tr>"
-            f"<tr><td style='padding:2px 10px 2px 0;color:#64748b'>Signed off by</td><td>{_h.escape((sig or {}).get('signed_by_name') or '—')}</td></tr>"
-            f"<tr><td style='padding:2px 10px 2px 0;color:#64748b'>Sicon case</td><td>{_h.escape(str(sicon))}</td></tr></table>"
+            f"<tr><td style='padding:2px 10px 2px 0;color:#6E7476'>Job</td><td><b>{_h.escape(ref)}</b></td></tr>"
+            f"<tr><td style='padding:2px 10px 2px 0;color:#6E7476'>Site</td><td>{_h.escape(case.get('site_name') or '')}</td></tr>"
+            f"<tr><td style='padding:2px 10px 2px 0;color:#6E7476'>Fault</td><td>{_h.escape(case.get('title') or '')}</td></tr>"
+            f"<tr><td style='padding:2px 10px 2px 0;color:#6E7476'>Engineer</td><td>{_h.escape(case.get('assigned_engineer_name') or '')}</td></tr>"
+            f"<tr><td style='padding:2px 10px 2px 0;color:#6E7476'>Signed off by</td><td>{_h.escape((sig or {}).get('signed_by_name') or '—')}</td></tr>"
+            f"<tr><td style='padding:2px 10px 2px 0;color:#6E7476'>Sicon case</td><td>{_h.escape(str(sicon))}</td></tr></table>"
             f"<h3 style='font-size:14px;margin:16px 0 6px'>Engineer's notes</h3>"
             f"<ul style='font-size:13px;padding-left:18px'>{rows or '<li>No notes recorded</li>'}</ul>"
-            f"<p style='font-size:12px;color:#64748b'>The signed service report is attached.</p></div>")
+            f"<p style='font-size:12px;color:#6E7476'>The signed service report is attached.</p></div>")
     try:
         ok = await send_email(to=to, subject=f"Close on Sicon · {ref} — {case.get('site_name') or 'MOD site'}",
                               html=html, organization_id=case.get("organization_id"),

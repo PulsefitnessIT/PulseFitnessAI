@@ -822,7 +822,7 @@ async def intake_card_pdf(user=Depends(get_current_user)):
     c = canvas.Canvas(buf, pagesize=A6)
 
     # Brand colour (default Pulse Fitness blue)
-    brand = org.get("brand_color") or "#1E40AF"
+    brand = org.get("brand_color") or "#0073A4"
     try:
         accent = HexColor(brand)
     except Exception:

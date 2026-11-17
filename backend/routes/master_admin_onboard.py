@@ -206,7 +206,7 @@ async def onboard_head_office(data: dict = Body(...), user: dict = Depends(get_c
     # Org row — represents the customer (the Head Office).
     is_pulse = payload["account_type"] in ("lite", "pulse_pro")
     branding = (
-        {"primary_color": "#66ccff", "company_name": "Pulse Fitness"}
+        {"primary_color": "#19CDFF", "company_name": "Pulse Fitness"}
         if is_pulse else {"primary_color": "#5b8cff", "company_name": payload["org_name"]}
     )
     await db.organizations.insert_one({

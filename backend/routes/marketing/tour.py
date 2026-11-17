@@ -134,7 +134,7 @@ async def tour_seed(user: dict = Depends(get_current_user)):
         svg = (
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800">'
             '<defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">'
-            '<stop offset="0%" stop-color="#19CDFF"/><stop offset="100%" stop-color="#0055FF"/>'
+            '<stop offset="0%" stop-color="#19CDFF"/><stop offset="100%" stop-color="#19CDFF"/>'
             '</linearGradient></defs><rect width="800" height="800" fill="url(#g)"/>'
             '<text x="400" y="420" font-family="Inter,sans-serif" font-size="44" font-weight="700" '
             'text-anchor="middle" fill="white">Saturday Spin · 8am</text></svg>'

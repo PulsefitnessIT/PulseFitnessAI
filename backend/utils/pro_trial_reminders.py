@@ -51,10 +51,10 @@ def _usage_html(usage: list) -> str:
         if m["counts"]:
             body = ", ".join(f"<b>{n}</b> {html.escape(w)}" for n, w in m["counts"])
         else:
-            body = "<span style='color:#71717a'>Not tried yet — worth a look before the trial ends.</span>"
+            body = "<span style='color:#6E7476'>Not tried yet — worth a look before the trial ends.</span>"
         rows.append(f"<tr><td style='padding:8px 12px;font-weight:700;vertical-align:top'>{m['label']}</td>"
                     f"<td style='padding:8px 12px'>{body}</td></tr>")
-    return "<table style='border-collapse:collapse;width:100%;background:#f4f4f5;border-radius:8px'>" + "".join(rows) + "</table>"
+    return "<table style='border-collapse:collapse;width:100%;background:#F0F0F0;border-radius:8px'>" + "".join(rows) + "</table>"
 
 
 async def send_trial_ending_email(org: dict, ends_at: datetime) -> int:
@@ -72,7 +72,7 @@ async def send_trial_ending_email(org: dict, ends_at: datetime) -> int:
         first = html.escape((o.get("full_name") or "there").split(" ")[0])
         lead = (f"Your team got the most out of <b>{top['label']}</b>." if top
                 else "Your team hasn't tried the Pro modules yet — there's still time.")
-        body = f"""<div style="font-family:Arial,sans-serif;max-width:600px;color:#18181b">
+        body = f"""<div style="font-family:Arial,sans-serif;max-width:600px;color:#1B1C1D">
 <h2 style="margin:0 0 8px">Your Pulse Pro trial ends tomorrow</h2>
 <p>Hi {first},</p>
 <p>The free Pulse Pro trial for <b>{html.escape(org.get('name') or 'your organisation')}</b> ends on
@@ -81,8 +81,8 @@ async def send_trial_ending_email(org: dict, ends_at: datetime) -> int:
 {_usage_html(usage)}
 <p style="margin-top:16px">Keep the modules you use: open <b>Account settings → Plan &amp; Billing</b> to choose what stays on.
 Your data is kept either way.</p>
-{f'<p><a href="{app_url}/pulse" style="background:#f59e0b;color:#18181b;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:700">Open Pulse</a></p>' if app_url else ''}
-<p style="color:#71717a;font-size:12px">Pulse Fitness</p></div>"""
+{f'<p><a href="{app_url}/pulse" style="background:#f59e0b;color:#1B1C1D;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:700">Open Pulse</a></p>' if app_url else ''}
+<p style="color:#6E7476;font-size:12px">Pulse Fitness</p></div>"""
         try:
             await send_email(o["email"], "Your Pulse Pro trial ends tomorrow — here's what you used", body)
             sent += 1
@@ -121,13 +121,13 @@ async def send_trial_request_alert(org: dict, user: dict, note: str) -> bool:
     if not to:
         logger.warning("[pro-trial] PRO_TRIAL_REQUEST_EMAIL not set — request alert not emailed")
         return False
-    body = f"""<div style="font-family:Arial,sans-serif;max-width:600px;color:#18181b">
+    body = f"""<div style="font-family:Arial,sans-serif;max-width:600px;color:#1B1C1D">
 <h2 style="margin:0 0 8px">Another Pulse Pro trial requested</h2>
 <p><b>{html.escape(org.get('name') or org['id'])}</b> has already used its free trial and is asking for another.</p>
 <table style="border-collapse:collapse">
-<tr><td style="padding:4px 12px 4px 0;color:#71717a">Requested by</td><td>{html.escape(user.get('full_name') or '')} &lt;{html.escape(user.get('email') or '')}&gt;</td></tr>
-<tr><td style="padding:4px 12px 4px 0;color:#71717a">Previous trial</td><td>{html.escape(str(org.get('pro_trial_used_at') or '—'))}</td></tr>
-<tr><td style="padding:4px 12px 4px 0;color:#71717a">Message</td><td>{html.escape(note) or '—'}</td></tr>
+<tr><td style="padding:4px 12px 4px 0;color:#6E7476">Requested by</td><td>{html.escape(user.get('full_name') or '')} &lt;{html.escape(user.get('email') or '')}&gt;</td></tr>
+<tr><td style="padding:4px 12px 4px 0;color:#6E7476">Previous trial</td><td>{html.escape(str(org.get('pro_trial_used_at') or '—'))}</td></tr>
+<tr><td style="padding:4px 12px 4px 0;color:#6E7476">Message</td><td>{html.escape(note) or '—'}</td></tr>
 </table>
 <p>To allow it: Master Admin → Organisations → {html.escape(org.get('name') or '')} → Billing → <b>Allocate another trial</b>.</p></div>"""
     try:

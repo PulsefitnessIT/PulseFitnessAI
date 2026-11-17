@@ -46,20 +46,20 @@ def _pulse_fitness_email_html(r: dict) -> str:
     notes_block = ""
     if r.get("notes"):
         notes_block = (
-            '<div style="margin-top:20px;padding:16px;background:#f8fafc;border-left:3px solid #19CDFF;border-radius:4px;">'
+            '<div style="margin-top:20px;padding:16px;background:#F7F7F7;border-left:3px solid #19CDFF;border-radius:4px;">'
             '<div style="font-size:11px;font-weight:700;color:#6E7476;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;">Notes from the gym</div>'
-            f'<div style="color:#1B1D1D;font-size:14px;line-height:1.6;">{r["notes"]}</div>'
+            f'<div style="color:#1B1C1D;font-size:14px;line-height:1.6;">{r["notes"]}</div>'
             "</div>"
         )
     first_name = r["full_name"].split(" ")[0]
     equip = r["equipment_count"] if r.get("equipment_count") is not None else "—"
-    return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#f8fafc;color:#1B1D1D;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
-  <div style="background:#1B1D1D;padding:28px 32px;border-bottom:3px solid #19CDFF;">
+    return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#F7F7F7;color:#1B1C1D;border-radius:16px;overflow:hidden;border:1px solid #E0E0E0;">
+  <div style="background:#1B1C1D;padding:28px 32px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:8px;">Pulse Pro · Upgrade Request</div>
     <h1 style="color:#fff;font-size:22px;margin:0;line-height:1.3;font-weight:800;letter-spacing:-0.01em;">{r['gym_name']} wants to upgrade</h1>
   </div>
   <div style="padding:28px 32px;background:#fff;">
-    <table style="width:100%;border-collapse:collapse;color:#1B1D1D;font-size:14px;">
+    <table style="width:100%;border-collapse:collapse;color:#1B1C1D;font-size:14px;">
       <tr><td style="padding:8px 0;color:#6E7476;width:150px;">Contact name</td><td style="padding:8px 0;font-weight:600;">{r['full_name']}</td></tr>
       <tr><td style="padding:8px 0;color:#6E7476;">Email</td><td style="padding:8px 0;"><a href="mailto:{r['email']}" style="color:#19CDFF;text-decoration:none;">{r['email']}</a></td></tr>
       <tr><td style="padding:8px 0;color:#6E7476;">Phone</td><td style="padding:8px 0;">{r['phone'] or '—'}</td></tr>
@@ -70,11 +70,11 @@ def _pulse_fitness_email_html(r: dict) -> str:
     </table>
     {notes_block}
     <div style="margin-top:24px;">
-      <a href="mailto:{r['email']}" style="display:inline-block;background:#19CDFF;color:#05070A;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px;letter-spacing:0.05em;text-transform:uppercase;">Reply to {first_name}</a>
+      <a href="mailto:{r['email']}" style="display:inline-block;background:#19CDFF;color:#1B1C1D;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px;letter-spacing:0.05em;text-transform:uppercase;">Reply to {first_name}</a>
     </div>
   </div>
-  <div style="background:#1B1D1D;padding:16px 32px;">
-    <p style="color:#9ca3af;font-size:11px;margin:0;">Sent by the Pulse Fitness portal · upgrade-request funnel</p>
+  <div style="background:#1B1C1D;padding:16px 32px;">
+    <p style="color:#9A9FA1;font-size:11px;margin:0;">Sent by the Pulse Fitness portal · upgrade-request funnel</p>
   </div>
 </div>"""
 
@@ -84,32 +84,32 @@ def _platform_owner_email_html(r: dict) -> str:
     notes_block = ""
     if r.get("notes"):
         notes_block = (
-            '<div style="margin-top:20px;padding:16px;background:#05070A;border-left:3px solid #19CDFF;border-radius:4px;">'
-            '<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;">Notes</div>'
-            f'<div style="color:#e5e7eb;font-size:14px;line-height:1.6;">{r["notes"]}</div>'
+            '<div style="margin-top:20px;padding:16px;background:#1B1C1D;border-left:3px solid #19CDFF;border-radius:4px;">'
+            '<div style="font-size:11px;font-weight:700;color:#9A9FA1;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px;">Notes</div>'
+            f'<div style="color:#E0E0E0;font-size:14px;line-height:1.6;">{r["notes"]}</div>'
             "</div>"
         )
     equip_suffix = ""
     if r.get("equipment_count") is not None:
         equip_suffix = f" · {r['equipment_count']} pieces"
-    return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#05070A;color:#fff;border-radius:16px;overflow:hidden;">
-  <div style="background:linear-gradient(135deg,#05070A 0%,#0d1117 100%);padding:28px 32px;border-bottom:1px solid rgba(25,205,255,0.3);">
+    return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#1B1C1D;color:#fff;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#1B1C1D 0%,#0d1117 100%);padding:28px 32px;border-bottom:1px solid rgba(25,205,255,0.3);">
     <div style="color:#19CDFF;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:8px;">Pulse Pro · Upgrade Request</div>
     <h1 style="color:#fff;font-size:22px;margin:0;line-height:1.3;font-weight:800;letter-spacing:-0.01em;">{r['gym_name']} requested Pro</h1>
   </div>
-  <div style="padding:28px 32px;background:#0A0B10;">
-    <table style="width:100%;border-collapse:collapse;color:#e5e7eb;font-size:14px;">
-      <tr><td style="padding:8px 0;color:#9ca3af;width:150px;">Contact</td><td style="padding:8px 0;font-weight:600;">{r['full_name']}</td></tr>
-      <tr><td style="padding:8px 0;color:#9ca3af;">Email</td><td style="padding:8px 0;"><a href="mailto:{r['email']}" style="color:#19CDFF;text-decoration:none;">{r['email']}</a></td></tr>
-      <tr><td style="padding:8px 0;color:#9ca3af;">Phone</td><td style="padding:8px 0;">{r['phone'] or '—'}</td></tr>
-      <tr><td style="padding:8px 0;color:#9ca3af;">Gym</td><td style="padding:8px 0;font-weight:600;">{r['gym_name']}</td></tr>
-      <tr><td style="padding:8px 0;color:#9ca3af;">Sites · Equipment</td><td style="padding:8px 0;">{r['site_count']} site(s){equip_suffix}</td></tr>
-      <tr><td style="padding:8px 0;color:#9ca3af;">Prefers</td><td style="padding:8px 0;text-transform:capitalize;">{r['contact_method']}</td></tr>
+  <div style="padding:28px 32px;background:#1B1C1D;">
+    <table style="width:100%;border-collapse:collapse;color:#E0E0E0;font-size:14px;">
+      <tr><td style="padding:8px 0;color:#9A9FA1;width:150px;">Contact</td><td style="padding:8px 0;font-weight:600;">{r['full_name']}</td></tr>
+      <tr><td style="padding:8px 0;color:#9A9FA1;">Email</td><td style="padding:8px 0;"><a href="mailto:{r['email']}" style="color:#19CDFF;text-decoration:none;">{r['email']}</a></td></tr>
+      <tr><td style="padding:8px 0;color:#9A9FA1;">Phone</td><td style="padding:8px 0;">{r['phone'] or '—'}</td></tr>
+      <tr><td style="padding:8px 0;color:#9A9FA1;">Gym</td><td style="padding:8px 0;font-weight:600;">{r['gym_name']}</td></tr>
+      <tr><td style="padding:8px 0;color:#9A9FA1;">Sites · Equipment</td><td style="padding:8px 0;">{r['site_count']} site(s){equip_suffix}</td></tr>
+      <tr><td style="padding:8px 0;color:#9A9FA1;">Prefers</td><td style="padding:8px 0;text-transform:capitalize;">{r['contact_method']}</td></tr>
     </table>
     {notes_block}
   </div>
-  <div style="background:#05070A;padding:16px 32px;border-top:1px solid rgba(255,255,255,0.05);">
-    <p style="color:#6b7280;font-size:11px;margin:0;">Pulse upgrade intent · tracked in Master Admin funnel</p>
+  <div style="background:#1B1C1D;padding:16px 32px;border-top:1px solid rgba(255,255,255,0.05);">
+    <p style="color:#6E7476;font-size:11px;margin:0;">Pulse upgrade intent · tracked in Master Admin funnel</p>
   </div>
 </div>"""
 

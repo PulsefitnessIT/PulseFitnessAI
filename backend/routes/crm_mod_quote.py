@@ -667,7 +667,7 @@ async def _quote_org_branding(org_id: str | None) -> dict:
     return {
         "org_name": org.get("name") or "Pulse Fitness",
         "logo_url": org.get("logo_url") or branding.get("logo_url"),
-        "brand_color": org.get("brand_color") or branding.get("primary_color") or "#0055FF",
+        "brand_color": org.get("brand_color") or branding.get("primary_color") or "#19CDFF",
         "account_type": org.get("account_type"),
         "_org": org,
     }
@@ -725,7 +725,7 @@ async def send_quote_for_esign(quote_id: str, data: dict, user=Depends(require_o
                              f'(inc. VAT)', size="15px", margin="0")
                 + et.paragraph(f'Valid until: {et.esc(quote.get("valid_until") or "on request")}',
                                color=et.TEXT_MUTED, size="13px", margin="6px 0 0"),
-                bg="#F8FAFC", accent=brand["brand_color"])
+                bg="#F7F7F7", accent=brand["brand_color"])
             + et.paragraph('Review the full quote and sign it online using the secure button below.')
             + et.bulletproof_button(link, "View & Sign Quote", brand["brand_color"],
                                     testid="quote-esign-cta"))

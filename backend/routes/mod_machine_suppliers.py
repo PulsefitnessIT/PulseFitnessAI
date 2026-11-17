@@ -147,20 +147,20 @@ async def _resolve_target(org: dict, target: str) -> dict:
 
 def _reassign_email_html(site: str, who: str, machines: list[dict], by: str) -> str:
     rows = "".join(
-        f"<tr><td style='padding:6px 10px;border-bottom:1px solid #eee'>{html.escape(m.get('name') or '')}</td>"
-        f"<td style='padding:6px 10px;border-bottom:1px solid #eee'>{html.escape(m.get('serial_number') or '—')}</td>"
-        f"<td style='padding:6px 10px;border-bottom:1px solid #eee'>{html.escape(m.get('location') or m.get('machine_type') or '—')}</td></tr>"
+        f"<tr><td style='padding:6px 10px;border-bottom:1px solid #F0F0F0'>{html.escape(m.get('name') or '')}</td>"
+        f"<td style='padding:6px 10px;border-bottom:1px solid #F0F0F0'>{html.escape(m.get('serial_number') or '—')}</td>"
+        f"<td style='padding:6px 10px;border-bottom:1px solid #F0F0F0'>{html.escape(m.get('location') or m.get('machine_type') or '—')}</td></tr>"
         for m in machines)
     return (
-        "<div style='font-family:Arial,sans-serif;color:#111;max-width:640px'>"
+        "<div style='font-family:Arial,sans-serif;color:#1B1C1D;max-width:640px'>"
         f"<p>Hello {html.escape(who)},</p>"
         f"<p><b>{len(machines)}</b> machine(s) at <b>{html.escape(site)}</b> are now assigned to you for service. "
         "You will receive fault notifications for these machines from now on.</p>"
         "<table style='border-collapse:collapse;width:100%;font-size:13px'>"
-        "<tr style='background:#f3f4f6;text-align:left'><th style='padding:6px 10px'>Machine</th>"
+        "<tr style='background:#F0F0F0;text-align:left'><th style='padding:6px 10px'>Machine</th>"
         "<th style='padding:6px 10px'>Serial</th><th style='padding:6px 10px'>Location / type</th></tr>"
         f"{rows}</table>"
-        f"<p style='font-size:12px;color:#555'>Reassigned by {html.escape(by)} via the Pulse Fitness MOD Service Portal.</p>"
+        f"<p style='font-size:12px;color:#565B5E'>Reassigned by {html.escape(by)} via the Pulse Fitness MOD Service Portal.</p>"
         "</div>")
 
 

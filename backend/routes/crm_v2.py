@@ -4777,12 +4777,12 @@ async def _send_quote_emails(org_id: str, recipients: list[str], subject: str,
                              title: str, lines: list[str], kind: str) -> None:
     if not recipients:
         return
-    body = "".join(f"<p style='margin:6px 0;color:#334155;font-size:14px;'>{ln}</p>" for ln in lines)
+    body = "".join(f"<p style='margin:6px 0;color:#393E41;font-size:14px;'>{ln}</p>" for ln in lines)
     html = (
         "<div style=\"font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;"
-        "padding:24px;border:1px solid #e2e8f0;border-radius:12px;\">"
-        f"<h2 style=\"color:#0f172a;margin:0 0 14px;font-size:18px;\">{title}</h2>{body}"
-        "<p style=\"margin-top:22px;font-size:12px;color:#94a3b8;\">Pulse Fitness CRM</p></div>"
+        "padding:24px;border:1px solid #E0E0E0;border-radius:12px;\">"
+        f"<h2 style=\"color:#1B1C1D;margin:0 0 14px;font-size:18px;\">{title}</h2>{body}"
+        "<p style=\"margin-top:22px;font-size:12px;color:#9A9FA1;\">Pulse Fitness CRM</p></div>"
     )
     from utils.email import send_email
     for r in recipients:

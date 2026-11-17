@@ -85,7 +85,7 @@ def _public_branding(gym: dict) -> dict:
         "slug": gym.get("slug") or gym["id"],
         "name": gym.get("name") or branding.get("company_name") or "Your gym",
         "logo_url": branding.get("logo_url"),
-        "primary_colour": branding.get("primary_colour") or "#2563EB",
+        "primary_colour": branding.get("primary_colour") or "#0091CA",
         "accent_colour": branding.get("accent_colour") or "#19CDFF",
         "tagline": branding.get("tagline") or "Train. Belong. Grow.",
         "hero_image_url": branding.get("hero_image_url"),

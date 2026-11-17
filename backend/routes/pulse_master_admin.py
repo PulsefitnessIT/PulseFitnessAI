@@ -121,29 +121,29 @@ async def _send_pulse_admin_invite(email: str, name: str, temp_password: str) ->
     login_url = f"{FRONTEND_URL.rstrip('/')}/login" if FRONTEND_URL else "https://pulsefitness.com/login"
 
     html = f"""
-    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">
-      <div style="background:#0A0A0A;padding:22px 28px;">
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:#fff;border:1px solid #E0E0E0;border-radius:12px;overflow:hidden;">
+      <div style="background:#1B1C1D;padding:22px 28px;">
         <h1 style="color:#fff;font-size:18px;margin:0;">Welcome to Pulse Master Admin</h1>
-        <p style="color:#9ca3af;font-size:12px;margin:4px 0 0;">Powered by Pulse Fitness</p>
+        <p style="color:#9A9FA1;font-size:12px;margin:4px 0 0;">Powered by Pulse Fitness</p>
       </div>
-      <div style="padding:28px;color:#111;">
+      <div style="padding:28px;color:#1B1C1D;">
         <p style="font-size:14px;line-height:1.6;">Hi {sanitise_string(name) or 'there'},</p>
         <p style="font-size:14px;line-height:1.6;">
           You've been provisioned as a <strong>Pulse Master Admin</strong>. Use the temporary
           password below to sign in — you'll be asked to set a new one immediately.
         </p>
-        <div style="margin:20px 0;padding:18px;background:#F9FAFB;border:1px dashed #D1D5DB;border-radius:8px;text-align:center;">
-          <p style="margin:0 0 6px;color:#6B7280;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Temporary password</p>
-          <p style="margin:0;font-family:'SFMono-Regular',Menlo,monospace;font-size:18px;font-weight:700;color:#0055FF;letter-spacing:0.04em;">{temp_password}</p>
+        <div style="margin:20px 0;padding:18px;background:#F7F7F7;border:1px dashed #C9CBCC;border-radius:8px;text-align:center;">
+          <p style="margin:0 0 6px;color:#6E7476;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Temporary password</p>
+          <p style="margin:0;font-family:'SFMono-Regular',Menlo,monospace;font-size:18px;font-weight:700;color:#0091CA;letter-spacing:0.04em;">{temp_password}</p>
         </div>
-        <p style="font-size:13px;line-height:1.6;color:#4B5563;">
+        <p style="font-size:13px;line-height:1.6;color:#565B5E;">
           This password expires in 7 days. If you don't use it, ask the platform admin to reissue.
         </p>
-        <a href="{login_url}" style="display:inline-block;margin-top:8px;padding:11px 22px;background:#0055FF;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">
+        <a href="{login_url}" style="display:inline-block;margin-top:8px;padding:11px 22px;background:#19CDFF;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">
           Sign in to Master Admin
         </a>
-        <p style="font-size:11px;color:#9CA3AF;margin-top:24px;border-top:1px solid #F3F4F6;padding-top:14px;">
-          Login email: <span style="font-family:monospace;color:#374151;">{email}</span>
+        <p style="font-size:11px;color:#9A9FA1;margin-top:24px;border-top:1px solid #F0F0F0;padding-top:14px;">
+          Login email: <span style="font-family:monospace;color:#393E41;">{email}</span>
         </p>
       </div>
     </div>

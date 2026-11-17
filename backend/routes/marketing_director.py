@@ -139,8 +139,8 @@ DIRECTOR_SCHEMA = {
 
 def _system_prompt(brand_kit: dict, brand_lock: bool) -> str:
     palette = (
-        f"primary {brand_kit.get('primary_color', '#0055FF')}, "
-        f"secondary {brand_kit.get('secondary_color', '#66CCFF')}"
+        f"primary {brand_kit.get('primary_color', '#19CDFF')}, "
+        f"secondary {brand_kit.get('secondary_color', '#19CDFF')}"
     )
     if brand_kit.get("accent_color"):
         palette += f", accent {brand_kit['accent_color']}"
@@ -445,8 +445,8 @@ async def director_build(body: dict = Body(...), user: dict = Depends(get_curren
         sub = copy.get("subheadline") or ""
         cta = copy.get("cta") or ""
         palette = (
-            f"primary {brand_kit.get('primary_color', '#0055FF')}, "
-            f"secondary {brand_kit.get('secondary_color', '#66CCFF')}"
+            f"primary {brand_kit.get('primary_color', '#19CDFF')}, "
+            f"secondary {brand_kit.get('secondary_color', '#19CDFF')}"
         )
         accent = brand_kit.get('accent_color')
         if accent:
@@ -1223,8 +1223,8 @@ async def _generate_personal_rescue_copy(
     )
     voice_guard = brand_kit.get("voice") or "professional, energetic, gym-friendly"
     palette = (
-        f"primary {brand_kit.get('primary_color', '#0055FF')}, "
-        f"secondary {brand_kit.get('secondary_color', '#66CCFF')}"
+        f"primary {brand_kit.get('primary_color', '#19CDFF')}, "
+        f"secondary {brand_kit.get('secondary_color', '#19CDFF')}"
     )
 
     user_msg = (

@@ -81,7 +81,7 @@ async def public_class_detail(slug: str, occurrence_id: str):
         "organization": {
             "name": org.get("name"),
             "logo_url": org.get("logo_url"),
-            "primary_color": org.get("primary_color") or "#0055FF",
+            "primary_color": org.get("primary_color") or "#19CDFF",
             "secondary_color": org.get("secondary_color") or "#19CDFF",
             "slug": slug,
         },
@@ -157,7 +157,7 @@ def _public_brand(org: dict) -> dict:
     return {
         "name": org.get("name"),
         "logo_url": org.get("logo_url"),
-        "primary_color": org.get("primary_color") or "#0055FF",
+        "primary_color": org.get("primary_color") or "#19CDFF",
         "secondary_color": org.get("secondary_color") or "#19CDFF",
         "slug": org.get("membership_app_slug"),
     }

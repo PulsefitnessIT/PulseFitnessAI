@@ -503,22 +503,22 @@ async def mod_sites_download_credentials(
 # ─────────────────────── credentials dispatch ───────────────────────
 
 
-CREDENTIALS_EMAIL_HTML = """<!DOCTYPE html><html><body style="font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #0f172a; line-height: 1.55;">
+CREDENTIALS_EMAIL_HTML = """<!DOCTYPE html><html><body style="font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #1B1C1D; line-height: 1.55;">
 <div style="max-width: 560px; margin: 0 auto; padding: 28px 24px;">
   <h1 style="font-size: 20px; font-weight: 800; margin: 0 0 8px;">Welcome to Pulse Fitness — {site_name}</h1>
-  <p style="font-size: 14px; color: #334155; margin: 0 0 16px;">
+  <p style="font-size: 14px; color: #393E41; margin: 0 0 16px;">
     Your base has been set up on the Pulse Fitness Defence Estate Management platform.
     Below are the credentials your team uses to log faults, view repair status,
     and escalate to DIO.
   </p>
-  <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; margin: 16px 0;">
-    <p style="margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; font-weight: 700;">Login</p>
-    <p style="font-family: ui-monospace, SFMono-Regular, monospace; font-size: 15px; font-weight: 600; color: #0f172a; margin: 6px 0 12px;">{username}</p>
-    <p style="margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; font-weight: 700;">Password</p>
-    <p style="font-family: ui-monospace, SFMono-Regular, monospace; font-size: 15px; font-weight: 600; color: #0f172a; margin: 6px 0 0;">{password}</p>
+  <div style="background: #F0F0F0; border: 1px solid #C9CBCC; border-radius: 10px; padding: 16px; margin: 16px 0;">
+    <p style="margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #6E7476; font-weight: 700;">Login</p>
+    <p style="font-family: ui-monospace, SFMono-Regular, monospace; font-size: 15px; font-weight: 600; color: #1B1C1D; margin: 6px 0 12px;">{username}</p>
+    <p style="margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #6E7476; font-weight: 700;">Password</p>
+    <p style="font-family: ui-monospace, SFMono-Regular, monospace; font-size: 15px; font-weight: 600; color: #1B1C1D; margin: 6px 0 0;">{password}</p>
   </div>
-  <p style="font-size: 13px; color: #334155;">Log in at:
-    <a href="{login_url}" style="color: #1d4ed8; font-weight: 700;">{login_url}</a>
+  <p style="font-size: 13px; color: #393E41;">Log in at:
+    <a href="{login_url}" style="color: #0091CA; font-weight: 700;">{login_url}</a>
   </p>
   <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 12px; margin: 18px 0;">
     <p style="margin: 0; font-size: 12px; color: #9a3412;">
@@ -526,7 +526,7 @@ CREDENTIALS_EMAIL_HTML = """<!DOCTYPE html><html><body style="font-family: ui-sa
       This message is the only record of the temporary password.
     </p>
   </div>
-  <p style="font-size: 12px; color: #64748b; margin-top: 24px;">— The Pulse Fitness team</p>
+  <p style="font-size: 12px; color: #6E7476; margin-top: 24px;">— The Pulse Fitness team</p>
 </div>
 </body></html>"""
 

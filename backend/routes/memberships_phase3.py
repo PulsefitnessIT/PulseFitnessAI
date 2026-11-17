@@ -154,7 +154,7 @@ async def announce_to_class(
 
     email_count = 0
     if "email" in ann_doc["channels"]:
-        primary_color = org.get("primary_color") or "#0055FF"
+        primary_color = org.get("primary_color") or "#19CDFF"
         for mid in member_ids:
             m = members.get(mid)
             if not m or not m.get("email"):
@@ -165,16 +165,16 @@ async def announce_to_class(
                 f'<p style="font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:{primary_color};font-weight:800;margin:0 0 6px;">'
                 f'{org_name}'
                 f'</p>'
-                f'<h2 style="margin:0 0 12px;font-size:22px;color:#0a0c10;">{title}</h2>'
-                f'<p style="font-size:14px;color:#444;margin:0 0 6px;">Hi {first},</p>'
-                f'<p style="font-size:14px;color:#444;margin:0 0 16px;">'
+                f'<h2 style="margin:0 0 12px;font-size:22px;color:#1B1C1D;">{title}</h2>'
+                f'<p style="font-size:14px;color:#565B5E;margin:0 0 6px;">Hi {first},</p>'
+                f'<p style="font-size:14px;color:#565B5E;margin:0 0 16px;">'
                 f'Quick update about your <strong>{class_name}</strong> ({starts_h}):'
                 f'</p>'
                 f'<div style="border-left:3px solid {primary_color};padding:12px 16px;background:#f6f8fb;border-radius:6px;margin-bottom:18px;">'
                 f'<p style="margin:0;color:#1a1f2e;font-size:14px;line-height:1.5;white-space:pre-wrap;">'
                 f'{_html_safe(body.message)}</p>'
                 f'</div>'
-                f'<p style="font-size:12px;color:#94a3b8;margin:0;">See you there,<br/>{org_name}</p>'
+                f'<p style="font-size:12px;color:#9A9FA1;margin:0;">See you there,<br/>{org_name}</p>'
                 f'</div>'
             )
             background.add_task(send_email, m["email"], f"{class_name} · {title}", html)

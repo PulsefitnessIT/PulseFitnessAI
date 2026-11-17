@@ -119,16 +119,16 @@ def _transcript_html(turns: list[dict]) -> str:
     blocks = []
     for t in turns:
         role = t.get("role", "user").capitalize()
-        colour = "#0055FF" if role.lower() == "assistant" else "#111827"
+        colour = "#19CDFF" if role.lower() == "assistant" else "#1B1C1D"
         when = (t.get("created_at") or "")[:19].replace("T", " ")
         text = (t.get("text") or "").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>")
         blocks.append(
-            f'<div style="margin-bottom:10px"><div style="font-size:11px;color:#6b7280;'
+            f'<div style="margin-bottom:10px"><div style="font-size:11px;color:#6E7476;'
             f'text-transform:uppercase;letter-spacing:0.04em;">'
             f'<b style="color:{colour}">{role}</b> · {when}</div>'
-            f'<div style="font-size:14px;color:#111827;line-height:1.45">{text}</div></div>'
+            f'<div style="font-size:14px;color:#1B1C1D;line-height:1.45">{text}</div></div>'
         )
-    return "".join(blocks) or '<div style="color:#6b7280">No transcript captured.</div>'
+    return "".join(blocks) or '<div style="color:#6E7476">No transcript captured.</div>'
 
 
 def _build_escalation_email(case_ref: str, user: dict, org: dict,
@@ -139,20 +139,20 @@ def _build_escalation_email(case_ref: str, user: dict, org: dict,
     subject = f"[{case_ref}] Human support requested — {org_name}"
     html = f"""
     <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:640px;margin:auto;padding:20px">
-      <h2 style="margin:0 0 6px 0;color:#0055FF">Ask {platform_name} — human escalation</h2>
-      <p style="color:#6b7280;font-size:13px;margin:0 0 20px 0">Case reference: <b>{case_ref}</b></p>
-      <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:14px;margin-bottom:18px">
-        <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px">Customer</div>
-        <div style="font-size:14px;color:#111827"><b>{user.get('full_name') or user.get('email', '')}</b> · {user.get('email', '')}</div>
-        <div style="font-size:13px;color:#6b7280;margin-top:2px">{org_name} ({org.get('account_type', 'unknown')})</div>
+      <h2 style="margin:0 0 6px 0;color:#0091CA">Ask {platform_name} — human escalation</h2>
+      <p style="color:#6E7476;font-size:13px;margin:0 0 20px 0">Case reference: <b>{case_ref}</b></p>
+      <div style="background:#F7F7F7;border:1px solid #E0E0E0;border-radius:8px;padding:14px;margin-bottom:18px">
+        <div style="font-size:12px;color:#6E7476;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px">Customer</div>
+        <div style="font-size:14px;color:#1B1C1D"><b>{user.get('full_name') or user.get('email', '')}</b> · {user.get('email', '')}</div>
+        <div style="font-size:13px;color:#6E7476;margin-top:2px">{org_name} ({org.get('account_type', 'unknown')})</div>
       </div>
       <div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:14px;margin-bottom:18px">
         <div style="font-size:12px;color:#92400E;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px">Why they escalated</div>
         <div style="font-size:14px;color:#78350F">{reason_html}</div>
       </div>
-      <h3 style="margin:18px 0 10px 0;color:#111827;font-size:15px">Conversation transcript (last {len(turns)} turns)</h3>
-      <div style="background:#fff;border:1px solid #E5E7EB;border-radius:8px;padding:14px">{transcript}</div>
-      <p style="color:#6b7280;font-size:11px;margin-top:20px">
+      <h3 style="margin:18px 0 10px 0;color:#1B1C1D;font-size:15px">Conversation transcript (last {len(turns)} turns)</h3>
+      <div style="background:#fff;border:1px solid #E0E0E0;border-radius:8px;padding:14px">{transcript}</div>
+      <p style="color:#6E7476;font-size:11px;margin-top:20px">
         This email was sent automatically by {platform_name} when a user requested human support.
       </p>
     </div>

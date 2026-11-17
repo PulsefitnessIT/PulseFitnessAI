@@ -773,8 +773,8 @@ async def duplicate_invoice(invoice_id: str, user=Depends(get_current_user)):
 
 
 def _email_html(invoice: dict, custom_message: str = "") -> str:
-    primary = "#1d4ed8"
-    accent = "#6366f1"
+    primary = "#0091CA"
+    accent = "#19CDFF"
     customer = invoice.get("customer_name") or "there"
     engineer = invoice.get("engineer_name") or "Your engineer"
     ino = invoice.get("invoice_number")
@@ -792,9 +792,9 @@ def _email_html(invoice: dict, custom_message: str = "") -> str:
             .replace(">", "&gt;").replace("\n", "<br/>")
         )
         custom_block = (
-            f'<div style="background:#f8fafc;border-left:4px solid {primary};'
+            f'<div style="background:#F7F7F7;border-left:4px solid {primary};'
             f'padding:12px 16px;margin:20px 0;font-size:14px;line-height:1.6;'
-            f'color:#1e293b;">{safe}</div>'
+            f'color:#26292B;">{safe}</div>'
         )
     pay_block = ""
     if pay_url:
@@ -803,38 +803,38 @@ def _email_html(invoice: dict, custom_message: str = "") -> str:
             f'<a href="{pay_url}" '
             f'style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,{primary} 0%,{accent} 100%);'
             f'color:white;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;'
-            f'box-shadow:0 6px 14px rgba(99,102,241,0.35);">'
+            f'box-shadow:0 6px 14px rgba(25,205,255,0.35);">'
             f'Pay {sym}{total:,.2f} now by card →</a>'
-            f'<p style="margin:10px 0 0;font-size:11px;color:#94a3b8;">'
+            f'<p style="margin:10px 0 0;font-size:11px;color:#9A9FA1;">'
             f'Secured by Stripe. Card payment marks this invoice paid automatically.</p></div>'
         )
     return f"""
-    <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;color:#0f172a;max-width:600px;margin:0 auto;padding:24px;">
+    <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;color:#1B1C1D;max-width:600px;margin:0 auto;padding:24px;">
       <div style="background:linear-gradient(135deg,{primary} 0%,{accent} 100%);
                   padding:24px;border-radius:12px;color:white;margin-bottom:24px;">
         <p style="margin:0;font-size:12px;letter-spacing:.2em;text-transform:uppercase;opacity:.85;">Pulse Fitness · Invoice</p>
         <h1 style="margin:6px 0 0;font-size:24px;font-weight:700;">{ino}</h1>
       </div>
       <p style="font-size:16px;line-height:1.6;">Hi {customer},</p>
-      <p style="font-size:14px;line-height:1.6;color:#334155;">
+      <p style="font-size:14px;line-height:1.6;color:#393E41;">
         Please find attached invoice <strong>{ino}</strong> for the work below.
       </p>
       {custom_block}
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin:18px 0;">
-        <p style="margin:0;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;">Work</p>
-        <p style="margin:6px 0 0;font-size:14px;color:#0f172a;line-height:1.5;">{description or '—'}</p>
-        <hr style="border:none;border-top:1px solid #e2e8f0;margin:14px 0;">
-        <table style="width:100%;font-size:13px;color:#334155;">
+      <div style="background:#F7F7F7;border:1px solid #E0E0E0;border-radius:8px;padding:16px;margin:18px 0;">
+        <p style="margin:0;font-size:12px;color:#6E7476;text-transform:uppercase;letter-spacing:.08em;">Work</p>
+        <p style="margin:6px 0 0;font-size:14px;color:#1B1C1D;line-height:1.5;">{description or '—'}</p>
+        <hr style="border:none;border-top:1px solid #E0E0E0;margin:14px 0;">
+        <table style="width:100%;font-size:13px;color:#393E41;">
           <tr><td>{"Total due" if invoice.get('vat_exempt') else f"Total due (incl. {tax_label})"}</td><td style="text-align:right;font-weight:700;color:{primary};">{sym}{total:,.2f}</td></tr>
           <tr><td>Due by</td><td style="text-align:right;">{due_date}</td></tr>
         </table>
       </div>
       {pay_block}
-      <p style="font-size:13px;line-height:1.6;color:#64748b;">
+      <p style="font-size:13px;line-height:1.6;color:#6E7476;">
         Prefer {pay_method}? Payment instructions are on the attached PDF.
       </p>
       <p style="font-size:14px;margin-top:24px;">Thanks,<br/><strong>{engineer}</strong></p>
-      <p style="font-size:11px;color:#94a3b8;margin-top:30px;">
+      <p style="font-size:11px;color:#9A9FA1;margin-top:30px;">
         Powered by Pulse Fitness · Field Service for Fitness Equipment
       </p>
     </div>

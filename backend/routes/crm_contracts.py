@@ -26,16 +26,16 @@ def _now(): return datetime.now(timezone.utc).isoformat()
 def _of(user): return {"organization_id": user.get("organization_id")} if user.get("organization_id") else {"organization_id": "__none__"}
 
 CONTRACT_TIERS = [
-    {"id": "warranty", "name": "Warranty", "color": "#6B7280"},
+    {"id": "warranty", "name": "Warranty", "color": "#6E7476"},
     {"id": "bronze", "name": "Bronze", "color": "#CD7F32"},
     {"id": "silver", "name": "Silver", "color": "#C0C0C0"},
     {"id": "gold", "name": "Gold", "color": "#FFD700"},
     {"id": "platinum", "name": "Platinum", "color": "#E5E4E2"},
-    {"id": "bespoke", "name": "Bespoke", "color": "#8B5CF6"},
+    {"id": "bespoke", "name": "Bespoke", "color": "#19CDFF"},
 ]
 
 CONTRACT_STATUSES = [
-    {"id": "draft", "name": "Draft", "color": "#6B7280"},
+    {"id": "draft", "name": "Draft", "color": "#6E7476"},
     {"id": "pending_approval", "name": "Pending Approval", "color": "#F59E0B"},
     {"id": "approved", "name": "Approved", "color": "#22C55E"},
     {"id": "sent", "name": "Sent to Customer", "color": "#007AFF"},
@@ -46,7 +46,7 @@ CONTRACT_STATUSES = [
     {"id": "expired", "name": "Expired", "color": "#FF3B30"},
     {"id": "renewed", "name": "Renewed", "color": "#34C759"},
     {"id": "cancelled", "name": "Cancelled", "color": "#EF4444"},
-    {"id": "amended", "name": "Amended", "color": "#8B5CF6"},
+    {"id": "amended", "name": "Amended", "color": "#19CDFF"},
 ]
 
 

@@ -575,9 +575,9 @@ SUPPORTABILITY_STATUSES = [
     {"id": "fully_supported", "name": "Fully Supported", "color": "#22C55E"},
     {"id": "supported_with_exclusions", "name": "Supported with Exclusions", "color": "#84CC16"},
     {"id": "limited_support", "name": "Limited Support", "color": "#F59E0B"},
-    {"id": "manual_review", "name": "Manual Review", "color": "#F97316"},
+    {"id": "manual_review", "name": "Manual Review", "color": "#F59E0B"},
     {"id": "do_not_contract", "name": "Do Not Contract", "color": "#EF4444"},
-    {"id": "third_party_review", "name": "Third-Party Review", "color": "#8B5CF6"},
+    {"id": "third_party_review", "name": "Third-Party Review", "color": "#19CDFF"},
 ]
 
 
@@ -1748,9 +1748,9 @@ async def send_afs_quote_email(quote_id: str, body: SendQuoteEmailIn, user=Depen
         f"(£{float(summary.get('final_annual_inc_vat') or 0):,.2f} inc VAT).</p>"
         f"<p>You can review the full quote and <strong>accept or decline online</strong> here:</p>"
         f"<p style='margin:22px 0'><a href='{link}' "
-        f"style='background:#0B3D91;color:#fff;text-decoration:none;padding:12px 22px;"
+        f"style='background:#0073A4;color:#fff;text-decoration:none;padding:12px 22px;"
         f"border-radius:10px;font-weight:700;display:inline-block'>Review &amp; respond to your quote</a></p>"
-        f"<p style='color:#777;font-size:12px'>If the button doesn't work, paste this link into your browser:<br>{link}</p>")
+        f"<p style='color:#6E7476;font-size:12px'>If the button doesn't work, paste this link into your browser:<br>{link}</p>")
     attachments = None
     if body.attach_pdf:
         try:

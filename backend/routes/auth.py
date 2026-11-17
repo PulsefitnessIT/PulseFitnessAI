@@ -1623,7 +1623,7 @@ async def update_branding(data: Dict[str, Any], user: dict = Depends(get_current
     if not user.get('organization_id'):
         raise HTTPException(status_code=404, detail="No organization found")
     branding = {
-        "primary_color": data.get("primary_color", "#0055FF"),
+        "primary_color": data.get("primary_color", "#19CDFF"),
         "company_name": data.get("company_name", ""),
         "logo_url": data.get("logo_url", ""),
         "updated_at": datetime.now(timezone.utc).isoformat(),

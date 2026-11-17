@@ -254,31 +254,31 @@ async def _mark_invoice_paid(invoice: dict, *, paid_via: str = "stripe",
 
 
 def _receipt_html(invoice: dict) -> str:
-    primary = "#1d4ed8"
-    accent = "#6366f1"
+    primary = "#0091CA"
+    accent = "#19CDFF"
     customer = invoice.get("customer_name") or "there"
     engineer = invoice.get("engineer_name") or "Your engineer"
     ino = invoice.get("invoice_number") or ""
     total = float(invoice.get("total") or 0)
     sym = invoice.get("currency_symbol") or "£"
     return f"""
-    <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;color:#0f172a;max-width:600px;margin:0 auto;padding:24px;">
+    <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;color:#1B1C1D;max-width:600px;margin:0 auto;padding:24px;">
       <div style="background:linear-gradient(135deg,{primary} 0%,{accent} 100%);padding:24px;border-radius:12px;color:white;margin-bottom:24px;">
         <p style="margin:0;font-size:12px;letter-spacing:.2em;text-transform:uppercase;opacity:.85;">Pulse Fitness · Payment Received</p>
         <h1 style="margin:6px 0 0;font-size:24px;font-weight:700;">{ino}</h1>
       </div>
       <p style="font-size:16px;">Hi {customer},</p>
-      <p style="font-size:14px;line-height:1.6;color:#334155;">
+      <p style="font-size:14px;line-height:1.6;color:#393E41;">
         We've received your card payment of <strong>{sym}{total:,.2f}</strong> for invoice <strong>{ino}</strong>. Thanks!
       </p>
-      <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin:18px 0;">
-        <table style="width:100%;font-size:13px;color:#334155;">
+      <div style="background:#F0F0F0;border:1px solid #E0E0E0;border-radius:8px;padding:14px;margin:18px 0;">
+        <table style="width:100%;font-size:13px;color:#393E41;">
           <tr><td>Amount received</td><td style="text-align:right;font-weight:700;color:{primary};">{sym}{total:,.2f}</td></tr>
           <tr><td>Paid via</td><td style="text-align:right;">Stripe (card)</td></tr>
         </table>
       </div>
       <p style="font-size:14px;">All the best,<br/><strong>{engineer}</strong></p>
-      <p style="font-size:11px;color:#94a3b8;margin-top:30px;">Powered by Pulse Fitness · Field Service for Fitness Equipment</p>
+      <p style="font-size:11px;color:#9A9FA1;margin-top:30px;">Powered by Pulse Fitness · Field Service for Fitness Equipment</p>
     </div>
     """
 

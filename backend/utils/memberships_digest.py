@@ -20,7 +20,7 @@ from utils.email_i18n import tr, user_lang
 
 logger = logging.getLogger(__name__)
 
-_BRAND_BG = "#05070A"
+_BRAND_BG = "#1B1C1D"
 _BRAND_ACCENT = "#19CDFF"
 
 
@@ -37,17 +37,17 @@ def _risk_row(m: dict) -> str:
     return f"""<tr>
       <td style="padding:8px 4px;border-bottom:1px solid rgba(255,255,255,0.08);">
         <div style="font-weight:700;color:#fff;">{name}</div>
-        <div style="color:#9ca3af;font-size:12px;">{reason}</div>
+        <div style="color:#9A9FA1;font-size:12px;">{reason}</div>
       </td>
       <td style="padding:8px 4px;text-align:right;border-bottom:1px solid rgba(255,255,255,0.08);">
-        <span style="display:inline-block;padding:3px 8px;border-radius:4px;background:rgba(244,63,94,0.15);color:#F43F5E;font-size:12px;font-weight:700;">{score}</span>
+        <span style="display:inline-block;padding:3px 8px;border-radius:4px;background:rgba(239,68,68,0.15);color:#F43F5E;font-size:12px;font-weight:700;">{score}</span>
       </td>
     </tr>"""
 
 
 def _kpi_row(label: str, value: str) -> str:
     return f"""<tr>
-      <td style="padding:6px 4px;color:#9ca3af;font-size:13px;">{label}</td>
+      <td style="padding:6px 4px;color:#9A9FA1;font-size:13px;">{label}</td>
       <td style="padding:6px 4px;color:#fff;font-weight:700;text-align:right;font-size:13px;">{value}</td>
     </tr>"""
 
@@ -63,7 +63,7 @@ def _build_html(org: dict, brief: dict, kpis: dict, at_risk: list[dict], app_url
         "<table style='width:100%;border-collapse:collapse;margin-top:8px;'>"
         + "".join(_risk_row(m) for m in top_at_risk)
         + "</table>"
-    ) if top_at_risk else f"<p style='color:#9ca3af;'>{tr(lang, 'no_at_risk')}</p>"
+    ) if top_at_risk else f"<p style='color:#9A9FA1;'>{tr(lang, 'no_at_risk')}</p>"
     kpi_table = (
         "<table style='width:100%;border-collapse:collapse;'>"
         + _kpi_row("MRR",             f"£{kpis.get('mrr_gbp', 0):.0f}")
@@ -77,12 +77,12 @@ def _build_html(org: dict, brief: dict, kpis: dict, at_risk: list[dict], app_url
     )
     actions_html = ""
     if actions:
-        items = "".join(f"<li style='margin:6px 0;color:#e5e7eb;'>{a}</li>" for a in actions)
+        items = "".join(f"<li style='margin:6px 0;color:#E0E0E0;'>{a}</li>" for a in actions)
         actions_html = f"""<div style='margin-top:16px;padding:14px 16px;border-left:3px solid {_BRAND_ACCENT};background:rgba(25,205,255,0.06);border-radius:6px;'>
           <div style='color:{_BRAND_ACCENT};font-size:10px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:8px;'>{tr(lang, 'recommended_actions')}</div>
           <ol style='margin:0 0 0 18px;padding:0;'>{items}</ol>
         </div>"""
-    app_link_html = f"""<p style='color:#9ca3af;font-size:13px;margin-top:18px;'>
+    app_link_html = f"""<p style='color:#9A9FA1;font-size:13px;margin-top:18px;'>
         {tr(lang, 'jump_back')} <a href='{app_url}' style='color:{_BRAND_ACCENT};text-decoration:none;font-weight:700;'>{app_url}</a>
       </p>""" if app_url else ""
     return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:620px;margin:0 auto;background:{_BRAND_BG};color:#fff;border-radius:16px;overflow:hidden;">
@@ -90,8 +90,8 @@ def _build_html(org: dict, brief: dict, kpis: dict, at_risk: list[dict], app_url
         <div style="color:{_BRAND_ACCENT};font-size:10px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;margin-bottom:8px;">{tr(lang, 'weekly_brief')} · {org.get('name', 'Studio')}</div>
         <h1 style="color:#fff;font-size:22px;margin:0;line-height:1.3;font-weight:800;letter-spacing:-0.01em;">{headline}</h1>
       </div>
-      <div style="padding:24px 32px;background:#0A0C10;color:#e5e7eb;font-size:14px;line-height:1.6;">
-        <p style="margin:0 0 18px;color:#d1d5db;">{narrative}</p>
+      <div style="padding:24px 32px;background:#1B1C1D;color:#E0E0E0;font-size:14px;line-height:1.6;">
+        <p style="margin:0 0 18px;color:#C9CBCC;">{narrative}</p>
         <div style="color:{_BRAND_ACCENT};font-size:10px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;margin:18px 0 6px;">{tr(lang, 'key_metrics')}</div>
         {kpi_table}
         {actions_html}
@@ -100,7 +100,7 @@ def _build_html(org: dict, brief: dict, kpis: dict, at_risk: list[dict], app_url
         {app_link_html}
       </div>
       <div style="background:{_BRAND_BG};padding:14px 32px;border-top:1px solid rgba(255,255,255,0.05);text-align:center;">
-        <p style="color:#6b7280;font-size:11px;margin:0;">{tr(lang, 'digest_footer')}</p>
+        <p style="color:#6E7476;font-size:11px;margin:0;">{tr(lang, 'digest_footer')}</p>
       </div>
     </div>"""
 

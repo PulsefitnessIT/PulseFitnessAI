@@ -108,8 +108,8 @@ def _reminder_html(name: str, plan: str, amount: float, ccy: str, stage: int) ->
                else "Your membership payment is still outstanding." if stage == 2
                else "This is a final reminder before your membership is paused.")
     return (
-        f'<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#0f172a">'
-        f'<h2 style="color:#1d4ed8">{headline}</h2>'
+        f'<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1B1C1D">'
+        f'<h2 style="color:#0091CA">{headline}</h2>'
         f'<p>Hi {name or "there"},</p>'
         f'<p>{urgency} Your <strong>{plan or "membership"}</strong> '
         f'({sym}{amount:.2f}) needs attention.</p>'

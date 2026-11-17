@@ -210,23 +210,23 @@ async def send_primary_contact_credentials(org_id: str, user: dict = Depends(get
 
     # Plain HTML — no inline images, no tracking pixels, deliverability-friendly.
     html = f"""
-    <div style="font-family:Inter,system-ui,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#0f172a">
+    <div style="font-family:Inter,system-ui,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1B1C1D">
       <h1 style="font-size:20px;font-weight:800;letter-spacing:-0.4px;margin:0 0 8px">Welcome to Pulse Fitness, {contact}.</h1>
-      <p style="font-size:14px;line-height:1.55;color:#475569;margin:0 0 20px">
+      <p style="font-size:14px;line-height:1.55;color:#565B5E;margin:0 0 20px">
         Your account for <strong>{org_name}</strong> is ready. Use the credentials below to sign in for the first time.
       </p>
-      <div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px;background:#f8fafc;margin-bottom:20px">
-        <p style="font-size:12px;text-transform:uppercase;letter-spacing:0.12em;color:#64748b;margin:0 0 6px;font-weight:700">Email</p>
-        <p style="font-family:ui-monospace,monospace;font-size:14px;margin:0 0 14px;color:#0f172a">{email}</p>
-        <p style="font-size:12px;text-transform:uppercase;letter-spacing:0.12em;color:#64748b;margin:0 0 6px;font-weight:700">Temporary password</p>
-        <p style="font-family:ui-monospace,monospace;font-size:14px;margin:0;color:#0f172a">{initial}</p>
+      <div style="border:1px solid #E0E0E0;border-radius:12px;padding:16px;background:#F7F7F7;margin-bottom:20px">
+        <p style="font-size:12px;text-transform:uppercase;letter-spacing:0.12em;color:#6E7476;margin:0 0 6px;font-weight:700">Email</p>
+        <p style="font-family:ui-monospace,monospace;font-size:14px;margin:0 0 14px;color:#1B1C1D">{email}</p>
+        <p style="font-size:12px;text-transform:uppercase;letter-spacing:0.12em;color:#6E7476;margin:0 0 6px;font-weight:700">Temporary password</p>
+        <p style="font-family:ui-monospace,monospace;font-size:14px;margin:0;color:#1B1C1D">{initial}</p>
       </div>
-      <p style="font-size:14px;line-height:1.55;color:#475569;margin:0 0 20px">
+      <p style="font-size:14px;line-height:1.55;color:#565B5E;margin:0 0 20px">
         Please change your password the first time you sign in — go to your profile menu and select
         <em>Change password</em>. The temporary password above will stop working once you do.
       </p>
-      <a href="https://pulsefitness.ai/login" style="display:inline-block;background:linear-gradient(135deg,#2563EB,#9D4CDD);color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:999px;font-size:14px">Sign in to Pulse Fitness</a>
-      <p style="font-size:11px;color:#94a3b8;margin-top:32px">
+      <a href="https://pulsefitness.ai/login" style="display:inline-block;background:linear-gradient(135deg,#0091CA,#19CDFF);color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:999px;font-size:14px">Sign in to Pulse Fitness</a>
+      <p style="font-size:11px;color:#9A9FA1;margin-top:32px">
         If you weren't expecting this email, please contact us at security@pulsefitness.ai.
       </p>
     </div>

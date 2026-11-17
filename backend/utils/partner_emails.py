@@ -100,17 +100,17 @@ def _wrap(headline: str, body_html: str, cta_label: str | None = None, cta_url: 
     if cta_label and cta_url:
         cta = (
             f'<p style="margin:28px 0 8px;">'
-            f'<a href="{cta_url}" style="background:#0055FF;color:#fff;text-decoration:none;'
+            f'<a href="{cta_url}" style="background:#19CDFF;color:#fff;text-decoration:none;'
             f'display:inline-block;padding:12px 22px;border-radius:999px;'
             f'font-weight:700;font-family:Arial,sans-serif;font-size:14px;">{cta_label}</a>'
             f"</p>"
         )
     return (
-        f'<div style="font-family:Arial,sans-serif;color:#0F172A;line-height:1.55;max-width:560px;margin:0 auto;">'
+        f'<div style="font-family:Arial,sans-serif;color:#1B1C1D;line-height:1.55;max-width:560px;margin:0 auto;">'
         f'<h2 style="margin:0 0 12px;font-size:22px;font-weight:800;letter-spacing:-0.01em;">{headline}</h2>'
         f"{body_html}"
         f"{cta}"
-        f'<p style="margin-top:28px;color:#475569;font-size:12px;">'
+        f'<p style="margin-top:28px;color:#565B5E;font-size:12px;">'
         f"You're receiving this because you applied to the Pulse Fitness Engineer Partner Network. "
         f'If this wasn\'t you, reply and we\'ll remove your record.'
         f"</p>"
@@ -136,7 +136,7 @@ async def send_application_received(email: str, full_name: str, application_id: 
         f"<li>Read the <a href=\"https://pulsefitness.ai/partners/engineers\">commission &amp; pricing detail</a> "
         f"so you're ready to start once approved.</li>"
         f"</ul>"
-        f'<p style="margin-top:18px;color:#475569;font-size:12px;">Application ref: <span style="font-family:monospace;">{application_id}</span></p>'
+        f'<p style="margin-top:18px;color:#565B5E;font-size:12px;">Application ref: <span style="font-family:monospace;">{application_id}</span></p>'
     )
     return await send_email(
         to=email,
@@ -171,10 +171,10 @@ async def send_application_approved(
     ref_block = ""
     if referral_code:
         ref_block = (
-            f'<p style="background:#F1F5F9;border-left:3px solid #0055FF;padding:14px 16px;border-radius:6px;margin-top:16px;">'
+            f'<p style="background:#F0F0F0;border-left:3px solid #19CDFF;padding:14px 16px;border-radius:6px;margin-top:16px;">'
             f'<strong>Your referral code:</strong> '
             f'<span style="font-family:monospace;font-size:16px;font-weight:700;letter-spacing:0.03em;">{referral_code}</span><br/>'
-            f'<span style="font-size:12px;color:#475569;">Share this with any gym owner — every gym that signs up under your code earns you a one-off reward + {price["site"]}/site/mo recurring (released after 3 months on the platform).</span>'
+            f'<span style="font-size:12px;color:#565B5E;">Share this with any gym owner — every gym that signs up under your code earns you a one-off reward + {price["site"]}/site/mo recurring (released after 3 months on the platform).</span>'
             f"</p>"
         )
     # If we have a single-use activation token, the CTA is a 1-click
@@ -202,15 +202,15 @@ async def send_application_approved(
         f"<p>Hi {first},</p>"
         f"<p>You're in. Welcome to the Pulse Fitness Engineer Partner Network.</p>"
         f"{sign_in_line}"
-        f"<p style=\"font-size:13px;color:#475569;margin-top:18px;\">After that, we'll guide you through:</p>"
-        f"<ol style=\"font-size:13px;color:#1f2937;\">"
+        f"<p style=\"font-size:13px;color:#565B5E;margin-top:18px;\">After that, we'll guide you through:</p>"
+        f"<ol style=\"font-size:13px;color:#26292B;\">"
         f"<li><strong>Pay your {price['base']}/mo Partner Plan</strong> (drops automatically as you refer gyms — free at 10).</li>"
         f"<li><strong>Connect Stripe Express</strong> so customers can pay your invoices by card — typically 3 minutes.</li>"
         f"<li><strong>Upload your compliance documents</strong> ({docs}).</li>"
         f"<li><strong>Open the Engineer App</strong> — mobile-first PWA with offline support.</li>"
         f"</ol>"
         f"{ref_block}"
-        f"<p style=\"font-size:11px;color:#94a3b8;margin-top:20px;\">"
+        f"<p style=\"font-size:11px;color:#9A9FA1;margin-top:20px;\">"
         f"This activation link is valid for 14 days. If it expires, reply to this email "
         f"and we'll send a fresh one."
         f"</p>"
@@ -327,7 +327,7 @@ def _alternatives_block(alternatives: list[dict]) -> str:
             f'<li style="margin:4px 0;">{" · ".join(bits)}</li>'
         )
     return (
-        '<p style="margin-top:18px;font-size:13px;color:#475569;">In the meantime,'
+        '<p style="margin-top:18px;font-size:13px;color:#565B5E;">In the meantime,'
         " these in-area engineers are accepting work:</p>"
         f'<ul style="padding-left:18px;margin:6px 0;">{"".join(rows)}</ul>'
     )
@@ -372,28 +372,28 @@ def _while_away_block(activity: list[dict] | None) -> str:
         line = " · ".join(bits) if bits else "kept things ticking over"
         thanks_url = row.get("thanks_url") or ""
         thanks_btn = (
-            f'<a href="{thanks_url}" style="color:#2563EB;font-weight:700;'
+            f'<a href="{thanks_url}" style="color:#0091CA;font-weight:700;'
             f'text-decoration:none;font-size:12px;">Send thanks →</a>'
             if thanks_url else ""
         )
         rows.append(
             f'<li style="margin:8px 0;">'
             f'<strong>{name}</strong> — '
-            f'<span style="color:#475569;">{line}</span>'
+            f'<span style="color:#565B5E;">{line}</span>'
             f'{f"<br/>{thanks_btn}" if thanks_btn else ""}'
             f"</li>"
         )
     return (
-        f'<div style="background:#F8FAFC;border:1px solid #E2E8F0;'
+        f'<div style="background:#F7F7F7;border:1px solid #E0E0E0;'
         f'border-radius:8px;padding:14px 16px;margin-top:16px;">'
         f'<p style="margin:0 0 8px;font-size:13px;font-weight:700;'
-        f'letter-spacing:0.02em;text-transform:uppercase;color:#0F172A;">'
+        f'letter-spacing:0.02em;text-transform:uppercase;color:#1B1C1D;">'
         f"While you were away"
         f"</p>"
-        f'<ul style="margin:0;padding-left:18px;font-size:13px;color:#0F172A;">'
+        f'<ul style="margin:0;padding-left:18px;font-size:13px;color:#1B1C1D;">'
         f'{"".join(rows)}'
         f"</ul>"
-        f'<p style="margin:10px 0 0;font-size:11px;color:#94a3b8;">'
+        f'<p style="margin:10px 0 0;font-size:11px;color:#9A9FA1;">'
         f"One-click thanks goes to the gym's primary contact. "
         f"We keep your name on it — no surprises."
         f"</p>"
@@ -473,7 +473,7 @@ async def send_welcome_back_digest(
         # Echo the note back so the engineer knows we kept track —
         # tiny detail, real "we noticed" energy.
         note_block = (
-            f'<p style="font-size:13px;color:#475569;margin-top:14px;">'
+            f'<p style="font-size:13px;color:#565B5E;margin-top:14px;">'
             f'You left a note before going off: <em>"{leave_note}"</em>.</p>'
         )
 
@@ -485,7 +485,7 @@ async def send_welcome_back_digest(
         f"{compliance_block}"
         f"{activity_block}"
         f"{note_block}"
-        f'<p style="margin-top:18px;font-size:13px;color:#475569;">'
+        f'<p style="margin-top:18px;font-size:13px;color:#565B5E;">'
         f"You're now marked <strong>available</strong> on Pulse Fitness again — "
         f"new contact requests will route to you straight away."
         f"</p>"
@@ -541,7 +541,7 @@ async def send_engineer_unavailable_autoreply(
         f"and will respond as soon as they're back.</p>"
         f"{note_block}"
         f"{_alternatives_block(alternatives or [])}"
-        f'<p style="margin-top:20px;font-size:13px;color:#475569;">No further action is needed '
+        f'<p style="margin-top:20px;font-size:13px;color:#565B5E;">No further action is needed '
         f'— your enquiry is logged and will be picked up automatically.</p>'
     )
     subject = (
@@ -582,7 +582,7 @@ async def send_trial_started(email: str, full_name: str, ends_at: str, trial_day
         f"<p>Your <strong>{trial_days}-day free trial</strong> of the Pulse Fitness Engineer App is live. "
         f"You've got full access to take jobs, batch faults, capture photos, fire off branded "
         f"service reports and track your van stock — no card needed.</p>"
-        f'<p style="background:#F1F5F9;border-left:3px solid #0055FF;padding:14px 16px;border-radius:6px;">'
+        f'<p style="background:#F0F0F0;border-left:3px solid #19CDFF;padding:14px 16px;border-radius:6px;">'
         f"Your trial runs until <strong>{_fmt_date(ends_at)}</strong>. We'll email you a short feedback "
         f"form when it ends — if you love it, you can continue on the plan in a couple of taps.</p>"
         f"<p>Get stuck in — the more you put through it, the more useful your feedback will be.</p>"

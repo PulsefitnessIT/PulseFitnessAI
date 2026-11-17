@@ -1467,19 +1467,19 @@ def _portal_base_url() -> str:
 
 def _reminder_html(first_name: str, week: str, rows: list[dict]) -> str:
     items = "".join(
-        f'<tr><td style="padding:10px 0;border-bottom:1px solid #e2e8f0;"><strong style="letter-spacing:1px;">{_esc(r["reg_no"])}</strong>'
-        f'<div style="color:#64748b;font-size:13px;">{_esc(r.get("make_model") or "")}</div></td>'
-        f'<td style="padding:10px 0;border-bottom:1px solid #e2e8f0;text-align:right;">'
+        f'<tr><td style="padding:10px 0;border-bottom:1px solid #E0E0E0;"><strong style="letter-spacing:1px;">{_esc(r["reg_no"])}</strong>'
+        f'<div style="color:#6E7476;font-size:13px;">{_esc(r.get("make_model") or "")}</div></td>'
+        f'<td style="padding:10px 0;border-bottom:1px solid #E0E0E0;text-align:right;">'
         f'<a href="{r["link"]}" style="display:inline-block;background:#19CDFF;color:#00121a;font-weight:700;'
         f'padding:10px 18px;border-radius:8px;text-decoration:none;">Complete check</a></td></tr>'
         for r in rows)
     return (
-        '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px 30px;color:#0f172a;">'
+        '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px 30px;color:#1B1C1D;">'
         f'<h2 style="margin:0 0 8px;">Hi {_esc(first_name)},</h2>'
         f'<p>Your weekly vehicle check for the week commencing <strong>{_esc(week)}</strong> has not been completed yet.</p>'
         '<p>Please complete it as soon as possible. The button takes you straight to your check sheet.</p>'
         f'<table style="width:100%;border-collapse:collapse;margin:16px 0;">{items}</table>'
-        '<p style="color:#64748b;font-size:13px;">If the vehicle is unsafe to drive, report the defect in the check and do not drive it.</p>'
+        '<p style="color:#6E7476;font-size:13px;">If the vehicle is unsafe to drive, report the defect in the check and do not drive it.</p>'
         '</div>')
 
 

@@ -461,15 +461,15 @@ class EmailReportBody(BaseModel):
 
 
 def _report_email_html(title: str, note: Optional[str]) -> str:
-    body = f'<p style="font-size:13px;color:#111827">{note}</p>' if note else ""
+    body = f'<p style="font-size:13px;color:#1B1C1D">{note}</p>' if note else ""
     return f"""
     <div style="font-family:Arial,sans-serif;max-width:560px">
-      <h2 style="color:#0F1419;margin:0 0 4px">{title}</h2>
-      <p style="color:#6b7280;font-size:13px;margin:0 0 12px">MOD Service Portal · ASER register</p>
+      <h2 style="color:#1B1C1D;margin:0 0 4px">{title}</h2>
+      <p style="color:#6E7476;font-size:13px;margin:0 0 12px">MOD Service Portal · ASER register</p>
       {body}
-      <p style="font-size:13px;color:#111827">The report is attached as a PDF. It evidences equipment safety events
+      <p style="font-size:13px;color:#1B1C1D">The report is attached as a PDF. It evidences equipment safety events
       and their impact on rehab / activity delivery, and may support replacement / CAPEX review. It does not guarantee funding approval.</p>
-      <p style="font-size:11px;color:#9ca3af;margin-top:16px">Generated from the Pulse Fitness MOD Service Portal.</p>
+      <p style="font-size:11px;color:#9A9FA1;margin-top:16px">Generated from the Pulse Fitness MOD Service Portal.</p>
     </div>"""
 
 

@@ -54,13 +54,13 @@ MAX_TYPES_PER_ORG = 60
 BUILTIN_CASE_TYPES = [
     {"slug": "repair", "label": "Repair", "color": "#dc2626",
      "description": "Reactive fix for a reported fault."},
-    {"slug": "ppm", "label": "PPM Service", "color": "#0891b2",
+    {"slug": "ppm", "label": "PPM Service", "color": "#0091CA",
      "description": "Planned preventative maintenance visit."},
-    {"slug": "install", "label": "Installation", "color": "#7c3aed",
+    {"slug": "install", "label": "Installation", "color": "#0091CA",
      "description": "New equipment install / commissioning."},
-    {"slug": "inspection", "label": "Inspection", "color": "#2563eb",
+    {"slug": "inspection", "label": "Inspection", "color": "#0091CA",
      "description": "Safety / condition inspection."},
-    {"slug": "callout", "label": "Emergency callout", "color": "#ea580c",
+    {"slug": "callout", "label": "Emergency callout", "color": "#D97706",
      "description": "Urgent unscheduled attendance."},
     {"slug": "audit", "label": "Asset audit", "color": "#16a34a",
      "description": "Asset register / condition audit."},
@@ -166,7 +166,7 @@ async def active_slugs(org_id: str) -> set[str]:
 class CaseTypeIn(BaseModel):
     label: str = Field(..., min_length=1, max_length=MAX_LABEL_LEN)
     description: Optional[str] = Field(default=None, max_length=200)
-    color: Optional[str] = Field(default="#475569", max_length=20)
+    color: Optional[str] = Field(default="#565B5E", max_length=20)
 
 
 class CaseTypePatch(BaseModel):
@@ -218,7 +218,7 @@ async def create_case_type(payload: CaseTypeIn, user=Depends(get_current_user)):
         "slug": slug,
         "label": label,
         "description": (payload.description or "").strip() or None,
-        "color": (payload.color or "#475569").strip(),
+        "color": (payload.color or "#565B5E").strip(),
         "is_builtin": False,
         "active": True,
         "order_index": total,
@@ -248,7 +248,7 @@ async def update_case_type(
     if payload.description is not None:
         updates["description"] = payload.description.strip() or None
     if payload.color is not None:
-        updates["color"] = payload.color.strip() or "#475569"
+        updates["color"] = payload.color.strip() or "#565B5E"
     if payload.active is not None:
         updates["active"] = bool(payload.active)
     if payload.order_index is not None:

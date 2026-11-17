@@ -62,7 +62,7 @@ async def _backfill_pulse_branding() -> int:
         {"_id": 0, "id": 1, "name": 1, "branding": 1},
     )
     fixed = 0
-    pulse_brand = {"primary_color": "#66ccff", "company_name": "Pulse Fitness"}
+    pulse_brand = {"primary_color": "#19CDFF", "company_name": "Pulse Fitness"}
     async for org in cursor:
         existing = org.get("branding") or {}
         merged = {**pulse_brand, **{k: v for k, v in existing.items() if v}}

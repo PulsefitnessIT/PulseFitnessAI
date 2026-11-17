@@ -509,8 +509,8 @@ def _incident_email_html(site: dict, doc: dict, riddor: bool) -> str:
         "<p style='margin:14px 0;padding:10px 14px;background:#fee2e2;border-left:3px solid #dc2626;color:#991b1b;'><strong>RIDDOR-reportable</strong> — 7-day follow-up reminder will fire automatically.</p>"
         if riddor else ""
     )
-    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-  <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid {banner_tone};">
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1C1D;border-radius:12px;overflow:hidden;border:1px solid #E0E0E0;">
+  <div style="background:#1B1C1D;padding:20px 28px;border-bottom:3px solid {banner_tone};">
     <div style="color:{banner_tone};font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · Personal incident</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{doc['incident_ref']} — {site.get('name','')}</h1>
   </div>
@@ -522,14 +522,14 @@ def _incident_email_html(site: dict, doc: dict, riddor: bool) -> str:
       <tr><td style='padding:6px 0;color:#6E7476;'>Severity</td><td style='font-weight:700;'>{SEVERITY_LABELS.get(doc.get('injury_severity'), doc.get('injury_severity'))}</td></tr>
       <tr><td style='padding:6px 0;color:#6E7476;vertical-align:top;'>Description</td><td>{doc.get('description','')}</td></tr>
       <tr><td style='padding:6px 0;color:#6E7476;'>Injured party</td><td>{doc.get('injured_party_name','')} · {doc.get('injured_party_type','')}</td></tr>
-      <tr><td style='padding:6px 0;color:#6E7476;'>Reporter</td><td>{doc.get('reporter_name','')} · <a href='mailto:{doc.get('reporter_email','')}' style='color:#19CDFF;'>{doc.get('reporter_email','')}</a> · {doc.get('reporter_phone','')}</td></tr>
+      <tr><td style='padding:6px 0;color:#6E7476;'>Reporter</td><td>{doc.get('reporter_name','')} · <a href='mailto:{doc.get('reporter_email','')}' style='color:#0091CA;'>{doc.get('reporter_email','')}</a> · {doc.get('reporter_phone','')}</td></tr>
     </table>
   </div>
 </div>"""
 
 
 def _riddor_followup_html(site: dict, doc: dict) -> str:
-    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1C1D;border-radius:12px;overflow:hidden;border:1px solid #E0E0E0;">
   <div style="background:#dc2626;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#fee2e2;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service · RIDDOR · 7-DAY follow-up</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{doc.get('incident_ref','')} — {site.get('name','')}</h1>
@@ -541,6 +541,6 @@ def _riddor_followup_html(site: dict, doc: dict) -> str:
       <li>If so, capture the submission reference in the closure questionnaire.</li>
       <li>If not, raise immediately or document the reason it is not reportable.</li>
     </ul>
-    <p style="color:#6E7476;font-size:13px;">Severity: <strong style="color:#1B1D1D;">{SEVERITY_LABELS.get(doc.get('injury_severity'), doc.get('injury_severity'))}</strong> · Category: {CATEGORY_LABELS.get(doc.get('category'), doc.get('category'))}</p>
+    <p style="color:#6E7476;font-size:13px;">Severity: <strong style="color:#1B1C1D;">{SEVERITY_LABELS.get(doc.get('injury_severity'), doc.get('injury_severity'))}</strong> · Category: {CATEGORY_LABELS.get(doc.get('category'), doc.get('category'))}</p>
   </div>
 </div>"""

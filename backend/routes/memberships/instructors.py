@@ -706,7 +706,7 @@ async def invite_instructor_login(instructor_id: str, user: dict = Depends(get_c
     )
 
     org = await db.organizations.find_one({"id": org_id}, {"_id": 0, "name": 1, "primary_color": 1}) or {}
-    primary = org.get("primary_color") or "#00B2C7"
+    primary = org.get("primary_color") or "#19CDFF"
     frontend = (
         _os.environ.get("FRONTEND_URL")
         or _os.environ.get("REACT_APP_BACKEND_URL")
@@ -715,13 +715,13 @@ async def invite_instructor_login(instructor_id: str, user: dict = Depends(get_c
     html = (
         f"<div style='font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto'>"
         f"<div style='background:{primary};padding:18px 24px;border-radius:12px 12px 0 0'>"
-        f"<h1 style='color:#0A0C10;margin:0;font-size:22px'>You're invited · {org.get('name') or 'Your studio'}</h1></div>"
-        f"<div style='padding:24px;background:#0A0C10;color:#fff;border-radius:0 0 12px 12px'>"
+        f"<h1 style='color:#1B1C1D;margin:0;font-size:22px'>You're invited · {org.get('name') or 'Your studio'}</h1></div>"
+        f"<div style='padding:24px;background:#1B1C1D;color:#fff;border-radius:0 0 12px 12px'>"
         f"<p>Hi {inst['name']},</p>"
         f"<p>Your studio has set up an instructor account for you. Sign in to keep your bio, photo, and availability up to date.</p>"
         f"<p><strong>Email:</strong> {email}<br>"
         f"<strong>Temporary password:</strong> <code style='background:rgba(255,255,255,0.08);padding:4px 8px;border-radius:4px'>{tmp_password}</code></p>"
-        f"<p><a href='{frontend}/instructor' style='display:inline-block;background:{primary};color:#0A0C10;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:800'>Sign in to your profile →</a></p>"
+        f"<p><a href='{frontend}/instructor' style='display:inline-block;background:{primary};color:#1B1C1D;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:800'>Sign in to your profile →</a></p>"
         f"<p style='opacity:0.6;font-size:12px'>Please change your password after signing in.</p></div></div>"
     )
     await _send(email, f"You're invited to {org.get('name') or 'your studio'}", html)
@@ -852,7 +852,7 @@ async def public_instructor_profile(slug: str, instructor_slug: str):
             "id": org["id"],
             "name": org.get("name"),
             "slug": org.get("membership_app_slug") or org.get("slug"),
-            "primary_color": org.get("primary_color") or "#00B2C7",
+            "primary_color": org.get("primary_color") or "#19CDFF",
         },
         "instructor": _public_view(inst),
         "upcoming": upcoming,
@@ -882,7 +882,7 @@ def _render_instructor_og(org: dict, inst: dict) -> bytes:
     """1200×630 PNG: photo circle on the left, name + headline + studio
     branding on the right. Pure Pillow; safe in a thread."""
     W, H = 1200, 630
-    primary = _hex_to_rgb(org.get("primary_color") or "#00B2C7")
+    primary = _hex_to_rgb(org.get("primary_color") or "#19CDFF")
     img = Image.new("RGB", (W, H), (10, 12, 16))
     d = ImageDraw.Draw(img)
 
@@ -1006,7 +1006,7 @@ async def instructor_share_html(slug: str, instructor_slug: str, request: Reques
     headline = inst.get("headline") or ""
     title = f"{name} · {org_name}"
     description = (headline or (inst.get("bio") or "")[:140] or f"Meet {name} at {org_name}")
-    primary = org.get("primary_color") or "#00B2C7"
+    primary = org.get("primary_color") or "#19CDFF"
     html = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -1028,7 +1028,7 @@ async def instructor_share_html(slug: str, instructor_slug: str, request: Reques
   <meta http-equiv="refresh" content="0; url={spa_url}">
   <link rel="canonical" href="{spa_url}">
   <style>
-    body {{ margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#0A0C10; color:#fff; min-height:100vh; display:grid; place-items:center; padding:24px; }}
+    body {{ margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#1B1C1D; color:#fff; min-height:100vh; display:grid; place-items:center; padding:24px; }}
     a {{ color:{primary}; font-weight:700; }}
   </style>
 </head>

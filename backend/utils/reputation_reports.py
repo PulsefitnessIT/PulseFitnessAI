@@ -148,7 +148,7 @@ def _trend_pill_html(delta: Optional[float]) -> str:
     if delta is None:
         return (
             '<span style="display:inline-block;padding:3px 10px;border-radius:999px;'
-            'background:#f1f5f9;color:#475569;font-size:11px;font-weight:600;">'
+            'background:#F0F0F0;color:#565B5E;font-size:11px;font-weight:600;">'
             'First month tracked</span>'
         )
     if delta > 0:
@@ -203,8 +203,8 @@ def render_monthly_report_html(*, engineer: dict, report: dict, ratings_url: str
         quote_block = f"""
         <div style="margin:18px 0;padding:14px 18px;background:#fefce8;border-left:4px solid #f59e0b;border-radius:6px;">
           <p style="margin:0 0 6px;color:#78350f;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">⭐ Quote of the month</p>
-          <p style="margin:0;color:#0f172a;font-size:14px;line-height:1.6;font-style:italic;">"{bq['comment'][:280]}"</p>
-          <p style="margin:6px 0 0;color:#64748b;font-size:11px;">— {bq['customer_name']}</p>
+          <p style="margin:0;color:#1B1C1D;font-size:14px;line-height:1.6;font-style:italic;">"{bq['comment'][:280]}"</p>
+          <p style="margin:6px 0 0;color:#6E7476;font-size:11px;">— {bq['customer_name']}</p>
         </div>
         """
     dist = report["distribution"]
@@ -215,21 +215,21 @@ def render_monthly_report_html(*, engineer: dict, report: dict, ratings_url: str
         pct = int((n / max_dist) * 100)
         dist_rows += f"""
         <tr>
-          <td style="font-size:12px;color:#475569;padding:2px 8px 2px 0;width:30px;font-weight:700;">{stars} ★</td>
+          <td style="font-size:12px;color:#565B5E;padding:2px 8px 2px 0;width:30px;font-weight:700;">{stars} ★</td>
           <td style="padding:2px 0;">
-            <div style="height:8px;background:#f1f5f9;border-radius:999px;overflow:hidden;">
+            <div style="height:8px;background:#F0F0F0;border-radius:999px;overflow:hidden;">
               <div style="width:{pct}%;height:100%;background:#f59e0b;"></div>
             </div>
           </td>
-          <td style="font-size:11px;color:#64748b;text-align:right;padding:2px 0 2px 8px;width:24px;">{n}</td>
+          <td style="font-size:11px;color:#6E7476;text-align:right;padding:2px 0 2px 8px;width:24px;">{n}</td>
         </tr>
         """
     li_url = _linkedin_share_url(report)
     first_name = (engineer.get("full_name") or "Engineer").split(" ")[0]
     return f"""
-    <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;color:#0f172a;max-width:600px;margin:0 auto;">
-      <h2 style="margin:0 0 6px;font-size:20px;color:#0f172a;">Your {month_name} reputation report</h2>
-      <p style="margin:0 0 20px;color:#475569;font-size:14px;">
+    <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;color:#1B1C1D;max-width:600px;margin:0 auto;">
+      <h2 style="margin:0 0 6px;font-size:20px;color:#1B1C1D;">Your {month_name} reputation report</h2>
+      <p style="margin:0 0 20px;color:#565B5E;font-size:14px;">
         Hey {first_name} — here's how customers rated your work this month.
       </p>
       <div style="text-align:center;padding:20px 16px;background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);border-radius:12px;margin:0 0 14px;">
@@ -242,7 +242,7 @@ def render_monthly_report_html(*, engineer: dict, report: dict, ratings_url: str
       <table style="width:100%;border-collapse:collapse;margin:18px 0;">{dist_rows}</table>
       <div style="text-align:center;margin:22px 0 12px;">
         <a href="{ratings_url}"
-           style="display:inline-block;padding:10px 22px;background:#1d4ed8;color:white;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px;">
+           style="display:inline-block;padding:10px 22px;background:#0091CA;color:white;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px;">
            See every review →
         </a>
         <a href="{li_url}"
@@ -251,7 +251,7 @@ def render_monthly_report_html(*, engineer: dict, report: dict, ratings_url: str
            Share on LinkedIn
         </a>
       </div>
-      <p style="margin:24px 0 6px;color:#64748b;font-size:11px;line-height:1.5;">
+      <p style="margin:24px 0 6px;color:#6E7476;font-size:11px;line-height:1.5;">
         You're getting this because you're a Pulse Fitness Partner Engineer with at least
         one customer rating last month. Reports fire once on the 1st of each month —
         no daily noise.

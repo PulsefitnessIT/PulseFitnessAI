@@ -218,9 +218,9 @@ def _severity_badge(severity: str) -> tuple[str, str]:
         "safety_critical": ("#dc2626", "Safety Critical"),
         "out_of_order": ("#ef4444", "Out of Order"),
         "critical": ("#ef4444", "Out of Order"),
-        "limited_use": ("#f97316", "Limited Use"),
-        "operational_fault": ("#eab308", "Operational - Fault Present"),
-        "medium": ("#eab308", "Operational - Fault Present"),
+        "limited_use": ("#F59E0B", "Limited Use"),
+        "operational_fault": ("#F59E0B", "Operational - Fault Present"),
+        "medium": ("#F59E0B", "Operational - Fault Present"),
     }
     bg, label = mapping.get(severity, ("#22c55e", "Operational - Minor Issue"))
     return bg, label
@@ -229,8 +229,8 @@ def _severity_badge(severity: str) -> tuple[str, str]:
 _ENGINEER_EMAIL_STYLE = """
   body { margin:0; padding:0; background:#F4F5F7; }
   .wrap { width:100%; background:#F4F5F7; padding:24px 12px; }
-  .card { max-width:640px; margin:0 auto; background:#ffffff; border:1px solid #E5E7EB;
-          border-radius:12px; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; color:#111827; }
+  .card { max-width:640px; margin:0 auto; background:#ffffff; border:1px solid #E0E0E0;
+          border-radius:12px; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; color:#1B1C1D; }
   .hero { padding:28px 32px; text-align:left; color:#ffffff; }
   .hero-brand { font-size:12px; letter-spacing:0.12em; text-transform:uppercase; opacity:0.85; margin:0 0 6px; font-weight:600; }
   .hero-title { font-size:22px; margin:0; font-weight:700; line-height:1.25; }
@@ -239,37 +239,37 @@ _ENGINEER_EMAIL_STYLE = """
                 color:#ffffff; border-radius:999px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
                 font-size:11px; letter-spacing:0.05em; }
   .content { padding:28px 32px; }
-  .lead { font-size:15px; line-height:1.55; margin:0 0 20px; color:#1F2937; }
-  .kv { width:100%; border-collapse:collapse; margin:4px 0 20px; border:1px solid #E5E7EB; border-radius:10px; overflow:hidden; }
-  .kv td { padding:12px 16px; font-size:14px; border-bottom:1px solid #F1F5F9; vertical-align:top; }
+  .lead { font-size:15px; line-height:1.55; margin:0 0 20px; color:#26292B; }
+  .kv { width:100%; border-collapse:collapse; margin:4px 0 20px; border:1px solid #E0E0E0; border-radius:10px; overflow:hidden; }
+  .kv td { padding:12px 16px; font-size:14px; border-bottom:1px solid #F0F0F0; vertical-align:top; }
   .kv tr:last-child td { border-bottom:0; }
-  .kv .lbl { color:#6B7280; width:170px; font-size:12px; text-transform:uppercase; letter-spacing:0.04em; font-weight:600; }
-  .kv .val { color:#111827; font-weight:600; }
+  .kv .lbl { color:#6E7476; width:170px; font-size:12px; text-transform:uppercase; letter-spacing:0.04em; font-weight:600; }
+  .kv .val { color:#1B1C1D; font-weight:600; }
   .chip-sev { display:inline-block; color:#ffffff; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700; letter-spacing:0.02em; }
-  .panel { background:#F8FAFC; border:1px solid #E5E7EB; border-radius:10px; padding:18px 20px; margin:0 0 20px; }
-  .panel h4 { margin:0 0 8px; font-size:13px; color:#0F172A; text-transform:uppercase; letter-spacing:0.05em; font-weight:700; }
-  .panel p { margin:0; color:#1F2937; font-size:14px; line-height:1.55; white-space:pre-wrap; }
+  .panel { background:#F7F7F7; border:1px solid #E0E0E0; border-radius:10px; padding:18px 20px; margin:0 0 20px; }
+  .panel h4 { margin:0 0 8px; font-size:13px; color:#1B1C1D; text-transform:uppercase; letter-spacing:0.05em; font-weight:700; }
+  .panel p { margin:0; color:#26292B; font-size:14px; line-height:1.55; white-space:pre-wrap; }
   .triage { background:#EFF6FF; border-color:#BFDBFE; }
-  .triage h4 { color:#1D4ED8; }
+  .triage h4 { color:#0091CA; }
   .grid { width:100%; border-collapse:separate; border-spacing:0; margin:0 0 20px; }
   .grid > tbody > tr > td { vertical-align:top; width:50%; }
   .grid .col-l { padding:0 8px 0 0; }
   .grid .col-r { padding:0 0 0 8px; }
-  .mini { background:#ffffff; border:1px solid #E5E7EB; border-radius:10px; padding:16px 18px; }
-  .mini h5 { margin:0 0 10px; font-size:11px; color:#0F172A; text-transform:uppercase; letter-spacing:0.08em; font-weight:700; }
-  .mini .name { margin:0 0 10px; font-size:15px; color:#0F172A; font-weight:700; }
-  .mini .name .role { margin-left:6px; color:#6B7280; font-size:12px; font-weight:500; }
-  .mini .row { margin:6px 0; font-size:13px; line-height:1.45; color:#374151; }
-  .mini .row .k { color:#6B7280; font-size:11px; text-transform:uppercase; letter-spacing:0.04em;
+  .mini { background:#ffffff; border:1px solid #E0E0E0; border-radius:10px; padding:16px 18px; }
+  .mini h5 { margin:0 0 10px; font-size:11px; color:#1B1C1D; text-transform:uppercase; letter-spacing:0.08em; font-weight:700; }
+  .mini .name { margin:0 0 10px; font-size:15px; color:#1B1C1D; font-weight:700; }
+  .mini .name .role { margin-left:6px; color:#6E7476; font-size:12px; font-weight:500; }
+  .mini .row { margin:6px 0; font-size:13px; line-height:1.45; color:#393E41; }
+  .mini .row .k { color:#6E7476; font-size:11px; text-transform:uppercase; letter-spacing:0.04em;
                   display:inline-block; width:60px; font-weight:600; }
-  .mini a { color:#1D4ED8; text-decoration:none; font-weight:500; }
+  .mini a { color:#0091CA; text-decoration:none; font-weight:500; }
   .cta-wrap { text-align:center; margin:28px 0 20px; }
   .cta { display:inline-block; color:#ffffff !important; text-decoration:none; padding:14px 32px;
          border-radius:10px; font-weight:700; font-size:15px; letter-spacing:0.02em;
          box-shadow:0 4px 12px rgba(0,0,0,0.08); }
-  .attach { margin:16px 0 0; font-size:12px; color:#6B7280; line-height:1.6; }
-  .attach strong { color:#1F2937; }
-  .footer { background:#F9FAFB; padding:18px 32px; text-align:center; font-size:11px; color:#9CA3AF; border-top:1px solid #E5E7EB; }
+  .attach { margin:16px 0 0; font-size:12px; color:#6E7476; line-height:1.6; }
+  .attach strong { color:#26292B; }
+  .footer { background:#F7F7F7; padding:18px 32px; text-align:center; font-size:11px; color:#9A9FA1; border-top:1px solid #E0E0E0; }
   .test-notice { background:#FFF7ED; border:1px solid #FDBA74; color:#9A3412; padding:12px 14px; margin:0 0 18px; border-radius:8px; font-size:13px; }
   @media only screen and (max-width: 600px) {
     .wrap { padding:0 !important; }
@@ -545,7 +545,7 @@ def _resolve_org_branding(org: dict | None) -> dict:
     account_type = org.get('account_type')
     is_pulse = account_type in ("pulse_pro", "lite")
     return {
-        "primary_color": org.get('brand_color') or branding.get('primary_color', '#0055FF'),
+        "primary_color": org.get('brand_color') or branding.get('primary_color', '#19CDFF'),
         "company_name": branding.get('company_name', org_name),
         "platform_name": "Pulse Fitness" if is_pulse else "Pulse Fitness AI",
         "is_pulse": is_pulse,

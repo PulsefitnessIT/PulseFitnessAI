@@ -45,11 +45,11 @@ logger = logging.getLogger(__name__)
 
 
 PULSE_PRIMARY   = "#19CDFF"  # cyan accent
-PULSE_INK       = "#0A0C10"  # near-black background
+PULSE_INK       = "#1B1C1D"  # near-black background
 PULSE_INK_2     = "#1F2329"
-PULSE_FG        = "#0A0C10"
-PULSE_MUTED     = "#6B7280"
-PULSE_BORDER    = "#E5E7EB"
+PULSE_FG        = "#1B1C1D"
+PULSE_MUTED     = "#6E7476"
+PULSE_BORDER    = "#E0E0E0"
 
 
 def _require_master(user: dict) -> None:
@@ -530,32 +530,32 @@ def _render_share_email_html(
         )
         msg_block = (
             f'<div style="background:#f0fbff;border-left:4px solid #19CDFF;'
-            f'padding:14px 18px;margin:18px 0;border-radius:4px;color:#1a1a1a;'
+            f'padding:14px 18px;margin:18px 0;border-radius:4px;color:#26292B;'
             f'line-height:1.6;font-size:14px;">{safe}</div>'
         )
     return f"""<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;background:#fff;">
-  <div style="background:#0A0C10;padding:28px 30px;text-align:center;">
-    <div style="color:#19CDFF;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:6px;">Pulse Fitness</div>
+  <div style="background:#1B1C1D;padding:28px 30px;text-align:center;">
+    <div style="color:#0091CA;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:6px;">Pulse Fitness</div>
     <h1 style="color:#fff;margin:0;font-size:22px;letter-spacing:-0.3px;">A quick {variant_label}.</h1>
   </div>
-  <div style="padding:32px 30px;color:#1a1a1a;">
+  <div style="padding:32px 30px;color:#26292B;">
     <p style="line-height:1.6;margin:0 0 14px;">Hi,</p>
     <p style="line-height:1.6;margin:0 0 16px;">
       Sharing the Pulse Fitness <strong>{variant_label}</strong>. The PDF is attached, and the secure link below works on any device.
     </p>
     {msg_block}
     <div style="text-align:center;margin:28px 0;">
-      <a href="{download_url}" style="display:inline-block;background:#19CDFF;color:#0A0C10;padding:14px 32px;
+      <a href="{download_url}" style="display:inline-block;background:#19CDFF;color:#1B1C1D;padding:14px 32px;
          text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;letter-spacing:0.3px;">
          Open the {variant_label} →
       </a>
     </div>
-    <p style="color:#6b7280;font-size:12px;line-height:1.6;text-align:center;">
+    <p style="color:#6E7476;font-size:12px;line-height:1.6;text-align:center;">
       Secure download link expires {expires_str}.
     </p>
   </div>
-  <div style="background:#f5f5f5;padding:16px 30px;text-align:center;">
-    <p style="color:#9ca3af;font-size:11px;margin:0;">Sent from Pulse Fitness · powered by Pulse Fitness AI</p>
+  <div style="background:#F0F0F0;padding:16px 30px;text-align:center;">
+    <p style="color:#9A9FA1;font-size:11px;margin:0;">Sent from Pulse Fitness · powered by Pulse Fitness AI</p>
   </div>
 </div>"""
 

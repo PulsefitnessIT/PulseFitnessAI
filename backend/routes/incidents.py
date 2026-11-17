@@ -236,14 +236,14 @@ async def _notify_escalation(incident: dict) -> None:
             f"{incident.get('reference')} — {org.get('name', 'your site')}"
         )
         html = (
-            '<div style="font-family:Arial,sans-serif;color:#0F172A;line-height:1.55;max-width:560px;margin:0 auto;">'
+            '<div style="font-family:Arial,sans-serif;color:#1B1C1D;line-height:1.55;max-width:560px;margin:0 auto;">'
             f'<h2 style="margin:0 0 12px;font-size:22px;font-weight:800;">New {kind} reported.</h2>'
             f"<p><strong>Reference:</strong> {incident.get('reference')}<br/>"
             f"<strong>Site:</strong> {org.get('name', 'your site')}<br/>"
             f"<strong>Severity:</strong> {sev.title()}<br/>"
             f"<strong>RIDDOR:</strong> {riddor.replace('_', ' ').title()}</p>"
             f"<p style=\"white-space:pre-wrap;\">{(incident.get('description') or '')[:1200]}</p>"
-            '<p style="margin-top:18px;font-size:13px;color:#475569;">'
+            '<p style="margin-top:18px;font-size:13px;color:#565B5E;">'
             "Open the incident in Pulse Fitness to investigate. "
             "Escalation rules fired automatically based on severity / RIDDOR status."
             "</p></div>"
@@ -1074,7 +1074,7 @@ async def invite_witness(
             ).rstrip("/")
             link = f"{base}/witness-statement/{token}" if base else f"/witness-statement/{token}"
             html = (
-                f'<div style="font-family:Arial,sans-serif;color:#0F172A;line-height:1.55;max-width:560px;margin:0 auto;">'
+                f'<div style="font-family:Arial,sans-serif;color:#1B1C1D;line-height:1.55;max-width:560px;margin:0 auto;">'
                 f'<h2 style="margin:0 0 12px;font-size:22px;font-weight:800;">Witness statement requested.</h2>'
                 f"<p>Hi {_esc_html(payload.name)},</p>"
                 f"<p>You were named as a witness for incident "
@@ -1083,9 +1083,9 @@ async def invite_witness(
                 f"<p>Please take a moment to record what you saw using the secure link below. "
                 f"It's one-time-use and expires in 30 days.</p>"
                 f'<p style="margin:18px 0;"><a href="{link}" '
-                f'style="background:#1d4ed8;color:#fff;padding:10px 18px;border-radius:8px;'
+                f'style="background:#0091CA;color:#fff;padding:10px 18px;border-radius:8px;'
                 f'text-decoration:none;font-weight:700;font-size:14px;">Provide statement →</a></p>'
-                f'<p style="font-size:11px;color:#94a3b8;">Sent by {_esc_html(doc["invited_by"])} on behalf of '
+                f'<p style="font-size:11px;color:#9A9FA1;">Sent by {_esc_html(doc["invited_by"])} on behalf of '
                 f'{_esc_html(await _org_name(incident["organization_id"]))}.</p>'
                 f"</div>"
             )

@@ -126,7 +126,7 @@ async def signup(body: ProviderSignup, request: Request, response: Response) -> 
         "service_ops": True,
         "service_ops_setup_complete": False,
         "service_desk_brand": _brand_slug(body.company_name),
-        "branding": {"primary_color": "#0EA5E9", "accent_color": "#7C3AED"},
+        "branding": {"primary_color": "#19CDFF", "accent_color": "#0091CA"},
         "created_at": now,
         "updated_at": now,
     })
@@ -209,8 +209,8 @@ async def get_setup(user: dict = Depends(get_current_user)) -> dict:
         "company_name": org.get("name") or "",
         "branding": {
             "logo_url": branding.get("logo_url") or "",
-            "primary_color": branding.get("primary_color") or "#0EA5E9",
-            "accent_color": branding.get("accent_color") or "#7C3AED",
+            "primary_color": branding.get("primary_color") or "#19CDFF",
+            "accent_color": branding.get("accent_color") or "#0091CA",
         },
         "sla": {p: sla_map.get(p, _DEFAULT_SLA[p]) for p in _PRIORITIES},
         "engineer_count": engineer_count,
@@ -224,10 +224,10 @@ async def get_setup(user: dict = Depends(get_current_user)) -> dict:
 async def save_branding(body: dict, user: dict = Depends(get_current_user)) -> dict:
     org_id = _require_provider_owner(user)
     hex_re = re.compile(r"^#[0-9a-fA-F]{6}$")
-    primary = (body.get("primary_color") or "#0EA5E9").strip()
-    accent = (body.get("accent_color") or "#7C3AED").strip()
+    primary = (body.get("primary_color") or "#19CDFF").strip()
+    accent = (body.get("accent_color") or "#0091CA").strip()
     if not hex_re.match(primary) or not hex_re.match(accent):
-        raise HTTPException(status_code=400, detail="Colours must be 6-digit hex (e.g. #0EA5E9)")
+        raise HTTPException(status_code=400, detail="Colours must be 6-digit hex (e.g. #19CDFF)")
     set_fields = {
         "branding.primary_color": primary,
         "branding.accent_color": accent,

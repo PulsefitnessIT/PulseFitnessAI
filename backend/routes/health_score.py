@@ -11,8 +11,8 @@ router = APIRouter()
 _RATING_THRESHOLDS: list[tuple[int, str, str]] = [
     (80, "Excellent", "#22c55e"),
     (60, "Good", "#84cc16"),
-    (40, "Fair", "#eab308"),
-    (20, "Needs Attention", "#f97316"),
+    (40, "Fair", "#F59E0B"),
+    (20, "Needs Attention", "#F59E0B"),
     (0, "Critical", "#ef4444"),
 ]
 

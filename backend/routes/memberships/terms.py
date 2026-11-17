@@ -57,7 +57,7 @@ class TermIn(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     starts_on: str  # YYYY-MM-DD
     ends_on: str    # YYYY-MM-DD inclusive
-    colour: str = "#0055ff"
+    colour: str = "#19CDFF"
     holiday_blocks: List[HolidayBlockIn] = Field(default_factory=list)
     is_default: bool = False
     notes: Optional[str] = None
@@ -94,7 +94,7 @@ def _validate_term(body: TermIn) -> dict:
         "name": body.name.strip(),
         "starts_on": starts,
         "ends_on": ends,
-        "colour": body.colour or "#0055ff",
+        "colour": body.colour or "#19CDFF",
         "holiday_blocks": blocks,
         "is_default": bool(body.is_default),
         "notes": (body.notes or "").strip(),

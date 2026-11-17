@@ -478,8 +478,8 @@ async def mod_bulk_import_export_credentials(
 
 
 def _credentials_email_html(site_name: str, username: str, password: str, contact: str) -> str:
-    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1D1D;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-  <div style="background:#1B1D1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
+    return f"""<div style="font-family:system-ui,-apple-system,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1B1C1D;border-radius:12px;overflow:hidden;border:1px solid #E0E0E0;">
+  <div style="background:#1B1C1D;padding:20px 28px;border-bottom:3px solid #19CDFF;">
     <div style="color:#19CDFF;font-size:11px;font-weight:800;letter-spacing:0.25em;text-transform:uppercase;">Pulse Fitness · MOD Service Portal</div>
     <h1 style="color:#fff;margin:8px 0 0 0;font-size:20px;">{site_name}</h1>
   </div>
@@ -487,10 +487,10 @@ def _credentials_email_html(site_name: str, username: str, password: str, contac
     <p>Hello {contact},</p>
     <p>Your MOD Service Portal site login has been provisioned. Use the credentials below to sign in at <a href="/MODService" style="color:#19CDFF;">/MODService</a>.</p>
     <table style="margin-top:14px;border-collapse:collapse;">
-      <tr><td style="padding:8px 14px;background:#F5F7F8;border:1px solid #E5E7EB;color:#6E7476;font-size:11px;font-weight:800;text-transform:uppercase;">Username</td>
-          <td style="padding:8px 14px;background:#F5F7F8;border:1px solid #E5E7EB;font-weight:700;"><code>{username}</code></td></tr>
-      <tr><td style="padding:8px 14px;background:#0A0B10;color:#19CDFF;border:1px solid #0A0B10;font-size:11px;font-weight:800;text-transform:uppercase;">Site code</td>
-          <td style="padding:8px 14px;background:#0A0B10;color:#fff;border:1px solid #0A0B10;font-family:ui-monospace,Menlo,monospace;font-weight:700;">{password}</td></tr>
+      <tr><td style="padding:8px 14px;background:#F7F7F7;border:1px solid #E0E0E0;color:#6E7476;font-size:11px;font-weight:800;text-transform:uppercase;">Username</td>
+          <td style="padding:8px 14px;background:#F7F7F7;border:1px solid #E0E0E0;font-weight:700;"><code>{username}</code></td></tr>
+      <tr><td style="padding:8px 14px;background:#1B1C1D;color:#19CDFF;border:1px solid #1B1C1D;font-size:11px;font-weight:800;text-transform:uppercase;">Site code</td>
+          <td style="padding:8px 14px;background:#1B1C1D;color:#fff;border:1px solid #1B1C1D;font-family:ui-monospace,Menlo,monospace;font-weight:700;">{password}</td></tr>
     </table>
     <p style="color:#6E7476;font-size:13px;margin-top:18px;">This password is shown once. Please change it on first sign-in via the Profile menu, or contact your HQ to rotate it.</p>
   </div>

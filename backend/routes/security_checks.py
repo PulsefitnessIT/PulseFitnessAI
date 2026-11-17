@@ -441,7 +441,7 @@ async def security_checks_pdf(user: dict = Depends(get_current_user)):
             colour = status_color.get(c["status"], colors.HexColor("#6B7280"))
             badge_html = (
                 f'<font color="{colour.hexval()}"><b>{c["status"].upper()}</b></font> '
-                f'<font color="#9CA3AF">· {c["date"]}</font>'
+                f'<font color="#9A9FA1">· {c["date"]}</font>'
             )
             story.append(Paragraph(badge_html, small))
             story.append(Paragraph(f"<b>{c['title']}</b>", body))

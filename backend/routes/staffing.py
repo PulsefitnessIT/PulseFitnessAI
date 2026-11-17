@@ -61,7 +61,7 @@ def _staff_portal_email_body(
     on-brand content block with a prominent cyan call-to-action button.
     """
     CYAN = "#19CDFF"
-    INK = "#0f172a"
+    INK = "#1B1C1D"
     button = (
         '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
         'style="margin:24px 0;"><tr><td '
@@ -72,21 +72,21 @@ def _staff_portal_email_body(
         'border-radius:10px;">' + cta_label + '</a></td></tr></table>'
     )
     creds = (
-        f'<div style="margin:16px 0;padding:14px 18px;background:#f8fafc;'
-        f'border:1px solid #e2e8f0;border-radius:10px;font-size:14px;color:{INK};'
+        f'<div style="margin:16px 0;padding:14px 18px;background:#F7F7F7;'
+        f'border:1px solid #E0E0E0;border-radius:10px;font-size:14px;color:{INK};'
         f'line-height:1.7;">{creds_html}</div>'
     ) if creds_html else ""
     fallback = (
-        f'<p style="font-size:12px;color:#64748b;line-height:1.6;margin:16px 0 0;">'
+        f'<p style="font-size:12px;color:#6E7476;line-height:1.6;margin:16px 0 0;">'
         f'{fallback_note}<br>'
         f'<a href="{fallback_url}" style="color:{CYAN};word-break:break-all;">{fallback_url}</a>'
         f'</p>'
     ) if (fallback_note and fallback_url) else ""
     footer = (
-        f'<p style="font-size:13px;color:#94a3b8;margin:24px 0 0;">{footer_note}</p>'
+        f'<p style="font-size:13px;color:#9A9FA1;margin:24px 0 0;">{footer_note}</p>'
     ) if footer_note else ""
     return (
-        '<div style="padding:32px 30px;font-family:Arial,sans-serif;color:#334155;">'
+        '<div style="padding:32px 30px;font-family:Arial,sans-serif;color:#393E41;">'
         f'<h1 style="font-size:22px;font-weight:800;color:{INK};margin:0 0 6px;">'
         'Welcome to the Pulse Fitness Staff Portal</h1>'
         f'<p style="font-size:15px;color:{INK};margin:18px 0 4px;">Hi {first_name},</p>'
@@ -1634,7 +1634,7 @@ async def issue_staff_credentials(
                     creds_html=(
                         f"<strong>Email:</strong> {email}<br>"
                         f"<strong>Temporary password:</strong> "
-                        f"<span style=\"font-family:monospace;background:#f1f5f9;"
+                        f"<span style=\"font-family:monospace;background:#F0F0F0;"
                         f"padding:2px 8px;border-radius:6px;\">{temp_password}</span>"
                     ),
                     cta_label="Log in to the staff portal",

@@ -179,7 +179,7 @@ def _render_block(b: dict) -> str:
     if t == "text":
         return (
             f'<tr><td style="padding:8px 24px;font-family:Arial,Helvetica,sans-serif;'
-            f'font-size:15px;line-height:1.6;color:#374151;text-align:{p.get("align","left")}">'
+            f'font-size:15px;line-height:1.6;color:#393E41;text-align:{p.get("align","left")}">'
             f'{p.get("text","Your text here.")}</td></tr>'
         )
     if t == "image":
@@ -198,7 +198,7 @@ def _render_block(b: dict) -> str:
             f'{_esc(p.get("text","Click here"))}</a></td></tr>'
         )
     if t == "divider":
-        return '<tr><td style="padding:8px 24px"><hr style="border:none;border-top:1px solid #E5E7EB;margin:0"></td></tr>'
+        return '<tr><td style="padding:8px 24px"><hr style="border:none;border-top:1px solid #E0E0E0;margin:0"></td></tr>'
     if t == "spacer":
         return f'<tr><td style="height:{int(p.get("height",24))}px;line-height:1px">&nbsp;</td></tr>'
     if t == "social":
@@ -222,11 +222,11 @@ def _render_block(b: dict) -> str:
     if t == "footer":
         return (
             f'<tr><td style="padding:20px 24px;font-family:Arial,Helvetica,sans-serif;'
-            f'font-size:12px;line-height:1.6;color:#9CA3AF;text-align:center;border-top:1px solid #F1F5F9">'
+            f'font-size:12px;line-height:1.6;color:#9A9FA1;text-align:center;border-top:1px solid #F0F0F0">'
             f'{p.get("text","You are receiving this email from Pulse Fitness AI.")}<br>'
-            f'<a href="{{{{unsubscribe_link}}}}" style="color:#9CA3AF">Unsubscribe</a> · '
-            f'<a href="{{{{preferences_link}}}}" style="color:#9CA3AF">Update preferences</a> · '
-            f'<a href="{{{{view_in_browser_link}}}}" style="color:#9CA3AF">View in browser</a>'
+            f'<a href="{{{{unsubscribe_link}}}}" style="color:#9A9FA1">Unsubscribe</a> · '
+            f'<a href="{{{{preferences_link}}}}" style="color:#9A9FA1">Update preferences</a> · '
+            f'<a href="{{{{view_in_browser_link}}}}" style="color:#9A9FA1">View in browser</a>'
             f'</td></tr>'
         )
     return ""
@@ -237,7 +237,7 @@ def render_blocks_to_html(blocks: list[dict]) -> str:
     rows = "".join(_render_block(b) for b in (blocks or []))
     return (
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
-        'style="background:#F3F4F6;padding:24px 0"><tr><td align="center">'
+        'style="background:#F0F0F0;padding:24px 0"><tr><td align="center">'
         '<table role="presentation" width="600" cellpadding="0" cellspacing="0" '
         'style="background:#ffffff;border-radius:14px;overflow:hidden;max-width:600px;width:100%">'
         f'{rows}'
@@ -982,7 +982,7 @@ async def public_forward_to_friend(message_id: str, body: dict = Body(...)):
         html = (
             f'<div style="margin:0 16px 12px;padding:14px 16px;background:#f0f7ff;'
             f'border-left:3px solid {_CYAN};border-radius:8px;font-family:Arial,sans-serif;'
-            f'font-size:14px;color:#374151;">{_esc(note)}</div>' + html
+            f'font-size:14px;color:#393E41;">{_esc(note)}</div>' + html
         )
     from utils.email import send_email
     ok = await send_email(

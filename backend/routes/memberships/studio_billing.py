@@ -711,7 +711,7 @@ async def _branding_for_member(org: dict, member: dict) -> dict:
     eff = _effective_site_branding(org, site_doc)
     return {
         "name": eff.get("name") or org.get("name") or "Your studio",
-        "primary_color": eff.get("primary_color") or "#00B2C7",
+        "primary_color": eff.get("primary_color") or "#19CDFF",
         "logo_url": eff.get("logo_url") or "",
         "source": "site" if site_doc and (site_doc.get("branding") or {}) else "organization",
     }
@@ -719,7 +719,7 @@ async def _branding_for_member(org: dict, member: dict) -> dict:
 
 def _render_invoice_email_html(
     *, org_name: str, period_label: str, invoice: dict, member_name: str,
-    primary_color: str = "#00B2C7", pay_url: Optional[str] = None,
+    primary_color: str = "#19CDFF", pay_url: Optional[str] = None,
 ) -> str:
     # Iter 215y — if there are multiple distinct attendees (e.g. parent
     # with 2 kids), group the detail rows by attendee with subtotals.
@@ -731,8 +731,8 @@ def _render_invoice_email_html(
         for ln in rows:
             out += (
                 f"<tr>"
-                f"<td style='padding:8px 12px;border-bottom:1px solid #eee;font-size:13px'>{_esc(ln['description'])}</td>"
-                f"<td style='padding:8px 12px;border-bottom:1px solid #eee;font-size:13px;text-align:right'>£{ln['amount_pence']/100:.2f}</td>"
+                f"<td style='padding:8px 12px;border-bottom:1px solid #F0F0F0;font-size:13px'>{_esc(ln['description'])}</td>"
+                f"<td style='padding:8px 12px;border-bottom:1px solid #F0F0F0;font-size:13px;text-align:right'>£{ln['amount_pence']/100:.2f}</td>"
                 f"</tr>"
             )
         return out
@@ -750,7 +750,7 @@ def _render_invoice_email_html(
             sub = sum(int(r.get("amount_pence") or 0) for r in rows)
             detail_parts.append(
                 f"<tr><td colspan='2' style='padding:14px 12px 4px;font-size:11px;"
-                f"letter-spacing:0.18em;text-transform:uppercase;color:#6B7280;"
+                f"letter-spacing:0.18em;text-transform:uppercase;color:#6E7476;"
                 f"font-weight:800'>{_esc(att_name)} · £{sub/100:.2f}</td></tr>"
                 + _lines_table_rows(rows)
             )
@@ -761,25 +761,25 @@ def _render_invoice_email_html(
     total = invoice["total_pence"]
     pay_cta = (
         f"<div style='text-align:center;margin:24px 0 4px'>"
-        f"<a href='{_esc(pay_url)}' style='display:inline-block;background:{primary_color};color:#0A0C10;"
+        f"<a href='{_esc(pay_url)}' style='display:inline-block;background:{primary_color};color:#1B1C1D;"
         f"padding:14px 28px;border-radius:999px;font-weight:800;text-decoration:none;font-size:15px'>"
         f"Pay £{total/100:.2f} now →</a></div>"
     ) if pay_url else ""
-    return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#fff;border:1px solid #E5E7EB;border-radius:14px;overflow:hidden;">
+    return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#fff;border:1px solid #E0E0E0;border-radius:14px;overflow:hidden;">
   <div style="background:{primary_color};padding:18px 24px;">
     <div style="color:#fff;font-size:12px;letter-spacing:.18em;text-transform:uppercase;opacity:.9">Invoice · {period_label}</div>
     <div style="color:#fff;font-size:22px;font-weight:800;margin-top:4px">{_esc(org_name)}</div>
   </div>
   <div style="padding:24px">
-    <p style="margin:0 0 12px;font-size:15px;color:#111">Hi {_esc(member_name)},</p>
-    <p style="margin:0 0 20px;font-size:14px;color:#444;line-height:1.5">Here's your {period_label} statement for classes booked at {_esc(org_name)}.</p>
-    <table style="width:100%;border-collapse:collapse;border-top:1px solid #eee;margin-bottom:20px">
+    <p style="margin:0 0 12px;font-size:15px;color:#1B1C1D">Hi {_esc(member_name)},</p>
+    <p style="margin:0 0 20px;font-size:14px;color:#565B5E;line-height:1.5">Here's your {period_label} statement for classes booked at {_esc(org_name)}.</p>
+    <table style="width:100%;border-collapse:collapse;border-top:1px solid #F0F0F0;margin-bottom:20px">
       {lines_html}
       <tr><td style="padding:14px 12px;font-size:14px;font-weight:800">Total due</td>
           <td style="padding:14px 12px;font-size:16px;font-weight:800;text-align:right;color:{primary_color}">£{total/100:.2f}</td></tr>
     </table>
     {pay_cta}
-    <p style="margin:18px 0 0;font-size:12px;color:#6B7280;text-align:center">A copy of this invoice is attached as PDF. Questions? Reply to this email.</p>
+    <p style="margin:18px 0 0;font-size:12px;color:#6E7476;text-align:center">A copy of this invoice is attached as PDF. Questions? Reply to this email.</p>
   </div>
 </div>"""
 
@@ -1081,7 +1081,7 @@ def _render_invoice_pdf(
     tail = [total_tbl, Spacer(1, 6 * mm)]
     if c.get("bank_account_number"):
         bank = (f"<b>Payment Details</b>"
-                + (f"  <font color='#5B6570'>{_esc_(c['payment_terms'])}</font>" if c.get("payment_terms") else "")
+                + (f"  <font color='#6E7476'>{_esc_(c['payment_terms'])}</font>" if c.get("payment_terms") else "")
                 + f"<br/>{_esc_(c.get('bank_name') or '')}")
         if c.get("bank_account_name"):
             bank += f"<br/>Account Name: {_esc_(c['bank_account_name'])}"

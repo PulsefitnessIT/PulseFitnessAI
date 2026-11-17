@@ -420,18 +420,18 @@ async def _send_customer_welcome(user_id: str, email: str, full_name: str,
       <p>Your account for <strong>{company_name}</strong> is ready. You're on our
          <strong>Lite</strong> plan — Operations (dashboard, equipment &amp; faults) is included free.</p>
       <p style="margin:20px 0;">
-        <a href="{set_pw_url}" style="background:#0055FF;color:#fff;text-decoration:none;
+        <a href="{set_pw_url}" style="background:#19CDFF;color:#fff;text-decoration:none;
            padding:12px 22px;border-radius:8px;font-weight:600;display:inline-block;">
            Set your password &amp; sign in</a>
       </p>
-      <p style="font-size:13px;color:#555;">Your login email is <strong>{email}</strong>.
+      <p style="font-size:13px;color:#565B5E;">Your login email is <strong>{email}</strong>.
          This link is valid for 72 hours.</p>
-      <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
+      <hr style="border:none;border-top:1px solid #F0F0F0;margin:20px 0;">
       <p>Want more than Operations? Every module is a standalone subscription —
          add Memberships, CRM or Marketing (and unlock AI on Operations) whenever you're ready:</p>
-      <p><a href="{modules_url}" style="color:#0055FF;font-weight:600;">Browse modules &amp; upgrade →</a></p>
-      <p>New to the platform? <a href="{help_url}" style="color:#0055FF;font-weight:600;">Visit Help &amp; Tutorials →</a></p>
-      <p style="font-size:13px;color:#777;margin-top:20px;">Need a hand? Just reply to this email and our team will help.</p>
+      <p><a href="{modules_url}" style="color:#0091CA;font-weight:600;">Browse modules &amp; upgrade →</a></p>
+      <p>New to the platform? <a href="{help_url}" style="color:#0091CA;font-weight:600;">Visit Help &amp; Tutorials →</a></p>
+      <p style="font-size:13px;color:#6E7476;margin-top:20px;">Need a hand? Just reply to this email and our team will help.</p>
     </div>
     """
     try:

@@ -856,20 +856,20 @@ async def case_calibration_certificate_email(case_id: str, data: dict | None = N
     verdict = (cal.get("overall_result") or "").upper()
     subject = f"Calibration certificate · {case.get('reference', case_id[:8])}"
     note_html = (
-        f"<p style='margin:0 0 16px 0;color:#1f2937;font-size:14px;line-height:1.6'>{note}</p>"
+        f"<p style='margin:0 0 16px 0;color:#26292B;font-size:14px;line-height:1.6'>{note}</p>"
         if note else ""
     )
     html = (
         f"<div style='font-family:Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:16px'>"
-        f"<h2 style='color:#0f172a;font-size:18px;margin:0 0 12px 0'>Hi {customer_first},</h2>"
-        f"<p style='color:#1f2937;font-size:14px;line-height:1.6;margin:0 0 16px 0'>"
+        f"<h2 style='color:#1B1C1D;font-size:18px;margin:0 0 12px 0'>Hi {customer_first},</h2>"
+        f"<p style='color:#26292B;font-size:14px;line-height:1.6;margin:0 0 16px 0'>"
         f"Please find attached the calibration certificate for "
         f"<b>{case.get('reference', '')}</b>"
         + (f" ({cal.get('equipment_name')})" if cal.get('equipment_name') else "")
         + f". Overall result: <b>{verdict or '—'}</b>. This certificate is provided as audit evidence "
         f"of the calibration checks performed at the visit.</p>"
         f"{note_html}"
-        f"<p style='color:#64748B;font-size:13px;line-height:1.5;margin:24px 0 0 0'>"
+        f"<p style='color:#6E7476;font-size:13px;line-height:1.5;margin:24px 0 0 0'>"
         f"Thanks,<br/><b>{org_name}</b></p>"
         f"</div>"
     )

@@ -63,35 +63,35 @@ async def _send_service_desk_invite(email: str, name: str, temp_password: str, b
 
     is_pulse = (brand or "").lower() == "pulse"
     brand_name = "Pulse Fitness" if is_pulse else "Pulse Fitness AI"
-    accent = "#0055FF" if is_pulse else "#19CDFF"
+    accent = "#19CDFF" if is_pulse else "#19CDFF"
     login_url = f"{FRONTEND_URL.rstrip('/')}/service-desk" if FRONTEND_URL else "/service-desk"
 
     html = f"""
-    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">
-      <div style="background:#0A0A0A;padding:22px 28px;">
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:#fff;border:1px solid #E0E0E0;border-radius:12px;overflow:hidden;">
+      <div style="background:#1B1C1D;padding:22px 28px;">
         <h1 style="color:#fff;font-size:18px;margin:0;">Welcome to {brand_name} Service Desk</h1>
-        <p style="color:#9ca3af;font-size:12px;margin:4px 0 0;">Service Desk agent access</p>
+        <p style="color:#9A9FA1;font-size:12px;margin:4px 0 0;">Service Desk agent access</p>
       </div>
-      <div style="padding:28px;color:#111;">
+      <div style="padding:28px;color:#1B1C1D;">
         <p style="font-size:14px;line-height:1.6;">Hi {sanitise_string(name) or 'there'},</p>
         <p style="font-size:14px;line-height:1.6;">
           You've been provisioned as a <strong>Service Desk agent</strong>. Use the
           temporary password below to sign in — you'll be asked to set a new one
           immediately.
         </p>
-        <div style="margin:20px 0;padding:18px;background:#F9FAFB;border:1px dashed #D1D5DB;border-radius:8px;text-align:center;">
-          <p style="margin:0 0 6px;color:#6B7280;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Temporary password</p>
+        <div style="margin:20px 0;padding:18px;background:#F7F7F7;border:1px dashed #C9CBCC;border-radius:8px;text-align:center;">
+          <p style="margin:0 0 6px;color:#6E7476;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Temporary password</p>
           <p style="margin:0;font-family:'SFMono-Regular',Menlo,monospace;font-size:18px;font-weight:700;color:{accent};letter-spacing:0.04em;">{temp_password}</p>
         </div>
-        <p style="font-size:13px;line-height:1.6;color:#4B5563;">
+        <p style="font-size:13px;line-height:1.6;color:#565B5E;">
           This password expires in 7 days. After signing in you'll be asked to set
           a permanent password.
         </p>
         <a href="{login_url}" style="display:inline-block;margin-top:8px;padding:11px 22px;background:{accent};color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">
           Sign in to Service Desk
         </a>
-        <p style="font-size:11px;color:#9CA3AF;margin-top:24px;border-top:1px solid #F3F4F6;padding-top:14px;">
-          Login email: <span style="font-family:monospace;color:#374151;">{email}</span>
+        <p style="font-size:11px;color:#9A9FA1;margin-top:24px;border-top:1px solid #F0F0F0;padding-top:14px;">
+          Login email: <span style="font-family:monospace;color:#393E41;">{email}</span>
         </p>
       </div>
     </div>

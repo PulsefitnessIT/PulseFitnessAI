@@ -15,8 +15,8 @@ carry their own brand. Two layers:
 Fields:
     {
       "logo_url": "https://…",             # served from /api/files
-      "primary_color":   "#7C3AED",         # hex with leading hash
-      "accent_color":    "#0EA5E9",
+      "primary_color":   "#0091CA",         # hex with leading hash
+      "accent_color":    "#19CDFF",
       "updated_at": "iso",
       "updated_by_id": "user-id"
     }

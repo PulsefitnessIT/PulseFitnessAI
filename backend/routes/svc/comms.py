@@ -165,7 +165,7 @@ _DEFAULTS: list[dict] = [
             "<strong>Lines:</strong> {{line_count}}<br>"
             "<strong>Total:</strong> £{{total}}</p>"
             "<pre style='font-family: ui-monospace, monospace; font-size: 12px; "
-            "background: #f8fafc; padding: 12px; border-radius: 8px;'>{{lines_text}}</pre>"
+            "background: #F7F7F7; padding: 12px; border-radius: 8px;'>{{lines_text}}</pre>"
             "<p>{{notes}}</p>"
             "<p>— {{org_name}}</p>"
         ),
@@ -529,7 +529,7 @@ async def auto_notify_on_transition(
         ctx["tracking_url"] = tracking_url
         ctx["tracking_link_html"] = (
             f'<p style="margin-top:12px"><a href="{tracking_url}" '
-            f'style="background:#2563eb;color:#fff;padding:10px 18px;'
+            f'style="background:#0091CA;color:#fff;padding:10px 18px;'
             f'border-radius:8px;text-decoration:none;font-weight:700">'
             f'Track live</a></p>'
         ) if tracking_url else ""

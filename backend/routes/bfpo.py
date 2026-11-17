@@ -1140,14 +1140,14 @@ async def _issue_invite(user_doc: dict) -> str:
     name = user_doc.get("full_name") or "there"
     html = (
         f"<div style='font-family:Arial,sans-serif;max-width:520px;margin:0 auto'>"
-        f"<h2 style='color:#111'>Set up your Pulse Fitness MOD account</h2>"
+        f"<h2 style='color:#1B1C1D'>Set up your Pulse Fitness MOD account</h2>"
         f"<p>Hi {name},</p>"
         f"<p>You've been set up on the Pulse Fitness MOD / BFPO Engineer Portal. "
         f"Click below to choose a password and activate your account.</p>"
         f"<p style='margin:28px 0'><a href='{url}' "
-        f"style='background:#0891b2;color:#fff;padding:12px 22px;border-radius:10px;"
+        f"style='background:#0091CA;color:#fff;padding:12px 22px;border-radius:10px;"
         f"text-decoration:none;font-weight:bold'>Set my password</a></p>"
-        f"<p style='color:#666;font-size:13px'>This link expires in 7 days. If the button "
+        f"<p style='color:#6E7476;font-size:13px'>This link expires in 7 days. If the button "
         f"doesn't work, paste this into your browser:<br>{url}</p></div>"
     )
     try:

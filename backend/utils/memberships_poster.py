@@ -78,7 +78,7 @@ def render_poster_png(
         "story":  (1080, 1920),
     }
     W, H = dims.get(fmt, dims["a4"])
-    bg = (5, 7, 10)  # #05070A
+    bg = (5, 7, 10)  # #1B1C1D
     white = (255, 255, 255)
     muted = (180, 190, 200)
     brand = _hex_to_rgb(brand_hex)

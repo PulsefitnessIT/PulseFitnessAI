@@ -341,10 +341,10 @@ async def _bulk_send_reminder(
         first = sanitise_string(m.get("first_name") or "there")
         body_lines = message.replace("\n", "<br>")
         html = (
-            f"<div style='font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto;color:#0A0C10'>"
+            f"<div style='font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto;color:#1B1C1D'>"
             f"<div style='background:{primary};padding:22px 26px;border-radius:12px 12px 0 0'>"
-            f"<h1 style='margin:0;font-size:22px;color:#0A0C10'>{brand_name}</h1></div>"
-            f"<div style='padding:24px;background:#0A0C10;color:#fff;border-radius:0 0 12px 12px'>"
+            f"<h1 style='margin:0;font-size:22px;color:#1B1C1D'>{brand_name}</h1></div>"
+            f"<div style='padding:24px;background:#1B1C1D;color:#fff;border-radius:0 0 12px 12px'>"
             f"<p>Hi {first},</p>"
             f"<p>{body_lines}</p>"
             f"<p style='margin-top:28px;opacity:0.6;font-size:12px'>— The {brand_name} team</p>"

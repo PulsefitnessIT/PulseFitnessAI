@@ -188,9 +188,9 @@ async def email_signed_pdf(*, sig: dict | None, contact: dict, pdf: bytes, filen
     from utils.email import send_email
     who = _html.escape(((sig or {}).get("signed_by_name") or contact.get("name") or "there").split()[0])
     html = (f"<div style='font-family:Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:16px'>"
-            f"<h2 style='color:#0f172a;font-size:18px;margin:0 0 12px'>Hi {who},</h2>"
-            f"<p style='color:#1f2937;font-size:14px;line-height:1.6'>{intro} Your signed report is attached as a PDF.</p>"
-            f"<p style='color:#64748B;font-size:13px;margin-top:24px'>Thanks,<br/><b>Pulse Fitness</b></p></div>")
+            f"<h2 style='color:#1B1C1D;font-size:18px;margin:0 0 12px'>Hi {who},</h2>"
+            f"<p style='color:#26292B;font-size:14px;line-height:1.6'>{intro} Your signed report is attached as a PDF.</p>"
+            f"<p style='color:#6E7476;font-size:13px;margin-top:24px'>Thanks,<br/><b>Pulse Fitness</b></p></div>")
     try:
         ok = await send_email(to=to, cc=cc or None, subject=subject, html=html, organization_id=organization_id,
                               attachments=[{"filename": filename, "content": base64.b64encode(pdf).decode("ascii")}],

@@ -54,31 +54,31 @@ _HEX_RX = re.compile(r"^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$")
 # this list is the agreed protocol when introducing new tokens.
 
 _GYMAXIS_TOKENS = [
-    {"var": "--gx-bg",                "value": "#F8FAFC", "role": "Page background"},
+    {"var": "--gx-bg",                "value": "#F7F7F7", "role": "Page background"},
     {"var": "--gx-bg-paper",          "value": "#FFFFFF", "role": "Card surface"},
-    {"var": "--gx-text",              "value": "#0F172A", "role": "Body text"},
-    {"var": "--gx-text-muted",        "value": "#475569", "role": "Secondary text"},
-    {"var": "--gx-brand-from",        "value": "#2563EB", "role": "Primary gradient (start)"},
-    {"var": "--gx-brand-to",          "value": "#9D4CDD", "role": "Primary gradient (end)"},
-    {"var": "--gx-accent-service",    "value": "#06B6D4", "role": "Service Ops accent"},
-    {"var": "--gx-accent-crm",        "value": "#6366F1", "role": "CRM accent"},
-    {"var": "--gx-accent-memberships","value": "#8B5CF6", "role": "Memberships accent"},
-    {"var": "--gx-accent-marketing",  "value": "#D946EF", "role": "Marketing accent"},
-    {"var": "--gx-accent-staffing",   "value": "#A855F7", "role": "Staffing accent"},
-    {"var": "--gx-accent-reporting",  "value": "#2563EB", "role": "Reporting accent"},
+    {"var": "--gx-text",              "value": "#1B1C1D", "role": "Body text"},
+    {"var": "--gx-text-muted",        "value": "#565B5E", "role": "Secondary text"},
+    {"var": "--gx-brand-from",        "value": "#0091CA", "role": "Primary gradient (start)"},
+    {"var": "--gx-brand-to",          "value": "#19CDFF", "role": "Primary gradient (end)"},
+    {"var": "--gx-accent-service",    "value": "#19CDFF", "role": "Service Ops accent"},
+    {"var": "--gx-accent-crm",        "value": "#19CDFF", "role": "CRM accent"},
+    {"var": "--gx-accent-memberships","value": "#19CDFF", "role": "Memberships accent"},
+    {"var": "--gx-accent-marketing",  "value": "#19CDFF", "role": "Marketing accent"},
+    {"var": "--gx-accent-staffing",   "value": "#19CDFF", "role": "Staffing accent"},
+    {"var": "--gx-accent-reporting",  "value": "#0091CA", "role": "Reporting accent"},
 ]
 
 _PULSE_TOKENS = [
-    {"var": "--pulse-primary",        "value": "#66CCFF", "role": "Primary action fill"},
+    {"var": "--pulse-primary",        "value": "#19CDFF", "role": "Primary action fill"},
     {"var": "--pulse-primary-hover",  "value": "#4DBFFF", "role": "Primary hover"},
-    {"var": "--pulse-black",          "value": "#212721", "role": "Body text"},
-    {"var": "--pulse-bg",             "value": "#F8F9FA", "role": "Page background"},
+    {"var": "--pulse-black",          "value": "#1B1C1D", "role": "Body text"},
+    {"var": "--pulse-bg",             "value": "#F7F7F7", "role": "Page background"},
     {"var": "--pulse-surface",        "value": "#FFFFFF", "role": "Card surface"},
-    {"var": "--pulse-text",           "value": "#212721", "role": "Foreground text"},
+    {"var": "--pulse-text",           "value": "#1B1C1D", "role": "Foreground text"},
     {"var": "--pulse-text-muted",     "value": "#505759", "role": "Secondary text"},
-    {"var": "--pulse-border",         "value": "#E4E4E7", "role": "Border"},
+    {"var": "--pulse-border",         "value": "#E0E0E0", "role": "Border"},
     {"var": "--pulse-input-bg",       "value": "#FFFFFF", "role": "Input background"},
-    {"var": "--pulse-hover",          "value": "#F4F4F5", "role": "Subtle hover"},
+    {"var": "--pulse-hover",          "value": "#F0F0F0", "role": "Subtle hover"},
 ]
 
 _OVERRIDABLE_KEYS = {

@@ -210,7 +210,7 @@ async def _send_autopay_success_email(
         {"id": invoice.get("organization_id")},
         {"_id": 0, "name": 1, "primary_color": 1},
     ) or {}
-    color = org.get("primary_color") or "#00B2C7"
+    color = org.get("primary_color") or "#19CDFF"
     org_name = org.get("name") or "Your studio"
     period_label = _period_label(invoice.get("period") or "")
     total = int(invoice.get("total_pence") or 0)
@@ -219,28 +219,28 @@ async def _send_autopay_success_email(
         f"{(card_brand or 'Card').upper()} •••• {card_last4}" if card_last4 else "your saved card"
     )
     wallet_row = (
-        f"<tr><td style='padding:6px 0;color:#6B7280;font-size:13px'>Wallet applied</td>"
+        f"<tr><td style='padding:6px 0;color:#6E7476;font-size:13px'>Wallet applied</td>"
         f"<td style='padding:6px 0;font-size:13px;text-align:right;color:#10B981'>−£{wallet_applied_pence/100:.2f}</td></tr>"
         if wallet_applied_pence > 0 else ""
     )
-    html = f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:#fff;border:1px solid #E5E7EB;border-radius:14px;overflow:hidden">
+    html = f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:#fff;border:1px solid #E0E0E0;border-radius:14px;overflow:hidden">
   <div style="background:{color};padding:18px 24px">
     <div style="color:#fff;font-size:11px;letter-spacing:.22em;text-transform:uppercase;opacity:.9">Auto-Bill receipt · {period_label}</div>
     <div style="color:#fff;font-size:22px;font-weight:800;margin-top:4px">{org_name}</div>
   </div>
   <div style="padding:24px">
-    <p style="margin:0 0 10px;font-size:15px;color:#111">Hi {first},</p>
-    <p style="margin:0 0 20px;font-size:14px;color:#444;line-height:1.55">
+    <p style="margin:0 0 10px;font-size:15px;color:#1B1C1D">Hi {first},</p>
+    <p style="margin:0 0 20px;font-size:14px;color:#565B5E;line-height:1.55">
       Your {period_label} class invoice was paid automatically. No action needed.
     </p>
-    <table style="width:100%;border-collapse:collapse;border-top:1px solid #eee;border-bottom:1px solid #eee;margin-bottom:20px">
-      <tr><td style="padding:8px 0;color:#6B7280;font-size:13px">Invoice total</td>
+    <table style="width:100%;border-collapse:collapse;border-top:1px solid #F0F0F0;border-bottom:1px solid #F0F0F0;margin-bottom:20px">
+      <tr><td style="padding:8px 0;color:#6E7476;font-size:13px">Invoice total</td>
           <td style="padding:8px 0;font-size:13px;text-align:right">£{total/100:.2f}</td></tr>
       {wallet_row}
       <tr><td style="padding:8px 0;font-size:14px;font-weight:800">Charged to {card_line}</td>
           <td style="padding:8px 0;font-size:16px;font-weight:800;text-align:right;color:{color}">£{charged_pence/100:.2f}</td></tr>
     </table>
-    <p style="margin:0;font-size:12px;color:#6B7280;line-height:1.55">
+    <p style="margin:0;font-size:12px;color:#6E7476;line-height:1.55">
       You can turn Auto-Bill off any time from your member portal.
     </p>
   </div>
@@ -271,7 +271,7 @@ async def _send_autopay_decline_email(
         {"id": invoice.get("organization_id")},
         {"_id": 0, "name": 1, "primary_color": 1},
     ) or {}
-    color = org.get("primary_color") or "#00B2C7"
+    color = org.get("primary_color") or "#19CDFF"
     org_name = org.get("name") or "your studio"
     period_label = _period_label(invoice.get("period") or "")
     first = (member.get("first_name") or "there").strip() or "there"
@@ -316,13 +316,13 @@ async def _send_autopay_decline_email(
     <div style="color:#fff;font-size:20px;font-weight:800;margin-top:4px">{org_name} · {period_label}</div>
   </div>
   <div style="padding:24px">
-    <p style="margin:0 0 10px;font-size:15px;color:#111">Hi {first},</p>
-    <p style="margin:0 0 14px;font-size:14px;color:#444;line-height:1.55">{body_intro}</p>
+    <p style="margin:0 0 10px;font-size:15px;color:#1B1C1D">Hi {first},</p>
+    <p style="margin:0 0 14px;font-size:14px;color:#565B5E;line-height:1.55">{body_intro}</p>
     <p style="margin:0 0 18px;font-size:13px;color:#DC2626;background:#FEF2F2;border-radius:8px;padding:10px 12px;line-height:1.45">
       <strong>Reason:</strong> {error_msg or 'Your bank declined the charge.'}
     </p>
     <div style="text-align:center;margin:0 0 4px">
-      <a href="{portal}" style="display:inline-block;background:{color};color:#0A0C10;padding:12px 22px;border-radius:999px;font-weight:800;text-decoration:none;font-size:14px">
+      <a href="{portal}" style="display:inline-block;background:{color};color:#1B1C1D;padding:12px 22px;border-radius:999px;font-weight:800;text-decoration:none;font-size:14px">
         Open your member portal →
       </a>
     </div>

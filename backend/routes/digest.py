@@ -68,17 +68,17 @@ async def send_weekly_digest(user: dict = Depends(get_current_user)):
     digest = await preview_weekly_digest(user)
 
     html = f"""<div style="font-family: Arial; max-width: 600px; margin: 0 auto;">
-    <div style="background: #0055FF; padding: 20px; text-align: center;">
+    <div style="background: #19CDFF; padding: 20px; text-align: center;">
         <h2 style="color: white; margin: 0;">Weekly Maintenance Digest</h2>
         <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0;">{digest['period']}</p>
     </div>
-    <div style="padding: 30px; background: #f9f9f9;">
+    <div style="padding: 30px; background: #F7F7F7;">
         <h3>Summary</h3>
         <table style="width: 100%; border-collapse: collapse;">
-            <tr><td style="padding: 8px; border-bottom: 1px solid #ddd;">Open Issues</td><td style="padding: 8px; text-align: right; font-weight: bold; border-bottom: 1px solid #ddd;">{digest['summary']['open_issues']}</td></tr>
-            <tr><td style="padding: 8px; border-bottom: 1px solid #ddd;">Critical Issues</td><td style="padding: 8px; text-align: right; font-weight: bold; color: red; border-bottom: 1px solid #ddd;">{digest['summary']['critical_issues']}</td></tr>
-            <tr><td style="padding: 8px; border-bottom: 1px solid #ddd;">In Progress</td><td style="padding: 8px; text-align: right; font-weight: bold; border-bottom: 1px solid #ddd;">{digest['summary']['in_progress_issues']}</td></tr>
-            <tr><td style="padding: 8px; border-bottom: 1px solid #ddd;">Check Sheets This Week</td><td style="padding: 8px; text-align: right; font-weight: bold; border-bottom: 1px solid #ddd;">{digest['summary']['check_sheets_completed']}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #E0E0E0;">Open Issues</td><td style="padding: 8px; text-align: right; font-weight: bold; border-bottom: 1px solid #E0E0E0;">{digest['summary']['open_issues']}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #E0E0E0;">Critical Issues</td><td style="padding: 8px; text-align: right; font-weight: bold; color: red; border-bottom: 1px solid #E0E0E0;">{digest['summary']['critical_issues']}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #E0E0E0;">In Progress</td><td style="padding: 8px; text-align: right; font-weight: bold; border-bottom: 1px solid #E0E0E0;">{digest['summary']['in_progress_issues']}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #E0E0E0;">Check Sheets This Week</td><td style="padding: 8px; text-align: right; font-weight: bold; border-bottom: 1px solid #E0E0E0;">{digest['summary']['check_sheets_completed']}</td></tr>
             <tr><td style="padding: 8px;">Avg Equipment Health</td><td style="padding: 8px; text-align: right; font-weight: bold;">{digest['summary']['avg_health_score']}%</td></tr>
         </table>
 
@@ -86,7 +86,7 @@ async def send_weekly_digest(user: dict = Depends(get_current_user)):
         {''.join(f'<div style="padding: 8px; margin: 4px 0; background: white; border-left: 3px solid {"red" if e["health_score"] < 50 else "orange" if e["health_score"] < 80 else "green"};"><strong>{e["name"]}</strong> - Health: {e["health_score"]}% | Open Issues: {e["open_issues"]}</div>' for e in digest['equipment_health'][:5]) or '<p>All equipment in good condition</p>'}
 
         <p style="margin-top: 20px; text-align: center;">
-            <a href="#" style="display: inline-block; background: #0055FF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View Full Dashboard</a>
+            <a href="#" style="display: inline-block; background: #19CDFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View Full Dashboard</a>
         </p>
     </div>
     </div>"""

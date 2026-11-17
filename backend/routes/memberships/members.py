@@ -792,15 +792,15 @@ async def invite_member_portal(
 
     first = sanitise_string(m.get("first_name") or "there")
     html = (
-        f"<div style='font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto;color:#0A0C10'>"
+        f"<div style='font-family:-apple-system,sans-serif;max-width:600px;margin:0 auto;color:#1B1C1D'>"
         f"<div style='background:{primary};padding:22px 26px;border-radius:12px 12px 0 0'>"
         f"<h1 style='margin:0;font-size:22px'>Welcome to {brand_name}</h1></div>"
-        f"<div style='padding:24px;background:#0A0C10;color:#fff;border-radius:0 0 12px 12px'>"
+        f"<div style='padding:24px;background:#1B1C1D;color:#fff;border-radius:0 0 12px 12px'>"
         f"<p>Hi {first},</p>"
         f"<p>Your studio has set up a portal account for you. Tap the button below to set your password and start booking classes, managing your family, and paying invoices on your phone.</p>"
         f"{note_line}"
         f"<p style='margin:24px 0'>"
-        f"<a href='{claim_url}' style='display:inline-block;background:{primary};color:#0A0C10;padding:14px 26px;border-radius:999px;text-decoration:none;font-weight:800;font-size:15px'>Set up my portal →</a>"
+        f"<a href='{claim_url}' style='display:inline-block;background:{primary};color:#1B1C1D;padding:14px 26px;border-radius:999px;text-decoration:none;font-weight:800;font-size:15px'>Set up my portal →</a>"
         f"</p>"
         f"<p style='opacity:0.6;font-size:12px'>This link expires in {_INVITE_TTL_DAYS} days. If you weren't expecting this, you can safely ignore the email.</p>"
         f"</div></div>"

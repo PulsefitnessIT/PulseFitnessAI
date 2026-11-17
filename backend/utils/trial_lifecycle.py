@@ -91,21 +91,21 @@ def compute_trial_state(org: Dict[str, Any]) -> Dict[str, Any]:
 
 def _trial_reminder_html(org_name: str, days_left: int, upgrade_url: str) -> str:
     urgency = "Final day" if days_left <= 1 else f"{days_left} days left"
-    hero_bg = "#EF4444" if days_left <= 1 else "#F59E0B" if days_left <= 4 else "#0055FF"
+    hero_bg = "#EF4444" if days_left <= 1 else "#F59E0B" if days_left <= 4 else "#19CDFF"
     return f"""<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
     <div style="background: {hero_bg}; padding: 36px 30px; text-align: center;">
         <h1 style="color: white; margin: 0; font-size: 24px;">{urgency} of your Pulse Fitness trial</h1>
     </div>
     <div style="padding: 40px 32px;">
-        <h2 style="color: #1a1a1a; margin: 0 0 16px;">Hi {org_name},</h2>
-        <p style="color: #444; line-height: 1.7;">Your 2-week trial of Pulse Fitness ends in <strong>{days_left} day{'s' if days_left != 1 else ''}</strong>. To keep your equipment data, PPM schedules, and site history, upgrade now and we'll switch you over seamlessly — no re-import required.</p>
+        <h2 style="color: #26292B; margin: 0 0 16px;">Hi {org_name},</h2>
+        <p style="color: #565B5E; line-height: 1.7;">Your 2-week trial of Pulse Fitness ends in <strong>{days_left} day{'s' if days_left != 1 else ''}</strong>. To keep your equipment data, PPM schedules, and site history, upgrade now and we'll switch you over seamlessly — no re-import required.</p>
         <div style="text-align: center; margin: 32px 0;">
-            <a href="{upgrade_url}" style="display: inline-block; background: #0055FF; color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 15px;">Upgrade to Pro</a>
+            <a href="{upgrade_url}" style="display: inline-block; background: #19CDFF; color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 15px;">Upgrade to Pro</a>
         </div>
-        <p style="color: #888; font-size: 13px;">If you'd prefer to chat first, just reply to this email.</p>
+        <p style="color: #9A9FA1; font-size: 13px;">If you'd prefer to chat first, just reply to this email.</p>
     </div>
-    <div style="background: #f5f5f5; padding: 18px; text-align: center;">
-        <p style="color: #888; font-size: 12px; margin: 0;">Pulse Fitness AI · Gym Equipment Maintenance Platform</p>
+    <div style="background: #F0F0F0; padding: 18px; text-align: center;">
+        <p style="color: #9A9FA1; font-size: 12px; margin: 0;">Pulse Fitness AI · Gym Equipment Maintenance Platform</p>
     </div>
     </div>"""
 
@@ -114,21 +114,21 @@ def _provider_trial_reminder_html(org_name: str, days_left: int, upgrade_url: st
     """Iter 259 — Service Provider variant: desk copy + orange brand + the
     dedicated /service-desk/upgrade CTA (£99/month self-serve)."""
     urgency = "Final day" if days_left <= 1 else f"{days_left} days left"
-    hero_bg = "#EF4444" if days_left <= 1 else "#F97316"
+    hero_bg = "#EF4444" if days_left <= 1 else "#F59E0B"
     return f"""<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
     <div style="background: {hero_bg}; padding: 36px 30px; text-align: center;">
         <h1 style="color: white; margin: 0; font-size: 24px;">{urgency} of your Service Desk trial</h1>
     </div>
     <div style="padding: 40px 32px;">
-        <h2 style="color: #1a1a1a; margin: 0 0 16px;">Hi {org_name},</h2>
-        <p style="color: #444; line-height: 1.7;">Your 14-day Service Desk trial ends in <strong>{days_left} day{'s' if days_left != 1 else ''}</strong>. Upgrade to Pro (&pound;99/month) to keep your cases, customers, engineers and SLA history exactly as they are — nothing to re-import, no interruption for your team in the field.</p>
+        <h2 style="color: #26292B; margin: 0 0 16px;">Hi {org_name},</h2>
+        <p style="color: #565B5E; line-height: 1.7;">Your 14-day Service Desk trial ends in <strong>{days_left} day{'s' if days_left != 1 else ''}</strong>. Upgrade to Pro (&pound;99/month) to keep your cases, customers, engineers and SLA history exactly as they are — nothing to re-import, no interruption for your team in the field.</p>
         <div style="text-align: center; margin: 32px 0;">
-            <a href="{upgrade_url}" style="display: inline-block; background: #F97316; color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 15px;">Upgrade to Pro &mdash; &pound;99/month</a>
+            <a href="{upgrade_url}" style="display: inline-block; background: #F59E0B; color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 15px;">Upgrade to Pro &mdash; &pound;99/month</a>
         </div>
-        <p style="color: #888; font-size: 13px;">Unlimited engineers, cases and customers &middot; cancel anytime. Questions? Just reply to this email.</p>
+        <p style="color: #9A9FA1; font-size: 13px;">Unlimited engineers, cases and customers &middot; cancel anytime. Questions? Just reply to this email.</p>
     </div>
-    <div style="background: #f5f5f5; padding: 18px; text-align: center;">
-        <p style="color: #888; font-size: 12px; margin: 0;">Pulse Fitness Service Desk &middot; Field service operations for fitness suppliers</p>
+    <div style="background: #F0F0F0; padding: 18px; text-align: center;">
+        <p style="color: #9A9FA1; font-size: 12px; margin: 0;">Pulse Fitness Service Desk &middot; Field service operations for fitness suppliers</p>
     </div>
     </div>"""
 

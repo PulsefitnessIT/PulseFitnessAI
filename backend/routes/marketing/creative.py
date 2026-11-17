@@ -184,7 +184,7 @@ async def generate_creative(body: dict = Body(...), user: dict = Depends(get_cur
     full_prompt = (
         f"{prompt}. {framing}. "
         f"Visual style: {style}. {f'Mood: {mood}.' if mood else ''} "
-        f"Brand palette: primary {brand_kit.get('primary_color', '#0055FF')}, secondary {brand_kit.get('secondary_color', '#66CCFF')}. "
+        f"Brand palette: primary {brand_kit.get('primary_color', '#19CDFF')}, secondary {brand_kit.get('secondary_color', '#19CDFF')}. "
         f"{('BRAND LOCK: every poster MUST feature the brand primary logo (' + (primary_logo_url or 'brand logo') + ') in the top-left or bottom-right corner with a subtle protective shadow, must use ONLY the palette above (no other accent colours), and must use the brand typography style (modern bold sans-serif).') if brand_lock else ''}"
         f"{ref_block}\n{text_block} Professional fitness marketing. Print-quality, sharp."
     ).strip()

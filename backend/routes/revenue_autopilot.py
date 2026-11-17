@@ -461,17 +461,17 @@ async def _send_digest(org_id: str, summary: dict) -> bool:
         f'⚠️ {pend} action(s) need your approval (card retries). Open Memberships → '
         f'Autopilot to review.</p>' if pend else "")
     html = (
-        f'<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">'
-        f'<h2 style="color:#1d4ed8">Revenue Autopilot — daily report</h2>'
+        f'<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#1B1C1D">'
+        f'<h2 style="color:#0091CA">Revenue Autopilot — daily report</h2>'
         f'<p>Here is what your Revenue Recovery Autopilot did:</p>'
         f'<ul style="list-style:none;padding:0;font-size:14px;">'
         f'<li>✅ Sent automatically: <strong>{c.get("executed",0)}</strong></li>'
         f'<li>⏳ Waiting for your approval: <strong>{pend}</strong></li>'
         f'<li>💡 Suggested: <strong>{c.get("suggested",0)}</strong></li>'
         f'</ul>{pend_block}'
-        f'<p style="font-size:13px;color:#475569;">Recent actions:</p>'
-        f'<ul style="font-size:13px;color:#475569;">{rows}</ul>'
-        f'<p style="font-size:12px;color:#94a3b8;">You can change what Autopilot is allowed '
+        f'<p style="font-size:13px;color:#565B5E;">Recent actions:</p>'
+        f'<ul style="font-size:13px;color:#565B5E;">{rows}</ul>'
+        f'<p style="font-size:12px;color:#9A9FA1;">You can change what Autopilot is allowed '
         f'to do in Memberships → Autopilot → Settings.</p></div>')
     return await send_email(to=to, subject="Your Revenue Autopilot daily report",
                             html=html, organization_id=org_id,

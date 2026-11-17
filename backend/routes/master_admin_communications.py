@@ -320,13 +320,13 @@ def _reply_html(reply_body: str, original_message: str, sender_name: str) -> str
     body_html = reply_body.replace("\n", "<br/>")
     quoted_html = (original_message or "").replace("\n", "<br/>")
     return f"""<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;">
-  <div style="padding:8px 0 24px;color:#0f172a;font-size:15px;line-height:1.6;">
+  <div style="padding:8px 0 24px;color:#1B1C1D;font-size:15px;line-height:1.6;">
     {body_html}
   </div>
-  <div style="margin-top:8px;padding-top:18px;border-top:1px solid #e5e7eb;color:#64748b;font-size:13px;">
-    <div style="font-weight:600;color:#475569;margin-bottom:6px;">— {sender_name}</div>
-    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:#94a3b8;margin-top:18px;margin-bottom:6px;">Your original message</div>
-    <div style="padding-left:12px;border-left:3px solid #e2e8f0;color:#475569;font-style:italic;">{quoted_html}</div>
+  <div style="margin-top:8px;padding-top:18px;border-top:1px solid #E0E0E0;color:#6E7476;font-size:13px;">
+    <div style="font-weight:600;color:#565B5E;margin-bottom:6px;">— {sender_name}</div>
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:#9A9FA1;margin-top:18px;margin-bottom:6px;">Your original message</div>
+    <div style="padding-left:12px;border-left:3px solid #E0E0E0;color:#565B5E;font-style:italic;">{quoted_html}</div>
   </div>
 </div>"""
 

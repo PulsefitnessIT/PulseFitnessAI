@@ -310,14 +310,14 @@ def _normalise_colour(value: str | None) -> str:
     """Accept '#RRGGBB' / 'RRGGBB' / 'rgb()'. Fall back to a neutral grey."""
     v = (value or "").strip()
     if not v:
-        return "#94A3B8"
+        return "#9A9FA1"
     if not v.startswith("#"):
         v = "#" + v
     # very lightweight hex validation
     hex_part = v[1:]
     if len(hex_part) in (3, 6) and all(c in "0123456789abcdefABCDEF" for c in hex_part):
         return v.upper() if len(hex_part) == 6 else v.upper()
-    return "#94A3B8"
+    return "#9A9FA1"
 
 
 @router.get("/staff-palette")
@@ -760,7 +760,7 @@ async def coverage_report(user=Depends(get_crm_user)):
     total_value = 0.0
     seen_tender_ids: set[str] = set()  # dedupe totals across reps sharing a region
     for rep_id, regions in rep_to_regions.items():
-        meta = reps_meta.get(rep_id, {"full_name": "?", "colour_hex": "#94A3B8", "role": "sales_manager"})
+        meta = reps_meta.get(rep_id, {"full_name": "?", "colour_hex": "#9A9FA1", "role": "sales_manager"})
         # Tenders are a sales activity — engineers never own/bid tenders, so
         # exclude engineer-only reps from the Tenders "Territory Coverage" panel.
         # (Managers and "both" reps stay.)
@@ -980,7 +980,7 @@ async def create_office(data: dict, user=Depends(get_crm_user)):
         "postcode": postcode,
         "lat": lat,
         "lng": lng,
-        "colour_hex": _normalise_colour(data.get("colour_hex") or "#0F172A"),
+        "colour_hex": _normalise_colour(data.get("colour_hex") or "#1B1C1D"),
         "kind": (data.get("kind") or "office").strip().lower(),
         "archived": False,
         "created_by": user["id"],
