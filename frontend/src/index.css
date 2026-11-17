@@ -423,11 +423,11 @@ body.has-bottom-banner main.overflow-y-auto {
     letter-spacing: 0.1em;
   }
   h1 { font-weight: 800; }
-  h2 { font-weight: 400; }
+  h2 { font-weight: 300; }
   h3 { font-weight: 700; }
   h4, h5, h6 { font-weight: 600; }
   button, input, textarea, select { font-family: inherit; }
-  button { letter-spacing: 0.1em; }
+  button { letter-spacing: 0.1em; font-weight: 300; }
   /* Tracking is for short labels only: card/row content, tabs and nav stay normal so they don't truncate. */
   button :where(p, div, h1, h2, h3, h4, h5, h6, small),
   [role="tab"], [role="tablist"] button, nav button, aside button,

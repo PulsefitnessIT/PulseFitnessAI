@@ -48,7 +48,7 @@ EMAIL_FONT_STYLE = (
     "<style>"
     + "".join(
         f"@font-face{{font-family:'Proxima Nova';font-weight:{w};src:url('{_FONT_BASE}/ProximaNova-{n}.otf') format('opentype');}}"
-        for w, n in ((400, "Regular"), (600, "Semibold"), (700, "Bold"), (800, "Extrabold"))
+        for w, n in ((300, "Light"), (400, "Regular"), (600, "Semibold"), (700, "Bold"), (800, "Extrabold"))
     )
     + ".gymaxis-email-cobrand-wrap,.gymaxis-email-cobrand-wrap p,.gymaxis-email-cobrand-wrap td,"
     ".gymaxis-email-cobrand-wrap div,.gymaxis-email-cobrand-wrap span,.gymaxis-email-cobrand-wrap a,"
