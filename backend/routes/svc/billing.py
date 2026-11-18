@@ -291,6 +291,14 @@ async def auto_fill(case_id: str, user=Depends(get_current_user)):
     # operators usually quote at sign-off, before the engineer has
     # backed-flushed van consumption.
     if not by_sku:
+        async for pr in db.svc_parts_requests.find(
+            {"case_id": case_id, "status": {"$nin": ["rejected", "cancelled"]}}, {"_id": 0, "part_sku": 1, "qty": 1},
+        ):
+            sku = (pr.get("part_sku") or "").upper()
+            if sku and sku != "TBC":
+                by_sku.setdefault(sku, {"qty": 0, "movement_ids": []})
+                by_sku[sku]["qty"] += int(pr.get("qty") or 0)
+    if not by_sku:
         for a in (case.get("allocated_parts") or []):
             sku = (a.get("part_sku") or "").upper()
             if not sku:
@@ -311,9 +319,9 @@ async def auto_fill(case_id: str, user=Depends(get_current_user)):
         if info["qty"] <= 0:
             continue
         part = part_lookup.get(sku, {})
-        # Mark up cost by 30% as default sell price; operator can edit.
+        # Price-list sales price first; else cost + 30%. Operator can edit.
         unit_cost = float(part.get("cost") or 0)
-        sell = round(unit_cost * 1.30, 2) if unit_cost > 0 else 0
+        sell = float(part.get("list_price") or 0) or (round(unit_cost * 1.30, 2) if unit_cost > 0 else 0)
         parts_lines.append({
             "kind": "part",
             "qty": info["qty"],

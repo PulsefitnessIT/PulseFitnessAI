@@ -201,3 +201,45 @@ async def link_follow_up(new_case: dict, original_id: str, user: dict) -> None:
                        body=f"Follow-up job {new_case.get('reference')} booked{suffix}", extra={"kind": "follow_up", "case_id": new_case["id"]})
     await append_event(case_id=new_case["id"], organization_id=org_id, event_type="note", actor=user,
                        body=f"Follow-up to {orig.get('reference')}{suffix}", extra={"kind": "follow_up", "case_id": orig["id"]})
+
+
+_DONE_STATUSES = ["closed", "invoiced", "repaired", "resolved", "completed", "awaiting_sign_off"]
+
+
+async def backfill_engineer_reports() -> int:
+    """Give already-completed jobs an engineer report built from their notes and timers (no-op once done)."""
+    from utils.database import db
+    n = 0
+    async for c in db.svc_cases.find(
+        {"status": {"$in": _DONE_STATUSES}, "engineer_report": {"$exists": False}},
+        {"_id": 0, "id": 1, "resolution_notes": 1, "arrived_at": 1, "completed_at": 1, "closed_at": 1, "resolved_at": 1, "updated_at": 1},
+    ):
+        starts, ends = [], []
+        async for e in db.svc_time_entries.find({"case_id": c["id"]}, {"_id": 0, "start_at": 1, "end_at": 1, "category": 1}):
+            if e.get("category") == "travel":
+                continue
+            if e.get("start_at"):
+                starts.append(e["start_at"])
+            if e.get("end_at"):
+                ends.append(e["end_at"])
+        start = min(starts) if starts else (c.get("arrived_at") or "")
+        end = max(ends) if ends else (c.get("completed_at") or c.get("resolved_at") or c.get("closed_at") or "")
+        if start and end and end < start:
+            end = ""
+        await db.svc_cases.update_one({"id": c["id"], "engineer_report": {"$exists": False}}, {"$set": {"engineer_report": {
+            "work_completed": (c.get("resolution_notes") or "").strip(), "further_work_required": "",
+            "further_parts_required": [], "start_time": start, "end_time": end,
+            "recorded_at": datetime.now(timezone.utc).isoformat(), "backfilled": True,
+        }}})
+        n += 1
+    async for s in db.bfpo_ppm_services.find(
+        {"status": "completed", "engineer_report": {"$exists": False}},
+        {"_id": 0, "id": 1, "notes": 1, "started_at": 1, "completed_at": 1},
+    ):
+        await db.bfpo_ppm_services.update_one({"id": s["id"], "engineer_report": {"$exists": False}}, {"$set": {"engineer_report": {
+            "work_completed": (s.get("notes") or "").strip(), "further_work_required": "", "further_parts_required": [],
+            "start_time": s.get("started_at") or "", "end_time": s.get("completed_at") or "",
+            "recorded_at": datetime.now(timezone.utc).isoformat(), "backfilled": True,
+        }}})
+        n += 1
+    return n

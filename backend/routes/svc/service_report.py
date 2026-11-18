@@ -429,7 +429,8 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
             story.append(Paragraph("REPORTED FAULT", h_section))
             story.append(Paragraph(case["description"], muted))
             story.append(Spacer(1, 3 * mm))
-        story.extend(report_flowables(case["engineer_report"], h_section, body))
+        rep = case["engineer_report"]
+        story.extend(report_flowables({**rep, "work_completed": rep.get("work_completed") or work_summary}, h_section, body))
     elif work_summary or case.get("description"):
         story.append(Paragraph("WORK COMPLETED", h_section))
         if case.get("description"):

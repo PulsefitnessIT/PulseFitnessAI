@@ -489,6 +489,20 @@ async def _full_boot() -> None:
             logger.error(f"MOD fault bridge backfill failed: {e}")
     asyncio.create_task(_mod_bridge())
 
+    async def _engineer_reports_and_prices():
+        try:
+            from utils.engineer_report import backfill_engineer_reports
+            _n = await backfill_engineer_reports()
+            if _n:
+                logger.info("Backfilled engineer reports on %d completed job(s)", _n)
+            from utils.parts_price_list import seed_pulse_price_list
+            _p = await seed_pulse_price_list()
+            if _p:
+                logger.info("Pulse parts price list loaded (%d parts)", _p)
+        except Exception as e:
+            logger.error(f"engineer report backfill / price list load failed: {e}")
+    asyncio.create_task(_engineer_reports_and_prices())
+
     # Iter 272 — one-time backfill: relink stranded partner_engineers rows
     # (pending/stale user_id) to their owning users so engineers don't land
     # on the empty "Become a Partner Engineer / Apply now" screen. Marker-

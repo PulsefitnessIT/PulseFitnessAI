@@ -52,6 +52,11 @@ def _can_see_cost(user: dict) -> bool:
     return _can_manage(user)
 
 
+def _hide_prices(user: dict) -> bool:
+    """Engineers pick parts by code/name only; sales admin and managers see prices to quote."""
+    return (user.get("role") or "") == "engineer" and not _can_manage(user)
+
+
 @router.get("")
 async def browse_catalogue(
     search: str = Query(""),
@@ -97,6 +102,8 @@ async def browse_catalogue(
     proj = {"_id": 0}
     if not show_cost:
         proj["cost"] = 0
+    if _hide_prices(user):
+        proj["list_price"] = 0
     items = await db.svc_parts.find(q, proj) \
         .sort([(sf, sd)]).skip((page - 1) * page_size).limit(page_size) \
         .to_list(page_size)
@@ -132,6 +139,8 @@ async def get_part(part_id: str, user=Depends(get_current_user)):
     proj = {"_id": 0}
     if not _can_see_cost(user):
         proj["cost"] = 0
+    if _hide_prices(user):
+        proj["list_price"] = 0
     part = await db.svc_parts.find_one({**of, "id": part_id}, proj)
     if not part:
         raise HTTPException(404, "Part not found")

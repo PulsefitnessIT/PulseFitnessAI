@@ -3162,7 +3162,7 @@ function PartsTab({ job, onChange }) {
               <li key={p.id} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50" data-testid={`parts-result-${p.sku}`}>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-900">{p.sku}</p>
-                  <p className="text-[11px] text-slate-500 truncate">{p.name} · {fmtGBP(p.list_price)}</p>
+                  <p className="text-[11px] text-slate-500 truncate">{p.name}{p.list_price != null ? ` · ${fmtGBP(p.list_price)}` : ''}</p>
                 </div>
                 <button onClick={() => addPartUsage(p.sku, 1)} disabled={busy} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-cyan-600 text-white text-xs font-bold disabled:opacity-50" data-testid={`parts-use-${p.sku}`}>
                   <Plus size={12} /> Use
