@@ -112,3 +112,84 @@ def draw_report_canvas(c, x: float, y: float, width: float, report: dict) -> flo
             y -= 4.5 * mm
         y -= 1.5 * mm
     return y
+
+
+FURTHER_PARTS_SOURCE = "further_parts_required"
+
+
+async def raise_further_parts(case: dict, report: dict, user: dict) -> int:
+    """Turn the report's Further Parts Required into pending stores parts requests (idempotent per case)."""
+    import uuid
+    from utils.database import db
+    from utils.svc_state import append_event
+    parts = report.get("further_parts_required") or []
+    if not parts or await db.svc_parts_requests.find_one({"case_id": case["id"], "source": FURTHER_PARTS_SOURCE}, {"_id": 1}):
+        return 0
+    org_id = case["organization_id"]
+    now = datetime.now(timezone.utc).isoformat()
+    docs = []
+    for p in parts:
+        sku = (p.get("sku") or "").strip().upper()
+        cat = await db.svc_parts.find_one({"organization_id": org_id, "sku": sku}, {"_id": 0}) if sku else None
+        docs.append({
+            "id": str(uuid.uuid4()), "organization_id": org_id,
+            "case_id": case["id"], "case_reference": case.get("reference"),
+            "engineer_id": user.get("id"), "engineer_name": user.get("full_name") or user.get("email") or "",
+            "part_sku": sku or "TBC", "part_name": p["name"], "qty": int(p.get("qty") or 1),
+            "list_price_gbp": float((cat or {}).get("list_price") or 0), "urgency": "normal",
+            "notes": "Further parts required — for the next visit", "status": "pending",
+            "in_catalogue": bool(cat), "machine_id": None, "machine_name": case.get("asset_name") or None,
+            "source": FURTHER_PARTS_SOURCE, "origin_case_id": case["id"], "origin_case_reference": case.get("reference"),
+            "created_at": now, "updated_at": now,
+        })
+    await db.svc_parts_requests.insert_many(docs)
+    await append_event(
+        case_id=case["id"], organization_id=org_id, event_type="note", actor=user,
+        body="Parts requested for the next visit: " + ", ".join(f"{d['qty']} × {d['part_name']}" for d in docs),
+        extra={"kind": "parts_request", "source": FURTHER_PARTS_SOURCE, "request_ids": [d["id"] for d in docs]},
+    )
+    return len(docs)
+
+
+async def follow_up_draft(case: dict) -> dict:
+    from utils.database import db
+    report = case.get("engineer_report") or {}
+    site = await db.sites.find_one({"id": case.get("site_id")}, {"_id": 0, "organization_id": 1}) if case.get("site_id") else None
+    parts = report.get("further_parts_required") or []
+    lines = [f"Follow-up to {case.get('reference') or 'previous visit'}."]
+    if report.get("further_work_required"):
+        lines += ["", "Further work required:", report["further_work_required"]]
+    if parts:
+        lines += ["", "Parts required (requested from stores):"] + [f"- {p['qty']} × {p['name']}" for p in parts]
+    return {
+        "follow_up_of": case["id"], "reference": case.get("reference"),
+        "customerOrgId": (site or {}).get("organization_id") or "",
+        "siteId": case.get("site_id") or "",
+        "equipmentIds": [x for x in dict.fromkeys([case.get("asset_id"), *(case.get("equipment_ids") or [])]) if x],
+        "title": f"Follow-up: {case.get('title') or case.get('reference') or ''}"[:120],
+        "description": "\n".join(lines),
+        "existing_follow_up": case.get("follow_up_case_reference") or None,
+    }
+
+
+async def link_follow_up(new_case: dict, original_id: str, user: dict) -> None:
+    """Mark the original job, and move its further-parts requests onto the follow-up job."""
+    from utils.database import db
+    from utils.svc_state import append_event
+    org_id = new_case["organization_id"]
+    orig = await db.svc_cases.find_one({"id": original_id}, {"_id": 0, "id": 1, "reference": 1, "organization_id": 1})
+    if not orig:
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    await db.svc_cases.update_one({"id": new_case["id"]}, {"$set": {"follow_up_of": orig["id"], "follow_up_of_reference": orig.get("reference")}})
+    await db.svc_cases.update_one({"id": orig["id"]}, {"$set": {
+        "follow_up_case_id": new_case["id"], "follow_up_case_reference": new_case.get("reference"), "updated_at": now}})
+    moved = await db.svc_parts_requests.update_many(
+        {"case_id": orig["id"], "source": FURTHER_PARTS_SOURCE, "status": {"$nin": ["rejected", "cancelled"]}},
+        {"$set": {"case_id": new_case["id"], "case_reference": new_case.get("reference"), "updated_at": now}},
+    )
+    suffix = f" · {moved.modified_count} parts request(s) moved to it" if moved.modified_count else ""
+    await append_event(case_id=orig["id"], organization_id=orig["organization_id"], event_type="note", actor=user,
+                       body=f"Follow-up job {new_case.get('reference')} booked{suffix}", extra={"kind": "follow_up", "case_id": new_case["id"]})
+    await append_event(case_id=new_case["id"], organization_id=org_id, event_type="note", actor=user,
+                       body=f"Follow-up to {orig.get('reference')}{suffix}", extra={"kind": "follow_up", "case_id": orig["id"]})

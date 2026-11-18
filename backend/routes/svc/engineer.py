@@ -1173,6 +1173,8 @@ async def engineer_complete(
         extra={"visibility": "customer", "kind": "fix_summary"},
     )
     await db.svc_cases.update_one({"id": case_id}, {"$set": {"engineer_report": report, "updated_at": _now()}})
+    from utils.engineer_report import raise_further_parts
+    await raise_further_parts({**case, "id": case_id}, report, user)
     if data.get("chargeable") is not None:
         await db.svc_cases.update_one(
             {"id": case_id}, {"$set": {"chargeable": bool(data["chargeable"]), "updated_at": _now()}},

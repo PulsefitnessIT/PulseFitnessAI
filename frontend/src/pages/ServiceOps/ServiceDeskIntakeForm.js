@@ -62,8 +62,8 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated, initial }) {
   const [customerPhone, setCustomerPhone] = useState('');
 
   // Description / chargeable / media / triage
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [title, setTitle] = useState(initial?.title || '');
+  const [description, setDescription] = useState(initial?.description || '');
   const [coverType, setCoverType] = useState('contract'); // contract | warranty | chargeable
   const [caseType, setCaseType] = useState('repair');     // repair | ppm | install
   const [priority, setPriority] = useState('p3');
@@ -301,6 +301,7 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated, initial }) {
         customer_po_number: customerPONumber.trim(),
         attachments: attachments.filter((a) => a.url).map((a) => ({ id: a.id, name: a.name, url: a.url, mime: a.mime })),
         contract_id: coverage?.sla_contract_ref || '',
+        follow_up_of: initial?.followUpOf || undefined,
       };
       const r = await axios.post(`${API}/svc/intake/phone`, payload, auth());
       // Iter 215ed — chargeable + quote_required cases auto-draft a Sage SLQuote.
@@ -329,7 +330,12 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated, initial }) {
         {/* Header */}
         <div className="svc-drawer-head flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="svc-h1" style={{ fontSize: 20, textAlign: 'left' }}>{t('service.intake_log_new_case', 'Log new service case')}</h2>
+            <h2 className="svc-h1" style={{ fontSize: 20, textAlign: 'left' }}>{initial?.followUpOf ? t('service.intake_book_follow_up', 'Book follow-up visit') : t('service.intake_log_new_case', 'Log new service case')}</h2>
+            {initial?.followUpOf && (
+              <p className="text-xs text-slate-500 mt-0.5" data-testid="svc-intake-follow-up-of">
+                {t('service.intake_follow_up_of', 'Follow-up to {{ref}} · parts requested for it move to this job', { ref: initial.followUpRef || '' })}
+              </p>
+            )}
           </div>
           <button type="button" onClick={onClose} aria-label={t('service.intake_close', 'Close')} data-testid="svc-intake-close" className="svc-icon-btn">
             <X size={16} />

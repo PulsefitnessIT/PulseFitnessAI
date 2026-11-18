@@ -191,6 +191,9 @@ async def _create_case(*, payload: dict, source: str, user: dict) -> dict:
         except Exception:
             case["company_id"] = ""
     await db.svc_cases.insert_one(case)
+    if payload.get("follow_up_of"):
+        from utils.engineer_report import link_follow_up
+        await link_follow_up(case, str(payload["follow_up_of"]), user)
 
     # Seed timeline with the intake event so it's never empty.
     await append_event(

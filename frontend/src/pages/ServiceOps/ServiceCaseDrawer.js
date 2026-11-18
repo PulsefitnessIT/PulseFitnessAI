@@ -30,6 +30,7 @@ import CoverageBanner from '@/components/shared/CoverageBanner';
 import ServiceCaseLifecycleTab from './ServiceCaseLifecycleTab';
 import MODJobFileTab, { ProviderReadOnlyBanner } from './MODJobFileTab';
 import { EngineerReportView } from '@/components/shared/EngineerReportView';
+import { BookFollowUpButton } from '@/components/shared/BookFollowUpButton';
 import './_serviceops.css';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -696,7 +697,10 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
           ) : tab === 'details' ? (
             <>
               {(doc.engineer_report || doc.signoff) && (
-                <div className="mb-4"><EngineerReportView report={doc.engineer_report} signoff={doc.signoff} fallbackSummary={doc.resolution_notes} /></div>
+                <div className="mb-4 space-y-2">
+                  <EngineerReportView report={doc.engineer_report} signoff={doc.signoff} fallbackSummary={doc.resolution_notes} />
+                  <BookFollowUpButton caseId={doc.id} report={doc.engineer_report} followUpRef={doc.follow_up_case_reference} onBooked={load} />
+                </div>
               )}
               {/* Iter 216h205 — coverage banner derived from
                  source_meta.coverage_* stamped by the issue intake

@@ -265,6 +265,17 @@ async def list_cases(
     return {"cases": items, "total": total}
 
 
+@router.get("/cases/{case_id}/follow-up-draft")
+async def follow_up_draft_ep(case_id: str, user=Depends(get_current_user)):
+    """Prefill for the desk's one-tap 'Book follow-up' (opens the new-case form)."""
+    from utils.engineer_report import follow_up_draft
+    user = await as_case_org(user, case_id)
+    case = await db.svc_cases.find_one({"id": case_id, **_of(user)}, {"_id": 0})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    return await follow_up_draft(case)
+
+
 @router.get("/cases/{case_id}")
 async def get_case(case_id: str, user=Depends(get_current_user)):
     user = await as_case_org(user, case_id)

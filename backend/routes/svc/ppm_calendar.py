@@ -605,7 +605,7 @@ async def schedule_detail(schedule_id: str, user: dict = Depends(get_current_use
          "assigned_engineer_name": 1, "assigned_engineer_names": 1, "completed_at": 1,
          "assigned_at": 1, "received_at": 1, "acknowledged_at": 1,
          "resolution": 1, "resolution_notes": 1, "work_summary": 1, "engineer_notes": 1,
-         "calibration_result": 1, "calibration_captured": 1, "engineer_report": 1},
+         "calibration_result": 1, "calibration_captured": 1, "engineer_report": 1, "follow_up_case_reference": 1},
     ).sort("created_at", -1).to_list(100)
 
     from utils.customer_signoff import latest_signoff
@@ -646,6 +646,7 @@ async def schedule_detail(schedule_id: str, user: dict = Depends(get_current_use
             "calibration": calib,
             "machine_work": machine_work,
             "engineer_report": job.get("engineer_report") or None,
+            "follow_up_case_reference": job.get("follow_up_case_reference"),
             "signoff": await latest_signoff(case_id=job["id"], current_only=True),
         }
 

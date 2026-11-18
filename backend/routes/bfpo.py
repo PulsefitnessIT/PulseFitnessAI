@@ -692,6 +692,8 @@ async def bfpo_complete(case_id: str, data: dict = Body(...), user=Depends(_requ
     if safe_working:
         updates["safety_critical"] = False
     await db.svc_cases.update_one({"id": case_id}, {"$set": updates})
+    from utils.engineer_report import raise_further_parts
+    await raise_further_parts({**case, "id": case_id, "organization_id": await _case_org(case_id)}, report, user)
     # walk state → on_site → closed
     if case.get("status") in (ASSIGNED, "en_route", "triaged", NEW, PAUSED_PARTS):
         try:

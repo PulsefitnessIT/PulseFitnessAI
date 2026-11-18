@@ -8,6 +8,7 @@ import { Loader2, X, MapPin, Wrench, CheckCircle2, Trash2, CalendarClock, User, 
 import { api } from '@/lib/api';
 import { notify } from '@/components/notifications';
 import { EngineerReportView } from '@/components/shared/EngineerReportView';
+import { BookFollowUpButton } from '@/components/shared/BookFollowUpButton';
 import { Button } from '@/components/ui/button';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
@@ -276,7 +277,7 @@ function VisitsPanel({ visits }) {
           {v.summary && !v.engineer_report ? <p className="pt-1 whitespace-pre-wrap">{v.summary}</p> : null}
         </div>
         {(v.engineer_report || v.signoff) && (
-          <div className="mt-2.5 bg-white dark:bg-zinc-900 rounded-lg"><EngineerReportView report={v.engineer_report} signoff={v.signoff} fallbackSummary={v.summary} /></div>
+          <div className="mt-2.5 bg-white dark:bg-zinc-900 rounded-lg space-y-2"><EngineerReportView report={v.engineer_report} signoff={v.signoff} fallbackSummary={v.summary} /><BookFollowUpButton caseId={v.case_id} report={v.engineer_report} followUpRef={v.follow_up_case_reference} /></div>
         )}
 
         {(v.machine_work || []).length > 0 && (
