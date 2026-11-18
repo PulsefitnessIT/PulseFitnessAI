@@ -72,7 +72,7 @@ export default function PPMServiceDetail({ serviceId, onBack }) {
           )}
         </Card>
 
-        {completed && svc.engineer_report && <EngineerReportView report={svc.engineer_report} />}
+        {completed && svc.engineer_report && <EngineerReportView report={svc.engineer_report} signoff={svc.signoff} />}
         <div className="space-y-2">
           {(svc.inspections || []).map((i) => (
             <button key={i.id} disabled={completed} onClick={() => setActive(i)} className="w-full text-left disabled:opacity-70" data-testid={`ppm-asset-${i.id}`}>

@@ -237,11 +237,12 @@ function VisitsPanel({ visits }) {
   const v = visits[active] || {};
   const dateLabel = (x) => (x.completed_at || x.scheduled_at || x.assigned_at
     ? fmtDate(x.completed_at || x.scheduled_at || x.assigned_at) : 'Visit');
-  const stage = v.acknowledged_at ? 'acknowledged' : (v.received_at ? 'received' : 'allocated');
+  const stage = v.completed ? 'completed' : v.acknowledged_at ? 'acknowledged' : (v.received_at ? 'received' : 'allocated');
   const stageMap = {
     allocated: ['Allocated', 'bg-amber-100 text-amber-700'],
     received: ['Received', 'bg-sky-100 text-sky-700'],
     acknowledged: ['Acknowledged', 'bg-emerald-100 text-emerald-700'],
+    completed: ['Completed', 'bg-emerald-100 text-emerald-700'],
   };
   const [stLabel, stCls] = stageMap[stage];
   const calibMachines = v.calibration?.machines || [];

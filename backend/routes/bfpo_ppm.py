@@ -212,6 +212,8 @@ async def get_service(service_id: str, user=Depends(_require_bfpo)):
     svc["inspections"] = insp
     svc["progress"] = _progress(insp)
     svc["viewer_role"] = _role(user)
+    svc["signoff"] = await db.svc_signatures.find_one(
+        {"ppm_service_id": service_id, "organization_id": BFPO_ORG_ID}, {"_id": 0}, sort=[("signed_at", -1)])
     return svc
 
 

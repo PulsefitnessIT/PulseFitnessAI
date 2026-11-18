@@ -92,7 +92,7 @@ const DeskEquipment = ({ API }) => {
     if (siteSel === 'all') {
       const sites = [...new Set(siteEquip.filter((e) => selected.includes(e.id)).map((e) => e.site_id || ''))];
       if (sites.length !== 1 || !sites[0]) {
-        notify.error(t('service.eq_one_site_only', 'Pick machines from one site to log a case'), t('service.eq_one_site_hint', 'Unassigned machines need a site first.'));
+        notify.error(t('service.eq_one_site_only', 'Pick machines from one site to log a case'), sites.includes('') ? t('service.eq_one_site_hint', 'Unassigned machines need a site first.') : undefined);
         return;
       }
       [siteId] = sites;

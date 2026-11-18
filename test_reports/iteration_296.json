@@ -1,0 +1,47 @@
+{
+  "summary": "Retest of the iteration_295 fixes. Backend: 22/23 pytest pass (15 regression tests from iter295 plus 8 new ones). The one failure is a new gap: GET /api/bfpo/ppm/services/{id} does not return the sign-off. Frontend: fixes 1-5 are confirmed. For fix 6, the MOD job recap is fixed, but the completed MOD PPM service shows a contradictory 'No customer signature captured.' Fix 7 is confirmed via the API (exactly one signature row after completion, none on a 400, the retry is blocked). Regression of the case drawer Details report, the Maintenance Calendar visit report and the asset-list PDF passes.",
+  "verified_fixes": [
+    "(1) Part row layout: on desktop 1920 the name input is 702px and qty is 80px; on mobile 390 the name is 196px and qty is 80px. Typed part names are readable.",
+    "(2) Locked Complete tab (svc engineer job): EngineerReportView shows the signature inside the report (report-view-signature, 'Signed by …'), or 'Customer unable to sign — reason'. complete-locked-signature is hidden and there is no 'No customer signature captured' text.",
+    "(3) end == start is rejected: backend 400 'End time must be after the start time' on the svc job, the MOD job and MOD PPM (no PPM signature inserted). The frontend shows report-time-error when end == start. A one-minute report returns 200.",
+    "(4) Single-site customer-equipment includes site_id '' machines (in site A, site B and all). The 'All sites' option shows no count.",
+    "(5) All sites > Log case: mixed sites, unassigned + site, and unassigned-only all show the 'Pick machines from one site to log a case' toast with no modal. Two site-A machines open the intake with Demo Head Office preselected.",
+    "(6a) MOD engineer History > completed job: jobdetail-completed-recap shows engineer-report-view with the signature ('Signed by TEST_ MOD Signer').",
+    "(7) PPM complete: 1 svc_signatures row after success; a second complete returns 400 and the row count stays 1; a 400 on equal times inserts 0 rows."
+  ],
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/bfpo/ppm/services/{service_id}", "issue": "The response has no signoff/signature field, though the complete endpoint stores one in svc_signatures (ppm_service_id). PPMServiceDetail therefore cannot show the captured sign-off. Fix: in get_service, add svc['signoff'] = await db.svc_signatures.find_one({'ppm_service_id': service_id, 'organization_id': BFPO_ORG_ID}, {'_id': 0}, sort=[('signed_at', -1)])."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PPMServiceDetail (pages/BFPO/ppm/PPMServiceDetail.js L75)", "issue": "A completed PPM service renders <EngineerReportView report={svc.engineer_report} /> without signoff, so it always says 'No customer signature captured.' even though sign-off is mandatory for PPM completion. This is the same contradiction fixed in (2), now on the MOD PPM screen. Pass signoff={svc.signoff} once the backend returns it.", "selector": "[data-testid=engineer-report-view] [data-testid=report-view-no-signature]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Service Desk Equipment > Log case toast", "issues": ["The hint 'Unassigned machines need a site first.' also shows when the selection simply spans two real sites, where it doesn't apply. Minor."]},
+      {"screen": "Equipment site dropdown / intake modal", "issues": ["Per-site labels say 'Demo Head Office · 14 machines', but the single-site list now shows 21 (14 plus 7 unassigned). The counts don't match what's listed. Low priority."]},
+      {"screen": "Maintenance Calendar visit detail", "issues": ["A closed visit still shows the 'ALLOCATED' stage badge above the engineer report (carried over from iter295)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_engineer_report_asset_list.py", "/app/backend/tests/test_iter296_engineer_report_retest.py", "/app/test_reports/pytest/iter296_results.xml"],
+  "action_items": [
+    "Return the PPM sign-off from GET /api/bfpo/ppm/services/{id} and pass it as signoff to EngineerReportView in PPMServiceDetail. Today it always shows 'No customer signature captured.'",
+    "Optional: show the 'Unassigned machines need a site first' hint only when an unassigned machine is in the selection",
+    "Optional: align the per-site machine counts with the list (which now includes unassigned machines)"
+  ],
+  "critical_code_review_comments": [
+    "bfpo_ppm.complete_service: record_generated_document (cert auto-file) still runs before the signature insert and status update, so a failure in svc_signatures.insert_one or update_one would leave a filed certificate document for an uncompleted service. This is low risk (both are simple writes).",
+    "The completed PPM check is status-based; two concurrent completes could both pass the 'already completed' check and insert two signatures (no atomic guard). Consider find_one_and_update with status != completed before the side effects.",
+    "EngineerJobDetailV2.js is still over 4300 lines."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter296_engineer_report_retest.py", "/app/backend/tests/_seed_ui_296.py"],
+  "success_rate": {"backend": "96% (22/23; 1 new gap)", "frontend": "~93% (all 7 retest items pass except the PPM detail signature display)"},
+  "test_credentials": "admin@pulsefitness.com / C2s9yJ3YAhydB4d34-Bykg (MFA enforcement is currently false, so the token comes straight from login). engineer.gib@bfpo.pulsefitness.test / BfpoEng123! with portal=mod, token in localStorage then /bfpo. owner@isodemo.com / IsoDemo123! for the Service Desk. The lee.somers MOD user still does not exist (not needed).",
+  "seed_data_creation": "The UI seed /app/backend/tests/_seed_ui_296.py ('seed'/'clean') created TEST_u296_* svc_cases, svc_signatures, svc_time_entries and bfpo_ppm_services, plus TEST_u296_drawer and TEST_u296_sch. All were deleted by id. The pytest files clean up their own data.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && pytest tests/test_engineer_report_asset_list.py tests/test_iter296_engineer_report_retest.py -p no:xdist -o addopts=''. The expected failure test_ppm_service_get_exposes_signoff should pass once the PPM GET returns the signoff. For the UI, run python tests/_seed_ui_296.py seed. Seeded signatures need organization_id (the svc job GET filters by org), and time entries use start_at/end_at. The MOD PPM detail is reached via the engineer at /bfpo > home-services-due > ppm-svc-<id>. The case drawer report is on its Details tab. The calendar search needs the schedule active:true."
+}

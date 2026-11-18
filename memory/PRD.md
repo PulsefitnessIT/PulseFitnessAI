@@ -39338,3 +39338,8 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Backend email HTML remapped to guide palette (routes/utils, PDFs excluded); Core Blue link text on white -> #0091CA; Core Blue buttons now Soft Black text.
 - Frontend: index.css end rule turns Core Blue text (utilities, gx-brand-from, inline rgb/var) into #0091CA on light surfaces; dark containers excluded.
 - Known: reportlab PDFs still use legacy colours (out of scope).
+
+## Jun 2026 — Engineer report fields + asset list PDF
+- utils/engineer_report.py: clean_report (work_completed, further_work_required, further_parts_required[{name,qty,sku,part_id}], start_time, end_time; end>start). Stored as engineer_report on svc_cases (svc + BFPO jobs) and bfpo_ppm_services. Rendered in service-report PDF (ENGINEER REPORT), PPM certificate, case drawer, Maintenance Calendar visit detail + printable report, engineer locked view, MOD recaps. GET /svc/cases/{id} and /bfpo/ppm/services/{id} return signoff.
+- Frontend shared: components/shared/EngineerReportFields.js + EngineerReportView.js. Times prefill from timers/arrived_at/started_at.
+- Service Desk Equipment: site_id=all option, GET /api/svc/desk/customer-equipment.pdf (utils/asset_list_pdf.py, landscape, grouped by site, last service visit per machine).
