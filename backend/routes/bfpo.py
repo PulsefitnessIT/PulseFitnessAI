@@ -680,10 +680,12 @@ async def bfpo_complete(case_id: str, data: dict = Body(...), user=Depends(_requ
     summary = (data.get("summary") or "").strip()
     if not summary:
         raise HTTPException(400, "summary required")
+    from utils.engineer_report import clean_report
+    report = clean_report(data, summary=summary)
     await require_signoff(case_id=case_id)
     safe_working = bool(data.get("safe_and_working"))
     updates = {
-        "resolution_notes": summary, "parts_used": data.get("parts_used") or "",
+        "resolution_notes": summary, "engineer_report": report, "parts_used": data.get("parts_used") or "",
         "safe_and_working": safe_working, "return_visit": False,
         "waiting_reason": "", "completed_at": _now(), "updated_at": _now(),
     }

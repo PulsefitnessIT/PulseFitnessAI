@@ -212,19 +212,73 @@ async def desk_customer_sites(organization_id: str = Query(...), user=Depends(ge
     return {"sites": sites, "count": len(sites)}
 
 
+async def _site_equipment(organization_id: str, site_id: str) -> list[dict]:
+    q: dict = {"organization_id": organization_id}
+    if site_id != "all":
+        q["$or"] = [{"site_id": site_id}, {"site_id": {"$exists": False}}, {"site_id": None}]
+    rows = await db.equipment.find(q, {"_id": 0}).sort("name", 1).to_list(5000)
+    names = {x["id"]: x.get("name") or "Site" async for x in db.sites.find(
+        {"organization_id": organization_id}, {"_id": 0, "id": 1, "name": 1})}
+    for r in rows:
+        r["site_name"] = names.get(r.get("site_id")) or "Unassigned"
+    return rows
+
+
 @router.get("/customer-equipment")
 async def desk_customer_equipment(
     organization_id: str = Query(...), site_id: str = Query(...), user=Depends(get_current_user),
 ):
-    """Equipment for a chosen customer site (org-scoped, authorized)."""
+    """Equipment for a chosen customer site, or every site with site_id=all."""
     if not await _authorized_customer_org(user, organization_id):
         return {"equipment": [], "count": 0}
-    rows = await db.equipment.find(
-        {"organization_id": organization_id,
-         "$or": [{"site_id": site_id}, {"site_id": {"$exists": False}}, {"site_id": None}]},
-        {"_id": 0},
-    ).sort("name", 1).to_list(2000)
+    rows = await _site_equipment(organization_id, site_id)
     return {"equipment": rows, "count": len(rows)}
+
+
+_DONE = ["closed", "invoiced", "repaired", "awaiting_sign_off", "resolved", "completed"]
+
+
+async def _last_service_by_equipment(ids: list[str]) -> dict[str, dict]:
+    out: dict[str, dict] = {}
+    cur = db.svc_cases.find(
+        {"$or": [{"asset_id": {"$in": ids}}, {"equipment_ids": {"$in": ids}}], "status": {"$in": _DONE}},
+        {"_id": 0, "asset_id": 1, "equipment_ids": 1, "reference": 1, "completed_at": 1, "closed_at": 1,
+         "updated_at": 1, "assigned_engineer_name": 1, "resolution_notes": 1, "engineer_report": 1},
+    ).sort("updated_at", -1)
+    async for c in cur:
+        info = {"date": c.get("completed_at") or c.get("closed_at") or c.get("updated_at"),
+                "reference": c.get("reference") or "", "engineer": c.get("assigned_engineer_name") or "",
+                "work": (c.get("engineer_report") or {}).get("work_completed") or c.get("resolution_notes") or ""}
+        for eid in {c.get("asset_id"), *(c.get("equipment_ids") or [])}:
+            if eid in ids and eid not in out:
+                out[eid] = info
+    return out
+
+
+@router.get("/customer-equipment.pdf")
+async def desk_customer_equipment_pdf(
+    organization_id: str = Query(...), site_id: str = Query("all"), user=Depends(get_current_user),
+):
+    """Printable branded asset list with each machine's last service visit."""
+    from fastapi import HTTPException
+    from fastapi.responses import Response
+    from utils.asset_list_pdf import build_asset_list_pdf
+    if not await _authorized_customer_org(user, organization_id):
+        raise HTTPException(404, "Customer not found")
+    rows = await _site_equipment(organization_id, site_id)
+    last = await _last_service_by_equipment([r["id"] for r in rows if r.get("id")])
+    groups: dict[str, list] = {}
+    for r in rows:
+        r["_last_service"] = last.get(r.get("id"))
+        groups.setdefault(r["site_name"], []).append(r)
+    org = await db.organizations.find_one({"id": organization_id}, {"_id": 0, "name": 1}) or {}
+    customer = org.get("name") or "Customer"
+    site_doc = {} if site_id == "all" else (await db.sites.find_one({"id": site_id}, {"_id": 0, "name": 1}) or {})
+    site_label = "All sites" if site_id == "all" else (site_doc.get("name") or "Site")
+    pdf = build_asset_list_pdf(customer=customer, site_label=site_label, groups=sorted(groups.items()))
+    fname = f"Asset list - {customer} - {site_label}.pdf".replace('"', "")
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{fname}"'})
 
 
 @router.get("/equipment-coverage")

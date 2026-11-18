@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { Loader2, X, MapPin, Wrench, CheckCircle2, Trash2, CalendarClock, User, Printer } from 'lucide-react';
 import { api } from '@/lib/api';
 import { notify } from '@/components/notifications';
+import { EngineerReportView } from '@/components/shared/EngineerReportView';
 import { Button } from '@/components/ui/button';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
@@ -35,6 +36,17 @@ function buildReportHtml(data) {
   const visits = data?.visits || [];
   const esc = (x) => String(x ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const yn = (b) => (b ? '✓' : '—');
+  const dt = (d) => (d ? new Date(d).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '—');
+  const reportHtml = (r) => {
+    const parts = (r.further_parts_required || []).map((p) => `${p.qty} × ${esc(p.name)}${p.sku ? ` (${esc(p.sku)})` : ''}`).join('<br/>') || 'None';
+    const row = (k, v) => `<tr><th style="width:32%">${k}</th><td style="white-space:pre-wrap">${v}</td></tr>`;
+    return `<h4>Engineer report</h4><table class="rt fx">${row('Start time', esc(dt(r.start_time)))}${row('End time', esc(dt(r.end_time)))}${row('Description of Work Completed', esc(r.work_completed || '—'))}${row('Further Work Required', esc(r.further_work_required || 'None'))}${row('Further Parts Required', parts)}</table>`;
+  };
+  const sigHtml = (sg) => {
+    if (!sg) return '';
+    if (sg.unavailable) return `<p class="meta">Customer unable to sign — ${esc(sg.unavailable_reason)}</p>`;
+    return `<h4>Customer sign-off</h4>${sg.image_data ? `<img src="${sg.image_data}" alt="Signature" style="max-height:70px;border:1px solid #ddd;padding:3px"/>` : ''}<p class="meta">Signed by ${esc(sg.signed_by_name || 'Customer')}${sg.signed_at ? ` · ${esc(dt(sg.signed_at))}` : ''}</p>`;
+  };
   const calibHtml = (readings) => {
     const sp = readings.filter((r) => axisOf(r) === 'speed');
     const inc = readings.filter((r) => axisOf(r) === 'incline');
@@ -54,7 +66,8 @@ function buildReportHtml(data) {
     return `<div class="visit">
       <h3>Visit — ${esc(fmtDate(v.scheduled_at || v.completed_at))} ${v.reference ? `(Job ${esc(v.reference)})` : ''}</h3>
       <p class="meta">Engineer: ${esc(v.engineer || '—')} · Status: ${esc(v.status || '—')}${v.completed_at ? ` · Completed ${esc(fmtDate(v.completed_at))}` : ''}</p>
-      ${v.summary ? `<p class="summary">${esc(v.summary)}</p>` : ''}
+      ${v.engineer_report ? reportHtml(v.engineer_report) : (v.summary ? `<p class="summary">${esc(v.summary)}</p>` : '')}
+      ${sigHtml(v.signoff)}
       ${mw ? `<h4>Machines worked</h4><table class="rt fx">${MW_COLS}<tr><th>Machine</th><th>Type</th><th>Serial</th><th>Serviced</th><th>Cleaned</th><th>Notes</th></tr>${mw}</table>` : ''}
       ${calib ? `<h4>Treadmill calibration${v.calibration_result ? ` · ${esc(String(v.calibration_result).toUpperCase())}` : ''}</h4>${calib}` : ''}
     </div>`;
@@ -259,8 +272,11 @@ function VisitsPanel({ visits }) {
           {v.engineer ? <p><span className="text-zinc-400">Engineer:</span> {v.engineer}</p> : null}
           {v.scheduled_at ? <p><span className="text-zinc-400">Visit date:</span> {fmtDate(v.scheduled_at)}</p> : null}
           {v.completed_at ? <p><span className="text-zinc-400">Completed:</span> {fmtDate(v.completed_at)}</p> : null}
-          {v.summary ? <p className="pt-1 whitespace-pre-wrap">{v.summary}</p> : null}
+          {v.summary && !v.engineer_report ? <p className="pt-1 whitespace-pre-wrap">{v.summary}</p> : null}
         </div>
+        {(v.engineer_report || v.signoff) && (
+          <div className="mt-2.5 bg-white dark:bg-zinc-900 rounded-lg"><EngineerReportView report={v.engineer_report} signoff={v.signoff} fallbackSummary={v.summary} /></div>
+        )}
 
         {(v.machine_work || []).length > 0 && (
           <div className="mt-2.5">

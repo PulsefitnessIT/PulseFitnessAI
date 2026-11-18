@@ -14,7 +14,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import { Search, Wrench, Building2, MapPin, Calendar, Hash, ClipboardList, PackagePlus, PackageMinus, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Search, Wrench, Building2, MapPin, Calendar, Hash, ClipboardList, PackagePlus, PackageMinus, CheckCircle2, XCircle, Loader2, Printer } from 'lucide-react';
+import { notify } from '@/components/notifications';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -85,7 +86,24 @@ const DeskEquipment = ({ API }) => {
   }, [custOrg, siteSel, API]);
 
   const toggleSel = (id) => setSelected((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
-  const openCase = () => { if (selected.length) setIntakeInitial({ customerOrgId: custOrg, siteId: siteSel, equipmentIds: selected }); };
+  const openCase = () => {
+    if (!selected.length) return;
+    const siteId = siteSel === 'all' ? (siteEquip.find((e) => e.id === selected[0])?.site_id || '') : siteSel;
+    setIntakeInitial({ customerOrgId: custOrg, siteId, equipmentIds: selected });
+  };
+  const [printing, setPrinting] = useState(false);
+  const printList = async () => {
+    const win = window.open('', '_blank');
+    setPrinting(true);
+    try {
+      const r = await axios.get(`${API}/svc/desk/customer-equipment.pdf`, { params: { organization_id: custOrg, site_id: siteSel }, responseType: 'blob', ...authH() });
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+      if (win) win.location.href = url; else window.location.href = url;
+    } catch {
+      win?.close();
+      notify.error(t('service.eq_print_failed', 'Could not build the asset list'));
+    } finally { setPrinting(false); }
+  };
 
   return (
     <div className="space-y-5" data-testid="desk-equipment">
@@ -114,6 +132,7 @@ const DeskEquipment = ({ API }) => {
             <select value={siteSel} onChange={(e) => setSiteSel(e.target.value)} disabled={!custOrg}
               className="w-full mt-1 h-10 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm" data-testid="desk-eq-site">
               <option value="">{sitesList.length ? t('service.eq_select_site', '— Select site —') : t('service.eq_no_sites', 'No sites')}</option>
+              {sitesList.length > 0 && <option value="all">{t('service.eq_all_sites', 'All sites')} · {sitesList.reduce((n, x) => n + (x.equipment_count || 0), 0)} machines</option>}
               {sitesList.map((s) => <option key={s.id} value={s.id}>{s.name}{s.equipment_count != null ? ` · ${s.equipment_count} machines` : ''}</option>)}
             </select>
           </div>
@@ -122,16 +141,22 @@ const DeskEquipment = ({ API }) => {
           <div className="mt-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-500">{siteEquip.length} machines · {selected.length} selected</span>
+              <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" disabled={printing || !siteEquip.length} onClick={printList} data-testid="desk-eq-print">
+                {printing ? <Loader2 size={13} className="mr-1.5 animate-spin" /> : <Printer size={13} className="mr-1.5" />} {t('service.eq_print_list', 'Print asset list')}
+              </Button>
               <Button size="sm" disabled={!selected.length} onClick={openCase} data-testid="desk-eq-logcase"
                 className="bg-[var(--color-brand-cyan)] text-[var(--color-ink)] hover:opacity-90">
                 <ClipboardList size={13} className="mr-1.5" /> {t('service.eq_log_case_for', 'Log case for {{n}} machine(s)', { n: selected.length || '' })}
               </Button>
+              </div>
             </div>
-            <div className="max-h-56 overflow-auto rounded-lg border border-slate-200 dark:border-zinc-800 divide-y divide-slate-100 dark:divide-zinc-800" data-testid="desk-eq-machinelist">
+            <div className="max-h-80 overflow-auto rounded-lg border border-slate-200 dark:border-zinc-800 divide-y divide-slate-100 dark:divide-zinc-800" data-testid="desk-eq-machinelist">
               {siteEquip.length === 0 ? <p className="p-3 text-xs text-slate-400">{t('service.eq_none_site', 'No equipment on this site')}</p> : siteEquip.map((e) => (
                 <label key={e.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800" data-testid={`desk-eq-machine-${e.id}`}>
                   <input type="checkbox" checked={selected.includes(e.id)} onChange={() => toggleSel(e.id)} />
                   <span className="flex-1 truncate">{e.name || 'Unnamed'}{e.manufacturer ? ` · ${e.manufacturer}` : ''}{e.model ? ` ${e.model}` : ''}</span>
+                  {siteSel === 'all' && <span className="text-[11px] text-slate-500 truncate max-w-[30%]">{e.site_name}</span>}
                   {e.serial_number && <span className="text-[11px] font-mono text-slate-400">{e.serial_number}</span>}
                 </label>
               ))}

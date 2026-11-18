@@ -423,7 +423,14 @@ def _build_pdf(payload: dict, image_bytes: list[bytes | None], sig_bytes: bytes 
 
     # ── Work done summary (pulled from the engineer's fix_summary event) ──
     work_summary = case.get("resolution_notes") or payload.get("fix_summary") or ""
-    if work_summary or case.get("description"):
+    if case.get("engineer_report"):
+        from utils.engineer_report import report_flowables
+        if case.get("description"):
+            story.append(Paragraph("REPORTED FAULT", h_section))
+            story.append(Paragraph(case["description"], muted))
+            story.append(Spacer(1, 3 * mm))
+        story.extend(report_flowables(case["engineer_report"], h_section, body))
+    elif work_summary or case.get("description"):
         story.append(Paragraph("WORK COMPLETED", h_section))
         if case.get("description"):
             story.append(Paragraph(f"<i>Reported:</i> {case['description']}", muted))

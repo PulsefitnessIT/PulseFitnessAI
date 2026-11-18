@@ -3,6 +3,7 @@ import { bfpo, uploadFile, pendingStatusFor, onOutboxChange, outboxCount } from 
 import { Card, Btn, Badge, Spinner, PriorityBadge, STATUS_LABEL, Field, inputCls, localTime } from '../ui';
 import SignOffFields, { signoffBody } from './SignOffFields';
 import MissingAssetDetails from './MissingAssetDetails';
+import { EngineerReportFields, withReportDefaults, reportTimeError } from '@/components/shared/EngineerReportFields';
 import {
   ChevronLeft, AlertTriangle, MapPin, Wrench, ShieldCheck, ShieldAlert, Package,
   RotateCcw, Ban, PlusCircle, Camera, CheckCircle2, Clock, FileText, History, Loader2,
@@ -141,7 +142,7 @@ export default function JobDetail({ jobId, onBack, onOpenJob }) {
         {panel === 'report' && <ReportFaultPanel job={job} busy={busy} onCancel={() => setPanel('workflow')}
           onDone={(res) => { setPanel(null); flash(res.queued ? 'No signal — fault saved on this phone, it will send automatically' : res.warning ? res.warning : `Linked case ${res.case.reference} created`); }} jobId={jobId} />}
 
-        {panel === 'complete' && <CompletePanel jobId={jobId} busy={busy} onCancel={() => setPanel('workflow')}
+        {panel === 'complete' && <CompletePanel jobId={jobId} job={job} busy={busy} onCancel={() => setPanel('workflow')}
           onDone={(queued) => { if (!queued) load(); else setJob((j) => (j ? { ...j, status: pendingStatusFor(jobId, j.status) } : j)); setPanel(null); flash(queued ? 'No signal — completion saved on this phone, it will send automatically' : 'Job completed — job sheet generated'); }} />}
 
         {/* Timeline */}
@@ -312,8 +313,10 @@ function ReportFaultPanel({ job, jobId, onDone, onCancel, busy }) {
   );
 }
 
-function CompletePanel({ jobId, onDone, onCancel }) {
+function CompletePanel({ jobId, job, onDone, onCancel }) {
   const [summary, setSummary] = useState('');
+  const [report, setReportState] = useState({});
+  const setReport = (patch) => setReportState((r) => ({ ...r, ...patch }));
   const [partsUsed, setPartsUsed] = useState('');
   const [safe, setSafe] = useState(true);
   const [signoff, setSignoff] = useState({});
@@ -324,13 +327,16 @@ function CompletePanel({ jobId, onDone, onCancel }) {
   useEffect(() => { bfpo.get(`/jobs/${jobId}/signoff`).then((r) => { setContact(r.data?.site_contact); setReopened(!!r.data?.reopened_at); }).catch(() => {}); }, [jobId]);
 
   const submit = async () => {
-    if (!summary.trim()) { setErr('Please describe the work carried out'); return; }
+    if (!summary.trim()) { setErr('Please describe the work completed'); return; }
+    const rep = { ...withReportDefaults(report, job?.arrived_at), work_completed: summary.trim() };
+    if (!rep.start_time || !rep.end_time) { setErr('Add the start and end time'); return; }
+    if (reportTimeError(rep)) { setErr(reportTimeError(rep)); return; }
     const so = signoffBody(signoff);
     if (so.error) { setErr(so.error); return; }
     setSaving(true); setErr('');
     try {
       await bfpo.post(`/jobs/${jobId}/signature`, so.body);
-      const done = await bfpo.post(`/jobs/${jobId}/complete`, { summary, parts_used: partsUsed, safe_and_working: safe });
+      const done = await bfpo.post(`/jobs/${jobId}/complete`, { summary, parts_used: partsUsed, safe_and_working: safe, report: rep });
       onDone(!!done?.data?.queued);
     } catch (e) { setErr(e?.response?.data?.detail || 'Could not complete — try again'); }
     finally { setSaving(false); }
@@ -339,8 +345,9 @@ function CompletePanel({ jobId, onDone, onCancel }) {
   return (
     <Card className="p-4 space-y-3" data-testid="panel-complete">
       <p className="font-semibold text-slate-900">Complete job</p>
-      <Field label="Work carried out"><textarea className={inputCls} rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} data-testid="complete-summary" /></Field>
+      <Field label="Description of Work Completed *"><textarea className={inputCls} rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} data-testid="complete-summary" /></Field>
       <Field label="Parts used (optional)"><input className={inputCls} value={partsUsed} onChange={(e) => setPartsUsed(e.target.value)} data-testid="complete-parts" /></Field>
+      <EngineerReportFields value={report} onChange={setReport} defaultStart={job?.arrived_at} />
       <label className="flex items-center gap-2 text-sm text-slate-700 font-medium"><input type="checkbox" checked={safe} onChange={(e) => setSafe(e.target.checked)} data-testid="complete-safe" /> I confirm the equipment is safe and working</label>
       <SignOffFields value={signoff} onChange={setSignoff} contact={contact} reopened={reopened} testid="complete-sig" />
       {err && <p className="text-sm text-red-600">{err}</p>}

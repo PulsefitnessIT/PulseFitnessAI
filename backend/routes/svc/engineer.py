@@ -1142,6 +1142,8 @@ async def engineer_complete(
     if target not in (REPAIRED, AWAITING_SIGN_OFF, CLOSED):
         raise HTTPException(400, "target must be repaired | awaiting_sign_off | closed")
     from utils.customer_signoff import require_signoff
+    from utils.engineer_report import clean_report
+    report = clean_report(data, summary=summary)
     await require_signoff(case_id=case_id)
 
     # Iter 220 — Validate & normalise work-report custom fields before any
@@ -1170,6 +1172,7 @@ async def engineer_complete(
         body=summary,
         extra={"visibility": "customer", "kind": "fix_summary"},
     )
+    await db.svc_cases.update_one({"id": case_id}, {"$set": {"engineer_report": report, "updated_at": _now()}})
     if data.get("chargeable") is not None:
         await db.svc_cases.update_one(
             {"id": case_id}, {"$set": {"chargeable": bool(data["chargeable"]), "updated_at": _now()}},

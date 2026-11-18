@@ -55,6 +55,8 @@ import ComplianceCard from './ComplianceCard';
 // connection by being persisted in IndexedDB and replayed on
 // reconnect.
 import { outboxPost } from '@/utils/engineerOutbox';
+import { EngineerReportFields, withReportDefaults, reportTimeError } from '@/components/shared/EngineerReportFields';
+import { EngineerReportView } from '@/components/shared/EngineerReportView';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
 const auth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
@@ -3522,6 +3524,24 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
 
   const setSummary = (v) => setDraft({ summary: v });
   const setTarget = (v) => setDraft({ target: v });
+  const setReport = (patch) => setDraft((prev) => ({ ...prev, report: { ...(prev?.report || {}), ...patch } }));
+  const reportDefaults = useMemo(() => {
+    const entries = (job.time_entries || []).filter((e) => e.start_at);
+    const starts = entries.map((e) => e.start_at).sort();
+    const open = entries.some((e) => !e.end_at);
+    const ends = entries.map((e) => e.end_at).filter(Boolean).sort();
+    return { start: starts[0] || job.arrived_at || '', end: open || !ends.length ? '' : ends[ends.length - 1] };
+  }, [job]);
+  const buildReport = () => ({ ...withReportDefaults(draft.report, reportDefaults.start, reportDefaults.end), work_completed: summary.trim() });
+  const reportCheck = () => {
+    const r = buildReport();
+    if (!r.start_time || !r.end_time) return 'Add the start and end time';
+    return reportTimeError(r);
+  };
+  const searchParts = useCallback(async (q) => {
+    const r = await axios.get(`${API}/svc/parts/catalogue?search=${encodeURIComponent(q)}&page_size=6`, auth());
+    return r.data?.items || [];
+  }, []);
   // Iter 220ea·3 — kept for symmetry with the other draft setters
   // (other tabs use it for editable custom-field rows). Unused at
   // close-out time, but harmless to keep.
@@ -3555,7 +3575,8 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
   const willGenerateInvoice = coverState.covered ? misuseOverride : autoInvoice;
 
   const complete = async () => {
-    if (!summary.trim()) { notify.error(t('service.eng_jd_add_summary', 'Add a work summary')); return; }
+    if (!summary.trim()) { notify.error(t('service.eng_jd_add_summary', 'Add a description of the work completed')); return; }
+    if (reportCheck()) { notify.error(reportCheck()); return; }
     const so = signoffCheck();
     if (so.error) { notify.error(so.error); return; }
     setBusy(true);
@@ -3569,6 +3590,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
         // Iter 220e0 — chargeable now follows cover state, not always true.
         chargeable: willBill,
         custom_fields: customFields,
+        report: buildReport(),
       }, { headers: auth().headers, kind: 'job_complete',
           label: `Complete · ${job.reference || job.id}` });
       if (completeRes?.queued) {
@@ -3604,7 +3626,8 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
   // customer. Each step is wrapped in its own try so a single
   // failure (e.g. no parts allocated yet) doesn't break the chain.
   const completeAndSendInvoice = async () => {
-    if (!summary.trim()) { notify.error(t('service.eng_jd_add_summary_first', 'Add a work summary first')); return; }
+    if (!summary.trim()) { notify.error(t('service.eng_jd_add_summary_first', 'Add a description of the work completed first')); return; }
+    if (reportCheck()) { notify.error(reportCheck()); return; }
     const so = signoffCheck();
     if (so.error) { notify.error(so.error); return; }
     setBusy(true);
@@ -3636,6 +3659,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
         target: fastTarget,
         chargeable: willBill,
         custom_fields: customFields,
+        report: buildReport(),
         email_report: false,
       }, auth());
       // 4. Generate the invoice draft — ONLY when we're actually billing.
@@ -3695,7 +3719,11 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
           <p className="text-xs text-slate-500 mt-1">{t('service.eng_jd_wrapped_up', 'This job is wrapped up — the details below are locked.')}</p>
         </div>
 
-        {summaryText ? (
+        {job.engineer_report ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-locked-report">
+            <EngineerReportView report={job.engineer_report} />
+          </div>
+        ) : summaryText ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-locked-summary">
             <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">{t('service.eng_jd_work_summary', 'Work summary')}</p>
             <p className="text-sm text-slate-800 whitespace-pre-wrap">{summaryText}</p>
@@ -3753,7 +3781,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
       />
 
       <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-summary-card">
-        <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">{t('service.eng_jd_work_summary_req', 'Work summary *')}</p>
+        <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">{t('service.eng_jd_work_completed_req', 'Description of Work Completed *')}</p>
         <textarea rows={4} value={summary} onChange={e => setSummary(e.target.value)} placeholder={t('service.eng_jd_summary_ph', 'What was repaired / replaced / advised…')} className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white" data-testid="complete-summary" />
       </div>
 
@@ -3766,6 +3794,9 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
           else if (data?.transcript) setSummary(data.transcript);
         }}
       />
+
+      <EngineerReportFields value={draft.report} onChange={setReport}
+        defaultStart={reportDefaults.start} defaultEnd={reportDefaults.end} onPartSearch={searchParts} />
 
       {/* Iter 220ds — Handoff-note composer lives here, not on
           Summary. Leaving notes is part of wrapping up, so it

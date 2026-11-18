@@ -29,6 +29,7 @@ import { notify } from '@/components/notifications';
 import CoverageBanner from '@/components/shared/CoverageBanner';
 import ServiceCaseLifecycleTab from './ServiceCaseLifecycleTab';
 import MODJobFileTab, { ProviderReadOnlyBanner } from './MODJobFileTab';
+import { EngineerReportView } from '@/components/shared/EngineerReportView';
 import './_serviceops.css';
 
 const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : '/api';
@@ -694,6 +695,9 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
             </>
           ) : tab === 'details' ? (
             <>
+              {(doc.engineer_report || doc.signoff) && (
+                <div className="mb-4"><EngineerReportView report={doc.engineer_report} signoff={doc.signoff} fallbackSummary={doc.resolution_notes} /></div>
+              )}
               {/* Iter 216h205 — coverage banner derived from
                  source_meta.coverage_* stamped by the issue intake
                  (iter h199). Tells the operator at a glance whether

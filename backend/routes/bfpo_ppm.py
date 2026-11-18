@@ -299,6 +299,9 @@ async def complete_service(service_id: str, data: dict = Body(default={}), user=
     from utils.customer_signoff import build_signoff, email_signed_pdf, recipients, spawn
     if svc.get("status") == "completed":
         raise HTTPException(400, "This service has already been completed")
+    from utils.engineer_report import clean_report
+    report = clean_report(data, summary=(data or {}).get("notes") or "")
+    svc["engineer_report"] = report
     if not (data or {}).get("signoff"):
         raise HTTPException(400, "Customer sign-off is required — capture a signature or record why the customer couldn't sign")
     sig = build_signoff(data["signoff"], case_id=None, organization_id=BFPO_ORG_ID,
@@ -333,7 +336,7 @@ async def complete_service(service_id: str, data: dict = Body(default={}), user=
         {"id": service_id, "organization_id": BFPO_ORG_ID},
         {"$set": {"status": "completed", "completed_at": _now(),
                   "completed_by": user.get("full_name") or user.get("email"),
-                  "certificate_doc_id": doc_id, "cert_emailed_to": emailed_to,
+                  "certificate_doc_id": doc_id, "cert_emailed_to": emailed_to, "engineer_report": report,
                   "notes": (data.get("notes") or "").strip()}})
     return {"ok": True, "certificate_doc_id": doc_id, "emailed_to": emailed_to,
             "certificate_url": f"/api/bfpo/ppm/services/{service_id}/certificate.pdf"}
@@ -416,6 +419,10 @@ def _build_certificate_pdf(svc: dict, inspections: list, user: dict) -> bytes:
         y -= 6 * mm
 
     from utils.customer_signoff import draw_signoff_canvas
+    if svc.get("engineer_report"):
+        from utils.engineer_report import draw_report_canvas
+        y -= 4 * mm
+        y = draw_report_canvas(c, 18 * mm, y, w - 36 * mm, svc["engineer_report"])
     if y < 60 * mm:
         c.showPage(); y = h - 25 * mm
     y -= 6 * mm

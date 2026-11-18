@@ -279,6 +279,8 @@ async def get_case(case_id: str, user=Depends(get_current_user)):
         .to_list(200)
     )
     case["events"] = events
+    from utils.customer_signoff import latest_signoff
+    case["signoff"] = await latest_signoff(case_id=case_id, current_only=True)
     if case.get("organization_id") == BFPO_ORG_ID:
         prov = await external_provider(case)
         case["is_mod"] = True
