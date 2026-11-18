@@ -32,7 +32,7 @@ def clean_report(data: dict | None, *, summary: str = "") -> dict:
             qty = 1
         parts.append({"name": name, "qty": qty, "sku": str(p.get("sku") or "")[:60], "part_id": p.get("part_id") or None})
     start, end = _iso(r.get("start_time")), _iso(r.get("end_time"))
-    if start and end and end < start:
+    if start and end and end <= start:
         raise HTTPException(400, "End time must be after the start time")
     return {
         "work_completed": (r.get("work_completed") or summary or "").strip()[:5000],

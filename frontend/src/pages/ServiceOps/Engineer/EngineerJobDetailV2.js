@@ -3721,7 +3721,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
 
         {job.engineer_report ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-locked-report">
-            <EngineerReportView report={job.engineer_report} />
+            <EngineerReportView report={job.engineer_report} signoff={sig} />
           </div>
         ) : summaryText ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-locked-summary">
@@ -3730,7 +3730,7 @@ function CompleteTab({ job, locked, onChange, navigate, draft, setDraft, clearDr
           </div>
         ) : null}
 
-        {sig && sig.image_data ? (
+        {job.engineer_report ? null : sig && sig.image_data ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-4" data-testid="complete-locked-signature">
             <p className="text-[11px] uppercase font-bold tracking-wide text-slate-500 mb-2">{t('service.eng_jd_customer_signoff', 'Customer sign-off')}</p>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 inline-block">

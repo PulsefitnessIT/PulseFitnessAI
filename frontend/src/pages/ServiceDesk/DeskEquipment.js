@@ -88,7 +88,15 @@ const DeskEquipment = ({ API }) => {
   const toggleSel = (id) => setSelected((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   const openCase = () => {
     if (!selected.length) return;
-    const siteId = siteSel === 'all' ? (siteEquip.find((e) => e.id === selected[0])?.site_id || '') : siteSel;
+    let siteId = siteSel;
+    if (siteSel === 'all') {
+      const sites = [...new Set(siteEquip.filter((e) => selected.includes(e.id)).map((e) => e.site_id || ''))];
+      if (sites.length !== 1 || !sites[0]) {
+        notify.error(t('service.eq_one_site_only', 'Pick machines from one site to log a case'), t('service.eq_one_site_hint', 'Unassigned machines need a site first.'));
+        return;
+      }
+      [siteId] = sites;
+    }
     setIntakeInitial({ customerOrgId: custOrg, siteId, equipmentIds: selected });
   };
   const [printing, setPrinting] = useState(false);
@@ -132,7 +140,7 @@ const DeskEquipment = ({ API }) => {
             <select value={siteSel} onChange={(e) => setSiteSel(e.target.value)} disabled={!custOrg}
               className="w-full mt-1 h-10 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 text-sm" data-testid="desk-eq-site">
               <option value="">{sitesList.length ? t('service.eq_select_site', '— Select site —') : t('service.eq_no_sites', 'No sites')}</option>
-              {sitesList.length > 0 && <option value="all">{t('service.eq_all_sites', 'All sites')} · {sitesList.reduce((n, x) => n + (x.equipment_count || 0), 0)} machines</option>}
+              {sitesList.length > 0 && <option value="all">{t('service.eq_all_sites', 'All sites')}</option>}
               {sitesList.map((s) => <option key={s.id} value={s.id}>{s.name}{s.equipment_count != null ? ` · ${s.equipment_count} machines` : ''}</option>)}
             </select>
           </div>

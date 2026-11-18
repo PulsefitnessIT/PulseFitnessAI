@@ -215,7 +215,7 @@ async def desk_customer_sites(organization_id: str = Query(...), user=Depends(ge
 async def _site_equipment(organization_id: str, site_id: str) -> list[dict]:
     q: dict = {"organization_id": organization_id}
     if site_id != "all":
-        q["$or"] = [{"site_id": site_id}, {"site_id": {"$exists": False}}, {"site_id": None}]
+        q["$or"] = [{"site_id": site_id}, {"site_id": {"$exists": False}}, {"site_id": None}, {"site_id": ""}]
     rows = await db.equipment.find(q, {"_id": 0}).sort("name", 1).to_list(5000)
     names = {x["id"]: x.get("name") or "Site" async for x in db.sites.find(
         {"organization_id": organization_id}, {"_id": 0, "id": 1, "name": 1})}

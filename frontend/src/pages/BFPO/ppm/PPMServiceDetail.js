@@ -3,6 +3,7 @@ import { bfpo } from '../bfpoApi';
 import { Card, Btn, Badge, Spinner, Field, inputCls } from '../ui';
 import SignOffFields, { signoffBody } from '../engineer/SignOffFields';
 import { EngineerReportFields, withReportDefaults, reportTimeError } from '@/components/shared/EngineerReportFields';
+import { EngineerReportView } from '@/components/shared/EngineerReportView';
 import { ChevronLeft, CheckCircle2, XCircle, MinusCircle, Wrench, AlertTriangle, FileText, Loader2, ClipboardCheck } from 'lucide-react';
 
 const STATUS_CHIP = {
@@ -71,6 +72,7 @@ export default function PPMServiceDetail({ serviceId, onBack }) {
           )}
         </Card>
 
+        {completed && svc.engineer_report && <EngineerReportView report={svc.engineer_report} />}
         <div className="space-y-2">
           {(svc.inspections || []).map((i) => (
             <button key={i.id} disabled={completed} onClick={() => setActive(i)} className="w-full text-left disabled:opacity-70" data-testid={`ppm-asset-${i.id}`}>

@@ -306,7 +306,6 @@ async def complete_service(service_id: str, data: dict = Body(default={}), user=
         raise HTTPException(400, "Customer sign-off is required — capture a signature or record why the customer couldn't sign")
     sig = build_signoff(data["signoff"], case_id=None, organization_id=BFPO_ORG_ID,
                         reference=svc.get("reference"), user=user, ppm_service_id=service_id)
-    await db.svc_signatures.insert_one({**sig})
     svc["_signoff"] = sig
     pdf = _build_certificate_pdf(svc, insp, user)
     fname = f"PPM Certificate - {svc.get('reference')} - {svc.get('site_name')}.pdf"
@@ -332,6 +331,7 @@ async def complete_service(service_id: str, data: dict = Body(default={}), user=
         subject=f"Signed PPM service certificate — {svc.get('site_name')} ({svc.get('reference')})",
         intro=f"The planned maintenance service at <b>{svc.get('site_name')}</b> is complete.",
         organization_id=BFPO_ORG_ID))
+    await db.svc_signatures.insert_one({**sig})
     await db.bfpo_ppm_services.update_one(
         {"id": service_id, "organization_id": BFPO_ORG_ID},
         {"$set": {"status": "completed", "completed_at": _now(),

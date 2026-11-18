@@ -4,6 +4,7 @@ import { Card, Btn, Badge, Spinner, PriorityBadge, STATUS_LABEL, Field, inputCls
 import SignOffFields, { signoffBody } from './SignOffFields';
 import MissingAssetDetails from './MissingAssetDetails';
 import { EngineerReportFields, withReportDefaults, reportTimeError } from '@/components/shared/EngineerReportFields';
+import { EngineerReportView } from '@/components/shared/EngineerReportView';
 import {
   ChevronLeft, AlertTriangle, MapPin, Wrench, ShieldCheck, ShieldAlert, Package,
   RotateCcw, Ban, PlusCircle, Camera, CheckCircle2, Clock, FileText, History, Loader2,
@@ -112,7 +113,7 @@ export default function JobDetail({ jobId, onBack, onOpenJob }) {
         {!isOpen && job.resolution_notes && (
           <Card className="p-4 border-l-4 border-l-emerald-500" data-testid="jobdetail-completed-recap">
             <p className="text-xs font-semibold text-emerald-700 uppercase flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Completed</p>
-            <p className="text-slate-700 mt-1">{job.resolution_notes}</p>
+            {job.engineer_report ? <div className="mt-2"><EngineerReportView report={job.engineer_report} signoff={job.signature} /></div> : <p className="text-slate-700 mt-1">{job.resolution_notes}</p>}
             {job.parts_used && <p className="text-sm text-slate-500 mt-1">Parts used: {job.parts_used}</p>}
             <a href={`${process.env.REACT_APP_BACKEND_URL}/api/bfpo/jobs/${jobId}/job-sheet.pdf`} target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-2 mt-3 text-cyan-600 font-semibold text-sm" data-testid="jobdetail-jobsheet">

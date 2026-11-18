@@ -1,0 +1,47 @@
+{
+  "summary": "Tested the engineer report fields (Description of Work Completed, Further Work Required, Further Parts Required, Start/End time) and the customer sign-off across the Service Desk engineer job, the MOD/BFPO job, MOD PPM, the Service Desk case drawer and the Maintenance Calendar visit detail, plus the Service Desk Equipment 'All sites' option and the asset-list PDF. Backend: 15/15 pytest pass. Checked: report normalisation (blank parts dropped, qty>=1, UTC ISO times), 400 when end < start, sign-off still required, GET case returns engineer_report and signoff with image_data, the ENGINEER REPORT block appears in the service-report PDF, the MOD job-sheet and the PPM certificate (and the old layout is used when there is no report), PPM schedule visits[] return engineer_report and signoff, customer-equipment site_id=all returns site_name, and the asset-list PDF is landscape, grouped by site, shows the last service visit, returns 404 for another org and 401/403 without auth. Frontend: every flow works end to end (UI-filed reports were confirmed in the DB). Times prefill from timers, part suggestions come from the catalogue, the time error shows, completing with 'customer not available' + reason works, and the locked view, drawer, PPM detail and printable report all show the data. Found 1 layout bug (part row), several minor UX issues, and some incomplete parity on MOD screens.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "utils/engineer_report.clean_report", "issue": "end_time == start_time is accepted although the message says 'End time must be after the start time' (it uses a strict < check). A zero-minute report passes."},
+      {"endpoint": "GET /api/svc/desk/customer-equipment?site_id=<id>", "issue": "_site_equipment includes equipment whose site_id is missing or None in every single-site view, but not site_id == ''. In iso-demo-org 3 machines with site_id '' only appear under All sites. Unassigned handling is inconsistent."},
+      {"endpoint": "POST /api/bfpo/ppm/services/{id}/complete", "issue": "The signature is inserted into svc_signatures before the PDF build and the status update. A failure afterwards leaves an orphan signature, and a retry inserts another one."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EngineerReportFields PartRow (components/shared/EngineerReportFields.js L41-44)", "issue": "Layout bug on desktop and mobile: the qty input gets `w-full w-20` (inputCls already contains w-full, and w-full wins), so the quantity box stretches across the row and the part name input collapses to about 20px wide. Typed or selected part names cannot be read. Fix: don't use inputCls's w-full on qty (e.g. `w-20 shrink-0`) and add min-w-0 to the name input.", "selector": "[data-testid=report-part-name-0], [data-testid=report-part-qty-0]", "priority": "HIGH"},
+      {"component": "EngineerJobDetailV2 CompleteTab locked view (L3722-3724)", "issue": "EngineerReportView is rendered without a signoff prop, so inside the report card it shows 'No customer signature captured.' even when a signature or an unavailable reason exists. The card below then shows 'Customer unable to sign — …', which contradicts it. Pass signoff={job.signature} (and drop the duplicate card) or hide the SignoffBlock here.", "selector": "[data-testid=complete-locked-report] [data-testid=report-view-no-signature]", "priority": "MEDIUM"},
+      {"component": "DeskEquipment Site dropdown (L135)", "issue": "The 'All sites · N machines' count adds up the sites' equipment_count, which leaves out unassigned equipment. iso-demo-org shows 'All sites · 22 machines' but lists 29.", "selector": "[data-testid=desk-eq-site] option[value=all]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Equipment > All sites > Log case", "issue": "If the first selected machine is Unassigned (no site_id), the intake modal opens with '— Select site —' and 'No equipment on this site', and the selected machine is lost. A mixed-site selection silently logs everything against the first machine's site, with no warning.", "affected_selectors": ["[data-testid=desk-eq-logcase]"]},
+      {"flow": "MOD engineer JobDetail CompletePanel / PPMServiceDetail", "issue": "onPartSearch is not passed, so there are no parts-catalogue suggestions on the MOD screens. After completion, neither the MOD job recap (jobdetail-completed-recap) nor the completed PPM service shows the engineer report (no EngineerReportView); only the summary or certificate link is shown.", "affected_selectors": ["[data-testid=report-part-suggestions-0]", "[data-testid=jobdetail-completed-recap]"]}
+    ],
+    "design_issues": [
+      {"screen": "Maintenance Calendar visit detail", "issues": ["A closed (completed) visit shows the stage badge 'ALLOCATED' above the engineer report. This comes from the existing receipt-stage logic, but it reads oddly for a completed visit."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_engineer_report_asset_list.py", "/app/test_reports/pytest/engineer_report_results.xml"],
+  "action_items": [
+    "Fix the EngineerReportFields part row layout (qty w-full/w-20 conflict collapses the part name input)",
+    "Pass the signoff into EngineerReportView on the locked Complete tab (it currently says 'No customer signature captured.' when one exists)",
+    "Include unassigned equipment in the 'All sites · N machines' count",
+    "Handle Log case from All sites when the first selected machine has no site, and warn when the selected machines span several sites",
+    "Optional: add onPartSearch to the MOD JobDetail/PPM report fields, and show EngineerReportView on completed MOD jobs and PPM services",
+    "Optional: reject end_time == start_time, or reword the message"
+  ],
+  "critical_code_review_comments": [
+    "EngineerJobDetailV2.js is 4370 lines (existing). The new CompleteTab report logic adds to it, so consider extracting CompleteTab.",
+    "DeskEquipment printList: the blob URL from URL.createObjectURL is never revoked.",
+    "The PPMServiceDetail certificate link is a plain <a href> to an authenticated endpoint (existing). It only works if cookie auth is present.",
+    "clean_report compares ISO strings. This is safe because both are normalised to UTC isoformat, but comparing datetimes would be more robust."
+  ],
+  "updated_files": ["/app/backend/tests/test_engineer_report_asset_list.py"],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "~85% (all flows work; 1 HIGH layout bug, 1 MEDIUM display bug, minor UX gaps)"},
+  "test_credentials": "The provided MOD staff login lee.somers@bfpo.pulsefitness.com / pulse123 returns 'Invalid credentials' (that user does not exist). Used admin@pulsefitness.com (counts as BFPO 'staff' via mod operations) for the MOD APIs and engineer.gib@bfpo.pulsefitness.test / BfpoEng123! (portal=mod, token set in localStorage, /bfpo) for the MOD UI. owner@isodemo.com / IsoDemo123! for the Service Desk Equipment and Maintenance Calendar.",
+  "seed_data_creation": "All test data was seeded directly in Mongo with TEST_ ids (svc_cases, svc_time_entries, svc_parts, ppm_schedules, bfpo_ppm_services, equipment, svc_signatures) and deleted by id afterwards. That includes the auto-filed PPM certificate documents (documents.linked_to.id), the invoice draft auto-created by the svc Complete flow, and svc_case_events. Audit-log and op-update ledger rows from the UI completions remain (immutable ledgers).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The regression file /app/backend/tests/test_engineer_report_asset_list.py seeds its own data via pymongo and cleans up. Run it with: pytest tests/test_engineer_report_asset_list.py -p no:xdist -o addopts=''. For the engineer job UI: seed an svc_case in admin org d19de469 assigned to admin 1fedcc01 with safety_signoff_waived and an svc_time_entries row, then open /svc/engineer/jobs/<id>?tab=complete. The Complete flow auto-creates an invoice draft (svc_engineer_invoices), so clean it up. The Maintenance Calendar search box (ppm-search-input) opens PpmScheduleDetail. The MOD PWA cookie banner blocks the bottom nav; click 'Decline' first."
+}

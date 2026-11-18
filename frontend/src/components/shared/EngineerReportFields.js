@@ -22,7 +22,7 @@ export function withReportDefaults(report, defaultStart, defaultEnd) {
 }
 
 export function reportTimeError(r) {
-  if (r.start_time && r.end_time && new Date(r.end_time) < new Date(r.start_time)) return 'End time must be after the start time';
+  if (r.start_time && r.end_time && new Date(r.end_time) <= new Date(r.start_time)) return 'End time must be after the start time';
   return '';
 }
 
@@ -38,9 +38,9 @@ function PartRow({ part, idx, onChange, onRemove, onSearch }) {
   }, [part.name, part.sku, onSearch]);
   return (
     <div className="relative flex gap-2 items-start" data-testid={`report-part-row-${idx}`}>
-      <input className={`${inputCls} flex-1`} placeholder="Part name or number" value={part.name || ''}
+      <input className={`${inputCls} flex-1 min-w-0`} placeholder="Part name or number" value={part.name || ''}
         onChange={(e) => onChange({ name: e.target.value, sku: '', part_id: null })} data-testid={`report-part-name-${idx}`} />
-      <input type="number" min="1" className={`${inputCls} w-20`} value={part.qty || 1}
+      <input type="number" min="1" className="w-20 shrink-0 text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white" value={part.qty || 1}
         onChange={(e) => onChange({ qty: Math.max(1, parseInt(e.target.value, 10) || 1) })} data-testid={`report-part-qty-${idx}`} aria-label="Quantity" />
       <button type="button" onClick={onRemove} className="p-2 text-slate-400 hover:text-red-600" data-testid={`report-part-remove-${idx}`} aria-label="Remove part"><Trash2 size={16} /></button>
       {hits.length > 0 && (
