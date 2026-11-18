@@ -292,7 +292,10 @@ async def auto_fill(case_id: str, user=Depends(get_current_user)):
     # backed-flushed van consumption.
     if not by_sku:
         async for pr in db.svc_parts_requests.find(
-            {"case_id": case_id, "status": {"$nin": ["rejected", "cancelled"]}}, {"_id": 0, "part_sku": 1, "qty": 1},
+            {"case_id": case_id, "status": {"$nin": ["rejected", "cancelled"]},
+             # Next-visit parts only bill on the follow-up job they were moved to.
+             "$or": [{"source": {"$ne": "further_parts_required"}}, {"origin_case_id": {"$ne": case_id}}]},
+            {"_id": 0, "part_sku": 1, "qty": 1},
         ):
             sku = (pr.get("part_sku") or "").upper()
             if sku and sku != "TBC":

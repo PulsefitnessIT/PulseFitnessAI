@@ -2955,7 +2955,7 @@ function PartsTab({ job, onChange }) {
     if (!q || q.length < 2) { setResults([]); return; }
     setSearching(true);
     try {
-      const r = await axios.get(`${API}/svc/parts`, { ...auth(), params: { q, limit: 12 } });
+      const r = await axios.get(`${API}/svc/parts/catalogue`, { ...auth(), params: { search: q, page_size: 12 } });
       setResults(r.data?.items || []);
     } catch { setResults([]); }
     finally { setSearching(false); }

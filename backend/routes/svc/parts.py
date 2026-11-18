@@ -93,8 +93,10 @@ async def list_parts(
             {"name": safe_regex(search)},
             {"manufacturer": safe_regex(search)},
         ]
+    from routes.svc.parts_catalogue import _hide_prices
+    proj = {"_id": 0, "cost": 0, "list_price": 0} if _hide_prices(user) else {"_id": 0}
     rows = (
-        await db.svc_parts.find(q, {"_id": 0})
+        await db.svc_parts.find(q, proj)
         .sort([("name", 1)])
         .limit(limit).to_list(limit)
     )

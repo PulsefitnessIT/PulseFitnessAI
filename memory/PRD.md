@@ -39349,3 +39349,10 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - GET /api/svc/cases/{id}/follow-up-draft prefill; intake payload follow_up_of links jobs (org/as_case_org guarded, one follow-up per job) and moves the further-parts requests onto the follow-up case.
 - UI: components/shared/BookFollowUpButton.js in case drawer + Maintenance Calendar visit; intake form accepts initial title/description/contact/priority/cover + followUpOf.
 - MOD PPM visits (no case) do not raise parts requests.
+
+## Jun 2026 — Parts price list + report backfill
+- backend/seed_data/pulse_price_list.xlsx (21,174 rows) auto-loaded on startup into Pulse Fitness operator svc_parts (utils/parts_price_list.py, marker db.migrations pulse_price_list:<sha>): name, category, manufacturer, cost=avg buying, list_price=sales price. Replace the file to update.
+- Engineers (role engineer, non-manager) never get cost/list_price from /svc/parts and /svc/parts/catalogue. Engineer job parts search now uses /svc/parts/catalogue?search=.
+- Billing quote auto-fill uses list_price first, includes case parts requests (excluding un-moved next-visit parts).
+- Startup backfill_engineer_reports(): completed jobs/MOD PPM visits without engineer_report get one from notes + timers (backfilled=true).
+- Open: price-list re-import overwrites manual prices incl. zeros; engineer allocation rows/van stock still show prices.

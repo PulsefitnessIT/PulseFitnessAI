@@ -151,7 +151,7 @@ export default function PartsCatalogue() {
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-bold text-slate-800 inline-flex items-center"><PoundSterling className="w-3 h-3" />{(p.list_price || 0).toFixed(2)}</p>
+                  {p.list_price != null && <p className="text-sm font-bold text-slate-800 inline-flex items-center"><PoundSterling className="w-3 h-3" />{Number(p.list_price).toFixed(2)}</p>}
                   {data.show_cost && <p className="text-[11px] text-slate-400">cost {formatMoney(p.cost || 0, loc)}</p>}
                 </div>
                 {data.can_manage && (

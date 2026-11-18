@@ -1,0 +1,41 @@
+{
+  "summary": "Tested the Pulse parts price list import (21,174 rows into Pulse Fitness Ltd svc_parts), hiding prices from engineers, quote auto-fill pricing from the price list and parts requests, and the service-report PDF falling back to resolution_notes. Backend: 13 tests, 10 passed, 3 failed. UI: Parts Catalogue checked as owner and as engineer. Follow-up booking was not re-tested, as instructed.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/svc/parts", "issue": "Engineers still get list_price and cost here. _hide_prices was only added to /svc/parts/catalogue. The engineer PartsTab search calls this endpoint, so engineer prices are not fully hidden. routes/svc/parts.py list_parts uses projection {_id:0}.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/svc/billing/{case_id}/quote/auto-fill", "issue": "The new parts-request fallback also counts further_parts_required requests (parts for the next visit). Until a follow-up is booked these stay on the original case, so a chargeable original job gets billed for parts that were never fitted. Reproduced: completed case + 1 further_parts_required request gave a £10.45 part line. Fix: exclude source=further_parts_required, or only count fulfilled/issued requests."},
+      {"endpoint": "seed_pulse_price_list / import_price_list", "issue": "The upsert $sets cost and list_price even when they are 0. Any manual cost or sell price an operator entered for a matching SKU is overwritten every time a new price-list file version is bundled. About 4.5k rows have Sales Price 0 and about 9.4k have Average Buying Price 0."},
+      {"endpoint": "engineer-facing allocation rows / van stock", "issue": "Engineers still see list_price_gbp on allocations (EngineerJobDetailV2 lines 3243-3248 show £ totals) and van-stock sell values. Not covered by the new engineer price hiding."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PartsCatalogue (/svc/engineer/catalogue) as engineer", "issue": "list_price is now left out for engineers, but the page renders (p.list_price || 0).toFixed(2), so every part shows a misleading £0.00. Hide the price column when list_price is undefined.", "selector": "[data-testid^='catalogue-item-']", "priority": "MEDIUM"},
+      {"component": "EngineerJobDetailV2 PartsTab search", "issue": "This bug was already there, but the line touched in this change sits right on it. runSearch calls GET /svc/parts with params {q} and reads r.data.items. The backend expects 'search' and returns {parts,count}, so engineer search results are always empty and the search term is ignored. Use /svc/parts/catalogue?search= (items, prices hidden) or fix the param and key.", "selector": "[data-testid='parts-search']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iter298_pulse_price_list.py", "/app/test_reports/pytest/iter298_results.xml"],
+  "action_items": [
+    "Hide list_price and cost for engineers in GET /api/svc/parts (or move PartsTab onto /svc/parts/catalogue)",
+    "Fix the PartsTab search contract: params.search instead of q, and r.data.parts or the catalogue's items",
+    "PartsCatalogue: don't show £0.00 when list_price is missing for engineers",
+    "auto-fill: exclude further_parts_required (next-visit) parts requests from billing on the original case",
+    "Consider not overwriting existing operator cost/list_price with 0 from the price list"
+  ],
+  "critical_code_review_comments": [
+    "billing.auto_fill: the parts_requests query has no org filter. It is safe because the case is already org-scoped, but add **of for consistency.",
+    "billing.auto_fill: the comment about the allocated_parts fallback now sits above the new parts-request block, which is misleading.",
+    "parts_price_list: 'Actual Quantity' is ignored, which is fine. The seed only matches orgs that exist at boot and are named ^Pulse Fitness with is_operator_company. The marker is per file digest, so it is correctly idempotent (verified it returns 0).",
+    "backfill_engineer_reports ran at boot (204 svc_cases backfilled, 0 bfpo PPM). It is guarded by $exists:false, so it is idempotent."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter298_pulse_price_list.py"],
+  "success_rate": {"backend": "77% (10/13)", "frontend": "50% (owner catalogue shows prices OK; engineer catalogue shows £0.00)"},
+  "seed_data_creation": "Temporary TEST_ engineer users in Pulse Fitness Ltd, plus TEST_ svc_cases and svc_parts_requests, created through the DB in the test fixtures. All were deleted by id afterwards. The UI engineer TEST_ui_eng_298 was also deleted. No seed or user data was changed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Pulse Fitness Ltd org = 3ece2d0c-57ea-4acd-a6b4-d748478ed117. Owner login: portal@pulsefitness.ltd / PulseFleet123!. Known SKU 105-275-4 has list_price 10.45. Engineers are created as temporary DB users (role=engineer) in the test fixture. Run: pytest tests/test_iter298_pulse_price_list.py (3 expected failures until fixed)."
+}
