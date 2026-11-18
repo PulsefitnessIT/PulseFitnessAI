@@ -696,6 +696,9 @@ export default function ServiceCaseDrawer({ caseId, onClose, onChanged }) {
             </>
           ) : tab === 'details' ? (
             <>
+              {doc.follow_up_of_reference && (
+                <p className="mb-3 text-xs text-slate-500" data-testid="case-follow-up-of">Follow-up to <b>{doc.follow_up_of_reference}</b></p>
+              )}
               {(doc.engineer_report || doc.signoff) && (
                 <div className="mb-4 space-y-2">
                   <EngineerReportView report={doc.engineer_report} signoff={doc.signoff} fallbackSummary={doc.resolution_notes} />

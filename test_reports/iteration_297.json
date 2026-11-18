@@ -1,0 +1,41 @@
+{
+  "summary": "Tested the Further Work follow-up and the Further Parts to parts request features. Backend: 10/11 new pytest pass, 1 skipped (the MOD desk case, because the admin org isn't an operator org here), and the 23 regression tests from iterations 295/296 still pass. The one failure is a cross-tenant write bug: link_follow_up() looks up the original case by id with no organization check. Frontend: the full flow in the Service Desk case drawer works. Completed case > Details > Book follow-up opens 'Book follow-up visit' with the title and description prefilled. After Log case, the 'Follow-up booked · SVC-xxxxx' badge shows and is still there after a reload. The timeline shows the note with the moved parts, and the DB link and parts move are correct.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/svc/intake/phone (also /portal, /email) with follow_up_of", "issue": "Cross-tenant write. utils/engineer_report.link_follow_up does db.svc_cases.find_one({'id': original_id}) with no org filter. Any logged-in user in another org (reproduced with owner@isodemo.com against an admin-org case) can set follow_up_case_id/reference on a foreign case, move its svc_parts_requests onto their own case (case_id changes, so the parts leave the original org's flow), and add timeline events to the foreign case. Fix: only link when orig.organization_id == new_case.organization_id, or when the caller is allowed to see the case via as_case_org. Otherwise ignore follow_up_of or return 403. Also add organization_id to the parts update_many filter.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "utils/engineer_report.raise_further_parts", "issue": "The idempotency check uses {'case_id': case.id, source}. After a follow-up is booked, the requests are moved (case_id changes), so a re-complete or re-open of the original raises duplicate parts requests. Check origin_case_id instead."},
+      {"endpoint": "utils/engineer_report.link_follow_up", "issue": "There is no guard against a second follow-up. Posting follow_up_of again overwrites follow_up_case_id/reference on the original. The UI stops this through existing_follow_up, but the API doesn't."},
+      {"endpoint": "GET /api/svc/cases/{id}/follow-up-draft", "issue": "The draft doesn't carry the original case's contact (contact_id, customer_name, phone, email), company_id, cover_type or priority. The desk has to re-enter the contact: submit fails with 'Pick a contact (or switch to manual entry)'. That makes it less than one-tap."},
+      {"endpoint": "MOD cases from operator desk (as_case_org)", "issue": "Code review only, not testable here. The draft works for MOD cases through as_case_org, but _create_case uses the user's home org. A follow-up booked from a MOD case would be created in the operator org, and the MOD parts requests would be moved onto a case in another org. Use the original case's org when as_case_org re-scopes the user."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ServiceCaseDrawer > Details", "issues": ["The 'Follow-up booked · SVC-xxxxx' badge is plain text. Making it a link that opens the follow-up case would help.", "The case drawer has no back-link to the original from the follow-up (the follow_up_of_reference field is stored but not shown)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter297_follow_up_parts_link.py", "/app/backend/tests/_seed_ui_297.py", "/app/test_reports/pytest/iter297_results.xml"],
+  "action_items": [
+    "HIGH: In link_follow_up, scope the original case lookup to the new case's org (or the as_case_org scope) and add organization_id to the parts update_many filter. Reject or ignore a foreign follow_up_of.",
+    "Book MOD follow-ups in the MOD org when the desk user is re-scoped through as_case_org.",
+    "Make raise_further_parts idempotent on origin_case_id.",
+    "Block or ignore a second follow_up_of once the original already has follow_up_case_id.",
+    "Prefill contact, customer, company, cover type and priority in follow-up-draft and the intake form."
+  ],
+  "critical_code_review_comments": [
+    "link_follow_up trusts the client's follow_up_of without a tenant check (see the critical issue). It is reachable from portal intake too.",
+    "The intake form only uses initial.siteId when the site is in the loaded list. Cases without a site_id (legacy) need a manual site pick, which is fine but worth noting.",
+    "BookFollowUpButton uses a raw axios call with a localStorage token, while the rest of the code is moving to the cookie session api helper. Inconsistent but working."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter297_follow_up_parts_link.py", "/app/backend/tests/_seed_ui_297.py"],
+  "success_rate": {"backend": "91% (10/11, 1 skipped)", "frontend": "100%"},
+  "seed_data_creation": "Only TEST_ cases and parts requests, all cleaned by id. The UI run created follow-up case SVC-00005 in the admin org. It was deleted, but the reference counter advanced.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend/tests && pytest test_iter297_follow_up_parts_link.py test_engineer_report_asset_list.py test_iter296_engineer_report_retest.py -p no:xdist -o addopts=''. test_cross_tenant_follow_up_of_does_not_touch_other_org should pass after the fix. UI: python tests/_seed_ui_297.py seed, log in as admin through the API token in localStorage, open /service-desk > Cases, set filter-status=closed, search TEST-U297FU, open the row, then drawer-tab-details > book-follow-up-btn. In the form: intake-site-select, 'Enter manually', intake-contact-name/phone, then intake-submit. Expect follow-up-booked. Afterwards run python tests/_seed_ui_297.py clean.",
+  "rca of the issue": "Cross-tenant: _create_case passes payload.follow_up_of straight to link_follow_up, which looks up svc_cases by id only and then updates the original and its parts requests. Repro: owner@isodemo.com POSTs /api/svc/intake/phone {title, follow_up_of: <admin-org case id>}. The admin-org case then gets follow_up_case_id set and its parts requests are moved. Mitigation: add an organization_id match (or as_case_org scope) to the orig lookup and to the parts update_many."
+}

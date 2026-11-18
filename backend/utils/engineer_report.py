@@ -123,7 +123,7 @@ async def raise_further_parts(case: dict, report: dict, user: dict) -> int:
     from utils.database import db
     from utils.svc_state import append_event
     parts = report.get("further_parts_required") or []
-    if not parts or await db.svc_parts_requests.find_one({"case_id": case["id"], "source": FURTHER_PARTS_SOURCE}, {"_id": 1}):
+    if not parts or await db.svc_parts_requests.find_one({"origin_case_id": case["id"], "source": FURTHER_PARTS_SOURCE}, {"_id": 1}):
         return 0
     org_id = case["organization_id"]
     now = datetime.now(timezone.utc).isoformat()
@@ -169,6 +169,9 @@ async def follow_up_draft(case: dict) -> dict:
         "title": f"Follow-up: {case.get('title') or case.get('reference') or ''}"[:120],
         "description": "\n".join(lines),
         "existing_follow_up": case.get("follow_up_case_reference") or None,
+        "priority": case.get("priority") or "p3", "coverType": case.get("cover_type") or "contract",
+        "customerName": case.get("customer_name") or "", "customerEmail": case.get("customer_email") or "",
+        "customerPhone": case.get("customer_phone") or "",
     }
 
 
@@ -176,17 +179,22 @@ async def link_follow_up(new_case: dict, original_id: str, user: dict) -> None:
     """Mark the original job, and move its further-parts requests onto the follow-up job."""
     from utils.database import db
     from utils.svc_state import append_event
+    from utils.svc_desk_scope import as_case_org
     org_id = new_case["organization_id"]
-    orig = await db.svc_cases.find_one({"id": original_id}, {"_id": 0, "id": 1, "reference": 1, "organization_id": 1})
-    if not orig:
+    orig = await db.svc_cases.find_one({"id": original_id}, {"_id": 0, "id": 1, "reference": 1, "organization_id": 1, "follow_up_case_id": 1})
+    if not orig or orig.get("follow_up_case_id"):
+        return
+    # Only link jobs the caller can see: same org, or a MOD job visible to the Pulse desk.
+    if orig["organization_id"] != org_id and (await as_case_org(user, original_id)).get("organization_id") != orig["organization_id"]:
         return
     now = datetime.now(timezone.utc).isoformat()
     await db.svc_cases.update_one({"id": new_case["id"]}, {"$set": {"follow_up_of": orig["id"], "follow_up_of_reference": orig.get("reference")}})
     await db.svc_cases.update_one({"id": orig["id"]}, {"$set": {
         "follow_up_case_id": new_case["id"], "follow_up_case_reference": new_case.get("reference"), "updated_at": now}})
     moved = await db.svc_parts_requests.update_many(
-        {"case_id": orig["id"], "source": FURTHER_PARTS_SOURCE, "status": {"$nin": ["rejected", "cancelled"]}},
-        {"$set": {"case_id": new_case["id"], "case_reference": new_case.get("reference"), "updated_at": now}},
+        {"case_id": orig["id"], "organization_id": orig["organization_id"], "source": FURTHER_PARTS_SOURCE,
+         "status": {"$nin": ["rejected", "cancelled"]}},
+        {"$set": {"case_id": new_case["id"], "case_reference": new_case.get("reference"), "organization_id": org_id, "updated_at": now}},
     )
     suffix = f" · {moved.modified_count} parts request(s) moved to it" if moved.modified_count else ""
     await append_event(case_id=orig["id"], organization_id=orig["organization_id"], event_type="note", actor=user,

@@ -39343,3 +39343,9 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - utils/engineer_report.py: clean_report (work_completed, further_work_required, further_parts_required[{name,qty,sku,part_id}], start_time, end_time; end>start). Stored as engineer_report on svc_cases (svc + BFPO jobs) and bfpo_ppm_services. Rendered in service-report PDF (ENGINEER REPORT), PPM certificate, case drawer, Maintenance Calendar visit detail + printable report, engineer locked view, MOD recaps. GET /svc/cases/{id} and /bfpo/ppm/services/{id} return signoff.
 - Frontend shared: components/shared/EngineerReportFields.js + EngineerReportView.js. Times prefill from timers/arrived_at/started_at.
 - Service Desk Equipment: site_id=all option, GET /api/svc/desk/customer-equipment.pdf (utils/asset_list_pdf.py, landscape, grouped by site, last service visit per machine).
+
+## Jun 2026 — Follow-up jobs + further parts -> parts requests
+- On engineer complete (svc + MOD jobs), Further Parts Required auto-create pending svc_parts_requests (source=further_parts_required, origin_case_id; idempotent).
+- GET /api/svc/cases/{id}/follow-up-draft prefill; intake payload follow_up_of links jobs (org/as_case_org guarded, one follow-up per job) and moves the further-parts requests onto the follow-up case.
+- UI: components/shared/BookFollowUpButton.js in case drawer + Maintenance Calendar visit; intake form accepts initial title/description/contact/priority/cover + followUpOf.
+- MOD PPM visits (no case) do not raise parts requests.

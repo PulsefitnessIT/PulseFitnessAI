@@ -42,7 +42,7 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated, initial }) {
   // Cascade selections
   const [customerOrgId, setCustomerOrgId] = useState('');
   const [siteId, setSiteId] = useState('');
-  const [contactMode, setContactMode] = useState('existing'); // existing | manual
+  const [contactMode, setContactMode] = useState(initial?.customerName ? 'manual' : 'existing'); // existing | manual
   const [contactId, setContactId] = useState('');
   const [equipmentId, setEquipmentId] = useState('');
   const [prefillEquip] = useState(initial?.equipmentIds || []);
@@ -57,16 +57,16 @@ export default function ServiceDeskIntakeForm({ onClose, onCreated, initial }) {
   const [coverageLoading, setCoverageLoading] = useState(false);
 
   // Manual contact entry (used as fallback)
-  const [customerName, setCustomerName] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerName, setCustomerName] = useState(initial?.customerName || '');
+  const [customerEmail, setCustomerEmail] = useState(initial?.customerEmail || '');
+  const [customerPhone, setCustomerPhone] = useState(initial?.customerPhone || '');
 
   // Description / chargeable / media / triage
   const [title, setTitle] = useState(initial?.title || '');
   const [description, setDescription] = useState(initial?.description || '');
-  const [coverType, setCoverType] = useState('contract'); // contract | warranty | chargeable
+  const [coverType, setCoverType] = useState(initial?.coverType || 'contract'); // contract | warranty | chargeable
   const [caseType, setCaseType] = useState('repair');     // repair | ppm | install
-  const [priority, setPriority] = useState('p3');
+  const [priority, setPriority] = useState(initial?.priority || 'p3');
   const [quoteRequired, setQuoteRequired] = useState(false);
   const [customerPONumber, setCustomerPONumber] = useState('');
   const [attachments, setAttachments] = useState([]); // [{id, name, url, mime}]
