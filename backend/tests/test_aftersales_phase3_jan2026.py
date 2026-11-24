@@ -155,6 +155,9 @@ class TestGuardsAndGovernance:
         # switch to monthly
         r = requests.patch(f"{API}/crm/v2/aftersales/agreements/{aid}",
                            json={"payment_method": "monthly"}, headers=hdr, timeout=30)
+        if ag["status"] not in ("draft", "ready"):
+            assert r.status_code == 400  # issued / signed content is locked
+            return
         assert r.status_code == 200
         health = r.json()["health"]
         assert any("Direct Debit" in x for x in health["reasons"]), health

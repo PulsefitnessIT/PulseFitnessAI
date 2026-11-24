@@ -3,6 +3,7 @@
 `require_crm_perm(perm)` is the backend gate for sensitive CRM actions; it
 never relies on the frontend hiding a menu.
 """
+from datetime import datetime, timezone
 import hmac
 import os
 
@@ -188,13 +189,28 @@ async def set_customer_coordinator(company_id: str, data: dict, user=Depends(req
         if not u:
             raise HTTPException(404, "Coordinator not found")
         name = u.get("full_name") or u.get("email")
-    await db.crm2_companies.update_one({"id": company_id}, {"$set": {"coordinator_id": uid, "coordinator_name": name}})
-    if uid:  # hand over the customer's open shared-queue items
-        await db.crm2_activities.update_many(
-            {"organization_id": org_id, "company_id": company_id, "status": "open", "owner_id": "system",
+    prev = await db.crm2_companies.find_one({"id": company_id}, {"_id": 0, "coordinator_id": 1, "coordinator_name": 1}) or {}
+    await db.crm2_companies.update_one({"id": company_id}, {
+        "$set": {"coordinator_id": uid, "coordinator_name": name},
+        "$push": {"coordinator_history": {"at": datetime.now(timezone.utc).isoformat(), "by": user.get("email"),
+                                          "from_id": prev.get("coordinator_id"), "from_name": prev.get("coordinator_name"),
+                                          "to_id": uid, "to_name": name}}})
+    # Hand over open contract-admin work (shared queue + the previous coordinator's items).
+    owners = ["system"] + ([prev["coordinator_id"]] if prev.get("coordinator_id") else [])
+    new_owner = {"owner_id": uid or "system", "owner_name": name or "Shared coordinator queue"}
+    moved = 0
+    async for a in db.crm2_activities.find(
+            {"organization_id": org_id, "company_id": company_id, "status": "open", "owner_id": {"$in": owners},
              "category": "contract_admin", "type": {"$ne": "renewal_price_approval"}},
-            {"$set": {"owner_id": uid, "owner_name": name}})
-    return {"company_id": company_id, "coordinator_id": uid, "coordinator_name": name}
+            {"_id": 0, "id": 1, "owner_id": 1, "owner_name": 1}):
+        if a["owner_id"] == new_owner["owner_id"]:
+            continue
+        await db.crm2_activities.update_one({"id": a["id"]}, {
+            "$set": new_owner, "$push": {"owner_history": {"at": datetime.now(timezone.utc).isoformat(),
+                                                           "from_id": a["owner_id"], "from_name": a.get("owner_name"),
+                                                           "by": user.get("email")}}})
+        moved += 1
+    return {"company_id": company_id, "coordinator_id": uid, "coordinator_name": name, "tasks_reassigned": moved}
 
 
 @router.get("/coordinators")

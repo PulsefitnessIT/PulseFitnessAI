@@ -1502,30 +1502,52 @@ function RenewalsRpiTab({ API, headers, c, isDark }) {
 // ───────────────────────────────────────────────────────── Agreements + Activation
 const AG_STATUS = {
   draft: { label: 'Draft', color: 'var(--color-text-faint-alt)' },
-  ready: { label: 'Ready', color: 'var(--color-info-ios)' },
+  ready: { label: 'Ready for signature', color: 'var(--color-info-ios)' },
   sent: { label: 'Sent', color: 'var(--color-info-ios)' },
+  viewed: { label: 'Viewed by customer', color: 'var(--color-info-ios)' },
+  declined: { label: 'Declined', color: 'var(--color-danger)' },
+  activating: { label: 'Activating', color: 'var(--color-brand-blue)' },
   signed: { label: 'Signed', color: 'var(--color-brand-blue)' },
   active: { label: 'Active', color: 'var(--color-success-alt)' },
   activation_attention: { label: 'Activation Attention', color: 'var(--color-danger)' },
 };
 
 const AG_FLOW = ['draft', 'ready', 'signed', 'active'];
+const apiMsg = (e, fallback) => {
+  const d = e?.response?.data?.detail;
+  if (!d) return fallback;
+  if (typeof d === 'string') return d;
+  return [d.message, ...(d.reasons || [])].filter(Boolean).join(' — ') || fallback;
+};
 function AgreementProgress({ ag, c, isDark, API, headers }) {
   const [plan, setPlan] = useState(null);
-  useEffect(() => {
+  const [resending, setResending] = useState(false);
+  const loadPlan = useCallback(() => {
     if (!ag.contract_id) { setPlan(null); return; }
     axios.get(`${API}/crm/v2/aftersales/contracts/${ag.contract_id}/schedules`, { headers: headers() })
       .then(r => setPlan(r.data)).catch(() => setPlan(null));
   }, [API, headers, ag.contract_id]);
-  const pos = ag.status === 'sent' ? 1 : ag.status === 'activation_attention' || ag.status === 'activating' ? 2 : AG_FLOW.indexOf(ag.status);
+  useEffect(loadPlan, [loadPlan]);
+  const resend = async () => {
+    setResending(true);
+    try {
+      const r = await axios.post(`${API}/crm/v2/aftersales/contracts/${ag.contract_id}/welcome-pack`, {}, { headers: headers() });
+      r.data.status === 'accepted_by_provider' ? toast.success('Welcome pack accepted by the email provider') : toast.error(`Welcome pack not delivered — ${r.data.detail || 'email provider failed'}`);
+    } catch (e) { toast.error(e.response?.data?.detail || 'Could not send the welcome pack'); }
+    finally { setResending(false); loadPlan(); }
+  };
+  const pos = ['sent', 'viewed', 'declined'].includes(ag.status) ? 1 : ag.status === 'activation_attention' || ag.status === 'activating' ? 2 : AG_FLOW.indexOf(ag.status);
   const bills = plan?.billing || [];
+  const wp = plan?.welcome_pack;
   const steps = [
     ['Agreement pre-filled', true],
-    ['Generated', pos >= 1],
+    ['Ready for signature', pos >= 1],
+    [`Sent${ag.signature_request ? '' : ''}`, !!ag.signature_request || pos >= 2],
     ['Signed', pos >= 2],
     ['Contract active', pos >= 3],
     [`Service plan${plan ? ` · ${plan.service.required} visits` : ''}`, !!plan && plan.service.required > 0],
     [`Billing${plan ? ` · ${bills.length} invoices` : ''}`, !!plan && bills.length > 0],
+    [`Welcome pack${wp ? (wp.status === 'accepted_by_provider' ? ' · sent' : ' · not delivered') : ''}`, wp?.status === 'accepted_by_provider'],
   ];
   return (
     <Card c={c} isDark={isDark} testId="afs-ag-progress" className="mb-3">
@@ -1539,8 +1561,68 @@ function AgreementProgress({ ag, c, isDark, API, headers }) {
       </div>
       {plan && (
         <p className="text-[11px] mt-2" data-testid="afs-ag-plan-summary" style={{ color: c.textDim }}>
-          Next visit due {plan.service.next_due || '—'} · first invoice {bills[0]?.due_date || '—'} ({gbp(bills[0]?.amount)}) · Sage {plan.contract.sage_sync_status || 'queued'}
+          {plan.service.next_due_overdue ? <span style={{ color: 'var(--color-danger)' }}>Service OVERDUE since {plan.service.next_due}</span> : <>Next service due {plan.service.next_due || '—'}</>}
+          {plan.service.overdue > 0 && <> · {plan.service.overdue} visit(s) overdue (awaiting service evidence)</>}
+          {' '}· first invoice {bills[0]?.due_date || '—'} ({gbp(bills[0]?.amount)}) · Sage {plan.contract.sage_sync_status || 'queued'}
         </p>
+      )}
+      {wp && wp.status !== 'accepted_by_provider' && (
+        <div className="flex items-center gap-2 mt-2 text-[11px]" data-testid="afs-ag-welcome-failed" style={{ color: 'var(--color-danger)' }}>
+          Welcome pack not delivered{wp.detail ? ` — ${wp.detail}` : ''}
+          <button data-testid="afs-ag-welcome-resend" disabled={resending} onClick={resend} className="px-2 py-0.5 rounded border disabled:opacity-40" style={{ borderColor: c.border, color: c.text }}>{resending ? 'Sending…' : 'Resend'}</button>
+        </div>
+      )}
+      {wp && wp.status === 'accepted_by_provider' && (
+        <p className="text-[11px] mt-1" data-testid="afs-ag-welcome-sent" style={{ color: c.textDim }}>Welcome pack accepted by email provider for {wp.to}
+          <button data-testid="afs-ag-welcome-reissue" disabled={resending} onClick={resend} className="ml-2 underline disabled:opacity-40">Reissue</button></p>
+      )}
+    </Card>
+  );
+}
+
+function TermsCard({ API, headers, c, isDark }) {
+  const [data, setData] = useState({ terms: [], approved: null });
+  const [version, setVersion] = useState('');
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef(null);
+  const canApprove = (useCRM().user?.crm_permissions || []).includes('exceptions.approve');
+  const load = useCallback(() => axios.get(`${API}/crm/v2/aftersales/terms`, { headers: headers() }).then(r => setData(r.data)).catch(() => {}), [API, headers]);
+  useEffect(() => { load(); }, [load]);
+  const upload = async (f) => {
+    if (!f || !version.trim()) return;
+    setBusy(true);
+    try {
+      const fd = new FormData(); fd.append('file', f);
+      await axios.post(`${API}/crm/v2/aftersales/terms?version=${encodeURIComponent(version.trim())}`, fd, { headers: headers() });
+      toast.success('Terms uploaded — open and check the PDF, then approve'); setVersion(''); load();
+    } catch (e) { toast.error(apiMsg(e, 'Upload failed')); } finally { setBusy(false); if (fileRef.current) fileRef.current.value = ''; }
+  };
+  const approve = async (t) => {
+    setBusy(true);
+    try { await axios.post(`${API}/crm/v2/aftersales/terms/${t.id}/approve`, {}, { headers: headers() }); toast.success(`Terms ${t.version} approved for customer agreements`); load(); }
+    catch (e) { toast.error(apiMsg(e, 'Approval failed')); } finally { setBusy(false); }
+  };
+  const view = async (t) => {
+    try { const r = await axios.get(`${API}/crm/v2/aftersales/terms/${t.id}/file`, { headers: headers(), responseType: 'blob' }); window.open(URL.createObjectURL(r.data), '_blank'); }
+    catch { toast.error('Could not open the terms'); }
+  };
+  return (
+    <Card c={c} isDark={isDark} className="mb-4" testId="afs-terms-card">
+      <p className="text-sm font-bold mb-1" style={{ color: c.text }}>Maintenance Terms &amp; Conditions</p>
+      <p className="text-xs mb-2" data-testid="afs-terms-status" style={{ color: data.approved ? c.textDim : 'var(--color-danger)' }}>
+        {data.approved ? `Approved version ${data.approved.version} is attached to every agreement sent for signature.` : 'No approved terms — agreements cannot be sent for customer signature yet.'}</p>
+      {data.terms.slice(0, 4).map(t => (
+        <div key={t.id} className="flex items-center gap-2 text-xs py-1 border-t" style={{ borderColor: c.border, color: c.text }} data-testid={`afs-terms-row-${t.id}`}>
+          <span className="flex-1">v{t.version} · {t.filename} · {t.status.replace('_', ' ')}</span>
+          <button onClick={() => view(t)} data-testid={`afs-terms-view-${t.id}`} className="underline" style={{ color: c.textDim }}>View PDF</button>
+          {canApprove && t.status === 'pending_approval' && <button onClick={() => approve(t)} disabled={busy} data-testid={`afs-terms-approve-${t.id}`} className="px-2 py-0.5 rounded font-bold disabled:opacity-40" style={{ background: 'var(--color-success-alt)', color: '#fff' }}>Approve</button>}
+        </div>
+      ))}
+      {canApprove && (
+        <div className="flex gap-2 items-center mt-2">
+          <input data-testid="afs-terms-version" value={version} onChange={e => setVersion(e.target.value)} placeholder="Version (e.g. 2026-01-28)" className="px-2 py-1 text-xs rounded-md w-44" style={{ background: isDark ? 'var(--color-ink-alt)' : '#fff', border: `1px solid ${c.border}`, color: c.text }} />
+          <input ref={fileRef} data-testid="afs-terms-file" type="file" accept=".pdf,.docx" disabled={busy || !version.trim()} onChange={e => upload(e.target.files?.[0])} className="text-xs" style={{ color: c.textDim }} />
+        </div>
       )}
     </Card>
   );
@@ -1690,18 +1772,47 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
       const r = await axios.post(`${API}/crm/v2/aftersales/agreements/from-quote/${newQuoteId}`,
         { start_date: startDate, payment_method: payMethod, visits_per_year: Number(visits) }, { headers: headers() });
       setNewQuoteId(''); load(); openDetail(r.data.id);
-    } finally { setBusy(false); }
+    } catch (e) { toast.error(apiMsg(e, 'Could not prepare the agreement')); }
+    finally { setBusy(false); }
   };
   const patch = async (body) => {
     try { await axios.patch(`${API}/crm/v2/aftersales/agreements/${detail.id}`, body, { headers: headers() }); }
     catch (e) { toast.error(e.response?.data?.detail || 'Could not update the agreement'); }
     refreshDetail();
   };
-  const generate = async () => { setBusy(true); try { await axios.post(`${API}/crm/v2/aftersales/agreements/${detail.id}/generate`, {}, { headers: headers() }); refreshDetail(); load(); } catch (e) { alert((e.response?.data?.detail?.reasons || ['Not ready']).join('\n')); } finally { setBusy(false); } };
+  const generate = async () => { setBusy(true); try { await axios.post(`${API}/crm/v2/aftersales/agreements/${detail.id}/generate`, {}, { headers: headers() }); toast.success('Agreement generated — ready for signature'); refreshDetail(); load(); } catch (e) { toast.error(apiMsg(e, 'Agreement not ready')); } finally { setBusy(false); } };
   const doSign = async () => {
     setBusy(true);
-    try { await axios.post(`${API}/crm/v2/aftersales/agreements/${detail.id}/sign`, sign, { headers: headers() }); setShowSign(false); refreshDetail(); load(); }
-    catch (e) { alert(e.response?.data?.detail || 'Sign failed'); } finally { setBusy(false); }
+    try { await axios.post(`${API}/crm/v2/aftersales/agreements/${detail.id}/sign`, sign, { headers: headers() }); toast.success('Signature recorded'); setShowSign(false); refreshDetail(); load(); }
+    catch (e) { toast.error(apiMsg(e, 'Signature could not be recorded')); } finally { setBusy(false); }
+  };
+  const [showSend, setShowSend] = useState(false);
+  const [sendForm, setSendForm] = useState({ signatory_name: '', email: '' });
+  const [lastLink, setLastLink] = useState(null);
+  const sendForSignature = async () => {
+    setBusy(true);
+    try {
+      const r = await axios.post(`${API}/crm/v2/aftersales/agreements/${detail.id}/send-for-signature`, sendForm, { headers: headers() });
+      setLastLink(`${window.location.origin}${r.data.path}`); setShowSend(false);
+      r.data.delivery_status === 'accepted_by_provider' ? toast.success('Signature request accepted by the email provider')
+        : toast.error('Email NOT delivered — copy the secure link below or check the address and resend');
+      refreshDetail(); load();
+    } catch (e) { toast.error(apiMsg(e, 'Could not send for signature')); }
+    finally { setBusy(false); }
+  };
+  const revokeLink = async () => {
+    setBusy(true);
+    try { await axios.post(`${API}/crm/v2/aftersales/agreements/${detail.id}/signature-link/revoke`, {}, { headers: headers() }); setLastLink(null); toast.success('Signature link withdrawn'); refreshDetail(); load(); }
+    catch (e) { toast.error(apiMsg(e, 'Could not revoke the link')); } finally { setBusy(false); }
+  };
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(lastLink); toast.success('Link copied'); } catch { toast.error('Copy failed — select the link and copy it manually'); }
+  };
+  const openDocument = async () => {
+    try {
+      const r = await axios.get(`${API}/crm/v2/aftersales/agreements/${detail.id}/document`, { headers: headers(), responseType: 'blob' });
+      window.open(URL.createObjectURL(r.data), '_blank');
+    } catch { toast.error('Could not open the agreement document'); }
   };
   const [actIssue, setActIssue] = useState(null);
   const [overrideNote, setOverrideNote] = useState('');
@@ -1709,11 +1820,12 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
   const activate = async (note) => {
     setBusy(true);
     try {
-      await axios.post(`${API}/crm/v2/aftersales/agreements/${detail.id}/activate`, note ? { conflict_review_note: note } : {}, { headers: headers() });
+      const r = await axios.post(`${API}/crm/v2/aftersales/agreements/${detail.id}/activate`, note ? { conflict_review_note: note } : {}, { headers: headers() });
+      toast.success(r.data.already_active ? `Already active — contract ${r.data.contract_number}` : `Contract ${r.data.contract_number} is live: ${r.data.service_visits} visits and ${r.data.invoices} invoices planned`);
       setActIssue(null); refreshDetail(); load();
     } catch (e) {
       const d = e.response?.data?.detail;
-      if (d && typeof d === 'object') setActIssue(d); else toast.error(d || 'Activation failed');
+      if (d && typeof d === 'object') { setActIssue(d); toast.error(d.message || 'Activation needs review'); } else toast.error(d || 'Activation failed');
       refreshDetail();
     } finally { setBusy(false); }
   };
@@ -1822,6 +1934,42 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
           </Card>
         )}
 
+        {showSend && (
+          <Card c={c} isDark={isDark} testId="afs-ag-send-form" className="mb-3">
+            <p className="text-sm font-bold mb-2" style={{ color: c.text }}>Send for customer e-signature</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <input data-testid="afs-send-name" placeholder="Signatory name" value={sendForm.signatory_name} onChange={e => setSendForm(x => ({ ...x, signatory_name: e.target.value }))} className="px-2 py-1.5 text-sm rounded-md" style={inpStyle} />
+              <input data-testid="afs-send-email" placeholder="Signatory email" value={sendForm.email} onChange={e => setSendForm(x => ({ ...x, email: e.target.value }))} className="px-2 py-1.5 text-sm rounded-md" style={inpStyle} />
+              <button data-testid="afs-send-submit" onClick={sendForSignature} disabled={busy || !sendForm.signatory_name.trim() || !sendForm.email.includes('@')} className="text-sm px-4 py-2 rounded-md font-semibold disabled:opacity-40" style={{ background: 'var(--color-brand-blue)', color: '#fff' }}>{busy ? 'Sending…' : 'Send secure link'}</button>
+            </div>
+            <p className="text-[11px] mt-2" style={{ color: c.textDim }}>The customer receives a personal link (valid 14 days) to read, download and sign this exact document version.</p>
+          </Card>
+        )}
+        {ag.signature_request && ['sent', 'viewed', 'declined'].includes(ag.status) && (() => {
+          const rq = ag.signature_request;
+          const expired = rq.expires_at && rq.expires_at < new Date().toISOString();
+          const failed = rq.delivery_status === 'failed';
+          return (
+            <Card c={c} isDark={isDark} testId="afs-ag-signature-request" className="mb-3">
+              <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: c.textDim }}>Customer signature</p>
+              <p className="text-sm" style={{ color: c.text }}>Sent to {rq.name} ({rq.email}) · document v{rq.document_version}</p>
+              <p className="text-xs" data-testid="afs-ag-delivery" style={{ color: failed ? 'var(--color-danger)' : c.textDim }}>
+                {failed ? 'Email NOT delivered — the email provider did not accept it' : 'Email accepted by provider'}
+                {ag.viewed_at ? ` · opened ${ag.viewed_at.slice(0, 16).replace('T', ' ')}` : ' · not opened yet'}
+                {' '}· {rq.revoked ? 'link withdrawn' : expired ? <span style={{ color: 'var(--color-danger)' }}>link expired</span> : `link valid until ${rq.expires_at.slice(0, 10)}`}
+              </p>
+              {ag.status === 'declined' && <p className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>Declined by {ag.declined_by}{ag.declined_reason ? ` — ${ag.declined_reason}` : ''}</p>}
+              {lastLink && <div className="mt-2 flex gap-2 items-center"><code data-testid="afs-ag-sign-link" className="text-[11px] px-2 py-1 rounded truncate flex-1" style={{ background: isDark ? 'var(--color-ink-alt)' : 'var(--color-neutral-100)', color: c.textDim }}>{lastLink}</code>
+                <button data-testid="afs-ag-copy-link" onClick={copyLink} className="text-xs px-2 py-1 rounded border" style={{ borderColor: c.border, color: c.text }}>Copy</button></div>}
+              {!lastLink && !rq.revoked && <p className="text-[11px] mt-1" style={{ color: c.textDim }}>For security the link is only shown when issued — use Resend to issue a fresh link.</p>}
+              <div className="flex gap-2 mt-2">
+                <button data-testid="afs-ag-resend" disabled={busy} onClick={() => { setSendForm({ signatory_name: rq.name, email: rq.email }); setShowSend(true); }} className="text-xs px-3 py-1.5 rounded-md border disabled:opacity-40" style={{ borderColor: c.border, color: c.text }}>Resend / new link</button>
+                {['sent', 'viewed'].includes(ag.status) && <button data-testid="afs-ag-revoke" disabled={busy} onClick={revokeLink} className="text-xs px-3 py-1.5 rounded-md border disabled:opacity-40" style={{ borderColor: c.border, color: 'var(--color-danger)' }}>Withdraw link</button>}
+              </div>
+            </Card>
+          );
+        })()}
+
         {/* Activation steps */}
         {ag.activation_steps && (
           <Card c={c} isDark={isDark} testId="afs-ag-activation" className="mb-3">
@@ -1836,7 +1984,9 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
         {/* Action bar */}
         <div className="flex flex-wrap gap-2">
           {ag.status === 'draft' && <button data-testid="afs-ag-generate" onClick={generate} disabled={busy || !health.ready} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold disabled:opacity-40" style={{ background: 'var(--color-info-ios)', color: '#fff' }}><FileCheck2 size={16} /> Generate Agreement</button>}
-          {(ag.status === 'ready' || ag.status === 'sent') && <button data-testid="afs-ag-open-sign" onClick={() => setShowSign(true)} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-brand-blue)', color: '#fff' }}><PenLine size={16} /> Review & Sign</button>}
+          {ag.status === 'ready' && <button data-testid="afs-ag-send-signature" onClick={() => setShowSend(true)} disabled={busy} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold disabled:opacity-40" style={{ background: 'var(--color-brand-blue)', color: '#fff' }}><Mail size={16} /> Send for Signature</button>}
+          {['ready', 'sent', 'viewed'].includes(ag.status) && <button data-testid="afs-ag-open-sign" onClick={() => setShowSign(true)} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'transparent', color: c.text, border: `1px solid ${c.border}` }}><PenLine size={16} /> Record signature internally</button>}
+          <button data-testid="afs-ag-document" onClick={openDocument} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'transparent', color: c.text, border: `1px solid ${c.border}` }}><FileText size={16} /> {ag.signed_document ? 'Signed agreement' : ag.document ? 'Issued agreement' : 'Preview agreement'}</button>
           {actIssue && (
             <div className="w-full rounded-lg p-3 text-xs" style={{ border: '1px solid var(--color-accent-amber)', color: c.text }} data-testid="afs-ag-activation-issue">
               <p className="font-semibold mb-1">{actIssue.message}</p>
@@ -1851,7 +2001,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
               )}
             </div>
           )}
-          {['signed', 'activation_attention'].includes(ag.status) && <button data-testid="afs-ag-activate" onClick={() => activate()} disabled={busy} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-success-alt)', color: '#fff' }}><Rocket size={16} /> Activate Contract</button>}
+          {['signed', 'activation_attention'].includes(ag.status) && <button data-testid="afs-ag-activate" onClick={() => activate()} disabled={busy} title={ag.signature?.method === 'customer_esignature' ? 'Signed by the customer' : 'Signature recorded internally'} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-success-alt)', color: '#fff' }}><Rocket size={16} /> Activate Contract</button>}
         </div>
 
         {/* Timeline */}
@@ -1978,6 +2128,8 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
           </div>
         )}
       </Card>
+
+      <TermsCard API={API} headers={headers} c={c} isDark={isDark} />
 
       <Card c={c} isDark={isDark} className="mb-4">
         <p className="text-sm font-bold mb-2" style={{ color: c.text }}>Prepare agreement from an accepted quote</p>

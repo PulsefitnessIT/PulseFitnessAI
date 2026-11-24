@@ -15,7 +15,7 @@ const API = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND
 const fmtGBP = (n) => `£${Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (s) => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
-function SignaturePad({ onChange, height = 140 }) {
+export function SignaturePad({ onChange, height = 140 }) {
   const canvasRef = useRef(null);
   const drawing = useRef(false);
   const lastPt = useRef(null);

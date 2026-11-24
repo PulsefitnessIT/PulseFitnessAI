@@ -86,12 +86,15 @@ def test_accepted_quote_flows_to_active_contract_with_plan_and_billing():
     assert len(task) == 1 and task[0]["owner_id"] == "cm-test-coord"
 
     assert requests.post(f"{AFS}/agreements/{aid}/generate", headers=h).status_code == 200
-    assert not _open(f"cm:agreement-complete:{aid}") and len(_open(f"cm:agreement-sign:{aid}")) == 1
-    assert requests.patch(f"{AFS}/agreements/{aid}", headers=h, json={"start_date": "2026-03-01"}).status_code == 400
+    assert not _open(f"cm:agreement-complete:{aid}") and len(_open(f"cm:agreement-send:{aid}")) == 1
+    # Editing a generated (unsent) agreement returns it to draft so it must be regenerated.
+    r = requests.patch(f"{AFS}/agreements/{aid}", headers=h, json={"start_date": "2026-01-31"})
+    assert r.status_code == 200 and r.json()["status"] == "draft"
+    assert requests.post(f"{AFS}/agreements/{aid}/generate", headers=h).status_code == 200
 
     sig = {"signatory_name": "Alex QC", "position": "Director", "email": "alex@qc.example", "authority_confirmed": True}
     assert requests.post(f"{AFS}/agreements/{aid}/sign", headers=h, json=sig).status_code == 200
-    assert not _open(f"cm:agreement-sign:{aid}") and len(_open(f"cm:agreement-activate:{aid}")) == 1
+    assert not _open(f"cm:agreement-send:{aid}") and len(_open(f"cm:agreement-activate:{aid}")) == 1
 
     r = requests.post(f"{AFS}/agreements/{aid}/activate", headers=h, json={})
     assert r.status_code == 200, r.text

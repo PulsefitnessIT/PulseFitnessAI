@@ -1835,8 +1835,8 @@ TEMPLATE_VERSION = "AGREEMENT-TEMPLATE-2026.1"
 def _supplier_block(settings):
     s = settings.get("supplier") or {}
     return {
-        "name": s.get("name", "Pulse Fitness Ltd"),
-        "address": s.get("address", "Pulse Fitness, Radbourne Road, Radbourne Park, Congleton, Cheshire, CW12 4XB"),
+        "name": s.get("name", "Pulse Fitness Limited"),
+        "address": s.get("address", "Radnor Park, Greenfield Road, Congleton, Cheshire, CW12 4TW"),
         "company_number": s.get("company_number", ""),
         "vat_number": s.get("vat_number", ""),
     }
@@ -1845,11 +1845,11 @@ def _supplier_block(settings):
 def _service_contacts(settings):
     s = settings.get("service_contacts") or {}
     return {
-        "service_email": s.get("service_email", "service@pulsefitness.com"),
-        "service_phone": s.get("service_phone", "+44 (0)1260 294600"),
-        "portal_url": s.get("portal_url", "https://portal.pulsefitness.com"),
+        "service_email": s.get("service_email", "Service.Dept@pulsefitness.com"),
+        "service_phone": s.get("service_phone", "01260 294600 option 2"),
+        "portal_url": s.get("portal_url", "https://service.pulsefitness.com/SelfService/SignIn"),
         "parts_email": s.get("parts_email", "parts@pulsefitness.com"),
-        "office_hours": s.get("office_hours", "Mon–Fri 08:30–17:00"),
+        "office_hours": s.get("office_hours", "Mon–Thu 08:00–17:00, Fri 08:00–15:30"),
     }
 
 
@@ -2056,22 +2056,32 @@ def _apply_dates(doc: dict, start_date) -> None:
 
 _AG_STEPS = {
     "draft": ("complete", "Complete agreement", "fill the missing details and generate the agreement"),
-    "ready": ("sign", "Awaiting signature", "send for signature or record the customer's signature"),
-    "sent": ("sign", "Awaiting signature", "record the customer's signature"),
-    "signed": ("activate", "Ready to activate", "activate the contract to create the service plan and billing"),
+    "ready": ("send", "Send for signature", "send the agreement to the customer for electronic signature"),
+    "sent": ("sign", "Awaiting customer signature", "the customer has been sent the agreement to sign"),
+    "viewed": ("sign", "Awaiting customer signature", "the customer has opened the agreement but not signed yet"),
+    "signed": ("activate", "Activate contract", "activate the contract to create the service plan and billing"),
+    "declined": ("declined", "Customer declined agreement", "review the customer's reason and agree next steps"),
 }
+_AG_STEP_KEYS = {"complete", "send", "sign", "email-failed", "activate", "declined"}
 
 
 async def _agreement_step_action(org_id: str, ag: dict) -> None:
-    """One Action Centre item per agreement stage; earlier stages auto-close."""
+    """Exactly one Action Centre item per agreement — the current stage only.
+    Conflict / missing-information reviews (raised by activation) take precedence."""
     from utils.cm_actions import raise_action, resolve_action
     cur = _AG_STEPS.get(ag.get("status"))
-    for key in {"complete", "sign", "activate"} - ({cur[0]} if cur else set()):
+    req = ag.get("signature_request") or {}
+    if cur and cur[0] == "sign" and req.get("delivery_status") == "failed":
+        cur = ("email-failed", "Signature email not delivered",
+               f"the email to {req.get('email')} was not accepted — check the address, copy the link or resend")
+    for key in _AG_STEP_KEYS - ({cur[0]} if cur else set()):
         await resolve_action(org_id, f"cm:agreement-{key}:{ag['id']}", "Agreement moved to the next stage.")
     if not cur:
         return
     reasons = (ag.get("health") or {}).get("reasons") or []
     tail = f" Outstanding: {'; '.join(reasons[:4])}." if cur[0] == "complete" and reasons else ""
+    if cur[0] == "declined" and ag.get("declined_reason"):
+        tail = f" Reason: {ag['declined_reason']}"
     await raise_action(org_id, f"cm:agreement-{cur[0]}:{ag['id']}", type_="agreement_step",
                        subject=f"{cur[1]}: {ag.get('agreement_number')}",
                        body=f"{ag.get('company_name')} — {cur[2]}.{tail}",
@@ -2146,9 +2156,16 @@ async def patch_agreement(agreement_id: str, body: AgreementPatchIn, user=Depend
     if not ag:
         raise HTTPException(404, "Agreement not found")
     patch = {}
+    content_change = any(v is not None for v in (body.payment_method, body.serial_exceptions, body.resolve_wording,
+                                                  body.start_date, body.visits_per_year))
+    if content_change and ag.get("status") not in ("draft", "ready"):
+        raise HTTPException(400, "This agreement has been issued for signature — its content can no longer change. "
+                                 "Revoke the link first if a correction is needed.")
+    if content_change and ag.get("status") == "ready":
+        patch.update({"status": "draft", "document": None})
     if body.start_date is not None or body.visits_per_year is not None:
-        if ag.get("status") != "draft":
-            raise HTTPException(400, "Dates and visits can only change while the agreement is a draft.")
+        if ag.get("status") not in ("draft", "ready"):
+            raise HTTPException(400, "Dates and visits can only change before the agreement is issued.")
     if body.start_date is not None:
         from utils.cm_dates import parse_date
         if not parse_date(body.start_date):
@@ -2212,7 +2229,7 @@ async def sign_agreement(agreement_id: str, body: SignIn, user=Depends(require_c
     ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, **of}, _PUBLIC)
     if not ag:
         raise HTTPException(404, "Agreement not found")
-    if ag.get("status") not in ("ready", "sent"):
+    if ag.get("status") not in ("ready", "sent", "viewed"):
         raise HTTPException(400, "Agreement must be generated (Ready) before signing")
     if not body.authority_confirmed:
         raise HTTPException(400, "Signatory must confirm they have authority to sign")
@@ -2221,11 +2238,13 @@ async def sign_agreement(agreement_id: str, body: SignIn, user=Depends(require_c
         "signature": body.signature or body.signatory_name, "authority_confirmed": True,
         "signed_at": _now(), "tc_version": ag.get("tc_version"),
         "template_version": ag.get("template_version"),
+        "method": "staff_recorded", "recorded_by": user.get("email"),
     }
     who = f"{body.signatory_name} ({body.position})" if body.position.strip() else body.signatory_name
     tl = ag.get("timeline", []) + [{"at": _now(), "event": f"Signed by {who}", "by": body.email}]
     await db.crm2_afs_agreements.update_one({"id": agreement_id, **of}, {"$set": {
-        "status": "signed", "signature": sig, "signed_at": _now(), "timeline": tl, "updated_at": _now()}})
+        "status": "signed", "signature": sig, "signed_at": _now(), "timeline": tl, "updated_at": _now(),
+        **({"signature_request.revoked": True} if ag.get("signature_request") else {})}})
     await record_audit(entity_type="afs_agreement", entity_id=agreement_id, action="sign", user=user,
                        extra={"signatory": body.signatory_name})
     await _agreement_step_action(_org(user), {**ag, "status": "signed"})
@@ -2297,8 +2316,13 @@ async def activate_agreement(agreement_id: str, body: Optional[ActivateIn] = Non
     if ag.get("status") not in ("signed", "activation_attention"):
         raise HTTPException(400, "Agreement must be signed before activation")
 
+    sig, docu = ag.get("signature") or {}, ag.get("document") or {}
+    if sig.get("document_hash") and sig["document_hash"] != docu.get("sha256"):
+        raise HTTPException(409, {"code": "document_changed",
+                                  "message": "The signed document no longer matches the agreement — re-issue for signature."})
     missing = [f for f in ("start_date", "end_date", "billing_frequency") if not ag.get(f)]
     if missing:
+        await _agreement_step_action(org_id, {**ag, "status": "activation_attention"})
         await raise_action(org_id, f"cm:activation-missing:{agreement_id}", type_="contract_missing_info",
                            subject=f"Activation blocked: {ag.get('agreement_number')}",
                            body=f"{ag.get('company_name')} — add the {', '.join(missing).replace('_', ' ')} to the agreement before activation.",
@@ -2320,6 +2344,7 @@ async def activate_agreement(agreement_id: str, body: Optional[ActivateIn] = Non
         if not body.conflict_review_note:
             await db.crm2_afs_agreements.update_one({"id": agreement_id, **of}, {"$set": {
                 "status": "activation_attention", "activation_conflicts": conflicts, "updated_at": _now()}})
+            await _agreement_step_action(org_id, {**ag, "status": "activation_attention"})
             await raise_action(org_id, f"cm:activation-conflict:{agreement_id}", type_="activation_conflict",
                                subject=f"Review before activation: {ag.get('agreement_number')}",
                                body="; ".join(c["detail"] for c in conflicts[:5]),
@@ -2419,10 +2444,18 @@ async def activate_agreement(agreement_id: str, body: Optional[ActivateIn] = Non
     await resolve_action(org_id, f"cm:activation-conflict:{agreement_id}", "Activated after review.")
     await resolve_action(org_id, f"cm:activation-missing:{agreement_id}", "Information completed.")
     await _agreement_step_action(org_id, {**ag, "status": "active"})
+    welcome = None
+    try:
+        from utils.cm_agreements import send_welcome_pack
+        welcome = await send_welcome_pack(org_id, cid, actor=user.get("email") or "system")
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning("welcome pack failed for %s", cid, exc_info=True)
     await record_audit(entity_type="afs_agreement", entity_id=agreement_id, action="activate", user=user,
                        extra={"contract_id": cid, "conflict_override": body.conflict_review_note})
     return {"status": "active", "contract_id": cid, "contract_number": ag.get("agreement_number"), "steps": steps,
-            "service_visits": len(svc), "invoices": len(bills), "assets_covered": len(asset_ids)}
+            "service_visits": len(svc), "invoices": len(bills), "assets_covered": len(asset_ids),
+            "welcome_pack": welcome}
 
 
 @router.get("/contracts/{contract_id}/schedules")
@@ -2437,14 +2470,25 @@ async def contract_schedules(contract_id: str, user=Depends(get_crm_user)):
     bill = await db.crm2_afs_billing.find_one({"contract_id": contract_id, "organization_id": org_id}, _PUBLIC)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     visits = (svc or {}).get("visits", [])
+    done = {"completed", "verified", "cancelled", "excluded"}
+    outstanding = sorted((v for v in visits if (v.get("status") or "planned") not in done),
+                         key=lambda v: v.get("planned_date") or "")
+    overdue = [v for v in outstanding if (v.get("planned_date") or "9999") < today and v.get("status") != "booked"]
+    nxt = outstanding[0] if outstanding else None
     return {
         "contract": {"id": contract_id, "contract_number": contract.get("contract_number"),
                      "status": contract.get("status"), "annual_value": contract.get("annual_value"),
                      "sicon_sync_status": contract.get("sicon_sync_status"),
                      "sage_sync_status": contract.get("sage_sync_status")},
         "service": {"visits": visits, "required": len(visits),
-                    "completed": sum(1 for v in visits if v.get("status") == "completed"),
-                    "next_due": next((v["planned_date"] for v in visits if v["planned_date"] >= today), None)},
+                    "completed": sum(1 for v in visits if v.get("status") in ("completed", "verified")),
+                    "booked": sum(1 for v in visits if v.get("status") == "booked"),
+                    "cancelled": sum(1 for v in visits if v.get("status") in ("cancelled", "excluded")),
+                    "overdue": len(overdue),
+                    "next_due": nxt.get("planned_date") if nxt else None,
+                    "next_due_overdue": bool(nxt and nxt in overdue),
+                    "next_due_status": (nxt or {}).get("status") or ("planned" if nxt else None)},
+        "welcome_pack": {k: v for k, v in (contract.get("welcome_pack") or {}).items() if k != "history"} or None,
         "billing": (bill or {}).get("invoices", []),
     }
 
@@ -3813,3 +3857,157 @@ async def ai_assistant_send(body: AfsAiSendIn, user=Depends(get_crm_user)):
     await record_audit(entity_type="afs_ai_assistant", entity_id=body.contract_id, action="send_email",
                        user=user, extra={"to": email, "sent": bool(sent), "subject": subject})
     return {"sent": bool(sent), "to": email, "subject": subject}
+
+
+# ── Milestone 1: approved terms, customer e-signature, welcome pack ──────
+
+@router.get("/terms")
+async def list_terms(user=Depends(require_crm_perm("agreements.process"))):
+    rows = await db.crm2_afs_terms.find(_of(user), _PUBLIC).sort("uploaded_at", -1).to_list(50)
+    approved = next((t for t in rows if t["status"] == "approved"), None)
+    return {"terms": rows, "approved": approved}
+
+
+@router.post("/terms")
+async def upload_terms(version: str = Query(..., min_length=1), file: UploadFile = File(...),
+                       user=Depends(require_crm_perm("exceptions.approve"))):
+    from utils.cm_agreements import store_terms
+    name = file.filename or "terms"
+    if not name.lower().endswith((".pdf", ".docx")):
+        raise HTTPException(400, "Upload the Terms & Conditions as a PDF or Word (.docx) file.")
+    data = await file.read()
+    if not data or len(data) > 15 * 1024 * 1024:
+        raise HTTPException(400, "File is empty or larger than 15 MB.")
+    if name.lower().endswith(".pdf") and not data.startswith(b"%PDF"):
+        raise HTTPException(400, "This file is not a valid PDF.")
+    t = await store_terms(_org(user), version, name, data, user.get("email"))
+    await record_audit(entity_type="afs_terms", entity_id=t["id"], action="upload", user=user,
+                       extra={"version": version, "sha256": t["sha256"]})
+    return t
+
+
+@router.post("/terms/{terms_id}/approve")
+async def approve_terms_version(terms_id: str, user=Depends(require_crm_perm("exceptions.approve"))):
+    from utils.cm_agreements import approve_terms
+    t = await approve_terms(_org(user), terms_id, user.get("email"))
+    if not t:
+        raise HTTPException(404, "Terms not found")
+    await record_audit(entity_type="afs_terms", entity_id=terms_id, action="approve", user=user,
+                       extra={"version": t["version"], "sha256": t["sha256"]})
+    return t
+
+
+@router.get("/terms/{terms_id}/file")
+async def terms_file(terms_id: str, user=Depends(require_crm_perm("agreements.process"))):
+    from utils.cm_agreements import load_object
+    t = await db.crm2_afs_terms.find_one({"id": terms_id, **_of(user)}, _PUBLIC)
+    if not t:
+        raise HTTPException(404, "Terms not found")
+    return Response(await load_object(t["storage_path"]), media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="Terms-{t["version"]}.pdf"'})
+
+
+@router.get("/agreements/{agreement_id}/document")
+async def agreement_document(agreement_id: str, user=Depends(require_crm_perm("agreements.process"))):
+    """The exact signed / issued document, or a preview of the draft."""
+    from utils.cm_agreements import approved_terms, compose_pdf, load_object
+    ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, **_of(user)}, _PUBLIC)
+    if not ag:
+        raise HTTPException(404, "Agreement not found")
+    d = ag.get("signed_document") or ag.get("document")
+    if d:
+        pdf = await load_object(d["storage_path"])
+    else:
+        pdf = await compose_pdf(ag, await approved_terms(_org(user)), 0)
+    return Response(pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="{ag.get("agreement_number")}.pdf"'})
+
+
+class SendForSignatureIn(BaseModel):
+    signatory_name: str
+    email: str
+
+
+@router.post("/agreements/{agreement_id}/send-for-signature")
+async def send_for_signature(agreement_id: str, body: SendForSignatureIn,
+                             user=Depends(require_crm_perm("agreements.process"))):
+    """Freeze the document, issue a 14-day personal link and email it.
+    Re-sending issues a fresh link (the previous one stops working)."""
+    from utils import cm_agreements as cma
+    of, org_id = _of(user), _org(user)
+    ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, **of}, _PUBLIC)
+    if not ag:
+        raise HTTPException(404, "Agreement not found")
+    if ag.get("status") not in ("ready", "sent", "viewed"):
+        raise HTTPException(400, "Generate the agreement (all readiness checks passed) before sending for signature.")
+    health = _agreement_health(ag)
+    if not health["ready"]:
+        raise HTTPException(400, {"message": "Agreement not ready", "reasons": health["reasons"]})
+    email = (body.email or "").strip()
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email) or not body.signatory_name.strip():
+        raise HTTPException(400, "Enter the customer signatory's name and a valid email address.")
+    terms = await cma.approved_terms(org_id)
+    if not terms:
+        await cma.raise_terms_missing(org_id)
+        raise HTTPException(409, {"code": "terms_not_approved",
+                                  "message": "No approved Terms & Conditions — an administrator must upload and approve them first."})
+    claim = await db.crm2_afs_agreements.find_one_and_update(
+        {"id": agreement_id, **of, "signature_sending": {"$ne": True}},
+        {"$set": {"signature_sending": True}})
+    if not claim:
+        raise HTTPException(409, "A signature request is already being sent — refresh in a moment.")
+    try:
+        doc = ag.get("document")
+        if not doc or doc.get("terms_id") != terms["id"]:
+            doc = await cma.freeze_document(org_id, ag, terms)
+        token, req = cma.new_link(doc, email, body.signatory_name.strip())
+        base = os.environ.get("PUBLIC_APP_URL") or os.environ.get("FRONTEND_URL") or ""
+        url = f"{base.rstrip('/')}/as/{token}"
+        delivery = await cma.deliver_signature_email(org_id, ag, req, url)
+        req.update(delivery)
+        req["events"] = [{"at": _now(), "event": "issued", "by": user.get("email")},
+                         {"at": _now(), "event": f"email_{delivery['delivery_status']}"}]
+        prev = ag.get("signature_request")
+        history = (ag.get("signature_history") or []) + ([{**prev, "revoked": True, "superseded_at": _now()}] if prev else [])
+        tl = ag.get("timeline", []) + [{"at": _now(), "by": user.get("email"), "event":
+              f"Sent for signature to {email} (document v{doc['version']}) — "
+              + ("accepted by email provider" if delivery["delivery_status"] == "accepted_by_provider" else "EMAIL NOT DELIVERED")}]
+        await db.crm2_afs_agreements.update_one({"id": agreement_id, **of}, {"$set": {
+            "status": "sent", "document": doc, "signature_request": req, "signature_history": history,
+            "timeline": tl, "updated_at": _now()}})
+    finally:
+        await db.crm2_afs_agreements.update_one({"id": agreement_id, **of}, {"$unset": {"signature_sending": ""}})
+    out = await db.crm2_afs_agreements.find_one({"id": agreement_id, **of}, _PUBLIC)
+    await _agreement_step_action(org_id, out)
+    await record_audit(entity_type="afs_agreement", entity_id=agreement_id, action="send_for_signature", user=user,
+                       extra={"to": email, "document_version": doc["version"], "delivery": delivery["delivery_status"]})
+    return {"status": "sent", "link": url, "path": f"/as/{token}", "expires_at": req["expires_at"],
+            "delivery_status": delivery["delivery_status"], "document_version": doc["version"],
+            "document_hash": doc["sha256"]}
+
+
+@router.post("/agreements/{agreement_id}/signature-link/revoke")
+async def revoke_signature_link(agreement_id: str, user=Depends(require_crm_perm("agreements.process"))):
+    of = _of(user)
+    ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, **of}, _PUBLIC)
+    if not ag or not ag.get("signature_request"):
+        raise HTTPException(404, "No signature link to revoke")
+    if ag.get("status") not in ("sent", "viewed"):
+        raise HTTPException(400, "Only an outstanding signature link can be revoked.")
+    tl = ag.get("timeline", []) + [{"at": _now(), "event": "Signature link revoked", "by": user.get("email")}]
+    await db.crm2_afs_agreements.update_one({"id": agreement_id, **of}, {"$set": {
+        "signature_request.revoked": True, "signature_request.revoked_at": _now(), "status": "ready",
+        "timeline": tl, "updated_at": _now()}})
+    await _agreement_step_action(_org(user), {**ag, "status": "ready"})
+    return {"revoked": True}
+
+
+@router.post("/contracts/{contract_id}/welcome-pack")
+async def resend_welcome_pack(contract_id: str, user=Depends(require_crm_perm("agreements.process"))):
+    from utils.cm_agreements import send_welcome_pack
+    res = await send_welcome_pack(_org(user), contract_id, actor=user.get("email"), reissue=True)
+    if res.get("status") == "skipped":
+        raise HTTPException(400, res.get("detail"))
+    await record_audit(entity_type="contract", entity_id=contract_id, action="welcome_pack", user=user,
+                       extra={"status": res.get("status")})
+    return res

@@ -1360,6 +1360,42 @@ function AddCoverageModal({ companyId, state, onClose, onSaved, API, headers, c,
 }
 
 /* ═══ COMPANY DETAIL ═══ */
+function CoordinatorField({ company, API, headers, c, isDark }) {
+  const perms = useCRM().user?.crm_permissions || [];
+  const canEdit = perms.includes('contracts.manage');
+  const [list, setList] = useState(null);
+  const [cur, setCur] = useState({ id: company.coordinator_id || '', name: company.coordinator_name || '' });
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!canEdit) return;
+    axios.get(`${API}/crm/workspace/coordinators`, { headers: headers() }).then(r => setList(r.data.coordinators || [])).catch(() => setList([]));
+  }, [API, headers, canEdit]);
+  if (!canEdit && !cur.name) return null;
+  const save = async (uid) => {
+    setBusy(true);
+    try {
+      const r = await axios.put(`${API}/crm/workspace/customers/${company.id}/coordinator`, { user_id: uid || null }, { headers: headers() });
+      setCur({ id: r.data.coordinator_id || '', name: r.data.coordinator_name || '' });
+      toast.success(`${r.data.coordinator_name ? `Contract Coordinator: ${r.data.coordinator_name}` : 'Moved to the shared coordinator queue'}${r.data.tasks_reassigned ? ` · ${r.data.tasks_reassigned} open task(s) reassigned` : ''}`);
+    } catch (e) { toast.error(e.response?.data?.detail || 'Could not update the coordinator'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="flex items-center gap-3" data-testid="company-coordinator">
+      <Users size={14} style={{ color: c.textDim }} />
+      <span className="text-xs" style={{ color: c.textDim }}>Contract Coordinator</span>
+      {canEdit ? (
+        <select data-testid="company-coordinator-select" value={cur.id} disabled={busy || list === null} onChange={e => save(e.target.value)}
+          className="text-sm rounded-md px-2 py-1" style={{ background: isDark ? 'var(--color-surface-dark-1)' : '#fff', border: `1px solid ${c.border}`, color: c.text }}>
+          <option value="">Shared coordinator queue</option>
+          {cur.id && !(list || []).some(u => u.id === cur.id) && <option value={cur.id}>{cur.name}</option>}
+          {(list || []).map(u => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
+        </select>
+      ) : <span className="text-sm" data-testid="company-coordinator-name" style={{ color: c.text }}>{cur.name}</span>}
+    </div>
+  );
+}
+
 function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveTab, navigateTo }) {
   const { isMasterAdmin, isOwner } = useCRM();
   // Owners (and Master Admins) can delete a company. Delete lives at the
@@ -1865,7 +1901,8 @@ function CompanyDetail({ companyId, onBack, c, isDark, API, headers, _setActiveT
                 { icon: MapPin, label: 'Address', value: [company.address_line1 || company.address, company.address_line2, company.address_line3, company.city, company.county, company.postcode, company.country].filter(Boolean).join(', ') },
                 { icon: Tag, label: 'Sector', value: company.sector },
                 { icon: Users, label: 'Account Owner', value: company.account_owner_name },
-              ].map((item, i) => {
+              ].concat([{ custom: true }]).map((item, i) => {
+                if (item.custom) return <CoordinatorField key="coord" company={company} API={API} headers={headers} c={c} isDark={isDark} />;
                 if (!item.value) return null;
                 const Icon = item.icon;
                 return (
