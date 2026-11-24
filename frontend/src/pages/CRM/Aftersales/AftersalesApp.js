@@ -1542,11 +1542,11 @@ function AgreementProgress({ ag, c, isDark, API, headers }) {
   const steps = [
     ['Agreement pre-filled', true],
     ['Ready for signature', pos >= 1],
-    [`Sent${ag.signature_request ? '' : ''}`, !!ag.signature_request || pos >= 2],
+    ['Sent', (!!ag.signature_request && !ag.signature_request.revoked && pos >= 1) || pos >= 2],
     ['Signed', pos >= 2],
     ['Contract active', pos >= 3],
     [`Service plan${plan ? ` · ${plan.service.required} visits` : ''}`, !!plan && plan.service.required > 0],
-    [`Billing${plan ? ` · ${bills.length} invoices` : ''}`, !!plan && bills.length > 0],
+    [`Billing${plan ? ` · ${bills.length} invoice${bills.length === 1 ? '' : 's'}` : ''}`, !!plan && bills.length > 0],
     [`Welcome pack${wp ? (wp.status === 'accepted_by_provider' ? ' · sent' : ' · not delivered') : ''}`, wp?.status === 'accepted_by_provider'],
   ];
   return (
@@ -1585,9 +1585,13 @@ function TermsCard({ API, headers, c, isDark }) {
   const [version, setVersion] = useState('');
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
-  const canApprove = (useCRM().user?.crm_permissions || []).includes('exceptions.approve');
-  const load = useCallback(() => axios.get(`${API}/crm/v2/aftersales/terms`, { headers: headers() }).then(r => setData(r.data)).catch(() => {}), [API, headers]);
-  useEffect(() => { load(); }, [load]);
+  const perms = useCRM().user?.crm_permissions || [];
+  const canApprove = perms.includes('exceptions.approve');
+  const canSee = perms.includes('agreements.process');
+  const [loadErr, setLoadErr] = useState(false);
+  const load = useCallback(() => axios.get(`${API}/crm/v2/aftersales/terms`, { headers: headers() })
+    .then(r => { setData(r.data); setLoadErr(false); }).catch(() => setLoadErr(true)), [API, headers]);
+  useEffect(() => { if (canSee) load(); }, [load, canSee]);
   const upload = async (f) => {
     if (!f || !version.trim()) return;
     setBusy(true);
@@ -1606,11 +1610,12 @@ function TermsCard({ API, headers, c, isDark }) {
     try { const r = await axios.get(`${API}/crm/v2/aftersales/terms/${t.id}/file`, { headers: headers(), responseType: 'blob' }); window.open(URL.createObjectURL(r.data), '_blank'); }
     catch { toast.error('Could not open the terms'); }
   };
+  if (!canSee) return null;
   return (
     <Card c={c} isDark={isDark} className="mb-4" testId="afs-terms-card">
       <p className="text-sm font-bold mb-1" style={{ color: c.text }}>Maintenance Terms &amp; Conditions</p>
       <p className="text-xs mb-2" data-testid="afs-terms-status" style={{ color: data.approved ? c.textDim : 'var(--color-danger)' }}>
-        {data.approved ? `Approved version ${data.approved.version} is attached to every agreement sent for signature.` : 'No approved terms — agreements cannot be sent for customer signature yet.'}</p>
+        {loadErr ? 'Terms status could not be loaded — refresh to try again.' : data.approved ? `Approved version ${data.approved.version} is attached to every agreement sent for signature.` : 'No approved terms — agreements cannot be sent for customer signature yet.'}</p>
       {data.terms.slice(0, 4).map(t => (
         <div key={t.id} className="flex items-center gap-2 text-xs py-1 border-t" style={{ borderColor: c.border, color: c.text }} data-testid={`afs-terms-row-${t.id}`}>
           <span className="flex-1">v{t.version} · {t.filename} · {t.status.replace('_', ' ')}</span>
@@ -1878,7 +1883,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
                   className="block mt-1 w-16 px-2 py-1.5 text-sm rounded-md" style={inpStyle} /></label>
             </>)}
             <label className="text-xs" style={{ color: c.textDim }}>Payment method
-              <select data-testid="afs-ag-payment" value={ag.payment_method || 'annual'} onChange={e => patch({ payment_method: e.target.value })} className="block mt-1 px-2 py-1.5 text-sm rounded-md" style={inpStyle}>
+              <select data-testid="afs-ag-payment" value={ag.payment_method || 'annual'} disabled={!['draft', 'ready'].includes(ag.status)} onChange={e => patch({ payment_method: e.target.value })} className="block mt-1 px-2 py-1.5 text-sm rounded-md" style={inpStyle}>
                 <option value="annual">Annual</option><option value="monthly">Monthly (Direct Debit)</option><option value="lump_sum">Lump Sum</option></select></label>
             {ag.payment_method === 'monthly' && (
               <label className="text-xs flex items-center gap-1.5" style={{ color: c.textDim }}>
