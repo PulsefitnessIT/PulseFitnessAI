@@ -243,5 +243,7 @@ async def run_integrity_boot() -> dict:
     _ = _re
     from utils.cm_actions import ensure_indexes
     await ensure_indexes()
+    from utils.cm_quote_import import ensure_indexes as _qi_indexes
+    await _qi_indexes()
     return {"fabricated_sicon_refs_removed": fixed_sicon, "fabricated_sage_refs_removed": fixed_sage,
             "mod_rates_classified": classified, "mod_rates_marked_historical": hist.modified_count}

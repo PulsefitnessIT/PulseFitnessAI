@@ -76,38 +76,84 @@ async def extract_document(pdf: bytes, doc_type: str) -> dict:
     return out
 
 
-async def match_customer(org_id: str, hints: dict) -> dict:
-    """Verified references first (account ref, legal name + postcode); otherwise
-    return candidates for the coordinator. Never creates a customer."""
+_CI = {"locale": "en", "strength": 2}          # case-insensitive, index-backed
+_PROJ = {"_id": 0, "id": 1, "name": 1, "legal_name": 1, "postcode": 1, "linked_organization_id": 1,
+         "sage_account": 1, "sage_customer_reference": 1, "sage_customer_id": 1, "account_number": 1}
+_SUFFIX = re.compile(r"[\s,.]+(ltd|limited|plc|llp)\.?$", re.I)
+
+
+async def ensure_indexes() -> None:
+    for keys in ([("organization_id", 1), ("sage_account", 1)], [("organization_id", 1), ("sage_customer_reference", 1)],
+                 [("organization_id", 1), ("account_number", 1)], [("organization_id", 1), ("linked_organization_id", 1)],
+                 [("organization_id", 1), ("postcode", 1)]):
+        await db.crm2_companies.create_index(keys)
+    await db.crm2_companies.create_index([("organization_id", 1), ("name", 1)], collation=_CI, name="org_name_ci")
+    await db.crm2_companies.create_index([("organization_id", 1), ("legal_name", 1)], collation=_CI, name="org_legal_ci")
+    await db.sites.create_index([("postcode", 1)])
+
+
+def _name_variants(name: str) -> list:
+    base = _SUFFIX.sub("", (name or "").strip()).strip()
+    return list({v for v in (name.strip(), base, f"{base} Ltd", f"{base} Limited", f"{base} PLC") if v})
+
+
+def _pc_variants(pc: str) -> list:
+    p = _pc(pc)
+    return list({p, f"{p[:-3]} {p[-3:]}"} if len(p) > 4 else {p}) if p else []
+
+
+async def match_customer(org_id: str, hints: dict, limit: int = 8) -> dict:
+    """Bounded, index-backed lookups in priority order: account reference →
+    exact legal/trading name (+ postcode / site evidence) → candidates for the
+    coordinator. Never fuzzy-selects, never creates, never merges."""
     ref = (hints.get("account_ref") or "").strip()
-    name, pc = _norm(hints.get("customer_name")), _pc(hints.get("postcode"))
-    proj = {"_id": 0, "id": 1, "name": 1, "legal_name": 1, "postcode": 1, "linked_organization_id": 1,
-            "sage_account": 1, "sage_customer_reference": 1, "account_number": 1}
+    name = (hints.get("customer_name") or "").strip()
+    pcs = _pc_variants(hints.get("postcode"))
+    base = {"organization_id": org_id, "archived": {"$ne": True}}
     if ref:
-        hits = await db.crm2_companies.find({"organization_id": org_id, "$or": [
-            {"sage_account": ref}, {"sage_customer_reference": ref}, {"account_number": ref}]}, proj).to_list(5)
+        hits = await db.crm2_companies.find({**base, "$or": [
+            {"sage_account": ref}, {"sage_customer_reference": ref}, {"sage_customer_id": ref}, {"account_number": ref}]},
+            _PROJ).limit(3).to_list(3)
         if len(hits) == 1:
             return {"status": "matched", "company": hits[0], "basis": f"account reference {ref}", "candidates": hits}
-    cands, seen = [], set()
-    async for co in db.crm2_companies.find({"organization_id": org_id, "archived": {"$ne": True}}, proj):
-        n1, n2 = _norm(co.get("name")), _norm(co.get("legal_name"))
-        exact = bool(name) and name in (n1, n2)
-        similar = bool(name) and not exact and any(n and (name in n or n in name) for n in (n1, n2))
-        pcs = {_pc(co.get("postcode"))}
-        if pc and co.get("linked_organization_id"):
-            async for st in db.sites.find({"organization_id": co["linked_organization_id"]}, {"_id": 0, "postcode": 1}):
-                pcs.add(_pc(st.get("postcode")))
-        pc_hit = bool(pc) and pc in pcs
-        if (exact or similar or pc_hit) and co["id"] not in seen:
-            seen.add(co["id"])
-            cands.append({**co, "name_match": "exact" if exact else "similar" if similar else "none",
-                          "postcode_match": pc_hit})
-    strong = [x for x in cands if x["name_match"] == "exact" and (x["postcode_match"] or not pc)]
-    cands.sort(key=lambda x: (x["name_match"] != "exact", not x["postcode_match"]))
-    if len(strong) == 1 and (strong[0]["postcode_match"] or len([x for x in cands if x["name_match"] == "exact"]) == 1):
+    pc_orgs = set()
+    if pcs:
+        pc_orgs = {x["organization_id"] for x in await db.sites.find({"postcode": {"$in": pcs}}, {"_id": 0, "organization_id": 1}).limit(200).to_list(200)}
+
+    def has_pc(co):
+        return bool(pcs) and (_pc(co.get("postcode")) in {_pc(p) for p in pcs} or co.get("linked_organization_id") in pc_orgs)
+    exact = []
+    if name:
+        variants = _name_variants(name)
+        exact = await db.crm2_companies.find({**base, "$or": [{"name": {"$in": variants}}, {"legal_name": {"$in": variants}}]},
+                                             _PROJ).collation(_CI).limit(limit).to_list(limit)
+    for co in exact:
+        co["name_match"], co["postcode_match"] = "exact", has_pc(co)
+    strong = [co for co in exact if co["postcode_match"]] if pcs else exact
+    if len(strong) == 1 and (strong[0]["postcode_match"] or len(exact) == 1):
         basis = "legal name + postcode" if strong[0]["postcode_match"] else "exact legal name"
-        return {"status": "matched", "company": strong[0], "basis": basis, "candidates": cands[:8]}
-    return {"status": "review" if cands else "not_found", "company": None, "basis": None, "candidates": cands[:8]}
+        return {"status": "matched", "company": strong[0], "basis": basis, "candidates": exact}
+    # Review candidates: same postcode/site, or names starting with the document's first word.
+    seen = {co["id"] for co in exact}
+    cands = list(exact)
+    extra_q = []
+    if pcs:
+        extra_q.append({"postcode": {"$in": pcs}})
+        if pc_orgs:
+            extra_q.append({"linked_organization_id": {"$in": list(pc_orgs)}})
+    word = re.sub(r"[^A-Za-z0-9 ]", " ", _SUFFIX.sub("", name)).split()
+    if word and len(word[0]) >= 3:
+        rx = {"$regex": f"^{re.escape(word[0])}", "$options": "i"}
+        extra_q += [{"name": rx}, {"legal_name": rx}]
+    if extra_q:
+        for co in await db.crm2_companies.find({**base, "$or": extra_q}, _PROJ).limit(limit * 3).to_list(limit * 3):
+            if co["id"] in seen:
+                continue
+            seen.add(co["id"])
+            co["name_match"], co["postcode_match"] = "similar", has_pc(co)
+            cands.append(co)
+    cands.sort(key=lambda x: (x["name_match"] != "exact", not x["postcode_match"]))
+    return {"status": "review" if cands else "not_found", "company": None, "basis": None, "candidates": cands[:limit]}
 
 
 async def _active_contract_ids(org_id: str, ids: set) -> set:
@@ -122,6 +168,11 @@ async def match_lines(org_id: str, lines: list, doc_type: str, linked_org: str |
     from routes.crm_aftersales import _annotate_asset
     from routes.crm_afs_onboarding import _config_index, _match_row
     idx = await _config_index(org_id)
+    rgs = {r["name"]: r for r in await db.crm2_afs_rate_groups.find({"organization_id": org_id}, {"_id": 0}).to_list(200)}
+
+    def tariff_ok(cfg):
+        rg = rgs.get(cfg.get("rate_group") or "Standard Equipment") or {}
+        return float(rg.get("standard_pct") or 0) > 0 or float(rg.get("fixed_uplift") or 0) > 0
     by_sku = {}
     for cfgs in idx.values():
         for cfg in cfgs:
@@ -168,13 +219,12 @@ async def match_lines(org_id: str, lines: list, doc_type: str, linked_org: str |
             flags.append("serial_mismatch")
         if len(set(serials)) != len(serials):
             flags.append("duplicate_serials")
-        pricing = None
-        if cfg:
+        commercial = None
+        if cfg:  # pricing is a separate decision from identifying the machine
             pricing = await _annotate_asset(org_id, {"model": cfg.get("model"), "console_type": cfg.get("console_type") or ""})
-            if pricing["pricing_status"] != "SUPPORTED":
-                flags.append({"RRP_REQUIRED": "no_approved_price", "PROVISIONAL": "price_provisional",
-                              "NOT_ELIGIBLE": "unsupported", "SUPPORTABILITY_REVIEW": "unsupported"}.get(
-                                  pricing["pricing_status"], "no_approved_price"))
+            commercial = _commercial(pricing, cfg, tariff_ok(cfg))
+            if commercial["status"] == "not_eligible":
+                flags.append("unsupported")
         existing, covered = [], []
         if linked_org and serials:
             async for eq in db.equipment.find({"organization_id": linked_org, "serial_number": {"$in": serials}},
@@ -189,6 +239,9 @@ async def match_lines(org_id: str, lines: list, doc_type: str, linked_org: str |
             flags.append("evidence_only_price")
         blocking = {"unknown_code", "spare_part", "already_covered", "variant_review", "serial_mismatch",
                     "duplicate_serials", "discontinued", "model_match_only", "unsupported"}
+        ident_flags = set(flags) & (blocking - {"already_covered", "unsupported"})
+        identification = ("matched" if cfg and not ident_flags else "spare_part" if "spare_part" in flags
+                          else "unknown" if "unknown_code" in flags else "review")
         auto = bool(cfg) and basis == "exact product code" and not (set(flags) & blocking)
         out.append({
             "line_no": n, "item_code": code or None, "make": ln.get("make"), "model": ln.get("model"),
@@ -196,13 +249,54 @@ async def match_lines(org_id: str, lines: list, doc_type: str, linked_org: str |
             "document_amount": ln.get("amount"),
             "matched": {"config_id": cfg.get("id"), "model": cfg.get("model"), "console_type": cfg.get("console_type") or "",
                         "reference_sku": cfg.get("reference_sku"), "basis": basis,
-                        "pricing_status": (pricing or {}).get("pricing_status")} if cfg else None,
+                        "pricing_status": (commercial or {}).get("pricing_status")} if cfg else None,
+            "identification": identification, "commercial": commercial,
             "variant_options": options, "existing_equipment": existing, "flags": flags,
-            "decision": "accepted" if auto else ("excluded" if set(flags) & {"spare_part", "already_covered"}
+            "decision": "accepted" if auto else ("excluded" if set(flags) & {"spare_part", "already_covered", "unsupported"}
                                                  else "review"),
             "auto_accepted": auto, "needs_review": not auto,
         })
     return out
+
+
+COMMERCIAL_LABELS = {
+    "price_approved": "Machine matched — Price approved",
+    "price_requires_approval": "Machine matched — Price requires approval",
+    "price_held": "Machine matched — Price held",
+    "tariff_missing": "Machine matched — Maintenance tariff missing",
+    "supportability_review": "Machine matched — Supportability review required",
+    "not_eligible": "Machine matched — Not eligible for maintenance",
+}
+
+
+def _commercial(pricing: dict, cfg: dict, tariff_ok: bool = True) -> dict:
+    """Commercial readiness from the existing pricing engine's verdict (never a substitute price)."""
+    st = pricing.get("pricing_status")
+    approval = (cfg.get("approval_status") or "").lower()
+    if st == "NOT_ELIGIBLE":
+        key = "not_eligible"
+    elif st == "SUPPORTABILITY_REVIEW":
+        key = "supportability_review"
+    elif "hold" in approval:
+        key = "price_held"
+    elif st in ("RRP_REQUIRED", "PROVISIONAL"):
+        key = "price_requires_approval"
+    elif not tariff_ok:
+        key = "tariff_missing"
+    else:
+        key = "price_approved"
+    return {"status": key, "label": COMMERCIAL_LABELS[key], "ready": key == "price_approved",
+            "pricing_status": st, "approval_status": cfg.get("approval_status"),
+            "eligible": key != "not_eligible"}
+
+
+def summarise(lines: list) -> dict:
+    inc = [ln for ln in lines if ln["decision"] != "excluded"]
+    return {"lines": len(lines), "matched": sum(1 for ln in lines if ln.get("identification") == "matched"),
+            "needs_identification": sum(1 for ln in lines if ln["decision"] == "review"),
+            "commercially_ready": sum(1 for ln in inc if (ln.get("commercial") or {}).get("ready")),
+            "price_approval_required": sum(1 for ln in inc if ln.get("commercial") and not ln["commercial"]["ready"]),
+            "excluded": sum(1 for ln in lines if ln["decision"] == "excluded")}
 
 
 def sha256(b: bytes) -> str:

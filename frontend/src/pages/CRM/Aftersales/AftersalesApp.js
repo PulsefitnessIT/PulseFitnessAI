@@ -735,7 +735,7 @@ const FLAG_LABEL = {
   duplicate_serials: 'Duplicate serials', discontinued: 'Discontinued model', no_approved_price: 'No approved price',
   price_provisional: 'Price provisional', unsupported: 'Not contract-eligible', evidence_only_price: 'Invoice price is evidence only',
 };
-function DocumentImportCard({ API, headers, c, isDark, companies, inpStyle, onApplied }) {
+function DocumentImportCard({ API, headers, c, isDark, inpStyle, onApplied }) {
   const [docType, setDocType] = useState('sales_invoice');
   const [imp, setImp] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -745,12 +745,27 @@ function DocumentImportCard({ API, headers, c, isDark, companies, inpStyle, onAp
   const [cfgSearch, setCfgSearch] = useState({});
   const [coSearch, setCoSearch] = useState('');
   const [coResults, setCoResults] = useState(null);
-  const searchCo = async (q) => {
+  const [coLoading, setCoLoading] = useState(false);
+  const coReq = useRef({ seq: 0, timer: null, ctrl: null });
+  const searchCo = (q) => {
     setCoSearch(q);
-    if (q.trim().length < 2) { setCoResults(null); return; }
-    try { const r = await axios.get(`${API}/crm/v2/companies?search=${encodeURIComponent(q.trim())}&limit=25`, { headers: headers() });
-      setCoResults(r.data.companies || r.data.items || r.data || []); } catch { setCoResults([]); }
+    const st = coReq.current;
+    clearTimeout(st.timer);
+    st.ctrl?.abort();
+    const term = q.trim();
+    if (term.length < 2) { st.seq += 1; setCoResults(null); setCoLoading(false); return; }
+    setCoLoading(true);
+    st.timer = setTimeout(async () => {
+      const seq = ++st.seq;
+      st.ctrl = new AbortController();
+      try {
+        const r = await axios.get(`${API}/crm/v2/companies?search=${encodeURIComponent(term)}&limit=25`, { headers: headers(), signal: st.ctrl.signal });
+        if (seq === st.seq) setCoResults(r.data.companies || []);
+      } catch (e) { if (seq === st.seq && !axios.isCancel(e)) setCoResults([]); }
+      finally { if (seq === st.seq) setCoLoading(false); }
+    }, 300);
   };
+  useEffect(() => () => { clearTimeout(coReq.current.timer); coReq.current.ctrl?.abort(); }, []);
   const fileRef = useRef(null);
   useEffect(() => {
     if (!imp?.company_id) { setSites([]); return; }
@@ -816,11 +831,14 @@ function DocumentImportCard({ API, headers, c, isDark, companies, inpStyle, onAp
             {!imp.quote_id && <>
               <input data-testid="afs-aq-import-customer-search" placeholder="Search customers…" value={coSearch} onChange={e => searchCo(e.target.value)} className="px-2 py-1 text-xs rounded-md w-40" style={inpStyle} />
               <select data-testid="afs-aq-import-customer-select" value="" onChange={e => pickCustomer(e.target.value)} className="px-2 py-1 text-xs rounded-md" style={inpStyle}>
-                <option value="">{imp.customer?.company ? 'Change…' : 'Select customer…'}</option>
+                <option value="">{coLoading ? 'Searching…' : coResults && coResults.length === 0 ? 'No customers found' : imp.customer?.company ? 'Change…' : 'Select customer…'}</option>
                 {(imp.customer?.candidates || []).map(x => <option key={x.id} value={x.id}>{x.name} (suggested)</option>)}
                 {(coResults || []).map(x => <option key={`a-${x.id}`} value={x.id}>{x.name}</option>)}
               </select></>}
           </div>
+          {imp.summary && <p className="text-[11px] mb-1" data-testid="afs-aq-import-summary" style={{ color: c.textDim }}>
+            {imp.summary.matched} of {imp.summary.lines} machine line(s) identified · {imp.summary.commercially_ready} price approved · {imp.summary.price_approval_required} need price approval · {imp.summary.needs_identification} need a decision · {imp.summary.excluded} excluded.
+            {imp.doc_type !== 'maintenance_invoice' && ' New machines are added as awaiting installation — not marked installed.'}</p>}
           <table className="w-full text-xs" data-testid="afs-aq-import-lines">
             <thead><tr style={{ color: c.textDim }}><th className="text-left py-1">Code</th><th className="text-left">Machine</th><th>Qty</th><th className="text-left">Serials</th><th className="text-left">Match</th><th className="text-left">Decision</th></tr></thead>
             <tbody>
@@ -831,6 +849,7 @@ function DocumentImportCard({ API, headers, c, isDark, companies, inpStyle, onAp
                   <td className="text-center">{ln.quantity}</td>
                   <td className="text-[11px]" style={{ color: c.textDim }}>{ln.serials.join(', ') || '—'}{ln.existing_equipment.length > 0 && <div>{ln.existing_equipment.length} on register</div>}</td>
                   <td className="text-[11px]">{ln.matched ? `${ln.matched.model}${ln.matched.console_type ? ` / ${ln.matched.console_type}` : ''} · ${ln.matched.basis}` : '—'}
+                    {ln.commercial && <div data-testid={`afs-aq-import-commercial-${ln.line_no}`} className="text-[10px]" style={{ color: ln.commercial.ready ? 'var(--color-success-alt)' : 'var(--color-accent-amber)' }}>{ln.commercial.label}</div>}
                     {(ln.variant_options || []).length > 0 && !dec[ln.line_no]?.config_id && (
                       <div className="mt-1 flex flex-wrap gap-1">{ln.variant_options.map(v => (
                         <button key={v.config_id} data-testid={`afs-aq-import-variant-${ln.line_no}-${v.config_id}`} onClick={() => setDec(d => ({ ...d, [ln.line_no]: { decision: 'accepted', config_id: v.config_id } }))}
@@ -846,7 +865,7 @@ function DocumentImportCard({ API, headers, c, isDark, companies, inpStyle, onAp
                   <td>
                     <select data-testid={`afs-aq-import-decision-${ln.line_no}`} value={state(ln)} onChange={e => setDec(d => ({ ...d, [ln.line_no]: { ...(d[ln.line_no] || {}), decision: e.target.value } }))} className="px-1 py-0.5 rounded text-[11px]" style={inpStyle}>
                       {state(ln) === 'review' && <option value="review">Needs review</option>}
-                      <option value="accepted" disabled={(!ln.matched || (ln.variant_options || []).length > 0) && !dec[ln.line_no]?.config_id}>{ln.auto_accepted ? 'Accepted (exact code)' : 'Include'}</option>
+                      <option value="accepted" disabled={(!ln.matched || (ln.variant_options || []).length > 0) && !dec[ln.line_no]?.config_id}>{ln.auto_accepted ? 'Matched (exact code)' : 'Include'}</option>
                       <option value="excluded">Exclude</option>
                     </select>
                   </td>
@@ -1137,7 +1156,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
           </div>
         </div>
       )}
-      <DocumentImportCard API={API} headers={headers} c={c} isDark={isDark} companies={companies} inpStyle={inpStyle}
+      <DocumentImportCard API={API} headers={headers} c={c} isDark={isDark} inpStyle={inpStyle}
         onApplied={(r) => setPrefill({ company_id: r.company_id, site_ids: r.site_ids, asset_ids: r.asset_ids, source_import_id: r.import_id,
           import_label: IMPORT_TYPES[r.doc_type], document_ref: r.document_ref, company_name: r.company_name, equipment_count: r.asset_ids.length })} />
       <Card c={c} isDark={isDark} className="mb-4">

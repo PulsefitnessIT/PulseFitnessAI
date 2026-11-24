@@ -893,6 +893,7 @@ async def _annotate_asset(org_id, eq):
         "rrp": round(float(rrp or 0), 2), "rate_group": rate_group,
         "approval_status": approval, "contract_eligible": eligible,
         "supportability": supp_status, "pricing_status": pstatus,
+        "lifecycle_stage": eq.get("lifecycle_stage"), "equipment_status": eq.get("status"),
     }
 
 
@@ -915,7 +916,7 @@ async def estate(company_id: str, user=Depends(get_crm_user)):
     equipment = await db.equipment.find(
         {"organization_id": linked},
         {"_id": 0, "id": 1, "name": 1, "model": 1, "model_code": 1, "console_type": 1,
-         "manufacturer": 1, "serial_number": 1, "site_id": 1, "warranty_expiry": 1}).to_list(None)
+         "manufacturer": 1, "serial_number": 1, "site_id": 1, "warranty_expiry": 1, "status": 1, "lifecycle_stage": 1}).to_list(None)
     annotated = [await _annotate_asset(org_id, e) for e in equipment]
     by_site = {}
     for a in annotated:
@@ -974,7 +975,7 @@ async def build_quote_from_estate(body: BuildFromEstateIn, user=Depends(require_
     equipment = await db.equipment.find(
         eq_query,
         {"_id": 0, "id": 1, "name": 1, "model": 1, "model_code": 1, "console_type": 1,
-         "serial_number": 1, "site_id": 1, "warranty_expiry": 1, "contract_cover": 1}).to_list(None)
+         "serial_number": 1, "site_id": 1, "warranty_expiry": 1, "contract_cover": 1, "status": 1, "lifecycle_stage": 1}).to_list(None)
     if body.asset_ids:
         _wanted = set(body.asset_ids)
         equipment = [e for e in equipment if e.get("id") in _wanted]
@@ -1050,6 +1051,12 @@ async def build_quote_from_estate(body: BuildFromEstateIn, user=Depends(require_
                                "config_id": a["config_id"],
                                "detail": f"{a['model']} configuration still needs Aftersales approval."})
 
+    for a in annotated:
+        if a["pricing_status"] == "SUPPORTED" and not a.get("annual"):
+            exceptions.append({"kind": "TARIFF_MISSING", "asset_id": a["id"], "model": a["model"],
+                               "config_id": a.get("config_id"),
+                               "detail": f"{a['model']} is matched and eligible, but no approved maintenance tariff "
+                                         f"gives it a price — add the tariff before issuing."})
     total_assets = len(annotated)
     priced_with_value = sum(1 for a in annotated if a.get("annual", 0) > 0)
     pct_priced = round(100.0 * priced_with_value / total_assets, 1) if total_assets else 0
@@ -2319,6 +2326,12 @@ async def _activation_conflicts(of: dict, ag: dict, cid: Optional[str]) -> list:
             if (cov.get("end") or "9999") >= start:
                 out.append({"type": "equipment_already_covered", "equipment_id": e["id"],
                             "detail": f"{e.get('name')} ({e.get('serial_number') or 'no serial'}) is covered by {cov.get('contract_number')}"})
+        async for e in db.equipment.find({"organization_id": linked, "id": {"$in": ids},
+                                          "lifecycle_stage": {"$in": list(PENDING_INSTALL_STAGES)}},
+                                         {"_id": 0, "id": 1, "name": 1, "serial_number": 1, "lifecycle_stage": 1}):
+            out.append({"type": "installation_unverified", "equipment_id": e["id"],
+                        "detail": f"{e.get('name')} ({e.get('serial_number') or 'no serial'}) — installation not yet "
+                                  f"confirmed ({e['lifecycle_stage'].replace('_', ' ')})"})
     return out
 
 
@@ -4087,6 +4100,14 @@ async def retry_signed_document(agreement_id: str, user=Depends(require_crm_perm
 
 # ── Build Quote: start from a sales invoice / delivery note / maintenance invoice ──
 
+# Equipment lifecycle for machines first seen on a document. None of these is
+# "installed": status stays pending_installation until an authorised installation
+# confirmation (equipment PATCH install_date by owner/manager, or commissioning).
+PENDING_INSTALL_STAGES = ("identified_from_invoice", "delivered", "verification_required")
+IMPORT_STAGE = {"sales_invoice": "identified_from_invoice", "delivery_note": "delivered",
+                "maintenance_invoice": "verification_required"}
+STAGE_RANK = {"verification_required": 1, "identified_from_invoice": 1, "delivered": 2, "installed": 3}
+
 @router.post("/build-quote/imports")
 async def create_quote_import(doc_type: str = Form(...), company_id: str = Form(""), file: UploadFile = File(...),
                               user=Depends(require_crm_perm("quotes.maintenance"))):
@@ -4118,7 +4139,8 @@ async def create_quote_import(doc_type: str = Form(...), company_id: str = Form(
     lines = await qi.match_lines(org_id, extracted.get("lines") or [], doc_type, linked)
     doc = {"id": iid, "organization_id": org_id, "doc_type": doc_type, "filename": file.filename, "sha256": digest,
            "storage_path": path, "size": len(data), "extracted": extracted, "customer": cust,
-           "company_id": (cust.get("company") or {}).get("id"), "lines": lines, "status": "review",
+           "company_id": (cust.get("company") or {}).get("id"), "lines": lines, "summary": qi.summarise(lines),
+           "status": "review",
            "created_by": user.get("email"), "created_at": _now(), "updated_at": _now()}
     await db.crm2_afs_quote_imports.insert_one(dict(doc))
     await record_audit(entity_type="afs_quote_import", entity_id=iid, action="create", user=user,
@@ -4152,7 +4174,7 @@ async def set_import_customer(import_id: str, body: ImportCustomerIn, user=Depen
     lines = await qi.match_lines(_org(user), (imp.get("extracted") or {}).get("lines") or [], imp["doc_type"], linked)
     cust = {**imp["customer"], "status": "selected", "company": co, "basis": "chosen by coordinator"}
     await db.crm2_afs_quote_imports.update_one({"id": import_id}, {"$set": {
-        "customer": cust, "company_id": co["id"], "lines": lines, "updated_at": _now()}})
+        "customer": cust, "company_id": co["id"], "lines": lines, "summary": qi.summarise(lines), "updated_at": _now()}})
     return await db.crm2_afs_quote_imports.find_one({"id": import_id}, _PUBLIC)
 
 
@@ -4202,27 +4224,44 @@ async def apply_quote_import(import_id: str, body: ImportApplyIn, user=Depends(r
             raise HTTPException(400, f"Line {ln['line_no']} is already under an active contract — exclude it.")
         if not ln.get("matched"):
             raise HTTPException(400, f"Line {ln['line_no']} needs a machine chosen before it can be included.")
+    stage = IMPORT_STAGE[imp["doc_type"]]
+    ref = (imp.get("extracted") or {}).get("document_ref")
+    evidence = {"import_id": import_id, "doc_type": imp["doc_type"], "document_ref": ref,
+                "document_date": (imp.get("extracted") or {}).get("document_date"), "sha256": imp["sha256"]}
+    claimed: set = set()
     for ln in lines:  # validated above — nothing is written unless every line is decided
         if ln["decision"] == "excluded":
             continue
         m = ln["matched"]
         for k in range(ln["quantity"]):
             serial = ln["serials"][k] if k < len(ln["serials"]) else ""
-            q = {"organization_id": linked, "serial_number": serial} if serial else \
-                {"organization_id": linked, "source_import_line": f"{import_id}:{ln['line_no']}:{k}"}
-            eq = await db.equipment.find_one(q, {"_id": 0, "id": 1})
+            key = f"{import_id}:{ln['line_no']}:{k}"
+            eq = await db.equipment.find_one({"organization_id": linked, "serial_number": serial}, {"_id": 0}) if serial \
+                else await db.equipment.find_one({"organization_id": linked, "source_import_line": key}, {"_id": 0})
+            if not eq and not serial:
+                # Serial-less unit already identified by an earlier document (e.g. invoice → delivery note).
+                eq = await db.equipment.find_one(
+                    {"organization_id": linked, "site_id": site["id"], "model": m.get("model"),
+                     "serial_number": {"$in": [None, ""]}, "lifecycle_stage": {"$in": list(PENDING_INSTALL_STAGES)},
+                     "id": {"$nin": list(claimed)}}, {"_id": 0}, sort=[("created_at", 1)])
             if eq:
                 reused += 1
+                upd = {"$addToSet": {"source_evidence": evidence}, "$set": {"updated_at": _now()}}
+                if STAGE_RANK.get(stage, 0) > STAGE_RANK.get(eq.get("lifecycle_stage"), 99):
+                    upd["$set"]["lifecycle_stage"] = stage       # forward only; verified/active kit untouched
+                await db.equipment.update_one({"id": eq["id"]}, upd)
             else:
                 eq = {"id": _id(), "organization_id": linked, "site_id": site["id"], "location": site["name"],
                       "name": m.get("model") or ln.get("model"), "model": m.get("model"),
                       "console_type": m.get("console_type") or "", "manufacturer": ln.get("make") or "",
-                      "serial_number": serial, "status": "active", "source": "quote_import",
-                      "source_import_line": f"{import_id}:{ln['line_no']}:{k}", "source_doc_type": imp["doc_type"],
-                      "source_document_ref": (imp.get("extracted") or {}).get("document_ref"),
+                      "serial_number": serial, "status": "pending_installation", "lifecycle_stage": stage,
+                      "install_verified": False, "install_date": None, "warranty_expiry": None,
+                      "source": "quote_import", "source_import_line": key, "source_doc_type": imp["doc_type"],
+                      "source_document_ref": ref, "source_evidence": [evidence],
                       "item_code": ln.get("item_code"), "created_at": _now(), "updated_at": _now()}
                 await db.equipment.insert_one(dict(eq))
                 created += 1
+            claimed.add(eq["id"])
             asset_ids.append(eq["id"])
     await db.crm2_afs_quote_imports.update_one({"id": import_id}, {"$set": {
         "lines": lines, "site_id": site["id"], "asset_ids": asset_ids, "status": "applied", "updated_at": _now()}})

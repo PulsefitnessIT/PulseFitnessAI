@@ -357,7 +357,7 @@ async def commission_install(alloc_id: str, data: dict, user: dict) -> dict:
     })
     capex = await _unit_cost_and_type(user, a["unit_id"])
     await db.equipment.update_one({**of, "id": a.get("asset_id")}, {"$set": {
-        "status": "active", "warranty_expiry": w_end, "commissioned_at": _now(),
+        "status": "active", "lifecycle_stage": "installed", "install_verified": True, "warranty_expiry": w_end, "commissioned_at": _now(),
         "install_date": signed_at, "purchase_date": signed_at,
         "software_version": data.get("software_version"), "updated_at": _now(),
         **capex,

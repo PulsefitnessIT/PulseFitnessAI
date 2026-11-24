@@ -969,6 +969,17 @@ async def update_equipment(equipment_id: str, data: Dict[str, Any], request: Req
             detail="Only owners and managers can move equipment between sites",
         )
 
+    # Installation confirmation for kit first identified from an invoice / delivery note
+    # (Build Quote import): an authorised install date makes it installed + active.
+    if update_data.get("install_date"):
+        cur = await db.equipment.find_one({**org_filter, "id": equipment_id}, {"_id": 0, "lifecycle_stage": 1})
+        if (cur or {}).get("lifecycle_stage") in ("identified_from_invoice", "delivered", "verification_required"):
+            if user.get("role") not in ("owner", "manager", "master_admin") and not user.get("is_master_admin"):
+                raise HTTPException(status_code=403, detail="Only owners and managers can confirm installation")
+            update_data.update({"status": "active", "lifecycle_stage": "installed", "install_verified": True,
+                                "install_verified_by": user.get("email"),
+                                "install_verified_at": datetime.now(timezone.utc).isoformat()})
+
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     # Capture the previous supplier value so we can detect a real change
