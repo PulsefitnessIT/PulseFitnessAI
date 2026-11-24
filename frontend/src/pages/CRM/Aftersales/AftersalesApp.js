@@ -3189,7 +3189,7 @@ function PlannerRow({ API, headers, row, engineers, c, isDark, canBook, canRevie
           : <span className="text-xs" style={{ color: c.textDim }}>—</span>}
         {row.action && <div className="text-[11px] mt-1" style={{ color: c.textDim }} title={row.action_owner}>{row.action}</div>}
       </td>
-      <td className={cell + ' text-right'}>
+      <td className={cell + ' text-right whitespace-nowrap min-w-[220px]'}>
         {canBook && bookable && (
           <button onClick={() => setOpen(o => !o)} data-testid={`planner-book-toggle-${row.obligation_id}`}
                   className="text-xs font-semibold px-2 py-1 rounded-md border" style={{ borderColor: c.border, color: c.text }}>
@@ -3250,7 +3250,7 @@ function ServicePlanner({ API, headers, c, isDark }) {
         </div>
         <div className="flex items-center gap-2">
         <button data-testid="planner-refresh" onClick={async () => {
-                  try { await axios.post(`${API}/crm/v2/aftersales/service-planner/sync`, {}, { headers: headers() }); } catch { /* list reload shows the error */ }
+                  try { await axios.post(`${API}/crm/v2/aftersales/service-planner/sync`, {}, { headers: headers() }); } catch { toast.error('Sync with Service Desk failed — showing the last known state'); }
                   load();
                 }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"

@@ -39437,3 +39437,11 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Customer matching: index-backed (sage_account/sage_customer_reference/sage_customer_id/account_number, collation name/legal_name, postcode, linked org, sites.postcode); 5,000-customer benchmark 1636 ms → 3 ms; never creates/merges; ambiguous → review. Frontend search: 300 ms debounce, AbortController + sequence guard, Searching…/No customers found, no default list.
 - Tests: test_cm_build_quote_import.py (7), test_cm_iter308_import_guards.py (6) + CM suites (80 total green before guards); iteration_307 95% → fixes → iteration_308 frontend 100%, backend gap fixed.
 - Pre-existing unrelated: test_inventory_allocation_phase5 (dealer-inventory data shape), afs quote chasers seed missing.
+
+## Nov 2026 — Contract Management Phase 3: Service Planner ↔ Service Desk ↔ Sicon (design unchanged)
+- Stage 1: Build Quote apply serialised per document; machines created once per serial/line via `crm2_afs_equipment_claims` (unique key); serial-less identical machines are never merged on model+site — kept separate + coordinator action, or reused only when the coordinator confirms (`reuse_equipment_ids`).
+- Obligations now carry stable `obligation_id`, per-site scope, covered `equipment_ids`; approved `service_dates` on the agreement override the calendar; regeneration preserves booked/completed/excluded visits.
+- `utils/cm_service_link.py` links visits to `svc_cases` (PPM only), derives booked/cancelled/completed/reopened with audit history, verified-completion evidence (report, actual date, all machines serviced, Sicon ref), dry-run reconciliation, Action Centre items (book / cancelled / review) auto-resolved.
+- `routes/crm_service_planner.py`: GET /service-planner, POST /service-planner/sync, GET /service-planner/engineers, POST /contracts/{cid}/obligations/{oid}/book (creates the ordinary Service Desk PPM job once), /review (exceptions.approve), GET /contracts/{cid}/service-reconciliation, /obligations/{oid}/candidates.
+- Hooks: svc_state.transition + Sicon inbound updates re-sync the contract; daily checks sync all; `ensure_annual_ppm` skips contract-covered machines.
+- UI: Service planner table inside the existing CM → Service tab (buckets, search, book, review). Tests: iteration_309/310 + pytest suites (123 CM/PPM/Sicon tests pass).

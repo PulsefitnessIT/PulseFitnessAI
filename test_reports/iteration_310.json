@@ -1,0 +1,32 @@
+{
+  "summary": "Iteration 310: retest of the 8 Service Planner fixes from iteration 309, plus a short regression. I re-seeded the fictional TEST_p3ui_ data with tests/_seed_p3ui.py, then cleaned it up and checked the deletion (0 TEST_p3ui contracts, cases, quotes or sites left). Backend: the requested suites tests/test_cm_phase3_service_planner.py and tests/test_cm_phase3_import_regression.py pass, 11/11. The new file tests/test_cm_phase3_planner_fixes_iter310.py passes 6/6 against the public URL. It covers: totals respect q; 400 for a past date; 400 for a date after the contract end_date, with no case and no booking lock left behind; POST /service-planner/sync returns 200, and 401 without auth; GET does not re-sync a contract with no live bookings within 60s (synced_at unchanged); a Service Desk change to the booked case's scheduled_at and engineer shows on the next GET. Frontend (1920x1080, public URL), fixes: FIX1 for cm.coordinator and cm.aftersales, the case reference is a plain SPAN (planner-case-ref-<oid>) with the title 'Open in Service Desk (requires Service Desk access)', and no planner-case-link. FIX2 Contracts → Contracts & Renewals shows afs-compliance-panel=1 and afs-service-planner=0; the Service tab shows both. FIX3 '3 machines' and '1 machine' are correct. FIX4 a visit due 2026-11-01 booked for 2026-12-03 shows 'Booked late' in the warning amber tone; a visit booked before its due date shows 'Booked' in green. FIX5 the chips follow the search: TEST_p3ui gives Booked 2 / Overdue 1 / Review 1; 'TEST South Gym' gives Booked 0 / Overdue 1 / Review 1 (3 rows); 'TEST North Gym' gives Booked 2 / Overdue 0 / Review 0 (2 rows). FIX6 the UI toasts show 'Choose today or a future date…' and 'The contract cover ends 2027-10-31 — book within cover.' FIX7 planner-refresh sends POST /service-planner/sync, then reloads. With the GET mocked to fail (500), planner-error shows ('The service planner could not be loaded. Try Refresh.') rather than planner-empty. Regression: booking with Erin Engineer works (toast 'Service Desk job SVC-xxxxx created'). After a simulated full completion the row shows Completed / 'Completed 2026-11-20' and the Completed chip shows 1. cm.aftersales sees Link and Not this (2 candidates); clicking Not this gives 'Review recorded' and the remaining candidate stays as 'Possible visit — confirm'. NOT verified in the UI: the case LINK for a user who has Service Desk access. No CM test user has is_service_desk, and two attempts to mock /auth/me or user_cache in Playwright did not take effect. I only checked this in code review: canDesk = can(useAuth().user,'view_service_desk') switches between the <a> and the <span>.",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "GET /api/crm/v2/aftersales/service-planner", "issue": "The 60s throttle only skips contracts with no live (booked) visit. For those contracts, a new Service Desk case tagged with contract_obligation_id, or a reopened completed case, shows up to 60s late unless the user clicks Sync. This is acceptable by design; noted for awareness."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Sync with Service Desk", "issue": "If POST /service-planner/sync fails, the error is swallowed silently. When the following GET succeeds, the user gets no feedback that the sync failed. Consider a toast.error.", "affected_selectors": ["[data-testid=planner-refresh]"]}
+    ],
+    "design_issues": [
+      {"screen": "Service planner table (aftersales manager with review candidates)", "issues": ["When the Link / Not this candidate block renders in the last column, the other columns narrow. 'Service due', 'Year 1 · visit 1', '3 machines' and the 'Not this' button wrap onto 2 lines. Consider a min-width for the action column or nowrap on the buttons. Minor."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_cm_phase3_planner_fixes_iter310.py", "/app/backend/tests/test_cm_phase3_service_planner.py", "/app/backend/tests/test_cm_phase3_import_regression.py", "/app/test_reports/pytest/iter310.xml"],
+  "action_items": [
+    "Optional: toast an error when POST /service-planner/sync fails in planner-refresh.",
+    "Optional: stop the planner's last column (candidate buttons) from squeezing the other columns.",
+    "Optional: give one CM test user (or a dedicated TEST user) Service Desk access so the planner-case-link path can be tested end to end."
+  ],
+  "critical_code_review_comments": [
+    "AftersalesApp.js is ~3670 lines, far over the 700-line guideline. ServicePlanner, PlannerRow and PlannerBookForm should move into their own module.",
+    "PlannerBookForm pre-fills the date by comparing against new Date() in the browser's timezone/UTC. That is fine, but the server is the source of truth for the 'past date' rule."
+  ],
+  "updated_files": ["/app/backend/tests/test_cm_phase3_planner_fixes_iter310.py"],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "100% of fixes tested (FIX1 link path for Service Desk users only checked in code)"},
+  "seed_data_creation": "TEST_p3ui_ data seeded with tests/_seed_p3ui.py, then removed with its cleanup command. Deletion checked.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Seed: cd /app/backend && PYTHONPATH=. python tests/_seed_p3ui.py seed; then 'complete' or 'partial' to simulate engineer completion; 'cleanup' at the end. Run test_cm_phase3_planner_fixes_iter310.py with -p no:xdist after seeding. Note it books visit 2 at today+30 days. SVC reference numbers repeat across orgs; this is by design (per-org counters). The CM test users lack view_service_desk, so the case-link branch cannot be reached in the UI without a user who has Service Desk access.",
+  "test_credentials": "cm.coordinator / cm.aftersales @pulsefitness.test, CmTest2026!"
+}
