@@ -2837,15 +2837,24 @@ function AIAssistantTab({ API, headers, c, isDark }) {
 }
 
 // ───────────────────────────────────────────────────────── Shell
-export default function AftersalesApp() {
+// Contract Management reuses this shell per section: `sections` limits the
+// sub-tabs and `onLeaveSection` hands navigation to another workspace section.
+const SERVICE_SUB_TAB = { id: 'service', label: 'Service Obligations', icon: CalendarClock };
+
+export default function AftersalesApp({ sections = null, initialTab = 'dashboard', onLeaveSection = null } = {}) {
   const crm = useCRM();
   const { API, headers, c, isDark } = crm;
-  const [tab, setTab] = useState('dashboard');
+  const [tab, setTabState] = useState(initialTab);
   const [editQuote, setEditQuote] = useState(null);
-  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, onboarding: EstateOnboarding, agreements: AgreementsTab, renewals: RenewalsRpiTab, ai: AIAssistantTab, reports: ReportsTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab, finance: FinanceDashboard }[tab];
+  const tabs = sections ? [...SUB_TABS, SERVICE_SUB_TAB].filter((t) => sections.includes(t.id)) : SUB_TABS;
+  const setTab = (t) => {
+    if (sections && !sections.includes(t) && onLeaveSection) onLeaveSection(t);
+    else setTabState(t);
+  };
+  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, onboarding: EstateOnboarding, agreements: AgreementsTab, renewals: RenewalsRpiTab, ai: AIAssistantTab, reports: ReportsTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab, finance: FinanceDashboard, service: LiveCompliancePanel }[tab];
   return (
     <div data-testid="afs-app">
-      <SubTabBar tabs={SUB_TABS} active={tab} onChange={setTab} testId="afs-tab" ariaLabel="Aftersales sections" />
+      {tabs.length > 1 && <SubTabBar tabs={tabs} active={tab} onChange={setTab} testId="afs-tab" ariaLabel="Aftersales sections" />}
       {tab === 'contracts'
         ? <><LiveCompliancePanel API={API} headers={headers} c={c} isDark={isDark} /><CRMContracts /></>
         : <TabComp API={API} headers={headers} c={c} isDark={isDark} editQuote={editQuote} setEditQuote={setEditQuote} goTo={setTab} />}

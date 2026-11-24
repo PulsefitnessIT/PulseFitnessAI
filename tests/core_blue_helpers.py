@@ -1,5 +1,5 @@
 import json
-BASE = "https://sicon-sync-hub.preview.emergentagent.com"
+BASE = "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com"
 cb_audit = open('/app/tests/core_blue_audit.js').read()
 
 

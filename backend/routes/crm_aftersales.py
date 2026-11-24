@@ -28,6 +28,8 @@ from utils.database import db, EMERGENT_LLM_KEY
 from routes.crm_auth import get_crm_user
 from utils.crm_audit import record_audit
 
+from routes.crm_workspace import require_crm_perm  # noqa: E402
+
 router = APIRouter(prefix="/crm/v2/aftersales", tags=["Aftersales Contracts"])
 
 
@@ -94,7 +96,7 @@ class SettingsUpdate(BaseModel):
 
 
 @router.put("/settings")
-async def update_settings(body: SettingsUpdate, user=Depends(get_crm_user)):
+async def update_settings(body: SettingsUpdate, user=Depends(require_crm_perm("pricing.manage"))):
     of = _of(user)
     patch = {k: v for k, v in body.dict().items() if v is not None}
     if not patch:
@@ -151,7 +153,7 @@ class RateGroupUpdate(BaseModel):
 
 
 @router.put("/rate-groups/{rg_id}")
-async def update_rate_group(rg_id: str, body: RateGroupUpdate, user=Depends(get_crm_user)):
+async def update_rate_group(rg_id: str, body: RateGroupUpdate, user=Depends(require_crm_perm("pricing.manage"))):
     of = _of(user)
     existing = await db.crm2_afs_rate_groups.find_one({"id": rg_id, **of}, _PUBLIC)
     if not existing:
@@ -175,7 +177,7 @@ class ContractTypeUpdate(BaseModel):
 
 
 @router.put("/contract-types/{ct_id}")
-async def update_contract_type(ct_id: str, body: ContractTypeUpdate, user=Depends(get_crm_user)):
+async def update_contract_type(ct_id: str, body: ContractTypeUpdate, user=Depends(require_crm_perm("pricing.manage"))):
     of = _of(user)
     existing = await db.crm2_afs_contract_types.find_one({"id": ct_id, **of}, _PUBLIC)
     if not existing:
@@ -226,7 +228,7 @@ class PackageUpdate(BaseModel):
 
 
 @router.put("/packages/{pkg_id}")
-async def update_package(pkg_id: str, body: PackageUpdate, user=Depends(get_crm_user)):
+async def update_package(pkg_id: str, body: PackageUpdate, user=Depends(require_crm_perm("pricing.manage"))):
     of = _of(user)
     existing = await db.crm2_afs_packages.find_one({"id": pkg_id, **of}, _PUBLIC)
     if not existing:
@@ -307,7 +309,7 @@ class ServiceConfigUpdate(BaseModel):
 
 
 @router.put("/service-configs/{cfg_id}")
-async def update_service_config(cfg_id: str, body: ServiceConfigUpdate, user=Depends(get_crm_user)):
+async def update_service_config(cfg_id: str, body: ServiceConfigUpdate, user=Depends(require_crm_perm("pricing.manage"))):
     of = _of(user)
     existing = await db.crm2_afs_service_configs.find_one({"id": cfg_id, **of}, _PUBLIC)
     if not existing:
@@ -613,7 +615,7 @@ class SupportabilityIn(BaseModel):
 
 
 @router.post("/supportability/decisions")
-async def upsert_supportability_decision(body: SupportabilityIn, user=Depends(get_crm_user)):
+async def upsert_supportability_decision(body: SupportabilityIn, user=Depends(require_crm_perm("pricing.manage"))):
     of = _of(user)
     valid = {s["id"] for s in SUPPORTABILITY_STATUSES}
     if body.status not in valid:
@@ -647,7 +649,7 @@ async def upsert_supportability_decision(body: SupportabilityIn, user=Depends(ge
 
 
 @router.delete("/supportability/decisions/{dec_id}")
-async def delete_supportability_decision(dec_id: str, user=Depends(get_crm_user)):
+async def delete_supportability_decision(dec_id: str, user=Depends(require_crm_perm("pricing.manage"))):
     res = await db.crm2_afs_supportability.delete_one({"id": dec_id, **_of(user)})
     if not res.deleted_count:
         raise HTTPException(404, "Decision not found")
@@ -941,7 +943,7 @@ class BuildFromEstateIn(BaseModel):
 
 
 @router.post("/build-quote-from-estate")
-async def build_quote_from_estate(body: BuildFromEstateIn, user=Depends(get_crm_user)):
+async def build_quote_from_estate(body: BuildFromEstateIn, user=Depends(require_crm_perm("quotes.maintenance"))):
     of = _of(user)
     org_id = _org(user)
     company = await db.crm2_companies.find_one({"id": body.company_id, **of}, {"_id": 0})
@@ -1173,7 +1175,7 @@ def _render_pdf_images(data: bytes, max_pages: int = 30) -> list:
 
 @router.post("/extract-pricing-document")
 async def extract_pricing_document(file: UploadFile = File(None), file_id: str = Query(None),
-                                   user=Depends(get_crm_user)):
+                                   user=Depends(require_crm_perm("quotes.maintenance"))):
     """Upload a tender/agreement and let Claude pull out the bespoke per-machine
     service prices and per-site travel costs. Suggestion only — nothing saved.
 
@@ -1333,7 +1335,7 @@ class CustomQuoteIn(BaseModel):
 
 
 @router.post("/build-custom-quote")
-async def build_custom_quote(body: CustomQuoteIn, user=Depends(get_crm_user)):
+async def build_custom_quote(body: CustomQuoteIn, user=Depends(require_crm_perm("quotes.maintenance"))):
     """Apply a bespoke (tender) rate card to the customer's machine estate:
     each machine gets its type's service price; each selected site is charged its
     matched travel cost per visit × the number of PPM visits/year. Machines we
@@ -1538,7 +1540,7 @@ async def get_quote_version(quote_id: str, version: int, user=Depends(get_crm_us
 
 
 @router.post("/quotes/{quote_id}/versions/{version}/revert")
-async def revert_quote_version(quote_id: str, version: int, user=Depends(get_crm_user)):
+async def revert_quote_version(quote_id: str, version: int, user=Depends(require_crm_perm("quotes.maintenance"))):
     """Restore a historical version as the current quote. The current state is
     archived first, so a revert is itself reversible. Quote number is preserved."""
     of = _of(user)
@@ -1582,7 +1584,7 @@ class RateCardIn(BaseModel):
 
 
 @router.post("/rate-cards")
-async def save_rate_card(body: RateCardIn, user=Depends(get_crm_user)):
+async def save_rate_card(body: RateCardIn, user=Depends(require_crm_perm("pricing.manage"))):
     """Persist an extracted/edited tender as a reusable rate card on the customer."""
     of = _of(user)
     company = await db.crm2_companies.find_one({"id": body.company_id, **of}, {"_id": 0, "id": 1, "name": 1})
@@ -1623,7 +1625,7 @@ async def list_rate_cards(company_id: str, user=Depends(get_crm_user)):
 
 
 @router.delete("/rate-cards/{card_id}")
-async def delete_rate_card(card_id: str, user=Depends(get_crm_user)):
+async def delete_rate_card(card_id: str, user=Depends(require_crm_perm("pricing.manage"))):
     of = _of(user)
     r = await db.crm2_afs_rate_cards.delete_one({"id": card_id, **of})
     if not r.deleted_count:
@@ -1669,7 +1671,7 @@ class PortalLinkIn(BaseModel):
 
 
 @router.post("/quotes/{quote_id}/portal-link")
-async def afs_quote_portal_link(quote_id: str, body: PortalLinkIn, user=Depends(get_crm_user)):
+async def afs_quote_portal_link(quote_id: str, body: PortalLinkIn, user=Depends(require_crm_perm("quotes.maintenance"))):
     """Mint (or reuse) a no-login customer acceptance link for an aftersales quote.
     Commercial customers only — MOD keeps its existing SOR portal flow."""
     of = _of(user)
@@ -1712,7 +1714,7 @@ class SendQuoteEmailIn(BaseModel):
 
 
 @router.post("/quotes/{quote_id}/send-email")
-async def send_afs_quote_email(quote_id: str, body: SendQuoteEmailIn, user=Depends(get_crm_user)):
+async def send_afs_quote_email(quote_id: str, body: SendQuoteEmailIn, user=Depends(require_crm_perm("quotes.maintenance"))):
     """Email the customer their acceptance link (with the branded PDF attached).
     Commercial only. Mints a portal link if one doesn't exist yet."""
     of = _of(user)
@@ -1966,7 +1968,7 @@ class AcceptQuoteIn(BaseModel):
 
 
 @router.post("/quotes/{quote_id}/accept")
-async def accept_quote(quote_id: str, body: AcceptQuoteIn, user=Depends(get_crm_user)):
+async def accept_quote(quote_id: str, body: AcceptQuoteIn, user=Depends(require_crm_perm("agreements.process"))):
     of = _of(user)
     q = await db.crm2_afs_quotes.find_one({"id": quote_id, **of}, _PUBLIC)
     if not q:
@@ -2025,7 +2027,7 @@ async def _insert_agreement_from_quote(org_id, quote, actor, *, start_date=None,
 
 
 @router.post("/agreements/from-quote/{quote_id}")
-async def prepare_agreement(quote_id: str, body: PrepareAgreementIn, user=Depends(get_crm_user)):
+async def prepare_agreement(quote_id: str, body: PrepareAgreementIn, user=Depends(require_crm_perm("agreements.process"))):
     of = _of(user)
     quote = await db.crm2_afs_quotes.find_one({"id": quote_id, **of}, _PUBLIC)
     if not quote:
@@ -2075,7 +2077,7 @@ class AgreementPatchIn(BaseModel):
 
 
 @router.patch("/agreements/{agreement_id}")
-async def patch_agreement(agreement_id: str, body: AgreementPatchIn, user=Depends(get_crm_user)):
+async def patch_agreement(agreement_id: str, body: AgreementPatchIn, user=Depends(require_crm_perm("agreements.process"))):
     of = _of(user)
     ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, **of}, _PUBLIC)
     if not ag:
@@ -2099,7 +2101,7 @@ async def patch_agreement(agreement_id: str, body: AgreementPatchIn, user=Depend
 
 
 @router.post("/agreements/{agreement_id}/generate")
-async def generate_agreement(agreement_id: str, user=Depends(get_crm_user)):
+async def generate_agreement(agreement_id: str, user=Depends(require_crm_perm("agreements.process"))):
     of = _of(user)
     ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, **of}, _PUBLIC)
     if not ag:
@@ -2123,7 +2125,7 @@ class SignIn(BaseModel):
 
 
 @router.post("/agreements/{agreement_id}/sign")
-async def sign_agreement(agreement_id: str, body: SignIn, user=Depends(get_crm_user)):
+async def sign_agreement(agreement_id: str, body: SignIn, user=Depends(require_crm_perm("agreements.process"))):
     of = _of(user)
     ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, **of}, _PUBLIC)
     if not ag:
@@ -2147,7 +2149,7 @@ async def sign_agreement(agreement_id: str, body: SignIn, user=Depends(get_crm_u
 
 
 @router.post("/agreements/{agreement_id}/activate")
-async def activate_agreement(agreement_id: str, user=Depends(get_crm_user)):
+async def activate_agreement(agreement_id: str, user=Depends(require_crm_perm("agreements.process"))):
     """CONTRACT ACTIVATION ENGINE (§65-71) — creates the live contract and runs
     the downstream automation, reusing existing collections. Never invents data;
     surfaces per-step status and preserves work on partial failure (§131)."""
@@ -2405,7 +2407,7 @@ async def _compute_amendment(contract, org_id, body: "AmendmentIn"):
 
 
 @router.post("/contracts/{contract_id}/amendments/preview")
-async def preview_amendment(contract_id: str, body: AmendmentIn, user=Depends(get_crm_user)):
+async def preview_amendment(contract_id: str, body: AmendmentIn, user=Depends(require_crm_perm("contracts.manage"))):
     of = _of(user)
     contract = await db.crm2_contracts.find_one({"id": contract_id, **of}, _PUBLIC)
     if not contract:
@@ -2414,7 +2416,7 @@ async def preview_amendment(contract_id: str, body: AmendmentIn, user=Depends(ge
 
 
 @router.post("/contracts/{contract_id}/amendments")
-async def apply_amendment(contract_id: str, body: AmendmentIn, user=Depends(get_crm_user)):
+async def apply_amendment(contract_id: str, body: AmendmentIn, user=Depends(require_crm_perm("contracts.manage"))):
     of = _of(user)
     org_id = _org(user)
     contract = await db.crm2_contracts.find_one({"id": contract_id, **of}, _PUBLIC)
@@ -2815,7 +2817,7 @@ async def finance_sync_export_all(status: str = "", user=Depends(get_crm_user)):
 
 
 @router.post("/finance/sync/enqueue-outstanding")
-async def finance_enqueue_outstanding(user=Depends(get_crm_user)):
+async def finance_enqueue_outstanding(user=Depends(require_crm_perm("finance.sync"))):
     """Generate/refresh a Sicon Sales Order for every active contract not yet
     synced to Sage (no_order / queued / failed) so 'Export outstanding' captures
     them all. Attempts a live push per contract if Sicon is configured."""
@@ -2879,7 +2881,7 @@ async def finance_dashboard(user=Depends(get_crm_user)):
 
 
 @router.post("/finance/sync/{contract_id}/retry")
-async def finance_sync_retry(contract_id: str, user=Depends(get_crm_user)):
+async def finance_sync_retry(contract_id: str, user=Depends(require_crm_perm("finance.sync"))):
     from utils.finance_sync import enqueue_finance_sync
     contract = await db.crm2_contracts.find_one({"id": contract_id, **_of(user)}, {"_id": 0, "id": 1})
     if not contract:
@@ -2897,7 +2899,7 @@ class FinanceMarkSyncedIn(BaseModel):
 
 @router.post("/finance/sync/{contract_id}/mark-synced")
 async def finance_sync_mark_synced(contract_id: str, body: FinanceMarkSyncedIn,
-                                   user=Depends(get_crm_user)):
+                                   user=Depends(require_crm_perm("finance.post"))):
     """Manual reconcile — finance imported the Sales Order into Sage/Sicon and
     records the resulting reference (marks the outbox + contract as synced)."""
     of = _of(user)
@@ -2999,7 +3001,7 @@ class WarrantyProposalIn(BaseModel):
 
 
 @router.post("/revenue/warranty-opportunities/{company_id}/build-proposal")
-async def build_warranty_proposal(company_id: str, body: WarrantyProposalIn, user=Depends(get_crm_user)):
+async def build_warranty_proposal(company_id: str, body: WarrantyProposalIn, user=Depends(require_crm_perm("quotes.maintenance"))):
     """One-click: build a maintenance proposal for a customer's warranty-expiring
     assets, reusing the SAME deterministic auto-quoter."""
     of = _of(user)
@@ -3075,7 +3077,7 @@ class RpiSetIn(BaseModel):
 
 
 @router.post("/rpi/reviews/{contract_id}")
-async def set_rpi_review(contract_id: str, body: RpiSetIn, user=Depends(get_crm_user)):
+async def set_rpi_review(contract_id: str, body: RpiSetIn, user=Depends(require_crm_perm("renewals.review"))):
     of = _of(user)
     cc = await db.crm2_contracts.find_one({"id": contract_id, **of}, _PUBLIC)
     if not cc:
@@ -3105,7 +3107,7 @@ async def set_rpi_review(contract_id: str, body: RpiSetIn, user=Depends(get_crm_
 
 
 @router.post("/rpi/reviews/{review_id}/approve")
-async def approve_rpi_review(review_id: str, user=Depends(get_crm_user)):
+async def approve_rpi_review(review_id: str, user=Depends(require_crm_perm("renewals.approve"))):
     of = _of(user)
     r = await db.crm2_afs_rpi_reviews.find_one({"id": review_id, **of}, _PUBLIC)
     if not r:
@@ -3157,7 +3159,7 @@ class RenewalBuildIn(BaseModel):
 
 
 @router.post("/renewals/{contract_id}/build")
-async def build_renewal(contract_id: str, body: RenewalBuildIn, user=Depends(get_crm_user)):
+async def build_renewal(contract_id: str, body: RenewalBuildIn, user=Depends(require_crm_perm("quotes.maintenance"))):
     of = _of(user)
     cc = await db.crm2_contracts.find_one({"id": contract_id, **of}, _PUBLIC)
     if not cc:
@@ -3215,7 +3217,7 @@ async def list_afs_alerts(status: str = "open", limit: int = 100, user=Depends(g
 
 
 @router.post("/alerts/run")
-async def run_afs_alerts(user=Depends(get_crm_user)):
+async def run_afs_alerts(user=Depends(require_crm_perm("tasks.manage"))):
     """Manual 'Run scan now' — same sweep the background worker runs, scoped to
     this org. Idempotent (dedupe_key prevents duplicates)."""
     from utils.afs_alerts import run_afs_alerts_once
@@ -3225,7 +3227,7 @@ async def run_afs_alerts(user=Depends(get_crm_user)):
 
 
 @router.post("/quotes/chasers/run")
-async def run_afs_quote_chasers(user=Depends(get_crm_user)):
+async def run_afs_quote_chasers(user=Depends(require_crm_perm("quotes.maintenance"))):
     """Manual 'Run follow-ups now' — emails reminders to customers whose sent
     quotes are nearing expiry (Day 14/5 by default) and notifies the coordinator
     of any that expired unsigned. Idempotent per (quote, window)."""
@@ -3236,7 +3238,7 @@ async def run_afs_quote_chasers(user=Depends(get_crm_user)):
 
 
 @router.post("/alerts/{activity_id}/dismiss")
-async def dismiss_afs_alert(activity_id: str, user=Depends(get_crm_user)):
+async def dismiss_afs_alert(activity_id: str, user=Depends(require_crm_perm("tasks.manage"))):
     of = _of(user)
     r = await db.crm2_activities.update_one(
         {"id": activity_id, **of, "source": "afs_alerts"},

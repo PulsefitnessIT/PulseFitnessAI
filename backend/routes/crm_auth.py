@@ -76,11 +76,19 @@ async def get_crm_user(request: Request, credentials: HTTPAuthorizationCredentia
         primary = (
             await db.users.find_one(
                 {"email": email_lc},
-                {"_id": 0, "role": 1, "allowed_site_ids": 1,
-                 "is_master_admin": 1, "is_pulse_admin": 1, "is_org_owner": 1},
+                {"_id": 0, "id": 1, "email": 1, "role": 1, "allowed_site_ids": 1,
+                 "is_master_admin": 1, "is_pulse_admin": 1, "is_org_owner": 1,
+                 "organization_id": 1, "module_overrides": 1, "crm_workspace_role": 1},
             )
             if email_lc else None
         ) or {}
+        # Workspace role + action permissions (CRM vs Contract Management),
+        # resolved from the PLATFORM identity, never from crm_users.role.
+        from utils.crm_workspace import workspace_context
+        _ws_subject = primary if primary.get("id") else user
+        _ws_org = await db.organizations.find_one(
+            {"id": _ws_subject.get("organization_id")}, {"_id": 0}) if _ws_subject.get("organization_id") else None
+        user.update(await workspace_context(_ws_subject, _ws_org))
         scope_user = {
             "role": primary.get("role") or user.get("role"),
             "allowed_site_ids": primary.get("allowed_site_ids") or user.get("allowed_site_ids") or [],
@@ -577,7 +585,8 @@ async def crm_cross_login(
             # non-verifiable bcrypt hash so /login keeps working for users
             # who also know their main password.
             "password": crm_hash_password(uuid.uuid4().hex),
-            "role": "admin" if is_master else "manager",
+            # Mirror the real platform role (was a blanket "manager").
+            "role": "admin" if is_master else (main_user.get("role") or "staff"),
             "organization_id": main_org_id,
             "avatar_url": main_user.get("avatar_url"),
             "is_org_owner": is_org_owner,
@@ -594,9 +603,14 @@ async def crm_cross_login(
             updates["organization_id"] = main_org_id
         if full_name and crm_user.get("full_name") != full_name:
             updates["full_name"] = full_name
-        # Promote to admin if the user is now a master admin.
+        # Promote to admin if the user is now a master admin; otherwise
+        # reconcile a blanket-provisioned "manager" with the platform role.
         if is_master and crm_user.get("role") != "admin":
             updates["role"] = "admin"
+        elif (not is_master and crm_user.get("cross_login_provisioned")
+              and crm_user.get("role") == "manager" and main_user.get("role")
+              and main_user.get("role") != "manager"):
+            updates["role"] = main_user.get("role")
         # Keep the org-owner signal current (backfills pre-existing docs).
         if bool(crm_user.get("is_org_owner")) != is_org_owner:
             updates["is_org_owner"] = is_org_owner
@@ -613,9 +627,13 @@ async def crm_cross_login(
         org_name = (org or {}).get("name", "")
 
     crm_token = crm_create_token(crm_user["id"])
+    from utils.crm_workspace import workspace_context
+    _main_org = await db.organizations.find_one({"id": main_org_id}, {"_id": 0}) if main_org_id else None
+    ws = await workspace_context(main_user, _main_org)
     return {
         "token": crm_token,
         "user": {
+            **ws,
             "id": crm_user["id"],
             "email": crm_user["email"],
             "full_name": crm_user.get("full_name", ""),

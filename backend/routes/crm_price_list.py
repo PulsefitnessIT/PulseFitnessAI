@@ -56,6 +56,9 @@ def _of(user: dict) -> dict:
 def _require_admin(user: dict) -> None:
     if not _is_admin(user):
         raise HTTPException(403, "Only Price List editors (admin / owner / manager) can manage the Master Price List")
+    # Commercial tariff changes are not permitted to Contract Coordinators.
+    if "pricing.commercial" not in (user.get("crm_permissions") or ["pricing.commercial"]):
+        raise HTTPException(403, "Your workspace role cannot change commercial pricing")
 
 
 # ── Upload + analyze ───────────────────────────────────────────────

@@ -35,6 +35,8 @@ from routes.ppm_engine import kickoff_site_ppm_backfill
 
 logger = logging.getLogger(__name__)
 
+from routes.crm_workspace import require_crm_perm  # noqa: E402
+
 router = APIRouter(prefix="/crm/v2/aftersales/onboarding", tags=["Aftersales Onboarding"])
 
 
@@ -135,7 +137,7 @@ def _sheet_meta(ws):
 # 1) ANALYZE — upload a workbook, detect sheets + header row + suggested map
 # ══════════════════════════════════════════════════════════════════════════
 @router.post("/analyze")
-async def analyze(file: UploadFile = File(...), user=Depends(get_crm_user)):
+async def analyze(file: UploadFile = File(...), user=Depends(require_crm_perm("contracts.manage"))):
     raw = await file.read()
     # A staged spreadsheet is base64'd into its import doc; keep it well under
     # MongoDB's 16MB document ceiling. For anything bigger, split it and use
@@ -322,7 +324,7 @@ class BuildIn(BaseModel):
 
 
 @router.post("/{import_id}/build")
-async def build(import_id: str, body: BuildIn, user=Depends(get_crm_user)):
+async def build(import_id: str, body: BuildIn, user=Depends(require_crm_perm("contracts.manage"))):
     of = _of(user)
     org_id = _org(user)
     doc = await db.crm2_afs_onboarding.find_one({"id": import_id, **of})

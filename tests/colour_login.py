@@ -1,5 +1,5 @@
 import json
-BASE = "https://sicon-sync-hub.preview.emergentagent.com"
+BASE = "https://pulse-mod-portal--8r99ahlc.preview.emergentagent.com"
 audit = open('/app/tests/colour_audit.js').read()
 
 def short(r, n=18):

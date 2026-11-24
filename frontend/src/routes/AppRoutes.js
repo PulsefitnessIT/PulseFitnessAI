@@ -363,7 +363,27 @@ function CrmRouteElement({ user }) {
   // blanket bypass, letting a staffer with CRM revoked still open /crm. Now a
   // missing grant sends them to their resolved home (selector for Pulse Fitness
   // Ltd staff, their granted module for other companies).
+  // Contract Coordinators / Finance work in Contract Management, not the
+  // sales CRM — forward them (keeping an Aftersales deep link's context).
+  if (ma.crm === true && user.crm_workspaces && user.crm_workspaces.crm === false) {
+    return user.crm_workspaces.contract_management
+      ? <Navigate to="/contract-management" replace />
+      : <Navigate to={resolveHomePath(user)} replace />;
+  }
   if (ma.crm === true) return <CRMApp />;
+  return <Navigate to={resolveHomePath(user)} replace />;
+}
+
+/**
+ * Contract Management — the coordinator workspace over the SAME CRM provider,
+ * auth and records. Access is the backend-resolved user.crm_workspaces flag;
+ * every sensitive action is re-checked server-side.
+ */
+function ContractManagementRouteElement({ user }) {
+  if (!user) return <CRMApp workspace="contract_management" />;
+  if (isLockedEngineer(user)) return <Navigate to={lockedEngineerHome(user)} replace />;
+  const isMaster = user.is_master_admin || user.is_pulse_admin || user.role === 'master_admin' || user.role === 'master';
+  if (isMaster || user.crm_workspaces?.contract_management) return <CRMApp workspace="contract_management" />;
   return <Navigate to={resolveHomePath(user)} replace />;
 }
 
@@ -580,6 +600,7 @@ export default function AppRoutes({ user, login }) {
       <Route path="/marketing" element={user ? <MODForbidden><ModuleAccessGate module="marketing"><MarketingSuite /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
       <Route path="/comms" element={user ? <MODForbidden><ModuleAccessGate module={["marketing", "memberships", "crm"]}><CommsCentre /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
       <Route path="/crm" element={<MODForbidden><CrmRouteElement user={user} /></MODForbidden>} />
+      <Route path="/contract-management" element={<MODForbidden><ContractManagementRouteElement user={user} /></MODForbidden>} />
       <Route path="/blue-light/visit/:visitId" element={<BlueLightVisitWizard />} />
       <Route path="/crm/setup" element={user ? <MODForbidden><ModuleAccessGate module="crm"><CRMSetupWizard /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />
       <Route path="/memberships" element={user ? <MODForbidden><ModuleAccessGate module="memberships"><MembershipsConsole /></ModuleAccessGate></MODForbidden> : <Navigate to="/login" replace />} />

@@ -446,6 +446,12 @@ async def _full_boot() -> None:
         logger.error(f"Service seed failed: {e}")
 
     try:
+        from utils.crm_workspace import run_workspace_boot
+        logger.info(f"[crm_workspace] boot: {await run_workspace_boot()}")
+    except Exception as e:
+        logger.error(f"CRM workspace boot failed: {e}")
+
+    try:
         from bootstrap.seed import seed_test_accounts
         await seed_test_accounts()
     except Exception as e:

@@ -628,6 +628,8 @@ async def _finalise_successful_login(user: dict, request: Request, response: Res
     # router (resolveHomePath) can send staff to the area chooser (/launch)
     # right away — staff now sign in through the main login, not /staff-login.
     payload["has_staff_portal"] = await compute_has_staff_portal(user, org)
+    from utils.crm_workspace import workspace_context
+    payload.update(await workspace_context(user, org))
     return {"token": token, "user": payload}
 
 
@@ -1087,7 +1089,11 @@ async def get_me(user: dict = Depends(get_current_user_portal)) -> dict:
         or bool((org or {}).get("is_operator_company"))
     )
 
+    from utils.crm_workspace import workspace_context
+    _ws = await workspace_context(user, org)
+
     return {
+        **_ws,
         "id": user['id'],
         "email": user['email'],
         "full_name": user['full_name'],

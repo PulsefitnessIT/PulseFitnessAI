@@ -39,6 +39,8 @@ import ProductTour from '@/components/shared/ProductTour';
 import CrossModuleTipsBanner from '@/components/shared/CrossModuleTipsBanner';
 import { LayoutDashboard, Users, Building2, GitBranch, Sparkles, Settings, Search, Zap, FileText, FolderOpen, Target, AlertTriangle, Command, Plus, Bell, CheckSquare, Award, CalendarDays, Activity, Shield, UsersRound, MapPin, TrendingUp, EyeOff, BarChart3, GitCompareArrows, Mail, MoreVertical } from 'lucide-react';
 import CampaignsPanel from '@/pages/Comms/CampaignsPanel';
+import ContractManagementSection from '@/pages/ContractManagement/ContractManagementSection';
+import { CM_NAV_ITEMS, CM_DEFAULT_SECTION, CM_ENTITY_SECTION, cmPermissions, visibleCmNav } from '@/pages/ContractManagement/cmNav';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const CRMContext = createContext();
@@ -465,7 +467,8 @@ function GlobalSearchBar({ API, headers, c, isDark, t, onNavigate }) {
   );
 }
 
-export default function CRMApp() {
+export default function CRMApp({ workspace = 'crm' } = {}) {
+  const isCM = workspace === 'contract_management';
   useLocalization(); // resolve org currency (£/$/€) for all CRM money + icons
   const { t, _i18n } = useTranslation();
   // The CRM app runs alongside the main platform auth context, so we can
@@ -490,9 +493,10 @@ export default function CRMApp() {
     try {
       const params = new URLSearchParams(window.location.search);
       const urlTab = params.get('tab');
+      if (isCM) return CM_NAV_ITEMS.some((i) => i.id === urlTab) ? urlTab : CM_DEFAULT_SECTION;
       if (urlTab) return urlTab;
     } catch { /* SSR / Jest fallback */ }
-    return 'start';
+    return isCM ? CM_DEFAULT_SECTION : 'start';
   });
   const [collapsed, _setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -507,15 +511,16 @@ export default function CRMApp() {
 
   // ── CRM modes (Iter 215c) ─────────────────────────────────────────
   const crmModesData = useCRMModes();
-  const [activeMode, setActiveMode] = useState(() => getStoredCrmMode());
+  const [activeMode, setActiveMode] = useState(() => (isCM ? 'business' : getStoredCrmMode()));
+  const [cmSubTab, setCmSubTab] = useState(() => { try { return new URLSearchParams(window.location.search).get('sub'); } catch { return null; } });
   // When entitlements load, reconcile: if the stored mode isn't enabled,
   // pick the first one that IS enabled.
   useEffect(() => {
-    if (crmModesData.loading) return;
+    if (crmModesData.loading || isCM) return;
     const m = crmModesData.modes || {};
     if (activeMode === 'leisure' && !m.leisure && m.business) setActiveMode('business');
     else if (activeMode === 'business' && !m.business && m.leisure) setActiveMode('leisure');
-  }, [crmModesData.loading, crmModesData.modes, activeMode]);
+  }, [crmModesData.loading, crmModesData.modes, activeMode, isCM]);
   const handleModeChange = (mode) => {
     setActiveMode(mode);
     setStoredCrmMode(mode);
@@ -594,9 +599,10 @@ export default function CRMApp() {
   // (e.g. user switched mode while on Tenders/Territories), fall back to the
   // dashboard so they're never stranded on an invisible tab.
   useEffect(() => {
-    if (activeMode === 'leisure' && MEMBERS_HIDDEN_TABS.has(activeTab)) setActiveTab('dashboard');
-  }, [activeMode, activeTab]);
+    if (!isCM && activeMode === 'leisure' && MEMBERS_HIDDEN_TABS.has(activeTab)) setActiveTab('dashboard');
+  }, [activeMode, activeTab, isCM]);
   const visibleNavItems = useMemo(() => {
+    if (isCM) return visibleCmNav(cmPermissions(user, mainAuth?.user));
     const isInternal = !!user?.is_pulse_internal;
     const isMembersMode = activeMode === 'leisure';
     const isAdmin = user?.role === 'admin' || user?.role === 'owner' || user?.role === 'manager' || user?.is_master_admin;
@@ -627,11 +633,13 @@ export default function CRMApp() {
       .filter(it => !(isMembersMode && MEMBERS_HIDDEN_TABS.has(it.id)))
       .filter(it => !(it.id === 'communications' && hasModuleAccess(mainAuth?.user, 'marketing') && hasModuleAccess(mainAuth?.user, 'crm')))
       .filter(it => !(hideStart && it.id === 'start'));
-  }, [user?.is_pulse_internal, user?.is_master_admin, user?.features, user?.modules, user?.role, hideStart, activeMode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.is_pulse_internal, user?.is_master_admin, user?.features, user?.modules, user?.role, user?.crm_permissions, mainAuth?.user?.crm_permissions, hideStart, activeMode, isCM]);
 
   // Iter 220ea·41 — mode-aware tab label (Members environment relabels a
   // couple of tabs to gym-native terms; Corporate keeps the i18n labels).
   const tabLabel = useCallback((item) => {
+    if (!item.labelKey) return item.label;
     if (activeMode === 'leisure' && MEMBERS_TAB_LABELS[item.id]) return MEMBERS_TAB_LABELS[item.id];
     return t(item.labelKey, item.label);
   }, [activeMode, t]);
@@ -736,14 +744,28 @@ export default function CRMApp() {
   const [navTarget, setNavTarget] = useState(null); // {type: 'company', id: '...'}
 
   const navigateTo = useCallback((entityType, entityId, extra) => {
+    if (isCM) {
+      setNavTarget({ type: entityType, id: entityId, ...(extra || {}) });
+      setActiveTab(CM_ENTITY_SECTION[entityType] || CM_DEFAULT_SECTION);
+      return;
+    }
     const tabMap = { company: 'companies', contact: 'contacts', opportunity: 'pipeline', deal: 'pipeline', case: 'dashboard', task: 'inbox', quote: 'quotes', contract: 'aftersales', tender: 'tenders' };
     const tab = tabMap[entityType] || 'dashboard';
     if (MEMBERS_HIDDEN_TABS.has(tab)) setActiveMode('business');
     setNavTarget({ type: entityType, id: entityId, ...(extra || {}) });
     setActiveTab(tab);
-  }, []);
+  }, [isCM]);
 
-  const handleNav = (id) => { setActiveTab(id); setNavTarget(null); setMobileOpen(false); };
+  // Contract Management keeps ?tab=/?sub= in the URL so refresh + direct links
+  // land on the same section.
+  const cmNavigate = useCallback((id, sub = null) => {
+    setActiveTab(id); setCmSubTab(sub);
+    try {
+      const qs = new URLSearchParams({ tab: id, ...(sub ? { sub } : {}) });
+      window.history.replaceState({}, '', `/contract-management?${qs}`);
+    } catch { /* ignore */ }
+  }, []);
+  const handleNav = (id) => { if (isCM) cmNavigate(id); else setActiveTab(id); setNavTarget(null); setMobileOpen(false); };
 
   if (loading) {
     return (
@@ -853,6 +875,17 @@ export default function CRMApp() {
   }
 
   const renderContent = () => {
+    if (isCM) {
+      const allowed = visibleNavItems.some((i) => i.id === activeTab);
+      if (!allowed) {
+        return (
+          <div className="rounded-2xl p-8 text-center" style={{ background: c.surface, border: `1px solid ${c.border}` }} data-testid="cm-section-forbidden">
+            <p className="text-sm" style={{ color: c.textMuted }}>Your workspace role doesn&apos;t include this section.</p>
+          </div>
+        );
+      }
+      return <ContractManagementSection section={activeTab} subTab={cmSubTab} onNavigate={cmNavigate} />;
+    }
     switch (activeTab) {
       case 'start': return <CRMStartTab setActiveTab={setActiveTab} />;
       case 'dashboard': return <CRMDashboard />;
@@ -910,6 +943,7 @@ export default function CRMApp() {
       <div
         className={`min-h-screen overflow-x-hidden pulse-font-body module-fade-in ${!isPulseBrandedCRM && !isDark ? 'theme-gymaxis' : ''}`}
         style={{ background: c.bg }}
+        data-testid={isCM ? 'cm-workspace' : 'crm-workspace'}
       >
 
         {/* Platform Navbar — shared across modules */}
@@ -928,7 +962,7 @@ export default function CRMApp() {
             scroll up to dismiss it. */}
         {showShell && (
           <div className="pt-24 px-4 sm:px-6 max-w-7xl mx-auto" data-testid="crm-cross-module-tips-wrap">
-            <CrossModuleTipsBanner mode="crm" />
+            {!isCM && <CrossModuleTipsBanner mode="crm" />}
           </div>
         )}
 
@@ -941,9 +975,9 @@ export default function CRMApp() {
         {showShell && (
           <div className="pb-3 px-4 md:px-8 max-w-7xl mx-auto" data-testid="crm-app-header">
             <ModulePageHeader
-              moduleName="CRM"
+              moduleName={isCM ? 'Contract Management' : 'CRM'}
               tenantName={platformUser?.company_name}
-              subtitle="Pipeline, quotes, contracts & customer accounts."
+              subtitle={isCM ? 'Maintenance contracts, quotations, renewals and billing.' : 'Pipeline, quotes, contracts & customer accounts.'}
               isPulseBranded={isPulseBrandedCRM}
             />
             {/* Toolbar — mobile-first: module pills scroll on their own row,
@@ -952,27 +986,35 @@ export default function CRMApp() {
             <div className="flex flex-col md:flex-row md:items-center gap-3 w-full" data-testid="crm-toolbar">
               {/* Module switcher — horizontal scroll on mobile instead of wrapping */}
               <div className="w-full md:w-auto overflow-x-auto pb-0.5 md:pb-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
-                <ModuleSwitcher user={platformUser} current="crm" />
+                <ModuleSwitcher user={platformUser} current={isCM ? 'contract-management' : 'crm'} />
               </div>
 
               {/* Controls row */}
               <div className="flex items-center gap-2 w-full md:w-auto md:flex-1">
-                <CRMModeSwitcher
-                  modes={crmModesData.modes}
-                  activeMode={activeMode}
-                  onChange={handleModeChange}
-                  brandAccent={brandCfg.accent}
-                />
+                {!isCM && (
+                  <CRMModeSwitcher
+                    modes={crmModesData.modes}
+                    activeMode={activeMode}
+                    onChange={handleModeChange}
+                    brandAccent={brandCfg.accent}
+                  />
+                )}
+                {isCM && (
+                  <span className="hidden md:inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap"
+                    style={{ background: 'rgba(25,205,255,0.12)', color: 'var(--color-brand-cyan)' }} data-testid="cm-role-badge">
+                    {user?.crm_workspace_role_label || mainAuth?.user?.crm_workspace_role_label || 'Contract Management'}
+                  </span>
+                )}
                 <div className="hidden md:block flex-1 min-w-[160px] max-w-sm">
                   <GlobalSearchBar API={API} headers={headers} c={c} isDark={isDark} t={t} onNavigate={(type, id) => navigateTo(type, id)} />
                 </div>
                 <div className="flex items-center gap-2 ml-auto">
-                  <QuickCreateButton API={API} headers={headers} c={c} isDark={isDark} onCreated={(type) => {
+                  {!isCM && <QuickCreateButton API={API} headers={headers} c={c} isDark={isDark} onCreated={(type) => {
                     if (type === 'contact') setActiveTab('contacts');
                     else if (type === 'deal') setActiveTab('pipeline');
                     else if (type === 'case') setActiveTab('dashboard');
                     else if (type === 'task') setActiveTab('inbox');
-                  }} />
+                  }} />}
                   <NotificationsBell API={API} headers={headers} c={c} isDark={isDark} />
 
                   {/* Desktop: secondary actions inline */}
@@ -983,7 +1025,7 @@ export default function CRMApp() {
                         value={staffFilter} onChange={setStaffFilter} brandAccent={brandCfg.accent}
                       />
                     )}
-                    <button
+                    {!isCM && <button
                       onClick={() => setActiveTab('ai-tools')}
                       className="w-9 h-9 inline-flex items-center justify-center rounded-md border transition-colors hover:bg-black/5 dark:hover:bg-white/10 dark:bg-zinc-900"
                       style={{ color: activeTab === 'ai-tools' ? brandCfg.accent : c.textMuted, borderColor: c.border }}
@@ -991,9 +1033,9 @@ export default function CRMApp() {
                       data-testid="crm-toolbar-ai"
                     >
                       <Sparkles size={16} />
-                    </button>
+                    </button>}
                     <button
-                      onClick={() => setActiveTab('settings')}
+                      onClick={() => handleNav('settings')}
                       className="w-9 h-9 inline-flex items-center justify-center rounded-md border transition-colors hover:bg-black/5 dark:hover:bg-white/10 dark:bg-zinc-900"
                       style={{ color: activeTab === 'settings' ? brandCfg.accent : c.textMuted, borderColor: c.border }}
                       aria-label={t('crm.settings')} title={t('crm.settings')}
@@ -1031,16 +1073,16 @@ export default function CRMApp() {
                               />
                             </div>
                           )}
-                          <button
+                          {!isCM && <button
                             onClick={() => { setActiveTab('ai-tools'); setMoreOpen(false); }}
                             className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                             style={{ color: activeTab === 'ai-tools' ? brandCfg.accent : c.text }}
                             data-testid="crm-toolbar-ai-mobile"
                           >
                             <Sparkles size={16} /> AI Tools
-                          </button>
+                          </button>}
                           <button
-                            onClick={() => { setActiveTab('settings'); setMoreOpen(false); }}
+                            onClick={() => { handleNav('settings'); setMoreOpen(false); }}
                             className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                             style={{ color: activeTab === 'settings' ? brandCfg.accent : c.text }}
                             data-testid="crm-toolbar-settings-mobile"
@@ -1073,7 +1115,7 @@ export default function CRMApp() {
               className="hidden md:block pulse-font-body"
               activeId={activeTab}
               testId="crm-tabs-desktop"
-              ariaLabel="CRM sections"
+              ariaLabel={isCM ? 'Contract Management sections' : 'CRM sections'}
             >
               {visibleNavItems.map((item) => {
                 const Icon = item.icon;

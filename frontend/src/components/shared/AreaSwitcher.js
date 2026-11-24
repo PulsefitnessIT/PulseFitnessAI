@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutGrid, ChevronDown, Headphones, HardHat, Activity, Check, Boxes, CalendarClock, ShieldCheck } from 'lucide-react';
+import { LayoutGrid, ChevronDown, Headphones, HardHat, Activity, Check, Boxes, CalendarClock, ShieldCheck, FileSignature, Briefcase } from 'lucide-react';
 
 /**
  * Iter 283 — "Switch area" button.
@@ -49,6 +49,12 @@ function accessibleAreas(user) {
   const canEngineer = isMaster || user.role === 'engineer' || user.is_engineer === true || !!user.engineer_id;
   if (canEngineer) areas.push({ id: 'engineer', label: 'Engineer app', path: '/svc/engineer', icon: HardHat });
 
+  // CRM + Contract Management — same CRM records, two workspaces. Access is the
+  // backend-resolved workspace role (user.crm_workspaces), matching the launcher.
+  const ws = user.crm_workspaces;
+  if (ws?.crm) areas.push({ id: 'crm', label: 'CRM', path: '/crm', icon: Briefcase });
+  if (ws?.contract_management) areas.push({ id: 'contract-management', label: 'Contract Management', path: '/contract-management', icon: FileSignature });
+
   // MOD Operations — per-user opt-in module (platform admins always qualify).
   const canModOps = isMaster || (user.module_overrides && user.module_overrides.mod_operations === true);
   if (canModOps) areas.push({ id: 'mod-operations', label: 'MOD Operations', path: '/bfpo', icon: ShieldCheck });
@@ -68,6 +74,8 @@ function currentAreaId(pathname) {
   if (p.startsWith('/service-desk')) return 'service-desk';
   if (p.startsWith('/svc/engineer') || p.startsWith('/engineer')) return 'engineer';
   if (p.startsWith('/bfpo')) return 'mod-operations';
+  if (p.startsWith('/contract-management')) return 'contract-management';
+  if (p.startsWith('/crm')) return 'crm';
   if (p.startsWith('/staff-portal')) return 'staff-portal';
   return 'main';
 }
@@ -127,7 +135,7 @@ export default function AreaSwitcher({ user, tone = 'header', className = '' }) 
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div
-            className={`absolute ${menuPos} w-52 rounded-lg shadow-xl z-50 overflow-hidden`}
+            className={`absolute ${menuPos} w-60 rounded-lg shadow-xl z-50 overflow-hidden`}
             style={dark
               ? { background: 'var(--theme-surface)', border: '1px solid var(--theme-border)' }
               : { background: '#fff', border: '1px solid #e0e0e0' }}
@@ -148,7 +156,7 @@ export default function AreaSwitcher({ user, tone = 'header', className = '' }) 
                     data-testid={`area-switcher-${a.id}`}
                   >
                     <Icon size={16} /> {a.label}
-                    {on && <Check size={14} className="ml-auto text-emerald-500" />}
+                    {on && <Check size={14} className="ml-auto" style={{ color: 'var(--color-brand-cyan)' }} />}
                   </button>
                 );
               })}

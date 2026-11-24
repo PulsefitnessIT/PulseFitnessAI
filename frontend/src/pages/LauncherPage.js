@@ -11,7 +11,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Activity, Calendar, Briefcase, Rocket, MessagesSquare, Headset, Boxes,
-  UserCircle, Loader2, ArrowRight, ShieldAlert, ShieldCheck,
+  UserCircle, Loader2, ArrowRight, ShieldAlert, ShieldCheck, FileSignature,
 } from 'lucide-react';
 import { useAuth } from '@/App';
 import Navbar from '@/components/shared/Navbar';
@@ -65,7 +65,18 @@ export default function LauncherPage() {
       out.push({ key: 'staff', label: 'Staff Portal', path: '/staff-portal', icon: UserCircle,
         desc: 'Your day, time, holidays and payslip info.', accent: '#0091ca' });
     }
-    MODS.filter((m) => hasModuleAccess(user, m.key)).forEach((m) => out.push(m));
+    // CRM + Contract Management share one CRM entitlement; the backend-resolved
+    // workspace role (user.crm_workspaces) decides which workspace(s) appear.
+    const ws = user.crm_workspaces;
+    MODS.filter((m) => hasModuleAccess(user, m.key))
+      .filter((m) => !(m.key === 'crm' && ws && ws.crm === false))
+      .forEach((m) => out.push(m));
+    if (ws?.contract_management) {
+      const crmIdx = out.findIndex((d) => d.key === 'crm');
+      const cm = { key: 'contract_management', label: 'Contract Management', path: '/contract-management', icon: FileSignature,
+        desc: 'Maintenance contracts, quotations, renewals and billing.' };
+      if (crmIdx >= 0) out.splice(crmIdx + 1, 0, cm); else out.push(cm);
+    }
     // MOD Operations — per-user opt-in (module_overrides.mod_operations),
     // platform admins always qualify. Routes into the /bfpo staff dashboard.
     const hasModOps = user.is_master_admin || user.is_pulse_admin
@@ -91,7 +102,7 @@ export default function LauncherPage() {
       usage[dest.key] = (usage[dest.key] || 0) + 1;
       localStorage.setItem(USAGE_KEY, JSON.stringify(usage));
     } catch { /* quota */ }
-    if (dest.key === 'crm') {
+    if (dest.key === 'crm' || dest.key === 'contract_management') {
       const token = localStorage.getItem('token');
       if (token) {
         try {

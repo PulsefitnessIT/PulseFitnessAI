@@ -66,6 +66,9 @@ function hasAccess(user, accessKey) {
  // Comms Centre is a derived surface: visible only when the operator has
  // BOTH Marketing and CRM (members + B2B comms run together).
  if (accessKey === 'comms') return hasAccess(user, 'marketing') && hasAccess(user, 'crm');
+ // Contract Coordinators / Finance use the Contract Management workspace, not
+ // the sales CRM (backend-resolved workspace role).
+ if (accessKey === 'crm' && user.crm_workspaces && user.crm_workspaces.crm === false) return false;
  const at = user.account_type;
  const isMod = at === 'mod_site' || at === 'mod_branch' || at === 'mod_org';
 

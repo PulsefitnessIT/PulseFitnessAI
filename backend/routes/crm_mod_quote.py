@@ -27,6 +27,8 @@ from utils.mod_sor_data import build_seed_rate_card, price_for, match_equipment,
 from utils.dealer_parts_ai import spreadsheet_rows
 from utils.brand_urls import app_url_for_org
 
+from routes.crm_workspace import assert_crm_perm  # noqa: E402
+
 router = APIRouter(prefix="/crm/mod-quote", tags=["CRM MOD Quote"])
 # Public, token-authenticated e-sign surface (no CRM login required).
 public_router = APIRouter(prefix="/public/mod-quote", tags=["Public Quote E-Sign"])
@@ -47,7 +49,8 @@ CONTRACT_LABELS = {
 
 
 def _is_admin(user: dict) -> bool:
-    return user.get("role") in ("owner", "admin") or user.get("is_master_admin")
+    return (user.get("role") in ("owner", "admin") or user.get("is_master_admin")
+            or "pricing.manage" in (user.get("crm_permissions") or []))
 
 
 async def require_operator_crm_user(user=Depends(get_crm_user)):
@@ -74,6 +77,14 @@ async def require_operator_crm_user(user=Depends(get_crm_user)):
     raise HTTPException(403, "MOD quoting is restricted to Pulse Fitness.")
 
 
+def require_operator_perm(perm: str):
+    """Operator-company gate (unchanged) PLUS the action-level permission."""
+    async def _dep(user=Depends(require_operator_crm_user)):
+        assert_crm_perm(user, perm)
+        return user
+    return _dep
+
+
 async def _ensure_rate_card() -> None:
     if await db.mod_sor_rate_card.count_documents({}) == 0:
         await db.mod_sor_rate_card.insert_many(build_seed_rate_card())
@@ -93,7 +104,7 @@ async def get_rate_card(user=Depends(require_operator_crm_user)):
 
 
 @router.put("/rate-card/{item_id}")
-async def update_rate_card_item(item_id: str, data: dict, user=Depends(require_operator_crm_user)):
+async def update_rate_card_item(item_id: str, data: dict, user=Depends(require_operator_perm("pricing.manage"))):
     if not _is_admin(user):
         raise HTTPException(403, "Only CRM admins can edit the SOR rate card")
     entry = await db.mod_sor_rate_card.find_one({"id": item_id}, {"_id": 0})
@@ -114,7 +125,7 @@ async def update_rate_card_item(item_id: str, data: dict, user=Depends(require_o
 
 
 @router.post("/rate-card/reseed")
-async def reseed_rate_card(user=Depends(require_operator_crm_user), confirm: bool = False):
+async def reseed_rate_card(user=Depends(require_operator_perm("pricing.manage")), confirm: bool = False):
     """Reset the rate card to the built-in SCAFFOLD.
 
     ⚠️ The built-in card ships only PLACEHOLDER prices — the real contracted
@@ -249,7 +260,7 @@ async def get_site_equipment(site_id: str, contract_type: str = "A", year: int =
 
 
 @router.post("/ai-match")
-async def ai_match_equipment(data: dict, user=Depends(require_operator_crm_user)):
+async def ai_match_equipment(data: dict, user=Depends(require_operator_perm("quotes.mod"))):
     """AI-assisted mapping of a single piece of equipment to the SOR rate card
     when the keyword matcher is unsure. Uses the Emergent universal LLM key."""
     equip = data.get("equipment") or {}
@@ -424,7 +435,7 @@ async def import_spreadsheet(
     pasted_text: str = Form(""),
     contract_type: str = Form("A"),
     year: int = Form(1),
-    user=Depends(require_operator_crm_user),
+    user=Depends(require_operator_perm("quotes.mod")),
 ):
     """Drag-and-drop a MOD asset spreadsheet (or paste from Excel). The AI reads
     the arbitrary layout, recognises machines / codes / quantities, matches them
@@ -483,7 +494,7 @@ async def import_spreadsheet(
 # ── Generate quote ─────────────────────────────────────────────────
 
 @router.post("/generate")
-async def generate_mod_quote(data: dict, user=Depends(require_operator_crm_user)):
+async def generate_mod_quote(data: dict, user=Depends(require_operator_perm("quotes.mod"))):
     ct = (data.get("contract_type") or "A").upper()
     if ct not in ("A", "B", "C"):
         raise HTTPException(400, "contract_type must be A, B or C")
@@ -674,7 +685,7 @@ async def _quote_org_branding(org_id: str | None) -> dict:
 
 
 @router.post("/{quote_id}/send-esign")
-async def send_quote_for_esign(quote_id: str, data: dict, user=Depends(require_operator_crm_user)):
+async def send_quote_for_esign(quote_id: str, data: dict, user=Depends(require_operator_perm("quotes.mod"))):
     """Email the MOD/customer contact a secure link to view and e-sign the
     quote. Returns the link so it also works in preview (email disabled)."""
     quote = await db.crm2_quotes.find_one(
