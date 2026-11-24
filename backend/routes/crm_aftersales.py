@@ -2916,7 +2916,7 @@ async def finance_sync_mark_synced(contract_id: str, body: FinanceMarkSyncedIn,
         {"$set": {"status": "synced", "external_ref": body.external_ref or doc.get("external_ref"),
                   "synced_at": _now(), "last_error": None, "history": hist, "updated_at": _now()}})
     await db.crm2_contracts.update_one({"id": contract_id, **of}, {"$set": {
-        "sicon_sync_status": "synced", "sage_sync_status": "synced",
+        "sage_sync_status": "synced", "sage_sync_detail": None,
         "finance_sync_status": "synced", "updated_at": _now()}})
     await record_audit(entity_type="afs_finance_sync", entity_id=contract_id, action="mark_synced",
                        user=user, extra={"external_ref": body.external_ref})
@@ -3212,6 +3212,8 @@ async def list_afs_alerts(status: str = "open", limit: int = 100, user=Depends(g
         "counts": {
             "warranty": sum(1 for a in open_alerts if a.get("type") == "warranty_alert"),
             "rpi": sum(1 for a in open_alerts if a.get("type") == "rpi_review_due"),
+            "contract_admin": sum(1 for a in open_alerts if a.get("type") in (
+                "contract_missing_info", "renewal_approval", "renewal_blocked")),
             "open_total": len(open_alerts),
             "unread_notifications": unread,
         },

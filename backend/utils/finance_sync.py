@@ -209,7 +209,7 @@ async def enqueue_finance_sync(org_id: str, contract_id: str, event: str, actor:
     # Reflect on the contract so existing Sicon/Sage compliance badges are truthful.
     await db.crm2_contracts.update_one(
         {"id": contract_id, **of},
-        {"$set": {"sicon_sync_status": outbox_status, "sage_sync_status": outbox_status,
+        {"$set": {"sage_sync_status": outbox_status, "sage_sync_detail": push.get("detail"),
                   "finance_sync_status": status, "updated_at": _now()}})
 
     return {"ok": push["ok"], "status": status, "outbox_status": outbox_status,

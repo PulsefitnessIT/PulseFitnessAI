@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/App';
 import { useCRM } from '@/pages/CRM/CRMApp';
 import AftersalesApp from '@/pages/CRM/Aftersales/AftersalesApp';
+import { RateCardEditor } from '@/pages/CRM/CRMMODQuoteWizard';
 import { cmPermissions } from './cmNav';
 import WorkspaceRolesPanel from './WorkspaceRolesPanel';
 
@@ -35,6 +36,21 @@ function DefaultAreaToggle({ c }) {
   );
 }
 
+function ModRateCardCard({ c }) {
+  const { API, headers, isDark } = useCRM();
+  const [open, setOpen] = useState(false);
+  return (
+    <Card title="MOD SOR rate card" c={c} testId="cm-settings-mod-rates">
+      <p className="text-sm mb-3" style={{ color: c.textMuted }}>Upload the contracted MOD price file and verify rates. Quotes using unverified rates cannot be sent.</p>
+      <button onClick={() => setOpen(true)} data-testid="cm-open-mod-rate-card"
+        className="px-4 py-2 rounded-full text-xs font-bold" style={{ background: 'var(--color-brand-cyan)', color: 'var(--pulse-black)' }}>
+        Open rate card
+      </button>
+      {open && <RateCardEditor API={API} headers={headers} c={c} isDark={isDark} rateCard={[]} onClose={() => setOpen(false)} />}
+    </Card>
+  );
+}
+
 /** Coordinator preferences for everyone; restricted configuration for admins. */
 export default function WorkspaceSettings() {
   const { user, c } = useCRM();
@@ -55,6 +71,7 @@ export default function WorkspaceSettings() {
           <WorkspaceRolesPanel />
         </Card>
       )}
+      {perms.includes('pricing.manage') && perms.includes('quotes.mod') && <ModRateCardCard c={c} />}
       {perms.includes('pricing.manage') && (
         <Card title="Pricing & rules" c={c} testId="cm-settings-pricing">
           <AftersalesApp sections={['pricing']} initialTab="pricing" />

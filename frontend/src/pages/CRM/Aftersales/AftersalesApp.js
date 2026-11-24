@@ -90,7 +90,12 @@ function DashboardTab({ API, headers, c, isDark }) {
 
   const runScan = async () => {
     setScanning(true);
-    try { await axios.post(`${API}/crm/workspace/daily-checks/run`, {}, { headers: headers() }); loadAlerts(); }
+    try {
+      const r = await axios.post(`${API}/crm/workspace/daily-checks/run`, {}, { headers: headers() });
+      const ca = r.data.contract_admin || {}; const rn = r.data.renewals || {};
+      toast.success(`Checks complete — ${rn.prepared || 0} renewal(s) prepared, ${rn.blocked || 0} need information, ${ca.missing_info_open || 0} contract(s) missing details, ${ca.missing_info_resolved || 0} resolved.`);
+      loadAlerts();
+    }
     catch (e) { toast.error(e.response?.data?.detail || 'Scan failed'); }
     finally { setScanning(false); }
   };
@@ -102,7 +107,11 @@ function DashboardTab({ API, headers, c, isDark }) {
     try {
       const r = await axios.post(`${API}/crm/workspace/renewals/${a.renewal_contract_id}/approve-send`,
         pct.trim() === '' ? {} : { uplift_percent: Number(pct) }, { headers: headers() });
-      toast.success(r.data.email_delivered ? `Renewal sent to ${r.data.to}` : `Renewal approved — email not delivered, share: ${r.data.accept_link}`);
+      if (r.data.email_delivered) toast.success(`Renewal sent to ${r.data.to}`);
+      else toast.warning(`Renewal approved — email not delivered. Share this link with the customer: ${r.data.accept_link}`, {
+        duration: Infinity,
+        action: { label: 'Copy link', onClick: () => navigator.clipboard?.writeText(r.data.accept_link) },
+      });
       loadAlerts();
     } catch (e) { toast.error(e.response?.data?.detail || 'Could not send renewal'); }
     setSendingId('');
@@ -169,7 +178,7 @@ function DashboardTab({ API, headers, c, isDark }) {
             <h3 className="text-sm font-bold" style={{ color: c.text }}>Alerts &amp; reminders</h3>
             {(alerts.counts?.open_total > 0) && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--color-accent-amber)22', color: 'var(--color-accent-amber)' }}>
-                {alerts.counts.warranty || 0} warranty · {alerts.counts.rpi || 0} RPI
+                {alerts.counts.warranty || 0} warranty · {alerts.counts.rpi || 0} RPI · {alerts.counts.contract_admin || 0} contract admin
               </span>
             )}
           </div>

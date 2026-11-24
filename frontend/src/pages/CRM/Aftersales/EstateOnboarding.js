@@ -128,6 +128,12 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
 
   const doCommit = async () => {
     setBusy(true); setErr('');
+    if (!matchCands) {
+      try {
+        const rc = await axios.get(`${API}/crm/v2/aftersales/onboarding/${importId}/reconcile`, { headers: headers() });
+        if (rc.data.decision_required) { setMatchCands(rc.data.candidates || []); setBusy(false); return; }
+      } catch { /* commit below still enforces the decision */ }
+    }
     const decision = matchChoice === '__new__' ? { create_new_customer: true } : (matchChoice ? { company_id: matchChoice } : {});
     try {
       const r = await axios.post(`${API}/crm/v2/aftersales/onboarding/${importId}/commit`,
@@ -138,7 +144,7 @@ export default function EstateOnboarding({ API, headers, c, isDark }) {
       setStep('done');
     } catch (e) {
       const d = e?.response?.data?.detail;
-      if (d && d.code === 'customer_match_required') { setMatchCands(d.candidates || []); setErr(d.message); }
+      if (d && d.code === 'customer_match_required') setMatchCands(d.candidates || []);
       else setErr(typeof d === 'string' ? d : (d?.message || 'Commit failed.'));
     } finally { setBusy(false); }
   };

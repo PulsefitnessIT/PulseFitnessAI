@@ -39367,3 +39367,13 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Admin UI: CM Settings → Workspace roles, with an audit trail in crm_workspace_role_audit.
 - Architecture matrix: /app/memory/CONTRACT_MANAGEMENT_ARCHITECTURE.md. Tests: backend/tests/test_contract_management_workspace.py and test_cm_workspace_extended.py (29 pass). iteration_299 found 3 bugs, all fixed.
 - NEXT: Stage 2 (consolidation) — Sicon/Sage simulated references → Pending/Failed states; estate-onboarding reconciliation; flag MOD placeholder rates; canonical-ID matching. Then Stage 3: sales → coordinator handover. Then Stage 4: Action Centre lifecycle, renewal dry-run and approval.
+
+## Jun 2026 — Contract Management Stage 2 (integrity + automation; design unchanged)
+- Plan: /app/memory/CONTRACT_MANAGEMENT_PLAN.md (completed vs remaining, prioritised).
+- Honest Sicon/Sage: sync-sicon records Pending/Not configured, never a fake ID. sync-sage goes through the finance outbox; "synced" only when a real Sage reference comes back. finance_sync honours SICON_ALLOW_WRITES. mark-synced requires a reference. On boot, fabricated SICON-/SAGE- refs are removed.
+- Estate onboarding: GET /onboarding/{id}/reconcile. Commit needs a link-existing or create-new decision (409 customer_match_required). Existing sites are reused by name/code and equipment by serial. The commit is atomic and runs once. Start date and billing frequency are never invented; anything missing raises an Action Centre item.
+- Renewals are approval-first (utils/cm_renewals.py): data is verified first, one draft per contract (renewal_pending_approval), calendar-aware term. The coordinator approves and sends via /crm/workspace/renewals/{id}/approve-send (optional % rise). The old auto-send now only prepares.
+- MOD rates: price_status verified/placeholder plus valid_from/valid_to. POST /crm/mod-quote/rate-card/import (preview, then apply) keeps history. send-esign is blocked when any rate is unverified or expired. The editor is also under CM Settings → MOD SOR rate card.
+- Action Centre (utils/cm_actions.py): one lifecycle on crm2_activities with dedupe_key, auto-assignment, and auto-resolve or re-open. "Run scan now" runs the daily checks.
+- Cron cm-daily-checks: weekdays 07:00 Europe/London → /api/crm/workspace/cron/daily-checks.
+- Tests: backend/tests/test_cm_stage2_integrity.py (6), plus the Stage 1 suites. Frontend: iteration_300, all flows pass; its follow-up notes are fixed.

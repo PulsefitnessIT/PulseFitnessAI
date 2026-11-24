@@ -15,7 +15,7 @@ const CONTRACTS = [
 ];
 
 /* ═══ RATE CARD EDITOR ═══ */
-function RateCardEditor({ API, headers, c, isDark, rateCard, onSaved, onClose }) {
+export function RateCardEditor({ API, headers, c, isDark, rateCard, onSaved, onClose }) {
   const [rows, setRows] = useState(rateCard);
   const [savingId, setSavingId] = useState('');
   // Self-fetch fallback so the editor never flashes empty if opened before

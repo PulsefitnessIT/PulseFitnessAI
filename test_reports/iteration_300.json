@@ -1,0 +1,57 @@
+{
+  "summary": "Frontend-only test of CM Stage 2 (false-sync and duplicate fixes, renewals that need approval, MOD rate verification, onboarding reconciliation). All 6 requested flows were tested through the UI and all pass their core checks. The test contracts (ta_cm2_*) were in the operator org (Pulse Fitness Ltd), which had 0 contracts before testing, so the scan touched no real contracts. (1) Action Centre: 'Run scan now' calls daily-checks/run and refreshes the list with no error. It shows RENEWAL APPROVAL, MISSING INFO (billing frequency) and RPI REVIEW items. Entering a 3 % rise and clicking 'Approve & send' shows the success toast 'Renewal approved — email not delivered, share: <accept link>' and the item leaves the list. The DB holds exactly ONE renewal (TA-CM2-001/R2, status sent, annual_value 1030.0). A second scan created no second renewal, and 'Prepare renewals for approval' then reported '0 prepared, 0 need information, 1 already in progress'. (2) Service Integration tab, as cm.admin via Contract Management → Contracts → contract detail: 'Request Sicon push' gives 'Pending — Sicon write-back is switched off (read-only phase). Request recorded.' 'Push to Sage 200' gives 'Queued for finance — Sicon WebAPI not configured — queued for finance import/export.' plus an info toast. No 'Synced' state and no fabricated SICON-/SAGE- refs (0 in the DB). (3) Estate onboarding as coordinator: an xlsx upload (the file input only accepts .xlsx/.xls, not CSV) mapped Site/Description/Model/Make/Serial automatically. The Billing frequency select is present (Not known yet / Monthly / Quarterly / Annual). The first commit shows the 'Is this an existing customer?' card listing 'TA Riverside Leisure Ltd — Exact name match · 1 sites · 1 equipment' plus 'create a new customer', and commit stays disabled until one is chosen. After linking the existing customer, the done card reads 'Linked to the existing customer. Reused 1 existing site(s) and 1 registered machine(s); added 0 site(s) and 1 machine(s)', and the draft contract shows 'needs start date, billing frequency'. (4) MOD rate card editor as cm.admin: 27 VERIFIED pills (the 3 POA rows show POA instead). Preview and Apply start disabled. Preview of the CSV shows '1 line(s) matched, 29 rate-card line(s) not in the file'. Apply stays disabled until both dates are set; it then gives '1 contracted rate(s) verified' and the Treadmill row tooltip reads 'Valid 2026-01-01 – 2028-12-31'. mod_sor_rate_card was snapshotted first and restored exactly afterwards (verified byte-identical), and the added history row was removed. With Treadmill temporarily set to placeholder, the wizard line shows 'Unverified rate'. A draft quote was still generated (drafts allowed). Send for e-signature showed the error toast 'This quote uses MOD rates that an admin has not verified yet, so it can't be sent: Treadmill: placeholder price (not verified)' and no link was issued. (5) Renewals dashboard: the button now reads 'Prepare renewals for approval' and the toast gives prepared/blocked/in-progress counts. No native dialogs appeared anywhere. (6) Regression: all 9 CM nav sections load with no crash and no horizontal scroll at 1366px. cm.sales /crm loads (leisure mode), and cm.sales → /contract-management redirects to /launch. Visual design looks unchanged. LIMITATION: the CRM Quotes tab (where the MOD wizard lives) is hidden for every cm.* user because the preview operator org has only leisure CRM mode. To reach the MOD wizard I patched the /api/me/crm-modes response in the browser only (no DB change). The Service tab was reached via the Contract Management workspace, which renders the same CRMContracts component.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/crm/v2/contracts/{id}/sync-sage (utils/finance_sync.py:210-213)", "issue": "enqueue_finance_sync overwrites contract.sicon_sync_status with the finance outbox status ('queued') but leaves sicon_sync_detail unchanged. After a Sage push the Sicon card shows 'Queued for finance' next to the old Sicon text 'Sicon write-back is switched off (read-only phase). Request recorded.' The Live compliance list also shows 'Sicon: Queued' even though no Sicon service-contract push was queued. Keep the Sicon service-contract status separate from the finance (Sage-via-Sicon) status, or update both detail fields together."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ServiceTab (CRMContracts.js)", "issue": "Sicon card label and detail contradict each other after a Sage push (see backend minor item).", "selector": "[data-testid='sicon-sync-state']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Action Centre alerts", "issues": [
+        "The 'Renewal approved — email not delivered, share: <link>' toast disappears after the default duration and has no Copy button, so the coordinator can easily lose the only accept link. Use a longer or persistent toast with a copy action, or show the link on the item.",
+        "The header counter pill only reports '{n} warranty · {n} RPI' and ignores RENEWAL APPROVAL / MISSING INFO / RENEWAL BLOCKED items, so the badge undercounts open work.",
+        "'Run scan now' gives no success feedback (no toast or summary of what it found); the list just refreshes."
+      ]},
+      {"screen": "Estate onboarding review", "issues": ["The 'This customer may already exist. Link the existing customer or confirm a new one.' prompt appears in the red error banner (afs-onb-error). It is a decision prompt, not an error; use the info/amber tone. The match card also only appears after the first commit click (a 409 round-trip) rather than up front via the existing GET /reconcile."]},
+      {"screen": "MOD rate card editor upload panel", "issues": ["Valid from/to use the browser's native <input type=date> picker instead of the app's shadcn Calendar/date picker."]},
+      {"screen": "CRM for cm.* users", "issues": ["In preview the operator org has only leisure CRM mode, so the Quotes and Contracts tabs (and therefore the MOD wizard and rate-card upload) are unreachable for cm.admin in /crm. If the MOD rate upload must be available to admins, confirm the business mode is enabled in production or expose the rate-card editor inside the Contract Management Settings/Build Quote area."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/_ta_cm2_seed.py",
+    "/app/backend/tests/_ta_cm2_restore_rate_card.py",
+    "/app/backend/tests/_ta_cm2_find_refs.py"
+  ],
+  "action_items": [
+    "Stop enqueue_finance_sync (Sage push) from overwriting sicon_sync_status, or update sicon_sync_detail together with it, so the Sicon card and the Live compliance 'Sicon:' chip don't claim a Sicon queue that never happened.",
+    "Make the renewal 'email not delivered' accept link persist or copyable (longer toast duration with a Copy action, or store and show it on the renewal).",
+    "Include renewal_approval / contract_missing_info / renewal_blocked in the Action Centre counter pill.",
+    "Restyle the onboarding 'customer may already exist' prompt as info instead of the red error banner.",
+    "Optional: replace the native date inputs in the MOD rate import panel with the shadcn date picker.",
+    "Confirm how cm.admin reaches the MOD wizard and rate-card upload in production (CRM business mode must be enabled for the operator org)."
+  ],
+  "critical_code_review_comments": [
+    "finance_sync.py:210-213 writes the same outbox_status into sicon_sync_status and sage_sync_status, mixing two different integrations in one field.",
+    "CRMContracts.js syncState() shows 'Synced' whenever a ref exists and the status is empty. That is fine today (0 legacy SICON-/SAGE- refs in the DB), but any old record with a fake ref and no status would still show as Synced.",
+    "AftersalesApp.js runScan ignores the daily-checks response (renewals.totals and contract_admin counts). Showing it in a toast would help the coordinator.",
+    "approve_and_send_renewal: after the first approve, the previous contract is marked auto_renewal_sent_at. If the renewal is ever re-opened, a second 'Renewal sent' activity is written; I saw this only because I manually reset my own test renewal to pending, so it is not a user-reachable bug.",
+    "The MOD generate step creates a mod_service_contracts record even when lines use unverified rates (drafts allowed by design). Make sure that service contract can't be activated or billed until its rates are verified."
+  ],
+  "updated_files": [
+    "/app/backend/tests/_ta_cm2_seed.py (new helper: seed/report/cleanup of ta_cm2_ data)",
+    "/app/backend/tests/_ta_cm2_restore_rate_card.py (new helper: exact restore of mod_sor_rate_card from /tmp snapshot)",
+    "/app/backend/tests/_ta_cm2_find_refs.py (new helper: finds leftover references)",
+    "/app/backend/tests/_ta_cm2_probe.py (new helper: org state probe)"
+  ],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "100% of requested flows pass core assertions; 1 medium UI inconsistency (Sicon state after Sage push) plus design notes"},
+  "seed_data_creation": "Created and then deleted: crm2_contacts ta_cm2_contact; crm2_companies ta_cm2_co_renew and ta_cm2_co_river; crm2_contracts ta_cm2_ctr_renew and ta_cm2_ctr_nofreq, plus the generated renewal 23818038-… and onboarding draft f23a657d-…; organizations ta_cm2_cust_org with its sites, equipment, ppm_backfill_runs, ppm_schedules, ppm_tasks and suppliers; the crm2_afs_onboarding import 1e3b6793-… and its 2 crm_audit_log rows; 8 crm2_activities and 4 crm2_notifications; 1 crm2_afs_finance_sync row; MOD quote MOD-20261124-A322 (crm2_quotes a322d5a4-…) and mod_service_contracts cb51cd75-…. mod_sor_rate_card was restored byte-identical from a snapshot and the new mod_sor_rate_card_history row was deleted. The final leftover scan found 0 references. Side effects on data I didn't create: the scan's warranty step (run_afs_alerts_once with send_digest=True) re-touched the 2 pre-existing open warranty alerts (f48a040a…, ae2b7852…), possibly bumping updated_at, and may have tried a digest email, which fails in preview because the Resend key is invalid.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login via /login (gx-login-email/password/submit), then navigate. The CM workspace URL accepts ?tab=<section>&sub=<subtab>, e.g. /contract-management?tab=build-quote&sub=onboarding. CRMContracts (ServiceTab, view-tab-renewals → auto-renewal-autopilot-btn) is reachable at /contract-management?tab=contracts. The /crm Quotes tab (MOD wizard) is hidden for cm.* users because the org has only leisure mode. Workaround: add the init script /tmp/ta_cm2_modes_patch.js, which patches the XHR for /me/crm-modes to business:true and sets localStorage crm_active_mode=business. Playwright page.route does NOT work here because the PWA service worker serves the request. notify.* toasts render in [data-testid=global-banner-host], not [data-sonner-toast]; the Aftersales Action Centre uses sonner ([data-sonner-toast]). The MOD Test Site org abfdabd9-ae11-4877-a44d-a36fea7f1f4e has 8 equipment including a treadmill (sor-2). Snapshot mod_sor_rate_card before any import and restore it with tests/_ta_cm2_restore_rate_card.py.",
+  "test_credentials": "cm.coordinator@ / cm.admin@ / cm.sales@pulsefitness.test with password CmTest2026! (from /app/memory/test_credentials.md). All worked."
+}
