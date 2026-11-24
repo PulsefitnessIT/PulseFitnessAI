@@ -4278,11 +4278,21 @@ async def _claim_equipment(key: str, eq: dict) -> dict:
     try:
         await db.crm2_afs_equipment_claims.insert_one({"key": key, "equipment_id": eq["id"], "created_at": _now()})
     except DuplicateKeyError:
+        import asyncio
         won = await db.crm2_afs_equipment_claims.find_one({"key": key}, {"_id": 0})
-        got = await db.equipment.find_one({"id": won["equipment_id"]}, {"_id": 0})
-        if got:
-            return {**got, "_reused": True}
-        await db.crm2_afs_equipment_claims.update_one({"key": key}, {"$set": {"equipment_id": eq["id"]}})
+        for _ in range(40):  # the winner inserts its record right after claiming
+            got = await db.equipment.find_one({"id": won["equipment_id"]}, {"_id": 0})
+            if got:
+                return {**got, "_reused": True}
+            await asyncio.sleep(0.05)
+        stale = (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat()
+        took = await db.crm2_afs_equipment_claims.update_one(  # orphaned claim (creator failed) — take it over
+            {"key": key, "equipment_id": won["equipment_id"], "created_at": {"$lt": stale}},
+            {"$set": {"equipment_id": eq["id"], "created_at": _now()}})
+        if took.modified_count:
+            await db.equipment.insert_one(dict(eq))
+            return eq
+        raise HTTPException(409, "Another document is creating this machine — try again in a moment.")
     await db.equipment.insert_one(dict(eq))
     return eq
 

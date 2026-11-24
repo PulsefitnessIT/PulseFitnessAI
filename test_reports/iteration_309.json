@@ -1,0 +1,53 @@
+{
+  "summary": "Iteration 309 — CM Phase 3 Service Planner (contract obligations ↔ Service Desk PPM bookings ↔ verified completions) + Stage 1 Build Quote import regression. Backend: the 5 requested pytest files all pass (27/27 locally); test_cm_phase3_service_planner.py also passes against the public URL (8/8, CM_TEST_API=REACT_APP_BACKEND_URL). I ran 11 more API edge checks on the public URL and all passed: bad date 400, already-completed visit 400, finance cannot book 403, unknown engineer 400 and the booking lock is released afterwards (rebooking works), unknown obligation 404, bad review action 400, exclude without a note 400, reconciliation 200, engineers 200, no auth 401. Frontend (1920x1080, public URL), with fictional TEST_p3ui_ data seeded by tests/_seed_p3ui.py (contract 1: start 2025-11-01, 2-year term, 1 visit/year, 3 serialised machines at one site; contract 2: one South Gym machine with 2 ambiguous historical PPMs to produce review candidates; engineer Erin Engineer). All requested flows work. (1) The Service planner (afs-service-planner) renders inside Live compliance, after the stats tiles and ABOVE the compliance cards. Bucket chips all/due/booked/completed/overdue/review, planner-search, planner-table and planner-empty are all present. The cards still render and expand. (2) The first visit (due 2026-11-01) shows Overdue. Book toggle → the submit button is disabled until a date is entered → picked 2026-12-03 + Erin Engineer → toast 'Service Desk job SVC-00019 created' → the row shows Booked, 2026-12-03 / Erin Engineer and a case link with href /service-desk?tab=cases&q=SVC-00019. The Book button is gone. (3) The chips filter correctly (review=1, completed=empty, overdue=2). Search 'North Gym' gives 2 rows, 'TEST_p3ui' gives 5, and no match shows the empty state. (4) Engineer completion with only 2 of 3 machines → Requires review + 'Not every machine serviced', listed under the Requires review chip. With all 3 machines → Completed, 'Completed 2026-11-20', Last completed 2026-11-20, under the Completed chip. (5) cm.finance sees the planner but 0 Book buttons and 0 candidate controls. cm.coordinator sees no Link / Not this buttons. cm.aftersales sees Link / Not this for both candidates; clicking Link gave 'Review recorded' and the row linked to P3UI-HB. It stays in Requires review/partial because the seeded historical case had no machine records, which is the expected evidence rule. (6) Regression: the Build Quote and Contracts → Agreements / Contracts & Renewals tabs load with no page errors. All TEST_p3ui_ data was deleted by narrow filters and the deletion was checked.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/crm/v2/aftersales/service-planner", "issue": "Each read calls sync_contract (DB writes, task creation) for every active contract and does N+1 site lookups. This is a GET with side effects, and it slows down as the estate grows. It also runs on every keystroke-debounce and bucket change in the UI. Consider caching, a background sync, or syncing only on /service-planner/sync."},
+      {"endpoint": "GET /api/crm/v2/aftersales/service-planner", "issue": "'totals' (the chip counts) ignore the q filter. While searching, the chip counts still show the whole estate, so 'Booked · 1' can appear while the filtered table shows none."},
+      {"endpoint": "POST /contracts/{cid}/obligations/{oid}/book", "issue": "Accepts any valid YYYY-MM-DD, including dates in the past or outside the contract's cover period. No sanity check."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PlannerRow service case link", "issue": "For every CM test user, including cm.admin and cm.aftersales, the /service-desk?tab=cases&q=<ref> link sends the user to /launch, because they lack view_service_desk (AppRoutes.js:614 Navigate to /login). The user lands on the area picker with no explanation. Hide the link (or show plain text / a 'no Service Desk access' tooltip) when the user cannot view the Service Desk, or open it in a context they can access.", "selector": "[data-testid^=planner-case-link-]", "priority": "MEDIUM"},
+      {"component": "PlannerRow site line", "issue": "Pluralisation: '1 machines'.", "selector": "[data-testid^=planner-row-] td:first-child", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Live compliance card vs planner", "issue": "Once an overdue obligation is booked for a later date (due 2026-11-01, booked 2026-12-03), the compliance card shows a green 'Service: 0/2 done · next 2026-11-01' and the 'Service overdue' tile drops from 2 to 1. The planner shows 'Booked' with no late indicator. A late booking past the due date may need a 'booked late' or warning tone. Product decision.", "affected_selectors": ["[data-testid^=afs-compliance-card-]", "[data-testid^=planner-status-]"]}
+    ],
+    "design_issues": [
+      {"screen": "Contracts → Contracts & Renewals", "issues": ["ServicePlanner is nested inside LiveCompliancePanel, and LiveCompliancePanel is also rendered on the Contracts & Renewals sub-tab (AftersalesApp.js:3642). The planner therefore appears on the Contracts tab too, not only the Service tab, which also triggers the heavy planner sync there. Confirm this is intended, or render ServicePlanner only for tab==='service'."]},
+      {"screen": "Service planner book form", "issues": ["Uses the native browser <input type=date> and a native <select> instead of the app's shadcn Calendar/Select components. This matches nearby legacy styles, so it is low priority.", "The booking date has no default when the due date is in the past (it starts empty). That is acceptable because submit stays disabled until a date is entered."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_cm_phase3_service_planner.py",
+    "/app/backend/tests/test_cm_phase3_import_regression.py",
+    "/app/backend/tests/test_cm_iter308_import_guards.py",
+    "/app/backend/tests/test_cm_build_quote_import.py",
+    "/app/backend/tests/test_cm_quote_to_contract.py",
+    "/app/backend/tests/_seed_p3ui.py",
+    "/app/backend/tests/_p3ui_edge.py",
+    "/app/test_reports/pytest/p3_public.xml"
+  ],
+  "action_items": [
+    "Hide or replace the planner case link when the user lacks view_service_desk. Today it silently redirects to /launch for every CM role tested.",
+    "Decide whether ServicePlanner should also appear on Contracts → Contracts & Renewals. Today it does, because it is nested in LiveCompliancePanel.",
+    "Consider making GET /service-planner read-only, or throttling it (sync in the background or via POST /service-planner/sync), and batch the site lookups.",
+    "Optional: make the chip totals respect the search filter; fix '1 machines' pluralisation; validate booking dates (no past dates, within cover); show a warning tone for bookings later than the due date."
+  ],
+  "critical_code_review_comments": [
+    "AftersalesApp.js is 3,600+ lines. ServicePlanner, PlannerRow and PlannerBookForm should move to their own module (e.g. Aftersales/ServicePlanner.js).",
+    "The review 'link' action (crm_service_planner.py:211) and the cm_service_link svc_cases lookups (lines 177, 185, 289) are not scoped by organization_id; they rely on site_id matching. The risk is low, but add the operator org filter for defence in depth.",
+    "The ServicePlanner load() catch replaces the data with empty rows and shows no error, so an API failure looks like 'No contractual visits in this view'. Show an error state instead.",
+    "canBook/canReview come from crm_permissions on the client, which correctly mirrors the backend contracts.manage and exceptions.approve checks. The backend enforces both (verified 403s)."
+  ],
+  "updated_files": ["/app/backend/tests/_seed_p3ui.py (new seed/cleanup helper)", "/app/backend/tests/_p3ui_edge.py (new public-URL edge checks)"],
+  "success_rate": {"backend": "100% (27/27 pytest + 11/11 edge checks)", "frontend": "~92% (all requested flows pass; the case link is unusable for CM roles without Service Desk access)"},
+  "seed_data_creation": "Fictional TEST_p3ui_ company, org, sites, equipment, quotes, contracts, engineer and svc_cases were created via tests/_seed_p3ui.py seed. All were removed with 'cleanup' (narrow ^TEST_p3ui_ and contract-id filters) and the removal was checked (0 remaining). No seed or prod data was modified.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login at /login (gx-login-email/password/submit) with CmTest2026!. Go to /contract-management → crm-nav-service-planner. If you hit 'Too many requests', run python tests/_clear_login_ratelimit.py. To seed UI data: cd /app/backend && PYTHONPATH=. python tests/_seed_p3ui.py seed. It prints the contract ids and o1; obligation_ids are deterministic per contract id. After booking in the UI, run 'partial' or 'complete' to simulate the engineer completion, and 'cleanup' at the end. Server date is 2026-11-24. The CM test users lack view_service_desk, so the Service Desk link redirects to /launch.",
+  "rca of the issue": "Case link redirect: AppRoutes.js:614 renders the Service Desk only when can(user,'view_service_desk'), otherwise Navigate to /login, which then sends a logged-in user to /launch. The CM workspace users (coordinator, aftersales, admin) do not have that permission, so the planner's link cannot be followed. Reproduce: log in as cm.aftersales, book a visit, then click planner-case-link-<oid>."
+}

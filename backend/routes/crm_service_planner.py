@@ -3,7 +3,7 @@ existing Service Desk (bookings, engineers, completions). No second planner:
 bookings are ordinary Service Desk PPM cases carrying ``contract_obligation_id``."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from routes.crm_auth import get_crm_user
 from routes.crm_workspace import require_crm_perm
-from utils.cm_service_link import (CANCELLED_CASE, _brief, _hist, candidate_cases, link_case, obligation_bucket,
+from utils.cm_service_link import (CANCELLED_CASE, _brief, _hist, _linked_org, candidate_cases, link_case, obligation_bucket,
                                    sync_all, sync_contract)
 from utils.crm_audit import record_audit
 from utils.database import db
@@ -49,19 +49,35 @@ async def _save_visit(user, cid: str, oid: str, v: dict) -> None:
         {"$set": {"visits.$": v, "updated_at": _now()}, "$inc": {"rev": 1}})
 
 
+SYNC_TTL_SECONDS = 60
+
+
 @router.get("/service-planner")
 async def service_planner(bucket: str = "", q: str = "", user=Depends(require_crm_perm("service.read"))):
+    """Contract obligations with their Service Desk state. Contracts with live bookings are
+    always re-read; others at most once a minute (case transitions/daily checks sync immediately)."""
     org = _org(user)
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    rows, totals, sites = [], {b: 0 for b in BUCKETS}, {}
-    open_actions = {}
+    now = datetime.now(timezone.utc)
+    today, fresh_after = now.strftime("%Y-%m-%d"), (now - timedelta(seconds=SYNC_TTL_SECONDS)).isoformat()
+    rows, open_actions = [], {}
     async for a in db.crm2_activities.find({"organization_id": org, "status": "open", "obligation_id": {"$exists": True}},
                                            {"_id": 0, "obligation_id": 1, "subject": 1, "owner_name": 1}):
         open_actions.setdefault(a["obligation_id"], a)
-    async for c in db.crm2_contracts.find({"organization_id": org, "status": "active"}, {"_id": 0}):
-        if not await db.crm2_afs_service_schedules.count_documents({"contract_id": c["id"], "organization_id": org}, limit=1):
-            continue
-        visits = (await sync_contract(org, c, today=today))["visits"]
+    contracts = {c["id"]: c async for c in db.crm2_contracts.find({"organization_id": org, "status": "active"}, {"_id": 0})}
+    scheds = await db.crm2_afs_service_schedules.find(
+        {"organization_id": org, "contract_id": {"$in": list(contracts)}}, {"_id": 0}).to_list(5000)
+    per_contract = []
+    for sc in scheds:
+        c = contracts[sc["contract_id"]]
+        visits = sc.get("visits") or []
+        live = any(v.get("case_id") and v.get("status") not in ("completed", "verified", "excluded") for v in visits)
+        if live or (sc.get("synced_at") or "") < fresh_after or any(not v.get("obligation_id") for v in visits):
+            visits = (await sync_contract(org, c, today=today))["visits"]
+        per_contract.append((c, visits))
+    site_ids = {v.get("site_id") for _, vs in per_contract for v in vs if v.get("site_id")}
+    sites = {s["id"]: " · ".join(x for x in (s.get("name"), s.get("postcode")) if x)
+             async for s in db.sites.find({"id": {"$in": list(site_ids)}}, {"_id": 0, "id": 1, "name": 1, "postcode": 1})}
+    for c, visits in per_contract:
         last_done = {}
         for v in visits:
             d = (v.get("completion") or {}).get("completed_date")
@@ -71,11 +87,7 @@ async def service_planner(bucket: str = "", q: str = "", user=Depends(require_cr
             b = obligation_bucket(v, today)
             if b == "excluded":
                 continue
-            totals[b] += 1
             sid = v.get("site_id")
-            if sid and sid not in sites:
-                s = await db.sites.find_one({"id": sid}, {"_id": 0, "name": 1, "postcode": 1}) or {}
-                sites[sid] = " · ".join(x for x in (s.get("name"), s.get("postcode")) if x)
             act = open_actions.get(v["obligation_id"])
             rows.append({
                 "obligation_id": v["obligation_id"], "contract_id": c["id"], "contract_number": c.get("contract_number"),
@@ -97,6 +109,9 @@ async def service_planner(bucket: str = "", q: str = "", user=Depends(require_cr
         ql = q.lower()
         rows = [r for r in rows if ql in " ".join(str(r.get(k) or "") for k in
                                                    ("customer", "site", "contract_number", "case_reference", "engineer")).lower()]
+    totals = {b: 0 for b in BUCKETS}
+    for r in rows:
+        totals[r["bucket"]] += 1
     if bucket:
         rows = [r for r in rows if r["bucket"] == bucket]
     rows.sort(key=lambda r: (r["due_date"] or "9999", r["customer"] or ""))
@@ -125,9 +140,15 @@ async def book_obligation(contract_id: str, obligation_id: str, body: BookIn,
                           user=Depends(require_crm_perm("contracts.manage"))):
     """Raise the Service Desk PPM job for one obligation — once, even if clicked twice."""
     from utils.cm_dates import parse_date
-    if not parse_date(body.scheduled_date):
+    day = parse_date(body.scheduled_date)
+    if not day:
         raise HTTPException(400, "scheduled_date must be YYYY-MM-DD")
     org, contract = _org(user), await _contract(user, contract_id)
+    if day < datetime.now(timezone.utc).date():
+        raise HTTPException(400, "Choose today or a future date — record past visits through Service Desk.")
+    end = parse_date(contract.get("end_date"))
+    if end and day > end:
+        raise HTTPException(400, f"The contract cover ends {end.isoformat()} — book within cover.")
     sched, v = await _visit(user, contract_id, obligation_id)
     if v.get("status") in ("completed", "verified", "cancelled", "excluded"):
         raise HTTPException(400, f"This visit is already {v['status']}.")
@@ -208,7 +229,9 @@ async def review_obligation(contract_id: str, obligation_id: str, body: ReviewIn
     _, v = await _visit(user, contract_id, obligation_id)
     who = user.get("email") or "manager"
     if body.action == "link":
-        case = await db.svc_cases.find_one({"id": body.case_id or ""}, {"_id": 0})
+        sched, _ = await _visit(user, contract_id, obligation_id)
+        linked = await _linked_org(org, contract, {"linked_organization_id": sched.get("linked_organization_id")})
+        case = await db.svc_cases.find_one({"id": body.case_id or "", "organization_id": {"$in": [org, linked]}}, {"_id": 0})
         if not case or case.get("site_id") != v.get("site_id"):
             raise HTTPException(400, "Choose a Service Desk case at this obligation's site.")
         if (case.get("status") or "") in CANCELLED_CASE:
@@ -249,5 +272,7 @@ async def service_reconciliation(contract_id: str, user=Depends(require_crm_perm
 async def obligation_candidates(contract_id: str, obligation_id: str, user=Depends(require_crm_perm("service.read"))):
     sched, v = await _visit(user, contract_id, obligation_id)
     linked = {x["case_id"] for x in sched["visits"] if x.get("case_id")}
-    c = await candidate_cases(v, contract_id, int(sched.get("visits_per_year") or 1), linked)
+    contract = await _contract(user, contract_id)
+    orgs = [_org(user), await _linked_org(_org(user), contract, {"linked_organization_id": sched.get("linked_organization_id")})]
+    c = await candidate_cases(v, contract_id, int(sched.get("visits_per_year") or 1), linked, orgs)
     return {"strong": [_brief(x) for x in c["strong"]], "weak": [_brief(x) for x in c["weak"]]}

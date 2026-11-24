@@ -14,6 +14,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useCRM } from '../CRMApp';
+import { useAuth } from '@/App';
+import { can } from '@/utils/capabilities';
 import SubTabBar from '../../../components/shared/SubTabBar';
 import CRMContracts from '../CRMContracts';
 import EstateOnboarding from './EstateOnboarding';
@@ -3146,8 +3148,9 @@ function PlannerBookForm({ API, headers, row, engineers, c, isDark, onDone }) {
   );
 }
 
-function PlannerRow({ API, headers, row, engineers, c, isDark, canBook, canReview, onChanged }) {
+function PlannerRow({ API, headers, row, engineers, c, isDark, canBook, canReview, canDesk, onChanged }) {
   const [open, setOpen] = useState(false);
+  const late = row.bucket === 'booked' && row.booking_date && row.due_date && row.booking_date > row.due_date;
   const cell = 'px-3 py-2 align-top';
   const review = async (action, caseId) => {
     try {
@@ -3161,12 +3164,12 @@ function PlannerRow({ API, headers, row, engineers, c, isDark, canBook, canRevie
     <tr data-testid={`planner-row-${row.obligation_id}`} className="border-t" style={{ borderColor: c.border }}>
       <td className={cell}>
         <div className="font-semibold" style={{ color: c.text }}>{row.customer}</div>
-        <div className="text-[11px]" style={{ color: c.textDim }}>{row.contract_number} · {row.site}{row.machines ? ` · ${row.machines} machines` : ''}</div>
+        <div className="text-[11px]" style={{ color: c.textDim }}>{row.contract_number} · {row.site}{row.machines ? ` · ${row.machines} machine${row.machines === 1 ? '' : 's'}` : ''}</div>
       </td>
       <td className={cell} style={{ color: c.text }} data-testid={`planner-due-${row.obligation_id}`}>{row.due_date}<div className="text-[11px]" style={{ color: c.textDim }}>Year {row.year} · visit {row.visit_no}</div></td>
       <td className={cell}>
-        <CompliancePill tone={BUCKET_TONE[row.bucket]} testId={`planner-status-${row.obligation_id}`}>
-          {(PLANNER_BUCKETS.find(b => b.id === row.bucket) || {}).label || 'Planned'}
+        <CompliancePill tone={late ? 'warn' : BUCKET_TONE[row.bucket]} testId={`planner-status-${row.obligation_id}`}>
+          {late ? 'Booked late' : (PLANNER_BUCKETS.find(b => b.id === row.bucket) || {}).label || 'Planned'}
         </CompliancePill>
         {row.review_reason && <div className="text-[11px] mt-1" style={{ color: 'var(--color-warning-alt, #F59E0B)' }} data-testid={`planner-review-${row.obligation_id}`}>{REVIEW_LABEL[row.review_reason] || row.review_reason}</div>}
         {row.cancelled_without_replacement && <div className="text-[11px] mt-1" style={{ color: 'var(--color-danger-alt, #EF4444)' }}>Appointment cancelled — rebook</div>}
@@ -3177,7 +3180,10 @@ function PlannerRow({ API, headers, row, engineers, c, isDark, canBook, canRevie
       </td>
       <td className={cell} style={{ color: c.textDim }}>{row.last_completed || '—'}</td>
       <td className={cell}>
-        {row.case_reference
+        {row.case_reference && !canDesk
+          ? <span className="text-xs font-semibold" style={{ color: c.text }} title="Open in Service Desk (requires Service Desk access)"
+                  data-testid={`planner-case-ref-${row.obligation_id}`}>{row.case_reference}</span>
+          : row.case_reference
           ? <a href={`/service-desk?tab=cases&q=${encodeURIComponent(row.case_reference)}`} data-testid={`planner-case-link-${row.obligation_id}`}
                className="text-xs font-semibold underline" style={{ color: 'var(--color-brand-cyan)' }}>{row.case_reference}</a>
           : <span className="text-xs" style={{ color: c.textDim }}>—</span>}
@@ -3215,6 +3221,8 @@ function PlannerRow({ API, headers, row, engineers, c, isDark, canBook, canRevie
 
 function ServicePlanner({ API, headers, c, isDark }) {
   const perms = useCRM().user?.crm_permissions || [];
+  const canDesk = can(useAuth()?.user, 'view_service_desk');
+  const [error, setError] = useState(false);
   const [bucket, setBucket] = useState('');
   const [q, setQ] = useState('');
   const [data, setData] = useState(null);
@@ -3223,7 +3231,8 @@ function ServicePlanner({ API, headers, c, isDark }) {
   const load = useCallback(() => {
     setLoading(true);
     axios.get(`${API}/crm/v2/aftersales/service-planner`, { headers: headers(), params: { bucket, q } })
-      .then(r => setData(r.data)).catch(() => setData({ rows: [], totals: {} })).finally(() => setLoading(false));
+      .then(r => { setData(r.data); setError(false); }).catch(() => { setData({ rows: [], totals: {} }); setError(true); })
+      .finally(() => setLoading(false));
   }, [API, headers, bucket, q]);
   useEffect(() => { const t = setTimeout(load, 250); return () => clearTimeout(t); }, [load]);
   useEffect(() => {
@@ -3239,10 +3248,20 @@ function ServicePlanner({ API, headers, c, isDark }) {
           <h2 className="text-lg font-bold" style={{ color: c.text }}>Service planner</h2>
           <p className="text-xs" style={{ color: c.textDim }}>Contractual visits linked to Service Desk bookings and verified engineer completions.</p>
         </div>
+        <div className="flex items-center gap-2">
+        <button data-testid="planner-refresh" onClick={async () => {
+                  try { await axios.post(`${API}/crm/v2/aftersales/service-planner/sync`, {}, { headers: headers() }); } catch { /* list reload shows the error */ }
+                  load();
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                style={{ background: 'transparent', color: c.textDim, border: `1px solid ${c.border}` }}>
+          <RotateCw size={13} /> Sync with Service Desk
+        </button>
         <div className="relative">
           <Search size={13} className="absolute left-2 top-2" style={{ color: c.textDim }} />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Customer, site, contract, case…" data-testid="planner-search"
                  className="text-xs pl-7 pr-2 py-1.5 rounded-lg border w-56" style={{ background: isDark ? '#1b1c1d' : '#fff', borderColor: c.border, color: c.text }} />
+        </div>
         </div>
       </div>
       <div className="flex flex-wrap gap-2 mb-3" data-testid="planner-buckets">
@@ -3254,7 +3273,11 @@ function ServicePlanner({ API, headers, c, isDark }) {
           </button>
         ))}
       </div>
-      {loading ? <Spinner /> : (data?.rows || []).length === 0 ? (
+      {loading ? <Spinner /> : error ? (
+        <div data-testid="planner-error" className="p-6 rounded-xl border text-center text-sm" style={{ ...panel, color: 'var(--color-danger-alt, #EF4444)' }}>
+          The service planner could not be loaded. Try Refresh.
+        </div>
+      ) : (data?.rows || []).length === 0 ? (
         <div data-testid="planner-empty" className="p-6 rounded-xl border text-center text-sm" style={{ ...panel, color: c.textDim }}>
           No contractual visits in this view.
         </div>
@@ -3268,7 +3291,7 @@ function ServicePlanner({ API, headers, c, isDark }) {
             <tbody>
               {data.rows.map(r => (
                 <PlannerRow key={r.obligation_id} API={API} headers={headers} row={r} engineers={engineers} c={c} isDark={isDark}
-                            canBook={perms.includes('contracts.manage')} canReview={perms.includes('exceptions.approve')} onChanged={load} />
+                            canBook={perms.includes('contracts.manage')} canReview={perms.includes('exceptions.approve')} canDesk={canDesk} onChanged={load} />
               ))}
             </tbody>
           </table>
@@ -3278,7 +3301,9 @@ function ServicePlanner({ API, headers, c, isDark }) {
   );
 }
 
-function LiveCompliancePanel({ API, headers, c, isDark }) {
+function ServiceTab(props) { return <LiveCompliancePanel {...props} showPlanner />; }
+
+function LiveCompliancePanel({ API, headers, c, isDark, showPlanner = false }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -3339,7 +3364,7 @@ function LiveCompliancePanel({ API, headers, c, isDark }) {
           </div>
         ))}
       </div>
-      <ServicePlanner API={API} headers={headers} c={c} isDark={isDark} />
+      {showPlanner && <ServicePlanner API={API} headers={headers} c={c} isDark={isDark} />}
       {loading ? <Spinner /> : (data?.contracts || []).length === 0 ? (
         <div data-testid="afs-compliance-empty" className="p-6 rounded-xl border text-center text-sm"
              style={{ background: isDark ? '#111' : 'var(--color-neutral-50)', borderColor: isDark ? 'var(--color-surface-dark-panel)' : 'var(--color-border-alt)', color: c.textDim }}>
@@ -3634,7 +3659,7 @@ export default function AftersalesApp({ sections = null, initialTab = 'dashboard
     if (sections && !sections.includes(t) && onLeaveSection) onLeaveSection(t);
     else setTabState(t);
   };
-  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, onboarding: EstateOnboarding, agreements: AgreementsTab, renewals: RenewalsRpiTab, ai: AIAssistantTab, reports: ReportsTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab, finance: FinanceDashboard, service: LiveCompliancePanel }[tab];
+  const TabComp = { dashboard: DashboardTab, autoquote: AutoQuoteTab, onboarding: EstateOnboarding, agreements: AgreementsTab, renewals: RenewalsRpiTab, ai: AIAssistantTab, reports: ReportsTab, pricing: PricingTab, equipment: EquipmentTab, supportability: SupportabilityTab, finance: FinanceDashboard, service: ServiceTab }[tab];
   return (
     <div data-testid="afs-app">
       {tabs.length > 1 && <SubTabBar tabs={tabs} active={tab} onChange={setTab} testId="afs-tab" ariaLabel="Aftersales sections" />}

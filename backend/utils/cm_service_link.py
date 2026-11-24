@@ -172,7 +172,7 @@ def _case_day(c: dict) -> str:
     return (completion_date(c)[0] or str(c.get("scheduled_at") or "")[:10])
 
 
-async def candidate_cases(v: dict, contract_id: str, per_year: int, linked_ids: set) -> dict:
+async def candidate_cases(v: dict, contract_id: str, per_year: int, linked_ids: set, orgs: list | None = None) -> dict:
     """Canonical refs first; equipment overlap is strong; site+date alone needs review."""
     canon = await db.svc_cases.find(
         {"contract_obligation_id": v["obligation_id"], "status": {"$nin": list(CANCELLED_CASE)}}, {"_id": 0}).to_list(10)
@@ -182,7 +182,8 @@ async def candidate_cases(v: dict, contract_id: str, per_year: int, linked_ids: 
         return {"strong": [], "weak": []}
     lo, hi = _window(v, per_year)
     strong, weak = [], []
-    async for c in db.svc_cases.find({"site_id": v["site_id"], "case_type": "ppm",
+    scope = {"organization_id": {"$in": [o for o in orgs if o]}} if orgs else {}
+    async for c in db.svc_cases.find({**scope, "site_id": v["site_id"], "case_type": "ppm",
                                       "status": {"$nin": list(CANCELLED_CASE)},
                                       "contract_obligation_id": {"$in": [None, ""]}}, {"_id": 0}).limit(200):
         if c["id"] in linked_ids or c["id"] in (v.get("rejected_cases") or []):
@@ -277,7 +278,8 @@ async def sync_contract(org_id: str, contract: dict, *, dry_run: bool = False, t
     visits = backfill_ids(contract["id"], sched["visits"], site_scopes(ag.get("asset_register"))[0])
     report = {"matched_completed": [], "matched_booked": [], "unmatched": [], "ambiguous": [],
               "possible_duplicates": [], "missing_relationships": []}
-    if not await _linked_org(org_id, contract, ag):
+    linked_org = await _linked_org(org_id, contract, ag)
+    if not linked_org:
         report["missing_relationships"].append({"issue": "customer_not_linked", "detail": "Customer has no operations organisation."})
     linked_ids = {v["case_id"] for v in visits if v.get("case_id")}
     for v in visits:
@@ -299,7 +301,7 @@ async def sync_contract(org_id: str, contract: dict, *, dry_run: bool = False, t
         elif v.get("status") in ("completed", "verified"):
             pass  # historic completion recorded without a case — preserved as-is
         else:
-            cands = await candidate_cases(v, contract["id"], per_year, linked_ids)
+            cands = await candidate_cases(v, contract["id"], per_year, linked_ids, [org_id, linked_org])
             if len(cands["strong"]) == 1 and not dry_run:
                 if await link_case(org_id, contract, v, cands["strong"][0], "contract_or_equipment_reference"):
                     linked_ids.add(v["case_id"])
