@@ -11,6 +11,25 @@ COMPANY_ID = "iso-cA"
 
 
 # ---------- fixtures ----------
+@pytest.fixture(scope="module", autouse=True)
+def _retire_previous_test_contracts():
+    """Earlier runs of this suite activate demo contracts for iso-cA; retire them so
+    equipment-cover exclusion does not hide the demo estate. Demo company only."""
+    import os
+    from pymongo import MongoClient
+    mdb = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
+
+    def retire():
+        ids = [c["id"] for c in mdb.crm2_contracts.find(
+            {"company_id": COMPANY_ID, "status": "active", "source": "aftersales"}, {"id": 1})]
+        if ids:
+            mdb.crm2_contracts.update_many({"id": {"$in": ids}}, {"$set": {"status": "retired_test_run"}})
+            mdb.equipment.update_many({"contract_cover.contract_id": {"$in": ids}}, {"$unset": {"contract_cover": ""}})
+    retire()
+    yield
+    retire()
+
+
 @pytest.fixture(scope="module")
 def token():
     r = requests.post(f"{API}/crm/auth/login",
@@ -26,11 +45,20 @@ def hdr(token):
     return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
 
+def _supported_assets(hdr):
+    """Only approved, fully priced machines — provisional prices can no longer be issued."""
+    est = requests.get(f"{API}/crm/v2/aftersales/estate/{COMPANY_ID}", headers=hdr, timeout=60).json()
+    ids = [a["id"] for st in est["sites"] for a in st["assets"] if a["pricing_status"] == "SUPPORTED"]
+    if not ids:
+        pytest.skip("demo estate has no approved-price machines")
+    return ids
+
+
 @pytest.fixture(scope="module")
 def gold_quote_id(hdr):
     r = requests.post(f"{API}/crm/v2/aftersales/build-quote-from-estate",
-                      json={"company_id": COMPANY_ID, "contract_type": "gold", "save": True},
-                      headers=hdr, timeout=60)
+                      json={"company_id": COMPANY_ID, "contract_type": "gold", "save": True,
+                            "asset_ids": _supported_assets(hdr)}, headers=hdr, timeout=60)
     assert r.status_code == 200, r.text
     qid = r.json().get("saved_quote_id") or r.json().get("quote_id") or r.json().get("id")
     assert qid, r.text
@@ -40,7 +68,8 @@ def gold_quote_id(hdr):
 @pytest.fixture(scope="module")
 def platinum_quote_id(hdr):
     r = requests.post(f"{API}/crm/v2/aftersales/build-quote-from-estate",
-                      json={"company_id": COMPANY_ID, "contract_type": "platinum", "save": True},
+                      json={"company_id": COMPANY_ID, "contract_type": "platinum", "save": True,
+                            "asset_ids": _supported_assets(hdr)},
                       headers=hdr, timeout=60)
     assert r.status_code == 200, r.text
     return r.json().get("saved_quote_id")

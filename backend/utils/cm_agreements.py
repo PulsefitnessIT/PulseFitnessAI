@@ -51,68 +51,39 @@ async def approved_terms(org_id: str) -> dict | None:
                                             sort=[("approved_at", -1)])
 
 
+TERMS_STATUSES = ("reference_only", "pending_approval", "requires_review", "approved", "superseded")
+
+
 async def store_terms(org_id: str, version: str, filename: str, data: bytes, actor: str) -> dict:
+    """PDF uploads await approval. Word files are kept as reference copies only —
+    customers always receive the exact PDF exported from the final Word document."""
     tid = str(uuid.uuid4())
-    path = f"pulse/afs-terms/{org_id}/{tid}.pdf"
-    source = None
-    if filename.lower().endswith(".docx"):
-        source = {"filename": filename, "sha256": sha256(data), "storage_path": f"pulse/afs-terms/{org_id}/{tid}.docx"}
-        await _put(source["storage_path"], data,
-                   "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-        data = docx_terms_to_pdf(data, version)
-    await _put(path, data)
+    is_pdf = filename.lower().endswith(".pdf")
+    ext = "pdf" if is_pdf else "docx"
+    path = f"pulse/afs-terms/{org_id}/{tid}.{ext}"
+    await _put(path, data, "application/pdf" if is_pdf else
+               "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
     doc = {"id": tid, "organization_id": org_id, "version": version.strip(), "filename": filename,
-           "storage_path": path, "sha256": sha256(data), "size": len(data), "status": "pending_approval",
-           "source_document": source, "uploaded_by": actor, "uploaded_at": _now()}
+           "file_type": ext, "storage_path": path, "sha256": sha256(data), "size": len(data),
+           "status": "pending_approval" if is_pdf else "reference_only", "inspections": [],
+           "uploaded_by": actor, "uploaded_at": _now()}
     await db.crm2_afs_terms.insert_one(dict(doc))
     return doc
 
 
-def docx_terms_to_pdf(data: bytes, version: str) -> bytes:
-    """Faithful text rendering of the Word T&Cs with clause numbering
-    (Level 1 → 1, Level 2 → 1.1, Level 3 → (a), Level 4 → (i)).
-    An administrator reviews the rendered PDF before approving it."""
-    import docx
-    from reportlab.lib.units import mm
-    from reportlab.platypus import Paragraph, Spacer
-    from utils.pulse_doc_template import make_pulse_doc, pulse_styles
-    roman = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii", "xiii", "xiv", "xv"]
-    esc = lambda t: t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")  # noqa: E731
-    s = pulse_styles()
-    buf = io.BytesIO()
-    pdf = make_pulse_doc(buf, f"Maintenance Terms & Conditions {version}")
-    n = [0, 0, 0, 0]
-    flow = []
-    for p in docx.Document(io.BytesIO(data)).paragraphs:
-        text = p.text.strip()
-        if not text:
-            continue
-        st = p.style.name or ""
-        lvl = next((i for i in (1, 2, 3, 4) if st.startswith(f"Level {i}")), 0)
-        if lvl:
-            n[lvl - 1] += 1
-            for j in range(lvl, 4):
-                n[j] = 0
-            label = {1: f"{n[0]}.", 2: f"{n[0]}.{n[1]}", 3: f"({chr(96 + min(n[2], 26))})",
-                     4: f"({roman[min(n[3], 15) - 1]})"}[lvl]
-            if lvl == 1:
-                flow += [Spacer(1, 2 * mm), Paragraph(f"<b>{label} {esc(text)}</b>", s["value"])]
-            else:
-                flow.append(Paragraph(f"{'&nbsp;' * 4 * (lvl - 1)}{label} {esc(text)}", s["body"]))
-        elif len(flow) < 2:
-            flow.append(Paragraph(f"<b>{esc(text)}</b>", s["title" if not flow else "value"]))
-        else:
-            flow.append(Paragraph(esc(text), s["body"]))
-    pdf.build(flow)
-    return buf.getvalue()
-
-
-async def approve_terms(org_id: str, terms_id: str, actor: str) -> dict | None:
+async def approve_terms(org_id: str, terms_id: str, actor: str) -> dict:
     t = await db.crm2_afs_terms.find_one({"id": terms_id, "organization_id": org_id}, {"_id": 0})
     if not t:
-        return None
+        return {"error": (404, "Terms not found")}
+    if t.get("file_type", "pdf") != "pdf" or t.get("source_document"):
+        return {"error": (400, "Word files are reference copies — upload the final PDF exported from Word to approve.")}
+    if t["status"] not in ("pending_approval", "requires_review"):
+        return {"error": (400, f"Terms in status '{t['status']}' cannot be approved.")}
+    if not any(i.get("by") == actor for i in t.get("inspections") or []):
+        return {"error": (400, "Open and read the PDF before approving it.")}
     await db.crm2_afs_terms.update_many({"organization_id": org_id, "status": "approved", "id": {"$ne": terms_id}},
-                                        {"$set": {"status": "superseded", "superseded_at": _now()}})
+                                        {"$set": {"status": "superseded", "superseded_at": _now(),
+                                                  "superseded_by": terms_id}})
     await db.crm2_afs_terms.update_one({"id": terms_id}, {"$set": {"status": "approved", "approved_by": actor,
                                                                    "approved_at": _now()}})
     from utils.cm_actions import resolve_action
@@ -278,6 +249,43 @@ async def deliver_signature_email(org_id: str, ag: dict, req: dict, url: str) ->
             "attempted_at": _now()}
 
 
+async def store_signed_copy(org_id: str, agreement_id: str) -> bool:
+    """Signed agreement = issued document + signature certificate. Stored, read back
+    and hash-verified before anything else may happen. Failure keeps the signature
+    evidence, blocks activation and raises one retryable exception."""
+    from utils.cm_actions import raise_action, resolve_action
+    ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, "organization_id": org_id}, {"_id": 0})
+    sig, doc = ag.get("signature") or {}, ag.get("document") or {}
+    try:
+        terms = await db.crm2_afs_terms.find_one({"id": doc.get("terms_id")}, {"_id": 0})
+        pdf = await compose_pdf(ag, terms, doc.get("version"), signature=sig)
+        path = f"pulse/afs-agreements/{org_id}/{agreement_id}/v{doc.get('version')}-signed.pdf"
+        await _put(path, pdf)
+        back = await load_object(path)
+        if sha256(back) != sha256(pdf):
+            raise ValueError("stored copy failed the integrity check")
+        rec = {"status": "verified", "storage_path": path, "sha256": sha256(pdf), "size": len(pdf),
+               "created_at": _now(), "verified_at": _now(), "source_document_hash": doc.get("sha256"),
+               "document_version": doc.get("version"), "quote_id": ag.get("quote_id"),
+               "company_id": ag.get("company_id")}
+        await db.crm2_afs_agreements.update_one({"id": agreement_id}, {"$set": {"signed_document": rec},
+                                                                       "$unset": {"signed_document_error": ""}})
+        await resolve_action(org_id, f"cm:signed-doc-failed:{agreement_id}", "Signed agreement stored and verified.")
+        return True
+    except Exception as e:  # noqa: BLE001
+        log.warning("signed copy not stored for %s", agreement_id, exc_info=True)
+        await db.crm2_afs_agreements.update_one({"id": agreement_id}, {"$set": {
+            "signed_document_error": {"at": _now(), "detail": str(e)[:300]}}, "$unset": {"signed_document": ""}})
+        await raise_action(org_id, f"cm:signed-doc-failed:{agreement_id}", type_="signed_document_failed",
+                           subject=f"Signed agreement not stored: {ag.get('agreement_number')}",
+                           body=f"{ag.get('company_name')} signed electronically (evidence kept), but the signed PDF "
+                                f"could not be stored. Activation is on hold — use Retry storage on the agreement.",
+                           contract={"id": agreement_id, "company_id": ag.get("company_id"),
+                                     "contract_number": ag.get("agreement_number")},
+                           extra={"agreement_id": agreement_id})
+        return False
+
+
 # ── Automatic activation + welcome pack ──────────────────────────────────
 
 def auto_activation_blockers(ag: dict) -> list[str]:
@@ -288,6 +296,8 @@ def auto_activation_blockers(ag: dict) -> list[str]:
         out.append("Signature was not submitted by the customer")
     elif sig.get("document_hash") != docu.get("sha256"):
         out.append("Signed document version differs from the current agreement document")
+    elif (ag.get("signed_document") or {}).get("status") != "verified":
+        out.append("Signed agreement PDF has not been stored and verified")
     return out
 
 
@@ -345,7 +355,7 @@ async def send_welcome_pack(org_id: str, contract_id: str, *, actor: str, reissu
     ag = await db.crm2_afs_agreements.find_one({"id": c.get("source_agreement_id"), "organization_id": org_id}, {"_id": 0}) or {}
     version = (ag.get("document") or {}).get("version") or 0
     key = f"{contract_id}:v{version}"
-    retry_ok = {"failed", "queued"} | ({"accepted_by_provider"} if reissue else set())
+    retry_ok = {"failed", "queued", "blocked"} | ({"accepted_by_provider", "delivered"} if reissue else set())
     claim = await db.crm2_contracts.find_one_and_update(
         {"id": contract_id, "organization_id": org_id, "$or": [
             {"welcome_pack": {"$exists": False}}, {"welcome_pack.key": {"$ne": key}},
@@ -361,12 +371,31 @@ async def send_welcome_pack(org_id: str, contract_id: str, *, actor: str, reissu
         to = co.get("email")
     settings = await db.crm2_afs_settings.find_one({"organization_id": org_id}, {"_id": 0}) or {}
     contacts = _service_contacts(settings)
-    attach, path = None, (ag.get("signed_document") or ag.get("document") or {}).get("storage_path")
+    attach, att_err = None, None
+    sd = ag.get("signed_document") or {}
     try:
-        pdf = await load_object(path) if path else build_agreement_pdf(ag, None, version)
-        attach = [{"filename": f"{c.get('contract_number')}.pdf", "content": base64.b64encode(pdf).decode("ascii")}]
-    except Exception:
-        log.warning("welcome pack attachment unavailable for %s", contract_id, exc_info=True)
+        if sig.get("method") == "customer_esignature":
+            if sd.get("status") != "verified":
+                raise ValueError("signed agreement PDF is not stored")
+            pdf = await load_object(sd["storage_path"])
+            if sha256(pdf) != sd.get("sha256"):
+                raise ValueError("signed agreement PDF failed the integrity check")
+        else:  # internally recorded signature → record copy with the signature certificate
+            pdf = build_agreement_pdf(ag, None, version, signature={**sig, "document_hash": (ag.get("document") or {}).get("sha256", "n/a")})
+        attach = [{"filename": f"{c.get('contract_number')}-signed-agreement.pdf",
+                   "content": base64.b64encode(pdf).decode("ascii")}]
+    except Exception as e:  # noqa: BLE001
+        att_err = f"Signed agreement attachment unavailable ({e})"
+    if att_err:
+        prev = (c.get("welcome_pack") or {}).get("history") or []
+        wp = {"status": "blocked", "key": key, "to": to, "detail": att_err, "attachment": False, "updated_at": _now(),
+              "history": prev + [{"at": _now(), "status": "blocked", "by": actor, "reissue": reissue}]}
+        await db.crm2_contracts.update_one({"id": contract_id}, {"$set": {"welcome_pack": wp}})
+        await raise_action(org_id, f"cm:welcome-failed:{contract_id}", type_="welcome_pack_failed",
+                           subject=f"Welcome pack on hold: {c.get('contract_number')}",
+                           body=f"{c.get('company_name')} — {att_err}. Not sent incomplete; fix the document and resend.",
+                           contract=c)
+        return {k: v for k, v in wp.items() if k != "history"}
     out: dict = {}
     ok = bool(to) and await send_email(to, f"Welcome to Pulse Fitness maintenance — {c.get('contract_number')}",
                                        _welcome_html(ag, c, contacts), attachments=attach, organization_id=org_id,
@@ -375,7 +404,7 @@ async def send_welcome_pack(org_id: str, contract_id: str, *, actor: str, reissu
     detail = None if ok else ("No customer email on record" if not to else "Email provider did not accept the message")
     prev = (c.get("welcome_pack") or {}).get("history") or []
     wp = {"status": status, "key": key, "to": to, "message_id": out.get("message_id"), "detail": detail,
-          "attachment": bool(attach), "updated_at": _now(), "sent_at": _now() if ok else None,
+          "attachment": bool(attach), "reissued": reissue, "updated_at": _now(), "sent_at": _now() if ok else None,
           "history": prev + [{"at": _now(), "status": status, "by": actor, "reissue": reissue}]}
     await db.crm2_contracts.update_one({"id": contract_id}, {"$set": {"welcome_pack": wp}})
     if ok:

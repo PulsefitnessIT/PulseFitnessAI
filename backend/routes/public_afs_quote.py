@@ -267,24 +267,14 @@ async def sign_public_agreement(token: str, body: AgreementSignBody, request: Re
     if not claimed:
         return {"ok": True, "already_signed": True}
     org_id = ag["organization_id"]
-    try:  # signed copy = issued document + signature certificate
-        terms = await db.crm2_afs_terms.find_one({"id": doc.get("terms_id")}, {"_id": 0})
-        pdf = await cma.compose_pdf(ag, terms, doc.get("version"), signature=sig)
-        path = f"pulse/afs-agreements/{org_id}/{ag['id']}/v{doc.get('version')}-signed.pdf"
-        await cma._put(path, pdf)
-        await db.crm2_afs_agreements.update_one({"id": ag["id"]}, {"$set": {"signed_document": {
-            "storage_path": path, "sha256": cma.sha256(pdf), "created_at": _now(),
-            "source_document_hash": doc.get("sha256")}}})
-    except Exception:
-        import logging
-        logging.getLogger(__name__).warning("signed copy not stored for %s", ag["id"], exc_info=True)
+    stored = await cma.store_signed_copy(org_id, ag["id"])
     from routes.crm_aftersales import _agreement_step_action
     from utils.crm_audit import record_audit
     await _agreement_step_action(org_id, {**ag, "status": "signed"})
     await record_audit(entity_type="afs_agreement", entity_id=ag["id"], action="customer_esign",
                        user={"id": "customer", "email": sig["email"], "organization_id": org_id},
                        extra={"document_hash": sig["document_hash"], "version": sig["document_version"]})
-    activation = await cma.try_auto_activate(org_id, ag["id"])
+    activation = await cma.try_auto_activate(org_id, ag["id"]) if stored else {"activated": False}
     return {"ok": True, "signed_at": sig["signed_at"], "activated": bool(activation.get("activated"))}
 
 

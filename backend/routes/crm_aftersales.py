@@ -13,7 +13,7 @@ contracts all remain in their existing collections. Pricing data comes from the
 imported Pulse workbook (crm2_afs_* collections). AI never invents prices —
 figures come only from these authorised rules or an authorised manual override.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from typing import Optional, List
@@ -953,6 +953,7 @@ class BuildFromEstateIn(BaseModel):
     save: bool = False
     source: str = "auto_estate"
     source_sales_quote_id: Optional[str] = None
+    source_import_id: Optional[str] = None
     force_new: bool = False
 
 
@@ -973,11 +974,19 @@ async def build_quote_from_estate(body: BuildFromEstateIn, user=Depends(require_
     equipment = await db.equipment.find(
         eq_query,
         {"_id": 0, "id": 1, "name": 1, "model": 1, "model_code": 1, "console_type": 1,
-         "serial_number": 1, "site_id": 1, "warranty_expiry": 1}).to_list(None)
-    annotated = [await _annotate_asset(org_id, e) for e in equipment]
+         "serial_number": 1, "site_id": 1, "warranty_expiry": 1, "contract_cover": 1}).to_list(None)
     if body.asset_ids:
         _wanted = set(body.asset_ids)
-        annotated = [a for a in annotated if a.get("id") in _wanted]
+        equipment = [e for e in equipment if e.get("id") in _wanted]
+    annotated = [await _annotate_asset(org_id, e) for e in equipment]
+    cover_ids = {(e.get("contract_cover") or {}).get("contract_id") for e in equipment} - {None}
+    live = {c["id"] for c in await db.crm2_contracts.find(
+        {**of, "id": {"$in": list(cover_ids)}, "status": "active"}, {"_id": 0, "id": 1}).to_list(None)} if cover_ids else set()
+    covered_by = {e["id"]: e["contract_cover"]["contract_id"] for e in equipment
+                  if (e.get("contract_cover") or {}).get("contract_id") in live}
+    for a in annotated:
+        if a["id"] in covered_by:
+            a["pricing_status"], a["covered_by_contract_id"] = "ALREADY_COVERED", covered_by[a["id"]]
     priceable = [a for a in annotated if a["pricing_status"] in ("SUPPORTED", "PROVISIONAL", "RRP_REQUIRED")]
     lines = [{"config_id": a["config_id"], "model": a["model"], "console_type": a["console_type"], "qty": 1}
              for a in priceable]
@@ -1032,6 +1041,10 @@ async def build_quote_from_estate(body: BuildFromEstateIn, user=Depends(require_
         elif st == "NOT_MATCHED":
             exceptions.append({"kind": "NOT_MATCHED", "asset_id": a["id"], "model": a["model"],
                                "detail": f"No service configuration matches '{a['model']}'."})
+        elif st == "ALREADY_COVERED":
+            exceptions.append({"kind": "ALREADY_COVERED", "asset_id": a["id"], "model": a["model"],
+                               "detail": f"{a['model']} {a.get('serial_number') or ''} is already covered by an active "
+                                         f"maintenance contract — excluded from this quote."})
         elif st == "PROVISIONAL":
             exceptions.append({"kind": "PROVISIONAL", "asset_id": a["id"], "model": a["model"],
                                "config_id": a["config_id"],
@@ -1059,17 +1072,30 @@ async def build_quote_from_estate(body: BuildFromEstateIn, user=Depends(require_
         **result,
     }
 
-    if body.save and body.source_sales_quote_id and not body.force_new:
+    src_key = ({"source_sales_quote_id": body.source_sales_quote_id} if body.source_sales_quote_id else
+               {"source_import_id": body.source_import_id} if body.source_import_id else None)
+    if body.save and src_key and not body.force_new:
         prior = await db.crm2_afs_quotes.find_one(
-            {**of, "source_sales_quote_id": body.source_sales_quote_id,
-             "status": {"$nin": ["cancelled", "superseded", "declined"]}}, {"_id": 0, "id": 1, "quote_number": 1})
+            {**of, **src_key, "status": {"$nin": ["cancelled", "superseded", "declined"]}},
+            {"_id": 0, "id": 1, "quote_number": 1})
         if prior:
             auto["saved_quote_id"], auto["quote_number"], auto["existing"] = prior["id"], prior["quote_number"], True
             return auto
     if body.save:
         qid = _id()
+        unpriced = [a["id"] for a in priceable if a["pricing_status"] != "SUPPORTED" or not a.get("annual")]
+        imp = await db.crm2_afs_quote_imports.find_one({**of, "id": body.source_import_id}, {"_id": 0}) \
+            if body.source_import_id else None
+        live_pl = await db.crm_price_list_versions.find_one({**of, "status": "live"}, {"_id": 0, "id": 1, "name": 1})
         doc = {
-            "source_sales_quote_id": body.source_sales_quote_id,
+            "source_sales_quote_id": body.source_sales_quote_id or (imp or {}).get("source_sales_quote_id"),
+            "source_import_id": body.source_import_id,
+            "source_documents": [{"import_id": imp["id"], "doc_type": imp["doc_type"], "filename": imp["filename"],
+                                  "document_ref": (imp.get("extracted") or {}).get("document_ref"),
+                                  "sha256": imp["sha256"], "storage_path": imp["storage_path"]}] if imp else [],
+            "unpriced_count": len(unpriced), "unpriced_asset_ids": unpriced,
+            "price_list_version": live_pl, "tariff_version": result.get("pricing_version"),
+            "visits_per_year": result.get("summary", {}).get("visits_per_year"),
             "id": qid, "organization_id": org_id,
             "quote_number": f"AFS-{datetime.now(timezone.utc).strftime('%Y')}-{qid[:5].upper()}",
             "company_id": body.company_id, "company_name": company.get("name"),
@@ -1091,6 +1117,10 @@ async def build_quote_from_estate(body: BuildFromEstateIn, user=Depends(require_
                            user=user, extra={"company": company.get("name"), "confidence": confidence})
         auto["saved_quote_id"] = qid
         auto["quote_number"] = doc["quote_number"]
+        auto["unpriced_count"] = len(unpriced)
+        if imp:
+            await db.crm2_afs_quote_imports.update_one({"id": imp["id"]}, {"$set": {
+                "quote_id": qid, "quote_number": doc["quote_number"], "status": "quoted", "updated_at": _now()}})
         if body.source_sales_quote_id:
             from utils.cm_actions import resolve_action
             await db.crm2_activities.update_one(
@@ -2317,6 +2347,9 @@ async def activate_agreement(agreement_id: str, body: Optional[ActivateIn] = Non
         raise HTTPException(400, "Agreement must be signed before activation")
 
     sig, docu = ag.get("signature") or {}, ag.get("document") or {}
+    if sig.get("method") == "customer_esignature" and (ag.get("signed_document") or {}).get("status") != "verified":
+        raise HTTPException(409, {"code": "signed_document_missing",
+                                  "message": "The customer's signed agreement PDF has not been stored and verified — retry storage first."})
     if sig.get("document_hash") and sig["document_hash"] != docu.get("sha256"):
         raise HTTPException(409, {"code": "document_changed",
                                   "message": "The signed document no longer matches the agreement — re-issue for signature."})
@@ -3890,8 +3923,8 @@ async def upload_terms(version: str = Query(..., min_length=1), file: UploadFile
 async def approve_terms_version(terms_id: str, user=Depends(require_crm_perm("exceptions.approve"))):
     from utils.cm_agreements import approve_terms
     t = await approve_terms(_org(user), terms_id, user.get("email"))
-    if not t:
-        raise HTTPException(404, "Terms not found")
+    if t.get("error"):
+        raise HTTPException(*t["error"])
     await record_audit(entity_type="afs_terms", entity_id=terms_id, action="approve", user=user,
                        extra={"version": t["version"], "sha256": t["sha256"]})
     return t
@@ -3903,12 +3936,36 @@ async def terms_file(terms_id: str, user=Depends(require_crm_perm("agreements.pr
     t = await db.crm2_afs_terms.find_one({"id": terms_id, **_of(user)}, _PUBLIC)
     if not t:
         raise HTTPException(404, "Terms not found")
-    return Response(await load_object(t["storage_path"]), media_type="application/pdf",
-                    headers={"Content-Disposition": f'inline; filename="Terms-{t["version"]}.pdf"'})
+    await db.crm2_afs_terms.update_one({"id": terms_id}, {"$push": {"inspections": {"by": user.get("email"), "at": _now()}}})
+    pdf = t.get("file_type", "pdf") == "pdf"
+    return Response(await load_object(t["storage_path"]),
+                    media_type="application/pdf" if pdf else "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    headers={"Content-Disposition": f'{"inline" if pdf else "attachment"}; filename="Terms-{t["version"]}.{"pdf" if pdf else "docx"}"'})
+
+
+class TermsReviewIn(BaseModel):
+    reason: str
+
+
+@router.post("/terms/{terms_id}/flag-review")
+async def flag_terms_review(terms_id: str, body: TermsReviewIn, user=Depends(require_crm_perm("exceptions.approve"))):
+    """Mark a PDF as needing review (e.g. differs from the Word original). An approved
+    version flagged here stops being issued until a reviewed version is approved."""
+    t = await db.crm2_afs_terms.find_one({"id": terms_id, **_of(user)}, _PUBLIC)
+    if not t or t.get("file_type", "pdf") != "pdf":
+        raise HTTPException(404, "PDF terms not found")
+    if not body.reason.strip():
+        raise HTTPException(400, "Explain what needs reviewing")
+    await db.crm2_afs_terms.update_one({"id": terms_id}, {"$set": {
+        "status": "requires_review", "review_reason": body.reason.strip(), "flagged_by": user.get("email"),
+        "flagged_at": _now(), "previous_status": t["status"]}})
+    await record_audit(entity_type="afs_terms", entity_id=terms_id, action="flag_review", user=user,
+                       extra={"reason": body.reason.strip()})
+    return {"status": "requires_review"}
 
 
 @router.get("/agreements/{agreement_id}/document")
-async def agreement_document(agreement_id: str, user=Depends(require_crm_perm("agreements.process"))):
+async def agreement_document(agreement_id: str, user=Depends(require_crm_perm("contracts.read"))):
     """The exact signed / issued document, or a preview of the draft."""
     from utils.cm_agreements import approved_terms, compose_pdf, load_object
     ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, **_of(user)}, _PUBLIC)
@@ -4011,3 +4068,164 @@ async def resend_welcome_pack(contract_id: str, user=Depends(require_crm_perm("a
     await record_audit(entity_type="contract", entity_id=contract_id, action="welcome_pack", user=user,
                        extra={"status": res.get("status")})
     return res
+
+
+@router.post("/agreements/{agreement_id}/signed-document/retry")
+async def retry_signed_document(agreement_id: str, user=Depends(require_crm_perm("agreements.process"))):
+    from utils.cm_agreements import store_signed_copy, try_auto_activate
+    ag = await db.crm2_afs_agreements.find_one({"id": agreement_id, **_of(user)}, _PUBLIC)
+    if not ag or (ag.get("signature") or {}).get("method") != "customer_esignature":
+        raise HTTPException(404, "No customer e-signature on this agreement")
+    if not (ag.get("signed_document") or {}).get("status") == "verified":
+        if not await store_signed_copy(_org(user), agreement_id):
+            raise HTTPException(502, "Signed agreement still could not be stored — try again shortly.")
+    activation = {"activated": False}
+    if ag.get("status") == "signed":
+        activation = await try_auto_activate(_org(user), agreement_id)
+    return {"stored": True, "activation": activation}
+
+
+# ── Build Quote: start from a sales invoice / delivery note / maintenance invoice ──
+
+@router.post("/build-quote/imports")
+async def create_quote_import(doc_type: str = Form(...), company_id: str = Form(""), file: UploadFile = File(...),
+                              user=Depends(require_crm_perm("quotes.maintenance"))):
+    """Store the source document, extract it once (same file → same import), recognise
+    the existing customer and match every machine. Nothing is priced or created yet."""
+    from utils import cm_quote_import as qi
+    from utils.cm_agreements import _put
+    if doc_type not in qi.DOC_TYPES:
+        raise HTTPException(400, "Choose sales invoice, delivery note or maintenance invoice.")
+    data = await file.read()
+    if not data.startswith(b"%PDF") or len(data) > 20 * 1024 * 1024:
+        raise HTTPException(400, "Upload the document as a PDF (max 20 MB).")
+    of, org_id, digest = _of(user), _org(user), qi.sha256(data)
+    prior = await db.crm2_afs_quote_imports.find_one({**of, "sha256": digest, "doc_type": doc_type}, _PUBLIC)
+    if prior:
+        return {**prior, "existing": True}
+    iid = _id()
+    path = f"pulse/afs-quote-sources/{org_id}/{iid}.pdf"
+    await _put(path, data)
+    extracted = await qi.extract_document(data, doc_type)
+    if company_id:
+        co = await db.crm2_companies.find_one({"id": company_id, **of}, {"_id": 0, "id": 1, "name": 1, "linked_organization_id": 1})
+        if not co:
+            raise HTTPException(404, "Customer not found")
+        cust = {"status": "selected", "company": co, "basis": "chosen by coordinator", "candidates": []}
+    else:
+        cust = await qi.match_customer(org_id, extracted)
+    linked = await _resolve_linked_org_for_company(cust["company"], user) if cust.get("company") else None
+    lines = await qi.match_lines(org_id, extracted.get("lines") or [], doc_type, linked)
+    doc = {"id": iid, "organization_id": org_id, "doc_type": doc_type, "filename": file.filename, "sha256": digest,
+           "storage_path": path, "size": len(data), "extracted": extracted, "customer": cust,
+           "company_id": (cust.get("company") or {}).get("id"), "lines": lines, "status": "review",
+           "created_by": user.get("email"), "created_at": _now(), "updated_at": _now()}
+    await db.crm2_afs_quote_imports.insert_one(dict(doc))
+    await record_audit(entity_type="afs_quote_import", entity_id=iid, action="create", user=user,
+                       extra={"doc_type": doc_type, "lines": len(lines), "customer": cust["status"]})
+    return doc
+
+
+@router.get("/build-quote/imports/{import_id}")
+async def get_quote_import(import_id: str, user=Depends(require_crm_perm("quotes.maintenance"))):
+    doc = await db.crm2_afs_quote_imports.find_one({"id": import_id, **_of(user)}, _PUBLIC)
+    if not doc:
+        raise HTTPException(404, "Import not found")
+    return doc
+
+
+class ImportCustomerIn(BaseModel):
+    company_id: str
+
+
+@router.post("/build-quote/imports/{import_id}/customer")
+async def set_import_customer(import_id: str, body: ImportCustomerIn, user=Depends(require_crm_perm("quotes.maintenance"))):
+    from utils import cm_quote_import as qi
+    of = _of(user)
+    imp = await db.crm2_afs_quote_imports.find_one({"id": import_id, **of}, _PUBLIC)
+    co = await db.crm2_companies.find_one({"id": body.company_id, **of}, {"_id": 0, "id": 1, "name": 1, "linked_organization_id": 1})
+    if not imp or not co:
+        raise HTTPException(404, "Import or customer not found")
+    if imp.get("quote_id"):
+        raise HTTPException(400, f"Already used for quote {imp.get('quote_number')} — upload again for a different customer.")
+    linked = await _resolve_linked_org_for_company(co, user)
+    lines = await qi.match_lines(_org(user), (imp.get("extracted") or {}).get("lines") or [], imp["doc_type"], linked)
+    cust = {**imp["customer"], "status": "selected", "company": co, "basis": "chosen by coordinator"}
+    await db.crm2_afs_quote_imports.update_one({"id": import_id}, {"$set": {
+        "customer": cust, "company_id": co["id"], "lines": lines, "updated_at": _now()}})
+    return await db.crm2_afs_quote_imports.find_one({"id": import_id}, _PUBLIC)
+
+
+class ImportLineDecision(BaseModel):
+    line_no: int
+    decision: str                       # accepted | excluded
+    config_id: Optional[str] = None     # coordinator-chosen machine for unknown / ambiguous lines
+
+
+class ImportApplyIn(BaseModel):
+    site_id: str
+    decisions: List[ImportLineDecision] = []
+
+
+@router.post("/build-quote/imports/{import_id}/apply")
+async def apply_quote_import(import_id: str, body: ImportApplyIn, user=Depends(require_crm_perm("quotes.maintenance"))):
+    """Confirm the reviewed lines against the customer's existing equipment register.
+    Existing serials are reused; new machines are created once (keyed per import line)."""
+    of = _of(user)
+    imp = await db.crm2_afs_quote_imports.find_one({"id": import_id, **of}, _PUBLIC)
+    if not imp or not imp.get("company_id"):
+        raise HTTPException(400, "Confirm the customer before applying the document.")
+    co = await db.crm2_companies.find_one({"id": imp["company_id"], **of}, {"_id": 0})
+    linked = await _resolve_linked_org_for_company(co, user)
+    if not linked:
+        raise HTTPException(400, "This customer is not linked to an operations organisation.")
+    site = await db.sites.find_one({"id": body.site_id, "organization_id": linked}, {"_id": 0, "id": 1, "name": 1})
+    if not site:
+        raise HTTPException(400, "Choose one of the customer's sites.")
+    dec = {d.line_no: d for d in body.decisions}
+    lines, asset_ids, created, reused = imp["lines"], [], 0, 0
+    for ln in lines:
+        d = dec.get(ln["line_no"])
+        decision = d.decision if d else ln["decision"]
+        if decision not in ("accepted", "excluded"):
+            raise HTTPException(400, f"Line {ln['line_no']} ({ln.get('model') or ln.get('item_code')}) still needs a decision.")
+        if d and d.config_id:
+            cfg = await db.crm2_afs_service_configs.find_one({"id": d.config_id, **of}, _PUBLIC)
+            if not cfg:
+                raise HTTPException(400, f"Line {ln['line_no']}: machine not found")
+            ln["matched"] = {"config_id": cfg["id"], "model": cfg.get("model"), "console_type": cfg.get("console_type") or "",
+                             "reference_sku": cfg.get("reference_sku"), "basis": "chosen by coordinator"}
+        ln["decision"], ln["decided_by"] = decision, (user.get("email") if d else "auto")
+        if decision == "excluded":
+            continue
+        if "already_covered" in ln.get("flags", []):
+            raise HTTPException(400, f"Line {ln['line_no']} is already under an active contract — exclude it.")
+        if not ln.get("matched"):
+            raise HTTPException(400, f"Line {ln['line_no']} needs a machine chosen before it can be included.")
+    for ln in lines:  # validated above — nothing is written unless every line is decided
+        if ln["decision"] == "excluded":
+            continue
+        m = ln["matched"]
+        for k in range(ln["quantity"]):
+            serial = ln["serials"][k] if k < len(ln["serials"]) else ""
+            q = {"organization_id": linked, "serial_number": serial} if serial else \
+                {"organization_id": linked, "source_import_line": f"{import_id}:{ln['line_no']}:{k}"}
+            eq = await db.equipment.find_one(q, {"_id": 0, "id": 1})
+            if eq:
+                reused += 1
+            else:
+                eq = {"id": _id(), "organization_id": linked, "site_id": site["id"], "location": site["name"],
+                      "name": m.get("model") or ln.get("model"), "model": m.get("model"),
+                      "console_type": m.get("console_type") or "", "manufacturer": ln.get("make") or "",
+                      "serial_number": serial, "status": "active", "source": "quote_import",
+                      "source_import_line": f"{import_id}:{ln['line_no']}:{k}", "source_doc_type": imp["doc_type"],
+                      "source_document_ref": (imp.get("extracted") or {}).get("document_ref"),
+                      "item_code": ln.get("item_code"), "created_at": _now(), "updated_at": _now()}
+                await db.equipment.insert_one(dict(eq))
+                created += 1
+            asset_ids.append(eq["id"])
+    await db.crm2_afs_quote_imports.update_one({"id": import_id}, {"$set": {
+        "lines": lines, "site_id": site["id"], "asset_ids": asset_ids, "status": "applied", "updated_at": _now()}})
+    return {"import_id": import_id, "company_id": co["id"], "company_name": co.get("name"), "site_ids": [site["id"]],
+            "asset_ids": asset_ids, "equipment_created": created, "equipment_reused": reused,
+            "document_ref": (imp.get("extracted") or {}).get("document_ref"), "doc_type": imp["doc_type"]}

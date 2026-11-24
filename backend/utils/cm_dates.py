@@ -58,18 +58,23 @@ def billing_schedule(annual: float, frequency: str, start_iso, end_iso=None, ter
 
 
 def service_schedule(start_iso, visits_per_year, end_iso=None, term_years: int = 1) -> list:
-    """Contractual PPM obligations (planned, NOT booked visits); [] without a start."""
+    """Contractual PPM obligations (planned, NOT booked visits); [] without a start.
+    Pulse policy: no visit at commencement — visits are spaced through each contract
+    year so the last visit of the year falls on the anniversary (1/yr → anniversary),
+    kept within cover (an anniversary at expiry uses the final day of cover)."""
     sd = parse_date(start_iso)
     if not sd:
         return []
     visits = max(1, int(visits_per_year or 1))
-    months = term_months(sd, parse_date(end_iso), term_years)
+    ed = parse_date(end_iso)
+    months = term_months(sd, ed, term_years)
+    last_day = ed or term_end(sd, max(1, term_years))
     rows = []
     for y in range((months + 11) // 12):
         for v in range(visits):
-            off = 12 * y + (12 * v) // visits
-            if off >= months:
+            off = 12 * y + (12 * (v + 1)) // visits
+            if off > months:
                 break
-            rows.append({"planned_date": add_months(sd, off).isoformat(), "status": "planned",
-                         "visit_no": v + 1, "year": y + 1})
+            d = min(add_months(sd, off), last_day)
+            rows.append({"planned_date": d.isoformat(), "status": "planned", "visit_no": v + 1, "year": y + 1})
     return rows

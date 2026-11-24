@@ -112,9 +112,17 @@ def test_1_terms_required_upload_and_approval():
     t = requests.post(f"{AFS}/terms?version={T}v1", headers=asm, files=files).json()
     assert t["status"] == "pending_approval" and len(t["sha256"]) == 64
     assert _send(aid, h).status_code == 409   # uploaded but not yet approved
+    r = requests.post(f"{AFS}/terms/{t['id']}/approve", headers=asm)
+    assert r.status_code == 400 and "Open and read" in r.text          # must inspect the PDF first
+    assert requests.get(f"{AFS}/terms/{t['id']}/file", headers=asm).content.startswith(b"%PDF")
     assert requests.post(f"{AFS}/terms/{t['id']}/approve", headers=asm).json()["status"] == "approved"
     assert _open("cm:terms-missing") == 0
-    assert requests.get(f"{AFS}/terms/{t['id']}/file", headers=h).content.startswith(b"%PDF")
+    # Word files are reference copies only and can never be approved for issue.
+    w = requests.post(f"{AFS}/terms?version={T}word", headers=asm,
+                      files={"file": ("t.docx", b"PK\x03\x04word", "application/octet-stream")}).json()
+    assert w["status"] == "reference_only"
+    requests.get(f"{AFS}/terms/{w['id']}/file", headers=asm)
+    assert requests.post(f"{AFS}/terms/{w['id']}/approve", headers=asm).status_code == 400
 
 
 def test_2_unready_agreement_cannot_be_sent():
@@ -275,3 +283,85 @@ def test_8_welcome_pack_once_with_provider_confirmation(monkeypatch):
     assert r1["status"] == "accepted_by_provider" and r1["message_id"] == "msg-test-1"
     assert r2["status"] == "duplicate_prevented" and len(calls) == 1
     assert _open(f"cm:welcome-failed:{c['id']}") == 0
+
+
+def test_9_signed_pdf_storage_failure_blocks_activation_and_is_retryable(monkeypatch):
+    import utils.cm_agreements as cma
+    h = _crm("cm-test-coord")
+    mdb.crm2_contracts.delete_many({"company_id": f"{T}co-d"})
+    _company(f"{T}co-e")
+    aid = _ready_agreement(f"{T}q9", f"{T}co-e", h)
+    token = _send(aid, h).json()["path"].split("/as/")[1]
+    pub = requests.get(f"{PUB}/{token}").json()
+    # Simulate storage failure by recording a signature exactly as the public endpoint does,
+    # then running the storage step in-process with a failing object store.
+    r = requests.post(f"{PUB}/{token}/sign", json={"signatory_name": "Eve Signer", "email": "eve@example.test",
+                                                    "authority_confirmed": True, "consent_confirmed": True,
+                                                    "signature_data_url": SIG, "document_hash": pub["document_hash"]})
+    assert r.status_code == 200
+    # Roll the agreement back to "signed, copy missing" to exercise the failure path deterministically.
+    c = mdb.crm2_contracts.find_one({"source_agreement_id": aid})
+    if c:
+        mdb.crm2_contracts.delete_one({"id": c["id"]})
+        mdb.crm2_afs_service_schedules.delete_many({"contract_id": c["id"]})
+        mdb.crm2_afs_billing.delete_many({"contract_id": c["id"]})
+        mdb.equipment.update_many({"contract_cover.contract_id": c["id"]}, {"$unset": {"contract_cover": ""}})
+    mdb.crm2_afs_agreements.update_one({"id": aid}, {"$set": {"status": "signed"},
+                                                     "$unset": {"signed_document": "", "contract_id": "", "activation_steps": ""}})
+
+    async def boom(*a, **k):
+        raise RuntimeError("object store unavailable")
+    monkeypatch.setattr(cma, "_put", boom)
+
+    async def run():
+        from utils.database import db
+        db.client.get_io_loop = asyncio.get_running_loop
+        return await cma.store_signed_copy(OP, aid)
+    assert asyncio.run(run()) is False
+    ag = mdb.crm2_afs_agreements.find_one({"id": aid})
+    assert ag["signature"]["method"] == "customer_esignature" and ag["signed_document_error"]
+    assert _open(f"cm:signed-doc-failed:{aid}") == 1
+    r = requests.post(f"{AFS}/agreements/{aid}/activate", headers=h, json={})
+    assert r.status_code == 409 and "signed_document_missing" in r.text
+    assert mdb.crm2_contracts.count_documents({"source_agreement_id": aid}) == 0
+    monkeypatch.undo()
+    r = requests.post(f"{AFS}/agreements/{aid}/signed-document/retry", headers=h)
+    assert r.status_code == 200, r.text
+    ag = mdb.crm2_afs_agreements.find_one({"id": aid})
+    assert ag["signed_document"]["status"] == "verified" and _open(f"cm:signed-doc-failed:{aid}") == 0
+    assert r.json()["activation"]["activated"] is True and ag["status"] == "active"
+    assert mdb.crm2_contracts.count_documents({"source_agreement_id": aid}) == 1
+
+
+def test_10_welcome_pack_never_sent_without_signed_attachment(monkeypatch):
+    import utils.email as em
+    from utils.cm_agreements import send_welcome_pack
+    c = mdb.crm2_contracts.find_one({"company_id": f"{T}co-e", "source": "aftersales"})
+    aid = c["source_agreement_id"]
+    saved = mdb.crm2_afs_agreements.find_one({"id": aid})["signed_document"]
+    mdb.crm2_afs_agreements.update_one({"id": aid}, {"$unset": {"signed_document": ""}})
+    calls = []
+
+    async def fake_send(*a, **k):
+        calls.append(1)
+        return True
+    monkeypatch.setattr(em, "send_email", fake_send)
+
+    async def run():
+        from utils.database import db
+        db.client.get_io_loop = asyncio.get_running_loop
+        return await send_welcome_pack(OP, c["id"], actor="test", reissue=True)
+    r = asyncio.run(run())
+    assert r["status"] == "blocked" and not calls and _open(f"cm:welcome-failed:{c['id']}") == 1
+    mdb.crm2_afs_agreements.update_one({"id": aid}, {"$set": {"signed_document": saved}})
+    r = asyncio.run(run())
+    assert r["status"] == "accepted_by_provider" and len(calls) == 1 and r["attachment"] is True
+    assert _open(f"cm:welcome-failed:{c['id']}") == 0
+
+
+def test_11_finance_can_read_signed_document_but_not_act():
+    fin = _crm("cm-test-fin")
+    aid = mdb.crm2_afs_agreements.find_one({"quote_id": f"{T}q9"})["id"]
+    assert requests.get(f"{AFS}/agreements/{aid}/document", headers=fin).content.startswith(b"%PDF")
+    assert requests.post(f"{AFS}/agreements/{aid}/signed-document/retry", headers=fin).status_code == 403
+    assert requests.post(f"{AFS}/agreements/{aid}/activate", headers=fin, json={}).status_code == 403

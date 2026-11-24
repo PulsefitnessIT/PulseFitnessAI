@@ -64,7 +64,12 @@ def test_missing_start_never_becomes_today():
 
 def test_service_schedule_calendar_months():
     rows = service_schedule("2025-03-31", 2, "2027-03-30", 2)
-    assert [r["planned_date"] for r in rows] == ["2025-03-31", "2025-09-30", "2026-03-31", "2026-09-30"]
+    # No visit at commencement; the year's last visit is on the anniversary (final one clamped to cover).
+    assert [r["planned_date"] for r in rows] == ["2025-09-30", "2026-03-31", "2026-09-30", "2027-03-30"]
+    for years in (1, 2, 3, 4):  # one annual visit per contract year, first on the anniversary
+        dates = [r["planned_date"] for r in service_schedule("2026-01-01", 1, None, years)]
+        assert len(dates) == years and dates[0] == ("2026-12-31" if years == 1 else "2027-01-01")
+        assert dates[-1] == f"{2025 + years}-12-31"
 
 
 # ── A4 atomic actions ────────────────────────────────────────────────────

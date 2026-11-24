@@ -56,6 +56,10 @@ def _build_quote(crm_headers):
             "term_years": 1,
             "quote_discount_pct": 0,
             "save": True,
+            # Provisional / unpriced machines can no longer be issued — quote approved machines only.
+            "asset_ids": [a["id"] for st in requests.get(
+                f"{BASE_URL}/api/crm/v2/aftersales/estate/{COMPANY_ID}", headers=crm_headers, timeout=60).json()["sites"]
+                for a in st["assets"] if a["pricing_status"] == "SUPPORTED"],
         },
         timeout=60,
     )
