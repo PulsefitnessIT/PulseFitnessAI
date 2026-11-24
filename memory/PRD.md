@@ -39377,3 +39377,24 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Action Centre (utils/cm_actions.py): one lifecycle on crm2_activities with dedupe_key, auto-assignment, and auto-resolve or re-open. "Run scan now" runs the daily checks.
 - Cron cm-daily-checks: weekdays 07:00 Europe/London → /api/crm/workspace/cron/daily-checks.
 - Tests: backend/tests/test_cm_stage2_integrity.py (6), plus the Stage 1 suites. Frontend: iteration_300, all flows pass; its follow-up notes are fixed.
+
+## Jun 2026 — Contract Management Phase A + B (design unchanged)
+- A1 renewals: coordinators may issue standard renewals (0% or the approved RPI figure). Any other increase needs renewals.approve (aftersales_manager, admin, sales_manager). Coordinators use POST /crm/workspace/renewals/{id}/request-approval, which raises a "renewal_price_approval" task. Every step is recorded in approval_evidence on the renewal contract.
+- A2 activation (crm_aftersales.activate_agreement):
+  - Idempotent: an agreement that is already active returns its contract. An atomic "activating" claim stops two runs at once.
+  - Genuine conflicts (an overlapping active contract, or equipment already covered) return 409 and an Action Centre item. The override needs exceptions.approve plus a review note; a retry after an approved override doesn't ask again.
+  - Missing dates or billing frequency return 409 missing_information and raise an Action Centre item.
+  - Completed/booked visits, posted invoices and Sage references are kept on retry. A partial failure sets activation_attention and can be retried safely.
+  - Finance sync never re-posts once Sage holds a reference.
+- A3 dates: utils/cm_dates.py handles calendar months, month-end anchors, leap years and multi-year terms. A missing start date produces no schedule; it never defaults to today.
+- A4: unique index (organization_id, dedupe_key) on crm2_activities. raise_action is an atomic upsert, and afs_alerts tolerates races.
+- A5: the renewal record stores renewal_accept_link and its communication status (pending approval / awaiting price approval / approved not delivered / delivered / accepted / declined / expired). GET /crm/workspace/renewals, plus resend and declined endpoints. A "renewal_undelivered" task carries Copy link / Resend. CM Renewals shows a "Renewals in progress" card.
+- B sales handover (utils/cm_handover.py):
+  - An accepted crm_quotes sale with equipment confirmed on the customer's register creates ONE "sales_handover" task, assigned to the customer's coordinator (crm2_companies.coordinator_id) or else the shared queue.
+  - Triggers: handover/register, the daily scan, and POST /crm/workspace/sales-handover/{id}.
+  - "Build quote" pre-fills Auto-quote (customer, sites, equipment) and saves source_sales_quote_id. A repeat save returns the existing quote, and the task closes automatically.
+  - Priorities now separate equipment sales (maintenance opportunity) from accepted maintenance quotes (agreement). An agreement can only come from an accepted crm2_afs_quotes quote.
+- PUT /crm/workspace/customers/{id}/coordinator and GET /crm/workspace/coordinators; "Assign…" appears on shared-queue items.
+- MOD: existing prices are now "historical". They stay usable until the first authorised price file is applied (mod_rate_card_meta), after which they are blocked unless verified.
+- Tests: backend/tests/test_cm_phase_ab.py (13). The legacy test_aftersales_phase3 was updated for the conflict review. Frontend: iteration_301 (all issues fixed).
+- NEXT: Phase C — accepted maintenance quote → agreement pre-fill (dates, billing, serials) → signature → activation → service/billing plan, end to end. Phase D — invoice/delivery-note import in Build Quote. Phase E — service-vs-history planner and invoice-run preview.

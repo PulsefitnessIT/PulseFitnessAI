@@ -59,6 +59,18 @@ function Card({ children, c, isDark, className = '', testId }) {
 }
 
 // ───────────────────────────────────────────────────────── Dashboard
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* permission denied → fallback */ }
+  try {
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); document.body.removeChild(ta); return ok;
+  } catch { return false; }
+}
+export const copyAcceptLink = async (link) => {
+  if (await copyText(link)) toast.success('Accept link copied');
+  else toast.info(`Copy this link manually: ${link}`, { duration: 20000 });
+};
+
 function DashboardTab({ API, headers, c, isDark, goTo }) {
   const crmUser = useCRM().user || {};
   const perms = crmUser.crm_permissions || [];
@@ -113,7 +125,7 @@ function DashboardTab({ API, headers, c, isDark, goTo }) {
       toast.success('Submitted for manager approval'); loadAlerts();
     } catch (e) { toast.error(e.response?.data?.detail || 'Could not submit'); }
   };
-  const copyLink = (link) => { navigator.clipboard?.writeText(link); toast.success('Accept link copied'); };
+  const copyLink = (link) => copyAcceptLink(link);
   const resendRenewal = async (a) => {
     setSendingId(a.id);
     try {
@@ -146,7 +158,7 @@ function DashboardTab({ API, headers, c, isDark, goTo }) {
       if (r.data.email_delivered) toast.success(`Renewal sent to ${r.data.to}`);
       else toast.warning(`Renewal approved — email not delivered. Share this link with the customer: ${r.data.accept_link}`, {
         duration: Infinity,
-        action: { label: 'Copy link', onClick: () => navigator.clipboard?.writeText(r.data.accept_link) },
+        action: { label: 'Copy link', onClick: () => copyAcceptLink(r.data.accept_link) },
       });
       loadAlerts();
     } catch (e) {
@@ -872,6 +884,13 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
     axios.get(`${API}/crm/v2/aftersales/revenue/warranty-opportunities?window_days=365`, { headers: headers() })
       .then(r => setWarrantyOpps(r.data.opportunities || [])).catch(() => setWarrantyOpps([]));
   }, [API, headers]);
+  // The list is capped — make sure a prefilled / chosen customer is always selectable.
+  useEffect(() => {
+    if (!companyId || companies.some(co => co.id === companyId)) return;
+    axios.get(`${API}/crm/v2/companies/${companyId}`, { headers: headers() })
+      .then(r => { const co = r.data.company || r.data; if (co?.id) setCompanies(list => (list.some(x => x.id === co.id) ? list : [co, ...list])); })
+      .catch(() => {});
+  }, [companyId, companies]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const buildProposal = useCallback((opp) => {
     setBusy(true);

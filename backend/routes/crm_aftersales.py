@@ -2230,6 +2230,13 @@ async def activate_agreement(agreement_id: str, body: Optional[ActivateIn] = Non
     existing_contract = await db.crm2_contracts.find_one({**of, "source_agreement_id": agreement_id}, {"_id": 0})
     cid = existing_contract["id"] if existing_contract else _id()
     conflicts = await _activation_conflicts(of, ag, cid)
+    prior_override = next((st for st in (ag.get("activation_steps") or [])
+                           if st.get("step") == "duplicate_check" and st.get("status") == "approved_override"), None)
+    if conflicts and existing_contract and prior_override:
+        reviewed = {(x.get("type"), x.get("contract_id") or x.get("equipment_id")) for x in prior_override.get("conflicts") or []}
+        if all((x["type"], x.get("contract_id") or x.get("equipment_id")) in reviewed for x in conflicts):
+            body.conflict_review_note = body.conflict_review_note or prior_override.get("detail") or "previously reviewed"
+            user = {**user, "crm_permissions": list(set((user.get("crm_permissions") or []) + ["exceptions.approve"]))}
     if conflicts:
         if not body.conflict_review_note:
             await db.crm2_afs_agreements.update_one({"id": agreement_id, **of}, {"$set": {

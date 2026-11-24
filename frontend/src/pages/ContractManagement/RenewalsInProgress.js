@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { useCRM } from '@/pages/CRM/CRMApp';
+import { copyAcceptLink } from '@/pages/CRM/Aftersales/AftersalesApp';
 
 const TONE = {
   approved_not_delivered: 'var(--color-danger)', declined: 'var(--color-danger)', expired: 'var(--color-danger)',
@@ -19,7 +20,12 @@ export default function RenewalsInProgress() {
   }, [API, headers]);
   useEffect(() => { load(); }, [load]);
   const act = async (id, path, okMsg) => {
-    try { await axios.post(`${API}/crm/workspace/renewals/${id}/${path}`, {}, { headers: headers() }); toast.success(okMsg); load(); }
+    try {
+      const r = await axios.post(`${API}/crm/workspace/renewals/${id}/${path}`, {}, { headers: headers() });
+      if (path === 'resend' && !r.data.email_delivered) toast.warning('Email still not delivered — copy the link and send it yourself');
+      else toast.success(okMsg);
+      load();
+    }
     catch (e) { toast.error(e.response?.data?.detail || 'Action failed'); }
   };
   if (!rows || rows.length === 0) return null;
@@ -39,12 +45,12 @@ export default function RenewalsInProgress() {
                   {r.renewal_sent_to && <div style={{ color: c.textMuted }}>{r.renewal_sent_to}</div>}</td>
                 <td className="py-2 text-right whitespace-nowrap">
                   {r.renewal_accept_link && ['approved_not_delivered', 'delivered', 'expired'].includes(r.comms_status) && (
-                    <button onClick={() => { navigator.clipboard?.writeText(r.renewal_accept_link); toast.success('Accept link copied'); }}
+                    <button onClick={() => copyAcceptLink(r.renewal_accept_link)}
                       className="px-2 py-1 rounded-md border mr-1" style={{ borderColor: c.border, color: c.text }} data-testid={`cm-renewal-copy-${r.id}`}>Copy link</button>
                   )}
                   {['approved_not_delivered', 'delivered'].includes(r.comms_status) && (
                     <>
-                      <button onClick={() => act(r.id, 'resend', 'Resend attempted')} className="px-2 py-1 rounded-md border mr-1" style={{ borderColor: c.border, color: c.text }} data-testid={`cm-renewal-resend-${r.id}`}>Resend</button>
+                      <button onClick={() => act(r.id, 'resend', 'Renewal email delivered')} className="px-2 py-1 rounded-md border mr-1" style={{ borderColor: c.border, color: c.text }} data-testid={`cm-renewal-resend-${r.id}`}>Resend</button>
                       <button onClick={() => act(r.id, 'declined', 'Marked as declined')} className="px-2 py-1 rounded-md border" style={{ borderColor: c.border, color: c.text }} data-testid={`cm-renewal-declined-${r.id}`}>Declined</button>
                     </>
                   )}
