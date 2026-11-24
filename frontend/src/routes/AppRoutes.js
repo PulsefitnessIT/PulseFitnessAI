@@ -353,6 +353,14 @@ function CrmRouteElement({ user }) {
   // Master admins always have full CRM access.
   if (isMaster) return <CRMApp />;
   const ma = user.module_access || user.moduleAccess || {};
+  // Contract Coordinators / Finance work in Contract Management, not the
+  // sales CRM; users with no CRM workspace at all go home. Checked BEFORE the
+  // account-type trial gate (the operator org itself is pulse_pro).
+  if (user.crm_workspaces && user.crm_workspaces.crm === false) {
+    return user.crm_workspaces.contract_management
+      ? <Navigate to="/contract-management" replace />
+      : <Navigate to={resolveHomePath(user)} replace />;
+  }
   // Lite / Pulse Pro / MOD customers get the trial / upgrade gate — that's
   // their self-serve path to buy CRM.
   if (at === 'pulse_pro' || at === 'lite' || at === 'mod_site' || at === 'mod_branch' || at === 'mod_org') {
@@ -363,13 +371,6 @@ function CrmRouteElement({ user }) {
   // blanket bypass, letting a staffer with CRM revoked still open /crm. Now a
   // missing grant sends them to their resolved home (selector for Pulse Fitness
   // Ltd staff, their granted module for other companies).
-  // Contract Coordinators / Finance work in Contract Management, not the
-  // sales CRM — forward them (keeping an Aftersales deep link's context).
-  if (ma.crm === true && user.crm_workspaces && user.crm_workspaces.crm === false) {
-    return user.crm_workspaces.contract_management
-      ? <Navigate to="/contract-management" replace />
-      : <Navigate to={resolveHomePath(user)} replace />;
-  }
   if (ma.crm === true) return <CRMApp />;
   return <Navigate to={resolveHomePath(user)} replace />;
 }

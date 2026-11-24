@@ -209,7 +209,7 @@ export default function LauncherPage() {
           </div>
           <label className="mb-4 flex items-center gap-2 cursor-pointer select-none w-fit" data-testid="launcher-remember-toggle">
             <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)}
-              className="h-4 w-4 rounded accent-cyan-500" data-testid="launcher-remember-checkbox" />
+              className="h-4 w-4 rounded" style={{ accentColor: 'var(--pulse-primary)' }} data-testid="launcher-remember-checkbox" />
             <span className="text-sm pulse-font-body" style={{ color: 'var(--theme-text-muted)' }}>
               Remember my choice and take me straight there next time
             </span>

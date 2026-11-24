@@ -27,6 +27,8 @@ from utils.database import db
 from routes.crm_auth import get_crm_user
 from routes.crm_core import log_audit
 
+from routes.crm_workspace import require_crm_perm  # noqa: E402
+
 router = APIRouter(prefix="/crm/quotes", tags=["CRM CPQ"])
 
 
@@ -185,7 +187,7 @@ async def get_quote(quote_id: str, user=Depends(get_crm_user)):
 
 
 @router.post("")
-async def create_quote(data: dict, user=Depends(get_crm_user)):
+async def create_quote(data: dict, user=Depends(require_crm_perm("quotes.commercial"))):
     quote_id = str(uuid.uuid4())
     quote_number = f"QT-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{quote_id[:4].upper()}"
 
@@ -256,7 +258,7 @@ async def create_quote(data: dict, user=Depends(get_crm_user)):
 
 
 @router.put("/{quote_id}")
-async def update_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
+async def update_quote(quote_id: str, data: dict, user=Depends(require_crm_perm("quotes.commercial"))):
     existing = await db.crm_quotes.find_one({"id": quote_id})
     if not existing:
         raise HTTPException(status_code=404, detail="Quote not found")
@@ -315,7 +317,7 @@ async def update_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
 
 
 @router.delete("/{quote_id}")
-async def delete_quote(quote_id: str, user=Depends(get_crm_user)):
+async def delete_quote(quote_id: str, user=Depends(require_crm_perm("quotes.commercial"))):
     result = await db.crm_quotes.delete_one({"id": quote_id, **_of(user)})
     if result.deleted_count == 0:
         # Try legacy unscoped row.
@@ -330,7 +332,7 @@ async def delete_quote(quote_id: str, user=Depends(get_crm_user)):
 
 
 @router.post("/{quote_id}/submit-for-approval")
-async def submit_for_approval(quote_id: str, user=Depends(get_crm_user)):
+async def submit_for_approval(quote_id: str, user=Depends(require_crm_perm("quotes.commercial"))):
     quote = await db.crm_quotes.find_one({"id": quote_id, **_of(user)})
     if not quote:
         raise HTTPException(404, "Quote not found")
@@ -348,7 +350,7 @@ async def submit_for_approval(quote_id: str, user=Depends(get_crm_user)):
 
 
 @router.post("/{quote_id}/approve")
-async def approve_quote(quote_id: str, user=Depends(get_crm_user)):
+async def approve_quote(quote_id: str, user=Depends(require_crm_perm("quotes.commercial"))):
     if not _is_admin(user):
         raise HTTPException(403, "Only admins / owners / managers can approve quotes")
     quote = await db.crm_quotes.find_one({"id": quote_id, **_of(user)})
@@ -372,7 +374,7 @@ async def approve_quote(quote_id: str, user=Depends(get_crm_user)):
 
 
 @router.post("/{quote_id}/reject")
-async def reject_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
+async def reject_quote(quote_id: str, data: dict, user=Depends(require_crm_perm("quotes.commercial"))):
     if not _is_admin(user):
         raise HTTPException(403, "Only admins / owners / managers can reject quotes")
     reason = (data.get("reason") or "").strip()
@@ -397,7 +399,7 @@ async def reject_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
 
 
 @router.post("/{quote_id}/duplicate")
-async def duplicate_quote(quote_id: str, user=Depends(get_crm_user)):
+async def duplicate_quote(quote_id: str, user=Depends(require_crm_perm("quotes.commercial"))):
     """Clone a quote as a brand-new standalone draft (no parent link).
     Use for "start a new quote that looks like this one"."""
     src = await db.crm_quotes.find_one({"id": quote_id, **_of(user)}, {"_id": 0})
@@ -432,7 +434,7 @@ async def duplicate_quote(quote_id: str, user=Depends(get_crm_user)):
 
 
 @router.post("/{quote_id}/new-version")
-async def new_version(quote_id: str, user=Depends(get_crm_user)):
+async def new_version(quote_id: str, user=Depends(require_crm_perm("quotes.commercial"))):
     """Create the next version of the same quote (e.g. after
     renegotiation). The previous version's `is_latest_version` flips
     to False. The new version inherits the parent chain (or starts
@@ -501,7 +503,7 @@ async def list_versions(quote_id: str, user=Depends(get_crm_user)):
 
 
 @router.post("/{quote_id}/send")
-async def send_quote(quote_id: str, user=Depends(get_crm_user)):
+async def send_quote(quote_id: str, user=Depends(require_crm_perm("quotes.commercial"))):
     result = await db.crm_quotes.update_one(
         {"id": quote_id, **_of(user)},
         {"$set": {"status": "sent", "updated_at": _now()}},
@@ -528,7 +530,7 @@ async def send_quote(quote_id: str, user=Depends(get_crm_user)):
 
 
 @router.post("/{quote_id}/accept")
-async def accept_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
+async def accept_quote(quote_id: str, data: dict, user=Depends(require_crm_perm("quotes.commercial"))):
     accepted_by = data.get("accepted_by", "")
     result = await db.crm_quotes.update_one(
         {"id": quote_id, **_of(user)},
@@ -557,7 +559,7 @@ async def accept_quote(quote_id: str, data: dict, user=Depends(get_crm_user)):
 
 
 @router.post("/{quote_id}/create-payment-link")
-async def create_payment_link(quote_id: str, user=Depends(get_crm_user)):
+async def create_payment_link(quote_id: str, user=Depends(require_crm_perm("quotes.commercial"))):
     """Create a Stripe payment link for this quote."""
     import os
     quote = await db.crm_quotes.find_one({"id": quote_id, **_of(user)}, {"_id": 0})
@@ -655,7 +657,7 @@ async def get_approval_settings(user=Depends(get_crm_user)):
 
 
 @router.put("/settings/approval")
-async def update_approval_settings(data: dict, user=Depends(get_crm_user)):
+async def update_approval_settings(data: dict, user=Depends(require_crm_perm("pricing.commercial"))):
     if not _is_admin(user):
         raise HTTPException(403, "Only admins / owners / managers can change approval rules")
     pct = float(data.get("min_margin_percent", 0) or 0)

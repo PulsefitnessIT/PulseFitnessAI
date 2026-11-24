@@ -117,8 +117,17 @@ async def set_explicit_role(platform_user: dict, role: Optional[str], actor: str
     operator-company staffer, because CM lives inside CRM's entitlement.
     """
     updates: dict = {"crm_workspace_role": role, "crm_workspace_role_updated_at": _now()}
-    if role in CM_ROLES:
+    overrides = platform_user.get("module_overrides") if isinstance(platform_user.get("module_overrides"), dict) else {}
+    granted_by_ws = bool(platform_user.get("crm_override_from_workspace"))
+    if role in CM_ROLES and overrides.get("crm") is not True:
         updates["module_overrides.crm"] = True
+        updates["crm_override_from_workspace"] = True
+        granted_by_ws = True
+    elif role not in CM_ROLES and granted_by_ws:
+        # Undo a CRM grant that only existed because of a CM role.
+        updates["module_overrides.crm"] = False
+        updates["crm_override_from_workspace"] = False
+        granted_by_ws = False
     await db.users.update_one({"id": platform_user["id"]}, {"$set": updates})
     await db.crm_workspace_role_audit.insert_one({
         "user_id": platform_user["id"], "email": platform_user.get("email"),
@@ -126,10 +135,9 @@ async def set_explicit_role(platform_user: dict, role: Optional[str], actor: str
         "actor": actor, "at": _now(),
     })
     platform_user["crm_workspace_role"] = role
-    if role in CM_ROLES:
-        platform_user.setdefault("module_overrides", {})
-        if isinstance(platform_user["module_overrides"], dict):
-            platform_user["module_overrides"]["crm"] = True
+    platform_user["crm_override_from_workspace"] = granted_by_ws
+    if "module_overrides.crm" in updates:
+        platform_user["module_overrides"] = {**overrides, "crm": updates["module_overrides.crm"]}
 
 
 async def resolve_workspace_role(platform_user: Optional[dict], op_ids: Optional[set] = None) -> str:

@@ -39356,3 +39356,14 @@ Chain: MOD logs fault → BFPO case bridged → Pulse + provider + reporter emai
 - Billing quote auto-fill uses list_price first, includes case parts requests (excluding un-moved next-visit parts).
 - Startup backfill_engineer_reports(): completed jobs/MOD PPM visits without engineer_report get one from notes + timers (backfilled=true).
 - Open: price-list re-import overwrites manual prices incl. zeros; engineer allocation rows/van stock still show prices.
+
+## Jun 2026 — Contract Management workspace (Stage 1: workspace + access)
+- New "Contract Management" area (/contract-management) on the launcher and in the Switch area menu. It is CRMApp with workspace="contract_management": same CRM provider, login and records.
+- Sections: Action Centre, Customers, Build Quote, Contracts, Renewals, Service, Finance, Reports, Settings. All reuse existing Aftersales/CRM components. ?tab=&sub= stays in the URL, so a refresh keeps the section.
+- Workspace roles (utils/crm_workspace.py): contract_coordinator, sales_manager, aftersales_manager, finance, admin. Non-operator tenants get crm_user, which keeps their CRM unchanged.
+- How a role is resolved: platform admin, then an explicit users.crm_workspace_role (set by an admin), then a one-time grant (claire.johnson@, becky.hassell@, mandy.gosnell@), then the real platform role (owner → admin, otherwise sales_manager).
+- Cross-login no longer provisions a blanket "manager"; on boot, existing rows are reconciled to the platform role.
+- Backend gates with require_crm_perm: Aftersales tariffs, quotes, agreements, finance sync, RPI; onboarding; MOD quote (operator gate kept); CPQ writes (quotes.commercial); price list (pricing.commercial).
+- Admin UI: CM Settings → Workspace roles, with an audit trail in crm_workspace_role_audit.
+- Architecture matrix: /app/memory/CONTRACT_MANAGEMENT_ARCHITECTURE.md. Tests: backend/tests/test_contract_management_workspace.py and test_cm_workspace_extended.py (29 pass). iteration_299 found 3 bugs, all fixed.
+- NEXT: Stage 2 (consolidation) — Sicon/Sage simulated references → Pending/Failed states; estate-onboarding reconciliation; flag MOD placeholder rates; canonical-ID matching. Then Stage 3: sales → coordinator handover. Then Stage 4: Action Centre lifecycle, renewal dry-run and approval.

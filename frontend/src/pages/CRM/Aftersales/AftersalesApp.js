@@ -107,13 +107,13 @@ function DashboardTab({ API, headers, c, isDark }) {
     { k: 'quotes_to_prepare', label: 'Quotes to Prepare', icon: FileSignature, color: 'var(--color-accent-amber)' },
     { k: 'quotes_awaiting_approval', label: 'Quotes Awaiting Approval', icon: Clock, color: 'var(--color-warning)' },
     { k: 'quotes_with_customer', label: 'Quotes With Customer', icon: TrendingUp, color: 'var(--color-info-ios)' },
-    { k: 'agreements_awaiting_signature', label: 'Agreements Awaiting Signature', icon: FileSignature, color: 'var(--color-accent-purple)' },
+    { k: 'agreements_awaiting_signature', label: 'Agreements Awaiting Signature', icon: FileSignature, color: 'var(--color-brand-blue)' },
     { k: 'contracts_ready_to_activate', label: 'Ready to Activate', icon: Check, color: 'var(--color-success-alt)' },
     { k: 'rpi_reviews_due', label: 'RPI Reviews Due', icon: TrendingUp, color: 'var(--color-accent-amber)' },
     { k: 'supportability_reviews', label: 'Supportability Reviews', icon: ShieldCheck, color: 'var(--color-warning)' },
     { k: 'wording_conflicts', label: 'Wording Conflicts', icon: AlertTriangle, color: 'var(--color-danger)' },
   ];
-  const levelColor = { HIGH: 'var(--color-danger)', ACTION: 'var(--color-info-ios)', REVIEW: 'var(--color-accent-amber)', RPI: 'var(--color-accent-purple)' };
+  const levelColor = { HIGH: 'var(--color-danger)', ACTION: 'var(--color-info-ios)', REVIEW: 'var(--color-accent-amber)', RPI: 'var(--color-brand-blue)' };
   return (
     <div data-testid="afs-dashboard">
       <div className="flex items-center justify-between mb-4">
@@ -814,7 +814,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
   };
 
   const confColor = { READY_FOR_REVIEW: 'var(--color-success-alt)', REVIEW_REQUIRED: 'var(--color-accent-amber)', CANNOT_AUTO_QUOTE: 'var(--color-danger)' };
-  const exColor = { RRP_REQUIRED: 'var(--color-danger)', SUPPORTABILITY: 'var(--color-accent-purple)', NOT_ELIGIBLE: 'var(--color-danger)', NOT_MATCHED: 'var(--color-text-faint-alt)', PROVISIONAL: 'var(--color-accent-amber)' };
+  const exColor = { RRP_REQUIRED: 'var(--color-danger)', SUPPORTABILITY: 'var(--color-brand-blue)', NOT_ELIGIBLE: 'var(--color-danger)', NOT_MATCHED: 'var(--color-text-faint-alt)', PROVISIONAL: 'var(--color-accent-amber)' };
 
   return (
     <div data-testid="afs-autoquote">
@@ -836,7 +836,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
                   <span style={{ color: 'var(--color-accent-amber)' }}>{o.supportability.review} review</span>
                 </div>
                 <button data-testid={`afs-warranty-build-${o.company_id}`} onClick={() => buildProposal(o)} disabled={busy}
-                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-bold" style={{ background: 'var(--color-accent-amber)', color: 'var(--color-ink)' }}>
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-bold" style={{ background: 'var(--pulse-primary)', color: 'var(--color-ink)' }}>
                   <Rocket size={13} /> Build Maintenance Proposal
                 </button>
               </Card>
@@ -892,7 +892,7 @@ function AutoQuoteTab({ API, headers, c, isDark, editQuote, setEditQuote }) {
             </div>
             {editQuoteId && (
               <div className="mb-3 flex items-center gap-2 text-xs px-3 py-2 rounded-lg" data-testid="afs-aq-editing-banner"
-                style={{ background: 'var(--color-accent-purple)22', color: 'var(--color-accent-purple)' }}>
+                style={{ background: 'var(--color-brand-blue)22', color: 'var(--color-brand-blue)' }}>
                 <PenLine size={13} /> Editing saved quote — saving will overwrite it (same quote number).
                 <button data-testid="afs-aq-edit-cancel" onClick={() => { setEditQuoteId(''); setCustomData(null); setCustomResult(null); setExcluded({}); }}
                   className="ml-auto underline">Start a new quote instead</button>
@@ -1355,7 +1355,7 @@ const AG_STATUS = {
   draft: { label: 'Draft', color: 'var(--color-text-faint-alt)' },
   ready: { label: 'Ready', color: 'var(--color-info-ios)' },
   sent: { label: 'Sent', color: 'var(--color-info-ios)' },
-  signed: { label: 'Signed', color: 'var(--color-accent-purple)' },
+  signed: { label: 'Signed', color: 'var(--color-brand-blue)' },
   active: { label: 'Active', color: 'var(--color-success-alt)' },
   activation_attention: { label: 'Activation Attention', color: 'var(--color-danger)' },
 };
@@ -1594,7 +1594,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
             <label className="text-xs flex items-center gap-2 mb-2" style={{ color: c.textDim }}>
               <input data-testid="afs-sign-authority" type="checkbox" checked={sign.authority_confirmed} onChange={e => setSign(x => ({ ...x, authority_confirmed: e.target.checked }))} />
               I confirm I have authority to sign this agreement on behalf of the customer.</label>
-            <button data-testid="afs-sign-submit" onClick={doSign} disabled={busy || !sign.signatory_name || !sign.authority_confirmed} className="text-sm px-4 py-2 rounded-md font-semibold disabled:opacity-40" style={{ background: 'var(--color-accent-purple)', color: '#fff' }}>Sign agreement</button>
+            <button data-testid="afs-sign-submit" onClick={doSign} disabled={busy || !sign.signatory_name || !sign.authority_confirmed} className="text-sm px-4 py-2 rounded-md font-semibold disabled:opacity-40" style={{ background: 'var(--color-brand-blue)', color: '#fff' }}>Sign agreement</button>
           </Card>
         )}
 
@@ -1612,7 +1612,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
         {/* Action bar */}
         <div className="flex flex-wrap gap-2">
           {ag.status === 'draft' && <button data-testid="afs-ag-generate" onClick={generate} disabled={busy || !health.ready} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold disabled:opacity-40" style={{ background: 'var(--color-info-ios)', color: '#fff' }}><FileCheck2 size={16} /> Generate Agreement</button>}
-          {(ag.status === 'ready' || ag.status === 'sent') && <button data-testid="afs-ag-open-sign" onClick={() => setShowSign(true)} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-accent-purple)', color: '#fff' }}><PenLine size={16} /> Review & Sign</button>}
+          {(ag.status === 'ready' || ag.status === 'sent') && <button data-testid="afs-ag-open-sign" onClick={() => setShowSign(true)} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-brand-blue)', color: '#fff' }}><PenLine size={16} /> Review & Sign</button>}
           {ag.status === 'signed' && <button data-testid="afs-ag-activate" onClick={activate} disabled={busy} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'var(--color-success-alt)', color: '#fff' }}><Rocket size={16} /> Activate Contract</button>}
         </div>
 
@@ -1633,7 +1633,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
     sent: { label: 'Sent to customer', color: 'var(--color-info-ios)' },
     accepted: { label: 'Accepted', color: 'var(--color-success-alt)' },
     declined: { label: 'Declined', color: 'var(--color-danger-alt, #EF4444)' },
-    agreement: { label: 'Agreement prepared', color: 'var(--color-accent-purple)' },
+    agreement: { label: 'Agreement prepared', color: 'var(--color-brand-blue)' },
   };
   return (
     <div data-testid="afs-agreements">
@@ -1802,7 +1802,7 @@ function AgreementsTab({ API, headers, c, isDark, setEditQuote, goTo }) {
                       <Eye size={13} /> View
                     </button>
                     <button data-testid={`afs-history-revert-${v.version}`} onClick={() => revertVersion(v.version)} disabled={verBusy}
-                      className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md disabled:opacity-40" style={{ background: 'var(--color-accent-purple)', color: '#fff' }}>
+                      className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md disabled:opacity-40" style={{ background: 'var(--color-brand-blue)', color: '#fff' }}>
                       <RotateCw size={13} /> Revert
                     </button>
                   </div>

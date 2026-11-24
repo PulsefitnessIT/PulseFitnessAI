@@ -1,0 +1,1 @@
+Login on /login: input[type=email]/first text input, input[type=password], button "Sign In"

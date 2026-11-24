@@ -1,0 +1,41 @@
+{
+  "summary": "Contract Management workspace (Stage 1) tested end-to-end. Backend: existing 17-test suite passes against the public URL, plus 10 new tests (login payload flags, shared companies records, /workspace/me, admin role assign round-trip + audit, invalid role 400, unknown user 404, coordinator cannot assign 403); 27/27 pass. Frontend: coordinator launcher (CM tile only, no CRM tile), remember-choice + re-login forward, /launch?choose=1, all 9 CM sections render with no errors, ?tab= URL sync, reload persistence, direct links, Settings (prefs only for coordinator), Switch area entries per role, Sales/NoCRM/Aftersales/Finance/Admin visibility, admin role change UI with toast + revert, no horizontal scroll at 1920/1366. ONE CRITICAL BUG: Contract Coordinator (and Finance) visiting /crm is NOT redirected; they get the full sales CRM.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/crm/quotes (CRMCPQ create_quote)", "issue": "Not gated by 'quotes.commercial'. Coordinator and Finance both got 200 and created commercial quotes. quotes.commercial is defined in ROLE_PERMISSIONS but never enforced (only pricing.commercial is checked, in crm_price_list.py). The test quotes I created were deleted (404 confirmed)."},
+      {"endpoint": "PUT /api/crm/workspace/roles/{id} (set_explicit_role)", "issue": "Giving someone a CM role sets module_overrides.crm=True, but setting them back to 'Match platform role' or sales_manager does not undo it. A no-CRM staffer who is briefly made coordinator keeps CRM access for good."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "routes/AppRoutes.js CrmRouteElement", "issue": "A coordinator or finance user who opens /crm gets the full sales CRM (crm-workspace renders, URL stays /crm) instead of being sent to /contract-management. Root cause: the operator org 'Pulse Fitness Ltd' has account_type='pulse_pro' in the DB. The branch for pulse_pro/lite/mod_* (line ~358) returns <ModuleAccessGate><CRMApp/></ModuleAccessGate> before the crm_workspaces.crm===false check (line ~368) ever runs. Fix: move the crm_workspaces check above the account_type branch. The same ordering is why cm.noaccess sees the 'Try CRM free' trial gate on /crm instead of being sent home.", "selector": "[data-testid='crm-workspace']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Contract Management nav bar", "issues": ["At 1920 and 1366 the 9 pills overflow the max-width container. 'Settings' (and later 'Reports') sit off-screen behind the chevron, so the coordinator cannot see them without scrolling the pill bar. Consider shorter labels, a smaller gap, or wrapping."]},
+      {"screen": "Action Centre / Build Quote (existing aftersales components reused)", "issues": ["Purple icon on 'Agreements awaiting signature' and solid orange 'Build Maintenance Proposal' CTAs are not brand colours (the orange is used as a CTA, not as a status). These are existing components, not new CM code."]},
+      {"screen": "LauncherPage", "issues": ["The remember checkbox uses Tailwind accent-cyan-500 (#06b6d4) rather than the brand var --color-brand-cyan (minor)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_contract_management_workspace.py", "/app/backend/tests/test_cm_workspace_extended.py", "/app/test_reports/pytest/cm_workspace_ext.xml"],
+  "action_items": [
+    "HIGH: In CrmRouteElement, check user.crm_workspaces.crm===false (redirect to /contract-management or home) BEFORE the pulse_pro/lite/mod account_type branch. The operator org is pulse_pro, so the redirect never runs for coordinators or finance.",
+    "MEDIUM: Enforce 'quotes.commercial' on CRMCPQ write endpoints (POST/PUT /api/crm/quotes...) so coordinator and finance cannot create commercial quotes.",
+    "LOW: When a CM role is removed, revert the module_overrides.crm=True that was added for it (store the previous value).",
+    "LOW: Make the CM nav pills fit at 1366/1920, or make the overflow easier to see."
+  ],
+  "critical_code_review_comments": [
+    "AppRoutes CrmRouteElement: the workspace guard is ordered after the account_type early return (root cause of the HIGH bug).",
+    "ROLE_PERMISSIONS defines quotes.commercial, reports.management, billing.reconcile, exceptions.approve and integrations.admin, but none of them is enforced in any route. Only the gates listed in the brief exist.",
+    "The Finance deep link /contract-management?tab=build-quote correctly shows 'Your workspace role doesn't include this section.', but no nav pill is highlighted. Consider redirecting to the default section instead.",
+    "The workspace roles list includes leftover regress_*/testonb5_* @example.com users in the operator org. They resolve to Administrator (platform role admin), which adds noise for the real admin."
+  ],
+  "updated_files": ["/app/backend/tests/test_cm_workspace_extended.py"],
+  "success_rate": {"backend": "100% (27/27; 2 unenforced-permission gaps found outside the stated gates)", "frontend": "~92% (1 HIGH routing bug: coordinator/finance not redirected from /crm)"},
+  "seed_data_creation": "None. 3 CPQ quotes created while probing the gate were deleted by id (GET 404 confirmed). cm-test-sales role was changed and reverted to null (Match platform role); DB verified.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login form on /login uses data-testids gx-login-email / gx-login-password / gx-login-submit (not staff-login-*). Clear the rate limit with `python tests/_clear_login_ratelimit.py` before each browser login run. In the preview DB the operator org has account_type pulse_pro. The sales manager's CRM shows Members/leisure mode (the org only has leisure enabled), so the Quotes tab is hidden. This is existing behaviour, not a regression, and is why the CRMCPQ Quotes tab could not be UI-tested. The ModuleSwitcher pill bar rendered nothing for any cm.* user. Retest: coordinator/finance /crm should redirect to /contract-management; noaccess /crm should go to home.",
+  "rca of the issue": "Repro: log in as cm.coordinator@pulsefitness.test, open /crm; the CRM workspace renders. Cause: /api/auth/me returns account_type='pulse_pro', module_access.crm=true and crm_workspaces.crm=false. CrmRouteElement returns early in the pulse_pro branch, so the crm_workspaces guard never runs. Fix: move the guard above that branch."
+}

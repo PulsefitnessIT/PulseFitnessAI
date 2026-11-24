@@ -72,6 +72,7 @@ GATES = [
     ("POST", "/crm/mod-quote/ai-match", {"sales", "asm", "admin"}),
     ("PUT", "/crm/mod-quote/rate-card/none", {"admin"}),
     ("GET", "/crm/workspace/roles", {"admin"}),
+    ("POST", "/crm/quotes/none/send", {"sales", "asm", "admin"}),
 ]
 
 
@@ -109,3 +110,11 @@ def test_coordinator_cannot_assign_roles():
     r = requests.put(f"{API}/crm/workspace/roles/cm-test-sales",
                      headers={"Authorization": f"Bearer {_crm('coord')}"}, json={"role": "admin"})
     assert r.status_code == 403
+
+
+def test_cm_role_crm_grant_is_reverted():
+    h = {"Authorization": f"Bearer {_crm('admin')}"}
+    assert requests.put(f"{API}/crm/workspace/roles/cm-test-none", headers=h, json={"role": "contract_coordinator"}).status_code == 200
+    assert _me("none")["crm_workspaces"]["contract_management"] is True
+    assert requests.put(f"{API}/crm/workspace/roles/cm-test-none", headers=h, json={"role": None}).status_code == 200
+    assert _me("none")["crm_workspaces"] == {"crm": False, "contract_management": False}

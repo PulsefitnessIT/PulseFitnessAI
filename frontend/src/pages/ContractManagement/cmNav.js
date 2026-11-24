@@ -8,10 +8,10 @@ export const CM_NAV_ITEMS = [
   { id: 'action-centre', label: 'Action Centre', icon: ListChecks, perm: 'workspace.contract_management' },
   { id: 'customers', label: 'Customers', icon: Building2, perm: 'contracts.read' },
   { id: 'build-quote', label: 'Build Quote', icon: Zap, perm: 'quotes.maintenance' },
-  { id: 'contracts', label: 'Contracts & Agreements', icon: Shield, perm: 'contracts.read' },
+  { id: 'contracts', label: 'Contracts', icon: Shield, perm: 'contracts.read' },
   { id: 'renewals', label: 'Renewals', icon: RefreshCw, perm: 'renewals.review' },
-  { id: 'service-planner', label: 'Service Planner', icon: CalendarClock, perm: 'service.read' },
-  { id: 'finance', label: 'Finance & Invoices', icon: Receipt, perm: 'billing.prepare' },
+  { id: 'service-planner', label: 'Service', icon: CalendarClock, perm: 'service.read' },
+  { id: 'finance', label: 'Finance', icon: Receipt, perm: 'billing.prepare' },
   { id: 'reports', label: 'Reports', icon: BarChart3, perm: 'workspace.contract_management' },
   { id: 'settings', label: 'Settings', icon: Settings, perm: 'workspace.contract_management' },
 ];
